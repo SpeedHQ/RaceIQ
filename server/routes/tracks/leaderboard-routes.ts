@@ -19,10 +19,7 @@ export const trackLeaderboardRoutes = new Hono()
       if (!gameId) {
         return c.json({ error: "gameId query parameter is required" }, 400);
       }
-      const trackKey = gameId === "lmu" ? rawTrackKey : Number(rawTrackKey);
-      if (gameId !== "lmu" && !Number.isInteger(trackKey)) {
-        return c.json({ error: "trackOrdinal must be an integer" }, 400);
-      }
+      const trackKey = rawTrackKey;
       const trackLaps = await getLapSummariesByTrack(trackKey, gameId);
 
       // Derive class letter from PI value
@@ -44,11 +41,12 @@ export const trackLeaderboardRoutes = new Hono()
           lapId: lap.lapId,
           lapNumber: lap.lapNumber,
           lapTime: lap.lapTime,
-          carOrdinal: lap.carOrdinal,
-          carId: lap.carId ?? lap.carOrdinal,
+          carId: lap.carId ?? "",
           carName: lap.gameId === "lmu"
             ? getLMUCar(lap.carId ?? "")?.name ?? lap.carId ?? "Unknown car"
-            : (tryGetServerGame(lap.gameId)?.getCarName(lap.carOrdinal) ?? resolveCarName(lap.carOrdinal, lap.gameId)),
+            : lap.gameId === "acc" || lap.gameId === "ac-evo"
+              ? lap.carId ?? ""
+              : (tryGetServerGame(lap.gameId)?.getCarName(/^\d+$/.test(lap.carId ?? "") ? Number(lap.carId) : -1) ?? resolveCarName(/^\d+$/.test(lap.carId ?? "") ? Number(lap.carId) : -1, lap.gameId)),
           carClass: piClass(pi),
           pi,
           createdAt: lap.createdAt,
@@ -81,10 +79,7 @@ export const trackLeaderboardRoutes = new Hono()
     async (c) => {
       const rawTrackKey = decodeTrackKey(c.req.valid("param").trackOrdinal);
       const gameId = c.req.query("gameId") as GameId | undefined;
-      const trackKey = gameId === "lmu" ? rawTrackKey : Number(rawTrackKey);
-      if (gameId !== "lmu" && !Number.isInteger(trackKey)) {
-        return c.json({ error: "trackOrdinal must be an integer" }, 400);
-      }
+      const trackKey = rawTrackKey;
       const trackLaps = await getLapSummariesByTrack(trackKey, gameId);
 
       const piClass = (pi: number): string => {
@@ -105,11 +100,12 @@ export const trackLeaderboardRoutes = new Hono()
           lapId: lap.lapId,
           lapNumber: lap.lapNumber,
           lapTime: lap.lapTime,
-          carOrdinal: lap.carOrdinal,
-          carId: lap.carId ?? lap.carOrdinal,
+          carId: lap.carId ?? "",
           carName: lap.gameId === "lmu"
             ? getLMUCar(lap.carId ?? "")?.name ?? lap.carId ?? "Unknown car"
-            : (tryGetServerGame(lap.gameId)?.getCarName(lap.carOrdinal) ?? resolveCarName(lap.carOrdinal, lap.gameId)),
+            : lap.gameId === "acc" || lap.gameId === "ac-evo"
+              ? lap.carId ?? ""
+              : (tryGetServerGame(lap.gameId)?.getCarName(/^\d+$/.test(lap.carId ?? "") ? Number(lap.carId) : -1) ?? resolveCarName(/^\d+$/.test(lap.carId ?? "") ? Number(lap.carId) : -1, lap.gameId)),
           carClass: piClass(pi),
           pi,
           createdAt: lap.createdAt,
@@ -117,7 +113,7 @@ export const trackLeaderboardRoutes = new Hono()
           sectorTimes: lap.sectorTimes,
           isValid: lap.isValid,
           invalidReason: lap.invalidReason,
-          division: fmCarSpecsCatalog.get(lap.carOrdinal)?.division ?? null,
+          division: lap.gameId === "fm-2023" && /^\d+$/.test(lap.carId ?? "") ? fmCarSpecsCatalog.get(Number(lap.carId))?.division ?? null : null,
           notes: lap.notes,
         };
       });

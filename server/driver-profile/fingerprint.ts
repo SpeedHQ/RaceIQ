@@ -26,8 +26,8 @@ type ProfileScopeKind = "car-track" | "global";
 export interface ProfileScope {
   kind: ProfileScopeKind;
   gameId: GameId;
-  carOrdinal: number | null;
-  trackOrdinal: number | null;
+  carId: string | null;
+  trackId: string | null;
 }
 
 export interface LapPoolReport {

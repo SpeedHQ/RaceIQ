@@ -30,8 +30,8 @@ describe("committed iRacing recorder fixture", () => {
     expect(roadAmericaRecording.rawPackets).toHaveLength(138);
     expect(roadAmericaRecording.sessions).toEqual([
       {
-        carOrdinal: 42,
-        trackOrdinal: 99,
+        carId: "42",
+        trackId: "99",
         gameId: "iracing",
       },
     ]);
@@ -90,8 +90,8 @@ describe("committed iRacing seed fixture", () => {
     expect(recording.rawPackets).toHaveLength(6_357);
     expect(recording.sessions).toEqual([
       {
-        carOrdinal: 206,
-        trackOrdinal: 192,
+        carId: "206",
+        trackId: "192",
         gameId: "iracing",
       },
     ]);

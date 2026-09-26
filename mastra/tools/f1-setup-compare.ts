@@ -97,9 +97,9 @@ export const compareF1SetupToCatalogTool = createTool({
       return emptyResult(lapId, "lap has no carSetup column and no f1.setup on telemetry packets");
     }
 
-    const trackOrdinal = lap.trackOrdinal;
-    if (trackOrdinal === undefined || trackOrdinal === null) {
-      return emptyResult(lapId, "lap has no trackOrdinal");
+    const trackOrdinal = lap.trackId != null && /^\d+$/.test(lap.trackId) ? Number(lap.trackId) : null;
+    if (trackOrdinal === null) {
+      return emptyResult(lapId, "lap has no numeric track identity");
     }
 
     const folder = getCatalogFolderForTrack(trackOrdinal);

@@ -20,7 +20,7 @@ const TRACK_ORDINAL = 434343;
 async function insertSession(rawFile: string | null): Promise<number> {
   const row = await db
     .insert(sessions)
-    .values({ carOrdinal: 1, trackOrdinal: TRACK_ORDINAL, gameId: "fm-2023", rawFile })
+    .values({ carId: "1", trackId: String(TRACK_ORDINAL), gameId: "fm-2023", rawFile })
     .returning({ id: sessions.id })
     .get();
   return row!.id;

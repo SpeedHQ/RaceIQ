@@ -55,16 +55,16 @@ function captureSource(session: {
   rawFile: string | null;
   source: string | null;
   gameId: string;
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: string | null;
+  trackId: string | null;
 }): SessionCaptureSource {
   if (!session.rawFile) throw new Error("Session has no capture");
   return {
     rawFile: session.rawFile,
     source: session.source,
     gameId: session.gameId as GameId,
-    carOrdinal: session.carOrdinal,
-    trackOrdinal: session.trackOrdinal,
+    carId: session.carId ?? "",
+    trackId: session.trackId ?? "",
   };
 }
 
@@ -188,7 +188,11 @@ describe("lap export → import round-trip (real capture)", () => {
   test("mixed BIN and MoTeC selection keeps BIN sliced and MoTeC whole-session", async () => {
     const { rows: binRows } = await seedSession({ minimumLaps: 1 });
     const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
-    const motecImport = await importMotec(buildLd(spec), Buffer.from(buildLdx(beacons)), { gameId: "ac-evo" });
+    const motecImport = await importMotec(buildLd(spec), Buffer.from(buildLdx(beacons)), {
+      gameId: "ac-evo",
+      carId: "Porsche 992 GT3 R Rennsport",
+      trackId: JSON.stringify(["test-track", "test-configuration"]),
+    });
     const motecSessionId = motecImport.laps[0]!.sessionId;
     createdSessions.push(motecSessionId);
     const motecSession = await db.select().from(sessions).where(eq(sessions.id, motecSessionId)).get();
@@ -304,7 +308,10 @@ describe("lap export → import round-trip (real capture)", () => {
         importedLap.rawFrameCount!,
       );
       expect(importedPackets).toEqual(sourcePackets);
-      expect((await queryLapTelemetryBySemanticId(importedLap.id, ["motion.speed"]))?.envelopes.length).toBeGreaterThan(0);
+      const semanticReplay = await queryLapTelemetryBySemanticId(importedLap.id, ["motion.speed"], {
+        rawCaptureRequirement: "native-values",
+      });
+      expect(semanticReplay?.envelopes.length).toBeGreaterThan(0);
     }
 
     const batchMetas = importedRows.map((lap) => ({

@@ -10,7 +10,7 @@ export interface SetupTuneData {
   gameId: GameId;
   name: string;
   author: string;
-  carOrdinal: number;
+  carId: string;
   category: string;
   description: string;
   settings: Record<string, unknown>;
@@ -55,7 +55,6 @@ type Mode = "form" | "json";
  *  `settings` object, so switching modes is lossless. */
 export function SetupTuneForm({
   gameId,
-  cars,
   initialData,
   onSubmit,
   onCancel,
@@ -63,7 +62,6 @@ export function SetupTuneForm({
   isSubmitting,
 }: {
   gameId: GameId;
-  cars: { ordinal: number; name: string }[];
   initialData?: Partial<SetupTuneData>;
   onSubmit: (data: SetupTuneData) => void;
   onCancel: () => void;
@@ -76,7 +74,7 @@ export function SetupTuneForm({
 
   const [name, setName] = useState(initialData?.name ?? "");
   const [author, setAuthor] = useState(initialData?.author ?? m.setup_tune_default_author());
-  const [carOrdinal, setCarOrdinal] = useState<number>(initialData?.carOrdinal ?? cars[0]?.ordinal ?? 0);
+  const [carId, setCarId] = useState(initialData?.carId ?? "");
   const [category, setCategory] = useState(initialData?.category ?? defaultCategory);
   const [description, setDescription] = useState(initialData?.description ?? "");
 
@@ -92,14 +90,14 @@ export function SetupTuneForm({
     if (!initialData) return;
     setName(initialData.name ?? "");
     setAuthor(initialData.author ?? m.setup_tune_default_author());
-    setCarOrdinal(initialData.carOrdinal ?? cars[0]?.ordinal ?? 0);
+    setCarId(initialData.carId ?? "");
     setCategory(initialData.category ?? defaultCategory);
     setDescription(initialData.description ?? "");
     const next = (initialData.settings as Record<string, unknown>) ?? {};
     setSettings(next);
     setJsonText(initialData.settings ? JSON.stringify(initialData.settings, null, 2) : "{}");
     setJsonError("");
-  }, [initialData, cars, defaultCategory]);
+  }, [initialData, defaultCategory]);
 
   // Detect which tunable sections are populated — from whichever source is
   // currently authoritative (live settings in form mode, parsed JSON in JSON
@@ -166,7 +164,7 @@ export function SetupTuneForm({
       }
     }
     setJsonError("");
-    onSubmit({ gameId, name, author, carOrdinal, category, description, settings: finalSettings });
+    onSubmit({ gameId, name, author, carId, category, description, settings: finalSettings });
   };
 
   const gameLabel = gameId === "acc" ? "ACC" : "AC EVO";
@@ -230,17 +228,13 @@ export function SetupTuneForm({
 
         <label className="space-y-1">
           <span className="text-xs font-medium text-app-text-muted">{m.label_car()}</span>
-          <select
-            value={carOrdinal}
-            onChange={(e) => setCarOrdinal(Number(e.target.value))}
+          <input
+            value={carId}
+            onChange={(e) => setCarId(e.target.value)}
+            placeholder="Exact native car identity"
+            required
             className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
-          >
-            {cars.map((c) => (
-              <option key={c.ordinal} value={c.ordinal}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          />
         </label>
 
         <label className="space-y-1">

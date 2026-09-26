@@ -57,9 +57,8 @@ class AcEvoParsingProcessor implements TripletProcessor {
     try {
       const packet = parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, this.cache);
       if (packet) {
-        // -1 sentinel = unresolved. Never default to 0: ordinal 0 is a real
-        // car/track (Ferrari SF90 Stradale / Monza GP).
-        const sourceFrame = packTriplet(ACEVO_PACKED_MAGIC, packet.CarOrdinal, packet.TrackOrdinal ?? -1, triplet.physics, triplet.graphics, triplet.staticData);
+        // Packed numeric header slots are legacy framing, not AC Evo identity.
+        const sourceFrame = packTriplet(ACEVO_PACKED_MAGIC, -1, -1, triplet.physics, triplet.graphics, triplet.staticData);
         await processPacket(packet, sourceFrame);
       }
     } catch (err) {

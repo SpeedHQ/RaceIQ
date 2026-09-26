@@ -10,13 +10,13 @@ import { getCategoriesForGame } from "./SetupTuneForm";
  *  The server walks the game's Setups directory (/<car>/<track>/<name>.json)
  *  and returns the list; the user picks one, associates it with a known car
  *  ordinal, and the server reads + stores the JSON as a tune. */
-export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars }: { gameId: "acc" | "ac-evo"; routePrefix: string; gameLabel: string; cars: { ordinal: number; name: string }[] }) {
+export function ImportSetupFile({ gameId, routePrefix, gameLabel }: { gameId: "acc" | "ac-evo"; routePrefix: string; gameLabel: string }) {
   const navigate = useNavigate();
   const { data, isLoading } = useSetupFiles(gameId);
   const importMut = useImportTuneFile();
 
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  const [carOrdinal, setCarOrdinal] = useState<number>(cars[0]?.ordinal ?? 0);
+  const carId = data?.files.find((file) => file.absolutePath === selectedPath)?.carModel ?? "";
   const [name, setName] = useState("");
   const [author, setAuthor] = useState("Me");
   const [carFilter, setCarFilter] = useState("");
@@ -49,7 +49,7 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars }: { game
         .pop()
         ?.replace(/\.json$/i, "") ||
       m.setup_tune_imported_fallback();
-    importMut.mutate({ gameId, filePath: selectedPath, name: finalName, author, carOrdinal, category }, { onSuccess: () => navigate({ to: `${routePrefix}/setups` }) });
+    importMut.mutate({ gameId, filePath: selectedPath, name: finalName, author, carId, category }, { onSuccess: () => navigate({ to: `${routePrefix}/setups` }) });
   };
 
   return (
@@ -127,20 +127,7 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars }: { game
                   <span className="text-xs font-medium text-app-text-muted">{m.label_author()}</span>
                   <AppInput type="text" value={author} onChange={(e) => setAuthor(e.target.value)} className="w-full" />
                 </label>
-                <label className="space-y-1 block">
-                  <span className="text-xs font-medium text-app-text-muted">{m.label_car()}</span>
-                  <select
-                    value={carOrdinal}
-                    onChange={(e) => setCarOrdinal(Number(e.target.value))}
-                    className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
-                  >
-                    {cars.map((c) => (
-                      <option key={c.ordinal} value={c.ordinal}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div className="text-app-compact text-app-text-secondary">{carId}</div>
                 <label className="space-y-1 block">
                   <span className="text-xs font-medium text-app-text-muted">{m.label_category()}</span>
                   <select

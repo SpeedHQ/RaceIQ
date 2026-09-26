@@ -34,7 +34,7 @@ function trend(over: Partial<DriverTrend> = {}): DriverTrend {
 }
 
 function fingerprint(over: Partial<DriverFingerprint> = {}): DriverFingerprint {
-  const base = emptyFingerprint({ kind: "global", gameId: "fm-2023", carOrdinal: null, trackOrdinal: null }, {}, [], trend());
+  const base = emptyFingerprint({ kind: "global", gameId: "fm-2023", carId: null, trackId: null }, {}, [], trend());
   return { ...base, ok: true, trend: trend(), ...over };
 }
 

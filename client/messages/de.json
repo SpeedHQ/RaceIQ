@@ -2151,7 +2151,7 @@
   "analyse_motec_archive_extraction_failed": "Archiv konnte nicht entpackt werden.",
   "analyse_car_label": "Auto",
   "analyse_track_label": "Strecke",
-  "analyse_import_catalog_explanation": "Die Strecken- und Fahrzeugbezeichnungen in MoTeC sind Freitext und werden von der Person festgelegt, die den Exporter konfiguriert hat. Du musst Auto und Strecke daher selbst zuordnen — wird ein Log der falschen Strecke zugeordnet, sind Sektoren und Kurvennamen bedeutungslos.",
+  "analyse_import_catalog_explanation": "Gib die exakten nativen Fahrzeug- und Streckenkennungen ein. Bei AC Evo muss die Strecke als JSON-Paar aus exaktem Streckennamen und Konfiguration angegeben werden. Der MoTeC-Streckenname allein bestimmt die Konfiguration nicht.",
   "dataguide_desc_speed": "Aktuelle Fahrzeuggeschwindigkeit in der ausgewählten Einheit.",
   "dataguide_desc_rpm": "Motordrehzahl in Umdrehungen pro Minute.",
   "dataguide_desc_gear": "Aktueller Gang (0 = Rückwärtsgang, 1–n = Vorwärtsgänge).",

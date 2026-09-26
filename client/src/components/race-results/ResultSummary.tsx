@@ -133,17 +133,17 @@ export interface RaceResultSummaryProps {
   className?: string;
   gameId: GameId | null;
   title?: string;
-  trackOrdinal?: number;
+  trackId?: string;
 }
 
-export function RaceResultSummary({ className, gameId, title = m.race_result_summary_title(), trackOrdinal }: RaceResultSummaryProps) {
+export function RaceResultSummary({ className, gameId, title = m.race_result_summary_title(), trackId }: RaceResultSummaryProps) {
   const query = useQuery({
-    queryKey: queryKeys.raceResultSummary(gameId, trackOrdinal),
+    queryKey: ["race-result-summary", gameId, trackId],
     enabled: gameId != null,
     queryFn: async () => {
       if (!gameId) return null;
       const response = await client.api["race-results"].summary.$get({
-        query: { gameId, trackOrdinal: trackOrdinal == null ? undefined : String(trackOrdinal) },
+        query: { gameId, trackId },
       });
       if (!response.ok) throw new Error(response.statusText);
       return response.json() as Promise<RaceResultAggregate>;
@@ -151,7 +151,7 @@ export function RaceResultSummary({ className, gameId, title = m.race_result_sum
   });
   const recentQuery = useQuery({
     queryKey: queryKeys.raceResultRecent(gameId),
-    enabled: gameId != null && trackOrdinal == null,
+    enabled: gameId != null && trackId == null,
     queryFn: async () => {
       if (!gameId) return [] as RaceResult[];
       const response = await client.api["race-results"].recent.$get({ query: { gameId, limit: "5" } });
@@ -191,7 +191,7 @@ export function RaceResultSummary({ className, gameId, title = m.race_result_sum
     <SummaryShell className={className} title={title}>
       <p className="mt-1 mb-3 text-xs text-app-text-muted">{m.race_result_outcome_explanation()}</p>
       <ResultAggregateGrid aggregate={query.data} />
-      {trackOrdinal == null && (
+      {trackId == null && (
         <div className="mt-4">
           <h3 className="text-sm font-medium text-app-text">{m.race_result_recent_sessions()}</h3>
           {recentQuery.isLoading && (

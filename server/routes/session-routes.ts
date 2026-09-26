@@ -17,6 +17,7 @@ import { tryGetGame } from "../../shared/games/registry";
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { getLMUCar, getLMUTrack } from "../../shared/games/lmu/catalog";
+import { decodeAcEvoTrackId } from "../../shared/racing/tracks/ac-evo-identity";
 import { backfillRaceResults, reconcileSessionResult, RACE_RESULT_PROCESSOR_ID } from "../race-results/reconcile";
 import { getRaceResultAggregate, getRecentRaceResults } from "../race-results/aggregates";
 import { recoverDeletedSessions } from "../telemetry/live-pipeline";
@@ -35,15 +36,23 @@ export const sessionRoutes = new Hono()
     const data = await getSessionRecapData(id, gameId);
     if (!data) return c.json({ error: "Session not found" }, 404);
     const adapter = tryGetGame(gameId);
-    const carId = data.session.carId;
-    const trackId = data.session.trackId;
-    const carName = gameId === "lmu" && typeof carId === "string"
-      ? getLMUCar(carId)?.name ?? carId
-      : adapter ? adapter.getCarName(Number(carId)) : resolveCarName(Number(carId), gameId);
-    const trackName = gameId === "lmu" && typeof trackId === "string"
-      ? getLMUTrack(trackId)?.name ?? trackId
-      : adapter ? adapter.getTrackName(Number(trackId)) : resolveTrackName(Number(trackId), gameId);
-    return c.json(computeRecap({ session: data.session, laps: data.laps, carName, trackName, trackLengthM: data.trackLengthM, allTimeBestSec: data.allTimeBestSec, allTimeBestSectors: data.allTimeBestSectors, sectorStarts: data.sectorStarts }));
+    const carId = String(data.session.carId ?? "");
+    const trackId = String(data.session.trackId ?? "");
+    const numericIdentity = gameId === "fm-2023" || gameId === "f1-2025" || gameId === "iracing";
+    const carName = !carId ? ""
+      : gameId === "lmu"
+        ? getLMUCar(carId)?.name ?? carId
+        : numericIdentity
+          ? adapter ? adapter.getCarName(Number(carId)) : resolveCarName(Number(carId), gameId)
+          : carId;
+    const pair = gameId === "ac-evo" ? decodeAcEvoTrackId(trackId) : null;
+    const trackName = !trackId ? ""
+      : pair ? [pair[0], pair[1]].filter(Boolean).join(" — ")
+        : gameId === "lmu" ? getLMUTrack(trackId)?.name ?? trackId
+          : numericIdentity
+            ? adapter ? adapter.getTrackName(Number(trackId)) : resolveTrackName(Number(trackId), gameId)
+            : trackId;
+    return c.json(computeRecap({ session: { ...data.session, carId, trackId }, laps: data.laps, carName, trackName, trackLengthM: data.trackLengthM, allTimeBestSec: data.allTimeBestSec, allTimeBestSectors: data.allTimeBestSectors, sectorStarts: data.sectorStarts }));
   })
   .get("/api/sessions/:id/result", zValidator("param", IdParamSchema), zValidator("query", GameIdQuerySchema), async (c) => {
     const { id } = c.req.valid("param");
@@ -79,8 +88,6 @@ export const sessionRoutes = new Hono()
   })
   .get("/api/race-results/summary", zValidator("query", z.object({
     gameId: GameIdSchema,
-    carOrdinal: z.coerce.number().int().optional(),
-    trackOrdinal: z.coerce.number().int().optional(),
     carId: z.string().min(1).optional(),
     trackId: z.string().min(1).optional(),
   })), async (c) => c.json(await getRaceResultAggregate(c.req.valid("query"))))

@@ -25,9 +25,9 @@ export const tunes = sqliteTable(
 		gameId: text("game_id").notNull(),
 		name: text("name").notNull(),
 		author: text("author").notNull(),
-		carOrdinal: integer("car_ordinal").notNull(),
+		carId: text("car_id").notNull(),
 		category: text("category").notNull(),
-		trackOrdinal: integer("track_ordinal"),
+		trackId: text("track_id"),
 		description: text("description").notNull().default(""),
 		strengths: text("strengths"),
 		weaknesses: text("weaknesses"),
@@ -41,8 +41,8 @@ export const tunes = sqliteTable(
 		updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(table) => ({
-		carIdx: index("idx_tunes_car").on(table.carOrdinal),
-		gameCarIdx: index("idx_tunes_game_car").on(table.gameId, table.carOrdinal),
+		carIdx: index("idx_tunes_car").on(table.carId),
+		gameCarIdx: index("idx_tunes_game_car").on(table.gameId, table.carId),
 	}),
 );
 
@@ -89,8 +89,6 @@ export const sessions = sqliteTable(
 	"sessions",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
-		carOrdinal: integer("car_ordinal").notNull(),
-		trackOrdinal: integer("track_ordinal").notNull(),
 		gameId: text("game_id").notNull(),
 		carId: text("car_id"),
 		trackId: text("track_id"),
@@ -247,14 +245,14 @@ export const tuneAssignments = sqliteTable(
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
 		gameId: text("game_id").notNull(),
-		carOrdinal: integer("car_ordinal").notNull(),
-		trackOrdinal: integer("track_ordinal").notNull(),
+		carId: text("car_id").notNull(),
+		trackId: text("track_id").notNull(),
 		tuneId: integer("tune_id")
 			.notNull()
 			.references(() => tunes.id, { onDelete: "cascade" }),
 	},
 	(table) => ({
-		gameCarTrackUnique: unique().on(table.gameId, table.carOrdinal, table.trackOrdinal),
+		gameCarTrackUnique: unique().on(table.gameId, table.carId, table.trackId),
 		tuneIdx: index("idx_assignments_tune").on(table.tuneId),
 	}),
 );
@@ -263,14 +261,14 @@ export const trackOutlines = sqliteTable(
 	"track_outlines",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
-		trackOrdinal: integer("track_ordinal").notNull(),
+		trackId: text("track_id").notNull(),
 		gameId: text("game_id").notNull(),
 		outline: blob("outline", { mode: "buffer" }).notNull(), // gzip'd JSON array of {x,z,speed}
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(table) => ({
-		trackIdx: index("idx_outlines_track").on(table.trackOrdinal),
-		trackGameUnique: unique().on(table.trackOrdinal, table.gameId),
+		trackIdx: index("idx_outlines_track").on(table.trackId),
+		trackGameUnique: unique().on(table.trackId, table.gameId),
 	}),
 );
 
@@ -278,7 +276,7 @@ export const trackCorners = sqliteTable(
 	"track_corners",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
-		trackOrdinal: integer("track_ordinal").notNull(),
+		trackId: text("track_id").notNull(),
 		gameId: text("game_id").notNull(),
 		cornerIndex: integer("corner_index").notNull(),
 		label: text("label").notNull(),
@@ -287,9 +285,9 @@ export const trackCorners = sqliteTable(
 		isAuto: integer("is_auto", { mode: "boolean" }).notNull().default(true),
 	},
 	(table) => ({
-		trackIdx: index("idx_corners_track").on(table.trackOrdinal),
+		trackIdx: index("idx_corners_track").on(table.trackId),
 		trackCornerUnique: unique().on(
-			table.trackOrdinal,
+			table.trackId,
 			table.gameId,
 			table.cornerIndex,
 		),
@@ -346,8 +344,8 @@ export const communityTunes = sqliteTable(
 	{
 		id: text("id").primaryKey(),
 		gameId: text("game_id").notNull(),
-		carOrdinal: integer("car_ordinal").notNull(),
-		trackOrdinal: integer("track_ordinal"),
+		carId: text("car_id").notNull(),
+		trackId: text("track_id"),
 		name: text("name").notNull(),
 		author: text("author").notNull(),
 		category: text("category").notNull(),
@@ -379,8 +377,8 @@ export const experiments = sqliteTable(
 		seq: integer("seq").notNull().default(1),
 		gameId: text("game_id").notNull(),
 		name: text("name").notNull(),
-		carOrdinal: integer("car_ordinal"),
-		trackOrdinal: integer("track_ordinal"),
+		carId: text("car_id"),
+		trackId: text("track_id"),
 		carName: text("car_name"),
 		trackName: text("track_name"),
 		baseSetupPath: text("base_setup_path"),
@@ -598,8 +596,8 @@ export const driverProfiles = sqliteTable(
 		id: integer("id").primaryKey({ autoIncrement: true }),
 		scopeKey: text("scope_key").notNull(),
 		gameId: text("game_id").notNull(),
-		carOrdinal: integer("car_ordinal"),
-		trackOrdinal: integer("track_ordinal"),
+		carId: text("car_id"),
+		trackId: text("track_id"),
 		poolKey: text("pool_key").notNull(),
 		/** JSON — DriverFingerprint from server/driver-profile/fingerprint.ts. */
 		fingerprint: text("fingerprint").notNull(),
@@ -622,8 +620,8 @@ export const driverProfileRuns = sqliteTable(
 		id: integer("id").primaryKey({ autoIncrement: true }),
 		scopeKey: text("scope_key").notNull(),
 		gameId: text("game_id").notNull(),
-		carOrdinal: integer("car_ordinal"),
-		trackOrdinal: integer("track_ordinal"),
+		carId: text("car_id"),
+		trackId: text("track_id"),
 		poolKey: text("pool_key").notNull(),
 		status: text("status", { enum: ["queued", "running", "succeeded", "failed"] }).notNull().default("queued"),
 		/** JSON — deterministic DriverFingerprint snapshot, when available. */

@@ -10,8 +10,6 @@ import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { clearSessionCaptureCache } from "./source-loader";
 import { isOwnedSessionRawFile } from "../db/session-queries";
 import { tryGetGame } from "../../shared/games/registry";
-import { resolveCarName } from "../../shared/racing/cars/resolve-name";
-import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import type { SessionCleanupGameSummary, SessionCleanupPreview, SessionCleanupRequest, SessionCleanupResult } from "../../shared/racing/sessions/cleanup";
 
 export class SessionCleanupBusyError extends Error {
@@ -27,8 +25,8 @@ type SessionRow = {
   rawFile: string | null;
   isFavorite: boolean;
   gameId: SessionCleanupGameSummary["gameId"];
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: string | null;
+  trackId: string | null;
 };
 
 type LapFavoriteRow = { sessionId: number; isFavorite: boolean };
@@ -58,8 +56,8 @@ async function loadRows(request: SessionCleanupRequest): Promise<{
       rawFile: sessions.rawFile,
       isFavorite: sessions.isFavorite,
       gameId: sessions.gameId,
-      carOrdinal: sessions.carOrdinal,
-      trackOrdinal: sessions.trackOrdinal,
+      carId: sessions.carId,
+      trackId: sessions.trackId,
     })
     .from(sessions)
     .all()) as SessionRow[];
@@ -126,8 +124,8 @@ async function buildGameSummaries(groups: CleanupGroup[]): Promise<SessionCleanu
         .map((session) => ({
           id: session.id,
           createdAt: session.createdAt,
-          trackName: adapter?.getTrackName(session.trackOrdinal) ?? resolveTrackName(session.trackOrdinal, gameId),
-          carName: adapter?.getCarName(session.carOrdinal) ?? resolveCarName(session.carOrdinal, gameId),
+          trackName: session.trackId ?? "",
+          carName: session.carId ?? "",
           laps: lapsBySession.get(session.id) ?? [],
         }));
 

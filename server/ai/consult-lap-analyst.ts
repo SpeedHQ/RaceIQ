@@ -33,9 +33,9 @@ export async function consultLapAnalystForSession(sessionId: number): Promise<La
   const lap = await loadRepresentativeLap(sessionId);
   if (!lap) return { available: false, summary: "No analysable lap yet for this session." };
 
-  const trackOrdinal = lap.trackOrdinal ?? 0;
-  const segments = await resolveLapSegments(trackOrdinal, lap.gameId);
-  const corners = await resolveLapCorners(trackOrdinal, lap.gameId, lap.telemetry, { segments });
+  const trackId = lap.trackId ?? null;
+  const segments = await resolveLapSegments(trackId, lap.gameId);
+  const corners = await resolveLapCorners(trackId, lap.gameId, lap.telemetry, { segments });
 
   const settings = loadSettings();
   const insights = await getOrComputeLapInsights(lap.id) ?? [];

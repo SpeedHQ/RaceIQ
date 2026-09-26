@@ -4,7 +4,6 @@ import { buildRows, type RawUserTune } from "@/components/tune/browser/buildRows
 import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
 import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
 import type { CatalogTune } from "@/data/tune-catalog";
-import { useResolveNames } from "@/hooks/catalog-queries";
 import { useCatalogTunes, useCloneCatalogTune, useDeleteTune, useDuplicateTune, useUserTunes } from "@/hooks/tunes";
 import { m } from "@/paraglide/messages";
 import { useUiStore } from "@/stores/ui";
@@ -24,7 +23,7 @@ const SOURCE_LABELS: Record<string, () => string> = {
  *  and pagination as the FM browser, with a game-specific read-only settings
  *  summary and an "Import from file" link instead of the built-in JSON
  *  file-picker (ACC/AC-EVO import from the game's own Setups folder). */
-export function SetupTuneBrowser({ gameId, routePrefix, cars }: { gameId: GameId; routePrefix: string; cars: GameCarOption[] }) {
+export function SetupTuneBrowser({ gameId, routePrefix, cars: _cars }: { gameId: GameId; routePrefix: string; cars: GameCarOption[] }) {
   const navigate = useNavigate();
   const { data: userTunes = [] } = useUserTunes(gameId);
   const { data: apiCatalog = [] } = useCatalogTunes();
@@ -36,41 +35,24 @@ export function SetupTuneBrowser({ gameId, routePrefix, cars }: { gameId: GameId
   const catalog: CatalogTune[] = apiCatalog;
   const rows = useMemo(() => buildRows(catalog, userTunes as RawUserTune[]), [catalog, userTunes]);
 
-  const trackOrdinals = useMemo(() => [...new Set(rows.map((r) => r.trackOrdinal).filter((o): o is number => o != null))], [rows]);
-  const carOrdinals = useMemo(() => [...new Set(rows.map((r) => r.carOrdinal))], [rows]);
-  const { data: names } = useResolveNames(trackOrdinals, carOrdinals);
-
-  const carNameLookup = useMemo(() => {
-    const m = new Map<number, string>();
-    for (const c of cars) m.set(c.ordinal, c.name);
-    return m;
-  }, [cars]);
-
-  const carNames: Record<number, string> = useMemo(() => {
-    const map: Record<number, string> = {};
-    for (const ord of carOrdinals) map[ord] = carNameLookup.get(ord) ?? names?.carNames[String(ord)] ?? `Car #${ord}`;
-    return map;
-  }, [carOrdinals, carNameLookup, names]);
-
-  const trackNames: Record<number, string> = useMemo(() => {
-    const map: Record<number, string> = {};
-    for (const ord of trackOrdinals) map[ord] = names?.trackNames[String(ord)] ?? `Track #${ord}`;
-    return map;
-  }, [trackOrdinals, names]);
+  const carIds = useMemo(() => [...new Set(rows.map((row) => row.carId))], [rows]);
+  const trackIds = useMemo(() => [...new Set(rows.map((row) => row.trackId).filter((id): id is string => id != null))], [rows]);
+  const carNames = useMemo(() => Object.fromEntries(carIds.map((id) => [id, id])), [carIds]);
+  const trackNames = useMemo(() => Object.fromEntries(trackIds.map((id) => [id, id])), [trackIds]);
 
   const carOptions = useMemo(() => {
-    const counts = new Map<number, number>();
-    for (const r of rows) counts.set(r.carOrdinal, (counts.get(r.carOrdinal) ?? 0) + 1);
-    const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: carNames[ord] ?? `Car #${ord}`, count })).sort((a, b) => b.count - a.count);
+    const counts = new Map<string, number>();
+    for (const row of rows) counts.set(row.carId, (counts.get(row.carId) ?? 0) + 1);
+    const opts = [...counts.entries()].map(([id, count]) => ({ value: id, label: carNames[id] ?? id, count })).sort((a, b) => b.count - a.count);
     return [{ value: "any", label: m.setup_any_car(), count: rows.length }, ...opts];
   }, [rows, carNames, uiLocale]);
 
   const trackOptions = useMemo(() => {
-    const counts = new Map<number, number>();
-    for (const r of rows) if (r.trackOrdinal != null) counts.set(r.trackOrdinal, (counts.get(r.trackOrdinal) ?? 0) + 1);
-    const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: names?.trackNames[String(ord)] ?? `Track ${ord}`, count })).sort((a, b) => b.count - a.count);
+    const counts = new Map<string, number>();
+    for (const row of rows) if (row.trackId != null) counts.set(row.trackId, (counts.get(row.trackId) ?? 0) + 1);
+    const opts = [...counts.entries()].map(([id, count]) => ({ value: id, label: trackNames[id] ?? id, count })).sort((a, b) => b.count - a.count);
     return [{ value: "any", label: m.setup_any_track(), count: rows.length }, ...opts];
-  }, [rows, names, uiLocale]);
+  }, [rows, trackNames, uiLocale]);
 
   const sources: SourceTab[] = useMemo(() => SOURCE_KEYS.map((s) => ({ ...s, label: SOURCE_LABELS[s.key]() })), [uiLocale]);
 

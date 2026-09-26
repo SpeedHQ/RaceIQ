@@ -62,8 +62,8 @@ describe("parseRawLapFrames — .bin vs .bin.gz parity", () => {
     // Cap at a few hundred to keep the test quick.
     const frameCount = Math.min(frames, 500);
 
-    const fromBin = parseRawLapFramesFromBuffer(await loadSessionCapture({ rawFile: binPath, source: null, gameId: "fm-2023", carOrdinal: 0, trackOrdinal: 0 }), startOffset, frameCount, "fm-2023", binPath);
-    const fromGz = parseRawLapFramesFromBuffer(await loadSessionCapture({ rawFile: GZ_FIXTURE, source: null, gameId: "fm-2023", carOrdinal: 0, trackOrdinal: 0 }), startOffset, frameCount, "fm-2023", GZ_FIXTURE);
+    const fromBin = parseRawLapFramesFromBuffer(await loadSessionCapture({ rawFile: binPath, source: null, gameId: "fm-2023", carId: "", trackId: "" }), startOffset, frameCount, "fm-2023", binPath);
+    const fromGz = parseRawLapFramesFromBuffer(await loadSessionCapture({ rawFile: GZ_FIXTURE, source: null, gameId: "fm-2023", carId: "", trackId: "" }), startOffset, frameCount, "fm-2023", GZ_FIXTURE);
 
     expect(fromBin.length).toBeGreaterThan(0);
     expect(fromBin.length).toBe(fromGz.length);

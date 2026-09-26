@@ -4,7 +4,7 @@ import { trackCorners, trackOutlines } from "./schema";
 import type { GameId } from "../../shared/games/ids";
 import type { Corner } from "../lap-analysis/corners"
 
-export async function getCorners(trackOrdinal: number, gameId: GameId): Promise<Corner[]> {
+export async function getCorners(trackId: string, gameId: GameId): Promise<Corner[]> {
   const rows = await db
     .select({
       cornerIndex: trackCorners.cornerIndex,
@@ -13,7 +13,7 @@ export async function getCorners(trackOrdinal: number, gameId: GameId): Promise<
       distanceEnd: trackCorners.distanceEnd,
     })
     .from(trackCorners)
-    .where(and(eq(trackCorners.trackOrdinal, trackOrdinal), eq(trackCorners.gameId, gameId)))
+    .where(and(eq(trackCorners.trackId, trackId), eq(trackCorners.gameId, gameId)))
     .orderBy(trackCorners.cornerIndex)
     .all();
 
@@ -31,22 +31,20 @@ export async function getCorners(trackOrdinal: number, gameId: GameId): Promise<
  */
 
 export async function saveCorners(
-  trackOrdinal: number,
+  trackId: string,
   corners: Corner[],
   gameId: GameId,
   isAuto: boolean = false
 ): Promise<void> {
-  // Delete existing corners for this track
   await db.delete(trackCorners)
-    .where(and(eq(trackCorners.trackOrdinal, trackOrdinal), eq(trackCorners.gameId, gameId)))
+    .where(and(eq(trackCorners.trackId, trackId), eq(trackCorners.gameId, gameId)))
     .run();
 
-  // Insert new corners
   if (corners.length > 0) {
     await db.insert(trackCorners)
       .values(
         corners.map((c) => ({
-          trackOrdinal,
+          trackId,
           cornerIndex: c.index,
           label: c.label,
           distanceStart: c.distanceStart,
@@ -65,13 +63,13 @@ export async function saveCorners(
  */
 
 export async function getTrackOutline(
-  trackOrdinal: number,
+  trackId: string,
   gameId: GameId
 ): Promise<{ x: number; z: number; speed: number }[] | null> {
   const row = await db
     .select({ outline: trackOutlines.outline })
     .from(trackOutlines)
-    .where(and(eq(trackOutlines.trackOrdinal, trackOrdinal), eq(trackOutlines.gameId, gameId)))
+    .where(and(eq(trackOutlines.trackId, trackId), eq(trackOutlines.gameId, gameId)))
     .get();
 
   if (!row) return null;

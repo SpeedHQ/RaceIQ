@@ -6,7 +6,6 @@ import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
 import { withDefaults } from "@/components/tune/form/TuneForm";
 import { TuneSettingsPanel } from "@/components/tune/TuneSettingsPanel";
 import type { CatalogTune, TuneSettings } from "@/data/tune-catalog";
-import { useResolveNames } from "@/hooks/catalog-queries";
 import { useCatalogTunes, useCloneCatalogTune, useCreateTune, useDeleteTune, useDuplicateTune, useRefreshCommunityTunes, useUserTunes } from "@/hooks/tunes";
 import { m } from "@/paraglide/messages";
 
@@ -45,7 +44,7 @@ export function Fm23TuneBrowser() {
         gameId: "fm-2023",
         name: parsed.name || file.name.replace(/\.json$/i, "") || m.tune_source_imported_tune(),
         author: parsed.author || m.tune_source_imported(),
-        carOrdinal: Number(parsed.carOrdinal ?? 2860),
+        carId: String(parsed.carId ?? parsed.carOrdinal ?? 2860),
         category: parsed.category || "circuit",
         description: parsed.description || m.tune_source_imported_from_json(),
         settings: withDefaults(normalizedSettings),
@@ -59,35 +58,24 @@ export function Fm23TuneBrowser() {
   const catalog: CatalogTune[] = apiCatalog;
   const rows = useMemo(() => buildRows(catalog, userTunes as RawUserTune[]), [catalog, userTunes]);
 
-  const trackOrdinals = useMemo(() => [...new Set(rows.map((r) => r.trackOrdinal).filter((o): o is number => o != null))], [rows]);
-  const carOrdinals = useMemo(() => [...new Set(rows.map((r) => r.carOrdinal))], [rows]);
-  const { data: names } = useResolveNames(trackOrdinals, carOrdinals);
-
-  const carNames: Record<number, string> = useMemo(() => {
-    const map: Record<number, string> = {};
-    for (const ord of carOrdinals) map[ord] = names?.carNames[String(ord)] ?? `Car #${ord}`;
-    return map;
-  }, [carOrdinals, names]);
-
-  const trackNames: Record<number, string> = useMemo(() => {
-    const map: Record<number, string> = {};
-    for (const ord of trackOrdinals) map[ord] = names?.trackNames[String(ord)] ?? `Track #${ord}`;
-    return map;
-  }, [trackOrdinals, names]);
+  const trackIds = useMemo(() => [...new Set(rows.map((r) => r.trackId).filter((id): id is string => id != null))], [rows]);
+  const carIds = useMemo(() => [...new Set(rows.map((r) => r.carId))], [rows]);
+  const carNames: Record<string, string> = useMemo(() => Object.fromEntries(carIds.map((id) => [id, `Car #${id}`])), [carIds]);
+  const trackNames: Record<string, string> = useMemo(() => Object.fromEntries(trackIds.map((id) => [id, `Track ${id}`])), [trackIds]);
 
   const carOptions = useMemo(() => {
-    const counts = new Map<number, number>();
-    for (const r of rows) counts.set(r.carOrdinal, (counts.get(r.carOrdinal) ?? 0) + 1);
-    const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: carNames[ord] ?? `Car #${ord}`, count })).sort((a, b) => b.count - a.count);
+    const counts = new Map<string, number>();
+    for (const row of rows) counts.set(row.carId, (counts.get(row.carId) ?? 0) + 1);
+    const opts = [...counts.entries()].map(([id, count]) => ({ value: id, label: carNames[id] ?? `Car #${id}`, count })).sort((a, b) => b.count - a.count);
     return [{ value: "any", label: m.tune_filter_any_car(), count: rows.length }, ...opts];
   }, [rows, carNames]);
 
   const trackOptions = useMemo(() => {
-    const counts = new Map<number, number>();
-    for (const r of rows) if (r.trackOrdinal != null) counts.set(r.trackOrdinal, (counts.get(r.trackOrdinal) ?? 0) + 1);
-    const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: names?.trackNames[String(ord)] ?? `Track ${ord}`, count })).sort((a, b) => b.count - a.count);
+    const counts = new Map<string, number>();
+    for (const row of rows) if (row.trackId != null) counts.set(row.trackId, (counts.get(row.trackId) ?? 0) + 1);
+    const opts = [...counts.entries()].map(([id, count]) => ({ value: id, label: trackNames[id] ?? `Track ${id}`, count })).sort((a, b) => b.count - a.count);
     return [{ value: "any", label: m.tune_filter_any_track(), count: rows.length }, ...opts];
-  }, [rows, names]);
+  }, [rows, trackNames]);
 
   return (
     <SetupBrowser

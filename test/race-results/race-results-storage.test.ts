@@ -41,7 +41,7 @@ const provenance: RaceResultProvenance = {
 
 describe("persisted race result metadata", () => {
   test("upserts one result and replaces ordered pit events on rerun", async () => {
-    const sessionId = await insertSession(99, 88, "f1-2025", "race");
+    const sessionId = await insertSession("99", "88", "f1-2025", "race");
     await db.insert(laps).values([
       { sessionId, lapNumber: 3, lapTime: 100, isValid: true },
       { sessionId, lapNumber: 4, lapTime: 140, isValid: true },
@@ -81,9 +81,9 @@ describe("persisted race result metadata", () => {
     ]);
   });
   test("counts and lists only results from older processor versions", async () => {
-    const staleSessionId = await insertSession(12, 13, "f1-2025", "race");
-    const resultlessSessionId = await insertSession(12, 13, "f1-2025", "race");
-    const currentSessionId = await insertSession(12, 13, "f1-2025", "race");
+    const staleSessionId = await insertSession("12", "13", "f1-2025", "race");
+    const resultlessSessionId = await insertSession("12", "13", "f1-2025", "race");
+    const currentSessionId = await insertSession("12", "13", "f1-2025", "race");
     const input = (sessionId: number, processorVersion: string): SessionResultInput => ({
       sessionId,
       processorVersion,
@@ -114,8 +114,8 @@ describe("persisted race result metadata", () => {
   });
 
   test("reconciles stale results through bulk endpoint", async () => {
-    const sessionId = await insertSession(14, 15, "f1-2025", "race");
-    const resultlessSessionId = await insertSession(16, 17, "f1-2025", "race");
+    const sessionId = await insertSession("14", "15", "f1-2025", "race");
+    const resultlessSessionId = await insertSession("16", "17", "f1-2025", "race");
     await upsertSessionResult({
       sessionId,
       processorVersion: "race-result-v0",
@@ -141,7 +141,7 @@ describe("persisted race result metadata", () => {
   });
 
   test("reconciles stored results from an older processor version", async () => {
-    const sessionId = await insertSession(77, 66, "f1-2025", "race");
+    const sessionId = await insertSession("77", "66", "f1-2025", "race");
     await upsertSessionResult({
       sessionId,
       processorVersion: "race-result-v0",
@@ -165,8 +165,8 @@ describe("persisted race result metadata", () => {
 
   test("backfills historical sessions across registered game adapters", async () => {
     initServerGameAdapters();
-    const f1SessionId = await insertSession(1, 1, "f1-2025", "race");
-    const accSessionId = await insertSession(1, 1, "acc", "race");
+    const f1SessionId = await insertSession("1", "1", "f1-2025", "race");
+    const accSessionId = await insertSession("1", "1", "acc", "race");
 
     await backfillRaceResults({
       gameId: "f1-2025",
@@ -188,7 +188,7 @@ describe("persisted race result metadata", () => {
   });
 
   test("startup backfill skips results from the current processor", async () => {
-    const sessionId = await insertSession(1, 1, "fm-2023", "race");
+    const sessionId = await insertSession("1", "1", "fm-2023", "race");
     await upsertSessionResult({
       sessionId,
       processorVersion: RACE_RESULT_PROCESSOR_ID,
@@ -219,7 +219,7 @@ describe("persisted race result metadata", () => {
 
 
   test("does not expose a result across game scope", async () => {
-    const sessionId = await insertSession(99, 88, "acc", "race");
+    const sessionId = await insertSession("99", "88", "acc", "race");
     await upsertSessionResult({
       sessionId,
       sessionType: "race",
@@ -242,9 +242,9 @@ describe("persisted race result metadata", () => {
     expect(await getSessionResult(sessionId, "f1-2025")).toBeNull();
   });
   test("returns newest persisted sessions without counting unpersisted gaps", async () => {
-    const oldest = await insertSession(1, 1, "f1-2025", "race");
-    await insertSession(1, 1, "f1-2025", "race");
-    await insertSession(1, 1, "f1-2025", "race");
+    const oldest = await insertSession("1", "1", "f1-2025", "race");
+    await insertSession("1", "1", "f1-2025", "race");
+    await insertSession("1", "1", "f1-2025", "race");
     await upsertSessionResult({
       sessionId: oldest,
       sessionType: "race",

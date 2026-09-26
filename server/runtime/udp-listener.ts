@@ -176,8 +176,8 @@ class UdpListener {
               id: session.sessionId,
               carOrdinal: session.carOrdinal,
               trackOrdinal: session.trackOrdinal,
-              carId: session.carId ?? session.carOrdinal,
-              trackId: session.trackId ?? session.trackOrdinal,
+              carId: session.carId ?? String(session.carOrdinal),
+              trackId: session.trackId ?? String(session.trackOrdinal),
             }
           : null,
       });

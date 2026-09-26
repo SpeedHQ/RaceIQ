@@ -1,14 +1,13 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "./index";
 import { experimentFocusEvents, experiments } from "./schema";
-import { tryGetServerGame } from "../games/registry";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/racing/experiments/focus";
 
 interface CreateExperimentData {
   gameId: string;
   name: string;
-  carOrdinal?: number | null;
-  trackOrdinal?: number | null;
+  carId?: string | null;
+  trackId?: string | null;
   carName?: string | null;
   trackName?: string | null;
   baseSetupPath?: string | null;
@@ -26,8 +25,7 @@ export async function createExperiment(data: CreateExperimentData): Promise<numb
     .get();
   const seq = (seqRow?.maxSeq ?? 0) + 1;
 
-  const trackOrdinal =
-    data.trackOrdinal ?? (data.trackName ? tryGetServerGame(data.gameId)?.getTrackOrdinalByName?.(data.trackName) : undefined) ?? null;
+  const trackId = data.trackId ?? null;
 
   const focus = data.focus ?? DEFAULT_EXPERIMENT_FOCUS;
 
@@ -37,8 +35,8 @@ export async function createExperiment(data: CreateExperimentData): Promise<numb
       seq,
       gameId: data.gameId,
       name: data.name,
-      carOrdinal: data.carOrdinal ?? null,
-      trackOrdinal,
+      carId: data.carId ?? null,
+      trackId,
       carName: data.carName ?? null,
       trackName: data.trackName ?? null,
       baseSetupPath: data.baseSetupPath ?? null,

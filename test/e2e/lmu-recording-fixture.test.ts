@@ -35,12 +35,8 @@ describe("committed LMU seed fixture", () => {
     if (!identity) throw new Error("LMU fixture has no packet identity");
     expect(session).toEqual(
       expect.objectContaining({
-        carOrdinal: -1,
-        trackOrdinal: -1,
-        identity: {
-          carId: identity.carId,
-          trackId: identity.trackId,
-        },
+        carId: identity.carId,
+        trackId: identity.trackId,
         gameId: "lmu",
       }),
     );

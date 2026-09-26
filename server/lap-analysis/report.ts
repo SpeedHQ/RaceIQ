@@ -27,6 +27,8 @@ export function generateExport(
     isValid: boolean;
     carOrdinal?: number;
     trackOrdinal?: number;
+    carId?: string | null;
+    trackId?: string | null;
   },
   packets: TelemetryPacket[],
   unit: UnitSystem = "metric",
@@ -152,9 +154,13 @@ export function generateExport(
   const secs = lap.lapTime % 60;
   const lapTimeStr = `${mins}:${secs.toFixed(3).padStart(6, "0")}`;
 
+  const nativeIdentity = first.gameId === "acc" || first.gameId === "ac-evo";
+  const carLabel = nativeIdentity ? (lap.carId || first.CarId || "Unknown Car") : `#${first.CarOrdinal}`;
+  const trackLabel = nativeIdentity ? (lap.trackId || first.TrackId || "Unknown Track") : `#${lap.trackOrdinal ?? first.TrackOrdinal ?? 0}`;
+
   let output = `=== RaceIQ Lap Export ===
-Car: #${first.CarOrdinal} | Class: ${className} (PI ${first.CarPerformanceIndex}) | Drivetrain: ${drivetrainName}
-Track: #${lap.trackOrdinal ?? 0} | Lap: ${lap.lapNumber} | Time: ${lapTimeStr} | Valid: ${lap.isValid ? "Yes" : "No"}
+Car: ${carLabel} | Class: ${className} (PI ${first.CarPerformanceIndex}) | Drivetrain: ${drivetrainName}
+Track: ${trackLabel} | Lap: ${lap.lapNumber} | Time: ${lapTimeStr} | Valid: ${lap.isValid ? "Yes" : "No"}
 
 --- Performance Summary ---
 Speed (${speedLabel}):    min=${minSpeed.toFixed(1)}  avg=${avgSpeed.toFixed(1)}  max=${maxSpeed.toFixed(1)}

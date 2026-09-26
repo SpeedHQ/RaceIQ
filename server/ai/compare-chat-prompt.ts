@@ -9,14 +9,15 @@ import type { UnitSystem, TemperatureUnit } from "../lap-analysis/report";
 import { getPromptCarName, getPromptTrackName, compareEngineerPersona, compareLapHeader } from "./compare-engineer";
 import { buildSegmentTimingTable, type PromptSegment } from "./inputs-compare-prompt";
 import { TRACK_GUIDE_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
+import { decodeAcEvoTrackId } from "../../shared/racing/tracks/ac-evo-identity";
 
 interface LapInfo {
   id: number;
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
-  carOrdinal?: number;
-  trackOrdinal?: number;
+  carId?: string | null;
+  trackId?: string | null;
   gameId?: GameId;
 }
 
@@ -66,9 +67,18 @@ export function buildCompareChatContext(
   comparison: ComparisonResult,
   segments: PromptSegment[] | null = null,
 ): string {
-  const carA = getPromptCarName(lapA.carOrdinal ?? 0, lapA.gameId);
-  const carB = getPromptCarName(lapB.carOrdinal ?? 0, lapB.gameId);
-  const trackName = getPromptTrackName(lapA.trackOrdinal ?? 0, lapA.gameId);
+  const nativeStringGame = lapA.gameId === "acc" || lapA.gameId === "ac-evo";
+  const carA = nativeStringGame ? lapA.carId ?? "" : getPromptCarName(Number(lapA.carId) || 0, lapA.gameId);
+  const carB = nativeStringGame ? lapB.carId ?? "" : getPromptCarName(Number(lapB.carId) || 0, lapB.gameId);
+  let trackName = nativeStringGame ? lapA.trackId ?? "" : getPromptTrackName(Number(lapA.trackId) || 0, lapA.gameId);
+  if (lapA.gameId === "ac-evo" && lapA.trackId) {
+    const pair = decodeAcEvoTrackId(lapA.trackId);
+    if (pair) {
+      const format = (value: string) => value.replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+      const configuration = pair[1].length <= 3 ? pair[1].toUpperCase() : format(pair[1]);
+      trackName = [format(pair[0]), configuration].filter(Boolean).join(" - ");
+    }
+  }
   const finalDelta =
     comparison.timeDelta[comparison.timeDelta.length - 1] ??
     lapA.lapTime - lapB.lapTime;
@@ -127,9 +137,10 @@ export function buildCompareChatSystemPrompt(
       ? languageOrUnit
       : "en"
     : legacyLanguage;
-  const carA = getPromptCarName(lapA.carOrdinal ?? 0, lapA.gameId);
-  const carB = getPromptCarName(lapB.carOrdinal ?? 0, lapB.gameId);
-  const trackName = getPromptTrackName(lapA.trackOrdinal ?? 0, lapA.gameId);
+  const nativeStringGame = lapA.gameId === "acc" || lapA.gameId === "ac-evo";
+  const carA = nativeStringGame ? lapA.carId ?? "" : getPromptCarName(Number(lapA.carId) || 0, lapA.gameId);
+  const carB = nativeStringGame ? lapB.carId ?? "" : getPromptCarName(Number(lapB.carId) || 0, lapB.gameId);
+  const trackName = nativeStringGame ? lapA.trackId ?? "" : getPromptTrackName(Number(lapA.trackId) || 0, lapA.gameId);
   const finalDelta =
     comparison.timeDelta[comparison.timeDelta.length - 1] ??
     lapA.lapTime - lapB.lapTime;

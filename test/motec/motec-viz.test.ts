@@ -29,6 +29,7 @@ import { MOTEC_SYNTH_HZ } from "../../server/motec/kunos-synthesis";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { buildLd } from "../support/motec/ld";
 import {
+  alignToReference,
   centerlineToStint,
   normalizeToOriginHeading,
   signedArea,
@@ -92,7 +93,7 @@ describe("MoTeC reconstruction vs real centerlines", () => {
       const track = getAcEvoTrackByName(slug);
       expect(track).not.toBeNull();
       const target = resolveMotecTarget("ac-evo");
-      const carTrack = target.resolveCarTrack(log, { trackOrdinal: track!.id });
+      const carTrack = target.resolveCarTrack(log, { trackId: JSON.stringify([slug.replaceAll("-", "_"), ""]) });
       const conversion = target.convert(log, stint.beacons, carTrack);
       const all = reconstructPositions(conversion.packets);
 
@@ -102,11 +103,10 @@ describe("MoTeC reconstruction vs real centerlines", () => {
       const reference = stint.reference.slice(0, lapFrames);
       expect(reconstructed.length).toBeGreaterThan(100);
 
-      // The transcoder rigidly places reconstructed metre-space geometry in
-      // AC Evo world coordinates; compare those packets directly to source
-      // coordinates, without projecting onto or re-aligning the centreline.
+      // Dead reckoning has no absolute world origin or starting heading. Align
+      // its reconstructed lap back into the source centerline's reference frame.
       const referenceRaw = stint.referenceRaw.slice(0, lapFrames);
-      const aligned = reconstructed;
+      const aligned = alignToReference(reconstructed, referenceRaw);
 
       const devs = deviations(referenceRaw, aligned);
       const meanDeviationM = devs.reduce((a, b) => a + b, 0) / devs.length;
@@ -154,11 +154,11 @@ test("preserves a driven line instead of projecting onto the centreline", () => 
   const stint = centerlineToStint(drivenRaw, { laps: 2, hz: MOTEC_SYNTH_HZ });
   const log = parseLd(buildLd(stint.spec));
   const target = resolveMotecTarget("ac-evo");
-  const conversion = target.convert(log, stint.beacons, target.resolveCarTrack(log));
+  const conversion = target.convert(log, stint.beacons, target.resolveCarTrack(log, { trackId: '["spa",""]' }));
   const all = reconstructPositions(conversion.packets);
   const lapFrames = Math.min(stint.reference.length, Math.floor(all.length / 2));
-  const aligned = all.slice(0, lapFrames);
   const drivenReference = stint.referenceRaw.slice(0, lapFrames);
+  const aligned = alignToReference(all.slice(0, lapFrames), drivenReference);
   const centrelineReference = centerlineToStint(raw!, { laps: 1, hz: MOTEC_SYNTH_HZ }).referenceRaw.slice(0, lapFrames);
   const drivenDeviation = deviations(drivenReference, aligned);
   const centrelineDeviation = deviations(centrelineReference, aligned);

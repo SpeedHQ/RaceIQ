@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { and, asc, eq, gt, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt } from "drizzle-orm";
 import { resolveLMUCar, resolveLMUTrack } from "../../../shared/games/lmu/catalog";
 import { listDiscoveredCars } from "../../db/discovered-cars";
 import { listDiscoveredTracks } from "../../db/discovered-tracks";
@@ -39,16 +39,6 @@ export async function backfillLMUSessionIdentity(): Promise<LMUSessionIdentityBa
     missingFile: 0,
     malformedFile: 0,
   };
-  const filled = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(sessions)
-    .where(and(
-      eq(sessions.gameId, "lmu"),
-      isNotNull(sessions.carId),
-      isNotNull(sessions.trackId),
-    ))
-    .get();
-  result.alreadyFilled = Number(filled?.count ?? 0);
 
   const [legacyCars, legacyTracks] = await Promise.all([
     listDiscoveredCars("lmu"),
@@ -62,18 +52,12 @@ export async function backfillLMUSessionIdentity(): Promise<LMUSessionIdentityBa
     const rows = await db
       .select({
         id: sessions.id,
-        carOrdinal: sessions.carOrdinal,
-        trackOrdinal: sessions.trackOrdinal,
         carId: sessions.carId,
         trackId: sessions.trackId,
         rawFile: sessions.rawFile,
       })
       .from(sessions)
-      .where(and(
-        eq(sessions.gameId, "lmu"),
-        gt(sessions.id, afterId),
-        or(isNull(sessions.carId), isNull(sessions.trackId)),
-      ))
+      .where(and(eq(sessions.gameId, "lmu"), gt(sessions.id, afterId)))
       .orderBy(asc(sessions.id))
       .limit(BATCH_SIZE)
       .all();
@@ -81,6 +65,12 @@ export async function backfillLMUSessionIdentity(): Promise<LMUSessionIdentityBa
 
     for (const row of rows) {
       afterId = row.id;
+      const legacyCar = !row.carId || /^-?\d+$/.test(row.carId);
+      const legacyTrack = !row.trackId || /^-?\d+$/.test(row.trackId);
+      if (!legacyCar && !legacyTrack) {
+        result.alreadyFilled++;
+        continue;
+      }
       let captured: ReturnType<typeof identityFromLMUSourceFrame> | null = null;
       if (row.rawFile) {
         if (!existsSync(row.rawFile)) {
@@ -95,23 +85,18 @@ export async function backfillLMUSessionIdentity(): Promise<LMUSessionIdentityBa
         }
       }
 
-      const sourceCarId = captured?.carId ?? legacyCarNames.get(row.carOrdinal) ?? "";
-      const sourceTrackId = captured?.trackId ?? legacyTrackNames.get(row.trackOrdinal) ?? "";
-      const carId = row.carId
-        ?? resolveLMUCar(sourceCarId, captured?.carName)?.id
-        ?? sourceCarId;
-      const trackId = row.trackId
-        ?? resolveLMUTrack(sourceTrackId)?.id
-        ?? sourceTrackId;
-
+      const sourceCarId = captured?.carId ?? legacyCarNames.get(Number(row.carId)) ?? "";
+      const sourceTrackId = captured?.trackId ?? legacyTrackNames.get(Number(row.trackId)) ?? "";
+      const resolvedCar = legacyCar ? resolveLMUCar(sourceCarId, captured?.carName)?.id ?? sourceCarId : row.carId;
+      const resolvedTrack = legacyTrack ? resolveLMUTrack(sourceTrackId)?.id ?? sourceTrackId : row.trackId;
       const updates = {
-        ...(row.carId === null && carId ? { carId } : {}),
-        ...(row.trackId === null && trackId ? { trackId } : {}),
+        ...(legacyCar && resolvedCar && resolvedCar !== row.carId ? { carId: resolvedCar } : {}),
+        ...(legacyTrack && resolvedTrack && resolvedTrack !== row.trackId ? { trackId: resolvedTrack } : {}),
       };
       if (Object.keys(updates).length > 0) {
         await db.update(sessions).set(updates).where(eq(sessions.id, row.id)).run();
       }
-      if (carId && trackId) result.resolved++;
+      if (Object.keys(updates).length > 0) result.resolved++;
       else result.unresolved++;
     }
   }

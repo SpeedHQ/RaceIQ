@@ -154,7 +154,7 @@ describe("migration regressions", () => {
   test("v58 defaults ownership to mine when omitted", async () => {
     const client = newClient();
     await bootstrap(client);
-    await runMigrations(client);
+    await runMigrations(client, 58);
     await client.execute(
       "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'iracing')",
     );
@@ -164,7 +164,7 @@ describe("migration regressions", () => {
     client.close();
   });
 
-  test("v59 preserves legacy session ordinals with null string identity", async () => {
+  test("v62 converts legacy session ordinals into addressable decimal text", async () => {
     const client = newClient();
     await bootstrap(client);
     await runMigrations(client, 58);
@@ -175,14 +175,11 @@ describe("migration regressions", () => {
     await runMigrations(client);
 
     const rows = await client.execute(
-      `SELECT car_ordinal, track_ordinal, car_id, track_id
-       FROM sessions WHERE id = 1`,
+      `SELECT car_id, track_id FROM sessions WHERE id = 1`,
     );
     expect(rows.rows[0]).toMatchObject({
-      car_ordinal: 12345,
-      track_ordinal: 67890,
-      car_id: null,
-      track_id: null
+      car_id: "12345",
+      track_id: "67890",
     });
     client.close();
   });
@@ -209,6 +206,57 @@ describe("migration regressions", () => {
       insight_version: 0,
       insights: '[{"id":"legacy"}]',
     });
+    client.close();
+  });
+  test("v62 migrates identity keys to text and preserves references and constraints", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 61);
+    await client.execute(
+      "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, car_id, track_id) VALUES (1, 123, 456, 'acc', 'native-car', 'native-track')",
+    );
+    await client.execute(
+      "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (2, 78, 90, 'fm-2023')",
+    );
+    await client.execute(
+      "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, car_id, track_id) VALUES (3, -1, -1, 'lmu', 'lmu-native-car', 'lmu-native-track')",
+    );
+    await client.execute(
+      "INSERT INTO laps (id, session_id, lap_number, lap_time) VALUES (1, 1, 1, 90)",
+    );
+    await client.execute(
+      "INSERT INTO tunes (id, game_id, name, author, car_ordinal, category, track_ordinal, settings) VALUES (1, 'acc', 'setup', 'driver', 12, 'race', 34, '{}')",
+    );
+    await client.execute(
+      "INSERT INTO tune_assignments (id, game_id, car_ordinal, track_ordinal, tune_id) VALUES (1, 'acc', 12, 34, 1)",
+    );
+    await runMigrations(client);
+
+    const session = await client.execute("SELECT car_id, track_id FROM sessions WHERE id = 1");
+    expect(session.rows[0]).toMatchObject({ car_id: "native-car", track_id: "native-track" });
+    const identities = await client.execute("SELECT id, car_id, track_id FROM sessions ORDER BY id");
+    expect(identities.rows.map((row) => [row.id, row.car_id, row.track_id])).toEqual([
+      [1, "native-car", "native-track"],
+      [2, "78", "90"],
+      [3, "lmu-native-car", "lmu-native-track"],
+    ]);
+    const tune = await client.execute("SELECT car_id, track_id FROM tunes WHERE id = 1");
+    expect(tune.rows[0]).toMatchObject({ car_id: "12", track_id: "34" });
+    const assignment = await client.execute("SELECT car_id, track_id FROM tune_assignments WHERE id = 1");
+    expect(assignment.rows[0]).toMatchObject({ car_id: "12", track_id: "34" });
+    const lap = await client.execute("SELECT session_id FROM laps WHERE id = 1");
+    expect(lap.rows[0]?.session_id).toBe(1);
+    const columns = await client.execute("PRAGMA table_info(sessions)");
+    expect(columns.rows.some((row) => row.name === "car_ordinal")).toBe(false);
+    expect(columns.rows.find((row) => row.name === "car_id")?.type).toBe("TEXT");
+    await expect(
+      client.execute(
+        "INSERT INTO tune_assignments (game_id, car_id, track_id, tune_id) VALUES ('acc', '12', '34', 1)",
+      ),
+    ).rejects.toThrow();
+    await runMigrations(client);
+    const afterRerun = await client.execute("SELECT id, car_id, track_id FROM sessions ORDER BY id");
+    expect(afterRerun.rows).toEqual(identities.rows);
     client.close();
   });
 

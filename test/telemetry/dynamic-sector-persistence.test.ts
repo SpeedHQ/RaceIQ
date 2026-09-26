@@ -4,7 +4,7 @@ import { getLapById, getLaps } from "../../server/db/lap-read-queries";
 import { insertLap } from "../../server/db/lap-mutation-queries";
 
 test("ordered six-sector times round-trip without a three-sector projection", async () => {
-  const sessionId = await insertSession(990_134, 991_134, "iracing");
+  const sessionId = await insertSession("990134", "991134", "iracing");
   try {
     const sectorTimes = [8.125, 10.25, 11.375, 12.5, 9.625, 10.75];
     const lapId = await insertLap(

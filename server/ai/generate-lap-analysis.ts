@@ -105,10 +105,12 @@ export async function generateLapAnalysis(
       error: "No telemetry data",
     };
 
-  const trackOrdinal = lap.trackOrdinal ?? 0;
+  const trackId = lap.trackId ?? "";
+  const numericTrackId = (lap.gameId === "fm-2023" || lap.gameId === "f1-2025" || lap.gameId === "iracing")
+    && /^\d+$/.test(trackId) ? Number(trackId) : null;
   let corners: Corner[] =
-    trackOrdinal > 0 && lap.gameId
-      ? await findCorners(trackOrdinal, lap.gameId)
+    trackId && lap.gameId
+      ? await findCorners(trackId, lap.gameId)
       : [];
   if (corners.length === 0)
     corners = (deps.detectCorners ?? detectCorners)(lap.telemetry);
@@ -164,7 +166,7 @@ export async function generateLapAnalysis(
   }
   const track = (deps.resolveTrack ?? resolveTrack)(
     lap.gameId,
-    lap.trackOrdinal,
+    numericTrackId,
   );
   let sectors: PromptSectors | undefined;
   try {
@@ -183,10 +185,10 @@ export async function generateLapAnalysis(
       track.sectors.s1End &&
       track.sectors.s2End &&
       lap.gameId &&
-      lap.trackOrdinal != null
+      numericTrackId != null
     ) {
       const times = await (deps.computeLapSectors ?? computeLapSectors)(
-        lap.trackOrdinal,
+        numericTrackId,
         lap.gameId as GameId,
         lap.telemetry,
         lap.lapTime,

@@ -39,8 +39,8 @@ export const experimentLapRoutes = new Hono()
 
       const importable = await getImportableLapsForExperiment(
         session.gameId as GameId,
-        session.carOrdinal ?? null,
-        session.trackOrdinal ?? null
+        session.carId ?? null,
+        session.trackId ?? null
       );
 
       if (session.gameId !== "f1-2025") {
@@ -83,8 +83,8 @@ export const experimentLapRoutes = new Hono()
       const body = c.req.valid("json");
       const importable = await getImportableLapsForExperiment(
         session.gameId as GameId,
-        session.carOrdinal ?? null,
-        session.trackOrdinal ?? null,
+        session.carId ?? null,
+        session.trackId ?? null,
       );
       const importableIds = new Set(importable.map((lap) => lap.id));
       const invalidLapIds = body.lapIds.filter((lapId) => !importableIds.has(lapId));
@@ -337,11 +337,10 @@ export const experimentLapAnalysisRoutes = new Hono()
       }
 
       const fastest = [...loadedLaps].sort((a, b) => a.meta.lapTime - b.meta.lapTime)[0]!;
-      const corners = await resolveLapCorners(
-        session?.trackOrdinal,
-        session?.gameId,
-        fastest.telemetry,
-      );
+      const trackId = session?.gameId === "fm-2023" || session?.gameId === "f1-2025" || session?.gameId === "iracing"
+        ? (session.trackId && /^\d+$/.test(session.trackId) ? Number(session.trackId) : null)
+        : null;
+      const corners = await resolveLapCorners(trackId, session?.gameId, fastest.telemetry);
 
       const trace = computeLineSpreadTrace(loadedLaps.map((l) => l.telemetry), loadedLaps.map((l) => l.meta.id), corners);
       if (!trace) {

@@ -1,9 +1,5 @@
 import { readKunosFrames } from "../../../server/games/kunos/frame-reader";
 import { parseAccBuffers } from "../../../server/games/acc/parser";
-import { readWString } from "../../../server/games/acc/utils";
-import { STATIC } from "../../../server/games/acc/structs";
-import { getAccCarByModel } from "../../../shared/racing/cars/acc"
-import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
 import { createWriteStream } from "node:fs";
 
 const binPath = process.argv[2] || "test/artifacts/sessions/acc-2026-04-09T18-56-49-633Z.bin";
@@ -13,23 +9,11 @@ async function main() {
     const frames = readKunosFrames(binPath);
     console.log(`Read ${frames.length} frames`);
 
-    let carOrdinal = 0;
-    let trackOrdinal = 0;
     const packets = [];
 
     for (let i = 0; i < frames.length; i++) {
       const frame = frames[i];
-      if (carOrdinal === 0 || trackOrdinal === 0) {
-        const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
-        const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
-        if (cm) carOrdinal = getAccCarByModel(cm)?.id ?? 0;
-        if (tn) trackOrdinal = getAccTrackByName(tn)?.id ?? 0;
-      }
-
-      const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
-        carOrdinal,
-        trackOrdinal,
-      });
+      const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData);
 
       if (packet) {
         packets.push({

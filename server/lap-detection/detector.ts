@@ -26,7 +26,6 @@ import { reconcileAutoExclusionsForLap } from "../experiments/auto-exclude";
 import { computeLapSectors as computeLapSectorsHelper } from "../lap-analysis/sectors";
 import { detectSessionBoundary, detectLapBoundary, detectLapReset } from "./boundaries";
 import { logger } from "../runtime/logger";
-import type { SessionIdentity } from "../telemetry/pipeline-ports";
 
 function traceCapture(game: string, event: string, fields: Record<string, unknown>): void {
   logger.trace({ component: "capture", event, game, ...fields }, "Lap capture trace");
@@ -57,8 +56,8 @@ export interface SessionState {
   carPI: number;
   gameId: GameId;
   sessionUID?: string; // F1 session UID for reliable session boundary detection
-  carId?: string;
-  trackId?: string;
+  carId: string;
+  trackId: string;
   bestLapTime: number; // best valid lap time in current session (0 = none yet)
 }
 
@@ -189,8 +188,8 @@ export class LapDetector implements ILapDetector {
     this.pendingIncompleteLapWrite = (async () => {
       const tuneAssignment = await this.db.getTuneAssignment(
         session.gameId,
-        session.carOrdinal,
-        session.trackOrdinal,
+        session.carId,
+        session.trackId,
       );
       this.pendingIncompleteLapId = await this.db.insertLap(
         session.sessionId,
@@ -393,22 +392,15 @@ export class LapDetector implements ILapDetector {
     const trackOrd = packet.TrackOrdinal ?? 0;
     const gameId = packet.gameId;
     const sessionType = packet.f1?.sessionType ?? packet.lmu?.sessionType;
-    const identity: SessionIdentity | undefined = packet.lmu
-      ? {
-          carId: packet.lmu.carId,
-          trackId: packet.lmu.trackId,
-        }
-      : undefined;
+    const carId = packet.lmu?.carId ?? String(packet.CarOrdinal);
+    const trackId = packet.lmu?.trackId ?? String(trackOrd);
     let sessionId: number;
     try {
       sessionId = await this.db.insertSession(
-        packet.CarOrdinal,
-        trackOrd,
+        carId,
+        trackId,
         gameId,
         sessionType,
-        undefined,
-        undefined,
-        identity,
       );
     } catch (err) {
       console.error(`[LapDetector] Failed to insert session:`, (err as Error).message);
@@ -421,7 +413,8 @@ export class LapDetector implements ILapDetector {
       carPI: packet.CarPerformanceIndex,
       gameId,
       sessionUID: packet.sessionUID,
-      ...identity,
+      carId,
+      trackId,
       bestLapTime: 0,
     };
     this.currentLapNumber = -1;
@@ -521,8 +514,8 @@ export class LapDetector implements ILapDetector {
     {
       const tuneAssignment = await this.db.getTuneAssignment(
         this.currentSession.gameId,
-        this.currentSession.carOrdinal,
-        this.currentSession.trackOrdinal
+        this.currentSession.carId,
+        this.currentSession.trackId
       );
       const tuneId = tuneAssignment?.tuneId ?? null;
       traceCapture(this.currentSession.gameId, "lap-boundary-stage", {
@@ -701,8 +694,8 @@ export class LapDetector implements ILapDetector {
       if (lapTime >= 10) {
           const tuneAssignment = await this.db.getTuneAssignment(
             this.currentSession.gameId,
-            this.currentSession.carOrdinal,
-            this.currentSession.trackOrdinal
+            this.currentSession.carId,
+            this.currentSession.trackId
           );
           const lapPackets = this.lapBuffer;
           this.db.insertLap(
@@ -759,8 +752,8 @@ export class LapDetector implements ILapDetector {
     {
       const tuneAssignment = await this.db.getTuneAssignment(
         this.currentSession.gameId,
-        this.currentSession.carOrdinal,
-        this.currentSession.trackOrdinal
+        this.currentSession.carId,
+        this.currentSession.trackId
       );
       const lapNum = this.currentLapNumber;
       const packetCount = this.lapBuffer.length;

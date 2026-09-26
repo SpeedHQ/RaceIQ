@@ -41,7 +41,7 @@ function listSetupFiles(baseDir: string): SetupFileListing[] {
 
 const ImportFileSchema = z.object({
   gameId: z.enum(["acc", "ac-evo"]), filePath: z.string().min(1), name: z.string().optional(),
-  author: z.string().optional(), carOrdinal: z.number().int(), category: z.string().optional().default("circuit"),
+  author: z.string().optional(), carId: z.string().min(1), category: z.string().optional().default("circuit"),
 });
 
 const PlaceSetupSchema = z.object({
@@ -196,7 +196,7 @@ export const tuneSetupFileRoutes = new Hono()
       catch (err: any) { return c.json({ error: `Invalid JSON: ${err.message}` }, 400); }
       const fileName = realPath.split(/[\\/]/).pop() ?? "imported";
       const name = body.name ?? fileName.replace(/\.json$/i, "");
-      const id = await insertTune({ gameId: body.gameId, name, author: body.author ?? "Imported", carOrdinal: body.carOrdinal, category: body.category, description: `Imported from ${fileName}`, settings: JSON.stringify(parsed), unitSystem: "metric", source: "imported-file" });
+      const id = await insertTune({ gameId: body.gameId, name, author: body.author ?? "Imported", carId: body.carId, category: body.category, description: `Imported from ${fileName}`, settings: JSON.stringify(parsed), unitSystem: "metric", source: "imported-file" });
       const created = await getTuneById(id);
       return c.json(parseTuneRow(created), 201);
     });

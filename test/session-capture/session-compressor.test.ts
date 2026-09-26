@@ -20,8 +20,8 @@ import { resolveDataDir } from "../../server/runtime/config/data-dir";
 async function insertSession(rawFile: string | null, createdAt: string): Promise<number> {
   const result = await db.insert(sessions).values({
     gameId: "fm-2023",
-    carOrdinal: 1,
-    trackOrdinal: 1,
+    carId: "1",
+    trackId: "1",
     rawFile,
     lapDetectorVersion: "lapdetector_v1",
     createdAt,

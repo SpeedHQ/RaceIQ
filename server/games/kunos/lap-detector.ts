@@ -81,19 +81,15 @@ export abstract class KunosLapDetector implements ILapDetector {
       this._lapFrameCount++;
     }
     if (!this.currentSession) {
-      const carOrdinalResult = this.resolveCarOrdinal(packet);
-      const resolvedCarOrdinal =
-        typeof carOrdinalResult === "number" ? carOrdinalResult : await carOrdinalResult;
-      const sessionId = await this.db.insertSession(
-        resolvedCarOrdinal,
-        packet.TrackOrdinal ?? 0,
-        packet.gameId,
-        packet.f1?.sessionType,
-      );
+      const carId = packet.CarId ?? "";
+      const trackId = packet.TrackId ?? "";
+      const sessionId = await this.db.insertSession(carId, trackId, packet.gameId, packet.f1?.sessionType);
       this.currentSession = {
         sessionId,
-        carOrdinal: resolvedCarOrdinal,
-        trackOrdinal: packet.TrackOrdinal ?? 0,
+        carOrdinal: -1,
+        trackOrdinal: -1,
+        carId,
+        trackId,
         carPI: packet.CarPerformanceIndex,
         gameId: packet.gameId,
         sessionUID: packet.sessionUID,
@@ -107,8 +103,7 @@ export abstract class KunosLapDetector implements ILapDetector {
       await this.onSessionStart?.(this.currentSession);
     }
 
-    const backfill = this.backfillSessionIdentifiers(packet);
-    if (backfill) await backfill;
+    await this.backfillSessionIdentifiers(packet);
 
     const prev = this.lapBuffer[this.lapBuffer.length - 1];
 
@@ -374,13 +369,16 @@ export abstract class KunosLapDetector implements ILapDetector {
     });
   }
 
-  /** ACC uses the parser-provided ordinal; AC Evo overrides this hook. */
-  protected resolveCarOrdinal(packet: TelemetryPacket): number | Promise<number> {
-    return packet.CarOrdinal;
+  protected async backfillSessionIdentifiers(packet: TelemetryPacket): Promise<void> {
+    const session = this.currentSession!;
+    const carId = packet.CarId || session.carId;
+    const trackId = packet.TrackId || session.trackId;
+    if (carId !== session.carId || trackId !== session.trackId) {
+      session.carId = carId;
+      session.trackId = trackId;
+      await this.db.updateSessionCarTrack(session.sessionId, carId, trackId);
+    }
   }
-
-  /** ACC keeps no per-packet identifier backfill; AC Evo overrides this hook. */
-  protected backfillSessionIdentifiers(_packet: TelemetryPacket): void | Promise<void> {}
 
   /** ACC does not invalidate laps from Kunos track-limit flags. */
   protected classifyTrackLimits(_packets: TelemetryPacket[]): "track limits" | null {

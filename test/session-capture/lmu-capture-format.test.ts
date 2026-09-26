@@ -81,8 +81,6 @@ describe("LMU capture containers", () => {
     const row = await db.select().from(sessions).where(eq(sessions.id, imported.laps[0]!.sessionId)).get();
     expect(row).toMatchObject({
       gameId: "lmu",
-      carOrdinal: -1,
-      trackOrdinal: -1,
       carId: expect.any(String),
       trackId: expect.any(String),
     });

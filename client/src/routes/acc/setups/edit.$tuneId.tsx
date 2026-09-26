@@ -2,14 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { m } from "@/paraglide/messages";
 import { SetupTuneForm } from "../../../components/setup-tune/SetupTuneForm";
-import { useAccCars } from "../../../components/setup-tune/use-game-cars";
 import { useUpdateTune } from "../../../hooks/tunes";
 import { client } from "../../../lib/rpc";
 
 interface TuneRow {
   name: string;
   author: string;
-  carOrdinal: number;
+  carId: string;
   category: string;
   description: string;
   settings: Record<string, unknown>;
@@ -19,7 +18,6 @@ function EditAccTunePage() {
   const { tuneId } = Route.useParams();
   const navigate = useNavigate();
   const updateTune = useUpdateTune();
-  const { data: cars = [] } = useAccCars();
 
   const { data: tune, isLoading } = useQuery<TuneRow>({
     queryKey: ["tune", tuneId],
@@ -34,12 +32,11 @@ function EditAccTunePage() {
       <div className="max-w-3xl mx-auto">
         <SetupTuneForm
           gameId="acc"
-          cars={cars}
           title={`Edit: ${tune.name}`}
           initialData={{
             name: tune.name,
             author: tune.author,
-            carOrdinal: tune.carOrdinal,
+            carId: tune.carId,
             category: tune.category,
             description: tune.description,
             settings: tune.settings,

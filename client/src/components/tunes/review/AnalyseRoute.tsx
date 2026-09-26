@@ -57,5 +57,5 @@ export function AnalyseRoute({ gameId, sessionId }: { gameId: GameId; sessionId?
   if ((hasLap || hasComparison) && (!hasTrack || !hasCar)) return <InvalidAnalyseSelection nested={nested} message={m.review_lap_selection_track_car_required()} />;
   if (hasLap) return <LapAnalyse sessionId={nested ? sessionId : undefined} />;
   if (gameId === "lmu") return <LapAnalyse sessionId={nested ? sessionId : undefined} />;
-  return <TrackCarAnalyseReviewPage gameId={gameId} trackOrdinal={search.track as number} carOrdinal={search.car as number} />;
+  return <TrackCarAnalyseReviewPage gameId={gameId} trackId={String(search.track)} carId={String(search.car)} />;
 }

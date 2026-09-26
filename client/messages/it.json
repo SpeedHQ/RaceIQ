@@ -2127,7 +2127,7 @@
   "analyse_motec_archive_extraction_failed": "Estrazione dell'archivio non riuscita.",
   "analyse_car_label": "Auto",
   "analyse_track_label": "Tracciato",
-  "analyse_import_catalog_explanation": "I nomi di tracciati e veicoli di MoTeC sono testo libero impostato da chi configura l'esportazione: scegli tu auto e tracciato. Se registri un log sul tracciato sbagliato, i settori e i nomi delle curve non avranno senso.",
+  "analyse_import_catalog_explanation": "Inserisci gli identificativi nativi esatti di auto e tracciato. Per AC Evo, il tracciato deve essere una coppia JSON con nome e configurazione esatti. Il luogo indicato da MoTeC da solo non identifica la configurazione.",
   "dataguide_desc_speed": "Velocità attuale del veicolo nell'unità selezionata.",
   "dataguide_desc_rpm": "Giri al minuto del motore.",
   "dataguide_desc_gear": "Marcia attuale (0 = retromarcia, 1–n = marce avanti).",

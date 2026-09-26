@@ -65,8 +65,8 @@ const PACKET_SOURCE_OVERRIDES: Partial<
     TrackOrdinal: ["ACC.Static.track"],
   },
   "ac-evo": {
-    CarOrdinal: ["AC-Evo.Graphics.car_model"],
-    TrackOrdinal: [
+    CarId: ["AC-Evo.Graphics.car_model"],
+    TrackId: [
       "AC-Evo.Static.track",
       "AC-Evo.Static.track_configuration",
     ],

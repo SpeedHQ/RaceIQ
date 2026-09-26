@@ -6,9 +6,9 @@ interface InsertTuneData {
   gameId: string;
   name: string;
   author: string;
-  carOrdinal: number;
+  carId: string;
   category: string;
-  trackOrdinal?: number;
+  trackId?: string | null;
   description: string;
   strengths?: string;
   weaknesses?: string;
@@ -27,9 +27,9 @@ export async function insertTune(data: InsertTuneData): Promise<number> {
       gameId: data.gameId,
       name: data.name,
       author: data.author,
-      carOrdinal: data.carOrdinal,
+      carId: data.carId,
       category: data.category,
-      trackOrdinal: data.trackOrdinal ?? null,
+      trackId: data.trackId ?? null,
       description: data.description,
       strengths: data.strengths ?? null,
       weaknesses: data.weaknesses ?? null,
@@ -45,10 +45,10 @@ export async function insertTune(data: InsertTuneData): Promise<number> {
   return result.id;
 }
 
-export async function getTunes(filters: { gameId?: string; carOrdinal?: number } = {}) {
+export async function getTunes(filters: { gameId?: string; carId?: string } = {}) {
   const conds = [];
   if (filters.gameId != null) conds.push(eq(tunes.gameId, filters.gameId));
-  if (filters.carOrdinal != null) conds.push(eq(tunes.carOrdinal, filters.carOrdinal));
+  if (filters.carId != null) conds.push(eq(tunes.carId, filters.carId));
   const query = db.select().from(tunes).orderBy(desc(tunes.id));
   if (conds.length > 0) return await query.where(and(...conds)).all();
   return await query.all();
@@ -58,14 +58,13 @@ export async function getTuneById(id: number) {
   return (await db.select().from(tunes).where(eq(tunes.id, id)).get()) ?? null;
 }
 
-export async function updateTune(id: number, data: Partial<Omit<InsertTuneData, "carOrdinal" | "gameId">> & { carOrdinal?: number }): Promise<boolean> {
+export async function updateTune(id: number, data: Partial<Omit<InsertTuneData, "gameId">>): Promise<boolean> {
   const sets: Record<string, any> = { updatedAt: sql`(datetime('now'))` };
   if (data.name !== undefined) sets.name = data.name;
   if (data.author !== undefined) sets.author = data.author;
-  if (data.carOrdinal !== undefined) sets.carOrdinal = data.carOrdinal;
+  if (data.carId !== undefined) sets.carId = data.carId;
   if (data.category !== undefined) sets.category = data.category;
-  if (data.trackOrdinal !== undefined) sets.trackOrdinal = data.trackOrdinal;
-  if (data.description !== undefined) sets.description = data.description;
+  if (data.trackId !== undefined) sets.trackId = data.trackId;
   if (data.strengths !== undefined) sets.strengths = data.strengths;
   if (data.weaknesses !== undefined) sets.weaknesses = data.weaknesses;
   if (data.bestTracks !== undefined) sets.bestTracks = data.bestTracks;
@@ -81,42 +80,42 @@ export async function deleteTune(id: number): Promise<boolean> {
   return result.length > 0;
 }
 
-export async function setTuneAssignment(gameId: string, carOrdinal: number, trackOrdinal: number, tuneId: number): Promise<void> {
+export async function setTuneAssignment(gameId: string, carId: string, trackId: string, tuneId: number): Promise<void> {
   const existing = await db
     .select({ id: tuneAssignments.id })
     .from(tuneAssignments)
-    .where(and(eq(tuneAssignments.gameId, gameId), eq(tuneAssignments.carOrdinal, carOrdinal), eq(tuneAssignments.trackOrdinal, trackOrdinal)))
+    .where(and(eq(tuneAssignments.gameId, gameId), eq(tuneAssignments.carId, carId), eq(tuneAssignments.trackId, trackId)))
     .get();
   if (existing) {
     await db.update(tuneAssignments).set({ tuneId }).where(eq(tuneAssignments.id, existing.id)).run();
   } else {
-    await db.insert(tuneAssignments).values({ gameId, carOrdinal, trackOrdinal, tuneId }).run();
+    await db.insert(tuneAssignments).values({ gameId, carId, trackId, tuneId }).run();
   }
 }
 
-export async function getTuneAssignment(gameId: string, carOrdinal: number, trackOrdinal: number) {
+export async function getTuneAssignment(gameId: string, carId: string, trackId: string) {
   const row = await db
     .select({
-      carOrdinal: tuneAssignments.carOrdinal,
-      trackOrdinal: tuneAssignments.trackOrdinal,
+      carId: tuneAssignments.carId,
+      trackId: tuneAssignments.trackId,
       tuneId: tuneAssignments.tuneId,
       tuneName: tunes.name,
     })
     .from(tuneAssignments)
     .innerJoin(tunes, eq(tuneAssignments.tuneId, tunes.id))
-    .where(and(eq(tuneAssignments.gameId, gameId), eq(tuneAssignments.carOrdinal, carOrdinal), eq(tuneAssignments.trackOrdinal, trackOrdinal)))
+    .where(and(eq(tuneAssignments.gameId, gameId), eq(tuneAssignments.carId, carId), eq(tuneAssignments.trackId, trackId)))
     .get();
   return row ?? null;
 }
 
-export async function getTuneAssignments(filters: { gameId?: string; carOrdinal?: number } = {}) {
+export async function getTuneAssignments(filters: { gameId?: string; carId?: string } = {}) {
   const conds = [];
   if (filters.gameId != null) conds.push(eq(tuneAssignments.gameId, filters.gameId));
-  if (filters.carOrdinal != null) conds.push(eq(tuneAssignments.carOrdinal, filters.carOrdinal));
+  if (filters.carId != null) conds.push(eq(tuneAssignments.carId, filters.carId));
   const query = db
     .select({
-      carOrdinal: tuneAssignments.carOrdinal,
-      trackOrdinal: tuneAssignments.trackOrdinal,
+      carId: tuneAssignments.carId,
+      trackId: tuneAssignments.trackId,
       tuneId: tuneAssignments.tuneId,
       tuneName: tunes.name,
     })
@@ -126,14 +125,15 @@ export async function getTuneAssignments(filters: { gameId?: string; carOrdinal?
   return await query.all();
 }
 
-export async function deleteTuneAssignment(gameId: string, carOrdinal: number, trackOrdinal: number): Promise<boolean> {
+export async function deleteTuneAssignment(gameId: string, carId: string, trackId: string): Promise<boolean> {
   const result = await db
     .delete(tuneAssignments)
-    .where(and(eq(tuneAssignments.gameId, gameId), eq(tuneAssignments.carOrdinal, carOrdinal), eq(tuneAssignments.trackOrdinal, trackOrdinal)))
+    .where(and(eq(tuneAssignments.gameId, gameId), eq(tuneAssignments.carId, carId), eq(tuneAssignments.trackId, trackId)))
     .returning()
     .all();
   return result.length > 0;
 }
+
 
 export async function updateLapTune(lapId: number, tuneId: number | null): Promise<boolean> {
   const result = await db

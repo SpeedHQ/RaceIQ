@@ -24,8 +24,8 @@ async function createSession(options: { rawFile: string | null; createdAt?: stri
     .insert(sessions)
     .values({
       gameId: "fm-2023",
-      carOrdinal: 1,
-      trackOrdinal: 1,
+      carId: "1",
+      trackId: "1",
       rawFile: options.rawFile,
       createdAt: options.createdAt ?? OLD_DATE,
       isFavorite: options.isFavorite ?? false,

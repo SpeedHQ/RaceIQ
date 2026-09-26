@@ -1,4 +1,3 @@
-import { getLMUCar, getLMUTrack } from "@shared/games/lmu/catalog";
 import type { SessionMeta } from "@shared/racing/sessions/types";
 import { formatLapTime } from "@/components/LiveTelemetry";
 import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
@@ -62,12 +61,8 @@ export function RecentSessionsTable({
       </THead>
       <TBody>
         {sessions.map((session) => {
-          const track = session.gameId === "lmu" && typeof session.trackId === "string"
-            ? getLMUTrack(session.trackId)?.name ?? session.trackId
-            : trackNames[`${session.gameId}:${session.trackOrdinal}`] ?? "";
-          const car = session.gameId === "lmu" && typeof session.carId === "string"
-            ? getLMUCar(session.carId)?.name ?? session.carId
-            : carNames[`${session.gameId}:${session.carOrdinal}`] ?? "";
+          const track = session.trackId == null ? "" : trackNames[`${session.gameId}:${session.trackId}`] ?? session.trackId;
+          const car = session.carId == null ? "" : carNames[`${session.gameId}:${session.carId}`] ?? session.carId;
           return (
             <TRow key={session.id} onClick={() => onAnalyseSession(session)}>
               {!gameId && (

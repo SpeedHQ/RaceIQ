@@ -101,8 +101,6 @@ const experimentLapSelection = {
   pi: laps.pi,
   carSetup: laps.carSetup,
   createdAt: laps.createdAt,
-  carOrdinal: sessions.carOrdinal,
-  trackOrdinal: sessions.trackOrdinal,
   carId: sessions.carId,
   trackId: sessions.trackId,
   tuneId: laps.tuneId,
@@ -157,23 +155,17 @@ export async function getLapMetaForExperimentVersion(experimentVersionId: number
 }
 
 /**
- * Candidate laps for "Add laps from history" (docs/architecture/setup-engineer.md): laps matching this tuning session's game + car + track that aren't
- * already stamped to ANY tuning session. Ordinal-only match — a name-seeded
- * session already resolves `trackOrdinal` from `trackName` at creation
- * (createExperiment), so by the time this query runs that fallback is
- * already baked into the ordinal; `carOrdinal`/`trackOrdinal` left null on the
- * session (never resolved) are treated as "match any" for that dimension
- * rather than excluding everything. Newest-first, same shape as getLapsForExperiment.
+ * Candidate laps for "Add laps from history": matching game + optional exact
+ * car/track identities, excluding laps already assigned to an experiment.
  */
-
 export async function getImportableLapsForExperiment(
   gameId: GameId,
-  carOrdinal: number | null,
-  trackOrdinal: number | null,
+  carId: string | null,
+  trackId: string | null,
 ): Promise<LapMeta[]> {
   const conds = [eq(sessions.gameId, gameId), isNull(laps.experimentId)];
-  if (carOrdinal != null) conds.push(eq(sessions.carOrdinal, carOrdinal));
-  if (trackOrdinal != null) conds.push(eq(sessions.trackOrdinal, trackOrdinal));
+  if (carId != null) conds.push(eq(sessions.carId, carId));
+  if (trackId != null) conds.push(eq(sessions.trackId, trackId));
 
   const rows = await db
     .select(experimentLapSelection)

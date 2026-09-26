@@ -1,6 +1,8 @@
 import { describe, test, expect } from "bun:test";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../../server/games/ac-evo/parser";
 import { PHYSICS, GRAPHICS_EVO, STATIC_EVO, ACEVO_STATUS } from "../../../server/games/ac-evo/structs";
+import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector";
+import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports";
 
 function emptyBuffers() {
   const graphics = Buffer.alloc(GRAPHICS_EVO.SIZE);
@@ -20,58 +22,75 @@ function writeCString(buf: Buffer, offset: number, size: number, value: string) 
 }
 
 describe("AC Evo parser — malformed/empty STATIC recovery", () => {
-  test("zero-filled STATIC does not throw, track stays unidentified (-1), NOT Monza (0)", () => {
+  test("preserves exact native car and reversible track/configuration through blank pages", () => {
     const { physics, graphics, staticData } = emptyBuffers();
     const cache = createAcEvoParserCache();
+    const blank = parseAcEvoBuffers(physics, graphics, staticData, cache)!;
+    expect(blank.CarId).toBe("");
+    expect(blank.TrackId).toBe("");
 
-    const packet = parseAcEvoBuffers(physics, graphics, staticData, cache);
+    writeCString(graphics, GRAPHICS_EVO.car_model.offset, GRAPHICS_EVO.car_model.size, "Porsche 992 GT3 R Rennsport");
+    writeCString(staticData, STATIC_EVO.track.offset, STATIC_EVO.track.size, "Monza");
+    writeCString(staticData, STATIC_EVO.track_configuration.offset, STATIC_EVO.track_configuration.size, "GP");
+    const first = parseAcEvoBuffers(physics, graphics, staticData, cache)!;
+    expect(first.CarId).toBe("Porsche 992 GT3 R Rennsport");
+    expect(first.TrackId).toBe(JSON.stringify(["Monza", "GP"]));
+    expect(first.CarOrdinal).toBe(-1);
+    expect(first.TrackOrdinal).toBe(-1);
 
-    expect(packet).not.toBeNull();
-    expect(packet!.gameId).toBe("ac-evo");
-    // Ordinal 0 is Ferrari SF90 (car) / Monza GP (track) — an empty name must
-    // stay unidentified (-1), never silently resolve to the first ordinal.
-    expect(cache.carOrdinal).toBe(-1);
-    expect(cache.trackOrdinal).toBe(-1);
-    expect(packet!.TrackOrdinal).toBe(-1);
+    writeCString(staticData, STATIC_EVO.track_configuration.offset, STATIC_EVO.track_configuration.size, "Junior");
+    const second = parseAcEvoBuffers(physics, graphics, staticData, cache)!;
+    expect(second.TrackId).toBe(JSON.stringify(["Monza", "Junior"]));
+    expect(second.TrackId).not.toBe(first.TrackId);
+
+    graphics.fill(0, GRAPHICS_EVO.car_model.offset, GRAPHICS_EVO.car_model.offset + GRAPHICS_EVO.car_model.size);
+    staticData.fill(0, STATIC_EVO.track.offset, STATIC_EVO.track.offset + STATIC_EVO.track.size);
+    staticData.fill(0, STATIC_EVO.track_configuration.offset, STATIC_EVO.track_configuration.offset + STATIC_EVO.track_configuration.size);
+    const afterBlank = parseAcEvoBuffers(physics, graphics, staticData, cache)!;
+    expect(afterBlank.CarId).toBe(first.CarId);
+    expect(afterBlank.TrackId).toBe(second.TrackId);
   });
 
-  test("unknown track name resolves to -1 sentinel, not ordinal 0", () => {
+  test("configuration arriving before track survives until complete native pair", () => {
     const { physics, graphics, staticData } = emptyBuffers();
-    writeCString(staticData, STATIC_EVO.track.offset, STATIC_EVO.track.size, "__not_a_real_track__");
     const cache = createAcEvoParserCache();
-
-    const packet = parseAcEvoBuffers(physics, graphics, staticData, cache);
-
-    expect(packet).not.toBeNull();
-    expect(cache.trackOrdinal).toBe(-1);
+    writeCString(staticData, STATIC_EVO.track_configuration.offset, STATIC_EVO.track_configuration.size, "Grand Prix");
+    expect(parseAcEvoBuffers(physics, graphics, staticData, cache)!.TrackId).toBe("");
+    writeCString(staticData, STATIC_EVO.track_configuration.offset, STATIC_EVO.track_configuration.size, "");
+    writeCString(staticData, STATIC_EVO.track.offset, STATIC_EVO.track.size, "Silverstone");
+    expect(parseAcEvoBuffers(physics, graphics, staticData, cache)!.TrackId).toBe(JSON.stringify(["Silverstone", "Grand Prix"]));
   });
 
-  test("track name populated mid-session resolves on the frame it appears", () => {
-    const { physics, graphics, staticData } = emptyBuffers();
-    const cache = createAcEvoParserCache();
-
-    // Frame 1: game hasn't populated STATIC yet (production repro)
-    parseAcEvoBuffers(physics, graphics, staticData, cache);
-    expect(cache.trackOrdinal).toBe(-1);
-
-    // Frame 2: game fills in the track name
-    writeCString(staticData, STATIC_EVO.track.offset, STATIC_EVO.track.size, "monza");
-    const packet = parseAcEvoBuffers(physics, graphics, staticData, cache);
-    expect(packet).not.toBeNull();
-    expect(cache.trackOrdinal).toBe(0); // Monza GP — now legitimately resolved
-    expect(packet!.TrackOrdinal).toBe(0);
-  });
-
-  test("unknown car display name resolves to -1 sentinel, not ordinal 0", () => {
+  test("unknown native strings remain exact rather than resolving catalog ordinals", () => {
     const { physics, graphics, staticData } = emptyBuffers();
     writeCString(graphics, GRAPHICS_EVO.car_model.offset, GRAPHICS_EVO.car_model.size, "__Not A Real Car__");
+    writeCString(staticData, STATIC_EVO.track.offset, STATIC_EVO.track.size, "__not_a_real_track__");
+    const packet = parseAcEvoBuffers(physics, graphics, staticData, createAcEvoParserCache())!;
+    expect(packet.CarId).toBe("__Not A Real Car__");
+    expect(packet.TrackId).toBe(JSON.stringify(["__not_a_real_track__", ""]));
+  });
+  test("new and changed native IDs persist on same session without discovered-car allocation", async () => {
+    const { physics, graphics, staticData } = emptyBuffers();
     const cache = createAcEvoParserCache();
+    const db = new CapturingDbAdapter();
+    const detector = new LapDetectorAcEvo({ db });
+    await detector.feed(parseAcEvoBuffers(physics, graphics, staticData, cache)!);
+    expect(db.sessions[0]).toMatchObject({ carId: "", trackId: "" });
 
-    const packet = parseAcEvoBuffers(physics, graphics, staticData, cache);
+    writeCString(graphics, GRAPHICS_EVO.car_model.offset, GRAPHICS_EVO.car_model.size, "Porsche 992 GT3 R Rennsport");
+    writeCString(staticData, STATIC_EVO.track.offset, STATIC_EVO.track.size, "Monza");
+    writeCString(staticData, STATIC_EVO.track_configuration.offset, STATIC_EVO.track_configuration.size, "GP");
+    await detector.feed(parseAcEvoBuffers(physics, graphics, staticData, cache)!);
+    expect(db.sessions[0]).toMatchObject({
+      carId: "Porsche 992 GT3 R Rennsport",
+      trackId: JSON.stringify(["Monza", "GP"]),
+    });
 
-    expect(packet).not.toBeNull();
-    // Ordinal 0 is Ferrari SF90 — an unknown car must not silently become it.
-    expect(cache.carOrdinal).toBe(-1);
+    writeCString(staticData, STATIC_EVO.track_configuration.offset, STATIC_EVO.track_configuration.size, "Junior");
+    await detector.feed(parseAcEvoBuffers(physics, graphics, staticData, cache)!);
+    expect(db.sessions[0]!.trackId).toBe(JSON.stringify(["Monza", "Junior"]));
+    expect(db.sessions).toHaveLength(1);
+    await detector.finalizeCurrentSession();
   });
 
   test("undersized buffers return null (no throw)", () => {

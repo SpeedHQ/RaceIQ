@@ -7,7 +7,7 @@ import { driverProfileRuns } from "../../server/db/schema";
 import { createDriverProfileRun, updateDriverProfileRun, getDriverProfileRun, listDriverProfileRuns, findDriverProfileRunByScopePool } from "../../server/db/driver-profile-queries";
 
 const SETTINGS_PATH = `${process.env.DATA_DIR ?? "./data"}/settings.json`;
-const scope = { gameId: "fm-2023" as const, carOrdinal: 42, trackOrdinal: 7 };
+const scope = { gameId: "fm-2023" as const, carId: "42", trackId: "7" };
 
 let originalSettings: string | null = null;
 
@@ -100,7 +100,7 @@ describe("driver profile run persistence", () => {
   test("lists history newest first within a scope", async () => {
     const oldest = await createDriverProfileRun(scope, { poolKey: "oldest", createdAt: "2026-07-29 12:00:00" });
     const newest = await createDriverProfileRun(scope, { poolKey: "newest", createdAt: "2026-07-29T12:01:00.000Z" });
-    await createDriverProfileRun({ gameId: "fm-2023", carOrdinal: 99, trackOrdinal: 7 }, { poolKey: "other-scope" });
+    await createDriverProfileRun({ gameId: "fm-2023", carId: "99", trackId: "7" }, { poolKey: "other-scope" });
 
     const history = await listDriverProfileRuns(scope);
     expect(history.map((run) => run.id)).toEqual([newest, oldest]);

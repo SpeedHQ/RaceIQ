@@ -130,7 +130,7 @@ export function LiveTestDashboard({
   const tuneTrace = useMemo(() => activeViews.map(semanticTuneSampleFromView), [activeViews]);
   const currentFrame = semanticTrace.at(-1) ?? null;
 
-  const trackOrd = trackOrdinal ?? latestLap?.trackOrdinal ?? currentView?.identity.trackOrdinal ?? null;
+  const trackOrd = trackOrdinal ?? (latestLap?.trackId != null && /^\d+$/.test(latestLap.trackId) ? Number(latestLap.trackId) : null) ?? currentView?.identity.trackOrdinal ?? null;
   const { data: outlineRaw } = useTrackOutline(trackOrd ?? undefined, gameId);
   const outline = useMemo(() => {
     if (!outlineRaw) return null;

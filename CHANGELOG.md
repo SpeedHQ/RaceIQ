@@ -2,6 +2,7 @@
 
 ### Breaking
 - Open lap replays through session-scoped links; old track/car/lap query links no longer work
+- Store car and track identities as text across sessions and setups; databases migrated by this version cannot be opened by older versions.
 
 ### Features
 - Add French and Italian interface translations and complete German catalog coverage; localize audited setup, analysis, telemetry, session, and assistant UI copy.
@@ -22,6 +23,7 @@
 - Render 3D replays, onboarding preview, and model comparisons with WebGPU where available and WebGL2 fallback; pause stops recurring scene draws.
 
 ### Fixes
+- Preserve exact ACC and AC Evo car and track identities in recorded sessions, including previously unknown cars and distinct AC Evo track configurations; recover native IDs from existing captures when available.
 - Bundle ACC map-spline SVGs for track edges; derive centre points from aligned SVG edges instead of incorrect embedded centre paths or fastlane-derived boundary JSON.
 - Expose LMU racing lines already present in shipped track SVGs to 2D and 3D replay overlays.
 - Redraw Analyse telemetry charts when their container changes width, preventing stretched horizontal bands after layout transitions.

@@ -15,8 +15,6 @@ import { parseAccBuffers } from "../../../server/games/acc/parser";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../../server/games/ac-evo/parser";
 import { readWString } from "../../../server/games/acc/utils";
 import { STATIC } from "../../../server/games/acc/structs";
-import { getAccCarByModel } from "../../../shared/racing/cars/acc"
-import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { META_FRAME_MAGIC } from "../../../server/session-capture/framing"
@@ -126,17 +124,13 @@ export function readAccPackets(dumpPath: string): ParsedFrames {
   }
   let carModel: string | null = null;
   let trackName: string | null = null;
-  let carOrdinal = 0;
-  let trackOrdinal = 0;
   const packets: TelemetryPacket[] = [];
   for (const frame of frames) {
-    if (carOrdinal === 0 || trackOrdinal === 0) {
-      const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
-      const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
-      if (cm) { carModel = cm; carOrdinal = getAccCarByModel(cm)?.id ?? 0; }
-      if (tn) { trackName = tn; trackOrdinal = getAccTrackByName(tn)?.id ?? 0; }
-    }
-    const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { carOrdinal, trackOrdinal });
+    const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
+    const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
+    if (cm) carModel = cm;
+    if (tn) trackName = tn;
+    const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData);
     if (packet) packets.push(packet);
   }
   return { packets, carModel, trackName };
@@ -239,26 +233,16 @@ export async function parseDump(
     if (frames.length > 0) {
       // ACCTEST recorder format. Parse and process each frame immediately so
       // full-session packet objects are not retained in a second array.
-      let carOrdinal = 0;
-      let trackOrdinal = 0;
       const frameStride = Math.max(1, Math.floor(options.accFrameStride ?? DEFAULT_ACC_FRAME_STRIDE));
       let frameIndex = 0;
       let processedFrames = 0;
       for (const frame of frames) {
         if (frameIndex++ % frameStride !== 0) continue;
-        if (carOrdinal === 0 || trackOrdinal === 0) {
-          const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
-          const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
-          if (cm) {
-            carModel = cm;
-            carOrdinal = getAccCarByModel(cm)?.id ?? 0;
-          }
-          if (tn) {
-            trackName = tn;
-            trackOrdinal = getAccTrackByName(tn)?.id ?? 0;
-          }
-        }
-        const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { carOrdinal, trackOrdinal });
+        const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
+        const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
+        if (cm) carModel = cm;
+        if (tn) trackName = tn;
+        const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData);
         if (packet) await pipeline.processPacket(packet);
         // Capture adapter writes resolve synchronously. Yield
         // periodically so long recordings do not defer GC until suite timeout.

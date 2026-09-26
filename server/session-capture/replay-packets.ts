@@ -1,7 +1,5 @@
 import { readFileSync } from "node:fs";
 import type { GameId } from "../../shared/games/ids";
-import { getAccCarByModel } from "../../shared/racing/cars/acc";
-import { getAccTrackByName } from "../../shared/racing/tracks/catalogs/acc";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { parseAccBuffers } from "../games/acc/parser";
 import { STATIC } from "../games/acc/structs";
@@ -61,34 +59,21 @@ function readAccPackets(recordingPath: string): RecordedTelemetry {
 
   let carModel: string | null = null;
   let trackName: string | null = null;
-  let carOrdinal = 0;
-  let trackOrdinal = 0;
   const packets: TelemetryPacket[] = [];
   for (const frame of frames) {
-    if (carOrdinal === 0 || trackOrdinal === 0) {
-      const nextCarModel = readWString(
-        frame.staticData,
-        STATIC.carModel.offset,
-        STATIC.carModel.size,
-      );
-      const nextTrackName = readWString(
-        frame.staticData,
-        STATIC.track.offset,
-        STATIC.track.size,
-      );
-      if (nextCarModel) {
-        carModel = nextCarModel;
-        carOrdinal = getAccCarByModel(nextCarModel)?.id ?? 0;
-      }
-      if (nextTrackName) {
-        trackName = nextTrackName;
-        trackOrdinal = getAccTrackByName(nextTrackName)?.id ?? 0;
-      }
-    }
-    const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
-      carOrdinal,
-      trackOrdinal,
-    });
+    const nextCarModel = readWString(
+      frame.staticData,
+      STATIC.carModel.offset,
+      STATIC.carModel.size,
+    );
+    const nextTrackName = readWString(
+      frame.staticData,
+      STATIC.track.offset,
+      STATIC.track.size,
+    );
+    if (nextCarModel) carModel = nextCarModel;
+    if (nextTrackName) trackName = nextTrackName;
+    const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData);
     if (packet) packets.push(packet);
   }
   return { packets, carModel, trackName };

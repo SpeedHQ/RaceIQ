@@ -92,6 +92,8 @@ export function SessionReviewDashboard({
   const [dialogOpen, setDialogOpen] = useState(false);
   const selectedLapId = stayOnSessionReview ? (primaryLap?.id ?? null) : search.lap;
   const focusLap = displayedLaps.find((l) => l.id === selectedLapId) ?? primaryLap;
+  const focusTrackOrdinal = focusLap?.trackId != null && /^\d+$/.test(focusLap.trackId) ? Number(focusLap.trackId) : undefined;
+  const focusCarOrdinal = focusLap?.carId != null && /^\d+$/.test(focusLap.carId) ? Number(focusLap.carId) : undefined;
   const view = search.view ?? "overview";
   const isTrackView = view === "track" || view === "analyse";
   const tab = search.tab ?? "consistency";
@@ -105,8 +107,8 @@ export function SessionReviewDashboard({
   }, [displayedLapIds, displayedLaps.length, navigate, search.laps, stayOnSessionReview]);
   const selectedTrace = aligned.data?.laps.find((trace) => trace.lapId === focusLap?.id);
   const telemetry = useMemo(
-    () => (selectedTrace ? semanticTuneSamplesFromAlignedTrace(selectedTrace, gameId, focusLap?.trackOrdinal, aligned.data?.nominalSpanMeters ?? 0) : []),
-    [aligned.data, focusLap?.trackOrdinal, focusLap?.id, gameId, selectedTrace],
+    () => (selectedTrace ? semanticTuneSamplesFromAlignedTrace(selectedTrace, gameId, focusTrackOrdinal, aligned.data?.nominalSpanMeters ?? 0) : []),
+    [aligned.data, focusTrackOrdinal, focusLap?.id, gameId, selectedTrace],
   );
   const sectorTimes = selectedTrace?.sectorTimes
     ? (() => {
@@ -130,7 +132,7 @@ export function SessionReviewDashboard({
   const metric = metrics.find((candidate) => candidate.key === metricKey) ?? metrics[0] ?? METRICS[0];
   const ranges = useMemo(() => buildSectorRanges(telemetry, sectorTimes, metric), [telemetry, sectorTimes, metric]);
   const { data: issues } = useLapIssues(focusLap?.id ?? null);
-  const pressureOptimal = useTirePressureOptimal(gameId, focusLap?.carOrdinal);
+  const pressureOptimal = useTirePressureOptimal(gameId, focusCarOrdinal);
 
   // no position (lap-wide, e.g. average tyre pressure) go to the whole-lap strip.
   const issueGroups = useMemo(() => {
@@ -345,7 +347,7 @@ export function SessionReviewDashboard({
                     telemetry={telemetry}
                     sectorTimes={sectorTimes}
                     showTimes={false}
-                    trackOrdinal={focusLap.trackOrdinal}
+                    trackOrdinal={focusTrackOrdinal}
                     issueMarkers={issueMarkers}
                     readout={readout}
                     onHover={(idx) =>
@@ -407,7 +409,7 @@ export function SessionReviewDashboard({
             gameId={gameId}
             alignedSet={aligned.data}
             lapIds={displayedLapIds}
-            trackOrdinal={focusLap.trackOrdinal}
+            trackOrdinal={focusTrackOrdinal}
             primaryLapId={primaryLapId}
             experimentId={experimentId ?? test?.experimentId ?? null}
             activeTab={tab}
@@ -415,7 +417,7 @@ export function SessionReviewDashboard({
             onActiveTabChange={setTrackTab}
           />
         ) : sectorIndex != null ? (
-          <SectorDetailView gameId={gameId} telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
+          <SectorDetailView gameId={gameId} telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusTrackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
         ) : (
           <>
             {/* Detected issues, laid out per sector */}

@@ -20,13 +20,12 @@ const ExperimentQuerySchema = z.object({
 const CreateExperimentSchema = z.object({
   gameId: GameIdSchema,
   name: z.string().min(1).max(120),
-  carOrdinal: z.number().int().nullable().optional(),
-  trackOrdinal: z.number().int().nullable().optional(),
+  carId: z.string().nullable().optional(),
+  trackId: z.string().nullable().optional(),
   carName: z.string().max(200).nullable().optional(),
   trackName: z.string().max(200).nullable().optional(),
   baseSetupPath: z.string().max(1000).nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
-  // What the experiment opens on. Mutable afterwards — see PATCH .../focus.
   focus: ExperimentFocusSchema.optional(),
 });
 
@@ -162,7 +161,10 @@ export const experimentDetailRoutes = new Hono()
         if (!l.isValid || l.lapTime <= 0) return best;
         return best == null || l.lapTime < best ? l.lapTime : best;
       }, null);
-      const trackLengthM = row.trackOrdinal != null ? getTrackLengthMeters(row.trackOrdinal, row.gameId) : null;
+      const numericTrackId = row.gameId === "fm-2023" || row.gameId === "f1-2025" || row.gameId === "iracing"
+        ? (row.trackId && /^\d+$/.test(row.trackId) ? Number(row.trackId) : null)
+        : null;
+      const trackLengthM = numericTrackId != null ? getTrackLengthMeters(numericTrackId, row.gameId) : null;
       const lapTarget = suggestLapTarget(bestLap, trackLengthM);
 
       return c.json({ ...row, lapTarget });

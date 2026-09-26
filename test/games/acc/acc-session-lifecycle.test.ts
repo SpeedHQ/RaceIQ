@@ -9,6 +9,8 @@
  * Regression 2: sessions never ended when the user exited to the main menu
  * while the game process stayed alive. Mirror of the AC Evo fix.
  */
+import { readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 import { describe, test, expect, afterAll } from "bun:test";
 import { initGameAdapters } from "../../../shared/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
@@ -21,6 +23,7 @@ import { GRAPHICS, AC_STATUS } from "../../../server/games/acc/structs";
 import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
 import { readKunosFrames } from "../../../server/games/kunos/frame-reader";
 import { parseAccBuffers } from "../../../server/games/acc/parser";
+import { unpackTriplet } from "../../../server/games/kunos/pack-triplet";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -28,6 +31,7 @@ initServerGameAdapters();
 afterAll(() => stopMaintenanceTasks());
 
 const ACC_FIXTURE = "test/artifacts/sessions/acc-2026-04-10T02-55-22-777Z.bin.gz";
+const NATIVE_ACC_FIXTURE = "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz";
 
 function graphicsBufferWithStatus(status: number): Buffer {
   const g = Buffer.alloc(GRAPHICS.SIZE);
@@ -128,10 +132,7 @@ describe("ACC lap detector — session re-created on race re-entry", () => {
     const frames = readKunosFrames(ACC_FIXTURE);
     expect(frames.length).toBeGreaterThan(0);
     const first = frames[0];
-    const packet = parseAccBuffers(first.physics, first.graphics, first.staticData, {
-      carOrdinal: 1,
-      trackOrdinal: 1,
-    });
+    const packet = parseAccBuffers(first.physics, first.graphics, first.staticData);
     expect(packet).not.toBeNull();
 
     const db = new CapturingDbAdapter();
@@ -156,16 +157,36 @@ describe("ACC lap detector — session re-created on race re-entry", () => {
   });
 });
 
+describe("ACC native session identity", () => {
+  test("late STATIC fields backfill exact keys; subsequent blank pages do not erase them", async () => {
+    const bytes = Buffer.from(gunzipSync(readFileSync(NATIVE_ACC_FIXTURE)));
+    const offset = 8 + bytes.readUInt32LE(4);
+    const size = bytes.readUInt32LE(offset);
+    const first = unpackTriplet(bytes.subarray(offset + 4, offset + 4 + size))!;
+    const blank = parseAccBuffers(first.physics, first.graphics, Buffer.alloc(first.staticData.length))!;
+    const native = parseAccBuffers(first.physics, first.graphics, first.staticData)!;
+    expect(native.CarId).toBe("mclaren_720s_gt3_evo");
+    expect(native.TrackId).toBe("brands_hatch");
+
+    const db = new CapturingDbAdapter();
+    const detector = new LapDetectorAcc({ db });
+    await detector.feed(blank);
+    expect(db.sessions[0]).toMatchObject({ carId: "", trackId: "" });
+    await detector.feed(native);
+    expect(db.sessions[0]).toMatchObject({ carId: native.CarId, trackId: native.TrackId });
+    await detector.feed(blank);
+    expect(db.sessions[0]).toMatchObject({ carId: native.CarId, trackId: native.TrackId });
+    await detector.finalizeCurrentSession();
+  });
+});
+
 describe("ACC lap detector — session lifecycle", () => {
   test("flushStaleLap finalises session after 10s silence", async () => {
     const frames = readKunosFrames(ACC_FIXTURE);
     expect(frames.length).toBeGreaterThan(0);
 
     const first = frames[0];
-    const packet = parseAccBuffers(first.physics, first.graphics, first.staticData, {
-      carOrdinal: 1,
-      trackOrdinal: 1,
-    });
+    const packet = parseAccBuffers(first.physics, first.graphics, first.staticData);
     expect(packet).not.toBeNull();
 
     const db = new CapturingDbAdapter();

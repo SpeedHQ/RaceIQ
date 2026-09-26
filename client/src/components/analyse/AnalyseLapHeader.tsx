@@ -205,8 +205,8 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
         )}
         {sessionFocused && (
           <div className="order-2 flex min-w-0 basis-full flex-wrap items-center gap-x-3 text-sm text-app-text-muted">
-            <span className="truncate">Track: {trackNames[selectedTrack ?? ""] ?? selectedLap?.trackId ?? (selectedLap?.trackOrdinal != null ? `Track ${selectedLap.trackOrdinal}` : "")}</span>
-            <span className="truncate">Car: {carNames[selectedCar ?? ""] ?? selectedLap?.carId ?? (selectedLap?.carOrdinal != null ? `Car ${selectedLap.carOrdinal}` : "")}</span>
+            <span className="truncate">Track: {trackNames[selectedTrack ?? ""] ?? selectedLap?.trackId ?? ""}</span>
+            <span className="truncate">Car: {carNames[selectedCar ?? ""] ?? selectedLap?.carId ?? ""}</span>
           </div>
         )}
 

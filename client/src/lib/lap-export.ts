@@ -17,8 +17,8 @@ export function buildExportCsv(
   driverName?: string,
 ): string {
   const first = telemetry[0] ?? {};
-  const carOrdinal = selectedLap?.carOrdinal ?? first.CarOrdinal ?? "?";
-  const trackOrdinal = selectedLap?.trackOrdinal ?? first.TrackOrdinal ?? "?";
+  const carOrdinal = selectedLap?.carId ?? first.CarOrdinal ?? "?";
+  const trackOrdinal = selectedLap?.trackId ?? first.TrackOrdinal ?? "?";
   const header = [
     `# Driver: ${driverName || "Unknown"}`,
     `# Car: ${carName || `Ordinal ${carOrdinal}`} | CarOrdinal: ${carOrdinal}`,

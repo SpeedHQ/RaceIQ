@@ -308,9 +308,13 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
 
   // Tune selector
   const { data: availableTunes } = useQuery({
-    queryKey: ["tunes", selectedLap?.carOrdinal],
-    queryFn: () => client.api.tunes.$get({ query: { carOrdinal: selectedLap?.carOrdinal != null ? String(selectedLap.carOrdinal) : undefined } }).then((r) => r.json() as any),
-    enabled: gameId !== "lmu" && !!selectedLap?.carOrdinal,
+    queryKey: ["tunes", gameId, selectedLap?.carId],
+    queryFn: async () => {
+      const response = await client.api.tunes.$get({ query: { gameId, carId: selectedLap?.carId ?? undefined } });
+      if (!response.ok) throw new Error(response.statusText);
+      return response.json();
+    },
+    enabled: gameId !== "lmu" && !!selectedLap?.carId,
   });
   const { data: persistedF1Setup } = useQuery<{ setup: F1CarSetup | null }>({
     queryKey: ["lap-setup", gameId, selectedLapId],
@@ -327,7 +331,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     onMutate: (tuneId) => {
       // Optimistically update local laps state so dropdown doesn't reset
       setLaps((prev) =>
-        prev.map((l) => (l.id === selectedLapId ? { ...l, tuneId: tuneId ?? undefined, tuneName: availableTunes?.find((t: { id: number; name: string }) => t.id === tuneId)?.name } : l)),
+        prev.map((l) => (l.id === selectedLapId ? { ...l, tuneId: tuneId ?? undefined, tuneName: availableTunes?.find((t) => t.id === tuneId)?.name } : l)),
       );
     },
     onSuccess: () => {

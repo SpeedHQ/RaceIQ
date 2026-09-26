@@ -1282,5 +1282,148 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE lap_metrics ADD COLUMN insight_version INTEGER NOT NULL DEFAULT 0`,
     ],
   },
+  // v62: replace ordinal identity columns with direct text keys. Legacy numeric
+  // identities survive as decimal text; pre-existing string IDs take precedence.
+  {
+    version: 62,
+    name: "migrate identity keys to text",
+    sql: [
+      `CREATE TABLE sessions_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, car_id TEXT NOT NULL, track_id TEXT NOT NULL,
+        game_id TEXT NOT NULL, session_type TEXT, notes TEXT, raw_file TEXT,
+        is_favorite INTEGER NOT NULL DEFAULT 0, lap_detector_version TEXT,
+        catalog_version TEXT, catalog_hash TEXT, catalog_schema_version TEXT,
+        parser_version TEXT, resolver_version TEXT, derivation_version TEXT,
+        source TEXT, ownership TEXT NOT NULL DEFAULT 'mine',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT INTO sessions_new SELECT id, COALESCE(car_id, CAST(car_ordinal AS TEXT)),
+        COALESCE(track_id, CAST(track_ordinal AS TEXT)), game_id, session_type, notes,
+        raw_file, is_favorite, lap_detector_version, catalog_version, catalog_hash,
+        catalog_schema_version, parser_version, resolver_version, derivation_version,
+        source, ownership, created_at FROM sessions`,
+      `DROP TABLE sessions`,
+      `ALTER TABLE sessions_new RENAME TO sessions`,
+      `CREATE INDEX idx_sessions_game_car_id ON sessions(game_id, car_id)`,
+      `CREATE INDEX idx_sessions_game_track_id ON sessions(game_id, track_id)`,
+
+      `CREATE TABLE tunes_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, game_id TEXT NOT NULL, name TEXT NOT NULL,
+        author TEXT NOT NULL, car_id TEXT NOT NULL, category TEXT NOT NULL, track_id TEXT,
+        description TEXT NOT NULL DEFAULT '', strengths TEXT, weaknesses TEXT,
+        best_tracks TEXT, strategies TEXT, settings TEXT NOT NULL,
+        unit_system TEXT NOT NULL DEFAULT 'metric', source TEXT NOT NULL DEFAULT 'user',
+        catalog_id TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT INTO tunes_new SELECT id, game_id, name, author, CAST(car_ordinal AS TEXT),
+        category, CAST(track_ordinal AS TEXT), description, strengths, weaknesses,
+        best_tracks, strategies, settings, unit_system, source, catalog_id, created_at,
+        updated_at FROM tunes`,
+      `DROP TABLE tunes`,
+      `ALTER TABLE tunes_new RENAME TO tunes`,
+      `CREATE INDEX idx_tunes_car ON tunes(car_id)`,
+      `CREATE INDEX idx_tunes_game_car ON tunes(game_id, car_id)`,
+
+      `CREATE TABLE tune_assignments_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, game_id TEXT NOT NULL,
+        car_id TEXT NOT NULL, track_id TEXT NOT NULL,
+        tune_id INTEGER NOT NULL REFERENCES tunes(id) ON DELETE CASCADE,
+        UNIQUE(game_id, car_id, track_id)
+      )`,
+      `INSERT INTO tune_assignments_new SELECT id, game_id, CAST(car_ordinal AS TEXT),
+        CAST(track_ordinal AS TEXT), tune_id FROM tune_assignments`,
+      `DROP TABLE tune_assignments`,
+      `ALTER TABLE tune_assignments_new RENAME TO tune_assignments`,
+      `CREATE INDEX idx_assignments_tune ON tune_assignments(tune_id)`,
+
+      `CREATE TABLE track_outlines_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, track_id TEXT NOT NULL, game_id TEXT NOT NULL,
+        outline BLOB NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(track_id, game_id)
+      )`,
+      `INSERT INTO track_outlines_new SELECT id, CAST(track_ordinal AS TEXT), game_id,
+        outline, created_at FROM track_outlines`,
+      `DROP TABLE track_outlines`,
+      `ALTER TABLE track_outlines_new RENAME TO track_outlines`,
+      `CREATE INDEX idx_outlines_track ON track_outlines(track_id)`,
+
+      `CREATE TABLE track_corners_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, track_id TEXT NOT NULL, game_id TEXT NOT NULL,
+        corner_index INTEGER NOT NULL, label TEXT NOT NULL, distance_start REAL NOT NULL,
+        distance_end REAL NOT NULL, is_auto INTEGER NOT NULL DEFAULT 1,
+        UNIQUE(track_id, game_id, corner_index)
+      )`,
+      `INSERT INTO track_corners_new SELECT id, CAST(track_ordinal AS TEXT), game_id,
+        corner_index, label, distance_start, distance_end, is_auto FROM track_corners`,
+      `DROP TABLE track_corners`,
+      `ALTER TABLE track_corners_new RENAME TO track_corners`,
+      `CREATE INDEX idx_corners_track ON track_corners(track_id)`,
+
+      `CREATE TABLE community_tunes_new (
+        id TEXT PRIMARY KEY, game_id TEXT NOT NULL, car_id TEXT NOT NULL, track_id TEXT,
+        name TEXT NOT NULL, author TEXT NOT NULL, category TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '', source_name TEXT NOT NULL DEFAULT '',
+        settings TEXT NOT NULL, synced_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT INTO community_tunes_new SELECT id, game_id, CAST(car_ordinal AS TEXT),
+        CAST(track_ordinal AS TEXT), name, author, category, description, source_name,
+        settings, synced_at FROM community_tunes`,
+      `DROP TABLE community_tunes`,
+      `ALTER TABLE community_tunes_new RENAME TO community_tunes`,
+      `CREATE INDEX idx_community_tunes_game ON community_tunes(game_id)`,
+
+      `CREATE TABLE experiments_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, seq INTEGER NOT NULL DEFAULT 1,
+        game_id TEXT NOT NULL, name TEXT NOT NULL, car_id TEXT, track_id TEXT,
+        car_name TEXT, track_name TEXT, base_setup_path TEXT, head_version_id INTEGER,
+        status TEXT NOT NULL DEFAULT 'active', focus TEXT NOT NULL DEFAULT 'car',
+        notes TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT INTO experiments_new SELECT id, seq, game_id, name,
+        CAST(car_ordinal AS TEXT), CAST(track_ordinal AS TEXT), car_name, track_name,
+        base_setup_path, head_version_id, status, focus, notes, created_at, updated_at
+        FROM experiments`,
+      `DROP TABLE experiments`,
+      `ALTER TABLE experiments_new RENAME TO experiments`,
+      `CREATE INDEX idx_experiments_game ON experiments(game_id)`,
+
+      `CREATE TABLE driver_profiles_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, scope_key TEXT NOT NULL, game_id TEXT NOT NULL,
+        car_id TEXT, track_id TEXT, pool_key TEXT NOT NULL, fingerprint TEXT NOT NULL,
+        plan TEXT NOT NULL, input_tokens INTEGER NOT NULL DEFAULT 0,
+        output_tokens INTEGER NOT NULL DEFAULT 0, cost_usd REAL NOT NULL DEFAULT 0,
+        duration_ms INTEGER NOT NULL DEFAULT 0, model TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT INTO driver_profiles_new SELECT id, scope_key, game_id,
+        CAST(car_ordinal AS TEXT), CAST(track_ordinal AS TEXT), pool_key, fingerprint,
+        plan, input_tokens, output_tokens, cost_usd, duration_ms, model, created_at
+        FROM driver_profiles`,
+      `DROP TABLE driver_profiles`,
+      `ALTER TABLE driver_profiles_new RENAME TO driver_profiles`,
+      `CREATE UNIQUE INDEX driver_profiles_scope_key_idx ON driver_profiles(scope_key)`,
+      `CREATE INDEX driver_profiles_game_idx ON driver_profiles(game_id)`,
+
+      `CREATE TABLE driver_profile_runs_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, scope_key TEXT NOT NULL, game_id TEXT NOT NULL,
+        car_id TEXT, track_id TEXT, pool_key TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'queued' CHECK(status IN ('queued','running','succeeded','failed')),
+        fingerprint TEXT, plan TEXT, error TEXT, input_tokens INTEGER NOT NULL DEFAULT 0,
+        output_tokens INTEGER NOT NULL DEFAULT 0, cost_usd REAL NOT NULL DEFAULT 0,
+        duration_ms INTEGER NOT NULL DEFAULT 0, model TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')), started_at TEXT, completed_at TEXT
+      )`,
+      `INSERT INTO driver_profile_runs_new SELECT id, scope_key, game_id,
+        CAST(car_ordinal AS TEXT), CAST(track_ordinal AS TEXT), pool_key, status,
+        fingerprint, plan, error, input_tokens, output_tokens, cost_usd, duration_ms,
+        model, created_at, started_at, completed_at FROM driver_profile_runs`,
+      `DROP TABLE driver_profile_runs`,
+      `ALTER TABLE driver_profile_runs_new RENAME TO driver_profile_runs`,
+      `CREATE INDEX driver_profile_runs_scope_status_idx ON driver_profile_runs(scope_key, status)`,
+      `CREATE INDEX driver_profile_runs_scope_created_idx ON driver_profile_runs(scope_key, created_at DESC, id DESC)`,
+    ],
+  },
 ];
 

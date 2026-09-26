@@ -187,6 +187,8 @@ export interface TelemetryPacket {
   SuspensionTravelMRR: number;
 
   // Car info
+  /** Native Kunos identity; numeric-native games continue using ordinals in packets. */
+  CarId?: string;
   CarOrdinal: number; // s32
   /**
    * Raw car name/model string from telemetry when CarOrdinal is -1 (car not
@@ -208,6 +210,8 @@ export interface TelemetryPacket {
   Torque: number; // f32 newton meters
 
   // Track ID
+  /** AC Evo encodes the exact game-emitted track/configuration pair. */
+  TrackId?: string;
   TrackOrdinal: number; // s32
 
   // Brake temps (ACC only)

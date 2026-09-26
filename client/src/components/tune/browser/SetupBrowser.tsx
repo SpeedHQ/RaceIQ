@@ -9,8 +9,8 @@ import type { SourceTab, TuneRow } from "./types";
 
 export interface SetupBrowserProps {
   rows: TuneRow[];
-  carNames: Record<number, string>;
-  trackNames: Record<number, string>;
+  carNames: Record<string, string>;
+  trackNames: Record<string, string>;
   trackOptions: Array<{ value: string; label: string }>;
   carOptions: Array<{ value: string; label: string }>;
   sources: SourceTab[];
@@ -56,8 +56,8 @@ export function SetupBrowser(props: SetupBrowserProps) {
   const visible = useMemo(() => {
     const authorQuery = author.trim().toLowerCase();
     const filtered = rows.filter((r) => {
-      if (track && r.trackOrdinal !== Number(track)) return false;
-      if (car && r.carOrdinal !== Number(car)) return false;
+      if (track && r.trackId !== track) return false;
+      if (car && r.carId !== car) return false;
       if (source !== "all" && r.source !== source) return false;
       if (authorQuery && !r.author.toLowerCase().includes(authorQuery)) return false;
       return true;
@@ -175,8 +175,8 @@ export function SetupBrowser(props: SetupBrowserProps) {
               key={row.key}
               row={row}
               rank={safePage * PAGE_SIZE + index + 1}
-              carName={props.carNames[row.carOrdinal] ?? `Car #${row.carOrdinal}`}
-              trackName={row.trackOrdinal != null ? (props.trackNames[row.trackOrdinal] ?? `Track #${row.trackOrdinal}`) : null}
+              carName={props.carNames[row.carId] ?? row.carId}
+              trackName={row.trackId != null ? (props.trackNames[row.trackId] ?? row.trackId) : null}
               isOpen={openKey === row.key}
               onToggle={() => setOpenKey(openKey === row.key ? null : row.key)}
               onClone={props.onClone}

@@ -100,8 +100,8 @@ describe("lap chat prompt", () => {
       lapNumber: 2,
       lapTime: 79.328,
       isValid: true,
-      carOrdinal: 1,
-      trackOrdinal: 19,
+      carId: "1",
+      trackId: "19",
       gameId: "f1-2025",
     }, [{
       gameId: "f1-2025",
@@ -130,6 +130,34 @@ describe("lap chat prompt", () => {
     expect(prompt).toContain("Car ID: 1");
     expect(prompt).toContain("Track ID: 19");
     expect(prompt).toContain(`Track: ${resolveTrackName(19, "f1-2025")}`);
+  });
+
+  test("uses native ACC car and track keys throughout session identity", () => {
+    const prompt = buildChatSystemPrompt({
+      id: 8,
+      lapNumber: 1,
+      lapTime: 89,
+      isValid: true,
+      gameId: "acc",
+      carId: "mclaren_720s_gt3_evo",
+      trackId: "brands_hatch",
+    }, [{
+      gameId: "acc",
+      CarOrdinal: -1,
+      TrackOrdinal: -1,
+      DistanceTraveled: 0,
+      Speed: 0,
+      VelocityX: 0,
+      VelocityY: 0,
+      VelocityZ: 0,
+      CurrentEngineRpm: 0,
+      Accel: 0,
+      Brake: 0,
+      Gear: 1,
+    } as never], []);
+    expect(prompt).toContain("Car ID: mclaren_720s_gt3_evo");
+    expect(prompt).toContain("Track ID: brands_hatch");
+    expect(prompt).not.toContain("Car ID: -1");
   });
 
 });

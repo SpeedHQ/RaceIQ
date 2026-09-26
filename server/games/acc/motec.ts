@@ -1,5 +1,3 @@
-import { getAccCarByModel, getAccCarName } from "../../../shared/racing/cars/acc";
-import { getAccTrackByName, getAccTrackBySetupFolder, getAccTracks } from "../../../shared/racing/tracks/catalogs/acc";
 import {
   convertPreparedKunosMotecPackets,
   type KunosMotecPacketProfile,
@@ -9,9 +7,7 @@ import type { LdLog } from "../../motec/ld";
 import type { MotecCarTrack, MotecCarTrackOverride, MotecConversionResult } from "../../motec/types";
 
 export function resolveAccMotecCarTrack(log: LdLog, override?: MotecCarTrackOverride): MotecCarTrack {
-  const car = override?.carOrdinal !== undefined && override.carOrdinal >= 0 ? { id: override.carOrdinal, name: getAccCarName(override.carOrdinal) } : getAccCarByModel(log.vehicleId);
-  const track = override?.trackOrdinal !== undefined && override.trackOrdinal >= 0 ? getAccTracks().get(override.trackOrdinal) : getAccTrackBySetupFolder(log.venue) ?? getAccTrackByName(log.venue);
-  return { carOrdinal: car?.id ?? -1, trackOrdinal: track?.id ?? -1, carModel: car?.name ?? log.vehicleId, trackName: track?.name ?? log.venue };
+  return { carId: override?.carId ?? log.vehicleId, trackId: override?.trackId ?? log.venue, carModel: log.vehicleId, trackName: log.venue };
 }
 export { MOTEC_IMPORT_LIMITATIONS };
 const ACC_MOTEC_PACKET_PROFILE = {
@@ -23,13 +19,9 @@ const ACC_MOTEC_PACKET_PROFILE = {
   brakePadWear: 0,
   currentSectorIndex: 0,
   trackGripStatus: "",
-  includeUnknownCarModel: false,
 } satisfies KunosMotecPacketProfile;
 export function convertAccMotecToPackets(log: LdLog, beacons: number[], carTrack: MotecCarTrack): MotecConversionResult {
-  const prepared = prepareKunosMotecCapture(log, beacons, {
-    gameId: "acc",
-    trackOrdinal: carTrack.trackOrdinal,
-  });
+  const prepared = prepareKunosMotecCapture(log, beacons, { gameId: "acc" });
   const packets = convertPreparedKunosMotecPackets(
     prepared,
     carTrack,

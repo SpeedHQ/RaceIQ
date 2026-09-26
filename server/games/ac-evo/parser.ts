@@ -28,28 +28,23 @@ import {
   ACEVO_STARTING_GRIP_NAMES,
 } from "./structs";
 import { readCString } from "./utils";
-import { getAcEvoCarByDisplayName } from "../../../shared/racing/cars/ac-evo"
-import { getAcEvoTrackByName } from "../../../shared/racing/tracks/catalogs/ac-evo"
+import { encodeAcEvoTrackId } from "../../../shared/racing/tracks/ac-evo-identity";
 
 export interface AcEvoParserCache {
-  carOrdinal: number;
-  trackOrdinal: number;
   lastCarModel: string;
   lastTrack: string;
+  lastTrackName: string;
+  lastTrackConfiguration: string;
   playerSlotState: PlayerSlotState;
   distanceState: AcEvoDistanceState;
 }
 
 export function createAcEvoParserCache(): AcEvoParserCache {
   return {
-    // -1 = not yet identified. Ordinal 0 is a real car (Ferrari SF90 Stradale)
-    // and a real track (Monza GP), so an empty/unknown name must NOT default
-    // to 0 — that is exactly the production bug where sessions imported as
-    // "Monza" / "Ferrari SF90 Stradale".
-    carOrdinal: -1,
-    trackOrdinal: -1,
     lastCarModel: "",
     lastTrack: "",
+    lastTrackName: "",
+    lastTrackConfiguration: "",
     playerSlotState: createPlayerSlotState(),
     distanceState: createAcEvoDistanceState(),
   };
@@ -74,31 +69,14 @@ export function parseAcEvoBuffers(
   const trackStr = readCString(staticBuf, STATIC_EVO.track.offset, STATIC_EVO.track.size);
   const trackCfgStr = readCString(staticBuf, STATIC_EVO.track_configuration.offset, STATIC_EVO.track_configuration.size);
 
-  if (carModelStr && carModelStr !== cache.lastCarModel) {
-    cache.lastCarModel = carModelStr;
-    const car = getAcEvoCarByDisplayName(carModelStr);
-    if (car) {
-      cache.carOrdinal = car.id;
-      console.log(`[AC Evo Parser] Resolved car: "${carModelStr}" → ordinal ${car.id}`);
-    } else {
-      cache.carOrdinal = -1;
-      console.warn(`[AC Evo Parser] Unknown car "${carModelStr}" — add it to shared/games/ac-evo/cars.csv`);
-    }
+  if (carModelStr) cache.lastCarModel = carModelStr;
+  if (trackStr && trackStr !== cache.lastTrackName) {
+    if (cache.lastTrackName) cache.lastTrackConfiguration = "";
+    cache.lastTrackName = trackStr;
   }
-
-  // Include the layout in the cache key: switching GP → Indy at the same
-  // circuit changes only track_configuration, not track.
-  const trackKey = `${trackStr}|${trackCfgStr}`;
-  if (trackStr && trackKey !== cache.lastTrack) {
-    cache.lastTrack = trackKey;
-    const track = getAcEvoTrackByName(trackStr, trackCfgStr);
-    if (track) {
-      cache.trackOrdinal = track.id;
-      console.log(`[AC Evo Parser] Resolved track: "${trackStr}" (config "${trackCfgStr}") → ordinal ${track.id} (${track.name} - ${track.variant})`);
-    } else {
-      cache.trackOrdinal = -1;
-      console.warn(`[AC Evo Parser] Unknown track name: "${trackStr}" (config "${trackCfgStr}")`);
-    }
+  if (trackCfgStr) cache.lastTrackConfiguration = trackCfgStr;
+  if (cache.lastTrackName && (trackStr || trackCfgStr)) {
+    cache.lastTrack = encodeAcEvoTrackId(cache.lastTrackName, cache.lastTrackConfiguration);
   }
 
   // --- Physics ---
@@ -600,12 +578,9 @@ export function parseAcEvoBuffers(
     BrakeTempRearLeft: brTempRL,
     BrakeTempRearRight: brTempRR,
 
-    CarOrdinal: cache.carOrdinal,
-    // Surface the raw model string for unknown cars so the session layer can
-    // register them in discovered_cars (task #1) instead of "Unknown Car".
-    ...(cache.carOrdinal < 0 && cache.lastCarModel
-      ? { carModelName: cache.lastCarModel }
-      : {}),
+    CarOrdinal: -1,
+    CarId: cache.lastCarModel,
+    TrackId: cache.lastTrack,
     CarClass: 0,
     CarPerformanceIndex: 0,
     DrivetrainType: 1,
@@ -617,7 +592,7 @@ export function parseAcEvoBuffers(
     Speed: speed,
     Power: 0,
     Torque: 0,
-    TrackOrdinal: cache.trackOrdinal,
+    TrackOrdinal: -1,
 
     WeatherType: 0,
     TrackTemp: startingGround,

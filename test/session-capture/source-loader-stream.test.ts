@@ -35,8 +35,8 @@ for (const compressed of [false, true]) {
       rawFile,
       source: null,
       gameId: "f1-2025",
-      carOrdinal: 0,
-      trackOrdinal: 0,
+      carId: "",
+      trackId: "",
     })) {
       records.push({ offset: record.offset, frame: [...record.frame] });
     }
@@ -72,7 +72,7 @@ for (const compressed of [false, true]) {
     try {
       const actual = [];
       for await (const record of iterateSessionCaptureRecordsFromSource({
-        rawFile, source: null, gameId: "f1-2025", carOrdinal: 0, trackOrdinal: 0,
+        rawFile, source: null, gameId: "f1-2025", carId: "", trackId: "",
       })) actual.push(record);
       expect(actual.map(({ kind, offset }) => ({ kind, offset }))).toEqual(
         [...iterateSessionCaptureRecords(capture)].map(({ kind, offset }) => ({ kind, offset })),
@@ -99,8 +99,8 @@ for (const malformed of [
         rawFile,
         source: null,
         gameId: "f1-2025",
-        carOrdinal: 0,
-        trackOrdinal: 0,
+        carId: "",
+        trackId: "",
       })) {
         // No valid records expected.
       }

@@ -2127,7 +2127,7 @@
   "analyse_motec_archive_extraction_failed": "Archive extraction failed.",
   "analyse_car_label": "Car",
   "analyse_track_label": "Track",
-  "analyse_import_catalog_explanation": "MoTeC's own venue and vehicle strings are free text set by whoever configured the exporter, so car and track are your call — filing a log against the wrong track gives it meaningless sectors and corner names.",
+  "analyse_import_catalog_explanation": "Enter exact native car and track keys. For AC Evo, track must be a JSON pair of exact track and configuration strings. MoTeC venue alone cannot identify the configuration.",
   "dataguide_desc_speed": "Current vehicle speed in selected units.",
   "dataguide_desc_rpm": "Engine revolutions per minute.",
   "dataguide_desc_gear": "Current gear (0 = reverse, 1–n = forward).",

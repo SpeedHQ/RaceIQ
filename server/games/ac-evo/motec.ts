@@ -16,14 +16,10 @@ const AC_EVO_MOTEC_PACKET_PROFILE = {
   brakePadWear: -1,
   currentSectorIndex: -1,
   trackGripStatus: "unknown",
-  includeUnknownCarModel: true,
 } satisfies KunosMotecPacketProfile;
 
 export function convertAcEvoMotecToPackets(log: LdLog, beacons: number[], carTrack: MotecCarTrack): MotecConversionResult {
-  const prepared = prepareKunosMotecCapture(log, beacons, {
-    gameId: "ac-evo",
-    trackOrdinal: carTrack.trackOrdinal,
-  });
+  const prepared = prepareKunosMotecCapture(log, beacons, { gameId: "ac-evo" });
   const packets = convertPreparedKunosMotecPackets(
     prepared,
     carTrack,

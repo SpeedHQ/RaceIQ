@@ -56,7 +56,7 @@ export const trackCalibrationRoutes = new Hono()
 
       const lapData = await getLapById(body.lapId);
       if (!lapData) return c.json({ error: "Lap not found" }, 404);
-      if (lapData.trackOrdinal !== ordinal) return c.json({ error: "Lap is not from this track" }, 400);
+      if (lapData.trackId !== String(ordinal)) return c.json({ error: "Lap is not from this track" }, 400);
       if (!lapData.telemetry || lapData.telemetry.length < 50) {
         return c.json({ error: "Lap has insufficient telemetry data" }, 400);
       }
@@ -202,7 +202,7 @@ export const trackGeometryRoutes = new Hono()
 
       // If we have a recorded Forza-coords outline AND a bundled TUMFTM outline,
       // compute static alignment so boundaries match without needing live driving.
-      const recordedOutline = (await getDbTrackOutline(ordinal, requireGameId(c))) ?? (sharedHasRecordedOutline(ordinal, requireGameId(c)) ? getTrackOutlineByOrdinal(ordinal, requireGameId(c)) : null);
+      const recordedOutline = (await getDbTrackOutline(String(ordinal), requireGameId(c))) ?? (sharedHasRecordedOutline(ordinal, requireGameId(c)) ? getTrackOutlineByOrdinal(ordinal, requireGameId(c)) : null);
       const bundledOutline = getBundledOutlineByOrdinal(ordinal);
       if (recordedOutline && bundledOutline) {
         computeStaticAlignment(ordinal, bundledOutline, recordedOutline);
@@ -315,7 +315,7 @@ export const trackGeometryRoutes = new Hono()
 
       // Find all laps for this track
       const curbGameId = c.req.query("gameId") as GameId | undefined;
-      const trackLaps = (await getLaps(curbGameId)).filter(l => l.trackOrdinal === ordinal && l.lapTime > 0);
+      const trackLaps = (await getLaps(curbGameId)).filter(l => l.trackId === String(ordinal) && l.lapTime > 0);
       if (trackLaps.length === 0) return c.json({ error: "No laps found for this track" }, 404);
 
       let totalSegments = 0;
@@ -337,7 +337,7 @@ export const trackGeometryRoutes = new Hono()
 
       // Trigger boundary recalibration if we have curb data
       const boundaries = getTrackBoundariesByOrdinal(ordinal, requireGameId(c));
-      const recordedOutline = (await getDbTrackOutline(ordinal, requireGameId(c))) ?? (sharedHasRecordedOutline(ordinal, requireGameId(c)) ? getTrackOutlineByOrdinal(ordinal, requireGameId(c)) : null);
+      const recordedOutline = (await getDbTrackOutline(String(ordinal), requireGameId(c))) ?? (sharedHasRecordedOutline(ordinal, requireGameId(c)) ? getTrackOutlineByOrdinal(ordinal, requireGameId(c)) : null);
       const bundledOutline = getBundledOutlineByOrdinal(ordinal);
 
       let calibrated = false;

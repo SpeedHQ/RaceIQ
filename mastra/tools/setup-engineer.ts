@@ -943,11 +943,12 @@ export function buildSetupEngineerTools() {
         return { ok: false, error: "One or both laps have no telemetry data." };
       }
       const corners = detectCorners(lapA.telemetry);
-      const track = resolveTrack(lapA.gameId, lapA.trackOrdinal);
+      const trackOrdinal = lapA.trackId != null && /^\d+$/.test(lapA.trackId) ? Number(lapA.trackId) : undefined;
+      const track = trackOrdinal == null ? null : resolveTrack(lapA.gameId, trackOrdinal);
       const result = compareLaps(lapA.telemetry, lapB.telemetry, corners, {
         lapAIsValid: lapA.isValid,
         lapBIsValid: lapB.isValid,
-        trackLengthMeters: track.lengthMeters,
+        trackLengthMeters: track?.lengthMeters ?? 0,
       });
       const timeDeltaSec = result.timeDelta.length > 0 ? result.timeDelta[result.timeDelta.length - 1]! : 0;
 

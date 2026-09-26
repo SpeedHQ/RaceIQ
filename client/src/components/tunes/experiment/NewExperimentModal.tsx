@@ -249,9 +249,10 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
       const s = await create.mutateAsync({
         gameId,
         name: effectiveName,
+        carId: car,
+        trackId: track,
         carName: car,
         trackName: track,
-        // A driving experiment may legitimately have none.
         baseSetupPath: baseSetupPath || null,
         focus,
       });

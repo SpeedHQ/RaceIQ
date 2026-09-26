@@ -49,7 +49,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
 
 async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessResult> {
   const sessionRows = await db
-    .select({ rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId, carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal })
+    .select({ rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId })
     .from(sessions)
     .where(eq(sessions.id, sessionId))
     .all();
@@ -69,8 +69,8 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
   const versionIdentity = currentTelemetryVersionIdentity(gameId);
 
   const loaded = await loadSessionSource({
-    rawFile: session.rawFile, source: session.source, gameId: session.gameId as GameId,
-    carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal,
+    rawFile: session.rawFile, source: session.source, gameId,
+    carId: session.carId ?? "", trackId: session.trackId ?? "",
   });
   const existingLaps = await getLapsForSession(sessionId);
   if (loaded.kind === "capture") {
