@@ -114,6 +114,8 @@ export const CarWireframe = React.memo(function CarWireframe({
   const toggles = useMemo<ViewToggles>(() => ({
     ...DEFAULT_TOGGLES,
     ...storedToggles,
+    springs: true,
+    drivetrain: true,
     ...(hideControls ? { inputs: true } : {}),
   }), [storedToggles, hideControls]);
   const [viewPreset, setViewPreset] = useState<ViewPreset>("3/4");
@@ -123,21 +125,19 @@ export const CarWireframe = React.memo(function CarWireframe({
     return needsTrackFlip(gameId) ? flipBoundaries(boundaries) : boundaries;
   }, [boundaries, gameId]);
   const viewToggleItems = [
-    { key: "springs" as const, label: m.carwire_springs(), available: true },
     { key: "trails" as const, label: m.carwire_trails(), available: true },
     { key: "inputs" as const, label: m.carwire_inputs(), available: true },
     { key: "track" as const, label: m.carwire_track(), available: true },
     { key: "racingLine" as const, label: m.overlay_racing_line(), available: Array.isArray(flippedBoundaries?.raceLine) && flippedBoundaries.raceLine.length > 1 },
     { key: "grid" as const, label: m.carwire_grid(), available: true },
-    { key: "drivetrain" as const, label: m.carwire_drive(), available: true },
     { key: "wheelInfo" as const, label: m.carwire_tire_info(), available: true },
   ]
-    .filter((item) => item.available)
     .map((item) => ({
       type: "checkbox" as const,
       key: item.key,
       label: item.label,
-      checked: toggles[item.key],
+      disabled: !item.available,
+      checked: item.available && toggles[item.key],
       onCheckedChange: (checked: boolean) => setToggles((previous) => ({ ...previous, [item.key]: checked })),
     }));
   const anyViewToggle = viewToggleItems.some((item) => item.checked);

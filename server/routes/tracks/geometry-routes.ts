@@ -152,7 +152,6 @@ export const trackGeometryRoutes = new Hono()
         const boundaries = getLMUTrackBoundaries(decodeTrackKey(rawTrackKey));
         return c.json(boundaries ? {
           ...boundaries,
-          raceLine: null,
           coordSystem: "lmu",
         } : null);
       }

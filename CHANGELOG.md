@@ -6,6 +6,7 @@
 ### Features
 - List lap detector checks by category in Analyse, separating findings from checks with no finding and unavailable checks; infer aid checks where wheel telemetry supports them without native intervention channels
 - Chart per-wheel rotation speed (rad/s) in lap replay when rotation telemetry is available
+- Keep 3D scene springs and drivetrain on, remove their View switches, and show an opt-in racing-line switch (disabled when track data lacks a line).
 - Show inner, middle, and outer tire temperatures in mirrored per-wheel columns, with separate core readings in 2D and 3D views
 - Add Le Mans Ultimate support
 - Add a representative hybrid car model to Le Mans Ultimate 3D scenes
@@ -20,6 +21,7 @@
 - Render 3D replays, onboarding preview, and model comparisons with WebGPU where available and WebGL2 fallback; pause stops recurring scene draws.
 
 ### Fixes
+- Expose LMU racing lines already present in shipped track SVGs to 2D and 3D replay overlays.
 - Redraw Analyse telemetry charts when their container changes width, preventing stretched horizontal bands after layout transitions.
 - Restore traction-state colors on 3D tire trails after the WebGPU scene-renderer migration.
 - Display available surface and carcass temperature bands as separate readable 3D wheel-card rows; use single representative readings only when corresponding bands are absent.
