@@ -2,6 +2,7 @@ import { useState } from "react";
 import { playBlip, preloadSound } from "@/lib/sound";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { getSoundEnabled, getSoundType, getSoundVolume, SOUND_PRESETS, setSoundEnabled, setSoundType, setSoundVolume } from "@/lib/settings-storage";
 import { m } from "@/paraglide/messages";
 
@@ -14,27 +15,19 @@ export function SoundStep() {
       <h2 className="text-sm font-semibold text-app-text mb-1">{m.label_sound()}</h2>
       <p className="text-sm text-app-text-muted mb-4">{m.ob_sound_desc()}</p>
       <div className="flex items-center gap-3 mb-4">
-        <Label className="text-app-text-secondary text-sm">{m.ob_sound_sector_blip()}</Label>
-        <Button
-          size="sm"
-          variant={enabled ? "selected-toggle" : "outline"}
-          onClick={() => {
-            setEnabled(true);
-            setSoundEnabled(true);
+        <Label htmlFor="onboarding-sound-enabled" className="text-app-text-secondary">
+          {m.ob_sound_sector_blip()}
+        </Label>
+        <Switch
+          id="onboarding-sound-enabled"
+          checked={enabled}
+          aria-label={m.ob_sound_sector_blip()}
+          onCheckedChange={(checked) => {
+            setEnabled(checked);
+            setSoundEnabled(checked);
           }}
-        >
-          {m.common_on()}
-        </Button>
-        <Button
-          size="sm"
-          variant={!enabled ? "selected-toggle" : "outline"}
-          onClick={() => {
-            setEnabled(false);
-            setSoundEnabled(false);
-          }}
-        >
-          {m.common_off()}
-        </Button>
+        />
+        <span className="text-sm text-app-text-muted">{enabled ? m.common_on() : m.common_off()}</span>
       </div>
       {enabled && (
         <>

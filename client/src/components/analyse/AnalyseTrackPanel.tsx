@@ -5,6 +5,7 @@ import { m } from "../../paraglide/messages";
 import { ChevronDownIcon } from "lucide-react";
 import { Compass } from "../Compass";
 import { Button } from "../ui/button";
+import { Switch } from "../ui/switch";
 import { DropdownMenu } from "../ui/DropdownMenu";
 import { AnalyseTrackMap } from "./AnalyseTrackMap";
 import {
@@ -138,16 +139,16 @@ export function AnalyseTrackPanel({
       {/* Weather widget (updates at cursor position) — bottom left by default, bottom right for the live dashboard */}
       {hasAirTemperature && <WeatherWidget {...weatherData} position={weatherBottomRight ? "bottom-right" : "bottom-left"} />}
 
-      {/* View toggles — top left */}
-      <div className="absolute top-2 left-2 flex flex-wrap gap-1">
-        <Button
-          onClick={onRotateWithCarToggle}
-          className={`px-2 py-1 text-app-micro uppercase tracking-wider font-semibold rounded border transition-colors ${
-            rotateWithCar ? "bg-app-accent/15 border-app-accent/40 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
-          }`}
-        >
-          {rotateWithCar ? m.overlay_follow() : m.overlay_fixed()}
-        </Button>
+      <div className="absolute top-2 left-2 flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 rounded border border-app-border-input bg-app-surface-alt/80 px-2 py-1">
+          <Switch
+            size="sm"
+            checked={rotateWithCar}
+            aria-label={rotateWithCar ? m.overlay_follow() : m.overlay_fixed()}
+            onCheckedChange={() => onRotateWithCarToggle()}
+          />
+          <span className="text-app-micro font-semibold uppercase tracking-wider text-app-text-muted">{rotateWithCar ? m.overlay_follow() : m.overlay_fixed()}</span>
+        </div>
         {!hideSteeringOverlay && onTrackOverlayChange && (
           <DropdownMenu
             align="left"

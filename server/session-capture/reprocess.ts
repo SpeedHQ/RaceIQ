@@ -12,6 +12,7 @@ import { updateSessionRawFile } from "../db/session-queries";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
+import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { readFrameStreamStart, iterateSessionCaptureRecords } from "./framing";
 interface ReprocessResult {
   sessionId: number;
@@ -43,6 +44,10 @@ export class SessionNotFoundError extends Error {
  * Updates lap frame indexes and metadata in the DB.
  */
 export async function reprocessSession(sessionId: number): Promise<ReprocessResult> {
+  return withSessionCaptureMaintenanceLock(() => reprocessSessionUnlocked(sessionId));
+}
+
+async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessResult> {
   const sessionRows = await db
     .select({ rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId, carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal })
     .from(sessions)
@@ -178,6 +183,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
         detected.lapNumber,
         detected.lapTime,
         detected.isValid,
+        preserved?.isFavorite ?? false,
         detected.rawByteOffset,
         detected.rawFrameCount,
         preserved?.tuneId ?? null,

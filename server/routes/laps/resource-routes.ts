@@ -17,6 +17,7 @@ import { alignedTelemetryCacheGet, alignedTelemetryCacheSet, lapSetAlignmentInde
 import { loadSessionSource } from "../../session-capture/source-loader";
 import { loadRawCaptureIdentity } from "../../session-capture/identity";
 import { deleteLap, updateLapNotes, updateLapValidity } from "../../db/lap-mutation-queries";
+import { setLapFavorite } from "../../db/session-queries";
 import { setLapExperimentExcluded } from "../../db/experiment-lap-queries";
 import { recordAction } from "../../db/experiment-action-queries";
 import { assessLapRecording } from "../../lap-analysis/quality";
@@ -296,6 +297,12 @@ export const resourceRoutes = new Hono()
     const { id } = c.req.valid("param");
     await updateLapNotes(id, c.req.valid("json").notes);
     return c.json({ ok: true });
+  })
+  .patch("/api/laps/:id/favorite", zValidator("param", IdParamSchema), zValidator("json", z.object({ favorite: z.boolean() }).strict()), async (c) => {
+    const { id } = c.req.valid("param");
+    const { favorite } = c.req.valid("json");
+    if (!await setLapFavorite(id, favorite)) return c.json({ error: "Lap not found" }, 404);
+    return c.json({ ok: true, lapId: id, favorite });
   })
 
   .post(

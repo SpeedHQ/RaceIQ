@@ -10,6 +10,19 @@
 - Show the official Le Mans Ultimate logo in the sidebar and match its home-card color to the game brand
 - Match Assetto Corsa Evo and Competizione home-card logos and colors to sidebar
 - Focus Lap Analyse on the selected session by hiding car and track selectors across games
+- Fetch available OpenAI models using configured API key
+- Storage settings and Sessions let drivers manually remove old or selected telemetry while preserving session and lap metadata and protecting favourites
+- Let drivers opt into automatic raw-capture cleanup by age in Storage settings; defaults off and preserves session and lap metadata.
+- Organize Storage settings into separate Cache and Storage tabs, with cleanup controls first
+- Filter Sessions by favourite status.
+- Render 3D replays, onboarding preview, and model comparisons with WebGPU where available and WebGL2 fallback; pause stops recurring scene draws.
+
+### Fixes
+- Display available surface and carcass temperature bands as separate readable 3D wheel-card rows; use single representative readings only when corresponding bands are absent.
+- Allow OpenAI-compatible endpoints without saved API keys for auto-tune and driver-profile AI settings, consistent with analysis and chat.
+- Keep 3D replay grid at 1-metre spacing and anchored to track coordinates through turns, without yaw-amplified motion or overlapping line flicker.
+- Group 3D per-wheel surface temperatures into one mirrored row like 2D tire diagrams, with carcass and core on separate rows instead of a vertical stat list.
+
 - Show recent sessions instead of individual laps on global and per-game home pages, including sessions without recorded laps
 
 - Lap analysis detects sustained oversteer slides
@@ -36,6 +49,17 @@
 - Improve logging and diagnostic exports
 - Keep Analyse timelines clear and responsive when telemetry timestamps sit on floating-point gap boundaries
 - Enable mouse-wheel zoom whenever a Track Detail map appears after track data loads or tab navigation
+- Keep telemetry cleanup effective when session compression runs at the same time.
+- Serialize cleanup with session reprocessing and favorite changes so cleaned paths cannot be restored and newly favorited captures remain protected.
+- Restore saved fuel consumption in experiment lap metrics.
+- Preserve lap favourites and their cleanup protection when session reprocessing replaces laps.
+- Open the session import dialog correctly from the Sessions toolbar.
+- Align settings switch thumbs fully left when off and fully right when on
+- Let drivers choose cleanup age and inspect per-game session, lap, count, and storage details before removing telemetry
+- Let capture cleanup clear stale session references when recording files are already missing.
+- Refresh cache and recording storage totals while Storage settings stay open.
+- Use consistent switch controls for boolean settings and view toggles
+- Restore the AI Analysis button on lap replay and label Sessions' per-lap action Replay.
 - Run completed-lap tuning analysis only when the AI Engineer requests it in an experiment, rather than during recording.
 - Improve telemetry recording performance and reduce memory use during live capture, session compression, and diagnostic recording shutdown.
 - Preserve Forza Motorsport sessions and active status through pit service, reconcile missing pit telemetry, mark pit-entry and pit-exit laps invalid using timing, fuel, and tire-service evidence, record final laps, and retain elapsed S1 time after telemetry resumes.
@@ -55,6 +79,7 @@
 
 
 ### Internal
+- Run `bun dev` concurrently in Git worktrees with branch-specific Portless URLs, independent backend ports, and worktree UDP ports without restarting shared proxy.
 - Ad-hoc sign compiled macOS builds so local Playwright servers launch instead of exiting before startup
 - Restore synthetic 3D tire-profile showcases for every simulator in Storybook
 - Enforce responsive visual baselines in pull-request screenshot CI and publish before/after/diff previews for review

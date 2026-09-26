@@ -18,7 +18,7 @@ test("session lap context action rechecks disposable imported lap", async ({ pag
     await row.click();
     const lapRow = page
       .locator("tbody tbody tr")
-      .filter({ has: page.getByRole("button", { name: "Analyse", exact: true }) })
+      .filter({ has: page.getByRole("button", { name: "Replay", exact: true }) })
       .first();
     await expect(lapRow).toBeVisible();
     await lapRow.click({ button: "right" });

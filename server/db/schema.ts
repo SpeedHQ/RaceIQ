@@ -97,6 +97,7 @@ export const sessions = sqliteTable(
 		sessionType: text("session_type"),
 		notes: text("notes"),
 		rawFile: text("raw_file"),
+		isFavorite: integer("is_favorite", { mode: "boolean" }).notNull().default(false),
 		lapDetectorVersion: text("lap_detector_version"),
 		// Runtime telemetry identity snapshot attached at first persisted capture (migration v54).
 		// Null for rows inserted before that migration.
@@ -188,6 +189,7 @@ export const laps = sqliteTable(
 		lapNumber: integer("lap_number").notNull(),
 		lapTime: real("lap_time").notNull(),
 		isValid: integer("is_valid", { mode: "boolean" }).notNull().default(true),
+		isFavorite: integer("is_favorite", { mode: "boolean" }).notNull().default(false),
 		invalidReason: text("invalid_reason"),
 		notes: text("notes"),
 		profileId: integer("profile_id").references(() => profiles.id),

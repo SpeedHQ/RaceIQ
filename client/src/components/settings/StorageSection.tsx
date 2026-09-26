@@ -1,12 +1,17 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import type { CleanupAgeDays, SessionCleanupRequest, SessionCleanupResult } from "@shared/racing/sessions/cleanup";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Database, HardDrive, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SessionCleanupDialog } from "@/components/SessionCleanupDialog";
+import { queryKeys } from "@/hooks/query-keys";
 import { m } from "@/paraglide/messages";
+import { formatBytes } from "@/lib/format-bytes";
 import { useSaveSettings, useSettings } from "../../hooks/settings";
-
 interface CacheStatus {
   bytesUsed: number;
   maxBytes: number;
@@ -30,13 +35,6 @@ interface SessionStorageStats {
   byGame: Record<string, GameStorageStats>;
   diskTotal: number;
   diskFree: number;
-}
-
-function fmt(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
 function StatRow({ label, value }: { label: string; value: string }) {
@@ -120,7 +118,7 @@ function GameBreakdown({ gameId, stats }: { gameId: string; stats: GameStorageSt
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-app-text uppercase tracking-wide">{gameId}</span>
         <span className="text-xs text-app-text-dim">
-          {total} {m.storage_file_count()} — {fmt(totalBytes)}
+          {total} {m.storage_file_count()} — {formatBytes(totalBytes)}
         </span>
       </div>
       <div className="flex items-center justify-between">
@@ -128,14 +126,14 @@ function GameBreakdown({ gameId, stats }: { gameId: string; stats: GameStorageSt
           <span className="size-2 rounded-sm bg-app-text/20 inline-block" />
           {m.storage_uncompressed()}
         </span>
-        <span className="text-xs text-app-text-secondary">{stats.binCount > 0 ? `${stats.binCount} — ${fmt(stats.binBytes)}` : "—"}</span>
+        <span className="text-xs text-app-text-secondary">{stats.binCount > 0 ? `${stats.binCount} — ${formatBytes(stats.binBytes)}` : "—"}</span>
       </div>
       <div className="flex items-center justify-between">
         <span className="text-xs text-app-text-muted flex items-center gap-1.5">
           <span className="size-2 rounded-sm inline-block" style={{ backgroundColor: "var(--storage-compressed)" }} />
           {m.storage_compressed()}
         </span>
-        <span className="text-xs text-app-text-secondary">{stats.gzCount > 0 ? `${stats.gzCount} — ${fmt(stats.gzBytes)}` : "—"}</span>
+        <span className="text-xs text-app-text-secondary">{stats.gzCount > 0 ? `${stats.gzCount} — ${formatBytes(stats.gzBytes)}` : "—"}</span>
       </div>
     </div>
   );
@@ -153,12 +151,12 @@ function CacheSection() {
   }, [displaySettings.cacheMaxMB]);
 
   const { data: cache, isError: cacheError } = useQuery<CacheStatus>({
-    queryKey: ["cache", "status"],
     queryFn: async () => {
       const response = await fetch("/api/cache/status");
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
       return response.json() as Promise<CacheStatus>;
     },
+    queryKey: queryKeys.cacheStatus,
     refetchInterval: 5_000,
   });
 
@@ -207,7 +205,7 @@ function CacheSection() {
           <div className="flex items-center justify-between">
             <span className="text-sm text-app-text-secondary">{m.storage_used()}</span>
             <span className="text-sm font-medium text-app-text">
-              {fmt(cache.bytesUsed)} / {fmt(cache.maxBytes)} <span className="text-app-text-dim">({usedPct}%)</span>
+              {formatBytes(cache.bytesUsed)} / {formatBytes(cache.maxBytes)} <span className="text-app-text-dim">({usedPct}%)</span>
             </span>
           </div>
           <div className="h-2 rounded-full bg-app-text/10 overflow-hidden">
@@ -238,16 +236,21 @@ function CacheSection() {
   );
 }
 
-export function StorageSection() {
+function StorageFilesSection() {
   const { data, isLoading, isError, refetch } = useQuery<SessionStorageStats>({
-    queryKey: ["storage", "sessions"],
     queryFn: async () => {
       const response = await fetch("/api/storage/sessions");
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
       return response.json() as Promise<SessionStorageStats>;
     },
+    queryKey: queryKeys.storageSessions,
     refetchInterval: 30_000,
   });
+  const queryClient = useQueryClient();
+  const [cleanupRequest, setCleanupRequest] = useState<SessionCleanupRequest | null>(null);
+  const { displaySettings } = useSettings();
+  const saveSettings = useSaveSettings();
+  const [cleanupSettingsError, setCleanupSettingsError] = useState("");
 
   const compress = useMutation({
     mutationFn: async () => {
@@ -257,17 +260,30 @@ export function StorageSection() {
     },
     onSuccess: () => void refetch(),
   });
+  const completeCleanup = (result: SessionCleanupResult) => {
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.storageSessions }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.sessions }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.laps }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.cacheStatus }),
+    ]);
+    if (result.failed.length === 0) setCleanupRequest(null);
+  };
 
   const gameEntries = data?.byGame ? Object.entries(data.byGame) : [];
 
   return (
     <section className="space-y-6">
-      <CacheSection />
       <div>
-        <h3 className="text-sm font-semibold text-app-text mb-1 flex items-center gap-2">
-          <HardDrive className="size-4 text-app-text-dim" />
-          {m.storage_recording_files_title()}
-        </h3>
+        <div className="mb-1 flex items-center justify-between gap-4">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-app-text">
+            <HardDrive className="size-4 text-app-text-dim" aria-hidden="true" />
+            {m.storage_recording_files_title()}
+          </h3>
+          <Button variant="app-outline" size="app-sm" onClick={() => setCleanupRequest({ mode: "older-than", olderThanDays: 30 })}>
+            {m.sessions_cleanup_free_space()}
+          </Button>
+        </div>
         <p className="text-xs text-app-text-dim mb-4">
           {m.storage_recording_files_desc_prefix()} <code className="font-mono">data/sessions/</code>. {m.storage_recording_files_desc_suffix()}
         </p>
@@ -277,6 +293,43 @@ export function StorageSection() {
             {m.storage_load_failed()}
           </p>
         )}
+        <div className="mb-5 space-y-3 rounded-lg border border-app-border bg-app-surface-alt/50 p-4">
+          <div className="flex items-center gap-3">
+            <Switch
+              id="automatic-session-cleanup"
+              checked={displaySettings.sessionCleanupEnabled}
+              disabled={saveSettings.isPending}
+              onCheckedChange={(checked) => {
+                setCleanupSettingsError("");
+                saveSettings.mutate({ sessionCleanupEnabled: checked }, {
+                  onError: () => setCleanupSettingsError(m.storage_save_failed()),
+                });
+              }}
+            />
+            <Label htmlFor="automatic-session-cleanup">{m.storage_auto_cleanup_label()}</Label>
+          </div>
+          <p className="text-xs text-app-text-dim">{m.storage_auto_cleanup_desc()}</p>
+          <div className="flex items-center gap-3">
+            <Label htmlFor="automatic-session-cleanup-age">{m.storage_auto_cleanup_age()}</Label>
+            <select
+              id="automatic-session-cleanup-age"
+              value={displaySettings.sessionCleanupAgeDays}
+              disabled={saveSettings.isPending}
+              onChange={(event) => {
+                setCleanupSettingsError("");
+                saveSettings.mutate({ sessionCleanupAgeDays: Number(event.target.value) as CleanupAgeDays }, {
+                  onError: () => setCleanupSettingsError(m.storage_save_failed()),
+                });
+              }}
+              className="h-8 rounded-md border border-app-border-input bg-app-surface px-2 text-sm text-app-text"
+            >
+              {([30, 90, 180, 365] as const).map((days) => (
+                <option key={days} value={days}>{m.sessions_cleanup_age_option({ days })}</option>
+              ))}
+            </select>
+          </div>
+          {cleanupSettingsError && <p role="alert" className="text-xs text-status-danger">{cleanupSettingsError}</p>}
+        </div>
         {data && data.total > 0 && (
           <div className="mb-5">
             <DonutChart binCount={data.binCount} gzCount={data.gzCount} />
@@ -284,14 +337,14 @@ export function StorageSection() {
         )}
         {data && (
           <div className="rounded-lg border border-app-border bg-app-surface-alt/50 px-4 divide-y divide-app-border/50 mb-4">
-            <StatRow label={m.storage_total_size()} value={fmt(data.totalBytes)} />
-            <StatRow label={m.storage_uncompressed_bin()} value={data.binCount > 0 ? `${data.binCount} ${m.storage_file_count()} — ${fmt(data.binBytes)}` : m.label_none()} />
-            <StatRow label={m.storage_compressed_gz()} value={data.gzCount > 0 ? `${data.gzCount} ${m.storage_file_count()} — ${fmt(data.gzBytes)}` : m.label_none()} />
+            <StatRow label={m.storage_total_size()} value={formatBytes(data.totalBytes)} />
+            <StatRow label={m.storage_uncompressed_bin()} value={data.binCount > 0 ? `${data.binCount} ${m.storage_file_count()} — ${formatBytes(data.binBytes)}` : m.label_none()} />
+            <StatRow label={m.storage_compressed_gz()} value={data.gzCount > 0 ? `${data.gzCount} ${m.storage_file_count()} — ${formatBytes(data.gzBytes)}` : m.label_none()} />
             {data.binCount > 0 && data.gzCount > 0 && <StatRow label={m.storage_space_saved()} value={`${((1 - data.gzBytes / (data.gzBytes + data.binBytes)) * 100).toFixed(0)}%`} />}
             {data.diskTotal > 0 && (
               <>
-                <StatRow label={m.storage_disk_total()} value={fmt(data.diskTotal)} />
-                <StatRow label={m.storage_disk_free()} value={fmt(data.diskFree)} />
+                <StatRow label={m.storage_disk_total()} value={formatBytes(data.diskTotal)} />
+                <StatRow label={m.storage_disk_free()} value={formatBytes(data.diskFree)} />
               </>
             )}
           </div>
@@ -304,6 +357,7 @@ export function StorageSection() {
             ))}
           </div>
         )}
+        <SessionCleanupDialog request={cleanupRequest} onClose={() => setCleanupRequest(null)} onCompleted={completeCleanup} />
         {data && data.total === 0 && <p className="text-sm text-app-text-dim">{m.storage_no_files()}</p>}
         {data && data.binCount > 0 && (
           <div className="mt-4">
@@ -320,5 +374,26 @@ export function StorageSection() {
         )}
       </div>
     </section>
+  );
+}
+
+export function StorageSection() {
+  return (
+    <Tabs defaultValue="cache" className="flex flex-col gap-5">
+      <TabsList variant="underline" aria-label={m.storage_category_tabs_label()}>
+        <TabsTrigger value="cache" variant="underline">
+          {m.storage_category_cache()}
+        </TabsTrigger>
+        <TabsTrigger value="storage" variant="underline">
+          {m.storage_category_storage()}
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="cache">
+        <CacheSection />
+      </TabsContent>
+      <TabsContent value="storage">
+        <StorageFilesSection />
+      </TabsContent>
+    </Tabs>
   );
 }

@@ -23,6 +23,9 @@ export interface DisplaySettings {
   renderFpsCap: number;
   /** Max in-memory parsed-lap cache, in megabytes. */
   cacheMaxMB: number;
+  /** Opt-in background removal of old raw session captures. */
+  sessionCleanupEnabled: boolean;
+  sessionCleanupAgeDays: 30 | 90 | 180 | 365;
   /** Server-injected: current UDP port */
   udpPort?: number;
   /** Server-injected: whether a Gemini API key is stored */
@@ -62,6 +65,8 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   wsRefreshRate: "60",
   renderFpsCap: 60,
   cacheMaxMB: 256,
+  sessionCleanupEnabled: false,
+  sessionCleanupAgeDays: 90,
   language: "en",
 };
 

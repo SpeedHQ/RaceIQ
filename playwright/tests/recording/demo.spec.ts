@@ -6,16 +6,11 @@ import { resolve } from "node:path";
  * Records the RaceIQ welcome demo as 1920×1080 JPEG frames, one per packet.
  *
  * Pipeline (single pass, no video intermediate):
- *   1. Main thread: __setFrame(i) → 2 RAFs (React + R3F) → createImageBitmap(canvas)
- *      (near-zero-cost GPU→GPU copy).
- *   2. ImageBitmap posted to one of N Web Workers via structured clone + transfer.
- *   3. Worker: draws bitmap onto OffscreenCanvas → convertToBlob('image/jpeg')
- *      (browser's libjpeg-turbo, SIMD, off the main thread).
- *   4. Worker returns base64 → main thread calls __writeFrame (fire-and-forget).
- *   5. Node writes JPEG to disk in parallel with browser rendering next frame.
+ *   1. Main thread: __setFrame(i) awaits requested scene render; capture readback
+ *      returns ImageBitmap with visible WebGPU pixels.
+ *   2. Worker encodes JPEG off-thread; Node writes frames in parallel.
  *
- * JPEG encoding runs parallel to rendering, so main-thread bottleneck is just
- * the 2 RAF waits (~33ms). ~30-40ms per frame → 1800 frames in ~60-70s.
+ * Requested-frame rendering completes before each pixel readback.
  *
  * Env:
  *   DEMO_MAX_FRAMES   max packets to record (default 1800 = 30s @ 60fps)
@@ -43,9 +38,7 @@ test("record demo render", async ({ page, request }, testInfo) => {
     console.log(msg);
   });
 
-  // Set recording flag before page load:
-  //   - preserveDrawingBuffer: true  → createImageBitmap(canvas) gets live pixels
-  //   - fps cap bypass               → every RAF triggers an R3F render
+  // Enable requested-frame capture and visible pedal overlays before page load.
   await page.addInitScript(() => {
     (window as unknown as Record<string, unknown>).__recording = true;
     const toggles = JSON.parse(localStorage.getItem("carwireframe-toggles") ?? "{}");
@@ -66,10 +59,10 @@ test("record demo render", async ({ page, request }, testInfo) => {
   console.log(`Source: ${totalFrames} packets, starting at ${startFrame}, capturing ${capture} (${(capture / 60).toFixed(1)}s at 60fps playback)`);
 
   // Pause, seek to start frame, stretch canvas fullscreen
-  await page.evaluate((start: number) => {
+  await page.evaluate(async (start: number) => {
     const w = window as unknown as Record<string, unknown>;
     (w.__pauseAnimation as () => void)();
-    (w.__setFrame as (n: number) => void)(start);
+    await (w.__setFrame as (n: number) => Promise<void>)(start);
   }, startFrame);
 
   await page.evaluate(() => {
@@ -85,10 +78,11 @@ test("record demo render", async ({ page, request }, testInfo) => {
   await page.evaluate(
     async ({ captureCount, workerCount, startFrame: startFr }) => {
       const w = window as unknown as Record<string, unknown>;
-      const canvas = document.querySelector("canvas") as HTMLCanvasElement;
-      const setFrame = w.__setFrame as (n: number) => void;
-      const writeFrame = w.__writeFrame as (d: { idx: number; b64: string }) => Promise<void>;
+      const setFrame = w.__setFrame as (n: number) => Promise<void>;
+      const captureScene = w.__captureSceneBitmap as (() => Promise<ImageBitmap>) | undefined;
+      if (!captureScene) throw new Error("Scene capture hook is unavailable");
       const log = w.__log as (msg: string) => Promise<void>;
+      const writeFrame = w.__writeFrame as (data: { idx: number; b64: string }) => Promise<void>;
 
       // Worker: receives ImageBitmap, encodes JPEG on off-thread, returns base64
       const workerSrc = `
@@ -112,32 +106,21 @@ test("record demo render", async ({ page, request }, testInfo) => {
       const workerUrl = URL.createObjectURL(new Blob([workerSrc], { type: "application/javascript" }));
 
       const inFlight = new Set<number>();
+      const writes: Promise<void>[] = [];
       const workers: Worker[] = [];
       for (let i = 0; i < workerCount; i++) {
         const worker = new Worker(workerUrl);
         worker.onmessage = (ev: MessageEvent<{ idx: number; b64: string }>) => {
           const { idx, b64 } = ev.data;
-          // Fire-and-forget write to Node; don't block render loop
-          writeFrame({ idx, b64 }).catch(() => {});
-          inFlight.delete(idx);
+          const write = writeFrame({ idx, b64 }).finally(() => inFlight.delete(idx));
+          writes.push(write);
         };
         workers.push(worker);
       }
 
       const MAX_IN_FLIGHT = workerCount * 3;
 
-      // Log GPU renderer info
-      try {
-        const gl = (canvas.getContext("webgl2") ?? canvas.getContext("webgl")) as WebGLRenderingContext | null;
-        if (gl) {
-          const dbg = gl.getExtension("WEBGL_debug_renderer_info");
-          const renderer = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : "unknown";
-          const vendor = dbg ? gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) : "unknown";
-          await log(`  WebGL: ${vendor} / ${renderer}`);
-        }
-      } catch {
-        /* noop */
-      }
+      await log(`  Scene backend: ${document.querySelector("canvas[data-renderer-backend]")?.getAttribute("data-renderer-backend") ?? "initializing"}`);
 
       let tRaf = 0,
         tBitmap = 0,
@@ -145,13 +128,10 @@ test("record demo render", async ({ page, request }, testInfo) => {
 
       for (let i = 0; i < captureCount; i++) {
         const t0 = performance.now();
-        setFrame(startFr + i);
-        // Two RAFs: React state commit, then R3F render
-        await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+        await setFrame(startFr + i);
         const t1 = performance.now();
 
-        // GPU canvas → ImageBitmap (fast GPU copy)
-        const bitmap = await createImageBitmap(canvas);
+        const bitmap = await captureScene();
         const t2 = performance.now();
 
         inFlight.add(i);
@@ -177,6 +157,7 @@ test("record demo render", async ({ page, request }, testInfo) => {
       while (inFlight.size > 0) {
         await new Promise((r) => setTimeout(r, 10));
       }
+      await Promise.all(writes);
 
       for (const worker of workers) worker.terminate();
       URL.revokeObjectURL(workerUrl);

@@ -3,7 +3,7 @@
  * and reprocessSession strategy selection (in-place vs replace).
  */
 import { describe, test, expect, afterEach, beforeEach } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SessionRecorder } from "../../server/session-capture/recorder";
@@ -16,6 +16,8 @@ import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { countStaleSessions, getStaleSessions } from "../../server/db/session-queries";
 import { sessionRoutes } from "../../server/routes/session-routes";
+import { resolveDataDir } from "../../server/runtime/config/data-dir";
+import { executeSessionCleanup } from "../../server/session-capture/session-cleanup";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -95,7 +97,9 @@ describe("reprocessSession", () => {
   let sessionId: number;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), "raceiq-test-"));
+    const capturesDir = join(resolveDataDir(), "sessions");
+    mkdirSync(capturesDir, { recursive: true });
+    tmpDir = mkdtempSync(join(capturesDir, "reprocess-test-"));
   });
 
   afterEach(async () => {
@@ -289,27 +293,29 @@ describe("reprocessSession", () => {
     });
   });
 
-  test("replace strategy preserves notes for matched lap numbers when new laps exceed old count", async () => {
-    // Empty bin → 0 laps detected; we need a bin that actually produces laps.
-    // Use emptyBin (0 detected) but pre-populate 2 laps with notes — replace
-    // should still produce 0 re-inserted rows (no detected laps to match),
-    // which is already covered. Instead test the metadata map path directly
-    // by checking that when 0 laps are detected and 2 laps existed with notes,
-    // the replace strategy produces an empty laps table (notes are irrelevant
-    // because no detected laps matched — confirmed by code reading preserved?.notes ?? null).
-    const binPath = join(tmpDir, "session.bin");
-    emptyBin(binPath);
-    sessionId = await insertTestSession(binPath, "0.9.0");
-    await insertTestLap(sessionId, 1, "turn 1 note");
-    await insertTestLap(sessionId, 2, "turn 2 note");
+  test("replacement preserves matched favourites and their cleanup protection", async () => {
+    const binPath = join(tmpDir, "session.bin.gz");
+    copyFileSync("test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz", binPath);
+    sessionId = await insertTestSession(binPath);
+    await reprocessSession(sessionId);
+    const original = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
+    const favourite = original.find((lap) => lap.isValid && lap.lapTime > 0);
+    expect(favourite).toBeDefined();
+    await db.update(laps).set({ isFavorite: true, notes: "Keep this lap" }).where(eq(laps.id, favourite!.id)).run();
+    await insertTestLap(sessionId, Math.max(...original.map((lap) => lap.lapNumber)) + 1);
 
     const result = await reprocessSession(sessionId);
-
+    const replaced = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
     expect(result.strategy).toBe("replace");
-    // 0 detected → 0 re-inserted; old notes are preserved by map but unused
-    const remaining = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
-    expect(remaining).toHaveLength(0);
-    expect(result.lapsUpdated).toBe(0);
+    expect(replaced.filter((lap) => lap.isFavorite).map((lap) => ({ lapNumber: lap.lapNumber, notes: lap.notes })))
+      .toEqual([{ lapNumber: favourite!.lapNumber, notes: "Keep this lap" }]);
+    expect(replaced.map((lap) => lap.lapNumber).sort((a, b) => a - b))
+      .toEqual(original.map((lap) => lap.lapNumber).sort((a, b) => a - b));
+
+    const cleanup = await executeSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
+    expect(cleanup.protectedSessionIds).toEqual([sessionId]);
+    expect(cleanup.cleanedSessionIds).toEqual([]);
+    expect(existsSync(binPath)).toBe(true);
   });
 });
 

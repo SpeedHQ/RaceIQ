@@ -1,11 +1,11 @@
+import { Fragment } from "react";
 import type { GameId } from "@shared/games/ids";
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
-import { Fragment } from "react";
 import { formatLapTime } from "@/components/LiveTelemetry";
 import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { FavoriteToggleButton } from "../FavoriteToggleButton";
 import { Button } from "@/components/ui/button";
-import { m } from "@/paraglide/messages";
 import { formatSessionType, sessionCarName, sessionTrackName } from "./helpers";
 import { NoteCell } from "./NoteCell";
 import { MotecBadge } from "./MotecBadge";
@@ -13,6 +13,7 @@ import { SessionLapTable } from "./SessionLapTable";
 import { SessionResultMeta } from "./SessionResultMeta";
 import type { LapSortKey, SessionSelectionEvent, SortDir, SortKey } from "./types";
 import { getLocale } from "@/paraglide/runtime";
+import { m } from "@/paraglide/messages";
 
 export type SessionDesktopTableProps = {
   lapsBySession: Map<number, LapMeta[]>;
@@ -147,6 +148,7 @@ export function SessionDesktopTable({
                           <span className="text-app-text/90">{new Date(session.createdAt).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" })}</span>
                         </span>
                         {session.source === "motec" && <MotecBadge />}
+                        <FavoriteToggleButton target="session" id={session.id} isFavorite={Boolean(session.isFavorite)} />
                         <Button
                           variant="app-outline"
                           size="app-sm"
@@ -160,7 +162,8 @@ export function SessionDesktopTable({
                         <Button
                           variant="app-primary"
                           size="app-sm"
-                          disabled={false}
+                          disabled={session.telemetryAvailable === false}
+                          title={session.telemetryAvailable === false ? m.sessions_raw_telemetry_removed() : undefined}
                           onClick={(event) => {
                             event.stopPropagation();
                             analyseSession(session);
@@ -171,8 +174,8 @@ export function SessionDesktopTable({
                         <Button
                           variant="app-outline"
                           size="app-sm"
-                          disabled={exporting}
-                          title={m.sessions_export_session()}
+                          disabled={exporting || session.telemetryAvailable === false}
+                          title={session.telemetryAvailable === false ? m.sessions_raw_telemetry_removed() : m.sessions_export_session()}
                           onClick={(event) => {
                             event.stopPropagation();
                             runExport({ sessionIds: [session.id] });
