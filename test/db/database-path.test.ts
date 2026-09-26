@@ -115,6 +115,16 @@ function sessionOwnerships(databasePath: string): string[] {
     database.close();
   }
 }
+function sessionIdentities(databasePath: string): Array<{ car_id: string; track_id: string; car_type: string; track_type: string }> {
+  const database = new Database(databasePath, { readonly: true });
+  try {
+    return database.query(
+      "SELECT car_id, track_id, typeof(car_id) AS car_type, typeof(track_id) AS track_type FROM sessions ORDER BY id",
+    ).all() as Array<{ car_id: string; track_id: string; car_type: string; track_type: string }>;
+  } finally {
+    database.close();
+  }
+}
 
 afterEach(async () => {
   for (const dataDir of tempDirs.splice(0)) {
@@ -186,7 +196,7 @@ describe("production database path", () => {
     expectArtifactsAbsent(testPath);
   });
   if (process.env.RACEIQ_DB_UPGRADE_TESTS === "1") {
-    test("upgrades a seeded v57 database during startup", async () => {
+    test("upgrades existing sessions to text identity during startup", async () => {
       const seededDataDir = process.env.RACEIQ_UPGRADE_DATA_DIR;
       const dataDir = seededDataDir ?? makeDataDir();
       const appPath = join(dataDir, "app.db");
@@ -195,14 +205,20 @@ describe("production database path", () => {
 
       const result = await runDbStartup(dataDir);
 
-      expect(result.output).toContain("[DB]   v59: persist LMU session string identity");
+      expect(result.code, result.output).toBe(0);
       if (seededDataDir) {
         expect(profileNames(appPath)).toContain("RaceIQ Demo Driver");
         expect(sessionOwnerships(appPath).length).toBeGreaterThan(0);
         expect(sessionOwnerships(appPath).every((ownership) => ownership === "mine")).toBe(true);
+        expect(sessionIdentities(appPath)).toContainEqual({
+          car_id: "42", track_id: "99", car_type: "text", track_type: "text",
+        });
       } else {
         expect(profileNames(appPath)).toEqual([sentinel]);
         expect(sessionOwnerships(appPath)).toEqual(["mine"]);
+        expect(sessionIdentities(appPath)).toEqual([{
+          car_id: "10", track_id: "20", car_type: "text", track_type: "text",
+        }]);
       }
     });
   }
