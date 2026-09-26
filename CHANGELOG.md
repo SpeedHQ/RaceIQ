@@ -37,6 +37,7 @@
 - Preserve Forza Motorsport sessions and active status through pit service, reconcile missing pit telemetry, mark pit-entry and pit-exit laps invalid using timing, fuel, and tire-service evidence, record final laps, and retain elapsed S1 time after telemetry resumes.
 
 ### Internal
+- Run `bun dev` concurrently in Git worktrees with branch-specific Portless URLs, independent backend ports, and worktree UDP ports without restarting shared proxy.
 - Ad-hoc sign compiled macOS builds so local Playwright servers launch instead of exiting before startup
 - Restore synthetic 3D tire-profile showcases for every simulator in Storybook
 - Enforce responsive visual baselines in pull-request screenshot CI and publish before/after/diff previews for review

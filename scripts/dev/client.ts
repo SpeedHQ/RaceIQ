@@ -30,7 +30,7 @@ const watcher = Bun.spawn(["bun", "scripts/dev/paraglide-dev.ts"], {
   stderr: "inherit",
 });
 
-const vite = Bun.spawn(["portless", "raceiq", "bun", "run", "dev"], {
+const vite = Bun.spawn(["portless", "run", "--name", process.env.RACEIQ_DEV_PORTLESS_NAME ?? "raceiq", "bun", "run", "dev"], {
   cwd: `${process.cwd()}/client`,
   stdin: "inherit",
   stdout: "inherit",
