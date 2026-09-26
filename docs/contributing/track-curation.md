@@ -40,7 +40,7 @@ These are **shrink-only**: every entry is asserted to *still* be broken, so fixi
 
 Known centerline-quality classes, already understood — don't re-litigate:
 
-- ACC tracks whose "centerline" is still the fastlane racing line (issue #98; fixed per-track by `scripts/games/acc/centerline-from-boundaries.ts`).
+- ACC tracks whose curated centerline CSV still follows the fastlane racing line (issue #98); boundary views derive a geometric centre from bundled SVG edges, while corner rosters require separate per-track re-curation.
 - ac-evo centerlines that under-detect individual corners.
 - Forza's Nordschleife / Watkins Glen, digitised at a different corner granularity than the shared name list.
 
