@@ -2,8 +2,8 @@ import type { GameId } from "@shared/games/ids";
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
 import { formatLapTime } from "@/components/LiveTelemetry";
 import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";
+import { FavoriteToggleButton } from "../FavoriteToggleButton";
 import { Button } from "@/components/ui/button";
-import { m } from "@/paraglide/messages";
 import { formatSessionType, sessionCarName, sessionTrackName } from "./helpers";
 import { MotecBadge } from "./MotecBadge";
 import { NoteCell } from "./NoteCell";
@@ -11,6 +11,8 @@ import { SessionLapTable } from "./SessionLapTable";
 import { SessionResultMeta } from "./SessionResultMeta";
 import type { LapSortKey, SessionSelectionEvent, SortDir } from "./types";
 import { getLocale } from "@/paraglide/runtime";
+import { m } from "@/paraglide/messages";
+
 
 export type SessionMobileListProps = {
   sessions: SessionMeta[];
@@ -108,6 +110,7 @@ export function SessionMobileList({
                         {new Date(session.createdAt).toLocaleDateString(getLocale())} {new Date(session.createdAt).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" })}
                         {session.source === "motec" && <MotecBadge />}
                       </div>
+                      <FavoriteToggleButton target="session" id={session.id} isFavorite={Boolean(session.isFavorite)} />
                       <Button
                         variant="app-outline"
                         size="app-sm"
@@ -121,7 +124,8 @@ export function SessionMobileList({
                       <Button
                         variant="app-primary"
                         size="app-sm"
-                        disabled={false}
+                        disabled={session.telemetryAvailable === false}
+                        title={session.telemetryAvailable === false ? m.sessions_raw_telemetry_removed() : undefined}
                         onClick={(event) => {
                           event.stopPropagation();
                           analyseSession(session);
@@ -132,8 +136,8 @@ export function SessionMobileList({
                       <Button
                         variant="app-outline"
                         size="app-sm"
-                        disabled={exporting}
-                        title={m.sessions_export_session()}
+                        disabled={exporting || session.telemetryAvailable === false}
+                        title={session.telemetryAvailable === false ? m.sessions_raw_telemetry_removed() : m.sessions_export_session()}
                         onClick={(event) => {
                           event.stopPropagation();
                           runExport({ sessionIds: [session.id] });

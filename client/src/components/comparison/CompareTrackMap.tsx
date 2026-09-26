@@ -2,7 +2,7 @@ import type { GameId } from "@shared/games/ids";
 import { flipBoundaries, flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import type { AlignedTrace } from "@shared/racing/comparison/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { type BoundaryData, computeZoom, drawInputsHUD, drawTrackCanvas, findTraceIndexAtDistance, type Point } from "@/lib/comparison-utils";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { client } from "@/lib/rpc";
@@ -375,19 +375,19 @@ export function CompareTrackMap({ outline, traces, segments, hoveredDistanceRef,
       {/* Zoomed — follows cursor position */}
       <div ref={zoomContainerRef} className="relative min-h-40 basis-80 shrink border-b border-app-border">
         <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_zoomed()}</span>
-        <Button
-          onClick={() => {
-            const next = !followCarRef.current;
-            followCarRef.current = next;
-            setFollowCar(next);
-            scheduleDraw();
-          }}
-          variant={followCar ? "selected-toggle" : "app-outline"}
-          size="app-sm"
-          className="absolute top-2 right-2 z-10"
-        >
-          {followCar ? m.compare_follow_view() : m.compare_fixed_view()}
-        </Button>
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-2 rounded border border-app-border-input bg-app-surface-alt/80 px-2 py-1">
+          <Switch
+            size="sm"
+            checked={followCar}
+            aria-label={followCar ? m.compare_follow_view() : m.compare_fixed_view()}
+            onCheckedChange={(checked) => {
+              followCarRef.current = checked;
+              setFollowCar(checked);
+              scheduleDraw();
+            }}
+          />
+          <span className="text-app-caption text-app-text-muted">{followCar ? m.compare_follow_view() : m.compare_fixed_view()}</span>
+        </div>
         {alignedOutline.length < 2 ? (
           <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">{m.compare_no_outline()}</div>
         ) : (

@@ -54,7 +54,7 @@ export function createWheelResource(tireRadius = 0.34, tireWidth = 0.3): WheelRe
   const curbMaterial = new THREE.MeshBasicMaterial({ color: THREE_COLORS.surfaceContact, transparent: true, opacity: 0.7, side: THREE.DoubleSide });
   const curb = new THREE.Mesh(curbGeometry, curbMaterial); curb.rotation.x = Math.PI / 2; curb.position.y = -tireRadius; root.add(curb);
   const puddleGeometry = new THREE.CircleGeometry(tireRadius + 0.04, 16);
-  const puddleMaterial = new THREE.MeshBasicMaterial({ color: THREE_COLORS.surfaceWet, transparent: true, side: THREE.DoubleSide });
+  const puddleMaterial = new THREE.MeshBasicMaterial({ color: THREE_COLORS.surfaceWet, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
   const puddle = new THREE.Mesh(puddleGeometry, puddleMaterial); puddle.rotation.x = Math.PI / 2; puddle.position.y = -tireRadius; root.add(puddle);
   meshes.push(curb, puddle);
   materials.push(curbMaterial, puddleMaterial);
@@ -70,6 +70,7 @@ export function updateWheelResource(resource: WheelResource, config: WheelResour
   resource.curb.visible = config.onCurb;
   resource.puddle.visible = config.puddleDepth > 0;
   resource.puddle.scale.setScalar(config.puddleDepth > 0 ? (radius + 0.04 + config.puddleDepth * 0.15) / (radius + 0.04) : 1);
+  (resource.puddle.material as THREE.MeshBasicMaterial).opacity = 0.3 + config.puddleDepth * 0.4;
   let surface: number | null = null, carcass: number | null = null, core: number | null = null, profileCount = 0, profileMask = 0;
   for (const reading of config.temperatureReadings) {
     if (reading.kind === "surface") surface = reading.value;

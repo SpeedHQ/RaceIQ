@@ -50,6 +50,9 @@ const AppSettingsSchema = z.object({
   // size of the per-lap TelemetryPacket[] cache used by analyse/compare/chat
   // workflows. LRU eviction kicks in once the budget is exceeded.
   cacheMaxMB: z.number().int().min(16).max(2048).default(256),
+  // Automatic deletion of raw captures is opt-in; session/lap metadata remains.
+  sessionCleanupEnabled: z.boolean().default(false),
+  sessionCleanupAgeDays: z.union([z.literal(30), z.literal(90), z.literal(180), z.literal(365)]).default(90),
   hiddenGames: z.array(z.string()).default([]),
   launchOnLogin: z.boolean().default(false),
   // Community-tunes CDN sync bookkeeping. Not user-facing; written by the

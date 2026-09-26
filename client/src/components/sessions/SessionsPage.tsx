@@ -1,7 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { SessionImportModal } from "./SessionImportModal";
+import type { SessionCleanupRequest, SessionCleanupResult } from "@shared/racing/sessions/cleanup";
+import { SessionCleanupDialog } from "@/components/SessionCleanupDialog";
 import { SessionRecapModal } from "@/components/SessionRecapModal";
 import { Button } from "@/components/ui/button";
 import { useDeleteLap, useLaps } from "@/hooks/laps";
@@ -17,6 +18,7 @@ import { useGameId } from "@/stores/game";
 import { filterSessions, groupLapsBySession, PAGE_SIZE, paginateSessions, selectionIncludesMotec, sortSessions } from "./helpers";
 import { SessionDesktopTable } from "./SessionDesktopTable";
 import { SessionMobileList } from "./SessionMobileList";
+import { SessionImportModal } from "./SessionImportModal";
 import { SessionToolbar } from "./SessionToolbar";
 import type { SessionMeta } from "@shared/racing/sessions/types";
 import type { LapSortKey, SessionSelectionEvent, SessionsTab, SortDir, SortKey } from "./types";
@@ -44,12 +46,14 @@ export function SessionsPage() {
   const [selectedLaps, setSelectedLaps] = useState<Set<number>>(new Set());
   const [selectedSessions, setSelectedSessions] = useState<Set<number>>(new Set());
   const [search, setSearch] = useState("");
-  const [recapSessionId, setRecapSessionId] = useState<number | null>(null);
+  const [favoriteOnly, setFavoriteOnly] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [importOpen, setImportOpen] = useState(false);
+  const [cleanupRequest, setCleanupRequest] = useState<SessionCleanupRequest | null>(null);
+  const [recapSessionId, setRecapSessionId] = useState<number | null>(null);
   const routeSearch = useSearch({ strict: false }) as { tab?: string };
   const tab: SessionsTab = routeSearch.tab === "others" ? "others" : "mine";
   const setTab = useCallback(
@@ -109,11 +113,11 @@ export function SessionsPage() {
   );
 
   const sorted = useMemo(() => sortSessions(sessions, sortKey, sortDir, { trackNames, carNames }), [sessions, sortKey, sortDir, trackNames, carNames]);
-  const filtered = useMemo(() => filterSessions(sorted, search, tab, { trackNames, carNames }), [sorted, search, tab, trackNames, carNames]);
+  const filtered = useMemo(() => filterSessions(sorted, search, tab, { trackNames, carNames }, favoriteOnly), [sorted, search, tab, trackNames, carNames, favoriteOnly]);
   const { items: pageItems, totalPages } = useMemo(() => paginateSessions(filtered, page), [filtered, page]);
   useEffect(() => {
     setPage(0);
-  }, [sessions.length, search]);
+  }, [sessions.length, search, favoriteOnly]);
 
   const toggleSessionSelection = useCallback(
     (sessionId: number, event: SessionSelectionEvent) => {
@@ -179,6 +183,27 @@ export function SessionsPage() {
       setIsDeleting(false);
     }
   }, [selectedLaps, selectedSessions, queryClient]);
+  const completedCleanup = useCallback(
+    (result: SessionCleanupResult) => {
+      setSelectedSessions((previous) => {
+        const next = new Set(previous);
+        for (const id of result.cleanedSessionIds) next.delete(id);
+        return next;
+      });
+      setSelectedLaps((previous) => {
+        const next = new Set(previous);
+        for (const lap of allLaps) if (result.cleanedSessionIds.includes(lap.sessionId)) next.delete(lap.id);
+        return next;
+      });
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.sessions }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.laps }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.storageSessions }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.cacheStatus }),
+      ]);
+    },
+    [allLaps, queryClient],
+  );
   const saveSessionNotes = useCallback(
     (sessionId: number, notes: string) => {
       void client.api.sessions[":id"].notes.$patch({ param: { id: String(sessionId) }, json: { notes: notes || null } });
@@ -188,7 +213,7 @@ export function SessionsPage() {
   );
   const showSessionType = gameId === "f1-2025" || gameId === "lmu";
   const colCount = showSessionType ? 9 : 8;
-  const emptyMessage = tab === "others" ? m.sessions_none_others() : m.sessions_none();
+  const emptyMessage = favoriteOnly ? m.sessions_none_favorites() : tab === "others" ? m.sessions_none_others() : m.sessions_none();
 
   return (
     <div className="h-full flex flex-col p-4 gap-3">
@@ -203,6 +228,7 @@ export function SessionsPage() {
           }}
         />
       )}
+      <SessionCleanupDialog request={cleanupRequest} onClose={() => setCleanupRequest(null)} onCompleted={completedCleanup} />
       <SessionToolbar
         sessions={sessions}
         allLaps={allLaps}
@@ -211,6 +237,11 @@ export function SessionsPage() {
         sessionsError={sessionsError}
         tab={tab}
         setTab={setTab}
+        favoriteOnly={favoriteOnly}
+        setFavoriteOnly={(value) => {
+          setFavoriteOnly(value);
+          setPage(0);
+        }}
         search={search}
         setSearch={setSearch}
         setPage={setPage}
@@ -219,6 +250,7 @@ export function SessionsPage() {
         exporting={exporting}
         runExport={runExport}
         setImportOpen={setImportOpen}
+        openCleanup={() => setCleanupRequest({ mode: "selected", sessionIds: [...selectedSessions] })}
         confirmDelete={confirmDelete}
         setConfirmDelete={setConfirmDelete}
         deleteSelected={deleteSelected}

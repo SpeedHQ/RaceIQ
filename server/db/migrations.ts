@@ -1263,5 +1263,14 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        ON sessions(game_id, track_id)`,
     ],
   },
+  // v60: Protect favourite sessions and laps during capture cleanup.
+  {
+    version: 60,
+    name: "persist session/lap favorites",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE laps ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0`,
+    ],
+  },
 ];
 

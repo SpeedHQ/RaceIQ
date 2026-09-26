@@ -23,6 +23,10 @@ const wheelValue = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFram
   const values = frame.values[id];
   return Array.isArray(values) && typeof values[index] === "number" && Number.isFinite(values[index]) ? values[index] : 0;
 };
+const optionalWheelValue = (values: unknown, index: number): number | null => {
+  const value = Array.isArray(values) ? values[index] : undefined;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+};
 
 /** Persistent visual resources. One update handles same frame/history/camera snapshot as render. */
 export class SceneOverlays {
@@ -146,6 +150,9 @@ export class SceneOverlays {
     const measured = frame.values["tires.wheel-rotation-speed"];
     const speed = semanticNumber(frame, "motion.speed") ?? 0;
     const brakeTemps = frame.values["brakes.brake-temp"];
+    const carcassLeft = frame.values["tire.temperature.carcass.left"];
+    const carcassMiddle = frame.values["tire.temperature.carcass.middle"];
+    const carcassRight = frame.values["tire.temperature.carcass.right"];
     const labelNow = !source?.playing || source.recording || now - this.lastLabelUpdate >= 100 || generation !== this.lastLabelGeneration;
     if (labelNow) { this.lastLabelUpdate = now; this.lastLabelGeneration = generation; }
     const stroke = config.carModel.suspStroke ?? 0.08;
@@ -168,7 +175,12 @@ export class SceneOverlays {
       const rotationSpeed = lockup ? 0 : visualWheelRotationSpeed(Array.isArray(measured) ? measured[index] : undefined, speed, radius, analysis.wheelRotation.source !== "unavailable");
       setWheelSpin(wheel, rotationSpeed, elapsed, source?.playbackSpeed ?? 1, !!source?.playing);
       if (config.toggles.wheelInfo && readings.length) {
-        const labelConfig = { temperatureReadings: readings, fmtTemp: config.fmtTemp, temperatureThresholds: config.temperatureThresholds,
+        const carcassBands = [
+          optionalWheelValue(carcassLeft, index),
+          optionalWheelValue(carcassMiddle, index),
+          optionalWheelValue(carcassRight, index),
+        ] as const;
+        const labelConfig = { temperatureReadings: readings, carcassBands, fmtTemp: config.fmtTemp, temperatureThresholds: config.temperatureThresholds,
           displayBrakeTemp: config.toggles.wheelInfo && Array.isArray(brakeTemps) && typeof brakeTemps[index] === "number" ? config.fmtTemp(brakeTemps[index] as number) : null,
           wear, wearRate: this.wearRates[index], brakeTemp, pressurePsi: wheelValue(frame, "tires.tire-pressure", index), pressureOptimal: config.pressureOptimal, side, isRear };
         let label = this.labels[index];

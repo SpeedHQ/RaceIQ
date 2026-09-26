@@ -6,14 +6,15 @@ import { formatLapTime } from "@/components/LiveTelemetry";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
 import { queryKeys } from "@/hooks/query-keys";
-import { exportLapsZip } from "@/lib/lap-export";
 import { bestSectorLapIds } from "@/lib/lap-sectors";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
+import { exportLapsZip } from "@/lib/lap-export";
 import { useGameRoute } from "@/stores/game";
 import { sortLaps } from "./helpers";
 import { NoteCell } from "./NoteCell";
 import type { SessionLapTableProps } from "./types";
+import { FavoriteToggleButton } from "../FavoriteToggleButton";
 
 type ContextMenu = { x: number; y: number; lapId: number } | null;
 
@@ -21,6 +22,7 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
   const gameRoute = useGameRoute();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
   const [contextMenu, setContextMenu] = useState<ContextMenu>(null);
   const sectorLabels = Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`);
   const bestSectorLaps = useMemo(
@@ -31,6 +33,7 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
       ),
     [laps, sectorCount],
   );
+  const contextLap = contextMenu ? laps.find((lap) => lap.id === contextMenu.lapId) : undefined;
   const sortedLaps = useMemo(() => sortLaps(laps, lapSortKey, lapSortDir), [laps, lapSortKey, lapSortDir]);
 
   return (
@@ -73,7 +76,9 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
                 <TD align="center">
                   <input type="checkbox" checked={selectedLaps.has(lap.id)} onChange={() => toggleLapSelection(lap.id)} className="accent-app-accent w-4 h-4" />
                 </TD>
-                <TD />
+                <TD align="center" onClick={(event) => event.stopPropagation()}>
+                  <FavoriteToggleButton target="lap" id={lap.id} isFavorite={Boolean(lap.isFavorite)} />
+                </TD>
                 <TD numeric tone="primary">
                   {lap.lapNumber}
                 </TD>
@@ -90,12 +95,14 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
                     <Button
                       variant="app-primary"
                       size="app-sm"
+                      disabled={lap.telemetryAvailable === false}
+                      title={lap.telemetryAvailable === false ? m.sessions_raw_telemetry_removed() : undefined}
                       onClick={(event) => {
                         event.stopPropagation();
                         navigate({ to: `${gameRoute}/sessions/${lap.sessionId}/replay/${lap.id}` as never });
                       }}
                     >
-                      {m.label_analyse()}
+                      {m.sessions_replay_lap()}
                     </Button>
                   </div>
                 </TD>
@@ -134,9 +141,13 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
             }}
           />
           <div className="fixed z-50 bg-app-surface border border-app-border rounded shadow-lg py-1 text-sm" style={{ left: contextMenu.x, top: contextMenu.y }}>
+            {contextLap?.telemetryAvailable !== false && (
+              <>
             <Button
               variant="app-ghost"
               size="app-sm"
+              disabled={false}
+              title={undefined}
               className="w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover"
               onClick={async () => {
                 const response = await fetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
@@ -151,6 +162,8 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
             <Button
               variant="app-ghost"
               size="app-sm"
+              disabled={false}
+              title={undefined}
               className="w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover"
               onClick={async () => {
                 const lapId = contextMenu.lapId;
@@ -164,6 +177,8 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
             >
               {m.sessions_export_lap()}
             </Button>
+              </>
+            )}
           </div>
         </>
       )}
