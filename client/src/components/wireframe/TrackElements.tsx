@@ -1,120 +1,38 @@
-import { Line } from "@react-three/drei";
-import { useEffect, useLayoutEffect, useMemo } from "react";
-import * as THREE from "three";
+import * as THREE from "three/webgpu";
 import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
-import { buildTrackIndex, createWallGeometry, DIST_AHEAD, filterByDistanceIndexed, THREE_COLORS, updateWallGeometry } from "../../lib/wireframe-utils";
+import { buildTrackIndex, createWallGeometry, DIST_AHEAD, filterByDistanceIndexed, THREE_COLORS, updateWallGeometry, type TrackIndex } from "../../lib/wireframe-utils";
+import { createRibbonPool, disposeRibbonPool, updateRibbonPool, type RibbonPool } from "./LineResources";
 
-export function TrackLine({
-  points,
-  packet,
-  color = THREE_COLORS.appText,
-  lineWidth = 3,
-  opacity = 0.6,
-  y = -0.44,
-  distAhead,
-}: {
-  points: { x: number; z: number }[];
-  packet: SemanticAnalysisFrame;
-  color?: THREE.Color;
-  lineWidth?: number;
-  opacity?: number;
-  y?: number;
-  distAhead?: number;
-}) {
-  const ahead = distAhead ?? DIST_AHEAD;
-  const index = useMemo(() => buildTrackIndex(points), [points]);
-  const segments = useMemo(
-    () => filterByDistanceIndexed(index, semanticNumber(packet, "motion.position-x") ?? 0, semanticNumber(packet, "motion.position-z") ?? 0, semanticNumber(packet, "motion.yaw") ?? 0, y, ahead),
-    [index, semanticNumber(packet, "motion.position-x") ?? 0, semanticNumber(packet, "motion.position-z") ?? 0, semanticNumber(packet, "motion.yaw") ?? 0, y, ahead],
-  );
-
-  if (segments.length === 0) return null;
-
-  return (
-    <>
-      {segments.map((segment) => (
-        <Line key={segment.sourceStartIndex} points={segment.points} color={color} lineWidth={lineWidth} opacity={opacity} transparent />
-      ))}
-    </>
-  );
+type TrackPoint = { x: number; z: number };
+export type TrackLineResource = { pool: RibbonPool; indexSource: TrackPoint[] | null; index: TrackIndex | null; color: THREE.ColorRepresentation; width: number; opacity: number; y: number };
+export function createTrackLineResource(scene: THREE.Scene, color: THREE.ColorRepresentation = THREE_COLORS.appText, width = 3, opacity = 0.6, y = -0.44): TrackLineResource {
+  const pool = createRibbonPool({ opacity }); scene.add(pool.group);
+  return { pool, indexSource: null, index: null, color, width, opacity, y };
 }
+export function updateTrackLineResource(resource: TrackLineResource, camera: THREE.PerspectiveCamera, points: TrackPoint[], packet: SemanticAnalysisFrame, viewportHeight: number, distAhead = DIST_AHEAD): void {
+  if (resource.indexSource !== points) { resource.indexSource = points; resource.index = buildTrackIndex(points); }
+  const segments = filterByDistanceIndexed(resource.index!, semanticNumber(packet, "motion.position-x") ?? 0, semanticNumber(packet, "motion.position-z") ?? 0, semanticNumber(packet, "motion.yaw") ?? 0, resource.y, distAhead);
+  updateRibbonPool(resource.pool, camera, segments.map(({ points: pts }) => pts.map(([x, y, z]) => ({ x, y, z, color: resource.color, alpha: resource.opacity }))), resource.width, viewportHeight);
+}
+export function disposeTrackLineResource(resource: TrackLineResource): void { disposeRibbonPool(resource.pool); resource.pool.group.removeFromParent(); }
 
-export function TrackBoundaryEdges({
-  boundaries,
-  packet,
-  tireRadius,
-  distAhead,
-}: {
-  boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] };
-  packet: SemanticAnalysisFrame;
-  tireRadius?: number;
-  distAhead?: number;
-}) {
-  const WALL_HEIGHT = 0.12;
-  const GROUND_Y = -(tireRadius ?? 0.33);
-  const ahead = distAhead ?? DIST_AHEAD;
-
-  // One-time index per edge; rebuilds only when the underlying array
-  // reference changes.
-  const leftIndex = useMemo(() => buildTrackIndex(boundaries.leftEdge), [boundaries.leftEdge]);
-  const rightIndex = useMemo(() => buildTrackIndex(boundaries.rightEdge), [boundaries.rightEdge]);
-
-  // Pre-allocate wall geometries once per mount — buffers are mutated
-  // in place by updateWallGeometry on each cursor change, avoiding the
-  // per-frame BufferGeometry + Float32Array churn that GCs otherwise.
-  const leftGeom = useMemo(() => createWallGeometry(), []);
-  const rightGeom = useMemo(() => createWallGeometry(), []);
-
-  // Free GPU buffers when the component unmounts.
-  useEffect(() => {
-    return () => {
-      leftGeom.dispose();
-      rightGeom.dispose();
-    };
-  }, [leftGeom, rightGeom]);
-
-  // Filter by distance, then fill the pre-allocated buffers in place.
-  // useLayoutEffect so geometry updates land before the next paint.
-  const leftSegsGround = useMemo(
-    () =>
-      filterByDistanceIndexed(
-        leftIndex,
-        semanticNumber(packet, "motion.position-x") ?? 0,
-        semanticNumber(packet, "motion.position-z") ?? 0,
-        semanticNumber(packet, "motion.yaw") ?? 0,
-        GROUND_Y,
-        ahead,
-      ),
-    [leftIndex, semanticNumber(packet, "motion.position-x") ?? 0, semanticNumber(packet, "motion.position-z") ?? 0, semanticNumber(packet, "motion.yaw") ?? 0, GROUND_Y, ahead],
-  );
-  const rightSegsGround = useMemo(
-    () =>
-      filterByDistanceIndexed(
-        rightIndex,
-        semanticNumber(packet, "motion.position-x") ?? 0,
-        semanticNumber(packet, "motion.position-z") ?? 0,
-        semanticNumber(packet, "motion.yaw") ?? 0,
-        GROUND_Y,
-        ahead,
-      ),
-    [rightIndex, semanticNumber(packet, "motion.position-x") ?? 0, semanticNumber(packet, "motion.position-z") ?? 0, semanticNumber(packet, "motion.yaw") ?? 0, GROUND_Y, ahead],
-  );
-
-  useLayoutEffect(() => {
-    updateWallGeometry(leftGeom, leftSegsGround, WALL_HEIGHT);
-  }, [leftGeom, leftSegsGround]);
-  useLayoutEffect(() => {
-    updateWallGeometry(rightGeom, rightSegsGround, WALL_HEIGHT);
-  }, [rightGeom, rightSegsGround]);
-
-  return (
-    <>
-      <mesh geometry={leftGeom}>
-        <meshBasicMaterial color={THREE_COLORS.trackCurbLeft} opacity={0.5} transparent side={THREE.DoubleSide} />
-      </mesh>
-      <mesh geometry={rightGeom}>
-        <meshBasicMaterial color={THREE_COLORS.trackCurbRight} opacity={0.5} transparent side={THREE.DoubleSide} />
-      </mesh>
-    </>
-  );
+export type TrackBoundaryResource = { left: THREE.Mesh; right: THREE.Mesh; leftGeometry: THREE.BufferGeometry; rightGeometry: THREE.BufferGeometry; leftIndexSource: TrackPoint[] | null; rightIndexSource: TrackPoint[] | null; leftIndex: TrackIndex | null; rightIndex: TrackIndex | null };
+export function createTrackBoundaryResource(scene: THREE.Scene): TrackBoundaryResource {
+  const leftGeometry = createWallGeometry(), rightGeometry = createWallGeometry();
+  const left = new THREE.Mesh(leftGeometry, new THREE.MeshBasicMaterial({ color: THREE_COLORS.trackCurbLeft, opacity: 0.5, transparent: true, side: THREE.DoubleSide }));
+  const right = new THREE.Mesh(rightGeometry, new THREE.MeshBasicMaterial({ color: THREE_COLORS.trackCurbRight, opacity: 0.5, transparent: true, side: THREE.DoubleSide }));
+  scene.add(left, right);
+  return { left, right, leftGeometry, rightGeometry, leftIndexSource: null, rightIndexSource: null, leftIndex: null, rightIndex: null };
+}
+export function updateTrackBoundaryResource(resource: TrackBoundaryResource, boundaries: { leftEdge: TrackPoint[]; rightEdge: TrackPoint[] }, packet: SemanticAnalysisFrame, tireRadius: number, distAhead = DIST_AHEAD): void {
+  if (resource.leftIndexSource !== boundaries.leftEdge) { resource.leftIndexSource = boundaries.leftEdge; resource.leftIndex = buildTrackIndex(boundaries.leftEdge); }
+  if (resource.rightIndexSource !== boundaries.rightEdge) { resource.rightIndexSource = boundaries.rightEdge; resource.rightIndex = buildTrackIndex(boundaries.rightEdge); }
+  const cx = semanticNumber(packet, "motion.position-x") ?? 0, cz = semanticNumber(packet, "motion.position-z") ?? 0, yaw = semanticNumber(packet, "motion.yaw") ?? 0;
+  updateWallGeometry(resource.leftGeometry, filterByDistanceIndexed(resource.leftIndex!, cx, cz, yaw, -tireRadius, distAhead), 0.12);
+  updateWallGeometry(resource.rightGeometry, filterByDistanceIndexed(resource.rightIndex!, cx, cz, yaw, -tireRadius, distAhead), 0.12);
+}
+export function disposeTrackBoundaryResource(resource: TrackBoundaryResource): void {
+  resource.left.removeFromParent(); resource.right.removeFromParent();
+  resource.leftGeometry.dispose(); resource.rightGeometry.dispose();
+  (resource.left.material as THREE.Material).dispose(); (resource.right.material as THREE.Material).dispose();
 }

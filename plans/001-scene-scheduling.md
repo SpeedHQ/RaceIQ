@@ -4,7 +4,7 @@
 - Priority: P1; effort: L; risk: MED; category: perf.
 - Planned at: `7cb5fdd53`, 2026-09-22.
 - Depends on: 003-persistent-lines.md and 004-wheel-label-refresh.md. These provide imperative geometry and label updates before the telemetry cutover.
-- Status: TODO. Planning only; no implementation or baseline measurements performed.
+- Status: Superseded by the imperative Three.js WebGPU scene cutover on 2026-09-26. This document describes an unimplemented R3F approach; actual measurements are in [render-performance-benchmarks.json](render-performance-benchmarks.json).
 
 ## Goal and boundaries
 Cap the whole 3D update/render transaction, not just WebGL draws. Stop rendering settled, paused scenes. Keep the current Three.js/R3F/Drei stack. Do not modify GLBs, model triangles/topology, mesh visibility rules, CarBody materials, model optimizer scripts, or model configuration. Do not change the 2D charts' playback timing or introduce a new global store.

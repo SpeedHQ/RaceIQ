@@ -2,8 +2,8 @@
 
 ## Status
 - Priority: P2; effort: S-M; risk: LOW; category: perf.
-- Planned at: `7cb5fdd53`, 2026-09-22. Depends on: none. Status: TODO.
-- Planning only; no implementation or baseline timings performed.
+- Planned at: `7cb5fdd53`, 2026-09-22. Depends on: none. Status: superseded by the 2026-09-26 WebGPU cutover.
+- Historical R3F proposal, not an implementation guide for the current runtime. See [cutover measurements](render-performance-benchmarks.json).
 
 ## Goal / constraints
 Keep sprite placement smooth while refreshing telemetry text/color at at most 10 Hz during ordinary playback. Unchanged display content must not repaint or upload. Explicit seeks, paused edits, units/theme changes and recording requests must show the current values immediately on the next rendered frame. Do not change model assets/triangles/topology/materials, label design, font scale, row semantics, or the telemetry values themselves.

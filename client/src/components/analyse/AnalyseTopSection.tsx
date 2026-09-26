@@ -1,3 +1,4 @@
+import type { SceneRuntime, SceneSource } from "../wireframe/SceneRuntime";
 import type { GameId } from "../../../../shared/games/ids";
 import { type CSSProperties, type RefObject, useEffect, useRef } from "react";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
@@ -51,6 +52,8 @@ interface AnalyseTopSectionProps {
   trackMapRef: RefObject<TrackMapHandle | null>;
   cursorRef: RefObject<number>;
   displayTelemetryRef: RefObject<SemanticAnalysisFrame[]>;
+  sceneSource: SceneSource;
+  onRuntime: (runtime: SceneRuntime | null) => void;
 }
 
 export function AnalyseTopSection({
@@ -85,6 +88,8 @@ export function AnalyseTopSection({
   trackMapRef,
   cursorRef,
   displayTelemetryRef,
+  sceneSource,
+  onRuntime,
 }: AnalyseTopSectionProps) {
   const resizeCleanupRef = useRef<(() => void) | null>(null);
 
@@ -224,6 +229,8 @@ export function AnalyseTopSection({
         semanticFrames={semanticFrames}
         cursorRef={cursorRef}
         displayTelemetryRef={displayTelemetryRef}
+        sceneSource={sceneSource}
+        onRuntime={onRuntime}
         cursorIdx={cursorIdx}
         lapLine={lapLine}
         boundaries={boundaries}

@@ -1,5 +1,7 @@
 # 3D rendering performance implementation plans
 
+> Historical R3F proposals. The 2026-09-26 imperative Three.js WebGPU cutover supersedes plans 001–004; see [measured before/after data](render-performance-benchmarks.json). Plan 005 (adaptive resolution) remains unimplemented and was not part of this cutover. The constraints and implementation instructions below describe the former proposals, not current runtime.
+
 Planned against commit `7cb5fdd53` and the inspected working-tree sources on 2026-09-22. These are handoff plans, not implemented fixes. Runtime baselines and implementation verification have not been run.
 
 ## Non-negotiable scope
@@ -12,10 +14,10 @@ IDs are stable identifiers, not dependency order. Recommended serial order: **00
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |---|---|---|---|---|---|
-| [002](002-pedal-overlay-index.md) | Index pedal overlay history | P1 | M | None | TODO |
-| [003](003-persistent-lines.md) | Reuse line buffers and spring geometry | P1 | M | 002 | TODO |
-| [004](004-wheel-label-refresh.md) | Throttle card texture updates, preserve forced refresh | P2 | S-M | None | TODO |
-| [001](001-scene-scheduling.md) | One playback-aware scene frame driver | P1 | L | 003, 004 | TODO |
+| [002](002-pedal-overlay-index.md) | Index pedal overlay history | P1 | M | None | Superseded by WebGPU cutover |
+| [003](003-persistent-lines.md) | Reuse line buffers and spring geometry | P1 | M | 002 | Superseded by WebGPU cutover |
+| [004](004-wheel-label-refresh.md) | Throttle card texture updates, preserve forced refresh | P2 | S-M | None | Superseded by WebGPU cutover |
+| [001](001-scene-scheduling.md) | One playback-aware scene frame driver | P1 | L | 003, 004 | Superseded by WebGPU cutover |
 | [005](005-adaptive-resolution.md) | Cap-aware adaptive pixel ratio | P2 | M | 001 | TODO |
 
 002 and 004 can run concurrently with separate ownership. 003 and 004 both touch CarScene: serialize their integration or explicitly assign one owner. 001 must reuse the explicit playback/seek state introduced by 004 rather than define another source contract. 005 needs 001's actual scheduling signals, not a generic FPS monitor.

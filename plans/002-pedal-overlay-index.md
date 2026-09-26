@@ -2,8 +2,8 @@
 
 ## Status
 - Priority: P1; effort: M; risk: MED; category: perf.
-- Planned at: `7cb5fdd53`, 2026-09-22. Depends on: none. Status: TODO.
-- Planning only. No code changes or runtime benchmark performed.
+- Planned at: `7cb5fdd53`, 2026-09-22. Depends on: none. Status: superseded by the 2026-09-26 WebGPU cutover.
+- Historical R3F proposal, not an implementation guide for the current runtime. See [cutover measurements](render-performance-benchmarks.json).
 
 ## Goal / hard boundary
 Replace full-lap per-pose scanning with the existing chunk-AABB indexing approach. Preserve the exact visible pedal overlay. Do not change models, triangles, topology, model assets, materials or visibility rules. No WebGPU migration, telemetry schema changes, pedal calibration fixes or generic spatial-index framework.

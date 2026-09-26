@@ -11,6 +11,7 @@
 - Match Assetto Corsa Evo and Competizione home-card logos and colors to sidebar
 - Focus Lap Analyse on the selected session by hiding car and track selectors across games
 - Fetch available OpenAI models using configured API key
+- Render 3D replays, onboarding preview, and model comparisons with WebGPU where available and WebGL2 fallback; pause stops recurring scene draws.
 
 ### Fixes
 - Allow OpenAI-compatible endpoints without saved API keys for auto-tune and driver-profile AI settings, consistent with analysis and chat.

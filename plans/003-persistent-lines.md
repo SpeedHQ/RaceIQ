@@ -2,8 +2,8 @@
 
 ## Status
 - Priority: P1; effort: M; risk: MED; category: perf.
-- Planned at: `7cb5fdd53`, 2026-09-22. Depends on: 002-pedal-overlay-index.md. Status: TODO.
-- Planning only; no implementation or performance measurements performed.
+- Planned at: `7cb5fdd53`, 2026-09-22. Depends on: 002-pedal-overlay-index.md. Status: superseded by the 2026-09-26 WebGPU cutover.
+- Historical R3F proposal, not an implementation guide for the current runtime. See [cutover measurements](render-performance-benchmarks.json).
 
 ## Goal / boundaries
 Stop replacing line geometry on each telemetry update. Preserve screen-space thickness, color gradients, transparency, ordering, endpoint appearance and disconnected runs. Absolutely no changes to car model triangles, topology, assets, materials, visibility rules or optimizer scripts. Do not decimate track samples. Keep Three.js/three-stdlib; do not introduce another rendering package or redesign the scene.

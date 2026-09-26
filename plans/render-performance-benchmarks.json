@@ -13,9 +13,57 @@
   "modelChecksums": {
     "before": {
       "client/public/models/aston_martin_vantage_gt3_optimised.glb": "9daa85ded4e7d5881afeaeeaacbca00c474e62ca6695a8ba281aad7649a4d5ab",
-      "client/public/models/f1_2025_mclaren_mcl39_optimised.glb": "80444b7892f2895507afbe804eec5ebfaf5a71d7fdfeb98199fec29975578e7f"
+      "client/public/models/f1_2025_mclaren_mcl39_optimised.glb": "80444b7892f2895507afbe804eec5ebfaf5a71d7fdfeb98199fec29975578e7f",
+      "client/public/models/peugeot_9x8_evo_2024_optimised.glb": "481d9fcc79089e69989a9fba45c7027cf61f6703ff54a804b70a2060b5146f41"
     },
-    "after": null
+    "after": {
+      "client/public/models/aston_martin_vantage_gt3_optimised.glb": "9daa85ded4e7d5881afeaeeaacbca00c474e62ca6695a8ba281aad7649a4d5ab",
+      "client/public/models/f1_2025_mclaren_mcl39_optimised.glb": "80444b7892f2895507afbe804eec5ebfaf5a71d7fdfeb98199fec29975578e7f",
+      "client/public/models/peugeot_9x8_evo_2024_optimised.glb": "481d9fcc79089e69989a9fba45c7027cf61f6703ff54a804b70a2060b5146f41"
+    }
+  },
+  "cutoverBaseline20260926": {
+    "status": "onboarding, seeded analysis and model lab captured",
+    "viewport": [1440, 900],
+    "devicePixelRatio": 1.25,
+    "canvasCssSize": [716, 190],
+    "backend": "WebGL2",
+    "browserGpu": "ANGLE Metal Renderer: Apple M5",
+    "screenshots": ["plans/scene-baseline/onboarding-paused.png", "plans/scene-baseline/analysis-paused.png", "plans/scene-baseline/model-original.png", "plans/scene-baseline/model-optimized.png"],
+    "onboarding": {
+      "frame": 3908,
+      "activeWindowSeconds": 5,
+      "activeDrawCalls": 35312,
+      "activeBufferDataCalls": 17145,
+      "activeBufferSubDataCalls": 388,
+      "activeTextureSubImageCalls": 901,
+      "activeRafCallbacks": 596,
+      "scriptDurationSeconds": 3.902059,
+      "taskDurationSeconds": 4.078771,
+      "pausedWindowSeconds": 2,
+      "pausedDrawCalls": 14160,
+      "pausedBufferDataCalls": 0,
+      "pausedTextureSubImageCalls": 354,
+      "pausedRafCallbacks": 119
+    },
+    "analysis": {
+      "seededLap": { "gameId": "fm-2023", "sessionId": 2, "lapId": 3, "cursor": 860 },
+      "fpsCap": 60,
+      "activeWindowSeconds": 5,
+      "activeDrawCalls": 20621,
+      "activeBufferDataCalls": 16387,
+      "activeBufferSubDataCalls": 1203,
+      "activeTextureSubImageCalls": 210,
+      "activeRafCallbacks": 820,
+      "scriptDurationSeconds": 4.425168,
+      "taskDurationSeconds": 4.832237,
+      "pausedWindowSeconds": 2,
+      "pausedDrawCalls": 12120,
+      "pausedBufferDataCalls": 0,
+      "pausedTextureSubImageCalls": 120,
+      "pausedRafCallbacks": 360
+    },
+    "notes": "60 fps configured cap; analysis paused browser RAF ~60 Hz (360 callbacks from multiple loops in 2 s). Display refresh not independently measured. Active Chromium metrics and WebGL counts for onboarding were separate warm windows; analysis counters/metrics were same windows. Pre-existing 2026-09-22 data below is not matched to this cutover."
   },
   "before": {
     "pedalOverlay": {
@@ -64,13 +112,68 @@
       "dpr": 1.25
     }
   },
-  "afterEachFix": {
-    "pedalOverlay": null,
-    "wheelCards": null,
-    "persistentLines": null,
-    "sceneScheduling": null,
-    "adaptiveResolution": null
+  "afterAll": {
+    "capturedAt": "2026-09-26",
+    "browser": "managed headless Chromium",
+    "browserGpu": "WebGPU adapter: apple / metal-3; WebGL2 ANGLE Metal Renderer: Apple M5",
+    "viewport": [1440, 900],
+    "devicePixelRatio": 1.25,
+    "nativeBackend": "WebGPU",
+    "onboarding": {
+      "sourceFrame": 3908,
+      "fpsCap": 60,
+      "activeWindowSeconds": 5,
+      "activePresentedFrames": 290,
+      "activeGpuDrawCalls": 37638,
+      "activeGpuWriteBufferCalls": 35161,
+      "activeGpuWriteTextureCalls": 0,
+      "scriptDurationSeconds": 0.702842,
+      "taskDurationSeconds": 0.915425,
+      "pausedWindowSeconds": 2,
+      "pausedPresentedFrames": 0,
+      "pausedGpuDrawCalls": 0,
+      "pausedGpuWriteBufferCalls": 0,
+      "pausedScriptDurationSeconds": 0.004346,
+      "pausedTaskDurationSeconds": 0.026551
+    },
+    "analysis": {
+      "seededLap": { "gameId": "fm-2023", "sessionId": 2, "lapId": 3, "initialCursor": 860 },
+      "fpsCap": 60,
+      "activeWindowSeconds": 5,
+      "activePresentedFrames": 270,
+      "activeGpuDrawCalls": 30426,
+      "activeGpuWriteBufferCalls": 30850,
+      "activeGpuWriteTextureCalls": 0,
+      "scriptDurationSeconds": 3.343874,
+      "taskDurationSeconds": 4.205321,
+      "pausedWindowSeconds": 2,
+      "pausedPresentedFrames": 0,
+      "pausedGpuDrawCalls": 0,
+      "pausedGpuWriteBufferCalls": 0,
+      "pausedScriptDurationSeconds": 0.010652,
+      "pausedTaskDurationSeconds": 0.049533
+    },
+    "forcedWebGL2": {
+      "surface": "isolated onboarding scene runtime with same demo history and 716×190 canvas, no surrounding React panels",
+      "activeWindowSeconds": 5,
+      "activeFrames": 296,
+      "activeDrawCalls": 38454,
+      "scriptDurationSeconds": 0.55885,
+      "taskDurationSeconds": 0.632388,
+      "pausedWindowSeconds": 2,
+      "pausedFrames": 0,
+      "pausedDrawCalls": 0,
+      "pausedScriptDurationSeconds": 0.003567,
+      "pausedTaskDurationSeconds": 0.018422
+    },
+    "notes": "Final native windows measured with only one managed browser tab open after warm-up; repeated analysis windows ranged 2.17–3.51 s ScriptDuration, so percentages are a single matched observation, not a guaranteed speedup. Native counters instrument GPUCanvasContext.getCurrentTexture, GPURenderPassEncoder.draw/drawIndexed and GPUQueue.writeBuffer/writeTexture. Chromium ScriptDuration/TaskDuration are tab-wide deltas. Counters include same-tab non-scene work and windows differ slightly at interaction boundaries. WebGPU writeBuffer calls are not numerically comparable to pre-cutover WebGL bufferData calls. Native/fallback scenes both rasterized; fallback isolated harness excludes UI and must not be read as backend speed comparison. Display refresh not independently measured."
   },
-  "afterAll": null,
-  "comparison": null
+  "comparison": {
+    "onboardingScriptDurationReductionPercent": 82.0,
+    "analysisScriptDurationReductionPercent": 24.4,
+    "onboardingTaskDurationReductionPercent": 77.6,
+    "analysisTaskDurationReductionPercent": 13.0,
+    "pausedPresentedFrames": 0,
+    "gpuDrawCalls": "Native active WebGPU drew 37638/30426 (onboarding/analysis) vs pre-cutover WebGL 35312/20621. Draw calls increased; no GPU speedup claim."
+  }
 }
