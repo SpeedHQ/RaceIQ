@@ -13,7 +13,7 @@ const MIN_FACTOR = 1;
 const MAX_FACTOR = 2.5;
 
 const CARD_W = 240;
-const ROW_H = 42;
+const ROW_H = 36;
 const PAD_Y = 10;
 const CANVAS_SCALE = 2;
 const BASE_SCALE = 0.72;
@@ -49,13 +49,14 @@ type TemperatureCell = { label: string; value: string; color: string };
 type Row =
   | { kind: "health"; pct: string; color: string }
   | ({ kind: "temp" } & TemperatureCell)
-  | { kind: "profile"; cells: TemperatureCell[] }
+  | { kind: "profile"; label: string; cells: TemperatureCell[] }
   | { kind: "brake"; value: string; color: string }
   | { kind: "pressure"; text: string; color: string }
   | { kind: "wear"; text: string };
 
 export function WheelInfoCard({
   temperatureReadings,
+  carcassBands,
   fmtTemp,
   temperatureThresholds,
   displayBrakeTemp,
@@ -68,6 +69,7 @@ export function WheelInfoCard({
   isRear,
 }: {
   temperatureReadings: TireTemperatureReading[];
+  carcassBands: readonly [number | null, number | null, number | null];
   fmtTemp: (value: number) => string;
   temperatureThresholds: { cold: number; warm: number; hot: number };
   displayBrakeTemp?: string | null;
@@ -86,8 +88,10 @@ export function WheelInfoCard({
   const pressureText = pressurePsi > 0 ? `${pressurePsi.toFixed(1)} psi` : null;
   const pressureColor = tirePressureColor(pressurePsi, pressureOptimal);
   const wearText = wearRate > 0.0001 ? `-${(wearRate * 100).toFixed(2)}%/s` : null;
-  const hasProfile = temperatureReadings.some(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer");
-  const cardW = hasProfile ? 360 : CARD_W;
+  const hasSurfaceProfile = temperatureReadings.some(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer");
+  const hasCarcassProfile = carcassBands.some((value) => value != null);
+  const hasProfile = hasSurfaceProfile || hasCarcassProfile;
+  const cardW = hasProfile ? 320 : CARD_W;
   const baseScale = BASE_SCALE * cardW / CARD_W;
   const { rows, cardH } = useMemo(() => {
     const rows: Row[] = [{ kind: "health", pct: healthPct, color: healthColor }];
@@ -96,20 +100,28 @@ export function WheelInfoCard({
       value: value == null ? "—" : fmtTemp(value),
       color: value == null ? "var(--status-unavailable)" : tireTempColor(value, temperatureThresholds),
     });
-    for (const reading of temperatureReadings) {
-      if (reading.kind === "surface") rows.push({ kind: "temp", ...cell(reading) });
+    const surfaceBands = temperatureReadings.filter(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer");
+    if (hasSurfaceProfile) {
+      rows.push({ kind: "profile", label: m.label_surface(), cells: surfaceBands.map(cell) });
+    } else {
+      const representative = temperatureReadings.find(({ kind }) => kind === "surface");
+      if (representative) rows.push({ kind: "profile", label: m.label_surface(), cells: [{ ...cell(representative), label: "" }] });
     }
-    if (hasProfile) {
-      rows.push({ kind: "profile", cells: temperatureReadings.filter(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer").map(cell) });
+    if (hasCarcassProfile) {
+      const kinds = side === "left" ? (["outer", "middle", "inner"] as const) : (["inner", "middle", "outer"] as const);
+      rows.push({ kind: "profile", label: m.label_carcass(), cells: carcassBands.map((value, index) => cell({ kind: kinds[index], value })) });
+    } else {
+      const representative = temperatureReadings.find(({ kind }) => kind === "carcass");
+      if (representative) rows.push({ kind: "profile", label: m.label_carcass(), cells: [{ ...cell(representative), label: "" }] });
     }
     for (const reading of temperatureReadings) {
-      if (reading.kind !== "surface" && (!hasProfile || reading.kind === "core" || reading.kind === "carcass")) rows.push({ kind: "temp", ...cell(reading) });
+      if (reading.kind === "core") rows.push({ kind: "temp", ...cell(reading) });
     }
     if (brakeText) rows.push({ kind: "brake", value: brakeText, color: brakeColor });
     if (pressureText) rows.push({ kind: "pressure", text: pressureText, color: pressureColor });
     if (wearText) rows.push({ kind: "wear", text: wearText });
-    return { rows, cardH: PAD_Y * 2 + rows.reduce((height, row) => height + (row.kind === "profile" ? ROW_H * 2 : ROW_H), 0) };
-  }, [brakeColor, brakeText, fmtTemp, hasProfile, healthColor, healthPct, pressureColor, pressureText, temperatureReadings, temperatureThresholds, wearText]);
+    return { rows, cardH: PAD_Y * 2 + rows.reduce((height, row) => height + (row.kind === "profile" && row.cells.length > 1 ? ROW_H * 2 : ROW_H), 0) };
+  }, [brakeColor, brakeText, carcassBands, fmtTemp, hasCarcassProfile, hasSurfaceProfile, healthColor, healthPct, pressureColor, pressureText, side, temperatureReadings, temperatureThresholds, wearText]);
 
   const { canvas, ctx, texture, material } = useMemo(() => {
     const canvas = document.createElement("canvas");
@@ -147,7 +159,7 @@ export function WheelInfoCard({
     let rowTop = PAD_Y;
     rows.forEach((row) => {
       const y = rowTop + ROW_H / 2;
-      rowTop += row.kind === "profile" ? ROW_H * 2 : ROW_H;
+      rowTop += row.kind === "profile" && row.cells.length > 1 ? ROW_H * 2 : ROW_H;
       if (row.kind === "health") {
         ctx.textAlign = "left";
         ctx.fillStyle = "var(--app-text-muted)";
@@ -165,18 +177,34 @@ export function WheelInfoCard({
         ctx.fillText(text, left + heartSize * 2 + 10, y);
         ctx.textAlign = "center";
       } else if (row.kind === "profile") {
-        const columnW = (cardW - 24) / 3;
-        row.cells.forEach((cell, index) => {
-          const x = 12 + columnW * (index + 0.5);
-          ctx.textAlign = "center";
+        if (row.cells.length === 1) {
+          const reading = row.cells[0];
+          ctx.font = "var(--font-weight-bold) var(--text-xl) var(--font-mono)";
+          ctx.textAlign = "left";
           ctx.fillStyle = "var(--app-text-muted)";
-          ctx.font = "var(--font-weight-medium) var(--text-xl) var(--font-mono)";
-          ctx.fillText(cell.label, x, y, columnW - 8);
-          ctx.fillStyle = cell.color;
-          ctx.font = "var(--font-weight-bold) var(--text-app-visualization-emphasis) var(--font-mono)";
-          ctx.fillText(cell.value, x, y + ROW_H, columnW - 8);
-          ctx.fillRect(x - columnW / 2 + 4, y + ROW_H * 1.5 - 4, columnW - 8, 3);
-        });
+          ctx.fillText(row.label, 12, y, (cardW - 32) / 2);
+          ctx.textAlign = "right";
+          ctx.fillStyle = reading.color;
+          ctx.fillText(reading.value, cardW - 12, y, (cardW - 32) / 2);
+        } else {
+          const columnW = (cardW - 24) / 3;
+          const rowStart = rowTop - ROW_H * 2;
+          ctx.textAlign = "left";
+          ctx.fillStyle = "var(--app-text-muted)";
+          ctx.font = "var(--font-weight-bold) var(--text-base) var(--font-mono)";
+          ctx.fillText(row.label, 12, rowStart + 11);
+          row.cells.forEach((cell, index) => {
+            const x = 12 + columnW * (index + 0.5);
+            ctx.textAlign = "center";
+            ctx.fillStyle = "var(--app-text-muted)";
+            ctx.font = "var(--font-weight-medium) var(--text-xl) var(--font-mono)";
+            ctx.fillText(cell.label, x, rowStart + 30, columnW - 8);
+            ctx.fillStyle = cell.color;
+            ctx.font = "var(--font-weight-bold) var(--text-2xl) var(--font-mono)";
+            ctx.fillText(cell.value, x, rowStart + 52, columnW - 8);
+            ctx.fillRect(x - columnW / 2 + 4, rowStart + 68, columnW - 8, 3);
+          });
+        }
       } else if (row.kind === "temp") {
         ctx.font = "var(--font-weight-bold) var(--text-app-visualization-emphasis) var(--font-mono)";
         ctx.fillStyle = row.color;
@@ -228,8 +256,7 @@ export function WheelInfoCard({
     spriteRef.current.scale.set(baseScale * factor, scaleY * factor, 1);
   });
 
-  // Rear cards sit ~0.6m lower so they don't stack on top of the front cards
-  // in screen space when the camera is directly behind (or in front of) the car.
+  // Rear cards sit lower so they do not stack with front cards in screen space.
   const cardY = isRear ? 0.65 : 1.25;
   const cardX = hasProfile ? (isRear ? -0.45 : 0.45) : 0;
   const cardZ = hasProfile ? 1.15 : 0.95;

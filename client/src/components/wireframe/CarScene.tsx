@@ -10,7 +10,7 @@ import { normalizeSuspensionTravel } from "../../lib/suspension";
 import { tireStateFromUtilization } from "../../lib/vehicle-dynamics";
 import type { ViewPreset, ViewToggles } from "../../lib/wireframe-data";
 import { resolveTrailLateralUtilization, steeringAngleRadians, THREE_COLORS, visualWheelRotationSpeed } from "../../lib/wireframe-utils";
-import { type SemanticAnalysisFrame, semanticNumber } from "../analyse/track-map/types";
+import { type SemanticAnalysisFrame, semanticNumber, semanticWheelNumbers } from "../analyse/track-map/types";
 import { tireTemperatureReadings } from "../analyse/tire-temperature-profile";
 import { AutoChaseCamera, CameraController } from "./CameraControllers";
 import { CarBody } from "./CarBody";
@@ -123,6 +123,9 @@ export function CarScene({
   const analysis = resolveAnalysisTelemetry(getGame(gameId));
   const temperatureBinding = analysis.tireTemperature.source !== "unavailable" && analysis.tireTemperature.binding?.kind === "value" ? analysis.tireTemperature.binding : undefined;
   const temperatureSemanticId = temperatureBinding?.semanticId ?? "tire.temperature.surface.representative";
+  const carcassLeft = semanticWheelNumbers(frame, "tire.temperature.carcass.left");
+  const carcassMiddle = semanticWheelNumbers(frame, "tire.temperature.carcass.middle");
+  const carcassRight = semanticWheelNumbers(frame, "tire.temperature.carcass.right");
   const brakeTemperatures = frame.values["brakes.brake-temp"];
   const hasWorldPositionTelemetry = useMemo(() => telemetry.some((f) => semanticNumber(f, "motion.position-x") != null && semanticNumber(f, "motion.position-z") != null), [telemetry]);
 
@@ -369,6 +372,7 @@ export function CarScene({
             rimColor={w.rimColor}
             rotationSpeed={w.rotSpeed}
             temperatureReadings={tireTemperatureReadings(frame, i, i % 2 === 0 ? "left" : "right", temperatureSemanticId, temperatureSemanticId === "tire.temperature.core" ? "core" : temperatureSemanticId.includes("carcass") ? "carcass" : "surface")}
+            carcassBands={[carcassLeft[i], carcassMiddle[i], carcassRight[i]]}
             fmtTemp={fmtTemp}
             temperatureThresholds={temperatureThresholds}
             displayBrakeTemp={

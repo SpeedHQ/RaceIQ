@@ -15,6 +15,7 @@ export function Wheel({
   rimColor,
   rotationSpeed,
   temperatureReadings,
+  carcassBands,
   fmtTemp,
   temperatureThresholds,
   displayBrakeTemp,
@@ -36,6 +37,7 @@ export function Wheel({
   rimColor: string;
   rotationSpeed: number;
   temperatureReadings: TireTemperatureReading[];
+  carcassBands: readonly [number | null, number | null, number | null];
   fmtTemp: (value: number) => string;
   temperatureThresholds: { cold: number; warm: number; hot: number };
   displayBrakeTemp?: string | null;
@@ -117,6 +119,7 @@ export function Wheel({
       {temperatureReadings.length > 0 && (
         <WheelInfoCard
           temperatureReadings={temperatureReadings}
+          carcassBands={carcassBands}
           fmtTemp={fmtTemp}
           temperatureThresholds={temperatureThresholds}
           wear={wear}

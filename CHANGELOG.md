@@ -21,6 +21,7 @@
 - Filter Sessions by favourite status.
 
 ### Fixes
+- Display available surface and carcass temperature bands as separate readable 3D wheel-card rows; use single representative readings only when corresponding bands are absent.
 - Allow OpenAI-compatible endpoints without saved API keys for auto-tune and driver-profile AI settings, consistent with analysis and chat.
 
 - Show recent sessions instead of individual laps on global and per-game home pages, including sessions without recorded laps
