@@ -25,6 +25,7 @@ test("storage renders true-empty and recovers from controlled API error", async 
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Settings" }).click();
     await page.getByRole("button", { name: "Storage" }).click();
+    await page.getByRole("tab", { name: "Storage" }).click();
     await expect(page.getByText("No recording files yet.")).toBeVisible();
 
     await page.unroute("**/api/storage/sessions");
@@ -34,12 +35,14 @@ test("storage renders true-empty and recovers from controlled API error", async 
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Settings" }).click();
     await page.getByRole("button", { name: "Storage" }).click();
+    await page.getByRole("tab", { name: "Storage" }).click();
     await expect(page.getByRole("alert").filter({ hasText: "Failed to load storage stats." })).toBeVisible();
 
     await page.unroute("**/api/storage/sessions");
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Settings" }).click();
     await page.getByRole("button", { name: "Storage" }).click();
+    await page.getByRole("tab", { name: "Storage" }).click();
     await expect(page.getByText("Total size")).toBeVisible();
     expect(
       browserErrors.errors.filter(
