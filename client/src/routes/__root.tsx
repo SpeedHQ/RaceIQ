@@ -36,7 +36,6 @@ function useUpdateCheck() {
 function AppShell() {
   useWebSocket();
   const { displaySettings, settingsLoaded } = useSettings();
-  const driverName = displaySettings.driverName || "";
 
   // Bootstrap the Paraglide UI locale from the server-persisted `language`
   // setting (the source of truth — the AI needs it server-side anyway). No
@@ -109,7 +108,6 @@ function AppShell() {
           <AppSidebar
             collapsed={sidebarCollapsed}
             connected={connected}
-            driverName={driverName}
             forzaReceiving={isRaceOn}
             hiddenGames={hiddenGames}
             mobile={false}
@@ -145,7 +143,6 @@ function AppShell() {
               <AppSidebar
                 collapsed={false}
                 connected={connected}
-                driverName={driverName}
                 forzaReceiving={isRaceOn}
                 hiddenGames={hiddenGames}
                 mobile

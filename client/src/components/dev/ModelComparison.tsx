@@ -1,11 +1,11 @@
-import { OrbitControls } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
-import { useEffect, useState } from "react";
+import type { CarModelEnrichment } from "../../data/car-models";
+import * as THREE from "three";
+import { useEffect, useRef, useState } from "react";
 import { Switch } from "../ui/switch";
-import { CarBody } from "../wireframe/CarBody";
+import { createCarBody, type CarBodyInstance } from "../wireframe/CarBody";
+import { SceneRuntime } from "../wireframe/SceneRuntime";
 import { THREE_COLORS } from "../../lib/wireframe-utils";
-
-import { DEMO_CAR, F1_CAR, LMU_HYPERCAR_CAR, type CarModelEnrichment } from "../../data/car-models";
+import { DEMO_CAR, F1_CAR, LMU_HYPERCAR_CAR } from "../../data/car-models";
 
 type ModelId = "gt3" | "f1" | "peugeot";
 type AssetChoice = "original" | "optimized";
@@ -45,19 +45,55 @@ const MODEL_URLS = Object.fromEntries(Object.entries(MODEL_DEFINITIONS).map(([id
 function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MiB`;
 }
-function ComparisonModel({ modelId, asset, wireframe }: { modelId: ModelId; asset: AssetChoice; wireframe: boolean }) {
-  const definition = MODEL_DEFINITIONS[modelId];
-  const carModel = { ...definition.carModel, modelPath: definition.urls[asset] };
-  return <CarBody solid={wireframe ? "wire" : "solid"} carModel={carModel} modelOffsetX={0} />;
-}
 export function ModelComparison() {
   const [modelId, setModelId] = useState<ModelId>("gt3");
   const [asset, setAsset] = useState<AssetChoice>("optimized");
   const [wireframe, setWireframe] = useState(true);
   const [stats, setStats] = useState<StatsPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const runtimeRef = useRef<SceneRuntime | null>(null);
+  const bodyRef = useRef<CarBodyInstance | null>(null);
+  const generationRef = useRef(0);
   const modelUrls = MODEL_URLS[modelId];
   const currentStats = stats?.[asset];
+
+  useEffect(() => {
+    const container = viewportRef.current;
+    if (!container) return;
+    let active = true;
+    const runtime = new SceneRuntime(container, (reason) => {
+      if (active) setError(reason.message);
+    }, {
+      cameraPosition: [4.8, 2.4, 4.8],
+      fov: 38,
+      background: THREE_COLORS.appSurfaceAlt,
+    });
+    runtime.controls.enableDamping = true;
+    runtime.controls.dampingFactor = 0.08;
+    runtime.controls.enablePan = true;
+    runtime.scene.remove(...runtime.scene.children.filter((node) => node instanceof THREE.Light));
+    runtime.scene.add(new THREE.AmbientLight(0xffffff, 1.4));
+    const keyLight = new THREE.DirectionalLight(0xffffff, 3);
+    keyLight.position.set(5, 8, 5);
+    runtime.scene.add(keyLight);
+    const fillLight = new THREE.DirectionalLight(THREE_COLORS.dimensionSecondary, 1.2);
+    fillLight.position.set(-4, 2, -3);
+    runtime.scene.add(fillLight);
+    runtimeRef.current = runtime;
+    void runtime.init().catch((reason: unknown) => {
+      if (active) setError(reason instanceof Error ? reason.message : "Unable to initialize 3D renderer");
+    });
+    return () => {
+      active = false;
+      generationRef.current++;
+      bodyRef.current?.dispose();
+      bodyRef.current = null;
+      runtimeRef.current = null;
+      runtime.dispose();
+    };
+  }, []);
+
   useEffect(() => {
     let active = true;
     setStats(null);
@@ -77,6 +113,27 @@ export function ModelComparison() {
       active = false;
     };
   }, [modelId]);
+
+  useEffect(() => {
+    const generation = ++generationRef.current;
+    bodyRef.current?.dispose();
+    bodyRef.current = null;
+    const definition = MODEL_DEFINITIONS[modelId];
+    const carModel = { ...definition.carModel, modelPath: definition.urls[asset] };
+    void createCarBody(carModel, wireframe ? "wire" : "solid", 0).then((body) => {
+      if (generation !== generationRef.current || !runtimeRef.current) {
+        body.dispose();
+        return;
+      }
+      bodyRef.current = body;
+      runtimeRef.current.scene.add(body.root);
+      void runtimeRef.current.requestFrame().catch((reason: unknown) => {
+        if (generation === generationRef.current) setError(reason instanceof Error ? reason.message : "Unable to render model");
+      });
+    }).catch((reason: unknown) => {
+      if (generation === generationRef.current) setError(reason instanceof Error ? reason.message : "Unable to load model");
+    });
+  }, [modelId, asset, wireframe]);
   const sizeReduction = stats ? ((1 - stats.optimized.sizeBytes / stats.original.sizeBytes) * 100).toFixed(2) : "—";
   const vertexReduction = stats ? ((1 - stats.optimized.vertexCount / stats.original.vertexCount) * 100).toFixed(2) : "—";
   return (
@@ -95,7 +152,7 @@ export function ModelComparison() {
               onClick={() => setModelId(choice)}
               className={`rounded border px-3 py-2 transition-colors ${modelId === choice ? "border-app-accent bg-app-accent text-app-on-filled" : "border-app-border text-app-text-muted hover:text-app-text"}`}
             >
-              {choice === "gt3" ? "GT3" : "F1"}
+              {choice === "gt3" ? "GT3" : choice === "f1" ? "F1" : "Peugeot"}
             </button>
           ))}
           {(Object.keys(modelUrls) as AssetChoice[]).map((choice) => (
@@ -116,17 +173,11 @@ export function ModelComparison() {
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-px bg-app-border lg:grid-cols-[minmax(0,1fr)_280px]">
         <div className="relative min-h-[420px] bg-app-bg">
-          <Canvas camera={{ position: [4.8, 2.4, 4.8], fov: 38 }} dpr={[1, 1.5]}>
-            <color attach="background" args={[THREE_COLORS.appSurfaceAlt]} />
-            <ambientLight intensity={1.4} />
-            <directionalLight position={[5, 8, 5]} intensity={3} />
-            <directionalLight position={[-4, 2, -3]} intensity={1.2} color={THREE_COLORS.dimensionSecondary} />
-            <ComparisonModel modelId={modelId} asset={asset} wireframe={wireframe} />
-            <OrbitControls makeDefault enableDamping dampingFactor={0.08} />
-          </Canvas>
+          <div ref={viewportRef} className="absolute inset-0" />
           <div className="pointer-events-none absolute left-4 top-4 rounded bg-app-bg/80 px-3 py-2 font-mono text-xs text-app-text">
             {modelId} / {asset} / {wireframe ? "wireframe" : "solid"}
           </div>
+          {error ? <div role="alert" className="absolute bottom-4 left-4 right-4 rounded border border-status-danger/40 bg-app-bg/95 p-3 text-sm text-status-danger">{error}</div> : null}
         </div>
         <aside className="overflow-y-auto bg-app-surface p-5">
           <div className="mb-5">
@@ -144,15 +195,11 @@ export function ModelComparison() {
             <div className="mt-6 border-t border-app-border pt-5 text-xs text-app-text-muted">
               <div className="flex justify-between">
                 <span>Original</span>
-                <span className="font-mono">
-                  {formatBytes(stats.original.sizeBytes)} / {stats.original.vertexCount.toLocaleString()}
-                </span>
+                <span className="font-mono">{formatBytes(stats.original.sizeBytes)} / {stats.original.vertexCount.toLocaleString()}</span>
               </div>
               <div className="mt-2 flex justify-between">
                 <span>Optimized</span>
-                <span className="font-mono">
-                  {formatBytes(stats.optimized.sizeBytes)} / {stats.optimized.vertexCount.toLocaleString()}
-                </span>
+                <span className="font-mono">{formatBytes(stats.optimized.sizeBytes)} / {stats.optimized.vertexCount.toLocaleString()}</span>
               </div>
             </div>
           ) : null}

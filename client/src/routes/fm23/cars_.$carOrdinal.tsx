@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import type { SemanticAnalysisFrame } from "../../components/analyse/track-map/types";
+import type { SceneSource } from "../../components/wireframe/SceneRuntime";
 import { CarWireframe } from "../../components/CarWireframe";
 import { Button } from "../../components/ui/button";
 import { getCarModel, loadCarModelConfigs } from "../../data/car-models";
@@ -35,6 +36,17 @@ function CarModelPage() {
 
   const staticFrame = useMemo(() => makeStaticFrame(ordinal), [ordinal]);
   const telemetry = useMemo(() => [staticFrame], [staticFrame]);
+  const framesRef = useRef(telemetry);
+  framesRef.current = telemetry;
+  const cursorRef = useRef(0);
+  const source = useMemo<SceneSource>(() => ({
+    framesRef,
+    cursorRef,
+    playing: false,
+    playbackSpeed: 1,
+    seekGeneration: 0,
+    recording: false,
+  }), []);
 
   if (!carModel) return <div className="flex items-center justify-center h-full text-app-text-dim">{m.carmodel_loading()}</div>;
 
@@ -72,7 +84,7 @@ function CarModelPage() {
         </div>
       </div>
       <div className="flex-1 min-h-0">
-        <CarWireframe frame={staticFrame} telemetry={telemetry} cursorIdx={0} outline={null} carOrdinal={ordinal} minimal />
+        <CarWireframe frame={staticFrame} telemetry={telemetry} cursorIdx={0} source={source} outline={null} carOrdinal={ordinal} minimal />
       </div>
     </div>
   );
