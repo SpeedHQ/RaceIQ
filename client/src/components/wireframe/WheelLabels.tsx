@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { severityRangeColor } from "../../lib/colors";
 import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
+import { createWheelLabelRefreshPolicy } from "../../lib/wheel-label-refresh";
 import { brakeTempColor, tirePressureColor, tireTempColor } from "../../lib/vehicle-dynamics";
 import type { TireTemperatureReading } from "../analyse/tire-temperature-profile";
 import { m } from "../../paraglide/messages";
@@ -66,6 +67,8 @@ export function WheelInfoCard({
   pressureOptimal,
   side,
   isRear,
+  playbackActive = true,
+  refreshGeneration = 0,
 }: {
   temperatureReadings: TireTemperatureReading[];
   fmtTemp: (value: number) => string;
@@ -78,6 +81,8 @@ export function WheelInfoCard({
   pressureOptimal?: { min: number; max: number };
   side: "left" | "right";
   isRear: boolean;
+  playbackActive?: boolean;
+  refreshGeneration?: number;
 }) {
   const healthPct = ((1 - wear) * 100).toFixed(0);
   const healthColor = severityRangeColor(wear, [0.3, 0.6]);
@@ -126,7 +131,10 @@ export function WheelInfoCard({
     return { canvas, ctx, texture, material };
   }, []);
 
-  useLayoutEffect(() => {
+  const policyRef = useRef(createWheelLabelRefreshPolicy<string>());
+  const paintRef = useRef<() => void>(() => {});
+  const contentKey = JSON.stringify(rows);
+  paintRef.current = () => {
     if (!ctx) return;
     if (canvas.width !== cardW * CANVAS_SCALE) canvas.width = cardW * CANVAS_SCALE;
     if (canvas.height !== cardH * CANVAS_SCALE) canvas.height = cardH * CANVAS_SCALE;
@@ -203,9 +211,15 @@ export function WheelInfoCard({
         ctx.fillText(row.text, cardW / 2, y);
       }
     });
-
     texture.needsUpdate = true;
-  }, [canvas, cardH, cardW, ctx, isRear, rows, side, texture]);
+  };
+  useLayoutEffect(() => {
+    policyRef.current.update(contentKey, performance.now(), refreshGeneration);
+    if (policyRef.current.consume(performance.now(), playbackActive, refreshGeneration) !== undefined) paintRef.current();
+  }, [contentKey, playbackActive, refreshGeneration]);
+  useFrame(() => {
+    if (policyRef.current.consume(performance.now(), playbackActive, refreshGeneration) !== undefined) paintRef.current();
+  });
 
   useEffect(
     () => () => {
