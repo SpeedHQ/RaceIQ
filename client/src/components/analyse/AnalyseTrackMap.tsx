@@ -13,6 +13,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
     cursorIdx,
     outline,
     mapLabels,
+    pitLines,
     boundaries,
     sectors,
     segments,
@@ -47,6 +48,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       gameId,
       resolvedPositions,
       outline,
+      pitLines,
       mapLabels,
       boundaries: displayBoundaries,
       sectors,
@@ -65,7 +67,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       const ctx = getSemanticCanvasContext(carCanvasRef.current);
       ctx?.clearRect(0, 0, carCanvasRef.current.width, carCanvasRef.current.height);
     }
-  }, [gameId, telemetry, resolvedPositions, outline, mapLabels, displayBoundaries, sectors, segments, highlights, showInputs, showRaceLine, showTrace, rotateWithCar, zoom, zoomBehavior]);
+  }, [gameId, telemetry, resolvedPositions, outline, mapLabels, pitLines, displayBoundaries, sectors, segments, highlights, showInputs, showRaceLine, showTrace, rotateWithCar, zoom, zoomBehavior]);
 
   const renderOverlayOptions = useCallback(
     () => ({

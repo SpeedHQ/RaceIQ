@@ -1,180 +1,186 @@
-ordinal,name,path,category,imageUrl
-1,Skip Barber Formula 2000,cars\rt2000,formula_car,/iracing-car-images/1.jpg
-2,Modified - SK,cars\skmodified,oval,/iracing-car-images/2.jpg
-3,Pontiac Solstice,cars\solstice,sports_car,/iracing-car-images/3.jpg
-4,[Legacy] Pro Mazda,cars\formulamazda,formula_car,/iracing-car-images/4.jpg
-5,Legends Ford '34 Coupe,cars\legends\ford34c,oval,/iracing-car-images/5.jpg
-10,Pontiac Solstice - Rookie,cars\solstice\rookie,sports_car,/iracing-car-images/10.jpg
-13,Radical SR8,cars\radical\sr8,sports_car,/iracing-car-images/13.jpg
-18,Silver Crown,cars\silvercrown,oval,/iracing-car-images/18.jpg
-20,[Legacy] NASCAR Truck Chevrolet Silverado - 2008,cars\trucks\silverado,oval,/iracing-car-images/20.jpg
-21,[Legacy] Riley MkXX Daytona Prototype - 2008,cars\rileydp,sports_car,/iracing-car-images/21.jpg
-22,[Legacy] NASCAR Cup Chevrolet Impala COT - 2009,cars\stockcars\impala,oval,/iracing-car-images/22.jpg
-23,SCCA Spec Racer Ford,cars\specracer,sports_car,/iracing-car-images/23.jpg
-24,[Legacy] ARCA Menards Chevrolet Impala,cars\stockcars2\chevy,oval,/iracing-car-images/24.jpg
-25,Lotus 79,cars\lotus79,formula_car,/iracing-car-images/25.jpg
-26,Chevrolet Corvette C6.R GT1,cars\c6r,sports_car,/iracing-car-images/26.jpg
-27,VW Jetta TDI Cup,cars\jettatdi,sports_car,/iracing-car-images/27.jpg
-28,[Legacy] V8 Supercar Ford Falcon - 2009,cars\fordv8sc,sports_car,/iracing-car-images/28.jpg
-29,[Legacy] Dallara IR-05,cars\dallara,formula_car,/iracing-car-images/29.jpg
-30,Ford Mustang FR500S,cars\fr500s,sports_car,/iracing-car-images/30.jpg
-31,Modified - NASCAR Whelen Tour,cars\skmodified\tour,oval,/iracing-car-images/31.jpg
-33,Williams-Toyota FW31,cars\williamsfw31,formula_car,/iracing-car-images/33.jpg
-34,[Legacy] Mazda MX-5 Cup - 2010,cars\mx5\cup,sports_car,/iracing-car-images/34.jpg
-35,[Legacy] Mazda MX-5 Roadster - 2010,cars\mx5\roadster,sports_car,/iracing-car-images/35.jpg
-36,Street Stock - Panther C1,cars\streetstock,oval,/iracing-car-images/36.jpg
-37,Sprint Car,cars\sprint,oval,/iracing-car-images/37.jpg
-38,[Legacy] NASCAR Nationwide Chevrolet Impala - 2012,cars\stockcars2\chevy\cot,oval,/iracing-car-images/38.jpg
-39,HPD ARX-01c,cars\hpdarx01c,sports_car,/iracing-car-images/39.jpg
-40,Ford GT GT2,cars\fordgt,sports_car,/iracing-car-images/40.jpg
-41,Cadillac CTS-V Racecar,cars\cadillacctsvr,sports_car,/iracing-car-images/41.jpg
-42,Lotus 49,cars\lotus49,formula_car,/iracing-car-images/42.jpg
-43,[Legacy] McLaren MP4-12C GT3,cars\mclarenmp4,sports_car,/iracing-car-images/43.jpg
-44,Kia Optima,cars\kiaoptima,sports_car,/iracing-car-images/44.jpg
-45,[Legacy] NASCAR Cup Chevrolet SS - 2013,cars\stockcars\chevyss,oval,/iracing-car-images/45.jpg
-46,[Legacy] NASCAR Cup Ford Fusion - 2016,cars\stockcars\fordfusion,oval,/iracing-car-images/46.jpg
-48,Ruf RT 12R AWD,cars\rufrt12r\awd,sports_car,/iracing-car-images/48.jpg
-49,Ruf RT 12R RWD,cars\rufrt12r\rwd,sports_car,/iracing-car-images/49.jpg
-50,Ruf RT 12R Track,cars\rufrt12r\track,sports_car,/iracing-car-images/50.jpg
-51,[Legacy] NASCAR Xfinity Ford Mustang - 2016,cars\stockcars2\nwford2013,oval,/iracing-car-images/51.jpg
-52,Ruf RT 12R C-Spec,cars\rufrt12r\track\cspec,sports_car,/iracing-car-images/52.jpg
-54,Super Late Model,cars\superlatemodel,oval,/iracing-car-images/54.jpg
-55,[Legacy] BMW Z4 GT3,cars\bmwz4gt3,sports_car,/iracing-car-images/55.jpg
-56,NASCAR Cup Series Toyota Camry,cars\stockcars\toyotacamry,oval,/iracing-car-images/56.jpg
-57,[Legacy] Dallara DW12,cars\dallaradw12,formula_car,/iracing-car-images/57.jpg
-58,[Legacy] NASCAR Xfinity Chevrolet Camaro - 2014,cars\stockcars2\nwcamaro2014,oval,/iracing-car-images/58.jpg
-59,Ford GT GT3,cars\fordgt\gt3,sports_car,/iracing-car-images/59.jpg
-60,[Legacy] V8 Supercar Holden VF Commodore - 2014,cars\v8supercars\holden2014,sports_car,/iracing-car-images/60.jpg
-61,[Legacy] V8 Supercar Ford FG Falcon - 2014,cars\v8supercars\ford2014,sports_car,/iracing-car-images/61.jpg
-64,Aston Martin DBR9 GT1,cars\astonmartin\dbr9,sports_car,/iracing-car-images/64.jpg
-67,Global Mazda MX-5 Cup,cars\mx5\mx52016,sports_car,/iracing-car-images/67.jpg
-69,[Legacy] NASCAR Xfinity Toyota Camry - 2015,cars\stockcars2\camry2015,oval,/iracing-car-images/69.jpg
-70,Chevrolet Corvette C7 Daytona Prototype,cars\c7vettedp,sports_car,/iracing-car-images/70.jpg
-71,McLaren MP4-30,cars\mclarenmp430,formula_car,/iracing-car-images/71.jpg
-72,[Legacy] Mercedes-AMG GT3,cars\mercedesamggt3,sports_car,/iracing-car-images/72.jpg
-73,[Legacy] Audi R8 LMS GT3,cars\audir8gt3,sports_car,/iracing-car-images/73.jpg
-74,Formula Renault 2.0,cars\formularenault20,formula_car,/iracing-car-images/74.jpg
-76,Audi 90 GTO,cars\audi90gto,sports_car,/iracing-car-images/76.jpg
-77,Nissan GTP ZX-T,cars\nissangtpzxt,sports_car,/iracing-car-images/77.jpg
-78,Dirt Late Model - Limited,cars\dirtlatemodel\350,dirt_oval,/iracing-car-images/78.jpg
-79,Dirt Street Stock,cars\dirtstreetstock,dirt_oval,/iracing-car-images/79.jpg
-80,Dirt Sprint Car - 305,cars\dirtsprint\winged\305,dirt_oval,/iracing-car-images/80.jpg
-81,Ford Fiesta RS WRC,cars\fordfiestarswrc,dirt_road,/iracing-car-images/81.jpg
-82,Dirt Legends Ford '34 Coupe,cars\legends\dirtford34c,dirt_oval,/iracing-car-images/82.jpg
-83,Dirt Late Model - Pro,cars\dirtlatemodel\358,dirt_oval,/iracing-car-images/83.jpg
-84,Dirt Late Model - Super,cars\dirtlatemodel\438,dirt_oval,/iracing-car-images/84.jpg
-85,Dirt Sprint Car - 360,cars\dirtsprint\winged\360,dirt_oval,/iracing-car-images/85.jpg
-86,Dirt Sprint Car - 410,cars\dirtsprint\winged\410,dirt_oval,/iracing-car-images/86.jpg
-87,Dirt Sprint Car - 360 Non-Winged,cars\dirtsprint\nonwinged\360,dirt_oval,/iracing-car-images/87.jpg
-88,[Legacy] Porsche 911 GT3 Cup (991),cars\porsche911cup,sports_car,/iracing-car-images/88.jpg
-89,Dirt Sprint Car - 410 Non-Winged,cars\dirtsprint\nonwinged\410,dirt_oval,/iracing-car-images/89.jpg
-91,VW Beetle,cars\vwbeetlegrc,dirt_road,/iracing-car-images/91.jpg
-92,Ford GTE,cars\fordgt2017,sports_car,/iracing-car-images/92.jpg
-93,Ferrari 488 GTE,cars\ferrari488gte,sports_car,/iracing-car-images/93.jpg
-94,[Legacy] Ferrari 488 GT3,cars\ferrari488gt3,sports_car,/iracing-car-images/94.jpg
-95,Dirt UMP Modified,cars\dirtumpmod,dirt_oval,/iracing-car-images/95.jpg
-96,Dirt Midget,cars\dirtmidget,dirt_oval,/iracing-car-images/96.jpg
-98,Audi R18,cars\audir18,sports_car,/iracing-car-images/98.jpg
-99,Dallara IR18,cars\dallarair18,formula_car,/iracing-car-images/99.jpg
-100,Porsche 919,cars\porsche919,sports_car,/iracing-car-images/100.jpg
-101,Subaru WRX STI,cars\subaruwrxsti,dirt_road,/iracing-car-images/101.jpg
-102,Porsche 911 RSR,cars\porsche991rsr,sports_car,/iracing-car-images/102.jpg
-103,NASCAR Cup Series Chevrolet Camaro ZL1,cars\stockcars\camarozl12018,oval,/iracing-car-images/103.jpg
-104,Lucas Oil Off Road Pro 2 Truck,cars\protrucks\pro2truck,dirt_road,/iracing-car-images/104.jpg
-105,Formula Renault 3.5,cars\formularenault35,formula_car,/iracing-car-images/105.jpg
-106,Dallara F3,cars\dallaraf3,formula_car,/iracing-car-images/106.jpg
-107,Lucas Oil Off Road Pro 4 Truck,cars\protrucks\pro4truck,dirt_road,/iracing-car-images/107.jpg
-109,BMW M8 GTE,cars\bmwm8gte,sports_car,/iracing-car-images/109.jpg
-110,NASCAR Cup Series Ford Mustang,cars\stockcars\fordmustang2019,oval,/iracing-car-images/110.jpg
-111,NASCAR Truck Chevrolet Silverado,cars\trucks\silverado2019,oval,/iracing-car-images/111.jpg
-112,Audi RS 3 LMS TCR,cars\audirs3lms,sports_car,/iracing-car-images/112.jpg
-113,Lucas Oil Off Road Pro 2 Lite,cars\protrucks\pro2lite,dirt_road,/iracing-car-images/113.jpg
-114,NASCAR XFINITY Chevrolet Camaro,cars\stockcars2\camaro2019,oval,/iracing-car-images/114.jpg
-115,NASCAR XFINITY Ford Mustang,cars\stockcars2\mustang2019,oval,/iracing-car-images/115.jpg
-116,NASCAR XFINITY Toyota Supra,cars\stockcars2\supra2019,oval,/iracing-car-images/116.jpg
-117,[Legacy] Supercars Holden ZB Commodore,cars\v8supercars\holden2019,sports_car,/iracing-car-images/117.jpg
-118,[Legacy] Supercars Ford Mustang GT,cars\v8supercars\fordmustanggt,sports_car,/iracing-car-images/118.jpg
-119,Porsche 718 Cayman GT4 Clubsport MR,cars\porsche718gt4,sports_car,/iracing-car-images/119.jpg
-120,Indy Pro 2000 PM-18,cars\indypropm18,formula_car,/iracing-car-images/120.jpg
-121,USF 2000,cars\usf2000usf17,formula_car,/iracing-car-images/121.jpg
-122,BMW M4 F82 GT4 - 2018,cars\bmwm4gt4,sports_car,/iracing-car-images/122.jpg
-123,NASCAR Truck Ford F150,cars\trucks\fordf150,oval,/iracing-car-images/123.jpg
-124,NASCAR Legends Chevrolet Monte Carlo - 1987,cars\stockcars\chevymontecarlo87,oval,/iracing-car-images/124.jpg
-125,NASCAR Legends Ford Thunderbird - 1987,cars\stockcars\fordthunderbird87,oval,/iracing-car-images/125.jpg
-127,Chevrolet Corvette C8.R GTE,cars\c8rvettegte,sports_car,/iracing-car-images/127.jpg
-128,Dallara P217,cars\dallarap217,sports_car,/iracing-car-images/128.jpg
-129,Dallara iR-01,cars\dallarair01,formula_car,/iracing-car-images/129.jpg
-131,Dirt Big Block Modified,cars\dirtmodified\bigblock,dirt_oval,/iracing-car-images/131.jpg
-132,BMW M4 GT3 EVO,cars\bmwm4gt3,sports_car,/iracing-car-images/132.jpg
-133,Lamborghini Huracán GT3 EVO,cars\lamborghinievogt3,sports_car,/iracing-car-images/133.jpg
-134,Dirt 358 Modified,cars\dirtmodified\358,dirt_oval,/iracing-car-images/134.jpg
-135,McLaren 570S GT4,cars\mclaren570sgt4,sports_car,/iracing-car-images/135.jpg
-137,[Legacy] Porsche 911 GT3 R,cars\porsche911rgt3,sports_car,/iracing-car-images/137.jpg
-138,VW Beetle - Lite,cars\vwbeetlegrc\lite,dirt_road,/iracing-car-images/138.jpg
-139,NASCAR Cup Series Next Gen Chevrolet Camaro ZL1,cars\stockcars\chevycamarozl12022,oval,/iracing-car-images/139.jpg
-140,NASCAR Cup Series Next Gen Ford Mustang,cars\stockcars\fordmustang2022,oval,/iracing-car-images/140.jpg
-141,NASCAR Cup Series Next Gen Toyota Camry,cars\stockcars\toyotacamry2022,oval,/iracing-car-images/141.jpg
-142,Formula Vee,cars\formulavee,formula_car,/iracing-car-images/142.jpg
-143,[Legacy] Porsche 911 GT3 Cup (992.1),cars\porsche992cup,sports_car,/iracing-car-images/143.jpg
-144,Ferrari 488 GT3 Evo 2020,cars\ferrarievogt3,sports_car,/iracing-car-images/144.jpg
-145,Mercedes-AMG W12 E Performance,cars\mercedesw12,formula_car,/iracing-car-images/145.jpg
-146,Hyundai Elantra N TCR,cars\hyundaielantracn7,sports_car,/iracing-car-images/146.jpg
-147,Honda Civic Type R TCR,cars\hondacivictyper,sports_car,/iracing-car-images/147.jpg
-148,FIA F4,cars\formulair04,formula_car,/iracing-car-images/148.jpg
-149,Radical SR10,cars\radicalsr10,sports_car,/iracing-car-images/149.jpg
-150,Aston Martin Vantage GT4,cars\amvantagegt4,sports_car,/iracing-car-images/150.jpg
-151,Stock Car Brasil Chevrolet Cruze,cars\stockcarbrasil\cruze,sports_car,/iracing-car-images/151.jpg
-152,Stock Car Brasil Toyota Corolla,cars\stockcarbrasil\corolla,sports_car,/iracing-car-images/152.jpg
-153,Hyundai Veloster N TCR,cars\hyundaivelostern,sports_car,/iracing-car-images/153.jpg
-154,NASCAR Legends Buick LeSabre - 1987,cars\stockcars\buicklesabre87,oval,/iracing-car-images/154.jpg
-155,NASCAR Truck Toyota Tundra TRD Pro,cars\trucks\toyotatundra2022,oval,/iracing-car-images/155.jpg
-156,Mercedes-AMG GT3 2020,cars\mercedesamgevogt3,sports_car,/iracing-car-images/156.jpg
-157,Mercedes-AMG GT4,cars\mercedesamggt4,sports_car,/iracing-car-images/157.jpg
-158,Porsche Mission R,cars\porschemissionr,sports_car,/iracing-car-images/158.jpg
-159,BMW M Hybrid V8,cars\bmwlmdh,sports_car,/iracing-car-images/159.jpg
-160,Toyota GR86,cars\toyotagr86,sports_car,/iracing-car-images/160.jpg
-161,Mercedes-AMG W13 E Performance,cars\mercedesw13,formula_car,/iracing-car-images/161.jpg
-162,Renault Clio,cars\renaultcliocup,sports_car,/iracing-car-images/162.jpg
-163,Ray FF1600,cars\raygr22,formula_car,/iracing-car-images/163.jpg
-164,Late Model Stock,cars\latemodel2023,oval,/iracing-car-images/164.jpg
-165,Ligier JS P320,cars\ligierjsp320,sports_car,/iracing-car-images/165.jpg
-167,[Legacy] Gen 4 Cup,cars\stockcars2\chevy\gen4cup,oval,/iracing-car-images/167.jpg
-168,Cadillac V-Series.R GTP,cars\cadillacvseriesrgtp,sports_car,/iracing-car-images/168.jpg
-169,Porsche 911 GT3 R (992),cars\porsche992rgt3,sports_car,/iracing-car-images/169.jpg
-170,Acura ARX-06 GTP,cars\acuraarx06gtp,sports_car,/iracing-car-images/170.jpg
-171,Super Formula SF23 - Toyota,cars\superformulasf23\toyota,formula_car,/iracing-car-images/171.jpg
-172,Super Formula SF23 - Honda,cars\superformulasf23\honda,formula_car,/iracing-car-images/172.jpg
-173,Ferrari 296 GT3,cars\ferrari296gt3,sports_car,/iracing-car-images/173.jpg
-174,Porsche 963 GTP,cars\porsche963gtp,sports_car,/iracing-car-images/174.jpg
-175,NASCAR Legends Pontiac Grand Prix - 1987,cars\stockcars\pontiacgrandprix87,oval,/iracing-car-images/175.jpg
-176,Audi R8 LMS EVO II GT3,cars\audir8lmsevo2gt3,sports_car,/iracing-car-images/176.jpg
-178,Super Formula Lights,cars\superformulalights324,formula_car,/iracing-car-images/178.jpg
-179,SRX,cars\srx,oval,/iracing-car-images/179.jpg
-180,Dirt Micro Sprint Car - Winged,cars\dirtmicrosprint\winged,dirt_oval,/iracing-car-images/180.jpg
-181,Dirt Micro Sprint Car - Non-Winged,cars\dirtmicrosprint\nonwinged,dirt_oval,/iracing-car-images/181.jpg
-182,Dirt Outlaw Micro Sprint Car - Winged,cars\dirtmicrosprint\winged\outlaw,dirt_oval,/iracing-car-images/182.jpg
-183,Dirt Outlaw Micro Sprint Car - Non-Winged,cars\dirtmicrosprint\nonwinged\outlaw,dirt_oval,/iracing-car-images/183.jpg
-184,Chevrolet Corvette Z06 GT3.R,cars\chevyvettez06rgt3,sports_car,/iracing-car-images/184.jpg
-185,Ford Mustang GT3,cars\fordmustanggt3,sports_car,/iracing-car-images/185.jpg
-186,Street Stock - Casino M2,cars\streetstock\streetstock2,oval,/iracing-car-images/186.jpg
-187,Street Stock - Eagle T3,cars\streetstock\streetstock3,oval,/iracing-car-images/187.jpg
-188,McLaren 720S GT3 EVO,cars\mclaren720sgt3,sports_car,/iracing-car-images/188.jpg
-189,BMW M4 G82 GT4 Evo,cars\bmwm4evogt4,sports_car,/iracing-car-images/189.jpg
-190,Supercars Ford Mustang Gen 3,cars\supercars\fordmustanggen3,sports_car,/iracing-car-images/190.jpg
-191,Mini Stock,cars\ministock,oval,/iracing-car-images/191.jpg
-192,Supercars Chevrolet Camaro Gen 3,cars\supercars\chevycamarogen3,sports_car,/iracing-car-images/192.jpg
-193,Dirt Mini Stock,cars\dirtministock,oval,/iracing-car-images/193.jpg
-194,Acura NSX GT3 EVO 22,cars\acuransxevo22gt3,sports_car,/iracing-car-images/194.jpg
-195,BMW M2 CS Racing,cars\bmwm2csr,sports_car,/iracing-car-images/195.jpg
-196,Ferrari 499P,cars\ferrari499p,sports_car,/iracing-car-images/196.jpg
-198,ARCA Chevrolet SS,cars\stockcars2\arcachevy25,oval,/iracing-car-images/198.jpg
-199,ARCA Ford Mustang,cars\stockcars2\arcaford25,oval,/iracing-car-images/199.jpg
-200,ARCA Toyota Camry,cars\stockcars2\arcatoyota25,oval,/iracing-car-images/200.jpg
-201,Gen 4 Chevrolet Monte Carlo - 2003,cars\stockcars\chevymontecarlo03,oval,/iracing-car-images/201.jpg
-202,Gen 4 Ford Taurus - 2003,cars\stockcars\fordtaurus03,oval,/iracing-car-images/202.jpg
-203,Ferrari 296 Challenge,cars\ferrari296challenge,sports_car,/iracing-car-images/203.jpg
-204,Ford Mustang GT4,cars\fordmustanggt4,sports_car,/iracing-car-images/204.jpg
-205,Dallara IL-15,cars\dallarail15,formula_car,/iracing-car-images/205.jpg
-206,Aston Martin Vantage GT3 EVO,cars\amvantageevogt3,sports_car,/iracing-car-images/206.jpg
-207,FIA Cross Car,cars\crosscartn11,dirt_road,/iracing-car-images/207.jpg
-208,Porsche 911 Cup (992.2),cars\porsche9922cup,sports_car,/iracing-car-images/208.jpg
+ordinal,name,path,category,imageUrl,shortName,hp,weightLb,hasHeadlights,rainEnabled,hasMultipleDryTireTypes,searchTerms
+1,Skip Barber Formula 2000,cars\rt2000,formula_car,/iracing-car-images/1.jpg,SBRS,132,1250,false,true,false,"road,openwheel,skippy,sbrs,rt2000"
+2,Modified - SK,cars\skmodified,oval,/iracing-car-images/2.jpg,SK,415,2600,false,false,false,"oval,nascar,mod, sk mod"
+3,Pontiac Solstice,cars\solstice,sports_car,/iracing-car-images/3.jpg,SOL,177,2948,true,false,false,"road,sportscar"
+4,[Legacy] Pro Mazda,cars\formulamazda,formula_car,/iracing-car-images/4.jpg,PM,248,1320,false,false,false,"road,openwheel,starmazda"
+5,Legends Ford '34 Coupe,cars\legends\ford34c,oval,/iracing-car-images/5.jpg,LEG,135,1230,false,true,false,"oval,legends"
+10,Pontiac Solstice - Rookie,cars\solstice\rookie,sports_car,/iracing-car-images/10.jpg,SOL-R,177,2948,false,false,false,"road,sportscar"
+13,Radical SR8,cars\radical\sr8,sports_car,/iracing-car-images/13.jpg,SR8,360,1750,true,false,false,"road,prototype"
+18,Silver Crown,cars\silvercrown,oval,/iracing-car-images/18.jpg,SC,819,1600,false,false,false,"oval,usac"
+20,[Legacy] NASCAR Truck Chevrolet Silverado - 2008,cars\trucks\silverado,oval,/iracing-car-images/20.jpg,TRUCK,625,3450,false,false,false,"oval,nascar,truck,chevy"
+21,[Legacy] Riley MkXX Daytona Prototype - 2008,cars\rileydp,sports_car,/iracing-car-images/21.jpg,DP,500,2275,true,false,false,"road,prototype,daytonaprototype,dp"
+22,[Legacy] NASCAR Cup Chevrolet Impala COT - 2009,cars\stockcars\impala,oval,/iracing-car-images/22.jpg,CUP,750,3450,false,false,false,"oval,nascar,cupcar,COT,chevy"
+23,SCCA Spec Racer Ford,cars\specracer,sports_car,/iracing-car-images/23.jpg,SRF,135,1560,false,false,false,"road,prototype,srf"
+24,[Legacy] ARCA Menards Chevrolet Impala,cars\stockcars2\chevy,oval,/iracing-car-images/24.jpg,NW09,650,3300,false,false,false,"oval,nascar,arca,chevy"
+25,Lotus 79,cars\lotus79,formula_car,/iracing-car-images/25.jpg,L79,475,1268,false,true,false,"road,openwheel,L79,f1,formula1,formulaone"
+26,Chevrolet Corvette C6.R GT1,cars\c6r,sports_car,/iracing-car-images/26.jpg,C6R GT1,500,2275,true,false,false,"road,sportscar,gt1,chevy"
+27,VW Jetta TDI Cup,cars\jettatdi,sports_car,/iracing-car-images/27.jpg,VWTDI,170,3041,true,false,false,"road,sportscar"
+28,[Legacy] V8 Supercar Ford Falcon - 2009,cars\fordv8sc,sports_car,/iracing-car-images/28.jpg,V8SC,635,2987,true,false,false,"road,sportscar,aussiev8,supercars,v8sc"
+29,[Legacy] Dallara IR-05,cars\dallara,formula_car,/iracing-car-images/29.jpg,INDY,650,1600,false,false,false,"oval,road,openwheel,dallara"
+30,Ford Mustang FR500S,cars\fr500s,sports_car,/iracing-car-images/30.jpg,FR500,325,3600,true,true,false,"road,sportscar,mustanggt"
+31,Modified - NASCAR Whelen Tour,cars\skmodified\tour,oval,/iracing-car-images/31.jpg,TMOD,612,2645,false,false,false,"oval,nascar,mod,tour mod"
+33,Williams-Toyota FW31,cars\williamsfw31,formula_car,/iracing-car-images/33.jpg,FW31,750,1331,false,false,false,"road,openwheel,f1,formula1,formulaone"
+34,[Legacy] Mazda MX-5 Cup - 2010,cars\mx5\cup,sports_car,/iracing-car-images/34.jpg,MX5-C,170,2600,true,false,false,"road,sportscar,miata,mx5"
+35,[Legacy] Mazda MX-5 Roadster - 2010,cars\mx5\roadster,sports_car,/iracing-car-images/35.jpg,MX5-R,170,2600,true,false,false,"road,sportscar,miata,mx5"
+36,Street Stock - Panther C1,cars\streetstock,oval,/iracing-car-images/36.jpg,SS,375,3400,false,false,false,"oval,ss"
+37,Sprint Car,cars\sprint,oval,/iracing-car-images/37.jpg,SPRT,820,1475,false,false,false,oval
+38,[Legacy] NASCAR Nationwide Chevrolet Impala - 2012,cars\stockcars2\chevy\cot,oval,/iracing-car-images/38.jpg,IMPB,650,3450,false,false,false,"oval,nascar,nationwide,xfinity,chevy"
+39,HPD ARX-01c,cars\hpdarx01c,sports_car,/iracing-car-images/39.jpg,ARX,480,1819,true,false,false,"road,prototype,lmp2"
+40,Ford GT GT2,cars\fordgt,sports_car,/iracing-car-images/40.jpg,FGT,500,2727,true,false,false,"road,sportscar,gte,gtlm"
+41,Cadillac CTS-V Racecar,cars\cadillacctsvr,sports_car,/iracing-car-images/41.jpg,CTSVR,460,3200,true,false,false,"road,sportscar"
+42,Lotus 49,cars\lotus49,formula_car,/iracing-car-images/42.jpg,L49,400,1200,false,true,false,"road,openwheel,L49,f1,formula1,formulaone"
+43,[Legacy] McLaren MP4-12C GT3,cars\mclarenmp4,sports_car,/iracing-car-images/43.jpg,MP4,550,2725,true,true,false,"road,sportscar,gt3,gtd"
+44,Kia Optima,cars\kiaoptima,sports_car,/iracing-car-images/44.jpg,KIAOPT,375,3000,true,false,false,"road,sportscar,gs"
+45,[Legacy] NASCAR Cup Chevrolet SS - 2013,cars\stockcars\chevyss,oval,/iracing-car-images/45.jpg,CSS,875,3300,false,false,false,"oval,nascar,cupcar,chevy"
+46,[Legacy] NASCAR Cup Ford Fusion - 2016,cars\stockcars\fordfusion,oval,/iracing-car-images/46.jpg,FF,750,3300,false,false,false,"oval,nascar,cupcar"
+48,Ruf RT 12R AWD,cars\rufrt12r\awd,sports_car,/iracing-car-images/48.jpg,R12A,675,3100,true,false,false,"road,sportscar,911"
+49,Ruf RT 12R RWD,cars\rufrt12r\rwd,sports_car,/iracing-car-images/49.jpg,R12R,675,3100,true,false,false,"road,sportscar,911"
+50,Ruf RT 12R Track,cars\rufrt12r\track,sports_car,/iracing-car-images/50.jpg,R12T,493,2645,true,false,false,"road,sportscar,911"
+51,[Legacy] NASCAR Xfinity Ford Mustang - 2016,cars\stockcars2\nwford2013,oval,/iracing-car-images/51.jpg,FM,650,3450,false,false,false,"oval,nascar,xfinity,nationwide"
+52,Ruf RT 12R C-Spec,cars\rufrt12r\track\cspec,sports_car,/iracing-car-images/52.jpg,R12C,435,2645,true,false,false,"road,sportscar,911"
+54,Super Late Model,cars\superlatemodel,oval,/iracing-car-images/54.jpg,SLM,550,2800,false,false,false,"oval,slm"
+55,[Legacy] BMW Z4 GT3,cars\bmwz4gt3,sports_car,/iracing-car-images/55.jpg,BMWZ,515,2646,true,false,false,"road,sportscar,gt3,gtd"
+56,NASCAR Cup Series Toyota Camry,cars\stockcars\toyotacamry,oval,/iracing-car-images/56.jpg,TC,750,3300,false,false,false,"oval,nascar,cupcar,classa"
+57,[Legacy] Dallara DW12,cars\dallaradw12,formula_car,/iracing-car-images/57.jpg,DW12,700,1570,false,false,false,"oval,road,openwheel"
+58,[Legacy] NASCAR Xfinity Chevrolet Camaro - 2014,cars\stockcars2\nwcamaro2014,oval,/iracing-car-images/58.jpg,CCB,650,3450,false,false,false,"oval,nascar,xfinity,nationwide,chevy"
+59,Ford GT GT3,cars\fordgt\gt3,sports_car,/iracing-car-images/59.jpg,FGT3,475,2624,true,true,false,"road,sportscar,gtd,gt3"
+60,[Legacy] V8 Supercar Holden VF Commodore - 2014,cars\v8supercars\holden2014,sports_car,/iracing-car-images/60.jpg,HCV8,635,3109,true,false,false,"road,sportscar,aussiev8,supercars,v8sc"
+61,[Legacy] V8 Supercar Ford FG Falcon - 2014,cars\v8supercars\ford2014,sports_car,/iracing-car-images/61.jpg,FFV8,635,3109,true,false,false,"road,sportscar,aussiev8,supercars,v8sc"
+64,Aston Martin DBR9 GT1,cars\astonmartin\dbr9,sports_car,/iracing-car-images/64.jpg,AM1,600,2579,true,false,false,"road,sportscar,gt1"
+67,Global Mazda MX-5 Cup,cars\mx5\mx52016,sports_car,/iracing-car-images/67.jpg,MX16,181,1967,true,true,false,"road,sportscar,miata,mx5"
+69,[Legacy] NASCAR Xfinity Toyota Camry - 2015,cars\stockcars2\camry2015,oval,/iracing-car-images/69.jpg,NXTC,650,3450,false,false,false,"oval,nascar,xfinity,nationwide"
+70,Chevrolet Corvette C7 Daytona Prototype,cars\c7vettedp,sports_car,/iracing-car-images/70.jpg,C7DP,600,2290,true,false,false,"road,prototype,daytonaprototype,dp,chevy"
+71,McLaren MP4-30,cars\mclarenmp430,formula_car,/iracing-car-images/71.jpg,MP430,700,1548,false,false,true,"road,openwheel,f1,formula1,formulaone"
+72,[Legacy] Mercedes-AMG GT3,cars\mercedesamggt3,sports_car,/iracing-car-images/72.jpg,MGT3,500,2932,true,false,false,"road,sportscar,gt3,gtd"
+73,[Legacy] Audi R8 LMS GT3,cars\audir8gt3,sports_car,/iracing-car-images/73.jpg,AR8,576,2799,true,false,false,"road,sportscar,gt3,gtd"
+74,Formula Renault 2.0,cars\formularenault20,formula_car,/iracing-car-images/74.jpg,F20,210,1115,false,false,false,"road,openwheel,fr2.0"
+76,Audi 90 GTO,cars\audi90gto,sports_car,/iracing-car-images/76.jpg,A90,710,2659,false,true,false,"road,sportscar,gto,imsa"
+77,Nissan GTP ZX-T,cars\nissangtpzxt,sports_car,/iracing-car-images/77.jpg,ZXT,795,2097,true,true,false,"road,prototype,gtp,imsa"
+78,Dirt Late Model - Limited,cars\dirtlatemodel\350,dirt_oval,/iracing-car-images/78.jpg,DLM350,400,2250,false,false,false,"dirt,dirtoval,dlm"
+79,Dirt Street Stock,cars\dirtstreetstock,dirt_oval,/iracing-car-images/79.jpg,SSD,425,3075,false,false,false,"dirt,dirtoval"
+80,Dirt Sprint Car - 305,cars\dirtsprint\winged\305,dirt_oval,/iracing-car-images/80.jpg,DSC305,458,1550,false,false,false,"dirt,dirtoval,wingedsprintcar"
+81,Ford Fiesta RS WRC,cars\fordfiestarswrc,dirt_road,/iracing-car-images/81.jpg,FF-WSC,600,3000,false,false,false,"dirt,dirtroad,rallycross,irx"
+82,Dirt Legends Ford '34 Coupe,cars\legends\dirtford34c,dirt_oval,/iracing-car-images/82.jpg,LEG-D,125,1300,false,false,false,"dirt,dirtoval,legends"
+83,Dirt Late Model - Pro,cars\dirtlatemodel\358,dirt_oval,/iracing-car-images/83.jpg,DLM358,700,2250,false,false,false,"dirt,dirtoval,dlm"
+84,Dirt Late Model - Super,cars\dirtlatemodel\438,dirt_oval,/iracing-car-images/84.jpg,DLM438,850,2250,false,false,false,"dirt,dirtoval,dlm"
+85,Dirt Sprint Car - 360,cars\dirtsprint\winged\360,dirt_oval,/iracing-car-images/85.jpg,DSC360,720,1500,false,false,false,"dirt,dirtoval,wingedsprintcar"
+86,Dirt Sprint Car - 410,cars\dirtsprint\winged\410,dirt_oval,/iracing-car-images/86.jpg,DSC410,892,1400,false,false,false,"dirt,dirtoval,wingedsprintcar"
+87,Dirt Sprint Car - 360 Non-Winged,cars\dirtsprint\nonwinged\360,dirt_oval,/iracing-car-images/87.jpg,DS360NW,720,1375,false,false,false,"dirt,dirtoval,sprintcar"
+88,[Legacy] Porsche 911 GT3 Cup (991),cars\porsche911cup,sports_car,/iracing-car-images/88.jpg,P911,485,2878,true,false,false,"road,sportscar,supercup"
+89,Dirt Sprint Car - 410 Non-Winged,cars\dirtsprint\nonwinged\410,dirt_oval,/iracing-car-images/89.jpg,DS410NW,821,1475,false,false,false,"dirt,dirtoval,sprintcar"
+91,VW Beetle,cars\vwbeetlegrc,dirt_road,/iracing-car-images/91.jpg,VWB,600,3000,false,false,false,"dirt,dirtroad,rallycross,irx"
+92,Ford GTE,cars\fordgt2017,sports_car,/iracing-car-images/92.jpg,FGT7,530,2745,true,true,false,"road,sportscar,gte,gtlm"
+93,Ferrari 488 GTE,cars\ferrari488gte,sports_car,/iracing-car-images/93.jpg,488E,490,2778,true,true,false,"road,sportscar,gte,gtlm"
+94,[Legacy] Ferrari 488 GT3,cars\ferrari488gt3,sports_car,/iracing-car-images/94.jpg,488T3,560,2803,true,false,false,"road,sportscar,gt3,gtd"
+95,Dirt UMP Modified,cars\dirtumpmod,dirt_oval,/iracing-car-images/95.jpg,UMP,750,2400,false,false,false,"dirt,dirtoval"
+96,Dirt Midget,cars\dirtmidget,dirt_oval,/iracing-car-images/96.jpg,DM,400,1035,false,false,false,"dirt,dirtoval,midget"
+98,Audi R18,cars\audir18,sports_car,/iracing-car-images/98.jpg,AR18,503,1929,true,false,false,"road,prototype,lmp1"
+99,Dallara IR18,cars\dallarair18,formula_car,/iracing-car-images/99.jpg,IR18,700,1590,false,true,true,"oval,road,openwheel"
+100,Porsche 919,cars\porsche919,sports_car,/iracing-car-images/100.jpg,919,900,1929,true,false,false,"road,prototype,lmp1"
+101,Subaru WRX STI,cars\subaruwrxsti,dirt_road,/iracing-car-images/101.jpg,WRX,585,2860,false,false,false,"dirt,dirtroad,subi,rallycross,irx"
+102,Porsche 911 RSR,cars\porsche991rsr,sports_car,/iracing-car-images/102.jpg,RSR,510,2740,true,true,false,"road,sportscar,gte,gtlm"
+103,NASCAR Cup Series Chevrolet Camaro ZL1,cars\stockcars\camarozl12018,oval,/iracing-car-images/103.jpg,ZL1,750,3200,false,false,false,"oval,nascar,cupcar,classa,chevy"
+104,Lucas Oil Off Road Pro 2 Truck,cars\protrucks\pro2truck,dirt_road,/iracing-car-images/104.jpg,PRO2,800,4000,false,false,false,"dirt,road,dirtroad,offroad,offroadtruck"
+105,Formula Renault 3.5,cars\formularenault35,formula_car,/iracing-car-images/105.jpg,F35,530,1567,false,false,false,"road,openwheel,fr3.5"
+106,Dallara F3,cars\dallaraf3,formula_car,/iracing-car-images/106.jpg,F317,220,1213,false,false,false,"road,openwheel,formula3"
+107,Lucas Oil Off Road Pro 4 Truck,cars\protrucks\pro4truck,dirt_road,/iracing-car-images/107.jpg,PRO4,800,4000,false,false,false,"dirt,road,dirtroad,offroad,offroadtruck"
+109,BMW M8 GTE,cars\bmwm8gte,sports_car,/iracing-car-images/109.jpg,BMWM8,560,2640,true,true,false,"road,sportscar,gte,gtlm"
+110,NASCAR Cup Series Ford Mustang,cars\stockcars\fordmustang2019,oval,/iracing-car-images/110.jpg,FM2019,750,3300,false,false,false,"oval,nascar,cupcar,classa"
+111,NASCAR Truck Chevrolet Silverado,cars\trucks\silverado2019,oval,/iracing-car-images/111.jpg,CS2019,650,3450,false,false,false,"oval,nascar,truck,craftsman,chevy"
+112,[Legacy] Audi RS3 LMS TCR,cars\audirs3lms,sports_car,/iracing-car-images/112.jpg,RS3,350,2673,true,true,false,"road,sportscar,tcr"
+113,Lucas Oil Off Road Pro 2 Lite,cars\protrucks\pro2lite,dirt_road,/iracing-car-images/113.jpg,PRO2L,400,4000,false,false,false,"dirt,road,dirtroad,offroad,offroadtruck"
+114,NASCAR O'Reilly Chevrolet Camaro,cars\stockcars2\camaro2019,oval,/iracing-car-images/114.jpg,NCC,650,3450,false,false,false,"oval,nascar,nationwide,classb,chevy"
+115,NASCAR O'Reilly Ford Mustang,cars\stockcars2\mustang2019,oval,/iracing-car-images/115.jpg,NFM,650,3450,false,false,false,"oval,nascar,nationwide,classb"
+116,NASCAR O'Reilly Toyota Supra,cars\stockcars2\supra2019,oval,/iracing-car-images/116.jpg,NTS,650,3450,false,false,false,"oval,nascar,nationwide,classb"
+117,[Legacy] Supercars Holden ZB Commodore,cars\v8supercars\holden2019,sports_car,/iracing-car-images/117.jpg,HZBC,635,3076,true,false,false,"road,sportscar,aussiev8,v8sc"
+118,[Legacy] Supercars Ford Mustang GT,cars\v8supercars\fordmustanggt,sports_car,/iracing-car-images/118.jpg,FMGT,635,3076,true,false,false,"road,sportscar,aussiev8,v8sc"
+119,Porsche 718 Cayman GT4 Clubsport MR,cars\porsche718gt4,sports_car,/iracing-car-images/119.jpg,P718,425,2910,true,true,false,"road,sportscar,gt4,gs"
+120,Indy Pro 2000 PM-18,cars\indypropm18,formula_car,/iracing-car-images/120.jpg,PM18,275,1100,false,false,false,"road,openwheel,oval"
+121,USF 2000,cars\usf2000usf17,formula_car,/iracing-car-images/121.jpg,PM17,175,1100,false,false,false,"road,openwheel,oval,f2000"
+122,BMW M4 F82 GT4 - 2018,cars\bmwm4gt4,sports_car,/iracing-car-images/122.jpg,BMWM4,431,3153,true,true,false,"road,sportscar,gt4,gs"
+123,NASCAR Truck Ford F150,cars\trucks\fordf150,oval,/iracing-car-images/123.jpg,F150,650,3450,false,false,false,"oval,nascar,truck,craftsman"
+124,NASCAR Legends Chevrolet Monte Carlo - 1987,cars\stockcars\chevymontecarlo87,oval,/iracing-car-images/124.jpg,C87,650,3700,false,false,false,"oval,nascar,cupcar,winstoncup,chevy"
+125,NASCAR Legends Ford Thunderbird - 1987,cars\stockcars\fordthunderbird87,oval,/iracing-car-images/125.jpg,F87,650,3700,false,false,false,"oval,nascar,cupcar,winstoncup"
+127,Chevrolet Corvette C8.R GTE,cars\c8rvettegte,sports_car,/iracing-car-images/127.jpg,C8R,550,2750,true,true,false,"road,sportscar,gte,gtlm,chevy"
+128,Dallara P217,cars\dallarap217,sports_car,/iracing-car-images/128.jpg,P217,600,2050,true,true,false,"road,prototype,p2,prototype,lmp2"
+129,Dallara iR-01,cars\dallarair01,formula_car,/iracing-car-images/129.jpg,IR01,900,1575,false,false,true,"road,oval,openwheel"
+131,Dirt Big Block Modified,cars\dirtmodified\bigblock,dirt_oval,/iracing-car-images/131.jpg,BBM,757,2646,false,false,false,"dirt,dirtoval"
+132,BMW M4 GT3 EVO,cars\bmwm4gt3,sports_car,/iracing-car-images/132.jpg,M4GT3,500,3013,true,true,false,"road,gt3,sportscar,gtd"
+133,Lamborghini Huracán GT3 EVO,cars\lamborghinievogt3,sports_car,/iracing-car-images/133.jpg,LGT3,500,3013,true,true,false,"road,gt3,sportscar,gtd,huracan"
+134,Dirt 358 Modified,cars\dirtmodified\358,dirt_oval,/iracing-car-images/134.jpg,358MOD,510,2551,false,false,false,"dirt,dirtoval"
+135,McLaren 570S GT4,cars\mclaren570sgt4,sports_car,/iracing-car-images/135.jpg,M570S,461,3086,true,true,false,"road,sportscar,gt4,gs"
+137,[Legacy] Porsche 911 GT3 R,cars\porsche911rgt3,sports_car,/iracing-car-images/137.jpg,PGTR,500,2822,true,false,false,"road,sportscar,gt3,gtd"
+138,VW Beetle - Lite,cars\vwbeetlegrc\lite,dirt_road,/iracing-car-images/138.jpg,VWBL,262,1371,false,false,false,"dirt,dirtroad,rallycross,irx"
+139,NASCAR Cup Series Next Gen Chevrolet Camaro ZL1,cars\stockcars\chevycamarozl12022,oval,/iracing-car-images/139.jpg,NGC,670,3500,false,false,false,"oval,nascar,cupcar,chevy"
+140,NASCAR Cup Series Next Gen Ford Mustang,cars\stockcars\fordmustang2022,oval,/iracing-car-images/140.jpg,NGF,670,3500,false,false,false,"oval,nascar,cupcar"
+141,NASCAR Cup Series Next Gen Toyota Camry,cars\stockcars\toyotacamry2022,oval,/iracing-car-images/141.jpg,NGT,670,3500,false,false,false,"oval,nascar,cupcar"
+142,Formula Vee - Classic,cars\formulavee,formula_car,/iracing-car-images/142.jpg,FVEE,69,825,false,true,false,"road,formulavee,openwheel"
+143,[Legacy] Porsche 911 GT3 Cup (992.1),cars\porsche992cup,sports_car,/iracing-car-images/143.jpg,P992,510,2778,true,true,false,"road,sportscar"
+144,Ferrari 488 GT3 Evo 2020,cars\ferrarievogt3,sports_car,/iracing-car-images/144.jpg,FEVO,600,2772,true,false,false,"road,sportscar,gt3,gtd"
+145,Mercedes-AMG W12 E Performance,cars\mercedesw12,formula_car,/iracing-car-images/145.jpg,MW12,1000,1655,false,false,true,"road,amg,w12,openwheel,formula,f1,formula1"
+146,Hyundai Elantra N TCR,cars\hyundaielantracn7,sports_car,/iracing-car-images/146.jpg,HECN7,350,2673,true,true,false,"road,sportscar,tcr"
+147,Honda Civic Type R TCR,cars\hondacivictyper,sports_car,/iracing-car-images/147.jpg,HCTR,350,2673,true,true,false,"road,sportscar,tcr"
+148,FIA F4,cars\formulair04,formula_car,/iracing-car-images/148.jpg,F4,160,1257,false,true,false,"road,openwheel"
+149,Radical SR10,cars\radicalsr10,sports_car,/iracing-car-images/149.jpg,SR10,425,1598,true,false,false,"road,prototype"
+150,Aston Martin Vantage GT4,cars\amvantagegt4,sports_car,/iracing-car-images/150.jpg,AMV4,450,3230,true,true,false,"road,sportscar,aienabled"
+151,Stock Car Brasil Chevrolet Cruze,cars\stockcarbrasil\cruze,sports_car,/iracing-car-images/151.jpg,SCCC,415,3053,true,false,false,"stockcarproseries,stockcarbrasil,scb,brasil,brazil,stockcar"
+152,Stock Car Brasil Toyota Corolla,cars\stockcarbrasil\corolla,sports_car,/iracing-car-images/152.jpg,SCTC,415,3053,true,false,false,"stockcarproseries,stockcarbrasil,scb,brasil,brazil,stockcar"
+153,Hyundai Veloster N TCR,cars\hyundaivelostern,sports_car,/iracing-car-images/153.jpg,HVTC,350,2789,true,true,false,"road,sportscar,aienabled,tcr"
+154,NASCAR Legends Buick LeSabre - 1987,cars\stockcars\buicklesabre87,oval,/iracing-car-images/154.jpg,B87,650,3700,false,false,false,"oval,nascar"
+155,NASCAR Truck Toyota Tundra TRD Pro,cars\trucks\toyotatundra2022,oval,/iracing-car-images/155.jpg,TTP,650,3450,false,false,false,"oval,nascar,truck,craftsman"
+156,Mercedes-AMG GT3 2020,cars\mercedesamgevogt3,sports_car,/iracing-car-images/156.jpg,MGT3E,515,2833,true,true,false,"road,sportscar,gt3,gtd"
+157,Mercedes-AMG GT4,cars\mercedesamggt4,sports_car,/iracing-car-images/157.jpg,MGT4,515,3064,true,true,false,"road,sportscar,gt4,gtd"
+158,Porsche Mission R,cars\porschemissionr,sports_car,/iracing-car-images/158.jpg,PMR,1073,3307,true,false,false,road
+159,BMW M Hybrid V8 (Evo),cars\bmwlmdh,sports_car,/iracing-car-images/159.jpg,BMWGTP,665,2447,true,true,false,"road,sportscar,gtp,prototype,lmdh,gtp"
+160,Toyota GR86,cars\toyotagr86,sports_car,/iracing-car-images/160.jpg,GR86,228,2868,true,true,false,"road,street circuit"
+161,Mercedes-AMG W13 E Performance,cars\mercedesw13,formula_car,/iracing-car-images/161.jpg,MW13,1070,1753,false,false,true,"road,amg,w12,openwheel,formula,formula1,f1"
+162,Renault Clio,cars\renaultcliocup,sports_car,/iracing-car-images/162.jpg,RENC,200,2271,true,true,false,road
+163,Ray FF1600,cars\raygr22,formula_car,/iracing-car-images/163.jpg,GR22,116,1108,false,true,false,"road,formula,ford,openwheel"
+164,Late Model Stock,cars\latemodel2023,oval,/iracing-car-images/164.jpg,LM23,500,3100,false,false,false,oval
+165,Ligier JS P320,cars\ligierjsp320,sports_car,/iracing-car-images/165.jpg,LJSP,455,2094,true,true,false,"road,sportscar,prototype,lmp3"
+167,[Legacy] Gen 4 Cup,cars\stockcars2\chevy\gen4cup,oval,/iracing-car-images/167.jpg,G4CUP,725,3400,false,false,false,"oval,nascar,arca,chevy"
+168,Cadillac V-Series.R GTP,cars\cadillacvseriesrgtp,sports_car,/iracing-car-images/168.jpg,CGTP,670,2380,true,true,false,"road,sportscar,prototype,lmdh,gtp"
+169,Porsche 911 GT3 R (992),cars\porsche992rgt3,sports_car,/iracing-car-images/169.jpg,992R,565,2756,true,true,false,"road,sportscar"
+170,Acura ARX-06 GTP,cars\acuraarx06gtp,sports_car,/iracing-car-images/170.jpg,AGTP,665,2447,true,true,false,"road,gtp,lmdh,prototype"
+171,Super Formula SF23 - Toyota,cars\superformulasf23\toyota,formula_car,/iracing-car-images/171.jpg,SF23T,550,1477,false,true,false,"road,openwheel,sf"
+172,Super Formula SF23 - Honda,cars\superformulasf23\honda,formula_car,/iracing-car-images/172.jpg,SF23H,550,1477,false,true,false,"road,openwheel,sf"
+173,Ferrari 296 GT3,cars\ferrari296gt3,sports_car,/iracing-car-images/173.jpg,F296,524,2978,true,true,false,"road,sportscar,gt3"
+174,Porsche 963 GTP,cars\porsche963gtp,sports_car,/iracing-car-images/174.jpg,PGTP,665,2469,true,true,false,"road,gtp,lmdh,prototype"
+175,NASCAR Legends Pontiac Grand Prix - 1987,cars\stockcars\pontiacgrandprix87,oval,/iracing-car-images/175.jpg,P87,650,3700,false,false,false,"oval,nascar"
+176,Audi R8 LMS EVO II GT3,cars\audir8lmsevo2gt3,sports_car,/iracing-car-images/176.jpg,AEVO2,518,2910,true,true,false,"gt3,audi,gt,sportscar"
+178,Super Formula Lights,cars\superformulalights324,formula_car,/iracing-car-images/178.jpg,SFL324,276,1290,false,true,false,"road,openwheel,sf,sfl"
+179,SRX,cars\srx,oval,/iracing-car-images/179.jpg,SRX,700,3250,false,false,false,"road,superstar racing experience,srx"
+180,Dirt Micro Sprint Car - Winged,cars\dirtmicrosprint\winged,dirt_oval,/iracing-car-images/180.jpg,MSCW,120,780,false,false,false,"dirt,dirtoval,sprintcar"
+181,Dirt Micro Sprint Car - Non-Winged,cars\dirtmicrosprint\nonwinged,dirt_oval,/iracing-car-images/181.jpg,MSCNW,120,755,false,false,false,"dirt,dirtoval,sprintcar"
+182,Dirt Outlaw Micro Sprint Car - Winged,cars\dirtmicrosprint\winged\outlaw,dirt_oval,/iracing-car-images/182.jpg,MSCOW,167,780,false,false,false,"dirt,dirtoval,sprintcar"
+183,Dirt Outlaw Micro Sprint Car - Non-Winged,cars\dirtmicrosprint\nonwinged\outlaw,dirt_oval,/iracing-car-images/183.jpg,MSCONW,167,755,false,false,false,"dirt,dirtoval,sprintcar"
+184,Chevrolet Corvette Z06 GT3.R,cars\chevyvettez06rgt3,sports_car,/iracing-car-images/184.jpg,CZ06,522,2943,true,true,false,"road,gt3,chevy"
+185,Ford Mustang GT3,cars\fordmustanggt3,sports_car,/iracing-car-images/185.jpg,FMGT3,516,2900,true,true,true,"road,sportscar,gt3"
+186,Street Stock - Casino M2,cars\streetstock\streetstock2,oval,/iracing-car-images/186.jpg,SSC,375,3400,false,false,false,"oval,ss"
+187,Street Stock - Eagle T3,cars\streetstock\streetstock3,oval,/iracing-car-images/187.jpg,SSE,375,3400,false,false,false,"oval,ss"
+188,McLaren 720S GT3 EVO,cars\mclaren720sgt3,sports_car,/iracing-car-images/188.jpg,720GT3,740,2932,true,true,false,"road,sportscar,gt3"
+189,BMW M4 G82 GT4 Evo,cars\bmwm4evogt4,sports_car,/iracing-car-images/189.jpg,BMWGT4,520,3377,true,true,false,"road,sportscar,gt4"
+190,Supercars Ford Mustang Gen 3,cars\supercars\fordmustanggen3,sports_car,/iracing-car-images/190.jpg,SFMG3,600,2955,true,true,false,"road,supercars"
+191,Mini Stock,cars\ministock,oval,/iracing-car-images/191.jpg,MNSTK,200,2350,false,false,false,"oval,stock,mini,rookie"
+192,Supercars Chevrolet Camaro Gen 3,cars\supercars\chevycamarogen3,sports_car,/iracing-car-images/192.jpg,SCCG3,600,2955,true,true,false,"road,supercars"
+193,Dirt Mini Stock,cars\dirtministock,oval,/iracing-car-images/193.jpg,DMNST,200,2350,false,false,false,"oval,stock,mini,rookie"
+194,Acura NSX GT3 EVO 22,cars\acuransxevo22gt3,sports_car,/iracing-car-images/194.jpg,NSXE22,520,2910,true,true,false,"road,sports,gt3"
+195,BMW M2 CS Racing (F87) - 2020,cars\bmwm2csr,sports_car,/iracing-car-images/195.jpg,BMWM2,365,3405,true,true,false,"road,sports"
+196,Ferrari 499P,cars\ferrari499p,sports_car,/iracing-car-images/196.jpg,F499P,665,2469,true,true,false,"road,sports,prototype"
+198,ARCA Chevrolet SS,cars\stockcars2\arcachevy25,oval,/iracing-car-images/198.jpg,ACSS25,700,3450,false,false,false,"oval,nascar,arca,chevy"
+199,ARCA Ford Mustang,cars\stockcars2\arcaford25,oval,/iracing-car-images/199.jpg,ARCAFM,700,3450,false,false,false,"oval,nascar,arca,ford"
+200,ARCA Toyota Camry,cars\stockcars2\arcatoyota25,oval,/iracing-car-images/200.jpg,ARCATC,700,3450,false,false,false,"oval,nascar,arca,toyota"
+201,Gen 4 Chevrolet Monte Carlo - 2003,cars\stockcars\chevymontecarlo03,oval,/iracing-car-images/201.jpg,G4CMC,700,3400,false,false,false,"oval,nascar,chevy"
+202,Gen 4 Ford Taurus - 2003,cars\stockcars\fordtaurus03,oval,/iracing-car-images/202.jpg,G4FT,700,3400,false,false,false,"oval,nascar,ford"
+203,Ferrari 296 Challenge,cars\ferrari296challenge,sports_car,/iracing-car-images/203.jpg,F296C,690,3075,true,true,false,"road,sportscar,challenge"
+204,Ford Mustang GT4,cars\fordmustanggt4,sports_car,/iracing-car-images/204.jpg,FMGT4,500,3241,true,true,false,"road,sportscar,gt4"
+205,Dallara IL-15,cars\dallarail15,formula_car,/iracing-car-images/205.jpg,DIL15,450,1420,false,true,false,"road,oval,openwheel"
+206,Aston Martin Vantage GT3 EVO,cars\amvantageevogt3,sports_car,/iracing-car-images/206.jpg,AMGT3,535,2910,true,true,false,"road,sportscar,gt3"
+207,FIA Cross Car,cars\crosscartn11,dirt_road,/iracing-car-images/207.jpg,FIAACC,120,298,false,false,false,"dirt,dirtroad"
+208,Porsche 911 Cup (992.2),cars\porsche9922cup,sports_car,/iracing-car-images/208.jpg,P9922,520,2866,true,true,false,"road,sportscar"
+210,Audi RS3 LMS Gen2 TCR,cars\audirs3lmsgen2,sports_car,/iracing-car-images/210.jpg,ARS3G2,340,2789,true,true,false,"road,audi,rs3"
+211,NASCAR Truck RAM,cars\trucks\ram2026,oval,/iracing-car-images/211.jpg,RAM26,650,3450,false,false,false,"nascar,truck,dodge,stellantis,craftsman"
+213,EURO NASCAR V8GP,cars\euronascar,sports_car,/iracing-car-images/213.jpg,ENRC01,400,2932,false,true,false,"oval,nascar"
+214,Formula Vee - Sabre,cars\formulavee\formulavee2,formula_car,/iracing-car-images/214.jpg,FVEE2,69,825,false,true,false,"road,formulavee,openwheel"
+215,Formula Vee - Conqueror,cars\formulavee\formulavee3,formula_car,/iracing-car-images/215.jpg,FVEE3,69,825,false,true,false,"road,formulavee,openwheel"
+216,BMW M2 Racing (G87),cars\bmwm2g87,sports_car,/iracing-car-images/216.jpg,BMWM2R,313,3472,true,true,true,"road,sports"

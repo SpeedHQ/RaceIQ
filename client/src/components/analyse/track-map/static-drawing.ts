@@ -1,4 +1,5 @@
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import { drawPitLines, type PitLine } from "@/lib/canvas/draw-track";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
@@ -30,8 +31,9 @@ export interface StaticTrackOptions {
   resolvedPositions: Point[];
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
-  boundaries: TrackMapBoundaries | null;
+  pitLines?: PitLine[] | null;
   sectors: SectorBoundaries | null;
+  boundaries: TrackMapBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   highlights?: TrackHighlight[] | null;
   showInputs?: boolean;
@@ -49,6 +51,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     resolvedPositions,
     outline,
     mapLabels,
+    pitLines,
     boundaries,
     sectors,
     segments,
@@ -68,6 +71,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
 
   const telemetryPointsWithIdx = resolvedPositions.map((point, idx) => ({ ...point, idx })).filter((point, index) => index === 0 || point.x !== 0 || point.z !== 0);
   const telemetryPoints = telemetryPointsWithIdx as Point[];
+
   const flip = needsTrackFlip(gameId);
   const displayTrackOutline = outline && flip ? flipPoints(outline) : outline;
   const displayOutline: Point[] = !showTrace
@@ -88,6 +92,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
       return anchored ? { ...displayLabel, ...anchored } : displayLabel;
     }) ?? null;
   const raceLine = showRaceLine && Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1 ? (flip ? flipPoints(boundaries.raceLine) : boundaries.raceLine) : null;
+  const flippedPitLines = flip && pitLines ? pitLines.map((line) => ({ ...line, points: flipPoints(line.points) })) : pitLines;
   const hasBounds = !!(boundaries?.coordSystem && flippedLeft && flippedLeft.length > 2);
   let minX = Infinity,
     maxX = -Infinity,
@@ -96,6 +101,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const allBoundsPts: Point[][] = [displayOutline, overlayOutline];
   if (hasBounds) allBoundsPts.push(flippedLeft!, flippedRight!);
   if (displayMapLabels?.length) allBoundsPts.push(displayMapLabels);
+  // Pit lines use this track-derived transform but never expand it.
   for (const pts of allBoundsPts)
     for (const p of pts) {
       minX = Math.min(minX, p.x);
@@ -124,6 +130,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   ctx.clearRect(0, 0, bufferCanvas.width, bufferCanvas.height);
   ctx.setTransform(bufferCanvas.width / offW, 0, 0, bufferCanvas.height / offH, 0, 0);
 
+  drawPitLines(ctx, flippedPitLines, toCanvas);
   if (hasBounds) {
     const left = flippedLeft!;
     const right = flippedRight!;
