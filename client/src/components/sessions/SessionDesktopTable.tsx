@@ -1,16 +1,13 @@
 import { Fragment } from "react";
-import { Star } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
 import type { GameId } from "@shared/games/ids";
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
 import { formatLapTime } from "@/components/LiveTelemetry";
 import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { FavoriteToggleButton } from "../FavoriteToggleButton";
 import { Button } from "@/components/ui/button";
-import { queryKeys } from "@/hooks/query-keys";
 import { formatSessionType } from "./helpers";
 import { NoteCell } from "./NoteCell";
-import { client } from "@/lib/rpc";
 import { MotecBadge } from "./MotecBadge";
 import { SessionLapTable } from "./SessionLapTable";
 import { SessionResultMeta } from "./SessionResultMeta";
@@ -81,11 +78,6 @@ export function SessionDesktopTable({
   setRecapSessionId,
   analyseSession,
 }: SessionDesktopTableProps) {
-  const queryClient = useQueryClient();
-  const toggleFavorite = async (session: SessionMeta) => {
-    const response = await client.api.sessions[":id"].favorite.$patch({ param: { id: String(session.id) }, json: { favorite: !session.isFavorite } });
-    if (response.ok) await queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
-  };
   return (
     <div className="hidden flex-1 overflow-auto @3xl/workspace:block">
       <Table fit>
@@ -156,19 +148,7 @@ export function SessionDesktopTable({
                           <span className="text-app-text/90">{new Date(session.createdAt).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" })}</span>
                         </span>
                         {session.source === "motec" && <MotecBadge />}
-                        <Button
-                          type="button"
-                          variant="app-ghost"
-                          size="icon-xs"
-                          aria-label={session.isFavorite ? m.sessions_remove_session_favorite() : m.sessions_add_session_favorite()}
-                          title={session.isFavorite ? m.sessions_remove_session_favorite() : m.sessions_add_session_favorite()}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            void toggleFavorite(session);
-                          }}
-                        >
-                          <Star className={session.isFavorite ? "fill-current text-app-accent" : ""} aria-hidden="true" />
-                        </Button>
+                        <FavoriteToggleButton target="session" id={session.id} isFavorite={Boolean(session.isFavorite)} />
                         <Button
                           variant="app-outline"
                           size="app-sm"

@@ -10,6 +10,7 @@ import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
 import { SearchSelect } from "../ui/SearchSelect";
+import { FavoriteToggleButton } from "../FavoriteToggleButton";
 
 function buildAnalyseLapOption(lap: LapMeta, locale?: "en" | "de") {
   return {
@@ -162,10 +163,11 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[160px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
             fallbackLabel={selectedLap ? buildAnalyseLapOption(selectedLap).label : selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
           />
-          {selectedLapId != null && (
+          {selectedLapId != null && <FavoriteToggleButton target="lap" id={selectedLapId} isFavorite={Boolean(selectedLap?.isFavorite)} />}
+          {selectedLapId != null && selectedLap?.ownership === "others" && (
             <>
               <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
-                {selectedLap?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}
+                {m.import_ownership_others()}
               </span>
               {selectedLap?.source === "motec" && <MotecBadge />}
             </>
