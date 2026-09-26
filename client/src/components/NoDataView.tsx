@@ -121,7 +121,7 @@ export function NoDataView() {
   const { displaySettings } = useSettings();
   const port = String((displaySettings as any).udpPort ?? "5300");
 
-  const guideLabel = gameId === "iracing" ? m.nodata_iracing_guide_toggle() : gameId === "lmu" ? "How to connect Le Mans Ultimate" : gameId === "f1-2025" ? m.settings_f1_guide_toggle() : gameId === "acc" ? m.nodata_guide_acc() : m.settings_forza_guide_toggle();
+  const guideLabel = gameId === "iracing" ? m.nodata_iracing_guide_toggle() : gameId === "lmu" ? m.nodata_lmu_guide_toggle() : gameId === "f1-2025" ? m.settings_f1_guide_toggle() : gameId === "acc" ? m.nodata_guide_acc() : m.settings_forza_guide_toggle();
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">

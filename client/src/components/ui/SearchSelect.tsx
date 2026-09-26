@@ -26,7 +26,7 @@ interface SearchSelectProps {
 
 const OVERLAY_SURFACE_CLASS = "rounded-lg border border-app-border-input bg-app-surface-alt text-app-text shadow-lg";
 const OVERLAY_ITEM_CLASS = "flex min-h-8 w-full items-center !justify-start gap-2 px-3 py-1.5 text-left text-sm leading-snug whitespace-normal outline-none transition-colors hover:bg-app-accent/20";
-export function SearchSelect({ id, value, onChange, options, placeholder = "Search...", ariaLabel, disabled = false, className = "w-full max-w-xs", focusColor, fallbackLabel }: SearchSelectProps) {
+export function SearchSelect({ id, value, onChange, options, placeholder = m.sessions_search_placeholder(), ariaLabel, disabled = false, className = "w-full max-w-xs", focusColor, fallbackLabel }: SearchSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -108,7 +108,7 @@ export function SearchSelect({ id, value, onChange, options, placeholder = "Sear
           ref={inputRef}
           type="text"
           role="combobox"
-          aria-label={ariaLabel}
+          aria-label={ariaLabel ?? placeholder}
           aria-controls={open ? listboxId : undefined}
           aria-autocomplete="list"
           aria-activedescendant={open && highlightIdx >= 0 ? `${listboxId}-${highlightIdx}` : undefined}

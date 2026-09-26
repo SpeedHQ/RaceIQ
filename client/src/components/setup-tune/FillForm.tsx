@@ -1,4 +1,5 @@
 import { type FieldDef, readSetupField, readSetupSection, type SectionDef, SETUP_FORM_TAB_ORDER, writeSetupField } from "@shared/racing/setups/schema";
+import { m } from "@/paraglide/messages";
 import { useState } from "react";
 import { AppInput } from "../ui/AppInput";
 import { Badge } from "../ui/badge";
@@ -109,7 +110,7 @@ function SectionCard({
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-app-text">{section.label}</span>
           <Badge variant={hasData ? "success" : "form-section-empty"} size="compact">
-            {hasData ? "set" : "—"}
+            {hasData ? m.setupform_set() : "—"}
           </Badge>
         </div>
         <span className="text-xs text-app-text-muted">{open ? "▾" : "▸"}</span>

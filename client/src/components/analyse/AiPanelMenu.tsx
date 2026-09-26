@@ -25,7 +25,7 @@ export function AiPanelMenu({ onClearChat, onClearAnalysis, onClearAll }: AiPane
 
   return (
     <div ref={ref} className="relative">
-      <Button variant="app-ghost" size="app-sm" onClick={() => setOpen((v) => !v)} title="Manage">
+      <Button variant="app-ghost" size="app-sm" onClick={() => setOpen((v) => !v)} title={m.aipanel_manage()}>
         <Settings2 className="size-3.5" />
       </Button>
       {open && (

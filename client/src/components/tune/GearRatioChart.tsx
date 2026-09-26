@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { m } from "@/paraglide/messages";
 
 export function GearRatioChart({ ratios, finalDrive, topSpeedKph, topSpeedMph, maxRpm = 8000 }: { ratios: number[]; finalDrive: number; topSpeedKph?: number; topSpeedMph?: number; maxRpm?: number }) {
   const clipId = useId();
@@ -26,6 +27,7 @@ export function GearRatioChart({ ratios, finalDrive, topSpeedKph, topSpeedMph, m
   for (let gearIndex = 0; gearIndex < ratios.length; gearIndex++) {
     const ratio = ratios[gearIndex];
     const gearNumber = gearIndex + 1;
+    const gearLabel = m.tune_gear_number({ number: gearNumber });
     const startKph = gearIndex === 0 ? 0 : toKph(maxRpm, ratios[gearIndex - 1]);
     const startRpm = gearIndex === 0 ? 0 : (((startKph / 3.6) * (ratio * finalDrive)) / tireCircumference) * 60;
     const points = Array.from({ length: 60 }, (_, pointIndex) => {
@@ -44,14 +46,14 @@ export function GearRatioChart({ ratios, finalDrive, topSpeedKph, topSpeedMph, m
           fillOpacity="0.6"
           fontWeight="var(--font-weight-semibold)"
         >
-          {gearNumber}
+          {gearLabel}
         </text>
       </g>,
     );
   }
 
   return (
-    <svg width="100%" viewBox={`0 0 ${width} ${height}`} className="block w-full text-app-text-muted" aria-label="Gear ratio speed chart">
+    <svg width="100%" viewBox={`0 0 ${width} ${height}`} className="block w-full text-app-text-muted" aria-label={m.tune_gear_ratio_chart_aria()}>
       <defs>
         <clipPath id={clipId}>
           <rect x={pad.left} y={pad.top} width={chartWidth} height={chartHeight} />
@@ -79,10 +81,10 @@ export function GearRatioChart({ ratios, finalDrive, topSpeedKph, topSpeedMph, m
       ))}
 
       <text x={pad.left + chartWidth} y={pad.top + chartHeight + 20} textAnchor="end" fontSize="7" fill="currentColor" fillOpacity="0.35">
-        KM/H
+        {m.tune_speed_unit_kph()}
       </text>
       <text x={pad.left - 4} y={pad.top - 6} textAnchor="end" fontSize="7" fill="currentColor" fillOpacity="0.35">
-        RPM ×1000
+        {m.tune_rpm_axis_label()}
       </text>
 
       {ratioLines}

@@ -130,10 +130,10 @@ export interface AiDriverProfileState {
 }
 
 export const GEMINI_THINKING_BUDGET_OPTIONS = [
-  { label: "Low (1,024 tokens)", value: 1024 },
-  { label: "Medium (2,048 tokens)", value: 2048 },
-  { label: "High (4,096 tokens)", value: 4096 },
-  { label: "Max (8,192 tokens)", value: 8192 },
+  { label: "1,024", value: 1024 },
+  { label: "2,048", value: 2048 },
+  { label: "4,096", value: 4096 },
+  { label: "8,192", value: 8192 },
 ] as const;
 export const PROVIDER_KEY_MAP: Record<string, string> = { gemini: "gemini", openai: "openai", "openai-compatible": "openai-compatible" };
 export const PROVIDER_KEY_LABELS: Record<string, KeyInfo> = {

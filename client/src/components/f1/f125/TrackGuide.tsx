@@ -77,13 +77,13 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
                   {g.setupTips && (
                     <TRow>
                       <TD tone="dim">{m.f1setup_setup_tips_label()}</TD>
-                      <TD>Yes</TD>
+                      <TD>{m.f1setup_yes()}</TD>
                     </TRow>
                   )}
                   {g.drivingTips && (
                     <TRow>
                       <TD tone="dim">{m.f1setup_driving_tips_label()}</TD>
-                      <TD>Yes</TD>
+                      <TD>{m.f1setup_yes()}</TD>
                     </TRow>
                   )}
                 </TBody>
@@ -98,7 +98,7 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
         <div className={`min-h-0 min-w-0 flex-1 flex-col ${mobileView === "list" ? "hidden @3xl/workspace:flex" : "flex"}`}>
           {/* Back button (mobile only) */}
           <Button variant="app-outline" size="default" onClick={() => setMobileView("list")} className="mb-3 self-start @3xl/workspace:hidden">
-            &larr; Back to guides
+            &larr; {m.f1setup_back_to_guides()}
           </Button>
           {/* Content tabs + source link */}
           <div className="flex items-center gap-2 mb-2 shrink-0 flex-wrap">
@@ -118,7 +118,7 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
             )}
             {activeGuide.source && (
               <a href={activeGuide.source} target="_blank" rel="noopener noreferrer" className="text-app-caption text-app-text-muted hover:text-app-text underline underline-offset-2">
-                View on {sourceDisplayName(activeGuide.source)} ↗
+                {m.f1setup_view_on()} {sourceDisplayName(activeGuide.source)} ↗
               </a>
             )}
           </div>

@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import { useMemo, useRef, useState } from "react";
 import type { GameId } from "@shared/games/ids";
 import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
@@ -58,7 +59,7 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
   const geom = useMemo(() => buildGeometry(telemetry, sectorTimes, edges), [telemetry, sectorTimes, edges]);
 
   if (!geom) {
-    return <div className="p-4 text-xs text-app-text-dim">No position data to draw this lap.</div>;
+    return <div className="p-4 text-xs text-app-text-dim">{m.tunes_no_position_data()}</div>;
   }
 
   const interactive = !!readout;
@@ -127,7 +128,7 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
           viewBox={`0 0 ${VIEW} ${VIEW}`}
           className="w-full h-auto"
           role="img"
-          aria-label="Lap track map coloured by sector"
+          aria-label={m.tunes_lap_track_map_sector_colored()}
           style={{ cursor: interactive ? "crosshair" : undefined }}
           onMouseMove={onMove}
           onMouseLeave={onLeave}

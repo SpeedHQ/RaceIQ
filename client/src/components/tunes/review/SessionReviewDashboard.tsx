@@ -96,7 +96,7 @@ export function SessionReviewDashboard({
   const isTrackView = view === "track" || view === "analyse";
   const tab = search.tab ?? "consistency";
   const bestLap = useMemo(() => validLaps.reduce<LapMeta | null>((best, lap) => (best == null || lap.lapTime < best.lapTime ? lap : best), null), [validLaps]);
-  const lapOptions = useMemo(() => [...(isTrackView ? [{ value: "all", label: bestLap ? `Primary lap (Lap ${bestLap.lapNumber})` : "Primary lap" }] : []), ...evaluationLaps.map((l) => ({ value: String(l.id), label: `Lap ${l.lapNumber} — ${formatLapTime(l.lapTime)}` }))], [bestLap, isTrackView, evaluationLaps]);
+  const lapOptions = useMemo(() => [...(isTrackView ? [{ value: "all", label: bestLap ? m.review_primary_lap_label({ lap: bestLap.lapNumber }) : m.review_primary_lap_label({ lap: "—" }) }] : []), ...evaluationLaps.map((l) => ({ value: String(l.id), label: m.review_lap_time_label({ lap: l.lapNumber, time: formatLapTime(l.lapTime) }) }))], [bestLap, isTrackView, evaluationLaps]);
   const setFocus = useCallback((id: number) => { void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, lap: id }) } as never); }, [navigate]);
   const setTrackTab = useCallback((nextTab: TuneReviewTrackTab) => { void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, view: stayOnSessionReview ? "analyse" : "track", tab: nextTab }) } as never); }, [navigate, stayOnSessionReview]);
   useEffect(() => {
@@ -240,19 +240,19 @@ export function SessionReviewDashboard({
       <div className="sticky top-0 z-30 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-app-border bg-app-bg px-4 py-2.5">
           {onBack && (
             <Button variant="app-outline" size="app-sm" onClick={onBack}>
-              ← Session
+              {m.review_back_to_session()}
             </Button>
           )}
           {stayOnSessionReview ? (
             <Button variant="app-outline" size="app-sm" onClick={() => setDialogOpen(true)}>
-              Laps: {displayedLaps.length} · Primary: Lap {primaryLap?.lapNumber ?? "—"}
+              {m.review_selected_laps_primary({ count: displayedLaps.length, lap: primaryLap?.lapNumber ?? "—" })}
             </Button>
           ) : (
             <SearchSelect
               value={isTrackView ? String(focusLap.id) : String(focusLap.id)}
               onChange={(value) => setFocus(Number(value))}
               options={lapOptions}
-              ariaLabel="Select lap"
+              ariaLabel={m.review_select_lap()}
               className="w-56"
             />
           )}
@@ -261,7 +261,7 @@ export function SessionReviewDashboard({
               {m.analyse_lap_button({ lap: focusLap.lapNumber })}
             </Button>
           )}
-          {focusLap && <span className={`text-sm ${focusLap.isValid ? "text-status-success" : "text-status-danger"}`} title={focusLap.isValid ? "valid lap" : "invalid lap"}>{focusLap.isValid ? "✓" : "!"}</span>}
+          {focusLap && <span className={`text-sm ${focusLap.isValid ? "text-status-success" : "text-status-danger"}`} title={focusLap.isValid ? m.review_valid_lap() : m.review_invalid_lap()}>{focusLap.isValid ? "✓" : "!"}</span>}
           <div className="ml-auto flex gap-1">
             {(["overview", ...Array.from({ length: sectorCount }, (_, index) => `s${index + 1}` as SectorView), stayOnSessionReview ? "analyse" : "track"] as ReviewView[]).map((v) => (
               <Button
@@ -271,14 +271,14 @@ export function SessionReviewDashboard({
                 onClick={() => setView(v)}
                 className={`!border text-xs ${(view === v || (stayOnSessionReview && v === "analyse" && isTrackView)) ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
               >
-                {v === "overview" ? "Overview" : v === "track" || v === "analyse" ? m.label_analyse() : `Sector ${v.slice(1)}`}
+                {v === "overview" ? m.review_overview() : v === "track" || v === "analyse" ? m.label_analyse() : m.review_sector({ sector: v.slice(1) })}
               </Button>
             ))}
           </div>
         </div>
       <div className="flex-none bg-app-bg">
-        {aligned.isError && !selectionInvalid && <p role="alert" className="border-b border-app-border px-4 py-2 text-sm text-status-danger">Could not load selected laps.</p>}
-        {selectionInvalid && <p role="alert" className="border-b border-app-border px-4 py-2 text-sm text-status-danger">Selected laps must belong to this session.</p>}
+        {aligned.isError && !selectionInvalid && <p role="alert" className="border-b border-app-border px-4 py-2 text-sm text-status-danger">{m.review_load_selected_laps_error()}</p>}
+        {selectionInvalid && <p role="alert" className="border-b border-app-border px-4 py-2 text-sm text-status-danger">{m.review_selected_laps_session_error()}</p>}
 
         {test && <ArmHeadline kind={test.kind} laps={validLaps} />}
         {isOverview && <ReviewTrackStats stats={reviewStats} issueCount={issues?.length ?? 0} />}
@@ -287,13 +287,13 @@ export function SessionReviewDashboard({
           <div className="border-b border-app-border px-4 py-2.5 space-y-2">
             {test?.driverComment && (
               <div>
-                <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Driver comment</div>
+                <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{m.review_driver_comment()}</div>
                 <div className="text-xs text-app-text whitespace-pre-wrap">{test.driverComment}</div>
               </div>
             )}
             {test?.notes && (
               <div>
-                <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Engineer notes</div>
+                <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{m.review_engineer_notes()}</div>
                 <div className="text-xs text-app-text whitespace-pre-wrap">{test.notes}</div>
               </div>
             )}
@@ -322,18 +322,18 @@ export function SessionReviewDashboard({
             </div>
             <div className="border-b border-app-border px-3 py-2 text-app-micro text-app-text-dim">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span className="font-semibold uppercase tracking-wider text-app-text-muted">Legend</span>
+                <span className="font-semibold uppercase tracking-wider text-app-text-muted">{m.review_legend()}</span>
                 <span className="inline-flex items-center gap-1">
                   <span className="h-2 w-3 rounded-sm border border-app-border bg-app-text-muted/40" aria-hidden="true" />
-                  Range
+                  {m.review_range()}
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <span className="h-px w-3 bg-app-text-muted" aria-hidden="true" />
-                  Median
+                  {m.review_median()}
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <span className="h-0.5 w-3 rounded bg-app-accent" aria-hidden="true" />
-                  Current value on map hover
+                  {m.review_current_map_value()}
                 </span>
               </div>
             </div>
@@ -361,7 +361,7 @@ export function SessionReviewDashboard({
                     markFraction={markedIssue ? markedIssue.frac : null}
                   />
                 ) : (
-                  <div className="p-4 text-xs text-app-text-dim">{aligned.isLoading ? "Loading…" : "No telemetry"}</div>
+                  <div className="p-4 text-xs text-app-text-dim">{aligned.isLoading ? m.review_loading() : m.review_no_telemetry()}</div>
                 )}
               </div>
               <div className="min-w-0 divide-y divide-app-border">
@@ -384,7 +384,7 @@ export function SessionReviewDashboard({
                         temperatureUnit={units.temperatureUnit}
                       />
                     ) : (
-                      <div className="text-xs text-app-text-dim">No telemetry</div>
+                      <div className="text-xs text-app-text-dim">{m.review_no_telemetry()}</div>
                     )}
                   </div>
                 ))}
@@ -420,16 +420,16 @@ export function SessionReviewDashboard({
           <>
             {/* Detected issues, laid out per sector */}
             <div className="border-b border-app-border">
-              <div className="px-4 pt-3 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Detected from telemetry</div>
+              <div className="px-4 pt-3 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{m.review_detected_from_telemetry()}</div>
               {!issues ? (
-                <div className="px-4 pb-3 text-xs text-app-text-dim">Loading issues…</div>
+                <div className="px-4 pb-3 text-xs text-app-text-dim">{m.review_loading_issues()}</div>
               ) : issues.length === 0 ? (
-                <div className="px-4 pb-3 text-xs text-app-text-dim">No handling or tyre issues detected on this lap.</div>
+                <div className="px-4 pb-3 text-xs text-app-text-dim">{m.review_no_issues_detected()}</div>
               ) : (
                 <>
                   {issueGroups.wholeLap.length > 0 && (
                     <div className="px-4 pb-2">
-                      <div className="text-app-caption text-app-text-dim uppercase tracking-wider mb-1">Whole lap</div>
+                      <div className="text-app-caption text-app-text-dim uppercase tracking-wider mb-1">{m.review_whole_lap()}</div>
                       <div className="flex flex-col gap-1">
                         {issueGroups.wholeLap.map((it) => (
                           <IssuePill key={`${it.kind}-${it.corner ?? ""}-${it.detail}`} issue={it} />
@@ -442,10 +442,10 @@ export function SessionReviewDashboard({
                       <div key={label} className={`border-t border-app-border px-3 py-2 @3xl/workspace:border-t-0 ${i < sectorCount - 1 ? "border-app-border @3xl/workspace:border-r" : ""}`}>
                         <div className="sticky top-0 z-10 flex items-center gap-1.5 mb-1.5 bg-app-bg">
                           <span className="w-3 h-1 rounded" style={{ background: SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length] }} />
-                          <span className="text-app-caption text-app-text-muted uppercase tracking-wider">Sector {i + 1}</span>
+                          <span className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.review_sector({ sector: i + 1 })}</span>
                         </div>
                         {issueGroups.bySector[i].length === 0 ? (
-                          <div className="text-app-compact text-app-text-dim">No issues</div>
+                          <div className="text-app-compact text-app-text-dim">{m.review_no_issues()}</div>
                         ) : (
                           <div className="flex flex-col gap-1.5">
                             {issueGroups.bySector[i].map((it) => (
@@ -474,7 +474,7 @@ export function SessionReviewDashboard({
                     healthAvailable={tireHealthAvailable}
                   />
                 ) : (
-                  <div className="p-3 text-xs text-app-text-dim">{aligned.isLoading ? "Loading tyre state…" : "No stored telemetry for this lap."}</div>
+                  <div className="p-3 text-xs text-app-text-dim">{aligned.isLoading ? m.review_loading_tyre_state() : m.review_no_stored_telemetry()}</div>
                 )}
               </div>
             </div>

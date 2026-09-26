@@ -1,4 +1,4 @@
-import { EXPERIMENT_FOCUS_LABELS } from "@shared/racing/experiments/focus";
+import { m } from "@/paraglide/messages";
 import { type ExperimentVersion, useExperimentFocusHistory } from "../../hooks/experiments";
 
 /**
@@ -17,14 +17,14 @@ import { type ExperimentVersion, useExperimentFocusHistory } from "../../hooks/e
 export function FocusTimeline({ experimentId, versions = [] }: { experimentId: number; versions?: ExperimentVersion[] }) {
   const { data: events = [], isLoading } = useExperimentFocusHistory(experimentId);
 
-  if (isLoading) return <div className="text-app-compact text-app-text-dim">Loading focus history…</div>;
+  if (isLoading) return <div className="text-app-compact text-app-text-dim">{m.tunes_loading_focus_history()}</div>;
   // One entry means the experiment opened on a focus and never moved — a
   // timeline of one is noise, so say the plain fact instead.
   if (events.length <= 1) {
     const only = events[0];
     return (
       <div className="text-app-compact text-app-text-dim">
-        {only ? `Worked on the ${EXPERIMENT_FOCUS_LABELS[only.focus].toLowerCase()} throughout — focus never switched.` : "No focus history recorded."}
+        {only ? m.tunes_focus_unchanged({ focus: (only.focus === "driver" ? m.experiment_focus_driver() : m.experiment_focus_setup()).toLowerCase() }) : m.tunes_no_focus_history()}
       </div>
     );
   }
@@ -42,12 +42,12 @@ export function FocusTimeline({ experimentId, versions = [] }: { experimentId: n
                 e.focus === "driver" ? "bg-(--focus-driver)/15 text-(--focus-driver)" : "bg-(--focus-setup)/15 text-(--focus-setup)"
               }`}
             >
-              {EXPERIMENT_FOCUS_LABELS[e.focus]}
+              {e.focus === "driver" ? m.experiment_focus_driver() : m.experiment_focus_setup()}
             </span>
             <div className="min-w-0">
               <span className="text-app-text-dim">
-                {i === 0 ? "opened on this focus" : "switched"}
-                {at ? ` at ${at}` : ""} · {new Date(e.createdAt).toLocaleString()}
+                {i === 0 ? m.tunes_focus_opened() : m.tunes_focus_switched()}
+                {at ? ` ${m.tunes_focus_at({ version: at })}` : ""} · {new Date(e.createdAt).toLocaleString()}
               </span>
               {/* Only ever the driver's own words — never inferred. */}
               {e.note && <div className="text-app-text">“{e.note}”</div>}

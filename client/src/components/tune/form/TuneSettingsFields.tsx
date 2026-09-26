@@ -31,14 +31,14 @@ export function TuneSettingsFields({
       <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
         <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_tires()}</h4>
         <NumberField
-          label="Front Pressure"
+          label={m.tune_field_front_pressure()}
           value={settings.tires.frontPressure}
           onChange={(v) => updateSettings("tires", "frontPressure", v)}
           step={isMetric ? 0.01 : 0.1}
           unit={unitLabel("tires", isMetric)}
         />
         <NumberField
-          label="Rear Pressure"
+          label={m.tune_field_rear_pressure()}
           value={settings.tires.rearPressure}
           onChange={(v) => updateSettings("tires", "rearPressure", v)}
           step={isMetric ? 0.01 : 0.1}
@@ -48,7 +48,7 @@ export function TuneSettingsFields({
 
       <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
         <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_gearing()}</h4>
-        <NumberField label="Final Drive" value={settings.gearing.finalDrive} onChange={(v) => updateSettings("gearing", "finalDrive", v)} step={0.01} unit=":1" />
+        <NumberField label={m.tune_field_final_drive()} value={settings.gearing.finalDrive} onChange={(v) => updateSettings("gearing", "finalDrive", v)} step={0.01} unit=":1" />
         <NumberField
           label={m.label_top_speed()}
           value={settings.gearing.topSpeedKph ?? Math.round((allCars.find((c) => c.ordinal === carOrdinal)?.specs?.topSpeedMph ?? 0) * 1.60934)}
@@ -79,7 +79,7 @@ export function TuneSettingsFields({
             >
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                 <option key={n} value={n}>
-                  {n} gears
+                  {m.tune_gear_count({ count: n })}
                 </option>
               ))}
             </select>
@@ -91,7 +91,7 @@ export function TuneSettingsFields({
             const gearTopKph = (8000 / 60 / (ratio * settings.gearing.finalDrive)) * CIRC * 3.6;
             return (
               <label key={ratio} className="flex items-center justify-between gap-2 text-xs">
-                <span className="text-app-text-muted whitespace-nowrap">Gear {i + 1}</span>
+                <span className="text-app-text-muted whitespace-nowrap">{m.tune_gear_number({ number: i + 1 })}</span>
                 <div className="flex items-center gap-1">
                   <span className="text-app-caption text-app-text-muted font-mono tabular-nums w-14 text-right">{Math.round(gearTopKph)} km/h</span>
                   <AppInput
@@ -123,51 +123,51 @@ export function TuneSettingsFields({
 
       <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
         <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_alignment()}</h4>
-        <NumberField label="Front Camber" value={settings.alignment.frontCamber} onChange={(v) => updateSettings("alignment", "frontCamber", v)} unit="°" />
-        <NumberField label="Rear Camber" value={settings.alignment.rearCamber} onChange={(v) => updateSettings("alignment", "rearCamber", v)} unit="°" />
-        <NumberField label="Front Toe" value={settings.alignment.frontToe} onChange={(v) => updateSettings("alignment", "frontToe", v)} unit="°" />
-        <NumberField label="Rear Toe" value={settings.alignment.rearToe} onChange={(v) => updateSettings("alignment", "rearToe", v)} unit="°" />
-        <NumberField label="Front Caster" value={settings.alignment.frontCaster ?? 5.0} onChange={(v) => updateSettings("alignment", "frontCaster", v)} unit="°" />
+        <NumberField label={m.tune_field_front_camber()} value={settings.alignment.frontCamber} onChange={(v) => updateSettings("alignment", "frontCamber", v)} unit="°" />
+        <NumberField label={m.tune_field_rear_camber()} value={settings.alignment.rearCamber} onChange={(v) => updateSettings("alignment", "rearCamber", v)} unit="°" />
+        <NumberField label={m.tune_field_front_toe()} value={settings.alignment.frontToe} onChange={(v) => updateSettings("alignment", "frontToe", v)} unit="°" />
+        <NumberField label={m.tune_field_rear_toe()} value={settings.alignment.rearToe} onChange={(v) => updateSettings("alignment", "rearToe", v)} unit="°" />
+        <NumberField label={m.tune_field_front_caster()} value={settings.alignment.frontCaster ?? 5.0} onChange={(v) => updateSettings("alignment", "frontCaster", v)} unit="°" />
       </div>
 
       <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
         <div className="flex items-center justify-between mb-2">
           <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent">{m.tune_section_anti_roll_bars()}</h4>
-          <span className="text-app-caption text-app-text-muted">soft → stiff</span>
+          <span className="text-app-caption text-app-text-muted">{m.tune_soft_to_stiff()}</span>
         </div>
-        <NumberField label="Front" value={settings.antiRollBars.front} onChange={(v) => updateSettings("antiRollBars", "front", v)} />
-        <NumberField label="Rear" value={settings.antiRollBars.rear} onChange={(v) => updateSettings("antiRollBars", "rear", v)} />
+        <NumberField label={m.tune_position_front()} value={settings.antiRollBars.front} onChange={(v) => updateSettings("antiRollBars", "front", v)} />
+        <NumberField label={m.tune_position_rear()} value={settings.antiRollBars.rear} onChange={(v) => updateSettings("antiRollBars", "rear", v)} />
       </div>
 
       <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
         <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_springs()}</h4>
         <NumberField
-          label="Front Rate"
+          label={m.tune_field_front_rate()}
           value={settings.springs.frontRate}
           onChange={(v) => updateSettings("springs", "frontRate", v)}
           step={isMetric ? 0.1 : 1}
           unit={unitLabel("springs", isMetric)}
         />
-        <NumberField label="Rear Rate" value={settings.springs.rearRate} onChange={(v) => updateSettings("springs", "rearRate", v)} step={isMetric ? 0.1 : 1} unit={unitLabel("springs", isMetric)} />
-        <NumberField label="Front Height" value={settings.springs.frontHeight} onChange={(v) => updateSettings("springs", "frontHeight", v)} step={0.1} unit={unitLabel("height", isMetric)} />
-        <NumberField label="Rear Height" value={settings.springs.rearHeight} onChange={(v) => updateSettings("springs", "rearHeight", v)} step={0.1} unit={unitLabel("height", isMetric)} />
+        <NumberField label={m.tune_field_rear_rate()} value={settings.springs.rearRate} onChange={(v) => updateSettings("springs", "rearRate", v)} step={isMetric ? 0.1 : 1} unit={unitLabel("springs", isMetric)} />
+        <NumberField label={m.tune_field_front_height()} value={settings.springs.frontHeight} onChange={(v) => updateSettings("springs", "frontHeight", v)} step={0.1} unit={unitLabel("height", isMetric)} />
+        <NumberField label={m.tune_field_rear_height()} value={settings.springs.rearHeight} onChange={(v) => updateSettings("springs", "rearHeight", v)} step={0.1} unit={unitLabel("height", isMetric)} />
       </div>
 
       <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
         <div className="flex items-center justify-between mb-2">
           <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent">{m.tune_section_damping()}</h4>
-          <span className="text-app-caption text-app-text-muted">soft → stiff</span>
+          <span className="text-app-caption text-app-text-muted">{m.tune_soft_to_stiff()}</span>
         </div>
-        <NumberField label="Front Bump" value={settings.damping.frontBump} onChange={(v) => updateSettings("damping", "frontBump", v)} />
-        <NumberField label="Rear Bump" value={settings.damping.rearBump} onChange={(v) => updateSettings("damping", "rearBump", v)} />
-        <NumberField label="Front Rebound" value={settings.damping.frontRebound} onChange={(v) => updateSettings("damping", "frontRebound", v)} />
-        <NumberField label="Rear Rebound" value={settings.damping.rearRebound} onChange={(v) => updateSettings("damping", "rearRebound", v)} />
+        <NumberField label={m.tune_field_front_bump()} value={settings.damping.frontBump} onChange={(v) => updateSettings("damping", "frontBump", v)} />
+        <NumberField label={m.tune_field_rear_bump()} value={settings.damping.rearBump} onChange={(v) => updateSettings("damping", "rearBump", v)} />
+        <NumberField label={m.tune_field_front_rebound()} value={settings.damping.frontRebound} onChange={(v) => updateSettings("damping", "frontRebound", v)} />
+        <NumberField label={m.tune_field_rear_rebound()} value={settings.damping.rearRebound} onChange={(v) => updateSettings("damping", "rearRebound", v)} />
       </div>
 
       <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
         <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_roll_center_height()}</h4>
         <NumberField
-          label="Front"
+          label={m.tune_position_front()}
           value={settings.rollCenterHeight.front}
           onChange={(v) =>
             setSettings((s) => ({
@@ -178,7 +178,7 @@ export function TuneSettingsFields({
           unit={unitLabel("height", isMetric)}
         />
         <NumberField
-          label="Rear"
+          label={m.tune_position_rear()}
           value={settings.rollCenterHeight.rear}
           onChange={(v) =>
             setSettings((s) => ({
@@ -193,7 +193,7 @@ export function TuneSettingsFields({
       <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
         <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_anti_geometry()}</h4>
         <NumberField
-          label="Anti-dive (front)"
+          label={m.tune_field_anti_dive_front()}
           value={settings.antiGeometry.antiDiveFront}
           onChange={(v) =>
             setSettings((s) => ({
@@ -204,7 +204,7 @@ export function TuneSettingsFields({
           unit="%"
         />
         <NumberField
-          label="Anti-squat (rear)"
+          label={m.tune_field_anti_squat_rear()}
           value={settings.antiGeometry.antiSquatRear}
           onChange={(v) =>
             setSettings((s) => ({
@@ -218,31 +218,31 @@ export function TuneSettingsFields({
 
       <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
         <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_aero()}</h4>
-        <NumberField label="Front Downforce" value={settings.aero.frontDownforce} onChange={(v) => updateSettings("aero", "frontDownforce", v)} step={1} unit={unitLabel("aero", isMetric)} />
-        <NumberField label="Rear Downforce" value={settings.aero.rearDownforce} onChange={(v) => updateSettings("aero", "rearDownforce", v)} step={1} unit={unitLabel("aero", isMetric)} />
+        <NumberField label={m.tune_field_front_downforce()} value={settings.aero.frontDownforce} onChange={(v) => updateSettings("aero", "frontDownforce", v)} step={1} unit={unitLabel("aero", isMetric)} />
+        <NumberField label={m.tune_field_rear_downforce()} value={settings.aero.rearDownforce} onChange={(v) => updateSettings("aero", "rearDownforce", v)} step={1} unit={unitLabel("aero", isMetric)} />
       </div>
 
       <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
         <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_differential()}</h4>
         {(drivetrain === "rwd" || drivetrain === "awd") && (
           <>
-            <NumberField label="Rear Accel" value={settings.differential.rearAccel} onChange={(v) => updateSettings("differential", "rearAccel", v)} step={1} unit="%" />
-            <NumberField label="Rear Decel" value={settings.differential.rearDecel} onChange={(v) => updateSettings("differential", "rearDecel", v)} step={1} unit="%" />
+            <NumberField label={m.tune_field_rear_accel()} value={settings.differential.rearAccel} onChange={(v) => updateSettings("differential", "rearAccel", v)} step={1} unit="%" />
+            <NumberField label={m.tune_field_rear_decel()} value={settings.differential.rearDecel} onChange={(v) => updateSettings("differential", "rearDecel", v)} step={1} unit="%" />
           </>
         )}
         {(drivetrain === "fwd" || drivetrain === "awd") && (
           <>
-            <NumberField label="Front Accel" value={settings.differential.frontAccel ?? 0} onChange={(v) => updateSettings("differential", "frontAccel", v)} step={1} unit="%" />
-            <NumberField label="Front Decel" value={settings.differential.frontDecel ?? 0} onChange={(v) => updateSettings("differential", "frontDecel", v)} step={1} unit="%" />
+            <NumberField label={m.tune_field_front_accel()} value={settings.differential.frontAccel ?? 0} onChange={(v) => updateSettings("differential", "frontAccel", v)} step={1} unit="%" />
+            <NumberField label={m.tune_field_front_decel()} value={settings.differential.frontDecel ?? 0} onChange={(v) => updateSettings("differential", "frontDecel", v)} step={1} unit="%" />
           </>
         )}
-        {drivetrain === "awd" && <NumberField label="Center" value={settings.differential.center ?? 50} onChange={(v) => updateSettings("differential", "center", v)} step={1} unit="%" />}
+        {drivetrain === "awd" && <NumberField label={m.tune_field_center_differential()} value={settings.differential.center ?? 50} onChange={(v) => updateSettings("differential", "center", v)} step={1} unit="%" />}
       </div>
 
       <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
         <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_brakes()}</h4>
-        <NumberField label="Balance" value={settings.brakes.balance} onChange={(v) => updateSettings("brakes", "balance", v)} step={1} unit="%" />
-        <NumberField label="Pressure" value={settings.brakes.pressure} onChange={(v) => updateSettings("brakes", "pressure", v)} step={1} unit="%" />
+        <NumberField label={m.tune_field_brake_balance()} value={settings.brakes.balance} onChange={(v) => updateSettings("brakes", "balance", v)} step={1} unit="%" />
+        <NumberField label={m.tune_field_brake_pressure()} value={settings.brakes.pressure} onChange={(v) => updateSettings("brakes", "pressure", v)} step={1} unit="%" />
       </div>
     </div>
   );

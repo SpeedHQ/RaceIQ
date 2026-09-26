@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import { useMemo, useState } from "react";
 import type { GameId } from "@shared/games/ids";
 import { formatLapTime } from "@/lib/format";
@@ -75,7 +76,7 @@ export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrd
         <div className="flex items-center justify-between px-4 py-2 border-b border-app-border">
           <div className="flex items-center gap-2">
             <span className="w-6 h-1 rounded" style={{ background: SECTOR_COLOR_VARS[sectorIndex % SECTOR_COLOR_VARS.length] }} />
-            <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Sector {sectorIndex + 1}</span>
+            <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{m.tunes_sector_title({ number: sectorIndex + 1 })}</span>
           </div>
           <span className="text-lg font-mono tabular-nums text-app-text">{sectorTime}</span>
         </div>
@@ -95,12 +96,12 @@ export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrd
             />
           </div>
         ) : (
-          <div className="aspect-square p-4 text-xs text-app-text-dim">No telemetry</div>
+          <div className="aspect-square p-4 text-xs text-app-text-dim">{m.review_no_telemetry()}</div>
         )}
         <div className="px-4 py-3 border-t border-app-border">
-          <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-2">Issues in this sector</div>
+          <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-2">{m.tunes_sector_issues_heading()}</div>
           {issues.length === 0 ? (
-            <div className="text-xs text-app-text-dim">No issues located in this sector.</div>
+            <div className="text-xs text-app-text-dim">{m.tunes_no_sector_issues()}</div>
           ) : (
             <div className="flex flex-col gap-1">
               {issues.map((it) => (
@@ -115,18 +116,18 @@ export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrd
       {/* Every metric's range for this sector; hovering the map scrubs all of them */}
       <div className="border-b border-app-border px-3 py-2 text-app-micro text-app-text-dim">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="font-semibold uppercase tracking-wider text-app-text-muted">Legend</span>
+          <span className="font-semibold uppercase tracking-wider text-app-text-muted">{m.review_legend()}</span>
           <span className="inline-flex items-center gap-1">
             <span className="h-2 w-3 rounded-sm border border-app-border bg-app-text-muted/40" aria-hidden="true" />
-            Range
+            {m.review_range()}
           </span>
           <span className="inline-flex items-center gap-1">
             <span className="h-px w-3 bg-app-text-muted" aria-hidden="true" />
-            Average
+            {m.tunes_average()}
           </span>
           <span className="inline-flex items-center gap-1">
             <span className="h-0.5 w-3 rounded bg-app-accent" aria-hidden="true" />
-            Current value on map hover
+            {m.review_current_map_value()}
           </span>
         </div>
       </div>

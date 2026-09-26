@@ -10,6 +10,7 @@ import { Composer } from "./thread-composer";
 import { EMPTY_COMPONENTS, InputDisabledContext, RegenerateContext, type ThreadComponents, ThreadComponentsContext, type ThreadGroupPart, type ThreadProps } from "./thread-context";
 import { ThreadMessage } from "./thread-message";
 
+import { m } from "@/paraglide/messages";
 export type { ThreadComponents, ThreadGroupPart, ThreadProps };
 
 const isNewChatView = (s: AssistantState) => s.thread.messages.length === 0 && (!s.thread.isLoading || s.threads.isLoading);
@@ -65,7 +66,7 @@ const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
 
 const ThreadWelcome: FC = () => (
   <div className="aui-thread-welcome-root mb-6 flex flex-col items-center px-4 text-center">
-    <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-semibold duration-200">How can I help you today?</h1>
+    <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-semibold duration-200">{m.ai_chat_welcome()}</h1>
   </div>
 );
 const ThreadSuggestions: FC = () => (
@@ -83,6 +84,6 @@ const ThreadSuggestionItem: FC = () => (
 );
 const ThreadScrollToBottom: FC = () => (
   <ThreadPrimitive.ScrollToBottom
-    render={<TooltipIconButton tooltip="Scroll to bottom" variant="outline" className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center disabled:invisible" />}
+    render={<TooltipIconButton tooltip={m.ai_chat_scroll_to_bottom()} variant="outline" className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center disabled:invisible" />}
   />
 );

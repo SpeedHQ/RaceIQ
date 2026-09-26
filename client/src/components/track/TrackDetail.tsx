@@ -328,17 +328,15 @@ export function TrackDetail({
           <TabsList>
             {validTabs.map((tab) => (
               <TabsTrigger key={tab} value={tab}>
-                {tab === "laps" && trackLaps.length > 0
-                  ? `${m.label_laps()} (${trackLaps.length})`
+                {tab === "laps"
+                  ? trackLaps.length > 0 ? `${m.label_laps()} (${trackLaps.length})` : m.label_laps()
                   : tab === "info"
                     ? m.track_detail_info_tab()
                     : tab === "guide"
                       ? m.track_detail_guides_tab()
                       : tab === "setups"
                         ? m.track_detail_setup_tab()
-                        : tab === "debug"
-                          ? m.trackdetail_debug_tab()
-                          : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                        : m.trackdetail_debug_tab()}
               </TabsTrigger>
             ))}
           </TabsList>

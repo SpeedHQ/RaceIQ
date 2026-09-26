@@ -11,6 +11,7 @@ import { DropdownMenu } from "@/components/ui/DropdownMenu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { m } from "@/paraglide/messages";
 import type { ChatGeneration } from "./chat-history";
 import { TokenUsageFooter } from "./token-usage";
 
@@ -88,7 +89,7 @@ export function ChatPanelThread({
         url.searchParams.set("export", "1");
         url.searchParams.set("gen", String(viewingGen));
         const response = await fetch(url);
-        if (!response.ok) throw new Error("Could not load chat export");
+        if (!response.ok) throw new Error(m.ai_chat_export_failed());
         const data = (await response.json()) as { messages?: unknown[] };
         await navigator.clipboard.writeText(JSON.stringify({ messages: data.messages ?? [] }, null, 2));
       } catch {
@@ -101,34 +102,34 @@ export function ChatPanelThread({
   const chatSurface = (
     <>
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-app-border/40 px-2 py-1">
-        <span className="font-medium text-app-text">{fullscreen ? "AI chat" : ""}</span>
+        <span className="font-medium text-app-text">{fullscreen ? m.ai_chat_title() : ""}</span>
         <div className="flex items-center gap-1">
           <Button
             type="button"
             variant="app-outline"
             size="icon-xs"
             onClick={() => setFullscreen((open) => !open)}
-            title={fullscreen ? "Close full screen chat" : "Open full screen chat"}
-            aria-label={fullscreen ? "Close full screen chat" : "Open full screen chat"}
+            title={fullscreen ? m.ai_chat_close_fullscreen() : m.ai_chat_open_fullscreen()}
+            aria-label={fullscreen ? m.ai_chat_close_fullscreen() : m.ai_chat_open_fullscreen()}
           >
             {fullscreen ? <Minimize2 /> : <Maximize2 />}
           </Button>
           <DropdownMenu
             trigger={
-              <Button type="button" variant="app-outline" size="icon-xs" title="Chat actions" aria-label="Chat actions">
+              <Button type="button" variant="app-outline" size="icon-xs" title={m.ai_chat_actions()} aria-label={m.ai_chat_actions()}>
                 <MoreHorizontal />
               </Button>
             }
             items={[
-              { key: "copy", label: "Copy chat JSON", onClick: copyChat },
-              { key: "clear", label: "Clear chat", onClick: onClearChat },
+              { key: "copy", label: m.ai_chat_copy_json(), onClick: copyChat },
+              { key: "clear", label: m.ai_chat_clear(), onClick: onClearChat },
             ]}
           />
         </div>
       </div>
       {readOnly && (
         <div className="shrink-0 border-b border-status-warning/30 bg-status-warning/10 px-2 py-1 text-app-caption text-status-warning">
-          Viewing an earlier chat (read-only). Switch to the latest to continue.
+          {m.ai_chat_read_only_notice()}
         </div>
       )}
       <div className="flex min-h-0 flex-1 flex-col">
@@ -156,7 +157,7 @@ export function ChatPanelThread({
           <Dialog open onOpenChange={setFullscreen}>
             <DialogContent layout="fullscreen" showCloseButton={false} overlayClassName="bg-app-bg/60" className={surfaceClassName}>
               <DialogHeader className="sr-only">
-                <DialogTitle>AI chat</DialogTitle>
+                <DialogTitle>{m.ai_chat_title()}</DialogTitle>
               </DialogHeader>
               {chatSurface}
             </DialogContent>

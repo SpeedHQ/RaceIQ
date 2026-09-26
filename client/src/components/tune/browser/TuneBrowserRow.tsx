@@ -1,5 +1,5 @@
 import { type KeyboardEvent, type ReactNode, useState } from "react";
-import { CATEGORY_COLORS, CATEGORY_LABELS } from "@/components/tune/tune-constants";
+import { CATEGORY_COLORS } from "@/components/tune/tune-constants";
 import { TD, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
@@ -32,7 +32,8 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
   const [confirmDelete, setConfirmDelete] = useState(false);
   const hasTime = row.lapTimeSec != null;
   const isUser = row.source === "user";
-  const catLabel = CATEGORY_LABELS[row.category] ?? row.category;
+  const catLabel =
+    row.category === "circuit" ? m.tune_category_circuit() : row.category === "wet" ? m.tune_category_wet() : row.category === "low-drag" ? m.tune_category_low_drag() : row.category === "stable" ? m.tune_category_stable() : row.category === "track-specific" ? m.tune_category_track_specific() : row.category;
   const handleKeyDown = (event: KeyboardEvent<HTMLTableRowElement>) => {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();

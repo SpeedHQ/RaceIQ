@@ -1,5 +1,6 @@
+import { Button } from "../ui/button";
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { m } from "@/paraglide/messages";
 
 type TrackMapLayers = "centerline" | "debug";
 
@@ -116,7 +117,7 @@ export function InlineTrackMap({ src, alt, className, layers = "centerline" }: I
     return () => container.removeEventListener("wheel", onWheel);
   }, [layers, svg]);
 
-  if (!svg) return <div className={className} aria-label={`${alt} loading`} />;
+  if (!svg) return <div className={className} aria-label={`${alt} ${m.track_map_loading()}`} />;
   if (layers === "centerline") {
     return <div className={className} role="img" aria-label={alt} data-track-map-layers={layers} dangerouslySetInnerHTML={{ __html: svg }} />;
   }
@@ -162,7 +163,7 @@ export function InlineTrackMap({ src, alt, className, layers = "centerline" }: I
       <div className="absolute right-2 top-2 flex flex-col gap-1">
         <Button
           type="button"
-          aria-label="Zoom in"
+          aria-label={m.track_map_zoom_in()}
           onClick={() => setZoom((value) => Math.min(value + 0.25, 8))}
           className="flex h-7 w-7 items-center justify-center rounded border border-app-border-input bg-app-surface-alt/80 text-app-body text-app-text-secondary hover:text-app-text"
         >
@@ -170,7 +171,7 @@ export function InlineTrackMap({ src, alt, className, layers = "centerline" }: I
         </Button>
         <Button
           type="button"
-          aria-label="Zoom out"
+          aria-label={m.track_map_zoom_out()}
           onClick={() => setZoom((value) => Math.max(value - 0.25, 0.5))}
           className="flex h-7 w-7 items-center justify-center rounded border border-app-border-input bg-app-surface-alt/80 text-app-body text-app-text-secondary hover:text-app-text"
         >
@@ -179,7 +180,7 @@ export function InlineTrackMap({ src, alt, className, layers = "centerline" }: I
         {(zoom !== 1 || pan.x !== 0 || pan.y !== 0) && (
           <Button
             type="button"
-            aria-label="Reset map view"
+            aria-label={m.track_map_reset_view()}
             onClick={resetView}
             className="flex h-7 min-w-7 items-center justify-center rounded border border-app-border-input bg-app-surface-alt/80 px-1 text-app-micro text-app-text-secondary hover:text-app-text"
           >
@@ -190,31 +191,31 @@ export function InlineTrackMap({ src, alt, className, layers = "centerline" }: I
       <div className="pointer-events-none absolute bottom-2 left-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded bg-app-surface/80 px-2 py-1 font-mono text-app-micro text-app-text-dim backdrop-blur-sm">
         <span className="flex items-center gap-1">
           <span className="w-3 border-t-2 border-(--track-racing-line)" />
-          Racing line
+          {m.track_map_racing_line()}
         </span>
         <span className="flex items-center gap-1">
           <span className="w-3 border-t-2 border-(--track-boundary-left)" />
-          Left edge
+          {m.track_map_left_edge()}
         </span>
         <span className="flex items-center gap-1">
           <span className="w-3 border-t-2 border-(--track-boundary-right)" />
-          Right edge
+          {m.track_map_right_edge()}
         </span>
         <span className="flex items-center gap-1">
           <span className="w-3 border-t-2 border-(--track-pit-lane)" />
-          Pit lane
+          {m.track_map_pit_lane()}
         </span>
         <span className="flex items-center gap-1">
           <span className="w-3 border-t-[3px] border-(--track-start)" />
-          Start/finish
+          {m.track_map_start_finish()}
         </span>
         <span className="flex items-center gap-1">
           <span className="h-1.5 w-1.5 rounded-full bg-status-info" />
-          Pit
+          {m.track_map_pit()}
         </span>
         <span className="flex items-center gap-1">
           <span className="h-1.5 w-1.5 rounded-full bg-status-warning" />
-          Garage
+          {m.track_map_garage()}
         </span>
       </div>
     </div>

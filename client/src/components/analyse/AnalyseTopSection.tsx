@@ -128,7 +128,7 @@ export function AnalyseTopSection({
       {/* Left resize handle */}
       <button
         type="button"
-        aria-label="Resize segment panel"
+        aria-label={m.analyse_resize_segment_panel()}
         className="hidden w-1.5 shrink-0 cursor-col-resize bg-app-border transition-colors hover:bg-app-accent/40 @5xl/workspace:block"
         onKeyDown={(event) => {
           if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
@@ -189,7 +189,7 @@ export function AnalyseTopSection({
       {/* Right resize handle */}
       <button
         type="button"
-        aria-label="Resize visualization panel"
+        aria-label={m.analyse_resize_visualization_panel()}
         className="hidden w-1.5 shrink-0 cursor-col-resize bg-app-border transition-colors hover:bg-app-accent/40 @5xl/workspace:block"
         onKeyDown={(event) => {
           if (event.key === "ArrowLeft" || event.key === "ArrowRight") {

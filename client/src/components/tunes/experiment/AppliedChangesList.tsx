@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import { parseAppliedChanges } from "./applied-changes";
 
 /** Render normalized setup/drill changes for expanded version rows. */
@@ -6,9 +7,9 @@ export function AppliedChangesList({ json, comment }: { json: string | null; com
   if (changes.length === 0 && !comment) return null;
   return (
     <div className="px-3 py-2 border-b border-app-border/40 space-y-1">
-      <div className="text-app-caption uppercase tracking-wider text-app-text-muted">Tweaks</div>
+      <div className="text-app-caption uppercase tracking-wider text-app-text-muted">{m.experiment_tweaks()}</div>
       {changes.length === 0 ? (
-        <div className="text-app-compact text-app-text-dim">Base setup — no changes applied.</div>
+        <div className="text-app-compact text-app-text-dim">{m.experiment_base_setup_no_changes()}</div>
       ) : (
         <ul className="space-y-0.5">
           {changes.map((c) =>

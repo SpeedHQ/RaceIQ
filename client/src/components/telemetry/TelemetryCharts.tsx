@@ -6,6 +6,7 @@ import { useUnits } from "@/hooks/useUnits";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import { controlInputPercent } from "@/lib/vehicle-dynamics";
 import type { SemanticMetricFrame } from "../../../../shared/racing/analysis/metric-values";
+import { m } from "@/paraglide/messages";
 
 import { GRIP_MAX_SAMPLES } from "./GripSparkline";
 import { DualLineChart, FourLineChart, SingleLineChart } from "./MiniCharts";
@@ -124,15 +125,15 @@ export function TelemetryCharts({ view }: { view: LiveTelemetryView }) {
 
   return (
     <div className="grid gap-2">
-      {showGrip && <FourLineChart data={chartData.grip} label="Traction" maxY={3} />}
-      {showSurfaceTemperature && <FourLineChart data={chartData.temp} label={showCoreTemperature ? "Surface Tire Temp" : "Tire Temp"} unit={`°${units.tempUnit}`} />}
-      {showCoreTemperature && <FourLineChart data={chartData.coreTemp} label={showSurfaceTemperature ? "Core Tire Temp" : "Tire Temp"} unit={`°${units.tempUnit}`} />}
-      {showWear && <FourLineChart data={chartData.wear} label="Tire Wear" maxY={1} />}
-      {showSlipAngle && <FourLineChart data={chartData.slipAngle} label="Slip Angle" unit="°" />}
-      {showSlipRatio && <FourLineChart data={chartData.slipRatio} label="Slip Ratio" />}
-      {showNormalizedSuspension && <FourLineChart data={chartData.suspension} label="Suspension" maxY={1} />}
-      <SingleLineChart data={chartData.speed} label={`Speed (${units.speedLabel})`} color="var(--app-accent)" />
-      <DualLineChart data1={chartData.throttle} data2={chartData.brake} label1="Throttle" label2="Brake" color1="var(--ch-throttle)" color2="var(--ch-brake)" label="Throttle / Brake" maxY={100} />
+      {showGrip && <FourLineChart data={chartData.grip} label={m.chart_traction()} maxY={3} />}
+      {showSurfaceTemperature && <FourLineChart data={chartData.temp} label={showCoreTemperature ? m.chart_surface_tire_temp() : m.chart_tire_temp()} unit={`°${units.tempUnit}`} />}
+      {showCoreTemperature && <FourLineChart data={chartData.coreTemp} label={showSurfaceTemperature ? m.chart_core_tire_temp() : m.chart_tire_temp()} unit={`°${units.tempUnit}`} />}
+      {showWear && <FourLineChart data={chartData.wear} label={m.chart_tire_wear()} maxY={1} />}
+      {showSlipAngle && <FourLineChart data={chartData.slipAngle} label={m.chart_slip_angle()} unit="°" />}
+      {showSlipRatio && <FourLineChart data={chartData.slipRatio} label={m.chart_slip_ratio()} />}
+      {showNormalizedSuspension && <FourLineChart data={chartData.suspension} label={m.chart_suspension()} maxY={1} />}
+      <SingleLineChart data={chartData.speed} label={m.chart_speed({ unit: units.speedLabel })} color="var(--app-accent)" />
+      <DualLineChart data1={chartData.throttle} data2={chartData.brake} label1={`${m.chart_throttle()} (%)`} label2={`${m.chart_brake()} (%)`} color1="var(--ch-throttle)" color2="var(--ch-brake)" label={m.chart_throttle_brake()} maxY={100} />
     </div>
   );
 }

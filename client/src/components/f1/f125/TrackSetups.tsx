@@ -19,7 +19,7 @@ function SetupVideo({ url }: { url: string }) {
     <div className="rounded-lg overflow-hidden border border-app-border/20">
       <iframe
         src={`https://www.youtube.com/embed/${vid}`}
-        title="Hotlap"
+        title={m.f1setup_hotlap()}
         className="w-full aspect-video"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowFullScreen
@@ -141,7 +141,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
                 }}
                 className={`text-app-compact px-2 py-1 rounded border transition-colors ${filterProvider === p ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
               >
-                {p === "" ? "All" : p === "f1laps" ? `F1Laps (${f1lapsCount})` : `SRS (${srsCount})`}
+                {p === "" ? m.f1setup_all() : p === "f1laps" ? `F1Laps (${f1lapsCount})` : `SRS (${srsCount})`}
               </Button>
             ))}
           </div>
@@ -154,6 +154,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
                   setFilterWeather(filterWeather === w ? "" : w);
                   resetSetup();
                 }}
+                aria-label={w === "Dry" ? m.f1setup_dry() : m.f1setup_wet()}
                 className={`text-app-compact px-2 py-1 rounded border transition-colors ${filterWeather === w ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
               >
                 {w === "Dry" ? `☀ ${dryCount}` : `🌧 ${wetCount}`}
@@ -167,7 +168,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
           {/* Header */}
           <div className="flex items-center gap-1.5 px-2 py-1 bg-app-surface-alt border-b border-app-border/20 sticky top-0 z-10">
             <span className="text-app-micro text-app-text-dim uppercase w-4 text-right shrink-0">#</span>
-            <span className="text-app-micro text-app-text-dim uppercase w-7 shrink-0">Src</span>
+            <span className="text-app-micro text-app-text-dim uppercase w-7 shrink-0">{m.f1setup_src_col()}</span>
             <span className="text-app-micro text-app-text-dim uppercase flex-1">{m.label_author_team()}</span>
             <span className="text-app-micro text-app-text-dim uppercase w-8 text-center">{m.label_input()}</span>
             <span className="text-app-micro text-app-text-dim uppercase w-12 text-center">{m.label_info()}</span>
@@ -208,7 +209,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
                     ▶
                   </span>
                 )}
-                {s.weather === "Wet" && <span className="weather-wet-badge text-app-nano px-1 py-0.5 rounded font-bold">WET</span>}
+                {s.weather === "Wet" && <span className="weather-wet-badge text-app-nano px-1 py-0.5 rounded font-bold">{m.accsetup_badge_wet()}</span>}
               </span>
               <span className="text-app-compact font-mono shrink-0 w-16 text-right" style={{ color: "var(--lap-record)" }}>
                 {s.lapTime || "—"}
@@ -230,12 +231,12 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
             {/* Header */}
             <div className="flex items-center gap-2 flex-wrap">
               <ProviderBadge provider={setup.provider} />
-              <span className="text-app-body font-bold text-app-text">{setup.author || "Unknown"}</span>
+              <span className="text-app-body font-bold text-app-text">{setup.author || m.f1setup_unknown_author()}</span>
               <span className="text-app-compact text-app-text-secondary">
                 {setup.team && `${setup.team} · `}
                 {setup.lapTime}
                 {setup.inputDevice && ` · ${setup.inputDevice === "wheel" ? m.label_wheel() : m.f1setup_controller()}`}
-                {setup.weather === "Wet" && " · Wet"}
+                {setup.weather === "Wet" && ` · ${m.f1setup_wet()}`}
                 {setup.sessionType && ` · ${setup.sessionType}`}
               </span>
               {setup.source && (

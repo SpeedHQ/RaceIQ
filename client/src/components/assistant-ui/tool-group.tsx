@@ -6,6 +6,7 @@ import { ChevronDownIcon, LoaderIcon } from "lucide-react";
 import { type FC, memo, type PropsWithChildren, useCallback, useRef, useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { m } from "@/paraglide/messages";
 
 const ANIMATION_DURATION = 200;
 
@@ -75,7 +76,7 @@ function ToolGroupTrigger({
   count: number;
   active?: boolean;
 }) {
-  const label = `${count} tool ${count === 1 ? "call" : "calls"}`;
+  const label = `${count} ${count === 1 ? m.ai_chat_tool_call() : m.ai_chat_tool_calls()}`;
 
   return (
     <CollapsibleTrigger

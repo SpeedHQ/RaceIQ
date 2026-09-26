@@ -25,7 +25,7 @@ export function CarsTable({ cars, selected, expanded, sort, sortDir, isMetric, s
       <THead>
         <TH />
         <SortableTH direction={direction("name")} onSort={() => onSort("name")}>
-          Car
+          {m.cars_col_car()}
         </SortableTH>
         <SortableTH direction={direction("pi")} onSort={() => onSort("pi")}>
           PI
@@ -34,14 +34,14 @@ export function CarsTable({ cars, selected, expanded, sort, sortDir, isMetric, s
           HP
         </SortableTH>
         <SortableTH direction={direction("torque")} onSort={() => onSort("torque")}>
-          Torque
+          {m.cars_torque_label()}
         </SortableTH>
         <SortableTH direction={direction("weightKg")} onSort={() => onSort("weightKg")}>
-          {isMetric ? "Wt (kg)" : "Wt (lb)"}
+          {m.cars_col_wt()} ({isMetric ? "kg" : "lb"})
         </SortableTH>
         <TH>{m.cars_drive_label()}</TH>
         <SortableTH direction={direction("topSpeedMph")} onSort={() => onSort("topSpeedMph")}>
-          Top Spd ({speedLabel})
+          {m.cars_top_spd_label()} ({speedLabel})
         </SortableTH>
         <SortableTH direction={direction("zeroToSixty")} onSort={() => onSort("zeroToSixty")}>
           0–60
@@ -50,22 +50,22 @@ export function CarsTable({ cars, selected, expanded, sort, sortDir, isMetric, s
           0–100
         </SortableTH>
         <SortableTH direction={direction("braking60")} onSort={() => onSort("braking60")}>
-          {isMetric ? "Brk 60 (m)" : "Brk 60 (ft)"}
+          {m.cars_col_brk60()} ({isMetric ? "m" : "ft"})
         </SortableTH>
         <SortableTH direction={direction("speedRating")} onSort={() => onSort("speedRating")}>
-          Spd
+          {m.cars_rating_spd()}
         </SortableTH>
         <SortableTH direction={direction("brakingRating")} onSort={() => onSort("brakingRating")}>
-          Brk
+          {m.cars_rating_brk()}
         </SortableTH>
         <SortableTH direction={direction("handlingRating")} onSort={() => onSort("handlingRating")}>
-          Hdl
+          {m.cars_rating_hdl()}
         </SortableTH>
         <SortableTH direction={direction("accelRating")} onSort={() => onSort("accelRating")}>
-          Acc
+          {m.cars_rating_acc()}
         </SortableTH>
         <SortableTH direction={direction("division")} onSort={() => onSort("division")}>
-          Division
+          {m.cars_col_division()}
         </SortableTH>
       </THead>
       <TBody>

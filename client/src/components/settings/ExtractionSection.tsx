@@ -54,8 +54,8 @@ export function ExtractionSection() {
       {isDone && status.extracted > 0 && (
         <div className="rounded-md bg-status-success/10 border border-status-success/30 p-3 mb-4">
           <p className="text-sm text-status-success">
-            {status.extracted} track outlines extracted
-            {status.failed > 0 && <span className="text-app-text-muted"> ({status.failed} skipped)</span>}
+            {status.extracted} {m.extraction_track_outlines_extracted()}
+            {status.failed > 0 && <span className="text-app-text-muted"> ({status.failed} {m.extraction_skipped()})</span>}
           </p>
         </div>
       )}
@@ -75,14 +75,14 @@ export function ExtractionSection() {
             <span className="text-xs text-app-text-muted w-10 text-right">{progress}%</span>
           </div>
           <p className="text-xs text-app-text-muted">
-            Extracting {status.current}... ({status.extracted} done)
+            {m.extraction_extracting_label()} {status.current}... ({status.extracted} {m.extraction_done_label()})
           </p>
         </div>
       )}
 
       <div className="flex gap-2">
         <Button onClick={handleExtract} disabled={isRunning || !status?.installed} variant={isDone ? "outline" : "default"}>
-          {isRunning ? "Extracting..." : isDone ? "Re-extract" : "Extract Track Data"}
+          {isRunning ? m.extraction_extracting() : isDone ? m.extraction_reextract() : m.extraction_extract_track_data()}
         </Button>
         {isDone && status.extracted > 0 && (
           <Button

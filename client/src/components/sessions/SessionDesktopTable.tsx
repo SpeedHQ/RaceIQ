@@ -107,7 +107,7 @@ export function SessionDesktopTable({
               ["best", m.sessions_col_best_lap()],
               ["track", m.label_track()],
               ["car", m.label_car()],
-              ["result", "Result"],
+              ["result", m.label_result()],
               ...(showSessionType ? [["type", m.label_type()] as const] : []),
             ] as const
           ).map(([field, label]) => (

@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import type { GameId } from "@shared/games/ids";
 import { selectEvaluationLaps } from "@shared/racing/laps/review-selection";
 import { parseAnalyseLapIds } from "@/lib/game-routes";
@@ -47,24 +48,24 @@ export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, se
     if (sessionRedirectId == null) return;
     void navigate({ search: { session: sessionRedirectId } } as never);
   }, [navigate, sessionRedirectId]);
-  const resolvedTrackName = trackName ?? (resolvedTrackOrdinal != null ? resolvedNames?.trackNames[String(resolvedTrackOrdinal)] : undefined) ?? `Track ${resolvedTrackOrdinal ?? "?"}`;
-  const resolvedCarName = carName ?? (resolvedCarOrdinal != null ? resolvedNames?.carNames[String(resolvedCarOrdinal)] : undefined) ?? `Car ${resolvedCarOrdinal ?? "?"}`;
-  const sessionLabel = `${resolvedTrackName} · ${resolvedCarName} · Selected session · ${selectedSession?.lapCount ?? evaluationLaps.length} laps`;
+  const resolvedTrackName = trackName ?? (resolvedTrackOrdinal != null ? resolvedNames?.trackNames[String(resolvedTrackOrdinal)] : undefined) ?? m.review_track_fallback({ ordinal: resolvedTrackOrdinal ?? "?" });
+  const resolvedCarName = carName ?? (resolvedCarOrdinal != null ? resolvedNames?.carNames[String(resolvedCarOrdinal)] : undefined) ?? m.review_car_fallback({ ordinal: resolvedCarOrdinal ?? "?" });
+  const sessionLabel = `${resolvedTrackName} · ${resolvedCarName} · ${m.review_selected_session()} · ${m.review_laps_count({ count: selectedSession?.lapCount ?? evaluationLaps.length })}`;
   const backToSession = () => void navigate({ to: sessionId != null ? "../.." : ".." } as never);
   if (sessionsLoading || lapsLoading || trackLoading || carLoading || namesLoading)
     return (
       <div role="status" aria-live="polite" className="flex h-full items-center p-8 text-sm text-app-text-muted">
-        Loading Analyse review…
+        {m.review_loading_analyse()}
       </div>
     );
   if (sessionsError || sessionQuery.isError || (sessionId != null && !selectedSession)) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
         <p role="alert" className="text-sm text-status-danger">
-          {sessionsError || sessionQuery.isError ? "Could not load selected session." : "Session not found."}
+          {sessionsError || sessionQuery.isError ? m.review_load_session_error() : m.review_session_not_found()}
         </p>
         <Button variant="app-outline" size="app-sm" onClick={backToSession}>
-          Back to Sessions
+          {m.review_back_to_sessions()}
         </Button>
       </div>
     );
@@ -73,17 +74,17 @@ export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, se
   if (sessionRedirectId != null)
     return (
       <div role="status" aria-live="polite" className="flex h-full items-center p-8 text-sm text-app-text-muted">
-        Opening session review…
+        {m.review_opening_session()}
       </div>
     );
   if (sessionId == null) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
         <p role="alert" className="text-sm text-app-text-muted">
-          Session selection required for Analyse.
+          {m.review_session_selection_required_analyse()}
         </p>
         <Button variant="app-outline" size="app-sm" onClick={backToSession}>
-          Back to Sessions
+          {m.review_back_to_sessions()}
         </Button>
       </div>
     );
@@ -92,10 +93,10 @@ export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, se
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
         <p role="status" className="text-sm text-app-text-muted">
-          {groupSessions.length === 0 ? "No recorded session matches this selection." : "No valid laps are available for review."}
+          {groupSessions.length === 0 ? m.review_no_matching_session() : m.review_no_valid_laps()}
         </p>
         <Button variant="app-outline" size="app-sm" onClick={backToSession}>
-          Back to Sessions
+          {m.review_back_to_sessions()}
         </Button>
       </div>
     );

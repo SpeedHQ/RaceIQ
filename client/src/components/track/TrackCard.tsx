@@ -131,7 +131,7 @@ export function TrackCard({
   const map = outline ? (
     <canvas ref={canvasRef} className="w-full h-full" />
   ) : track.mapUrl ? (
-    gameId === "lmu" ? <InlineTrackMap src={track.mapUrl} alt={`${track.name} ${track.variant} map`} className="w-full h-full p-3" /> : <img src={track.mapUrl} alt={`${track.name} ${track.variant} map`} className="w-full h-full object-contain p-3" loading="lazy" decoding="async" />
+    gameId === "lmu" ? <InlineTrackMap src={track.mapUrl} alt={m.trackdetail_map_alt({ track: track.name, variant: track.variant })} className="w-full h-full p-3" /> : <img src={track.mapUrl} alt={m.trackdetail_map_alt({ track: track.name, variant: track.variant })} className="w-full h-full object-contain p-3" loading="lazy" decoding="async" />
   ) : undefined;
 
   return (

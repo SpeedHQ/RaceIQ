@@ -4,7 +4,7 @@ import { AppInput } from "@/components/ui/AppInput";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { m } from "@/paraglide/messages";
-import { ALL_CATEGORIES, CATEGORY_LABELS } from "../tune-constants";
+import { ALL_CATEGORIES } from "../tune-constants";
 import type { TuneFormCar } from "./useAllCars";
 
 export function TuneInfoSection({
@@ -105,7 +105,7 @@ export function TuneInfoSection({
         >
           {ALL_CATEGORIES.map((c) => (
             <option key={c} value={c}>
-              {CATEGORY_LABELS[c]}
+              {c === "circuit" ? m.tune_category_circuit() : c === "wet" ? m.tune_category_wet() : c === "low-drag" ? m.tune_category_low_drag() : c === "stable" ? m.tune_category_stable() : m.tune_category_track_specific()}
             </option>
           ))}
         </select>

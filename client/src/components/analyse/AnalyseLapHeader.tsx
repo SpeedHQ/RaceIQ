@@ -255,7 +255,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
           <DropdownMenu
             trigger={
               <Button variant="app-outline" size="app-md" disabled={exportingBin || importingBin}>
-                {exportingBin ? "Exporting..." : importingBin ? "Importing..." : m.label_actions()}
+                {exportingBin ? m.analyse_exporting() : importingBin ? m.analyse_importing() : m.label_actions()}
                 <ChevronDown className="size-3.5" />
               </Button>
             }
@@ -296,7 +296,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
                 ? [
                     {
                       key: "export-bin",
-                      label: "Export .bin",
+                      label: m.analyse_export_bin_button(),
                       icon: <Download className="size-3.5" />,
                       onClick: onExportBin,
                       disabled: exportingBin,
@@ -323,7 +323,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             <OwnershipChoice value={ownership} onChange={onOwnershipChange} disabled={importingBin} />
             <DialogFooter>
               <Button variant="app-ghost" size="app-sm" disabled={importingBin} onClick={() => setPendingImport(null)}>
-                Cancel
+                {m.common_cancel()}
               </Button>
               <Button
                 variant="app-primary"
@@ -335,7 +335,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
                   onImportBin(file);
                 }}
               >
-                Import
+                {m.analyse_import_button()}
               </Button>
             </DialogFooter>
           </DialogContent>

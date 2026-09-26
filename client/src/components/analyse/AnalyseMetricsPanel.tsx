@@ -40,10 +40,10 @@ export function MetricsPanel({ frame, startFuel, gameId }: { frame: SemanticAnal
       <div className="col-span-2 flex justify-between">
         <span className="text-app-text-muted">{m.dataguide_fuel()}</span>
         <span className="tabular-nums">
-          <span style={{ color: "var(--metric-fuel)" }}>{fuelUsed == null ? "?" : `${fuelUsed.amount.toFixed(1)}${fuelUsed.unit}`}</span>
-          <span className="text-app-text-dim"> used </span>
-          <span className="text-app-text">{fuelDisplay == null ? "—" : `${fuelDisplay.amount.toFixed(1)}${fuelDisplay.unit}`}</span>
-          <span className="text-app-text-dim"> left</span>
+          {m.analyse_fuel_summary({
+            consumed: fuelUsed == null ? "?" : `${fuelUsed.amount.toFixed(1)}${fuelUsed.unit}`,
+            remaining: fuelDisplay == null ? "—" : `${fuelDisplay.amount.toFixed(1)}${fuelDisplay.unit}`,
+          })}
         </span>
       </div>
     </div>

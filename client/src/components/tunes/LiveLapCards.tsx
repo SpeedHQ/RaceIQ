@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import type { LiveSectorData } from "../../../../shared/racing/live/types";
 import type { LapMeta } from "../../../../shared/racing/sessions/types";
 import { formatLapTime } from "../../lib/format";
@@ -28,12 +29,12 @@ export function LiveLapCards({ laps, trackOrdinal, sectors, currentLapNumber, ma
       <div className="shrink-0 w-24 rounded border border-app-accent/50 bg-app-accent/10 px-2.5 py-1.5">
         <div className="flex items-center gap-1 text-app-caption uppercase tracking-wider text-app-accent">
           <span className="size-1.5 rounded-full bg-app-accent animate-pulse" />
-          Lap {currentLapNumber ?? "—"}
+          {m.tunes_lap_number({ number: currentLapNumber ?? "—" })}
         </div>
         <div className="text-sm font-mono font-bold tabular-nums text-app-text mt-0.5">{running > 0 ? formatLapTime(running) : "--:--.---"}</div>
       </div>
       {sorted.length === 0 ? (
-        <div className="flex items-center text-xs text-app-text-dim px-2">No laps completed yet.</div>
+        <div className="flex items-center text-xs text-app-text-dim px-2">{m.tunes_no_laps_completed()}</div>
       ) : (
         sorted.map((l) => {
           const delta = l.lapTime - best;
@@ -48,10 +49,10 @@ export function LiveLapCards({ laps, trackOrdinal, sectors, currentLapNumber, ma
                   ? "text-app-text"
                   : "text-(--lap-pace-off-target)";
           return (
-            <div key={l.id} className="shrink-0 w-24 rounded border border-app-border bg-app-surface-alt/40 px-2.5 py-1.5" title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}>
+            <div key={l.id} className="shrink-0 w-24 rounded border border-app-border bg-app-surface-alt/40 px-2.5 py-1.5" title={!l.isValid ? (l.invalidReason ?? m.tunes_invalid_lap_title()) : undefined}>
               <div className="flex items-center gap-1 text-app-caption uppercase tracking-wider text-app-text-muted">
                 {!l.isValid && <span className="text-status-danger leading-none">✕</span>}
-                Lap {l.lapNumber}
+                {m.tunes_lap_number({ number: l.lapNumber })}
               </div>
               <div className={`text-sm font-mono font-bold tabular-nums mt-0.5 ${timeColor}`}>{formatLapTime(l.lapTime)}</div>
             </div>

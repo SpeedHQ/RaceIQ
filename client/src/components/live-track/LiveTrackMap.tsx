@@ -216,7 +216,7 @@ export function LiveTrackMap({ view, issues }: Props) {
           type="button"
           onClick={handleDeleteMap}
           className="absolute top-2 right-2 px-2 py-1 text-xs text-app-text-secondary hover:text-status-danger rounded border border-app-border-input hover:border-status-danger/60 hover:bg-status-danger/10 transition-colors"
-          title="Delete recorded track map and re-record from driving"
+          title={m.live_track_delete_title()}
         >
           {m.label_reset_map()}
         </Button>

@@ -5,6 +5,7 @@ import { AlertCircleIcon, CheckIcon, ChevronDownIcon, LoaderIcon, XCircleIcon } 
 import type { ComponentType } from "react";
 import * as React from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { m } from "@/paraglide/messages";
 import { cn } from "@/lib/utils";
 
 const ANIMATION_DURATION = 200;
@@ -54,7 +55,7 @@ export function ToolFallbackTrigger({ toolName, status, className, ...props }: R
   const isRunning = statusType === "running";
   const isCancelled = status?.type === "incomplete" && status.reason === "cancelled";
   const Icon = statusIconMap[statusType];
-  const label = isCancelled ? "Cancelled tool" : "Used tool";
+  const label = isCancelled ? m.ai_chat_cancelled_tool() : m.ai_chat_used_tool();
   return (
     <CollapsibleTrigger
       data-slot="tool-fallback-trigger"
@@ -150,7 +151,7 @@ export function ToolFallbackResult({ result, className, ...props }: React.Compon
   if (result === undefined) return null;
   return (
     <div data-slot="tool-fallback-result" className={cn("aui-tool-fallback-result", className)} {...props}>
-      <p className="aui-tool-fallback-result-header text-muted-foreground text-xs font-medium">Result:</p>
+      <p className="aui-tool-fallback-result-header text-muted-foreground text-xs font-medium">{m.ai_chat_tool_result()}:</p>
       <pre className="aui-tool-fallback-result-content bg-muted/50 text-foreground/90 mt-1 rounded-md p-2.5 text-xs whitespace-pre-wrap">
         {typeof result === "string" ? result : JSON.stringify(result, null, 2)}
       </pre>
@@ -166,7 +167,7 @@ export function ToolFallbackError({ status, className, ...props }: React.Compone
   const isCancelled = status.reason === "cancelled";
   return (
     <div data-slot="tool-fallback-error" className={cn("aui-tool-fallback-error", className)} {...props}>
-      <p className="aui-tool-fallback-error-header text-muted-foreground font-semibold">{isCancelled ? "Cancelled reason:" : "Error:"}</p>
+      <p className="aui-tool-fallback-error-header text-muted-foreground font-semibold">{isCancelled ? m.ai_chat_cancelled_reason() : m.ai_chat_tool_error()}</p>
       <p className="aui-tool-fallback-error-reason text-muted-foreground">{errorText}</p>
     </div>
   );

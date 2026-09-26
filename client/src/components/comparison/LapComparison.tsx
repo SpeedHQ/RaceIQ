@@ -39,7 +39,7 @@ export function ComparisonLoadStatus({ loading, error, hasComparison }: { loadin
 }
 
 export function ComparisonCursorLoadingIndicator({ loading, position }: { loading: boolean; position: { x: number; y: number } | null }) {
-  return <PointerLoadingIndicator loading={loading} position={position} label="Fetching higher-fidelity datapoints" />;
+  return <PointerLoadingIndicator loading={loading} position={position} label={m.compare_fetching_higher_fidelity_datapoints()} />;
 }
 
 export function LapComparison({ initialSearch }: { initialSearch?: CompareSearch } = {}) {
@@ -430,7 +430,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
           </div>
 
           <hr
-            aria-label="Resize track map"
+            aria-label={m.compare_resize_track_map()}
             aria-orientation="vertical"
             aria-valuemin={COMPARE_MAP_MIN_WIDTH}
             aria-valuemax={comparisonLayoutWidth > 0 ? clampCompareMapWidth(Number.MAX_SAFE_INTEGER, comparisonLayoutWidth, aiPanelOpen) : COMPARE_MAP_DEFAULT_WIDTH}

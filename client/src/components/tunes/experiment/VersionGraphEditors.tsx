@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -48,7 +49,7 @@ function NodeTextEditor({
       {dirty && changed && (
         <div className="flex items-center gap-2">
           <Button variant="app-outline" size="app-sm" onClick={() => onSave(trimmed === "" ? null : trimmed, () => setDirty(false))} disabled={pending} className="normal-case tracking-wider">
-            {pending ? "Saving…" : "Save"}
+            {pending ? m.common_saving() : m.common_save()}
           </Button>
           <Button
             variant="app-ghost"
@@ -59,7 +60,7 @@ function NodeTextEditor({
             }}
             className="normal-case tracking-wider text-app-text-muted hover:text-app-text"
           >
-            Cancel
+            {m.common_cancel()}
           </Button>
           {error != null && <span className="text-app-caption text-status-danger">{(error as Error).message}</span>}
         </div>
@@ -73,9 +74,9 @@ function DriverCommentEditor({ sessionId, versionId, note, rows }: { sessionId: 
   const setNote = useSetTestNote();
   return (
     <NodeTextEditor
-      label="Driver comment"
+      label={m.experiment_driver_comment()}
       value={note}
-      placeholder="How did the car feel on this version?"
+      placeholder={m.experiment_driver_comment_placeholder()}
       pending={setNote.isPending}
       error={setNote.error}
       rows={rows}
@@ -90,11 +91,11 @@ function DriverCommentEditor({ sessionId, versionId, note, rows }: { sessionId: 
 function EngineerNotesView({ notes }: { notes: string | null }) {
   return (
     <div className="px-3 py-2 space-y-1">
-      <div className="text-app-caption uppercase tracking-wider text-app-text-muted">Engineer notes</div>
+      <div className="text-app-caption uppercase tracking-wider text-app-text-muted">{m.experiment_engineer_notes()}</div>
       {notes ? (
         <p className="text-app-compact text-app-text whitespace-pre-wrap max-h-64 overflow-y-auto">{notes}</p>
       ) : (
-        <p className="text-app-compact text-app-text-dim italic">No engineer notes yet — the setup engineer adds these.</p>
+        <p className="text-app-compact text-app-text-dim italic">{m.experiment_no_engineer_notes()}</p>
       )}
     </div>
   );
@@ -107,7 +108,7 @@ export function NotesModal({ sessionId, test, onClose }: { sessionId: number; te
       <DialogContent size="wide" showCloseButton={false} overlayClassName="bg-app-bg/60" layout="scrollable">
         <DialogHeader>
           <DialogTitle className="text-sm font-semibold text-app-text">
-            <span className="font-mono">{test.label}</span> — notes
+            <span className="font-mono">{test.label}</span> — {m.experiment_notes()}
           </DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 divide-x divide-app-border/60 border border-app-border/60 rounded-md overflow-hidden bg-app-surface/40">

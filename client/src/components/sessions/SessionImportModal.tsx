@@ -34,7 +34,7 @@ function formatLabel(format: DetectedFormat): string {
   switch (format) {
     case "zip": return m.session_format_zip();
     case "bin": return m.session_format_bin();
-    case "duckdb": return "Le Mans Ultimate telemetry (.duckdb)";
+    case "duckdb": return m.session_format_duckdb();
     case "ibt": return m.session_format_ibt();
     case "motec": return m.session_format_motec();
     default: return m.session_format_unknown();
@@ -162,9 +162,9 @@ export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: G
                       <div>{m.session_detected({ format: formatLabel(detected.format) })}{detected.gameIds.length > 0 && <span className="text-app-text"> ({detected.gameIds.join(", ")})</span>}</div>
                       {!detected.supported && <p className="mt-1 text-status-warning">{detected.message ?? m.session_unsupported()}</p>}
                       {detected.supported && detected.format === "bin" && <p className="mt-1">{m.session_game_detected()}</p>}
-                      {detected.supported && detected.format === "duckdb" && <p className="mt-1">LMU game telemetry will be converted into a normal RaceIQ session capture.</p>}
-                      {detected.format === "duckdb" && detected.preview && <p className="mt-1">{detected.preview.carName} at {detected.preview.trackName}: {detected.preview.completedLapCount} complete lap{detected.preview.completedLapCount === 1 ? "" : "s"}.</p>}
-                      {detected.format === "duckdb" && !walFile && <p className="mt-1">If a matching <code>.duckdb.wal</code> file exists, select both files together.</p>}
+                      {detected.supported && detected.format === "duckdb" && <p className="mt-1">{m.session_duckdb_conversion_hint()}</p>}
+                      {detected.format === "duckdb" && detected.preview && <p className="mt-1">{m.session_duckdb_preview({ car: detected.preview.carName, track: detected.preview.trackName, count: detected.preview.completedLapCount, plural: detected.preview.completedLapCount === 1 ? "" : "s" })}</p>}
+                      {detected.format === "duckdb" && !walFile && <p className="mt-1">{m.session_duckdb_wal_hint()}</p>}
                       {detected.supported && detected.format === "zip" && <p className="mt-1">{m.session_captures_found({ count: detected.captureCount })}</p>}
                       {detected.format === "ibt" && <p className="mt-1">{m.session_ibt_hint()}</p>}
                       {detected.format === "motec" && <p className="mt-1">{m.session_motec_hint()}</p>}

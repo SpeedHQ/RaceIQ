@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { m } from "@/paraglide/messages";
 import { SetupTuneForm } from "../../../components/setup-tune/SetupTuneForm";
 import { useAccCars } from "../../../components/setup-tune/use-game-cars";
 import { useCreateTune } from "../../../hooks/tunes";
@@ -14,7 +15,7 @@ function NewAccTunePage() {
         <SetupTuneForm
           gameId="acc"
           cars={cars}
-          title="Create New ACC Tune"
+          title={m.setup_create_acc_tune_title()}
           onCancel={() => navigate({ to: "/acc/setups" })}
           onSubmit={(data) =>
             createTune.mutate(data, {

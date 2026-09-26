@@ -49,7 +49,7 @@ export function ComparisonCharts({
           timeDelta={timeDelta}
           syncKey="lap-compare"
           height={140}
-          title="Time Delta"
+          title={m.compare_time_delta()}
           onCursorMove={onCursorMove}
           onRangeSelect={onRangeSelect}
           visibleRange={visibleRange}

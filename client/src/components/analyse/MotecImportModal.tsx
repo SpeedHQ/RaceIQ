@@ -56,7 +56,7 @@ function buildMotecMetricAvailability({ frame, gameId }: { frame: Pick<SemanticA
     return {
       semanticId,
       label: variable?.label ?? semanticId,
-      group: TELEMETRY_CATALOG.groups.find((candidate) => candidate.id === variable?.parentId)?.label ?? "Other",
+      group: TELEMETRY_CATALOG.groups.find((candidate) => candidate.id === variable?.parentId)?.label ?? m.analyse_other_group(),
     };
   });
   return {
@@ -145,13 +145,13 @@ export function MotecImportNote({ result, onClose }: { result: MotecImportSucces
     <div className="mt-4 flex min-h-0 flex-1 flex-col text-xs text-app-text-dim">
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
         <p className="text-app-text">
-          Imported <span className="text-app-accent">{result.imported}</span> lap{result.imported === 1 ? "" : "s"} from <span className="text-app-text">{result.meta.venue || "unknown venue"}</span>
+          {m.analyse_motec_imported_laps({ count: result.imported, venue: result.meta.venue || m.analyse_unknown_venue() })}
           {result.meta.driver ? ` — ${result.meta.driver}` : ""}.
         </p>
         <ul className="space-y-1 font-mono tabular-nums">
           {result.laps.map((lap) => (
             <li key={lap.lapId}>
-              Lap {lap.lapNumber} — {formatMotecLapTime(lap.lapTime)}
+              {m.analyse_motec_lap_number({ number: lap.lapNumber })} — {formatMotecLapTime(lap.lapTime)}
             </li>
           ))}
         </ul>
@@ -159,7 +159,7 @@ export function MotecImportNote({ result, onClose }: { result: MotecImportSucces
       </div>
       <div className="flex shrink-0 justify-end border-t border-app-border bg-app-surface pt-3">
         <Button variant="app-outline" size="app-md" onClick={onClose}>
-          Done
+          {m.analyse_done()}
         </Button>
       </div>
     </div>
@@ -375,7 +375,7 @@ export function MotecImportModal({
           <div className="mt-4 space-y-4 text-xs">
             {!fixedTarget && !initialGameId && (
               <div className="block text-app-text-dim">
-                Game
+                {m.analyse_game_label()}
                 <SearchSelect
                   value={selectedGameId}
                   onChange={chooseGame}
@@ -388,10 +388,10 @@ export function MotecImportModal({
             <p className="text-app-text-dim">
               {target ? (
                 <>
-                  Filed as <span className="text-app-text">{target.displayName}</span> — use a log exported by this game; another sim’s channels can import with the wrong meaning instead of failing.
+                  {m.analyse_import_filed_as({ game: target.displayName })}
                 </>
               ) : (
-                "Choose supported game to load its car and track catalogs."
+                m.analyse_import_choose_game()
               )}
             </p>
 
@@ -403,21 +403,21 @@ export function MotecImportModal({
               <input ref={ldxRef} type="file" accept=".ldx" className="hidden" onChange={(e) => setLdx(e.target.files?.[0] ?? null)} />
               <div className="flex items-center gap-2">
                 <Button variant="app-outline" size="app-md" onClick={() => ldRef.current?.click()} disabled={busy || archiveStatus === "extracting"}>
-                  Choose .ld or archive
+                  {m.analyse_motec_choose_ld()}
                 </Button>
-                <span className="truncate text-app-text-dim">{isArchive ? archiveNames.ld || ld?.name : (ld?.name ?? initialLdName ?? "No log selected")}</span>
+                <span className="truncate text-app-text-dim">{isArchive ? archiveNames.ld || ld?.name : (ld?.name ?? initialLdName ?? m.analyse_motec_no_log_selected())}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="app-outline" size="app-md" onClick={() => ldxRef.current?.click()} disabled={busy || isArchive}>
-                  Choose .ldx
+                  {m.analyse_motec_choose_ldx()}
                 </Button>
                 <span className="truncate text-app-text-dim">
-                  {isArchive ? archiveNames.ldx || "Waiting for archive extraction…" : (ldx?.name ?? initialLdxName ?? "Required — carries the lap beacons")}
+                  {isArchive ? archiveNames.ldx || m.analyse_motec_waiting_archive() : (ldx?.name ?? initialLdxName ?? m.analyse_motec_ldx_required())}
                 </span>
               </div>
               {(archiveStatus === "extracting" || archiveStatus === "error") && (
                 <p className={archiveStatus === "error" ? "text-status-danger" : "text-app-text-muted"}>
-                  {archiveStatus === "extracting" ? "Extracting archive to temporary storage…" : "Archive extraction failed."}
+                  {archiveStatus === "extracting" ? m.analyse_motec_extracting_archive() : m.analyse_motec_archive_extraction_failed()}
                 </p>
               )}
               {ld && !ldx && !isArchive && !archiveToken && <p className="text-app-text-muted">{m.analyse_select_ldx()}</p>}
@@ -426,11 +426,11 @@ export function MotecImportModal({
             {/* Car / track / setup */}
             <div className="space-y-2">
               <div className="block text-app-text-dim">
-                Car
+                {m.analyse_car_label()}
                 <SearchSelect value={carOrdinal} onChange={setCarOrdinal} options={carOptions} placeholder={m.analyse_search_cars()} className="mt-1" />
               </div>
               <div className="block text-app-text-dim">
-                Track
+                {m.analyse_track_label()}
                 <SearchSelect value={trackOrdinal} onChange={setTrackOrdinal} options={trackOptions} placeholder={m.analyse_search_tracks()} className="mt-1" />
               </div>
               <div className="block text-app-text-dim">
@@ -438,8 +438,7 @@ export function MotecImportModal({
                 <SearchSelect value={tuneId} onChange={setTuneId} options={tuneOptions} placeholder={carOrdinal ? m.analyse_search_setups() : m.analyse_pick_car()} disabled={!carOrdinal} className="mt-1" />
               </div>
               <p className="text-app-text-muted">
-                MoTeC's own venue and vehicle strings are free text set by whoever configured the exporter, so car and track are your call — filing a log against the wrong track gives it meaningless
-                sectors and corner names.
+                {m.analyse_import_catalog_explanation()}
               </p>
             </div>
 
@@ -447,7 +446,7 @@ export function MotecImportModal({
 
             <div className="flex justify-end gap-2">
               <Button variant="app-outline" size="app-md" onClick={onClose} disabled={busy}>
-                Cancel
+                {m.common_cancel()}
               </Button>
               <Button variant="app-outline" size="app-md" onClick={submit} disabled={!canSubmit}>
                 {busy ? m.analyse_importing() : m.analyse_import_button()}
