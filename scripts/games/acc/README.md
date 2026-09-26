@@ -32,3 +32,4 @@ SVG left/right splines are authoritative for track edges. Its embedded `center-l
 
 - Run extraction against an installed ACC cache and inspect extracted count plus raceline outputs.
 - Inspect runtime SVG-derived geometry and cache behavior when validating track consumers.
+- Run `bun test test/tracks/visualization/acc-boundary-viz.test.ts` to regenerate all 25 reviewable overlays in `test/e2e/output/acc-boundaries/` (edges, aligned centre, racing line, pit lane).

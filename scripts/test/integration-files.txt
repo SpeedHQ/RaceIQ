@@ -190,6 +190,7 @@ test/tracks/model/track-sectors.test.ts
 test/tracks/model/track-segment-generate.test.ts
 test/tracks/model/track-turn-counts.test.ts
 test/tracks/track-coverage.test.ts
+test/tracks/visualization/acc-boundary-viz.test.ts
 test/tracks/visualization/iracing-track-segment-viz.test.ts
 test/tracks/visualization/track-focus-zoom.test.ts
 test/tracks/visualization/track-segment-viz.test.ts
