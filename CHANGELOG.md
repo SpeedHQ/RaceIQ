@@ -40,6 +40,8 @@
 - Open the session import dialog correctly from the Sessions toolbar.
 - Align settings switch thumbs fully left when off and fully right when on
 - Let drivers choose cleanup age and inspect per-game session, lap, count, and storage details before removing telemetry
+- Let capture cleanup clear stale session references when recording files are already missing.
+- Refresh cache and recording storage totals while Storage settings stay open.
 - Use consistent switch controls for boolean settings and view toggles
 - Run completed-lap tuning analysis only when the AI Engineer requests it in an experiment, rather than during recording.
 - Improve telemetry recording performance and reduce memory use during live capture, session compression, and diagnostic recording shutdown.

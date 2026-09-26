@@ -162,6 +162,12 @@ describe("session cleanup edge cases", () => {
     const sessionId = await createSession({ rawFile: path });
     const lapId = await createLap(sessionId);
 
+    const preview = await previewSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
+    expect(preview.candidateSessionIds).toEqual([sessionId]);
+    expect(preview.fileCount).toBe(0);
+    expect(preview.reclaimableBytes).toBe(0);
+    expect(preview.games[0]?.sessions.map((session) => session.id)).toEqual([sessionId]);
+
     const result = await executeSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
 
     expect(result.cleanedSessionIds).toEqual([sessionId]);

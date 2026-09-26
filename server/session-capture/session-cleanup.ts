@@ -92,8 +92,8 @@ async function fileState(rawFile: string): Promise<{ path: string; missing: bool
 }
 
 async function buildGameSummaries(groups: CleanupGroup[]): Promise<SessionCleanupGameSummary[]> {
+  const candidateSessions = groups.flatMap((group) => group.rows);
   const availableGroups = groups.filter((group) => !group.missing);
-  const candidateSessions = availableGroups.flatMap((group) => group.rows);
   const candidateIds = candidateSessions.map((session) => session.id);
   const candidateLaps =
     candidateIds.length === 0
@@ -142,7 +142,7 @@ async function buildGameSummaries(groups: CleanupGroup[]): Promise<SessionCleanu
     .sort((left, right) => left.gameName.localeCompare(right.gameName));
 }
 
-async function buildPlan(request: SessionCleanupRequest, includeMissing: boolean): Promise<CleanupPlan> {
+async function buildPlan(request: SessionCleanupRequest): Promise<CleanupPlan> {
   const { requested, all, favoriteSessions } = await loadRows(request);
   const protectedIds = new Set<number>(requested.filter((row) => favoriteSessions.has(row.id)).map((row) => row.id));
   const unavailableIds = new Set<number>();
@@ -185,16 +185,12 @@ async function buildPlan(request: SessionCleanupRequest, includeMissing: boolean
       unavailableIds.add(row.id);
       continue;
     }
-    if (state.missing) {
-      unavailableIds.add(row.id);
-      if (!includeMissing) continue;
-    }
     if (!groups.some((candidate) => candidate.path === state.path)) {
       groups.push({ path: state.path, rows: group.all, missing: state.missing, size: state.size });
     }
   }
 
-  const candidateSessionIds = groups.filter((group) => !group.missing).flatMap((group) => group.rows.map((row) => row.id));
+  const candidateSessionIds = groups.flatMap((group) => group.rows.map((row) => row.id));
   return {
     candidateSessionIds: candidateSessionIds.sort((a, b) => a - b),
     protectedSessionIds: [...protectedIds].sort((a, b) => a - b),
@@ -211,7 +207,7 @@ function previewOnly(plan: CleanupPlan): SessionCleanupPreview {
 }
 
 export async function previewSessionCleanup(request: SessionCleanupRequest): Promise<SessionCleanupPreview> {
-  return previewOnly(await buildPlan(request, false));
+  return previewOnly(await buildPlan(request));
 }
 
 async function setRawFiles(values: { id: number; rawFile: string | null }[]): Promise<void> {
@@ -288,7 +284,7 @@ export async function executeSessionCleanup(request: SessionCleanupRequest): Pro
   if (isSessionActive()) throw new SessionCleanupBusyError();
   return withSessionCaptureMaintenanceLock(async () => {
     if (isSessionActive()) throw new SessionCleanupBusyError();
-    const workPlan = await buildPlan(request, true);
+    const workPlan = await buildPlan(request);
     const cleanedSessionIds: number[] = [];
     const failed: { sessionIds: number[]; message: string }[] = [];
     let deletedFiles = 0;

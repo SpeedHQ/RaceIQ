@@ -156,6 +156,7 @@ function CacheSection() {
       return response.json() as Promise<CacheStatus>;
     },
     queryKey: queryKeys.cacheStatus,
+    refetchInterval: 5_000,
   });
 
   const usedFraction = cache && cache.maxBytes > 0 ? Math.min(1, cache.bytesUsed / cache.maxBytes) : 0;
@@ -242,6 +243,7 @@ function StorageFilesSection() {
       return response.json() as Promise<SessionStorageStats>;
     },
     queryKey: queryKeys.storageSessions,
+    refetchInterval: 30_000,
   });
   const queryClient = useQueryClient();
   const [cleanupRequest, setCleanupRequest] = useState<SessionCleanupRequest | null>(null);
