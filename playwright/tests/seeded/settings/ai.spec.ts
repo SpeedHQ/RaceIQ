@@ -2,6 +2,31 @@ import { expect, test } from "@playwright/test";
 
 import { collectBrowserErrors } from "../../support/browser-errors";
 
+test("OpenAI-compatible can be selected for every AI feature without a stored key", async ({ page }) => {
+  await page.route("**/api/settings", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+    const response = await route.fetch();
+    const body = (await response.json()) as Record<string, unknown>;
+    body.openaiCompatibleApiKeySet = false;
+    await route.fulfill({ response, json: body });
+  });
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("button", { name: "AI Analysis" }).click();
+
+  for (const index of [0, 1, 2, 3]) {
+    const picker = page.getByLabel("Provider", { exact: true }).nth(index);
+    await picker.click();
+    const option = page.getByRole("option", { name: "OpenAI-compatible" });
+    await expect(option).toBeEnabled();
+    await option.click();
+    await expect(picker).toHaveValue("OpenAI-compatible");
+  }
+});
+
 test("AI settings classify empty models and recover from controlled API error", async ({ page, request }) => {
   const browserErrors = collectBrowserErrors(page);
   const originalResponse = await request.get("/api/settings");

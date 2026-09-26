@@ -9,6 +9,7 @@
 - Fetch available OpenAI models using configured API key
 
 ### Fixes
+- Allow OpenAI-compatible endpoints without saved API keys for auto-tune and driver-profile AI settings, consistent with analysis and chat.
 
 - Keep Analyse timelines clear and responsive when telemetry timestamps sit on floating-point gap boundaries
 - Enable mouse-wheel zoom whenever a Track Detail map appears after track data loads or tab navigation
