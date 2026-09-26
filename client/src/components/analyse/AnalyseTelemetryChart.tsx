@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { syncCanvasSize } from "../../lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
 
@@ -64,12 +64,21 @@ export function TelemetryChart({
   visualTimeFrac?: number | null;
   onVisualFracChange?: (frac: number | null) => void;
 }) {
+  const [containerWidth, setContainerWidth] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrubCleanupRef = useRef<(() => void) | null>(null);
   const lastScrubIndexRef = useRef<number | null>(null);
   const visualFracRafRef = useRef<number | null>(null);
   const pendingVisualFracRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(() => setContainerWidth(container.clientWidth));
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -157,7 +166,7 @@ export function TelemetryChart({
       ctx.fillText(s.label, leftPad + 4, ly);
       ly += 11;
     }
-  }, [series, totalPackets, height]);
+  }, [series, totalPackets, height, containerWidth, timeFracs, times]);
 
   const idxFromEvent = useCallback(
     (clientX: number): number | null => {
