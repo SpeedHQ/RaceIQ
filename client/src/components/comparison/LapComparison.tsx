@@ -59,7 +59,10 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   const [carBOrd, setCarBOrd] = useState<number | null>(search.carB ?? null);
   const [lapAId, setLapAId] = useState<number | null>(search.lapA ?? null);
   const [lapBId, setLapBId] = useState<number | null>(search.lapB ?? null);
-  const { data: comparison, isLoading: loading, error: comparisonError } = useLapComparison(lapAId, lapBId);
+  // URL selections can outlive a track/car switch; never query a hidden lap.
+  const visibleLapAId = lapAId != null && laps.some((lap) => lap.id === lapAId && lap.trackOrdinal === selectedTrack && lap.carOrdinal === carAOrd) ? lapAId : null;
+  const visibleLapBId = lapBId != null && laps.some((lap) => lap.id === lapBId && lap.trackOrdinal === selectedTrack && lap.carOrdinal === carBOrd) ? lapBId : null;
+  const { data: comparison, isLoading: loading, error: comparisonError } = useLapComparison(visibleLapAId, visibleLapBId);
   const error = comparisonError ? (comparisonError.message.includes("no telemetry") ? m.compare_telemetry_unavailable() : comparisonError.message || m.compare_load_failed()) : null;
   const [carNames, setCarNames] = useState<Map<number, string>>(new Map());
   const [zoomLevels, setZoomLevels] = useState<Array<ChartRange | null>>([null]);
@@ -70,7 +73,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     data: comparisonRange,
     isPlaceholderData: comparisonRangeIsPlaceholder,
     isFetching: comparisonRangeIsFetching,
-  } = useLapComparisonRange(lapAId, lapBId, detailRange?.stepMeters ?? null, detailRange?.start ?? null, detailRange?.end ?? null);
+  } = useLapComparisonRange(visibleLapAId, visibleLapBId, detailRange?.stepMeters ?? null, detailRange?.start ?? null, detailRange?.end ?? null);
   const detailLoading = detailRange != null && comparisonRangeIsFetching;
   const pointerPositionRef = useRef({ x: 0, y: 0 });
   const [pointerPosition, setPointerPosition] = useState<{ x: number; y: number } | null>(null);
@@ -384,9 +387,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         setCarAOrd={setCarAOrd}
         carBOrd={carBOrd}
         setCarBOrd={setCarBOrd}
-        lapAId={lapAId}
+        lapAId={visibleLapAId}
         setLapAId={setLapAId}
-        lapBId={lapBId}
+        lapBId={visibleLapBId}
         setLapBId={setLapBId}
         trackCars={trackCars}
         carNames={carNames}
@@ -400,9 +403,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
       <ComparisonLoadStatus loading={loading} error={error} hasComparison={comparison != null} />
 
       {/* No selection prompt */}
-      {!lapAId || !lapBId ? (
+      {!visibleLapAId || !visibleLapBId ? (
         <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_select_two_laps()}</div>
-      ) : lapAId === lapBId ? (
+      ) : visibleLapAId === visibleLapBId ? (
         <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_select_different_laps()}</div>
       ) : comparison?.traces.distance.length ? (
         <div
