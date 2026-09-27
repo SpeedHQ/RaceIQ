@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "../../server/games/lmu/source-frame";
+import { LMU_SOURCE_FRAME_HEADER_SIZE, LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "../../server/games/lmu/source-frame";
 import { advanceSessionFrames, iterateSessionFrameRecords, sessionFrameAt } from "../../server/session-capture/framing";
 import { SparseSessionRecorder } from "../../server/session-capture/sparse-recorder";
 import { iterateSessionCaptureFrames } from "../../server/session-capture/source-loader";
@@ -48,6 +48,32 @@ describe("LMU sparse session recorder", () => {
       streamed.push(record.frame);
     }
     expect(streamed).toEqual(expected);
+  });
+  test("uses raw checkpoints when changed blocks cost more than full frames", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "raceiq-sparse-raw-fallback-"));
+    directories.push(dir);
+    const file = join(dir, "capture.bin");
+    const recorder = new SparseSessionRecorder();
+    recorder.start(file);
+    recorder.writeMetaFrame();
+    const first = Buffer.alloc(LMU_SOURCE_FRAME_V2_SIZE);
+    LMU_SOURCE_FRAME_MAGIC.copy(first);
+    first.writeUInt16LE(2, 8);
+    const second = Buffer.from(first);
+    second.fill(1, LMU_SOURCE_FRAME_HEADER_SIZE);
+    const third = Buffer.from(second);
+    third[1000] = 2;
+    recorder.writeRecord(first);
+    const secondOffset = recorder.getCurrentByteOffset();
+    recorder.writeRecord(second);
+    const thirdOffset = recorder.getCurrentByteOffset();
+    recorder.writeRecord(third);
+    await recorder.stop();
+    const bytes = readFileSync(file);
+    expect(bytes.readUInt32LE(secondOffset)).toBe(second.length);
+    expect(bytes.readUInt32LE(thirdOffset)).toBeLessThan(third.length);
+    expect(sessionFrameAt(bytes, secondOffset)).toEqual(second);
+    expect(sessionFrameAt(bytes, thirdOffset)).toEqual(third);
   });
   test("resets checkpoints at segment boundaries and rejects broken back-references", async () => {
     const dir = mkdtempSync(join(tmpdir(), "raceiq-sparse-boundary-"));

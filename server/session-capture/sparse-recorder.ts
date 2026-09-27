@@ -52,7 +52,7 @@ export class SparseCaptureEncoder {
       ? encodeLmuSparseFrame(frame, this.previous!, distance)
       : isKunos ? encodeKunosSparseFrame(frame, this.previous!, distance)
         : encodeGenericSparseFrame(frame, this.previous!, distance);
-    if (validGeneric && delta.length >= frame.length) {
+    if (delta.length >= frame.length) {
       this.checkpointOffset = recordOffset;
       this.framesSinceCheckpoint = 0;
       this.previous = frame;

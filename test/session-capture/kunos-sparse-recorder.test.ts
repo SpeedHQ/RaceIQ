@@ -46,5 +46,31 @@ for (const [gameId, magic] of [["acc", ACC_PACKED_MAGIC], ["ac-evo", ACEVO_PACKE
       for await (const record of iterateSessionCaptureFrames({ rawFile: path, source: null, gameId, carOrdinal: 4, trackOrdinal: 8 })) streamed.push(record.frame);
       expect(streamed).toEqual(originals);
     });
+    test("uses raw checkpoint when every payload block changes", async () => {
+      const dir = mkdtempSync(join(tmpdir(), "raceiq-kunos-raw-fallback-"));
+      directories.push(dir);
+      const file = join(dir, "capture.bin");
+      const recorder = new SparseSessionRecorder(gameId);
+      recorder.start(file);
+      recorder.writeMetaFrame();
+      const source = (value: number) => packTriplet(
+        magic, 4, 8, Buffer.alloc(400, value), Buffer.alloc(280, value), Buffer.alloc(160, value),
+      );
+      const first = source(0);
+      const second = source(1);
+      const third = Buffer.from(second);
+      third[100] = 2;
+      recorder.writeRecord(first);
+      const secondOffset = recorder.getCurrentByteOffset();
+      recorder.writeRecord(second);
+      const thirdOffset = recorder.getCurrentByteOffset();
+      recorder.writeRecord(third);
+      await recorder.stop();
+      const bytes = readFileSync(file);
+      expect(bytes.readUInt32LE(secondOffset)).toBe(second.length);
+      expect(bytes.readUInt32LE(thirdOffset)).toBeLessThan(third.length);
+      expect(sessionFrameAt(bytes, secondOffset)).toEqual(second);
+      expect(sessionFrameAt(bytes, thirdOffset)).toEqual(third);
+    });
   });
 }
