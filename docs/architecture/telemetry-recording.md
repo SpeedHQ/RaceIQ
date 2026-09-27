@@ -114,7 +114,7 @@ Development dump files are different, adapter-specific capture formats. Use [Tel
 
 `server/session-capture/compressor.ts` gzips inactive `.bin` files older than 24 hours and updates `sessions.rawFile` to the `.bin.gz` path. Reprocess and import readers restore the same byte stream transparently. User-triggered compression may also sweep unreferenced `.bin` files.
 
-Historical canonical `.bin` and `.bin.gz` files with unknown capture-storage version are offered for explicit conversion. Startup and reconnect report eligibility only; conversion never starts until user clicks Convert. Maintenance holds one capture lock, streams decoded records into a staged output of the same compression type, preserves the presence or absence of the optional canonical meta header, verifies every restored frame and marker byte-for-byte, and remaps lap prefix offsets in one transaction without modifying lap IDs or metrics. If output is not smaller, original stays in place and is marked evaluated. Failures retain original path and lap offsets. `sessions.capture_format_version = 1` marks new sparse recordings or verified historical files; source-frame schema versions remain unchanged.
+Historical canonical `.bin` and `.bin.gz` files with unknown capture-storage version are offered for explicit conversion. Startup and reconnect report eligibility only; conversion never starts until user clicks Convert. Maintenance holds one capture lock, streams decoded records into a staged output of the same compression type, preserves the presence or absence of the optional canonical meta header, verifies every restored frame and marker byte-for-byte, and remaps lap prefix offsets in one transaction without modifying lap IDs or metrics. Every verified eligible capture is replaced, even when the output does not save space; failures retain the original path and lap offsets. `sessions.capture_format_version = 1` marks new sparse recordings or verified historical files; source-frame schema versions remain unchanged.
 
 See [Session storage](../operations/session-storage.md) for lifecycle, orphan handling, and operational constraints.
 
@@ -149,4 +149,4 @@ That trade-off does not imply higher measurement fidelity. Sample cadence, dupli
 - `server/session-capture/import-pipeline.ts` — parser, detector, and persistence pipeline
 - `server/session-capture/reprocess.ts` — detector replay and index refresh
 - `server/session-capture/compressor.ts` — background gzip
-- `server/session-capture/migrate-captures.ts` — opt-in streamed, verified capture rewrite and lap offset transaction
+- `server/session-capture/migrate-captures.ts` — required, user-initiated streamed capture rewrite with verification and transactional lap offset updates

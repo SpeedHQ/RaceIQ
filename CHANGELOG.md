@@ -6,7 +6,7 @@
 - New session captures include per-frame UTC acquisition times; older app versions cannot read these captures.
 
 ### Features
-- Record every supported game with smaller lossless captures while retaining every source frame.
+- Record every supported game with lossless sparse captures, retaining every source frame. Measured raw captures shrink by up to 98.45% (LMU); compared with gzipped raw captures, sparse captures shrink by up to 5.1% (AC Evo). Savings vary by game and recording.
 - Preserve real pauses and capture gaps in six-game telemetry replay without changing simulator source frames.
 - Convert older `.bin` and `.bin.gz` recordings losslessly before continuing; existing laps and Analyse replay remain usable after conversion.
 - Import native iRacing dumps and opt into full raw capture storage through the import API for later conversion; ordinary UI imports stay sparse.
