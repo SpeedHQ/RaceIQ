@@ -461,22 +461,6 @@ const UNAVAILABLE_EXTENSION_SOURCES: Partial<Record<GameId, Record<string, Unava
     },
   },
   "ac-evo": {
-    "acc.tireInnerTemp": {
-      reason: "source-not-populated",
-      description: "AC Evo v0.6 reserves inner surface temperatures but current shared-memory pages report zero placeholders.",
-    },
-    "acc.tireMiddleTemp": {
-      reason: "source-not-populated",
-      description: "AC Evo v0.6 reserves middle surface temperatures but current shared-memory pages report zero placeholders.",
-    },
-    "acc.acEvo.tyreMiddleTempC": {
-      reason: "source-not-populated",
-      description: "AC Evo v0.6 native middle-temperature array currently mirrors zero placeholder offsets.",
-    },
-    "acc.tireOuterTemp": {
-      reason: "source-not-populated",
-      description: "AC Evo v0.6 reserves outer surface temperatures but current shared-memory pages report zero placeholders.",
-    },
     "acc.rideHeight": {
       reason: "source-not-populated",
       description: "AC Evo v0.6 does not populate shared ACC ride-height field.",

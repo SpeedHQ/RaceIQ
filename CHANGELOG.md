@@ -6,6 +6,7 @@
 - New session captures include per-frame UTC acquisition times; older app versions cannot read these captures.
 
 ### Features
+- Bind `bun run dev` UDP telemetry to Forza's default port `5301`; allow overrides with `RACEIQ_DEV_UDP_PORT`.
 - Record every supported game with lossless sparse captures, retaining every source frame. Measured raw captures shrink by up to 98.45% (LMU); compared with gzipped raw captures, sparse captures shrink by up to 5.1% (AC Evo). Savings vary by game and recording.
 - Preserve real pauses and capture gaps in six-game telemetry replay without changing simulator source frames.
 - Convert older `.bin` and `.bin.gz` recordings losslessly in the background; existing laps and Analyse replay remain usable after conversion.
@@ -42,6 +43,7 @@
 - Reprocess every segment in large imported session captures without loading the full recording into memory; refresh stale lap detection and preserve lap notes and favourites when lap numbers change.
 - Bundle ACC map-spline SVGs for track edges; derive centre points from aligned SVG edges instead of incorrect embedded centre paths or fastlane-derived boundary JSON.
 - Label brake temperatures clearly in tire diagrams.
+- Show Forza's single representative tire-temperature reading across the full-height 2D tire shape without inventing three distinct surface bands.
 - Keep Analyse map overlay menu clickable on narrow screens by separating it from zoom controls.
 - Mark AC Evo tire surface-profile checks unavailable when only representative surface temperature is recorded.
 - Detect LMU tire tread temperature gradients from its available inner, middle, and outer surface channels.

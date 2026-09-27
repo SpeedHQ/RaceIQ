@@ -1,7 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { m } from "@/paraglide/messages";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
-import { useDeleteLap } from "../hooks/laps";
 import { storedLapsSectorCount } from "../lib/lap-sectors";
 import { useGameRoute } from "../stores/game";
 import { Button } from "./ui/button";
@@ -22,7 +21,6 @@ interface RecordedLapsProps {
 export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsProps) {
   const navigate = useNavigate({ from: "/" });
   const gameRoute = useGameRoute();
-  const deleteLap = useDeleteLap();
 
   // Filter by track if provided, otherwise use all
   const filteredLaps = trackOrdinal != null ? laps.filter((l) => l.trackOrdinal === trackOrdinal) : laps;
@@ -92,19 +90,16 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
                   })}
                   <span className={`text-base font-mono font-bold tabular-nums text-right ${timeColor}`}>{formatLapTime(l.lapTime)}</span>
                   <span className="text-xs text-app-text-dim font-mono tabular-nums text-right w-14">{isBest ? "PB" : `+${delta.toFixed(3)}`}</span>
-                  <div className="flex items-center gap-1 w-16 justify-end">
+                  <div className="flex items-center w-16 justify-end">
                     <Button
                       disabled={l.sessionId == null}
-                      title={l.sessionId == null ? "Analyse unavailable: session missing" : undefined}
+                      title={l.sessionId == null ? "Replay unavailable: session missing" : undefined}
                       onClick={() => void navigate({ to: `${gameRoute}/sessions/${l.sessionId}/replay/${l.id}` as never })}
                       variant="app-primary"
                       size="app-sm"
                       className="!px-1.5 !py-0.5"
                     >
-                      {m.label_analyse()}
-                    </Button>
-                    <Button variant="app-danger" size="app-sm" onClick={() => deleteLap.mutate(l.id)} className="!px-1 !py-0.5">
-                      ×
+                      {m.sessions_replay_lap()}
                     </Button>
                   </div>
                 </div>

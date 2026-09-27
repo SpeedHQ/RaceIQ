@@ -143,6 +143,12 @@ export const PHYSICS = {
 // SMEvoTyreState [256 bytes] — embedded 4× in SPageFileGraphicEvo
 // =============================================================================
 export const TYRE_STATE_SIZE = 256;
+export const TYRE_STATE = {
+  temperatureLeft: 24,
+  temperatureCenter: 28,
+  temperatureRight: 32,
+} as const;
+
 
 // =============================================================================
 // SMEvoDamageState [128 bytes]

@@ -33,6 +33,9 @@ const DYNAMIC_UI_FIELDS = [
   "TireTempFR",
   "TireTempRL",
   "TireTempRR",
+  "TireSurfaceTempInnerFL",
+  "TireSurfaceTempMiddleFL",
+  "TireSurfaceTempOuterFL",
   "NormSuspensionTravelFL",
   "NormSuspensionTravelFR",
   "NormSuspensionTravelRL",
@@ -122,6 +125,13 @@ test(
           accepts: (value: unknown): boolean => isFiniteNumber(value) && value > 0 && value < 100_000,
           minimumRange: 10,
         },
+        ...(["inner", "middle", "outer"] as const).map((band) => ({
+          semanticId: `tire.temperature.surface.${band}`,
+          mappingStatus: "normalized" as const,
+          unit: "°C",
+          accepts: (value: unknown): boolean =>
+            Array.isArray(value) && value.length === 4 && value.every((item) => isFiniteNumber(item) && item > 20 && item < 200),
+        })),
       ],
     });
   },

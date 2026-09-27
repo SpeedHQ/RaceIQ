@@ -6,11 +6,11 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.18.0",
-      "sourceHash": "ea1b0fd9eb7020033f1e882b1fd53701cbc5648de360db5b83dfe6643025efd3"
+      "sourceHash": "91302eb626fe1f5bf86dc86e7c790f5ba61d1f8316042e3c3cfc4fde432f457e"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
-      "server/games/ac-evo/parser.ts": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d",
+      "server/games/ac-evo/parser.ts": "ab6545961e854782bd7274958f8726b916ed0da4e170bc3c32e3aef514b707a5",
       "server/games/acc/parser.ts": "2f9aeab3d9e05cf214ba03ddd118416533028b9b7245a695a029a371b9391e09",
       "server/games/f1-2025/f1-state.ts": "a9e464d9f96e115874402b16d57d660e509ecc30cc4070f1395b72d27ec26b9c",
       "server/games/fm-2023/parser.ts": "8ac6812fc6622f9c1cd4587268583997325fa1ce207d9a8f8c7930fdb6bc1c56",
@@ -20,7 +20,7 @@
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "759f41949ff33f6b875872f13ba048f2b362085c1ff37470cfd93c643d590cef"
+    "contentHash": "96f39c935ac604c4d0ff8916b0cd80897e3db823502fdb3a3514540435829b21"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -53278,9 +53278,44 @@
           "description": "ACC reserves this shared-memory field but does not populate it."
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-populated",
-          "description": "AC Evo v0.6 reserves matching fields, but fixture-backed pages report zero instead of live surface-band temperatures."
+          "kind": "normalized",
+          "nativeUnit": "°C",
+          "sources": {
+            "FL": [
+              "AC-Evo.Graphics.tyre_lf.tyre_temperature_right"
+            ],
+            "FR": [
+              "AC-Evo.Graphics.tyre_rf.tyre_temperature_left"
+            ],
+            "RL": [
+              "AC-Evo.Graphics.tyre_lr.tyre_temperature_right"
+            ],
+            "RR": [
+              "AC-Evo.Graphics.tyre_rr.tyre_temperature_left"
+            ]
+          },
+          "freshness": "continuous",
+          "normalization": "innerFL > 0 ? innerFL : undefined | innerFR > 0 ? innerFR : undefined | innerRL > 0 ? innerRL : undefined | innerRR > 0 ? innerRR : undefined",
+          "description": "ac-evo maps 4 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "ac-evo:tire.temperature.surface.inner:normalized",
+            "version": "0.18.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "AC-Evo.Graphics.tyre_lf.tyre_temperature_right",
+              "AC-Evo.Graphics.tyre_rf.tyre_temperature_left",
+              "AC-Evo.Graphics.tyre_lr.tyre_temperature_right",
+              "AC-Evo.Graphics.tyre_rr.tyre_temperature_left"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "a73d9ca0421d403e59eb87908fcb8eb3e39416845960386b15011930ad2f6bb9"
+          }
         },
         "iracing": {
           "kind": "unavailable",
@@ -53359,9 +53394,44 @@
           "description": "ACC reserves middle surface temperatures but does not populate them."
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-populated",
-          "description": "AC Evo v0.6 native middle-temperature array currently mirrors zero placeholder offsets."
+          "kind": "normalized",
+          "nativeUnit": "°C",
+          "sources": {
+            "FL": [
+              "AC-Evo.Graphics.tyre_lf.tyre_temperature_center"
+            ],
+            "FR": [
+              "AC-Evo.Graphics.tyre_rf.tyre_temperature_center"
+            ],
+            "RL": [
+              "AC-Evo.Graphics.tyre_lr.tyre_temperature_center"
+            ],
+            "RR": [
+              "AC-Evo.Graphics.tyre_rr.tyre_temperature_center"
+            ]
+          },
+          "freshness": "continuous",
+          "normalization": "middleFL > 0 ? middleFL : undefined | middleFR > 0 ? middleFR : undefined | middleRL > 0 ? middleRL : undefined | middleRR > 0 ? middleRR : undefined",
+          "description": "ac-evo maps 4 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "ac-evo:tire.temperature.surface.middle:normalized",
+            "version": "0.18.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "AC-Evo.Graphics.tyre_lf.tyre_temperature_center",
+              "AC-Evo.Graphics.tyre_rf.tyre_temperature_center",
+              "AC-Evo.Graphics.tyre_lr.tyre_temperature_center",
+              "AC-Evo.Graphics.tyre_rr.tyre_temperature_center"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "11c5b67ae4d12df4dd1d868069e88d2a6871003657dd8d501830c37282276347"
+          }
         },
         "iracing": {
           "kind": "unavailable",
@@ -53440,9 +53510,44 @@
           "description": "ACC reserves outer surface temperatures but does not populate them."
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-populated",
-          "description": "AC Evo v0.6 reserves outer surface temperatures but current shared-memory pages report zero placeholders."
+          "kind": "normalized",
+          "nativeUnit": "°C",
+          "sources": {
+            "FL": [
+              "AC-Evo.Graphics.tyre_lf.tyre_temperature_left"
+            ],
+            "FR": [
+              "AC-Evo.Graphics.tyre_rf.tyre_temperature_right"
+            ],
+            "RL": [
+              "AC-Evo.Graphics.tyre_lr.tyre_temperature_left"
+            ],
+            "RR": [
+              "AC-Evo.Graphics.tyre_rr.tyre_temperature_right"
+            ]
+          },
+          "freshness": "continuous",
+          "normalization": "outerFL > 0 ? outerFL : undefined | outerFR > 0 ? outerFR : undefined | outerRL > 0 ? outerRL : undefined | outerRR > 0 ? outerRR : undefined",
+          "description": "ac-evo maps 4 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "ac-evo:tire.temperature.surface.outer:normalized",
+            "version": "0.18.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "AC-Evo.Graphics.tyre_lf.tyre_temperature_left",
+              "AC-Evo.Graphics.tyre_rf.tyre_temperature_right",
+              "AC-Evo.Graphics.tyre_lr.tyre_temperature_left",
+              "AC-Evo.Graphics.tyre_rr.tyre_temperature_right"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "d6d82e82dde6b6b6259c95b31b9e242a23633c0aa0956efdc43f01ebd3dd788e"
+          }
         },
         "iracing": {
           "kind": "unavailable",
@@ -53576,29 +53681,44 @@
           "description": "ACC exposes only core tire temperature; its legacy TireTemp field must not be labeled as surface temperature."
         },
         "ac-evo": {
-          "kind": "direct",
+          "kind": "derived",
           "nativeUnit": "°C",
           "sources": {
             "FL": [
-              "AC-Evo.Physics.tyreTempFL"
+              "AC-Evo.Graphics.tyre_lf.tyre_temperature_center"
             ],
             "FR": [
-              "AC-Evo.Physics.tyreTempFR"
+              "AC-Evo.Graphics.tyre_rf.tyre_temperature_center"
             ],
             "RL": [
-              "AC-Evo.Physics.tyreTempRL"
+              "AC-Evo.Graphics.tyre_lr.tyre_temperature_center"
             ],
             "RR": [
-              "AC-Evo.Physics.tyreTempRR"
+              "AC-Evo.Graphics.tyre_rr.tyre_temperature_center"
             ]
           },
           "freshness": "continuous",
+          "normalization": "tempFL => middleFL => graphicsBuf.readFloatLE(tyreLF + TYRE_STATE.temperatureCenter) | tempFR => middleFR => graphicsBuf.readFloatLE(tyreRF + TYRE_STATE.temperatureCenter) | tempRL => middleRL => graphicsBuf.readFloatLE(tyreLR + TYRE_STATE.temperatureCenter) | tempRR => middleRR => graphicsBuf.readFloatLE(tyreRR + TYRE_STATE.temperatureCenter)",
           "description": "ac-evo maps 4 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "derivation",
+            "id": "ac-evo:tire.temperature.surface.representative:derived",
+            "version": "0.18.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "AC-Evo.Graphics.tyre_lf.tyre_temperature_center",
+              "AC-Evo.Graphics.tyre_rf.tyre_temperature_center",
+              "AC-Evo.Graphics.tyre_lr.tyre_temperature_center",
+              "AC-Evo.Graphics.tyre_rr.tyre_temperature_center"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "a6582c22fedbac169698cf4fcdbf7b883c8e5b1e3247387e13cf9336f3a15a85"
+          }
         },
         "iracing": {
           "kind": "unavailable",
@@ -56255,9 +56375,18 @@
           "description": "ACC reserves inner surface temperatures but does not populate them."
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-populated",
-          "description": "AC Evo v0.6 reserves inner surface temperatures but current shared-memory pages report zero placeholders."
+          "kind": "direct",
+          "nativeUnit": "°C",
+          "sources": [
+            "acc.tireInnerTemp"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": []
         },
         "iracing": {
           "kind": "unavailable",
@@ -70198,7 +70327,7 @@
         "unit": "°C",
         "dataType": "[number, number, number, number]",
         "count": 1,
-        "description": "AC Evo v0.6 native middle-temperature array currently mirrors zero placeholder offsets.",
+        "description": "Tyre Middle Temp C source value reported by ac-evo in °C.",
         "semanticId": "tire.temperature.surface.middle",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -70594,7 +70723,7 @@
         "unit": "°C",
         "dataType": "[number, number, number, number]",
         "count": 1,
-        "description": "AC Evo v0.6 reserves inner surface temperatures but current shared-memory pages report zero placeholders.",
+        "description": "Tire Inner Temp source value reported by ac-evo in °C.",
         "semanticId": "tires.tire-inner-temp",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -70606,7 +70735,7 @@
         "unit": "°C",
         "dataType": "[number, number, number, number]",
         "count": 1,
-        "description": "AC Evo v0.6 reserves middle surface temperatures but current shared-memory pages report zero placeholders.",
+        "description": "Middle-band surface temp per tire (°C, FL/FR/RL/RR). Read from physics offsets 384-396. With inner/outer this gives the 3-point lateral temp profile the tire symptom module uses for a camber-direction recommendation.",
         "semanticId": "tire.temperature.surface.middle",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -70618,7 +70747,7 @@
         "unit": "°C",
         "dataType": "[number, number, number, number]",
         "count": 1,
-        "description": "AC Evo v0.6 reserves outer surface temperatures but current shared-memory pages report zero placeholders.",
+        "description": "Tire Outer Temp source value reported by ac-evo in °C.",
         "semanticId": "tire.temperature.surface.outer",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,

@@ -17,6 +17,7 @@ import { calibratePlayerSlot, createPlayerSlotState, type PlayerSlotState } from
 import {
   PHYSICS,
   GRAPHICS_EVO,
+  TYRE_STATE,
   STATIC_EVO,
   SESSION_STATE,
   TIMING_STATE,
@@ -136,19 +137,25 @@ export function parseAcEvoBuffers(
   const coreRL = physicsBuf.readFloatLE(PHYSICS.tyreCoreRL.offset);
   const coreRR = physicsBuf.readFloatLE(PHYSICS.tyreCoreRR.offset);
 
-  const tempFL = physicsBuf.readFloatLE(PHYSICS.tyreTempFL.offset);
-  const tempFR = physicsBuf.readFloatLE(PHYSICS.tyreTempFR.offset);
-  const tempRL = physicsBuf.readFloatLE(PHYSICS.tyreTempRL.offset);
-  const tempRR = physicsBuf.readFloatLE(PHYSICS.tyreTempRR.offset);
-
-  const innerFL = physicsBuf.readFloatLE(PHYSICS.tyreTempInnerFL.offset);
-  const innerFR = physicsBuf.readFloatLE(PHYSICS.tyreTempInnerFR.offset);
-  const innerRL = physicsBuf.readFloatLE(PHYSICS.tyreTempInnerRL.offset);
-  const innerRR = physicsBuf.readFloatLE(PHYSICS.tyreTempInnerRR.offset);
-  const outerFL = physicsBuf.readFloatLE(PHYSICS.tyreTempOuterFL.offset);
-  const outerFR = physicsBuf.readFloatLE(PHYSICS.tyreTempOuterFR.offset);
-  const outerRL = physicsBuf.readFloatLE(PHYSICS.tyreTempOuterRL.offset);
-  const outerRR = physicsBuf.readFloatLE(PHYSICS.tyreTempOuterRR.offset);
+  // AC Evo leaves the legacy physics tread slots at zero and mirrors core into
+  // physics tyreTemp. Its live contact-patch temperatures are in graphics.
+  // Graphics left/right are car-relative: left wheels have inner on the right.
+  const tyreLF = GRAPHICS_EVO.tyre_lf_base.offset;
+  const tyreRF = GRAPHICS_EVO.tyre_rf_base.offset;
+  const tyreLR = GRAPHICS_EVO.tyre_lr_base.offset;
+  const tyreRR = GRAPHICS_EVO.tyre_rr_base.offset;
+  const middleFL = graphicsBuf.readFloatLE(tyreLF + TYRE_STATE.temperatureCenter);
+  const middleFR = graphicsBuf.readFloatLE(tyreRF + TYRE_STATE.temperatureCenter);
+  const middleRL = graphicsBuf.readFloatLE(tyreLR + TYRE_STATE.temperatureCenter);
+  const middleRR = graphicsBuf.readFloatLE(tyreRR + TYRE_STATE.temperatureCenter);
+  const innerFL = graphicsBuf.readFloatLE(tyreLF + TYRE_STATE.temperatureRight);
+  const innerFR = graphicsBuf.readFloatLE(tyreRF + TYRE_STATE.temperatureLeft);
+  const innerRL = graphicsBuf.readFloatLE(tyreLR + TYRE_STATE.temperatureRight);
+  const innerRR = graphicsBuf.readFloatLE(tyreRR + TYRE_STATE.temperatureLeft);
+  const outerFL = graphicsBuf.readFloatLE(tyreLF + TYRE_STATE.temperatureLeft);
+  const outerFR = graphicsBuf.readFloatLE(tyreRF + TYRE_STATE.temperatureRight);
+  const outerRL = graphicsBuf.readFloatLE(tyreLR + TYRE_STATE.temperatureLeft);
+  const outerRR = graphicsBuf.readFloatLE(tyreRR + TYRE_STATE.temperatureRight);
 
   const camberFL = physicsBuf.readFloatLE(PHYSICS.camberFL.offset);
   const camberFR = physicsBuf.readFloatLE(PHYSICS.camberFR.offset);
@@ -194,10 +201,10 @@ export function parseAcEvoBuffers(
   const loadRR = physicsBuf.readFloatLE(PHYSICS.wheelLoadRR.offset);
   const cgHeight = physicsBuf.readFloatLE(PHYSICS.cgHeight.offset);
 
-  const middleFL = physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleFL.offset);
-  const middleFR = physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleFR.offset);
-  const middleRL = physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleRL.offset);
-  const middleRR = physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleRR.offset);
+  const tempFL = middleFL;
+  const tempFR = middleFR;
+  const tempRL = middleRL;
+  const tempRR = middleRR;
 
   const combinedSlipFL = physicsBuf.readFloatLE(PHYSICS.wheelSlipFL.offset);
   const combinedSlipFR = physicsBuf.readFloatLE(PHYSICS.wheelSlipFR.offset);
@@ -350,12 +357,7 @@ export function parseAcEvoBuffers(
       physicsBuf.readFloatLE(PHYSICS.discLifeRL.offset),
       physicsBuf.readFloatLE(PHYSICS.discLifeRR.offset),
     ],
-    tyreMiddleTempC: [
-      physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleFL.offset),
-      physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleFR.offset),
-      physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleRL.offset),
-      physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleRR.offset),
-    ],
+    tyreMiddleTempC: [middleFL, middleFR, middleRL, middleRR],
 
     localVelocity: [
       physicsBuf.readFloatLE(PHYSICS.localVelocityX.offset),

@@ -12,7 +12,7 @@ cd client && bun install && cd ..
 bun run dev
 ```
 
-`bun run dev` serves main checkout at `http://raceiq.localhost:1355`; linked worktrees get branch-prefixed Portless URLs. Run each worktree concurrently with its own backend and UDP port (printed on startup). Development data stays in each worktree's `./data`.
+`bun run dev` serves main checkout at `http://raceiq.localhost:1355`; linked worktrees get branch-prefixed Portless URLs. UDP telemetry listens on Forza's default port `5301` (override with `RACEIQ_DEV_UDP_PORT`); multiple concurrent dev servers cannot share that UDP port. Development data stays in each worktree's `./data`.
 
 See [development guide](docs/contributing/development.md) for environment variables, disposable database seeding, and schema changes.
 

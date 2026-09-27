@@ -1,8 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { createSocket } from "node:dgram";
-import { createServer } from "node:net";
 import { realpathSync } from "node:fs";
+import { createServer } from "node:net";
 import { parseOnboardingOverride } from "../../server/runtime/options";
 
 async function availableHttpPort(): Promise<number> {
@@ -21,20 +20,6 @@ async function availableHttpPort(): Promise<number> {
   }
 }
 
-async function availableUdpPort(): Promise<number> {
-  const socket = createSocket("udp4");
-  try {
-    return await new Promise<number>((resolve, reject) => {
-      socket.once("error", reject);
-      socket.bind(0, "0.0.0.0", () => {
-        const address = socket.address();
-        resolve(address.port);
-      });
-    });
-  } finally {
-    socket.close();
-  }
-}
 
 function isLinkedWorktree(): boolean {
   const gitDir = execFileSync("git", ["rev-parse", "--absolute-git-dir"], { encoding: "utf8" }).trim();
@@ -59,7 +44,7 @@ const onboarding = parseOnboardingOverride(process.argv.slice(2));
 await run(["bun", "run", "dev:proxy"]);
 const serverPort = process.env.SERVER_PORT ?? String(await availableHttpPort());
 const linkedWorktree = isLinkedWorktree();
-const udpPort = linkedWorktree ? String(await availableUdpPort()) : undefined;
+const udpPort = process.env.RACEIQ_DEV_UDP_PORT ?? "5301";
 // Portless prefixes branch names, but different worktrees can share a branch name
 // (or be detached). Add a stable path identity to keep their routes distinct.
 const worktreeId = linkedWorktree
