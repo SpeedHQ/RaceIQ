@@ -90,7 +90,7 @@ export function CaptureMigration({ compact = false }: { compact?: boolean }) {
             <span className={compactProgress
               ? `shrink-0 ${progress.status === "success" ? "text-status-success" : "text-status-info"}`
               : `flex size-10 shrink-0 items-center justify-center rounded-xl ${progress.status === "success" ? "bg-status-success/10 text-status-success" : "bg-app-accent/10 text-app-accent"}`}>
-              {progress.status === "success" ? <CheckCircle2 aria-hidden="true" className={compactProgress ? "size-4" : "size-5"} /> : <CircleArrowUp aria-hidden="true" className={compactProgress ? "size-4" : "size-5"} />}
+              {running ? <RefreshCw aria-hidden="true" className={compactProgress ? "size-4 animate-spin" : "size-5 animate-spin"} /> : progress.status === "success" ? <CheckCircle2 aria-hidden="true" className={compactProgress ? "size-4" : "size-5"} /> : <CircleArrowUp aria-hidden="true" className={compactProgress ? "size-4" : "size-5"} />}
             </span>
             <DialogTitle className={compactProgress ? "text-sm font-semibold leading-snug" : "text-lg font-semibold leading-tight"}>
               {running ? m.capture_migration_running_title() : progress.status === "success" ? m.capture_migration_complete({ migrated: progress.migrated }) : m.capture_migration_title()}
