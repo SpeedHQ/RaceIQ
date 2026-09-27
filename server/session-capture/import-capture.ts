@@ -1,6 +1,7 @@
 import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
 import { getAllServerGames } from "../games/registry";
 import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "../games/lmu/recorder";
+import { IRACING_DUMP_MAGIC, readIRacingFramesFromBuffer } from "../games/iracing/recorder";
 import {
   decompressIfGzipSync,
   iterateSessionFrames,
@@ -28,7 +29,9 @@ export function detectGameIdFromBuffer(bytes: Buffer): GameId | null {
   const buf = decompressIfGzipSync(bytes);
   const games = getAllServerGames();
   let checked = 0;
-  const frames = hasLMUDumpMagic(buf) ? readLMUFramesFromBuffer(buf) : iterateSessionFrames(buf);
+  const frames = hasLMUDumpMagic(buf) ? readLMUFramesFromBuffer(buf)
+    : buf.subarray(0, IRACING_DUMP_MAGIC.length).equals(IRACING_DUMP_MAGIC)
+      ? readIRacingFramesFromBuffer(buf, 20) : iterateSessionFrames(buf);
   for (const frame of frames) {
     for (const game of games) {
       if (game.canHandle(frame)) return game.id;
@@ -57,7 +60,8 @@ export async function importSessionBin(
   const buf = decompressIfGzipSync(bytes);
   const frames = gameId === "lmu" && hasLMUDumpMagic(buf)
     ? readLMUFramesFromBuffer(buf)
-    : canonicalImportFrames(buf);
+    : gameId === "iracing" && buf.subarray(0, IRACING_DUMP_MAGIC.length).equals(IRACING_DUMP_MAGIC)
+      ? readIRacingFramesFromBuffer(buf) : canonicalImportFrames(buf);
   const { packetCount, laps } = await importSessionFrames(
     frames,
     gameId,

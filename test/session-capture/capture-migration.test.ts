@@ -5,16 +5,24 @@ import { gunzipSync, gzipSync } from "node:zlib";
 import { eq } from "drizzle-orm";
 import { client, db } from "../../server/db";
 import { laps, sessions } from "../../server/db/schema";
-import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextEndFrame, encodeSegmentContextFrame } from "../../server/session-capture/framing";
+import { deleteSession, listCaptureMigrationCandidates } from "../../server/db/session-queries";
+import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextEndFrame, encodeSegmentContextFrame, readFramePrefix, readFrameStreamStart } from "../../server/session-capture/framing";
 import { iterateSessionCaptureRecordsFromSource } from "../../server/session-capture/source-loader";
-import { encodeGenericSparseFrame } from "../../server/session-capture/generic-sparse";
+import { encodeGenericSparseFrame, isGenericSparseFrame } from "../../server/session-capture/generic-sparse";
 import { migrateCaptures } from "../../server/session-capture/migrate-captures";
+import { sessionRoutes } from "../../server/routes/session-routes";
+import { transferRoutes } from "../../server/routes/laps/transfer-routes";
 import { resolveDataDir } from "../../server/runtime/config/data-dir";
 import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "../../server/games/lmu/source-frame";
+import { initGameAdapters } from "../../shared/games/init";
+import { initServerGameAdapters } from "../../server/games/init";
 
 const owned = new Set<number>();
+const imported = new Set<number>();
 const dirs: string[] = [];
 let triggerInstalled = false;
+initGameAdapters();
+initServerGameAdapters();
 
 afterEach(async () => {
   if (triggerInstalled) {
@@ -26,6 +34,8 @@ afterEach(async () => {
     await db.delete(sessions).where(eq(sessions.id, id)).run();
   }
   owned.clear();
+  for (const id of imported) await deleteSession(id);
+  imported.clear();
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
@@ -70,15 +80,84 @@ async function records(path: string, gameId = "fm-2023"): Promise<Buffer[]> {
   }
   return result;
 }
-async function recordsWithOffsets(path: string): Promise<Array<{ offset: number; frame: Buffer; frameTimeMs?: number }>> {
+async function recordsWithOffsets(path: string, gameId: "fm-2023" | "lmu" = "fm-2023"): Promise<Array<{ offset: number; frame: Buffer; frameTimeMs?: number }>> {
   const result: Array<{ offset: number; frame: Buffer; frameTimeMs?: number }> = [];
-  for await (const record of iterateSessionCaptureRecordsFromSource({ rawFile: path, gameId: "fm-2023", source: null, carOrdinal: -1, trackOrdinal: -1 }, { strict: true })) {
+  for await (const record of iterateSessionCaptureRecordsFromSource({ rawFile: path, gameId, source: null, carOrdinal: -1, trackOrdinal: -1 }, { strict: true })) {
     if (record.kind === "frame") result.push({ offset: record.offset, frame: record.frame, frameTimeMs: record.frameTimeMs });
   }
   return result;
 }
 
+function hasGenericSparseRecord(bytes: Buffer): boolean {
+  for (let offset = readFrameStreamStart(bytes); offset < bytes.length;) {
+    const prefix = readFramePrefix(bytes, offset);
+    if (!prefix) throw new Error(`Invalid frame prefix at ${offset}`);
+    const start = offset + prefix.prefixBytes;
+    if (isGenericSparseFrame(bytes.subarray(start, start + prefix.length))) return true;
+    offset = start + prefix.length;
+  }
+  return false;
+}
+
 describe("historical capture migration", () => {
+  test.each([
+    ["imports a full FM capture as raw .bin, then migrates it", true, false],
+    ["imports a full FM capture as raw .bin.gz, then migrates it", true, true],
+    ["imports a full fm capture into sparse", false, true],
+  ] as const)("%s", async (_name, rawStorage, compressed) => {
+    const fixture = readFileSync(join(import.meta.dir, "../artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz"));
+    const existing = new Set((await db.select({ id: sessions.id }).from(sessions).all()).map(({ id }) => id));
+    const form = new FormData();
+    form.append("file", new File([compressed ? fixture : gunzipSync(fixture)], `fm-2023-e2e.bin${compressed ? ".gz" : ""}`));
+    form.append("ownership", "mine");
+    if (rawStorage) form.append("captureStorage", "raw");
+    const upload = await transferRoutes.request("/api/laps/import", { method: "POST", body: form });
+    expect(upload.status).toBe(200);
+    const body = await upload.json() as { packetCount: number; laps: Array<{ lapId: number; sessionId: number; isValid: boolean }> };
+    expect(body.packetCount).toBeGreaterThan(0);
+    expect(body.laps.some(({ isValid }) => isValid)).toBe(true);
+    const created = (await db.select().from(sessions).all()).filter(({ id }) => !existing.has(id));
+    for (const row of created) imported.add(row.id);
+    expect(created.length).toBeGreaterThan(0);
+    const importedLap = body.laps.find(({ isValid }) => isValid)!;
+    const session = created.find(({ id }) => id === importedLap.sessionId)!;
+    expect(created.every(({ captureFormatVersion }) => captureFormatVersion === (rawStorage ? null : 1))).toBe(true);
+    expect(session.rawFile).toBeTruthy();
+    const originalPath = session.rawFile!;
+    expect(existsSync(originalPath)).toBe(true);
+    const before = await recordsWithOffsets(originalPath);
+    expect(before.length).toBeGreaterThan(1000);
+    expect(hasGenericSparseRecord(readFileSync(originalPath))).toBe(!rawStorage);
+    expect((await listCaptureMigrationCandidates()).some(({ rawFile }) => rawFile === originalPath)).toBe(rawStorage);
+    const lap = await db.select().from(laps).where(eq(laps.id, importedLap.lapId)).get();
+    expect(lap?.rawByteOffset).not.toBeNull();
+    const sourceFrame = before.find(({ offset }) => offset === lap?.rawByteOffset)?.frame;
+    expect(sourceFrame).toBeDefined();
+
+    const response = await sessionRoutes.request("/api/sessions/migrate-captures", { method: "POST" });
+    expect(response.status).toBe(200);
+    const result = await response.json() as { results: Array<{ rawFile: string; status: string }> };
+    const updatedSession = await db.select().from(sessions).where(eq(sessions.id, session.id)).get();
+    const updatedLap = await db.select().from(laps).where(eq(laps.id, lap!.id)).get();
+    if (rawStorage) {
+      expect(result.results.find(({ rawFile }) => rawFile === originalPath)?.status).toBe("migrated");
+      expect(updatedSession?.rawFile).not.toBe(originalPath);
+      expect(existsSync(originalPath)).toBe(false);
+      expect(existsSync(updatedSession!.rawFile!)).toBe(true);
+      expect(updatedSession?.captureFormatVersion).toBe(1);
+      expect(hasGenericSparseRecord(readFileSync(updatedSession!.rawFile!))).toBe(true);
+    } else {
+      expect(result.results.some(({ rawFile }) => rawFile === originalPath)).toBe(false);
+      expect(updatedSession?.rawFile).toBe(originalPath);
+      expect(existsSync(originalPath)).toBe(true);
+    }
+    const after = await recordsWithOffsets(updatedSession!.rawFile!);
+    expect(after.map(({ frame, frameTimeMs }) => ({ frame, frameTimeMs })))
+      .toEqual(before.map(({ frame, frameTimeMs }) => ({ frame, frameTimeMs })));
+    expect(after.find(({ offset }) => offset === updatedLap?.rawByteOffset)?.frame).toEqual(sourceFrame);
+    expect(updatedLap).toMatchObject({ id: lap!.id, rawFrameCount: lap!.rawFrameCount, lapTime: lap!.lapTime });
+  }, { timeout: 120000 });
+
   test.each([false, true])("migrates shared legacy capture and remaps every lap offset (gzip=%s)", async (compressed) => {
     const dir = tempCaptureDir();
     const originalPath = join(dir, compressed ? "older.bin.gz" : "older.bin");

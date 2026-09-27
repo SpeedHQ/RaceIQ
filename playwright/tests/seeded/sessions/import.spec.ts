@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { cleanDisposable, importDisposableLap, lapsFor, sessionsFor, sessionRows, type DisposableImport } from "./helpers";
+import type { GameId } from "../../../../shared/games/ids";
 
 test("session lap context action rechecks disposable imported lap", async ({ page, request }) => {
   const browserErrors = collectBrowserErrors(page);
@@ -33,6 +34,83 @@ test("session lap context action rechecks disposable imported lap", async ({ pag
     expect(browserErrors.errors).toEqual([]);
   } finally {
     await cleanDisposable(request, disposable);
+  }
+});
+
+test("imports all six games raw, then requires Convert and preserves Analyse replay", async ({ page, request }) => {
+  test.setTimeout(300_000);
+  const fixtures: ReadonlyArray<{ gameId: GameId; file: string }> = [
+    { gameId: "fm-2023", file: "fm-2023-2026-04-09T21-55-03-186Z.bin.gz" },
+    { gameId: "f1-2025", file: "f1-2025-2026-04-22T11-42-43-029Z.bin.gz" },
+    { gameId: "acc", file: "acc-2026-04-23T16-42-16-158Z.bin.gz" },
+    { gameId: "ac-evo", file: "session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz" },
+    { gameId: "iracing", file: "iracing-road-america-gt3.bin.gz" },
+    { gameId: "lmu", file: "lmu-spa-iron-lynx-gte.bin.gz" },
+  ];
+  const importedLapIds: number[] = [];
+  const importedSessionIds: number[] = [];
+  const replays: Array<{ gameId: GameId; lapId: number; before: unknown }> = [];
+  try {
+    for (const { gameId, file } of fixtures) {
+      const sessionsBefore = await sessionsFor(request, gameId);
+      const upload = await request.post("/api/laps/import", {
+        multipart: {
+          file: { name: file, mimeType: "application/octet-stream", buffer: readFileSync(resolve(__dirname, "../../../../test/artifacts/sessions", file)) },
+          ownership: "mine",
+          captureStorage: "raw",
+        },
+      });
+      expect(upload.ok(), `${gameId} raw API import`).toBe(true);
+      const imported = (await upload.json()) as { gameId: GameId; laps: Array<{ lapId: number; isValid: boolean }> };
+      expect(imported.gameId).toBe(gameId);
+      importedLapIds.push(...imported.laps.map(({ lapId }) => lapId));
+      const lapId = imported.laps.find(({ isValid }) => isValid)?.lapId;
+      expect(lapId, `${gameId} valid lap`).toBeDefined();
+      const beforeIds = new Set(sessionsBefore.map(({ id }) => id));
+      const newSessionIds = (await sessionsFor(request, gameId))
+        .filter(({ id }) => !beforeIds.has(id)).map(({ id }) => id);
+      expect(newSessionIds.length, `${gameId} raw sessions`).toBeGreaterThan(0);
+      importedSessionIds.push(...newSessionIds);
+      const replay = await request.get(`/api/laps/${lapId}/semantic-telemetry`, { headers: { "X-Game-Id": gameId } });
+      expect(replay.ok(), `${gameId} replay before conversion`).toBe(true);
+      replays.push({ gameId, lapId: lapId!, before: await replay.json() });
+    }
+
+    const status = await request.get("/api/sessions/capture-migration-status");
+    expect(status.ok()).toBe(true);
+    expect((await status.json() as { sessionCount: number }).sessionCount).toBeGreaterThanOrEqual(importedSessionIds.length);
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    const dialog = page.getByRole("dialog", { name: "Save space in older recordings" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Not now" })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeVisible();
+    const migrationResponse = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith("/api/sessions/migrate-captures"), { timeout: 180_000 });
+    await dialog.getByRole("button", { name: "Convert", exact: true }).click();
+    const migrated = await migrationResponse;
+    expect(migrated.ok()).toBe(true);
+    const migration = await migrated.json() as { migrated: number; unchanged: number; failed: number; results: Array<{ rawFile: string; status: "migrated" | "unchanged" | "error" }> };
+    expect(migration.failed).toBe(0);
+    expect(migration.migrated + migration.unchanged).toBeGreaterThanOrEqual(fixtures.length);
+    for (const result of migration.results) {
+      expect(existsSync(result.rawFile)).toBe(result.status === "unchanged");
+    }
+    const remaining = await request.get("/api/sessions/capture-migration-status");
+    expect(remaining.ok()).toBe(true);
+    expect((await remaining.json() as { captureCount: number }).captureCount).toBe(0);
+    await expect(dialog).toBeHidden();
+    for (const { gameId, lapId, before } of replays) {
+      const after = await request.get(`/api/laps/${lapId}/semantic-telemetry`, { headers: { "X-Game-Id": gameId } });
+      expect(after.ok(), `${gameId} replay after conversion`).toBe(true);
+      expect(await after.json()).toEqual(before);
+    }
+  } finally {
+    if (importedLapIds.length) {
+      expect((await request.post("/api/laps/bulk-delete", { data: { ids: importedLapIds } })).ok()).toBe(true);
+    }
+    if (importedSessionIds.length) {
+      expect((await request.post("/api/sessions/bulk-delete", { data: { ids: importedSessionIds } })).ok()).toBe(true);
+    }
   }
 });
 

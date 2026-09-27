@@ -129,10 +129,10 @@ export class IRacingRecorder {
  */
 export function readIRacingFrames(filePath: string, limit?: number): Buffer[] {
   const raw = readFileSync(filePath);
-  const data = filePath.endsWith(".gz")
-    ? Buffer.from(gunzipSync(raw))
-    : Buffer.from(raw);
+  return readIRacingFramesFromBuffer(filePath.endsWith(".gz") ? gunzipSync(raw) : raw, limit);
+}
 
+export function readIRacingFramesFromBuffer(data: Buffer, limit?: number): Buffer[] {
   if (
     data.length < HEADER_SIZE ||
     !data.subarray(0, IRACING_DUMP_MAGIC.length).equals(IRACING_DUMP_MAGIC)

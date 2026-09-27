@@ -10,6 +10,7 @@ import { getLapsForSession } from "../../db/lap-reprocessing-queries";
 import { getTuneById as getDbTune } from "../../db/tune-queries";
 import { buildLapsZip, lapsZipFilename, importLapsZip, detectLapsZip } from "../../laps/archive";
 import { importSessionBin, detectGameIdFromBuffer } from "../../session-capture/import-capture";
+import { RealSessionRecorderAdapter } from "../../telemetry/pipeline-ports";
 import { cancelStagedIbt, commitStagedIbt, IbtImportError, stageIbtUpload } from "../../games/iracing/import-ibt";
 import {
   importLMUDuckDB,
@@ -227,6 +228,14 @@ export const transferRoutes = new Hono()
     }
     const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
     if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
+    // API-only opt-in for legacy captures; UI uploads keep the sparse default.
+    const captureStorage = form?.get("captureStorage");
+    if (captureStorage !== null && captureStorage !== "raw") {
+      return c.json({ error: "captureStorage must be raw when provided" }, 400);
+    }
+    if (captureStorage === "raw" && lower.endsWith(".duckdb")) {
+      return c.json({ error: "Raw capture storage requires a .bin or .bin.gz file" }, 400);
+    }
     const bytes = Buffer.from(await file.arrayBuffer());
     if (lower.endsWith(".duckdb")) {
       if (!isDuckDBFile(bytes)) {
@@ -280,7 +289,10 @@ export const transferRoutes = new Hono()
     }
     try {
 
-      const { packetCount, laps } = await importSessionBin(bytes, gameId, { ownership: ownership.data });
+      const { packetCount, laps } = await importSessionBin(bytes, gameId, {
+        ownership: ownership.data,
+        ...(captureStorage === "raw" ? { recorder: new RealSessionRecorderAdapter() } : {}),
+      });
       if (packetCount === 0) return c.json({ error: "No telemetry packets found in file" }, 400);
       return c.json({
         ok: true,
