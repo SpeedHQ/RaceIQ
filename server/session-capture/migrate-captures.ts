@@ -1,5 +1,5 @@
 import { createReadStream, createWriteStream } from "node:fs";
-import { open, rename, rm, stat, unlink } from "node:fs/promises";
+import { open, rename, rm, unlink } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { once } from "node:events";
 import { finished, pipeline } from "node:stream/promises";
@@ -21,10 +21,9 @@ export class CaptureMigrationBusyError extends Error {
 }
 
 type Candidate = { rawFile: string; gameId: GameId; sessionIds: number[] };
-type Result = { rawFile: string; status: "migrated" | "unchanged" | "error"; error?: string };
+type Result = { rawFile: string; status: "migrated" | "error"; error?: string };
 export interface CaptureMigrationResult {
   migrated: number;
-  unchanged: number;
   failed: number;
   results: Result[];
 }
@@ -171,32 +170,30 @@ async function verifyStage(candidate: Candidate, stage: string, lapRows: LapOffs
       (originalCount !== null && originalCount !== frameIndex)) throw new Error("Migrated header frame-count mismatch");
 }
 
-async function commit(candidate: Candidate, lapRows: LapOffset[], mapped: Map<number, number>, final: string | null): Promise<void> {
+async function commit(candidate: Candidate, lapRows: LapOffset[], mapped: Map<number, number>, final: string): Promise<void> {
   await db.transaction(async (tx) => {
     const shared = await tx.select({ id: sessions.id }).from(sessions).where(eq(sessions.rawFile, candidate.rawFile)).all();
     if (shared.length !== candidate.sessionIds.length || shared.some((row) => !candidate.sessionIds.includes(row.id))) {
       throw new Error("Capture sessions changed during migration");
     }
-    if (final) {
-      for (const lap of lapRows) {
-        if (lap.rawByteOffset === null) continue;
-        const rawByteOffset = mapped.get(lap.rawByteOffset);
-        if (rawByteOffset === undefined) throw new Error(`Missing remapped lap ${lap.id}`);
-        const changed = await tx.update(laps).set({ rawByteOffset }).where(eq(laps.id, lap.id)).run();
-        if (changed.rowsAffected !== 1) throw new Error(`Lap ${lap.id} changed during migration`);
-      }
+    for (const lap of lapRows) {
+      if (lap.rawByteOffset === null) continue;
+      const rawByteOffset = mapped.get(lap.rawByteOffset);
+      if (rawByteOffset === undefined) throw new Error(`Missing remapped lap ${lap.id}`);
+      const changed = await tx.update(laps).set({ rawByteOffset }).where(eq(laps.id, lap.id)).run();
+      if (changed.rowsAffected !== 1) throw new Error(`Lap ${lap.id} changed during migration`);
     }
     const changed = await tx.update(sessions)
-      .set({ captureFormatVersion: 1, ...(final ? { rawFile: final } : {}) })
+      .set({ captureFormatVersion: 1, rawFile: final })
       .where(inArray(sessions.id, candidate.sessionIds)).run();
     if (changed.rowsAffected !== candidate.sessionIds.length) throw new Error("Capture session update incomplete");
   });
 }
 
-function invalidateCapture(candidate: Candidate, lapRows: LapOffset[], final: string | null): void {
+function invalidateCapture(candidate: Candidate, lapRows: LapOffset[], final: string): void {
   for (const lap of lapRows) cacheDelete(lap.id);
   clearSessionCaptureCache(candidate.rawFile);
-  if (final) clearSessionCaptureCache(final);
+  clearSessionCaptureCache(final);
 }
 
 
@@ -213,12 +210,7 @@ async function migrateOne(candidate: Candidate): Promise<Result> {
       .from(laps).where(inArray(laps.sessionId, candidate.sessionIds)).all();
     const mapped = await writeVerifiedStage(candidate, stage, lapRows);
     await verifyStage(candidate, stage, lapRows, mapped);
-    if ((await stat(stage)).size >= (await stat(candidate.rawFile)).size) {
-      await commit(candidate, lapRows, mapped, null);
-      committed = true;
-      invalidateCapture(candidate, lapRows, null);
-      return { rawFile: candidate.rawFile, status: "unchanged" };
-    }
+    // Every verified legacy capture receives a new canonical file, even if compression yields no size saving.
     if (isSessionActive()) throw new CaptureMigrationBusyError();
     await rename(stage, final);
     renamed = true;
@@ -236,7 +228,7 @@ async function migrateOne(candidate: Candidate): Promise<Result> {
     if (renamed && !committed) await rm(final, { force: true }).catch(() => {});
     if (committed) {
       console.warn(`[Capture migration] Post-commit cleanup failed for ${candidate.rawFile}:`, error);
-      return { rawFile: candidate.rawFile, status: renamed ? "migrated" : "unchanged" };
+      return { rawFile: candidate.rawFile, status: "migrated" };
     }
     return { rawFile: candidate.rawFile, status: "error", error: error instanceof Error ? error.message : String(error) };
   } finally {
@@ -256,7 +248,6 @@ export async function migrateCaptures(onProgress?: (done: number, total: number,
     }
     return {
       migrated: results.filter((result) => result.status === "migrated").length,
-      unchanged: results.filter((result) => result.status === "unchanged").length,
       failed: results.filter((result) => result.status === "error").length,
       results,
     };

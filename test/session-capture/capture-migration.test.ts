@@ -158,6 +158,24 @@ describe("historical capture migration", () => {
     expect(updatedLap).toMatchObject({ id: lap!.id, rawFrameCount: lap!.rawFrameCount, lapTime: lap!.lapTime });
   }, { timeout: 120000 });
 
+  test("replaces legacy capture even when sparse output has no size saving", async () => {
+    const dir = tempCaptureDir();
+    const originalPath = join(dir, "single-frame.bin");
+    const frames = makeFrames(3).slice(0, 1);
+    writeFileSync(originalPath, capture(frames));
+    const originalSize = readFileSync(originalPath).length;
+    const sessionId = await insertSession(originalPath);
+
+    const result = await migrateCaptures();
+    expect(result).toMatchObject({ migrated: 1, failed: 0 });
+    const updated = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+    expect(updated?.captureFormatVersion).toBe(1);
+    expect(updated?.rawFile).not.toBe(originalPath);
+    expect(existsSync(originalPath)).toBe(false);
+    expect(readFileSync(updated!.rawFile!).length).toBeGreaterThanOrEqual(originalSize);
+    expect(await records(updated!.rawFile!)).toEqual(frames);
+  });
+
   test.each([false, true])("migrates shared legacy capture and remaps every lap offset (gzip=%s)", async (compressed) => {
     const dir = tempCaptureDir();
     const originalPath = join(dir, compressed ? "older.bin.gz" : "older.bin");
@@ -178,15 +196,15 @@ describe("historical capture migration", () => {
 
     const result = await migrateCaptures();
     expect(result.failed).toBe(0);
-    expect(result.migrated + result.unchanged).toBe(1);
+    expect(result).toMatchObject({ migrated: 1, failed: 0 });
     const sessionRows = await db.select().from(sessions).where(eq(sessions.id, firstSession)).get();
     const secondRow = await db.select().from(sessions).where(eq(sessions.id, secondSession)).get();
     expect(sessionRows?.captureFormatVersion).toBe(1);
     expect(sessionRows?.rawFile?.endsWith(compressed ? ".bin.gz" : ".bin")).toBe(true);
     expect(secondRow?.rawFile).toBe(sessionRows?.rawFile);
     const migratedPath = sessionRows!.rawFile!;
-    const changed = result.migrated === 1;
-    expect(existsSync(originalPath)).toBe(!changed);
+    expect(migratedPath).not.toBe(originalPath);
+    expect(existsSync(originalPath)).toBe(false);
     const after = await recordsWithOffsets(migratedPath);
     expect(after.map(({ frame }) => frame)).toEqual(before);
     const lapsAfter = await Promise.all(lapsBefore.map((lap) => db.select().from(laps).where(eq(laps.id, lap.id)).get()));
@@ -200,11 +218,11 @@ describe("historical capture migration", () => {
         notes: `preserve-${lapsBefore[index]!.lapNumber}`,
       });
       const sourceIndex = sourceRecordOffsets.indexOf(lapsBefore[index]!.rawByteOffset!);
-      const targetOffset = changed ? lapsAfter[index]!.rawByteOffset : lapsBefore[index]!.rawByteOffset;
+      const targetOffset = lapsAfter[index]!.rawByteOffset;
       expect(after.find((record) => record.offset === targetOffset)?.frame).toEqual(frames[sourceIndex]);
     }
     const again = await migrateCaptures();
-    expect(again).toMatchObject({ migrated: 0, unchanged: 0, failed: 0, results: [] });
+    expect(again).toMatchObject({ migrated: 0, failed: 0, results: [] });
   });
 
   test.each([false, true])("preserves historical headerless capture and lap seeks (gzip=%s)", async (compressed) => {
@@ -218,7 +236,7 @@ describe("historical capture migration", () => {
 
     const result = await migrateCaptures();
     expect(result.failed).toBe(0);
-    expect(result.migrated + result.unchanged).toBe(1);
+    expect(result).toMatchObject({ migrated: 1, failed: 0 });
     const session = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
     const migratedLap = await db.select().from(laps).where(eq(laps.id, lap.id)).get();
     expect(session?.captureFormatVersion).toBe(1);
@@ -342,7 +360,7 @@ describe("historical capture migration", () => {
     const beforeSize = readFileSync(originalPath).length;
 
     const result = await migrateCaptures();
-    expect(result).toMatchObject({ migrated: 1, unchanged: 0, failed: 0 });
+    expect(result).toMatchObject({ migrated: 1, failed: 0 });
     const session = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
     const migratedLap = await db.select().from(laps).where(eq(laps.id, lap.id)).get();
     expect(session?.rawFile?.endsWith(".bin.gz")).toBe(true);

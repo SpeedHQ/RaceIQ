@@ -8,7 +8,7 @@ Owns RaceIQ raw-session persistence: length-prefixed frame recording, gzip stora
 
 - `framing.ts` defines capture framing and gzip helpers. `recorder.ts` appends frames and patches the final frame count.
 - `import-capture.ts` detects canonical uploads and feeds them to `import-pipeline.ts`, which captures imported database identities and rolls failed imports back.
-- `reprocess.ts` replays stored frames through the current lap detector while preserving existing lap-owned metadata where possible.
+- `reprocess.ts` streams canonical `.bin`/`.bin.gz` frames (including sparse records) through the current lap detector, resets it at segment boundaries, and preserves lap-owned metadata where possible. MoTeC `.motec.zip` archives still require decoded channel arrays.
 - `identity.ts` hashes decompressed capture content so raw and gzip storage represent the same input.
 - `compressor.ts` and `cleanup.ts` maintain recorded files after sessions finish.
 
@@ -19,6 +19,7 @@ Owns RaceIQ raw-session persistence: length-prefixed frame recording, gzip stora
 - Compression streams through a temporary gzip file and publishes it only after successful completion. The database path changes before the raw source is removed; failures preserve the source.
 - Compression, capture cleanup, reprocessing, and session/lap favourite updates share the maintenance lock. A cleanup plan cannot delete telemetry after a favourite update completes, and reprocessing cannot restore an archived capture path. Orphan cleanup acquires the same lock per file.
 - Automatic capture cleanup is off by default. When enabled in Storage settings, scheduled maintenance uses the selected 30/90/180/365-day age and retains session/lap metadata; manual cleanup remains available.
+- Segment reprocessing scans the whole capture; each segment gets a fresh detector, while matching by source offset protects notes and favourites if detected lap numbers change.
 - Reprocessing preserves favourites on matched replacement laps, keeping their captures protected from telemetry cleanup.
 - Recording paths and names are chosen by telemetry/runtime adapters. This domain must not change their naming, activation, or shutdown order.
 - Game adapters own frame recognition and parsing. Telemetry owns live pipeline behavior. Database modules own session/lap persistence. Race-result reconciliation runs only after a successful import.

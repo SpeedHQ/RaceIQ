@@ -220,7 +220,7 @@
   "capture_migration_running": "Aufzeichnungen werden konvertiert…",
   "capture_migration_progress_label": "Fortschritt der Aufzeichnungskonvertierung",
   "capture_migration_progress": "{done} von {total} Aufzeichnungen verarbeitet.",
-  "capture_migration_complete": "Konvertierung abgeschlossen: {migrated} konvertiert, {unchanged} unverändert.",
+  "capture_migration_complete": "Konvertierung abgeschlossen: {migrated} konvertiert.",
   "capture_migration_partial": "{migrated} konvertiert; {failed} fehlgeschlagen. Erneut versuchen, um fehlgeschlagene Aufzeichnungen nochmals zu verarbeiten.",
   "capture_migration_failed": "Konvertierung fehlgeschlagen",
   "capture_migration_retry": "Fehlgeschlagene erneut versuchen",

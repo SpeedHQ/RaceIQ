@@ -68,7 +68,7 @@ export function CaptureMigration({ compact = false }: { compact?: boolean }) {
             {running ? m.capture_migration_running() : progress.status === "partial" || progress.status === "error" ? m.capture_migration_retry() : m.capture_migration_convert()}
           </Button>
         )}
-        {progress.status === "success" && <p role="status" className="text-xs text-status-success">{m.capture_migration_complete({ migrated: progress.migrated, unchanged: progress.unchanged })}</p>}
+        {progress.status === "success" && <p role="status" className="text-xs text-status-success">{m.capture_migration_complete({ migrated: progress.migrated })}</p>}
       </section>
     );
   }
@@ -85,7 +85,7 @@ export function CaptureMigration({ compact = false }: { compact?: boolean }) {
         {progress.status !== "idle" && <MigrationStatus progress={progress} percent={percent} />}
         {progress.status === "partial" && <p role="alert" className="text-xs text-status-danger">{m.capture_migration_partial({ migrated: progress.migrated, failed: progress.failed })}</p>}
         {progress.status === "error" && <p role="alert" className="text-xs text-status-danger">{progress.error ?? m.capture_migration_request_failed()}</p>}
-        {progress.status === "success" && <p role="status" className="text-xs text-status-success">{m.capture_migration_complete({ migrated: progress.migrated, unchanged: progress.unchanged })}</p>}
+        {progress.status === "success" && <p role="status" className="text-xs text-status-success">{m.capture_migration_complete({ migrated: progress.migrated })}</p>}
         <Button type="button" variant="app-primary" size="app-md" disabled={running || !required} onClick={() => void convert()}>
           {running ? m.capture_migration_running() : progress.status === "partial" || progress.status === "error" ? m.capture_migration_retry() : m.capture_migration_convert()}
         </Button>

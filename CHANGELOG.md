@@ -30,6 +30,9 @@
 ### Fixes
 - Avoid growing LMU, ACC, and AC Evo recordings when changed frames are cheaper to store in full than as sparse deltas.
 - Keep exported lap slices within source session segments; validate sparse checkpoints before replay, preserve shared lap offsets during capture conversion, and avoid prompting to reconvert newly imported sparse recordings.
+- Replace every eligible older recording after lossless verification, even when sparse storage does not reduce file size.
+- Show sparse capture conversion before stale lap-detection prompts; offer lap reprocessing once conversion finishes.
+- Reprocess every segment in large imported session captures without loading the full recording into memory; refresh stale lap detection and preserve lap notes and favourites when lap numbers change.
 - Bundle ACC map-spline SVGs for track edges; derive centre points from aligned SVG edges instead of incorrect embedded centre paths or fastlane-derived boundary JSON.
 - Expose LMU racing lines already present in shipped track SVGs to 2D and 3D replay overlays.
 - Redraw Analyse telemetry charts when their container changes width, preventing stretched horizontal bands after layout transitions.

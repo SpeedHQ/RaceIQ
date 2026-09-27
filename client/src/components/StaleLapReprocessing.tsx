@@ -18,6 +18,9 @@ function ReprocessStatusIcon({ status }: { status: "submitting" | "progressing" 
 
 export function StaleLapReprocessing() {
   const staleLapDetection = useTelemetryStore((state) => state.staleLapDetection);
+  const captureMigration = useTelemetryStore((state) => state.captureMigration);
+  const captureMigrationStatusReady = useTelemetryStore((state) => state.captureMigrationStatusReady);
+  const captureMigrationState = useTelemetryStore((state) => state.captureMigrationState);
   const reprocessState = useTelemetryStore((state) => state.reprocessState);
   const dismissReprocess = telemetryStore.actions.dismissReprocess;
 
@@ -38,8 +41,9 @@ export function StaleLapReprocessing() {
     }
   };
 
-  const showNotification = staleLapDetection && reprocessState.status === "idle";
-  const showDialog = reprocessState.open;
+  const migrationPending = Boolean(captureMigration?.captureCount) || captureMigrationState.status === "running";
+  const showNotification = captureMigrationStatusReady && !migrationPending && staleLapDetection && reprocessState.status === "idle";
+  const showDialog = captureMigrationStatusReady && !migrationPending && reprocessState.open;
   if (!showNotification && !showDialog) return null;
 
   const title =

@@ -220,7 +220,7 @@
   "capture_migration_running": "Conversione delle registrazioni…",
   "capture_migration_progress_label": "Avanzamento conversione registrazioni",
   "capture_migration_progress": "Elaborate {done} registrazioni su {total}.",
-  "capture_migration_complete": "Conversione completata: {migrated} convertite, {unchanged} invariate.",
+  "capture_migration_complete": "Conversione completata: {migrated} convertite.",
   "capture_migration_partial": "{migrated} convertite; {failed} non riuscite. Riprova per elaborare di nuovo quelle non riuscite.",
   "capture_migration_failed": "Conversione non riuscita",
   "capture_migration_retry": "Riprova registrazioni non riuscite",

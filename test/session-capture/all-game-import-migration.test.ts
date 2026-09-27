@@ -106,25 +106,17 @@ test("imports all six complete game bins through API, then migrates every candid
 
   const response = await sessionRoutes.request("/api/sessions/migrate-captures", { method: "POST" });
   expect(response.status).toBe(200);
-  const result = await response.json() as { results: Array<{ rawFile: string; status: "migrated" | "unchanged" | "error"; error?: string }> };
-  let rewritten = 0;
+  const result = await response.json() as { results: Array<{ rawFile: string; status: "migrated" | "error"; error?: string }> };
   for (const capture of captures) {
     const outcome = result.results.find(({ rawFile }) => rawFile === capture.original);
-    expect(outcome?.status).not.toBe("error");
-    expect(outcome).toBeDefined();
+    expect(outcome?.status).toBe("migrated");
     const updated = await db.select().from(sessions).where(inArray(sessions.id, capture.sessionIds)).all();
     expect(updated.every((row) => row.captureFormatVersion === 1)).toBe(true);
     const finalPath = updated[0]!.rawFile!;
     expect(updated.every((row) => row.rawFile === finalPath)).toBe(true);
     expect(existsSync(finalPath)).toBe(true);
-    if (outcome?.status === "migrated") {
-      rewritten++;
-      expect(finalPath).not.toBe(capture.original);
-      expect(existsSync(capture.original)).toBe(false);
-    } else {
-      expect(finalPath).toBe(capture.original);
-      expect(existsSync(capture.original)).toBe(true);
-    }
+    expect(finalPath).not.toBe(capture.original);
+    expect(existsSync(capture.original)).toBe(false);
     const remapped = new Map<number, number>();
     for (const lap of capture.sourceLaps) {
       const current = await db.select().from(laps).where(eq(laps.id, lap.id)).get();
@@ -133,5 +125,5 @@ test("imports all six complete game bins through API, then migrates every candid
     }
     await compareEveryRecord(capture, finalPath, remapped);
   }
-  expect(rewritten).toBeGreaterThan(0);
+  expect(result.results.length).toBe(captures.length);
 }, { timeout: 300_000 });

@@ -220,7 +220,7 @@
   "capture_migration_running": "Converting recordings…",
   "capture_migration_progress_label": "Capture conversion progress",
   "capture_migration_progress": "{done} of {total} captures processed.",
-  "capture_migration_complete": "Conversion complete: {migrated} converted, {unchanged} unchanged.",
+  "capture_migration_complete": "Conversion complete: {migrated} converted.",
   "capture_migration_partial": "{migrated} converted; {failed} failed. Retry to try failed captures again.",
   "capture_migration_failed": "Conversion failed",
   "capture_migration_retry": "Retry failed captures",

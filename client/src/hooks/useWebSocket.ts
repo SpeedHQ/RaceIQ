@@ -26,7 +26,10 @@ function fetchVersionInfo(signal: AbortSignal) {
 async function refreshCaptureMigrationStatus(signal?: AbortSignal) {
   try {
     const response = await client.api.sessions["capture-migration-status"].$get(undefined, signal ? { init: { signal } } : undefined);
-    if (!response.ok) return;
+    if (!response.ok) {
+      telemetryStore.actions.setCaptureMigrationStatusReady();
+      return;
+    }
     const data = await response.json();
     telemetryStore.actions.setCaptureMigration({
       sessionCount: data.sessionCount,
@@ -34,6 +37,7 @@ async function refreshCaptureMigrationStatus(signal?: AbortSignal) {
     });
   } catch {
     // Status refresh is best-effort; maintenance view provides manual retry.
+    telemetryStore.actions.setCaptureMigrationStatusReady();
   }
 }
 
@@ -128,7 +132,7 @@ export function useWebSocket() {
             telemetryStore.actions.setCaptureMigrationProgress({
               done: data.done as number,
               total: data.total as number,
-              status: data.status as "migrated" | "unchanged" | "error",
+              status: data.status as "migrated" | "error",
               error: data.error as string | undefined,
             });
           } else if (data.type === "stale-race-results") {

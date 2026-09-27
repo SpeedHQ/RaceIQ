@@ -300,7 +300,7 @@
   "capture_migration_running": "Conversion des enregistrements…",
   "capture_migration_progress_label": "Progression de la conversion des captures",
   "capture_migration_progress": "{done} capture(s) traitée(s) sur {total}.",
-  "capture_migration_complete": "Conversion terminée : {migrated} convertie(s), {unchanged} inchangée(s).",
+  "capture_migration_complete": "Conversion terminée : {migrated} convertie(s).",
   "capture_migration_partial": "{migrated} convertie(s) ; {failed} échec(s). Réessayez pour retenter les captures en échec.",
   "capture_migration_failed": "Échec de la conversion",
   "capture_migration_retry": "Réessayer les captures en échec",
