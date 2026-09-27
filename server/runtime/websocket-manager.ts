@@ -109,7 +109,9 @@ export class WebSocketManager {
   broadcastCaptureMigrationProgress(payload: {
     done: number;
     total: number;
-    status: "migrated" | "unchanged" | "error";
+    status: "migrated" | "unchanged" | "error" | "success" | "partial";
+    migrated?: number;
+    failed?: number;
     error?: string;
   }): void {
     this.broadcastNotification({ type: "capture-migration-progress", ...payload });

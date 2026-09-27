@@ -8,7 +8,7 @@
 ### Features
 - Record every supported game with lossless sparse captures, retaining every source frame. Measured raw captures shrink by up to 98.45% (LMU); compared with gzipped raw captures, sparse captures shrink by up to 5.1% (AC Evo). Savings vary by game and recording.
 - Preserve real pauses and capture gaps in six-game telemetry replay without changing simulator source frames.
-- Convert older `.bin` and `.bin.gz` recordings losslessly before continuing; existing laps and Analyse replay remain usable after conversion.
+- Convert older `.bin` and `.bin.gz` recordings losslessly in the background; existing laps and Analyse replay remain usable after conversion.
 - Import native iRacing dumps and opt into full raw capture storage through the import API for later conversion; ordinary UI imports stay sparse.
 - Add French and Italian interface translations and complete German catalog coverage; localize audited setup, analysis, telemetry, session, and assistant UI copy.
 - List lap detector checks by category in Analyse, separating findings from checks with no finding and unavailable checks; infer aid checks where wheel telemetry supports them without native intervention channels
@@ -35,6 +35,9 @@
 - Keep exported lap slices within source session segments; validate sparse checkpoints before replay, preserve shared lap offsets during capture conversion, and avoid prompting to reconvert newly imported sparse recordings.
 - Replace every eligible older recording after lossless verification, even when sparse storage does not reduce file size.
 - Show sparse capture conversion before stale lap-detection prompts; offer lap reprocessing once conversion finishes.
+- Include seeded raw recordings in sparse conversion candidates so clean seeds exercise the migration prompt.
+- Keep RaceIQ usable during legacy-capture conversion, allow game recording, and restore aggregate progress in a compact bottom-right dialog after browser refresh.
+- Simplify sparse-recording conversion dialogs: show savings once, label the bottom-right progress card “Migrating old recordings”, and match its size, typography, and status treatment to other reconciliation cards.
 - Reprocess every segment in large imported session captures without loading the full recording into memory; refresh stale lap detection and preserve lap notes and favourites when lap numbers change.
 - Bundle ACC map-spline SVGs for track edges; derive centre points from aligned SVG edges instead of incorrect embedded centre paths or fastlane-derived boundary JSON.
 - Label brake temperatures clearly in tire diagrams.

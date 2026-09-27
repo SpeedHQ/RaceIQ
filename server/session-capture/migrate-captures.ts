@@ -9,16 +9,12 @@ import { db } from "../db";
 import { laps, sessions } from "../db/schema";
 import { listCaptureMigrationCandidates } from "../db/session-queries";
 import { cacheDelete } from "../db/telemetry-replay-storage";
-import { isSessionActive } from "../telemetry/live-pipeline";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame } from "./framing";
 import { clearSessionCaptureCache, iterateSessionCaptureRecordsFromSource, type SessionCaptureSource } from "./source-loader";
 import { SparseCaptureEncoder } from "./sparse-recorder";
 import type { GameId } from "../../shared/games/ids";
 
-export class CaptureMigrationBusyError extends Error {
-  constructor() { super("Capture migration cannot run during an active recording"); }
-}
 
 type Candidate = { rawFile: string; gameId: GameId; sessionIds: number[] };
 type Result = { rawFile: string; status: "migrated" | "error"; error?: string };
@@ -26,6 +22,69 @@ export interface CaptureMigrationResult {
   migrated: number;
   failed: number;
   results: Result[];
+}
+export interface CaptureMigrationProgress {
+  status: "idle" | "running" | "success" | "partial" | "error";
+  done: number;
+  total: number;
+  migrated: number;
+  failed: number;
+  error: string | null;
+}
+
+let captureMigrationProgress: CaptureMigrationProgress = {
+  status: "idle",
+  done: 0,
+  total: 0,
+  migrated: 0,
+  failed: 0,
+  error: null,
+};
+
+export function getCaptureMigrationProgress(): CaptureMigrationProgress {
+  return { ...captureMigrationProgress };
+}
+
+export async function migrateCaptures(onProgress?: (done: number, total: number, result: Result) => void): Promise<CaptureMigrationResult> {
+  return withSessionCaptureMaintenanceLock(async () => {
+    // Only closed legacy raw captures qualify; live sparse captures are excluded by format version.
+    const candidates = await listCaptureMigrationCandidates();
+    const results: Result[] = [];
+    let migrated = 0;
+    let failed = 0;
+    captureMigrationProgress = {
+      status: "running",
+      done: 0,
+      total: candidates.length,
+      migrated: 0,
+      failed: 0,
+      error: null,
+    };
+    for (const candidate of candidates) {
+      const result = await migrateOne(candidate);
+      results.push(result);
+      if (result.status === "migrated") migrated++;
+      else failed++;
+      captureMigrationProgress = {
+        status: "running",
+        done: results.length,
+        total: candidates.length,
+        migrated,
+        failed,
+        error: result.error ?? captureMigrationProgress.error,
+      };
+      onProgress?.(results.length, candidates.length, result);
+    }
+    captureMigrationProgress = {
+      ...captureMigrationProgress,
+      status: failed === 0 ? "success" : "partial",
+      done: results.length,
+      total: candidates.length,
+      migrated,
+      failed,
+    };
+    return { migrated, failed, results };
+  });
 }
 
 type LapOffset = { id: number; rawByteOffset: number | null; rawFrameCount: number | null };
@@ -106,7 +165,7 @@ async function writeVerifiedStage(candidate: Candidate, stage: string, lapRows: 
     if (mapped.size !== lapStarts.size) throw new Error("Lap offset does not point to a source frame");
     target.end();
     await completion;
-    const handle = await open(stage, "r");
+    const handle = await open(stage, "r+");
     try { await handle.sync(); } finally { await handle.close(); }
   } catch (error) {
     target.destroy();
@@ -211,7 +270,6 @@ async function migrateOne(candidate: Candidate): Promise<Result> {
     const mapped = await writeVerifiedStage(candidate, stage, lapRows);
     await verifyStage(candidate, stage, lapRows, mapped);
     // Every verified legacy capture receives a new canonical file, even if compression yields no size saving.
-    if (isSessionActive()) throw new CaptureMigrationBusyError();
     await rename(stage, final);
     renamed = true;
     await commit(candidate, lapRows, mapped, final);
@@ -236,20 +294,3 @@ async function migrateOne(candidate: Candidate): Promise<Result> {
   }
 }
 
-export async function migrateCaptures(onProgress?: (done: number, total: number, result: Result) => void): Promise<CaptureMigrationResult> {
-  return withSessionCaptureMaintenanceLock(async () => {
-    if (isSessionActive()) throw new CaptureMigrationBusyError();
-    const candidates = await listCaptureMigrationCandidates();
-    const results: Result[] = [];
-    for (const candidate of candidates) {
-      const result = await migrateOne(candidate);
-      results.push(result);
-      onProgress?.(results.length, candidates.length, result);
-    }
-    return {
-      migrated: results.filter((result) => result.status === "migrated").length,
-      failed: results.filter((result) => result.status === "error").length,
-      results,
-    };
-  });
-}

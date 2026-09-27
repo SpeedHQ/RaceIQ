@@ -185,7 +185,7 @@ export async function listCaptureMigrationCandidates(): Promise<{ rawFile: strin
     if (
       !gameId ||
       !supported.has(gameId as GameId) ||
-      shared.some((row) => row.ownership !== "mine" || row.source !== null || row.gameId !== gameId)
+      shared.some((row) => row.ownership !== "mine" || (row.source !== null && row.source !== "seed") || row.gameId !== gameId)
     ) continue;
     result.push({ rawFile, gameId: gameId as GameId, sessionIds: shared.map((row) => row.id) });
   }

@@ -35,6 +35,7 @@ async function refreshCaptureMigrationStatus(signal?: AbortSignal) {
       sessionCount: data.sessionCount,
       captureCount: data.captureCount,
     });
+    telemetryStore.actions.restoreCaptureMigrationProgress(data.migrationProgress);
   } catch {
     // Status refresh is best-effort; maintenance view provides manual retry.
     telemetryStore.actions.setCaptureMigrationStatusReady();
@@ -129,12 +130,23 @@ export function useWebSocket() {
           } else if (data.type === "capture-migration-available") {
             telemetryStore.actions.setCaptureMigration({ sessionCount: data.sessionCount as number, captureCount: data.captureCount as number });
           } else if (data.type === "capture-migration-progress") {
-            telemetryStore.actions.setCaptureMigrationProgress({
-              done: data.done as number,
-              total: data.total as number,
-              status: data.status as "migrated" | "error",
-              error: data.error as string | undefined,
-            });
+            if (data.status === "success" || data.status === "partial") {
+              telemetryStore.actions.restoreCaptureMigrationProgress({
+                status: data.status,
+                done: data.done as number,
+                total: data.total as number,
+                migrated: data.migrated as number,
+                failed: data.failed as number,
+                error: data.error as string | null ?? null,
+              });
+            } else {
+              telemetryStore.actions.setCaptureMigrationProgress({
+                done: data.done as number,
+                total: data.total as number,
+                status: data.status as "migrated" | "error",
+                error: data.error as string | undefined,
+              });
+            }
           } else if (data.type === "stale-race-results") {
             telemetryStore.actions.setStaleRaceResults({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
           } else if (data.type === "race-result-reconciled") {

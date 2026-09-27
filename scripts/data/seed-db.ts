@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { createGunzip } from "node:zlib";
 import { db, client, initDb } from "../../server/db/index";
 import { importSessionBin } from "../../server/session-capture/import-capture";
+import { RealSessionRecorderAdapter } from "../../server/telemetry/pipeline-ports";
 import { importSessionFrames } from "../../server/session-capture/import-pipeline";
 import { LMU_DUMP_MAGIC, LMU_DUMP_VERSION } from "../../server/games/lmu/recorder";
 import { LMU_MAX_SOURCE_FRAME_SIZE } from "../../server/games/lmu/source-frame";
@@ -105,8 +106,14 @@ async function main(): Promise<void> {
           (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, game)).all()).map((row) => row.id),
         );
         const result = game === "lmu"
-          ? await importSessionFrames(streamLMUSeedFrames(fixturePath), game, { notifyDriverProfile: false })
-          : await importSessionBin(readFileSync(fixturePath), game, { notifyDriverProfile: false });
+          ? await importSessionFrames(streamLMUSeedFrames(fixturePath), game, {
+              notifyDriverProfile: false,
+              recorder: new RealSessionRecorderAdapter(),
+            })
+          : await importSessionBin(readFileSync(fixturePath), game, {
+              notifyDriverProfile: false,
+              recorder: new RealSessionRecorderAdapter(),
+            });
         const seededSessionIds = (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, game)).all())
           .map((row) => row.id)
           .filter((id) => !existingSessionIds.has(id));

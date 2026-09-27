@@ -221,7 +221,7 @@ export interface TelemetryActions extends StoreActionMap {
   setRaceResultReprocessError: (error: string | null) => void;
   setStaleLapDetection: (data: { sessionCount: number; currentVersion: string } | null) => void;
   setCaptureMigration: (data: { sessionCount: number; captureCount: number } | null) => void;
-  setCaptureMigrationStatusReady: () => void;
+  restoreCaptureMigrationProgress: (progress: CaptureMigrationState) => void;
   beginCaptureMigration: (total: number) => void;
   setCaptureMigrationProgress: (progress: { done: number; total: number; status: "migrated" | "error"; error?: string }) => void;
   finishCaptureMigration: (result: { migrated: number; failed: number; results: { status: "migrated" | "error"; error?: string }[] }) => void;
@@ -271,6 +271,7 @@ export const telemetryStore = createStore(initialTelemetryState, (store): Teleme
   setRaceResultReprocessError: (error) => store.setState((prev) => ({ ...prev, raceResultReprocessError: error })),
   setStaleLapDetection: (data) => store.setState((prev) => ({ ...prev, staleLapDetection: data })),
   setCaptureMigration: (data) => store.setState((prev) => ({ ...prev, captureMigration: data, captureMigrationStatusReady: true })),
+  restoreCaptureMigrationProgress: (captureMigrationState) => store.setState((prev) => ({ ...prev, captureMigrationState })),
   setCaptureMigrationStatusReady: () => store.setState((prev) => ({ ...prev, captureMigrationStatusReady: true })),
   beginCaptureMigration: (total) =>
     store.setState((prev) => ({ ...prev, captureMigrationState: { status: "running", done: 0, total, migrated: 0, failed: 0, error: null } })),

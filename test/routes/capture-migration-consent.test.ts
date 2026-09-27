@@ -63,8 +63,11 @@ describe("capture migration consent and progress", () => {
     const before = await Promise.all(paths.map((path) => readFile(path)));
     const response = await sessionRoutes.request("/api/sessions/capture-migration-status");
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ sessionCount: candidateBaseline.sessionCount + 3, captureCount: candidateBaseline.captureCount + 3 });
-
+    expect(await response.json()).toMatchObject({
+      sessionCount: candidateBaseline.sessionCount + 3,
+      captureCount: candidateBaseline.captureCount + 3,
+      migrationProgress: { status: "idle", done: 0, total: 0 },
+    });
     const completed = Promise.withResolvers<void>();
     const original = wsManager.setCaptureMigrationNotification.bind(wsManager);
     const noticeSpy = spyOn(wsManager, "setCaptureMigrationNotification").mockImplementation((sessionsCount, capturesCount) => {
@@ -111,10 +114,26 @@ describe("capture migration consent and progress", () => {
       expect(body.results.filter(({ status }) => status === "migrated")).toHaveLength(2);
       expect(body.results.filter(({ status }) => status === "error")).toHaveLength(1);
       const progress = connected.sent.map((value) => JSON.parse(value)).filter((event) => event.type === "capture-migration-progress");
-      expect(progress).toHaveLength(candidateBaseline.captureCount + 3);
-      expect(progress.map((event) => event.done)).toEqual(Array.from({ length: candidateBaseline.captureCount + 3 }, (_, index) => index + 1));
-      expect(progress.at(-1)?.status).toBe("error");
-      expect(await (await sessionRoutes.request("/api/sessions/capture-migration-status")).json()).toEqual({ sessionCount: candidateBaseline.sessionCount + 1, captureCount: candidateBaseline.captureCount + 1 });
+      expect(progress).toHaveLength(candidateBaseline.captureCount + 4);
+      expect(progress.slice(0, -1).map((event) => event.done)).toEqual(Array.from({ length: candidateBaseline.captureCount + 3 }, (_, index) => index + 1));
+      expect(progress.at(-2)?.status).toBe("error");
+      const notifications = connected.sent.map((value) => JSON.parse(value));
+      expect(notifications.at(-2)).toMatchObject({
+        type: "capture-migration-available",
+        sessionCount: candidateBaseline.sessionCount + 1,
+        captureCount: candidateBaseline.captureCount + 1,
+      });
+      expect(notifications.at(-1)).toMatchObject({ type: "capture-migration-progress", status: "partial" });
+      const migrationStatus = await (await sessionRoutes.request("/api/sessions/capture-migration-status")).json() as {
+        migrationProgress: { status: string; done: number; total: number; migrated: number; failed: number };
+      };
+      expect(migrationStatus.migrationProgress).toMatchObject({
+        status: "partial",
+        done: body.migrated + body.failed,
+        total: body.migrated + body.failed,
+        migrated: body.migrated,
+        failed: body.failed,
+      });
 
       const retry = await sessionRoutes.request("/api/sessions/migrate-captures", { method: "POST" });
       expect(retry.status).toBe(200);

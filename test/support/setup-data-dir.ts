@@ -84,14 +84,16 @@ afterAll(async () => {
   } catch {
     // db never loaded — nothing to close
   }
-  if (ownsTestDataDir) {
-    rmSync(TEST_DATA_DIR, {
-      recursive: true,
-      force: true,
-      maxRetries: 20,
-      retryDelay: 100,
-    });
-  }
+    try {
+      rmSync(TEST_DATA_DIR, {
+        recursive: true,
+        force: true,
+        maxRetries: 20,
+        retryDelay: 100,
+      });
+    } catch (error) {
+      if (process.platform !== "win32" || (error as NodeJS.ErrnoException).code !== "EBUSY") throw error;
+    }
 });
 }
 

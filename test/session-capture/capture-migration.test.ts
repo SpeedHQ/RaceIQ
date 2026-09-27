@@ -176,6 +176,17 @@ describe("historical capture migration", () => {
     expect(await records(updated!.rawFile!)).toEqual(frames);
   });
 
+  test("includes seeded raw captures in sparse migration candidates", async () => {
+    const dir = tempCaptureDir();
+    const rawFile = join(dir, "seeded-lmu.bin");
+    writeFileSync(rawFile, capture(makeFrames(6)));
+    const sessionId = await insertSession(rawFile, "lmu");
+    await db.update(sessions).set({ source: "seed" }).where(eq(sessions.id, sessionId)).run();
+
+    const candidates = await listCaptureMigrationCandidates();
+    expect(candidates).toContainEqual({ rawFile, gameId: "lmu", sessionIds: [sessionId] });
+  });
+
   test.each([false, true])("migrates shared legacy capture and remaps every lap offset (gzip=%s)", async (compressed) => {
     const dir = tempCaptureDir();
     const originalPath = join(dir, compressed ? "older.bin.gz" : "older.bin");
