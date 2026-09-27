@@ -84,7 +84,14 @@ afterAll(async () => {
   } catch {
     // db never loaded — nothing to close
   }
-  if (ownsTestDataDir) rmSync(TEST_DATA_DIR, { recursive: true, force: true });
+  if (ownsTestDataDir) {
+    rmSync(TEST_DATA_DIR, {
+      recursive: true,
+      force: true,
+      maxRetries: 20,
+      retryDelay: 100,
+    });
+  }
 });
 }
 
