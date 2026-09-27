@@ -31,14 +31,19 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
     );
   }
 
-  const wheelData = (corner: "fl" | "fr" | "rl" | "rr") => ({
-    tempC: primaryTireTemperatureC(view.tires, corner) ?? 0,
-    ...(gameId === "ac-evo" && view.tires.coreTemperatureC ? { coreTempC: view.tires.coreTemperatureC[corner] } : {}),
-    wear: view.tires.wear?.[corner] ?? 0,
-    ...(view.tires.brakeTemperatureC ? { brakeTemp: view.tires.brakeTemperatureC[corner] } : {}),
-    ...(view.tires.brakePadRemainingMm ? { brakePadMm: view.tires.brakePadRemainingMm[corner] } : {}),
-    ...(view.tires.pressurePsi ? { pressure: view.tires.pressurePsi[corner] } : {}),
-  });
+  const wheelData = (corner: "fl" | "fr" | "rl" | "rr") => {
+    const surface = view.tires.surfaceTemperatureC?.[corner];
+    return {
+      tempC: primaryTireTemperatureC(view.tires, corner) ?? 0,
+      ...(gameId === "ac-evo" && view.tires.coreTemperatureC ? { coreTempC: view.tires.coreTemperatureC[corner] } : {}),
+      ...(gameId === "ac-evo" && surface?.inner !== undefined && surface.middle !== undefined && surface.outer !== undefined
+        ? { temperatureBandsC: { inner: surface.inner, middle: surface.middle, outer: surface.outer } } : {}),
+      wear: view.tires.wear?.[corner] ?? 0,
+      ...(view.tires.brakeTemperatureC ? { brakeTemp: view.tires.brakeTemperatureC[corner] } : {}),
+      ...(view.tires.brakePadRemainingMm ? { brakePadMm: view.tires.brakePadRemainingMm[corner] } : {}),
+      ...(view.tires.pressurePsi ? { pressure: view.tires.pressurePsi[corner] } : {}),
+    };
+  };
 
   return (
     <div data-live-dashboard-layout className="grid h-auto flex-1 grid-cols-1 gap-0 @5xl/workspace:h-full @5xl/workspace:grid-cols-2">

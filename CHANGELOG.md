@@ -46,6 +46,7 @@
 - Show Forza's single representative tire-temperature reading across the full-height 2D tire shape without inventing three distinct surface bands.
 - Keep Analyse map overlay menu clickable on narrow screens by separating it from zoom controls.
 - Mark AC Evo tire surface-profile checks unavailable when only representative surface temperature is recorded.
+- Show AC Evo's inner, middle, and outer surface temperatures along both tread edges in live tire grids and newly recorded or reprocessed Analyse laps, with its single core temperature in the center.
 - Detect LMU tire tread temperature gradients from its available inner, middle, and outer surface channels.
 - Ship ACC map-spline SVGs in compiled builds for track edges; derive centre points from aligned SVG edges instead of incorrect embedded centre paths or fastlane-derived boundary JSON.
 - Expose LMU racing lines already present in shipped track SVGs to 2D and 3D replay overlays.

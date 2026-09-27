@@ -101,6 +101,7 @@ describe("AC Evo parser — malformed/empty STATIC recovery", () => {
     expect(packet!.Fuel).toBeCloseTo(42);
     expect(packet!.FuelCapacity).toBeCloseTo(100);
   });
+
   test("reads graphics contact-patch bands with wheel-relative inner and outer, not mirrored physics core", () => {
     const { physics, graphics, staticData } = emptyBuffers();
     const wheels = [
