@@ -19,7 +19,7 @@
   "sessions_export_lap": "Exporter le tour",
   "sessions_replay_lap": "Revoir",
   "sessions_export_session": "Exporter la session",
-  "sessions_analyse_session": "Analyser",
+  "sessions_analyse_session": "Analyser la session",
   "sessions_export_motec_whole_session_confirm": "Les exports MoTeC incluent toute la session source, pas seulement les tours sélectionnés. Continuer ?",
   "sessions_col_notes": "Notes",
   "sessions_recheck_validity": "Revérifier la validité",

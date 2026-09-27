@@ -278,7 +278,7 @@
   "sessions_export_lap": "Esporta giro",
   "sessions_replay_lap": "Riproduci",
   "sessions_export_session": "Esporta sessione",
-  "sessions_analyse_session": "Analizza",
+  "sessions_analyse_session": "Analizza sessione",
   "sessions_export_motec_whole_session_confirm": "Le esportazioni MoTeC includono l'intera sessione di origine, non solo i giri selezionati. Continuare?",
   "sessions_col_notes": "Note",
   "sessions_recheck_validity": "Ricontrolla validità",

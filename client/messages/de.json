@@ -1699,7 +1699,7 @@
   "sessions_cleanup_explanation": "Entfernt .bin-Aufzeichnungsdateien, die älter als das ausgewählte Alter sind, und behält Sitzungsmetadaten. Favorisierte Sitzungen und Runden bleiben geschützt.",
   "sessions_cleanup_age_label": ".bin-Aufzeichnungen entfernen, die älter sind als",
   "sessions_cleanup_age_option": "{days} Tage",
-  "sessions_analyse_session": "Analysieren",
+  "sessions_analyse_session": "Session analysieren",
   "sessions_export_session": "Session exportieren",
   "sessions_recheck_validity": "Gültigkeit prüfen",
   "sessions_export_lap": "Runde exportieren",
