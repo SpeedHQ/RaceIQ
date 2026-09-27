@@ -160,6 +160,7 @@
   "storage_auto_cleanup_desc": "Standardmäßig aus. Läuft bei der Hintergrundwartung; Sitzungs- und Rundenmetadaten bleiben erhalten. Favorisierte Sitzungen und Runden sind geschützt.",
   "storage_auto_cleanup_age": "Älter als",
   "sessions_cleanup_title": "Platz durch Rohaufnahmen freigeben",
+  "sessions_cleanup_manual_explanation": "Entfernt Rohaufnahmen, um Speicherplatz freizugeben. Sitzungs- und Rundendetails bleiben erhalten; favorisierte Sitzungen und Runden sind geschützt.",
   "sessions_cleanup_explanation": "Entfernt Rohaufnahmen, die älter als das ausgewählte Alter sind, und behält Sitzungsmetadaten. Favorisierte Sitzungen und Runden bleiben geschützt.",
   "sessions_cleanup_age_label": "Aufnahmen entfernen, die älter sind als",
   "sessions_cleanup_age_option": "{days} Tage",

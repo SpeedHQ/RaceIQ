@@ -166,6 +166,7 @@ export function SessionCleanupDialog({ request, onClose, onCompleted }: Props) {
         <DialogHeader>
           <DialogTitle className="text-xs font-medium text-app-text/90 uppercase tracking-wider">{m.sessions_cleanup_title()}</DialogTitle>
         </DialogHeader>
+        {request.mode !== "older-than" && <p className="text-sm text-app-text-muted">{m.sessions_cleanup_manual_explanation()}</p>}
         {request.mode === "older-than" && (
           <>
             <p className="text-sm text-app-text-muted">{m.sessions_cleanup_explanation()}</p>

@@ -160,6 +160,7 @@
   "storage_auto_cleanup_desc": "Off by default. Runs during background maintenance; keeps session and lap metadata. Favorite sessions and laps remain protected.",
   "storage_auto_cleanup_age": "Older than",
   "sessions_cleanup_title": "Free space",
+  "sessions_cleanup_manual_explanation": "Removes raw capture files to free disk space. Session and lap details remain, and favorite sessions and laps are protected.",
   "sessions_cleanup_explanation": "Removes raw captures older than selected age while preserving session metadata. Favorite sessions and laps are protected.",
   "sessions_cleanup_age_label": "Remove captures older than",
   "sessions_cleanup_age_option": "{days} days",

@@ -154,6 +154,7 @@ test("selected-session cleanup previews protection and waits for confirmation", 
   await first.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Free space", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByText("Removes raw capture files to free disk space. Session and lap details remain, and favorite sessions and laps are protected.")).toBeVisible();
   await expect(page.getByText("Protected sessions")).toBeVisible();
   expect(executeCalls).toBe(0);
   await page.getByRole("button", { name: "Remove raw telemetry", exact: true }).click();

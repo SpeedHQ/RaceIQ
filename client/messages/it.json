@@ -160,6 +160,7 @@
   "storage_auto_cleanup_desc": "Disattivato per impostazione predefinita. L'operazione viene eseguita durante la manutenzione in background e conserva i metadati di sessioni e giri. Le sessioni e i giri preferiti restano protetti.",
   "storage_auto_cleanup_age": "Più vecchi di",
   "sessions_cleanup_title": "Libera spazio",
+  "sessions_cleanup_manual_explanation": "Rimuove i file delle acquisizioni grezze per liberare spazio su disco. I dettagli di sessioni e giri restano; sessioni e giri preferiti sono protetti.",
   "sessions_cleanup_explanation": "Rimuove le acquisizioni grezze più vecchie dell'età selezionata, conservando i metadati delle sessioni. Le sessioni e i giri preferiti sono protetti.",
   "sessions_cleanup_age_label": "Rimuovi acquisizioni più vecchie di",
   "sessions_cleanup_age_option": "{days} giorni",

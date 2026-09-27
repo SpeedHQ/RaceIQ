@@ -160,6 +160,7 @@
   "storage_auto_cleanup_desc": "Désactivé par défaut. S’exécute pendant la maintenance en arrière-plan ; conserve les métadonnées des sessions et des tours. Les sessions et les tours favoris restent protégés.",
   "storage_auto_cleanup_age": "Plus anciennes que",
   "sessions_cleanup_title": "Libérer de l’espace",
+  "sessions_cleanup_manual_explanation": "Supprime les fichiers de capture bruts pour libérer de l’espace disque. Les détails des sessions et des tours sont conservés ; les sessions et tours favoris sont protégés.",
   "common_back": "Retour",
   "common_next": "Suivant",
   "common_save": "Enregistrer",
