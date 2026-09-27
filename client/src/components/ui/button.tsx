@@ -22,7 +22,7 @@ const buttonVariants = cva(
         "app-primary": "!bg-app-surface-alt !text-app-accent border border-app-border hover:!bg-app-surface-hover hover:!text-app-accent-hover disabled:opacity-50",
         "app-ghost": "text-app-text-secondary hover:text-app-text",
         plain: "block whitespace-normal border-0 bg-transparent text-inherit hover:bg-transparent",
-        "app-danger": "bg-status-danger text-white hover:bg-status-danger-hover",
+        "app-danger": "bg-status-danger text-status-danger-foreground hover:bg-status-danger-hover",
         "menu-action": "w-full !justify-start !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover",
         "ai-action": "bg-[var(--ai-accent)] text-app-on-filled hover:bg-[var(--ai-accent-hover)] text-app-compact",
         "close-action": "size-7 text-app-text-muted hover:bg-app-surface-hover hover:text-app-text",
