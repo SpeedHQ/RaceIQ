@@ -152,6 +152,7 @@ jobs:
     runs-on:
       - mars-any-4vcpu-15g
       - mars-macos-arm64-2vcpu-10g
+      - mars-ubuntu-2vcpu-10g
     steps:
       - uses: actions/checkout@v7
         with:

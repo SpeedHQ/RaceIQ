@@ -34,6 +34,7 @@ jobs:
     runs-on:
       - mars-windows-x64-4vcpu-15g
       - mars-macos-arm64-2vcpu-10g
+      - mars-ubuntu-2vcpu-10g
     outputs:
       version: ${{ steps.bump.outputs.version }}
     steps:
@@ -145,6 +146,7 @@ jobs:
     runs-on:
       - mars-windows-x64-4vcpu-15g
       - mars-macos-arm64-2vcpu-10g
+      - mars-ubuntu-2vcpu-10g
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
@@ -178,6 +180,7 @@ jobs:
     runs-on:
       - mars-windows-x64-4vcpu-15g
       - mars-macos-arm64-2vcpu-10g
+      - mars-ubuntu-2vcpu-10g
     steps:
       - uses: actions/checkout@v7
         with:
