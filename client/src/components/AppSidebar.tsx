@@ -8,9 +8,9 @@ import {
   Code2,
   FlaskConical,
   Gamepad2,
+  History,
   Gauge,
   GitCompareArrows,
-  History,
   House,
   LayoutDashboard,
   type LucideIcon,
@@ -121,7 +121,7 @@ const FEATURE_LINKS: ReadonlyArray<{
   segment: string;
   feature?: GameRouteFeature;
 }> = [
-  { segment: "live", label: m.tab_live, icon: Gauge },
+
   { segment: "sessions", label: m.label_sessions, icon: History },
   { segment: "compare", label: m.label_compare, icon: GitCompareArrows },
   { segment: "driver", label: m.label_driver, icon: UserRound, feature: "driver" },
@@ -321,7 +321,7 @@ export function AppSidebar({
         )}
 
         <div className="mt-auto border-t border-app-border p-2">
-          <SidebarLink collapsed={showCollapsed} icon={LayoutDashboard} label={m.nav_portable()} to="/portable" onClick={onClose} />
+          <SidebarLink collapsed={showCollapsed} icon={Gauge} label={m.tab_live()} to="/live" onClick={onClose} />
           {import.meta.env.DEV && <SidebarLink collapsed={showCollapsed} icon={Code2} label={m.nav_dev()} to="/dev" onClick={onClose} />}
           {updateAvailable && (
             <SidebarAction collapsed={showCollapsed} label={updateLabel} onClick={handleUpdate}>
@@ -333,6 +333,7 @@ export function AppSidebar({
             <Settings2 className="size-4" />
             <span className={showCollapsed ? "sr-only" : "truncate"}>{m.nav_settings()}</span>
           </SidebarAction>
+          <SidebarLink collapsed={showCollapsed} icon={LayoutDashboard} label={m.nav_portable()} to="/portable" onClick={onClose} />
           <ConnectionStatus connected={connected} packetsPerSec={packetsPerSec} forzaReceiving={forzaReceiving} collapsed={showCollapsed} />
         </div>
       </nav>

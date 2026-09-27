@@ -4,6 +4,7 @@
 - Open lap replays through session-scoped links; old track/car/lap query links no longer work
 
 ### Features
+- Route live dashboards globally by detected simulator, add telemetry setup guides only for registered/available games, and expose iRacing guidance only when its adapter flag is enabled.
 - Add French and Italian interface translations and complete German catalog coverage; localize audited setup, analysis, telemetry, session, and assistant UI copy.
 - List lap detector checks by category in Analyse, separating findings from checks with no finding and unavailable checks; infer aid checks where wheel telemetry supports them without native intervention channels
 - Chart per-wheel rotation speed (rad/s) in lap replay when rotation telemetry is available

@@ -14,9 +14,9 @@ export async function assertDisconnectReconnect(page: Page, request: APIRequestC
   const status = page.getByRole("status").first();
   await expect(status).toHaveAttribute("aria-label", /Disconnected/, { timeout: 10_000 });
   await expect(status).toHaveAttribute("aria-label", /Server/, { timeout: 10_000 });
-  if (gameId === "iracing" && page.url().endsWith("/iracing/live/pit")) {
+  if (gameId === "iracing" && page.url().endsWith("/live/pit")) {
     await page.getByRole("link", { name: "Driver", exact: true }).click();
-    await expect(page).toHaveURL(/\/iracing\/live\/driver$/);
+    await expect(page).toHaveURL(/\/live$/);
   }
   await assertRecordingChangesLiveChannels(page, request, gameId, recordingName);
 }
