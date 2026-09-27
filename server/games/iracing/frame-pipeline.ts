@@ -1,8 +1,9 @@
 import { AsyncProcessorPipeline, type AsyncProcessor } from "../shared/pipeline";
 import type { IRacingRecorder } from "./recorder";
 
+type CapturedFrame = Buffer | { rawFrame: Buffer; frameTimeMs: number };
 /** Processor that may halt downstream handling by returning false. */
-export interface IRacingFrameProcessor extends AsyncProcessor<Buffer> {}
+export interface IRacingFrameProcessor extends AsyncProcessor<CapturedFrame> {}
 
 /**
  * Writes canonical iRacing source frames to the game-specific recorder.
@@ -14,8 +15,8 @@ export class DumpToBinProcessor implements IRacingFrameProcessor {
     this.recorder = recorder;
   }
 
-  async process(frame: Buffer): Promise<undefined> {
-    this.recorder.writeFrame(frame);
+  async process(input: CapturedFrame): Promise<undefined> {
+    this.recorder.writeFrame(Buffer.isBuffer(input) ? input : input.rawFrame);
     return undefined;
   }
 }
@@ -24,19 +25,19 @@ export class DumpToBinProcessor implements IRacingFrameProcessor {
  * Dispatches canonical source frames through the registered parser path.
  */
 export class ParsingProcessor implements IRacingFrameProcessor {
-  private readonly dispatchRawFrame: (frame: Buffer) => Promise<void>;
+  private readonly dispatchRawFrame: (frame: Buffer, frameTimeMs?: number) => Promise<void>;
 
-  constructor(dispatchRawFrame: (frame: Buffer) => Promise<void>) {
+  constructor(dispatchRawFrame: (frame: Buffer, frameTimeMs?: number) => Promise<void>) {
     this.dispatchRawFrame = dispatchRawFrame;
   }
 
-  async process(frame: Buffer): Promise<undefined> {
-    await this.dispatchRawFrame(frame);
+  async process(input: CapturedFrame): Promise<undefined> {
+    await this.dispatchRawFrame(Buffer.isBuffer(input) ? input : input.rawFrame, Buffer.isBuffer(input) ? undefined : input.frameTimeMs);
     return undefined;
   }
 }
 
 export class IRacingFramePipeline extends AsyncProcessorPipeline<
-  Buffer,
+  CapturedFrame,
   IRacingFrameProcessor
 > {}

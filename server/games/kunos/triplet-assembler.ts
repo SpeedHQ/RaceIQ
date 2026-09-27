@@ -189,6 +189,7 @@ export class TripletAssembler {
           physics: buffers.physics,
           graphics: buffers.graphics,
           staticData: buffers.staticData,
+          frameTimeMs: Date.now(),
         });
       } else if (this._enableMetrics) {
         this._metrics.missedTriplets++;

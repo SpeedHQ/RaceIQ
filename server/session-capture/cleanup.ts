@@ -70,35 +70,29 @@ export async function listSessionCaptureFiles(): Promise<string[]> {
 export async function cleanupOrphanSessionFiles(
   sessionActive: () => boolean = () => false,
 ): Promise<number> {
-  if (sessionActive()) {
-    console.log("[Cleanup] Session active — skipping orphan sweep");
-    return 0;
-  }
-  const sessionsDir = resolve(resolveDataDir(), "sessions");
-  if (!existsSync(sessionsDir)) return 0;
+  return withSessionCaptureMaintenanceLock(async () => {
+    if (sessionActive()) {
+      console.log("[Cleanup] Session active — skipping orphan sweep");
+      return 0;
+    }
+    const sessionsDir = resolve(resolveDataDir(), "sessions");
+    if (!existsSync(sessionsDir)) return 0;
 
-  const referenced = await loadReferencedRawFiles();
-  const captureFiles = await listSessionCaptureFiles();
-  let removed = 0;
-  for (const filePath of captureFiles) {
-    const deleted = await withSessionCaptureMaintenanceLock(async () => {
-      if (sessionActive()) return false;
+    const referenced = await loadReferencedRawFiles();
+    const captureFiles = await listSessionCaptureFiles();
+    let removed = 0;
+    for (const filePath of captureFiles) {
+      if (sessionActive()) break;
       try {
         const { size } = await stat(filePath);
-        if (sessionActive()) return false;
-        const isTiny =
-          filePath.endsWith(".bin") &&
-          size <= TINY_ORPHAN_THRESHOLD_BYTES;
-        const isUntracked = !referenced.has(filePath);
-        if (!isTiny && !isUntracked) return false;
+        const isTiny = filePath.endsWith(".bin") && size <= TINY_ORPHAN_THRESHOLD_BYTES;
+        if (!isTiny && referenced.has(filePath)) continue;
         await unlink(filePath);
-        return true;
+        removed++;
       } catch {
         // Skip unreadable / concurrently-removed entries
-        return false;
       }
-    });
-    if (deleted) removed++;
-  }
-  return removed;
+    }
+    return removed;
+  });
 }

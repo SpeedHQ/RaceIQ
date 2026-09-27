@@ -53,14 +53,14 @@ export class AcEvoStatusCheckProcessor implements TripletProcessor {
 class AcEvoParsingProcessor implements TripletProcessor {
   private cache: AcEvoParserCache = createAcEvoParserCache();
 
-  async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<undefined> {
+  async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer; frameTimeMs?: number }): Promise<undefined> {
     try {
       const packet = parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, this.cache);
       if (packet) {
         // -1 sentinel = unresolved. Never default to 0: ordinal 0 is a real
         // car/track (Ferrari SF90 Stradale / Monza GP).
         const sourceFrame = packTriplet(ACEVO_PACKED_MAGIC, packet.CarOrdinal, packet.TrackOrdinal ?? -1, triplet.physics, triplet.graphics, triplet.staticData);
-        await processPacket(packet, sourceFrame);
+        await processPacket(packet, sourceFrame, triplet.frameTimeMs);
       }
     } catch (err) {
       console.error("[AC Evo ParsingProcessor] Error:", err instanceof Error ? err.message : err);

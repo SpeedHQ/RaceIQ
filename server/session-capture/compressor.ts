@@ -9,7 +9,7 @@ import { createReadStream, createWriteStream, unlinkSync, existsSync } from "nod
 import { rename, rm } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 import { createGzip } from "node:zlib";
-import { getUncompressedSessions, updateSessionRawFile } from "../db/session-queries";
+import { getUncompressedSessions } from "../db/session-queries";
 import { isSessionActive } from "../telemetry/live-pipeline";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
@@ -29,6 +29,9 @@ interface CompressedFile {
 
 async function writeCompressedFile(binPath: string): Promise<CompressedFile> {
   const gzPath = `${binPath}.gz`;
+  if (existsSync(gzPath)) {
+    throw new Error(`Compressed target already exists: ${gzPath}`);
+  }
   const tempPath = `${gzPath}.${crypto.randomUUID()}.tmp`;
   const source = createReadStream(binPath);
   const destination = createWriteStream(tempPath, { flags: "wx" });
@@ -47,15 +50,25 @@ async function writeCompressedFile(binPath: string): Promise<CompressedFile> {
   }
 }
 
-async function compressSession(id: number, binPath: string): Promise<void> {
+async function compressSessionGroup(ids: number[], binPath: string): Promise<void> {
   const compressedFile = await writeCompressedFile(binPath);
+  try {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(sessions)
+        .set({ rawFile: compressedFile.gzPath })
+        .where(eq(sessions.rawFile, binPath))
+        .run();
+    });
+  } catch (error) {
+    await rm(compressedFile.gzPath, { force: true }).catch((cleanupError) => {
+      console.error(`[Compressor] Failed to remove uncommitted target ${compressedFile.gzPath}:`, cleanupError);
+    });
+    throw error;
+  }
 
-  // Fetch current lapDetectorVersion to preserve it in the update
-  const row = await db.select({ lapDetectorVersion: sessions.lapDetectorVersion }).from(sessions).where(eq(sessions.id, id)).get();
-
-  await updateSessionRawFile(id, compressedFile.gzPath, row?.lapDetectorVersion ?? "");
   unlinkSync(binPath);
-  console.log(`[Compressor] ${binPath} → ${compressedFile.gzPath} (${compressedFile.sizeSummary})`);
+  console.log(`[Compressor] ${ids.length} session(s): ${binPath} → ${compressedFile.gzPath} (${compressedFile.sizeSummary})`);
 }
 
 /**
@@ -85,7 +98,13 @@ async function runCompression(userTriggered = false): Promise<void> {
 
     const ageMs = userTriggered ? 0 : ONE_DAY_MS;
     const candidates = await getUncompressedSessions(ageMs);
-    const dbPaths = new Set(candidates.map((c) => c.rawFile));
+    const groupedCandidates = new Map<string, number[]>();
+    for (const { id, rawFile } of candidates) {
+      const ids = groupedCandidates.get(rawFile) ?? [];
+      ids.push(id);
+      groupedCandidates.set(rawFile, ids);
+    }
+    const dbPaths = new Set(groupedCandidates.keys());
 
     // User-triggered: also sweep .bin files that live on disk without a DB row.
     // Background (age-gated) runs stay DB-driven so we don't compress brand-new
@@ -94,21 +113,21 @@ async function runCompression(userTriggered = false): Promise<void> {
       ? (await listSessionCaptureFiles()).filter((path) => path.endsWith(".bin") && !dbPaths.has(path))
       : [];
 
-    const total = candidates.length + orphanPaths.length;
+    const total = groupedCandidates.size + orphanPaths.length;
     if (total === 0) {
       console.debug("[Compressor] No sessions to compress");
       return;
     }
 
-    console.log(`[Compressor] Compressing ${candidates.length} session(s), ${orphanPaths.length} orphan file(s)…`);
-    for (const { id, rawFile } of candidates) {
+    console.log(`[Compressor] Compressing ${candidates.length} session(s) across ${groupedCandidates.size} capture(s), ${orphanPaths.length} orphan file(s)…`);
+    for (const [rawFile, ids] of groupedCandidates) {
       if (isSessionActive()) break;
       try {
         const file = Bun.file(rawFile);
         if (!(await file.exists())) continue;
-        await compressSession(id, rawFile);
+        await compressSessionGroup(ids, rawFile);
       } catch (err) {
-        console.error(`[Compressor] Failed to compress session ${id}:`, err);
+        console.error(`[Compressor] Failed to compress capture ${rawFile}:`, err);
       }
     }
     for (const path of orphanPaths) {

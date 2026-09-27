@@ -92,6 +92,32 @@ export class WebSocketManager {
   private _staleSessionsNotification: Record<string, unknown> | null = null;
   /** Stale race-result notification — sent to each new client on connect */
   private _staleRaceResultsNotification: Record<string, unknown> | null = null;
+  private _captureMigrationNotification: { type: "capture-migration-available"; sessionCount: number; captureCount: number } | null = null;
+  private _captureMigrationCountProvider: (() => Promise<{ sessionCount: number; captureCount: number }>) | null = null;
+
+  setCaptureMigrationCountProvider(provider: () => Promise<{ sessionCount: number; captureCount: number }>): void {
+    this._captureMigrationCountProvider = provider;
+  }
+
+  setCaptureMigrationNotification(sessionCount: number, captureCount: number): void {
+    this._captureMigrationNotification = sessionCount > 0 && captureCount > 0
+      ? { type: "capture-migration-available", sessionCount, captureCount }
+      : null;
+    this.broadcastNotification(this._captureMigrationNotification ?? { type: "capture-migration-available", sessionCount: 0, captureCount: 0 });
+  }
+
+  broadcastCaptureMigrationProgress(payload: {
+    done: number;
+    total: number;
+    status: "migrated" | "unchanged" | "error";
+    error?: string;
+  }): void {
+    this.broadcastNotification({ type: "capture-migration-progress", ...payload });
+  }
+
+  get captureMigrationNotification(): Readonly<{ type: "capture-migration-available"; sessionCount: number; captureCount: number }> | null {
+    return this._captureMigrationNotification;
+  }
 
   setSessionLapsProvider(fn: () => readonly LapMeta[]): void {
     this._getSessionLaps = fn;
@@ -161,12 +187,19 @@ export class WebSocketManager {
     if (this._staleRaceResultsNotification) {
       try { ws.send(JSON.stringify(this._staleRaceResultsNotification)); } catch { sendFailed = true; }
     }
+    if (this._captureMigrationNotification) {
+      try { ws.send(JSON.stringify(this._captureMigrationNotification)); } catch { sendFailed = true; }
+    }
     if (sendFailed) {
       this.dropClient(ws);
       return;
     }
     console.log(`[WS] Client connected. Active: ${this.clients.size}`);
     if (this.clients.size === 1) this.startBroadcastTimer(); // first client — start pushing
+    void this._captureMigrationCountProvider?.().then(({ sessionCount, captureCount }) => {
+      if (!this.clients.has(ws)) return;
+      this.setCaptureMigrationNotification(sessionCount, captureCount);
+    }).catch((error) => console.error("[WS] Failed to refresh historical capture count:", error));
   }
 
   removeClient(ws: ServerWebSocket<WSData>): void {

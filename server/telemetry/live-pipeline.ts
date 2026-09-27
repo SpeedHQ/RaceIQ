@@ -3,7 +3,7 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import { resolveAnalysisTelemetry } from "../../shared/racing/analysis/telemetry-capabilities";
-import { type DbAdapter, type WsAdapter, type SessionRecorderAdapter, RealDbAdapter, RealSessionRecorderAdapter } from "./pipeline-ports";
+import { type DbAdapter, type WsAdapter, type SessionRecorderAdapter, RealDbAdapter, SparseSessionRecorderAdapter } from "./pipeline-ports";
 import { LiveTelemetryProjector } from "./live-projector";
 import type { ILapDetector, LapDetectorCallbacks, LapIndexPacket } from "../lap-detection/types";
 import { SectorTracker } from "../live-strategy/sector-tracker";
@@ -20,6 +20,7 @@ import { reconcileSessionResult } from "../race-results/reconcile";
 import { encodeFrameLength, encodeSegmentContextEndFrame, encodeSegmentContextFrame } from "../session-capture/framing";
 import { wsManager } from "../runtime/websocket-manager";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
+import { markSessionCaptureFormatCurrent } from "../db/session-queries";
 
 const CURRENT_SESSION_LAP_SNAPSHOT_LIMIT = 500;
 
@@ -89,7 +90,7 @@ export class LiveTelemetryPipeline {
   ) {
     this.db = db;
     this.ws = ws;
-    this.recorder = options?.recorder ?? new RealSessionRecorderAdapter();
+    this.recorder = options?.recorder ?? new SparseSessionRecorderAdapter();
     this._bypassPacketRateFilter = options?.bypassPacketRateFilter ?? false;
     this._skipHistorySeeding = options?.skipHistorySeeding ?? false;
     this._skipDevState = options?.skipDevState ?? false;
@@ -165,6 +166,9 @@ export class LiveTelemetryPipeline {
             };
             if (this.recorder.path) {
               await this.db.updateSessionRawFile(session.sessionId, this.recorder.path, this._lapDetector?.detectorId ?? LAP_DETECTOR_ID);
+              if (this.db instanceof RealDbAdapter && this.recorder instanceof SparseSessionRecorderAdapter) {
+                await markSessionCaptureFormatCurrent(session.sessionId);
+              }
             }
           });
           if (previousSession) {
@@ -303,9 +307,9 @@ export class LiveTelemetryPipeline {
    * Capture and tracking stay full-rate; WebSocket publication has its own cadence.
    * Stages: record sourceFrame → optional native dev copy → normalize → detector/sector/pit/BestLap → project → publish.
    */
-  async processPacket(packet: TelemetryPacket, source?: PacketSourceReference): Promise<void> {
+  async processPacket(packet: TelemetryPacket, source?: PacketSourceReference, frameTimeMs?: number): Promise<void> {
     while (this._ingressBarrier) await this._ingressBarrier;
-    const processing = this._processPacket(packet, source);
+    const processing = this._processPacket(packet, source, frameTimeMs);
     this._activePacketProcessing.add(processing);
     try {
       await processing;
@@ -314,7 +318,7 @@ export class LiveTelemetryPipeline {
     }
   }
 
-  private async _processPacket(packet: TelemetryPacket, source?: PacketSourceReference): Promise<void> {
+  private async _processPacket(packet: TelemetryPacket, source: PacketSourceReference | undefined, frameTimeMs?: number): Promise<void> {
     this._totalProcessed++;
 
     let rawByteOffset: number | undefined;
@@ -322,7 +326,7 @@ export class LiveTelemetryPipeline {
     if (source && this.recorder.active) {
       if (Buffer.isBuffer(source)) {
         rawByteOffset = this.recorder.getCurrentByteOffset();
-        this.recorder.writeRecord(source);
+        this.recorder.writeRecord(source, frameTimeMs);
       } else {
         rawByteOffset = source.rawOffset;
       }
@@ -349,7 +353,7 @@ export class LiveTelemetryPipeline {
           this._pendingSessionContextFrames = [];
         }
         const firstOffset = this.recorder.getCurrentByteOffset();
-        this.recorder.writeRecord(source);
+        this.recorder.writeRecord(source, frameTimeMs);
         detector.setCurrentLapByteOffset?.(firstOffset);
       } else {
         detector.setCurrentLapByteOffset?.(source.rawOffset);
@@ -409,14 +413,14 @@ export class LiveTelemetryPipeline {
    * Metadata-only canonical import path. Records and feeds lap detection,
    * while avoiding live-only trackers, projection, publication, and issues.
    */
-  async processLapIndexPacket(packet: LapIndexPacket, source?: PacketSourceReference): Promise<void> {
+  async processLapIndexPacket(packet: LapIndexPacket, source?: PacketSourceReference, frameTimeMs?: number): Promise<void> {
     this._totalProcessed++;
     let rawByteOffset: number | undefined;
     const epochBefore = this.recorder.epoch;
     if (source && this.recorder.active) {
       if (Buffer.isBuffer(source)) {
         rawByteOffset = this.recorder.getCurrentByteOffset();
-        this.recorder.writeRecord(source);
+        this.recorder.writeRecord(source, frameTimeMs);
       } else {
         rawByteOffset = source.rawOffset;
       }
@@ -435,7 +439,7 @@ export class LiveTelemetryPipeline {
           this._pendingSessionContextFrames = [];
         }
         const firstOffset = this.recorder.getCurrentByteOffset();
-        this.recorder.writeRecord(source);
+        this.recorder.writeRecord(source, frameTimeMs);
         detector.setCurrentLapByteOffset?.(firstOffset);
       } else {
         detector.setCurrentLapByteOffset?.(source.rawOffset);
@@ -451,9 +455,9 @@ export class LiveTelemetryPipeline {
    * Preserve parser context in imported captures without feeding its stale
    * telemetry values through the lap detector.
    */
-  recordSessionContextFrame(sourceFrame: Buffer, completeLapStart = false): void {
+  recordSessionContextFrame(sourceFrame: Buffer, completeLapStart = false, frameTimeMs?: number): void {
     this._expectCompleteLapStart = completeLapStart;
-    const contextRecord = Buffer.concat([encodeSegmentContextFrame(), encodeFrameLength(sourceFrame.length), sourceFrame, encodeSegmentContextEndFrame()]);
+    const contextRecord = Buffer.concat([encodeSegmentContextFrame(), encodeFrameLength(sourceFrame.length, frameTimeMs), sourceFrame, encodeSegmentContextEndFrame()]);
     if (this.recorder.active) {
       this.recorder.writeRawCaptureBytes(contextRecord);
       return;
@@ -528,7 +532,7 @@ const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
 
 // Wire session laps provider so WS manager can send laps on client connect
 wsManager.setSessionLapsProvider(() => _default.sessionLaps);
-export const processPacket = (packet: TelemetryPacket, source?: PacketSourceReference) => _default.processPacket(packet, source);
+export const processPacket = (packet: TelemetryPacket, source?: PacketSourceReference, frameTimeMs?: number) => _default.processPacket(packet, source, frameTimeMs);
 
 /** Returns the current lap detector (may be null before the first packet is processed). */
 export const lapDetector = {

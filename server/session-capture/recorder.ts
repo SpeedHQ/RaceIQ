@@ -70,14 +70,15 @@ export class SessionRecorder {
   }
 
   /** Append one telemetry record. Opens the file + writes meta header on first call. */
-  writeRecord(buf: Buffer): void {
+  writeRecord(buf: Buffer, frameTimeMs?: number): void {
     if (!this._active) return;
     if (!this._file) this._openAndWriteMeta();
     if (!this._file) return;
-    this._file.write(encodeFrameLength(buf.length));
+    const prefix = encodeFrameLength(buf.length, frameTimeMs);
+    this._file.write(prefix);
     this._file.write(buf);
     this._recordCount++;
-    this._byteOffset += 4 + buf.length;
+    this._byteOffset += prefix.length + buf.length;
   }
 
   /** Append bytes that already contain capture framing and update file offset. */

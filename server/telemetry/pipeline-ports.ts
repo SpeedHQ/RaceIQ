@@ -25,6 +25,7 @@ import { notifyDriverProfileLap } from "../driver-profile/runner";
 import type { ExclusionScopeLap } from "../experiments/auto-exclude";
 import { getTuneAssignment } from "../db/tune-queries";
 import { SessionRecorder } from "../session-capture/recorder";
+import { SparseSessionRecorder } from "../session-capture/sparse-recorder";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { timestampForFilename } from "../session-capture/filename";
 
@@ -128,7 +129,7 @@ export interface SessionRecorderAdapter {
   readonly epoch: number;
   start(gameId: GameId): void;
   writeMetaFrame(): void;
-  writeRecord(buf: Buffer): void;
+  writeRecord(buf: Buffer, frameTimeMs?: number): void;
   writeRawCaptureBytes(buf: Buffer): void;
   writeSegmentBoundary(): void;
   getCurrentByteOffset(): number;
@@ -353,7 +354,7 @@ export class RealSessionRecorderAdapter implements SessionRecorderAdapter {
   writeMetaFrame(): void { this._inner?.writeMetaFrame(); }
 
   writeSegmentBoundary(): void { this._inner?.writeSegmentBoundary(); }
-  writeRecord(buf: Buffer): void { this._inner?.writeRecord(buf); }
+  writeRecord(buf: Buffer, frameTimeMs?: number): void { this._inner?.writeRecord(buf, frameTimeMs); }
   writeRawCaptureBytes(buf: Buffer): void { this._inner?.writeRawCaptureBytes(buf); }
   getCurrentByteOffset(): number { return this._inner?.getCurrentByteOffset() ?? 0; }
   flush(): void { this._inner?.flush(); }
@@ -361,6 +362,36 @@ export class RealSessionRecorderAdapter implements SessionRecorderAdapter {
     const inner = this._inner;
     this._inner = null;
     if (inner) await inner.stop();
+  }
+}
+
+/** Production recorder; all supported games use sparse checkpoints where beneficial. */
+export class SparseSessionRecorderAdapter implements SessionRecorderAdapter {
+  private inner: SessionRecorder | null = null;
+  private currentEpoch = 0;
+
+  get active(): boolean { return this.inner?.recording ?? false; }
+  get path(): string | null { return this.inner?.path ?? null; }
+  get epoch(): number { return this.currentEpoch; }
+
+  start(gameId: GameId): void {
+    const sessionDir = resolve(resolveDataDir(), "sessions", gameId);
+    mkdirSync(sessionDir, { recursive: true });
+    this.inner = new SparseSessionRecorder(gameId);
+    this.inner.start(resolve(sessionDir, `${timestampForFilename()}.bin`));
+    this.currentEpoch++;
+  }
+
+  writeMetaFrame(): void { this.inner?.writeMetaFrame(); }
+  writeSegmentBoundary(): void { this.inner?.writeSegmentBoundary(); }
+  writeRecord(frame: Buffer, frameTimeMs?: number): void { this.inner?.writeRecord(frame, frameTimeMs); }
+  writeRawCaptureBytes(bytes: Buffer): void { this.inner?.writeRawCaptureBytes(bytes); }
+  getCurrentByteOffset(): number { return this.inner?.getCurrentByteOffset() ?? 0; }
+  flush(): void { this.inner?.flush(); }
+  async stop(): Promise<void> {
+    const recorder = this.inner;
+    this.inner = null;
+    if (recorder) await recorder.stop();
   }
 }
 
@@ -372,7 +403,7 @@ export class NullSessionRecorderAdapter implements SessionRecorderAdapter {
   start(_gameId: GameId): void {}
   writeMetaFrame(): void {}
   writeRawCaptureBytes(_buf: Buffer): void {}
-  writeRecord(_buf: Buffer): void {}
+  writeRecord(_buf: Buffer, _frameTimeMs?: number): void {}
 
   writeSegmentBoundary(): void {}
   getCurrentByteOffset(): number { return 0; }

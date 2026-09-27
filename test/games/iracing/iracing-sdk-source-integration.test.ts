@@ -278,14 +278,16 @@ DriverInfo:
       signalDispatchStarted = resolve;
     });
     const delivered: Buffer[] = [];
+    const capturedTimes: number[] = [];
     const recorder = new CapturingIRacingRecorder();
     const source = new IRacingTelemetrySource({
       reader,
-      dispatchRawFrame: async (raw) => {
+      dispatchRawFrame: async (raw, frameTimeMs) => {
         if (delivered.length === 0) {
           signalDispatchStarted();
           await dispatchGate;
         }
+        capturedTimes.push(frameTimeMs!);
         delivered.push(raw);
       },
       recordingEnabled: true,
@@ -301,6 +303,8 @@ DriverInfo:
     expect(recorder.stopped).toBe(false);
     expect(reads).toBe(3);
     expect(delivered).toHaveLength(0);
+    const beforeRelease = Date.now();
+    await Bun.sleep(10);
     releaseDispatch();
     expect(await Promise.all([first, second, third])).toEqual([
       true,
@@ -315,6 +319,9 @@ DriverInfo:
         (raw) => decodeIRacingSourceFrame(raw, decoder)?.values.SessionTick,
       ),
     ).toEqual([7530, 7531, 7532]);
+    expect(capturedTimes).toHaveLength(3);
+    expect(capturedTimes[1]).toBeLessThanOrEqual(beforeRelease);
+    expect(capturedTimes[2]).toBeLessThanOrEqual(beforeRelease);
     const recordedDecoder = createIRacingSourceDecoderState();
     expect(
       recorder.frames.map(

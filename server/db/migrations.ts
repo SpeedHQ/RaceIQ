@@ -1282,5 +1282,13 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE lap_metrics ADD COLUMN insight_version INTEGER NOT NULL DEFAULT 0`,
     ],
   },
+  // v62: Mark whether canonical captures use current sparse storage.
+  {
+    version: 62,
+    name: "version session capture storage",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN capture_format_version INTEGER`,
+    ],
+  },
 ];
 

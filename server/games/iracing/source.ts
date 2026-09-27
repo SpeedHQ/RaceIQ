@@ -24,7 +24,7 @@ export interface IRacingFrameReader {
 
 export interface IRacingTelemetrySourceOptions {
   reader?: IRacingFrameReader;
-  dispatchRawFrame?: (rawFrame: Buffer) => Promise<void>;
+  dispatchRawFrame?: (rawFrame: Buffer, frameTimeMs?: number) => Promise<void>;
   registerIdentity?: (session: IRacingSessionSnapshot) => Promise<void>;
   pollIntervalMs?: number;
   recordingEnabled?: boolean;
@@ -33,15 +33,16 @@ export interface IRacingTelemetrySourceOptions {
 }
 interface QueuedIRacingFrame {
   rawFrame: Buffer;
+  frameTimeMs: number;
   identity?: IRacingSessionSnapshot;
   identityKey?: string;
   resolve: (processed: boolean) => void;
 }
 
-async function dispatchThroughParser(rawFrame: Buffer): Promise<void> {
+async function dispatchThroughParser(rawFrame: Buffer, frameTimeMs?: number): Promise<void> {
   const packet = parsePacket(rawFrame);
   if (packet?.IsRaceOn) {
-    await processPacket(packet, rawFrame);
+    await processPacket(packet, rawFrame, frameTimeMs);
   }
 }
 
@@ -56,7 +57,7 @@ function numeric(values: Record<string, IRacingValue>, name: string, fallback = 
  */
 export class IRacingTelemetrySource {
   private readonly reader: IRacingFrameReader;
-  private readonly dispatchRawFrame: (rawFrame: Buffer) => Promise<void>;
+  private readonly dispatchRawFrame: (rawFrame: Buffer, frameTimeMs?: number) => Promise<void>;
   private readonly registerIdentity:
     | ((session: IRacingSessionSnapshot) => Promise<void>)
     | undefined;
@@ -142,6 +143,7 @@ export class IRacingTelemetrySource {
     try {
       const snapshot = this.reader.readLatest();
       if (!snapshot) return false;
+      const frameTimeMs = Date.now();
 
       const sessionNum = Math.trunc(numeric(snapshot.values, "SessionNum", 0));
       let identity: IRacingSessionSnapshot | undefined;
@@ -182,6 +184,7 @@ export class IRacingTelemetrySource {
       return await new Promise<boolean>((resolve) => {
         this.frameQueue.push({
           rawFrame,
+          frameTimeMs,
           identity,
           identityKey: identity ? this.cachedIdentityKey ?? undefined : undefined,
           resolve,
@@ -226,7 +229,7 @@ export class IRacingTelemetrySource {
       }
 
       try {
-        await this.framePipeline.process(entry.rawFrame);
+        await this.framePipeline.process(entry);
         entry.resolve(true);
       } catch (error) {
         this.logSourceError(error);

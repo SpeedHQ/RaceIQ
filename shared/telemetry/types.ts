@@ -19,6 +19,8 @@ export interface TelemetryPacket {
 
   // Timing
   TimestampMS: number; // u32
+  /** UTC epoch milliseconds when source frame was acquired; absent in historical captures. */
+  frameTimeMs?: number;
 
   // Engine
   EngineMaxRpm: number;

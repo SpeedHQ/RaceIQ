@@ -23,6 +23,20 @@ function fetchVersionInfo(signal: AbortSignal) {
     .catch(() => {});
 }
 
+async function refreshCaptureMigrationStatus(signal?: AbortSignal) {
+  try {
+    const response = await client.api.sessions["capture-migration-status"].$get(undefined, signal ? { init: { signal } } : undefined);
+    if (!response.ok) return;
+    const data = await response.json();
+    telemetryStore.actions.setCaptureMigration({
+      sessionCount: data.sessionCount,
+      captureCount: data.captureCount,
+    });
+  } catch {
+    // Status refresh is best-effort; maintenance view provides manual retry.
+  }
+}
+
 export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
   const packetCountRef = useRef(0);
@@ -76,6 +90,7 @@ export function useWebSocket() {
 
       ws.onopen = () => {
         telemetryStore.actions.setConnected(true);
+        void refreshCaptureMigrationStatus();
         startVersionRequest();
         if (devTelemetryStore.get().subscriptionWanted) {
           ws.send(JSON.stringify({ type: "subscribe", channel: "dev-telemetry" }));
@@ -107,6 +122,15 @@ export function useWebSocket() {
             queryClient.invalidateQueries({ queryKey: ["laps"] });
           } else if (data.type === "stale-lap-detection") {
             telemetryStore.actions.setStaleLapDetection({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
+          } else if (data.type === "capture-migration-available") {
+            telemetryStore.actions.setCaptureMigration({ sessionCount: data.sessionCount as number, captureCount: data.captureCount as number });
+          } else if (data.type === "capture-migration-progress") {
+            telemetryStore.actions.setCaptureMigrationProgress({
+              done: data.done as number,
+              total: data.total as number,
+              status: data.status as "migrated" | "unchanged" | "error",
+              error: data.error as string | undefined,
+            });
           } else if (data.type === "stale-race-results") {
             telemetryStore.actions.setStaleRaceResults({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
           } else if (data.type === "race-result-reconciled") {

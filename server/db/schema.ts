@@ -107,6 +107,7 @@ export const sessions = sqliteTable(
 		parserVersion: text("parser_version"),
 		resolverVersion: text("resolver_version"),
 		derivationVersion: text("derivation_version"),
+		captureFormatVersion: integer("capture_format_version"),
 		// How this session's telemetry was obtained (migration v43). NULL = recorded
 		// live from the game. 'motec' = transcoded from a MoTeC .ld export, where the
 		// racing line is dead-reckoned rather than logged — see server/motec/.

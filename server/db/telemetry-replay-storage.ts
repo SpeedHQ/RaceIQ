@@ -10,6 +10,8 @@ import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import type { LapSetAlignmentIndex } from "../../shared/racing/laps/alignment/build";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
 import { loadSessionSource, iterateSessionCaptureFrames, iterateSessionCaptureRecordsFromSource, indexCaptureFrames, clearSessionCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
+import { readFramePrefix } from "../session-capture/framing";
+import { applyFrameTime } from "../session-capture/frame-time";
 import { legacyMotecOffsetToPacketIndex } from "../motec/source-archive";
 import { countFullPacketMaterialized, countParserStatePrime, countSourceFrameScanned } from "../session-capture/test-instrumentation";
 
@@ -365,7 +367,10 @@ export async function* iterateSessionTelemetry(sessionId: number, gameId: GameId
     let packet: TelemetryPacket | null;
     try {
       packet = serverGame.tryParse(record.frame, state);
-      if (packet) normalizeReplayPacket(packet, serverGame);
+      if (packet) {
+        applyFrameTime(packet, record.frameTimeMs);
+        normalizeReplayPacket(packet, serverGame);
+      }
     } catch {
       // Match lap replay: one malformed native frame does not discard session.
       continue;
@@ -373,11 +378,14 @@ export async function* iterateSessionTelemetry(sessionId: number, gameId: GameId
     if (packet && !inContext) yield packet;
   }
 }
-function parseReplayFrame(frame: Buffer, serverGame: ReturnType<typeof getServerGame>, state: unknown): TelemetryPacket | null {
+function parseReplayFrame(frame: Buffer, serverGame: ReturnType<typeof getServerGame>, state: unknown, frameTimeMs?: number): TelemetryPacket | null {
   try {
     countFullPacketMaterialized();
     const packet = serverGame.tryParse(frame, state);
-    if (packet) normalizeReplayPacket(packet, serverGame);
+    if (packet) {
+      applyFrameTime(packet, frameTimeMs);
+      normalizeReplayPacket(packet, serverGame);
+    }
     return packet;
   } catch { return null; }
 }
@@ -393,8 +401,8 @@ async function parseRawLapFramesFromSource(
   const packets: TelemetryPacket[] = [];
   let found = false;
   let targetCount = 0;
-  for await (const { offset, frame } of iterateSessionCaptureFrames(source)) {
-    fileSize = Math.max(fileSize, offset + 4 + frame.length);
+  for await (const { offset, frame, frameTimeMs } of iterateSessionCaptureFrames(source)) {
+    fileSize = Math.max(fileSize, offset + (frameTimeMs === undefined ? 4 : 12) + frame.length);
     if (!found) {
       if (offset < rawByteOffset) {
         if (state != null && serverGame.primeParserState) {
@@ -409,7 +417,7 @@ async function parseRawLapFramesFromSource(
       }
       found = true;
     }
-    const packet = parseReplayFrame(frame, serverGame, state);
+    const packet = parseReplayFrame(frame, serverGame, state, frameTimeMs);
     if (targetCount < rawFrameCount) {
       if (packet) packets.push(packet);
       targetCount++;
@@ -475,7 +483,9 @@ export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, 
     ? frameIndex.records.slice(0, startRecord.frameIndex)
     : frameIndex.records.filter((record) => record.offset < rawByteOffset);
   if (state != null) for (const record of warmupRecords) {
-    const wBuf = buf.subarray(record.offset + 4, record.offset + 4 + record.length);
+    const prefix = readFramePrefix(buf, record.offset);
+    if (!prefix) continue;
+    const wBuf = buf.subarray(record.offset + prefix.prefixBytes, record.offset + prefix.prefixBytes + prefix.length);
     try {
       countParserStatePrime();
       serverGame.primeParserState(wBuf, state);
@@ -487,29 +497,22 @@ export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, 
   const readCount = rawFrameCount + 1;
 
   for (let i = 0; i < readCount; i++) {
-    if (offset + 4 > buf.length) {
-      // Extra frame may legitimately not exist (end of file). Only complain
-      // about missing frames within rawFrameCount itself.
+    const prefix = readFramePrefix(buf, offset);
+    if (!prefix) {
       if (i >= rawFrameCount) break;
-      throw new LapParseError(`Truncated frame header at offset ${offset} (file ${fileSize} bytes, wanted frame ${i + 1}/${rawFrameCount})`, {
-        rawFile,
-        rawByteOffset,
-        rawFrameCount,
-        fileSize,
-        framesParsed: packets.length,
-        reason: "truncated-frame",
+      throw new LapParseError(`Truncated or invalid frame prefix at offset ${offset} (file ${fileSize} bytes, wanted frame ${i + 1}/${rawFrameCount})`, {
+        rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: packets.length, reason: "truncated-frame",
       });
     }
-    const frameLen = buf.readUInt32LE(offset);
     // NOTE: we do not check for META_FRAME_MAGIC here — the meta frame only
     // exists at file offset 0, which laps never start at. Treating any
     // mid-lap 0xFFFFFFFF as a meta frame would false-positive on legitimate
     // packet data containing that byte pattern and drift the frame reader
     // out of alignment.
-    offset += 4;
-    if (offset + frameLen > buf.length) {
+    const frameOffset = offset + prefix.prefixBytes;
+    if (frameOffset + prefix.length > buf.length) {
       if (i >= rawFrameCount) break;
-      throw new LapParseError(`Frame ${i + 1}/${rawFrameCount} at offset ${offset} claims ${frameLen} bytes but only ${buf.length - offset} remain`, {
+      throw new LapParseError(`Frame ${i + 1}/${rawFrameCount} at offset ${frameOffset} claims ${prefix.length} bytes but only ${buf.length - frameOffset} remain`, {
         rawFile,
         rawByteOffset,
         rawFrameCount,
@@ -518,10 +521,11 @@ export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, 
         reason: "truncated-frame",
       });
     }
-    const sourceFrame = buf.subarray(offset, offset + frameLen);
-    offset += frameLen;
+    const sourceFrame = buf.subarray(frameOffset, frameOffset + prefix.length);
+    offset = frameOffset + prefix.length;
     const packet = parseReplayFrame(sourceFrame, serverGame, state);
     if (!packet) continue;
+    applyFrameTime(packet, prefix.frameTimeMs);
     if (i < rawFrameCount) {
       packets.push(packet);
     } else {

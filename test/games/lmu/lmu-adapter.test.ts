@@ -406,6 +406,7 @@ describe("LMU adapter", () => {
     const firstBlocked = new Promise<void>((resolve) => { releaseFirst = resolve; });
     const dispatched: number[] = [];
     const recorded: number[] = [];
+    const capturedTimes: number[] = [];
     let recorderStopped = false;
     let readerStopped = false;
     const source = new LMUTelemetrySource({
@@ -423,9 +424,10 @@ describe("LMU adapter", () => {
         },
         async stop() { recorderStopped = true; },
       },
-      async dispatchRawFrame(frame) {
+      async dispatchRawFrame(frame, frameTimeMs) {
         const elapsedTime = decodeLMUSourceFrame(frame)!.telemetry.readDoubleLE(LMU_TELEMETRY.elapsedTime);
         dispatched.push(elapsedTime);
+        capturedTimes.push(frameTimeMs!);
         if (elapsedTime === 321.5) await firstBlocked;
         if (elapsedTime === 322.5) throw new Error("expected downstream failure");
       },
@@ -437,11 +439,16 @@ describe("LMU adapter", () => {
     const stopped = source.stop();
     expect(readerStopped).toBe(true);
     expect(recorderStopped).toBe(false);
+    const beforeRelease = Date.now();
+    await Bun.sleep(10);
     releaseFirst();
     expect(await Promise.all(results)).toEqual([true, false, false, true]);
     await stopped;
     expect(recorded).toEqual([321.5, 322.5, 323.5]);
     expect(dispatched).toEqual([321.5, 322.5, 323.5]);
+    expect(capturedTimes).toHaveLength(3);
+    expect(capturedTimes[1]).toBeLessThanOrEqual(beforeRelease);
+    expect(capturedTimes[2]).toBeLessThanOrEqual(beforeRelease);
     expect(recorderStopped).toBe(true);
   });
 

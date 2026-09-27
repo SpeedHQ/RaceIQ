@@ -7,6 +7,7 @@ import { deleteSession, updateSessionSource } from "../db/session-queries";
 import { getServerGame } from "../games/registry";
 import { isIRacingSessionFrame } from "../games/iracing/source-frame";
 import { SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END } from "./framing";
+import { applyFrameTime } from "./frame-time";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
 import { NullWsAdapter, RealDbAdapter, type DbAdapter, type SessionIdentity, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
@@ -213,9 +214,9 @@ async function rollbackImport(
   throw error;
 }
 
-type SessionFrameSource =
-  | Iterable<Buffer | typeof SESSION_SEGMENT_BOUNDARY | typeof SESSION_SEGMENT_CONTEXT | typeof SESSION_SEGMENT_CONTEXT_END>
-  | AsyncIterable<Buffer | typeof SESSION_SEGMENT_BOUNDARY | typeof SESSION_SEGMENT_CONTEXT | typeof SESSION_SEGMENT_CONTEXT_END>;
+type SessionFrame = Buffer | { frame: Buffer; frameTimeMs?: number }
+  | typeof SESSION_SEGMENT_BOUNDARY | typeof SESSION_SEGMENT_CONTEXT | typeof SESSION_SEGMENT_CONTEXT_END;
+type SessionFrameSource = Iterable<SessionFrame> | AsyncIterable<SessionFrame>;
 
 /** Tracks canonical offsets for imports without persisting derived `.bin` bytes. */
 export class ImportSourceRecorder implements SessionRecorderAdapter {
@@ -372,24 +373,27 @@ export function importSessionFrames(
         inParserContext = false;
         return false;
       }
+      const frameTimeMs = Buffer.isBuffer(sourceFrame) ? undefined : sourceFrame.frameTimeMs;
+      const frame = Buffer.isBuffer(sourceFrame) ? sourceFrame : sourceFrame.frame;
       if (inParserContext) {
-        serverGame.tryParse(sourceFrame, state);
-        pipeline.recordSessionContextFrame(sourceFrame);
+        serverGame.tryParse(frame, state);
+        pipeline.recordSessionContextFrame(frame, false, frameTimeMs);
         return false;
       }
-      if (completeLapStart && expectsSessionContext && isIRacingSessionFrame(sourceFrame)) {
-        serverGame.tryParse(sourceFrame, state);
-        pipeline.recordSessionContextFrame(sourceFrame, completeLapStart);
+      if (completeLapStart && expectsSessionContext && isIRacingSessionFrame(frame)) {
+        serverGame.tryParse(frame, state);
+        pipeline.recordSessionContextFrame(frame, completeLapStart, frameTimeMs);
         expectsSessionContext = false;
         completeLapStart = false;
         return false;
       }
       expectsSessionContext = false;
       completeLapStart = false;
-      const packet = serverGame.tryParseLapIndex(sourceFrame, state);
+      const packet = serverGame.tryParseLapIndex(frame, state);
       if (!packet) return false;
+      applyFrameTime(packet, frameTimeMs);
       countIndexSampleMaterialized();
-      await pipeline.processLapIndexPacket(packet, sourceFrame);
+      await pipeline.processLapIndexPacket(packet, frame, frameTimeMs);
       return true;
     },
   );

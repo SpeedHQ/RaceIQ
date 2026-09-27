@@ -2,8 +2,13 @@
 
 ### Breaking
 - Open lap replays through session-scoped links; old track/car/lap query links no longer work
+- New recordings from every supported game use lossless sparse storage; older builds cannot read sparse captures.
+- New session captures include per-frame UTC acquisition times; older app versions cannot read these captures.
 
 ### Features
+- Record every supported game with smaller lossless captures while retaining every source frame.
+- Preserve real pauses and capture gaps in six-game telemetry replay without changing simulator source frames.
+- Choose when to convert older `.bin` and `.bin.gz` recordings to lossless space-saving storage; existing laps and Analyse replay remain usable throughout.
 - Add French and Italian interface translations and complete German catalog coverage; localize audited setup, analysis, telemetry, session, and assistant UI copy.
 - List lap detector checks by category in Analyse, separating findings from checks with no finding and unavailable checks; infer aid checks where wheel telemetry supports them without native intervention channels
 - Chart per-wheel rotation speed (rad/s) in lap replay when rotation telemetry is available

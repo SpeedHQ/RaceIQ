@@ -1,3 +1,6 @@
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { describe, expect, test } from "bun:test";
 
 import { insertLap } from "../../server/db/lap-mutation-queries";
@@ -6,11 +9,127 @@ import { cacheDelete } from "../../server/db/telemetry-replay-storage";
 import { initServerGameAdapters } from "../../server/games/init";
 import { lapRoutes } from "../../server/routes/laps";
 import { iterateSessionCaptureFrames, setCaptureFileFactoryForTest } from "../../server/session-capture/source-loader";
+import { SessionRecorder } from "../../server/session-capture/recorder";
+import { SparseSessionRecorderAdapter } from "../../server/telemetry/pipeline-ports";
 import { getRecordingFixture } from "../support/recordings/fixtures";
 
 
 initServerGameAdapters();
 describe("F1 Analyse semantic telemetry integration", () => {
+  test("replays sparse capture identically to raw recording through streaming Analyse path", async () => {
+    const fixture = getRecordingFixture("f1-2025-2026-04-09T21-34-10-190Z.bin.gz");
+    if (!fixture) throw new Error("Required F1 recording fixture is missing");
+    const tempDir = mkdtempSync(join(tmpdir(), "raceiq-analyse-sparse-"));
+    const previousDataDir = process.env.DATA_DIR;
+    process.env.DATA_DIR = tempDir;
+    const sparse = new SparseSessionRecorderAdapter();
+    const raw = new SessionRecorder();
+    const lapIds: number[] = [];
+    const sessionIds: number[] = [];
+    let sparseOffset: number | undefined;
+    let rawOffset: number | undefined;
+    let sparseFrameIndex: number | undefined;
+    try {
+      sparse.start("f1-2025");
+      sparse.writeMetaFrame();
+      raw.start(join(tempDir, "raw.bin"));
+      raw.writeMetaFrame();
+      for await (const record of iterateSessionCaptureFrames({
+        rawFile: fixture, source: null, gameId: "f1-2025", carOrdinal: 41, trackOrdinal: 19,
+      })) {
+        sparse.writeRecord(record.frame);
+        raw.writeRecord(record.frame);
+      }
+      const sparseFile = sparse.path;
+      await sparse.stop();
+      await raw.stop();
+      if (!sparseFile) throw new Error("Sparse recorder did not produce a capture");
+      const rawFile = raw.path;
+      if (!rawFile) throw new Error("Raw recorder did not produce a capture");
+
+      const sparseBytes = readFileSync(sparseFile);
+      const rawBytes = readFileSync(rawFile);
+      let sparseCursor = 12;
+      let rawCursor = 12;
+      let frameIndex = 0;
+      while (sparseCursor + 4 <= sparseBytes.length && rawCursor + 4 <= rawBytes.length) {
+        const sparseLength = sparseBytes.readUInt32LE(sparseCursor);
+        const rawLength = rawBytes.readUInt32LE(rawCursor);
+        if (sparseLength === 0 || sparseCursor + 4 + sparseLength > sparseBytes.length ||
+            rawLength === 0 || rawCursor + 4 + rawLength > rawBytes.length) break;
+        if (sparseBytes.toString("ascii", sparseCursor + 4, sparseCursor + 8) === "RQSD") {
+          sparseOffset = sparseCursor;
+          rawOffset = rawCursor;
+          sparseFrameIndex = frameIndex;
+          break;
+        }
+        sparseCursor += 4 + sparseLength;
+        rawCursor += 4 + rawLength;
+        frameIndex++;
+      }
+      if (sparseOffset == null || rawOffset == null || sparseFrameIndex == null) {
+        throw new Error("F1 fixture did not produce a generic sparse delta");
+      }
+      const recordings: Array<{ path: string; offset: number }> = [
+        { path: sparseFile, offset: sparseOffset },
+        { path: rawFile, offset: rawOffset },
+      ];
+      const results: unknown[] = [];
+      let fileCalls = 0;
+      let streamCalls = 0;
+      const originalFile = Bun.file;
+      setCaptureFileFactoryForTest((path) => {
+        fileCalls++;
+        const file = originalFile(path);
+        return {
+          size: file.size,
+          lastModified: file.lastModified,
+          slice: (start?: number, end?: number) => file.slice(start, end),
+          stream: () => { streamCalls++; return file.stream(); },
+          arrayBuffer: () => { throw new Error("Analyse replay must not materialize the full capture"); },
+        };
+      });
+      try {
+        for (const recording of recordings) {
+          const sessionId = await insertSession(41, 19, "f1-2025");
+          sessionIds.push(sessionId);
+          const lapId = await insertLap(sessionId, 1, 1, true, recording.offset, 1_000);
+          lapIds.push(lapId);
+          await updateSessionRawFile(sessionId, recording.path, "test-detector");
+          const response = await lapRoutes.request(`/api/laps/${lapId}/semantic-telemetry`, {
+            headers: { "X-Game-Id": "f1-2025" },
+          });
+          expect(response.status).toBe(200);
+          const body = await response.json() as {
+            lapId: number;
+            requestedSemanticIds: string[];
+            envelopes: { sequence: number; values: { semanticId: string; value?: unknown }[] }[];
+            parseError: string | null;
+          };
+          expect(body.lapId).toBe(lapId);
+          expect(body.parseError).toBeNull();
+          expect(body.requestedSemanticIds).toContain("tire.temperature.core");
+          expect(body.envelopes.length).toBeGreaterThan(0);
+          expect(body.envelopes.map((envelope) => envelope.sequence)).toEqual(body.envelopes.map((_, index) => index));
+          results.push(body.envelopes);
+        }
+        expect(fileCalls).toBe(2);
+        expect(streamCalls).toBe(2);
+      } finally {
+        setCaptureFileFactoryForTest(null);
+      }
+      expect(results[0]).toEqual(results[1]);
+    } finally {
+      setCaptureFileFactoryForTest(null);
+      for (const lapId of lapIds) cacheDelete(lapId);
+      for (const sessionId of sessionIds) await deleteSession(sessionId);
+      if (previousDataDir == null) delete process.env.DATA_DIR;
+      else process.env.DATA_DIR = previousDataDir;
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  }, 120000);
+
+
   test("replays a real capture through the Analyse endpoint", async () => {
     const recording = getRecordingFixture("f1-2025-2026-04-09T21-34-10-190Z.bin.gz");
     if (!recording) throw new Error("Required F1 recording fixture is missing");

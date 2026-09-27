@@ -12,6 +12,7 @@ import { getLocale, isLocale } from "@/paraglide/runtime";
 import { AppSidebar } from "../components/AppSidebar";
 import { RaceResultStatus } from "../components/RaceResultStatus";
 import { ResponsiveWorkspace } from "../components/ResponsiveWorkspace";
+import { CaptureMigration } from "../components/CaptureMigration";
 import { StaleLapReprocessing } from "../components/StaleLapReprocessing";
 import { UpdateModal } from "../components/UpdateModal";
 import { Button } from "../components/ui/button";
@@ -178,6 +179,7 @@ function AppShell() {
         {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
       </div>
       <StaleLapReprocessing />
+      <CaptureMigration />
       <RaceResultStatus compact />
     </>
   );

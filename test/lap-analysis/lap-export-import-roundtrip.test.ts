@@ -99,17 +99,26 @@ describe("lap export → import round-trip (real capture)", () => {
     capture = CAPTURE,
     gameId = "fm-2023",
     minimumLaps = 2,
+    frameTimeStartMs,
   }: {
     capture?: string;
     gameId?: GameId;
     minimumLaps?: number;
+    frameTimeStartMs?: number;
   } = {}) {
     const frames = gameId === "iracing"
       ? readIRacingFrames(capture)
       : iterateSessionFrames(
           Buffer.from(gunzipSync(await Bun.file(capture).arrayBuffer())),
         );
-    const res = await importSessionFrames(frames, gameId);
+    const sourceFrames = frameTimeStartMs === undefined ? frames : (function* () {
+      let index = 0;
+      for (const frame of frames) {
+        yield { frame, frameTimeMs: frameTimeStartMs + index * 10 + Math.floor(index / 100) * 5_000 };
+        index++;
+      }
+    })();
+    const res = await importSessionFrames(sourceFrames, gameId);
     expect(res.laps.length).toBeGreaterThan(0);
 
     const sids = [...new Set(res.laps.map((l) => l.sessionId))];
@@ -150,7 +159,10 @@ describe("lap export → import round-trip (real capture)", () => {
   }, 120000);
   for (const { gameId, capture, label } of ALL_GAME_CAPTURES) {
     test(`${label} selected lap preserves source telemetry through export and import`, async () => {
-      const { sid, rows } = await seedSession({ capture, gameId, minimumLaps: 1 });
+      const { sid, rows } = await seedSession({
+        capture, gameId, minimumLaps: 1,
+        frameTimeStartMs: gameId === "fm-2023" ? 1_745_000_000_000 : undefined,
+      });
       const exported = rows.at(-1)!;
       const sourceSession = await db.select().from(sessions).where(eq(sessions.id, sid)).get();
       const sourcePackets = await parseRawLapFrames(
@@ -182,6 +194,17 @@ describe("lap export → import round-trip (real capture)", () => {
       expect(importedPackets.length).toBe(sourcePackets.length);
       expect(importedPackets.map(({ TimestampMS: _timestamp, ...packet }) => packet))
         .toEqual(sourcePackets.map(({ TimestampMS: _timestamp, ...packet }) => packet));
+      if (gameId === "fm-2023") {
+        expect(sourcePackets[0]?.frameTimeMs).toBeDefined();
+        expect(sourcePackets.some((packet, index) =>
+          index > 0 && packet.frameTimeMs! - sourcePackets[index - 1]!.frameTimeMs! > 5_000,
+        )).toBe(true);
+        expect(importedPackets.map((packet) => packet.frameTimeMs))
+          .toEqual(sourcePackets.map((packet) => packet.frameTimeMs));
+        const replay = await queryLapTelemetryBySemanticId(importedRow!.id, ["motion.speed"]);
+        expect(replay?.envelopes.map((envelope) => envelope.observedAt))
+          .toEqual(importedPackets.map((packet) => ({ domain: "wall-clock", milliseconds: packet.frameTimeMs! })));
+      }
     }, 120000);
 
   }

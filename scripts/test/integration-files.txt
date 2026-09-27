@@ -108,6 +108,7 @@ test/race-results/race-results-source.test.ts
 test/race-results/race-results-storage.test.ts
 test/race-results/raw-capture-identity.test.ts
 test/routes/car-routes-game-id.test.ts
+test/routes/capture-migration-consent.test.ts
 test/routes/import-ownership.test.ts
 test/routes/lap-analysis-route.test.ts
 test/routes/laps-issues-route.test.ts
@@ -126,6 +127,10 @@ test/runtime/tray.test.ts
 test/runtime/update-check.test.ts
 test/runtime/websocket-manager.test.ts
 test/session-capture/automatic-cleanup.test.ts
+test/session-capture/capture-migration.test.ts
+test/session-capture/generic-sparse-recorder.test.ts
+test/session-capture/kunos-sparse-recorder.test.ts
+test/session-capture/lmu-sparse-recorder.test.ts
 test/session-capture/parse-bin-vs-gz.test.ts
 test/session-capture/parse-dump.test.ts
 test/session-capture/raw-binary-storage.test.ts

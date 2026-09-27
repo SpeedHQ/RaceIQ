@@ -14,6 +14,7 @@ import { sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { readFrameStreamStart, iterateSessionCaptureRecords } from "./framing";
+import { applyFrameTime } from "./frame-time";
 interface ReprocessResult {
   sessionId: number;
   lapsDetected: number;
@@ -75,8 +76,12 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
   const existingLaps = await getLapsForSession(sessionId);
   if (loaded.kind === "capture") {
     const frameStreamStart = readFrameStreamStart(loaded.buffer);
-    const hasSegmentBoundaries = [...iterateSessionCaptureRecords(loaded.buffer, frameStreamStart)]
-      .some((record) => record.kind === "segment-boundary");
+    let hasSegmentBoundaries = false;
+    for (const record of iterateSessionCaptureRecords(loaded.buffer, frameStreamStart)) {
+      if (record.kind !== "segment-boundary") continue;
+      hasSegmentBoundaries = true;
+      break;
+    }
     if (hasSegmentBoundaries) {
       return {
         sessionId,
@@ -117,7 +122,10 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
       }
       if (record.kind !== "frame") continue;
       const packet = serverGame.tryParse(record.frame, parserState);
-      if (packet && !inContext) await detector.feed(packet, record.offset);
+      if (packet && !inContext) {
+        applyFrameTime(packet, record.frameTimeMs);
+        await detector.feed(packet, record.offset);
+      }
     }
   }
 

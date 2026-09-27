@@ -4,7 +4,10 @@ import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "../games/lmu/recorder"
 import {
   decompressIfGzipSync,
   iterateSessionFrames,
-  iterateSessionImportFrames,
+  iterateSessionCaptureRecords,
+  SESSION_SEGMENT_BOUNDARY,
+  SESSION_SEGMENT_CONTEXT,
+  SESSION_SEGMENT_CONTEXT_END,
 } from "./framing";
 import { importSessionFrames, type ImportedLap, type ImportSessionOptions } from "./import-pipeline";
 
@@ -35,6 +38,15 @@ export function detectGameIdFromBuffer(bytes: Buffer): GameId | null {
   }
   return null;
 }
+function* canonicalImportFrames(bytes: Buffer) {
+  for (const record of iterateSessionCaptureRecords(bytes)) {
+    if (record.kind === "frame") yield { frame: record.frame, frameTimeMs: record.frameTimeMs };
+    else if (record.kind === "segment-boundary") yield SESSION_SEGMENT_BOUNDARY;
+    else if (record.kind === "segment-context") yield SESSION_SEGMENT_CONTEXT;
+    else yield SESSION_SEGMENT_CONTEXT_END;
+  }
+}
+
 
 /** Replay a canonical session capture through parser, detector, and persistence pipeline. */
 export async function importSessionBin(
@@ -45,7 +57,7 @@ export async function importSessionBin(
   const buf = decompressIfGzipSync(bytes);
   const frames = gameId === "lmu" && hasLMUDumpMagic(buf)
     ? readLMUFramesFromBuffer(buf)
-    : iterateSessionImportFrames(buf);
+    : canonicalImportFrames(buf);
   const { packetCount, laps } = await importSessionFrames(
     frames,
     gameId,
