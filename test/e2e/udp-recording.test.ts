@@ -3,6 +3,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import {
   mkdtempSync,
   readdirSync,
+  readFileSync,
   rmSync,
   unlinkSync,
   writeFileSync,
@@ -11,8 +12,11 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { GameId } from "../../shared/games/ids";
 import { ReplayedUdpDataSource } from "../support/recordings/replayed-udp-data-source";
-import { readUdpDump } from "../support/recordings/udp";
 
+import {
+  decompressIfGzipSync,
+  iterateSessionFrames,
+} from "../../server/session-capture/framing";
 const RECORDINGS_DIR = resolve(process.cwd(), "test", "artifacts", "sessions");
 const RECORDING_CASES: readonly {
   gameId: GameId;
@@ -159,7 +163,12 @@ describe("UDP recording integration", () => {
         `expected a new ${recordingCase.gameId}-*.bin in ${RECORDINGS_DIR}`,
       ).toBeTruthy();
       createdBin = join(RECORDINGS_DIR, createdFile!);
-      expect(readUdpDump(createdBin)).toEqual([...source.packets]);
+      const recordedFrames = [
+        ...iterateSessionFrames(
+          decompressIfGzipSync(readFileSync(createdBin)),
+        ),
+      ];
+      expect(recordedFrames).toEqual([...source.packets]);
     }, 60_000);
   }
 });

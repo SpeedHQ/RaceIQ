@@ -73,7 +73,7 @@ function receivedTimestamp(createdAt: string): TelemetryTimestamp {
 }
 
 function replayTimestamp(packet: TelemetryPacket, fallback: TelemetryTimestamp): TelemetryTimestamp {
-  if (packet.frameTimeMs !== undefined) return { domain: "wall-clock", milliseconds: packet.frameTimeMs };
+  if (packet.extendedRaceIQ?.frameTimeMs !== undefined) return { domain: "wall-clock", milliseconds: packet.extendedRaceIQ.frameTimeMs };
   if (packet.gameId === "acc" || packet.gameId === "ac-evo" || !Number.isFinite(packet.TimestampMS)) return fallback;
   return { domain: "session", milliseconds: packet.TimestampMS };
 }

@@ -45,6 +45,7 @@ import {
 } from "./packet-mapping";
 import {
   IRACING_SDK_ALIASES,
+  addDefinedVariable,
   addExtensionVariable,
   addIRacingRawYamlSource,
   addIRacingYamlField,
@@ -230,6 +231,35 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
         });
       }
     }
+  }
+
+  const frameTimeSource = "extendedRaceIQ.frameTimeMs";
+  addDefinedVariable(
+    variables,
+    groups,
+    "timing.frame-time-ms",
+    Object.fromEntries(GAME_IDS.map((gameId) => [gameId, {
+      kind: "direct",
+      nativeUnit: "ms",
+      sources: [frameTimeSource],
+      freshness: "continuous",
+      description: "RaceIQ records frame acquisition UTC for new captures; historical captures may lack it.",
+      provenance: { origin: "parser", artifact: "server/session-capture/frame-time.ts" },
+    }])) as Record<GameId, GameLink>,
+  );
+  for (const gameId of GAME_IDS) {
+    addSource(inventories, gameId, {
+      path: frameTimeSource,
+      label: "Frame Time Ms",
+      unit: "ms",
+      dataType: "number",
+      count: 1,
+      description: "RaceIQ frame acquisition UTC; absent in historical captures.",
+      semanticId: "timing.frame-time-ms",
+      sourceKind: "extension",
+      recordedByRaceIQ: true,
+      retention: "exact",
+    });
   }
 
   const f1Fields = extensionFieldSets(extensionFields(

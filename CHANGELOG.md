@@ -28,6 +28,7 @@
 - Render 3D replays, onboarding preview, and model comparisons with WebGPU where available and WebGL2 fallback; pause stops recurring scene draws.
 
 ### Fixes
+- Read recorded frame acquisition times as telemetry for all six games; older captures without timestamps remain supported.
 - Avoid growing LMU, ACC, and AC Evo recordings when changed frames are cheaper to store in full than as sparse deltas.
 - Keep exported lap slices within source session segments; validate sparse checkpoints before replay, preserve shared lap offsets during capture conversion, and avoid prompting to reconvert newly imported sparse recordings.
 - Replace every eligible older recording after lossless verification, even when sparse storage does not reduce file size.
@@ -114,6 +115,7 @@
 - Avoid per-frame wheel-speed sorting during effective-radius calculation
 - Use linear-time rolling-window analysis for boost-drop detection
 - Represent racing-line availability with an explicit per-track semantic contract
+- Run every `bun run test:all` suite after failures, then report all failing suites.
 
 ## v0.18.0 - 2026-09-18
 

@@ -141,9 +141,9 @@ describe("generic sparse session recorder", () => {
     const sparsePackets = await parseRawLapFrames(source(sparseFile), 12, frames.length);
     expect(sparsePackets.length).toBeGreaterThan(0);
     expect(sparsePackets).toEqual(rawPackets);
-    expect(sparsePackets[0]?.frameTimeMs).toBeDefined();
+    expect(sparsePackets[0]?.extendedRaceIQ?.frameTimeMs).toBeDefined();
     if (gameId === "acc" || gameId === "ac-evo") {
-      expect(sparsePackets[0]!.TimestampMS).toBe(sparsePackets[0]!.frameTimeMs!);
+      expect(sparsePackets[0]!.TimestampMS).toBe(sparsePackets[0]!.extendedRaceIQ!.frameTimeMs!);
     }
     const gzFile = join(dir, "sparse.bin.gz");
     writeFileSync(gzFile, gzipSync(bytes));

@@ -1,10 +1,28 @@
 import { describe, expect, test } from "bun:test";
+import { KNOWN_GAME_IDS } from "../../../shared/games/ids";
 import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
 import { compileTelemetryResolver } from "../../../shared/telemetry/resolver/compile";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { packet } from "../../support/telemetry/resolver";
 
 describe("compiled telemetry resolver native sources", () => {
+  test("resolves RaceIQ frame acquisition time for every game and leaves historical frames missing", () => {
+    for (const simulator of KNOWN_GAME_IDS) {
+      const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+        simulator,
+        requested: [{ semanticId: "timing.frame-time-ms", required: true }],
+      });
+      const slot = resolver.slot("timing.frame-time-ms");
+      const context = { timestamp: { domain: "wall-clock" as const, milliseconds: 1_700_000_000_000 }, updateSequence: 1n };
+      const current = resolver.createFrameView(packet(simulator, {
+        extendedRaceIQ: { frameTimeMs: 1_700_000_000_123 },
+      }), context);
+      expect(current.readNumber(slot)).toBe(1_700_000_000_123);
+      const historical = resolver.createFrameView(packet(simulator), context);
+      expect(historical.resolveNumber(slot)).toMatchObject({ state: "missing", value: null });
+    }
+  });
+
   test("reads per-wheel values in declared catalog order", () => {
     const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
       simulator: "fm-2023",

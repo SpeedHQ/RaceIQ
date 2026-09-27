@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.18.0",
-      "sourceHash": "739f8e4930e401eb0dbec2624bd8f92b75b25a540ad2670c5830ba0dd92cf1b9"
+      "sourceHash": "ea1b0fd9eb7020033f1e882b1fd53701cbc5648de360db5b83dfe6643025efd3"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
@@ -16,10 +16,11 @@
       "server/games/fm-2023/parser.ts": "8ac6812fc6622f9c1cd4587268583997325fa1ce207d9a8f8c7930fdb6bc1c56",
       "server/games/iracing/normalizer.ts": "7a9f061a649426812b3689b5848a045a7b51208334db4b2167b3c188a9864775",
       "server/games/lmu/normalizer.ts": "857907ba7c281de8cdd53acfbbdbaa5a72bf695b9dbc18ace4732cff62676596",
+      "server/session-capture/frame-time.ts": "fb6d18d5da69d0a1cb946e72ec8ee62bc01eb9d21b1176c11cfd5d44cf5ce0f0",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "0639551c1aee75fa6772ab780e39845b61fb93edaf3a42081cfbd61dc339051c"
+    "contentHash": "759f41949ff33f6b875872f13ba048f2b362085c1ff37470cfd93c643d590cef"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -517,6 +518,7 @@
         "race.driver-incident-count",
         "race.driver-marker",
         "race.driver-status",
+        "race.extended-race-iq",
         "race.flag-status",
         "race.incident-flags",
         "race.is-online",
@@ -1003,6 +1005,7 @@
         "timing.delta-to-session-last-lap-valid",
         "timing.distance-traveled",
         "timing.drs-activation-distance",
+        "timing.frame-time-ms",
         "timing.gap-ahead-ms",
         "timing.gap-behind-ms",
         "timing.grid-position",
@@ -29404,6 +29407,57 @@
       "limitations": []
     },
     {
+      "id": "race.extended-race-iq",
+      "label": "Extended Race IQ",
+      "description": "Extended Race IQ reported by normalized RaceIQ telemetry.",
+      "parentId": "race",
+      "canonicalUnit": "unitless",
+      "shape": "scalar",
+      "packetFields": [
+        "extendedRaceIQ"
+      ],
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "fm-2023 parser fills this value with a placeholder because source does not provide it."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "f1-2025 parser fills this value with a placeholder because source does not provide it."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "acc parser fills this value with a placeholder because source does not provide it."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "ac-evo parser fills this value with a placeholder because source does not provide it."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "iracing parser fills this value with a placeholder because source does not provide it."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "lmu parser fills this value with a placeholder because source does not provide it."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "unit:unitless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "race.flag-status",
       "label": "Flag Status",
       "description": "Flag Status source value reported by acc in text.",
@@ -46234,6 +46288,108 @@
       "limitations": []
     },
     {
+      "id": "timing.frame-time-ms",
+      "label": "Frame Time Ms",
+      "description": "UTC epoch milliseconds when source frame was acquired; absent in historical captures.",
+      "parentId": "timing",
+      "canonicalUnit": "ms",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "direct",
+          "nativeUnit": "ms",
+          "sources": [
+            "extendedRaceIQ.frameTimeMs"
+          ],
+          "freshness": "continuous",
+          "description": "RaceIQ records frame acquisition UTC for new captures; historical captures may lack it.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/session-capture/frame-time.ts"
+          },
+          "limitations": []
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "ms",
+          "sources": [
+            "extendedRaceIQ.frameTimeMs"
+          ],
+          "freshness": "continuous",
+          "description": "RaceIQ records frame acquisition UTC for new captures; historical captures may lack it.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/session-capture/frame-time.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "direct",
+          "nativeUnit": "ms",
+          "sources": [
+            "extendedRaceIQ.frameTimeMs"
+          ],
+          "freshness": "continuous",
+          "description": "RaceIQ records frame acquisition UTC for new captures; historical captures may lack it.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/session-capture/frame-time.ts"
+          },
+          "limitations": []
+        },
+        "ac-evo": {
+          "kind": "direct",
+          "nativeUnit": "ms",
+          "sources": [
+            "extendedRaceIQ.frameTimeMs"
+          ],
+          "freshness": "continuous",
+          "description": "RaceIQ records frame acquisition UTC for new captures; historical captures may lack it.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/session-capture/frame-time.ts"
+          },
+          "limitations": []
+        },
+        "iracing": {
+          "kind": "direct",
+          "nativeUnit": "ms",
+          "sources": [
+            "extendedRaceIQ.frameTimeMs"
+          ],
+          "freshness": "continuous",
+          "description": "RaceIQ records frame acquisition UTC for new captures; historical captures may lack it.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/session-capture/frame-time.ts"
+          },
+          "limitations": []
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "ms",
+          "sources": [
+            "extendedRaceIQ.frameTimeMs"
+          ],
+          "freshness": "continuous",
+          "description": "RaceIQ records frame acquisition UTC for new captures; historical captures may lack it.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/session-capture/frame-time.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "timing.gap-ahead-ms",
       "label": "Gap Ahead Ms",
       "description": "Race gaps (GRAPHICS_EVO)",
@@ -61569,6 +61725,18 @@
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
+      },
+      {
+        "path": "extendedRaceIQ.frameTimeMs",
+        "label": "Frame Time Ms",
+        "unit": "ms",
+        "dataType": "number",
+        "count": 1,
+        "description": "RaceIQ frame acquisition UTC; absent in historical captures.",
+        "semanticId": "timing.frame-time-ms",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
       }
     ],
     "f1-2025": [
@@ -62997,6 +63165,18 @@
         "description": "Game session UID (used for reliable session boundary detection)",
         "semanticId": "session.session-uid",
         "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "extendedRaceIQ.frameTimeMs",
+        "label": "Frame Time Ms",
+        "unit": "ms",
+        "dataType": "number",
+        "count": 1,
+        "description": "RaceIQ frame acquisition UTC; absent in historical captures.",
+        "semanticId": "timing.frame-time-ms",
+        "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
       },
@@ -67429,6 +67609,18 @@
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
+      },
+      {
+        "path": "extendedRaceIQ.frameTimeMs",
+        "label": "Frame Time Ms",
+        "unit": "ms",
+        "dataType": "number",
+        "count": 1,
+        "description": "RaceIQ frame acquisition UTC; absent in historical captures.",
+        "semanticId": "timing.frame-time-ms",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
       }
     ],
     "ac-evo": [
@@ -70488,6 +70680,18 @@
         "count": 1,
         "description": "AC Evo v0.6 shared ACC wind-speed field is a constant placeholder.",
         "semanticId": "weather.wind-speed",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "extendedRaceIQ.frameTimeMs",
+        "label": "Frame Time Ms",
+        "unit": "ms",
+        "dataType": "number",
+        "count": 1,
+        "description": "RaceIQ frame acquisition UTC; absent in historical captures.",
+        "semanticId": "timing.frame-time-ms",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -81595,6 +81799,18 @@
         "retention": "not-recorded"
       },
       {
+        "path": "extendedRaceIQ.frameTimeMs",
+        "label": "Frame Time Ms",
+        "unit": "ms",
+        "dataType": "number",
+        "count": 1,
+        "description": "RaceIQ frame acquisition UTC; absent in historical captures.",
+        "semanticId": "timing.frame-time-ms",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "iracing.carClassName",
         "label": "Car Class Name",
         "unit": "text",
@@ -83312,6 +83528,18 @@
         "retention": "exact"
       },
       {
+        "path": "extendedRaceIQ.frameTimeMs",
+        "label": "Frame Time Ms",
+        "unit": "ms",
+        "dataType": "number",
+        "count": 1,
+        "description": "RaceIQ frame acquisition UTC; absent in historical captures.",
+        "semanticId": "timing.frame-time-ms",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "lmu.absActive",
         "label": "ABS Active",
         "unit": "boolean",
@@ -83854,62 +84082,62 @@
     ]
   },
   "coverage": {
-    "normalizedPacketFields": 148,
-    "semanticVariables": 772,
+    "normalizedPacketFields": 149,
+    "semanticVariables": 774,
     "sourceCounts": {
       "fm-2023": {
-        "total": 95,
+        "total": 96,
         "packet": 95,
-        "extension": 0,
+        "extension": 1,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 95
+        "recorded": 96
       },
       "f1-2025": {
-        "total": 288,
+        "total": 289,
         "packet": 119,
-        "extension": 169,
+        "extension": 170,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 288
+        "recorded": 289
       },
       "acc": {
-        "total": 200,
+        "total": 201,
         "packet": 124,
-        "extension": 43,
+        "extension": 44,
         "sdk": 0,
         "yaml": 0,
         "setup": 33,
-        "recorded": 167
+        "recorded": 168
       },
       "ac-evo": {
-        "total": 255,
+        "total": 256,
         "packet": 124,
-        "extension": 95,
+        "extension": 96,
         "sdk": 0,
         "yaml": 0,
         "setup": 36,
-        "recorded": 219
+        "recorded": 220
       },
       "iracing": {
-        "total": 951,
+        "total": 952,
         "packet": 115,
-        "extension": 17,
+        "extension": 18,
         "sdk": 324,
         "yaml": 495,
         "setup": 0,
-        "recorded": 701
+        "recorded": 702
       },
       "lmu": {
-        "total": 171,
+        "total": 172,
         "packet": 126,
-        "extension": 45,
+        "extension": 46,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 171
+        "recorded": 172
       }
     }
   }

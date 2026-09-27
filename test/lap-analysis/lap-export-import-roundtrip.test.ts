@@ -197,15 +197,15 @@ describe("lap export → import round-trip (real capture)", () => {
       expect(importedPackets.map(({ TimestampMS: _timestamp, ...packet }) => packet))
         .toEqual(sourcePackets.map(({ TimestampMS: _timestamp, ...packet }) => packet));
       if (gameId === "fm-2023") {
-        expect(sourcePackets[0]?.frameTimeMs).toBeDefined();
+        expect(sourcePackets[0]?.extendedRaceIQ?.frameTimeMs).toBeDefined();
         expect(sourcePackets.some((packet, index) =>
-          index > 0 && packet.frameTimeMs! - sourcePackets[index - 1]!.frameTimeMs! > 5_000,
+          index > 0 && packet.extendedRaceIQ!.frameTimeMs! - sourcePackets[index - 1]!.extendedRaceIQ!.frameTimeMs! > 5_000,
         )).toBe(true);
-        expect(importedPackets.map((packet) => packet.frameTimeMs))
-          .toEqual(sourcePackets.map((packet) => packet.frameTimeMs));
+        expect(importedPackets.map((packet) => packet.extendedRaceIQ?.frameTimeMs))
+          .toEqual(sourcePackets.map((packet) => packet.extendedRaceIQ?.frameTimeMs));
         const replay = await queryLapTelemetryBySemanticId(importedRow!.id, ["motion.speed"]);
         expect(replay?.envelopes.map((envelope) => envelope.observedAt))
-          .toEqual(importedPackets.map((packet) => ({ domain: "wall-clock", milliseconds: packet.frameTimeMs! })));
+          .toEqual(importedPackets.map((packet) => ({ domain: "wall-clock", milliseconds: packet.extendedRaceIQ!.frameTimeMs! })));
       }
     }, 120000);
 

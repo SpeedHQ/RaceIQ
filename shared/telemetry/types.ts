@@ -3,6 +3,10 @@ import type { F1ExtendedData } from "./f1-2025";
 import type { KunosExtendedData } from "./kunos";
 import type { IRacingExtendedData } from "./iracing";
 import type { LMUExtendedData } from "./lmu";
+export interface RaceIQExtendedData {
+  /** UTC epoch milliseconds when source frame was acquired; absent in historical captures. */
+  frameTimeMs?: number;
+}
 
 export interface TelemetryPacket {
   gameId: GameId;
@@ -10,6 +14,7 @@ export interface TelemetryPacket {
   acc?: KunosExtendedData;
   iracing?: IRacingExtendedData;
   lmu?: LMUExtendedData;
+  extendedRaceIQ?: RaceIQExtendedData;
 
   // Game session UID (used for reliable session boundary detection)
   sessionUID?: string;
@@ -19,8 +24,6 @@ export interface TelemetryPacket {
 
   // Timing
   TimestampMS: number; // u32
-  /** UTC epoch milliseconds when source frame was acquired; absent in historical captures. */
-  frameTimeMs?: number;
 
   // Engine
   EngineMaxRpm: number;

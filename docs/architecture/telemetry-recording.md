@@ -78,6 +78,23 @@ Before each write, `Pipeline.processPacket()` snapshots the recorder byte offset
 
 Session rotation can occur while a detector handles a packet. `Pipeline` compares recorder epochs, writes the triggering frame to the new file when necessary, and patches the detector's current-lap offset. This keeps lap-one offsets in the correct recording.
 
+### Replay time and Analyse behavior
+
+All **new live recordings in all six supported games** carry `frameTimeMs` on each accepted source frame. Optionality exists for backward compatibility: older canonical recordings and imported records may lack acquisition time. `frameTimeMs` is acquisition UTC on the capture record, not a value encoded by the sparse codec or a simulator lap timer. `parseRawLapFramesFromSource()` restores the full source frame, parses it, and attaches the stored time to the packet. Sparse and full records use the same path. Imports, exports, gzip, and historical conversion retain the timestamp when present; they cannot invent one for older records.
+
+`resolveTelemetryReplay()` sets each semantic envelope's `observedAt` from that packet:
+
+| Capture record | `observedAt` | Parsed packet time |
+|---|---|---|
+| New live frame (all six games), or any record with `frameTimeMs` | Actual acquisition UTC; `wall-clock` domain | `frameTimeMs` attached; ACC/AC Evo also set `TimestampMS` to this UTC value |
+| Legacy/imported frame without `frameTimeMs`: FM/F1/iRacing/LMU | Simulator `TimestampMS`; `session` domain, if finite | Native simulator time remains unchanged |
+| Legacy/imported frame without `frameTimeMs`: ACC/AC Evo | Lap persistence time; `wall-clock` domain, same fallback for each frame | Parser generates `TimestampMS` at replay time; original acquisition time is unrecoverable |
+| Legacy/imported frame without `frameTimeMs`: other game with non-finite `TimestampMS` | Lap persistence time; `wall-clock` domain | Native packet time remains unchanged |
+
+`receivedAt` is **lap-row persistence time**, not per-frame receipt time; adding `frameTimeMs` does not change it. The semantic resolver also uses `observedAt` for observation provenance and time-based freshness calculations. Do not subtract times from different domains or interpret a legacy lap's constant fallback as recorded sample cadence.
+
+Current Analyse client copies `observedAt.milliseconds` into its frame model but does not display acquisition UTC or use it as a chart axis. Users should not expect a new time graph or changed lap boundaries/metrics. Recorded UTC makes replay timing metadata accurate; ACC/AC Evo `TimestampMS` and time-sensitive semantic values/freshness can differ from legacy replay, whose parser used the current clock.
+
 ## Source records by game
 
 | Game | Canonical raw record |

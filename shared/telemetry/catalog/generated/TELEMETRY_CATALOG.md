@@ -7,19 +7,19 @@
 - Catalog version: `0.18.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.18.0`
-- Generator source SHA-256: `739f8e4930e401eb0dbec2624bd8f92b75b25a540ad2670c5830ba0dd92cf1b9`
-- Content SHA-256: `0639551c1aee75fa6772ab780e39845b61fb93edaf3a42081cfbd61dc339051c`
+- Generator source SHA-256: `ea1b0fd9eb7020033f1e882b1fd53701cbc5648de360db5b83dfe6643025efd3`
+- Content SHA-256: `759f41949ff33f6b875872f13ba048f2b362085c1ff37470cfd93c643d590cef`
 
 ## Coverage
 
 | Simulator | Sources | Recorded | Packet | Extension | SDK | YAML | Setup |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| fm-2023 | 95 | 95 | 95 | 0 | 0 | 0 | 0 |
-| f1-2025 | 288 | 288 | 119 | 169 | 0 | 0 | 0 |
-| acc | 200 | 167 | 124 | 43 | 0 | 0 | 33 |
-| ac-evo | 255 | 219 | 124 | 95 | 0 | 0 | 36 |
-| iracing | 951 | 701 | 115 | 17 | 324 | 495 | 0 |
-| lmu | 171 | 171 | 126 | 45 | 0 | 0 | 0 |
+| fm-2023 | 96 | 96 | 95 | 1 | 0 | 0 | 0 |
+| f1-2025 | 289 | 289 | 119 | 170 | 0 | 0 | 0 |
+| acc | 201 | 168 | 124 | 44 | 0 | 0 | 33 |
+| ac-evo | 256 | 220 | 124 | 96 | 0 | 0 | 36 |
+| iracing | 952 | 702 | 115 | 18 | 324 | 495 | 0 |
+| lmu | 172 | 172 | 126 | 46 | 0 | 0 | 0 |
 
 ## Semantic variables
 
@@ -401,6 +401,7 @@
 | `race.driver-incident-count` | Current-driver incident count | number | dimensionless | count | scalar |  |  |  |
 | `race.driver-marker` | Driver Marker | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.driver-status` | Driver Status | number | dimensionless | count | scalar |  |  |  |
+| `race.extended-race-iq` | Extended Race IQ | number | unit:unitless | unitless | scalar |  |  |  |
 | `race.flag-status` | Flag Status | string | dimensionless | text | scalar |  |  |  |
 | `race.incident-flags` | Player incident flags | number | dimensionless | flags | scalar |  |  |  |
 | `race.is-online` | Is Online | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -625,6 +626,7 @@
 | `timing.delta-to-session-last-lap-valid` | Delta to session last lap valid | boolean | dimensionless | boolean | scalar |  |  |  |
 | `timing.distance-traveled` | Distance Traveled | number | length | m | scalar |  |  |  |
 | `timing.drs-activation-distance` | DRS Activation Distance | number | length | m | scalar |  |  |  |
+| `timing.frame-time-ms` | Frame Time Ms | number | time | ms | scalar |  |  |  |
 | `timing.gap-ahead-ms` | Gap Ahead Ms | number | time | s | scalar |  |  |  |
 | `timing.gap-behind-ms` | Gap Behind Ms | number | time | s | scalar |  |  |  |
 | `timing.grid-position` | Grid Position | number | dimensionless | count | scalar |  |  |  |

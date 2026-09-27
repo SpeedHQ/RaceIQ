@@ -18,6 +18,7 @@ import { LAP_DETECTOR_ID } from "../lap-detection/detector";
 import { detectLiveIssues } from "../ai/tune-issues";
 import { reconcileSessionResult } from "../race-results/reconcile";
 import { encodeFrameLength, encodeSegmentContextEndFrame, encodeSegmentContextFrame } from "../session-capture/framing";
+import { applyFrameTime } from "../session-capture/frame-time";
 import { wsManager } from "../runtime/websocket-manager";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 
@@ -318,6 +319,7 @@ export class LiveTelemetryPipeline {
   }
 
   private async _processPacket(packet: TelemetryPacket, source: PacketSourceReference | undefined, frameTimeMs?: number): Promise<void> {
+    applyFrameTime(packet, frameTimeMs);
     this._totalProcessed++;
 
     let rawByteOffset: number | undefined;

@@ -105,9 +105,10 @@ describe("capture migration consent and progress", () => {
     try {
       const response = await sessionRoutes.request("/api/sessions/migrate-captures", { method: "POST" });
       expect(response.status).toBe(200);
-      const body = await response.json() as { migrated: number; unchanged: number; failed: number; results: Array<{ status: string }> };
+      const body = await response.json() as { migrated: number; failed: number; results: Array<{ status: string }> };
+      expect(body.migrated).toBe(2);
       expect(body.failed).toBe(1);
-      expect(body.migrated + body.unchanged).toBe(2);
+      expect(body.results.filter(({ status }) => status === "migrated")).toHaveLength(2);
       expect(body.results.filter(({ status }) => status === "error")).toHaveLength(1);
       const progress = connected.sent.map((value) => JSON.parse(value)).filter((event) => event.type === "capture-migration-progress");
       expect(progress).toHaveLength(candidateBaseline.captureCount + 3);
@@ -117,10 +118,11 @@ describe("capture migration consent and progress", () => {
 
       const retry = await sessionRoutes.request("/api/sessions/migrate-captures", { method: "POST" });
       expect(retry.status).toBe(200);
-      const retryBody = await retry.json() as { failed: number; results: Array<{ status: string }> };
+      const retryBody = await retry.json() as { migrated: number; failed: number; results: Array<{ rawFile: string; status: string }> };
+      expect(retryBody.migrated + retryBody.failed).toBe(retryBody.results.length);
       expect(retryBody.failed).toBe(1);
       expect(retryBody.results).toHaveLength(candidateBaseline.captureCount + 1);
-      expect(retryBody.results.some(({ status }) => status === "error")).toBe(true);
+      expect(retryBody.results.find(({ rawFile }) => rawFile === paths[2])?.status).toBe("error");
     } finally {
       wsManager.removeClient(connected);
     }
