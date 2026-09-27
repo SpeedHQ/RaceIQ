@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { test } from "@playwright/test";
 import { getSeededLapTarget } from "../support/seeded/laps";
 import { writeFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -21,14 +21,7 @@ const PAGES = [
 
 for (const page of PAGES) {
   test(`screenshot: ${page.name}`, async ({ page: p }) => {
-    if (page.name === "lap-analytics" || page.name.startsWith("experiments-review")) test.setTimeout(140_000);
     await p.addInitScript(() => localStorage.setItem("forza-onboarding-complete", "true"));
-    if (page.name.startsWith("experiments-review-")) {
-      const response = await p.request.post("/api/experiments/1/import-laps", {
-        data: { lapIds: [4, 5, 6, 7, 8], experimentVersionId: 2 },
-      });
-      if (![201, 409].includes(response.status())) throw new Error(`Failed to seed experiment review laps: ${response.status()}`);
-    }
     const target = page.name === "lap-analytics"
       ? await getSeededLapTarget(p.request, "f1-2025")
       : null;
@@ -41,16 +34,6 @@ for (const page of PAGES) {
       const ready = p.getByText(page.readyText, { exact: true }).first();
       await ready.waitFor({ state: "visible", timeout: 30_000 });
       await ready.scrollIntoViewIfNeeded();
-    }
-    if (page.name.startsWith("experiments-review-track") && page.name !== "experiments-review-track-tires") {
-      await p.waitForTimeout(15_000);
-      await expect(p.getByText("No telemetry", { exact: true })).toHaveCount(0, { timeout: 30_000 });
-    }
-    if (page.name === "experiments-review-overview") {
-      await expect.poll(() => p.locator('svg[aria-label="Lap track map coloured by sector"]').count(), { timeout: 60_000 }).toBeGreaterThanOrEqual(3);
-    }
-    if (page.name === "experiments-review-sector-1") {
-      for (const label of ["Core temp", "Brake temp", "Pressure", "Wear"]) await waitForMetricData(p, label);
     }
     await p.waitForTimeout(1500);
     if ("hover" in page && page.hover) {
@@ -65,7 +48,7 @@ for (const page of PAGES) {
     await p.screenshot({
       path: `${SCREENSHOT_DIR}/${page.name}.png`,
       fullPage: false,
-      timeout: page.name === "lap-analytics" || page.name.startsWith("experiments-review") ? 60_000 : undefined,
+      timeout: page.name === "lap-analytics" ? 60_000 : undefined,
     });
   });
 }

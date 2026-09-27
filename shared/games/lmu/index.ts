@@ -43,6 +43,11 @@ export const lmuAdapter: GameAdapter = {
       packetUnit: "celsius",
       binding: { kind: "value", semanticId: "tire.temperature.surface.representative" },
     },
+    tireSurfaceProfile: {
+      source: "direct",
+      freshness: "continuous",
+      binding: { kind: "group", required: ["tire.temperature.surface.inner", "tire.temperature.surface.middle", "tire.temperature.surface.outer"] },
+    },
     power: {
       packetUnit: "watt",
       binding: { kind: "value", semanticId: "engine.power" },

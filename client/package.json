@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "test": "bun test ./test",
+    "test": "bun run i18n:compile && bun test ./test",
     "i18n:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --output-structure message-modules --strategy localStorage baseLocale --emit-ts-declarations",
     "build": "vite build && tsc -b",
     "lint": "oxlint .",
@@ -14,6 +14,7 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "snapshot:test": "playwright test --update-snapshots",
+    "snapshot:compare": "bun ../scripts/ui/local-ui-diff.ts --storybook-only",
     "snapshot:test:docker": "bun ../scripts/ui/run-snapshot-in-docker.ts"
   },
   "dependencies": {

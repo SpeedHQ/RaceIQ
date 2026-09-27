@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./snapshot-test";
 import { DASHBOARD_SNAPSHOT_CASES } from "./snapshot-cases";
 import { openStoryForSnapshot } from "./storybook-ready";
 

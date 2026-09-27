@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { insertLap } from "../../server/db/lap-mutation-queries";
 import { getLapStats, getReviewLaps } from "../../server/db/lap-read-queries";
-import { deleteSession, insertSession } from "../../server/db/session-queries";
+import { deleteSession, insertSession, updateSessionRawFile } from "../../server/db/session-queries";
 import { sessionRoutes } from "../../server/routes/session-routes";
 import { trackRoutes } from "../../server/routes/tracks";
 import { settingsRoutes } from "../../server/routes/settings-routes";
@@ -81,6 +81,7 @@ describe("LMU string identity routes", () => {
     });
     const otherGame = await insertSession(carOrdinal, trackOrdinal, "fm-2023");
     sessionIds.push(legacy, resolved, numericNative, otherGame);
+    await Promise.all([legacy, resolved, numericNative].map((id) => updateSessionRawFile(id, "review-capture.bin", "test")));
     const legacyLap = await insertLap(legacy, 1, 143.2, true, null, 1, null, null, null, [40, 60, 43.2]);
     await insertLap(resolved, 1, 140, true, null, 1);
     const nativeLap = await insertLap(numericNative, 1, 142, true, null, 1, null, null, null, [40, 60, 42]);

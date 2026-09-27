@@ -111,7 +111,7 @@ export function AnalyseTrackPanel({
   return (
     <div
       data-testid="analyse-track-map-panel"
-      className="relative h-full min-w-0 bg-app-bg p-2"
+      className="@container/trackpanel relative h-full min-w-0 bg-app-bg p-2"
       onWheel={(e) => {
         if (zoomBehavior === "disabled") return;
         e.preventDefault();
@@ -168,7 +168,7 @@ export function AnalyseTrackPanel({
         )}
       </div>
 
-      <div className="pointer-events-none absolute top-2 right-2 flex items-start gap-2">
+      <div className="pointer-events-none absolute top-20 right-2 flex items-start gap-2 @sm/trackpanel:top-2">
         {onZoomBehaviorChange && (
           <Button
             type="button"

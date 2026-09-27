@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { sortIRacingCars } from "../src/components/iracing/IRacingCars";
+import { sortIRacingCars } from "../src/components/cars/helpers";
 describe("iRacing car catalog sorting", () => {
   test("sorts legacy cars by actual name without changing display names", () => {
     const cars = [

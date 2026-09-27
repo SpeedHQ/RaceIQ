@@ -43,7 +43,7 @@ Playwright output goes to `playwright/test-results/`. Responsive captures go to 
 
 ## Responsive visual baselines
 
-Pull-request screenshot CI renders every `mobile-screenshots` case twice in the same runner environment: once from the PR and once from its current base revision. The base render is the visual baseline. Pixel differences at or below the shared 1% tolerance are treated as rendering noise; added, removed, resized, or materially changed screenshots fail the `screenshots` check.
+Pull-request screenshot CI renders every `mobile-screenshots` case twice in the same runner environment: once from the PR and once from its current base revision. Both renders use the PR's screenshot spec so renamed selectors do not break baseline capture. The base render is the visual baseline. Screenshot-only menu cases use keyboard activation so overlapping controls in the base revision do not prevent capturing visual differences. Pixel differences at or below the shared 1% tolerance are treated as rendering noise; added, removed, resized, or materially changed screenshots fail the `screenshots` check.
 
 Failed comparisons still upload the `pr-screenshot-preview` artifact and publish before/after/diff images in the PR UI-change comment. Review those images before accepting a visual change.
 

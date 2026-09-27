@@ -191,7 +191,7 @@ export function WheelCard({
           <g fill={brakeTempColor(brakeTemp, label.startsWith("R"))}>
             <rect x={brakeBarX} y={cy - 16} width={7} height={32} />
             <text x={outerSide === "left" ? brakeBarX + 11 : brakeBarX - 4} y={cy + 3} textAnchor={outerSide === "left" ? "start" : "end"} fontSize={8} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
-              B:{tempFn(brakeTemp).toFixed(0)}°{tempUnit}
+              BRK {tempFn(brakeTemp).toFixed(0)}°{tempUnit}
             </text>
           </g>
         )}

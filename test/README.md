@@ -29,13 +29,15 @@ runners, pre-commit checks, and CI run this guard before tests can be skipped.
 Bun may run workers in parallel. `bun run test:tooling` runs deterministic
 toolchain checks from `scripts/test/tooling-files.txt` without DB preload.
 `bun run test:integration` runs only `scripts/test/integration-files.txt`; by
-default it initializes shared state in isolated `.data-test` (when `DATA_DIR` is
-unset), uses the DB preload, and limits Bun worker concurrency to 2.
-`bun run test:e2e:recordings` runs only `scripts/test/e2e-files.txt` with the
-same isolated database and serial execution used for recording-backed flows.
-Callers and CI may provide their own isolated `DATA_DIR` override. `bun run
-test` runs unit first, then initializes shared integration database; combined
-command stops on first failure.
+default it initializes shared state in its own temporary data directory,
+uses the DB preload, and limits Bun worker concurrency to 2.
+`bun run test:e2e:recordings` runs only `scripts/test/e2e-files.txt` with
+an independently isolated database and serial execution for recording-backed
+flows. Callers may provide their own isolated `DATA_DIR` override. Bare
+`bun test` commands allocate a separate temporary database per process, so
+concurrent test commands cannot erase each other's data. `bun run test` runs
+unit first, then initializes its integration database; combined command stops
+on first failure.
 
 Focused command runs one final-path file. `bun run test:ai` runs
 `test/ai/evals/ai-quality.ai-eval.ts` with its longer timeout. `bun run bench`
