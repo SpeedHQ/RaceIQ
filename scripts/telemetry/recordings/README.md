@@ -16,6 +16,8 @@ Cross-game tools for inspecting, replaying, compressing, and auditing recorded t
 | `bun run scripts/telemetry/recordings/scan-lap-offsets.ts <sessionId>` | Database session ID with raw file | Lap transitions and raw byte offsets |
 | `bun run scripts/telemetry/recordings/verify-lap-alignment.ts <sessionId>` | Database session ID with raw file and laps | DB/file offset skew report |
 
+LMU seed-fixture trimming lives in [`SpeedHQ/extractions`](https://github.com/SpeedHQ/extractions). Capture native shared-memory frames with `bun run dev:dump:lmu`, then run `bun run extract:lmu-fixture <lmu-capture.bin>` there; DuckDB imports are not fixture sources.
+
 ## Boundaries and verification
 
 `inspect-bin.ts` uses gzip magic-byte detection and `gunzipIfNeeded`; `check-mid-session-lap.ts` remains unconditionally gzip-decompressing, while `diag-status.ts` owns extension-based policy. Database tools require initialized RaceIQ DB and session raw files. Replay tools send only to localhost and require a compatible UDP listener for end-to-end verification.

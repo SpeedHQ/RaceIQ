@@ -2,8 +2,8 @@ import type { Preview } from "@storybook/react";
 import "../src/index.css";
 import { initGameAdapters } from "../../shared/games/init";
 
-// Initialize game adapter registry so tryGetGame() works in stories
-initGameAdapters();
+// Storybook exercises every registered simulator regardless of release gating.
+initGameAdapters({ f1Experiments: true, iracingAdapter: true });
 
 // Match the app shell's dark shadcn mode in the Storybook iframe.
 document.documentElement.classList.add("dark");

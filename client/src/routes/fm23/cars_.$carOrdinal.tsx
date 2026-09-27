@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import type { SemanticAnalysisFrame } from "../../components/analyse/track-map/types";
+import type { SceneSource } from "../../components/wireframe/SceneRuntime";
 import { CarWireframe } from "../../components/CarWireframe";
 import { Button } from "../../components/ui/button";
 import { getCarModel, loadCarModelConfigs } from "../../data/car-models";
@@ -14,7 +15,7 @@ function makeStaticFrame(carOrdinal: number): SemanticAnalysisFrame {
     "motion.speed": 0, "motion.position-x": 0, "motion.position-z": 0, "motion.yaw": 0, "motion.pitch": 0, "motion.roll": 0,
     "inputs.accel": 0, "inputs.brake": 0, "inputs.steer": 0, "inputs.gear": 0,
     "engine.current-engine-rpm": 800, "engine.engine-idle-rpm": 800, "engine.engine-max-rpm": 8000, "fuel.fuel": 1,
-    "tire.temperature.average": [0, 0, 0, 0], "suspension.norm-suspension-travel": [0.5, 0.5, 0.5, 0.5],
+    "tire.temperature.surface.representative": [0, 0, 0, 0], "suspension.norm-suspension-travel": [0.5, 0.5, 0.5, 0.5],
   }, states: {}, freshness: {} };
 }
 
@@ -30,11 +31,22 @@ function CarModelPage() {
 
   const { data: carInfo } = useQuery({
     queryKey: ["car", ordinal],
-    queryFn: () => client.api.cars[":ordinal"].$get({ param: { ordinal: String(ordinal) } }, { headers: { "X-Game-Id": "fm-2023" } }).then((r) => (r.ok ? r.json() : null)),
+    queryFn: () => client.api.cars[":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ordinal)) } }, { headers: { "X-Game-Id": "fm-2023" } }).then((r) => (r.ok ? r.json() : null)),
   });
 
   const staticFrame = useMemo(() => makeStaticFrame(ordinal), [ordinal]);
   const telemetry = useMemo(() => [staticFrame], [staticFrame]);
+  const framesRef = useRef(telemetry);
+  framesRef.current = telemetry;
+  const cursorRef = useRef(0);
+  const source = useMemo<SceneSource>(() => ({
+    framesRef,
+    cursorRef,
+    playing: false,
+    playbackSpeed: 1,
+    seekGeneration: 0,
+    recording: false,
+  }), []);
 
   if (!carModel) return <div className="flex items-center justify-center h-full text-app-text-dim">{m.carmodel_loading()}</div>;
 
@@ -72,7 +84,7 @@ function CarModelPage() {
         </div>
       </div>
       <div className="flex-1 min-h-0">
-        <CarWireframe frame={staticFrame} telemetry={telemetry} cursorIdx={0} outline={null} carOrdinal={ordinal} minimal />
+        <CarWireframe frame={staticFrame} telemetry={telemetry} cursorIdx={0} source={source} outline={null} carOrdinal={ordinal} minimal />
       </div>
     </div>
   );

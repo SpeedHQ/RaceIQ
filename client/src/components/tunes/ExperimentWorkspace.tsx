@@ -1,5 +1,5 @@
+import { m } from "@/paraglide/messages";
 import { getGame } from "@shared/games/registry";
-import { EXPERIMENT_FOCUS_AGENT_LABELS } from "@shared/racing/experiments/focus";
 import { isPitCycleLap } from "@shared/racing/laps/pit-cycle";
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { useQuery } from "@tanstack/react-query";
@@ -22,6 +22,7 @@ import { HistoryPanel } from "./HistoryPanel";
 import { ImportLapsModal } from "./ImportLapsModal";
 import { LiveTestDashboard } from "./LiveTestDashboard";
 import { TuneSetupChat } from "./TuneSetupChat";
+import { ExperimentGuideModal } from "./ExperimentGuideModal";
 
 /**
  * ExperimentWorkspace — the live-first workspace that opens *inside* a tuning
@@ -39,7 +40,7 @@ import { TuneSetupChat } from "./TuneSetupChat";
  * symptoms itself via tools and calls apply_changes when the driver confirms,
  * so this component no longer drives a separate generate-from-chat mutation.
  */
-export function ExperimentWorkspace({ gameId, experimentId }: { gameId: ExperimentGameId; experimentId: number }) {
+export function ExperimentWorkspace({ gameId, experimentId, manageActivation = true }: { gameId: ExperimentGameId; experimentId: number; manageActivation?: boolean }) {
   const navigate = useNavigate();
   const [showAddBase, setShowAddBase] = useState(false);
   const [showImportLaps, setShowImportLaps] = useState(false);
@@ -70,6 +71,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
       const res = await api.experiments[":id"].activate.$post({ param: { id: String(experimentId) } });
       return res.json() as Promise<{ active: number | null }>;
     },
+    enabled: manageActivation,
     refetchInterval: 5000,
     refetchIntervalInBackground: true,
     staleTime: 0,
@@ -80,10 +82,11 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
   // an effect. The call is id-guarded server-side so a stale unmount can't
   // clobber a session the driver has since switched to.
   useEffect(() => {
+    if (!manageActivation) return;
     return () => {
       (client.api as any).experiments[":id"].deactivate.$post({ param: { id: String(experimentId) } }).catch(() => {});
     };
-  }, [experimentId]);
+  }, [experimentId, manageActivation]);
   // A setup-backed session must always expose its selected file as v1. Older
   // sessions and interrupted creates can leave the session row ahead of its
   // version row; repair that invariant before rendering an empty graph.
@@ -203,6 +206,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
   const lapTarget = session?.lapTarget ?? 3;
 
   const [testPhase, setTestPhase] = useState<"idle" | "live">("idle");
+  const [guideOpen, setGuideOpen] = useState(false);
 
   const routePrefix = getGame(gameId).routePrefix;
   const clearSession = () =>
@@ -214,7 +218,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
       <div className="flex-1 p-3">
         <BackButton onClick={clearSession} className="mb-3" />
         <div role={sessionError ? "alert" : undefined} className={`text-sm mt-3 ${sessionError ? "text-status-danger" : "text-app-text-dim"}`}>
-          {loadingSession ? "Loading experiment…" : sessionError ? "Could not load experiment. Try again." : "Experiment not found."}
+          {loadingSession ? m.tunes_loading_experiment() : sessionError ? m.tunes_load_experiment_error() : m.tunes_experiment_not_found()}
         </div>
       </div>
     );
@@ -231,17 +235,20 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
   return (
     <div className="h-full flex flex-col overflow-hidden p-3 gap-3">
       {/* Header */}
-      <div className="shrink-0">
-        <BackButton onClick={clearSession} className="mb-2" />
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-app-title font-semibold text-app-text">
-            <span className="text-app-text-muted font-mono mr-2">#{session.seq}</span>
-            {session.name}
-          </h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-app-title font-semibold text-app-text">
+          <span className="text-app-text-muted font-mono mr-2">#{session.seq}</span>
+          {session.name}
+        </h1>
+        <div className="flex items-center gap-2">
+          <Button variant="app-outline" size="app-sm" onClick={() => setGuideOpen(true)}>
+            Guide
+          </Button>
           <FocusSwitcher experimentId={session.id} focus={session.focus} />
         </div>
-        {subtitle && <div className="mt-0.5 text-app-subtext text-app-text-muted">{subtitle}</div>}
       </div>
+      {subtitle && <div className="mt-0.5 text-app-subtext text-app-text-muted">{subtitle}</div>}
+      {guideOpen && <ExperimentGuideModal onClose={() => setGuideOpen(false)} />}
 
       {/* Main row fills the remaining height. Left column scrolls; the right
           panel (Recommend + chat) is permanent and full-height. */}
@@ -258,32 +265,32 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                 {/* Session overview — always rendered as placeholders ("—") so
                     the row layout doesn't jump once laps start landing. */}
                 <div className="grid grid-cols-2 @3xl/workspace:grid-cols-3 @5xl/workspace:grid-cols-6 gap-2 p-2 border-b border-app-border">
-                  <StatCard label="Laps" value={String(lapCount)} />
-                  <StatCard label="Best lap" value={bestLap != null ? formatLapTime(bestLap) : "—"} />
-                  <StatCard label="Best setup" value={bestTest ? `${bestTest.test.label} · ${formatLapTime(bestTest.lapTime)}` : "—"} />
-                  <StatCard label="Avg (valid) lap" value={avgLap != null ? formatLapTime(avgLap) : "—"} />
-                  <StatCard label="Drive time" value={driveTime > 0 ? formatDuration(driveTime) : "—"} />
-                  <StatCard label="Fuel/lap" value={avgFuel != null ? `${avgFuel.toFixed(2)} L` : "—"} />
+                  <StatCard label={m.tunes_laps_heading()} value={String(lapCount)} />
+                  <StatCard label={m.tunes_best_lap()} value={bestLap != null ? formatLapTime(bestLap) : "—"} />
+                  <StatCard label={m.tunes_best_setup()} value={bestTest ? `${bestTest.test.label} · ${formatLapTime(bestTest.lapTime)}` : "—"} />
+                  <StatCard label={m.tunes_average_valid_lap()} value={avgLap != null ? formatLapTime(avgLap) : "—"} />
+                  <StatCard label={m.tunes_drive_time()} value={driveTime > 0 ? formatDuration(driveTime) : "—"} />
+                  <StatCard label={m.tunes_fuel_per_lap()} value={avgFuel != null ? `${avgFuel.toFixed(2)} L` : "—"} />
                   {/* Tyre deg card omitted — ACC/AC-Evo expose no genuine tyre-wear channel. */}
                   {versionsError && (
                     <div role="alert" className="mx-2 mt-2 rounded border border-status-danger/40 bg-status-danger/10 px-2 py-1 text-app-compact text-status-danger">
-                      Could not load version history.
+                      {m.tunes_load_version_history_error()}
                     </div>
                   )}
                 </div>
                 <div className="flex items-center justify-between px-2 pt-2 flex-wrap gap-1">
-                  <span className="text-app-caption uppercase tracking-wider text-app-text-muted">Version tree</span>
+                  <span className="text-app-caption uppercase tracking-wider text-app-text-muted">{m.tunes_version_tree()}</span>
                   <div className="flex items-center gap-2">
                     <Button variant="app-outline" size="app-sm" onClick={() => setShowImportLaps(true)}>
-                      Add laps from history
+                      {m.tunes_add_laps_from_history()}
                     </Button>
                     {gameId !== "f1-2025" && (
                       <Button variant="app-outline" size="app-sm" onClick={() => setShowAddBase(true)}>
-                        + Add base
+                        {m.tunes_add_base_title()}
                       </Button>
                     )}
                     <Button variant="app-outline" size="app-sm" onClick={() => setShowHistory(true)}>
-                      History
+                      {m.tunes_history()}
                     </Button>
                   </div>
                 </div>
@@ -316,19 +323,19 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                     follow-up) since it's specifically about the live test run. */}
                 <div className="shrink-0 flex items-center justify-between gap-3 flex-wrap px-3 py-2 border-b border-app-border">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-app-caption uppercase tracking-wider text-app-text-muted">Current stint</span>
+                    <span className="text-app-caption uppercase tracking-wider text-app-text-muted">{m.tunes_current_stint()}</span>
                     <span className={`text-xs ${lapsDone < lapTarget ? "text-status-warning" : "text-app-text-dim"}`}>
                       {lapsDone === 0
-                        ? `No live laps yet — run ${lapTarget} clean laps this run for a reliable recommendation.`
+                        ? m.tunes_no_live_laps({ count: lapTarget })
                         : lapsDone < lapTarget
-                          ? `${lapsDone} / ${lapTarget} laps this run`
-                          : `${lapsDone} laps`}
+                          ? m.tunes_laps_this_run_progress({ done: lapsDone, target: lapTarget })
+                          : m.tunes_laps_this_run({ count: lapsDone })}
                     </span>
                   </div>
                   <div className="flex items-center gap-4">
-                    <InlineStat label="Best" value={liveBest != null ? formatLapTime(liveBest) : "—"} />
-                    <InlineStat label="Avg" value={liveAvg != null ? formatLapTime(liveAvg) : "—"} />
-                    <InlineStat label="Fuel/lap" value={liveFuelPerLap != null ? `${liveFuelPerLap.toFixed(2)} L` : "—"} />
+                    <InlineStat label={m.tunes_best()} value={liveBest != null ? formatLapTime(liveBest) : "—"} />
+                    <InlineStat label={m.tunes_average()} value={liveAvg != null ? formatLapTime(liveAvg) : "—"} />
+                    <InlineStat label={m.tunes_fuel_per_lap()} value={liveFuelPerLap != null ? `${liveFuelPerLap.toFixed(2)} L` : "—"} />
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
@@ -344,10 +351,10 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                         } as any);
                       }}
                     >
-                      Review laps
+                      {m.tunes_review_laps()}
                     </Button>
                     <Button variant="app-outline" size="app-sm" onClick={() => setTestPhase("idle")}>
-                      Close
+                      {m.common_close()}
                     </Button>
                   </div>
                 </div>
@@ -366,9 +373,9 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
         {testPhase === "idle" && (
           <div className="min-h-0 flex flex-col border border-app-border rounded-lg overflow-hidden">
             <div className="shrink-0 border-b border-app-border px-2 py-1.5">
-              <PanelSectionHeader title={EXPERIMENT_FOCUS_AGENT_LABELS[session.focus]}>
+              <PanelSectionHeader title={session.focus === "driver" ? m.experiment_focus_driver_agent_label() : m.experiment_focus_car_agent_label()}>
                 <Button variant="app-primary" size="app-sm" onClick={() => setTestPhase("live")}>
-                  Dashboard
+                  {m.nav_dashboard()}
                 </Button>
               </PanelSectionHeader>
             </div>

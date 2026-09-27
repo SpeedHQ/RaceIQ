@@ -63,7 +63,7 @@ export function LiveTrackMap({ view, issues }: Props) {
 
     // Fetch sector boundaries
     client.api["track-sector-boundaries"][":ordinal"]
-      .$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId! } })
+      .$get({ param: { ordinal: encodeURIComponent(String(trackOrd)) }, query: { gameId: gameId! } })
       .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
       .then((data: any) => {
         if (data?.s1End) setSectors(data);
@@ -72,7 +72,7 @@ export function LiveTrackMap({ view, issues }: Props) {
 
     // Fetch track boundaries (edges)
     client.api["track-boundaries"][":ordinal"]
-      .$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId ?? undefined } })
+      .$get({ param: { ordinal: encodeURIComponent(String(trackOrd)) }, query: { gameId: gameId ?? undefined } })
       .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
       .then((data: any) => {
         if (data) setBoundaries(data);
@@ -80,7 +80,7 @@ export function LiveTrackMap({ view, issues }: Props) {
       .catch(() => {});
 
     client.api["track-outline"][":ordinal"]
-      .$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId ?? undefined } })
+      .$get({ param: { ordinal: encodeURIComponent(String(trackOrd)) }, query: { gameId: gameId ?? undefined } })
       .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
       .then((data: any) => {
         // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -117,7 +117,7 @@ export function LiveTrackMap({ view, issues }: Props) {
     if (!gameId) return;
     if (!isRecorded) {
       client.api["track-outline"][":ordinal"]
-        .$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId ?? undefined } })
+        .$get({ param: { ordinal: encodeURIComponent(String(trackOrd)) }, query: { gameId: gameId ?? undefined } })
         .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
         .then((data: any) => {
           // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -136,7 +136,7 @@ export function LiveTrackMap({ view, issues }: Props) {
     // must not trigger another fetch before the next lap checks calibration.
     if (!boundaries || (boundaries.coordSystem !== "forza" && boundaries.coordSystem !== "f1-2025")) {
       client.api["track-boundaries"][":ordinal"]
-        .$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId ?? undefined } })
+        .$get({ param: { ordinal: encodeURIComponent(String(trackOrd)) }, query: { gameId: gameId ?? undefined } })
         .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
         .then((data: any) => {
           if (data) setBoundaries(data);
@@ -195,7 +195,7 @@ export function LiveTrackMap({ view, issues }: Props) {
     const trackOrd = lastTrackOrdRef.current;
     if (!trackOrd) return;
     try {
-      await client.api["track-outline"][":ordinal"].$delete({ param: { ordinal: String(trackOrd) } });
+      await client.api["track-outline"][":ordinal"].$delete({ param: { ordinal: encodeURIComponent(String(trackOrd)) } });
       setOutline(null);
       setIsRecorded(false);
       setStartYaw(null);
@@ -216,7 +216,7 @@ export function LiveTrackMap({ view, issues }: Props) {
           type="button"
           onClick={handleDeleteMap}
           className="absolute top-2 right-2 px-2 py-1 text-xs text-app-text-secondary hover:text-status-danger rounded border border-app-border-input hover:border-status-danger/60 hover:bg-status-danger/10 transition-colors"
-          title="Delete recorded track map and re-record from driving"
+          title={m.live_track_delete_title()}
         >
           {m.label_reset_map()}
         </Button>

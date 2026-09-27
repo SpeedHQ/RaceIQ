@@ -20,6 +20,15 @@ function pkt(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
     ...overrides,
   } as TelemetryPacket;
 }
+function lmuPkt(carId: string, trackId: string): TelemetryPacket {
+  return pkt({
+    gameId: "lmu",
+    CarOrdinal: -1,
+    TrackOrdinal: -1,
+    lmu: { carId, trackId } as TelemetryPacket["lmu"],
+  });
+}
+
 
 const SESSION: SessionSnapshot = { carOrdinal: 100, trackOrdinal: 5 };
 const NOW = 10_000_000; // large enough that NOW - 6min > 0
@@ -46,6 +55,45 @@ describe("detectSessionBoundary", () => {
       detectSessionBoundary(SESSION, 1, 2000, NOW, pkt({ TrackOrdinal: 99 }), NOW)
     ).toBe("track-changed");
   });
+  test("LMU compares raw string identity instead of compatibility ordinals", () => {
+    const session: SessionSnapshot = {
+      carOrdinal: -1,
+      trackOrdinal: -1,
+      carId: "Ferrari 499P",
+      trackId: "LeMansWEC",
+    };
+    expect(
+      detectSessionBoundary(
+        session,
+        1,
+        2000,
+        NOW,
+        lmuPkt("Ferrari 499P", "LeMansWEC"),
+        NOW,
+      ),
+    ).toBeNull();
+    expect(
+      detectSessionBoundary(
+        session,
+        1,
+        2000,
+        NOW,
+        lmuPkt("Peugeot 9x8", "LeMansWEC"),
+        NOW,
+      ),
+    ).toBe("car-changed");
+    expect(
+      detectSessionBoundary(
+        session,
+        1,
+        2000,
+        NOW,
+        lmuPkt("Ferrari 499P", "SpaWEC"),
+        NOW,
+      ),
+    ).toBe("track-changed");
+  });
+
 
   test("lap number reset from lap 5 → 1", () => {
     expect(

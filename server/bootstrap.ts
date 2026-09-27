@@ -6,6 +6,7 @@
 import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
+import { IS_COMPILED } from "./runtime/config/paths";
 
 function crashLog(err: unknown): void {
   const detail = err instanceof Error ? err.stack ?? err.message : String(err);
@@ -39,6 +40,7 @@ process.on("unhandledRejection", (err) => {
 });
 
 try {
+  if (IS_COMPILED) process.chdir(dirname(process.execPath));
   await import("./index");
 } catch (err) {
   crashLog(err);

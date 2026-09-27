@@ -2,6 +2,7 @@ import type { GameId } from "@shared/games/ids";
 import type { RaceResult } from "@shared/racing/results/types";
 import { useSessionResult } from "@/hooks/session-queries";
 import { cn } from "@/lib/utils";
+import { m } from "@/paraglide/messages";
 
 type RaceResultTimelineNode =
   | { kind: "start"; position: number | null }
@@ -30,37 +31,37 @@ type RaceResultTimelineNode =
 
 const RESULT_PRESENTATION: Record<RaceResult["classification"], { label: string; surfaceClassName: string; accentClassName: string }> = {
   finished: {
-    label: "Finish",
+    label: m.race_result_finish(),
     surfaceClassName: "border-status-success/50 bg-status-success/10",
     accentClassName: "text-status-success",
   },
   dnf: {
-    label: "DNF",
+    label: m.race_result_dnf(),
     surfaceClassName: "border-status-danger/50 bg-status-danger/10",
     accentClassName: "text-status-danger",
   },
   retired: {
-    label: "Retired",
+    label: m.race_result_retired(),
     surfaceClassName: "border-status-danger/50 bg-status-danger/10",
     accentClassName: "text-status-danger",
   },
   disqualified: {
-    label: "Disqualified",
+    label: m.race_result_disqualified(),
     surfaceClassName: "border-status-danger/50 bg-status-danger/10",
     accentClassName: "text-status-danger",
   },
   "not-classified": {
-    label: "Not classified",
+    label: m.race_result_not_classified(),
     surfaceClassName: "border-status-warning/50 bg-status-warning/10",
     accentClassName: "text-status-warning",
   },
   qualifying: {
-    label: "Qualifying",
+    label: m.race_result_qualifying(),
     surfaceClassName: "border-status-info/50 bg-status-info/10",
     accentClassName: "text-status-info",
   },
   unknown: {
-    label: "Result unavailable",
+    label: m.race_result_unavailable(),
     surfaceClassName: "border-app-border bg-app-surface-alt",
     accentClassName: "text-app-text-muted",
   },
@@ -107,7 +108,7 @@ export function buildRaceResultTimeline(result: RaceResult): RaceResultTimelineN
 }
 
 export function formatService(service: RaceResult["events"][number]["service"]): string {
-  return service === "unknown" ? "Pit" : service[0].toUpperCase() + service.slice(1);
+  return service === "unknown" ? m.race_result_pit() : service[0].toUpperCase() + service.slice(1);
 }
 
 function tyreChangeLabel(value: unknown): string | null {
@@ -120,7 +121,7 @@ function tyreChangeLabel(value: unknown): string | null {
 
 function ResultFlag({ className }: { className: string }) {
   return (
-    <svg aria-label="Result flag" className={cn("size-5", className)} viewBox="0 0 24 24" fill="none" role="img">
+    <svg aria-label={m.race_result_flag_aria()} className={cn("size-5", className)} viewBox="0 0 24 24" fill="none" role="img">
       <path d="M6 21V4m0 1h11l-2 3 2 3H6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M8 5h2v2H8zm4 0h2v2h-2zM8 9h2v2H8zm4 0h2v2h-2z" fill="currentColor" />
     </svg>
@@ -131,8 +132,8 @@ function TimelineNode({ node }: { node: RaceResultTimelineNode }) {
   if (node.kind === "start") {
     return (
       <div className="min-w-32 rounded-xl border border-app-border/80 bg-app-surface px-4 py-3 shadow-sm shadow-app-bg/20">
-        <div className="text-app-caption font-semibold uppercase tracking-app-label text-app-text/55">Start</div>
-        <div className="mt-1 text-sm font-semibold text-app-text">{node.position != null ? `Grid P${node.position}` : "Session begins"}</div>
+        <div className="text-app-caption font-semibold uppercase tracking-app-label text-app-text/55">{m.race_result_start()}</div>
+        <div className="mt-1 text-sm font-semibold text-app-text">{node.position != null ? m.race_result_grid_position({ position: node.position }) : m.race_result_session_begins()}</div>
       </div>
     );
   }
@@ -142,11 +143,11 @@ function TimelineNode({ node }: { node: RaceResultTimelineNode }) {
       <div
         className={`min-w-28 rounded-xl border px-4 py-3 shadow-sm shadow-app-bg/20 ${node.direction === "up" ? "border-status-success/50 bg-status-success/10" : "border-status-danger/50 bg-status-danger/10"}`}
       >
-        <div className={`text-app-caption font-semibold uppercase tracking-app-label ${node.direction === "up" ? "text-status-success" : "text-status-danger"}`}>Position</div>
-        {node.lapNumber != null && <div className="mt-1 text-xs text-app-text/65">End lap {node.lapNumber}</div>}
+        <div className={`text-app-caption font-semibold uppercase tracking-app-label ${node.direction === "up" ? "text-status-success" : "text-status-danger"}`}>{m.race_result_position()}</div>
+        {node.lapNumber != null && <div className="mt-1 text-xs text-app-text/65">{m.race_result_end_lap({ lap: node.lapNumber })}</div>}
         <div className="mt-0.5 text-lg font-bold leading-none text-app-text">
           <span className="sr-only">
-            {node.direction === "up" ? "Gained" : "Lost"} position{node.position != null ? ` to P${node.position}` : ""}
+            {node.direction === "up" ? m.race_result_gained() : m.race_result_lost()}{node.position != null ? ` ${m.race_result_to_position({ position: node.position })}` : ""}
           </span>
           <span aria-hidden="true">
             {node.direction === "up" ? "↑" : "↓"}
@@ -165,8 +166,8 @@ function TimelineNode({ node }: { node: RaceResultTimelineNode }) {
           <ResultFlag className={presentation.accentClassName} />
           <div className={cn("text-app-caption font-semibold uppercase tracking-app-label", presentation.accentClassName)}>{presentation.label}</div>
         </div>
-        {node.classification !== "qualifying" && node.finishingPosition != null && <div className="mt-1 text-xs text-app-text/70">Finish P{node.finishingPosition}</div>}
-        {node.qualifyingPosition != null && <div className="mt-1 text-xs text-app-text/70">Qualified P{node.qualifyingPosition}</div>}
+        {node.classification !== "qualifying" && node.finishingPosition != null && <div className="mt-1 text-xs text-app-text/70">{m.race_result_finish_position({ position: node.finishingPosition })}</div>}
+        {node.qualifyingPosition != null && <div className="mt-1 text-xs text-app-text/70">{m.race_result_qualified_position({ position: node.qualifyingPosition })}</div>}
       </div>
     );
   }
@@ -175,10 +176,10 @@ function TimelineNode({ node }: { node: RaceResultTimelineNode }) {
   return (
     <div className="min-w-40 rounded-xl border border-app-accent/50 bg-app-accent/10 px-4 py-3 shadow-sm shadow-app-bg/20">
       <div className="text-app-caption font-semibold uppercase tracking-app-label text-app-accent">{formatService(node.service)}</div>
-      {node.lapNumber != null && <div className="mt-1 text-sm font-semibold text-app-text">Lap {node.lapNumber}</div>}
-      {node.durationSeconds != null && <div className="text-xs text-app-text/70">{node.durationSeconds.toFixed(1)}s stop</div>}
+      {node.lapNumber != null && <div className="mt-1 text-sm font-semibold text-app-text">{m.race_result_lap({ lap: node.lapNumber })}</div>}
+      {node.durationSeconds != null && <div className="text-xs text-app-text/70">{m.race_result_stop_duration({ duration: node.durationSeconds.toFixed(1) })}</div>}
       {tyre && <div className="text-xs text-app-text/70">{tyre}</div>}
-      {node.fuelAdded != null && <div className="text-xs text-app-text/70">+{node.fuelAdded.toFixed(1)} fuel</div>}
+      {node.fuelAdded != null && <div className="text-xs text-app-text/70">{m.race_result_fuel_added({ fuel: node.fuelAdded.toFixed(1) })}</div>}
     </div>
   );
 }
@@ -186,14 +187,14 @@ function TimelineNode({ node }: { node: RaceResultTimelineNode }) {
 export function RaceResultLedger({ sessionId, gameId, enabled }: { sessionId: number; gameId: GameId; enabled: boolean }) {
   const resultQuery = useSessionResult(sessionId, gameId, enabled);
 
-  if (resultQuery.isLoading) return <div className="border-b border-app-border px-4 py-3 text-xs text-app-text/60">Loading race timeline…</div>;
-  if (resultQuery.isError) return <div className="border-b border-app-border px-4 py-3 text-xs text-app-text/60">Race timeline unavailable.</div>;
-  if (!resultQuery.data) return <div className="border-b border-app-border px-4 py-3 text-xs text-app-text/60">No race timeline recorded.</div>;
+  if (resultQuery.isLoading) return <div className="border-b border-app-border px-4 py-3 text-xs text-app-text/60">{m.race_result_loading_timeline()}</div>;
+  if (resultQuery.isError) return <div className="border-b border-app-border px-4 py-3 text-xs text-app-text/60">{m.race_result_timeline_unavailable()}</div>;
+  if (!resultQuery.data) return <div className="border-b border-app-border px-4 py-3 text-xs text-app-text/60">{m.race_result_no_timeline()}</div>;
 
   const nodes = buildRaceResultTimeline(resultQuery.data);
   return (
-    <section aria-label="Race timeline" className="border-b border-app-border bg-app-surface-alt/20 px-4 py-4">
-      <div className="mb-3 text-app-caption font-semibold uppercase tracking-app-label text-app-text/55">Race timeline</div>
+    <section aria-label={m.race_result_timeline()} className="border-b border-app-border bg-app-surface-alt/20 px-4 py-4">
+      <div className="mb-3 text-app-caption font-semibold uppercase tracking-app-label text-app-text/55">{m.race_result_timeline()}</div>
       <div className="overflow-x-auto pb-1">
         <div className="flex min-w-max items-center">
           {nodes.map((node, index) => (

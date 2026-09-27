@@ -67,11 +67,10 @@ type Story = StoryObj<typeof TrackFocusViewInner>;
 
 export const Default: Story = {
   args: {
-    laps,
+    gameId: "f1-2025",
+    baseTraces: traces,
     traces,
-    bestLapId: bestLap.id,
-    focusLapId: bestLap.id,
-    onFocusLap: () => {},
+    primaryLapId: bestLap.id,
     focusTelemetry: telemetryByLap.get(bestLap.id) ?? null,
     focusSectorTimes: null,
     edges: null,
@@ -81,7 +80,8 @@ export const Default: Story = {
       { index: 2, label: "T7", distanceStart: 0.7, distanceEnd: 0.75 },
     ],
     issues,
-    stats: stintStats(laps),
+    lineSpread: null,
+    nominalSpanMeters: 1000,
   },
 };
 
@@ -95,16 +95,16 @@ export const NoIssues: Story = {
 
 export const Empty: Story = {
   args: {
-    laps: [],
+    gameId: "f1-2025",
+    baseTraces: [],
     traces: [],
-    bestLapId: null,
-    focusLapId: null,
-    onFocusLap: () => {},
+    primaryLapId: null,
     focusTelemetry: null,
     focusSectorTimes: null,
     edges: null,
     corners: [],
     issues: [],
-    stats: stintStats([]),
+    lineSpread: null,
+    nominalSpanMeters: 0,
   },
 };

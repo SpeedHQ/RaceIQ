@@ -1,4 +1,5 @@
 import { type FieldDef, readSetupField, readSetupSection, type SectionDef, SETUP_FORM_TAB_ORDER, writeSetupField } from "@shared/racing/setups/schema";
+import { m } from "@/paraglide/messages";
 import { useState } from "react";
 import { AppInput } from "../ui/AppInput";
 import { Badge } from "../ui/badge";
@@ -9,7 +10,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 // Renders each setup section as a collapsible card with numeric inputs.
 // `settings` is the source of truth; every edit calls `onChange` with a
 // cloned-and-patched object so unknown keys in the original are preserved.
-
 
 function cloneObj(obj: Record<string, unknown>): Record<string, unknown> {
   return JSON.parse(JSON.stringify(obj));
@@ -110,7 +110,7 @@ function SectionCard({
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-app-text">{section.label}</span>
           <Badge variant={hasData ? "success" : "form-section-empty"} size="compact">
-            {hasData ? "set" : "—"}
+            {hasData ? m.setupform_set() : "—"}
           </Badge>
         </div>
         <span className="text-xs text-app-text-muted">{open ? "▾" : "▸"}</span>
@@ -118,7 +118,11 @@ function SectionCard({
       {open && (
         <div className="space-y-3 border-t border-app-border px-3 pb-3 pt-1">
           {section.fields.map((field) =>
-            field.cardinality.kind === "scalar" ? <ScalarInput key={field.path} field={field} settings={settings} onChange={onChange} /> : <ArrayInput key={field.path} field={field} settings={settings} onChange={onChange} />,
+            field.cardinality.kind === "scalar" ? (
+              <ScalarInput key={field.path} field={field} settings={settings} onChange={onChange} />
+            ) : (
+              <ArrayInput key={field.path} field={field} settings={settings} onChange={onChange} />
+            ),
           )}
         </div>
       )}

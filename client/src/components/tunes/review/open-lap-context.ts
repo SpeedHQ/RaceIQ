@@ -16,6 +16,7 @@ export function buildOpenLapContext({
   metric,
   test,
   cornerKeys,
+  temperatureUnit,
 }: {
   focusLap?: LapMeta;
   sectorTimes: { times: number[] } | null;
@@ -23,10 +24,15 @@ export function buildOpenLapContext({
   corners: Record<string, CornerSnapshot> | null;
   issues?: TuneIssue[];
   ranges: { sectors: Record<string, Range>[] } | null;
-  metric: { label: string; unit: string };
+  metric: { label: string; unit: string; quantity?: "temperature" };
   test?: Pick<ExperimentVersion, "driverComment" | "notes">;
   cornerKeys: readonly string[];
+  temperatureUnit: "C" | "F";
 }): string | null {
+  const temp = (value: number, delta = false) => `${(temperatureUnit === "F" ? (delta ? value * (9 / 5) : value * (9 / 5) + 32) : value).toFixed(0)}°${temperatureUnit}`;
+  const displayRangeValue = (value: number) => metric.quantity === "temperature"
+    ? temp(value)
+    : value.toFixed(0);
   if (!focusLap) return null;
   const lines = [
     "CURRENTLY OPEN LAP REVIEW (visible to user):",
@@ -54,20 +60,20 @@ export function buildOpenLapContext({
       `Tyres (end of lap): ${cornerKeys
         .map((corner) => {
           const snapshot = corners[corner];
-          return `${corner} temp ${snapshot.tempC === undefined ? "—" : `${snapshot.tempC.toFixed(0)}°C`}, wear ${snapshot.wear === undefined ? "—" : `${(snapshot.wear * 100).toFixed(0)}%`}, pressure ${snapshot.pressure === undefined ? "—" : `${snapshot.pressure.toFixed(1)}psi`}, brake ${snapshot.brakeTemp === undefined ? "—" : `${snapshot.brakeTemp.toFixed(0)}°C`}`;
+          return `${corner} temp ${snapshot.tempC === undefined ? "—" : temp(snapshot.tempC)}, wear ${snapshot.wear === undefined ? "—" : `${(snapshot.wear * 100).toFixed(0)}%`}, pressure ${snapshot.pressure === undefined ? "—" : `${snapshot.pressure.toFixed(1)}psi`}, brake ${snapshot.brakeTemp === undefined ? "—" : temp(snapshot.brakeTemp)}`;
         })
         .join("; ")}`,
     );
   if (issues && issues.length > 0) lines.push(`Detected issues: ${issues.map((issue) => `${issue.kind}${issue.corner ? ` ${issue.corner}` : ""} (${issue.severity}) — ${issue.detail}`).join("; ")}`);
   else if (issues) lines.push("Detected issues: none.");
   if (ranges) {
-    lines.push(`${metric.label} ranges (min-max, ${metric.unit}) by sector:`);
+    lines.push(`${metric.label} ranges (min-max, ${metric.quantity === "temperature" ? `°${temperatureUnit}` : metric.unit}) by sector:`);
     ranges.sectors.forEach((sector, index) => {
       lines.push(
         `  S${index + 1}: ${cornerKeys
           .map((corner) => {
             const range = sector[corner];
-            return range.n === 0 ? `${corner} —` : `${corner} ${range.min.toFixed(0)}-${range.max.toFixed(0)} (avg ${range.avg.toFixed(0)})`;
+            return range.n === 0 ? `${corner} —` : `${corner} ${displayRangeValue(range.min)}-${displayRangeValue(range.max)} (avg ${displayRangeValue(range.avg)})`;
           })
           .join(", ")}`,
       );

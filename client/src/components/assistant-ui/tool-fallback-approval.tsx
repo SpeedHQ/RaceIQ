@@ -5,9 +5,10 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const APPROVED_RESULT = "Approved by user";
-const DENIED_RESULT = "User denied tool execution";
-const APPROVAL_OPTION_DEFAULT_LABELS: Record<string, string> = { "allow-once": "Allow", "allow-always": "Always allow", "reject-once": "Deny", "reject-always": "Always deny" };
+import { m } from "@/paraglide/messages";
+const APPROVED_RESULT = m.ai_tool_approved_result();
+const DENIED_RESULT = m.ai_tool_denied_result();
+const APPROVAL_OPTION_DEFAULT_LABELS: Record<string, string> = { "allow-once": m.ai_tool_allow_once(), "allow-always": m.ai_tool_allow_always(), "reject-once": m.ai_tool_deny_once(), "reject-always": m.ai_tool_deny_always() };
 const isAllowKind = (kind: string) => kind === "allow-once" || kind === "allow-always";
 const approvalOptionLabel = (option: ToolApprovalOption) =>
   option.label ?? (Object.hasOwn(APPROVAL_OPTION_DEFAULT_LABELS, option.kind) ? APPROVAL_OPTION_DEFAULT_LABELS[option.kind] : undefined) ?? option.id;
@@ -63,10 +64,10 @@ export function ToolFallbackApproval({
         )}
         <div className="flex items-center gap-2">
           <Button size="sm" onClick={() => respondWithOption(confirming)} disabled={submitted}>
-            Confirm
+            {m.common_confirm()}
           </Button>
           <Button size="sm" variant="outline" onClick={() => setConfirmingId(null)} disabled={submitted}>
-            Back
+            {m.common_back()}
           </Button>
         </div>
       </div>
@@ -84,7 +85,7 @@ export function ToolFallbackApproval({
         ))}
         {rejectOptions.length === 0 && (
           <Button size="sm" variant="outline" onClick={() => respond(false)} disabled={submitted}>
-            Deny
+            {m.ai_tool_deny_once()}
           </Button>
         )}
       </div>
@@ -93,10 +94,10 @@ export function ToolFallbackApproval({
   return (
     <div data-slot="tool-fallback-approval" className={cn("aui-tool-fallback-approval flex items-center gap-2 pt-1", className)} {...props}>
       <Button size="sm" onClick={() => respond(true)} disabled={submitted}>
-        Allow
+        {m.ai_tool_allow_once()}
       </Button>
       <Button size="sm" variant="outline" onClick={() => respond(false)} disabled={submitted}>
-        Deny
+        {m.ai_tool_deny_once()}
       </Button>
     </div>
   );

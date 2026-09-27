@@ -101,6 +101,8 @@ function routeFor(game: SeededGame, feature: SeededFeature): Omit<SeededRouteCas
       return { path: `/${game.prefix}` };
     case "live":
       return game.prefix === "iracing" ? { path: "/iracing/live", expectedPath: "/iracing/live/driver" } : { path: `/${game.prefix}/live` };
+    case "analyse":
+      return { path: `/${game.prefix}/sessions/analyse` };
     case "track-info":
       return { path: `/${game.prefix}/tracks/${game.trackOrdinal}/info`, trackHeading: game.trackName };
     case "track-laps":

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { AccLiveDashboard } from "../../components/acc/AccLiveDashboard";
+import { LMULiveDashboard } from "../../components/lmu/LMULiveDashboard";
 import { ForzaLiveDashboard } from "../../components/ForzaLiveDashboard";
 import { F1LiveDashboard } from "../../components/f1/F1LiveDashboard";
 import { gameIdForRoutePrefix, liveDashboardForGame } from "../../lib/game-routes";
@@ -27,6 +28,8 @@ function LiveDashboardRoute() {
       return <F1LiveDashboard />;
     case "acc":
       return <AccLiveDashboard gameId={gameId} />;
+    case "lmu":
+      return <LMULiveDashboard />;
   }
 }
 

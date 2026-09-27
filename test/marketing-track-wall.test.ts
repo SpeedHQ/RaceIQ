@@ -10,7 +10,7 @@ import { createProjects } from "../playwright/config/projects";
 import type { E2ERuntime, ServerPorts } from "../playwright/config/runtime";
 
 const fixture = buildMarketingTrackWallFixture();
-const expectedCounts = [fmTrackCatalog.size, getF1Tracks().size, getAccTracks().size, getAcEvoTracks().size, getAllIRacingTracks().length];
+const expectedCounts = [fmTrackCatalog.size, getF1Tracks().size, getAccTracks().size, getAcEvoTracks().size, getAllIRacingTracks().length, 0];
 
 const ports = (port: number): ServerPorts => ({
   port: String(port),

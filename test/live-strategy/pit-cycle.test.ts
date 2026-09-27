@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { classifyPitCycleLap } from "../../shared/racing/laps/pit-cycle";
+import { classifyPitCycleLap, forzaPitTransitionEvidence } from "../../shared/racing/laps/pit-cycle";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 function iracing(onPitRoad: boolean): TelemetryPacket {
@@ -12,6 +12,21 @@ function f1(pitLaneTimerActive: number): TelemetryPacket {
 
 function kunos(pitStatus: "out" | "pit_lane" | "in_pit"): TelemetryPacket {
   return { gameId: "acc", acc: { pitStatus } } as TelemetryPacket;
+}
+
+function forza(overrides: Partial<TelemetryPacket>): TelemetryPacket {
+  return {
+    gameId: "fm-2023",
+    LapNumber: 1,
+    CurrentLap: 70,
+    LastLap: 0,
+    Fuel: 0.05,
+    TireWearFL: 0.05,
+    TireWearFR: 0.05,
+    TireWearRL: 0.05,
+    TireWearRR: 0.05,
+    ...overrides,
+  } as TelemetryPacket;
 }
 
 describe("classifyPitCycleLap", () => {
@@ -33,5 +48,60 @@ describe("classifyPitCycleLap", () => {
 
   test("leaves Forza unclassified because its catalog has no pit-state source", () => {
     expect(classifyPitCycleLap([{ gameId: "fm-2023" } as TelemetryPacket])).toBeNull();
+  });
+});
+
+describe("forzaPitTransitionEvidence", () => {
+  test("uses timing gap with optional fuel and tire-service reinforcement", () => {
+    const evidence = forzaPitTransitionEvidence(
+      forza({ LapNumber: 1, CurrentLap: 70, Fuel: 0.04 }),
+      forza({
+        LapNumber: 2,
+        CurrentLap: 6,
+        LastLap: 99,
+        Fuel: 0.13,
+        TireWearFL: 0.001,
+        TireWearFR: 0.001,
+        TireWearRL: 0.001,
+        TireWearRR: 0.001,
+      }),
+    );
+
+    expect(evidence).toEqual({
+      detected: true,
+      raceOffObserved: false,
+      timingGap: true,
+      fuelIncreased: true,
+      tireWearRefreshed: true,
+    });
+  });
+
+  test("race-off marker detects a pit transition when service channels are unavailable", () => {
+    const evidence = forzaPitTransitionEvidence(
+      forza({ TireWearFL: -1, TireWearFR: -1, TireWearRL: -1, TireWearRR: -1 }),
+      forza({
+        LapNumber: 2,
+        CurrentLap: 0.1,
+        LastLap: 70.1,
+        TireWearFL: -1,
+        TireWearFR: -1,
+        TireWearRL: -1,
+        TireWearRR: -1,
+      }),
+      true,
+    );
+
+    expect(evidence.detected).toBe(true);
+    expect(evidence.fuelIncreased).toBe(false);
+    expect(evidence.tireWearRefreshed).toBe(false);
+  });
+
+  test("ordinary lap rollover is not a pit transition", () => {
+    const evidence = forzaPitTransitionEvidence(
+      forza({ LapNumber: 1, CurrentLap: 70 }),
+      forza({ LapNumber: 2, CurrentLap: 0.1, LastLap: 70.1, Fuel: 0.049 }),
+    );
+
+    expect(evidence.detected).toBe(false);
   });
 });

@@ -64,6 +64,30 @@ describe("migration runner e2e", () => {
 
     client.close();
   });
+  test("failed migration rolls back schema and version record", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    const failingMigrations = [
+      {
+        version: 1,
+        name: "fails after schema change",
+        sql: [
+          "CREATE TABLE rollback_probe (id INTEGER PRIMARY KEY)",
+          "INSERT INTO rollback_probe (id) VALUES (1)",
+          "THIS IS NOT VALID SQL",
+        ],
+      },
+    ];
+
+    await expect(runMigrations(client, Number.POSITIVE_INFINITY, failingMigrations)).rejects.toThrow();
+    const tables = await client.execute(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'rollback_probe'",
+    );
+    const versions = await getAppliedVersions(client);
+    expect(tables.rows).toEqual([]);
+    expect(versions).toEqual([]);
+    client.close();
+  });
 
   test("each migration applies in its own transaction without errors", async () => {
     const client = newClient();
@@ -72,19 +96,19 @@ describe("migration runner e2e", () => {
     await client.execute("PRAGMA foreign_keys = OFF");
     const ordered = [...migrations].sort((a, b) => a.version - b.version);
     for (const m of ordered) {
-      await client.execute("BEGIN");
+      const tx = await client.transaction("write");
       try {
         for (const sql of m.sql) {
           try {
-            await client.execute(sql);
+            await tx.execute(sql);
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             if (!msg.includes("duplicate column name")) throw err;
           }
         }
-        await client.execute("COMMIT");
+        await tx.commit();
       } catch (err) {
-        await client.execute("ROLLBACK");
+        await tx.rollback();
         throw new Error(`Migration v${m.version} (${m.name}) failed: ${(err as Error).message}`);
       }
     }

@@ -2,11 +2,13 @@
  * Tests for session-compressor: compression of old .bin files,
  * skipping of new files, and graceful handling of missing files.
  */
-import { describe, test, expect, afterEach, beforeEach } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { describe, test, expect, afterEach, beforeEach, spyOn } from "bun:test";
+import * as fs from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { db } from "../../server/db/index";
+import { client, db } from "../../server/db/index";
 import { sessions } from "../../server/db/schema";
 import { eq } from "drizzle-orm";
 import { runCompressionNow } from "../../server/session-capture/compressor";
@@ -102,18 +104,84 @@ describe("session-compressor", () => {
     expect(row?.rawFile).toBe(gzPath);
   });
 
-  test("compressed output is valid gzip", async () => {
+  test("round-trips payloads larger than a stream chunk", async () => {
     const binPath = join(tmpDir, "session.bin");
-    writeFileSync(binPath, Buffer.from("test payload for gzip check"));
+    const payload = Buffer.alloc(1024 * 1024 + 17);
+    for (let index = 0; index < payload.length; index++) {
+      payload[index] = index % 251;
+    }
+    writeFileSync(binPath, payload);
 
     sessionId = await insertSession(binPath, OLD_DATE);
     await runCompressionNow();
 
-    const gzPath = `${binPath}.gz`;
-    const buf = Buffer.from(await Bun.file(gzPath).arrayBuffer());
-    // gzip magic bytes: 0x1f 0x8b
-    expect(buf[0]).toBe(0x1f);
-    expect(buf[1]).toBe(0x8b);
+    expect(gunzipSync(readFileSync(`${binPath}.gz`))).toEqual(payload);
+    expect(readdirSync(tmpDir)).toEqual(["session.bin.gz"]);
+  });
+
+  test("removes partial temporary output after a source read failure", async () => {
+    const binPath = join(tmpDir, "session.bin");
+    const payload = Buffer.alloc(1024 * 1024, 0x5a);
+    writeFileSync(binPath, payload);
+    sessionId = await insertSession(binPath, OLD_DATE);
+    const createReadStream = fs.createReadStream;
+    const readStream = spyOn(fs, "createReadStream").mockImplementation((path, options) => {
+      const stream = createReadStream(path, options);
+      if (path === binPath) {
+        stream.once("data", () => stream.destroy(new Error("Injected source read failure")));
+      }
+      return stream;
+    });
+    try {
+      await runCompressionNow();
+    } finally {
+      readStream.mockRestore();
+    }
+
+    expect(readFileSync(binPath)).toEqual(payload);
+    expect(readdirSync(tmpDir)).toEqual(["session.bin"]);
+    const row = await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get();
+    expect(row?.rawFile).toBe(binPath);
+  });
+
+  test("keeps source and DB path when completed gzip cannot be published", async () => {
+    const binPath = join(tmpDir, "session.bin");
+    const payload = Buffer.from("preserve source after rename failure");
+    writeFileSync(binPath, payload);
+    mkdirSync(`${binPath}.gz`);
+    sessionId = await insertSession(binPath, OLD_DATE);
+
+    await runCompressionNow();
+
+    expect(readFileSync(binPath)).toEqual(payload);
+    expect(readdirSync(tmpDir).sort()).toEqual(["session.bin", "session.bin.gz"]);
+    expect(readdirSync(`${binPath}.gz`)).toEqual([]);
+    const row = await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get();
+    expect(row?.rawFile).toBe(binPath);
+  });
+
+  test("does not delete source before the DB update succeeds", async () => {
+    const binPath = join(tmpDir, "session.bin");
+    const payload = Buffer.from("preserve source after DB failure");
+    writeFileSync(binPath, payload);
+    sessionId = await insertSession(binPath, OLD_DATE);
+    const trigger = `compressor_update_failure_${sessionId}`;
+    await client.execute(`
+      CREATE TRIGGER ${trigger} BEFORE UPDATE OF raw_file ON sessions
+      WHEN OLD.id = ${sessionId}
+      BEGIN SELECT RAISE(ABORT, 'Injected session update failure'); END
+    `);
+    try {
+      await runCompressionNow();
+    } finally {
+      await client.execute(`DROP TRIGGER ${trigger}`);
+    }
+
+    expect(readFileSync(binPath)).toEqual(payload);
+    expect(gunzipSync(readFileSync(`${binPath}.gz`))).toEqual(payload);
+    expect(readdirSync(tmpDir).sort()).toEqual(["session.bin", "session.bin.gz"]);
+    const row = await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get();
+    expect(row?.rawFile).toBe(binPath);
   });
 });
 

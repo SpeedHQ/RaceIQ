@@ -64,17 +64,6 @@ export function startHttpServer({
         return app.fetch(req);
       }
 
-      if (process.env.NODE_ENV !== "production" && url.pathname === "/") {
-        const origin = req.headers.get("origin") ?? "*";
-        return new Response("ok", {
-          status: 200,
-          headers: {
-            "access-control-allow-origin": origin,
-            "access-control-allow-credentials": "true",
-          },
-        });
-      }
-
       if (staticDir) {
         const pathname = url.pathname === "/" ? "/index.html" : decodeURIComponent(url.pathname);
         const filePath = resolve(staticDir, pathname.slice(1));
@@ -85,6 +74,17 @@ export function startHttpServer({
           }
         }
         return new Response(Bun.file(resolve(staticDir, "index.html")));
+      }
+
+      if (process.env.NODE_ENV !== "production" && url.pathname === "/") {
+        const origin = req.headers.get("origin") ?? "*";
+        return new Response("ok", {
+          status: 200,
+          headers: {
+            "access-control-allow-origin": origin,
+            "access-control-allow-credentials": "true",
+          },
+        });
       }
 
       if (devPublicDir) {

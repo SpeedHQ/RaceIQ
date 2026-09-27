@@ -4,7 +4,7 @@ import { SessionRecapView } from "@/components/SessionRecap";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
 import { GameBrandCards, GameBrandHeader } from "./Brand";
-import { RecentLapsTable } from "./RecentLaps";
+import { RecentSessionsTable } from "./RecentSessions";
 import { PeriodStatsPanel } from "./Stats";
 import type { HomePageViewProps } from "./types";
 
@@ -13,7 +13,7 @@ export function HomePageView({
   gameDisplayName,
   displaySettings,
   allLaps,
-  recentLaps,
+  recentSessions,
   carNames,
   trackNames,
   gameStats,
@@ -26,9 +26,9 @@ export function HomePageView({
   latestRecapBounds,
   recapCopied,
   onCopyRecap,
-  onAnalyseLap,
-  lapsLoading = false,
-  lapsError = false,
+  onAnalyseSession,
+  sessionsLoading = false,
+  sessionsError = false,
   onAnalyseRecap,
   periodTab,
   periodStats,
@@ -74,8 +74,8 @@ export function HomePageView({
               </section>
 
               <section>
-                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90">{m.home_recent_laps()}</h2>
-                <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseLap={onAnalyseLap} loading={lapsLoading} error={lapsError} />
+                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90">{m.home_recent_sessions()}</h2>
+                <RecentSessionsTable sessions={recentSessions} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseSession={onAnalyseSession} loading={sessionsLoading} error={sessionsError} />
               </section>
             </main>
 
@@ -120,8 +120,8 @@ export function HomePageView({
               </div>
 
               <div>
-                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90">{m.home_recent_laps()}</h2>
-                <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseLap={onAnalyseLap} loading={lapsLoading} error={lapsError} />
+                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90">{m.home_recent_sessions()}</h2>
+                <RecentSessionsTable sessions={recentSessions} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseSession={onAnalyseSession} loading={sessionsLoading} error={sessionsError} />
               </div>
             </main>
 

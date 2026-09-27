@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { telemetryStore, useTelemetryStore } from "@/stores/telemetry";
+import { getLocale } from "@/paraglide/runtime";
 
 const STEPS = ["downloading", "installing", "reconnecting", "complete"] as const;
 
@@ -36,7 +37,7 @@ function StepIndicator({ step, current }: { step: (typeof STEPS)[number]; curren
   );
 }
 
-export function UpdateModal({ version, currentVersion, newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate, onClose }: { version: string; currentVersion: string; newReleases: { version: string; notes: string; date: string }[]; fullReleaseNotes: string | null; currentReleaseNotes: string | null; currentReleaseDate: string | null; onClose: () => void }) {
+export function UpdateModal({ version, currentVersion, newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate, updatesDisabled, onClose }: { version: string; currentVersion: string; newReleases: { version: string; notes: string; date: string }[]; fullReleaseNotes: string | null; currentReleaseNotes: string | null; currentReleaseDate: string | null; updatesDisabled?: boolean; onClose: () => void }) {
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const [error, setError] = useState<string | null>(null);
   const [showAllReleases, setShowAllReleases] = useState(false);
@@ -82,7 +83,12 @@ export function UpdateModal({ version, currentVersion, newReleases, fullReleaseN
   const isUpdating = stage !== null && stage !== "complete";
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open && !isUpdating) onClose(); }}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !isUpdating) onClose();
+      }}
+    >
       <DialogContent size="md" showCloseButton={false} overlayClassName="bg-app-bg/60" className="max-h-[90vh] overflow-y-auto gap-0 bg-app-bg p-0">
         {/* Header */}
         <DialogHeader className="flex flex-row items-center justify-between gap-0 border-b border-app-border px-5 py-4">
@@ -118,7 +124,7 @@ export function UpdateModal({ version, currentVersion, newReleases, fullReleaseN
                         <div className="flex items-baseline justify-between mb-1">
                           <span className="text-xs font-medium text-app-text">v{latest.version}</span>
                           {latest.date && (
-                            <span className="text-xs text-app-text-muted">{new Date(latest.date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>
+                            <span className="text-xs text-app-text-muted">{new Date(latest.date).toLocaleDateString(getLocale(), { year: "numeric", month: "short", day: "numeric" })}</span>
                           )}
                         </div>
                         <ReleaseNotes notes={latest.notes} />
@@ -133,7 +139,7 @@ export function UpdateModal({ version, currentVersion, newReleases, fullReleaseN
                           <div key={r.version}>
                             <div className="flex items-baseline justify-between mb-1">
                               <span className="text-xs font-medium text-app-text">v{r.version}</span>
-                              {r.date && <span className="text-xs text-app-text-muted">{new Date(r.date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>}
+                              {r.date && <span className="text-xs text-app-text-muted">{new Date(r.date).toLocaleDateString(getLocale(), { year: "numeric", month: "short", day: "numeric" })}</span>}
                             </div>
                             <ReleaseNotes notes={r.notes} />
                           </div>
@@ -143,9 +149,13 @@ export function UpdateModal({ version, currentVersion, newReleases, fullReleaseN
                 })()
               )}
               <div className="flex justify-end gap-3">
-                <Button variant="app-primary" size="app-md" onClick={handleInstall}>
-                  {m.label_install_update()}
-                </Button>
+                {updatesDisabled ? (
+                  <p className="mr-auto self-center text-sm text-app-text-muted">{m.updates_docker_managed()}</p>
+                ) : (
+                  <Button variant="app-primary" size="app-md" onClick={handleInstall}>
+                    {m.label_install_update()}
+                  </Button>
+                )}
                 <Button variant="app-outline" size="app-md" onClick={onClose}>
                   {m.update_later()}
                 </Button>

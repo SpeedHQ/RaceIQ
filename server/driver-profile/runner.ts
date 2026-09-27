@@ -174,7 +174,7 @@ async function runDriverProfileInternal(
   const startedAt = Date.now();
   let fingerprint: DriverFingerprint | null = null;
   try {
-    fingerprint = await loadDriverProfile({ gameId: scope.gameId });
+    fingerprint = await loadDriverProfile({ gameId: scope.gameId, computeMissingInsights: options.trigger !== "background" });
     if (!fingerprint.ok) {
       return await failDriverProfileRun(
         scope,

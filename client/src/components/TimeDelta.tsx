@@ -13,7 +13,6 @@ interface Props {
   onZoomOut?: () => void;
 }
 
-
 export function TimeDelta({ distances, timeDelta, syncKey, height = 160, title, onCursorMove, onRangeSelect, visibleRange, onZoomOut }: Props) {
   // Split positive (losing) and negative (gaining) values for theme-owned fills.
   const gaining = timeDelta.map((d) => (d <= 0 ? d : 0));

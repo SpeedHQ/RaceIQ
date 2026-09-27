@@ -28,12 +28,21 @@ function trackInfo(track: WallTrack): TrackInfo {
 
 function mapFor(track: WallTrack): ReactNode {
   if (!track.mapSrc) return undefined;
-  return <img src={track.mapSrc} alt={`${track.name} ${track.variant} map`} className="w-full h-full object-contain p-3" loading="lazy" decoding="async" onError={(event) => {
-    const fallback = document.createElement("div");
-    fallback.className = "flex items-center justify-center h-full text-app-subtext text-app-text-dim";
-    fallback.textContent = "No outline available";
-    event.currentTarget.replaceWith(fallback);
-  }} />;
+  return (
+    <img
+      src={track.mapSrc}
+      alt={`${track.name} ${track.variant} map`}
+      className="w-full h-full object-contain p-3"
+      loading="lazy"
+      decoding="async"
+      onError={(event) => {
+        const fallback = document.createElement("div");
+        fallback.className = "flex items-center justify-center h-full text-app-subtext text-app-text-dim";
+        fallback.textContent = "No outline available";
+        event.currentTarget.replaceWith(fallback);
+      }}
+    />
+  );
 }
 
 export function TrackWall() {
@@ -53,12 +62,7 @@ export function TrackWall() {
         <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-2 p-3 pt-12">
           {wallTracks.map((track) => (
             <article key={track.key} data-track-key={track.key} data-game-id={track.gameId} className={TRACK_CARD_SHELL_CLASS}>
-              <TrackCardVisual
-                track={trackInfo(track)}
-                map={mapFor(track)}
-                setupCount={track.setupCount}
-                guideCount={track.lapCount}
-              />
+              <TrackCardVisual track={trackInfo(track)} map={mapFor(track)} setupCount={track.setupCount} guideCount={track.lapCount} />
             </article>
           ))}
         </div>

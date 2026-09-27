@@ -1,8 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { SessionsPage } from "../../components/sessions/SessionsPage";
-import { validateSessionsSearch } from "../../lib/game-routes";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/$gameid/sessions")({
-  component: SessionsPage,
-  validateSearch: validateSessionsSearch,
+  component: () => <Outlet />,
 });

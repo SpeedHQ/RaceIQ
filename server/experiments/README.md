@@ -10,6 +10,7 @@ Own tuning-experiment state, setup lineage, reversible actions, lap evidence, an
 - `setup-lineage.ts` resolves setup-bearing ancestors and active setup context across file-backed and snapshot-backed games.
 - `representative-lap.ts` provides the single-lap fallback used when aggregate evidence is unavailable.
 - `lap-evidence/aggregate.ts` selects clean laps and builds symptom, track-condition, consistency, and line-spread evidence.
+- `lap-issues.ts` dispatches completed-lap issue analysis only when the AI Engineer invokes `get-lap-issues` in an experiment; `lap-issues-worker.ts` is an explicit standalone-build entrypoint.
 - `comparison/metrics.ts` defines metric-specific curation and sampling; `stream.ts` samples frame metrics within the disclosed frame budget; `compare.ts` performs deterministic statistical comparison; `load.ts` connects those pure calculations to experiment and lap reads.
 
 ## Boundaries and invariants
@@ -19,6 +20,7 @@ Own tuning-experiment state, setup lineage, reversible actions, lap evidence, an
 - Significance describes distinguishability from noise, not a tuning verdict. Persisted verdicts remain human decisions.
 - Setup lineage walks through drill nodes to the nearest setup-bearing ancestor and guards cycles. F1 setup state is JSON snapshot data; ACC and AC EVO normally use guarded setup files.
 - Active experiment state is process-local and singular. Undo preserves action order and uses existing database operations for reversible subtree changes.
+- Completed-lap issue jobs require an explicit AI Engineer tool call with experiment-scoped lap ownership checked before telemetry loading. Recording, dashboard connections, and entering Experiments never enqueue these jobs. The lazy worker retains at most four requests; overload or worker failure returns a tool error. Results belong to the requesting tool call, not a global live feed.
 - Database queries, telemetry parsing, corner/consistency analysis, setup-file I/O, HTTP validation, and AI wording remain owned by their respective domains; this folder consumes those contracts without redefining them.
 
 ## Testing

@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import type { CatalogTune } from "@/data/tune-catalog";
 import { parseLapTime } from "./parseLapTime";
 import type { TuneRow } from "./types";
@@ -42,7 +43,7 @@ export function buildRows(catalog: CatalogTune[], userTunes: RawUserTune[]): Tun
     id: `user-${t.id}`,
     dbId: t.id,
     name: t.name,
-    author: t.author || "You",
+    author: t.author || m.tune_me(),
     source: "user",
     category: t.category,
     carOrdinal: t.carOrdinal,

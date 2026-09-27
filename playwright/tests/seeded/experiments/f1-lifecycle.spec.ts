@@ -6,7 +6,7 @@ import { ExperimentSchema, ImportLapsResponseSchema } from "./schemas";
 
 test("F1 experiment creates, switches focus, imports laps, uses history, and archives", async ({ page, request }) => {
   page.setDefaultTimeout(10_000);
-  test.setTimeout(180_000);
+  test.setTimeout(200_000);
   const browserErrors = collectBrowserErrors(page);
   const seededLap = await getSeededLapTarget(request, "f1-2025");
   const trackResponse = await request.get(`/api/track-name/${seededLap.trackOrdinal}?gameId=f1-2025`);

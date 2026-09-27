@@ -1,6 +1,7 @@
 import { createUIMessageStream, createUIMessageStreamResponse, type UIMessageChunk } from "ai";
 import { toAISdkStream } from "@mastra/ai-sdk";
 import { formatClientAiErrorMessage, toClientAiError } from "./provider-error";
+import { logLlmEvent, type LlmDiagnosticContext } from "./diagnostic-logging";
 import { type ChatRun, pushChunk, finishRun } from "./chat-run-registry";
 
 /**
@@ -51,7 +52,10 @@ export interface StreamAgentTurnOptions {
   abortSignal?: AbortSignal;
   /** Patch streamed reasoning back into the saved assistant row. Default true. */
   persistReasoning?: boolean;
+  /** Credential-safe request context for exported LLM diagnostics. */
+  diagnostic?: LlmDiagnosticContext & { request: unknown };
 }
+
 
 export async function persistAssistantTurnToMemory(
   responseMessage: any,
@@ -166,6 +170,10 @@ function buildAgentTurnUIStream(opts: StreamAgentTurnOptions): ReadableStream<UI
     persistReasoning = true,
   } = opts;
 
+  if (opts.diagnostic) {
+    logLlmEvent("llm-request", opts.diagnostic);
+  }
+
   // Wall-clock span of the turn's thinking: first reasoning chunk → last one.
   // Captured in the stream loop, read at finish (metadata) and onFinish (persist).
   let reasoningFirstTs = 0;
@@ -193,6 +201,7 @@ function buildAgentTurnUIStream(opts: StreamAgentTurnOptions): ReadableStream<UI
         );
       }
       await restoreOriginalUserMessage(originalMessages, memory, threadId, turnStartedAt);
+      if (opts.diagnostic) logLlmEvent("llm-response", { ...opts.diagnostic, response: responseMessage });
     },
     execute: async ({ writer }) => {
       try {
@@ -227,6 +236,7 @@ function buildAgentTurnUIStream(opts: StreamAgentTurnOptions): ReadableStream<UI
           await writer.write(uiPart as Parameters<typeof writer.write>[0]);
         }
       } catch (err) {
+        if (opts.diagnostic) logLlmEvent("llm-error", { ...opts.diagnostic, error: err });
         const aiError = toClientAiError(err);
         const promptTokens = aiError.upstream?.promptTokens;
         if (promptTokens != null) {

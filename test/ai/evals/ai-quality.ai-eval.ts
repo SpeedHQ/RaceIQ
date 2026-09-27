@@ -16,6 +16,7 @@ import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { initGameAdapters } from "../../../shared/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { buildAnalystPrompt } from "../../../server/ai/analyst-prompt";
+import { AnalystOutputSchema } from "../../../server/ai/schemas";
 import { compareLapHeader } from "../../../server/ai/compare-engineer";
 import { resolveCarName } from "../../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../../shared/racing/tracks/resolve-name";
@@ -80,8 +81,13 @@ describeIf("AI quality — Lap Analyst", () => {
         fx.units,
       );
       const agent = buildEvalLapAnalystAgent();
-      const response = await agent.generate(prompt);
-      const output = response.text ?? "";
+      const response = await agent.generate(prompt, {
+        structuredOutput: {
+          schema: AnalystOutputSchema,
+          jsonPromptInjection: "auto",
+        },
+      });
+      const output = JSON.stringify(response.object ?? {});
 
       const groundTruth = {
         slowestCorners: fx.expected.slowestCorners,

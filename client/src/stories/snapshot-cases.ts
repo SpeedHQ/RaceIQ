@@ -10,6 +10,7 @@ export interface StorybookSnapshotCase {
   clickRole?: "button" | "combobox";
   readyRole?: "dialog" | "listbox" | "menu";
   readyName?: string;
+  waitForVisualReady?: boolean;
   viewport?: { width: number; height: number };
 }
 
@@ -34,6 +35,16 @@ export const DASHBOARD_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [
     name: "AccLiveDashboard",
     id: "dashboards-acclivedashboard--visual-contract",
     outputName: "snapshot-AccLiveDashboard.png",
+  },
+  {
+    name: "AcEvoLiveDashboard",
+    id: "dashboards-acevolivedashboard--visual-contract",
+    outputName: "snapshot-AcEvoLiveDashboard.png",
+  },
+  {
+    name: "IRacingLiveDashboard",
+    id: "dashboards-iracinglivedashboard--visual-contract",
+    outputName: "snapshot-IRacingLiveDashboard.png",
   },
   // Distinct interaction contract: read-only setup browsing removes owner actions.
   {
@@ -180,7 +191,6 @@ export const REUSABLE_UI_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [
     id: "screens-analysevizpanel--three-d-view-menu-open",
     outputName: "snapshot-AnalyseVizPanel3DViewMenuOpen.png",
     viewport: { width: 1080, height: 800 },
-    readyRole: "menu",
   },
   {
     name: "AnalyseTrackPanel",

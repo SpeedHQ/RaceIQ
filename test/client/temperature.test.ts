@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { fahrenheitToCelsius, celsiusToFahrenheit, convertTemp } from "../../client/src/lib/temperature";
+import { fahrenheitToCelsius, celsiusToFahrenheit, convertTemp, convertTempDelta } from "../../client/src/lib/temperature";
 
 describe("temperature conversion", () => {
   test("fahrenheitToCelsius converts known values", () => {
@@ -30,5 +30,12 @@ describe("temperature conversion", () => {
     const celsius = fahrenheitToCelsius(original);
     const backToF = celsiusToFahrenheit(celsius);
     expect(backToF).toBeCloseTo(original, 5);
+  });
+
+  test("convertTempDelta preserves Celsius deltas without offset", () => {
+    expect(convertTempDelta(1, "C")).toBe(1);
+    expect(convertTempDelta(-2, "C")).toBe(-2);
+    expect(convertTempDelta(1, "F")).toBeCloseTo(1.8);
+    expect(convertTempDelta(-2, "F")).toBeCloseTo(-3.6);
   });
 });

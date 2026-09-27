@@ -46,6 +46,11 @@ const SOURCE_ROOTS: Partial<Record<GameId, Record<string, string>>> = {
     session: "iRacing.SessionInfo",
     source: "iRacing.SourceFrame",
   },
+  lmu: {
+    telemetry: "LMU.Telemetry",
+    scoringInfo: "LMU.ScoringInfo",
+    scoring: "LMU.PlayerScoring",
+  },
 };
 
 const PACKET_SOURCE_OVERRIDES: Partial<
@@ -66,6 +71,178 @@ const PACKET_SOURCE_OVERRIDES: Partial<
       "AC-Evo.Static.track_configuration",
     ],
   },
+  lmu: {
+    DrsActive: ["LMU.Telemetry.rearFlapActivated"],
+    BrakeTempFrontLeft: ["LMU.Telemetry.wheels.FL.brakeTemperature"],
+    BrakeTempFrontRight: ["LMU.Telemetry.wheels.FR.brakeTemperature"],
+    BrakeTempRearLeft: ["LMU.Telemetry.wheels.RL.brakeTemperature"],
+    BrakeTempRearRight: ["LMU.Telemetry.wheels.RR.brakeTemperature"],
+    CurrentEngineRpm: ["LMU.Telemetry.engineRpm"],
+    EngineMaxRpm: ["LMU.Telemetry.engineMaxRpm"],
+    Power: [
+      "LMU.Telemetry.engineTorque",
+      "LMU.Telemetry.engineRpm",
+      "LMU.Telemetry.electricBoostMotorTorque",
+      "LMU.Telemetry.electricBoostMotorRpm",
+    ],
+    Torque: [
+      "LMU.Telemetry.engineTorque",
+      "LMU.Telemetry.electricBoostMotorTorque",
+    ],
+    Fuel: ["LMU.Telemetry.fuel"],
+    FuelCapacity: ["LMU.Telemetry.fuelCapacity"],
+    CarClass: ["LMU.Telemetry.vehicleClass"],
+    CarOrdinal: [
+      "LMU.Telemetry.vehicleModel",
+      "LMU.Telemetry.vehicleName",
+    ],
+    TrackOrdinal: [
+      "LMU.ScoringInfo.trackName",
+      "LMU.Telemetry.trackName",
+    ],
+    Accel: ["LMU.Telemetry.unfilteredThrottle"],
+    Brake: ["LMU.Telemetry.unfilteredBrake"],
+    Clutch: ["LMU.Telemetry.unfilteredClutch"],
+    Gear: ["LMU.Telemetry.gear"],
+    Steer: ["LMU.Telemetry.unfilteredSteering"],
+    AccelerationX: ["LMU.Telemetry.localAcceleration.x"],
+    AccelerationY: ["LMU.Telemetry.localAcceleration.y"],
+    AccelerationZ: ["LMU.Telemetry.localAcceleration.z"],
+    AngularVelocityX: ["LMU.Telemetry.localRotation.x"],
+    AngularVelocityY: ["LMU.Telemetry.localRotation.y"],
+    AngularVelocityZ: ["LMU.Telemetry.localRotation.z"],
+    Pitch: ["LMU.Telemetry.orientation"],
+    Roll: ["LMU.Telemetry.orientation"],
+    Yaw: ["LMU.Telemetry.orientation"],
+    PositionX: ["LMU.Telemetry.position.x"],
+    PositionY: ["LMU.Telemetry.position.y"],
+    PositionZ: ["LMU.Telemetry.position.z"],
+    VelocityX: ["LMU.Telemetry.localVelocity.x"],
+    VelocityY: ["LMU.Telemetry.localVelocity.y"],
+    VelocityZ: ["LMU.Telemetry.localVelocity.z"],
+    Speed: ["LMU.Telemetry.localVelocity"],
+    IsRaceOn: ["LMU.ScoringInfo.inRealtime"],
+    RacePosition: ["LMU.PlayerScoring.place"],
+    sessionUID: [
+      "LMU.Generic.gameVersion",
+      "LMU.Generic.startSessionEvent",
+      "LMU.ScoringInfo.session",
+      "LMU.ScoringInfo.trackName",
+      "LMU.Telemetry.vehicleModel",
+    ],
+    BestLap: ["LMU.PlayerScoring.bestLapTime"],
+    CurrentLap: [
+      "LMU.Telemetry.elapsedTime",
+      "LMU.Telemetry.lapStartElapsedTime",
+    ],
+    CurrentRaceTime: ["LMU.Telemetry.elapsedTime"],
+    LapNumber: ["LMU.Telemetry.lapNumber"],
+    LastLap: ["LMU.PlayerScoring.lastLapTime"],
+    AirTemp: ["LMU.ScoringInfo.ambientTemperature"],
+    RainPercent: ["LMU.ScoringInfo.raining"],
+    TrackTemp: ["LMU.ScoringInfo.trackTemperature"],
+    WeatherType: [
+      "LMU.ScoringInfo.raining",
+      "LMU.ScoringInfo.cloudCoverage",
+    ],
+    SuspensionTravelMFL: ["LMU.Telemetry.wheels.FL.suspensionDeflection"],
+    SuspensionTravelMFR: ["LMU.Telemetry.wheels.FR.suspensionDeflection"],
+    SuspensionTravelMRL: ["LMU.Telemetry.wheels.RL.suspensionDeflection"],
+    SuspensionTravelMRR: ["LMU.Telemetry.wheels.RR.suspensionDeflection"],
+    TireTempFL: ["LMU.Telemetry.wheels.FL.temperature"],
+    TireTempFR: ["LMU.Telemetry.wheels.FR.temperature"],
+    TireTempRL: ["LMU.Telemetry.wheels.RL.temperature"],
+    TireTempRR: ["LMU.Telemetry.wheels.RR.temperature"],
+    TireCarcassAverageTempFL: ["LMU.Telemetry.wheels.FL.tireCarcassTemperature"],
+    TireCarcassAverageTempFR: ["LMU.Telemetry.wheels.FR.tireCarcassTemperature"],
+    TireCarcassAverageTempRL: ["LMU.Telemetry.wheels.RL.tireCarcassTemperature"],
+    TireCarcassAverageTempRR: ["LMU.Telemetry.wheels.RR.tireCarcassTemperature"],
+    TireSurfaceTempInnerFL: ["LMU.Telemetry.wheels.FL.temperature.right"],
+    TireSurfaceTempInnerFR: ["LMU.Telemetry.wheels.FR.temperature.left"],
+    TireSurfaceTempInnerRL: ["LMU.Telemetry.wheels.RL.temperature.right"],
+    TireSurfaceTempInnerRR: ["LMU.Telemetry.wheels.RR.temperature.left"],
+    TireSurfaceTempMiddleFL: ["LMU.Telemetry.wheels.FL.temperature.middle"],
+    TireSurfaceTempMiddleFR: ["LMU.Telemetry.wheels.FR.temperature.middle"],
+    TireSurfaceTempMiddleRL: ["LMU.Telemetry.wheels.RL.temperature.middle"],
+    TireSurfaceTempMiddleRR: ["LMU.Telemetry.wheels.RR.temperature.middle"],
+    TireSurfaceTempOuterFL: ["LMU.Telemetry.wheels.FL.temperature.left"],
+    TireSurfaceTempOuterFR: ["LMU.Telemetry.wheels.FR.temperature.right"],
+    TireSurfaceTempOuterRL: ["LMU.Telemetry.wheels.RL.temperature.left"],
+    TireSurfaceTempOuterRR: ["LMU.Telemetry.wheels.RR.temperature.right"],
+    TireSlipCombinedFL_2: [
+      "LMU.Telemetry.wheels.FL.longitudinalPatchVelocity",
+      "LMU.Telemetry.wheels.FL.longitudinalGroundVelocity",
+      "LMU.Telemetry.wheels.FL.lateralPatchVelocity",
+    ],
+    TireCombinedSlipFL: [
+      "LMU.Telemetry.wheels.FL.longitudinalPatchVelocity",
+      "LMU.Telemetry.wheels.FL.longitudinalGroundVelocity",
+      "LMU.Telemetry.wheels.FL.lateralPatchVelocity",
+    ],
+    TireCombinedSlipFR: [
+      "LMU.Telemetry.wheels.FR.longitudinalPatchVelocity",
+      "LMU.Telemetry.wheels.FR.longitudinalGroundVelocity",
+      "LMU.Telemetry.wheels.FR.lateralPatchVelocity",
+    ],
+    TireCombinedSlipRL: [
+      "LMU.Telemetry.wheels.RL.longitudinalPatchVelocity",
+      "LMU.Telemetry.wheels.RL.longitudinalGroundVelocity",
+      "LMU.Telemetry.wheels.RL.lateralPatchVelocity",
+    ],
+    TireCombinedSlipRR: [
+      "LMU.Telemetry.wheels.RR.longitudinalPatchVelocity",
+      "LMU.Telemetry.wheels.RR.longitudinalGroundVelocity",
+      "LMU.Telemetry.wheels.RR.lateralPatchVelocity",
+    ],
+    TirePressureFrontLeft: ["LMU.Telemetry.wheels.FL.pressureKpa"],
+    TirePressureFrontRight: ["LMU.Telemetry.wheels.FR.pressureKpa"],
+    TirePressureRearLeft: ["LMU.Telemetry.wheels.RL.pressureKpa"],
+    TirePressureRearRight: ["LMU.Telemetry.wheels.RR.pressureKpa"],
+    TireSlipAngleFL: [
+      "LMU.Telemetry.wheels.FL.lateralPatchVelocity",
+      "LMU.Telemetry.wheels.FL.longitudinalGroundVelocity",
+    ],
+    TireSlipAngleFR: [
+      "LMU.Telemetry.wheels.FR.lateralPatchVelocity",
+      "LMU.Telemetry.wheels.FR.longitudinalGroundVelocity",
+    ],
+    TireSlipAngleRL: [
+      "LMU.Telemetry.wheels.RL.lateralPatchVelocity",
+      "LMU.Telemetry.wheels.RL.longitudinalGroundVelocity",
+    ],
+    TireSlipAngleRR: [
+      "LMU.Telemetry.wheels.RR.lateralPatchVelocity",
+      "LMU.Telemetry.wheels.RR.longitudinalGroundVelocity",
+    ],
+    TireSlipRatioFL: [
+      "LMU.Telemetry.wheels.FL.longitudinalPatchVelocity",
+      "LMU.Telemetry.wheels.FL.longitudinalGroundVelocity",
+    ],
+    TireSlipRatioFR: [
+      "LMU.Telemetry.wheels.FR.longitudinalPatchVelocity",
+      "LMU.Telemetry.wheels.FR.longitudinalGroundVelocity",
+    ],
+    TireSlipRatioRL: [
+      "LMU.Telemetry.wheels.RL.longitudinalPatchVelocity",
+      "LMU.Telemetry.wheels.RL.longitudinalGroundVelocity",
+    ],
+    TireSlipRatioRR: [
+      "LMU.Telemetry.wheels.RR.longitudinalPatchVelocity",
+      "LMU.Telemetry.wheels.RR.longitudinalGroundVelocity",
+    ],
+    TireWearFL: ["LMU.Telemetry.wheels.FL.wear"],
+    TireWearFR: ["LMU.Telemetry.wheels.FR.wear"],
+    TireWearRL: ["LMU.Telemetry.wheels.RL.wear"],
+    TireWearRR: ["LMU.Telemetry.wheels.RR.wear"],
+    WheelOnRumbleStripFL: ["LMU.Telemetry.wheels.FL.surfaceType"],
+    WheelOnRumbleStripFR: ["LMU.Telemetry.wheels.FR.surfaceType"],
+    WheelOnRumbleStripRL: ["LMU.Telemetry.wheels.RL.surfaceType"],
+    WheelOnRumbleStripRR: ["LMU.Telemetry.wheels.RR.surfaceType"],
+    WheelRotationSpeedFL: ["LMU.Telemetry.wheels.FL.rotation"],
+    WheelRotationSpeedFR: ["LMU.Telemetry.wheels.FR.rotation"],
+    WheelRotationSpeedRL: ["LMU.Telemetry.wheels.RL.rotation"],
+    WheelRotationSpeedRR: ["LMU.Telemetry.wheels.RR.rotation"],
+  },
 };
 
 const UNAVAILABLE_PACKET_FIELDS: Partial<
@@ -80,6 +257,14 @@ const UNAVAILABLE_PACKET_FIELDS: Partial<
   acc: {
     DrivetrainType:
       "ACC parser assumes rear-wheel drive rather than reading drivetrain from shared memory.",
+    TireTemp:
+      "ACC exposes only core tire temperature; its legacy TireTemp field must not be labeled as surface temperature.",
+    TireSurfaceTempInner:
+      "ACC reserves this shared-memory field but does not populate it.",
+    TireSurfaceTempMiddle:
+      "ACC reserves this shared-memory field but does not populate it.",
+    TireSurfaceTempOuter:
+      "ACC reserves this shared-memory field but does not populate it.",
   },
   "ac-evo": {
     DrivetrainType:
@@ -88,6 +273,14 @@ const UNAVAILABLE_PACKET_FIELDS: Partial<
   iracing: {
     DrivetrainType:
       "iRacing normalizer emits a fixed drivetrain enum rather than a source-frame value.",
+    TireTemp:
+      "iRacing TireTemp aliases the middle carcass band; use the named carcass bands.",
+    TireCarcassTemp:
+      "iRacing TireCarcassTemp averages three carcass bands and is not equivalent to a single core temperature.",
+  },
+  lmu: {
+    DrivetrainType:
+      "LMU normalizer emits a fixed rear-wheel-drive enum rather than a source value.",
   },
 };
 
@@ -376,8 +569,6 @@ function classifyPacketMapping(
   expressions: readonly string[],
 ): AvailableLink["kind"] {
   if (
-    (gameId === "iracing" &&
-      (key === "TireTemp" || key === "TireCarcassTemp")) ||
     (gameId === "acc" && key === "WeatherType") ||
     (gameId === "f1-2025" && key === "WheelRotationSpeed")
   ) {
@@ -441,9 +632,11 @@ function packetGameLink(
     );
   }
 
-  const sourceOverride = PACKET_SOURCE_OVERRIDES[gameId]?.[set.key];
+  const setSourceOverride = PACKET_SOURCE_OVERRIDES[gameId]?.[set.key];
   const sourcesByField = fields.map((field) => {
-    if (sourceOverride) return sourceOverride;
+    const fieldSourceOverride =
+      PACKET_SOURCE_OVERRIDES[gameId]?.[field] ?? setSourceOverride;
+    if (fieldSourceOverride) return fieldSourceOverride;
     if (gameId === "fm-2023") return [`ForzaDataOut.${field}`];
     if (gameId === "iracing") {
       const special = specialIRacingSources(field);
@@ -486,25 +679,14 @@ function packetGameLink(
           ]),
         )
       : allSources;
-  const tireAverageSimplification =
-    mappingKind === "simplified" &&
-    gameId === "iracing" &&
-    (set.key === "TireTemp" || set.key === "TireCarcassTemp");
-  const normalization = tireAverageSimplification
-    ? "average available left, middle, and right carcass temperatures per tire"
-    : native.normalization ?? [...new Set(expressions)].join(" | ");
+  const normalization =
+    native.normalization ?? [...new Set(expressions)].join(" | ");
   let description =
     allSources.length > 0
       ? `${gameId} maps ${allSources.length} native source channel${allSources.length === 1 ? "" : "s"} into this value.`
       : `${gameId} provides this value from parser/session state.`;
   let limitations: readonly string[] | undefined;
-  if (tireAverageSimplification) {
-    description =
-      "Averages available iRacing left, middle, and right carcass-temperature bands per tire.";
-    limitations = [
-      "Averaging removes across-tread temperature-gradient detail.",
-    ];
-  } else if (gameId === "acc" && set.key === "WeatherType") {
+  if (gameId === "acc" && set.key === "WeatherType") {
     description =
       "Infers wet weather from rain-tyre selection rather than observing weather directly.";
     limitations = [

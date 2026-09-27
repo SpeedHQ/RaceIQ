@@ -28,6 +28,7 @@ const frame = {
   observedAt: { domain: "session", milliseconds: 1 },
   receivedAtMs: 1,
   values: [],
+  context: {},
 } as const;
 
 describe("TanStack store contracts", () => {
@@ -83,6 +84,24 @@ describe("TanStack store contracts", () => {
     telemetryStore.actions.toggleDevStatePause();
     telemetryStore.actions.setDevState({ value: "after" });
     expect(telemetryStore.get().devState).toEqual({ value: "after" });
+  });
+
+  it("retains debug demand until all viewers close, including across reconnect", () => {
+    const releasePage = telemetryStore.actions.acquireDevState();
+    const releaseDevtools = telemetryStore.actions.acquireDevState();
+    try {
+      telemetryStore.actions.setConnected(false);
+      telemetryStore.actions.setConnected(true);
+      expect(telemetryStore.get().devStateConsumers).toBe(2);
+      releasePage();
+      releasePage();
+      expect(telemetryStore.get().devStateConsumers).toBe(1);
+      releaseDevtools();
+      expect(telemetryStore.get().devStateConsumers).toBe(0);
+    } finally {
+      releasePage();
+      releaseDevtools();
+    }
   });
 
   it("exposes game and telemetry instances with actions", () => {

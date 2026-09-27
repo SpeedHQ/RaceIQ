@@ -162,6 +162,7 @@ describe("analyst prompt carries the curated track data", () => {
   });
 });
 
+
 test("analyst prompt preserves arbitrary native sector times and boundaries", () => {
   const ord = ordinalFor("f1-2025", "spa")!;
   const track = resolveTrack("f1-2025", ord);

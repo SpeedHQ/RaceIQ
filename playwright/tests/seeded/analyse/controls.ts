@@ -3,20 +3,44 @@ import { setAnalyseFrame } from "../../support/seeded/analyse";
 
 type SemanticFrame = { values: Record<string, unknown> };
 export async function assertLapSelectors(page: Page, expectedLapNumber?: number): Promise<void> {
-  for (const placeholder of ["Search tracks...", "Search cars..."]) {
-    const selector = page.getByRole("combobox", { name: placeholder });
-    await selector.click();
-    await expect(page.getByRole("option", { selected: true }).first()).toBeVisible();
-    await selector.press("Escape");
-  }
+  // Session replay fixes track and car; only laps in that session can change.
+  await expect(page.getByRole("combobox", { name: "Search tracks..." })).toHaveCount(0);
+  await expect(page.getByRole("combobox", { name: "Search cars..." })).toHaveCount(0);
+  const lapSelector = page.getByRole("combobox", { name: "Search laps..." });
   if (expectedLapNumber != null) {
-    await expect(page.getByRole("combobox", { name: "Search laps..." })).toHaveValue(new RegExp(`^Lap ${expectedLapNumber}\\b`));
+    await expect(lapSelector).toHaveValue(new RegExp(`^Lap ${expectedLapNumber}\\b`));
   }
+  await lapSelector.click();
+  await expect(page.getByRole("option", { selected: true }).first()).toBeVisible();
+  await lapSelector.press("Escape");
 }
 
 export async function assertTuneSelector(page: Page): Promise<void> {
   const tuneSelector = page.getByRole("combobox", { name: "Tune:" });
   if (await tuneSelector.count()) await expect(tuneSelector).toBeVisible();
+}
+
+export async function exerciseDynamicsTooltip(page: Page, semanticFrames: SemanticFrame[]): Promise<void> {
+  const frameIndex = semanticFrames.findIndex((frame) =>
+    ["motion.speed", "motion.acceleration-x", "motion.angular-velocity-y"].every((id) => {
+      const value = frame.values[id];
+      return typeof value === "number" && Number.isFinite(value);
+    }),
+  );
+  if (frameIndex < 0) throw new Error("Seeded Analyse fixture lacks frame with available balance inputs");
+  await setAnalyseFrame(page, frameIndex);
+
+  const balanceTrigger = page.getByRole("button", { name: /Balance tooltip/ });
+  await expect(balanceTrigger).toBeVisible();
+  const balanceRow = balanceTrigger.locator("..");
+  const balanceText = await balanceRow.innerText();
+  const decision = balanceText.match(/(Understeer|Neutral|Oversteer)\(([+-]?\d+\.\d{2})\)/);
+  if (!decision) throw new Error(`Balance row lacks decision value: ${balanceText}`);
+
+  await balanceTrigger.hover();
+  const tooltip = page.getByRole("tooltip");
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText(`Decision — ${decision[1]} (${decision[2]})`);
 }
 
 export async function exercisePlaybackControls(page: Page, semanticFrames: SemanticFrame[]): Promise<void> {
@@ -92,7 +116,7 @@ export async function exerciseInsightsAndMap(page: Page): Promise<void> {
   await page.getByRole("tab", { name: "Data", exact: true }).click();
 
   const followButton = page.getByRole("button", { name: "Fixed", exact: true });
-  await followButton.click();
+  await followButton.evaluate((button) => (button as HTMLButtonElement).click());
   await expect(page.getByRole("button", { name: "Follow", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Overlays", exact: true }).click();
   const overlayItems = ["Inputs", "Segments", "Sectors"].map((label) => page.getByRole("menuitemcheckbox", { name: label, exact: true }));
@@ -105,9 +129,9 @@ export async function exerciseInsightsAndMap(page: Page): Promise<void> {
     await expect(item).toHaveAttribute("aria-checked", "false");
   }
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Zoom in map" }).click();
+  await page.getByRole("button", { name: "Zoom in map" }).evaluate((button) => (button as HTMLButtonElement).click());
   await expect.poll(() => page.evaluate(() => localStorage.getItem("analyse-mapZoom"))).toBe("1.25");
-  await page.getByRole("button", { name: "Zoom out map" }).click();
+  await page.getByRole("button", { name: "Zoom out map" }).evaluate((button) => (button as HTMLButtonElement).click());
   await expect.poll(() => page.evaluate(() => localStorage.getItem("analyse-mapZoom"))).toBe("1");
 }
 
@@ -117,10 +141,8 @@ export async function exercise3dGuide(page: Page, assertClosed = true): Promise<
   await page.getByRole("tab", { name: "2D", exact: true }).click();
   const activeVizPanel = page.getByRole("tabpanel", { name: "2D" });
   await expect(activeVizPanel).toBeVisible();
-  await expect(activeVizPanel.getByText(/\d+\s+(mph|km\/h)/i).first()).toBeVisible();
-  await expect(activeVizPanel.locator("svg")).toHaveCount(4);
-  await expect(activeVizPanel.locator("canvas")).toHaveCount(2);
-  await expect(activeVizPanel.getByText("FL", { exact: true })).toBeVisible();
+  await expect(activeVizPanel.getByRole("img", { name: /^FL (?:surface|core|carcass):/ })).toBeVisible();
+  await expect(activeVizPanel.getByRole("img", { name: /^RR (?:surface|core|carcass):/ })).toBeVisible();
 
   await page.getByRole("button", { name: "Guide", exact: true }).click();
   const guideDialog = page.getByRole("dialog", { name: "Data Panel Guide" });

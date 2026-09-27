@@ -183,7 +183,7 @@ export function ActivityHeatmap({ laps, showTitle = true }: { laps: LapMeta[]; s
                         if (future) return;
                         const rect = (e.currentTarget.ownerSVGElement as SVGSVGElement).getBoundingClientRect();
                         setHover({
-                          date: date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" }),
+                          date: date.toLocaleDateString(getLocale(), { weekday: "short", month: "short", day: "numeric", year: "numeric" }),
                           seconds,
                           x: w * (CELL + GAP) + rect.left + CELL / 2,
                           y: d * (CELL + GAP) + rect.top,

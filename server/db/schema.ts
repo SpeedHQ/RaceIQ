@@ -85,30 +85,40 @@ export const discoveredTracks = sqliteTable(
 	],
 );
 
-export const sessions = sqliteTable("sessions", {
-	id: integer("id").primaryKey({ autoIncrement: true }),
-	carOrdinal: integer("car_ordinal").notNull(),
-	trackOrdinal: integer("track_ordinal").notNull(),
-	gameId: text("game_id").notNull(),
-	sessionType: text("session_type"),
-	notes: text("notes"),
-	rawFile: text("raw_file"),
-	lapDetectorVersion: text("lap_detector_version"),
-	// Runtime telemetry identity snapshot attached at first persisted capture (migration v54).
-	// Null for rows inserted before that migration.
-	catalogVersion: text("catalog_version"),
-	catalogHash: text("catalog_hash"),
-	catalogSchemaVersion: text("catalog_schema_version"),
-	parserVersion: text("parser_version"),
-	resolverVersion: text("resolver_version"),
-	derivationVersion: text("derivation_version"),
-	// How this session's telemetry was obtained (migration v43). NULL = recorded
-	// live from the game. 'motec' = transcoded from a MoTeC .ld export, where the
-	// racing line is dead-reckoned rather than logged — see server/motec/.
-	source: text("source"),
-	ownership: text("ownership").$type<SessionOwnership>().notNull().default("mine"),
-	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-});
+export const sessions = sqliteTable(
+	"sessions",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		carOrdinal: integer("car_ordinal").notNull(),
+		trackOrdinal: integer("track_ordinal").notNull(),
+		gameId: text("game_id").notNull(),
+		carId: text("car_id"),
+		trackId: text("track_id"),
+		sessionType: text("session_type"),
+		notes: text("notes"),
+		rawFile: text("raw_file"),
+		isFavorite: integer("is_favorite", { mode: "boolean" }).notNull().default(false),
+		lapDetectorVersion: text("lap_detector_version"),
+		// Runtime telemetry identity snapshot attached at first persisted capture (migration v54).
+		// Null for rows inserted before that migration.
+		catalogVersion: text("catalog_version"),
+		catalogHash: text("catalog_hash"),
+		catalogSchemaVersion: text("catalog_schema_version"),
+		parserVersion: text("parser_version"),
+		resolverVersion: text("resolver_version"),
+		derivationVersion: text("derivation_version"),
+		// How this session's telemetry was obtained (migration v43). NULL = recorded
+		// live from the game. 'motec' = transcoded from a MoTeC .ld export, where the
+		// racing line is dead-reckoned rather than logged — see server/motec/.
+		source: text("source"),
+		ownership: text("ownership").$type<SessionOwnership>().notNull().default("mine"),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+	},
+	(table) => [
+		index("idx_sessions_game_car_id").on(table.gameId, table.carId),
+		index("idx_sessions_game_track_id").on(table.gameId, table.trackId),
+	],
+);
 export const sessionResults = sqliteTable(
 	"session_results",
 	{
@@ -179,6 +189,7 @@ export const laps = sqliteTable(
 		lapNumber: integer("lap_number").notNull(),
 		lapTime: real("lap_time").notNull(),
 		isValid: integer("is_valid", { mode: "boolean" }).notNull().default(true),
+		isFavorite: integer("is_favorite", { mode: "boolean" }).notNull().default(false),
 		invalidReason: text("invalid_reason"),
 		notes: text("notes"),
 		profileId: integer("profile_id").references(() => profiles.id),
@@ -549,19 +560,19 @@ export const compareAnalyses = sqliteTable(
 );
 
 /**
- * Per-lap derived metrics (insights + per-segment input stats), cached so the
- * tuning views don't re-decode a lap's raw .bin on every read.
+ * Per-lap derived metrics (static insights + per-segment input stats), cached so
+ * consumers don't re-decode or re-analyse a lap on every read.
  *
- * `algo_version` is the cache key alongside `lap_id`: bumping
- * `LAP_METRICS_ALGO_VERSION` invalidates every stored row on next read rather
- * than requiring a migration to recompute. One row per lap — the recompute
- * overwrites in place.
+ * `algo_version` versions segment stats. `insight_version` independently
+ * versions deterministic static analysis. Stale rows are overwritten in place
+ * on read or through the explicit backfill/rerun endpoint.
  */
 export const lapMetrics = sqliteTable("lap_metrics", {
 	lapId: integer("lap_id")
 		.primaryKey()
 		.references(() => laps.id, { onDelete: "cascade" }),
 	algoVersion: integer("algo_version").notNull().default(1),
+	insightVersion: integer("insight_version").notNull().default(0),
 	insights: text("insights").notNull(),
 	segmentStats: text("segment_stats").notNull(),
 	computedAt: text("computed_at").notNull().default(sql`(datetime('now'))`),

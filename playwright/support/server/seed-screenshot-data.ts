@@ -15,7 +15,7 @@ export function seedE2ESetupData(repoDir: string, dataDir: string): void {
 export function seedScreenshotData(repoDir: string, dataDir: string): void {
   if (process.env.PW_SEED_SCREENSHOTS !== "1") return;
 
-  const result = spawnSync("bun", ["run", "scripts/data/seed-db.ts"], {
+  const result = spawnSync("bun", ["run", "scripts/data/seed-db.ts", `--games=${process.env.PW_SEED_GAMES ?? "fm-2023,f1-2025,acc,ac-evo,iracing"}`], {
     cwd: repoDir,
     env: { ...process.env, DATA_DIR: dataDir },
     stdio: "inherit",

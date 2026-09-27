@@ -25,16 +25,17 @@ bun run bench:replay-io
 manifest and rejects duplicate, missing, stale, or invalid entries. Suite
 runners, pre-commit checks, and CI run this guard before tests can be skipped.
 
-`bun run test:unit` runs only `scripts/test/unit-files.txt`. It is DB-free:
-there is no DB preload, and Bun may run workers in parallel. `bun run
-test:integration` runs only `scripts/test/integration-files.txt`; by default it
-initializes shared state in isolated `.data-test` (when `DATA_DIR` is unset),
-uses the DB preload, and limits Bun worker concurrency to 2. `bun run
-test:e2e:recordings` runs only `scripts/test/e2e-files.txt` with the same isolated
-database and serial execution used for recording-backed flows. Callers and CI
-may provide their own isolated `DATA_DIR` override. `bun run test` runs unit
-first, then initializes the shared integration database; the combined command
-stops on its first failure.
+`bun run test:unit` runs `scripts/test/unit-files.txt`. It has no DB preload and
+Bun may run workers in parallel. `bun run test:tooling` runs deterministic
+toolchain checks from `scripts/test/tooling-files.txt` without DB preload.
+`bun run test:integration` runs only `scripts/test/integration-files.txt`; by
+default it initializes shared state in isolated `.data-test` (when `DATA_DIR` is
+unset), uses the DB preload, and limits Bun worker concurrency to 2.
+`bun run test:e2e:recordings` runs only `scripts/test/e2e-files.txt` with the
+same isolated database and serial execution used for recording-backed flows.
+Callers and CI may provide their own isolated `DATA_DIR` override. `bun run
+test` runs unit first, then initializes shared integration database; combined
+command stops on first failure.
 
 Focused command runs one final-path file. `bun run test:ai` runs
 `test/ai/evals/ai-quality.ai-eval.ts` with its longer timeout. `bun run bench`

@@ -98,12 +98,17 @@ const DESCRIPTION_OVERRIDES: Record<string, string> = {
 
 const TIRE_IDS: Record<string, [string, string, string]> = {
   TireTemp: [
-    "tire.temperature.average",
-    "tire.temperature",
-    "Representative / average",
+    "tire.temperature.surface.representative",
+    "tire.temperature.surface",
+    "Representative surface temperature",
   ],
   TireCarcassTemp: [
-    "tire.temperature.carcass.average",
+    "tire.temperature.core",
+    "tire.temperature",
+    "Core temperature",
+  ],
+  TireCarcassAverageTemp: [
+    "tire.temperature.carcass.representative",
     "tire.temperature.carcass",
     "Average carcass temperature",
   ],

@@ -5,6 +5,13 @@ interface TestSource {
   start(): void;
   stop(): Promise<void>;
 }
+function deferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
 
 describe("native telemetry source supervisor", () => {
   test("contains factory failures and leaves the source retryable", () => {
@@ -77,5 +84,36 @@ describe("native telemetry source supervisor", () => {
     } finally {
       error.mockRestore();
     }
+  });
+
+  test("returns detached stop promise so owner can await source drain", async () => {
+    const gate = deferred();
+    let current: TestSource | null = {
+      start() {},
+      stop: () => gate.promise,
+    };
+
+    const stop = superviseSource(
+      false,
+      "Test",
+      () => current!,
+      () => current,
+      (source) => {
+        current = source;
+      },
+    );
+
+    expect(current).toBeNull();
+    expect(stop).not.toBeNull();
+    let stopped = false;
+    void stop!.then(() => {
+      stopped = true;
+    });
+    await Promise.resolve();
+    expect(stopped).toBe(false);
+
+    gate.resolve();
+    await stop;
+    expect(stopped).toBe(true);
   });
 });

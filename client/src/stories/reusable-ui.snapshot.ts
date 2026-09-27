@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { REUSABLE_UI_SNAPSHOT_CASES } from "./snapshot-cases";
-import { openStoryForSnapshot } from "./storybook-ready";
+import { openStoryForSnapshot, waitForVisualReady } from "./storybook-ready";
 
 test.setTimeout(120_000);
 const comparisonCaptureOnly = process.env.RACEIQ_UI_DIFF_CAPTURE === "1";
@@ -13,7 +13,8 @@ for (const story of REUSABLE_UI_SNAPSHOT_CASES) {
     });
 
     if (story.viewport) await page.setViewportSize(story.viewport);
-    await openStoryForSnapshot(page, `/iframe.html?id=${story.id}&viewMode=story`);
+    await openStoryForSnapshot(page, `/iframe.html?id=${story.id}&viewMode=story`, 60_000, false);
+    if (story.waitForVisualReady !== false) await waitForVisualReady(page);
 
     if (story.clickLabel) {
       const readyState = story.readyRole ? page.getByRole(story.readyRole, { name: story.readyName }) : undefined;

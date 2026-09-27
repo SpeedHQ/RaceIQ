@@ -120,6 +120,7 @@ RaceIQ reads like an instrument panel, not a startup dashboard. The `app-bg`, `a
 This system explicitly rejects the generic SaaS look — no gradient hero-metric tiles, no glassmorphism, no cutesy rounded card grids that could belong to any startup — and it rejects the opposite failure mode too: a raw, ungoverned sim-racing overlay (MoTeC-style) that's dense but uncalibrated and ugly. Density here is deliberate: every pixel of surface either shows a value or frames one.
 
 **Key Characteristics:**
+
 - Near-black base with a single cyan signal color, not a rainbow of accents
 - Flat, tonally-layered surfaces — no shadows, no glass
 - A semantic severity scale (`severity-nominal` → `severity-critical`) plus `operating-cold` for telemetry state encoding — never used for UI chrome
@@ -131,9 +132,11 @@ This system explicitly rejects the generic SaaS look — no gradient hero-metric
 A near-black instrument-panel base with one cyan accent doing all the signaling; a separate telemetry-only palette exists purely to encode data values, kept out of the interface chrome.
 
 ### Primary
+
 - **App Accent Cyan** (`app-accent`): The only accent in the interface. Used for active states, live indicators, primary CTAs (`app-primary` button), links, and anything the driver needs to notice first. `app-accent-hover` handles hover emphasis and `app-highlight` handles emphasis without a full accent block.
 
 ### Neutral
+
 - **App Background** (`app-bg`): The base canvas — near-black, the "cockpit bezel."
 - **App Surface** (`app-surface`): Primary card/panel background, one tonal step up from the bezel.
 - **App Surface Alt** (`app-surface-alt`): Nested or inset content, including input wells and secondary panels.
@@ -147,17 +150,21 @@ A near-black instrument-panel base with one cyan accent doing all the signaling;
 - **App On Filled** (`app-on-filled`): Contrast text/icons placed on solid accent or status fills; it is independent of the page background.
 
 ### Telemetry Encoding Palette (data only, never UI chrome)
+
 - **Severity scale** (`severity-nominal` → `severity-critical`): An ordered telemetry ramp for tire health, slip, brake temperature, damage, and similar measurements. Runtime code selects a semantic level, never a hue.
 - **Operating Cold** (`operating-cold`): The low/cold endpoint for operating-range measurements. Optimal, caution, and critical reuse the ordered severity levels.
 - **Unavailable telemetry** uses `app-text-dim`; it is absence of data, not another severity.
 
 ### UI Status Palette
+
 - **Success / Warning / Danger / Info / Unavailable** (`status-*`): Semantic application state such as connection health, operation outcome, and unavailable data. Solid success and danger controls use their corresponding `*-hover` roles; these describe UI state and do not encode measured telemetry.
 
 ### Branding Palette
+
 - Product, vehicle-manufacturer, and F1-team colors are editable in `src/styles/branding.css`. Components select identity with `data-game-brand`, `data-car-brand`, or `data-team-brand`; React and game adapters do not own brand color values.
 
 ### Named Rules
+
 **The One Signal Rule.** The interface itself has exactly one accent color: cyan. If a UI element needs a second color to stand out, it's competing with the accent — fix the hierarchy, don't add a color. The telemetry severity scale exists solely to encode measured values and must never leak into buttons, nav, or chrome.
 
 ## 3. Typography
@@ -170,6 +177,7 @@ A near-black instrument-panel base with one cyan accent doing all the signaling;
 **Label Tracking:** `var(--tracking-app-label)` provides the shared wide tracking for compact uppercase labels.
 
 ### Hierarchy
+
 - **Title** (18px / `--text-app-title`): Page and section titles.
 - **Headline** (16px / `--text-app-heading`): Card headings.
 - **Body** (15px / `--text-app-body`): Primary body copy and telemetry values.
@@ -188,6 +196,7 @@ A near-black instrument-panel base with one cyan accent doing all the signaling;
 - **Instrument Primary** (`clamp(48px, 14vh, 128px)` / `--text-app-instrument-primary`): Responsive primary gear readout.
 
 ### Named Rules
+
 **The Compact Scale Rule.** Use the shared `text-app-*` roles instead of one-off pixel sizes. Caption, micro, nano, and glyph are for constrained telemetry or visualization contexts, not general body copy. Sizes above 18px are limited to Tailwind's shared display scale and the explicit visualization or instrument roles; do not invent component-local display sizes.
 
 ## 4. Elevation
@@ -195,6 +204,7 @@ A near-black instrument-panel base with one cyan accent doing all the signaling;
 RaceIQ is flat by design. Depth is conveyed entirely through tonal layering: background → surface → surface-alt, each one step lighter. A panel doesn't lift off the page; it sits on a shelf one shade brighter than what's behind it.
 
 ### Named Rules
+
 **The Flat-By-Default Rule.** No drop shadows, no glassmorphism, no blur. If a component needs to read as "above" another, move it one step up the surface ramp (bg → surface → surface-alt); don't reach for a shadow.
 
 ## 5. Components
@@ -202,6 +212,7 @@ RaceIQ is flat by design. Depth is conveyed entirely through tonal layering: bac
 Tactile and confident: interactive elements shift color decisively on hover/active rather than fading, and default sizing stays compact and utilitarian to fit dense telemetry layouts.
 
 ### Buttons
+
 - **Shape:** Small rounded corners (6-8px, `rounded-sm`/`rounded` via `--radius-md`), consistent across all app-* variants.
 - **Primary (`app-primary`):** Solid `app-accent` background with `app-on-filled` contrast text; hover moves to `app-accent-hover`, while disabled uses a reduced-strength accent.
 - **Outline (`app-outline`):** Transparent background, `app-border-input` stroke, and secondary text; neutral hover feedback uses `app-border-hover`.
@@ -211,21 +222,25 @@ Tactile and confident: interactive elements shift color decisively on hover/acti
 - **Active state:** `translate-y-px` on press — a physical "button depressed" micro-shift instead of an opacity or color change.
 
 ### Cards / Containers
+
 - **Corner Style:** Same compact radius as buttons (6-8px).
 - **Background:** `app-surface`, stepping to `app-surface-alt` for nested or inset panels; interactive cards use `app-surface-hover` only while hovered.
 - **Shadow Strategy:** None — see Elevation. Separation comes from the structural surface step and the hairline `app-border`.
 - **Border:** 1px `app-border`; inputs use `app-border-input`, while neutral interactive feedback uses `app-border-hover`.
 
 ### Inputs / Fields
+
 - **Style:** `app-surface-alt` background, 1px `app-border-input` stroke, matching button radius.
 - **Focus:** Border brightens; no glow or ring beyond the shadcn-token `ring` variants used on the base `Input` component.
 
 ### Navigation
+
 - **Style:** Dark chrome matching `app-surface`, active/current item marked with the cyan accent (text or underline), not a background fill — keeps the One Signal Rule intact even in nav.
 
 ## 6. Do's and Don'ts
 
 ### Do:
+
 - **Do** keep `app-accent` as the only interface accent — telemetry data can use the semantic severity scale, chrome cannot.
 - **Do** convey elevation with the bg → surface → surface-alt tonal steps, never a shadow.
 - **Do** use the shared `text-app-*` scale; this is a cockpit, not a marketing page.
@@ -233,6 +248,7 @@ Tactile and confident: interactive elements shift color decisively on hover/acti
 - **Do** pack real data into every surface — density is the point, not a flaw to soften.
 
 ### Don't:
+
 - **Don't** use gradient hero-metric tiles, glassmorphism, or cutesy rounded card grids — the generic SaaS look this system explicitly rejects.
 - **Don't** let the raw sim-racing-overlay failure mode in either — dense is fine, uncalibrated and ugly is not.
 - **Don't** add decorative `box-shadow`; use the tonal surface scale for elevation.

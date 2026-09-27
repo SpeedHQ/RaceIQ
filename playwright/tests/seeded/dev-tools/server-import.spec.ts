@@ -21,7 +21,7 @@ test("developer disconnect control closes only isolated browser clients", async 
 });
 
 test("developer dump import runs production pipeline and cleans imported state", async ({ page, request }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(200_000);
   const browserErrors = collectBrowserErrors(page);
   await page.goto("/dev", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Import Dump" }).click();

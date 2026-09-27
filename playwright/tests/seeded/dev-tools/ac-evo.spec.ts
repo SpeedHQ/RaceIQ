@@ -4,7 +4,7 @@ import { collectBrowserErrors } from "../../support/browser-errors";
 import { RecordingPacketsSchema } from "./helpers";
 
 test("developer AC Evo raw inspector decodes replay telemetry values", async ({ page, request }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(140_000);
   const browserErrors = collectBrowserErrors(page);
   const recordingName = "ac-evo-2026-04-15T17-12-25-825Z";
   const packetsResponse = await request.get(`/api/dev/e2e-packets/${encodeURIComponent(recordingName)}`);

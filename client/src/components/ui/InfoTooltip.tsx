@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import { Info } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Button } from "./button";
@@ -56,7 +57,7 @@ export function InfoTooltip({
           e.stopPropagation();
           setTapOpen((o) => !o);
         }}
-        aria-label="More info"
+        aria-label={m.common_more_info()}
         className="inline-flex items-center p-0 m-0 bg-transparent border-0 cursor-help"
       >
         <Info className="w-3 h-3 text-app-text-dim" />

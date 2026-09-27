@@ -1,6 +1,5 @@
 import { describe, test, expect, spyOn } from "bun:test";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { RealDbAdapter, CapturingDbAdapter, NullWsAdapter } from "../../server/telemetry/pipeline-ports"
+import { RealDbAdapter, CapturingDbAdapter } from "../../server/telemetry/pipeline-ports"
 import * as DriverProfileRunner from "../../server/driver-profile/runner";
 
 describe("CapturingDbAdapter", () => {
@@ -75,13 +74,4 @@ test("RealDbAdapter can suppress profile notifications for imports", async () =>
   } finally {
     notify.mockRestore();
   }
-});
-
-describe("NullWsAdapter", () => {
-  test("all methods are no-ops and do not throw", () => {
-    const ws = new NullWsAdapter();
-    expect(() => ws.broadcast({ gameId: "f1-2025" } as TelemetryPacket, null, null)).not.toThrow();
-    expect(() => ws.broadcastNotification({ type: "test" })).not.toThrow();
-    expect(() => ws.broadcastDevState({ key: "value" })).not.toThrow();
-  });
 });

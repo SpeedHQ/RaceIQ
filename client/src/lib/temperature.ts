@@ -6,6 +6,11 @@ export function celsiusToFahrenheit(c: number): number {
   return (c * 9) / 5 + 32;
 }
 
+/** Convert a Celsius temperature delta to the selected unit without offset. */
+export function convertTempDelta(value: number, unit: "F" | "C"): number {
+  return unit === "F" ? value * (9 / 5) : value;
+}
+
 /**
  * Convert a temperature value to the user's preferred unit.
  * @param value Raw temperature value

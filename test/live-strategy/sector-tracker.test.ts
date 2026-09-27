@@ -209,6 +209,25 @@ describe("SectorTracker sector detection", () => {
     expect(r3!.currentSector).toBe(2);
   });
 
+  test("first S1 packet keeps elapsed lap time after FM pit telemetry resumes", () => {
+    const tracker = new SectorTracker();
+    tracker._initForTest({ s1End: 0.33, s2End: 0.66, trackLength: 4000 });
+
+    const resumed = tracker.feed(pkt({
+      DistanceTraveled: 7919,
+      CurrentLap: 6.1,
+      LapNumber: 2,
+    }));
+    const next = tracker.feed(pkt({
+      DistanceTraveled: 7960,
+      CurrentLap: 7.1,
+      LapNumber: 2,
+    }));
+
+    expect(resumed).toMatchObject({ currentSector: 0, currentSectorTime: 6.1 });
+    expect(next).toMatchObject({ currentSector: 0, currentSectorTime: 7.1 });
+  });
+
   test("lap boundary resets sector to 0", () => {
     const tracker = new SectorTracker();
     tracker._initForTest({ s1End: 0.33, s2End: 0.66, trackLength: 3000 });

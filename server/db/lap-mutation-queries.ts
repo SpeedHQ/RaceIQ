@@ -111,6 +111,12 @@ export async function setLapMetrics(lapId: number, fuelPerLap: number | null, ty
 }
 
 
+/** Delete one transient lap row without deleting its still-active parent session. */
+export async function deleteLapOnly(id: number): Promise<void> {
+  await db.delete(laps).where(eq(laps.id, id)).run();
+  cacheDelete(id);
+}
+
 export async function deleteLap(id: number): Promise<boolean> {
   // Get session ID before deleting
   const lap = await db.select({ sessionId: laps.sessionId }).from(laps).where(eq(laps.id, id)).get();

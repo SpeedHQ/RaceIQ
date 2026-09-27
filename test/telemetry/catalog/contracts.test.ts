@@ -175,6 +175,14 @@ describe("semantic telemetry catalog contracts", () => {
         catalog("direct"),
       ),
     ).not.toThrow();
+    const baselineBeforeLmu = catalog("direct");
+    delete baselineBeforeLmu.variables[0]!.games.lmu;
+    expect(() =>
+      assertDirectToSimplifiedCompatibilityReviews(
+        catalog("direct"),
+        baselineBeforeLmu,
+      ),
+    ).not.toThrow();
   });
   test("merges duplicate concepts while preserving source-specific detail", () => {
     expect(

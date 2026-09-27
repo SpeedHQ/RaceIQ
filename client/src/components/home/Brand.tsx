@@ -5,8 +5,27 @@ import type { GameStats } from "./types";
 export function GameBrandLogo({ gameId, className = "w-5 h-5" }: { gameId: string; className?: string }) {
   if (gameId === "fm-2023") return <img src="/forza-logo.svg" alt="" className={`game-brand-logo ${className}`} />;
   if (gameId === "f1-2025") return <img src="/f1-logo.svg" alt="" className={`game-brand-logo ${className}`} />;
-  if (gameId === "acc") return <img src="/acc-logo.png" alt="" className={`object-contain ${className}`} />;
-  return <span className="game-brand-accent text-xs font-black">{gameId === "iracing" ? "iR" : "ACE"}</span>;
+  if (gameId === "acc" || gameId === "ac-evo") {
+    const logoSrc = gameId === "acc" ? "/acc-logo.svg" : "/acevo-logo.svg";
+    return (
+      <span
+        aria-hidden="true"
+        className={`game-brand-accent bg-current [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain] ${className}`}
+        style={{ maskImage: `url(${logoSrc})`, WebkitMaskImage: `url(${logoSrc})` }}
+      />
+    );
+  }
+  if (gameId === "lmu") {
+    return (
+      <span
+        aria-hidden="true"
+        className={`game-brand-accent bg-current [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain] ${className}`}
+        style={{ maskImage: "url(/lmu-logo.svg)", WebkitMaskImage: "url(/lmu-logo.svg)" }}
+      />
+    );
+  }
+  const label = gameId === "iracing" ? "iR" : "ACE";
+  return <span className="game-brand-accent text-xs font-black">{label}</span>;
 }
 
 export function GameBrandHeader({ gameId, gameDisplayName }: { gameId: string; gameDisplayName: string | null }) {
@@ -36,7 +55,7 @@ type GameKey = keyof GameStats;
 const BRAND_CARDS: ReadonlyArray<{
   key: GameKey;
   gameId: string;
-  route: "/fm23" | "/f125" | "/acc" | "/ac-evo" | "/iracing";
+  route: "/fm23" | "/f125" | "/acc" | "/ac-evo" | "/iracing" | "/lmu";
   name: string;
   linePositions: [string, string, string];
 }> = [
@@ -45,6 +64,7 @@ const BRAND_CARDS: ReadonlyArray<{
   { key: "acc", gameId: "acc", route: "/acc", name: "Assetto Corsa Competizione", linePositions: ["top-[20%]", "top-[50%]", "top-[75%]"] },
   { key: "acEvo", gameId: "ac-evo", route: "/ac-evo", name: "Assetto Corsa Evo", linePositions: ["top-[20%]", "top-[50%]", "top-[75%]"] },
   { key: "iracing", gameId: "iracing", route: "/iracing", name: "iRacing", linePositions: ["top-[20%]", "top-[50%]", "top-[75%]"] },
+  { key: "lmu", gameId: "lmu", route: "/lmu", name: "Le Mans Ultimate", linePositions: ["top-[20%]", "top-[50%]", "top-[75%]"] },
 ];
 
 function GameBrandCard({ game, stats }: { game: (typeof BRAND_CARDS)[number]; stats: GameStats[GameKey] }) {

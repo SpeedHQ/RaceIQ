@@ -31,9 +31,7 @@ describe("calibration comparison overlay", () => {
     expect(transformed[0].z).toBeCloseTo(2);
   });
   test("renders an accessible history toggle and numeric fit legend", () => {
-    const markup = renderToStaticMarkup(
-      <CalibrationComparisonSection comparison={comparison} showHistory onShowHistoryChange={() => undefined} />,
-    );
+    const markup = renderToStaticMarkup(<CalibrationComparisonSection comparison={comparison} showHistory onShowHistoryChange={() => undefined} />);
 
     expect(markup).toContain('type="checkbox"');
     expect(markup).toContain('checked=""');
@@ -48,11 +46,7 @@ describe("calibration comparison overlay", () => {
 
   test("disables history toggle when no accepted fits exist", () => {
     const markup = renderToStaticMarkup(
-      <CalibrationComparisonSection
-        comparison={{ calibrated: false, pointsCollected: 12, current: null, history: [] }}
-        showHistory={false}
-        onShowHistoryChange={() => undefined}
-      />,
+      <CalibrationComparisonSection comparison={{ calibrated: false, pointsCollected: 12, current: null, history: [] }} showHistory={false} onShowHistoryChange={() => undefined} />,
     );
 
     expect(markup).toMatch(/<input[^>]*disabled=""/);

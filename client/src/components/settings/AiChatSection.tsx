@@ -36,7 +36,17 @@ export function AiChatSection({ state }: { state: AiChatState }) {
           <Label htmlFor="ai-chat-provider" className="block text-xs text-app-text-muted mb-1">
             {m.ai_provider_label()}
           </Label>
-          <AiProviderPicker id="ai-chat-provider" value={chatProvider} onChange={(value) => { setChatProvider(value); setChatModel(""); setChatThinkingBudget(null); }} providers={aiProviders} keyStatus={state.keyStatus} />
+          <AiProviderPicker
+            id="ai-chat-provider"
+            value={chatProvider}
+            onChange={(value) => {
+              setChatProvider(value);
+              setChatModel("");
+              setChatThinkingBudget(null);
+            }}
+            providers={aiProviders}
+            keyStatus={state.keyStatus}
+          />
         </div>
         {canShowChatModelPicker && (
           <div>
@@ -57,7 +67,15 @@ export function AiChatSection({ state }: { state: AiChatState }) {
               </Button>
               {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-app-compact text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
             </div>
-            <AiModelPicker id="ai-chat-model" value={chatModel} onChange={(value) => { setChatModel(value); setChatThinkingBudget(null); }} models={chatModels} />
+            <AiModelPicker
+              id="ai-chat-model"
+              value={chatModel}
+              onChange={(value) => {
+                setChatModel(value);
+                setChatThinkingBudget(null);
+              }}
+              models={chatModels}
+            />
           </div>
         )}
         {chatProvider === "gemini" && canShowChatModelPicker && (

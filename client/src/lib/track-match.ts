@@ -102,3 +102,8 @@ export function tracksMatch(community: string, name: string, variant = ""): bool
   if (!baseMatch) return false;
   return layoutsCompatible(trackLayout(community), trackLayout(`${name} ${variant}`));
 }
+
+export function tuneMatchesTrack(tune: { trackOrdinal?: number | null; bestTracks?: string[] }, track: { ordinal: number; name: string; variant: string }): boolean {
+  if (tune.trackOrdinal != null && tune.trackOrdinal === track.ordinal) return true;
+  return tune.bestTracks?.some((candidate) => tracksMatch(candidate, track.name, track.variant)) ?? false;
+}

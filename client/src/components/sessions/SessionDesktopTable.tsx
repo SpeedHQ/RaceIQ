@@ -1,17 +1,19 @@
+import { Fragment } from "react";
 import type { GameId } from "@shared/games/ids";
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
-import { Fragment } from "react";
 import { formatLapTime } from "@/components/LiveTelemetry";
 import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { FavoriteToggleButton } from "../FavoriteToggleButton";
 import { Button } from "@/components/ui/button";
-import { m } from "@/paraglide/messages";
-import { formatSessionType } from "./helpers";
+import { formatSessionType, sessionCarName, sessionTrackName } from "./helpers";
 import { NoteCell } from "./NoteCell";
 import { MotecBadge } from "./MotecBadge";
 import { SessionLapTable } from "./SessionLapTable";
 import { SessionResultMeta } from "./SessionResultMeta";
 import type { LapSortKey, SessionSelectionEvent, SortDir, SortKey } from "./types";
+import { getLocale } from "@/paraglide/runtime";
+import { m } from "@/paraglide/messages";
 
 export type SessionDesktopTableProps = {
   lapsBySession: Map<number, LapMeta[]>;
@@ -19,7 +21,7 @@ export type SessionDesktopTableProps = {
   carNames: Record<number, string>;
   isLoading: boolean;
   sessionsError: boolean;
-  isF1: boolean;
+  showSessionType: boolean;
   gameId: GameId | null;
   emptyMessage: string;
   colCount: number;
@@ -42,6 +44,7 @@ export type SessionDesktopTableProps = {
   exporting: boolean;
   runExport: (selection: { sessionIds?: number[] }) => void;
   setRecapSessionId: (id: number) => void;
+  analyseSession: (session: SessionMeta) => void;
 };
 
 export function SessionDesktopTable({
@@ -50,7 +53,7 @@ export function SessionDesktopTable({
   carNames,
   isLoading,
   sessionsError,
-  isF1,
+  showSessionType,
   gameId,
   emptyMessage,
   colCount,
@@ -73,6 +76,7 @@ export function SessionDesktopTable({
   exporting,
   runExport,
   setRecapSessionId,
+  analyseSession,
 }: SessionDesktopTableProps) {
   return (
     <div className="hidden flex-1 overflow-auto @3xl/workspace:block">
@@ -103,8 +107,8 @@ export function SessionDesktopTable({
               ["best", m.sessions_col_best_lap()],
               ["track", m.label_track()],
               ["car", m.label_car()],
-              ["result", "Result"],
-              ...(isF1 ? [["type", m.label_type()] as const] : []),
+              ["result", m.label_result()],
+              ...(showSessionType ? [["type", m.label_type()] as const] : []),
             ] as const
           ).map(([field, label]) => (
             <SortableTH key={field} direction={sortKey === field ? (sortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleSort(field)}>
@@ -140,10 +144,11 @@ export function SessionDesktopTable({
                     <TD nowrap tone="primary">
                       <div className="flex items-center gap-2">
                         <span>
-                          {new Date(session.createdAt).toLocaleDateString()}{" "}
-                          <span className="text-app-text/90">{new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                          {new Date(session.createdAt).toLocaleDateString(getLocale())}{" "}
+                          <span className="text-app-text/90">{new Date(session.createdAt).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" })}</span>
                         </span>
                         {session.source === "motec" && <MotecBadge />}
+                        <FavoriteToggleButton target="session" id={session.id} isFavorite={Boolean(session.isFavorite)} />
                         <Button
                           variant="app-outline"
                           size="app-sm"
@@ -155,10 +160,22 @@ export function SessionDesktopTable({
                           Recap
                         </Button>
                         <Button
+                          variant="app-primary"
+                          size="app-sm"
+                          disabled={session.telemetryAvailable === false}
+                          title={session.telemetryAvailable === false ? m.sessions_raw_telemetry_removed() : undefined}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            analyseSession(session);
+                          }}
+                        >
+                          {m.sessions_analyse_session()}
+                        </Button>
+                        <Button
                           variant="app-outline"
                           size="app-sm"
-                          disabled={exporting}
-                          title={m.sessions_export_session()}
+                          disabled={exporting || session.telemetryAvailable === false}
+                          title={session.telemetryAvailable === false ? m.sessions_raw_telemetry_removed() : m.sessions_export_session()}
                           onClick={(event) => {
                             event.stopPropagation();
                             runExport({ sessionIds: [session.id] });
@@ -174,12 +191,12 @@ export function SessionDesktopTable({
                     <TD numeric tone="primary">
                       {bestTime ? formatLapTime(bestTime) : "—"}
                     </TD>
-                    <TD tone="primary">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</TD>
-                    <TD tone="primary">{carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}</TD>
+                    <TD tone="primary">{sessionTrackName(session, { trackNames, carNames })}</TD>
+                    <TD tone="primary">{sessionCarName(session, { trackNames, carNames })}</TD>
                     <TD tone="primary">
                       <SessionResultMeta session={session} />
                     </TD>
-                    {isF1 && <TD tone="primary">{formatSessionType(session.sessionType)}</TD>}
+                    {showSessionType && <TD tone="primary">{formatSessionType(session.sessionType)}</TD>}
                     <TD>
                       <NoteCell value={session.notes ?? undefined} onSave={(notes) => saveSessionNotes(session.id, notes)} />
                     </TD>

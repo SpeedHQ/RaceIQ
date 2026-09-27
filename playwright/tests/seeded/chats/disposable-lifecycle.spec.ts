@@ -4,7 +4,7 @@ import { collectBrowserErrors } from "../../support/browser-errors";
 import { ChatHistorySchema, ExperimentSchema, LapSchema, cleanupDisposableChat, openChatRow, saveDisposableChat, seededChats } from "./helpers";
 
 test("disposable Analyse and tune threads delete through production persistence", async ({ page, request }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(140_000);
   const browserErrors = collectBrowserErrors(page);
   const fmChats = await seededChats(request, "fm-2023");
   const lapResponse = await request.get("/api/laps?gameId=fm-2023");

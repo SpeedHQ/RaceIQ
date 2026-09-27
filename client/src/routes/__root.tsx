@@ -36,7 +36,6 @@ function useUpdateCheck() {
 function AppShell() {
   useWebSocket();
   const { displaySettings, settingsLoaded } = useSettings();
-  const driverName = displaySettings.driverName || "";
 
   // Bootstrap the Paraglide UI locale from the server-persisted `language`
   // setting (the source of truth — the AI needs it server-side anyway). No
@@ -109,16 +108,15 @@ function AppShell() {
           <AppSidebar
             collapsed={sidebarCollapsed}
             connected={connected}
-            driverName={driverName}
-            forzaReceiving={isRaceOn && packetsPerSec > 0}
+            forzaReceiving={isRaceOn}
             hiddenGames={hiddenGames}
             mobile={false}
             onCollapsedChange={setSidebarCollapsed}
             onOpenSettings={openSettings}
             onShowUpdate={() => setShowUpdateModal(true)}
             packetsPerSec={packetsPerSec}
-            updateAvailable={updateState?.updateAvailable ?? false}
-            updateVersion={updateState?.latest ?? null}
+            updateAvailable={!updateState?.updatesDisabled && (updateState?.updateAvailable ?? false)}
+            updateVersion={updateState?.updatesDisabled ? null : (updateState?.latest ?? null)}
           />
         </aside>
 
@@ -127,7 +125,7 @@ function AppShell() {
             <Link to="/" className="text-sm font-semibold text-app-text transition-colors hover:text-app-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
               RaceIQ
             </Link>
-            <Button type="button" onClick={() => setMobileNavOpen(true)} className="p-3 text-app-text-secondary hover:text-app-text" aria-label="Open navigation">
+            <Button type="button" onClick={() => setMobileNavOpen(true)} className="p-3 text-app-text-secondary hover:text-app-text" aria-label={m.nav_open_navigation()}>
               <Menu className="size-6" />
             </Button>
           </header>
@@ -140,21 +138,20 @@ function AppShell() {
 
         {mobileNavOpen && (
           <div className="fixed inset-0 z-50 flex justify-end @3xl/shell:hidden">
-            <Button type="button" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} className="absolute inset-0 bg-app-bg/60" />
+          <Button type="button" aria-label={m.nav_close_navigation()} onClick={() => setMobileNavOpen(false)} className="absolute inset-0 bg-app-bg/60" />
             <div className="relative h-full">
               <AppSidebar
                 collapsed={false}
                 connected={connected}
-                driverName={driverName}
-                forzaReceiving={isRaceOn && packetsPerSec > 0}
+                forzaReceiving={isRaceOn}
                 hiddenGames={hiddenGames}
                 mobile
                 onClose={() => setMobileNavOpen(false)}
                 onOpenSettings={openSettings}
                 onShowUpdate={() => setShowUpdateModal(true)}
                 packetsPerSec={packetsPerSec}
-                updateAvailable={updateState?.updateAvailable ?? false}
-                updateVersion={updateState?.latest ?? null}
+                updateAvailable={!updateState?.updatesDisabled && (updateState?.updateAvailable ?? false)}
+                updateVersion={updateState?.updatesDisabled ? null : (updateState?.latest ?? null)}
               />
             </div>
           </div>
@@ -162,11 +159,11 @@ function AppShell() {
 
         {showSettings && (
           <div className="fixed inset-0 z-50 flex items-stretch justify-center @3xl/shell:items-start @3xl/shell:py-12">
-            <Button type="button" variant="app-ghost" size="content" aria-label="Dismiss settings" onClick={closeSettings} className="absolute inset-0 bg-app-bg/60" />
+          <Button type="button" variant="app-ghost" size="content" aria-label={m.nav_dismiss_settings()} onClick={closeSettings} className="absolute inset-0 bg-app-bg/60" />
             <div className="relative h-full w-full overflow-hidden bg-app-bg @3xl/shell:max-w-4xl @3xl/shell:rounded-lg @3xl/shell:border @3xl/shell:border-app-border">
               <div className="flex items-center justify-between border-b border-app-border bg-app-surface px-4 py-3">
                 <h1 className="text-app-heading font-semibold text-app-text">{m.nav_settings()}</h1>
-                <Button type="button" aria-label="Close settings" onClick={closeSettings} className="text-app-heading leading-none text-app-text-muted hover:text-app-text">
+                <Button type="button" aria-label={m.nav_close_settings()} onClick={closeSettings} className="text-app-heading leading-none text-app-text-muted hover:text-app-text">
                   &times;
                 </Button>
               </div>
@@ -177,7 +174,7 @@ function AppShell() {
           </div>
         )}
 
-        {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? updateAvailable ?? "?"} currentVersion={updateState?.current ?? "?"} newReleases={updateState?.newReleases ?? []} fullReleaseNotes={updateState?.fullReleaseNotes ?? null} currentReleaseNotes={updateState?.currentReleaseNotes ?? null} currentReleaseDate={updateState?.currentReleaseDate ?? null} onClose={() => setShowUpdateModal(false)} />}
+        {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? updateAvailable ?? "?"} currentVersion={updateState?.current ?? "?"} newReleases={updateState?.newReleases ?? []} fullReleaseNotes={updateState?.fullReleaseNotes ?? null} currentReleaseNotes={updateState?.currentReleaseNotes ?? null} currentReleaseDate={updateState?.currentReleaseDate ?? null} updatesDisabled={updateState?.updatesDisabled} onClose={() => setShowUpdateModal(false)} />}
         {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
       </div>
       <StaleLapReprocessing />

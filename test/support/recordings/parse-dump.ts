@@ -10,6 +10,7 @@ import { getAllServerGames, getServerGame } from "../../../server/games/registry
 import { readUdpDump } from "./udp";
 import { readKunosFrames } from "../../../server/games/kunos/frame-reader";
 import { readIRacingFrames } from "../../../server/games/iracing/recorder";
+import { readLMUFrames } from "../../../server/games/lmu/recorder";
 import { parseAccBuffers } from "../../../server/games/acc/parser";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../../server/games/ac-evo/parser";
 import { readWString } from "../../../server/games/acc/utils";
@@ -19,6 +20,7 @@ import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { META_FRAME_MAGIC } from "../../../server/session-capture/framing"
+import { isPitCycleLap } from "../../../shared/racing/laps/pit-cycle";
 
 let _initialized = false;
 export function ensureInit(): void {
@@ -317,6 +319,22 @@ export async function parseDump(
       trackName ??= packet.iracing?.trackName ?? null;
       await pipeline.processPacket(packet);
     }
+  } else if (gameId === "lmu") {
+    const serverAdapter = getServerGame(gameId);
+    const parserState = serverAdapter.createParserState?.() ?? null;
+    let frames: Buffer[];
+    try {
+      frames = readLMUFrames(dumpPath);
+    } catch {
+      frames = [];
+    }
+    for (const frame of frames) {
+      const packet = serverAdapter.tryParse(frame, parserState);
+      if (!packet) continue;
+      carModel ??= packet.lmu?.carModel ?? null;
+      trackName ??= packet.lmu?.trackName ?? null;
+      await pipeline.processPacket(packet);
+    }
   } else {
     const parsed = readUdpPackets(dumpPath, gameId);
     if (parsed.packets.length === 0) return { laps: [], sessions: [], carModel: null, trackName: null, wsNotifications: [], wsDevStates: [], rawPackets: [] };
@@ -359,7 +377,9 @@ export async function parseDump(
       continue;
     }
     const segment = lapSegments[bestIndex];
-    if (Math.abs(segment.maxLapTime - lap.lapTime) > 2) {
+    const hasKnownTelemetryGap =
+      lap.invalidReason === "telemetry lap time mismatch" || isPitCycleLap(lap);
+    if (!hasKnownTelemetryGap && Math.abs(segment.maxLapTime - lap.lapTime) > 2) {
       lap.packets = [];
       continue;
     }

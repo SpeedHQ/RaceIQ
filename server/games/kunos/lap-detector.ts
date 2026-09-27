@@ -12,6 +12,11 @@ import type {
 } from "../../lap-detection/types";
 import { kunosFirstPacketIsMidLap } from "./lap-rules";
 import { classifyPitCycleLap } from "../../../shared/racing/laps/pit-cycle";
+import { logger } from "../../runtime/logger";
+
+function traceLap(game: string, event: string, fields: Record<string, unknown>): void {
+  logger.trace({ component: "capture", event, game, ...fields }, "Kunos lap capture trace");
+}
 
 /** Shared Kunos (ACC / AC Evo) lap detector state machine. */
 export abstract class KunosLapDetector implements ILapDetector {
@@ -33,10 +38,9 @@ export abstract class KunosLapDetector implements ILapDetector {
   // Flag: if true, discard the next reset (recording started mid-lap)
   private firstLapIsPartial = false;
 
-  // Duplicate-emit guard: TripletAssembler's setInterval fires at 100Hz without
-  // waiting for the previous async callback. If emitLap is still awaiting DB writes
-  // when the next tick arrives, the same lap could be saved twice. Track the last
-  // emitted lap number — if emitLap is triggered again for the same number, ignore it.
+  // Duplicate-emit guard for repeated boundary frames from live or imported
+  // sources. Ordered live ingress prevents callback overlap, but the detector
+  // still owns idempotence at its semantic boundary.
   private _lastEmittedLapNumber = -1;
   private _lapByteOffset: number | null = null;
   private _lapFrameCount = 0;
@@ -64,6 +68,7 @@ export abstract class KunosLapDetector implements ILapDetector {
   setCurrentLapByteOffset(offset: number): void {
     this._lapByteOffset = offset;
     this._currentRawByteOffset = offset;
+    this._lapFrameCount = 1;
   }
 
   async feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void> {
@@ -113,13 +118,45 @@ export abstract class KunosLapDetector implements ILapDetector {
       this.peakCurrentLap = 0;
       this.firstLapIsPartial = false;
       this._lapByteOffset = this._currentRawByteOffset;
-      this._lapFrameCount = 0;
+      this._lapFrameCount = rawByteOffset === undefined ? 0 : 1;
       this.lapBuffer.push(packet);
       if (packet.CurrentLap > this.peakCurrentLap) this.peakCurrentLap = packet.CurrentLap;
       return;
     }
 
-    const isReset = prev && prev.CurrentLap >= 30 && packet.CurrentLap <= 2;
+    const timerReset = Boolean(
+      prev && prev.CurrentLap >= 5 && packet.CurrentLap <= 2,
+    );
+    const reportedLapAdvanced =
+      (packet.LapNumber ?? this.currentLapNumber) > this.currentLapNumber;
+    const previousLastLap = prev?.LastLap ?? 0;
+    const reportedLastLap = packet.LastLap ?? 0;
+    const reportedLastLapFresh =
+      reportedLastLap > 0 && reportedLastLap !== previousLastLap;
+
+    // ACC starts its pit-lane timer before the first timed lap. Crossing the
+    // timing line can reset that short timer without advancing CompletedLaps
+    // or publishing LastLap. Drop this pre-lap prefix instead of joining it to
+    // the following lap capture.
+    if (
+      timerReset &&
+      prev!.CurrentLap < 30 &&
+      !reportedLapAdvanced &&
+      !reportedLastLapFresh
+    ) {
+      this.lapBuffer = [packet];
+      this.peakCurrentLap = packet.CurrentLap;
+      this.firstLapIsPartial = false;
+      this._lapByteOffset = this._currentRawByteOffset;
+      this._lapFrameCount = rawByteOffset === undefined ? 0 : 1;
+      return;
+    }
+
+    const isReset =
+      timerReset &&
+      (prev!.CurrentLap >= 30 ||
+        reportedLapAdvanced ||
+        reportedLastLapFresh);
 
     if (isReset) {
       if (this.firstLapIsPartial) {
@@ -132,7 +169,7 @@ export abstract class KunosLapDetector implements ILapDetector {
           this.peakCurrentLap = 0;
           this.firstLapIsPartial = false;
           this._lapByteOffset = this._currentRawByteOffset;
-          this._lapFrameCount = 0;
+          this._lapFrameCount = rawByteOffset === undefined ? 0 : 1;
           this.lapBuffer.push(packet);
           if (packet.CurrentLap > this.peakCurrentLap) this.peakCurrentLap = packet.CurrentLap;
           return;
@@ -207,7 +244,19 @@ export abstract class KunosLapDetector implements ILapDetector {
     this.peakCurrentLap = 0;
     this.currentLapNumber = lapNum + 1;
     this._lapByteOffset = this._currentRawByteOffset;
-    this._lapFrameCount = 0;
+    this._lapFrameCount = opts?.trigger && this._currentRawByteOffset !== null
+      ? 1
+      : 0;
+    const traceGameId = this.currentSession!.gameId;
+    const traceSessionId = this.currentSession!.sessionId;
+    const traceStartedAt = performance.now();
+    let traceStageAt = traceStartedAt;
+    traceLap(traceGameId, "lap-boundary-start", {
+      sessionId: traceSessionId,
+      lapNumber: lapNum,
+      lapTimeMs: Math.round(lapTime * 1_000),
+      frames: packets.length,
+    });
 
     const quality = assessLapRecording(packets, lapTime);
     const pitReason = classifyPitCycleLap(packets);
@@ -221,6 +270,15 @@ export abstract class KunosLapDetector implements ILapDetector {
         invalidReason = cutReason;
       }
     }
+    traceLap(traceGameId, "lap-boundary-stage", {
+      sessionId: traceSessionId,
+      lapNumber: lapNum,
+      stage: "quality",
+      durationMs: performance.now() - traceStageAt,
+      valid: isValid,
+      reason: invalidReason,
+    });
+    traceStageAt = performance.now();
 
     const sectors = await computeLapSectors(
       this.currentSession!.trackOrdinal,
@@ -229,6 +287,13 @@ export abstract class KunosLapDetector implements ILapDetector {
       lapTime,
       undefined,
     );
+    traceLap(traceGameId, "lap-boundary-stage", {
+      sessionId: traceSessionId,
+      lapNumber: lapNum,
+      stage: "sectors",
+      durationMs: performance.now() - traceStageAt,
+    });
+    traceStageAt = performance.now();
 
     if (isValid && (this.currentSession!.bestLapTime === 0 || lapTime < this.currentSession!.bestLapTime)) {
       this.currentSession!.bestLapTime = lapTime;
@@ -246,12 +311,36 @@ export abstract class KunosLapDetector implements ILapDetector {
       invalidReason,
       sectors,
     );
+    traceLap(traceGameId, "lap-boundary-stage", {
+      sessionId: traceSessionId,
+      lapNumber: lapNum,
+      lapId,
+      stage: "insert",
+      durationMs: performance.now() - traceStageAt,
+    });
+    traceStageAt = performance.now();
     // Precompute fuel/tyre metrics now (frames already in memory) so
     // /lap-metrics never decodes on first open.
     await persistLapMetrics(this.db, lapId, packets);
+    traceLap(traceGameId, "lap-boundary-stage", {
+      sessionId: traceSessionId,
+      lapNumber: lapNum,
+      lapId,
+      stage: "metrics",
+      durationMs: performance.now() - traceStageAt,
+    });
+    traceStageAt = performance.now();
     // Reconcile the fastest-5 auto-exclude curation for this lap's tuning
     // scope.
     await reconcileAutoExclusionsForLap(this.db, lapId);
+    traceLap(traceGameId, "lap-boundary-stage", {
+      sessionId: traceSessionId,
+      lapNumber: lapNum,
+      lapId,
+      stage: "auto-exclusion",
+      durationMs: performance.now() - traceStageAt,
+    });
+    traceStageAt = performance.now();
     if (!opts?.silent) {
       this.onLapSaved?.({
         type: "lap-saved",
@@ -270,6 +359,19 @@ export abstract class KunosLapDetector implements ILapDetector {
         sectors,
       });
     }
+    traceLap(traceGameId, "lap-boundary-stage", {
+      sessionId: traceSessionId,
+      lapNumber: lapNum,
+      lapId,
+      stage: "callbacks",
+      durationMs: performance.now() - traceStageAt,
+    });
+    traceLap(traceGameId, "lap-boundary-end", {
+      sessionId: traceSessionId,
+      lapNumber: lapNum,
+      lapId,
+      totalMs: performance.now() - traceStartedAt,
+    });
   }
 
   /** ACC uses the parser-provided ordinal; AC Evo overrides this hook. */

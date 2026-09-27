@@ -101,6 +101,7 @@ Source: "..\dist\raceiq.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\dist\public\*"; DestDir: "{app}\public"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\dist\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\dist\node_modules\@libsql\win32-x64-msvc\*"; DestDir: "{app}\node_modules\@libsql\win32-x64-msvc"; Flags: ignoreversion
+Source: "..\dist\node_modules\@duckdb\node-bindings-win32-x64\*"; DestDir: "{app}\node_modules\@duckdb\node-bindings-win32-x64"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\dist\credstore.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "raceiq-launcher.vbs"; DestDir: "{app}"; Flags: ignoreversion
 

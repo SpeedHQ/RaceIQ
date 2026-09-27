@@ -11,8 +11,9 @@ const bytes = readFileSync("C:/Users/acoop/Downloads/ac-evo-unknown-track-sessio
 const result = await importSessionBin(Buffer.from(bytes), "ac-evo");
 console.log("packets:", result.packetCount, "laps:", result.laps.length);
 for (const lap of result.laps) {
+  const trackName = typeof lap.trackId === "number" ? getAcEvoTrackName(lap.trackId) : lap.trackId;
   console.log(
-    `lap ${lap.lapNumber} time=${lap.lapTime} carOrd=${lap.carOrdinal} trackOrd=${lap.trackOrdinal} track="${getAcEvoTrackName(lap.trackOrdinal)}"`
+    `lap ${lap.lapNumber} time=${lap.lapTime} car=${lap.carId} track=${lap.trackId} trackName="${trackName}"`
   );
 }
 const sessionId = result.laps[0]?.sessionId;

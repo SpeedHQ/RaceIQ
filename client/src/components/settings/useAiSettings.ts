@@ -228,21 +228,27 @@ export function useAiSettings(): AiSettingsState {
   const nextChatThinkingBudget = chatProvider === "gemini" ? effectiveChatThinkingBudget : null;
   const chatConfigDirty = chatProvider !== chatBaseline.provider || chatModel !== chatBaseline.model || nextChatThinkingBudget !== chatBaseline.thinkingBudget;
   const [providerSetupKeys, setProviderSetupKeys] = useState<Record<string, string>>({});
-  const saveProviderKey = useCallback(async (providerKeyId: string, apiKey: string) => {
-    const res = await fetch("/api/ai-key", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ provider: providerKeyId, apiKey }),
-    });
-    if (!res.ok) throw new Error(m.ai_save_key_failed());
-    updateKeyStatusInSettingsCache(providerKeyId, apiKey.trim().length > 0);
-    setProviderSetupKeys((previous) => ({ ...previous, [providerKeyId]: "" }));
-    qc.invalidateQueries({ queryKey: ["settings"] });
-  }, [qc]);
-  const saveProviderEndpoint = useCallback(async (endpoint: string) => {
-    updateSettingsInCache({ localEndpoint: endpoint });
-    await saveSettings.mutateAsync({ localEndpoint: endpoint });
-  }, [saveSettings]);
+  const saveProviderKey = useCallback(
+    async (providerKeyId: string, apiKey: string) => {
+      const res = await fetch("/api/ai-key", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: providerKeyId, apiKey }),
+      });
+      if (!res.ok) throw new Error(m.ai_save_key_failed());
+      updateKeyStatusInSettingsCache(providerKeyId, apiKey.trim().length > 0);
+      setProviderSetupKeys((previous) => ({ ...previous, [providerKeyId]: "" }));
+      qc.invalidateQueries({ queryKey: ["settings"] });
+    },
+    [qc],
+  );
+  const saveProviderEndpoint = useCallback(
+    async (endpoint: string) => {
+      updateSettingsInCache({ localEndpoint: endpoint });
+      await saveSettings.mutateAsync({ localEndpoint: endpoint });
+    },
+    [saveSettings],
+  );
   const canSaveChat = chatConfigDirty || chatApiKey.trim().length > 0;
   const autoTuneConfigDirty = autoTuneProvider !== autoTuneBaseline.provider || autoTuneModel !== autoTuneBaseline.model;
   const canSaveAutoTune = autoTuneConfigDirty || autoTuneApiKey.trim().length > 0;
@@ -372,17 +378,7 @@ export function useAiSettings(): AiSettingsState {
       console.error(`[AI Settings] driver profile save failed in ${Math.round(performance.now() - startedAt)}ms`, err instanceof Error ? err.message : String(err));
       setDriverProfileSaveError(err instanceof Error ? err.message : m.ai_save_settings_failed());
     }
-  }, [
-    driverProfileApiKey,
-    driverProfileBackgroundEnabled,
-    driverProfileMaxOutputTokens,
-    driverProfileModel,
-    driverProfileProvider,
-    nextDriverProfileThinkingBudget,
-    qc,
-    saveApiKey,
-    saveSettings,
-  ]);
+  }, [driverProfileApiKey, driverProfileBackgroundEnabled, driverProfileMaxOutputTokens, driverProfileModel, driverProfileProvider, nextDriverProfileThinkingBudget, qc, saveApiKey, saveSettings]);
   useEffect(() => {
     if (!settingsLoaded || !canSaveDriverProfile) return;
     const timeout = setTimeout(() => void handleDriverProfileSave(), 500);

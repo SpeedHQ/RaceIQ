@@ -21,6 +21,7 @@
  * so V2 bins parse fine — tail fields just return null on V2 buffers.
  */
 import { existsSync, mkdirSync } from "node:fs";
+import { open } from "node:fs/promises";
 import { resolve } from "node:path";
 import { timestampForFilename } from "../../session-capture/filename";
 
@@ -37,6 +38,7 @@ export class KunosRecorder {
   private _path: string | null = null;
   private _frameCount = 0;
   private _lastStatic: Buffer | null = null;
+  private _stopping: Promise<void> | null = null;
 
   get recording(): boolean {
     return this._file !== null;
@@ -52,7 +54,11 @@ export class KunosRecorder {
 
   /** Start recording to a new file. Returns the file path. */
   start(dir?: string, prefix = "acc"): string {
-    if (this._file) this.stop();
+    if (this._file) {
+      void this.stop().catch((error) => {
+        console.error("[ACC Recorder] Failed to stop previous recording:", error);
+      });
+    }
 
     const outDir = dir ?? defaultRecordingDir();
     if (!existsSync(outDir)) {
@@ -60,8 +66,14 @@ export class KunosRecorder {
     }
 
     const timestamp = timestampForFilename();
-    const filename = `${prefix}-${timestamp}.bin`;
-    this._path = resolve(outDir, filename);
+    let filename = `${prefix}-${timestamp}.bin`;
+    let filePath = resolve(outDir, filename);
+    let suffix = 1;
+    while (filePath === this._path || existsSync(filePath)) {
+      filename = `${prefix}-${timestamp}-${suffix++}.bin`;
+      filePath = resolve(outDir, filename);
+    }
+    this._path = filePath;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this._file = (Bun.file(this._path) as any).writer({ append: true });
     this._frameCount = 0;
@@ -105,25 +117,42 @@ export class KunosRecorder {
 
   /** Stop recording and flush to disk */
   async stop(): Promise<void> {
-    if (!this._file) return;
+    if (!this._file) return this._stopping ?? undefined;
 
-    await this._file.end();
-
-    // Update frameCount in header and get final file size
-    if (this._path) {
-      const file = Bun.file(this._path);
-      const data = await file.arrayBuffer();
-      const buf = Buffer.from(data);
-      buf.writeUInt32LE(this._frameCount, 12);
-      await Bun.write(this._path, buf);
-
-      const fileSizeKb = (buf.length / 1024).toFixed(2);
-      const filename = this._path.split(/[\\/]/).pop();
-      console.log(`[ACC Recorder] Stopped. ${this._frameCount} frames (${fileSizeKb}KB) written to ${filename}`);
-    }
-
+    const file = this._file;
+    const path = this._path!;
+    const frameCount = this._frameCount;
+    // Detach before flushing so a replacement recording owns its own state.
     this._file = null;
     this._lastStatic = null;
+
+    const stopping = (async () => {
+      await file.end();
+
+      const handle = await open(path, "r+");
+      let size: number;
+      try {
+        const count = Buffer.allocUnsafe(4);
+        count.writeUInt32LE(frameCount);
+        const { bytesWritten } = await handle.write(count, 0, count.length, 12);
+        if (bytesWritten !== count.length) {
+          throw new Error(`Failed to finalize recording frame count: ${path}`);
+        }
+        ({ size } = await handle.stat());
+      } finally {
+        await handle.close();
+      }
+
+      const fileSizeKb = (size / 1024).toFixed(2);
+      const filename = path.split(/[\\/]/).pop();
+      console.log(`[ACC Recorder] Stopped. ${frameCount} frames (${fileSizeKb}KB) written to ${filename}`);
+    })();
+    this._stopping = stopping;
+    try {
+      await stopping;
+    } finally {
+      if (this._stopping === stopping) this._stopping = null;
+    }
   }
 
   private _writeBufferFrame(type: number, buffer: Buffer): void {

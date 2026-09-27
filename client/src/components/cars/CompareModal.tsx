@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { m } from "@/paraglide/messages";
 import { piClass } from "./helpers";
 import type { Car, CarSpecs, Formatters } from "./types";
+import { getLocale } from "@/paraglide/runtime";
 
 type StatRow = { label: string; getValue: (specs: CarSpecs) => string; highlight?: "low" | "high" };
 
@@ -30,7 +31,7 @@ export function CompareModal({ cars, onClose, fmtSpeed, fmtBrake, fmtWeight, isM
     { label: m.cars_braking_rating(), getValue: (s) => (s.brakingRating > 0 ? s.brakingRating.toFixed(1) : "—"), highlight: "high" },
     { label: m.cars_handling_rating(), getValue: (s) => (s.handlingRating > 0 ? s.handlingRating.toFixed(1) : "—"), highlight: "high" },
     { label: m.cars_accel_rating(), getValue: (s) => (s.accelRating > 0 ? s.accelRating.toFixed(1) : "—"), highlight: "high" },
-    { label: m.cars_price(), getValue: (s) => (s.price > 0 ? s.price.toLocaleString() : "—") },
+    { label: m.cars_price(), getValue: (s) => (s.price > 0 ? s.price.toLocaleString(getLocale()) : "—") },
   ];
 
   const getBestIdx = (row: StatRow) => {

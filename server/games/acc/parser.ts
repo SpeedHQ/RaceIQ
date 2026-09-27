@@ -64,13 +64,13 @@ export function parseAccBuffers(
   const coreRL = physicsBuf.readFloatLE(PHYSICS.tyreCoreRL.offset);
   const coreRR = physicsBuf.readFloatLE(PHYSICS.tyreCoreRR.offset);
 
-  // Tire display temps (°C) — averaged per-tire temp for display
+  // Legacy ACC tire-temperature alias (°C); ACC exposes core, not surface.
   const tempFL = physicsBuf.readFloatLE(PHYSICS.tyreTempFL.offset);
   const tempFR = physicsBuf.readFloatLE(PHYSICS.tyreTempFR.offset);
   const tempRL = physicsBuf.readFloatLE(PHYSICS.tyreTempRL.offset);
   const tempRR = physicsBuf.readFloatLE(PHYSICS.tyreTempRR.offset);
 
-  // Inner/middle/outer surface temps (°C)
+  // Reserved inner/middle/outer fields; ACC does not populate them.
   const innerFL = physicsBuf.readFloatLE(PHYSICS.tyreTempInnerFL.offset);
   const innerFR = physicsBuf.readFloatLE(PHYSICS.tyreTempInnerFR.offset);
   const innerRL = physicsBuf.readFloatLE(PHYSICS.tyreTempInnerRL.offset);
@@ -387,7 +387,8 @@ export function parseAccBuffers(
     SurfaceRumbleRR_2: 0,
     TireSlipCombinedFL_2: 0,
 
-    // Use display tire temp as primary
+    // Legacy primary remains populated for packet compatibility. Semantic
+    // consumers use TireCarcassTemp as ACC's sole valid temperature layer.
     TireTempFL: tempFL,
     TireTempFR: tempFR,
     TireTempRL: tempRL,

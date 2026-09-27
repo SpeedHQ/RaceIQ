@@ -38,6 +38,13 @@ describe("live telemetry contracts", () => {
     expect(isDevTelemetryControlMessageV1(roundTrip({ type: "unsubscribe", channel: "dev-telemetry" }))).toBe(true);
     expect(isDevTelemetrySubscriptionMessageV1(roundTrip({ type: "subscription", channel: "dev-telemetry", subscribed: true }))).toBe(true);
   });
+  test("accepts dev-state subscriptions without accepting unknown channels", () => {
+    expect(isDevTelemetryControlMessageV1({ type: "subscribe", channel: "dev-state" })).toBe(true);
+    expect(isDevTelemetryControlMessageV1({ type: "unsubscribe", channel: "dev-state" })).toBe(true);
+    expect(isDevTelemetrySubscriptionMessageV1({ type: "subscription", channel: "dev-state", subscribed: true })).toBe(true);
+    expect(isDevTelemetryControlMessageV1({ type: "subscribe", channel: "status" })).toBe(false);
+    expect(isDevTelemetrySubscriptionMessageV1({ type: "subscription", channel: "status", subscribed: true })).toBe(false);
+  });
   test("accepts native dev packet only with game and finite timestamp", () => {
     const packet = { gameId: "acc", TimestampMS: 10 } as unknown as TelemetryPacket;
     expect(isDevTelemetryPacketMessageV1(roundTrip({ type: "dev-telemetry", protocolVersion: 1, packet }))).toBe(true);

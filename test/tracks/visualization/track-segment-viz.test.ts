@@ -10,6 +10,7 @@ import { resolve } from "node:path";
 import { initGameAdapters } from "../../../shared/games/init";
 import {
   autoTrackSegments,
+  findCenterlines,
   generateTrackSegments,
   listAllCenterlines,
   listCuratedSlugs,
@@ -27,7 +28,7 @@ initGameAdapters();
 const OUTPUT_DIR = resolve(import.meta.dir, "../../e2e", "output", "track-segments");
 const AUTO_OUTPUT_DIR = resolve(import.meta.dir, "../../e2e", "output", "track-segments-auto");
 
-const slugs = listCuratedSlugs();
+const slugs = listCuratedSlugs().filter((slug) => findCenterlines(slug).length > 0);
 
 // Wipe stale artifacts so removed tracks/games don't linger
 rmSync(OUTPUT_DIR, { recursive: true, force: true });

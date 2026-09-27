@@ -8,9 +8,8 @@ Local visual-regression utilities. These scripts capture equivalent base/current
 | --- | --- | --- |
 | `bun scripts/ui/local-ui-diff.ts [--base REF] [--no-fetch] [--open] [--storybook-only]` | Capture base and current responsive/Storybook screenshots, then build a report. | `.ui-diff/captures/`, `.ui-diff/report/index.html`, `.ui-diff/report/report.json` |
 | `bun scripts/ui/collect-screenshot-diffs.ts --base DIR --current DIR --out DIR --prefix NAME` | Compare two PNG trees using `visual-diff-config.ts`. | Before, after, and difference PNG triplets in `DIR`; summary on stdout |
-| `bash scripts/ui/snapshot-in-docker.sh` | Regenerate canonical dashboard snapshots with pinned Playwright container. | `client/src/stories/__snapshots__/snapshot-*.png` and `assets/screenshots/` |
 
-`local-ui-diff.ts --help` documents comparison options. Default base is `origin/main`; `--base` selects another Git ref and disables fetching. Node.js, installed workspace dependencies, Git, and Playwright browsers are required. Docker snapshot regeneration additionally requires Docker.
+`local-ui-diff.ts --help` documents comparison options. Default base is `origin/main`; `--base` selects another Git ref and disables fetching. Node.js, installed workspace dependencies, Git, and Playwright browsers are required.
 
 ## Inputs and outputs
 

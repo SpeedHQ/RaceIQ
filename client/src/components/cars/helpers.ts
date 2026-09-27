@@ -22,6 +22,14 @@ export function filterAndSortCars(cars: Car[], search: string, classFilter: stri
   });
 }
 
+function iracingCarSortName(name: string): string {
+  return name.replace(/^\[Legacy\]\s*/i, "");
+}
+
+export function sortIRacingCars<T extends { ordinal: number; name: string }>(cars: readonly T[]): T[] {
+  return cars.toSorted((a, b) => iracingCarSortName(a.name).localeCompare(iracingCarSortName(b.name)) || a.name.localeCompare(b.name) || a.ordinal - b.ordinal);
+}
+
 export function formatSpeed(mph: number, speedLabel: string, fromMph: (mph: number) => number) {
   return mph ? `${fromMph(mph).toFixed(1)} ${speedLabel}` : "—";
 }

@@ -117,8 +117,6 @@ function headersForRewrittenBody(source: Headers): Headers {
  * Anything else is returned unchanged.
  */
 function reasoningContentToThinkFetch(baseFetch: FetchFunction): FetchFunction {
-  // Cast: the returned wrapper satisfies FetchFunction's call signature, but
-  // bun-types' `typeof fetch` also carries a `preconnect` static we don't proxy.
   return (async (input, init) => {
     const response = await baseFetch(input, init);
     const contentType = response.headers.get("content-type") ?? "";

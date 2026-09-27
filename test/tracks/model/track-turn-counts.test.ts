@@ -115,6 +115,14 @@ describe("turn counts match real-world circuit data", () => {
     // per-game assertion below would silently vanish instead of failing.
     test(`${slug}: every game centerline aligns`, () => {
       const games = [...new Set(findCenterlines(slug).map((c) => c.gameId))];
+      if (games.length === 0) {
+        expect(outcomes).toContainEqual(expect.objectContaining({
+          ok: false,
+          gameId: "-",
+          detail: "no centerline found",
+        }));
+        return;
+      }
       const alignedGames = new Set(aligned.map((a) => a.gameId));
       // Sanctioned gaps stay asserted-broken, so a fixed centerline fails here
       // until its entry is removed.

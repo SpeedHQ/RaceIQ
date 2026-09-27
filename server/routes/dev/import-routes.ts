@@ -16,6 +16,9 @@ import { createAcEvoParserCache, parseAcEvoBuffers } from "../../games/ac-evo/pa
 import { GRAPHICS_EVO, STATIC_EVO } from "../../games/ac-evo/structs";
 import { readCString } from "../../games/ac-evo/utils";
 import { readKunosFrames } from "../../games/kunos/frame-reader";
+import { readLMUFrames } from "../../games/lmu/recorder";
+import { decodeLMUSourceFrame } from "../../games/lmu/source-frame";
+import { identityFromLMUSourceFrame } from "../../games/lmu/normalizer";
 import { getAllServerGames } from "../../games/registry";
 import {
   ACC_PACKED_MAGIC,
@@ -23,7 +26,7 @@ import {
   packTriplet,
 } from "../../games/kunos/pack-triplet";
 import { LiveTelemetryPipeline } from "../../telemetry/live-pipeline";
-import { NullWsAdapter } from "../../telemetry/pipeline-ports";
+import { NullWsAdapter, NullSessionRecorderAdapter } from "../../telemetry/pipeline-ports";
 import { detectGameIdFromFilename } from "../../session-capture/import-capture";
 import { ImportCaptureAdapter } from "../../session-capture/import-pipeline";
 import { OwnershipSchema } from "../laps/support";
@@ -78,6 +81,7 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
     const db = new ImportCaptureAdapter({ ownership: ownership.data });
     const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
       bypassPacketRateFilter: true,
+      recorder: new NullSessionRecorderAdapter(),
     });
     const start = Date.now();
 
@@ -154,6 +158,27 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
           frame.graphics,
           frame.staticData
         );
+        await pipeline.processPacket(packet, sourceFrame);
+        packetCount++;
+      }
+    } else if (gameId === "lmu") {
+      const serverAdapter = getAllServerGames().find((adapter) => adapter.id === "lmu");
+      if (!serverAdapter) {
+        return c.json({ error: "No server adapter for gameId lmu" }, 400);
+      }
+      const frames = readLMUFrames(tmpPath);
+      let identityRead = false;
+      for (const sourceFrame of frames) {
+        const decoded = decodeLMUSourceFrame(sourceFrame);
+        if (!decoded) continue;
+        if (!identityRead) {
+          const identity = identityFromLMUSourceFrame(decoded);
+          identityRead = true;
+          carModel = identity.carModel || identity.carName;
+          trackName = identity.trackName;
+        }
+        const packet = serverAdapter.tryParse(sourceFrame, null);
+        if (!packet) continue;
         await pipeline.processPacket(packet, sourceFrame);
         packetCount++;
       }

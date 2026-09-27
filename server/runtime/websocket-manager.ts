@@ -2,8 +2,8 @@
  * WebSocket manager: bridges UDP telemetry to browser clients.
  *
  * Two concerns handled here:
- * 1. Broadcast throttling — Forza sends at 60Hz, browsers only need 30Hz.
- *    We skip every other packet before serializing to JSON.
+ * 1. Live publication — retain every projection, serialize only the latest
+ *    frame when a client connects or the configured refresh timer fires.
  * 2. Server-side history ring buffers — telemetry charts need ~60s of
  *    backfill when a client connects or a tab switches. Sampling at 10Hz
  *    (every 6th packet) keeps memory bounded at 600 samples per channel.
@@ -71,6 +71,8 @@ function pushFourWheelSample(
 
 export class WebSocketManager {
   private clients = new Set<ServerWebSocket<WSData>>();
+  private devStateSubscribers = new Set<ServerWebSocket<WSData>>();
+  private nextDevStateAt = 0;
   private _packetCount = 0;
   private broadcastPeriodMs = 1000 / 60;
   private gripSampleCounter = 0; // Counts to 6 for 10Hz history sampling
@@ -79,6 +81,8 @@ export class WebSocketManager {
   private lastSchemaJson: string | null = null;
   /** Schema waiting for delivery to clients already connected when it changed. */
   private pendingSchemaJson: string | null = null;
+  /** Owned projection; packet-handler context must not mutate before publication. */
+  private lastFrame: LiveProjection["frame"] | null = null;
   private lastFrameJson: string | null = null;
   private lastDevPacketJson: string | null = null;
   private readonly allowDevTelemetry = IS_DEV || IS_E2E;
@@ -115,7 +119,14 @@ export class WebSocketManager {
     return this.clients.size;
   }
   get wantsDevTelemetry(): boolean {
-    return this.allowDevTelemetry && [...this.clients].some((client) => client.data.devTelemetrySubscribed);
+    if (!this.allowDevTelemetry) return false;
+    for (const client of this.clients) if (client.data.devTelemetrySubscribed) return true;
+    return false;
+  }
+
+  /** Snapshot demand, sampled at most four times per second in every environment. */
+  get wantsDevState(): boolean {
+    return this.devStateSubscribers.size > 0 && performance.now() >= this.nextDevStateAt;
   }
 
   /** Monotonic count of packets handed to broadcast() — used by status
@@ -135,7 +146,8 @@ export class WebSocketManager {
     this.clients.add(ws);
     let sendFailed = false;
     if (this.lastSchemaJson) { try { ws.send(this.lastSchemaJson); } catch { sendFailed = true; } }
-    if (this.lastFrameJson) { try { ws.send(this.lastFrameJson); } catch { sendFailed = true; } }
+    const frameJson = this.serializeLatestFrame();
+    if (frameJson) { try { ws.send(frameJson); } catch { sendFailed = true; } }
     if (this.lastDevPacketJson && ws.data.devTelemetrySubscribed) { try { ws.send(this.lastDevPacketJson); } catch { sendFailed = true; } }
     // Send current session laps so recorded laps survive refresh
     const laps = this._getSessionLaps?.();
@@ -163,6 +175,7 @@ export class WebSocketManager {
 
   private dropClient(ws: ServerWebSocket<WSData>): void {
     if (!this.clients.delete(ws)) return;
+    this.devStateSubscribers.delete(ws);
     if (this.clients.size === 0) this.stopBroadcastTimer(); // no clients — stop pushing
     console.log(`[WS] Client disconnected. Active: ${this.clients.size}`);
   }
@@ -196,7 +209,13 @@ export class WebSocketManager {
     droppedPackets: number;
     udpPort: number;
     detectedGame: { id: string; name: string } | null;
-    currentSession: { id: number; carOrdinal: number; trackOrdinal: number } | null;
+    currentSession: {
+      id: number;
+      carOrdinal: number;
+      trackOrdinal: number;
+      carId: number | string;
+      trackId: number | string;
+    } | null;
   }): void {
     if (this.clients.size === 0) return;
     const json = JSON.stringify({ type: "status", ...status });
@@ -218,17 +237,30 @@ export class WebSocketManager {
   }
 
   broadcastDevState(payload: Record<string, unknown>): void {
-    if (this.clients.size === 0) return;
+    if (!this.wantsDevState) return;
+    this.nextDevStateAt = performance.now() + 250;
     const json = JSON.stringify({ type: "dev-state", ...payload });
-    for (const client of this.clients) { try { client.send(json); } catch { this.dropClient(client); } }
+    for (const client of this.devStateSubscribers) { try { client.send(json); } catch { this.dropClient(client); } }
   }
 
   publishTelemetry(projection: LiveProjection): void {
     if (projection.schema) {
       this.lastSchemaJson = JSON.stringify(projection.schema);
-      if (this.clients.size > 0) this.pendingSchemaJson = this.lastSchemaJson;
+      this.pendingSchemaJson = this.clients.size > 0 ? this.lastSchemaJson : null;
+      if (this.lastFrame?.schemaId !== projection.schema.schemaId) {
+        this.lastFrame = null;
+        this.lastFrameJson = null;
+      }
     }
-    if (projection.frame) this.lastFrameJson = JSON.stringify(projection.frame);
+    if (projection.frame) {
+      this.lastFrame = { ...projection.frame, context: structuredClone(projection.frame.context) };
+      this.lastFrameJson = null;
+    }
+  }
+
+  private serializeLatestFrame(): string | null {
+    if (!this.lastFrameJson && this.lastFrame) this.lastFrameJson = JSON.stringify(this.lastFrame);
+    return this.lastFrameJson;
   }
 
   handleMessage(ws: ServerWebSocket<WSData>, message: string | Buffer): void {
@@ -238,6 +270,13 @@ export class WebSocketManager {
       ws.send(JSON.stringify({ type: "subscription", channel: "dev-telemetry", subscribed: false, error: "invalid-message" } satisfies DevTelemetrySubscriptionMessageV1)); return;
     }
     const control = parsed as DevTelemetryControlMessageV1;
+    if (control.channel === "dev-state") {
+      const subscribed = control.type === "subscribe" && this.clients.has(ws);
+      if (subscribed) this.devStateSubscribers.add(ws);
+      else this.devStateSubscribers.delete(ws);
+      ws.send(JSON.stringify({ type: "subscription", channel: "dev-state", subscribed } satisfies DevTelemetrySubscriptionMessageV1));
+      return;
+    }
     if (!this.allowDevTelemetry) {
       ws.data.devTelemetrySubscribed = false;
       ws.send(JSON.stringify({ type: "subscription", channel: "dev-telemetry", subscribed: false, error: "not-available" } satisfies DevTelemetrySubscriptionMessageV1)); return;
@@ -316,11 +355,13 @@ export class WebSocketManager {
   }
 
   private _pushToClients(): void {
+    if (this.clients.size === 0) return;
+    const frameJson = this.serializeLatestFrame();
     const schemaJson = this.pendingSchemaJson;
     for (const client of this.clients) {
       try {
         if (schemaJson) client.send(schemaJson);
-        if (this.lastFrameJson) client.send(this.lastFrameJson);
+        if (frameJson) client.send(frameJson);
         if (this.lastDevPacketJson && client.data.devTelemetrySubscribed) client.send(this.lastDevPacketJson);
       } catch { this.dropClient(client); }
     }

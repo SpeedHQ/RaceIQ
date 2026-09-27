@@ -78,7 +78,6 @@ class CountingProcessor implements TripletProcessor {
     return undefined;
   }
 }
-
 describe("ACC TripletPipeline — menu→race resumption (no reader reinit)", () => {
   test("downstream processor runs again after OFF → LIVE without any reconnect", async () => {
     // Regression: StatusCheckProcessor used to call onDisconnect() on AC_OFF,

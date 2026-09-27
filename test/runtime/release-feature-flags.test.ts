@@ -36,7 +36,7 @@ describe("release feature flags", () => {
     });
   });
 
-  test("parses disabled production flags", () => {
+  test("parses production rollout flags", () => {
     expect(releaseFeatureFlags(productionEnv)).toEqual({
       f1Experiments: false,
       iracingAdapter: false,
@@ -50,7 +50,7 @@ describe("release feature flags", () => {
     });
   });
 
-  test("loads disabled flags from the committed production environment", () => {
+  test("loads production rollout flags from committed environment", () => {
     expect(releaseFeatureFlags(loadReleaseEnvironment("../../.env.production"))).toEqual({
       f1Experiments: false,
       iracingAdapter: false,

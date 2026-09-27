@@ -1,6 +1,8 @@
-import { expect, type APIRequestContext } from "@playwright/test";
+import { expect, type APIRequestContext, type Response } from "@playwright/test";
 import type { GameId } from "../../../../shared/games/ids";
 import type { LapMeta } from "../../../../shared/racing/sessions/types";
+import { decodeAlignedLapSet } from "../../../../shared/racing/laps/alignment/codec";
+import type { EncodedAlignedLapSet } from "../../../../shared/racing/laps/alignment/types";
 
 export interface SeededLapMeta extends LapMeta {
   trackOrdinal: number;
@@ -65,12 +67,27 @@ export function getFirstSeededLap(laps: readonly SeededLapMeta[]): SeededLapMeta
   return laps.filter((lap) => lap.trackOrdinal !== undefined && lap.carOrdinal !== undefined).sort((a, b) => a.id - b.id)[0] ?? null;
 }
 
-export function comparePath(idA: number, idB: number): RegExp {
-  return new RegExp(`^/api/laps/${idA}/compare/${idB}$`);
+export const ALIGNED_TELEMETRY_ENDPOINT = "/api/laps/aligned-telemetry";
+
+export function alignedRequestMatches(response: Response, idA: number, idB: number, step: 1 | 0.1): boolean {
+  if (response.request().method() !== "POST" || new URL(response.url()).pathname !== ALIGNED_TELEMETRY_ENDPOINT) return false;
+  const body = response.request().postDataJSON() as { ids?: number[]; step?: number } | null;
+  return body?.step === step && body.ids?.length === 2 && body.ids[0] === idA && body.ids[1] === idB;
 }
 
-export function compareEndpoint(pair: SeededLapPair): string {
-  return `/api/laps/${pair.lapA.id}/compare/${pair.lapB.id}`;
+export async function fetchAlignedSet(
+  request: APIRequestContext,
+  pair: SeededLapPair,
+  detail?: { start: number; end: number },
+) {
+  const response = await request.post(ALIGNED_TELEMETRY_ENDPOINT, {
+    data: detail
+      ? { ids: [pair.lapA.id, pair.lapB.id], step: 0.1, start: detail.start, end: detail.end }
+      : { ids: [pair.lapA.id, pair.lapB.id], step: 1 },
+  });
+  if (!response.ok()) return { response, set: null };
+  const set = decodeAlignedLapSet((await response.json()) as EncodedAlignedLapSet);
+  return { response, set };
 }
 
 export async function getSeededLaps(request: APIRequestContext, gameId: GameId): Promise<SeededLapMeta[]> {

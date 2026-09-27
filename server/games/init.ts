@@ -5,6 +5,7 @@ import { f1ServerAdapter } from "./f1-2025";
 import { accServerAdapter } from "./acc";
 import { acEvoServerAdapter } from "./ac-evo";
 import { iracingServerAdapter } from "./iracing";
+import { lmuServerAdapter } from "./lmu";
 import { releaseFeatureFlags, type ReleaseFeatureFlags } from "../../shared/platform/runtime/release-feature-flags";
 
 export function nativeTelemetryGameIds(
@@ -12,8 +13,11 @@ export function nativeTelemetryGameIds(
     RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
     RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
   }),
-): readonly ["acc", "ac-evo"] | readonly ["acc", "ac-evo", "iracing"] {
-  return flags.iracingAdapter ? ["acc", "ac-evo", "iracing"] : ["acc", "ac-evo"];
+) {
+  const gameIds = ["acc", "ac-evo"] as const;
+  return flags.iracingAdapter
+    ? [...gameIds, "iracing", "lmu"] as const
+    : [...gameIds, "lmu"] as const;
 }
 
 export function serverGameAdaptersForFeatures(
@@ -29,6 +33,7 @@ export function serverGameAdaptersForFeatures(
     acEvoServerAdapter,
   ];
   if (flags.iracingAdapter) adapters.push(iracingServerAdapter);
+  adapters.push(lmuServerAdapter);
   return adapters;
 }
 

@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import type { TuneIssue } from "@shared/racing/tuning/issues";
 import type { MutableRefObject, RefObject } from "react";
 import { pointForLiveTrackSample, type LiveTrackSample } from "./live-track-sample";
@@ -69,7 +70,7 @@ export function drawLiveTrack({
       ctx.fillStyle = "var(--app-text-dim)";
       ctx.font = "var(--text-app-label) var(--font-sans)";
       ctx.textAlign = "center";
-      ctx.fillText("Drive to map track...", w / 2, h / 2);
+      ctx.fillText(m.live_track_drive_to_map(), w / 2, h / 2);
     }
     return;
   }
@@ -405,7 +406,7 @@ export function drawLiveTrack({
     ctx.fillStyle = "var(--app-text-dim)";
     ctx.font = "var(--text-app-caption) var(--font-sans)";
     ctx.textAlign = "left";
-    ctx.fillText(`Mapping... ${displayOutline.length} pts`, 8, h - 8);
+    ctx.fillText(m.live_track_mapping({ count: displayOutline.length }), 8, h - 8);
   }
 
   // Live car position. Selection follows semantic availability, not simulator.
@@ -431,7 +432,7 @@ export function drawLiveTrack({
       ctx.fillStyle = "var(--app-text-dim)";
       ctx.font = "var(--text-app-caption) var(--font-sans)";
       ctx.textAlign = "center";
-      ctx.fillText("Waiting for track position...", w / 2, h - 8);
+      ctx.fillText(m.live_track_waiting_position(), w / 2, h - 8);
     }
   }
 }

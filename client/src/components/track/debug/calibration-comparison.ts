@@ -2,7 +2,7 @@ import type { InferResponseType } from "hono/client";
 import { client } from "@/lib/rpc";
 import type { Point } from "../types";
 
-type ComparisonRequest = typeof client.api["track-calibration"][":ordinal"]["comparison"]["$get"];
+type ComparisonRequest = (typeof client.api)["track-calibration"][":ordinal"]["comparison"]["$get"];
 
 export type CalibrationComparison = InferResponseType<ComparisonRequest, 200>;
 export type CalibrationTransform = NonNullable<CalibrationComparison["current"]>;

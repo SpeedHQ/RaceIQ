@@ -8,6 +8,7 @@ interface DropdownMenuItemBase {
   icon?: ReactNode;
   disabled?: boolean;
   title?: string;
+  className?: string;
 }
 
 export interface DropdownMenuActionItem extends DropdownMenuItemBase {
@@ -56,7 +57,13 @@ export function DropdownMenu({ trigger, items, align = "right" }: DropdownMenuPr
                     <span className="col-start-2">{item.label}</span>
                   </Menu.CheckboxItem>
                 ) : (
-                  <Menu.Item key={item.key} disabled={item.disabled} onClick={item.onClick} title={item.title} className={OVERLAY_ITEM_CLASS}>
+                  <Menu.Item
+                    key={item.key}
+                    disabled={item.disabled}
+                    onClick={item.onClick}
+                    title={item.title}
+                    className={`${OVERLAY_ITEM_CLASS} ${item.className ?? ""}`}
+                  >
                     {item.icon}
                     <span>{item.label}</span>
                   </Menu.Item>

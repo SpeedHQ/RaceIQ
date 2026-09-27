@@ -206,11 +206,7 @@ cd client
 bun run snapshot:test
 ```
 
-For canonical baseline generation, use pinned environment workflow/process rather than updating snapshots on an arbitrary host:
-
-```sh
-bun run snapshot:docker
-```
+Generated snapshot PNGs are gitignored. Pull-request CI renders the base and PR revisions on the same runner, compares those outputs directly, and publishes visual differences as review warnings.
 
 Snapshots cover reusable primitives and dashboard stories. They do not cover route data or native adapter semantics.
 

@@ -2,13 +2,24 @@ import { describe, test, expect, afterAll } from "bun:test";
 import { parseDump } from "../support/recordings/parse-dump";
 import { LapDetectorAcc } from "../../server/games/acc/lap-detector"
 import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline"
+import { initGameAdapters } from "../../shared/games/init";
 
-afterAll(() => stopMaintenanceTasks());
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 
-// Fake DB stub — v2 should only call insertLap / getTuneAssignment / insertSession
+afterAll(() => stopMaintenanceTasks());
+
+initGameAdapters();
+
+// Fake DB stub captures detector persistence without touching application data.
 function makeFakeDb() {
-  const inserted: Array<{ lapNumber: number; lapTime: number; valid: boolean; invalidReason: string | null }> = [];
+  const inserted: Array<{
+    lapNumber: number;
+    lapTime: number;
+    valid: boolean;
+    invalidReason: string | null;
+    rawByteOffset: number | null;
+    rawFrameCount: number;
+  }> = [];
   return {
     inserted,
     insertSession: async () => 1,
@@ -17,14 +28,21 @@ function makeFakeDb() {
       lapNumber: number,
       lapTime: number,
       valid: boolean,
-      _rawByteOffset: unknown,
-      _rawFrameCount: unknown,
+      rawByteOffset: number | null,
+      rawFrameCount: number,
       _profileId: unknown,
       _tuneId: unknown,
       invalidReason: string | null,
       _sectors: unknown
     ) => {
-      inserted.push({ lapNumber, lapTime, valid, invalidReason });
+      inserted.push({
+        lapNumber,
+        lapTime,
+        valid,
+        invalidReason,
+        rawByteOffset,
+        rawFrameCount,
+      });
       return inserted.length;
     },
     getTuneAssignment: async () => null,
@@ -79,6 +97,77 @@ describe("LapDetectorAc — reset detection", () => {
     expect(saved.length).toBe(1);
     expect(saved[0].lapNumber).toBe(1);
     expect(saved[0].lapTime).toBeCloseTo(90, 0);
+  });
+
+  test("drops a short pit timer prefix and aligns the recorded lap window", async () => {
+    const db = makeFakeDb();
+    const completed: TelemetryPacket[][] = [];
+    const detector = new LapDetectorAcc({
+      db,
+      callbacks: {
+        onLapComplete: (event) => completed.push(event.packets),
+      },
+    });
+
+    for (let second = 0; second <= 21; second++) {
+      await detector.feed(
+        packet({
+          LapNumber: 1,
+          CurrentLap: second,
+          DistanceTraveled: second / 2,
+          TimestampMS: second * 1_000,
+          acc: { pitStatus: "pit_lane" } as never,
+        }),
+        12 + second * 100,
+      );
+    }
+
+    const timedLapOffset = 2_212;
+    await detector.feed(
+      packet({
+        LapNumber: 1,
+        CurrentLap: 0.012,
+        DistanceTraveled: 10.9,
+        TimestampMS: 21_012,
+        acc: { pitStatus: "pit_lane" } as never,
+      }),
+      timedLapOffset,
+    );
+    for (let second = 1; second <= 90; second++) {
+      await detector.feed(
+        packet({
+          LapNumber: 1,
+          CurrentLap: second,
+          DistanceTraveled: 10.9 + second * 43,
+          TimestampMS: 21_012 + second * 1_000,
+          acc: { pitStatus: "out" } as never,
+        }),
+        timedLapOffset + second * 100,
+      );
+    }
+    await detector.feed(
+      packet({
+        LapNumber: 2,
+        CurrentLap: 0.1,
+        LastLap: 90,
+        DistanceTraveled: 3_900,
+        TimestampMS: 112_000,
+        acc: { pitStatus: "out" } as never,
+      }),
+      timedLapOffset + 9_100,
+    );
+
+    expect(db.inserted).toHaveLength(1);
+    expect(db.inserted[0]).toMatchObject({
+      lapNumber: 1,
+      lapTime: 90,
+      invalidReason: "outlap",
+      rawByteOffset: timedLapOffset,
+      rawFrameCount: 92,
+    });
+    expect(completed).toHaveLength(1);
+    expect(completed[0]![0]!.CurrentLap).toBe(0.012);
+    expect(completed[0]).toHaveLength(92);
   });
 
   test("fires onLapComplete with lap event when a lap is emitted", async () => {

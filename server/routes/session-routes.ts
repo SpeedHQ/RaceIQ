@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { GameIdQuerySchema, IdParamSchema } from "@shared/platform/http/route-schemas";
 import { GameIdSchema } from "../../shared/games/ids";
-import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions, getSessionRecapData } from "../db/session-queries";
+import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions, getSessionRecapData, setSessionFavorite } from "../db/session-queries";
 import { getSessionResult, getStaleRaceResultSessionIds } from "../db/session-result-queries";
 import { reprocessSession, SessionNotFoundError, SessionRawFileMissingError } from "../session-capture/reprocess";
 import { LAP_DETECTOR_ID } from "../lap-detection/detector";
@@ -16,8 +16,10 @@ import { computeRecap } from "../lap-analysis/recap";
 import { tryGetGame } from "../../shared/games/registry";
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
+import { getLMUCar, getLMUTrack } from "../../shared/games/lmu/catalog";
 import { backfillRaceResults, reconcileSessionResult, RACE_RESULT_PROCESSOR_ID } from "../race-results/reconcile";
 import { getRaceResultAggregate, getRecentRaceResults } from "../race-results/aggregates";
+import { recoverDeletedSessions } from "../telemetry/live-pipeline";
 
 const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID];
 
@@ -33,8 +35,14 @@ export const sessionRoutes = new Hono()
     const data = await getSessionRecapData(id, gameId);
     if (!data) return c.json({ error: "Session not found" }, 404);
     const adapter = tryGetGame(gameId);
-    const carName = adapter ? adapter.getCarName(data.session.carOrdinal) : resolveCarName(data.session.carOrdinal, gameId);
-    const trackName = adapter ? adapter.getTrackName(data.session.trackOrdinal) : resolveTrackName(data.session.trackOrdinal, gameId);
+    const carId = data.session.carId;
+    const trackId = data.session.trackId;
+    const carName = gameId === "lmu" && typeof carId === "string"
+      ? getLMUCar(carId)?.name ?? carId
+      : adapter ? adapter.getCarName(Number(carId)) : resolveCarName(Number(carId), gameId);
+    const trackName = gameId === "lmu" && typeof trackId === "string"
+      ? getLMUTrack(trackId)?.name ?? trackId
+      : adapter ? adapter.getTrackName(Number(trackId)) : resolveTrackName(Number(trackId), gameId);
     return c.json(computeRecap({ session: data.session, laps: data.laps, carName, trackName, trackLengthM: data.trackLengthM, allTimeBestSec: data.allTimeBestSec, allTimeBestSectors: data.allTimeBestSectors, sectorStarts: data.sectorStarts }));
   })
   .get("/api/sessions/:id/result", zValidator("param", IdParamSchema), zValidator("query", GameIdQuerySchema), async (c) => {
@@ -69,12 +77,24 @@ export const sessionRoutes = new Hono()
     if (!failed) wsManager.setStaleRaceResultsNotification(null);
     return c.json({ reprocessed: results.filter((result) => result.status !== "error").length, results });
   })
-  .get("/api/race-results/summary", zValidator("query", z.object({ gameId: GameIdSchema, carOrdinal: z.coerce.number().int().optional(), trackOrdinal: z.coerce.number().int().optional() })), async (c) => c.json(await getRaceResultAggregate(c.req.valid("query"))))
+  .get("/api/race-results/summary", zValidator("query", z.object({
+    gameId: GameIdSchema,
+    carOrdinal: z.coerce.number().int().optional(),
+    trackOrdinal: z.coerce.number().int().optional(),
+    carId: z.string().min(1).optional(),
+    trackId: z.string().min(1).optional(),
+  })), async (c) => c.json(await getRaceResultAggregate(c.req.valid("query"))))
   .get("/api/race-results/recent", zValidator("query", z.object({ gameId: GameIdSchema, limit: z.coerce.number().int().min(1).max(50).default(10) })), async (c) => c.json(await getRecentRaceResults(c.req.valid("query").gameId, c.req.valid("query").limit)))
   .patch("/api/sessions/:id/notes", zValidator("param", IdParamSchema), zValidator("json", z.object({ notes: z.string().nullable() })), async (c) => {
     const { id } = c.req.valid("param");
     await updateSession(id, { notes: c.req.valid("json").notes });
     return c.json({ ok: true });
+  })
+  .patch("/api/sessions/:id/favorite", zValidator("param", IdParamSchema), zValidator("json", z.object({ favorite: z.boolean() }).strict()), async (c) => {
+    const { id } = c.req.valid("param");
+    const { favorite } = c.req.valid("json");
+    if (!await setSessionFavorite(id, favorite)) return c.json({ error: "Session not found" }, 404);
+    return c.json({ ok: true, sessionId: id, favorite });
   })
   .post("/api/sessions/:id/reprocess", zValidator("param", IdParamSchema), async (c) => {
     const { id } = c.req.valid("param");
@@ -120,6 +140,7 @@ export const sessionRoutes = new Hono()
   })
   .post("/api/sessions/bulk-delete", zValidator("json", z.object({ ids: z.array(z.number().int()) })), async (c) => {
     const { ids } = c.req.valid("json");
+    await recoverDeletedSessions(ids);
     let lapCount = 0;
     for (const sessionId of ids) lapCount += await deleteSession(sessionId);
     return c.json({ deleted: lapCount, sessions: ids.length });

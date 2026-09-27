@@ -37,7 +37,7 @@ export const driverRoutes = new Hono()
     if (!parsedGame.success) return c.json({ error: "Missing or unknown X-Game-Id header" }, 400);
 
     const scope: Scope = { gameId: parsedGame.data };
-    const fingerprint = await loadDriverProfile(scope);
+    const fingerprint = await loadDriverProfile({ ...scope, computeMissingInsights: true });
     const { gameName } = resolveDriverProfileScopeNames(scope);
     return c.json({ fingerprint, gameName });
   })

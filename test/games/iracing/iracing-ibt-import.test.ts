@@ -91,8 +91,8 @@ describe("IRacingIbt import workflow", () => {
         expect(imported.laps).toHaveLength(1);
         expect(imported.laps[0]).toMatchObject({
           lapNumber: 2,
-          carOrdinal: importedIdentity.carId,
-          trackOrdinal: importedIdentity.trackId,
+          carId: importedIdentity.carId,
+          trackId: importedIdentity.trackId,
         });
         expect(
           await getDiscoveredCarName("iracing", importedIdentity.carId),

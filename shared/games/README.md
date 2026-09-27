@@ -27,11 +27,13 @@ Single source for game adapters, identity boundaries, and telemetry capabilities
   - `getFuelAmount`
   - `getFuelDisplay`
   - `getTireTemperatureSourceUnit`
-- per-game adapters under `fm-2023/`, `f1-2025/`, `acc/`, `ac-evo/`, `iracing/`
+- per-game adapters under `fm-2023/`, `f1-2025/`, `acc/`, `ac-evo/`, `iracing/`, `lmu/`
   - each exports a `...Adapter`
 - `iracing/`
   - `index.ts` identity setter bridge: `rememberIRacingIdentity`, `injectDiscoveredIRacingIdentity`
   - `session-info/*` catalog, normalization contracts, and setup field definitions
+- `lmu/`
+  - `index.ts` deterministic string identity bridge for LMU car and track names
 
 ## Browser vs Node boundary
 - Adapter objects and registry are browser-safe.

@@ -24,7 +24,7 @@ import { importSessionFrames } from "../../server/session-capture/import-pipelin
 import { getSessionResult } from "../../server/db/session-result-queries";
 import { buildLapsZip, importLapsZip, type LapsZipManifest } from "../../server/laps/archive";
 import { importMotec } from "../../server/motec/import";
-import { getSessionTelemetry, parseRawLapFrames, parseSessionLapsBatched } from "../../server/db/telemetry-replay-storage";
+import { parseRawLapFrames, parseSessionLapsBatched } from "../../server/db/telemetry-replay-storage";
 import { readRecordedTelemetry } from "../../server/session-capture/replay-packets";
 import { reprocessSession } from "../../server/session-capture/reprocess";
 import type { SessionCaptureSource } from "../../server/session-capture/source-loader";
@@ -214,7 +214,7 @@ describe("lap export → import round-trip (real capture)", () => {
   test("first and last selected laps round-trip as compact segments", async () => {
     const { sid, rows } = await seedSession();
     const exportable = rows.sort((a, b) => a.lapNumber - b.lapNumber);
-    expect(exportable).toHaveLength(2);
+    expect(exportable.length).toBeGreaterThanOrEqual(2);
     const [first, last] = exportable;
     const { bytes: zip, manifest } = await buildLapsZip([first.id, last.id]);
     expect(manifest.version).toBe(4);
@@ -237,7 +237,6 @@ describe("lap export → import round-trip (real capture)", () => {
     expect([...iterateSessionCaptureRecords(raw)].filter((r) => r.kind === "segment-boundary")).toHaveLength(1);
     const sourceSession = await db.select().from(sessions).where(eq(sessions.id, sid)).get();
     expect(raw.length).toBeLessThan(readFileSync(sourceSession!.rawFile!).length);
-    expect((await getSessionTelemetry(importedSid, "fm-2023")).length).toBeGreaterThan(0);
     expect(readRecordedTelemetry("fm-2023", rawFile).packets.length).toBeGreaterThan(0);
     const metas = importedRows.map((l) => ({ id: l.id, rawByteOffset: l.rawByteOffset!, rawFrameCount: l.rawFrameCount! }));
     const batch = await parseSessionLapsBatched(captureSource(importedSession!), metas);

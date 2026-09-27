@@ -2,7 +2,7 @@ import type { LapMeta, SessionMeta, SessionRecap } from "@shared/racing/sessions
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
-import { type ComponentType, type ReactNode, useEffect, useState } from "react";
+import { type ComponentType, useState } from "react";
 import { HomePageContainer } from "@/components/home/HomePageContainer";
 import type { DriverProfileRun } from "@/hooks/driver-profile";
 import { DEFAULT_DISPLAY_SETTINGS } from "@/stores/telemetry";
@@ -64,6 +64,16 @@ const sessions: SessionMeta[] = [
     createdAt: "2026-07-28T18:45:00.000Z",
     lapCount: laps.length,
     bestLapTime: 95.844,
+    sessionType: "Practice",
+    gameId: GAME_ID,
+  },
+  {
+    id: 9000,
+    carOrdinal: 201,
+    trackOrdinal: TRACK_ORDINAL,
+    createdAt: "2026-07-26T18:30:00.000Z",
+    lapCount: 0,
+    bestLapTime: 0,
     sessionType: "Practice",
     gameId: GAME_ID,
   },
@@ -210,53 +220,18 @@ function createQueryClient() {
     ["acc", 52, 5_086],
     ["ac-evo", 31, 3_042],
     ["iracing", 18, 1_764],
+    ["lmu", 0, 0],
   ] as const)
     queryClient.setQueryData(["stats", gameId], { totalLaps, totalTimeSec });
+  queryClient.setQueryData(["car-name", 201, GAME_ID], "2023 Cadillac V-Series.R");
+  queryClient.setQueryData(["track-name", TRACK_ORDINAL, GAME_ID], "Hakone Club");
+  queryClient.setQueryData(["track-outline", TRACK_ORDINAL, GAME_ID], { points: HAKONE_CLUB_OUTLINE, source: "storybook", startYaw: null, flipX: false });
+  const sectorBoundaries = { s1End: 1 / 3, s2End: 2 / 3, trackLength: HAKONE_CLUB_TRACK_LENGTH };
+  queryClient.setQueryData(["track-sector-boundaries", TRACK_ORDINAL, GAME_ID], sectorBoundaries);
+  queryClient.setQueryData(["track-sector-boundaries", 42, GAME_ID], sectorBoundaries);
   return queryClient;
 }
 
-const originalFetch = window.fetch.bind(window);
-const carNames: Record<string, string> = { "201": "2023 Cadillac V-Series.R" };
-const trackNames: Record<string, string> = { [TRACK_ORDINAL]: "Hakone Club" };
-
-function jsonResponse(body: unknown): Promise<Response> {
-  return Promise.resolve(
-    new Response(JSON.stringify(body), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    }),
-  );
-}
-
-function mockHomeFetch(input: RequestInfo | URL, init: RequestInit | undefined, fallbackFetch: typeof window.fetch = originalFetch): Promise<Response> {
-  const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-  const parsedUrl = new URL(url, window.location.origin);
-  const carMatch = parsedUrl.pathname.match(/\/api\/car-name\/(\d+)/);
-  if (carMatch) return Promise.resolve(new Response(carNames[carMatch[1]] ?? "Unknown car", { status: 200 }));
-  const trackMatch = parsedUrl.pathname.match(/\/api\/track-name\/(\d+)/);
-  if (trackMatch) return Promise.resolve(new Response(trackNames[trackMatch[1]] ?? "Unknown track", { status: 200 }));
-  if (parsedUrl.searchParams.get("gameId") === GAME_ID) {
-    if (parsedUrl.pathname === `/api/track-outline/${TRACK_ORDINAL}`) {
-      return jsonResponse({ points: HAKONE_CLUB_OUTLINE, source: "storybook", startYaw: null, flipX: false });
-    }
-    if (parsedUrl.pathname === `/api/track-sector-boundaries/${TRACK_ORDINAL}` || parsedUrl.pathname === "/api/track-sector-boundaries/42") {
-      return jsonResponse({ s1End: 1 / 3, s2End: 2 / 3, trackLength: HAKONE_CLUB_TRACK_LENGTH });
-    }
-  }
-  return fallbackFetch(input, init);
-}
-
-/** Installs deterministic API fixtures used by HomePageContainer. */
-function MockHomeApi({ children }: { children: ReactNode }) {
-  useEffect(() => {
-    const previousFetch = window.fetch;
-    window.fetch = (input, init) => mockHomeFetch(input, init, previousFetch);
-    return () => {
-      window.fetch = previousFetch;
-    };
-  }, []);
-  return children;
-}
 
 function StoryProviders({ Story }: { Story: ComponentType }) {
   const [queryClient] = useState(createQueryClient);
@@ -266,11 +241,9 @@ function StoryProviders({ Story }: { Story: ComponentType }) {
   });
   return (
     <GameStoryScope gameId={GAME_ID}>
-      <MockHomeApi>
-        <QueryClientProvider client={queryClient}>
-          <RouterProvider router={router} />
-        </QueryClientProvider>
-      </MockHomeApi>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
     </GameStoryScope>
   );
 }
@@ -289,5 +262,5 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** The actual per-game home surface with deterministic profile, activity, stats, laps, and session fixtures. */
+/** Per-game home surface with deterministic profile, activity, stats, sessions, and recap fixtures. */
 export const PerGame: Story = {};

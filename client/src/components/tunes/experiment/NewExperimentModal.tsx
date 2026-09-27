@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@shared/racing/experiments/focus";
 import { AccSetupJsonSchema, setupFileFormat, setupFileRejectReason } from "@shared/racing/setups/file-formats";
 import { type DragEvent, useMemo, useRef, useState } from "react";
@@ -145,12 +146,12 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
         // leaving the field blank and looking broken.
         carSetupNote =
           info.carModel == null
-            ? "This .carsetup doesn't contain a car id — pick the car folder yourself."
+            ? m.experiment_dropped_car_missing()
             : info.knownCar
               ? null
-              : `Car read from the file as "${info.carModel}" — not in our car list, so double-check the folder.`;
+              : m.experiment_dropped_car_unknown({ car: info.carModel });
       } catch (err: any) {
-        setNotice({ tone: "error", text: err?.message ?? "Couldn't read that .carsetup file." });
+        setNotice({ tone: "error", text: err?.message ?? m.experiment_setup_read_error() });
         return;
       }
     } else {
@@ -158,7 +159,7 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
       try {
         raw = JSON.parse(await file.text());
       } catch {
-        setNotice({ tone: "error", text: "Couldn't read that file as JSON." });
+        setNotice({ tone: "error", text: m.experiment_json_read_error() });
         return;
       }
       // Shape gate — a .json that isn't a setup (a lap export, a tune catalog
@@ -166,7 +167,7 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
       // purpose: only the keys every Kunos setup has.
       const check = AccSetupJsonSchema.safeParse(raw);
       if (!check.success) {
-        setNotice({ tone: "error", text: "That .json doesn't look like a saved setup — it needs a carName and basicSetup." });
+        setNotice({ tone: "error", text: m.experiment_json_invalid() });
         return;
       }
       parsed = check.data;
@@ -237,7 +238,7 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
       setDropStatus(r.placed ? "placed" : "existing");
       setNotice(null);
     } catch (err: any) {
-      setError(err?.message ?? "Couldn't place the setup");
+      setError(err?.message ?? m.experiment_place_error());
     }
   };
 
@@ -256,7 +257,7 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
       });
       onCreated(s.id);
     } catch (err: any) {
-      setError(err?.message ?? "Could not create experiment");
+      setError(err?.message ?? m.experiment_create_error());
     }
   };
 
@@ -264,7 +265,7 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent size="lg" layout="scrollable" className="flex w-[680px] max-w-[94vw] flex-col">
         <DialogHeader className="min-w-0 pr-8">
-          <DialogTitle className="truncate text-sm font-semibold">New experiment</DialogTitle>
+          <DialogTitle className="truncate text-sm font-semibold">{m.experiment_new_title()}</DialogTitle>
         </DialogHeader>
         {/* What this experiment starts on. Presented as a starting mode rather
             than a type, because it is switchable from the workspace at any
@@ -299,12 +300,12 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
         >
           {pendingDrop ? (
             <>
-              Drop another <span className="font-mono">{setupFileFormat(gameId).extension}</span> to replace it
+              {m.experiment_drop_replace({ extension: setupFileFormat(gameId).extension })}
             </>
           ) : (
             <>
-              Drag a saved <span className="font-mono">{setupFileFormat(gameId).extension}</span> setup here, or click to browse
-              <br />— pins car + track. Or pick them below.
+              {m.experiment_drop_setup({ extension: setupFileFormat(gameId).extension })}
+              <br />{m.experiment_drop_setup_hint()}
             </>
           )}
         </Button>
@@ -339,16 +340,16 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
                   </span>
                   {dropStatus && (
                     <Badge variant={dropStatus === "placed" ? "success" : "neutral"} size="compact">
-                      {dropStatus === "placed" ? "Copied to Setups" : dropStatus === "existing" ? "Already saved there" : "Found in Setups"}
+                      {dropStatus === "placed" ? m.experiment_copied_to_setups() : dropStatus === "existing" ? m.experiment_already_saved() : m.experiment_found_in_setups()}
                     </Badge>
                   )}
                 </div>
                 <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-app-compact text-app-text-dim">
                   <span>
-                    Car <span className="text-app-text">{allPlaceCars.find((c) => c.value === car)?.label ?? car ?? "—"}</span>
+                    {m.label_car()} <span className="text-app-text">{allPlaceCars.find((c) => c.value === car)?.label ?? car ?? "—"}</span>
                   </span>
                   <span>
-                    Track <span className="text-app-text">{allTracks.find((t) => t.value === track)?.label ?? track ?? "—"}</span>
+                    {m.label_track()} <span className="text-app-text">{allTracks.find((t) => t.value === track)?.label ?? track ?? "—"}</span>
                   </span>
                 </div>
               </div>
@@ -362,10 +363,9 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
                     setNotice(null);
                   }}
                 >
-                  Copy to another track
+                  {m.experiment_copy_another_track()}
                 </Button>
-                <Button variant="app-ghost" size="icon-xs" onClick={clearDrop} aria-label="Remove this setup" title="Remove this setup">
-                  ×
+                <Button variant="app-ghost" size="icon-xs" onClick={clearDrop} aria-label={m.experiment_remove_setup()} title={m.experiment_remove_setup()}>
                 </Button>
               </div>
             </div>
@@ -382,11 +382,11 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
                 in your Setups folder yet" in the second case is simply false. */}
             <div className="break-words text-app-compact text-app-text">
               <span className="break-all font-mono">{pendingDrop.fileName}</span>{" "}
-              {dropStatus == null ? "isn't in your Setups folder yet — add it and pick its track:" : "will be copied into the track folder you pick — the existing copy stays where it is:"}
+              {dropStatus == null ? m.experiment_setup_not_in_folder() : m.experiment_setup_copy_notice()}
             </div>
             <div className="flex flex-wrap items-end gap-2">
               <div className="flex flex-col gap-1">
-                <span className="text-app-caption text-app-text-muted uppercase tracking-wider">Car folder</span>
+                <span className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.experiment_car_folder()}</span>
                 {/* A picker, not free text: when the file names its own car
                     this is already selected, but a .carsetup saved without a
                     preset id carries no car at all — and nobody should have to
@@ -396,30 +396,30 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
                     value={placeCar}
                     onChange={setPlaceCar}
                     options={allPlaceCars}
-                    placeholder={allPlaceCars.length ? "Search cars…" : "No cars found"}
+                    placeholder={allPlaceCars.length ? m.experiment_search_cars() : m.experiment_no_cars()}
                     disabled={allPlaceCars.length === 0}
                     focusColor="purple-500"
                   />
                 </div>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="text-app-caption text-app-text-muted uppercase tracking-wider">Track</span>
+                <span className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.label_track()}</span>
                 <div className="w-[180px]">
                   <SearchSelect
                     value={placeTrack}
                     onChange={setPlaceTrack}
                     options={allTracks}
-                    placeholder={allTracks.length ? "Search tracks…" : "No track folders yet"}
+                    placeholder={allTracks.length ? m.experiment_search_tracks() : m.experiment_no_track_folders()}
                     disabled={allTracks.length === 0}
                     focusColor="purple-500"
                   />
                 </div>
               </div>
               <Button variant="app-primary" size="app-md" onClick={doPlace} disabled={place.isPending || !placeCar.trim() || !placeTrack.trim()}>
-                {place.isPending ? "Placing…" : "Add to Setups & use"}
+                {place.isPending ? m.experiment_placing() : m.experiment_add_to_setups()}
               </Button>
               <Button variant="app-ghost" size="app-sm" onClick={() => setPlacing(false)}>
-                Cancel
+                {m.common_cancel()}
               </Button>
             </div>
           </div>
@@ -428,7 +428,7 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
         {/* A driving experiment still needs car + track (an experiment is always
             one car at one circuit) but the setup file is optional there. */}
         {focus === "driver" && (
-          <p className="-mb-2 text-app-compact text-app-text-dim">Pick the car and track you're driving. A base setup is optional for driving work — leave it blank to just log drills.</p>
+          <p className="-mb-2 text-app-compact text-app-text-dim">{m.experiment_driver_focus_note()}</p>
         )}
 
         {/* Cascading searchable pickers */}
@@ -443,14 +443,8 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
         />
 
         <label className="flex flex-col gap-1">
-          <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Session name</span>
-          <AppInput
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={car && track ? `${car} @ ${track}` : "Session name"}
-            maxLength={120}
-            className="text-xs"
-          />
+          <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{m.experiment_session_name()}</span>
+          <AppInput value={name} onChange={(e) => setName(e.target.value)} placeholder={car && track ? `${car} @ ${track}` : m.experiment_session_name()} maxLength={120} className="text-xs" />
         </label>
 
         {/* Only when the pick came from the dropdowns — the dropped-file card
@@ -458,22 +452,22 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
             what made this modal read as a pile of status lines. */}
         {car && track && baseSetupPath && !pendingDrop && (
           <div className="text-app-compact text-app-text-dim">
-            Pinned to <span className="text-app-text font-medium">{car}</span> · <span className="text-app-text font-medium">{track}</span> — each session is one car + track.
+            {m.experiment_pinned_to()} <span className="text-app-text font-medium">{car}</span> · <span className="text-app-text font-medium">{track}</span> — {m.experiment_one_car_track()}
           </div>
         )}
         {noFiles && (
           <div className="text-app-compact text-status-warning">
-            No saved setups found. In-game, open <span className="font-mono">Setup → Save</span> (even the default) so it appears here.
+            {m.experiment_no_saved_setups()} <span className="font-mono">Setup → Save</span> {m.experiment_save_setup_hint()}
           </div>
         )}
         {error && <div className="text-xs text-status-danger">{error}</div>}
 
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="app-outline" size="app-md" onClick={onClose}>
-            Cancel
+            {m.common_cancel()}
           </Button>
-          <Button variant="app-primary" size="app-md" onClick={submit} disabled={create.isPending || !canCreate} title={!canCreate ? "Pick car, track, and a base setup" : undefined}>
-            {create.isPending ? "Creating…" : "Create session"}
+          <Button variant="app-primary" size="app-md" onClick={submit} disabled={create.isPending || !canCreate} title={!canCreate ? m.experiment_pick_base_setup() : undefined}>
+            {create.isPending ? m.experiment_creating() : m.experiment_create_session()}
           </Button>
         </div>
       </DialogContent>

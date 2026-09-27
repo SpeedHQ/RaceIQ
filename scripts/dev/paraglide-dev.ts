@@ -1,5 +1,5 @@
 import { watch, type FSWatcher } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { computeParaglideInputHash, type ParaglideHashInput } from "./paraglide-cache";
 
@@ -7,7 +7,8 @@ const ROOT = resolve(import.meta.dir, "../..");
 const CLIENT = resolve(ROOT, "client");
 const MESSAGES_DIR = resolve(CLIENT, "messages");
 const SETTINGS_PATH = resolve(CLIENT, "project.inlang/settings.json");
-const CACHE_PATH = resolve(CLIENT, "project.inlang/.cache/raceiq-paraglide-dev.json");
+const CACHE_DIR = resolve(CLIENT, "project.inlang/.cache");
+const CACHE_PATH = resolve(CACHE_DIR, "raceiq-paraglide-dev.json");
 const OUTDIR = resolve(CLIENT, "src/paraglide");
 const OUTPUT_MARKERS = ["messages.js", "runtime.js", "server.js", "messages/en.js", "messages/de.js"];
 const COMPILER_FINGERPRINT = "paraglide-dev-v1|locale-modules|localStorage,baseLocale|no-declarations";
@@ -44,27 +45,53 @@ async function isFresh(hash: string): Promise<boolean> {
   }
 }
 
+async function syncGeneratedFiles(sourceDir: string, destinationDir: string): Promise<void> {
+  await mkdir(destinationDir, { recursive: true });
+  for (const entry of await readdir(sourceDir, { withFileTypes: true })) {
+    const sourcePath = resolve(sourceDir, entry.name);
+    const destinationPath = resolve(destinationDir, entry.name);
+    if (entry.isDirectory()) {
+      await syncGeneratedFiles(sourcePath, destinationPath);
+      continue;
+    }
+    if (!entry.isFile()) continue;
+
+    const sourceBytes = await Bun.file(sourcePath).arrayBuffer();
+    if (await Bun.file(destinationPath).exists()) {
+      const destinationBytes = await Bun.file(destinationPath).arrayBuffer();
+      if (Buffer.from(sourceBytes).equals(Buffer.from(destinationBytes))) continue;
+    }
+    await Bun.write(destinationPath, sourceBytes);
+  }
+}
+
 async function compile(hash: string): Promise<void> {
   console.log("[Paraglide] Compiling translation messages...");
-  const child = Bun.spawn([
-    "bunx",
-    "paraglide-js",
-    "compile",
-    "--project",
-    "./project.inlang",
-    "--outdir",
-    "./src/paraglide",
-    "--output-structure",
-    "locale-modules",
-    "--strategy",
-    "localStorage",
-    "baseLocale",
-    "--no-emit-ts-declarations",
-  ], { cwd: CLIENT, stdin: "ignore", stdout: "inherit", stderr: "inherit" });
-  const exitCode = await child.exited;
-  if (exitCode !== 0) throw new Error(`Paraglide compile failed (${exitCode})`);
-  await mkdir(resolve(CLIENT, "project.inlang/.cache"), { recursive: true });
-  await writeFile(CACHE_PATH, JSON.stringify({ hash }, null, 2) + "\n");
+  await mkdir(CACHE_DIR, { recursive: true });
+  const stagedOutdir = await mkdtemp(resolve(CACHE_DIR, "paraglide-output-"));
+  try {
+    const child = Bun.spawn([
+      "bunx",
+      "paraglide-js",
+      "compile",
+      "--project",
+      "./project.inlang",
+      "--outdir",
+      stagedOutdir,
+      "--output-structure",
+      "locale-modules",
+      "--strategy",
+      "localStorage",
+      "baseLocale",
+      "--no-emit-ts-declarations",
+    ], { cwd: CLIENT, stdin: "ignore", stdout: "inherit", stderr: "inherit" });
+    const exitCode = await child.exited;
+    if (exitCode !== 0) throw new Error(`Paraglide compile failed (${exitCode})`);
+    await syncGeneratedFiles(stagedOutdir, OUTDIR);
+    await writeFile(CACHE_PATH, JSON.stringify({ hash }, null, 2) + "\n");
+  } finally {
+    await rm(stagedOutdir, { recursive: true, force: true });
+  }
 }
 
 async function ensureCompiled(): Promise<void> {

@@ -1,168 +1,118 @@
 import { useMemo } from "react";
 import { SetupRangeBar } from "@/components/SetupRangeBar";
 import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
-import { type LapTrace, sampleAt } from "../../../lib/stint-traces";
-import { SpeedRangeLegend } from "./SpeedRangeLegend";
+import { type LapTrace, consistencyAt, sampleAt } from "../../../lib/stint-traces";
 
 interface SectorLedgerProps {
   traces: LapTrace[];
-  bestLapId: number | null;
-  /** Boundary lap-fractions between sectors (e.g. [s1End, s2End] for 3
-   *  sectors), same source as the track map's sector-colored segments.
-   *  Empty/invalid falls back to even thirds. */
+  primaryLapId: number | null;
   sectorBoundaryFracs: number[];
   cursorFrac: number | null;
   onCursorFrac: (f: number | null) => void;
 }
-
-interface SectorDef {
+interface Sector {
   index: number;
   label: string;
-  startFrac: number;
-  endFrac: number;
-  midFrac: number;
+  start: number;
+  end: number;
+  mid: number;
 }
-
-interface LedgerRow {
-  sector: SectorDef;
-  bestTimeS: number | null;
-  minSpeedBest: number | null;
-  topSpeedBest: number | null;
-  medianSpeedBest: number | null;
-  deltaWorst: number | null;
-  dtLoss: number | null;
+interface SectorRow {
+  sector: Sector;
+  bestTime: number | null;
+  minSpeed: number | null;
+  medianSpeed: number | null;
+  topSpeed: number | null;
+  delta: number | null;
+  brake: number | null;
+  throttle: number | null;
+  combined: number | null;
 }
-
-function sectorDefs(boundaryFracs: number[]): SectorDef[] {
-  const sorted = [...boundaryFracs].filter((f) => f > 0 && f < 1).sort((a, b) => a - b);
-  const bounds = sorted.length > 0 ? [0, ...sorted, 1] : [0, 1 / 3, 2 / 3, 1];
-  const defs: SectorDef[] = [];
-  for (let i = 0; i < bounds.length - 1; i++) {
-    const startFrac = bounds[i];
-    const endFrac = bounds[i + 1];
-    defs.push({ index: i, label: `S${i + 1}`, startFrac, endFrac, midFrac: (startFrac + endFrac) / 2 });
-  }
-  return defs;
+function sectors(boundaries: number[]): Sector[] {
+  const points = [...boundaries].filter((f) => f > 0 && f < 1).sort((a, b) => a - b);
+  const bounds = points.length ? [0, ...points, 1] : [0, 1 / 3, 2 / 3, 1];
+  return bounds.slice(0, -1).map((start, index) => ({ index, label: `S${index + 1}`, start, end: bounds[index + 1]!, mid: (start + bounds[index + 1]!) / 2 }));
 }
-
-/** Duration (s) of a trace between two lap-fractions, via interpolated timeS. */
-function sectorDuration(trace: LapTrace, startFrac: number, endFrac: number): number {
-  return sampleAt(trace, "timeS", endFrac) - sampleAt(trace, "timeS", startFrac);
+function speedStats(trace: LapTrace, sector: Sector): [number | null, number | null, number | null] {
+  const values = Array.from({ length: trace.n }, (_, index) => (trace.frac[index] >= sector.start && trace.frac[index] <= sector.end ? trace.speedKmh[index] : Number.NaN))
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b);
+  if (!values.length) return [null, null, null];
+  const middle = Math.floor(values.length / 2);
+  return [values[0]!, values.length % 2 ? values[middle]! : (values[middle - 1]! + values[middle]!) / 2, values.at(-1)!];
 }
-
-/** Min + top + median speed for a trace between two lap-fractions. */
-function speedStats(trace: LapTrace, startFrac: number, endFrac: number): { min: number | null; top: number | null; median: number | null } {
-  const vals: number[] = [];
-  for (let i = 0; i < trace.n; i++) {
-    const f = trace.frac[i];
-    if (f >= startFrac && f <= endFrac) vals.push(trace.speedKmh[i]);
-  }
-  if (vals.length === 0) return { min: null, top: null, median: null };
-  vals.sort((a, b) => a - b);
-  const mid = Math.floor(vals.length / 2);
-  return {
-    min: vals[0],
-    top: vals[vals.length - 1],
-    median: vals.length % 2 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2,
-  };
+function consistency(traces: LapTrace[], sector: Sector, channel: "brake" | "throttle"): number | null {
+  if (traces.length < 2) return null;
+  const values = [1, 2, 3, 4]
+    .map((step) => consistencyAt(traces, sector.start + ((sector.end - sector.start) * step) / 5, channel))
+    .filter((value): value is number => value != null && Number.isFinite(value));
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 }
-
-function buildRows(traces: LapTrace[], bestLapId: number | null, sectors: SectorDef[]): LedgerRow[] {
-  if (traces.length === 0 || sectors.length === 0) return [];
-  const bestTrace = traces.find((t) => t.lapId === bestLapId) ?? traces[0];
-  const others = traces.filter((t) => t.lapId !== bestTrace.lapId && t.isValid);
-
-  return sectors.map((sector) => {
-    const bestTimeS = sectorDuration(bestTrace, sector.startFrac, sector.endFrac);
-
-    let worstDt = Number.NEGATIVE_INFINITY;
-    for (const t of others) {
-      const dt = sectorDuration(t, sector.startFrac, sector.endFrac) - bestTimeS;
-      if (dt > worstDt) worstDt = dt;
-    }
-    const dtLoss = Number.isFinite(worstDt) ? worstDt : null;
-    const deltaWorst = dtLoss;
-
-    const { min: minSpeedBest, top: topSpeedBest, median: medianSpeedBest } = speedStats(bestTrace, sector.startFrac, sector.endFrac);
-
-    return { sector, bestTimeS, minSpeedBest, topSpeedBest, medianSpeedBest, deltaWorst, dtLoss };
-  });
-}
-
-function deltaColor(dv: number | null): string {
-  if (dv == null) return "text-app-text-dim";
-  if (dv > 0.3) return "text-(--severity-critical)";
-  if (dv > 0.1) return "text-(--severity-caution)";
+function deltaColor(value: number | null): string {
+  if (value == null) return "text-app-text-dim";
+  if (value > 0.3) return "text-(--severity-critical)";
+  if (value > 0.1) return "text-(--severity-caution)";
   return "text-(--severity-nominal)";
 }
-
-/**
- * Sector-by-sector ledger: same visual language and interaction model as
- * `CornerLedger` (left-aligned, full-width table, integrated time-loss bar,
- * inputs sparkline last column) but rows are the track's source-defined sectors
- * rather than individual corners. Sector boundaries are derived from the
- * focus lap's `SectorTimesLite` indices upstream (see `TrackFocusView`).
- */
-export function SectorLedger({ traces, bestLapId, sectorBoundaryFracs, cursorFrac, onCursorFrac }: SectorLedgerProps) {
-  const sectors = useMemo(() => sectorDefs(sectorBoundaryFracs), [sectorBoundaryFracs]);
-  const rows = useMemo(() => buildRows(traces, bestLapId, sectors), [traces, bestLapId, sectors]);
-  if (sectors.length === 0 || traces.length === 0) {
-    return <div className="text-app-text-dim text-sm">No sector data available for this track.</div>;
-  }
-
+export function SectorLedger({ traces, primaryLapId, sectorBoundaryFracs, cursorFrac, onCursorFrac }: SectorLedgerProps) {
+  const defs = useMemo(() => sectors(sectorBoundaryFracs), [sectorBoundaryFracs]);
+  const best = traces.find((trace) => trace.lapId === primaryLapId) ?? traces[0];
+  const rows = useMemo<SectorRow[]>(() => {
+    if (!best) return [];
+    return defs.map((sector) => {
+      const bestTime = sampleAt(best, "timeS", sector.end) - sampleAt(best, "timeS", sector.start);
+      const deltas = traces.filter((trace) => trace.lapId !== best.lapId).map((trace) => sampleAt(trace, "timeS", sector.end) - sampleAt(trace, "timeS", sector.start) - bestTime);
+      const delta = deltas.length ? Math.max(...deltas) : null;
+      const [minSpeed, medianSpeed, topSpeed] = speedStats(best, sector);
+      const brake = consistency(traces, sector, "brake");
+      const throttle = consistency(traces, sector, "throttle");
+      const available = [brake, throttle].filter((value): value is number => value != null);
+      return { sector, bestTime, minSpeed, medianSpeed, topSpeed, delta, brake, throttle, combined: available.length ? available.reduce((sum, value) => sum + value, 0) / available.length : null };
+    });
+  }, [best, defs, traces]);
+  if (!best || !rows.length) return <div className="text-app-text-dim text-sm">No sector data available for this track.</div>;
   return (
     <div className="space-y-2">
       <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Sector Ledger</div>
       <div className="rounded border border-app-border overflow-x-auto">
         <Table density="compact" fit>
           <THead>
-            {["Sector", "Best time", "Speed range", "Δ worst"].map((h) => (
-              <TH key={h} nowrap>
-                {h}
+            {["Sector", "Primary time", "Speed range", "Δ worst", "Brake consistency", "Throttle consistency", "Consistency"].map((header) => (
+              <TH key={header} nowrap>
+                {header}
               </TH>
             ))}
           </THead>
           <TBody>
-            {rows.map((r) => {
-              const isActive = cursorFrac != null && cursorFrac >= r.sector.startFrac && cursorFrac <= r.sector.endFrac;
-              return (
-                <TRow key={r.sector.index} onClick={() => onCursorFrac(r.sector.midFrac)} selected={isActive}>
-                  <TD nowrap emphasis tone="primary">
-                    {r.sector.label}
-                  </TD>
-                  <TD numeric tone="primary">
-                    {r.bestTimeS != null ? `${r.bestTimeS.toFixed(3)}s` : "—"}
-                  </TD>
-                  <TD
-                    title={
-                      r.minSpeedBest != null && r.medianSpeedBest != null && r.topSpeedBest != null
-                        ? `min ${r.minSpeedBest.toFixed(0)} · median ${r.medianSpeedBest.toFixed(0)} · max ${r.topSpeedBest.toFixed(0)} km/h`
-                        : undefined
-                    }
-                  >
-                    {r.minSpeedBest != null && r.medianSpeedBest != null && r.topSpeedBest != null ? (
-                      <div className="flex items-center gap-2">
-                        <span className="w-8 text-right font-mono tabular-nums text-app-caption text-app-text-dim shrink-0">{r.minSpeedBest.toFixed(0)}</span>
-                        <div className="w-32 shrink-0">
-                          <SetupRangeBar min={r.minSpeedBest} max={r.topSpeedBest} median={r.medianSpeedBest} values={[r.minSpeedBest, r.medianSpeedBest, r.topSpeedBest]} showMedianLabel />
-                        </div>
-                        <span className="w-14 text-left font-mono tabular-nums text-app-caption text-app-text-dim shrink-0">{r.topSpeedBest.toFixed(0)} km/h</span>
+            {rows.map((row) => (
+              <TRow key={row.sector.index} selected={cursorFrac != null && cursorFrac >= row.sector.start && cursorFrac <= row.sector.end} onClick={() => onCursorFrac(row.sector.mid)}>
+                <TD nowrap emphasis tone="primary">
+                  {row.sector.label}
+                </TD>
+                <TD numeric>{row.bestTime == null || !Number.isFinite(row.bestTime) ? "—" : `${row.bestTime.toFixed(3)}s`}</TD>
+                <TD>
+                  {row.minSpeed != null && row.medianSpeed != null && row.topSpeed != null ? (
+                    <div className="flex items-center gap-2">
+                      <span className="w-8 text-right font-mono tabular-nums text-app-caption text-app-text-dim">{row.minSpeed.toFixed(0)}</span>
+                      <div className="w-32">
+                        <SetupRangeBar min={row.minSpeed} max={row.topSpeed} median={row.medianSpeed} values={[row.minSpeed, row.medianSpeed, row.topSpeed]} showMedianLabel />
                       </div>
-                    ) : (
-                      <span className="font-mono text-app-text">—</span>
-                    )}
-                  </TD>
-                  <TD numeric>
-                    <span className={deltaColor(r.deltaWorst)}>{r.deltaWorst != null ? `${r.deltaWorst >= 0 ? "+" : ""}${r.deltaWorst.toFixed(3)}` : "—"}</span>
-                  </TD>
-                </TRow>
-              );
-            })}
+                      <span className="w-14 font-mono tabular-nums text-app-caption text-app-text-dim">{row.topSpeed.toFixed(0)} km/h</span>
+                    </div>
+                  ) : (
+                    "—"
+                  )}
+                </TD>
+                <TD numeric>
+                  <span className={deltaColor(row.delta)}>{row.delta == null ? "—" : `${row.delta >= 0 ? "+" : ""}${row.delta.toFixed(3)}`}</span>
+                </TD>
+                <TD numeric>{row.brake == null ? "—" : row.brake.toFixed(0)}</TD>
+                <TD numeric>{row.throttle == null ? "—" : row.throttle.toFixed(0)}</TD>
+                <TD numeric>{row.combined == null ? "—" : row.combined.toFixed(0)}</TD>
+              </TRow>
+            ))}
           </TBody>
         </Table>
-      </div>
-      <div className="mt-2">
-        <SpeedRangeLegend />
       </div>
     </div>
   );

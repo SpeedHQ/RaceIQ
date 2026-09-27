@@ -1,31 +1,14 @@
+import { getGame } from "@shared/games/registry";
+import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
+import type { GameId } from "../../../../shared/games/ids";
 import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import { WHEEL_COLOR_VARS } from "@/lib/colors";
-import { syncCanvasSize } from "@/lib/rendering/canvas-size";
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
-import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
+import type { SemanticAnalysisFrame } from "./track-map/types";
 import { m } from "../../paraglide/messages";
 import { TelemetryChart } from "./AnalyseTelemetryChart";
+import { useUnits } from "../../hooks/useUnits";
+import { buildChartData } from "./chart-data";
 
-export interface ChartData {
-  speed: number[];
-  throttle: number[];
-  brake: number[];
-  rpm: number[];
-  steering: number[];
-  timeFracs: number[];
-  times: number[];
-  tireTempFL: number[];
-  tireTempFR: number[];
-  tireTempRL: number[];
-  tireTempRR: number[];
-  drs?: number[];
-  ersStore?: number[];
-  ersDeployed?: number[];
-  brakeTempFL?: number[];
-  brakeTempFR?: number[];
-  brakeTempRL?: number[];
-  brakeTempRR?: number[];
-}
 
 export interface ChartsPanelHandle {
   timeFracs: number[] | null;
@@ -34,115 +17,62 @@ export interface ChartsPanelHandle {
 }
 
 interface ChartsPanelProps {
-  displayTelemetry: SemanticAnalysisFrame[];
+  gameId: GameId;
+  semanticFrames: SemanticAnalysisFrame[];
   totalPackets: number;
   visualTimeFrac: number | null;
   onVisualFracChange: (frac: number | null) => void;
   onClickIndex: (idx: number) => void;
   onScrubStart: () => void;
   speedLabel: string;
-  tempLabel: string;
 }
 
-const numeric = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => { const value = frame.values[id];
-return typeof value === "number" && Number.isFinite(value) ? value : null; }
-
-const wheel = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"], index: number): number | null => { const value = frame.values[id];
-if (Array.isArray(value)) {
-  const item = value[index];
-  return typeof item === "number" && Number.isFinite(item) ? item : null;
-}
-return numeric(frame, id); }
-
-function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): ChartData | null {
-  if (displayTelemetry.length === 0) return null;
-  const speed: number[] = [], throttle: number[] = [], brake: number[] = [], rpm: number[] = [], steering: number[] = [];
-  const tireTempFL: number[] = [], tireTempFR: number[] = [], tireTempRL: number[] = [], tireTempRR: number[] = [];
-  const times = displayTelemetry.map((p) => numeric(p, "timing.current-lap") ?? NaN);
-  const firstTime = times[0];
-  const maxTime = Math.max(...times.filter(Number.isFinite), firstTime);
-  const lapDuration = maxTime - firstTime || 1;
-  const timeFracs = times.map((time, i) => (Number.isFinite(time) ? Math.max(i ? 0 : 0, (time - firstTime) / lapDuration) : NaN));
-  let hasBrakeTemp = false;
-  const brakeTempFL: number[] = [], brakeTempFR: number[] = [], brakeTempRL: number[] = [], brakeTempRR: number[] = [];
-  for (const frame of displayTelemetry) {
-    speed.push(numeric(frame, "motion.speed") ?? NaN);
-    throttle.push(numeric(frame, "inputs.accel") ?? NaN);
-    brake.push(numeric(frame, "inputs.brake") ?? NaN);
-    rpm.push(numeric(frame, "engine.current-engine-rpm") ?? NaN);
-    steering.push(numeric(frame, "inputs.steer") ?? NaN);
-    tireTempFL.push(wheel(frame, "tire.temperature.average", 0) ?? NaN);
-    tireTempFR.push(wheel(frame, "tire.temperature.average", 1) ?? NaN);
-    tireTempRL.push(wheel(frame, "tire.temperature.average", 2) ?? NaN);
-    tireTempRR.push(wheel(frame, "tire.temperature.average", 3) ?? NaN);
-    const brakes = (["brakes.brake-temp", "brakes.brake-temp", "brakes.brake-temp", "brakes.brake-temp"] as const).map((id, i) => wheel(frame, id, i));
-    brakeTempFL.push(brakes[0] ?? NaN); brakeTempFR.push(brakes[1] ?? NaN); brakeTempRL.push(brakes[2] ?? NaN); brakeTempRR.push(brakes[3] ?? NaN);
-    if (brakes.some((value) => value != null)) hasBrakeTemp = true;
-  }
-  return { speed, throttle, brake, rpm, steering, timeFracs, times, tireTempFL, tireTempFR, tireTempRL, tireTempRR,
-    ...(hasBrakeTemp ? { brakeTempFL, brakeTempFR, brakeTempRL, brakeTempRR } : {}) };
-}
 
 export const AnalyseChartsPanel = memo(
   forwardRef<ChartsPanelHandle, ChartsPanelProps>(function AnalyseChartsPanel(
-    { displayTelemetry, totalPackets, visualTimeFrac, onVisualFracChange, onClickIndex, onScrubStart, speedLabel, tempLabel },
+    { semanticFrames, totalPackets, visualTimeFrac, onVisualFracChange, onClickIndex, onScrubStart, speedLabel, gameId },
     ref,
   ) {
-    const chartData = useMemo(() => buildChartData(displayTelemetry), [displayTelemetry]);
+    const units = useUnits(gameId);
+    const temperatureMetric = resolveAnalysisTelemetry(getGame(gameId)).tireTemperature;
+    const tireTemperatureSemanticId = temperatureMetric.source !== "unavailable" && temperatureMetric.binding?.kind === "value"
+      ? temperatureMetric.binding.semanticId
+      : "tire.temperature.surface.representative";
+    const chartData = useMemo(
+      () => buildChartData(semanticFrames, tireTemperatureSemanticId, units.temp),
+      [semanticFrames, tireTemperatureSemanticId, units.temp],
+    );
     const scrollRef = useRef<HTMLDivElement>(null);
-    const cursorOverlayRef = useRef<HTMLCanvasElement>(null);
-
-    // Keep a ref so the imperative handle always returns current data
+    const cursorLineRef = useRef<HTMLDivElement>(null);
     const chartDataRef = useRef(chartData);
     chartDataRef.current = chartData;
 
-    // Draw a single shared cursor line across all charts
+    // Move shared cursor with a DOM style update; canvas resize/redraw per frame
+    // made chart scrubbing wait behind a full overlay repaint.
     const drawSharedCursor = useCallback(
       (idx: number) => {
-        const overlay = cursorOverlayRef.current;
+        const line = cursorLineRef.current;
         const scroll = scrollRef.current;
-        if (!overlay || !scroll) return;
+        if (!line || !scroll) return;
 
         const w = scroll.clientWidth;
-        const h = scroll.scrollHeight;
-        if (w <= 0 || h <= 0) return;
-        syncCanvasSize(overlay, w, h, window.devicePixelRatio || 1);
-        const ctx = getSemanticCanvasContext(overlay);
-        if (!ctx) return;
-        ctx.setTransform(overlay.width / w, 0, 0, overlay.height / h, 0, 0);
-        ctx.clearRect(0, 0, w, h);
-
+        const totalPackets = semanticFrames.length;
         const timeFracs = chartDataRef.current?.timeFracs;
-        const totalPackets = displayTelemetry.length;
-        if (totalPackets < 2) return;
+        if (w <= 0 || totalPackets < 2) {
+          line.style.display = "none";
+          return;
+        }
 
         const xFrac = timeFracs && idx < timeFracs.length ? timeFracs[idx] : idx / (totalPackets - 1);
-
-        // Chart canvases live inside a parent with `p-3` padding (12px each
-        // side), so the overlay — which stretches edge-to-edge of the scroll
-        // container — must add that container padding to the chart's own
-        // leftPad/rightPad to land exactly where the chart data draws.
-        const CONTAINER_PAD = 12; // p-3
-        const CHART_LEFT_PAD = 40;
-        const CHART_RIGHT_PAD = 8;
-        const leftPad = CONTAINER_PAD + CHART_LEFT_PAD;
-        const rightPad = CONTAINER_PAD + CHART_RIGHT_PAD;
+        const leftPad = 12 + 40;
+        const rightPad = 12 + 8;
         const chartW = w - leftPad - rightPad;
-        const MIN_INSET = 2;
-        const rawCx = leftPad + xFrac * chartW;
-        const cx = Math.max(rawCx, leftPad + MIN_INSET);
-
-        // Draw a single vertical line spanning the full scroll height
-        ctx.strokeStyle = "color-mix(in srgb, var(--app-text) 50%, transparent)";
-        ctx.lineWidth = 1;
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath();
-        ctx.moveTo(cx, 0);
-        ctx.lineTo(cx, h);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        const cx = Math.max(leftPad + 2, leftPad + xFrac * chartW);
+        line.style.display = "";
+        line.style.height = `${scroll.scrollHeight}px`;
+        line.style.left = `${Math.round(cx)}px`;
       },
-      [displayTelemetry.length],
+      [semanticFrames.length],
     );
 
     useImperativeHandle(
@@ -164,7 +94,6 @@ export const AnalyseChartsPanel = memo(
     const common = {
       totalPackets,
       timeFracs: chartData.timeFracs,
-      times: chartData.times,
       visualTimeFrac,
       onVisualFracChange,
       onClickIndex,
@@ -173,25 +102,37 @@ export const AnalyseChartsPanel = memo(
 
     return (
       <div className="relative flex-none overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:overflow-y-auto" ref={scrollRef}>
-        <canvas ref={cursorOverlayRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 10 }} />
+        <div ref={cursorLineRef} className="pointer-events-none absolute top-0 bottom-0 z-10 border-l border-dotted border-app-text/50" style={{ display: "none" }} aria-hidden="true" />
         <div className="p-3 space-y-2">
           <TelemetryChart series={[{ data: chartData.speed, color: "var(--telemetry-speed)", label: `${m.label_speed()} (${speedLabel})` }]} {...common} height={100} />
           <TelemetryChart
             series={[
-              { data: chartData.throttle, color: "var(--ch-throttle)", label: "Throttle %" },
-              { data: chartData.brake, color: "var(--ch-brake)", label: "Brake %" },
+              { data: chartData.throttle, color: "var(--ch-throttle)", label: m.analyse_chart_throttle() },
+              { data: chartData.brake, color: "var(--ch-brake)", label: m.analyse_chart_brake() },
             ]}
             {...common}
             height={100}
           />
           <TelemetryChart series={[{ data: chartData.rpm, color: "var(--telemetry-rpm)", label: m.dataguide_rpm() }]} {...common} height={100} />
-          <TelemetryChart series={[{ data: chartData.steering, color: "var(--telemetry-steering)", label: "Steering" }]} {...common} height={80} />
-          {chartData.drs && <TelemetryChart series={[{ data: chartData.drs, color: "var(--telemetry-drs)", label: "DRS" }]} {...common} height={40} />}
+          <TelemetryChart series={[{ data: chartData.steering, color: "var(--telemetry-steering)", label: m.analyse_chart_steering() }]} {...common} height={80} />
+          {chartData.wheelRotationFL && chartData.wheelRotationFR && chartData.wheelRotationRL && chartData.wheelRotationRR && (
+            <TelemetryChart
+              series={[
+                { data: chartData.wheelRotationFL, color: WHEEL_COLOR_VARS[0], label: `${m.analyse_chart_wheel_rotation()} FL (rad/s)` },
+                { data: chartData.wheelRotationFR, color: WHEEL_COLOR_VARS[1], label: `${m.analyse_chart_wheel_rotation()} FR (rad/s)` },
+                { data: chartData.wheelRotationRL, color: WHEEL_COLOR_VARS[2], label: `${m.analyse_chart_wheel_rotation()} RL (rad/s)` },
+                { data: chartData.wheelRotationRR, color: WHEEL_COLOR_VARS[3], label: `${m.analyse_chart_wheel_rotation()} RR (rad/s)` },
+              ]}
+              {...common}
+              height={80}
+            />
+          )}
+          {chartData.drs && <TelemetryChart series={[{ data: chartData.drs, color: "var(--telemetry-drs)", label: m.analyse_chart_drs() }]} {...common} height={40} />}
           {chartData.ersStore && chartData.ersDeployed && (
             <TelemetryChart
               series={[
-                { data: chartData.ersStore, color: "var(--telemetry-ers-store)", label: "ERS Store %" },
-                { data: chartData.ersDeployed, color: "var(--telemetry-ers-deployed)", label: "ERS Deployed %" },
+                { data: chartData.ersStore, color: "var(--telemetry-ers-store)", label: m.analyse_chart_ers_store() },
+                { data: chartData.ersDeployed, color: "var(--telemetry-ers-deployed)", label: m.analyse_chart_ers_deployed() },
               ]}
               {...common}
               height={80}
@@ -199,21 +140,45 @@ export const AnalyseChartsPanel = memo(
           )}
           <TelemetryChart
             series={[
-              { data: chartData.tireTempFL, color: WHEEL_COLOR_VARS[0], label: `Tire FL ${tempLabel}` },
-              { data: chartData.tireTempFR, color: WHEEL_COLOR_VARS[1], label: `Tire FR ${tempLabel}` },
-              { data: chartData.tireTempRL, color: WHEEL_COLOR_VARS[2], label: `Tire RL ${tempLabel}` },
-              { data: chartData.tireTempRR, color: WHEEL_COLOR_VARS[3], label: `Tire RR ${tempLabel}` },
+              { data: chartData.tireTempFL, color: WHEEL_COLOR_VARS[0], label: `${chartData.tireCoreTempFL || chartData.tireCarcassTempFL ? m.analyse_chart_surface_temp() : m.analyse_chart_tire_temp()} FL ${units.tempLabel}` },
+              { data: chartData.tireTempFR, color: WHEEL_COLOR_VARS[1], label: `${chartData.tireCoreTempFR || chartData.tireCarcassTempFR ? m.analyse_chart_surface_temp() : m.analyse_chart_tire_temp()} FR ${units.tempLabel}` },
+              { data: chartData.tireTempRL, color: WHEEL_COLOR_VARS[2], label: `${chartData.tireCoreTempRL || chartData.tireCarcassTempRL ? m.analyse_chart_surface_temp() : m.analyse_chart_tire_temp()} RL ${units.tempLabel}` },
+              { data: chartData.tireTempRR, color: WHEEL_COLOR_VARS[3], label: `${chartData.tireCoreTempRR || chartData.tireCarcassTempRR ? m.analyse_chart_surface_temp() : m.analyse_chart_tire_temp()} RR ${units.tempLabel}` },
             ]}
             {...common}
             height={80}
           />
+          {chartData.tireCoreTempFL && chartData.tireCoreTempFR && chartData.tireCoreTempRL && chartData.tireCoreTempRR && (
+            <TelemetryChart
+              series={[
+                { data: chartData.tireCoreTempFL, color: WHEEL_COLOR_VARS[0], label: `${m.label_core()} FL ${units.tempLabel}` },
+                { data: chartData.tireCoreTempFR, color: WHEEL_COLOR_VARS[1], label: `${m.label_core()} FR ${units.tempLabel}` },
+                { data: chartData.tireCoreTempRL, color: WHEEL_COLOR_VARS[2], label: `${m.label_core()} RL ${units.tempLabel}` },
+                { data: chartData.tireCoreTempRR, color: WHEEL_COLOR_VARS[3], label: `${m.label_core()} RR ${units.tempLabel}` },
+              ]}
+              {...common}
+              height={80}
+            />
+          )}
+          {chartData.tireCarcassTempFL && chartData.tireCarcassTempFR && chartData.tireCarcassTempRL && chartData.tireCarcassTempRR && (
+            <TelemetryChart
+              series={[
+                { data: chartData.tireCarcassTempFL, color: WHEEL_COLOR_VARS[0], label: `${m.label_carcass()} FL ${units.tempLabel}` },
+                { data: chartData.tireCarcassTempFR, color: WHEEL_COLOR_VARS[1], label: `${m.label_carcass()} FR ${units.tempLabel}` },
+                { data: chartData.tireCarcassTempRL, color: WHEEL_COLOR_VARS[2], label: `${m.label_carcass()} RL ${units.tempLabel}` },
+                { data: chartData.tireCarcassTempRR, color: WHEEL_COLOR_VARS[3], label: `${m.label_carcass()} RR ${units.tempLabel}` },
+              ]}
+              {...common}
+              height={80}
+            />
+          )}
           {chartData.brakeTempFL && chartData.brakeTempFR && chartData.brakeTempRL && chartData.brakeTempRR && (
             <TelemetryChart
               series={[
-                { data: chartData.brakeTempFL, color: WHEEL_COLOR_VARS[0], label: "Brake FL °C" },
-                { data: chartData.brakeTempFR, color: WHEEL_COLOR_VARS[1], label: "Brake FR °C" },
-                { data: chartData.brakeTempRL, color: WHEEL_COLOR_VARS[2], label: "Brake RL °C" },
-                { data: chartData.brakeTempRR, color: WHEEL_COLOR_VARS[3], label: "Brake RR °C" },
+                { data: chartData.brakeTempFL, color: WHEEL_COLOR_VARS[0], label: `${m.analyse_wheels_brake()} FL ${units.tempLabel}` },
+                { data: chartData.brakeTempFR, color: WHEEL_COLOR_VARS[1], label: `${m.analyse_wheels_brake()} FR ${units.tempLabel}` },
+                { data: chartData.brakeTempRL, color: WHEEL_COLOR_VARS[2], label: `${m.analyse_wheels_brake()} RL ${units.tempLabel}` },
+                { data: chartData.brakeTempRR, color: WHEEL_COLOR_VARS[3], label: `${m.analyse_wheels_brake()} RR ${units.tempLabel}` },
               ]}
               {...common}
               height={80}

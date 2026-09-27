@@ -10,9 +10,11 @@ const visibleTracks = fixture.tracks
 test("marketing track wall renders and scrolls the filtered demo catalog", async ({ page }) => {
   const consoleErrors: string[] = [];
   await page.addInitScript(() => {
-    new MutationObserver(() => document.querySelectorAll("img").forEach((image) => image.loading = "eager")).observe(document, { childList: true, subtree: true });
+    new MutationObserver(() => document.querySelectorAll("img").forEach((image) => (image.loading = "eager"))).observe(document, { childList: true, subtree: true });
   });
-  page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(message.text()); });
+  page.on("console", (message) => {
+    if (message.type() === "error") consoleErrors.push(message.text());
+  });
   page.on("pageerror", (error) => consoleErrors.push(error.message));
   await openStoryForSnapshot(page, storyUrl);
   const wall = page.locator("[data-marketing-track-wall]");
@@ -28,7 +30,9 @@ test("marketing track wall renders and scrolls the filtered demo catalog", async
   expect(await scroller.getAttribute("tabindex")).toBe("0");
   const dimensions = await scroller.evaluate((element) => ({ scrollHeight: element.scrollHeight, clientHeight: element.clientHeight }));
   expect(dimensions.scrollHeight).toBeGreaterThan(dimensions.clientHeight);
-  await scroller.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  await scroller.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
   await expect(wall.locator("article").last()).toBeVisible();
   expect(consoleErrors).toEqual([]);
 });

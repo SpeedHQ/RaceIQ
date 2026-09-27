@@ -21,8 +21,10 @@ import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector"
 import { META_FRAME_MAGIC } from "../../../server/session-capture/framing"
 import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../../server/games/ac-evo/parser";
+import { AcEvoStatusCheckProcessor } from "../../../server/games/ac-evo/shared-memory";
 import { ACEVO_STATUS, GRAPHICS_EVO } from "../../../server/games/ac-evo/structs";
 import { unpackTriplet } from "../../../server/games/kunos/pack-triplet";
+import { TripletPipeline } from "../../../server/games/kunos/triplet-pipeline";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -60,7 +62,6 @@ function setStatus(graphics: Buffer, status: number): Buffer {
   copy.writeInt32LE(status, GRAPHICS_EVO.status.offset);
   return copy;
 }
-
 describe("AC Evo parser — status gating", () => {
   test("AC_LIVE packet is parsed", () => {
     const t = readFirstTriplet();
@@ -90,6 +91,42 @@ describe("AC Evo parser — status gating", () => {
     const graphics = setStatus(t.graphics, ACEVO_STATUS.AC_REPLAY);
     const packet = parseAcEvoBuffers(t.physics, graphics, t.staticData, createAcEvoParserCache());
     expect(packet).toBeNull();
+  });
+});
+
+describe("AC Evo live pipeline — status gating", () => {
+  test("passes LIVE and PAUSE, excludes OFF and REPLAY, then resumes", async () => {
+    const pipeline = new TripletPipeline();
+    const acceptedStatuses: number[] = [];
+    pipeline.register(
+      new AcEvoStatusCheckProcessor(),
+      {
+        async process(triplet): Promise<undefined> {
+          acceptedStatuses.push(
+            triplet.graphics.readInt32LE(GRAPHICS_EVO.status.offset),
+          );
+          return undefined;
+        },
+      },
+    );
+
+    for (const status of [
+      ACEVO_STATUS.AC_LIVE,
+      ACEVO_STATUS.AC_OFF,
+      ACEVO_STATUS.AC_REPLAY,
+      ACEVO_STATUS.AC_PAUSE,
+      ACEVO_STATUS.AC_LIVE,
+    ]) {
+      const triplet = readFirstTriplet();
+      triplet.graphics = setStatus(triplet.graphics, status);
+      await pipeline.process(triplet);
+    }
+
+    expect(acceptedStatuses).toEqual([
+      ACEVO_STATUS.AC_LIVE,
+      ACEVO_STATUS.AC_PAUSE,
+      ACEVO_STATUS.AC_LIVE,
+    ]);
   });
 });
 

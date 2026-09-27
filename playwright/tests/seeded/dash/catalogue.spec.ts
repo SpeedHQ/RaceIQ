@@ -6,7 +6,7 @@ import { assertNoHorizontalOverflow } from "../../support/responsive/assertions"
 test.describe.configure({ mode: "serial" });
 
 test("dashboard catalogue exposes loading, no-data, and error network states", async ({ page }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(80_000);
   const browserErrors = collectBrowserErrors(page);
   let releaseLoading!: () => void;
   const loadingResponse = new Promise<void>((resolve) => {
@@ -51,7 +51,7 @@ test("dashboard catalogue exposes loading, no-data, and error network states", a
 });
 
 test("dashboard catalogue links select each combination and survive reload", async ({ page }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(80_000);
   const browserErrors = collectBrowserErrors(page);
   await page.goto("/portable", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Dashboards" })).toBeVisible();

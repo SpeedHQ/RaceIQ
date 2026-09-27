@@ -86,6 +86,14 @@ const laps = [...makeLaps(1, 6, 94.2), ...makeLaps(2, 4, 412.9), ...makeLaps(3, 
 
 queryClient.setQueryData(["sessions", gameId], sessions);
 queryClient.setQueryData(["laps", gameId], laps);
+queryClient.setQueryData(["resolve-names", gameId, "7,12", "42,43"], {
+  trackNames: { "7": "Spa-Francorchamps", "12": "Nürburgring" },
+  carNames: { "42": "Huracan GT3", "43": "BMW M4 GT3" },
+});
+queryClient.setQueryData(["resolve-names", null, "7,12", "42,43"], {
+  trackNames: { "7": "Spa-Francorchamps", "12": "Nürburgring" },
+  carNames: { "42": "Huracan GT3", "43": "BMW M4 GT3" },
+});
 
 /** The tab is a URL search param, so each story mounts its own history entry. */
 function withRouter(Story: React.ComponentType, initialEntry: string) {

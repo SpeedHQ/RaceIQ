@@ -16,10 +16,14 @@ const productionEnv = {
 };
 
 describe("release game registration", () => {
-  test("includes iRacing in development registries", () => {
+  test("includes iRacing and LMU in development registries", () => {
     const flags = releaseFeatureFlags(developmentEnv);
-    expect(ids(gameAdaptersForFeatures(flags))).toContain("iracing");
-    expect(ids(serverGameAdaptersForFeatures(flags))).toContain("iracing");
+    expect(ids(gameAdaptersForFeatures(flags))).toEqual(
+      expect.arrayContaining(["iracing", "lmu"]),
+    );
+    expect(ids(serverGameAdaptersForFeatures(flags))).toEqual(
+      expect.arrayContaining(["iracing", "lmu"]),
+    );
   });
 
   test("keeps repeated server registration idempotent", () => {
@@ -30,16 +34,18 @@ describe("release game registration", () => {
     expect(ids(getAllServerGames())).toEqual(ids(serverGameAdaptersForFeatures(flags)));
   });
 
-  test("omits iRacing from production registries while keeping F1", () => {
+  test("ships LMU while keeping iRacing gated in production", () => {
     const flags = releaseFeatureFlags(productionEnv);
     expect(ids(gameAdaptersForFeatures(flags))).not.toContain("iracing");
+    expect(ids(gameAdaptersForFeatures(flags))).toContain("lmu");
     expect(ids(serverGameAdaptersForFeatures(flags))).not.toContain("iracing");
+    expect(ids(serverGameAdaptersForFeatures(flags))).toContain("lmu");
     expect(ids(gameAdaptersForFeatures(flags))).toContain("f1-2025");
     expect(ids(serverGameAdaptersForFeatures(flags))).toContain("f1-2025");
   });
 
   test("lists native telemetry game ids by release environment", () => {
-    expect(nativeTelemetryGameIds(releaseFeatureFlags(developmentEnv))).toEqual(["acc", "ac-evo", "iracing"]);
-    expect(nativeTelemetryGameIds(releaseFeatureFlags(productionEnv))).toEqual(["acc", "ac-evo"]);
+    expect(nativeTelemetryGameIds(releaseFeatureFlags(developmentEnv))).toEqual(["acc", "ac-evo", "iracing", "lmu"]);
+    expect(nativeTelemetryGameIds(releaseFeatureFlags(productionEnv))).toEqual(["acc", "ac-evo", "lmu"]);
   });
 });

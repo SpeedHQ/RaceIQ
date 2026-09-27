@@ -3,6 +3,7 @@ import { getLapById } from "./lap-read-queries";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, sessionResults, pitEvents } from "./schema";
+import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import type { SessionMeta, SessionOwnership } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
@@ -12,6 +13,8 @@ import { relative, resolve, sep } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outlines";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
+import type { SessionIdentity } from "../telemetry/pipeline-ports";
+import { getLMUTrack } from "../../shared/games/lmu/catalog";
 
 export async function insertSession(
   carOrdinal: number,
@@ -20,10 +23,11 @@ export async function insertSession(
   sessionType?: string,
   versionIdentity?: TelemetryVersionIdentity,
   ownership?: SessionOwnership,
+  identity?: SessionIdentity,
 ): Promise<number> {
   const result = await db
     .insert(sessions)
-    .values({ carOrdinal, trackOrdinal, gameId, sessionType, ownership, ...versionIdentity })
+    .values({ carOrdinal, trackOrdinal, gameId, sessionType, ownership, ...versionIdentity, ...identity })
     .returning({ id: sessions.id })
     .get();
   return result.id;
@@ -40,8 +44,31 @@ export async function updateSession(
   await db.update(sessions).set(updates).where(eq(sessions.id, id)).run();
 }
 
-export async function updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
-  await db.update(sessions).set({ carOrdinal, trackOrdinal }).where(eq(sessions.id, sessionId)).run();
+export async function updateSessionCarTrack(
+  sessionId: number,
+  carOrdinal: number,
+  trackOrdinal: number,
+  identity?: SessionIdentity,
+): Promise<void> {
+  await db
+    .update(sessions)
+    .set({ carOrdinal, trackOrdinal, ...identity })
+    .where(eq(sessions.id, sessionId))
+    .run();
+}
+
+export async function setSessionFavorite(id: number, favorite: boolean): Promise<boolean> {
+  return withSessionCaptureMaintenanceLock(async () => {
+    const result = await db.update(sessions).set({ isFavorite: favorite }).where(eq(sessions.id, id)).run();
+    return result.rowsAffected > 0;
+  });
+}
+
+export async function setLapFavorite(id: number, favorite: boolean): Promise<boolean> {
+  return withSessionCaptureMaintenanceLock(async () => {
+    const result = await db.update(laps).set({ isFavorite: favorite }).where(eq(laps.id, id)).run();
+    return result.rowsAffected > 0;
+  });
 }
 export async function updateSessionSource(sessionId: number, source: string): Promise<void> {
   await db.update(sessions).set({ source }).where(eq(sessions.id, sessionId)).run();
@@ -125,7 +152,7 @@ export async function getUncompressedSessions(olderThanMs: number): Promise<{ id
     .all();
   return rows.filter((r): r is { id: number; rawFile: string } => r.rawFile !== null);
 }
-function isOwnedSessionRawFile(rawFile: string): boolean {
+export function isOwnedSessionRawFile(rawFile: string): boolean {
   const sessionsDir = resolve(resolveDataDir(), "sessions");
   const relativePath = relative(sessionsDir, resolve(rawFile));
   return relativePath.length > 0 && relativePath !== ".." && !relativePath.startsWith(`..${sep}`);
@@ -205,18 +232,22 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       id: sessions.id,
       carOrdinal: sessions.carOrdinal,
       trackOrdinal: sessions.trackOrdinal,
+      carId: sessions.carId,
+      trackId: sessions.trackId,
       createdAt: sessions.createdAt,
       gameId: sessions.gameId,
-      sessionType: sessions.sessionType,
+      ownership: sessions.ownership,
+      isFavorite: sessions.isFavorite,
+      telemetryAvailable: sql<number>`${sessions.rawFile} IS NOT NULL`,
       notes: sessions.notes,
       source: sessions.source,
+      sessionType: sessions.sessionType,
       catalogVersion: sessions.catalogVersion,
       catalogHash: sessions.catalogHash,
       catalogSchemaVersion: sessions.catalogSchemaVersion,
       parserVersion: sessions.parserVersion,
       resolverVersion: sessions.resolverVersion,
       derivationVersion: sessions.derivationVersion,
-      ownership: sessions.ownership,
     })
     .from(sessions)
     .orderBy(desc(sessions.id));
@@ -238,7 +269,11 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
     const bestLapTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : undefined;
     const normalizedSession = {
       ...session,
+      carId: session.carId ?? session.carOrdinal,
+      trackId: session.trackId ?? session.trackOrdinal,
       sessionType: session.sessionType ?? undefined,
+      telemetryAvailable: Boolean(session.telemetryAvailable),
+      isFavorite: Boolean(session.isFavorite),
     };
     const resultRow = await db
       .select({
@@ -311,6 +346,8 @@ export async function getSessionRecapData(
       id: sessions.id,
       carOrdinal: sessions.carOrdinal,
       trackOrdinal: sessions.trackOrdinal,
+      carId: sessions.carId,
+      trackId: sessions.trackId,
       gameId: sessions.gameId,
       createdAt: sessions.createdAt,
       ownership: sessions.ownership,
@@ -335,7 +372,9 @@ export async function getSessionRecapData(
     .orderBy(laps.lapNumber)
     .all();
 
-  const trackLengthM = getTrackLengthMeters(sessionRow.trackOrdinal, gameId);
+  const trackLengthM = gameId === "lmu" && sessionRow.trackId
+    ? (getLMUTrack(sessionRow.trackId)?.lengthKm ?? 0) * 1_000 || null
+    : getTrackLengthMeters(sessionRow.trackOrdinal, gameId);
   const sessionSectorCount =
     lapRows.find(
       (lap) =>
@@ -360,6 +399,19 @@ export async function getSessionRecapData(
       }
     }
   }
+  const identityFilters = gameId === "lmu"
+    ? [
+        sessionRow.trackId !== null
+          ? eq(sessions.trackId, sessionRow.trackId)
+          : and(isNull(sessions.trackId), eq(sessions.trackOrdinal, sessionRow.trackOrdinal)),
+        sessionRow.carId !== null
+          ? eq(sessions.carId, sessionRow.carId)
+          : and(isNull(sessions.carId), eq(sessions.carOrdinal, sessionRow.carOrdinal)),
+      ]
+    : [
+        eq(sessions.trackOrdinal, sessionRow.trackOrdinal),
+        eq(sessions.carOrdinal, sessionRow.carOrdinal),
+      ];
 
   const bestOtherRow = await db
     .select({ lapTime: laps.lapTime })
@@ -367,8 +419,7 @@ export async function getSessionRecapData(
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .where(
       and(
-        eq(sessions.trackOrdinal, sessionRow.trackOrdinal),
-        eq(sessions.carOrdinal, sessionRow.carOrdinal),
+        ...identityFilters,
         eq(sessions.gameId, gameId),
         sql`${sessions.id} != ${id}`,
         eq(laps.isValid, true),
@@ -385,8 +436,7 @@ export async function getSessionRecapData(
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .where(
       and(
-        eq(sessions.trackOrdinal, sessionRow.trackOrdinal),
-        eq(sessions.carOrdinal, sessionRow.carOrdinal),
+        ...identityFilters,
         eq(sessions.gameId, gameId),
         sql`${sessions.id} != ${id}`,
         eq(laps.isValid, true),
@@ -412,8 +462,8 @@ export async function getSessionRecapData(
   return {
     session: {
       id: sessionRow.id,
-      carOrdinal: sessionRow.carOrdinal,
-      trackOrdinal: sessionRow.trackOrdinal,
+      carId: sessionRow.carId ?? sessionRow.carOrdinal,
+      trackId: sessionRow.trackId ?? sessionRow.trackOrdinal,
       gameId: sessionRow.gameId as GameId,
       createdAt: sessionRow.createdAt,
       ownership: sessionRow.ownership === "others" ? "others" : "mine",

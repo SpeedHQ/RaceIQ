@@ -42,9 +42,14 @@ interface ReplayedLap {
   packets: TelemetryPacket[];
 }
 
-let cachedReplay: ReplayedLap[] | null = null;
+interface ReplayResult {
+  laps: ReplayedLap[];
+  broadcastedPackets: CapturingWsAdapter["broadcastedPackets"];
+}
 
-async function replay(): Promise<ReplayedLap[]> {
+let cachedReplay: ReplayResult | null = null;
+
+async function replay(): Promise<ReplayResult> {
   if (cachedReplay) return cachedReplay;
 
   const raw = readFileSync(FIXTURE);
@@ -94,19 +99,27 @@ async function replay(): Promise<ReplayedLap[]> {
       packets,
     });
   }
-  cachedReplay = laps;
-  return laps;
+  const result = { laps, broadcastedPackets: ws.broadcastedPackets };
+  cachedReplay = result;
+  return result;
 }
 
 describe("F1 2025 session 2026-04-22 11:42 — lap times and sector splits", () => {
   test("replay produces five completed laps", async () => {
-    const laps = await replay();
+    const laps = (await replay()).laps;
     const completed = laps.filter((lap) => lap.lapTime > 0);
     expect(completed.length).toBeGreaterThanOrEqual(5);
   }, { timeout: 180_000 });
 
+  test("published best lap equals fastest valid recorded lap", async () => {
+    const result = await replay();
+    const fastestValidLap = Math.min(...result.laps.filter((lap) => lap.isValid && lap.lapTime > 0).map((lap) => lap.lapTime));
+    const finalPacket = result.broadcastedPackets.at(-1)?.packet;
+    expect(finalPacket?.BestLap).toBeCloseTo(fastestValidLap, 3);
+  }, { timeout: 180_000 });
+
   test("every emitted lap's sectors sum to its lap time", async () => {
-    const laps = await replay();
+    const laps = (await replay()).laps;
     for (const lap of laps) {
       if (!lap.isValid || !lap.sectors || lap.lapTime <= 0) continue;
       const sum = lap.sectors.reduce((total, time) => total + time, 0);
@@ -118,7 +131,7 @@ describe("F1 2025 session 2026-04-22 11:42 — lap times and sector splits", () 
     // A sub-10s sector on a 1:19+ lap can only come from parser drift /
     // residual fields from the next lap (the symptom of the SessionHistory
     // 14-byte layout bug and the lastS1/lastS2 aliasing issue).
-    const laps = await replay();
+    const laps = (await replay()).laps;
     for (const lap of laps) {
       if (!lap.isValid || !lap.sectors || lap.lapTime <= 0) continue;
       expect(lap.sectors.every((time) => time > 10)).toBe(true);
@@ -126,7 +139,7 @@ describe("F1 2025 session 2026-04-22 11:42 — lap times and sector splits", () 
   }, { timeout: 180_000 });
 
   test("sectors come from F1 SessionHistory / LapData (not distance-fraction)", async () => {
-    const laps = await replay();
+    const laps = (await replay()).laps;
     // computeLapSectors with gameId='f1-2025' must never fall back to the
     // distance-fraction branch. Running it against the emitted-lap packets
     // must produce the exact same sector values as the saved lap row.
@@ -139,7 +152,7 @@ describe("F1 2025 session 2026-04-22 11:42 — lap times and sector splits", () 
   }, { timeout: 180_000 });
 
   test("per-lap sector times match F1 SessionHistory values from the fixture", async () => {
-    const laps = await replay();
+    const laps = (await replay()).laps;
     // Expected sector splits pulled from the F1 SessionHistory packets in
     // this recording (i.e. what the game itself reports). Update whenever
     // the fixture changes.

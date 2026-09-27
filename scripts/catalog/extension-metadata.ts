@@ -58,7 +58,7 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "f1.grid[].lastS3": "timing.sector.competitor-last.s3",
   "f1.brakeTemp": "brakes.brake-temp",
   "f1.tyrePressure": "tires.tire-pressure",
-  "f1.tyresInnerTemp": "tire.temperature.carcass.average",
+  "f1.tyresInnerTemp": "tire.temperature.core",
   "f1.motionEx.wheelLatForce": "tires.wheel-force.lateral",
   "f1.motionEx.wheelLongForce": "tires.wheel-force.longitudinal",
   "f1.motionEx.wheelVertForce": "tires.wheel-force.vertical",
@@ -75,7 +75,7 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "acc.brakePadWear": "damage.brake-pad-wear",
   "acc.tireRadius": "tires.tire-radius",
   "acc.tireCamber": "tires.tire-camber",
-  "acc.tireCoreTemp": "tire.temperature.carcass.average",
+  "acc.tireCoreTemp": "tire.temperature.core",
   "acc.tireMiddleTemp": "tire.temperature.surface.middle",
   "acc.tireOuterTemp": "tire.temperature.surface.outer",
   "acc.tireCompound": "tires.tire-compound-name",
@@ -122,6 +122,15 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "iracing.sectorStarts": "timing.sector.layout.start-fractions",
   "iracing.incidents": "race.incident-flags",
   "iracing.trackWetness": "weather.track-wetness",
+  "lmu.sessionType": "session.session-type",
+  "lmu.sessionTypeOrdinal": "session.session-type-ordinal",
+  "lmu.trackLengthM": "timing.track-length",
+  "lmu.lapDistanceM": "timing.distance-traveled",
+  "lmu.lapDistancePct": "timing.lap-fraction",
+  "lmu.currentSectorIndex": "timing.sector.current-index",
+  "lmu.inPits": "race.on-pit-road",
+  "lmu.tcLevel": "electronics.traction-control-level",
+  "lmu.absLevel": "electronics.abs-level",
 };
 
 const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> = {
@@ -373,10 +382,63 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
     description: "Variable-length sector start fractions parsed from SessionInfo SplitTimeInfo.",
     freshness: "session-update",
   },
+  "lmu.trackLengthM": {
+    unit: "m",
+    description: "LMU track length retained from scoring telemetry.",
+    freshness: "session-update",
+  },
+  "lmu.lapDistanceM": {
+    unit: "m",
+    description: "LMU player distance around current lap.",
+  },
+  "lmu.lapDistancePct": {
+    unit: "fraction",
+    description: "LMU player lap distance normalized to 0-1.",
+  },
+  "lmu.currentSectorIndex": {
+    unit: "count",
+    description: "LMU current zero-based sector index.",
+  },
+  "lmu.inPits": {
+    unit: "boolean",
+    description: "LMU player vehicle is between pit entrance and pit exit.",
+  },
+  "lmu.tcLevel": {
+    unit: "count",
+    description: "LMU traction-control setting level.",
+  },
+  "lmu.absLevel": {
+    unit: "count",
+    description: "LMU anti-lock brake setting level.",
+  },
+  "lmu.sessionType": {
+    unit: "text",
+    description: "LMU session type normalized from ScoringInfo.session.",
+    kind: "normalized",
+    normalization: "map LMU session ordinal to stable session label",
+    freshness: "session-update",
+  },
+  "lmu.sessionTypeOrdinal": {
+    unit: "enum",
+    description: "Native LMU ScoringInfo.session ordinal.",
+    freshness: "session-update",
+  },
 };
 
 const UNAVAILABLE_EXTENSION_SOURCES: Partial<Record<GameId, Record<string, UnavailableExtensionSource>>> = {
   acc: {
+    "acc.tireInnerTemp": {
+      reason: "source-not-populated",
+      description: "ACC reserves inner surface temperatures but does not populate them.",
+    },
+    "acc.tireMiddleTemp": {
+      reason: "source-not-populated",
+      description: "ACC reserves middle surface temperatures but does not populate them.",
+    },
+    "acc.tireOuterTemp": {
+      reason: "source-not-populated",
+      description: "ACC reserves outer surface temperatures but does not populate them.",
+    },
     "acc.brakePadCompound": {
       reason: "parser-placeholder",
       description: "ACC parser currently emits constant 0; shared-memory source is not wired.",

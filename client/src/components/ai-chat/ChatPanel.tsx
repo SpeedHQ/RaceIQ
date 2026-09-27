@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useSettings } from "@/hooks/settings";
 import { isAiChatConfigured } from "@/lib/is-ai-configured";
 import { m } from "@/paraglide/messages";
-import { uiStore, } from "@/stores/ui";
+import { uiStore } from "@/stores/ui";
 import { type ChatGeneration, fetchChatGenerations, fetchChatRunStatus } from "./chat-history";
 import { ChatPanelThread } from "./chat-runtime";
 import { resolvedResumableThreadId } from "./resumable-chat";
@@ -80,7 +80,7 @@ export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, re
   }
 
   const regenerateChat = async (messageId: string, prompt: string) => {
-    if (!activeThreadId || !prompt || !window.confirm("Regenerate this response? Later messages will be removed.")) return;
+    if (!activeThreadId || !prompt || !window.confirm(m.ai_chat_regenerate_confirmation())) return;
     try {
       const res = await fetch(`/api/chats/${encodeURIComponent(activeThreadId)}/regenerate`, {
         method: "POST",
@@ -88,12 +88,12 @@ export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, re
         body: JSON.stringify({ messageId }),
       });
       const data = (await res.json().catch(() => null)) as { prompt?: string; error?: string } | null;
-      if (!res.ok) throw new Error(data?.error ?? "Could not regenerate chat");
+      if (!res.ok) throw new Error(data?.error ?? m.ai_chat_regenerate_failed());
       await queryClient.invalidateQueries({ queryKey: historyQueryKey });
       setRegeneratePrompt(data?.prompt ?? prompt);
       setRegenerateVersion((version) => version + 1);
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Could not regenerate chat");
+      window.alert(err instanceof Error ? err.message : m.ai_chat_regenerate_failed());
     }
   };
 
@@ -101,9 +101,9 @@ export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, re
     return (
       emptyState ?? (
         <div className="flex flex-col gap-1.5 pt-2">
-          <p className="text-app-compact text-app-text-dim">Add an AI provider key to chat.</p>
+          <p className="text-app-compact text-app-text-dim">{m.ai_chat_add_provider_key()}</p>
           <Button type="button" variant="ai-action" size="app-md" onClick={() => openSettings("ai")} className="w-full">
-            Set up AI
+            {m.ai_chat_setup_ai()}
           </Button>
         </div>
       )

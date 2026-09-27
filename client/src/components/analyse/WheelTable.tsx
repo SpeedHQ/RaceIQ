@@ -57,7 +57,7 @@ export function WheelTable({ title, showHeaders = true, borderTop = false, rows 
       {showHeaders && (
         <TableHeader>
           <TableHead>
-            <span className={cn("block text-app-caption font-semibold uppercase tracking-wider", headerContentClass)}>{title}</span>
+            <span className={cn("block font-semibold uppercase tracking-wider", headerContentClass)}>{title}</span>
           </TableHead>
           <TableHead align="center">
             <span className={headerContentClass}>FL</span>

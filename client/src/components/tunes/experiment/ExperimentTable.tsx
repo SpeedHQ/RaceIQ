@@ -1,4 +1,5 @@
-import { EXPERIMENT_FOCUS_LABELS, type ExperimentFocus } from "@shared/racing/experiments/focus";
+import { m } from "@/paraglide/messages";
+import type { ExperimentFocus } from "@shared/racing/experiments/focus";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 
@@ -9,7 +10,7 @@ function FocusBadge({ focus }: { focus: ExperimentFocus }) {
       size="default"
       className={`whitespace-nowrap ${focus === "driver" ? "border-(--focus-driver)/30 bg-(--focus-driver)/15 text-(--focus-driver)" : "border-(--focus-setup)/30 bg-(--focus-setup)/15 text-(--focus-setup)"}`}
     >
-      {EXPERIMENT_FOCUS_LABELS[focus]}
+      {focus === "driver" ? m.experiment_focus_driver() : m.experiment_focus_setup()}
     </Badge>
   );
 }
@@ -54,7 +55,7 @@ export function ExperimentTable({
           result = compareText(left.name, right.name);
           break;
         case "focus":
-          result = compareText(EXPERIMENT_FOCUS_LABELS[left.focus], EXPERIMENT_FOCUS_LABELS[right.focus]);
+          result = compareText(left.focus === "driver" ? m.experiment_focus_driver() : m.experiment_focus_setup(), right.focus === "driver" ? m.experiment_focus_driver() : m.experiment_focus_setup());
           break;
         case "car":
           result = compareText(carName(left.carName), carName(right.carName));

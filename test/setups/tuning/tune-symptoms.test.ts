@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Corner } from "../../../server/lap-analysis/corners"
+import { formatTireTempSymptoms, tireTempSymptoms } from "../../../server/ai/tune-tire-symptoms";
 import { telemetryToSymptoms } from "../../../server/ai/tune-symptoms";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 
@@ -61,5 +62,28 @@ describe("telemetryToSymptoms — relative corner distance", () => {
       expect(c.distanceFrac).toBeGreaterThanOrEqual(0);
       expect(c.distanceFrac).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe("tireTempSymptoms", () => {
+  test("uses measured core temperatures without interpreting placeholder surface bands", () => {
+    const packets = Array.from({ length: 30 }, (_, index) =>
+      packet(index, {
+        gameId: "acc",
+        acc: {
+          tireCoreTemp: [80, 82, 78, 79],
+          tireInnerTemp: [140, 140, 20, 20],
+          tireMiddleTemp: [160, 160, 10, 10],
+          tireOuterTemp: [20, 20, 140, 140],
+        } as TelemetryPacket["acc"],
+      })
+    );
+
+    const output = formatTireTempSymptoms(tireTempSymptoms(packets));
+
+    expect(output).toContain("Tyre core temps");
+    expect(output).toContain("FL — core 80°C");
+    expect(output).not.toContain("camber");
+    expect(output).not.toContain("pressure");
   });
 });

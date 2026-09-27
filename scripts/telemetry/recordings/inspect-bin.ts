@@ -78,10 +78,12 @@ if (result.packetCount === 0) {
 
 for (const lap of result.laps) {
   const trackName =
-    gameId === "ac-evo" ? getAcEvoTrackName(lap.trackOrdinal) : `ordinal ${lap.trackOrdinal}`;
+    gameId === "ac-evo" && typeof lap.trackId === "number"
+      ? getAcEvoTrackName(lap.trackId)
+      : String(lap.trackId);
   const bad = /unknown/i.test(trackName) ? "  <-- UNKNOWN TRACK" : "";
   console.log(
-    `lap ${lap.lapNumber}  time=${lap.lapTime}  carOrd=${lap.carOrdinal}  trackOrd=${lap.trackOrdinal}  track="${trackName}"${bad}`
+    `lap ${lap.lapNumber}  time=${lap.lapTime}  car=${lap.carId}  track=${lap.trackId}  trackName="${trackName}"${bad}`
   );
 }
 

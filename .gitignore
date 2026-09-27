@@ -28,6 +28,7 @@ test-results/
 laps.json
 client/debug-storybook.log
 client/src/stories/__snapshots__/results/
+client/src/stories/__snapshots__/*.png
 bench-results.json
 replay-io-results.json
 client/storybook-static/
@@ -77,3 +78,4 @@ raceiq-home.png
 !/graphify-out/.graphify_labels.json
 !/graphify-out/.graphify_labels.json.sig
 !/graphify-out/.graphify_analysis.json
+/.superpowers/

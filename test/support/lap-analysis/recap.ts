@@ -2,8 +2,8 @@ import { computeRecap, type RecapLapInput, type RecapSessionInput } from "../../
 
 export const baseSession: RecapSessionInput = {
   id: 1,
-  carOrdinal: 10,
-  trackOrdinal: 20,
+  carId: 10,
+  trackId: 20,
   gameId: "fm-2023",
   createdAt: "2026-07-15T12:00:00.000Z",
 };

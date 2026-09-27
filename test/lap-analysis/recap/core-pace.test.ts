@@ -27,10 +27,10 @@ describe("computeRecap", () => {
     expect(recap.bestLapId).toBeNull();
   });
 
-  test("carOrdinal/trackOrdinal are carried through for deep-linking", () => {
+  test("car and track identities are carried through for deep-linking", () => {
     const recap = run([lap({ lapNumber: 1, lapTime: 100 })]);
-    expect(recap.carOrdinal).toBe(baseSession.carOrdinal);
-    expect(recap.trackOrdinal).toBe(baseSession.trackOrdinal);
+    expect(recap.carId).toBe(baseSession.carId);
+    expect(recap.trackId).toBe(baseSession.trackId);
   });
 
   test("theoretical mixes sectors across laps", () => {

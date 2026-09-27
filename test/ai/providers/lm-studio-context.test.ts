@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { extractLmStudioContextLengths, getOpenAiCompatibleModelsDetailed } from "../../../server/ai/providers";
+import { extractLmStudioContextLengths, getOpenAiCompatibleModelsDetailed, getOpenAiModelsDetailed } from "../../../server/ai/providers";
 
 describe("LM Studio context discovery", () => {
   test("uses loaded runtime context instead of model maximum", () => {
@@ -49,6 +49,31 @@ describe("LM Studio context discovery", () => {
     try {
       await getOpenAiCompatibleModelsDetailed("http://local.test/v1");
       expect(requests.every((request) => !new Headers(request.headers).has("authorization"))).toBe(true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+describe("OpenAI model discovery", () => {
+  test("uses configured key and returns sorted model IDs from OpenAI", async () => {
+    const originalFetch = globalThis.fetch;
+    let requestedUrl = "";
+    let authorization = "";
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      requestedUrl = String(input);
+      authorization = new Headers(init?.headers).get("authorization") ?? "";
+      return new Response(JSON.stringify({ data: [{ id: "gpt-z" }, { id: "gpt-a" }, { id: 42 }] }));
+    }) as typeof fetch;
+    try {
+      const result = await getOpenAiModelsDetailed("openai-secret");
+      expect(requestedUrl).toBe("https://api.openai.com/v1/models");
+      expect(authorization).toBe("Bearer openai-secret");
+      expect(result.models).toEqual([
+        { id: "gpt-a", name: "gpt-a" },
+        { id: "gpt-z", name: "gpt-z" },
+      ]);
+      expect(result.error).toBeNull();
     } finally {
       globalThis.fetch = originalFetch;
     }

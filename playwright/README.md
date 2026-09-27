@@ -39,6 +39,18 @@ Launchers create configured E2E data directories and delete only their SQLite da
 
 Playwright output goes to `playwright/test-results/`. Responsive captures go to `playwright/screenshots/` (mobile captures under `screenshots/mobile/`). Both are generated artifacts and must not be committed. Seeded data under `test-results/` is disposable.
 
+## Responsive visual baselines
+
+Pull-request screenshot CI renders every `mobile-screenshots` case twice in the same runner environment: once from the PR and once from its current base revision. The base render is the visual baseline. Pixel differences at or below the shared 1% tolerance are treated as rendering noise; added, removed, resized, or materially changed screenshots fail the `screenshots` check.
+
+Failed comparisons still upload the `pr-screenshot-preview` artifact and publish before/after/diff images in the PR UI-change comment. Review those images before accepting a visual change.
+
+To update the baseline intentionally:
+
+1. Run `bun run ui:diff` locally and inspect `.ui-diff/report.html`.
+2. Push the UI change and confirm the PR preview artifact/comment shows only intended differences.
+3. Merge the reviewed PR. Its renders become the base revision for later PRs; responsive PNGs remain generated artifacts and are not committed.
+
 ## Adding coverage
 
 Add a spec under its domain in `tests/` and update the matching project only when its path or server needs differ from existing definitions. Keep project names, test titles, assertions, serial/stateful behavior, cleanup, and generated locations stable when moving coverage. Put reusable browser assertions/data in `tests/support/` under their owning domain; keep shared error collection in `tests/support/browser-errors.ts`. See `tests/README.md` for taxonomy and size guidance. Add a focused config/support module only when it owns a coherent contract; avoid compatibility aliases and root-level spec files.

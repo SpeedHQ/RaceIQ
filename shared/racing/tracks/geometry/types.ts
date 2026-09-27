@@ -6,6 +6,7 @@ export interface Point {
 export interface TrackBoundary {
   leftEdge: Point[];
   rightEdge: Point[];
+  centerLine?: Point[];
   pitLane: Point[] | null;
 }
 

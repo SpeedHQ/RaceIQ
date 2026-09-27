@@ -1,5 +1,5 @@
 /**
- * apply_changes no-op guard (FIX A) + system-prompt mandates (FIX B).
+ * Setup Engineer mutation guards and on-demand lap-issue analysis.
  *
  * Unlike test/setup-engineer-tools.test.ts (pure primitives only), this file
  * DOES import `mastra/tools/setup-engineer.ts` — but only after stubbing every
@@ -11,6 +11,13 @@
  * setSessionHead calls).
  */
 import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import { initGameAdapters } from "../../../shared/games/init";
+import { detectCorners } from "../../../server/lap-analysis/corners";
+import { telemetryToSymptoms } from "../../../server/ai/tune-symptoms";
+import { symptomsToIssues } from "../../../server/ai/tune-issues";
+import { analyzeLapIssues } from "../../../server/experiments/lap-issues";
+import { RequestContext } from "@mastra/core/request-context";
 
 // `mock.module` is PROCESS-global in Bun and cannot be undone: re-mocking an
 // already-mocked path is a no-op, so an `afterAll` "restore" achieves nothing
@@ -42,6 +49,7 @@ import * as RealMastraModel from "../../../mastra/model";
 let stubsActive = false;
 beforeAll(() => {
   stubsActive = true;
+  initGameAdapters();
 });
 afterAll(() => {
   stubsActive = false;
@@ -73,6 +81,28 @@ const createExperimentVersion = mock(async () => 999);
 const setSessionHead = mock(async () => {});
 const recordAction = mock(async () => {});
 const setExperimentVersionNote = mock(async () => null);
+
+function completedPackets(): TelemetryPacket[] {
+  return Array.from({ length: 180 }, (_, i) => ({
+    gameId: "acc", IsRaceOn: 1, LapNumber: 1, LastLap: 0, BestLap: 0,
+    CarOrdinal: 100, TrackOrdinal: 5, PositionX: 0, PositionZ: 0,
+    TimestampMS: i * 16, CurrentLap: i / 60,
+    DistanceTraveled: i * 2, Speed: i < 40 ? 50 : 20,
+    VelocityX: i < 40 ? 50 : 20, VelocityY: 0, VelocityZ: 0,
+    Steer: i < 40 ? 0 : 50, Brake: 1, Accel: 0,
+    TireSlipAngleFL: 0.1, TireSlipAngleFR: 0.1, TireSlipAngleRL: 0, TireSlipAngleRR: 0,
+    TireSlipRatioFL: 0.3, TireSlipRatioFR: 0.3, TireSlipRatioRL: 0, TireSlipRatioRR: 0,
+    NormSuspensionTravelFL: 0.5, NormSuspensionTravelFR: 0.5,
+    NormSuspensionTravelRL: 0.5, NormSuspensionTravelRR: 0.5,
+  } as TelemetryPacket));
+}
+
+const issueLaps = Array.from({ length: 9 }, (_, i) => ({
+  id: 109 - i, lapNumber: 19 - i, lapTime: 90, isValid: true,
+}));
+const getLapsForExperiment = mock(async (sessionId: number) => sessionId === 61 ? issueLaps : []);
+const getLapById = mock(async (lapId: number) =>
+  issueLaps.some((lap) => lap.id === lapId) ? { telemetry: completedPackets() } : null);
 
 const fakeCtx = {
   ok: true as const,
@@ -128,12 +158,12 @@ mock.module("../../../server/experiments/setup-lineage", () => ({
 }));
 mock.module("../../../server/db/lap-read-queries", () => ({
   ...RealLapReadQueries,
-  getLapById: gate(RealLapReadQueries.getLapById, mock(async () => null)),
+  getLapById: gate(RealLapReadQueries.getLapById, getLapById),
 }));
 mock.module("../../../server/db/experiment-lap-queries", () => ({
   ...RealExperimentLapQueries,
   setLapExperimentExcluded: gate(RealExperimentLapQueries.setLapExperimentExcluded, mock(async () => {})),
-  getLapsForExperiment: gate(RealExperimentLapQueries.getLapsForExperiment, mock(async () => [])),
+  getLapsForExperiment: gate(RealExperimentLapQueries.getLapsForExperiment, getLapsForExperiment),
 }));
 mock.module("../../../server/db/experiment-action-queries", () => ({
   ...RealActionQueries,
@@ -223,6 +253,89 @@ describe("record_driver_notes — driver confirmation guard", () => {
 
     expect(result.ok).toBe(true);
     expect(setExperimentVersionNote).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("get_lap_issues — explicit experiment-scoped worker analysis", () => {
+  async function invokeIssues(lapId?: number, sessionId = 61) {
+    const context = new RequestContext();
+    context.set("gameId", "acc");
+    context.set("sessionId", sessionId);
+    // Direct tool execution reads requestContext; Mastra's tracing observer is unused here.
+    const executionContext = { requestContext: context } as Parameters<NonNullable<typeof setupEngineerTools.getLapIssuesTool.execute>>[1];
+    const result = await setupEngineerTools.getLapIssuesTool.execute!({ lapId }, executionContext);
+    if (!result || !("ok" in result)) throw new Error("Unexpected tool validation failure");
+    return result;
+  }
+
+  test("yields before returning deterministic ACC issues with the saved lap identity", async () => {
+    const packets = completedPackets();
+    const expected = symptomsToIssues(telemetryToSymptoms(packets, detectCorners(packets)), 19)
+      .map(({ kind, severity, corner, detail, lapNumber }) => ({ kind, severity, corner, detail, lapNumber }));
+    let yielded = false;
+    const analysis = invokeIssues(109);
+    setImmediate(() => { yielded = true; });
+    const result = await analysis;
+
+    expect(yielded).toBe(true);
+    expect(result.ok).toBe(true);
+    expect(result.laps).toHaveLength(1);
+    expect(result.laps[0]).toMatchObject({ lapId: 109, lapNumber: 19, issues: expected });
+    expect(result.laps[0].issues.map((issue: { kind: string }) => issue.kind)).toEqual([
+      "understeer", "brake-lockup", "understeer", "brake-lockup", "understeer", "brake-lockup",
+    ]);
+  });
+
+  test("rejects another experiment's lap before reading its telemetry or starting analysis", async () => {
+    getLapById.mockClear();
+    const result = await invokeIssues(109, 62);
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/not in this session/);
+    expect(result.laps).toEqual([]);
+    expect(getLapById).not.toHaveBeenCalled();
+  });
+
+  test("keeps simultaneous explicit requests tied to their saved lap identities", async () => {
+    const results = await Promise.all([109, 108].map((lapId) => invokeIssues(lapId)));
+
+    for (const [index, result] of results.entries()) {
+      expect(result.ok).toBe(true);
+      expect(result.laps).toHaveLength(1);
+      expect(result.laps[0].lapId).toBe(109 - index);
+      expect(result.laps[0].lapNumber).toBe(19 - index);
+      expect(result.laps[0].issues.map((issue) => issue.lapNumber)).toEqual(
+        Array(6).fill(19 - index),
+      );
+    }
+  });
+
+  test("scans its capped lap pool sequentially without overloading the worker", async () => {
+    const result = await invokeIssues();
+
+    expect(result.ok).toBe(true);
+    expect(result.truncated).toBe(true);
+    expect(result.laps.map((lap: { lapId: number }) => lap.lapId)).toEqual(
+      [109, 108, 107, 106, 105, 104, 103, 102],
+    );
+  });
+
+  test("reports a full backlog as a tool failure and accepts later requests", async () => {
+    const pending = Array.from({ length: 4 }, () => analyzeLapIssues(completedPackets()));
+    try {
+      const result = await invokeIssues(109);
+      expect(result.ok).toBe(false);
+      expect(result.error).toMatch(/backlog/);
+      expect(result.laps).toEqual([]);
+    } finally {
+      await Promise.all(pending);
+    }
+
+    const recovered = await invokeIssues(109);
+    expect(recovered.ok).toBe(true);
+    expect(recovered.laps[0].issues).toContainEqual(
+      expect.objectContaining({ kind: "understeer", lapNumber: 19 }),
+    );
   });
 });
 

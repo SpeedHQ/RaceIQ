@@ -1,21 +1,26 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { SessionImportModal } from "./SessionImportModal";
+import type { SessionCleanupRequest, SessionCleanupResult } from "@shared/racing/sessions/cleanup";
+import { SessionCleanupDialog } from "@/components/SessionCleanupDialog";
 import { SessionRecapModal } from "@/components/SessionRecapModal";
 import { Button } from "@/components/ui/button";
 import { useDeleteLap, useLaps } from "@/hooks/laps";
 import { queryKeys } from "@/hooks/query-keys";
 import { useSessions } from "@/hooks/session-queries";
+import { useResolveNames } from "@/hooks/catalog-queries";
+import { client } from "@/lib/rpc";
 import { exportLapsZip } from "@/lib/lap-export";
 import { storedLapsSectorCount } from "@/lib/lap-sectors";
-import { client } from "@/lib/rpc";
+import { routePrefixForGameId } from "@/lib/game-routes";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "@/stores/game";
 import { filterSessions, groupLapsBySession, PAGE_SIZE, paginateSessions, selectionIncludesMotec, sortSessions } from "./helpers";
 import { SessionDesktopTable } from "./SessionDesktopTable";
 import { SessionMobileList } from "./SessionMobileList";
+import { SessionImportModal } from "./SessionImportModal";
 import { SessionToolbar } from "./SessionToolbar";
+import type { SessionMeta } from "@shared/racing/sessions/types";
 import type { LapSortKey, SessionSelectionEvent, SessionsTab, SortDir, SortKey } from "./types";
 
 export function SessionsPage() {
@@ -31,18 +36,24 @@ export function SessionsPage() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [lapSortKey, setLapSortKey] = useState<LapSortKey>("lap");
   const [lapSortDir, setLapSortDir] = useState<SortDir>("asc");
-  const [trackNames, setTrackNames] = useState<Record<number, string>>({});
-  const [carNames, setCarNames] = useState<Record<number, string>>({});
+  const trackOrdinals = useMemo(() => [...new Set(sessions.map((session) => session.trackOrdinal).filter((ordinal): ordinal is number => !!ordinal))].sort((a, b) => a - b), [sessions]);
+  const carOrdinals = useMemo(() => [...new Set(sessions.map((session) => session.carOrdinal).filter((ordinal): ordinal is number => !!ordinal))].sort((a, b) => a - b), [sessions]);
+  const { data: resolvedNames } = useResolveNames(trackOrdinals, carOrdinals);
+  const trackNames = resolvedNames?.trackNames ?? {};
+  const lapsBySession = useMemo(() => groupLapsBySession(allLaps), [allLaps]);
+  const carNames = resolvedNames?.carNames ?? {};
   const [expandedSessions, setExpandedSessions] = useState<Set<number>>(new Set());
   const [selectedLaps, setSelectedLaps] = useState<Set<number>>(new Set());
   const [selectedSessions, setSelectedSessions] = useState<Set<number>>(new Set());
   const [search, setSearch] = useState("");
-  const [recapSessionId, setRecapSessionId] = useState<number | null>(null);
+  const [favoriteOnly, setFavoriteOnly] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [importOpen, setImportOpen] = useState(false);
+  const [cleanupRequest, setCleanupRequest] = useState<SessionCleanupRequest | null>(null);
+  const [recapSessionId, setRecapSessionId] = useState<number | null>(null);
   const routeSearch = useSearch({ strict: false }) as { tab?: string };
   const tab: SessionsTab = routeSearch.tab === "others" ? "others" : "mine";
   const setTab = useCallback(
@@ -54,52 +65,31 @@ export function SessionsPage() {
     [navigate],
   );
 
-  const runExport = useCallback(async (selection: { lapIds?: number[]; sessionIds?: number[] }) => {
-    if (selectionIncludesMotec(selection, sessions, allLaps) &&
-      !window.confirm(m.sessions_export_motec_whole_session_confirm())) {
-      return;
-    }
-    setExporting(true);
-    try {
-      await exportLapsZip(selection);
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : String(error));
-    } finally {
-      setExporting(false);
-    }
-  }, [allLaps, sessions]);
-
-  const lapsBySession = useMemo(() => groupLapsBySession(allLaps), [allLaps]);
-  useEffect(() => {
-    const trackOrdinals = new Set<number>();
-    const carOrdinals = new Set<number>();
-    for (const session of sessions) {
-      if (session.trackOrdinal) trackOrdinals.add(session.trackOrdinal);
-      if (session.carOrdinal) carOrdinals.add(session.carOrdinal);
-    }
-    for (const ordinal of trackOrdinals) {
-      if (!trackNames[ordinal]) {
-        client.api["track-name"][":ordinal"]
-          .$get({ param: { ordinal: String(ordinal) }, query: { gameId: gameId! } })
-          .then((response) => (response.ok ? response.text() : ""))
-          .then((name) => {
-            if (name) setTrackNames((previous) => ({ ...previous, [ordinal]: name }));
-          })
-          .catch(() => {});
+  const runExport = useCallback(
+    async (selection: { lapIds?: number[]; sessionIds?: number[] }) => {
+      if (selectionIncludesMotec(selection, sessions, allLaps) && !window.confirm(m.sessions_export_motec_whole_session_confirm())) {
+        return;
       }
-    }
-    for (const ordinal of carOrdinals) {
-      if (!carNames[ordinal]) {
-        client.api["car-name"][":ordinal"]
-          .$get({ param: { ordinal: String(ordinal) }, query: { gameId: gameId! } })
-          .then((response) => (response.ok ? response.text() : ""))
-          .then((name) => {
-            if (name) setCarNames((previous) => ({ ...previous, [ordinal]: name }));
-          })
-          .catch(() => {});
+      setExporting(true);
+      try {
+        await exportLapsZip(selection);
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : String(error));
+      } finally {
+        setExporting(false);
       }
-    }
-  }, [sessions, gameId, trackNames, carNames]);
+    },
+    [allLaps, sessions],
+  );
+  const analyseSession = useCallback(
+    (session: SessionMeta) => {
+      if (!gameId) return;
+      const routePrefix = routePrefixForGameId(gameId);
+      if (!routePrefix) return;
+      void navigate({ to: `/${routePrefix}/sessions/${session.id}/analyse` as never });
+    },
+    [gameId, navigate],
+  );
 
   const toggleSort = useCallback(
     (key: SortKey) => {
@@ -123,11 +113,11 @@ export function SessionsPage() {
   );
 
   const sorted = useMemo(() => sortSessions(sessions, sortKey, sortDir, { trackNames, carNames }), [sessions, sortKey, sortDir, trackNames, carNames]);
-  const filtered = useMemo(() => filterSessions(sorted, search, tab, { trackNames, carNames }), [sorted, search, tab, trackNames, carNames]);
+  const filtered = useMemo(() => filterSessions(sorted, search, tab, { trackNames, carNames }, favoriteOnly), [sorted, search, tab, trackNames, carNames, favoriteOnly]);
   const { items: pageItems, totalPages } = useMemo(() => paginateSessions(filtered, page), [filtered, page]);
   useEffect(() => {
     setPage(0);
-  }, [sessions.length, search]);
+  }, [sessions.length, search, favoriteOnly]);
 
   const toggleSessionSelection = useCallback(
     (sessionId: number, event: SessionSelectionEvent) => {
@@ -193,6 +183,27 @@ export function SessionsPage() {
       setIsDeleting(false);
     }
   }, [selectedLaps, selectedSessions, queryClient]);
+  const completedCleanup = useCallback(
+    (result: SessionCleanupResult) => {
+      setSelectedSessions((previous) => {
+        const next = new Set(previous);
+        for (const id of result.cleanedSessionIds) next.delete(id);
+        return next;
+      });
+      setSelectedLaps((previous) => {
+        const next = new Set(previous);
+        for (const lap of allLaps) if (result.cleanedSessionIds.includes(lap.sessionId)) next.delete(lap.id);
+        return next;
+      });
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.sessions }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.laps }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.storageSessions }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.cacheStatus }),
+      ]);
+    },
+    [allLaps, queryClient],
+  );
   const saveSessionNotes = useCallback(
     (sessionId: number, notes: string) => {
       void client.api.sessions[":id"].notes.$patch({ param: { id: String(sessionId) }, json: { notes: notes || null } });
@@ -200,9 +211,9 @@ export function SessionsPage() {
     },
     [queryClient],
   );
-  const isF1 = gameId === "f1-2025";
-  const colCount = isF1 ? 9 : 8;
-  const emptyMessage = tab === "others" ? m.sessions_none_others() : m.sessions_none();
+  const showSessionType = gameId === "f1-2025" || gameId === "lmu";
+  const colCount = showSessionType ? 9 : 8;
+  const emptyMessage = favoriteOnly ? m.sessions_none_favorites() : tab === "others" ? m.sessions_none_others() : m.sessions_none();
 
   return (
     <div className="h-full flex flex-col p-4 gap-3">
@@ -217,6 +228,7 @@ export function SessionsPage() {
           }}
         />
       )}
+      <SessionCleanupDialog request={cleanupRequest} onClose={() => setCleanupRequest(null)} onCompleted={completedCleanup} />
       <SessionToolbar
         sessions={sessions}
         allLaps={allLaps}
@@ -225,6 +237,11 @@ export function SessionsPage() {
         sessionsError={sessionsError}
         tab={tab}
         setTab={setTab}
+        favoriteOnly={favoriteOnly}
+        setFavoriteOnly={(value) => {
+          setFavoriteOnly(value);
+          setPage(0);
+        }}
         search={search}
         setSearch={setSearch}
         setPage={setPage}
@@ -233,6 +250,7 @@ export function SessionsPage() {
         exporting={exporting}
         runExport={runExport}
         setImportOpen={setImportOpen}
+        openCleanup={() => setCleanupRequest({ mode: "selected", sessionIds: [...selectedSessions] })}
         confirmDelete={confirmDelete}
         setConfirmDelete={setConfirmDelete}
         deleteSelected={deleteSelected}
@@ -246,12 +264,13 @@ export function SessionsPage() {
         carNames={carNames}
         isLoading={isLoading}
         sessionsError={sessionsError}
-        isF1={isF1}
+        showSessionType={showSessionType}
         gameId={gameId}
         emptyMessage={emptyMessage}
         expandedSessions={expandedSessions}
         toggleExpand={toggleExpand}
         selectedSessions={selectedSessions}
+        analyseSession={analyseSession}
         toggleSessionSelection={toggleSessionSelection}
         selectedLaps={selectedLaps}
         toggleLapSelection={toggleLapSelection}
@@ -270,7 +289,7 @@ export function SessionsPage() {
         carNames={carNames}
         isLoading={isLoading}
         sessionsError={sessionsError}
-        isF1={isF1}
+        showSessionType={showSessionType}
         gameId={gameId}
         emptyMessage={emptyMessage}
         colCount={colCount}
@@ -283,6 +302,7 @@ export function SessionsPage() {
         selectedSessions={selectedSessions}
         setSelectedSessions={setSelectedSessions}
         toggleSessionSelection={toggleSessionSelection}
+        analyseSession={analyseSession}
         selectedLaps={selectedLaps}
         toggleLapSelection={toggleLapSelection}
         sectorCount={sectorCount}

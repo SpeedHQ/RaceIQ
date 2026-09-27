@@ -5,7 +5,7 @@ import type { RawUserTune } from "@/components/tune/browser/buildRows";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import { useResolveNames } from "@/hooks/catalog-queries";
 import { useCatalogTunes, useUserTunes } from "@/hooks/tunes";
-import { tracksMatch } from "@/lib/track-match";
+import { tuneMatchesTrack } from "@/lib/track-match";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../../shared/games/ids";
 import type { TuneSettings } from "../../../../shared/racing/tuning/types";
@@ -26,25 +26,17 @@ interface SetupRow {
 
 // Category → short badge shown in the list row and detail header.
 const CATEGORY_BADGE: Record<string, { label: string; cls: string }> = {
-  circuit: { label: "CIR", cls: "bg-(--tune-category-circuit)/20 text-(--tune-category-circuit)" },
-  wet: { label: "WET", cls: "bg-(--tune-category-wet)/20 text-(--tune-category-wet)" },
-  "low-drag": { label: "LD", cls: "bg-(--tune-category-low-drag)/20 text-(--tune-category-low-drag)" },
-  stable: { label: "STB", cls: "bg-(--tune-category-stable)/20 text-(--tune-category-stable)" },
-  "track-specific": { label: "TRK", cls: "bg-(--tune-category-track-specific)/20 text-(--tune-category-track-specific)" },
+  circuit: { label: m.tune_category_circuit().toUpperCase(), cls: "bg-(--tune-category-circuit)/20 text-(--tune-category-circuit)" },
+  wet: { label: m.tune_category_wet().toUpperCase(), cls: "bg-(--tune-category-wet)/20 text-(--tune-category-wet)" },
+  "low-drag": { label: m.tune_category_low_drag().toUpperCase(), cls: "bg-(--tune-category-low-drag)/20 text-(--tune-category-low-drag)" },
+  stable: { label: m.tune_category_stable().toUpperCase(), cls: "bg-(--tune-category-stable)/20 text-(--tune-category-stable)" },
+  "track-specific": { label: m.tune_category_track_specific().toUpperCase(), cls: "bg-(--tune-category-track-specific)/20 text-(--tune-category-track-specific)" },
 };
-const DEFAULT_BADGE = { label: "SET", cls: "bg-app-surface-alt text-app-text-muted" };
+const DEFAULT_BADGE = { label: m.catalogtracksetups_setups().toUpperCase(), cls: "bg-app-surface-alt text-app-text-muted" };
 
 const isNum = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
 const fmt = (n: unknown, d = 2) => (isNum(n) ? n.toFixed(d) : "—");
 
-/** Does a catalog/user tune belong to a track? Matches by explicit trackOrdinal
- *  or a fuzzy bestTracks name match. (Car-scoped tunes with neither — most of
- *  Forza's "circuit" catalog — deliberately don't attach to any track page.) */
-export function tuneMatchesTrack(tune: { trackOrdinal?: number | null; bestTracks?: string[] }, track: { ordinal: number; name: string; variant: string }): boolean {
-  if (tune.trackOrdinal != null && tune.trackOrdinal === track.ordinal) return true;
-  if (tune.bestTracks?.some((bt) => tracksMatch(bt, track.name, track.variant))) return true;
-  return false;
-}
 
 /** Forza's flat TuneSettings rendered in the same grouped grid the F1/ACC
  *  setup detail uses (a labelled value list per section). */
@@ -54,66 +46,66 @@ function ForzaSettingsGrid({ s }: { s: Partial<TuneSettings> }) {
   const num = (v: unknown, unit: string, d = 1): [boolean, string] => [isNum(v), `${fmt(v, d)}${unit}`];
   const groups: { title: string; rows: [string, string][] }[] = [
     {
-      title: "Tires",
+      title: m.tune_section_tires(),
       rows: rowsOf(
-        ["Front Pressure", ...num(s.tires?.frontPressure, " bar", 2)],
-        ["Rear Pressure", ...num(s.tires?.rearPressure, " bar", 2)],
-        ["Compound", !!s.tires?.compound, s.tires?.compound ?? ""],
+[m.tune_field_front_pressure(), ...num(s.tires?.frontPressure, " bar", 2)],
+[m.tune_field_rear_pressure(), ...num(s.tires?.rearPressure, " bar", 2)],
+        [m.accsetup_compound(), !!s.tires?.compound, s.tires?.compound ?? ""],
       ),
     },
     {
-      title: "Gearing",
-      rows: rowsOf(["Final Drive", ...num(s.gearing?.finalDrive, "", 2)], ["Top Speed", ...num(s.gearing?.topSpeedKph, " kph", 0)]),
+      title: m.tune_section_gearing(),
+      rows: rowsOf([m.tune_field_final_drive(), ...num(s.gearing?.finalDrive, "", 2)], [m.tune_field_top_speed(), ...num(s.gearing?.topSpeedKph, " kph", 0)]),
     },
     {
-      title: "Alignment",
+      title: m.tune_section_alignment(),
       rows: rowsOf(
-        ["F Camber", ...num(s.alignment?.frontCamber, "°")],
-        ["R Camber", ...num(s.alignment?.rearCamber, "°")],
-        ["F Toe", ...num(s.alignment?.frontToe, "°")],
-        ["R Toe", ...num(s.alignment?.rearToe, "°")],
-        ["Caster", ...num(s.alignment?.frontCaster, "°")],
+        [m.f1setup_field_f_camber(), ...num(s.alignment?.frontCamber, "°")],
+        [m.f1setup_field_r_camber(), ...num(s.alignment?.rearCamber, "°")],
+        [m.f1setup_field_f_toe(), ...num(s.alignment?.frontToe, "°")],
+        [m.f1setup_field_r_toe(), ...num(s.alignment?.rearToe, "°")],
+[m.tune_field_front_caster(), ...num(s.alignment?.frontCaster, "°")],
       ),
     },
     {
-      title: "Anti-Roll Bars",
-      rows: rowsOf(["Front", ...num(s.antiRollBars?.front, "")], ["Rear", ...num(s.antiRollBars?.rear, "")]),
+      title: m.tune_section_anti_roll_bars(),
+      rows: rowsOf([m.tune_position_front(), ...num(s.antiRollBars?.front, "")], [m.tune_position_rear(), ...num(s.antiRollBars?.rear, "")]),
     },
     {
-      title: "Springs",
+      title: m.tune_section_springs(),
       rows: rowsOf(
-        ["F Rate", ...num(s.springs?.frontRate, "")],
-        ["R Rate", ...num(s.springs?.rearRate, "")],
-        ["F Height", ...num(s.springs?.frontHeight, "")],
-        ["R Height", ...num(s.springs?.rearHeight, "")],
+        [m.tune_field_front_rate(), ...num(s.springs?.frontRate, "")],
+        [m.tune_field_rear_rate(), ...num(s.springs?.rearRate, "")],
+        [m.f1setup_field_f_height(), ...num(s.springs?.frontHeight, "")],
+        [m.f1setup_field_r_height(), ...num(s.springs?.rearHeight, "")],
       ),
     },
     {
-      title: "Damping",
+      title: m.tune_section_damping(),
       rows: rowsOf(
-        ["F Rebound", ...num(s.damping?.frontRebound, "")],
-        ["R Rebound", ...num(s.damping?.rearRebound, "")],
-        ["F Bump", ...num(s.damping?.frontBump, "")],
-        ["R Bump", ...num(s.damping?.rearBump, "")],
+        [m.tune_field_front_rebound(), ...num(s.damping?.frontRebound, "")],
+        [m.tune_field_rear_rebound(), ...num(s.damping?.rearRebound, "")],
+        [m.tune_field_front_bump(), ...num(s.damping?.frontBump, "")],
+        [m.tune_field_rear_bump(), ...num(s.damping?.rearBump, "")],
       ),
     },
     {
-      title: "Aero",
-      rows: rowsOf(["Front", ...num(s.aero?.frontDownforce, s.aero?.unit ? ` ${s.aero.unit}` : "", 0)], ["Rear", ...num(s.aero?.rearDownforce, s.aero?.unit ? ` ${s.aero.unit}` : "", 0)]),
+      title: m.tune_section_aero(),
+      rows: rowsOf([m.tune_field_front_downforce(), ...num(s.aero?.frontDownforce, s.aero?.unit ? ` ${s.aero.unit}` : "", 0)], [m.tune_field_rear_downforce(), ...num(s.aero?.rearDownforce, s.aero?.unit ? ` ${s.aero.unit}` : "", 0)]),
     },
     {
-      title: "Differential",
+      title: m.tune_section_differential(),
       rows: rowsOf(
-        ["Rear Accel", ...num(s.differential?.rearAccel, "%", 0)],
-        ["Rear Decel", ...num(s.differential?.rearDecel, "%", 0)],
-        ["Front Accel", ...num(s.differential?.frontAccel, "%", 0)],
-        ["Front Decel", ...num(s.differential?.frontDecel, "%", 0)],
-        ["Center", ...num(s.differential?.center, "%", 0)],
+        [m.tune_field_rear_accel(), ...num(s.differential?.rearAccel, "%", 0)],
+        [m.tune_field_rear_decel(), ...num(s.differential?.rearDecel, "%", 0)],
+        [m.tune_field_front_accel(), ...num(s.differential?.frontAccel, "%", 0)],
+        [m.tune_field_front_decel(), ...num(s.differential?.frontDecel, "%", 0)],
+        [m.tune_field_center_differential(), ...num(s.differential?.center, "%", 0)],
       ),
     },
     {
-      title: "Brakes",
-      rows: rowsOf(["Balance", ...num(s.brakes?.balance, "%", 0)], ["Pressure", ...num(s.brakes?.pressure, "%", 0)]),
+      title: m.tune_section_brakes(),
+      rows: rowsOf([m.tune_field_brake_balance(), ...num(s.brakes?.balance, "%", 0)], [m.tune_field_brake_pressure(), ...num(s.brakes?.pressure, "%", 0)]),
     },
   ].filter((g) => g.rows.length > 0);
 
@@ -186,7 +178,7 @@ export function CatalogTrackSetups({ gameId, trackName, trackVariant, trackOrdin
 
   const carOrdinals = useMemo(() => [...new Set(matched.map((t) => t.carOrdinal))], [matched]);
   const { data: names } = useResolveNames([], carOrdinals);
-  const carName = (ordinal: number) => names?.carNames[String(ordinal)] ?? `Car ${ordinal}`;
+  const carName = (ordinal: number) => names?.carNames[String(ordinal)] ?? m.catalogtracksetups_car_fallback({ ordinal: String(ordinal) });
 
   const uniqueCars = useMemo(() => [...new Set(matched.map((t) => t.carOrdinal))].sort((a, b) => carName(a).localeCompare(carName(b))), [matched, names]);
 
@@ -238,7 +230,7 @@ export function CatalogTrackSetups({ gameId, trackName, trackVariant, trackOrdin
           <div className="flex items-center gap-1.5 px-2 py-1 bg-app-surface-alt/50 border-b border-app-border/20 sticky top-0 z-10">
             <span className="text-app-micro text-app-text-dim uppercase w-4 text-right shrink-0">#</span>
             <span className="text-app-micro text-app-text-dim uppercase flex-1">{m.catalogtracksetups_name_car()}</span>
-            <span className="text-app-micro text-app-text-dim uppercase text-center">Cat</span>
+            <span className="text-app-micro text-app-text-dim uppercase text-center">{m.catalogtracksetups_category_short()}</span>
           </div>
           {setups.map((t, i) => {
             const badge = CATEGORY_BADGE[t.category] ?? DEFAULT_BADGE;

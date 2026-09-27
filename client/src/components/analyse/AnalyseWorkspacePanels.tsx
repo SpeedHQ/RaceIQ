@@ -21,7 +21,6 @@ interface AnalyseWorkspacePanelsProps {
   chartsPanelRef: RefObject<ChartsPanelHandle | null>;
   dataPanelProps: DataPanelProps;
   aiSidebarProps: AiSidebarProps | null;
-  displayTelemetryLength: number;
 }
 
 export function AnalyseWorkspacePanels({
@@ -32,7 +31,6 @@ export function AnalyseWorkspacePanels({
   chartsPanelRef,
   dataPanelProps,
   aiSidebarProps,
-  displayTelemetryLength,
 }: AnalyseWorkspacePanelsProps) {
   return (
     <div className="relative flex flex-none flex-col overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:flex-row @5xl/workspace:overflow-hidden">
@@ -47,7 +45,7 @@ export function AnalyseWorkspacePanels({
           <AnalyseTimelineScrubber {...timelineScrubberProps} />
 
           {/* Stacked charts — with own scroll */}
-          {displayTelemetryLength > 0 && <AnalyseChartsPanel ref={chartsPanelRef} {...chartsPanelProps} />}
+          {chartsPanelProps.semanticFrames.length > 0 && <AnalyseChartsPanel ref={chartsPanelRef} {...chartsPanelProps} />}
         </div>
       </div>
 

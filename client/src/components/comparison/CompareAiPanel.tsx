@@ -1,7 +1,7 @@
 import { Trash2 } from "lucide-react";
 import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import { m } from "../../paraglide/messages";
-import { uiStore, } from "../../stores/ui";
+import { uiStore } from "../../stores/ui";
 import { ChatPanel } from "../ai-chat/ChatPanel";
 import { Button } from "../ui/button";
 import { PanelSectionHeader } from "../ui/panel-section-header";

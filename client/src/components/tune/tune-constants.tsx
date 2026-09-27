@@ -36,13 +36,6 @@ export const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   ),
 };
 
-export const CATEGORY_LABELS: Record<string, string> = {
-  circuit: "Circuit",
-  wet: "Wet",
-  "low-drag": "Low Drag",
-  stable: "Stable",
-  "track-specific": "Track Specific",
-};
 
 export const CATEGORY_COLORS: Record<string, string> = {
   circuit: "bg-(--tune-category-circuit)/20 text-(--tune-category-circuit)",

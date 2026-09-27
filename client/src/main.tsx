@@ -26,6 +26,10 @@ const RaceIqDevtools = import.meta.env.DEV ? lazy(() => import("./devtools/RaceI
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <RouterProvider router={router} />
-    {RaceIqDevtools ? <Suspense fallback={null}><RaceIqDevtools router={router} queryClient={queryClient} /></Suspense> : null}
+    {RaceIqDevtools ? (
+      <Suspense fallback={null}>
+        <RaceIqDevtools router={router} queryClient={queryClient} />
+      </Suspense>
+    ) : null}
   </StrictMode>,
 );

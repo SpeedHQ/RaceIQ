@@ -1,4 +1,5 @@
-import { EXPERIMENT_FOCUS_LABELS, type ExperimentFocus } from "@shared/racing/experiments/focus";
+import { m } from "@/paraglide/messages";
+import type { ExperimentFocus } from "@shared/racing/experiments/focus";
 import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/racing/laps/review-selection";
 import type { LapMeta } from "@shared/racing/sessions/types";
 import type { F1CarSetup } from "@shared/telemetry/f1-2025";
@@ -102,8 +103,6 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
       return next;
     });
 
-
-
   const renderNode = (t: ExperimentVersion, depth: number, isLastSibling: boolean): React.ReactNode => {
     const isHead = t.id === headVersionId;
     const isOpen = expanded.has(t.id);
@@ -134,7 +133,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
           <div className="relative w-6 shrink-0 flex flex-col items-center">
             {depth > 0 && <div className="absolute -left-3 top-[15px] w-[24px] h-px bg-app-border" />}
             {(!isLastSibling || hasChildren) && <div className="absolute top-3 bottom-0 w-px bg-app-border" />}
-            <div className={`z-10 mt-[10px] size-2.5 rounded-full border-2 ${isHead ? "bg-app-accent border-app-accent" : "bg-app-surface border-app-text-dim"}`} title={isHead ? "HEAD" : undefined} />
+            <div className={`z-10 mt-[10px] size-2.5 rounded-full border-2 ${isHead ? "bg-app-accent border-app-accent" : "bg-app-surface border-app-text-dim"}`} title={isHead ? m.experiment_head() : undefined} />
           </div>
 
           <details
@@ -151,16 +150,16 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                 <Badge
                   variant="neutral"
                   size="compact"
-                  title={`Focus switched to ${EXPERIMENT_FOCUS_LABELS[focusEraByVersionId.get(t.id)!]} here`}
+                  title={m.experiment_focus_switched_here({ focus: focusEraByVersionId.get(t.id) === "driver" ? m.experiment_focus_driver() : m.experiment_focus_setup() })}
                   className={`border bg-transparent text-app-micro uppercase tracking-wider rounded px-1 py-px shrink-0 ${
                     focusEraByVersionId.get(t.id) === "driver" ? "text-(--focus-driver) border-(--focus-driver)/40" : "text-(--focus-setup) border-(--focus-setup)/40"
                   }`}
                 >
-                  → {EXPERIMENT_FOCUS_LABELS[focusEraByVersionId.get(t.id)!]}
+                  → {focusEraByVersionId.get(t.id) === "driver" ? m.experiment_focus_driver() : m.experiment_focus_setup()}
                 </Badge>
               )}
               <span className="text-app-compact text-app-text-muted truncate min-w-0">
-                {t.notes || (summarizeAppliedChanges(t.appliedChanges) ?? (t.parentVersionId == null ? (t.setupPath?.split(/[\\/]/).pop() ?? "Base setup") : "no changes recorded"))}
+                {t.notes || (summarizeAppliedChanges(t.appliedChanges) ?? (t.parentVersionId == null ? (t.setupPath?.split(/[\\/]/).pop() ?? m.experiment_base_setup()) : m.experiment_no_changes_recorded()))}
               </span>
               {isHead && (
                 <Badge variant="success" size="compact">
@@ -178,7 +177,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                   disabled={setHead.isPending}
                   className="normal-case tracking-normal font-sans shrink-0"
                 >
-                  Checkout
+                  {m.experiment_checkout()}
                 </Button>
               )}
               {gameId && (gameId === "f1-2025" ? t.setupSnapshot != null : t.setupPath != null) && (
@@ -189,10 +188,10 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                     e.stopPropagation();
                     setSetupForId(t.id);
                   }}
-                  title="View this version's setup file contents"
+                  title={m.experiment_view_setup_contents()}
                   className="normal-case tracking-normal font-sans"
                 >
-                  Setup
+                  {m.experiment_setup()}
                 </Button>
               )}
               {onOpenReview && (
@@ -205,7 +204,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                   }}
                   className="normal-case tracking-normal font-sans shrink-0"
                 >
-                  Review
+                  {m.experiment_review()}
                 </Button>
               )}
               <Button
@@ -213,19 +212,19 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                 size="app-sm"
                 onClick={(e) => {
                   e.stopPropagation();
-                  const confirmMessage = children.length > 0 ? "Delete this branch and all its descendants?" : "Delete this version?";
+                  const confirmMessage = children.length > 0 ? m.experiment_delete_branch_confirm() : m.experiment_delete_version_confirm();
                   if (!window.confirm(confirmMessage)) {
                     return;
                   }
                   deleteVersion.mutate({ sessionId, versionId: t.id });
                 }}
                 disabled={deleteVersion.isPending}
-                aria-label={children.length > 0 ? "Delete branch" : "Delete version"}
-                title={children.length > 0 ? "Delete branch" : "Delete version"}
+                aria-label={children.length > 0 ? m.experiment_delete_branch() : m.experiment_delete_version()}
+                title={children.length > 0 ? m.experiment_delete_branch() : m.experiment_delete_version()}
                 className="normal-case tracking-normal font-sans shrink-0 inline-flex items-center gap-1"
               >
                 <Trash2 aria-hidden="true" />
-                {children.length > 0 ? "Delete branch" : "Delete version"}
+                {children.length > 0 ? m.experiment_delete_branch() : m.experiment_delete_version()}
               </Button>
               <Button
                 variant="app-outline"
@@ -234,29 +233,29 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                   e.stopPropagation();
                   setNotesForId(t.id);
                 }}
-                title={t.driverComment || t.notes ? "View / edit notes" : "Add notes"}
+                title={t.driverComment || t.notes ? m.experiment_view_edit_notes() : m.experiment_add_notes()}
                 className="normal-case tracking-normal font-sans shrink-0 inline-flex items-center gap-1"
               >
-                Notes
+                {m.experiment_notes()}
                 {(t.driverComment || t.notes) && <span className="size-1.5 rounded-full bg-app-accent" />}
               </Button>
               <span
                 className="ml-auto flex items-center gap-3 shrink-0 text-app-compact tabular-nums"
-                title={`Averages/best/worst over the ${evalLaps.length} evaluated lap${evalLaps.length === 1 ? "" : "s"} of ${laps.length} recorded — the same laps the review analyses. Excluded: invalid, pit/out laps, manually excluded, and laps slower than the fastest-${REVIEW_LAP_CAP} cap.`}
+                title={m.experiment_lap_stats_title({ evalCount: evalLaps.length, totalCount: laps.length, cap: REVIEW_LAP_CAP })}
               >
                 {/* The whole row is eval-only, not "all laps recorded against
                     this version" — say so once here rather than qualifying
                     every stat label. */}
-                <span className="text-app-nano uppercase tracking-wider text-status-success/70 whitespace-nowrap self-end leading-tight">eval laps</span>
+                <span className="text-app-nano uppercase tracking-wider text-status-success/70 whitespace-nowrap self-end leading-tight">{m.experiment_eval_laps()}</span>
                 {/* eval/total: every other stat on this row is eval-only, so
                     show both counts rather than a bare total that doesn't
                     match the numbers next to it. */}
-                <RowStat label="eval/all" value={`${evalLaps.length}/${laps.length}`} width="w-[7ch]" />
-                <RowStat label="avg" value={avgT != null ? formatLapTime(avgT) : "-:--.---"} />
-                <RowStat label="best" value={bestT != null ? formatLapTime(bestT) : "-:--.---"} />
-                <RowStat label="worst" value={worstT != null ? formatLapTime(worstT) : "-:--.---"} />
-                <RowStat label="fuel/lap" value={avgFuel != null ? `${avgFuel.toFixed(2)}L` : "—"} width="w-[7ch]" />
-                <RowStat label="worst wear" value={avgWorstWear != null ? `${avgWorstWear.toFixed(0)}%` : "—"} width="w-[10ch]" />
+                <RowStat label={m.experiment_eval_all()} value={`${evalLaps.length}/${laps.length}`} width="w-[7ch]" />
+                <RowStat label={m.experiment_average_short()} value={avgT != null ? formatLapTime(avgT) : "-:--.---"} />
+                <RowStat label={m.experiment_best_short()} value={bestT != null ? formatLapTime(bestT) : "-:--.---"} />
+                <RowStat label={m.experiment_worst_short()} value={worstT != null ? formatLapTime(worstT) : "-:--.---"} />
+                <RowStat label={m.experiment_fuel_per_lap()} value={avgFuel != null ? `${avgFuel.toFixed(2)}L` : "—"} width="w-[7ch]" />
+                <RowStat label={m.experiment_worst_wear()} value={avgWorstWear != null ? `${avgWorstWear.toFixed(0)}%` : "—"} width="w-[10ch]" />
               </span>
             </summary>
             {isOpen && (
@@ -283,26 +282,25 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
       )}
       {gameId === "f1-2025" && setupSnapshot && <F1SetupModal setup={setupSnapshot} onClose={() => setSetupForId(null)} />}
       <div className="mx-2 mb-2 flex justify-end">
-        <Button
-          variant="app-outline"
-          size="app-sm"
-          onClick={() => setTrashOpen(true)}
-          className="normal-case tracking-normal font-sans shrink-0 inline-flex items-center gap-1"
-        >
+        <Button variant="app-outline" size="app-sm" onClick={() => setTrashOpen(true)} className="normal-case tracking-normal font-sans shrink-0 inline-flex items-center gap-1">
           <Trash2 aria-hidden="true" />
-          Trash
+          {m.experiment_trash()}
         </Button>
       </div>
-      {actionError && <div role="alert" className="mx-2 mb-1 rounded-md border border-status-danger/40 bg-status-danger/10 px-2 py-1 text-app-compact text-status-danger">{(actionError as Error).message}</div>}
+      {actionError && (
+        <div role="alert" className="mx-2 mb-1 rounded-md border border-status-danger/40 bg-status-danger/10 px-2 py-1 text-app-compact text-status-danger">
+          {(actionError as Error).message}
+        </div>
+      )}
       <Dialog open={trashOpen} onOpenChange={setTrashOpen}>
         <DialogContent showCloseButton={false} layout="scrollable" overlayClassName="bg-app-bg/60">
           <DialogHeader>
-            <DialogTitle>Deleted branches</DialogTitle>
+            <DialogTitle>{m.experiment_deleted_branches()}</DialogTitle>
           </DialogHeader>
           <div className="px-4 pb-4 text-sm">
-            {loadingTrash && <p className="text-app-text">Loading trash…</p>}
-            {!loadingTrash && trashError && <p className="text-status-danger">Could not load deleted branches.</p>}
-            {!loadingTrash && !trashError && deletedRoots.length === 0 && <p className="text-app-text-muted">Trash is empty.</p>}
+            {loadingTrash && <p className="text-app-text">{m.common_loading()}</p>}
+            {!loadingTrash && trashError && <p className="text-status-danger">{m.experiment_deleted_branches_load_error()}</p>}
+            {!loadingTrash && !trashError && deletedRoots.length === 0 && <p className="text-app-text-muted">{m.experiment_trash_empty()}</p>}
             {!loadingTrash && !trashError && deletedRoots.length > 0 && (
               <div className="space-y-2">
                 {deletedRoots.map((t) => (
@@ -314,9 +312,9 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                         size="app-sm"
                         onClick={() => restoreVersion.mutate({ sessionId, versionId: t.id })}
                         disabled={restoreVersion.isPending}
-                        aria-label={`Restore ${t.label}`}
+                        aria-label={m.experiment_restore_version({ label: t.label })}
                       >
-                        Restore
+                        {m.common_restore()}
                       </Button>
                     </div>
                   </div>
@@ -326,13 +324,13 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
           </div>
           <DialogFooter>
             <Button variant="app-outline" size="app-sm" onClick={() => setTrashOpen(false)}>
-              Close
+              {m.common_close()}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
       {tests.length === 0 ? (
-        <div className="px-3 py-4 text-center text-xs text-app-text-dim">No setup versions yet. Create the session from a base setup to seed v1, or run Save &amp; recommend.</div>
+        <div className="px-3 py-4 text-center text-xs text-app-text-dim">{m.experiment_no_versions_yet()}</div>
       ) : (
         <RecursiveVersionRows roots={roots} childrenOf={childrenOf} renderNode={renderNode} />
       )}

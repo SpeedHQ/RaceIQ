@@ -16,10 +16,10 @@ export function LapTimes({ view, sectors }: LapTimesProps) {
   const lastLap = timing.lastLapS;
   const bestLap = timing.bestLapS;
   const currentLap = timing.currentLapS;
-  let deltaToBest = sectors?.deltaToBest;
-  if (deltaToBest === undefined && lastLap !== undefined && bestLap !== undefined) {
-    deltaToBest = lastLap - bestLap;
-  }
+  const hasLiveProjection = sectors !== null && sectors !== undefined &&
+    Number.isFinite(sectors.estimatedLap) && sectors.estimatedLap > 0 &&
+    Number.isFinite(sectors.deltaToBest);
+  const deltaToBest = hasLiveProjection ? sectors.deltaToBest : undefined;
   const deltaColor = deltaToBest === undefined || deltaToBest <= 0 ? "text-(--delta-gain)" : deltaToBest < 1 ? "text-(--delta-focus)" : "text-(--delta-loss)";
 
   return (
@@ -31,7 +31,7 @@ export function LapTimes({ view, sectors }: LapTimesProps) {
         </div>
         <div className="w-fit">
           <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.telemetry_est_lap()}</div>
-          <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">{sectors?.estimatedLap === undefined ? "--:--.---" : formatLapTime(sectors.estimatedLap)}</div>
+          <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">{hasLiveProjection ? formatLapTime(sectors.estimatedLap) : "--:--.---"}</div>
         </div>
         <div className="w-fit">
           <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.label_delta()}</div>

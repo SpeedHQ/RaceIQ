@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 
-const SUITES = ["unit", "integration", "e2e"] as const;
+const SUITES = ["unit", "integration", "tooling", "e2e"] as const;
 type Suite = (typeof SUITES)[number];
 
 interface Assignment {

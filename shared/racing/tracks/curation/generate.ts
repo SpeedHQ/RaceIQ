@@ -34,6 +34,7 @@ const GAME_DIRS: Record<GameId, string | typeof NO_CENTERLINE_DIR> = {
   "fm-2023": resolve(SHARED_DIR, "tracks", "fm-2023"),
   "ac-evo": resolve(SHARED_DIR, "tracks", "ac-evo"),
   iracing: NO_CENTERLINE_DIR,
+  lmu: NO_CENTERLINE_DIR,
 };
 
 /** List every track slug that has a meta file, curated or not. */

@@ -28,12 +28,7 @@ const secondLap = { id: 102, sessionId: 1 } as LapMeta;
 
 type ToolbarOverrides = Partial<Pick<ComponentProps<typeof SessionToolbar>, "exporting" | "runExport">>;
 
-function toolbar(
-  selectedLaps: Set<number>,
-  allLaps: LapMeta[] = [lap],
-  toolbarSessions: SessionMeta[] = sessions,
-  overrides: ToolbarOverrides = {},
-) {
+function toolbar(selectedLaps: Set<number>, allLaps: LapMeta[] = [lap], toolbarSessions: SessionMeta[] = sessions, overrides: ToolbarOverrides = {}) {
   capturedButtons.length = 0;
   return renderToStaticMarkup(
     createElement(SessionToolbar, {
@@ -62,9 +57,7 @@ function toolbar(
 }
 
 function capturedExportButton(): CapturedButtonProps | undefined {
-  return capturedButtons.find(
-    ({ children }) => children === m.sessions_export_lap() || children === m.common_loading(),
-  );
+  return capturedButtons.find(({ children }) => children === m.sessions_export_lap() || children === m.common_loading());
 }
 
 describe("Sessions toolbar controls", () => {

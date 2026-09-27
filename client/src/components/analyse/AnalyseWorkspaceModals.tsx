@@ -23,9 +23,6 @@ interface AnalyseWorkspaceModalsProps {
   onCancelIbt: () => void;
   importResult: AnalyseImportResult | null;
   gameId: string;
-  setSelectedTrack: (value: number) => void;
-  setSelectedCar: (value: number) => void;
-  setSelectedLapId: (value: number) => void;
   onCloseImport: () => void;
 }
 
@@ -42,9 +39,6 @@ export function AnalyseWorkspaceModals({
   onCancelIbt,
   importResult,
   gameId,
-  setSelectedTrack,
-  setSelectedCar,
-  setSelectedLapId,
   onCloseImport,
 }: AnalyseWorkspaceModalsProps) {
   const navigate = useNavigate();
@@ -55,7 +49,17 @@ export function AnalyseWorkspaceModals({
 
       {setup && <F1SetupModal setup={setup} onClose={onCloseSetup} />}
 
-      {ibtPreview && <IbtImportPreviewModal token={ibtPreview.token} preview={ibtPreview.preview} importing={importingBin} ownership={ownership} onOwnershipChange={onOwnershipChange} onImport={onCommitIbt} onClose={onCancelIbt} />}
+      {ibtPreview && (
+        <IbtImportPreviewModal
+          token={ibtPreview.token}
+          preview={ibtPreview.preview}
+          importing={importingBin}
+          ownership={ownership}
+          onOwnershipChange={onOwnershipChange}
+          onImport={onCommitIbt}
+          onClose={onCancelIbt}
+        />
+      )}
 
       {importResult &&
         (() => {
@@ -71,13 +75,7 @@ export function AnalyseWorkspaceModals({
               onGoToSession={
                 lastLap
                   ? () => {
-                      if (sameGame) {
-                        setSelectedTrack(lastLap.trackOrdinal);
-                        setSelectedCar(lastLap.carOrdinal);
-                        setSelectedLapId(lastLap.lapId);
-                      } else {
-                        navigate({ to: `/${importResult.routePrefix}/analyse`, search: { track: lastLap.trackOrdinal, car: lastLap.carOrdinal, lap: lastLap.lapId } });
-                      }
+                      void navigate({ to: `/${importResult.routePrefix}/sessions/${lastLap.sessionId}/replay/${lastLap.lapId}` as never });
                       onCloseImport();
                     }
                   : undefined

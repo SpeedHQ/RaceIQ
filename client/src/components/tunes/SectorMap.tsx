@@ -1,4 +1,7 @@
+import { m } from "@/paraglide/messages";
 import { useMemo, useRef, useState } from "react";
+import type { GameId } from "@shared/games/ids";
+import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import type { SemanticTuneSample } from "./semantic-tune";
 import { useTrackBoundaries } from "../../hooks/track-queries";
@@ -24,11 +27,14 @@ interface SectorMapProps {
   showTimes?: boolean;
   /** When provided, the track's left/right edges are fetched and drawn faintly. */
   trackOrdinal?: number;
+  gameId?: GameId;
   /** Tooltip content for the hovered frame; when omitted, hover is disabled. */
   readout?: (frame: SemanticTuneSample, fraction: number) => ReadoutRow[];
   /** Reports the hovered telemetry index (or null) so a parent can sync other
    *  views — e.g. draw the cursor value on the range bars. */
   onHover?: (idx: number | null) => void;
+  /** Externally supplied issue dots, positioned by lap fraction. */
+  issueMarkers?: Array<{ fraction: number; color: string }>;
   /** Externally-driven marker at a lap fraction (0-1) — e.g. an issue's
    *  location, highlighted when its list item is hovered. */
   markFraction?: number | null;
@@ -40,16 +46,20 @@ interface SectorMapProps {
  * drawn faintly when the track has geometry. Hovering scrubs the lap like a
  * chart — a marker follows the cursor and a tooltip shows values at that point.
  */
-export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true, trackOrdinal, readout, onHover, markFraction }: SectorMapProps) {
-  const { data: bounds } = useTrackBoundaries(trackOrdinal);
-  const edges = extractEdges(bounds);
+export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true, trackOrdinal, gameId, readout, onHover, issueMarkers = [], markFraction }: SectorMapProps) {
+  const { data: bounds } = useTrackBoundaries(trackOrdinal, gameId);
+  const edges = useMemo(() => {
+    const extracted = extractEdges(bounds);
+    if (!extracted || !gameId || !needsTrackFlip(gameId)) return extracted;
+    return { left: flipPoints(extracted.left), right: flipPoints(extracted.right) };
+  }, [bounds, gameId]);
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<ProjPt | null>(null);
 
   const geom = useMemo(() => buildGeometry(telemetry, sectorTimes, edges), [telemetry, sectorTimes, edges]);
 
   if (!geom) {
-    return <div className="p-4 text-xs text-app-text-dim">No position data to draw this lap.</div>;
+    return <div className="p-4 text-xs text-app-text-dim">{m.tunes_no_position_data()}</div>;
   }
 
   const interactive = !!readout;
@@ -81,6 +91,21 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
   const hoverFrame = hover ? telemetry[hover.idx] : null;
   const rows = hover && hoverFrame && readout ? readout(hoverFrame, hover.idx / Math.max(1, total - 1)) : [];
 
+  const issuePts = issueMarkers.flatMap((marker) => {
+    if (!Number.isFinite(marker.fraction) || marker.fraction < 0 || marker.fraction > 1) return [];
+    const target = marker.fraction * Math.max(1, total - 1);
+    let nearest: ProjPt | null = null;
+    let distance = Number.POSITIVE_INFINITY;
+    for (const p of geom.pts) {
+      const d = Math.abs(p.idx - target);
+      if (d < distance) {
+        distance = d;
+        nearest = p;
+      }
+    }
+    return nearest ? [{ ...marker, point: nearest }] : [];
+  });
+
   // External marker (e.g. an issue's location) at a lap fraction.
   let markPt: ProjPt | null = null;
   if (markFraction != null && markFraction >= 0) {
@@ -103,14 +128,11 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
           viewBox={`0 0 ${VIEW} ${VIEW}`}
           className="w-full h-auto"
           role="img"
-          aria-label="Lap track map coloured by sector"
+          aria-label={m.tunes_lap_track_map_sector_colored()}
           style={{ cursor: interactive ? "crosshair" : undefined }}
           onMouseMove={onMove}
           onMouseLeave={onLeave}
         >
-          {geom.leftEdge && <polyline points={geom.leftEdge} fill="none" stroke="currentColor" className="text-app-border" strokeWidth={1.5} opacity={0.5} />}
-          {geom.rightEdge && <polyline points={geom.rightEdge} fill="none" stroke="currentColor" className="text-app-border" strokeWidth={1.5} opacity={0.5} />}
-          <polyline points={geom.allPoints} fill="none" stroke="currentColor" className="text-app-border" strokeWidth={4} strokeLinejoin="round" strokeLinecap="round" opacity={0.3} />
           {geom.segments.map((seg, i) => {
             const dim = highlight != null && highlight !== i;
             return (
@@ -119,14 +141,17 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
                 points={seg}
                 fill="none"
                 stroke={dim ? "currentColor" : SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length]}
-                className={dim ? "text-app-border" : undefined}
-                strokeWidth={dim ? 2 : 3}
-                opacity={dim ? 0.4 : 1}
+                className={dim ? "text-app-text-muted" : undefined}
+                strokeWidth={dim ? 2.5 : 3}
+                opacity={dim ? 0.8 : 1}
                 strokeLinejoin="round"
                 strokeLinecap="round"
               />
             );
           })}
+          {issuePts.map(({ point, color }, index) => (
+            <circle key={`${point.idx}-${index}`} cx={point.x} cy={point.y} r={4} fill={color} stroke="var(--app-bg)" strokeWidth={1.25} />
+          ))}
           {markPt && (
             <>
               <circle cx={markPt.x} cy={markPt.y} r={7} fill="none" stroke="var(--map-highlight)" strokeWidth={2} />

@@ -58,7 +58,7 @@ function SetupVideo({ url }: { url: string }) {
       <Card className="rounded-lg border-0 bg-transparent p-0 ring-app-border/20">
         <iframe
           src={`https://www.youtube.com/embed/${vid}`}
-          title="Hotlap"
+          title={m.f1setup_hotlap()}
           className="w-full aspect-video"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
@@ -78,7 +78,7 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
 
   const { data: setups = [] } = useQuery<AccSetup[]>({
     queryKey: ["acc-setups-by-track", trackOrdinal],
-    queryFn: () => client.api.acc["setups-by-track"].$get({ query: { ordinal: String(trackOrdinal) } }).then((r) => r.json() as any),
+    queryFn: () => client.api.acc["setups-by-track"].$get({ query: { ordinal: encodeURIComponent(String(trackOrdinal)) } }).then((r) => r.json() as any),
   });
 
   const { data: cars = [] } = useQuery<AccCar[]>({
@@ -197,7 +197,7 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
             >
               <span className="text-app-compact text-app-text-dim font-mono w-4 text-right shrink-0">{i + 1}</span>
               <span className="flex-1 min-w-0 flex items-center gap-1">
-                <span className="text-app-compact font-medium text-app-text truncate">{s.author || "Unknown"}</span>
+                <span className="text-app-compact font-medium text-app-text truncate">{s.author || m.f1setup_unknown_author()}</span>
                 <span className="text-app-micro text-app-text-dim truncate">({carNameMap.get(s.carModel) ?? s.carModel})</span>
               </span>
               <span className="flex items-center gap-0.5 shrink-0 justify-center">
@@ -240,7 +240,7 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
           <div className="flex-1 min-w-0 overflow-y-auto space-y-3">
             {/* Header */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-app-body font-bold text-app-text">{setup.author || "Unknown"}</span>
+              <span className="text-app-body font-bold text-app-text">{setup.author || m.f1setup_unknown_author()}</span>
               <span className="text-app-compact text-app-text-secondary">
                 {carNameMap.get(setup.carModel) ?? setup.carModel}
                 {setup.lapTime && ` · ${setup.lapTime}`}
@@ -352,7 +352,7 @@ export function AccTrackGuide({ trackOrdinal, trackName }: { trackOrdinal: numbe
   const embedUrl = ACC_GUIDE_VIDEOS[trackOrdinal];
 
   if (!embedUrl) {
-    return <div className="text-app-text-dim text-sm py-4 text-center">No track guide available for {trackName}</div>;
+    return <div className="text-app-text-dim text-sm py-4 text-center">{m.f1setup_no_guide()}</div>;
   }
 
   return (
@@ -360,7 +360,7 @@ export function AccTrackGuide({ trackOrdinal, trackName }: { trackOrdinal: numbe
       <Card className="w-full max-w-4xl rounded-lg border-0 bg-transparent p-0 ring-app-border/20">
         <iframe
           src={embedUrl}
-          title={`${trackName} Track Guide`}
+          title={`${trackName} ${m.f1setup_track_guide()}`}
           className="w-full aspect-video"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen

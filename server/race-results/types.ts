@@ -1,5 +1,4 @@
 import type { GameId } from "../../shared/games/ids";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type {
   RaceResultClaimEvidence,
   RaceResultEvidence,
@@ -46,7 +45,6 @@ export interface RaceSourceObservation {
   qualifyingPosition?: number | null;
   isFastestLap?: boolean | null;
   fastestLapSource?: string | null;
-  packets: TelemetryPacket[];
   claims?: RaceResultClaimEvidence[];
   pitEvents?: PitEvent[];
   positionChanges?: PositionChangeEvent[];

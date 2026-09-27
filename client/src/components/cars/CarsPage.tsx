@@ -177,7 +177,7 @@ export function CarsPage() {
           configsReady={configsReady}
           onSelect={toggleSelect}
           onDetail={setDetailCar}
-          onModel={(ordinal) => navigate({ to: "/fm23/cars/$carOrdinal", params: { carOrdinal: String(ordinal) } })}
+          onModel={(ordinal) => navigate({ to: "/fm23/cars/$carOrdinal", params: { carOrdinal: encodeURIComponent(String(ordinal)) } })}
           {...formatters}
         />
       ) : (

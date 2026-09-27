@@ -5,18 +5,19 @@
  * .bin files older than 24 hours and gzips them in-place, updating the DB path
  * to .bin.gz. Skips if a session is active to avoid competing with live writes.
  */
-import { unlinkSync, existsSync } from "node:fs";
+import { createReadStream, createWriteStream, unlinkSync, existsSync } from "node:fs";
+import { rename, rm } from "node:fs/promises";
+import { pipeline } from "node:stream/promises";
+import { createGzip } from "node:zlib";
 import { getUncompressedSessions, updateSessionRawFile } from "../db/session-queries";
 import { isSessionActive } from "../telemetry/live-pipeline";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { gzipBuffer } from "./framing";
-import {
-  cleanupOrphanSessionFiles,
-  listSessionCaptureFiles,
-} from "./cleanup";
+import { cleanupOrphanSessionFiles, listSessionCaptureFiles, withSessionCaptureMaintenanceLock } from "./cleanup";
 import { cleanupExpiredStagedMotec } from "../motec/import-staging";
+import { loadSettings } from "../runtime/config/settings";
+import { executeSessionCleanup, SessionCleanupBusyError } from "./session-cleanup";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const INTERVAL_MS = 5 * 60 * 1000;
@@ -28,34 +29,33 @@ interface CompressedFile {
 
 async function writeCompressedFile(binPath: string): Promise<CompressedFile> {
   const gzPath = `${binPath}.gz`;
-  const source = Buffer.from(await Bun.file(binPath).arrayBuffer());
-  const compressed = await gzipBuffer(source);
-  await Bun.write(gzPath, compressed);
-  return {
-    gzPath,
-    sizeSummary: `${(source.byteLength / 1024).toFixed(0)}KB → ${(compressed.byteLength / 1024).toFixed(0)}KB`,
-  };
+  const tempPath = `${gzPath}.${crypto.randomUUID()}.tmp`;
+  const source = createReadStream(binPath);
+  const destination = createWriteStream(tempPath, { flags: "wx" });
+  try {
+    await pipeline(source, createGzip(), destination);
+    await rename(tempPath, gzPath);
+    return {
+      gzPath,
+      sizeSummary: `${(source.bytesRead / 1024).toFixed(0)}KB → ${(destination.bytesWritten / 1024).toFixed(0)}KB`,
+    };
+  } catch (error) {
+    await rm(tempPath, { force: true }).catch((cleanupError) => {
+      console.error(`[Compressor] Failed to remove temporary file ${tempPath}:`, cleanupError);
+    });
+    throw error;
+  }
 }
 
 async function compressSession(id: number, binPath: string): Promise<void> {
   const compressedFile = await writeCompressedFile(binPath);
 
   // Fetch current lapDetectorVersion to preserve it in the update
-  const row = await db
-    .select({ lapDetectorVersion: sessions.lapDetectorVersion })
-    .from(sessions)
-    .where(eq(sessions.id, id))
-    .get();
+  const row = await db.select({ lapDetectorVersion: sessions.lapDetectorVersion }).from(sessions).where(eq(sessions.id, id)).get();
 
-  await updateSessionRawFile(
-    id,
-    compressedFile.gzPath,
-    row?.lapDetectorVersion ?? "",
-  );
+  await updateSessionRawFile(id, compressedFile.gzPath, row?.lapDetectorVersion ?? "");
   unlinkSync(binPath);
-  console.log(
-    `[Compressor] ${binPath} → ${compressedFile.gzPath} (${compressedFile.sizeSummary})`,
-  );
+  console.log(`[Compressor] ${binPath} → ${compressedFile.gzPath} (${compressedFile.sizeSummary})`);
 }
 
 /**
@@ -65,9 +65,7 @@ async function compressSession(id: number, binPath: string): Promise<void> {
 async function compressOrphanFile(binPath: string): Promise<void> {
   const compressedFile = await writeCompressedFile(binPath);
   unlinkSync(binPath);
-  console.log(
-    `[Compressor] (orphan) ${binPath} → ${compressedFile.gzPath} (${compressedFile.sizeSummary})`,
-  );
+  console.log(`[Compressor] (orphan) ${binPath} → ${compressedFile.gzPath} (${compressedFile.sizeSummary})`);
 }
 
 /** Background-style compression: respects the 24-hour age filter. */
@@ -81,64 +79,71 @@ export async function runUserCompressionNow(): Promise<void> {
 }
 
 async function runCompression(userTriggered = false): Promise<void> {
-  if (isSessionActive()) return;
+  await withSessionCaptureMaintenanceLock(async () => {
+    // Recording may have started while this pass waited for maintenance.
+    if (isSessionActive()) return;
 
-  const ageMs = userTriggered ? 0 : ONE_DAY_MS;
-  const candidates = await getUncompressedSessions(ageMs);
-  const dbPaths = new Set(candidates.map((c) => c.rawFile));
+    const ageMs = userTriggered ? 0 : ONE_DAY_MS;
+    const candidates = await getUncompressedSessions(ageMs);
+    const dbPaths = new Set(candidates.map((c) => c.rawFile));
 
-  // User-triggered: also sweep .bin files that live on disk without a DB row.
-  // Background (age-gated) runs stay DB-driven so we don't compress brand-new
-  // files still being written by a just-finished session.
-  const orphanPaths = userTriggered
-    ? (await listSessionCaptureFiles()).filter(
-        (path) => path.endsWith(".bin") && !dbPaths.has(path),
-      )
-    : [];
+    // User-triggered: also sweep .bin files that live on disk without a DB row.
+    // Background (age-gated) runs stay DB-driven so we don't compress brand-new
+    // files still being written by a just-finished session.
+    const orphanPaths = userTriggered
+      ? (await listSessionCaptureFiles()).filter((path) => path.endsWith(".bin") && !dbPaths.has(path))
+      : [];
 
-  const total = candidates.length + orphanPaths.length;
-  if (total === 0) {
-    console.debug("[Compressor] No sessions to compress");
-    return;
-  }
-
-  console.log(`[Compressor] Compressing ${candidates.length} session(s), ${orphanPaths.length} orphan file(s)…`);
-  for (const { id, rawFile } of candidates) {
-    if (isSessionActive()) break;
-    try {
-      const file = Bun.file(rawFile);
-      if (!(await file.exists())) continue;
-      await compressSession(id, rawFile);
-    } catch (err) {
-      console.error(`[Compressor] Failed to compress session ${id}:`, err);
+    const total = candidates.length + orphanPaths.length;
+    if (total === 0) {
+      console.debug("[Compressor] No sessions to compress");
+      return;
     }
-  }
-  for (const path of orphanPaths) {
-    if (isSessionActive()) break;
-    try {
-      if (!existsSync(path)) continue;
-      await compressOrphanFile(path);
-    } catch (err) {
-      console.error(`[Compressor] Failed to compress orphan ${path}:`, err);
+
+    console.log(`[Compressor] Compressing ${candidates.length} session(s), ${orphanPaths.length} orphan file(s)…`);
+    for (const { id, rawFile } of candidates) {
+      if (isSessionActive()) break;
+      try {
+        const file = Bun.file(rawFile);
+        if (!(await file.exists())) continue;
+        await compressSession(id, rawFile);
+      } catch (err) {
+        console.error(`[Compressor] Failed to compress session ${id}:`, err);
+      }
     }
-  }
+    for (const path of orphanPaths) {
+      if (isSessionActive()) break;
+      try {
+        if (!existsSync(path)) continue;
+        await compressOrphanFile(path);
+      } catch (err) {
+        console.error(`[Compressor] Failed to compress orphan ${path}:`, err);
+      }
+    }
+  });
 }
 
 let _interval: ReturnType<typeof setInterval> | null = null;
 
 async function runMaintenance(): Promise<void> {
+  await runSessionCaptureMaintenanceNow();
+}
+
+export async function runSessionCaptureMaintenanceNow(): Promise<void> {
   await runCompression();
-  // Re-check activity inside the async orphan sweep so a session that starts
-  // during file enumeration cannot have its capture removed.
-  const [orphanCount, stagedMotecCount] = await Promise.all([
-    cleanupOrphanSessionFiles(isSessionActive),
-    cleanupExpiredStagedMotec(),
-  ]);
-  console.debug(
-    orphanCount > 0
-      ? `[Cleanup] Removed ${orphanCount} orphan session file(s)`
-      : "[Cleanup] No orphan session files found",
-  );
+  const settings = loadSettings();
+  if (settings.sessionCleanupEnabled && !isSessionActive()) {
+    try {
+      const result = await executeSessionCleanup({ mode: "older-than", olderThanDays: settings.sessionCleanupAgeDays });
+      if (result.failed.length > 0) {
+        console.warn(`[Cleanup] Failed to remove ${result.failed.length} capture group(s)`);
+      }
+    } catch (error) {
+      if (!(error instanceof SessionCleanupBusyError)) console.error("[Cleanup] Automatic capture cleanup failed:", error);
+    }
+  }
+  const [orphanCount, stagedMotecCount] = await Promise.all([cleanupOrphanSessionFiles(isSessionActive), cleanupExpiredStagedMotec()]);
+  console.debug(orphanCount > 0 ? `[Cleanup] Removed ${orphanCount} orphan session file(s)` : "[Cleanup] No orphan session files found");
   if (stagedMotecCount > 0) {
     console.debug(`[Cleanup] Removed ${stagedMotecCount} expired MoTeC staging director${stagedMotecCount === 1 ? "y" : "ies"}`);
   }

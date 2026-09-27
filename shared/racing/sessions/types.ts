@@ -20,6 +20,8 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   // Joined from session
   carOrdinal?: number;
   trackOrdinal?: number;
+  carId?: number | string | null;
+  trackId?: number | string | null;
   // How the session's telemetry was obtained (migration v43, joined from
   // sessions.source). null/undefined = recorded live from the game. 'motec' =
   // transcoded from a MoTeC .ld, where the racing line is dead-reckoned from
@@ -60,12 +62,18 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   // populated by queries that ask for it; undefined means "not selected", not
   // "no frames".
   rawFrameCount?: number | null;
+  /** Whether raw telemetry remains available for this lap. */
+  telemetryAvailable?: boolean;
+  /** User flag protecting the parent capture from space cleanup. */
+  isFavorite?: boolean;
 }
 
 export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
   id: number;
   carOrdinal: number;
   trackOrdinal: number;
+  carId: number | string;
+  trackId: number | string;
   createdAt: string;
   lapCount?: number;
   bestLapTime?: number;
@@ -86,7 +94,26 @@ export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
    */
   source?: string;
   ownership?: SessionOwnership;
+  /** Whether raw telemetry remains available for this session. */
+  telemetryAvailable?: boolean;
+  /** User flag protecting this session's capture from space cleanup. */
+  isFavorite?: boolean;
   gameId?: GameId;
+}
+
+export interface RacingIdentityFields {
+  carOrdinal?: number | null;
+  trackOrdinal?: number | null;
+  carId?: number | string | null;
+  trackId?: number | string | null;
+}
+
+export function carIdentityKey(identity: RacingIdentityFields): number | string | null {
+  return identity.carId ?? identity.carOrdinal ?? null;
+}
+
+export function trackIdentityKey(identity: RacingIdentityFields): number | string | null {
+  return identity.trackId ?? identity.trackOrdinal ?? null;
 }
 
 export interface SessionRecap {
@@ -94,9 +121,8 @@ export interface SessionRecap {
   gameId: GameId;
   carName: string;
   trackName: string;
-  /** Raw ordinals, for deep-linking into the analyse view. */
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: number | string;
+  trackId: number | string;
   createdAt: string;
 
   /** Laps with isValid && lapTime > 0. */

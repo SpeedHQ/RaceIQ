@@ -1,13 +1,14 @@
 import { tryGetGame } from "@shared/games/registry";
-import type { LapMeta } from "@shared/racing/sessions/types";
+import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
 import { useQueries } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { buildRecapText } from "@/components/SessionRecap";
+import { useMemo, useState } from "react";
+import { buildRecapText } from "@/components/sessions/helpers";
 import { useLaps } from "@/hooks/laps";
 import { useSessionRecap, useSessions } from "@/hooks/session-queries";
 import { useSettings } from "@/hooks/settings";
 import { useTrackOutline, useTrackSectorBoundaries } from "@/hooks/track-queries";
+import { queryKeys } from "@/hooks/query-keys";
 import { client } from "@/lib/rpc";
 import { getGameRoute, useGameId } from "@/stores/game";
 import { uiStore } from "@/stores/ui";
@@ -18,35 +19,21 @@ export function HomePageContainer() {
   const gameId = useGameId();
   const navigate = useNavigate();
   const gameAdapter = gameId ? tryGetGame(gameId) : null;
-  const { data: allLaps = [], isLoading: lapsLoading, isError: lapsError } = useLaps();
+  const { data: allLaps = [] } = useLaps();
   const { data: sessions = [], isLoading: sessionsLoading, isError: sessionsError } = useSessions();
   const { displaySettings } = useSettings();
   const { openSettings } = uiStore.actions;
   const hiddenGames: string[] = displaySettings.hiddenGames ?? [];
 
-  const latestSession = useMemo(() => {
-    if (sessions.length === 0) return null;
-    return [...sessions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-  }, [sessions]);
+  const recentSessions = useMemo(() => [...sessions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 10), [sessions]);
+  const latestSession = recentSessions[0] ?? null;
   const { data: latestRecap, isLoading: latestRecapLoading, isError: latestRecapError } = useSessionRecap(latestSession?.id, latestSession?.gameId ?? null);
-  const { data: latestRecapOutline } = useTrackOutline(latestRecap?.trackOrdinal, latestRecap?.gameId ?? latestSession?.gameId ?? null);
-  const { data: latestRecapBounds } = useTrackSectorBoundaries(latestRecap?.trackOrdinal, latestRecap?.gameId ?? latestSession?.gameId ?? null);
+  const { data: latestRecapOutline } = useTrackOutline(latestRecap?.trackId, latestRecap?.gameId ?? latestSession?.gameId ?? null);
+  const { data: latestRecapBounds } = useTrackSectorBoundaries(latestRecap?.trackId, latestRecap?.gameId ?? latestSession?.gameId ?? null);
   const [recapCopied, setRecapCopied] = useState(false);
 
-  const [carNames, setCarNames] = useState<Record<string, string>>({});
-  const [trackNames, setTrackNames] = useState<Record<string, string>>({});
-
-  const recentLaps = useMemo(
-    () =>
-      [...allLaps]
-        .filter((l) => l.lapTime > 0)
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 10),
-    [allLaps],
-  );
-
   const gameQueries = useQueries({
-    queries: (["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"] as const).map((g) => ({
+    queries: (["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu"] as const).map((g) => ({
       queryKey: ["stats", g],
       queryFn: async () => {
         const res = await client.api.stats.$get({ query: { gameId: g } });
@@ -67,7 +54,7 @@ export function HomePageContainer() {
       const d = gameQueries[i].data;
       return { laps: d?.totalLaps ?? 0, time: fmtTime(d?.totalTimeSec ?? 0) };
     };
-    return { fm: pick(0), f1: pick(1), acc: pick(2), acEvo: pick(3), iracing: pick(4) };
+    return { fm: pick(0), f1: pick(1), acc: pick(2), acEvo: pick(3), iracing: pick(4), lmu: pick(5) };
   }, [gameQueries]);
 
   const [periodTab, setPeriodTab] = useState<PeriodKey>("allTime");
@@ -115,55 +102,36 @@ export function HomePageContainer() {
     };
   }, [allLaps, gameId, todayStart, weekAgo, monthAgo, yearAgo]);
 
-  useEffect(() => {
-    const cars = new Map<string, { ordinal: number; gameId: LapMeta["gameId"] }>();
-    const tracks = new Map<string, { ordinal: number; gameId: LapMeta["gameId"] }>();
-    for (const lap of recentLaps) {
-      if (lap.carOrdinal != null) {
-        cars.set(`${lap.gameId}:${lap.carOrdinal}`, {
-          ordinal: lap.carOrdinal,
-          gameId: lap.gameId,
-        });
-      }
-      if (lap.trackOrdinal != null) {
-        tracks.set(`${lap.gameId}:${lap.trackOrdinal}`, {
-          ordinal: lap.trackOrdinal,
-          gameId: lap.gameId,
-        });
-      }
+  const nameTargets = useMemo(() => {
+    const cars = new Map<string, { ordinal: number; gameId: NonNullable<SessionMeta["gameId"]> }>();
+    const tracks = new Map<string, { ordinal: number; gameId: NonNullable<SessionMeta["gameId"]> }>();
+    for (const session of recentSessions) {
+      if (!session.gameId) continue;
+      if (session.carOrdinal != null) cars.set(`${session.gameId}:${session.carOrdinal}`, { ordinal: session.carOrdinal, gameId: session.gameId });
+      if (session.trackOrdinal != null) tracks.set(`${session.gameId}:${session.trackOrdinal}`, { ordinal: session.trackOrdinal, gameId: session.gameId });
     }
-
-    const missingCars = [...cars].filter(([key]) => !carNames[key]);
-    if (missingCars.length > 0) {
-      void Promise.all(
-        missingCars.map(async ([key, target]) => {
-          const response = await client.api["car-name"][":ordinal"].$get({
-            param: { ordinal: String(target.ordinal) },
-            query: { gameId: target.gameId },
-          });
-          return [key, response.ok ? await response.text() : ""] as const;
-        }),
-      )
-        .then((entries) => setCarNames((previous) => ({ ...previous, ...Object.fromEntries(entries) })))
-        .catch(() => {});
-    }
-
-    const missingTracks = [...tracks].filter(([key]) => !trackNames[key]);
-    if (missingTracks.length > 0) {
-      void Promise.all(
-        missingTracks.map(async ([key, target]) => {
-          const response = await client.api["track-name"][":ordinal"].$get({
-            param: { ordinal: String(target.ordinal) },
-            query: { gameId: target.gameId },
-          });
-          return [key, response.ok ? await response.text() : ""] as const;
-        }),
-      )
-        .then((entries) => setTrackNames((previous) => ({ ...previous, ...Object.fromEntries(entries) })))
-        .catch(() => {});
-    }
-  }, [recentLaps]);
-
+    return { cars: [...cars.values()].sort((a, b) => String(a.gameId).localeCompare(String(b.gameId)) || a.ordinal - b.ordinal), tracks: [...tracks.values()].sort((a, b) => String(a.gameId).localeCompare(String(b.gameId)) || a.ordinal - b.ordinal) };
+  }, [recentSessions]);
+  const carNameQueries = useQueries({
+    queries: nameTargets.cars.map((target) => ({
+      queryKey: [...queryKeys.carName(target.ordinal), target.gameId],
+      queryFn: async () => {
+        const response = await client.api["car-name"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(target.ordinal)) }, query: { gameId: target.gameId } });
+        return response.ok ? response.text() : "";
+      },
+    })),
+  });
+  const trackNameQueries = useQueries({
+    queries: nameTargets.tracks.map((target) => ({
+      queryKey: [...queryKeys.trackName(target.ordinal), target.gameId],
+      queryFn: async () => {
+        const response = await client.api["track-name"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(target.ordinal)) }, query: { gameId: target.gameId } });
+        return response.ok ? response.text() : "";
+      },
+    })),
+  });
+  const carNames = useMemo(() => Object.fromEntries(nameTargets.cars.map((target, index) => [`${target.gameId}:${target.ordinal}`, carNameQueries[index]?.data ?? ""])), [carNameQueries, nameTargets.cars]);
+  const trackNames = useMemo(() => Object.fromEntries(nameTargets.tracks.map((target, index) => [`${target.gameId}:${target.ordinal}`, trackNameQueries[index]?.data ?? ""])), [nameTargets.tracks, trackNameQueries]);
   const copyRecap = () => {
     if (!latestRecap) return;
     navigator.clipboard.writeText(buildRecapText(latestRecap)).then(() => {
@@ -174,8 +142,7 @@ export function HomePageContainer() {
   const analyseRecap = () => {
     if (!latestRecap || latestRecap.bestLapId == null) return;
     void navigate({
-      to: `${getGameRoute(latestRecap.gameId)}/analyse` as never,
-      search: { track: latestRecap.trackOrdinal, car: latestRecap.carOrdinal, lap: latestRecap.bestLapId } as never,
+      to: `${getGameRoute(latestRecap.gameId)}/sessions/${latestRecap.sessionId}/replay/${latestRecap.bestLapId}` as never,
     });
   };
 
@@ -185,7 +152,7 @@ export function HomePageContainer() {
       gameDisplayName={gameAdapter?.displayName ?? null}
       displaySettings={displaySettings}
       allLaps={allLaps}
-      recentLaps={recentLaps}
+      recentSessions={recentSessions}
       carNames={carNames}
       trackNames={trackNames}
       gameStats={gameStats}
@@ -199,19 +166,14 @@ export function HomePageContainer() {
       recapCopied={recapCopied}
       onCopyRecap={copyRecap}
       onAnalyseRecap={analyseRecap}
-      onAnalyseLap={(lap) => {
-        if (!lap.gameId) return;
-        void navigate({
-          to: `${getGameRoute(lap.gameId)}/analyse` as never,
-          search: { track: lap.trackOrdinal, car: lap.carOrdinal, lap: lap.id } as never,
-        });
+      onAnalyseSession={(session) => {
+        if (!session.gameId) return;
+        void navigate({ to: `${getGameRoute(session.gameId)}/sessions/${session.id}/analyse` as never });
       }}
       periodTab={periodTab}
       periodStats={periodStats}
       onPeriodTabChange={setPeriodTab}
       onOpenSettings={() => openSettings("games")}
-      lapsLoading={lapsLoading}
-      lapsError={lapsError}
       sessionsLoading={sessionsLoading}
       sessionsError={sessionsError}
     />

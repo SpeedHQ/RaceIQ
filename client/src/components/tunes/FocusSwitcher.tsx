@@ -1,4 +1,5 @@
-import { EXPERIMENT_FOCUS_HINTS, EXPERIMENT_FOCUS_LABELS, EXPERIMENT_FOCUSES, type ExperimentFocus } from "@shared/racing/experiments/focus";
+import { m } from "@/paraglide/messages";
+import { EXPERIMENT_FOCUSES, type ExperimentFocus } from "@shared/racing/experiments/focus";
 import { useEffect, useRef, useState } from "react";
 import { AppInput } from "@/components/ui/AppInput";
 import { useSetExperimentFocus } from "../../hooks/experiments";
@@ -40,18 +41,18 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
       setPending(null);
       setNote("");
     } catch (err: any) {
-      setError(err?.message ?? "Couldn't switch focus");
+      setError(err?.message ?? m.experiment_focus_switch_error());
     }
   };
 
   return (
     <div className="relative">
       <div className="flex items-center gap-2">
-        <span className="text-app-caption uppercase tracking-wider text-app-text-muted">Working on</span>
+        <span className="text-app-caption uppercase tracking-wider text-app-text-muted">{m.experiment_working_on()}</span>
         {/* fieldset rather than role="group": the native element carries the
             grouping semantics, and the legend names it for screen readers. */}
         <fieldset className="flex rounded-md border border-app-border overflow-hidden">
-          <legend className="sr-only">Experiment focus</legend>
+        <legend className="sr-only">{m.experiment_focus_legend()}</legend>
           {EXPERIMENT_FOCUSES.map((f) => {
             const active = focus === f;
             return (
@@ -60,7 +61,7 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
                 variant={active ? (f === "driver" ? "focus-toggle-driver" : "focus-toggle-setup") : "focus-toggle"}
                 size="app-sm"
                 aria-pressed={active}
-                title={EXPERIMENT_FOCUS_HINTS[f]}
+                title={f === "driver" ? m.experiment_focus_driver_hint() : m.experiment_focus_setup_hint()}
                 onClick={() => {
                   // Re-picking the active focus is a no-op server-side; don't
                   // open a dialog that would record nothing.
@@ -69,7 +70,7 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
                   setNote("");
                 }}
               >
-                {EXPERIMENT_FOCUS_LABELS[f]}
+                {f === "driver" ? m.experiment_focus_driver() : m.experiment_focus_setup()}
               </Button>
             );
           })}
@@ -79,10 +80,10 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
       {pending && (
         <div className="absolute right-0 z-20 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-lg border border-app-border bg-app-surface p-3 shadow-xl">
           <p className="text-xs text-app-text">
-            Switch to <span className="font-semibold">{EXPERIMENT_FOCUS_LABELS[pending]}</span>
+            {m.experiment_switch_to()} <span className="font-semibold">{pending === "driver" ? m.experiment_focus_driver() : m.experiment_focus_setup()}</span>
           </p>
-          <p className="mt-1 text-app-compact text-app-text-dim">{EXPERIMENT_FOCUS_HINTS[pending]}</p>
-          <p className="mt-1 text-app-compact text-app-text-dim">Versions you've already run keep what they were.</p>
+          <p className="mt-1 text-app-compact text-app-text-dim">{pending === "driver" ? m.experiment_focus_driver_hint() : m.experiment_focus_setup_hint()}</p>
+          <p className="mt-1 text-app-compact text-app-text-dim">{m.experiment_focus_versions_note()}</p>
           <AppInput
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -90,7 +91,7 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
               if (e.key === "Enter") void commit();
               if (e.key === "Escape") setPending(null);
             }}
-            placeholder="Why the switch? (optional)"
+            placeholder={m.experiment_focus_reason_placeholder()}
             maxLength={2000}
             ref={noteRef}
             className="mt-2 w-full text-xs"
@@ -98,10 +99,10 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
           {error && <div className="mt-1.5 text-app-compact text-status-danger">{error}</div>}
           <div className="mt-2 flex justify-end gap-2">
             <Button variant="app-outline" size="app-sm" onClick={() => setPending(null)}>
-              Cancel
+              {m.common_cancel()}
             </Button>
             <Button variant="app-primary" size="app-sm" onClick={() => void commit()} disabled={setFocus.isPending}>
-              {setFocus.isPending ? "Switching…" : "Switch"}
+              {setFocus.isPending ? m.experiment_switching() : m.experiment_switch()}
             </Button>
           </div>
         </div>

@@ -7,6 +7,7 @@ const analystJson = JSON.stringify({
   handling: [{ label: "Balance", value: "stable", assessment: "good", detail: "Car remains predictable." }],
   corners: [{ name: "Turn 5", issue: "Late rotation", fix: "Release brake earlier.", severity: "moderate" }],
   technique: [{ tip: "Earlier rotation", detail: "Carry more speed to apex." }],
+  setup: [],
 });
 
 describe("lap analysis display parser", () => {

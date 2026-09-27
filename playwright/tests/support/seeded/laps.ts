@@ -4,9 +4,11 @@ import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 
 interface SeededLapListItem {
   id: number;
+  sessionId: number;
   lapNumber: number;
   lapTime: number;
   carOrdinal: number;
+  sessionId: number;
   trackOrdinal: number;
   isValid: boolean;
 }

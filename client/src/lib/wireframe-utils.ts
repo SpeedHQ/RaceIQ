@@ -1,7 +1,8 @@
+import { SLIP_ANGLE_PEAK_RAD } from "../../../shared/racing/analysis/laps/physics/vehicle";
 import * as THREE from "three";
 import { operatingRangeColor } from "./colors";
 import { resolveCssColor } from "./rendering/css-values";
-import { tireState } from "./vehicle-dynamics";
+import { tireStateFromUtilization } from "./vehicle-dynamics";
 
 // ── Geometry ──────────────────────────────────────────────────────────
 
@@ -13,9 +14,21 @@ export function makeWheelGeometries(radius: number, width: number) {
   const rimRadius = radius * 0.67;
   const tire = new THREE.CylinderGeometry(radius, radius, width, 16, 1, true);
   tire.rotateX(Math.PI / 2);
+  const bandGap = width * 0.02;
+  const bandWidth = width / 3 - bandGap;
+  const surfaceBands = [-width / 3, 0, width / 3].map((offset) => {
+    const geometry = new THREE.CylinderGeometry(radius, radius, bandWidth, 16, 1, true);
+    geometry.rotateX(Math.PI / 2);
+    geometry.translate(0, 0, offset);
+    return geometry;
+  }) as [THREE.CylinderGeometry, THREE.CylinderGeometry, THREE.CylinderGeometry];
+  const carcass = new THREE.CylinderGeometry(radius * 0.84, radius * 0.84, width * 0.92, 16, 1, true);
+  carcass.rotateX(Math.PI / 2);
+  const core = new THREE.CylinderGeometry(radius * 0.75, radius * 0.75, width * 0.84, 16, 1, true);
+  core.rotateX(Math.PI / 2);
   const rim = new THREE.CylinderGeometry(rimRadius, rimRadius, width * 0.8, 8, 1, true);
   rim.rotateX(Math.PI / 2);
-  return { tire, rim };
+  return { tire, surfaceBands, carcass, core, rim };
 }
 
 /** Convert signed int8 steering input to a bounded front-wheel angle. */
@@ -28,11 +41,6 @@ export function visualWheelRotationSpeed(measuredRadS: unknown, speedMps: number
   if (measurementAvailable && typeof measuredRadS === "number" && Number.isFinite(measuredRadS)) return measuredRadS;
   if (!Number.isFinite(speedMps) || !Number.isFinite(radiusM) || radiusM <= 0) return 0;
   return speedMps / radiusM;
-}
-
-/** Interpolate a 0–255 pedal channel into its rendered 3D line color. */
-export function pedalInputColor(inactive: THREE.Color, active: THREE.Color, rawInput: number): THREE.Color {
-  return inactive.clone().lerp(active, rawInput / 255);
 }
 
 // ── Color helpers ─────────────────────────────────────────────────────
@@ -97,9 +105,22 @@ export const THREE_COLORS = {
   },
 } as const;
 
-/** Returns a cached THREE.Color driven by tireState() — single source of truth. */
-export function trailColorFromState(wheelStateLabel: string, slipRatio: number, slipAngleRad: number): THREE.Color {
-  return threeColor(tireState(wheelStateLabel, slipRatio, slipAngleRad).color);
+/** Resolve lateral slip as fraction of peak grip without conflating normalized signals with radians. */
+export function resolveTrailLateralUtilization(frame: { values: Record<string, unknown> }, wheelIndex: number): number {
+  const physicalAngles = frame.values["tires.tire-slip-angle"];
+  const physicalAngle = Array.isArray(physicalAngles) ? physicalAngles[wheelIndex] : undefined;
+  if (typeof physicalAngle === "number" && Number.isFinite(physicalAngle)) {
+    return Math.abs(physicalAngle) / SLIP_ANGLE_PEAK_RAD;
+  }
+
+  const normalizedAngles = frame.values["tires.normalized-tire-slip-angle"];
+  const normalizedAngle = Array.isArray(normalizedAngles) ? normalizedAngles[wheelIndex] : undefined;
+  return typeof normalizedAngle === "number" && Number.isFinite(normalizedAngle) ? Math.abs(normalizedAngle) : 0;
+}
+
+/** Returns a cached THREE.Color driven by tireStateFromUtilization() — single source of truth. */
+export function trailColorFromState(wheelStateLabel: string, slipRatio: number, lateralUtilization: number): THREE.Color {
+  return threeColor(tireStateFromUtilization(wheelStateLabel, slipRatio, lateralUtilization).color);
 }
 
 export function suspensionColor(suspTravel: number, thresholds: number[]): string {

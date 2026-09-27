@@ -2,6 +2,7 @@ import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from "reac
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
 import type { Point, TrackInfo, TrackSectors } from "../types";
+import { InlineTrackMap } from "../InlineTrackMap";
 
 type Pan = { x: number; z: number };
 type DragState = { startX: number; startY: number; startPanX: number; startPanZ: number };
@@ -47,7 +48,7 @@ export function TrackCanvasPanel(props: TrackCanvasPanelProps) {
           }}
         />
       ) : track.mapUrl ? (
-        <img src={track.mapUrl} alt={`${track.name} ${track.variant} map`} className="w-full h-full object-contain p-5" />
+        track.mapUrl.startsWith("/api/lmu-assets/") ? <InlineTrackMap src={track.mapUrl} alt={m.trackdetail_map_alt({ track: track.name, variant: track.variant })} className="h-full w-full p-5" /> : <img src={track.mapUrl} alt={m.trackdetail_map_alt({ track: track.name, variant: track.variant })} className="w-full h-full object-contain p-5" />
       ) : (
         <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">{m.trackdetail_no_outline_available()}</div>
       )}
@@ -56,6 +57,7 @@ export function TrackCanvasPanel(props: TrackCanvasPanelProps) {
           <Button
             type="button"
             onClick={() => setZoom((z) => Math.min(z + 0.25, 4))}
+            aria-label={m.trackdetail_zoom_in()}
             className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
           >
             +
@@ -63,6 +65,7 @@ export function TrackCanvasPanel(props: TrackCanvasPanelProps) {
           <Button
             type="button"
             onClick={() => setZoom((z) => Math.max(z - 0.25, 0.5))}
+            aria-label={m.trackdetail_zoom_out()}
             className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
           >
             -
@@ -74,6 +77,7 @@ export function TrackCanvasPanel(props: TrackCanvasPanelProps) {
                 setZoom(1);
                 setPan({ x: 0, z: 0 });
               }}
+              aria-label={m.trackdetail_reset_zoom()}
               className="px-1.5 py-1 text-app-micro font-mono bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded"
             >
               {zoom % 1 === 0 ? `${zoom}x` : `${zoom.toFixed(2)}x`}

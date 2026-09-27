@@ -1,11 +1,8 @@
 import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { deltaColor } from "@/lib/colors";
-import { COLOR_A, COLOR_B, formatSectionTime } from "@/lib/comparison-utils";
+import { COLOR_A, COLOR_B, compareSegmentKey, formatSectionTime } from "@/lib/comparison-utils";
 import { m } from "@/paraglide/messages";
 import type { SegmentTiming } from "./CompareTrackMap";
-export function compareSegmentKey(name: string, startFrac: number, endFrac: number): string {
-  return `${name}:${startFrac}:${endFrac}`;
-}
 
 export function CompareSegmentTable({ segments, tableRef }: { segments: SegmentTiming[]; tableRef: React.RefObject<HTMLTableSectionElement | null> }) {
   if (segments.length === 0) return null;

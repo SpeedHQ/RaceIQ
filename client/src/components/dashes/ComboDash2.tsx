@@ -3,6 +3,7 @@ import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import { LapTimeChart } from "../LapTimeChart";
 import { RecordedLaps } from "../RecordedLaps";
 import { DashShell } from "./dash-shell";
+import { m } from "@/paraglide/messages";
 
 interface ComboDash2Props {
   view?: LiveTelemetryView | null;
@@ -25,7 +26,7 @@ export function ComboDash2({ view, sessionLaps }: ComboDash2Props) {
               <RecordedLaps laps={sessionLaps} trackOrdinal={trackOrdinal} maxLaps={30} />
             </div>
           ) : (
-            <div className="h-full flex items-center justify-center text-app-text/40 text-sm tracking-widest uppercase">Waiting for track…</div>
+            <div className="h-full flex items-center justify-center text-app-text/40 text-sm tracking-widest uppercase">{m.dash_waiting_track()}</div>
           )}
         </div>
       </div>

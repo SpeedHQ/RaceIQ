@@ -3,9 +3,9 @@
  * detector through the server adapter factory; implementations may use
  * protocol-specific detectors or shared detector state machines.
  */
-import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { DbAdapter } from "../telemetry/pipeline-ports";
-
+import type { PitCycleReason } from "../../shared/racing/laps/pit-cycle";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 /**
  * Minimal packet projection consumed by lap detection.  Canonical parsers may
  * return this shape during metadata scans without materializing live-only
@@ -76,6 +76,19 @@ export interface LapDetectorOptions {
   callbacks?: LapDetectorCallbacks;
   /** Bypass an implementation's packet-rate guard when supported (used in tests). */
   bypassPacketRateFilter?: boolean;
+  policy?: LapDetectorPolicy;
+}
+
+export interface LapDetectorPolicy {
+  resolveLapTime(
+    packets: readonly TelemetryPacket[],
+    newLapFirstPacket: TelemetryPacket,
+  ): number;
+  classifyPitCycle(
+    packets: readonly TelemetryPacket[],
+    completedLapCount: number,
+  ): PitCycleReason | null;
+  invalidReason?(packets: readonly TelemetryPacket[]): string | null;
 }
 
 /** Common interface implemented by all lap detector variants. */
@@ -91,6 +104,8 @@ export interface ILapDetector {
   flushStaleLap?(): Promise<void>;
   /** Flush any in-progress lap at end-of-stream as an invalid incomplete lap. */
   flushIncompleteLap?(): Promise<void>;
+  /** Persist a replaceable incomplete-lap snapshot while telemetry is paused. */
+  snapshotIncompleteLap?(): Promise<void>;
   /** Finalize current session immediately (e.g., when game disconnects). */
   finalizeCurrentSession?(): Promise<void>;
   /**

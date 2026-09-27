@@ -24,7 +24,7 @@ export const RESPONSIVE_PAGES: readonly ResponsivePage[] = [
   { name: "f125-live", path: "/f125/live" },
   { name: "acc-live", path: "/acc/live" },
   { name: "fm23-sessions", path: "/fm23/sessions" },
-  { name: "fm23-analyse", path: "/fm23/analyse" },
+  { name: "fm23-analyse", path: "/fm23/sessions/analyse" },
   { name: "fm23-compare", path: "/fm23/compare" },
   { name: "fm23-cars", path: "/fm23/cars" },
   { name: "fm23-tracks", path: "/fm23/tracks" },
@@ -74,7 +74,6 @@ export const RESPONSIVE_PAGES: readonly ResponsivePage[] = [
   { name: "acc-track-setups", path: "/acc/tracks/2/setups", viewports: DESKTOP_ONLY, readyText: "Brands Hatch" },
   { name: "acc-track-guide", path: "/acc/tracks/2/guide", viewports: DESKTOP_ONLY, readyText: "Brands Hatch" },
   { name: "f125-experiment-detail", path: "/f125/experiments/1", viewports: DESKTOP_ONLY, readyText: "Demo setup experiment", requiresSeed: true },
-  { name: "f125-experiment-review", path: "/f125/experiments/1/review?versionId=2", viewports: DESKTOP_ONLY, readyText: "Post-lap", requiresSeed: true },
   { name: "iracing-raw", path: "/iracing/raw", viewports: DESKTOP_ONLY },
 ];
 
@@ -107,14 +106,14 @@ export const RESPONSIVE_INTERACTION_CASES: readonly ResponsiveInteractionCase[] 
   },
   {
     name: "analyse-data-panel-loaded",
-    path: "/f125/analyse",
+    path: "/f125/sessions/analyse",
     kind: "analyse-data-panel-loaded",
     mobileOnly: false,
     viewports: DESKTOP_ONLY,
   },
   {
     name: "analyse-actions-menu",
-    path: "/fm23/analyse",
+    path: "/fm23/sessions/analyse",
     kind: "analyse-actions",
     mobileOnly: false,
   },

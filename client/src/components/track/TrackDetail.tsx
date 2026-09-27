@@ -77,6 +77,7 @@ export function TrackDetail({
   const isAcc = gameId === "acc";
   const isAcEvo = gameId === "ac-evo";
   const hideClassCol = isF125 || isAcc || isAcEvo;
+  const trackKey = gameId === "lmu" ? track.id! : track.ordinal;
 
   const hasForzaTunes = gameId === "fm-2023";
   // Forza + AC-EVO share the catalog-driven master-detail setups panel.
@@ -114,20 +115,20 @@ export function TrackDetail({
   const activeTab: Tab = (validTabs as readonly string[]).includes(tab) ? (tab as Tab) : "info";
 
   const { data: trackMapData } = useQuery({
-    queryKey: ["track-map", track.ordinal, gameId ?? null],
+    queryKey: ["track-map", trackKey, gameId ?? null],
     queryFn: () =>
       Promise.all([
         client.api["track-outline"][":ordinal"]
-          .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid ?? undefined } })
+          .$get({ param: { ordinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gid ?? undefined } })
           .then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[]),
         client.api["track-sectors"][":ordinal"]
-          .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid! } })
+          .$get({ param: { ordinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gid! } })
           .then((r) => r.json() as unknown as (TrackSectors & { source?: string }) | null),
         client.api["track-sector-boundaries"][":ordinal"]
-          .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid! } })
+          .$get({ param: { ordinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gid! } })
           .then((r) => r.json() as unknown as { s1End: number; s2End: number } | null),
       ]).then(([outlineData, sectorData, boundsData]) => ({ outlineData, sectorData, boundsData })),
-    enabled: track.hasOutline && !!gameId,
+    enabled: !!gameId && (track.hasOutline || !!track.hasMap),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -144,15 +145,15 @@ export function TrackDetail({
     }
     setSectors(sectorData);
     setSegSource((sectorData as (TrackSectors & { source?: string }) | null)?.source ?? "");
-    if (boundsData?.s1End) setSectorBounds(boundsData);
-  }, [trackMapData]);
+    setSectorBounds(boundsData ?? (gameId === "lmu" ? { s1End: 1 / 3, s2End: 2 / 3 } : null));
+  }, [trackMapData, track.hasOutline, gameId]);
 
   // Fetch all laps for this track
   const { data: trackLapsData = [], refetch: refetchLaps } = useQuery<TrackLap[]>({
-    queryKey: ["track-laps", track.ordinal, gameId ?? null],
+    queryKey: ["track-laps", trackKey, gameId ?? null],
     queryFn: () =>
       client.api.tracks[":trackOrdinal"]["all-laps"]
-        .$get({ param: { trackOrdinal: String(track.ordinal) }, query: { gameId: gameId ?? undefined } } as never)
+        .$get({ param: { trackOrdinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gameId ?? undefined } } as never)
         .then((r) => r.json() as unknown as TrackLap[] | null)
         .then((data) => data ?? []),
     staleTime: 30 * 1000,
@@ -205,7 +206,7 @@ export function TrackDetail({
     };
     canvas.addEventListener("wheel", onWheel, { passive: false });
     return () => canvas.removeEventListener("wheel", onWheel);
-  }, []);
+  }, [outline, activeTab]);
 
   // Corner names carry their official turn numbers; straights are auto-numbered.
   const segDisplayNames = useMemo(() => segmentDisplayNames(editing ? editSegments : (displaySectors?.segments ?? [])), [editing, editSegments, displaySectors]);
@@ -327,17 +328,15 @@ export function TrackDetail({
           <TabsList>
             {validTabs.map((tab) => (
               <TabsTrigger key={tab} value={tab}>
-                {tab === "laps" && trackLaps.length > 0
-                  ? `${m.label_laps()} (${trackLaps.length})`
+                {tab === "laps"
+                  ? trackLaps.length > 0 ? `${m.label_laps()} (${trackLaps.length})` : m.label_laps()
                   : tab === "info"
                     ? m.track_detail_info_tab()
                     : tab === "guide"
                       ? m.track_detail_guides_tab()
                       : tab === "setups"
                         ? m.track_detail_setup_tab()
-                        : tab === "debug"
-                          ? m.trackdetail_debug_tab()
-                          : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                        : m.trackdetail_debug_tab()}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -351,6 +350,7 @@ export function TrackDetail({
             <TrackDebugPanel
               trackOrdinal={track.ordinal}
               outline={outline}
+              mapUrl={track.mapUrl}
               flipX={flipX}
               displaySectors={displaySectors}
               sectorBounds={editingSectors ? { s1End: editS1 / 100, s2End: editS2 / 100 } : sectorBounds}

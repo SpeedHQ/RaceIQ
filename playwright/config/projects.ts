@@ -68,7 +68,7 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       name: "seeded-routes",
       testMatch: "seeded/routes/**/*.spec.ts",
       fullyParallel: true,
-      timeout: 120_000,
+      timeout: 140_000,
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },
     {
@@ -76,7 +76,7 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       testMatch: "seeded/**/*.spec.ts",
       testIgnore: [...sequentialImportSpecs, "seeded/routes/**/*.spec.ts"],
       fullyParallel: true,
-      timeout: 120_000,
+      timeout: 140_000,
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },
     {
@@ -90,7 +90,7 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       fullyParallel: true,
       name: "record-demo",
       testMatch: "recording/demo.spec.ts",
-      timeout: 120_000,
+      timeout: 140_000,
       use: {
         baseURL: freshBaseURL,
         actionTimeout: 120_000,

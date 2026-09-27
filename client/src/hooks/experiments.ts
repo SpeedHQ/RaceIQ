@@ -183,7 +183,6 @@ export interface LineSpreadTrace {
   consistencyScore: number;
   overallSpreadM: number;
   lapCount: number;
-  lapLines: { lapId: number; x: number[]; z: number[]; brake: number[]; throttle: number[]; frac: number[] }[];
 }
 
 export function useLineSpread(sessionId: number | null | undefined) {

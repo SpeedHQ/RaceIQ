@@ -1,3 +1,4 @@
+import { RequestContext } from "@mastra/core/request-context";
 import { MessageList } from "@mastra/core/agent";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
@@ -10,6 +11,7 @@ import { getTuneById as getDbTune } from "../../db/tune-queries";
 import { resolveLapCorners } from "../../tracks/corner-resolution";
 import { loadSettings } from "../../runtime/config/settings";
 import { buildChatSystemPrompt } from "../../ai/chat-prompt";
+import { getOrComputeLapInsights } from "../../lap-analysis/metrics-store";
 import { buildGoogleReasoningProviderOptions } from "../../ai/google-provider-options";
 import { streamAgentTurnResponse } from "../../ai/agent-stream";
 import { lapChatAgent } from "../../ai/agents";
@@ -18,10 +20,12 @@ import {
   chatThreadId,
   generationThreadId,
   getChatMemory,
+  ensureSystemPrompt,
   listThreadGenerations,
   resolveActiveThread,
 } from "../../ai/chat-agent";
 import { configureAiProviderEnvironment } from "../../ai/openai-compatible-provider";
+import { CHAT_TURN_CONTEXT_KEY } from "../../ai/chat-message-context";
 import { ChatBodySchema } from "./support";
 import { parseTuneRow } from "../tune-shared";
 
@@ -80,8 +84,10 @@ export const chatRoutes = new Hono()
     const cached = await getAnalysis(id);
     const analysisJson = cached?.analysis;
 
+    const insights = await getOrComputeLapInsights(id) ?? [];
+
     // Build chat prompt
-    const systemPrompt = buildChatSystemPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, analysisJson, settings.language);
+    const systemPrompt = buildChatSystemPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, analysisJson, settings.language, insights);
 
     // Provider/key/model plumbing — inlined from the old startChatStream
     // helper (removed, was the NDJSON transport's shared provider setup)
@@ -101,10 +107,13 @@ export const chatRoutes = new Hono()
           : "gemini-flash-latest");
 
     const threadId = await resolveActiveThread(chatThreadId(id));
+    await ensureSystemPrompt(threadId, systemPrompt);
     const turnStartedAt = Date.now();
     try {
+      const requestContext = new RequestContext();
+      requestContext.set(CHAT_TURN_CONTEXT_KEY, systemPrompt);
       const stream = await lapChatAgent.stream(
-        [{ role: "system", content: systemPrompt }, ...messages],
+        messages,
         {
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
           providerOptions: {
@@ -120,6 +129,13 @@ export const chatRoutes = new Hono()
         memory: getChatMemory(),
         threadId,
         turnStartedAt,
+        diagnostic: {
+          provider: chatProvider,
+          model: chatModelLabel,
+          operation: "chat.stream",
+          threadId,
+          request: { systemPrompt, messages },
+        },
       });
     } catch (err: any) {
       console.error("[Chat] Stream failed:", err.message);

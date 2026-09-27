@@ -3,6 +3,7 @@ import { getFuelAmount, getFuelDisplaySemantic, WATTS_PER_HORSEPOWER } from "@sh
 import { useEffect, useRef, useState } from "react";
 import { severityColor } from "@/lib/colors";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
+import { m } from "@/paraglide/messages";
 
 /**
  * Used for power, torque, and boost readouts.
@@ -110,7 +111,7 @@ export function FuelGauge({ view }: { view: LiveTelemetryView }) {
         <div className="flex justify-between text-app-caption mb-0.5">
           <span className="font-mono font-bold text-app-text-dim">Fuel —</span>
         </div>
-        <div className="h-2 rounded-full border border-dashed border-app-border" title="Fuel unavailable" />
+        <div className="h-2 rounded-full border border-dashed border-app-border" title={m.gauges_fuel_unavailable()} />
       </div>
     );
   }
@@ -129,13 +130,13 @@ export function FuelGauge({ view }: { view: LiveTelemetryView }) {
     <div className="flex-1">
       <div className="flex justify-between text-app-caption mb-0.5">
         <span className="font-mono font-bold" style={{ color: fuelColor }}>
-          Fuel {fuel.amount.toFixed(1)}
+          {m.telemetry_fuel()} {fuel.amount.toFixed(1)}
           {fuel.unit}
         </span>
-        {lapsRemaining !== null && <span className="font-mono text-app-text-secondary">~{lapsRemaining} laps left</span>}
+        {lapsRemaining !== null && <span className="font-mono text-app-text-secondary">~{lapsRemaining} {m.gauges_laps_left()}</span>}
       </div>
       {fillPct === undefined ? (
-        <div className="h-2 rounded-full border border-dashed border-app-border" title="Fuel capacity unavailable" />
+        <div className="h-2 rounded-full border border-dashed border-app-border" title={m.gauges_fuel_capacity_unavailable()} />
       ) : (
         <div className="h-2 rounded-full overflow-hidden">
           <div className={`h-full rounded-full transition-all ${isCritical ? "animate-pulse" : ""}`} style={{ backgroundColor: fuelColor, width: `${fillPct}%` }} />
@@ -145,10 +146,10 @@ export function FuelGauge({ view }: { view: LiveTelemetryView }) {
         <div className="flex justify-between text-app-micro font-mono mt-0.5">
           <span className="text-app-text-muted">
             {averageDisplay.amount.toFixed(1)}
-            {averageDisplay.unit}/lap avg
+            {averageDisplay.unit}/{m.gauges_per_lap_average()}
           </span>
           <span className="text-app-text-muted">
-            This lap: {currentLapUsed.amount.toFixed(1)}
+            {m.gauges_this_lap()}: {currentLapUsed.amount.toFixed(1)}
             {currentLapUsed.unit}
           </span>
         </div>
@@ -161,8 +162,8 @@ export function PowerTorque({ view }: { view: LiveTelemetryView }) {
   const model = getGame(view.simulator).telemetry;
   return (
     <div className="flex justify-center gap-2">
-      {model.power && view.engine.powerW !== undefined && <ArcGauge value={view.engine.powerW / WATTS_PER_HORSEPOWER} max={1000} label="Power" unit="hp" color="var(--telemetry-power)" />}
-      {model.torque && view.engine.torqueNm !== undefined && <ArcGauge value={view.engine.torqueNm} max={1000} label="Torque" unit="Nm" color="var(--telemetry-torque)" />}
+      {model.power && view.engine.powerW !== undefined && <ArcGauge value={view.engine.powerW / WATTS_PER_HORSEPOWER} max={1000} label={m.gauges_power()} unit="hp" color="var(--telemetry-power)" />}
+      {model.torque && view.engine.torqueNm !== undefined && <ArcGauge value={view.engine.torqueNm} max={1000} label={m.gauges_torque()} unit="Nm" color="var(--telemetry-torque)" />}
     </div>
   );
 }

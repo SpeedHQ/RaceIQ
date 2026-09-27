@@ -4,7 +4,6 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   Binary,
   Car,
-  ChartNoAxesCombined,
   Check,
   Code2,
   FlaskConical,
@@ -36,7 +35,6 @@ import { ConnectionStatus } from "./ConnectionStatus";
 export interface AppSidebarProps {
   collapsed: boolean;
   connected: boolean;
-  driverName: string;
   forzaReceiving: boolean;
   hiddenGames: readonly string[];
   mobile: boolean;
@@ -66,7 +64,11 @@ function SidebarLink({ collapsed, exact = false, icon: Icon, label, logoSrc, onC
   const content = (
     <>
       {logoSrc ? (
-        <span aria-hidden="true" className="h-4 w-5 shrink-0 bg-current [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain]" style={{ maskImage: `url(${logoSrc})`, WebkitMaskImage: `url(${logoSrc})` }} />
+        <span
+          aria-hidden="true"
+          className="h-4 w-5 shrink-0 bg-current [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain]"
+          style={{ maskImage: `url(${logoSrc})`, WebkitMaskImage: `url(${logoSrc})` }}
+        />
       ) : (
         <Icon className="size-4 shrink-0" />
       )}
@@ -122,7 +124,6 @@ const FEATURE_LINKS: ReadonlyArray<{
   { segment: "live", label: m.tab_live, icon: Gauge },
   { segment: "sessions", label: m.label_sessions, icon: History },
   { segment: "compare", label: m.label_compare, icon: GitCompareArrows },
-  { segment: "analyse", label: m.label_analyse, icon: ChartNoAxesCombined },
   { segment: "driver", label: m.label_driver, icon: UserRound, feature: "driver" },
   { segment: "experiments", label: m.nav_experiments, icon: FlaskConical, feature: "experiments" },
   { segment: "chats", label: m.tab_chats, icon: MessagesSquare },
@@ -137,12 +138,12 @@ const GAME_LOGO_SRC: Readonly<Partial<Record<string, string>>> = {
   "f1-2025": "/f1-logo.svg",
   acc: "/acc-logo.svg",
   "ac-evo": "/acevo-logo.svg",
+  lmu: "/lmu-logo.svg",
 };
 
 export function AppSidebar({
   collapsed,
   connected,
-  driverName,
   forzaReceiving,
   hiddenGames,
   mobile,
@@ -270,7 +271,11 @@ export function AppSidebar({
                 </Select.Trigger>
                 <Select.Portal>
                   <Select.Positioner className="z-50" alignItemWithTrigger={false} side={showCollapsed ? "right" : "bottom"} align="start" sideOffset={8} collisionPadding={8}>
-                    <Select.Popup onPointerEnter={openOnHover} onPointerLeave={scheduleClose} className="z-50 min-w-52 overflow-hidden rounded border border-app-border bg-app-surface p-1 text-app-text">
+                    <Select.Popup
+                      onPointerEnter={openOnHover}
+                      onPointerLeave={scheduleClose}
+                      className="z-50 min-w-52 overflow-hidden rounded border border-app-border bg-app-surface p-1 text-app-text"
+                    >
                       <Select.List>
                         {visibleGames.map((game) => (
                           <Select.Item
@@ -324,9 +329,9 @@ export function AppSidebar({
               <span className={showCollapsed ? "sr-only" : "truncate"}>{updateLabel}</span>
             </SidebarAction>
           )}
-          <SidebarAction collapsed={showCollapsed} label={driverName ? `${m.nav_settings()} (${driverName})` : m.nav_settings()} onClick={handleSettings}>
+          <SidebarAction collapsed={showCollapsed} label={m.nav_settings()} onClick={handleSettings}>
             <Settings2 className="size-4" />
-            <span className={showCollapsed ? "sr-only" : "truncate"}>{driverName || m.nav_settings()}</span>
+            <span className={showCollapsed ? "sr-only" : "truncate"}>{m.nav_settings()}</span>
           </SidebarAction>
           <ConnectionStatus connected={connected} packetsPerSec={packetsPerSec} forzaReceiving={forzaReceiving} collapsed={showCollapsed} />
         </div>

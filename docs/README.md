@@ -6,6 +6,11 @@ Documentation is organized by audience. Start with a user guide; use contributor
 
 - [OpenAI-compatible AI setup](user-guides/openai-compatible-ai.md) — connect RaceIQ to LM Studio, Ollama, OpenRouter, LiteLLM, or another compatible provider.
 
+## Installation
+
+- [Windows](installation/windows.md) — install the desktop application and configure native or UDP telemetry.
+- [Docker on Linux](installation/docker.md) — run the published non-root container with persistent storage.
+
 ## Contributors
 
 - [Contributing](../CONTRIBUTING.md) — repository entry point and contribution workflow.
@@ -32,6 +37,7 @@ Documentation is organized by audience. Start with a user guide; use contributor
 ## Reference
 
 - [Game feature coverage](reference/game-feature-coverage.md) — product-surface and high-level source gaps across supported games.
+- [Static lap analysis catalog](reference/static-lap-analysis-catalog.md) — detector IDs, thresholds, capability guards, persistence, and version workflow.
 - [Telemetry reference](reference/telemetry.md) — field availability, provenance, and limitations by game.
 - [ACC adapter](reference/adapters/acc.md) — ACC shared-memory behavior.
 - [iRacing adapter](reference/adapters/iracing.md) — iRacing SDK and import behavior.
@@ -46,6 +52,7 @@ Documentation is organized by audience. Start with a user guide; use contributor
 ## Operations
 
 - [Session storage](operations/session-storage.md) — compression, cleanup, and orphan handling.
+- [Diagnostic export](operations/diagnostic-export.md) — archive contents, retention, error coverage, hardware limitations, privacy, and verification.
 
 ## Research
 

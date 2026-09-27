@@ -6,13 +6,7 @@ export function NumberField({ label, value, onChange, step, unit }: { label: str
       <span className="text-app-text-muted whitespace-nowrap">{label}</span>
       <div className="flex items-center gap-2">
         {unit && <span className="text-app-caption text-app-text-muted w-10 text-right">{unit}</span>}
-        <AppInput
-          type="number"
-          value={value}
-          step={step ?? 0.1}
-          onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-          className="w-20 font-mono text-right"
-        />
+        <AppInput type="number" value={value} step={step ?? 0.1} onChange={(e) => onChange(parseFloat(e.target.value) || 0)} className="w-20 font-mono text-right" />
       </div>
     </label>
   );

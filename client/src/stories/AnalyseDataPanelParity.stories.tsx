@@ -22,8 +22,11 @@ const frame: SemanticAnalysisFrame = {
     "tires.tire-combined-slip": [0.2, 0.4, 0.6, 0.8],
     "tires.tire-slip-ratio": [0.1, 0.2, 0.3, 0.4],
     "tires.tire-slip-angle": [0.01, 0.02, 0.03, 0.04],
-    "tire.temperature.average": [90, 91, 92, 93],
-    "brakes.brake-temp": [500, 510, 300, 310],
+    "tire.temperature.surface.representative": [90, 91, 92, 93],
+    "tire.temperature.surface.inner": [84, 85, 86, 87],
+    "tire.temperature.surface.middle": [92, 93, 94, 95],
+    "tire.temperature.surface.outer": [101, 102, 103, 104],
+    "tire.temperature.core": [88, 89, 90, 91],
     "tires.wheel-rotation-speed": [100, 101, 102, 103],
     "tires.tire-wear": [0.1, 0.2, 0.3, 0.4],
     "tires.tire-pressure": [24, 24.5, 23.5, 24],
@@ -43,7 +46,13 @@ const meta: Meta<typeof AnalyseDataPanel> = {
   title: "Screens/AnalyseDataPanelParity",
   component: AnalyseDataPanel,
   parameters: { layout: "fullscreen", viewport: { defaultViewport: "1080p" } },
-  decorators: [(Story) => <QueryClientProvider client={queryClient}><Story /></QueryClientProvider>],
+  decorators: [
+    (Story) => (
+      <QueryClientProvider client={queryClient}>
+        <Story />
+      </QueryClientProvider>
+    ),
+  ],
 };
 export default meta;
 type Story = StoryObj<typeof AnalyseDataPanel>;
@@ -62,10 +71,39 @@ export const LoadedMainParity: Story = {
       temperatureUnit: "C",
       thresholds: { cold: 75, warm: 115, hot: 150 },
       temp: (value: number) => value,
-      toTempC: (value: number) => value,
     } as never,
     wearRate: { FL: 0.1, FR: 0.2, RL: 0.3, RR: 0.4 },
     lapInsights: [],
+    detectorCoverage: [],
     onJumpToFrame: () => {},
+  },
+};
+export const DetectorCoverage: Story = {
+  ...LoadedMainParity,
+  args: {
+    ...LoadedMainParity.args,
+    sidebarTab: "insights",
+    lapInsights: [{ id: "tire-lockup-FL", category: "tires", severity: "warning", label: "Wheel Lockup", detail: "FL locked once", frameIndices: [25] }],
+    detectorCoverage: [
+      { id: "tire-lockup", category: "tires", label: "Wheel Lockup", status: "finding" },
+      { id: "tire-spin", category: "tires", label: "Wheelspin", status: "checked" },
+      { id: "driving-traction-control-activation", category: "driving", label: "Traction Control Activation", status: "unavailable", reason: "Wheel-rotation telemetry unavailable" },
+    ],
+  },
+};
+
+export const LMUTireTemperatures: Story = {
+  ...LoadedMainParity,
+  args: {
+    ...LoadedMainParity.args,
+    gameId: "lmu",
+    currentFrame: {
+      ...frame,
+      values: {
+        ...frame.values,
+        "tire.temperature.carcass.representative": [88, 89, 90, 91],
+        "tire.temperature.core": undefined,
+      },
+    },
   },
 };

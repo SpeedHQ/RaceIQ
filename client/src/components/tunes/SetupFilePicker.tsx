@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { m } from "@/paraglide/messages";
 import { useSetupFileContent, useSetupFiles } from "../../hooks/setup-queries";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -43,8 +44,8 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
           {data?.presetId && <DialogDescription className="truncate">Preset {data.presetId}</DialogDescription>}
         </DialogHeader>
         <div className="min-h-0 flex-1 overflow-auto">
-          {isLoading && <div className="text-sm text-muted-foreground">Loading…</div>}
-          {(error || data?.error) && <div className="text-sm text-status-danger">{data?.error ?? "Couldn't read the setup file."}</div>}
+          {isLoading && <div className="text-sm text-muted-foreground">{m.common_loading()}</div>}
+          {(error || data?.error) && <div className="text-sm text-status-danger">{data?.error ?? m.experiment_setup_read_error()}</div>}
           {sections && (
             <div className="space-y-4">
               {/* Tabbed view: corner sections (FL/FR/RL/RR) mix tyre, suspension
@@ -180,7 +181,7 @@ export function SetupFilePicker({
   value,
   onChange,
   lockedCar,
-  labels = { car: "Car", track: "Track", setup: "Base setup" },
+  labels = { car: m.label_car(), track: m.label_track(), setup: m.experiment_base_setup() },
 }: {
   gameId: "acc" | "ac-evo";
   value: SetupFilePickerValue;
@@ -265,19 +266,19 @@ export function SetupFilePicker({
     <div className="grid grid-cols-1 gap-3">
       {!lockedCar && (
         <div className="flex flex-col gap-1">
-          <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{labels.car ?? "Car"}</span>
+          <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{labels.car ?? m.label_car()}</span>
           <SearchSelect
             value={value.car}
             onChange={(v) => onChange({ car: v, track: "", setupPath: "" })}
             options={cars}
-            placeholder={loadingFiles ? "Loading…" : noCars ? "No cars" : "Search cars…"}
+            placeholder={loadingFiles ? m.common_loading() : noCars ? m.experiment_no_cars() : m.experiment_search_cars()}
             disabled={loadingFiles || noCars}
             focusColor="purple-500"
           />
         </div>
       )}
       <div className="flex flex-col gap-1">
-        <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{labels.track ?? "Track"}</span>
+        <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{labels.track ?? m.label_track()}</span>
         <SearchSelect
           value={value.track}
           onChange={(v) => onChange({ ...value, track: v, setupPath: "" })}
@@ -286,25 +287,25 @@ export function SetupFilePicker({
             const n = countByTrack.get(t) ?? 0;
             return { value: t, label: n ? `${name} (${n})` : name, disabled: n === 0 };
           })}
-          placeholder={!value.car ? "Pick a car first" : "Search tracks…"}
+          placeholder={!value.car ? m.experiment_pick_car_first() : m.experiment_search_tracks()}
           disabled={!value.car}
           focusColor="purple-500"
         />
       </div>
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between">
-          <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{labels.setup ?? "Base setup"}</span>
+          <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{labels.setup ?? m.experiment_base_setup()}</span>
           <div className="flex items-center gap-3">
             <Button
               variant="app-ghost"
               size="app-sm"
               onClick={() => refetch()}
               disabled={isFetching}
-              title="Rescan the Setups folder for new files"
+              title={m.experiment_rescan_setups()}
               className="text-app-compact text-app-text-muted hover:text-app-text"
             >
               <span className={isFetching ? "inline-block animate-spin" : "inline-block"}>⟳</span>
-              Refresh
+              {m.experiment_refresh()}
             </Button>
           </div>
         </div>
@@ -312,7 +313,7 @@ export function SetupFilePicker({
           value={value.setupPath}
           onChange={(v) => onChange({ ...value, setupPath: v })}
           options={carTrackFiles.map((f) => ({ value: f.absolutePath, label: f.fileName }))}
-          placeholder={!value.car || !value.track ? "Pick car + track" : "Search setups…"}
+          placeholder={!value.car || !value.track ? m.experiment_pick_car_track() : m.experiment_search_setups()}
           disabled={!value.car || !value.track}
           focusColor="purple-500"
         />

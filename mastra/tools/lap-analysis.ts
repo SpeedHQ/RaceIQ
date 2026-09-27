@@ -2,7 +2,7 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
 import { getAnalysis } from "../../server/db/analysis-queries";
-import { AnalystOutputSchema } from "../../server/ai/schemas";
+import { parseAnalystOutput } from "../../server/ai/schemas";
 import type {
   AnalysisUsage,
   LapAnalysisResult,
@@ -14,12 +14,21 @@ export function parseCachedLapAnalysis(row: {
   analysis: string;
 }): ParsedLapAnalysis {
   try {
-    const parsed = AnalystOutputSchema.safeParse(JSON.parse(row.analysis));
+    const parsed = parseAnalystOutput(row.analysis);
     if (!parsed.success) {
+      let invalidJson = false;
+      try {
+        JSON.parse(row.analysis);
+      } catch {
+        invalidJson = true;
+      }
       return {
-        error: "Cached analysis failed schema validation",
-        readable:
-          "Cached analysis has an invalid structure and cannot be used safely.",
+        error: invalidJson
+          ? "Cached analysis is invalid JSON"
+          : "Cached analysis failed schema validation",
+        readable: invalidJson
+          ? "Cached analysis is invalid and cannot be used safely."
+          : "Cached analysis has an invalid structure and cannot be used safely.",
       };
     }
     return {

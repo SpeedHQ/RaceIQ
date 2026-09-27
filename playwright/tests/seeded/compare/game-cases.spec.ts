@@ -1,8 +1,7 @@
 import { expect, test } from "@playwright/test";
-import type { ComparisonData } from "../../../../shared/racing/comparison/types";
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
-import { findTrackCarPairWithTwoLaps, getFirstSeededLap, getSeededLaps } from "./helpers";
+import { fetchAlignedSet, findTrackCarPairWithTwoLaps, getFirstSeededLap, getSeededLaps } from "./helpers";
 
 for (const game of SEEDED_GAME_CASES) {
   test(`${game.name} compare supports seeded pair when available`, async ({ page, request }) => {
@@ -14,15 +13,15 @@ for (const game of SEEDED_GAME_CASES) {
       return;
     }
 
-    const response = await request.get(`/api/laps/${pair.lapA.id}/compare/${pair.lapB.id}`);
+    const { response, set } = await fetchAlignedSet(request, pair);
     expect(response.ok(), `${game.name} seeded comparison response`).toBe(true);
     const body = await response.text();
     if (game.gameId === "f1-2025") expect(Buffer.byteLength(body, "utf8"), "F1 comparison response size").toBeLessThan(5_000_000);
-    const payload = JSON.parse(body) as ComparisonData;
+    expect(set).not.toBeNull();
 
     await page.goto(`/${game.prefix}/compare?track=${pair.trackOrdinal}&carA=${pair.carOrdinal}&carB=${pair.carOrdinal}&lapA=${pair.lapA.id}&lapB=${pair.lapB.id}`, { waitUntil: "domcontentloaded" });
 
-    expect(payload.timeDelta.length).toBe(payload.traces.distance.length);
+    expect(set!.laps[0]!.elapsedTimeS.length).toBe(set!.distanceMeters.length);
     await expect(page.getByTestId("lap-compare-workspace")).toBeVisible({ timeout: 30_000 });
     expect(browserErrors.errors, `no compare route errors for ${game.name}`).toEqual([]);
   });

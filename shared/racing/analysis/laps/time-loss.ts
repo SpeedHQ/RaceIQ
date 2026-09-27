@@ -1,5 +1,6 @@
 import type { TelemetryPacket } from "../../../telemetry/types";
-import { allWheelStates } from "./physics/vehicle";
+import { calibratedWheelStates } from "./physics/vehicle";
+import type { AllWheelStates } from "./physics/vehicle";
 
 /**
  * Time-loss estimation primitives for lap insights.
@@ -17,13 +18,12 @@ import { allWheelStates } from "./physics/vehicle";
  * wheelspin event and a micro-lift, for example) and their costs overlap.
  */
 
-/** Minimum clean samples needed in a speed bin before it can serve as a reference. */
-const MIN_REFERENCE_SAMPLES = 10;
+/** Minimum clean evidence duration in a speed bin before it can serve as a reference. */
+const MIN_REFERENCE_SECONDS = 1 / 6;
 /** Speed bin width for the acceleration reference, m/s. */
 const REFERENCE_BIN_M_S = 10;
 /** Losses below this are indistinguishable from sampling noise. */
 export const MIN_REPORTABLE_LOSS_S = 0.02;
-
 
 /** Sum of the timesteps covering frames [start, end]. */
 function windowDuration(dt: number[], start: number, end: number): number {
@@ -68,32 +68,51 @@ export interface AccelReference {
   bins: (number | undefined)[];
 }
 
-export function buildAccelReference(telemetry: TelemetryPacket[], dt: number[]): AccelReference {
-  const samples: number[][] = [];
-  for (let i = 0; i < telemetry.length - 1; i++) {
-    const p = telemetry[i];
+export function createAccelReferenceCollector(): {
+  observe(packet: TelemetryPacket, nextPacket: TelemetryPacket | undefined, seconds: number, states: AllWheelStates): void;
+  finish(): AccelReference;
+} {
+  const samples: { acceleration: number; seconds: number }[][] = [];
+  return {
+    observe(p, nextPacket, seconds, ws) {
     // Clean reference frame: full throttle, no brake, no wheel slip, moving.
-    if (p.Accel <= 230 || p.Brake >= 5 || p.Speed < 5) continue;
-    const ws = allWheelStates(p);
-    if (ws.fl.state === "spin" || ws.fr.state === "spin" || ws.rl.state === "spin" || ws.rr.state === "spin") continue;
+    if (p.Accel <= 230 || p.Brake >= 5 || p.Speed < 5 || !(seconds > 0) || !nextPacket) return;
+    if (!ws || ws.fl.state !== "grip" || ws.fr.state !== "grip" || ws.rl.state !== "grip" || ws.rr.state !== "grip") return;
 
-    const a = (telemetry[i + 1].Speed - p.Speed) / dt[i];
+    const a = (nextPacket.Speed - p.Speed) / seconds;
     // Discard physically implausible steps (packet reordering, respawns).
-    if (!Number.isFinite(a) || Math.abs(a) > 30) continue;
+    if (!Number.isFinite(a) || Math.abs(a) > 30) return;
 
     const bin = Math.floor(p.Speed / REFERENCE_BIN_M_S);
-    samples[bin] ??= [];
-    samples[bin].push(a);
-  }
-
+    (samples[bin] ??= []).push({ acceleration: a, seconds });
+    },
+    finish() {
   const bins: (number | undefined)[] = [];
   for (let b = 0; b < samples.length; b++) {
     const s = samples[b];
-    if (!s || s.length < MIN_REFERENCE_SAMPLES) continue;
-    s.sort((x, y) => x - y);
-    bins[b] = s[Math.floor(s.length / 2)];
+    if (!s) continue;
+    const seconds = s.reduce((total, sample) => total + sample.seconds, 0);
+    if (seconds + 1e-9 < MIN_REFERENCE_SECONDS) continue;
+    s.sort((x, y) => x.acceleration - y.acceleration);
+    let accumulated = 0;
+    for (const sample of s) {
+      accumulated += sample.seconds;
+      if (accumulated >= seconds / 2) {
+        bins[b] = sample.acceleration;
+        break;
+      }
+    }
   }
   return { bins };
+    },
+  };
+}
+
+export function buildAccelReference(telemetry: TelemetryPacket[], dt: number[], wheelStates?: readonly AllWheelStates[]): AccelReference {
+  const states = wheelStates ?? calibratedWheelStates(telemetry);
+  const collector = createAccelReferenceCollector();
+  for (let i = 0; i < telemetry.length - 1; i++) collector.observe(telemetry[i], telemetry[i + 1], dt[i], states[i]);
+  return collector.finish();
 }
 
 /** Reference acceleration at a given speed, or undefined if that bin is unsupported. */
@@ -113,13 +132,7 @@ function refAccelAt(ref: AccelReference, speed: number): number | undefined {
  * Returns undefined when the reference has no data for the speeds involved, so
  * callers can omit the estimate instead of extrapolating one.
  */
-export function accelDeficitLoss(
-  telemetry: TelemetryPacket[],
-  dt: number[],
-  start: number,
-  end: number,
-  ref: AccelReference,
-): number | undefined {
+export function accelDeficitLoss(telemetry: TelemetryPacket[], dt: number[], start: number, end: number, ref: AccelReference): number | undefined {
   if (end <= start) return 0;
 
   const actualTime = windowDuration(dt, start, end);
