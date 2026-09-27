@@ -165,6 +165,7 @@ describe("lap export → import round-trip (real capture)", () => {
       });
       const exported = rows.at(-1)!;
       const sourceSession = await db.select().from(sessions).where(eq(sessions.id, sid)).get();
+      expect(sourceSession?.captureFormatVersion).toBe(1);
       const sourcePackets = await parseRawLapFrames(
         captureSource(sourceSession!),
         exported.rawByteOffset!,
@@ -179,6 +180,7 @@ describe("lap export → import round-trip (real capture)", () => {
       const imported = result.laps[0]!;
       createdSessions.push(imported.sessionId);
       const importedSession = await db.select().from(sessions).where(eq(sessions.id, imported.sessionId)).get();
+      expect(importedSession?.captureFormatVersion).toBe(1);
       if (importedSession?.rawFile) tmpFiles.push(importedSession.rawFile);
       const importedRow = (await db.select().from(laps).where(eq(laps.sessionId, imported.sessionId)).all())
         .find((lap) => lap.lapNumber === exported.lapNumber);

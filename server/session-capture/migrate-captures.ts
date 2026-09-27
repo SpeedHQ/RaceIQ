@@ -122,7 +122,13 @@ async function writeVerifiedStage(candidate: Candidate, stage: string, lapRows: 
 async function verifyStage(candidate: Candidate, stage: string, lapRows: LapOffset[], mapped: Map<number, number>): Promise<void> {
   const input = iterateSessionCaptureRecordsFromSource(source(candidate.rawFile, candidate.gameId), { strict: true })[Symbol.asyncIterator]();
   const output = iterateSessionCaptureRecordsFromSource(source(stage, candidate.gameId), { strict: true })[Symbol.asyncIterator]();
-  const starts = new Map(lapRows.filter((lap) => lap.rawByteOffset !== null).map((lap) => [lap.rawByteOffset!, lap]));
+  const starts = new Map<number, LapOffset[]>();
+  for (const lap of lapRows) {
+    if (lap.rawByteOffset === null) continue;
+    const sameOffset = starts.get(lap.rawByteOffset);
+    if (sameOffset) sameOffset.push(lap);
+    else starts.set(lap.rawByteOffset, [lap]);
+  }
   const lapFrames = new Map<number, { start: number; count: number }>();
   let frameIndex = 0;
   try {
@@ -141,8 +147,10 @@ async function verifyStage(candidate: Candidate, stage: string, lapRows: LapOffs
       if (mapped.get(before.value.offset) !== undefined && mapped.get(before.value.offset) !== after.value.offset) {
         throw new Error("Migrated lap offset does not point to matching frame");
       }
-      const lap = starts.get(before.value.offset);
-      if (lap) lapFrames.set(lap.id, { start: frameIndex, count: lap.rawFrameCount ?? 0 });
+      const lapsStartingHere = starts.get(before.value.offset);
+      if (lapsStartingHere) {
+        for (const lap of lapsStartingHere) lapFrames.set(lap.id, { start: frameIndex, count: lap.rawFrameCount ?? 0 });
+      }
       frameIndex++;
     }
   } finally {

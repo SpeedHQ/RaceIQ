@@ -10,8 +10,7 @@ import { countSourceFrameScanned } from "./test-instrumentation";
 import { SEGMENT_BOUNDARY_MAGIC, SEGMENT_BOUNDARY_VERSION, SEGMENT_CONTEXT_MAGIC, SEGMENT_CONTEXT_VERSION, SEGMENT_CONTEXT_END_MAGIC, readFramePrefix, type SessionCaptureRecord } from "./framing";
 import { decodeLmuSparseFrame, isLmuSparseFrame } from "./lmu-sparse";
 import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "../games/lmu/source-frame";
-import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC } from "../games/kunos/pack-triplet";
-import { decodeKunosSparseFrame, isKunosSparseFrame } from "./kunos-sparse";
+import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "./kunos-sparse";
 import { decodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } from "./generic-sparse";
 
 export interface SessionCaptureFrameRecord { readonly offset: number; readonly length: number; readonly frameIndex: number; }
@@ -179,17 +178,28 @@ export async function* iterateSessionCaptureRecordsFromSource(
               backDistance !== frameOffset - checkpointOffset) {
             throw new Error(`Invalid sparse checkpoint at ${frameOffset}`);
           }
+          if (lmuDelta && checkpointIdentity !== "lmu-v2") throw new Error(`Invalid LMU sparse checkpoint identity at ${frameOffset}`);
+          if (kunosDelta && (!checkpointIdentity || !checkpointIdentity.startsWith("kunos-") || Number(checkpointIdentity.slice(6)) !== kunosSourceMagic(previous))) {
+            throw new Error(`Invalid Kunos sparse checkpoint identity at ${frameOffset}`);
+          }
           if (genericDelta && (!checkpointIdentity || genericFrameIdentity(previous) !== checkpointIdentity)) {
             throw new Error(`Invalid generic sparse checkpoint identity at ${frameOffset}`);
           }
           frame = genericDelta ? decodeGenericSparseFrame(payload, previous)
             : lmuDelta ? decodeLmuSparseFrame(payload, previous) : decodeKunosSparseFrame(payload, previous);
+          if (lmuDelta && (frame.length !== LMU_SOURCE_FRAME_V2_SIZE ||
+              !frame.subarray(0, LMU_SOURCE_FRAME_MAGIC.length).equals(LMU_SOURCE_FRAME_MAGIC))) {
+            throw new Error(`Invalid LMU sparse frame at ${frameOffset}`);
+          }
+          if (kunosDelta && kunosSourceMagic(frame) !== Number(checkpointIdentity!.slice(6))) {
+            throw new Error(`Invalid Kunos sparse frame identity at ${frameOffset}`);
+          }
         } else {
           const isLmu = payload.length === LMU_SOURCE_FRAME_V2_SIZE &&
             payload.subarray(0, LMU_SOURCE_FRAME_MAGIC.length).equals(LMU_SOURCE_FRAME_MAGIC);
-          const magic = payload.length >= 4 ? payload.readUInt32LE(0) : 0;
-          checkpointIdentity = genericFrameIdentity(payload);
-          checkpointOffset = isLmu || magic === ACC_PACKED_MAGIC || magic === ACEVO_PACKED_MAGIC || checkpointIdentity ? frameOffset : -1;
+          const magic = kunosSourceMagic(payload);
+          checkpointIdentity = isLmu ? "lmu-v2" : magic ? `kunos-${magic}` : genericFrameIdentity(payload);
+          checkpointOffset = checkpointIdentity ? frameOffset : -1;
         }
         previous = frame;
         if (prefix.frameTimeMs === undefined) yield { kind: "frame", offset: frameOffset, frame };

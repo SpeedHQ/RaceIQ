@@ -165,9 +165,9 @@ export class ImportCaptureAdapter implements DbAdapter {
   getTuneAssignment(gameId: GameId, carOrdinal: number, trackOrdinal: number) {
     return this._inner.getTuneAssignment(gameId, carOrdinal, trackOrdinal);
   }
-  updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void> {
+  updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string, sparseCapture = false): Promise<void> {
     this.rawFiles.add(rawFile);
-    return this._inner.updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
+    return this._inner.updateSessionRawFile(sessionId, rawFile, lapDetectorVersion, sparseCapture);
   }
   updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number, identity?: SessionIdentity): Promise<void> {
     const existing = this._sessionMeta.get(sessionId);

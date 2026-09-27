@@ -27,6 +27,7 @@
 - Render 3D replays, onboarding preview, and model comparisons with WebGPU where available and WebGL2 fallback; pause stops recurring scene draws.
 
 ### Fixes
+- Keep exported lap slices within source session segments; validate sparse checkpoints before replay, preserve shared lap offsets during capture conversion, and avoid prompting to reconvert newly imported sparse recordings.
 - Bundle ACC map-spline SVGs for track edges; derive centre points from aligned SVG edges instead of incorrect embedded centre paths or fastlane-derived boundary JSON.
 - Expose LMU racing lines already present in shipped track SVGs to 2D and 3D replay overlays.
 - Redraw Analyse telemetry charts when their container changes width, preventing stretched horizontal bands after layout transitions.

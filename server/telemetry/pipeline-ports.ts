@@ -17,7 +17,7 @@ import {
   TELEMETRY_PARSER_VERSIONS,
   TELEMETRY_RESOLVER_VERSION,
 } from "../../shared/telemetry/resolver/versions";
-import { insertSession, updateSessionRawFile, updateSessionCarTrack } from "../db/session-queries";
+import { insertSession, updateSessionRawFile, updateSessionCarTrack, markSessionCaptureFormatCurrent } from "../db/session-queries";
 import { deleteLapOnly, insertLap, setLapMetrics } from "../db/lap-mutation-queries";
 import { getLaps } from "../db/lap-read-queries";
 import { getLapsForExclusionScope, setLapAutoExclusion, getLapExperimentScope } from "../db/experiment-lap-queries";
@@ -100,7 +100,7 @@ export interface DbAdapter {
    *  never has to decode telemetry on first open. */
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void>;
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]>;
-  updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void>;
+  updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string, sparseCapture?: boolean): Promise<void>;
   updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number, identity?: SessionIdentity): Promise<void>;
   getTuneAssignment(
     gameId: GameId,
@@ -192,8 +192,9 @@ export class RealDbAdapter implements DbAdapter {
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]> {
     return getLaps(gameId, limit);
   }
-  updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void> {
-    return updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
+  async updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string, sparseCapture = false): Promise<void> {
+    await updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
+    if (sparseCapture) await markSessionCaptureFormatCurrent(sessionId);
   }
   async updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number, identity?: SessionIdentity): Promise<void> {
     await updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal, identity);

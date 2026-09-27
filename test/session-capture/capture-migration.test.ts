@@ -90,7 +90,8 @@ describe("historical capture migration", () => {
     const sourceRecordOffsets = frames.map((_, i) => 12 + i * (4 + frames[0]!.length));
     const lapsBefore = [
       await insertLap(firstSession, sourceRecordOffsets[1]!, 1),
-      await insertLap(firstSession, sourceRecordOffsets[5]!, 2),
+      await insertLap(firstSession, sourceRecordOffsets[1]!, 2),
+      await insertLap(firstSession, sourceRecordOffsets[5]!, 3),
       await insertLap(secondSession, sourceRecordOffsets[3]!, 1),
     ];
     const before = await records(originalPath);

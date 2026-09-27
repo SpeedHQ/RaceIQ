@@ -240,6 +240,7 @@ function iracingSegmentEnd(
   let seen = 0;
   let staleLastLap: number | undefined;
   for (const record of iterateSessionCaptureRecords(buf, start)) {
+    if (record.kind === "segment-boundary") return end;
     if (record.kind !== "frame") continue;
     const prefix = readFramePrefix(buf, record.offset);
     if (!prefix) throw new Error(`Invalid frame prefix at ${record.offset}`);
@@ -264,14 +265,14 @@ function buildParserContextRecords(buf: Buffer, beforeOffset: number): Buffer[] 
 }
 
 /** Re-encode lap frames with segment-local checkpoints and source identities. */
-function sparseLapRecords(buf: Buffer, start: number, count: number, gameId: GameId): Buffer[] {
+function sparseLapRecords(buf: Buffer, start: number, end: number, gameId: GameId): Buffer[] {
   const parts: Buffer[] = [];
   let previous: Buffer | null = null;
   let checkpoint = 0;
   let outputOffset = 0;
   let emitted = 0;
   for (const record of iterateSessionFrameRecords(buf, start)) {
-    if (emitted >= count) break;
+    if (record.offset >= end) break;
     const isLmuV2 = gameId === "lmu" && record.frame.length === LMU_SOURCE_FRAME_V2_SIZE &&
       record.frame.subarray(0, LMU_SOURCE_FRAME_MAGIC.length).equals(LMU_SOURCE_FRAME_MAGIC);
     const magic = record.frame.length >= 4 ? record.frame.readUInt32LE(0) : 0;
@@ -382,14 +383,6 @@ export async function buildLapsZip(
       const end = first.gameId === "iracing"
         ? iracingSegmentEnd(buf, start, frameCount, prefix)
         : advanceSessionFrames(buf, start, frameCount + 1);
-      let segmentFrameCount = frameCount + 1;
-      if (first.gameId === "iracing") {
-        segmentFrameCount = 0;
-        for (const record of iterateSessionFrameRecords(buf, start)) {
-          if (record.offset >= end) break;
-          segmentFrameCount++;
-        }
-      }
       segments.push(Buffer.concat([
         encodeSegmentBoundaryFrame(),
         ...(context.length > 0
@@ -398,7 +391,7 @@ export async function buildLapsZip(
         ...(prefix ? [prefix] : []),
         ...(first.gameId === "lmu" || first.gameId === "acc" || first.gameId === "ac-evo" ||
           first.gameId === "fm-2023" || first.gameId === "f1-2025" || first.gameId === "iracing"
-          ? sparseLapRecords(buf, start, segmentFrameCount, first.gameId)
+          ? sparseLapRecords(buf, start, end, first.gameId)
           : [buf.subarray(start, end)]),
       ]));
     }

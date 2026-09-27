@@ -20,7 +20,6 @@ import { reconcileSessionResult } from "../race-results/reconcile";
 import { encodeFrameLength, encodeSegmentContextEndFrame, encodeSegmentContextFrame } from "../session-capture/framing";
 import { wsManager } from "../runtime/websocket-manager";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
-import { markSessionCaptureFormatCurrent } from "../db/session-queries";
 
 const CURRENT_SESSION_LAP_SNAPSHOT_LIMIT = 500;
 
@@ -165,10 +164,10 @@ export class LiveTelemetryPipeline {
               gameId: session.gameId,
             };
             if (this.recorder.path) {
-              await this.db.updateSessionRawFile(session.sessionId, this.recorder.path, this._lapDetector?.detectorId ?? LAP_DETECTOR_ID);
-              if (this.db instanceof RealDbAdapter && this.recorder instanceof SparseSessionRecorderAdapter) {
-                await markSessionCaptureFormatCurrent(session.sessionId);
-              }
+              await this.db.updateSessionRawFile(
+                session.sessionId, this.recorder.path, this._lapDetector?.detectorId ?? LAP_DETECTOR_ID,
+                this.recorder instanceof SparseSessionRecorderAdapter,
+              );
             }
           });
           if (previousSession) {
