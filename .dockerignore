@@ -12,7 +12,6 @@ data
 .data-*
 test
 docs
-graphify-out
 artifacts
 assets
 test-results
