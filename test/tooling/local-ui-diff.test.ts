@@ -153,7 +153,7 @@ describe("local UI diff report", () => {
     expect(reusableUiSnapshot).toContain("REUSABLE_UI_SNAPSHOT_CASES");
     expect(packageJson.scripts["ui:diff"]).toBe("bun scripts/ui/local-ui-diff.ts");
     expect(packageJson.scripts["ui:diff:storybook"]).toBe("bun scripts/ui/local-ui-diff.ts --storybook-only");
-    expect(packageJson.scripts["test:screenshots"]).toContain("PW_SEED_SCREENSHOTS=1");
+    expect(packageJson.scripts["screenshots"]).toContain("PW_SEED_SCREENSHOTS=1");
     expect(gitignore).toContain(".ui-diff/");
   });
 

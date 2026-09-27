@@ -18,7 +18,7 @@ export async function seedIRacingSession(fixturePath: string): Promise<void> {
     bypassPacketRateFilter: true,
     skipHistorySeeding: true,
     skipDevState: true,
-    recorder: new RealSessionRecorderAdapter(),
+    ...(process.env.PW_SEED_SCREENSHOTS === "1" ? {} : { recorder: new RealSessionRecorderAdapter() }),
   });
   let packetCount = 0;
   let identityRegistered = false;

@@ -35,6 +35,7 @@
 - Keep exported lap slices within source session segments; validate sparse checkpoints before replay, preserve shared lap offsets during capture conversion, and avoid prompting to reconvert newly imported sparse recordings.
 - Replace every eligible older recording after lossless verification, even when sparse storage does not reduce file size.
 - Show sparse capture conversion before stale lap-detection prompts; offer lap reprocessing once conversion finishes.
+- Seed responsive screenshot databases with sparse imports so migration prompts do not obscure screenshots.
 - Include seeded raw recordings in sparse conversion candidates so clean seeds exercise the migration prompt.
 - Keep RaceIQ usable during legacy-capture conversion, allow game recording, and restore aggregate progress in a compact bottom-right dialog after browser refresh.
 - Simplify sparse-recording conversion dialogs: show savings once, label the bottom-right progress card “Migrating old recordings”, and match its size, typography, and status treatment to other reconciliation cards.

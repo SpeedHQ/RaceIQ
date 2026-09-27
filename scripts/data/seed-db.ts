@@ -108,11 +108,11 @@ async function main(): Promise<void> {
         const result = game === "lmu"
           ? await importSessionFrames(streamLMUSeedFrames(fixturePath), game, {
               notifyDriverProfile: false,
-              recorder: new RealSessionRecorderAdapter(),
+              ...(process.env.PW_SEED_SCREENSHOTS === "1" ? {} : { recorder: new RealSessionRecorderAdapter() }),
             })
           : await importSessionBin(readFileSync(fixturePath), game, {
               notifyDriverProfile: false,
-              recorder: new RealSessionRecorderAdapter(),
+              ...(process.env.PW_SEED_SCREENSHOTS === "1" ? {} : { recorder: new RealSessionRecorderAdapter() }),
             });
         const seededSessionIds = (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, game)).all())
           .map((row) => row.id)
