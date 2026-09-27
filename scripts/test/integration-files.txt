@@ -132,6 +132,7 @@ test/session-capture/raw-binary-storage.test.ts
 test/session-capture/session-compressor.test.ts
 test/session-capture/session-cleanup.test.ts
 test/session-capture/session-recorder.test.ts
+test/session-capture/source-loader-stream.test.ts
 test/setups/ac-evo/ac-evo-carsetup-f1.test.ts
 test/setups/ac-evo/ac-evo-carsetup-knobs.test.ts
 test/setups/ac-evo/ac-evo-carsetup-writer.test.ts
@@ -172,6 +173,7 @@ test/telemetry/resolver/basic.test.ts
 test/telemetry/resolver/derivations.test.ts
 test/telemetry/resolver/derived-values.test.ts
 test/telemetry/resolver/native-sources.test.ts
+test/telemetry/telemetry-storage.test.ts
 test/tracks/acc-boundaries.test.ts
 test/tracks/compact-route.test.ts
 test/tracks/discovered-cars.test.ts
@@ -212,13 +214,11 @@ test/session-capture/context-markers.test.ts
 test/session-capture/filename.test.ts
 test/session-capture/lap-index-import.test.ts
 test/session-capture/lmu-capture-format.test.ts
-test/session-capture/source-loader-stream.test.ts
 test/sync/laptimes-lazy.test.ts
 test/telemetry/live-pipeline-calibration.test.ts
 test/tracks/calibration.test.ts
 test/tracks/geometry-alignment.test.ts
 test/telemetry/telemetry-model.test.ts
-test/telemetry/telemetry-storage.test.ts
 test/lap-analysis/lap-export-zip.test.ts
 test/ai/chat/chat-diagnostic-export.test.ts
 test/routes/diagnostics-routes.test.ts

@@ -35,6 +35,8 @@
 - Keep 3D replay grid at 1-metre spacing and anchored to track coordinates through turns, without yaw-amplified motion or overlapping line flicker.
 - Group 3D per-wheel surface temperatures into one mirrored row like 2D tire diagrams, with carcass and core on separate rows instead of a vertical stat list.
 
+- Stop `bun dev` and its sibling service when either required development service exits.
+
 - Show recent sessions instead of individual laps on global and per-game home pages, including sessions without recorded laps
 
 - Lap analysis detects sustained oversteer slides
@@ -47,7 +49,6 @@
 - F1 lap analysis reports ERS depletion corroborated by reduced electrical power and deployment
 - Lap analysis highlights low throttle after a stable corner exit without claiming unproven time loss
 
-### Fixes
 - Show larger replay tires with three surface-temperature segments on each tread edge, gray side outlines, carcass layers, and core overlays only when available; remove slip-angle and slip-percent labels from wheels.
 - Show wheel rotation speed as a positive magnitude in Analyse, including existing LMU replays
 - Show LMU's inner, middle, and outer surface temperatures in Analyse; keep its carcass reading separate from core and surface temperatures in live and replay views
