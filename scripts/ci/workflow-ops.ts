@@ -69,6 +69,8 @@ switch (operation) {
     run(["bun", "--env-file=.env.development", "run", "build"], base);
     rmSync(join(env.GITHUB_WORKSPACE!, "dist"), { recursive: true, force: true });
     cpSync(join(base, "dist"), join(env.GITHUB_WORKSPACE!, "dist"), { recursive: true });
+    // Compare both revisions with the same screenshot cases and selectors.
+    cpSync(join(env.GITHUB_WORKSPACE!, "playwright/tests/responsive/mobile-screenshots.spec.ts"), join(base, "playwright/tests/responsive/mobile-screenshots.spec.ts"));
     const output = join(env.GITHUB_WORKSPACE!, "playwright/screenshots/mobile");
     rmSync(output, { recursive: true, force: true });
     mkdirSync(output, { recursive: true });
