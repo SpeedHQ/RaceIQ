@@ -28,6 +28,8 @@
 - Render 3D replays, onboarding preview, and model comparisons with WebGPU where available and WebGL2 fallback; pause stops recurring scene draws.
 
 ### Fixes
+- Verify seeded database upgrades against migrations actually pending from PR base, without failing when base already includes earlier migrations.
+- Ignore stale Compare lap selections from another game, track, or car so drivers can pick a valid lap without a misleading mismatch error.
 - Read recorded frame acquisition times as telemetry for all six games; older captures without timestamps remain supported.
 - Avoid growing LMU, ACC, and AC Evo recordings when changed frames are cheaper to store in full than as sparse deltas.
 - Keep exported lap slices within source session segments; validate sparse checkpoints before replay, preserve shared lap offsets during capture conversion, and avoid prompting to reconvert newly imported sparse recordings.

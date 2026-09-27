@@ -4,6 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { migrations } from "../../server/db/migrations";
 
 const DATABASE_SUFFIXES = ["", "-wal", "-shm"] as const;
 const REPO_ROOT = process.cwd();
@@ -106,6 +107,26 @@ function profileNames(databasePath: string): string[] {
     database.close();
   }
 }
+
+function appliedVersions(databasePath: string): number[] {
+  const database = new Database(databasePath, { readonly: true });
+  try {
+    const rows = database.query("SELECT version FROM schema_migrations ORDER BY version").all() as Array<{ version: number }>;
+    return rows.map(({ version }) => version);
+  } finally {
+    database.close();
+  }
+}
+function sessionIds(databasePath: string): number[] {
+  const database = new Database(databasePath, { readonly: true });
+  try {
+    const rows = database.query("SELECT id FROM sessions ORDER BY id").all() as Array<{ id: number }>;
+    return rows.map(({ id }) => id);
+  } finally {
+    database.close();
+  }
+}
+
 function sessionOwnerships(databasePath: string): string[] {
   const database = new Database(databasePath, { readonly: true });
   try {
@@ -186,27 +207,42 @@ describe("production database path", () => {
     expectArtifactsAbsent(testPath);
   });
   if (process.env.RACEIQ_DB_UPGRADE_TESTS === "1") {
-    test("upgrades a seeded v57 database during startup", async () => {
-      const seededDataDir = process.env.RACEIQ_UPGRADE_DATA_DIR;
-      const dataDir = seededDataDir ?? makeDataDir();
+    test("upgrades a v57 database during startup", async () => {
+      const dataDir = makeDataDir();
       const appPath = join(dataDir, "app.db");
       const sentinel = `upgrade-profile-${crypto.randomUUID()}`;
-      if (!seededDataDir) await createFixture(appPath, sentinel, 57);
+      await createFixture(appPath, sentinel, 57);
 
       const result = await runDbStartup(dataDir);
 
+      expect(result.code, result.output).toBe(0);
       expect(result.output).toContain("[DB]   v59: persist LMU session string identity");
-      if (seededDataDir) {
-        expect(profileNames(appPath)).toContain("RaceIQ Demo Driver");
-        expect(sessionOwnerships(appPath).length).toBeGreaterThan(0);
-        expect(sessionOwnerships(appPath).every((ownership) => ownership === "mine")).toBe(true);
-      } else {
-        expect(profileNames(appPath)).toEqual([sentinel]);
-        expect(sessionOwnerships(appPath)).toEqual(["mine"]);
-      }
+      expect(profileNames(appPath)).toEqual([sentinel]);
+      expect(sessionOwnerships(appPath)).toEqual(["mine"]);
     });
   }
 
+  if (process.env.RACEIQ_UPGRADE_DATA_DIR) {
+    test("preserves a seeded database while applying pending migrations", async () => {
+      const dataDir = process.env.RACEIQ_UPGRADE_DATA_DIR!;
+      const appPath = join(dataDir, "app.db");
+      const before = new Set(appliedVersions(appPath));
+      const pending = migrations.filter(({ version }) => !before.has(version));
+      const ids = sessionIds(appPath);
+
+      const result = await runDbStartup(dataDir);
+
+      expect(result.code, result.output).toBe(0);
+      for (const migration of pending) {
+        expect(result.output).toContain(`[DB]   v${migration.version}: ${migration.name}`);
+      }
+      expect(appliedVersions(appPath)).toEqual(migrations.map(({ version }) => version).sort((a, b) => a - b));
+      expect(profileNames(appPath)).toContain("RaceIQ Demo Driver");
+      expect(sessionIds(appPath)).toEqual(ids);
+      expect(sessionOwnerships(appPath)).toEqual(ids.map(() => "mine"));
+      expect(ids.length).toBeGreaterThan(0);
+    });
+  }
   test("dual-file startup keeps app.db and continues", async () => {
     const dataDir = makeDataDir();
     const appPath = join(dataDir, "app.db");
