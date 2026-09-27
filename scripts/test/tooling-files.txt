@@ -1,4 +1,5 @@
 test/tooling/bench-compare.test.ts
+test/tooling/bench-summary.test.ts
 test/tooling/changelog.test.ts
 test/tooling/collect-screenshot-diffs.test.ts
 test/tooling/dev-model-routes.test.ts
