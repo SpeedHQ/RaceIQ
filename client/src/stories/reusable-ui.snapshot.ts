@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, expectScreenshot, test } from "./snapshot-test";
 import { REUSABLE_UI_SNAPSHOT_CASES } from "./snapshot-cases";
 import { openStoryForSnapshot, waitForVisualReady } from "./storybook-ready";
 
@@ -31,7 +31,7 @@ for (const story of REUSABLE_UI_SNAPSHOT_CASES) {
     }
 
     const screenshotTarget = story.screenshotTarget ? page.locator(story.screenshotTarget) : page;
-    await expect(screenshotTarget).toHaveScreenshot(`${story.name}.png`, {
+    await expectScreenshot(screenshotTarget, `${story.name}.png`, {
       fullPage: story.fullPage ?? false,
       animations: "disabled",
       timeout: 30_000,

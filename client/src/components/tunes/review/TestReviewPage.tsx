@@ -1,5 +1,6 @@
+import { m } from "@/paraglide/messages";
 import { getGame } from "@shared/games/registry";
-import { DEFAULT_EXPERIMENT_FOCUS, EXPERIMENT_FOCUS_AGENT_LABELS } from "@shared/racing/experiments/focus";
+import { DEFAULT_EXPERIMENT_FOCUS } from "@shared/racing/experiments/focus";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { TuneSetupChat } from "@/components/tunes/TuneSetupChat";
@@ -51,7 +52,7 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
   if (sessionLoading) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 p-12 text-center">
-        <div className="text-lg font-semibold text-app-text">Loading experiment review…</div>
+        <div className="text-lg font-semibold text-app-text">{m.review_loading_experiment()}</div>
       </div>
     );
   }
@@ -59,13 +60,13 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
     return (
       <div className="flex flex-col items-center justify-center gap-3 p-12 text-center">
         <div role="alert" className="text-lg font-semibold text-app-text">
-          Experiment not found
+          {m.review_experiment_not_found()}
         </div>
         <div className="text-sm text-app-text-muted max-w-md">
-          This experiment (#{experimentId}) no longer exists — it may have been deleted, or removed when the database was reset. The laps it referenced may still be in your history.
+          {m.review_experiment_deleted_detail({ id: experimentId })}
         </div>
         <Button variant="app-primary" size="app-md" onClick={backToExperimentList} className="mt-2">
-          Back to experiments
+          {m.review_back_to_experiments()}
         </Button>
       </div>
     );
@@ -74,7 +75,7 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
   if (gameId !== "acc" && gameId !== "ac-evo") {
     return (
       <div role="alert" className="p-8 text-sm text-app-text-muted">
-        Review is unavailable for this game.
+        {m.review_unavailable_for_game()}
       </div>
     );
   }
@@ -105,9 +106,9 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
           <div className="shrink-0 px-3 py-2 border-b border-app-border flex items-center justify-between">
             {/* Named after the experiment's current focus, same as the
                 workspace panel — one agent, two modes. */}
-            <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{EXPERIMENT_FOCUS_AGENT_LABELS[session?.focus ?? DEFAULT_EXPERIMENT_FOCUS]}</span>
+            <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{(session?.focus ?? DEFAULT_EXPERIMENT_FOCUS) === "driver" ? m.experiment_focus_driver_agent_label() : m.experiment_focus_car_agent_label()}</span>
             <Button variant="app-primary" size="app-sm" onClick={backToWorkspace}>
-              Session
+              {m.review_session()}
             </Button>
           </div>
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">

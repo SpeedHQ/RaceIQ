@@ -5,7 +5,7 @@ import { laps } from "./schema";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 
 export async function getLapsForSession(sessionId: number): Promise<Array<{
-  id: number; lapNumber: number; lapTime: number; isValid: boolean;
+  id: number; lapNumber: number; lapTime: number; isValid: boolean; isFavorite: boolean;
   notes: string | null; tuneId: number | null;
   rawByteOffset: number | null; rawFrameCount: number | null;
   sectorTimes: number[] | null;
@@ -16,6 +16,7 @@ export async function getLapsForSession(sessionId: number): Promise<Array<{
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      isFavorite: laps.isFavorite,
       notes: laps.notes,
       tuneId: laps.tuneId,
       rawByteOffset: laps.rawByteOffset,
@@ -26,7 +27,7 @@ export async function getLapsForSession(sessionId: number): Promise<Array<{
     .where(eq(laps.sessionId, sessionId))
     .orderBy(laps.lapNumber)
     .all();
-  return rows.map(r => ({ ...r, isValid: Boolean(r.isValid) }));
+  return rows.map(r => ({ ...r, isValid: Boolean(r.isValid), isFavorite: Boolean(r.isFavorite) }));
 }
 
 /** Update lap frame index and metadata after reprocessing. */
@@ -60,6 +61,7 @@ export async function insertReprocessedLap(
   lapNumber: number,
   lapTime: number,
   isValid: boolean,
+  isFavorite: boolean,
   rawByteOffset: number | null,
   rawFrameCount: number,
   tuneId: number | null,
@@ -69,7 +71,7 @@ export async function insertReprocessedLap(
   versionIdentity?: TelemetryVersionIdentity,
 ): Promise<number> {
   const result = await db.insert(laps).values({
-    sessionId, lapNumber, lapTime, isValid,
+    sessionId, lapNumber, lapTime, isValid, isFavorite,
     rawByteOffset, rawFrameCount,
     tuneId, notes, invalidReason,
     sectorTimes: sectors,

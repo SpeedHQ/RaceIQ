@@ -115,9 +115,9 @@ export async function exerciseInsightsAndMap(page: Page): Promise<void> {
   await expect(insightsPanel.getByRole("button").first()).toBeVisible();
   await page.getByRole("tab", { name: "Data", exact: true }).click();
 
-  const followButton = page.getByRole("button", { name: "Fixed", exact: true });
-  await followButton.evaluate((button) => (button as HTMLButtonElement).click());
-  await expect(page.getByRole("button", { name: "Follow", exact: true })).toBeVisible();
+  const fixedSwitch = page.getByRole("switch", { name: "Fixed", exact: true });
+  await fixedSwitch.click();
+  await expect(page.getByRole("switch", { name: "Follow", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Overlays", exact: true }).click();
   const overlayItems = ["Inputs", "Segments", "Sectors"].map((label) => page.getByRole("menuitemcheckbox", { name: label, exact: true }));
   for (const item of overlayItems) {
@@ -167,7 +167,7 @@ export async function exerciseCrossGameControls(page: Page, hasF1Setup: boolean,
   const insightsTab = page.getByRole("tab", { name: /Insights/ });
   await insightsTab.click();
   await expect(insightsTab).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByText("No issues detected").first()).toBeVisible();
+  await expect(page.getByRole("tabpanel", { name: /Insights/ }).getByRole("heading", { name: "Suspension" })).toBeVisible();
   await page.getByRole("tab", { name: "Data", exact: true }).click();
 
   for (const speed of [0.1, 0.25, 0.5, 1, 1.5, 2, 2.5]) {

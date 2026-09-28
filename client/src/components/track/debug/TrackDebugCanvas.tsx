@@ -1,5 +1,6 @@
 import { segmentDisplayNames } from "@shared/racing/tracks/segment-label";
 import { useEffect, useRef, useState } from "react";
+import { m } from "@/paraglide/messages";
 import { Button } from "@/components/ui/button";
 import { SECTOR_COLOR_VARS, TRACK_CORNER_COLOR_VARS, TRACK_STRAIGHT_COLOR_VARS, VISUALIZATION_COLOR_VARS } from "@/lib/colors";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
@@ -391,24 +392,24 @@ export function TrackDebugCanvas({
     const legendY = h - 10;
     ctx.fillStyle = "var(--track-centerline)";
     ctx.fillRect(10, legendY - 5, 14, 2);
-    ctx.fillText("Center", 28, legendY);
+    ctx.fillText(m.trackdebugpanel_legend_center(), 28, legendY);
     if (boundaries) {
       ctx.fillStyle = "var(--track-boundary-left)";
       ctx.fillRect(82, legendY - 5, 14, 2);
-      ctx.fillText("Left edge", 100, legendY);
+      ctx.fillText(m.trackdebugpanel_left_edge(), 100, legendY);
       ctx.fillStyle = "var(--track-boundary-right)";
       ctx.fillRect(172, legendY - 5, 14, 2);
-      ctx.fillText("Right edge", 190, legendY);
+      ctx.fillText(m.trackdebugpanel_right_edge(), 190, legendY);
     }
     if (curbs && curbs.length > 0) {
       ctx.fillStyle = "var(--track-curb-right)";
       ctx.fillRect(272, legendY - 5, 14, 2);
-      ctx.fillText("Curbs", 290, legendY);
+      ctx.fillText(m.curbdebug_curbs(), 290, legendY);
     }
     if (boundaries?.pitLane) {
       ctx.fillStyle = "var(--track-pit-lane)";
       ctx.fillRect(340, legendY - 5, 14, 2);
-      ctx.fillText("Pit lane", 358, legendY);
+      ctx.fillText(m.trackdebugpanel_pit_lane(), 358, legendY);
     }
   }, [outline, boundaries, curbs, zoom, pan, flipX, displaySectors, sectorBounds, overlayMode, editingSegments, editingSectors, calibrationComparison, showCalibrationHistory]);
 

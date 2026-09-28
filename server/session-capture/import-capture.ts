@@ -1,10 +1,14 @@
 import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
 import { getAllServerGames } from "../games/registry";
 import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "../games/lmu/recorder";
+import { IRACING_DUMP_MAGIC, readIRacingFramesFromBuffer } from "../games/iracing/recorder";
 import {
   decompressIfGzipSync,
   iterateSessionFrames,
-  iterateSessionImportFrames,
+  iterateSessionCaptureRecords,
+  SESSION_SEGMENT_BOUNDARY,
+  SESSION_SEGMENT_CONTEXT,
+  SESSION_SEGMENT_CONTEXT_END,
 } from "./framing";
 import { importSessionFrames, type ImportedLap, type ImportSessionOptions } from "./import-pipeline";
 
@@ -25,7 +29,9 @@ export function detectGameIdFromBuffer(bytes: Buffer): GameId | null {
   const buf = decompressIfGzipSync(bytes);
   const games = getAllServerGames();
   let checked = 0;
-  const frames = hasLMUDumpMagic(buf) ? readLMUFramesFromBuffer(buf) : iterateSessionFrames(buf);
+  const frames = hasLMUDumpMagic(buf) ? readLMUFramesFromBuffer(buf)
+    : buf.subarray(0, IRACING_DUMP_MAGIC.length).equals(IRACING_DUMP_MAGIC)
+      ? readIRacingFramesFromBuffer(buf, 20) : iterateSessionFrames(buf);
   for (const frame of frames) {
     for (const game of games) {
       if (game.canHandle(frame)) return game.id;
@@ -35,6 +41,21 @@ export function detectGameIdFromBuffer(bytes: Buffer): GameId | null {
   }
   return null;
 }
+function* canonicalImportFrames(bytes: Buffer) {
+  for (const record of iterateSessionCaptureRecords(bytes)) {
+    if (record.kind === "frame") yield { frame: record.frame, frameTimeMs: record.frameTimeMs };
+    else if (record.kind === "segment-boundary") yield SESSION_SEGMENT_BOUNDARY;
+    else if (record.kind === "segment-context") yield SESSION_SEGMENT_CONTEXT;
+    else if (record.kind === "segment-context-end") yield SESSION_SEGMENT_CONTEXT_END;
+    else {
+      const recordBytes = record.kind === "metadata"
+        ? record.bytes
+        : bytes.subarray(record.offset, record.offset + 8 + bytes.readUInt32LE(record.offset + 4));
+      yield { kind: "metadata" as const, bytes: recordBytes };
+    }
+  }
+}
+
 
 /** Replay a canonical session capture through parser, detector, and persistence pipeline. */
 export async function importSessionBin(
@@ -45,7 +66,8 @@ export async function importSessionBin(
   const buf = decompressIfGzipSync(bytes);
   const frames = gameId === "lmu" && hasLMUDumpMagic(buf)
     ? readLMUFramesFromBuffer(buf)
-    : iterateSessionImportFrames(buf);
+    : gameId === "iracing" && buf.subarray(0, IRACING_DUMP_MAGIC.length).equals(IRACING_DUMP_MAGIC)
+      ? readIRacingFramesFromBuffer(buf) : canonicalImportFrames(buf);
   const { packetCount, laps } = await importSessionFrames(
     frames,
     gameId,

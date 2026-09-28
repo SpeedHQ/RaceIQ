@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { m } from "@/paraglide/messages";
 import { SetupTuneForm } from "../../../components/setup-tune/SetupTuneForm";
 import { useAcEvoCars } from "../../../components/setup-tune/use-game-cars";
 import { useCreateTune } from "../../../hooks/tunes";
@@ -14,7 +15,7 @@ function NewAcEvoTunePage() {
         <SetupTuneForm
           gameId="ac-evo"
           cars={cars}
-          title="Create New AC EVO Tune"
+          title={m.setup_create_ac_evo_tune_title()}
           onCancel={() => navigate({ to: "/ac-evo/setups" })}
           onSubmit={(data) =>
             createTune.mutate(data, {

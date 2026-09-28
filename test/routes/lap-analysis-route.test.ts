@@ -6,7 +6,7 @@ import { analyseSemanticIds } from "../../shared/games/metric-contracts";
 import { decodeAlignedLapSet } from "../../shared/racing/laps/alignment/codec";
 import type { EncodedAlignedLapSet } from "../../shared/racing/laps/alignment/types";
 
-import { deleteSession, insertSession } from "../../server/db/session-queries";
+import { deleteSession, insertSession, updateSessionRawFile } from "../../server/db/session-queries";
 import { cacheDelete, cacheSet } from "../../server/db/telemetry-replay-storage";
 import { insertLap } from "../../server/db/lap-mutation-queries";
 import { lapRoutes } from "../../server/routes/laps";
@@ -69,6 +69,9 @@ describe("GET /api/laps/:id/semantic-telemetry", () => {
 describe("GET /api/laps/review", () => {
   test("returns only top valid metadata laps for a track/car", async () => {
     const sessionId = await insertSession(10, 20, "acc");
+    await updateSessionRawFile(sessionId, "review-capture.bin", "test");
+    const noCaptureSession = await insertSession(10, 20, "acc");
+    await insertLap(noCaptureSession, 1, 55, true, null, 0);
     const lapIds = await Promise.all([61, 59, 62, 58, 60, 57].map((time, index) => insertLap(sessionId, index + 1, time, true, null, 0)));
     try {
       const response = await lapRoutes.request("/api/laps/review?gameId=acc&trackOrdinal=20&carOrdinal=10");
@@ -78,6 +81,7 @@ describe("GET /api/laps/review", () => {
       expect(body.map((lap) => lap.lapTime)).toEqual([57, 58, 59, 60, 61]);
       expect(body.map((lap) => lap.id)).toEqual([lapIds[5], lapIds[3], lapIds[1], lapIds[4], lapIds[0]]);
     } finally {
+      await deleteSession(noCaptureSession);
       await deleteSession(sessionId);
     }
   });

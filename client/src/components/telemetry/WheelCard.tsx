@@ -56,6 +56,8 @@ export function WheelCard({
   const surfaceBands = temperatureReadings.filter(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer");
   const hasCarcassBands = carcassBands.every((value) => value != null);
   const hasProfile = surfaceBands.length > 0;
+  const singleSurface = !hasProfile && surfaceTemp != null && coreTemp == null && carcassTemp == null && !hasCarcassBands;
+  const singleTemperature = singleSurface ? surfaceTemp : !hasProfile && surfaceTemp == null ? carcassTemp : null;
   const cardWidth = hasProfile ? 128 : brakeTemp != null ? 140 : 80;
   const wearPct = healthAvailable ? Math.max(0, Math.min(1, wear)) : 0;
   const interiorReadings = temperatureReadings.filter(({ kind }) => kind === "carcass" || kind === "core");
@@ -92,8 +94,8 @@ export function WheelCard({
               <animate attributeName="opacity" values="0.6;0.2;0.6" dur="0.6s" repeatCount="indefinite" />
             </rect>
           )}
-          <rect x={cx - tW / 2} y={cy - tH / 2} width={tW} height={tH} rx={6} fill="var(--app-bg)" fillOpacity={0.6} />
-          {[cy - tH / 2, cy + tH / 2 - 6].map((y) => [0, 1, 2].map((index) => {
+          <rect x={cx - tW / 2} y={cy - tH / 2} width={tW} height={tH} rx={6} fill={singleTemperature != null ? tireTempColor(singleTemperature, thresholds) : "var(--app-bg)"} fillOpacity={singleTemperature != null ? undefined : 0.6} />
+          {(hasProfile || (surfaceTemp != null && !singleSurface)) && [cy - tH / 2, cy + tH / 2 - 6].map((y) => [0, 1, 2].map((index) => {
             const value = hasProfile ? surfaceBands[index]?.value : surfaceTemp;
             const x = cx - tW / 2 + index * (tW / 3);
             const width = tW / 3 - (index < 2 ? 1 : 0);
@@ -191,7 +193,7 @@ export function WheelCard({
           <g fill={brakeTempColor(brakeTemp, label.startsWith("R"))}>
             <rect x={brakeBarX} y={cy - 16} width={7} height={32} />
             <text x={outerSide === "left" ? brakeBarX + 11 : brakeBarX - 4} y={cy + 3} textAnchor={outerSide === "left" ? "start" : "end"} fontSize={8} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
-              B:{tempFn(brakeTemp).toFixed(0)}°{tempUnit}
+              BRK {tempFn(brakeTemp).toFixed(0)}°{tempUnit}
             </text>
           </g>
         )}

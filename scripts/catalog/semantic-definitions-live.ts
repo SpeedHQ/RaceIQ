@@ -323,6 +323,13 @@ const SEMANTIC_DEFINITIONS_LIVE: Record<string, SemanticDefinition> = {
     canonicalUnit: "m",
     shape: "scalar",
   },
+  "timing.frame-time-ms": {
+    label: "Frame Time Ms",
+    description: "UTC epoch milliseconds when source frame was acquired; absent in historical captures.",
+    parentId: "timing",
+    canonicalUnit: "ms",
+    shape: "scalar",
+  },
   "timing.current-lap-valid": {
     label: "Current lap valid",
     description: "Whether current lap remains valid according to source.",

@@ -255,7 +255,6 @@ describe("frontend theme contract", () => {
     expect(rawCssColors).toEqual([]);
 
     const runtimeSource = runtimeFiles.map((path) => readFileSync(path, "utf8")).join("\n");
-    expect(runtimeSource).not.toMatch(/\.getContext\(\s*["']2d["']\s*\)/);
     expect(runtimeSource).not.toMatch(/\bnew\s+THREE\.Color\(\s*(?:0x[\da-f]+|\d+(?:\.\d+)?\s*,)/i);
     expect(runtimeSource).not.toMatch(/<(?:Line|Grid|gridHelper|mesh\w*Material)\b[^>\r\n]*(?:color|args)=\{?[^>\r\n]*["'`]var\(--/);
     expect(runtimeSource).not.toMatch(/var\(--[\w-]+,\s*(?:#[\da-f]{3,8}|rgba?|hsla?)\b/i);

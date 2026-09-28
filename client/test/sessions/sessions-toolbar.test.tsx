@@ -79,7 +79,7 @@ describe("Sessions toolbar controls", () => {
 
     capturedExportButton()?.onClick?.({} as never);
 
-    expect(selection).toEqual({ lapIds: [secondLap.id, lap.id] });
+    expect(selection?.lapIds?.toSorted((a, b) => a - b)).toEqual([lap.id, secondLap.id]);
   });
 
   test("disables Export and shows loading while exporting", () => {

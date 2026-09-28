@@ -235,18 +235,12 @@ ran v39 before the `car`/`driver` rename.
 - **Never fall back to "fm-2023"** when gameId is missing — make gameId required
 **Release-note wording**
 
-- Write for customers scanning quickly.
-- Every bullet must name an explicit product subject, affected page or surface when relevant, and user-visible outcome.
-- Prefer short capability statements: `Publish RaceIQ as a non-root Linux Docker image`.
-- Use exact user-facing surfaces: `Live dashboards` and `Analyse pages`, not vague terms such as `the app`.
-- Describe data at user-understandable granularity: `inner, middle, and outer surface temperatures plus core temperature`, not unexplained terms such as `temperature fidelity`.
-- Use generic wording when capability applies across games; name a simulator only when it changes scope or behavior.
-- Omit implementation mechanics such as `from compact metadata summaries` unless they materially change what users can do.
-- Use one capability or correction per bullet. Split unrelated outcomes.
-- Lead with outcome, use concise present tense, and avoid vague verbs (`improve`, `enhance`, `handle`).
-- Prefer `Fix <user action or result>` for corrections.
-- Omit internal names, code paths, PR numbers, and test/CI details. Do not claim broader behavior than shipped.
-- Keep `Features` focused on new capability, `Fixes` on corrected behavior, `Breaking` on migration or compatibility risk, and `Internal` on non-user-facing work.
+- Write `Features`, `Breaking`, and `Fixes` for customers. Use plain, concise wording that tells users what changed and how it affects them; avoid internal terminology and implementation details.
+- Name the product surface when useful, and describe outcomes at the level users recognize.
+- For breaking changes, state what users must do or what no longer works.
+- Use one user-visible change per bullet. Lead with outcome and avoid vague verbs such as `improve`, `enhance`, or `handle`.
+- Keep `Internal` for non-user-facing work; technical detail and implementation context are acceptable there.
+- Keep section categories accurate. Do not claim behavior broader than shipped.
 - Preserve `### Fixes` and `### Internal` headings in `## Unreleased`, even when empty.
 - ⚠️ **IMPORTANT — NO DYNAMIC IMPORTS.** `await import(...)` is **banned** in this repo. Static imports at the top of the file, always. The *only* exception is a literal platform-specific switch (e.g. a Windows-only native module guarded by `process.platform === "win32"`) where the target genuinely doesn't exist on other platforms — and even then, document the reason inline. "Lazy-load to avoid startup cost", "break a circular dep", or "match the pattern in this file" are **NOT** valid reasons — fix the architecture instead. This rule has repeatedly caused test hangs (234s `isNewer` case) and opaque module-load chains; it is non-negotiable.
 

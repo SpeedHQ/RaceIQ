@@ -3,6 +3,7 @@ import { getLapById } from "./lap-read-queries";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, sessionResults, pitEvents } from "./schema";
+import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import type { SessionMeta, SessionOwnership } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
@@ -54,6 +55,20 @@ export async function updateSessionCarTrack(
     .set({ carOrdinal, trackOrdinal, ...identity })
     .where(eq(sessions.id, sessionId))
     .run();
+}
+
+export async function setSessionFavorite(id: number, favorite: boolean): Promise<boolean> {
+  return withSessionCaptureMaintenanceLock(async () => {
+    const result = await db.update(sessions).set({ isFavorite: favorite }).where(eq(sessions.id, id)).run();
+    return result.rowsAffected > 0;
+  });
+}
+
+export async function setLapFavorite(id: number, favorite: boolean): Promise<boolean> {
+  return withSessionCaptureMaintenanceLock(async () => {
+    const result = await db.update(laps).set({ isFavorite: favorite }).where(eq(laps.id, id)).run();
+    return result.rowsAffected > 0;
+  });
 }
 export async function updateSessionSource(sessionId: number, source: string): Promise<void> {
   await db.update(sessions).set({ source }).where(eq(sessions.id, sessionId)).run();
@@ -137,7 +152,60 @@ export async function getUncompressedSessions(olderThanMs: number): Promise<{ id
     .all();
   return rows.filter((r): r is { id: number; rawFile: string } => r.rawFile !== null);
 }
-function isOwnedSessionRawFile(rawFile: string): boolean {
+/**
+ * Candidate captures are grouped by canonical path so shared recordings are
+ * migrated once. Any legacy sibling makes the whole shared capture eligible.
+ */
+export async function listCaptureMigrationCandidates(): Promise<{ rawFile: string; gameId: GameId; sessionIds: number[] }[]> {
+  const candidates = await db
+    .select({ rawFile: sessions.rawFile })
+    .from(sessions)
+    .where(and(isNull(sessions.captureFormatVersion), sql`${sessions.rawFile} IS NOT NULL`))
+    .orderBy(desc(sessions.createdAt), desc(sessions.id))
+    .all();
+  const supported = new Set<GameId>(["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu"]);
+  const paths = new Set<string>();
+  for (const candidate of candidates) {
+    if (!candidate.rawFile || !isOwnedSessionRawFile(candidate.rawFile)) continue;
+    if (!candidate.rawFile.endsWith(".bin") && !candidate.rawFile.endsWith(".bin.gz")) continue;
+    if (existsSync(candidate.rawFile)) paths.add(candidate.rawFile);
+  }
+  const result: { rawFile: string; gameId: GameId; sessionIds: number[] }[] = [];
+  for (const rawFile of paths) {
+    const shared = await db
+      .select({
+        id: sessions.id,
+        gameId: sessions.gameId,
+        ownership: sessions.ownership,
+        source: sessions.source,
+      })
+      .from(sessions)
+      .where(eq(sessions.rawFile, rawFile))
+      .all();
+    const gameId = shared[0]?.gameId;
+    if (
+      !gameId ||
+      !supported.has(gameId as GameId) ||
+      shared.some((row) => row.ownership !== "mine" || row.source !== null || row.gameId !== gameId)
+    ) continue;
+    result.push({ rawFile, gameId: gameId as GameId, sessionIds: shared.map((row) => row.id) });
+  }
+  return result;
+}
+
+export async function getCaptureMigrationCandidates(): Promise<{ sessionCount: number; captureCount: number }> {
+  const captures = await listCaptureMigrationCandidates();
+  return {
+    sessionCount: captures.reduce((count, capture) => count + capture.sessionIds.length, 0),
+    captureCount: captures.length,
+  };
+}
+
+/** Mark only freshly-created sparse recordings current. */
+export async function markSessionCaptureFormatCurrent(sessionId: number): Promise<void> {
+  await db.update(sessions).set({ captureFormatVersion: 1 }).where(eq(sessions.id, sessionId)).run();
+}
+export function isOwnedSessionRawFile(rawFile: string): boolean {
   const sessionsDir = resolve(resolveDataDir(), "sessions");
   const relativePath = relative(sessionsDir, resolve(rawFile));
   return relativePath.length > 0 && relativePath !== ".." && !relativePath.startsWith(`..${sep}`);
@@ -221,16 +289,18 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       trackId: sessions.trackId,
       createdAt: sessions.createdAt,
       gameId: sessions.gameId,
-      sessionType: sessions.sessionType,
+      ownership: sessions.ownership,
+      isFavorite: sessions.isFavorite,
+      telemetryAvailable: sql<number>`${sessions.rawFile} IS NOT NULL`,
       notes: sessions.notes,
       source: sessions.source,
+      sessionType: sessions.sessionType,
       catalogVersion: sessions.catalogVersion,
       catalogHash: sessions.catalogHash,
       catalogSchemaVersion: sessions.catalogSchemaVersion,
       parserVersion: sessions.parserVersion,
       resolverVersion: sessions.resolverVersion,
       derivationVersion: sessions.derivationVersion,
-      ownership: sessions.ownership,
     })
     .from(sessions)
     .orderBy(desc(sessions.id));
@@ -255,6 +325,8 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       carId: session.carId ?? session.carOrdinal,
       trackId: session.trackId ?? session.trackOrdinal,
       sessionType: session.sessionType ?? undefined,
+      telemetryAvailable: Boolean(session.telemetryAvailable),
+      isFavorite: Boolean(session.isFavorite),
     };
     const resultRow = await db
       .select({

@@ -5,7 +5,7 @@ RaceIQ supports five games, but not every product surface or telemetry source is
 Canonical sources:
 
 - `client/src/lib/game-routes.ts` owns navigation support for Driver, Experiments, Raw, and Setups. Shared Driver and Experiments routes enforce the same capability table.
-- Dedicated route modules own live dashboards, including `client/src/routes/iracing/live/`.
+- Global `/live` routes select the detected game's dashboard; `/live/pit` selects Pit Crew mode for Forza Motorsport and iRacing.
 - `shared/games/*/index.ts` owns high-level telemetry and analysis capabilities.
 - [Telemetry reference](telemetry.md) points to generated field-level coverage. Do not duplicate that matrix here.
 - [End-to-end testing](../contributing/e2e-testing.md) records fixture and external-service limits separately.

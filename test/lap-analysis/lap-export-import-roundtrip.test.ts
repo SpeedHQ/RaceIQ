@@ -27,7 +27,7 @@ import { importMotec } from "../../server/motec/import";
 import { parseRawLapFrames, parseSessionLapsBatched } from "../../server/db/telemetry-replay-storage";
 import { readRecordedTelemetry } from "../../server/session-capture/replay-packets";
 import { reprocessSession } from "../../server/session-capture/reprocess";
-import type { SessionCaptureSource } from "../../server/session-capture/source-loader";
+import { setCaptureFileFactoryForTest, type SessionCaptureSource } from "../../server/session-capture/source-loader";
 import {
   iterateSessionCaptureRecords,
   iterateSessionFrames,
@@ -99,17 +99,26 @@ describe("lap export → import round-trip (real capture)", () => {
     capture = CAPTURE,
     gameId = "fm-2023",
     minimumLaps = 2,
+    frameTimeStartMs,
   }: {
     capture?: string;
     gameId?: GameId;
     minimumLaps?: number;
+    frameTimeStartMs?: number;
   } = {}) {
     const frames = gameId === "iracing"
       ? readIRacingFrames(capture)
       : iterateSessionFrames(
           Buffer.from(gunzipSync(await Bun.file(capture).arrayBuffer())),
         );
-    const res = await importSessionFrames(frames, gameId);
+    const sourceFrames = frameTimeStartMs === undefined ? frames : (function* () {
+      let index = 0;
+      for (const frame of frames) {
+        yield { frame, frameTimeMs: frameTimeStartMs + index * 10 + Math.floor(index / 100) * 5_000 };
+        index++;
+      }
+    })();
+    const res = await importSessionFrames(sourceFrames, gameId);
     expect(res.laps.length).toBeGreaterThan(0);
 
     const sids = [...new Set(res.laps.map((l) => l.sessionId))];
@@ -150,9 +159,13 @@ describe("lap export → import round-trip (real capture)", () => {
   }, 120000);
   for (const { gameId, capture, label } of ALL_GAME_CAPTURES) {
     test(`${label} selected lap preserves source telemetry through export and import`, async () => {
-      const { sid, rows } = await seedSession({ capture, gameId, minimumLaps: 1 });
+      const { sid, rows } = await seedSession({
+        capture, gameId, minimumLaps: 1,
+        frameTimeStartMs: gameId === "fm-2023" ? 1_745_000_000_000 : undefined,
+      });
       const exported = rows.at(-1)!;
       const sourceSession = await db.select().from(sessions).where(eq(sessions.id, sid)).get();
+      expect(sourceSession?.captureFormatVersion).toBe(1);
       const sourcePackets = await parseRawLapFrames(
         captureSource(sourceSession!),
         exported.rawByteOffset!,
@@ -167,6 +180,7 @@ describe("lap export → import round-trip (real capture)", () => {
       const imported = result.laps[0]!;
       createdSessions.push(imported.sessionId);
       const importedSession = await db.select().from(sessions).where(eq(sessions.id, imported.sessionId)).get();
+      expect(importedSession?.captureFormatVersion).toBe(1);
       if (importedSession?.rawFile) tmpFiles.push(importedSession.rawFile);
       const importedRow = (await db.select().from(laps).where(eq(laps.sessionId, imported.sessionId)).all())
         .find((lap) => lap.lapNumber === exported.lapNumber);
@@ -182,6 +196,17 @@ describe("lap export → import round-trip (real capture)", () => {
       expect(importedPackets.length).toBe(sourcePackets.length);
       expect(importedPackets.map(({ TimestampMS: _timestamp, ...packet }) => packet))
         .toEqual(sourcePackets.map(({ TimestampMS: _timestamp, ...packet }) => packet));
+      if (gameId === "fm-2023") {
+        expect(sourcePackets[0]?.extendedRaceIQ?.frameTimeMs).toBeDefined();
+        expect(sourcePackets.some((packet, index) =>
+          index > 0 && packet.extendedRaceIQ!.frameTimeMs! - sourcePackets[index - 1]!.extendedRaceIQ!.frameTimeMs! > 5_000,
+        )).toBe(true);
+        expect(importedPackets.map((packet) => packet.extendedRaceIQ?.frameTimeMs))
+          .toEqual(sourcePackets.map((packet) => packet.extendedRaceIQ?.frameTimeMs));
+        const replay = await queryLapTelemetryBySemanticId(importedRow!.id, ["motion.speed"]);
+        expect(replay?.envelopes.map((envelope) => envelope.observedAt))
+          .toEqual(importedPackets.map((packet) => ({ domain: "wall-clock", milliseconds: packet.extendedRaceIQ!.frameTimeMs! })));
+      }
     }, 120000);
 
   }
@@ -322,9 +347,41 @@ describe("lap export → import round-trip (real capture)", () => {
       expect(batch.get(meta.id)).toEqual(individual);
     }
 
-    await reprocessSession(importedSid);
+    const streamedReprocess = async () => {
+      setCaptureFileFactoryForTest((path) => {
+        const file = Bun.file(path);
+        return {
+          size: file.size,
+          lastModified: file.lastModified,
+          slice: (start, end) => file.slice(start, end),
+          stream: () => file.stream(),
+          arrayBuffer: () => { throw new Error("Reprocessing must stream captures"); },
+        };
+      });
+      try {
+        return await reprocessSession(importedSid);
+      } finally {
+        setCaptureFileFactoryForTest(null);
+      }
+    };
+    const staleLap = importedRows[0]!;
+    const originalTime = staleLap.lapTime;
+    await db.update(laps).set({ lapTime: 1 }).where(eq(laps.id, staleLap.id)).run();
+    await db.update(sessions).set({ lapDetectorVersion: "stale" }).where(eq(sessions.id, importedSid)).run();
+    const reprocessResult = await streamedReprocess();
     const reprocessed = await db.select().from(laps).where(eq(laps.sessionId, importedSid)).all();
+    expect(reprocessResult.lapsDetected).toBe(selectedNumbers.length);
     expect(reprocessed.map((lap) => lap.lapNumber).sort((a, b) => a - b)).toEqual(selectedNumbers);
+    expect(reprocessed.find((lap) => lap.id === staleLap.id)?.lapTime).toBe(originalTime);
+    expect((await db.select().from(sessions).where(eq(sessions.id, importedSid)).get())?.lapDetectorVersion).not.toBe("stale");
+    await db.update(laps).set({ lapNumber: 999, notes: "keep this lap", isFavorite: true })
+      .where(eq(laps.id, staleLap.id)).run();
+    const renumbered = await streamedReprocess();
+    const restored = await db.select().from(laps).where(eq(laps.sessionId, importedSid)).all();
+    expect(renumbered.strategy).toBe("replace");
+    expect(restored.map((lap) => lap.lapNumber).sort((a, b) => a - b)).toEqual(selectedNumbers);
+    expect(restored.find((lap) => lap.rawByteOffset === staleLap.rawByteOffset))
+      .toMatchObject({ lapNumber: staleLap.lapNumber, notes: "keep this lap", isFavorite: true });
   }, 120000);
 
   test("imports legacy v2 manifest for a single segment", async () => {

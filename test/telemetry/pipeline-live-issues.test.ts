@@ -183,7 +183,7 @@ describe("LiveTelemetryPipeline live issue gating", () => {
   test("keeps one FM session and replaces pit snapshot before saving final lap", async () => {
     const { pipeline, db } = makePipeline();
     const frames = iterateSessionFrames(
-      gunzipSync(readFileSync("test/artifacts/sessions/fm-2023-2026-09-21T02-02-34-009Z.bin.gz")),
+      gunzipSync(readFileSync("test/artifacts/sessions/fm-2023-with-pitting.bin.gz")),
     );
     let active = false;
 

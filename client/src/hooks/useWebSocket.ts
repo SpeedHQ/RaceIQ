@@ -40,6 +40,25 @@ function fetchVersionInfo(signal: AbortSignal) {
     .catch(() => {});
 }
 
+async function refreshCaptureMigrationStatus(signal?: AbortSignal) {
+  try {
+    const response = await client.api.sessions["capture-migration-status"].$get(undefined, signal ? { init: { signal } } : undefined);
+    if (!response.ok) {
+      telemetryStore.actions.setCaptureMigrationStatusReady();
+      return;
+    }
+    const data = await response.json();
+    telemetryStore.actions.setCaptureMigration({
+      sessionCount: data.sessionCount,
+      captureCount: data.captureCount,
+    });
+    telemetryStore.actions.restoreCaptureMigrationProgress(data.migrationProgress);
+  } catch {
+    // Status refresh is best-effort; maintenance view provides manual retry.
+    telemetryStore.actions.setCaptureMigrationStatusReady();
+  }
+}
+
 export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
   const packetCountRef = useRef(0);
@@ -87,6 +106,7 @@ export function useWebSocket() {
 
       ws.onopen = () => {
         telemetryStore.actions.setConnected(true);
+        void refreshCaptureMigrationStatus();
         startVersionRequest();
         flushLiveEngineerOutbound(ws);
         if (devTelemetryStore.get().subscriptionWanted) {
@@ -113,8 +133,27 @@ export function useWebSocket() {
           else if (data.type === "lap-saved") queryClient.invalidateQueries({ queryKey: ["laps"] });
           else if (data.type === "stale-lap-detection") {
             telemetryStore.actions.setStaleLapDetection({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
-          }
-          else if (data.type === "stale-race-results") {
+          } else if (data.type === "capture-migration-available") {
+            telemetryStore.actions.setCaptureMigration({ sessionCount: data.sessionCount as number, captureCount: data.captureCount as number });
+          } else if (data.type === "capture-migration-progress") {
+            if (data.status === "success" || data.status === "partial") {
+              telemetryStore.actions.restoreCaptureMigrationProgress({
+                status: data.status,
+                done: data.done as number,
+                total: data.total as number,
+                migrated: data.migrated as number,
+                failed: data.failed as number,
+                error: data.error as string | null ?? null,
+              });
+            } else {
+              telemetryStore.actions.setCaptureMigrationProgress({
+                done: data.done as number,
+                total: data.total as number,
+                status: data.status as "migrated" | "error",
+                error: data.error as string | undefined,
+              });
+            }
+          } else if (data.type === "stale-race-results") {
             telemetryStore.actions.setStaleRaceResults({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
           }
           else if (data.type === "race-result-reconciled") {

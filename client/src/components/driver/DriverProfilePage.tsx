@@ -1,3 +1,4 @@
+import * as m from "@/paraglide/messages";
 import type { DriverProfileSummary } from "../../../../server/ai/schemas";
 import { parseDriverProfileSummary } from "../../../../server/ai/schemas";
 import { useDriverProfile, useDriverProfileRuns, useRunDriverProfile } from "../../hooks/driver-profile";
@@ -44,12 +45,12 @@ export function DriverProfilePage() {
     <div className="mx-auto max-w-6xl px-4 py-6">
       <header className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-app-title font-semibold text-app-text">Driver Profile</h1>
-          <p className="text-app-subtext text-app-text-muted">How your driving is changing</p>
+          <h1 className="text-app-title font-semibold text-app-text">{m.driver_profile_title()}</h1>
+          <p className="text-app-subtext text-app-text-muted">{m.driver_profile_subtitle()}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" onClick={() => window.location.assign(`${gameRoute}/sessions`)}>
-            All {profileQuery.data?.gameName ?? "Forza Motorsport"} laps
+            {m.driver_all_game_laps({ gameName: profileQuery.data?.gameName ?? "Forza Motorsport" })}
           </Button>
           <Button
             type="button"
@@ -57,7 +58,7 @@ export function DriverProfilePage() {
             onClick={refresh}
             disabled={!canRefresh || runPending}
           >
-            {runPending ? "Refreshing…" : "Refresh AI summary"}
+            {runPending ? m.driver_refreshing_ellipsis() : m.driver_refresh_ai_summary()}
           </Button>
         </div>
       </header>
@@ -68,8 +69,8 @@ export function DriverProfilePage() {
         </div>
       )}
 
-      {profileQuery.isLoading && <div className="rounded-lg bg-app-surface p-8 text-center text-sm text-app-text-muted ring-1 ring-app-border">Loading measured profile…</div>}
-      {profileQuery.isError && !fingerprint && <div className="rounded-lg bg-app-surface p-8 text-center text-sm text-app-text-muted ring-1 ring-app-border">Measured profile unavailable.</div>}
+      {profileQuery.isLoading && <div className="rounded-lg bg-app-surface p-8 text-center text-sm text-app-text-muted ring-1 ring-app-border">{m.driver_loading_measured_profile()}</div>}
+      {profileQuery.isError && !fingerprint && <div className="rounded-lg bg-app-surface p-8 text-center text-sm text-app-text-muted ring-1 ring-app-border">{m.driver_measured_profile_unavailable()}</div>}
 
       {fingerprint && (
         <DriverProfileView fingerprint={fingerprint} plan={previousPlan} runState={runState} runReason={runsQuery.data?.reason} latestRun={latestRun} runHistory={runs} runPending={runPending} />

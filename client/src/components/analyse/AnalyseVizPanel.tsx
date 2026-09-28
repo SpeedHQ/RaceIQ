@@ -1,5 +1,6 @@
+import type { SceneRuntime, SceneSource } from "../wireframe/SceneRuntime";
 import type { GameId } from "@shared/games/ids";
-import { memo, type RefObject, useEffect, useMemo, useState } from "react";
+import { memo, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import type { useUnits } from "../../hooks/useUnits";
 import { BodyAttitude } from "../BodyAttitude";
 import { CarWireframe } from "../CarWireframe";
@@ -22,6 +23,8 @@ interface Props {
   units: ReturnType<typeof useUnits>;
   gameId?: GameId;
   lmuCarClass?: string;
+  sceneSource: SceneSource;
+  onRuntime?: (runtime: SceneRuntime | null) => void;
 }
 function areAnalyseVizPropsEqual(previous: Props, next: Props): boolean {
   return (
@@ -34,7 +37,9 @@ function areAnalyseVizPropsEqual(previous: Props, next: Props): boolean {
     previous.boundaries === next.boundaries &&
     previous.units === next.units &&
     previous.lmuCarClass === next.lmuCarClass &&
-    previous.gameId === next.gameId
+    previous.gameId === next.gameId &&
+    previous.sceneSource === next.sceneSource &&
+    previous.onRuntime === next.onRuntime
   );
 }
 
@@ -51,7 +56,10 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
   units,
   gameId,
   lmuCarClass,
+  sceneSource,
+  onRuntime,
 }: Props) {
+  const sceneCursorIdx = useRef(cursorIdx).current;
   const [visualCursorIdx, setVisualCursorIdx] = useState(cursorIdx);
   useEffect(() => {
     let animationFrame: number;
@@ -96,11 +104,11 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
             <CarWireframe
               gameId={gameId}
               lmuCarClass={lmuCarClass}
-              frame={visualFrame}
+              frame={semanticFrames[0]}
+              source={sceneSource}
+              onRuntime={onRuntime}
               telemetry={semanticFrames}
-              cursorRef={cursorRef}
-              telemetryRef={displayTelemetryRef}
-              cursorIdx={visualCursorIdx}
+              cursorIdx={sceneCursorIdx}
               outline={lapLine}
               boundaries={sceneBoundaries}
               tempLabel={units.tempLabel}

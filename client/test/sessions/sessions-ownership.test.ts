@@ -5,7 +5,7 @@ import { validateSessionsSearch } from "../../src/lib/game-routes";
 
 const names = { trackNames: { 1: "Silverstone" }, carNames: { 2: "Porsche" } };
 const sessions: SessionMeta[] = [
-  { id: 1, trackOrdinal: 1, carOrdinal: 2, createdAt: "2026-01-01", ownership: "mine", source: "motec" },
+  { id: 1, trackOrdinal: 1, carOrdinal: 2, createdAt: "2026-01-01", ownership: "mine", source: "motec", isFavorite: true },
   { id: 2, trackOrdinal: 1, carOrdinal: 2, createdAt: "2026-01-02", ownership: "others", source: undefined },
 ];
 
@@ -18,6 +18,11 @@ describe("sessions ownership tabs", () => {
   test("keeps search filtering within ownership tab", () => {
     expect(filterSessions(sessions, "silverstone", "others", names).map((session) => session.id)).toEqual([2]);
   });
+});
+
+test("filters favourite sessions within ownership tab", () => {
+  expect(filterSessions(sessions, "", "mine", names, true).map((session) => session.id)).toEqual([1]);
+  expect(filterSessions(sessions, "", "others", names, true)).toEqual([]);
 });
 
 describe("sessions route search", () => {

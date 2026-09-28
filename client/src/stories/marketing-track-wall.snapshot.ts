@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./snapshot-test";
 import { openStoryForSnapshot } from "./storybook-ready";
 import fixture from "./marketing/track-wall.generated.json" with { type: "json" };
 

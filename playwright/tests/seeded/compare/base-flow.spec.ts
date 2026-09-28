@@ -81,11 +81,11 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   expect(swappedParams.get("lapA"), "lapA after swap").toBe(String(pair.lapB.id));
   expect(swappedParams.get("lapB"), "lapB after swap").toBe(String(pair.lapA.id));
 
-  const layoutMode = page.getByRole("button", { name: /Follow View|Fixed View/ });
-  const initialMode = (await layoutMode.innerText()).trim();
+  const layoutMode = page.getByRole("switch", { name: /Fixed View|Follow View/ });
   await expect(layoutMode).toBeVisible();
+  const initialMode = await layoutMode.getAttribute("aria-checked");
   await layoutMode.click();
-  await expect(layoutMode, "layout mode toggles").toHaveText(initialMode === "Fixed View" ? "Follow View" : "Fixed View");
+  await expect(layoutMode, "layout mode toggles").toHaveAttribute("aria-checked", initialMode === "true" ? "false" : "true");
 
   const resizeHandle = page.getByRole("separator", { name: "Resize track map" });
   await expect(resizeHandle).toBeVisible();

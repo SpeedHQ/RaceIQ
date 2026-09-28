@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { EditComposer } from "./thread-composer";
 import { RegenerateContext, ThreadComponentsContext } from "./thread-context";
 import { ReasoningGroupFallback, ReasoningPart } from "./thread-reasoning";
+import { m } from "@/paraglide/messages";
 
 export const ThreadMessage: FC = () => {
   const { AssistantMessage: AssistantMessageComponent = AssistantMessage } = useContext(ThreadComponentsContext);
@@ -75,10 +76,10 @@ const AssistantMessage: FC = () => {
                     data-slot="aui_assistant-message-indicator"
                     role="status"
                     className="animate-pulse font-sans inline-flex items-center gap-1.5 text-app-text-muted"
-                    aria-label="Assistant is working"
+                    aria-label={m.ai_chat_assistant_working()}
                   >
                     {"●"}
-                    <span>Engineer working…</span>
+                    <span>{m.ai_chat_engineer_working()}</span>
                   </span>
                 );
               default:
@@ -98,7 +99,7 @@ const AssistantMessage: FC = () => {
 
 const AssistantActionBar: FC = () => (
   <ActionBarPrimitive.Root hideWhenRunning autohide="not-last" className="aui-assistant-action-bar-root text-muted-foreground animate-in fade-in col-start-3 row-start-2 -ms-1 flex gap-1 duration-200">
-    <ActionBarPrimitive.Copy render={<TooltipIconButton tooltip="Copy" />}>
+    <ActionBarPrimitive.Copy render={<TooltipIconButton tooltip={m.ai_chat_copy()} />}>
       <AuiIf condition={(s) => s.message.isCopied}>
         <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
       </AuiIf>
@@ -106,11 +107,11 @@ const AssistantActionBar: FC = () => (
         <CopyIcon className="animate-in zoom-in-75 fade-in duration-150" />
       </AuiIf>
     </ActionBarPrimitive.Copy>
-    <ActionBarPrimitive.Reload render={<TooltipIconButton tooltip="Refresh" />}>
+    <ActionBarPrimitive.Reload render={<TooltipIconButton tooltip={m.ai_chat_refresh()} />}>
       <RefreshCwIcon />
     </ActionBarPrimitive.Reload>
     <ActionBarMorePrimitive.Root>
-      <ActionBarMorePrimitive.Trigger render={<TooltipIconButton tooltip="More" />}>
+      <ActionBarMorePrimitive.Trigger render={<TooltipIconButton tooltip={m.ai_chat_more()} />}>
         <MoreHorizontalIcon />
       </ActionBarMorePrimitive.Trigger>
       <ActionBarMorePrimitive.Content
@@ -125,7 +126,7 @@ const AssistantActionBar: FC = () => (
           }
         >
           <DownloadIcon className="size-4" />
-          Export as Markdown
+          {m.ai_chat_export_markdown()}
         </ActionBarPrimitive.ExportMarkdown>
       </ActionBarMorePrimitive.Content>
     </ActionBarMorePrimitive.Root>
@@ -163,11 +164,11 @@ const UserActionBar: FC = () => {
   return (
     <ActionBarPrimitive.Root hideWhenRunning autohide="not-last" className="aui-user-action-bar-root flex flex-col items-end">
       {onRegenerate && (
-        <TooltipIconButton tooltip="Regenerate" className="aui-user-action-regenerate" onClick={() => onRegenerate(messageId, prompt)} aria-label="Regenerate">
+        <TooltipIconButton tooltip={m.ai_chat_regenerate()} className="aui-user-action-regenerate" onClick={() => onRegenerate(messageId, prompt)} aria-label={m.ai_chat_regenerate()}>
           <RefreshCwIcon />
         </TooltipIconButton>
       )}
-      <ActionBarPrimitive.Edit render={<TooltipIconButton tooltip="Edit" className="aui-user-action-edit" />}>
+      <ActionBarPrimitive.Edit render={<TooltipIconButton tooltip={m.ai_chat_edit()} className="aui-user-action-edit" />}>
         <PencilIcon />
       </ActionBarPrimitive.Edit>
     </ActionBarPrimitive.Root>
@@ -176,13 +177,13 @@ const UserActionBar: FC = () => {
 
 const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({ className, ...rest }) => (
   <BranchPickerPrimitive.Root hideWhenSingleBranch className={cn("aui-branch-picker-root text-muted-foreground -ms-2 me-2 inline-flex items-center text-xs", className)} {...rest}>
-    <BranchPickerPrimitive.Previous render={<TooltipIconButton tooltip="Previous" />}>
+    <BranchPickerPrimitive.Previous render={<TooltipIconButton tooltip={m.ai_chat_previous()} />}>
       <ChevronLeftIcon />
     </BranchPickerPrimitive.Previous>
     <span className="aui-branch-picker-state font-medium">
       <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
     </span>
-    <BranchPickerPrimitive.Next render={<TooltipIconButton tooltip="Next" />}>
+    <BranchPickerPrimitive.Next render={<TooltipIconButton tooltip={m.ai_chat_next()} />}>
       <ChevronRightIcon />
     </BranchPickerPrimitive.Next>
   </BranchPickerPrimitive.Root>

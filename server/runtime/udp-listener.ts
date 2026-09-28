@@ -189,6 +189,7 @@ class UdpListener {
   }
 
   private async handlePacket(sourceFrame: Buffer): Promise<void> {
+    const frameTimeMs = Date.now();
     this._totalPackets++;
     this._packetsInWindow++;
 
@@ -199,7 +200,7 @@ class UdpListener {
 
     // Append raw datagrams to the dump BEFORE parsing so recordings preserve
     // the exact wire format (including any packets parsePacket would skip).
-    this._recorder?.writeRecord(sourceFrame);
+    this._recorder?.writeRecord(sourceFrame, frameTimeMs);
 
     const runningGame = getRunningGame();
     if (runningGame?.id === "fm-2023" && isForzaRaceOffPacket(sourceFrame)) {
@@ -215,7 +216,7 @@ class UdpListener {
 
     this._receiving = true;
     if (packet.gameId === "fm-2023") this._forzaRaceActive = true;
-    await processPacket(packet, sourceFrame);
+    await processPacket(packet, sourceFrame, frameTimeMs);
   }
 
   async stop(): Promise<void> {

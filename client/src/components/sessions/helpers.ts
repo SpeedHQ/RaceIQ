@@ -77,11 +77,12 @@ export function sortSessions(sessions: SessionMeta[], sortKey: SortKey, sortDir:
   });
 }
 
-export function filterSessions(sessions: SessionMeta[], search: string, tab: SessionsTab, names: SessionNames): SessionMeta[] {
+export function filterSessions(sessions: SessionMeta[], search: string, tab: SessionsTab, names: SessionNames, favoriteOnly = false): SessionMeta[] {
   const query = search.toLowerCase().trim();
   const tokens = query.split(/\s+/).filter(Boolean);
   return sessions.filter((session) => {
     if ((session.ownership ?? "mine") !== tab) return false;
+    if (favoriteOnly && !session.isFavorite) return false;
     if (!tokens.length) return true;
     const track = sessionTrackName(session, names).toLowerCase();
     const car = sessionCarName(session, names).toLowerCase();

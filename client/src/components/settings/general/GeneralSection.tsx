@@ -1,6 +1,6 @@
 import { LOCALES } from "@shared/platform/i18n/locales";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import { useSaveSettings, useSettings } from "@/hooks/settings";
@@ -50,28 +50,13 @@ export function GeneralSection() {
           {m.label_launch_on_login()}
         </Label>
         <div className="flex items-center gap-3 mt-1.5">
-          <Button
+          <Switch
             id="launch-on-login"
-            type="button"
-            role="switch"
             aria-label={m.label_launch_on_login()}
             disabled={!displaySettings.isCompiled}
-            aria-checked={!!displaySettings.launchOnLogin}
-            onClick={() => displaySettings.isCompiled && saveSettings.mutate({ launchOnLogin: !displaySettings.launchOnLogin })}
-            className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent ${
-              !displaySettings.isCompiled
-                ? "opacity-40 cursor-not-allowed bg-app-surface-alt border border-app-border-input"
-                : displaySettings.launchOnLogin
-                  ? "cursor-pointer bg-app-accent"
-                  : "cursor-pointer bg-app-surface-alt border border-app-border-input"
-            }`}
-          >
-            <span
-              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-app-text shadow-lg ring-0 transition-transform ${
-                displaySettings.launchOnLogin ? "translate-x-4" : "translate-x-0"
-              }`}
-            />
-          </Button>
+            checked={!!displaySettings.launchOnLogin}
+            onCheckedChange={(checked) => displaySettings.isCompiled && saveSettings.mutate({ launchOnLogin: checked })}
+          />
           <span className="text-sm text-app-text-muted">
             {!displaySettings.isCompiled ? m.settings_launch_installed_only() : displaySettings.launchOnLogin ? m.common_enabled() : m.common_disabled()}
           </span>

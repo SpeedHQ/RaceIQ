@@ -4,7 +4,10 @@ export const SEED_MARKER = "raceiq-demo-seed-v1";
 export const PROFILE_NAME = "RaceIQ Demo Driver";
 export const DEFAULT_GAMES: GameId[] = ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu"];
 export const FIXTURES: Record<GameId, string[]> = {
-  "fm-2023": ["test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz"],
+  "fm-2023": [
+    "test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz",
+    "test/artifacts/sessions/fm-2023-with-pitting.bin.gz",
+  ],
   "f1-2025": ["test/artifacts/sessions/f1-2025-2026-04-22T11-42-43-029Z.bin.gz"],
   acc: ["test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz"],
   "ac-evo": ["test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz"],

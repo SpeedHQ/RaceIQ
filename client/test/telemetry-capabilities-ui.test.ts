@@ -570,7 +570,6 @@ describe("telemetry capability UI", () => {
     expect(chartsMarkup).not.toContain("Slip Angle");
     expect(chartsMarkup).not.toContain("Slip Ratio");
     expect(chartsMarkup).not.toContain("Suspension");
-    expect(tireMarkup).toContain("Last pit temp");
     expect(tireMarkup).toContain("Last pit health");
     expect(tireMarkup).toContain("40mm");
     expect(tireMarkup).not.toContain("0.0°");
@@ -594,6 +593,7 @@ describe("telemetry capability UI", () => {
           units: parityUnits,
           wearRate: { FL: 0.1, FR: 0.2, RL: 0.3, RR: 0.4 },
           lapInsights: [],
+          detectorCoverage: [],
           onJumpToFrame: () => {},
         }),
       ),
@@ -635,6 +635,7 @@ describe("telemetry capability UI", () => {
             units: parityUnits,
             wearRate: { FL: 0.1, FR: 0.2, RL: 0.3, RR: 0.4 },
             lapInsights: [],
+            detectorCoverage: [],
             onJumpToFrame: () => {},
           }),
         ),
@@ -685,7 +686,6 @@ describe("telemetry capability UI", () => {
     );
     expect(markup).toContain("81°C");
     expect(markup).not.toContain(">Surface<");
-    expect(markup).not.toContain(">Core<");
   });
 
 

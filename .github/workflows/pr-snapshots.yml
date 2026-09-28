@@ -39,6 +39,8 @@ jobs:
     runs-on:
       - mars-any-4vcpu-15g
       - mars-macos-arm64-2vcpu-10g
+      - mars-ubuntu-arm64-2vcpu-10g
+      - mars-retry-3
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
     steps:

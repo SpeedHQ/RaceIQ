@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import { headlineMetricForVersionKind, type VersionKind } from "@shared/racing/experiments/focus";
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { Badge } from "@/components/ui/badge";
@@ -26,8 +27,8 @@ export function ArmHeadline({ kind, laps }: { kind: VersionKind; laps: LapMeta[]
   const spread = times.length >= 2 ? Math.max(...times) - Math.min(...times) : null;
   const metric = headlineMetricForVersionKind(kind);
 
-  const lead = metric === "consistency" ? { label: "Lap-time spread", value: spread != null ? `${spread.toFixed(3)}s` : "—" } : { label: "Best lap", value: best != null ? formatLapTime(best) : "—" };
-  const secondary = metric === "consistency" ? { label: "Best lap", value: best != null ? formatLapTime(best) : "—" } : { label: "Spread", value: spread != null ? `${spread.toFixed(3)}s` : "—" };
+  const lead = metric === "consistency" ? { label: m.review_lap_time_spread(), value: spread != null ? `${spread.toFixed(3)}s` : "—" } : { label: m.review_best_lap(), value: best != null ? formatLapTime(best) : "—" };
+  const secondary = metric === "consistency" ? { label: m.review_best_lap(), value: best != null ? formatLapTime(best) : "—" } : { label: m.review_spread(), value: spread != null ? `${spread.toFixed(3)}s` : "—" };
 
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-app-border px-4 py-2.5">
@@ -35,9 +36,9 @@ export function ArmHeadline({ kind, laps }: { kind: VersionKind; laps: LapMeta[]
         variant={kind === "drill" ? "warning" : "info"}
         className="review-kind-badge"
         data-review-kind={kind}
-        title={kind === "drill" ? "A driving drill — judged on consistency" : "A setup version — judged on best lap"}
+        title={kind === "drill" ? m.review_drill_judged_consistency() : m.review_setup_version_judged_best()}
       >
-        {kind === "drill" ? "Driving drill" : "Setup version"}
+        {kind === "drill" ? m.review_driving_drill() : m.review_setup_version()}
       </Badge>
       <div>
         <div className="text-app-caption uppercase tracking-wider text-app-text-muted">{lead.label}</div>
@@ -68,21 +69,21 @@ export function ReviewTrackStats({
   issueCount: number;
 }) {
   const cells = [
-    { label: "Consistency", value: stats.consistency != null ? stats.consistency.toFixed(0) : "—", unit: stats.consistency != null ? "%" : undefined },
+    { label: m.review_consistency(), value: stats.consistency != null ? stats.consistency.toFixed(0) : "—", unit: stats.consistency != null ? "%" : undefined },
     {
-      label: "Lap variation",
+      label: m.review_lap_variation(),
       value: stats.sdS != null ? stats.sdS.toFixed(3) : "—",
       unit: stats.sdS != null ? "s" : undefined,
-      title: "Typical lap-time difference from the mean. Lower is more consistent.",
+      title: m.review_typical_lap_difference(),
     },
-    { label: "Best", value: stats.bestS != null ? formatLapTime(stats.bestS) : "—" },
-    { label: "Mean", value: stats.meanS != null ? formatLapTime(stats.meanS) : "—" },
+    { label: m.review_best(), value: stats.bestS != null ? formatLapTime(stats.bestS) : "—" },
+    { label: m.review_mean(), value: stats.meanS != null ? formatLapTime(stats.meanS) : "—" },
     {
-      label: "Degradation",
+      label: m.review_degradation(),
       value: stats.degSlopeSPerLap != null ? `${stats.degSlopeSPerLap >= 0 ? "+" : ""}${stats.degSlopeSPerLap.toFixed(3)}` : "—",
       unit: stats.degSlopeSPerLap != null ? "s/lap" : undefined,
     },
-    { label: "Issues", value: String(issueCount) },
+    { label: m.review_issues(), value: String(issueCount) },
   ];
 
   return (
@@ -107,15 +108,15 @@ export function ReviewOverviewSkeleton({ trackName, onBack }: { trackName?: stri
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 border-b border-app-border">
         {onBack && (
           <Button variant="app-outline" size="app-sm" onClick={onBack}>
-            ← Session
+            {m.review_back_to_session()}
           </Button>
         )}
-        <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Post-lap</span>
-        <div className="bg-app-surface-alt border border-app-border rounded px-2 py-1 text-sm font-mono text-app-text-dim">No laps yet</div>
+        <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{m.review_post_lap()}</span>
+        <div className="bg-app-surface-alt border border-app-border rounded px-2 py-1 text-sm font-mono text-app-text-dim">{m.review_no_laps_yet()}</div>
         <div className="flex gap-1">
           {(["overview", "s1", "s2", "s3", "track"] as const).map((v) => (
             <span key={v} className={`px-2.5 py-1 text-xs rounded border ${v === "overview" ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-dim"}`}>
-              {v === "overview" ? "Overview" : v === "track" ? "Track" : `Sector ${v.slice(1)}`}
+              {v === "overview" ? m.review_overview() : v === "track" ? m.review_track() : m.review_sector({ sector: v.slice(1) })}
             </span>
           ))}
         </div>
@@ -125,23 +126,23 @@ export function ReviewOverviewSkeleton({ trackName, onBack }: { trackName?: stri
       {/* Sector spine — placeholder times + empty maps. */}
       <div className="border-b border-app-border">
         <div className="flex items-center justify-between gap-3 px-4 py-2 border-b border-app-border">
-          <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Sectors</span>
+          <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{m.review_sectors()}</span>
         </div>
         <div className="grid grid-cols-1 @3xl/workspace:grid-cols-3">
           {[0, 1, 2].map((i) => (
             <div key={i} className={`border-t border-app-border p-3 first:border-t-0 @3xl/workspace:border-t-0 ${i < 2 ? "border-app-border @3xl/workspace:border-r" : ""}`}>
               <div className="flex items-center gap-2">
                 <span className="w-6 h-1 rounded" style={{ background: SECTOR_COLOR_VARS[i] }} />
-                <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Sector {i + 1}</span>
+                <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{m.review_sector({ sector: i + 1 })}</span>
               </div>
               <div className="text-xl font-mono tabular-nums text-app-text-dim mt-1.5">—</div>
-              <div className="mt-2 aspect-video rounded border border-dashed border-app-border grid place-items-center text-xs text-app-text-dim">No telemetry</div>
+              <div className="mt-2 aspect-video rounded border border-dashed border-app-border grid place-items-center text-xs text-app-text-dim">{m.review_no_telemetry()}</div>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="px-4 py-6 text-sm text-app-text-dim">Drive a stint and finish a lap — your recorded laps and their sector breakdown will appear here.</div>
+      <div className="px-4 py-6 text-sm text-app-text-dim">{m.review_empty_dashboard_hint()}</div>
     </div>
   );
 }

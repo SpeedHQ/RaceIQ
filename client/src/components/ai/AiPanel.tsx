@@ -121,7 +121,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
           })
           .catch((err: unknown) => {
-            setError(err instanceof Error ? err.message : "Failed to delete analysis");
+            setError(err instanceof Error ? err.message : m.aipanel_delete_failed());
           });
       },
       clearAll: () => {
@@ -374,7 +374,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     [aiConfigured, clearChat, configureAi, fetchAnalysis],
   );
   const deleteAnalysis = useCallback(async () => {
-    if (analysisDeleting || loading || !window.confirm("Delete lap analysis? This cannot be undone.")) return;
+    if (analysisDeleting || loading || !window.confirm(m.aipanel_delete_confirmation())) return;
     setAnalysisDeleting(true);
     try {
       const res = await fetch(`/api/laps/${lapId}/analyse`, { method: "DELETE" });
@@ -386,7 +386,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       setAnalysisOpen(false);
       onHighlightsChange?.([]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete analysis");
+      setError(err instanceof Error ? err.message : m.aipanel_delete_failed());
     } finally {
       setAnalysisDeleting(false);
     }
@@ -398,7 +398,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           content — otherwise two flex-1 siblings would split the panel 50/50
           and the collapsed row would sit on top of a tall empty box. */}
       <div className={`flex flex-col gap-2.5 overflow-y-auto px-3 py-3 ${analysis && !loading && !analysisCollapsed ? "shrink-0 max-h-[50%]" : !loading ? "shrink-0" : "flex-1 min-h-0"}`}>
-        {analysis && !loading && <PanelSectionHeader title="Lap analysis" collapsed={analysisCollapsed} onToggle={() => setAnalysisCollapsed((collapsed) => !collapsed)} />}
+        {analysis && !loading && <PanelSectionHeader title={m.ai_chat_lap_analysis()} collapsed={analysisCollapsed} onToggle={() => setAnalysisCollapsed((collapsed) => !collapsed)} />}
         <div className={analysisCollapsed ? "hidden" : "contents"}>
           {/* No AI provider configured */}
           {!aiConfigured && (
@@ -472,7 +472,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             uses, so the two pages stay in lockstep. */}
           {analysis && !loading && (
             <AnalysisResultCard
-              title={trackName || "Lap analysis"}
+              title={trackName || m.ai_chat_lap_analysis()}
               dotClass="bg-app-accent"
               hasResult
               loading={false}

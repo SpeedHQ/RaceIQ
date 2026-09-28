@@ -182,6 +182,7 @@ export function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                 <Button
                   key={w}
                   onClick={() => setWeather(w)}
+                  aria-label={w === "Dry" ? m.f1setup_dry() : m.f1setup_wet()}
                   className={`text-app-compact px-2 py-1 rounded border transition-colors ${
                     weather === w ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"
                   }`}
@@ -263,14 +264,14 @@ export function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
             {/* Header */}
             <div className="flex items-center gap-1.5 px-2 py-1 bg-app-surface-alt border-b border-app-border/20 sticky top-0 z-10">
               <span className="text-app-micro text-app-text-dim uppercase w-4 text-right shrink-0">#</span>
-              <span className="text-app-micro text-app-text-dim uppercase w-7 shrink-0">Src</span>
+              <span className="text-app-micro text-app-text-dim uppercase w-7 shrink-0">{m.f1setup_src_col()}</span>
               <span className="text-app-micro text-app-text-dim uppercase flex-1">{m.label_author_team()}</span>
               <span className="text-app-micro text-app-text-dim uppercase w-8 text-center">{m.label_input()}</span>
               <span className="text-app-micro text-app-text-dim uppercase w-12 text-center">{m.label_info()}</span>
               <span className="text-app-micro text-app-text-dim uppercase w-16 text-right">{m.label_time()}</span>
             </div>
             {filteredSetups.length === 0 ? (
-              <div className="text-app-text-dim text-xs py-4 text-center">No {weather.toLowerCase()} setups</div>
+              <div className="text-app-text-dim text-xs py-4 text-center">{m.f1setup_no_setups_available()}</div>
             ) : (
               filteredSetups.map((s, i) => {
                 const inRange = dragRange.size === 0 || dragRange.has(i);
@@ -324,7 +325,7 @@ export function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                           ▶
                         </span>
                       )}
-                      {s.weather === "Wet" && <span className="weather-wet-badge text-app-nano px-1 py-0.5 rounded font-bold">WET</span>}
+                      {s.weather === "Wet" && <span className="weather-wet-badge text-app-nano px-1 py-0.5 rounded font-bold">{m.accsetup_badge_wet()}</span>}
                     </span>
                     <span className="text-app-compact font-mono shrink-0 w-16 text-right" style={{ color: "var(--lap-record)" }}>
                       {s.lapTime || "—"}
@@ -362,7 +363,7 @@ export function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
           {/* Range cards */}
           <div className="flex-1 min-h-0 overflow-y-auto">
             {filteredSetups.length === 0 ? (
-              <div className="text-app-text-dim text-sm py-4 text-center">No {weather.toLowerCase()} setups available</div>
+              <div className="text-app-text-dim text-sm py-4 text-center">{m.f1setup_no_setups_available()}</div>
             ) : (
               <div className="grid grid-cols-1 gap-x-4 gap-y-1 @3xl/workspace:grid-cols-2 @7xl/workspace:grid-cols-3">
                 {rangeData.map((group) => (

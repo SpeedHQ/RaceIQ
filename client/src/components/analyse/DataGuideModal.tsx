@@ -71,14 +71,14 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
         <div className="min-h-0 overflow-y-auto px-5 py-4 space-y-5">
           {/* Metrics */}
           <Section title={m.dataguide_metrics()}>
-            <Row label={m.dataguide_speed()} desc="Current vehicle speed in selected units." />
-            <Row label={m.dataguide_rpm()} desc="Engine revolutions per minute." />
-            <Row label={m.dataguide_gear()} desc="Current gear (0 = reverse, 1–n = forward)." />
-            <Row label={m.dataguide_throttle_brake()} desc="Pedal input as % of full travel (0–100%)." />
-            <Row label={m.dataguide_steer()} desc="Steering wheel angle in degrees, scaled to your steering lock setting." />
-            <Row label={m.dataguide_boost()} desc="Turbo/supercharger boost pressure in PSI above atmospheric." />
-            <Row label={m.dataguide_power_torque()} desc="Engine output at the current RPM." />
-            <Row label={m.dataguide_fuel()} desc="% consumed since lap start · % remaining in tank." />
+            <Row label={m.dataguide_speed()} desc={m.dataguide_desc_speed()} />
+            <Row label={m.dataguide_rpm()} desc={m.dataguide_desc_rpm()} />
+            <Row label={m.dataguide_gear()} desc={m.dataguide_desc_gear()} />
+            <Row label={m.dataguide_throttle_brake()} desc={m.dataguide_desc_throttle_brake()} />
+            <Row label={m.dataguide_steer()} desc={m.dataguide_desc_steer()} />
+            <Row label={m.dataguide_boost()} desc={m.dataguide_desc_boost()} />
+            <Row label={m.dataguide_power_torque()} desc={m.dataguide_desc_power_torque()} />
+            <Row label={m.dataguide_fuel()} desc={m.dataguide_desc_fuel()} />
           </Section>
 
           {/* Dynamics */}
@@ -87,46 +87,25 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
               label={m.dataguide_balance()}
               desc={
                 <>
-                  Hybrid understeer/oversteer detector. Combines two independent physics signals: <span className="text-app-text">yaw rate vs path curvature</span> (ω compared to Aᵧ/V — MoTeC/VBox
-                  standard) and <span className="text-app-text">front−rear slip angle delta</span>. <span className="text-app-text">+</span> = understeer (fronts outrunning rears) ·{" "}
-                  <span className="text-app-text">−</span> = oversteer (body yawing past path). Gated by <span className="text-app-text">|latG| ≥ 0.25g</span>, so straight-line wheelspin or lockup
-                  never counts as balance.
+                  {m.dataguide_desc_balance()}
                 </>
               }
             />
-            <Row label={m.dataguide_g_force()} desc="Lateral (cornering) and longitudinal (braking/acceleration) g-forces." />
+            <Row label={m.dataguide_g_force()} desc={m.dataguide_desc_g_force()} />
             <Row
               label={m.dataguide_grip_ask()}
-              desc="Grip Ask uses source-native combined slip where available; physical friction-circle utilisation requires physical slip angle. Forza lateral slip remains a dimensionless ratio, not degrees."
+              desc={m.dataguide_desc_grip_ask()}
             />
             <Row
               label={m.dataguide_traction()}
               desc={
                 <span className="space-y-0.5 block">
-                  <span className="block">
-                    <SeverityDot level={0} />
-                    GRIP — within grip budget (Grip Ask &lt; 90%)
-                  </span>
-                  <span className="block">
-                    <SeverityDot level={1} />
-                    SLIP — at the edge (Grip Ask 90–100%)
-                  </span>
-                  <span className="block">
-                    <SeverityDot level={2} />
-                    SPIN — past peak, longitudinal axis dominant
-                  </span>
-                  <span className="block">
-                    <SeverityDot level={3} />
-                    SLIDE — past peak, lateral axis dominant
-                  </span>
-                  <span className="block">
-                    <SeverityDot level={3} />
-                    LOCK — wheel stopped or dragging under braking
-                  </span>
-                  <span className="block">
-                    <ColorDot color="var(--app-text-dim)" />
-                    IDLE — stationary
-                  </span>
+                  <span className="block"><SeverityDot level={0} />{m.dataguide_traction_grip()}</span>
+                  <span className="block"><SeverityDot level={1} />{m.dataguide_traction_slip()}</span>
+                  <span className="block"><SeverityDot level={2} />{m.dataguide_traction_spin()}</span>
+                  <span className="block"><SeverityDot level={3} />{m.dataguide_traction_slide()}</span>
+                  <span className="block"><SeverityDot level={3} />{m.dataguide_traction_lock()}</span>
+                  <span className="block"><ColorDot color="var(--app-text-dim)" />{m.dataguide_traction_idle()}</span>
                 </span>
               }
             />
@@ -134,11 +113,7 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
               label={m.dataguide_temp()}
               desc={
                 <>
-                  Tire surface temperature zone: <TireTemperatureDot state="cold" />
-                  cold · <TireTemperatureDot state="optimal" />
-                  optimal · <TireTemperatureDot state="hot" />
-                  hot · <TireTemperatureDot state="critical" />
-                  critical
+                  {m.dataguide_desc_tire_temperature()} <TireTemperatureDot state="cold" />{m.dataguide_cold()} · <TireTemperatureDot state="optimal" />{m.dataguide_optimal()} · <TireTemperatureDot state="hot" />{m.dataguide_hot()} · <TireTemperatureDot state="critical" />{m.dataguide_critical()}
                 </>
               }
             />
@@ -146,7 +121,7 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
               label={m.dataguide_surface()}
               desc={
                 <>
-                  <span className="text-app-text">CURB</span> = on a rumble strip · <span className="text-app-text">WET XX%</span> = puddle at XX% depth
+                  <span className="text-app-text">CURB</span> {m.dataguide_surface_curb()} · <span className="text-app-text">WET XX%</span> {m.dataguide_surface_wet()}
                 </>
               }
             />
@@ -154,25 +129,18 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
 
           {/* Slip */}
           <Section title={m.dataguide_slip()}>
-            <Row label={m.dataguide_ratio()} desc="Wheel speed vs ground speed. High ratio = wheelspin/lockup. State: nominal &lt;10% · caution &lt;30% · critical beyond." />
-            <Row
-              label={m.dataguide_angle()}
-              desc="Angle between wheel heading and direction of travel. Peak mechanical grip is typically 6–12° (speed-dependent). Thresholds scale down at low speed."
-            />
+            <Row label={m.dataguide_ratio()} desc={m.dataguide_desc_ratio()} />
+            <Row label={m.dataguide_angle()} desc={m.dataguide_desc_angle()} />
           </Section>
 
           {/* Wheels */}
           <Section title={m.dataguide_wheels()}>
-            <Row label={m.dataguide_rotation_s()} desc="Wheel angular velocity in rad/s. Spikes sharply during wheelspin." />
+            <Row label={m.dataguide_rotation_s()} desc={m.dataguide_desc_rotation()} />
             <Row
               label={m.dataguide_temp()}
               desc={
                 <>
-                  {m.dataguide_surface_temp()} <TireTemperatureDot state="cold" />
-                  cold · <TireTemperatureDot state="optimal" />
-                  optimal · <TireTemperatureDot state="hot" />
-                  hot · <TireTemperatureDot state="critical" />
-                  critical
+                  {m.dataguide_surface_temp()} <TireTemperatureDot state="cold" />{m.dataguide_cold()} · <TireTemperatureDot state="optimal" />{m.dataguide_optimal()} · <TireTemperatureDot state="hot" />{m.dataguide_hot()} · <TireTemperatureDot state="critical" />{m.dataguide_critical()}
                 </>
               }
             />
@@ -180,22 +148,16 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
               label={m.dataguide_health()}
               desc={
                 <>
-                  {m.dataguide_tire_wear_remaining()} <span className="text-app-text">100%</span> = new. <SeverityDot level={0} />
-                  &gt;70% · <SeverityDot level={1} />
-                  &gt;40% · <SeverityDot level={3} />
-                  below
+                  {m.dataguide_tire_wear_remaining()} <span className="text-app-text">100%</span> {m.dataguide_wear_new()} <SeverityDot level={0} />&gt;70% · <SeverityDot level={1} />&gt;40% · <SeverityDot level={3} />{m.dataguide_wear_low()}
                 </>
               }
             />
-            <Row label={m.dataguide_wear_s()} desc="% of tire worn per second at the current intensity, measured over the last lap." />
+            <Row label={m.dataguide_wear_s()} desc={m.dataguide_desc_wear_rate()} />
             <Row
               label={m.dataguide_brake()}
               desc={
                 <>
-                  {m.dataguide_brake_disc_temp()} <BrakeTemperatureDot state="cold" />
-                  cold · <BrakeTemperatureDot state="working" />
-                  working range · <BrakeTemperatureDot state="hot" />
-                  overheating
+                  {m.dataguide_brake_disc_temp()} <BrakeTemperatureDot state="cold" />{m.dataguide_cold()} · <BrakeTemperatureDot state="working" />{m.dataguide_working_range()} · <BrakeTemperatureDot state="hot" />{m.dataguide_overheating()}
                 </>
               }
             />
@@ -207,15 +169,11 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
               label={m.dataguide_travel()}
               desc={
                 <>
-                  Normalised suspension travel (0–100%). <OperatingDot level={0} />
-                  compressed · <OperatingDot level={1} />
-                  mid-range · <OperatingDot level={2} />
-                  extended · <OperatingDot level={3} />
-                  near limit
+                  {m.dataguide_desc_suspension_travel()} <OperatingDot level={0} />{m.dataguide_compressed()} · <OperatingDot level={1} />{m.dataguide_mid_range()} · <OperatingDot level={2} />{m.dataguide_extended()} · <OperatingDot level={3} />{m.dataguide_near_limit()}
                 </>
               }
             />
-            <Row label={m.dataguide_load()} desc="Weight distribution. Lon 50% = balanced front/rear · Lat 50% = balanced left/right. Shifts during acceleration, braking, and cornering." />
+            <Row label={m.dataguide_load()} desc={m.dataguide_desc_load()} />
           </Section>
         </div>
       </DialogContent>

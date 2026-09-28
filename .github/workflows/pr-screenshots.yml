@@ -40,7 +40,9 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1, 2]
-    runs-on: mars-windows-x64-4vcpu-15g
+    runs-on:
+      - mars-windows-x64-4vcpu-15g
+      - mars-retry-3
     env:
       PR_NUMBER: ${{ inputs.pr || github.event.pull_request.number }}
     steps:
@@ -152,6 +154,8 @@ jobs:
     runs-on:
       - mars-any-4vcpu-15g
       - mars-macos-arm64-2vcpu-10g
+      - mars-ubuntu-arm64-2vcpu-10g
+      - mars-retry-3
     steps:
       - uses: actions/checkout@v7
         with:

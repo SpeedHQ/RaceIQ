@@ -29,6 +29,9 @@ export interface DisplaySettings {
   radioRaceEngineerEnabled: boolean;
   radioTextCalloutsEnabled: boolean;
   radioVolume: number;
+  /** Opt-in background removal of old raw session captures. */
+  sessionCleanupEnabled: boolean;
+  sessionCleanupAgeDays: 30 | 90 | 180 | 365;
   /** Server-injected: current UDP port */
   udpPort?: number;
   /** Server-injected: whether a Gemini API key is stored */
@@ -73,6 +76,8 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   radioRaceEngineerEnabled: false,
   radioTextCalloutsEnabled: true,
   radioVolume: 0.8,
+  sessionCleanupEnabled: false,
+  sessionCleanupAgeDays: 90,
   language: "en",
 };
 
@@ -110,6 +115,15 @@ export interface ServerStatus {
     carId: number | string;
     trackId: number | string;
   } | null;
+}
+
+export interface CaptureMigrationState {
+  status: "idle" | "running" | "success" | "partial" | "error";
+  done: number;
+  total: number;
+  migrated: number;
+  failed: number;
+  error: string | null;
 }
 
 export interface TelemetryState {
@@ -154,8 +168,10 @@ export interface TelemetryState {
   /** Race-result reconciliation error, if the latest attempt failed */
   raceResultReprocessError: string | null;
   staleLapDetection: { sessionCount: number; currentVersion: string } | null;
-  /** Stale-session reprocessing request and dialog state */
   reprocessState: ReprocessState;
+  captureMigration: { sessionCount: number; captureCount: number } | null;
+  captureMigrationStatusReady: boolean;
+  captureMigrationState: CaptureMigrationState;
   /** Live Tuning Dashboard: transient per-packet issues from the latest broadcast
    *  (only populated while `POST /api/live-analysis {enabled:true}` is active). */
   liveIssues: TuneIssue[];
@@ -188,6 +204,9 @@ const initialTelemetryState = {
   raceResultReprocessError: null,
   staleLapDetection: null,
   reprocessState: initialReprocessState,
+  captureMigration: null,
+  captureMigrationStatusReady: false,
+  captureMigrationState: { status: "idle", done: 0, total: 0, migrated: 0, failed: 0, error: null },
   liveIssues: [],
   devState: null,
   devStatePaused: false,
@@ -212,6 +231,12 @@ export interface TelemetryActions extends StoreActionMap {
   setRaceResultReprocessProgress: (progress: { done: number; total: number } | null) => void;
   setRaceResultReprocessError: (error: string | null) => void;
   setStaleLapDetection: (data: { sessionCount: number; currentVersion: string } | null) => void;
+  setCaptureMigration: (data: { sessionCount: number; captureCount: number } | null) => void;
+  restoreCaptureMigrationProgress: (progress: CaptureMigrationState) => void;
+  beginCaptureMigration: (total: number) => void;
+  setCaptureMigrationProgress: (progress: { done: number; total: number; status: "migrated" | "error"; error?: string }) => void;
+  finishCaptureMigration: (result: { migrated: number; failed: number; results: { status: "migrated" | "error"; error?: string }[] }) => void;
+  failCaptureMigration: (message: string) => void;
   beginReprocess: (total: number) => void;
   completeReprocess: () => void;
   failReprocess: (message: string) => void;
@@ -256,6 +281,38 @@ export const telemetryStore = createStore(initialTelemetryState, (store): Teleme
   setRaceResultReprocessProgress: (progress) => store.setState((prev) => ({ ...prev, raceResultReprocessProgress: progress })),
   setRaceResultReprocessError: (error) => store.setState((prev) => ({ ...prev, raceResultReprocessError: error })),
   setStaleLapDetection: (data) => store.setState((prev) => ({ ...prev, staleLapDetection: data })),
+  setCaptureMigration: (data) => store.setState((prev) => ({ ...prev, captureMigration: data, captureMigrationStatusReady: true })),
+  restoreCaptureMigrationProgress: (captureMigrationState) => store.setState((prev) => ({ ...prev, captureMigrationState })),
+  setCaptureMigrationStatusReady: () => store.setState((prev) => ({ ...prev, captureMigrationStatusReady: true })),
+  beginCaptureMigration: (total) =>
+    store.setState((prev) => ({ ...prev, captureMigrationState: { status: "running", done: 0, total, migrated: 0, failed: 0, error: null } })),
+  setCaptureMigrationProgress: (progress) =>
+    store.setState((prev) => {
+      const current = prev.captureMigrationState;
+      if (current.status !== "running") return prev;
+      return {
+        ...prev,
+        captureMigrationState: {
+          ...current,
+          done: Math.max(current.done, progress.done),
+          total: progress.total,
+          migrated: current.migrated + (progress.status === "migrated" ? 1 : 0),
+          failed: current.failed + (progress.status === "error" ? 1 : 0),
+          error: progress.error ?? current.error,
+        },
+      };
+    }),
+  finishCaptureMigration: (result) =>
+    store.setState((prev) => ({ ...prev, captureMigrationState: {
+      ...prev.captureMigrationState,
+      status: result.failed > 0 ? "partial" : "success",
+      migrated: result.migrated,
+      failed: result.failed,
+      done: prev.captureMigrationState.total,
+      error: result.results.find((entry) => entry.status === "error")?.error ?? null,
+    } })),
+  failCaptureMigration: (message) =>
+    store.setState((prev) => ({ ...prev, captureMigrationState: { ...prev.captureMigrationState, status: "error", error: message } })),
   beginReprocess: (total) => store.setState((prev) => ({ ...prev, reprocessState: beginReprocess(prev.reprocessState, total) })),
   completeReprocess: () => store.setState((prev) => ({ ...prev, reprocessState: completeReprocess(prev.reprocessState) })),
   failReprocess: (message) => store.setState((prev) => ({ ...prev, reprocessState: failReprocess(prev.reprocessState, message) })),

@@ -150,6 +150,11 @@ describe("db:seed", () => {
       { id: expect.any(Number), laps: 3 },
       { id: expect.any(Number), laps: 7 },
     ]);
+    const seededForzaInvalidLaps = withSeedDb(dataDir, (db) => db.query(
+      "SELECT l.invalid_reason AS invalidReason, COUNT(*) AS count FROM laps l JOIN sessions s ON s.id = l.session_id WHERE s.game_id = 'fm-2023' AND s.notes LIKE '%raceiq-demo-seed-v1%' GROUP BY l.invalid_reason",
+    ).all());
+    expect(seededForzaInvalidLaps).toContainEqual({ invalidReason: "inlap", count: 1 });
+    expect(seededForzaInvalidLaps).toContainEqual({ invalidReason: "outlap", count: 1 });
     expect(withSeedDb(dataDir, (db) => db.query(
       "SELECT r.session_type AS sessionType, json_extract(r.provenance, '$.canonicalInput.lastSequence') AS lastSequence, json_extract(r.provenance, '$.rawInput.contentHash') AS rawHash FROM session_results r JOIN sessions s ON s.id = r.session_id WHERE s.game_id = 'lmu' ORDER BY s.id",
     ).all())).toEqual([
@@ -176,6 +181,18 @@ describe("db:seed", () => {
     expect(second.code, second.output).toBe(0);
     expect(counts(dataDir)).toEqual(initial);
   }, 480000);
+
+  test("seeded telemetry keeps production session source", async () => {
+    const dataDir = makeDataDir();
+    const seeded = await runSeed(dataDir, "--games=acc,iracing");
+    expect(seeded.code, seeded.output).toBe(0);
+    expect(withSeedDb(dataDir, (db) => db.query(
+      "SELECT game_id AS gameId, source FROM sessions ORDER BY game_id, id",
+    ).all())).toEqual([
+      { gameId: "acc", source: null },
+      { gameId: "iracing", source: null },
+    ]);
+  }, 180000);
 
   test("reset replaces seed rows without deleting user sessions", async () => {
     const dataDir = makeDataDir();

@@ -36,7 +36,7 @@ ERS & LAP-TYPE RULES (read \`Session Type\` from the prompt context):
 - When \`Session Type\` is \`unknown\` or missing, assume \`one-shot-qualifying\` (covers the common Analyse-one-good-lap flow).
 
 DRS:
-- Do not mention DRS anywhere in the output (pace, handling, corners, technique, verdict). Zone data is unreliable and raw activation counts are not actionable feedback.
+- Mention DRS only when a precomputed "DRS Available but Closed" insight supplies sustained eligibility and activation evidence. Treat it as an observation with the stated source limitations, not guaranteed lost time. Do not infer missed opportunities from raw activation counts or approaching-zone data.
 
 - Factor in ERS deployment strategy — was energy used in the right places?
 - Consider tyre compound characteristics (soft/medium/hard) and degradation patterns

@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@shared/racing/experiments/focus";
 import { useEffect, useMemo, useState } from "react";
 import { AppInput } from "@/components/ui/AppInput";
@@ -70,39 +71,39 @@ export function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => vo
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent size="md" layout="scrollable" className="flex w-[480px] max-w-[94vw] flex-col">
         <DialogHeader className="min-w-0 pr-8">
-          <DialogTitle className="truncate text-sm font-semibold">New experiment</DialogTitle>
+          <DialogTitle className="truncate text-sm font-semibold">{m.experiment_new_title()}</DialogTitle>
         </DialogHeader>
 
         <FocusPicker value={focus} onChange={setFocus} />
 
         {focus === "car" && (
-          <p className="text-app-compact text-app-text-dim">F1 setups are read from telemetry — your base setup will be captured from your first lap, or via "Capture current setup" in the session.</p>
+          <p className="text-app-compact text-app-text-dim">{m.experiment_f1_setup_note()}</p>
         )}
 
         <div className="flex gap-2">
           <label className="flex flex-col gap-1 flex-1">
-            <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Car (optional)</span>
-            <AppInput value={car} onChange={(e) => setCar(e.target.value)} placeholder="Car name" maxLength={200} className="text-xs" />
+            <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{m.experiment_car_optional()}</span>
+            <AppInput value={car} onChange={(e) => setCar(e.target.value)} placeholder={m.experiment_car_name_placeholder()} maxLength={200} className="text-xs" />
           </label>
           <div className="flex flex-col gap-1 flex-1">
-            <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Track</span>
-            <SearchSelect value={track} onChange={setTrack} options={trackOptions} placeholder="Search tracks…" focusColor="purple-500" />
+            <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{m.label_track()}</span>
+            <SearchSelect value={track} onChange={setTrack} options={trackOptions} placeholder={m.experiment_search_tracks()} focusColor="purple-500" />
           </div>
         </div>
 
         <label className="flex flex-col gap-1">
-          <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Session name</span>
-          <AppInput value={name} onChange={(e) => setName(e.target.value)} placeholder={car && track ? `${car} @ ${track}` : "Session name"} maxLength={120} className="text-xs" />
+          <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{m.experiment_session_name()}</span>
+          <AppInput value={name} onChange={(e) => setName(e.target.value)} placeholder={car && track ? `${car} @ ${track}` : m.experiment_session_name()} maxLength={120} className="text-xs" />
         </label>
 
         {error && <div className="text-xs text-status-danger">{error}</div>}
 
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="app-outline" size="app-md" onClick={onClose}>
-            Cancel
+            {m.common_cancel()}
           </Button>
-          <Button variant="app-primary" size="app-md" onClick={submit} disabled={create.isPending || !canCreate} title={!canCreate ? "Pick a track" : undefined}>
-            {create.isPending ? "Creating…" : "Create session"}
+          <Button variant="app-primary" size="app-md" onClick={submit} disabled={create.isPending || !canCreate} title={!canCreate ? m.experiment_pick_track() : undefined}>
+            {create.isPending ? m.experiment_creating() : m.experiment_create_session()}
           </Button>
         </div>
       </DialogContent>

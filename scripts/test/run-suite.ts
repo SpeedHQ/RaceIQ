@@ -61,7 +61,8 @@ try {
   const args = parallelSuite ? ["test", "--config", configPath, "--timeout=20000", "--parallel", workers, ...manifestFiles] : ["test", "--config", configPath, "--timeout=20000", "--max-concurrency=1", ...manifestFiles];
   const env = { ...process.env };
   if (suite === "unit") env.RACEIQ_UNIT_TESTS = "1";
-  if (env.DATA_DIR === undefined) env.DATA_DIR = parallelSuite ? suiteRoot : resolve(root, ".data-test");
+  if (env.DATA_DIR === undefined) env.DATA_DIR = suiteRoot;
+  env.RACEIQ_TEST_DATA_DIR = env.DATA_DIR;
   const proc = Bun.spawn([process.execPath, ...args], { cwd: root, env, stdout: "inherit", stderr: "inherit" });
   status = await proc.exited;
 } finally {

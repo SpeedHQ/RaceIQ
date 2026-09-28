@@ -6,7 +6,7 @@ import type { TelemetryGameLink } from "../../../../shared/telemetry/catalog/con
 import { TELEMETRY_CATALOG } from "../../../../shared/telemetry/catalog/data";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 
-const RECORDING_BY_GAME: Record<GameId, string> = {
+const RECORDING_BY_GAME: Record<SeededGame["gameId"], string> = {
   "fm-2023": "fm-2023-2026-04-09T21-55-03-186Z",
   "f1-2025": "f1-2025-2026-04-22T11-42-43-029Z",
   acc: "acc-2026-04-23T16-42-16-158Z",

@@ -14,8 +14,9 @@ import { isIRacingSessionFrame } from "../games/iracing/source-frame";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import type { LapSetAlignmentIndex } from "../../shared/racing/laps/alignment/build";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
-import { loadSessionSource, iterateSessionCaptureFrames, iterateSessionCaptureRecordsFromSource, indexCaptureFrames, clearRawFileCacheForTest as clearSourceCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
-import { iterateSessionCaptureRecords } from "../session-capture/framing";
+import { loadSessionSource, iterateSessionCaptureFrames, iterateSessionCaptureRecordsFromSource, indexCaptureFrames, clearSessionCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
+import { iterateSessionCaptureRecords, readFramePrefix } from "../session-capture/framing";
+import { applyFrameTime } from "../session-capture/frame-time";
 import { legacyMotecOffsetToPacketIndex } from "../motec/source-archive";
 import { countFullPacketMaterialized, countParserStatePrime, countSourceFrameScanned } from "../session-capture/test-instrumentation";
 
@@ -263,7 +264,7 @@ export class LapParseError extends Error {
 // re-gunzip the whole session raw file; a stint of N laps then paid N full
 
 /** Compatibility hook for callers that clear replay source caches. */
-export function clearRawFileCacheForTest(): void { clearSourceCaptureCache(); }
+export function clearRawFileCacheForTest(): void { clearSessionCaptureCache(); }
 
 type ReplayGame = ReturnType<typeof getServerGame>;
 function packetIndexForOffset(gameId: GameId, offset: number, encoding: "packet-index" | "legacy-bin-byte-offset"): number {
@@ -528,18 +529,24 @@ export async function* iterateSessionTelemetry(sessionId: number, gameId: GameId
     try {
       countFullPacketMaterialized();
       packet = serverGame.tryParse(record.frame, state);
-      if (packet) normalizeReplayPacket(packet, serverGame);
+      if (packet) {
+        applyFrameTime(packet, record.frameTimeMs);
+        normalizeReplayPacket(packet, serverGame);
+      }
     } catch {
       continue;
     }
     if (packet && !inContext) yield packet;
   }
 }
-function parseReplayFrame(frame: Buffer, serverGame: ReturnType<typeof getServerGame>, state: unknown): TelemetryPacket | null {
+function parseReplayFrame(frame: Buffer, serverGame: ReturnType<typeof getServerGame>, state: unknown, frameTimeMs?: number): TelemetryPacket | null {
   try {
     countFullPacketMaterialized();
     const packet = serverGame.tryParse(frame, state);
-    if (packet) normalizeReplayPacket(packet, serverGame);
+    if (packet) {
+      applyFrameTime(packet, frameTimeMs);
+      normalizeReplayPacket(packet, serverGame);
+    }
     return packet;
   } catch { return null; }
 }
@@ -555,8 +562,8 @@ async function parseRawLapFramesFromSource(
   const packets: TelemetryPacket[] = [];
   let found = false;
   let targetCount = 0;
-  for await (const { offset, prefixOffset, frame } of iterateSessionCaptureFrames(source)) {
-    fileSize = Math.max(fileSize, offset + 4 + frame.length);
+  for await (const { offset, prefixOffset, frame, frameTimeMs } of iterateSessionCaptureFrames(source)) {
+    fileSize = Math.max(fileSize, offset + (frameTimeMs === undefined ? 4 : 12) + frame.length);
     if (!found) {
       if (offset < rawByteOffset) {
         if (state != null && serverGame.primeParserState) {
@@ -571,7 +578,7 @@ async function parseRawLapFramesFromSource(
       }
       found = true;
     }
-    const packet = parseReplayFrame(frame, serverGame, state);
+    const packet = parseReplayFrame(frame, serverGame, state, frameTimeMs);
     if (targetCount < rawFrameCount) {
       if (packet) packets.push(packet);
       targetCount++;
@@ -637,7 +644,9 @@ export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, 
     ? frameIndex.records.slice(0, startRecord.frameIndex)
     : frameIndex.records.filter((record) => record.offset < rawByteOffset);
   if (state != null) for (const record of warmupRecords) {
-    const wBuf = buf.subarray(record.offset + 4, record.offset + 4 + record.length);
+    const prefix = readFramePrefix(buf, record.offset);
+    if (!prefix) continue;
+    const wBuf = buf.subarray(record.offset + prefix.prefixBytes, record.offset + prefix.prefixBytes + prefix.length);
     try {
       countParserStatePrime();
       serverGame.primeParserState(wBuf, state);
@@ -652,8 +661,8 @@ export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, 
   let framesRead = 0;
   for (let i = startRecord.frameIndex; i < frameIndex.records.length && framesRead <= rawFrameCount; i++) {
     const record = frameIndex.records[i]!;
-    const sourceFrame = buf.subarray(record.offset + 4, record.offset + 4 + record.length);
-    const packet = parseReplayFrame(sourceFrame, serverGame, state);
+    const prefix = readFramePrefix(buf, record.offset);
+    const packet = parseReplayFrame(record.frame, serverGame, state, prefix?.frameTimeMs);
     if (framesRead < rawFrameCount) {
       if (packet) packets.push(packet);
     } else {
@@ -792,10 +801,13 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
   const active: Array<{ meta: (typeof lapMetas)[number]; packets: TelemetryPacket[]; end: number }> = [];
   let nextMeta = 0;
   let frameIndex = 0;
-  for await (const { offset, frame } of iterateSessionCaptureFrames(source)) {
+  for await (const { offset, prefixOffset, frame, frameTimeMs } of iterateSessionCaptureFrames(source)) {
     countSourceFrameScanned();
-    while (nextMeta < metas.length && metas[nextMeta]!.rawByteOffset < offset) nextMeta++;
-    while (nextMeta < metas.length && metas[nextMeta]!.rawByteOffset === offset) {
+    while (nextMeta < metas.length &&
+      metas[nextMeta]!.rawByteOffset < offset &&
+      metas[nextMeta]!.rawByteOffset !== prefixOffset) nextMeta++;
+    while (nextMeta < metas.length &&
+      (metas[nextMeta]!.rawByteOffset === prefixOffset || metas[nextMeta]!.rawByteOffset === offset)) {
       const meta = metas[nextMeta++]!;
       active.push({ meta, packets: [], end: frameIndex + meta.rawFrameCount });
     }
@@ -813,7 +825,10 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
       if (needsFull) {
         countFullPacketMaterialized();
         packet = serverGame.tryParse(frame, state);
-        if (packet) normalizeReplayPacket(packet, serverGame);
+        if (packet) {
+          applyFrameTime(packet, frameTimeMs);
+          normalizeReplayPacket(packet, serverGame);
+        }
       } else {
         countParserStatePrime();
         serverGame.primeParserState(frame, state);

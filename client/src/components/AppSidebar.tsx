@@ -8,9 +8,9 @@ import {
   Code2,
   FlaskConical,
   Gamepad2,
+  History,
   Gauge,
   GitCompareArrows,
-  History,
   House,
   LayoutDashboard,
   type LucideIcon,
@@ -35,7 +35,6 @@ import { ConnectionStatus } from "./ConnectionStatus";
 export interface AppSidebarProps {
   collapsed: boolean;
   connected: boolean;
-  driverName: string;
   forzaReceiving: boolean;
   hiddenGames: readonly string[];
   mobile: boolean;
@@ -122,7 +121,7 @@ const FEATURE_LINKS: ReadonlyArray<{
   segment: string;
   feature?: GameRouteFeature;
 }> = [
-  { segment: "live", label: m.tab_live, icon: Gauge },
+
   { segment: "sessions", label: m.label_sessions, icon: History },
   { segment: "compare", label: m.label_compare, icon: GitCompareArrows },
   { segment: "driver", label: m.label_driver, icon: UserRound, feature: "driver" },
@@ -156,7 +155,6 @@ const GAME_LOGO_SRC: Readonly<Partial<Record<string, string>>> = {
 export function AppSidebar({
   collapsed,
   connected,
-  driverName,
   forzaReceiving,
   hiddenGames,
   mobile,
@@ -349,17 +347,18 @@ export function AppSidebar({
         ) : null}
 
         <div className="mt-auto border-t border-app-border p-2">
-          <SidebarLink collapsed={showCollapsed} icon={LayoutDashboard} label={m.nav_portable()} to="/portable" onClick={onClose} />
+          <SidebarLink collapsed={showCollapsed} icon={Gauge} label={m.tab_live()} to="/live" onClick={onClose} />
           {import.meta.env.DEV && <SidebarLink collapsed={showCollapsed} icon={Code2} label={m.nav_dev()} to="/dev" onClick={onClose} />}
           {updateAvailable && (
             <SidebarAction collapsed={showCollapsed} label={updateLabel} onClick={handleUpdate}>
               <RefreshCw className="size-4 text-app-accent" />
             </SidebarAction>
           )}
-          <SidebarAction collapsed={showCollapsed} label={driverName ? `${m.nav_settings()} (${driverName})` : m.nav_settings()} onClick={handleSettings}>
+          <SidebarAction collapsed={showCollapsed} label={m.nav_settings()} onClick={handleSettings}>
             <Settings2 className="size-4" />
-            <span className={showCollapsed ? "sr-only" : "truncate"}>{driverName || m.nav_settings()}</span>
+            <span className={showCollapsed ? "sr-only" : "truncate"}>{m.nav_settings()}</span>
           </SidebarAction>
+          <SidebarLink collapsed={showCollapsed} icon={LayoutDashboard} label={m.nav_portable()} to="/portable" onClick={onClose} />
           <ConnectionStatus connected={connected} packetsPerSec={packetsPerSec} forzaReceiving={forzaReceiving} collapsed={showCollapsed} />
         </div>
       </nav>

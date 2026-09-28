@@ -35,7 +35,7 @@ function packet(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
     Clutch: 0,
     HandBrake: 0,
     Gear: 3,
-    Steer: 127,
+    Steer: 0,
     NormDrivingLine: 0,
     NormAIBrakeDiff: 0,
     TireWearFL: 0,

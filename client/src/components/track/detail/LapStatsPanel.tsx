@@ -97,7 +97,7 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
   const trendX2 = sparkPoints[n - 1].x;
   const trendY1 = trendM * trendX1 + trendB;
   const trendY2 = trendM * trendX2 + trendB;
-  const lastDate = chronoLaps[chronoLaps.length - 1]?.createdAt ? new Date(chronoLaps[chronoLaps.length - 1].createdAt!).toLocaleDateString([], { month: "short", day: "numeric" }) : "Recent";
+  const lastDate = chronoLaps[chronoLaps.length - 1]?.createdAt ? new Date(chronoLaps[chronoLaps.length - 1].createdAt!).toLocaleDateString([], { month: "short", day: "numeric" }) : m.trackdetail_recent_label();
   // Theoretical best sectors
   const lapsWithSectors = chronoLaps.filter((lap) => sectorCount >= 2 && lap.sectorTimes?.length === sectorCount && lap.sectorTimes.every((time) => time > 0));
   const hasSectors = lapsWithSectors.length > 0;

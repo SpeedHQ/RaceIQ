@@ -198,8 +198,8 @@ describe("FM-2023 recording", () => {
       }
     }, { timeout: 30000 });
   });
-  describe("fm-2023-2026-09-21T02-02-34-009Z", () => {
-    const recordingFile = "fm-2023-2026-09-21T02-02-34-009Z.bin.gz";
+  describe("fm-2023-with-pitting", () => {
+    const recordingFile = "fm-2023-with-pitting.bin.gz";
 
     test("keeps the pit lap and records the final lap", async () => {
       const recording = getRecordingFixture(recordingFile);

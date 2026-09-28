@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { m } from "@/paraglide/messages";
+import { getAllGames } from "@shared/games/registry";
+import { clientReleaseFeatures } from "../lib/release-features";
 import { useSettings } from "../hooks/settings";
-import { useGameId } from "../stores/game";
-import { Button } from "./ui/button";
+import { m } from "@/paraglide/messages";
 
 function ForzaSetupGuide({ port }: { port: string }) {
+
+
   return (
     <div className="mt-4 rounded-lg border border-app-border bg-app-surface-alt p-4 max-w-lg">
       <h3 className="text-sm font-semibold text-app-text mb-3">{m.setupguide_forza_title()}</h3>
@@ -116,39 +117,30 @@ function LMUSetupGuide() {
 }
 
 export function NoDataView() {
-  const [expanded, setExpanded] = useState(false);
-  const gameId = useGameId();
   const { displaySettings } = useSettings();
-  const port = String((displaySettings as any).udpPort ?? "5300");
-
-  const guideLabel = gameId === "iracing" ? m.nodata_iracing_guide_toggle() : gameId === "lmu" ? "How to connect Le Mans Ultimate" : gameId === "f1-2025" ? m.settings_f1_guide_toggle() : gameId === "acc" ? m.nodata_guide_acc() : m.settings_forza_guide_toggle();
-
+  const settings = displaySettings as { udpPort?: number };
+  const port = String(settings.udpPort ?? "5300");
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
-      <div className="animate-pulse text-app-text-dim">
-        <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 011.06 0z"
-          />
-        </svg>
-      </div>
-
+    <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center gap-4 p-4 sm:p-8">
+      <div className="animate-pulse text-app-text-dim" aria-hidden="true">◉</div>
       <div className="text-center">
         <div className="text-sm font-semibold text-app-text">{m.nodata_waiting_title()}</div>
         <div className="text-xs text-app-text-muted mt-1">{m.nodata_waiting_desc()}</div>
       </div>
-
-      <div>
-        <Button variant="app-ghost" size="app-md" aria-expanded={expanded} onClick={() => setExpanded(!expanded)} className="!p-0 text-sm text-app-accent hover:text-app-accent/80">
-          <svg className={`w-4 h-4 transition-transform ${expanded ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-          </svg>
-          {guideLabel}
-        </Button>
-
-        {expanded && (gameId === "iracing" ? <IRacingSetupGuide /> : gameId === "lmu" ? <LMUSetupGuide /> : gameId === "f1-2025" ? <F1SetupGuide port={port} /> : gameId === "acc" ? <AccSetupGuide /> : <ForzaSetupGuide port={port} />)}
+      <div className="w-full max-w-lg space-y-2">
+        {getAllGames().filter((game) => game.id !== "iracing" || clientReleaseFeatures.iracingAdapter).map((game) => (
+          <details key={game.id} name="telemetry-guide" className="rounded-lg border border-app-border bg-app-surface-alt px-3 py-2">
+            <summary className="cursor-pointer text-sm font-medium text-app-accent">{game.displayName}</summary>
+            <div className="max-h-[50vh] overflow-y-auto">
+              {game.id === "fm-2023" && <ForzaSetupGuide port={port} />}
+              {game.id === "f1-2025" && <F1SetupGuide port={port} />}
+              {game.id === "acc" && <AccSetupGuide />}
+              {game.id === "iracing" && <IRacingSetupGuide />}
+              {game.id === "lmu" && <LMUSetupGuide />}
+              {game.id === "ac-evo" && <div className="mt-3 rounded-lg border border-app-border bg-app-surface p-4 text-sm text-app-text-muted"><ol className="list-decimal space-y-2 pl-5"><li>Run Assetto Corsa EVO on this Windows PC.</li><li>Enter an active driving session; telemetry is provided through the game’s local shared-memory interface.</li><li>Keep RaceIQ running on the same PC while driving.</li></ol></div>}
+            </div>
+          </details>
+        ))}
       </div>
     </div>
   );

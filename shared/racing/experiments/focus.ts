@@ -40,31 +40,6 @@ export type VersionKind = "setup" | "drill";
 
 export const DEFAULT_EXPERIMENT_FOCUS: ExperimentFocus = "car";
 
-export const EXPERIMENT_FOCUS_LABELS: Record<ExperimentFocus, string> = {
-  car: "Car",
-  driver: "Driver",
-};
-
-/** One line on what changes when this focus is active — for the switcher UI. */
-export const EXPERIMENT_FOCUS_HINTS: Record<ExperimentFocus, string> = {
-  car: "Vary the car. New arms are setup versions judged on best lap.",
-  driver: "Vary the driver. New arms are drills judged on consistency.",
-};
-
-/**
- * The agent's role while this focus is active. Same agent either way — naming
- * it after the focus is the difference between "why is the setup engineer
- * talking about my braking" and an obvious mode.
- *
- * These are the real paddock roles rather than the feature's internal name:
- * a race engineer owns the car, a driver coach owns the driver. "Setup
- * engineer" was the old product name for the whole feature, which made it read
- * as a fixed panel title instead of the mode it now is.
- */
-export const EXPERIMENT_FOCUS_AGENT_LABELS: Record<ExperimentFocus, string> = {
-  car: "Race engineer",
-  driver: "Driver coach",
-};
 
 /** The arm kind a new version gets while this focus is active. */
 export function versionKindForFocus(focus: ExperimentFocus): VersionKind {

@@ -72,6 +72,25 @@ test("rejects malformed gzip imports as bad requests", async () => {
   });
 });
 
+test("rejects unsupported capture storage before importing a bin", async () => {
+  const form = new FormData();
+  form.append("file", new File([new Uint8Array()], "capture.bin"));
+  form.append("ownership", "mine");
+  form.append("captureStorage", "unknown");
+  const response = await transferRoutes.request("/api/laps/import", { method: "POST", body: form });
+  expect(response.status).toBe(400);
+  expect(await response.json()).toEqual({ error: "captureStorage must be raw when provided" });
+});
+
+test("limits raw capture storage to bin uploads", async () => {
+  const form = new FormData();
+  form.append("file", new File([new Uint8Array([1])], "capture.duckdb"));
+  form.append("ownership", "mine");
+  form.append("captureStorage", "raw");
+  const response = await transferRoutes.request("/api/laps/import", { method: "POST", body: form });
+  expect(response.status).toBe(400);
+  expect(await response.json()).toEqual({ error: "Raw capture storage requires a .bin or .bin.gz file" });
+});
 
 test("staged MoTeC names are safe display-only basenames", async () => {
   const archive = zipSync({

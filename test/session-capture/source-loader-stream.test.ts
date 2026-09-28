@@ -6,6 +6,10 @@ import { tmpdir } from "node:os";
 import { advanceSessionFrames, encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame, iterateSessionCaptureRecords, sessionFrameAt } from "../../server/session-capture/framing";
 import { indexCaptureFrames, iterateSessionCaptureFrames, iterateSessionCaptureRecordsFromSource, setCaptureFileFactoryForTest } from "../../server/session-capture/source-loader";
 import { encodeAccBroadcastCaptureRecord } from "../../server/games/acc/broadcast-capture";
+import { encodeKunosSparseFrame } from "../../server/session-capture/kunos-sparse";
+import { packTriplet, ACC_PACKED_MAGIC } from "../../server/games/kunos/pack-triplet";
+import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "../../server/games/lmu/source-frame";
+import { encodeLmuSparseFrame } from "../../server/session-capture/lmu-sparse";
 
 const directories: string[] = [];
 
@@ -146,3 +150,24 @@ for (const compressed of [false, true]) {
     ]);
   });
 }
+test("rejects sparse deltas backed by same-size cross-format checkpoints in both readers", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "raceiq-cross-format-"));
+  directories.push(directory);
+  const lmu = Buffer.alloc(LMU_SOURCE_FRAME_V2_SIZE);
+  LMU_SOURCE_FRAME_MAGIC.copy(lmu);
+  const packed = packTriplet(ACC_PACKED_MAGIC, 0, 0, Buffer.alloc(LMU_SOURCE_FRAME_V2_SIZE - 28), Buffer.alloc(0), Buffer.alloc(0));
+  for (const wrongCheckpoint of [packed, lmu]) {
+    const delta = wrongCheckpoint === packed
+      ? encodeLmuSparseFrame(Buffer.from(lmu), Buffer.from(lmu), 4 + packed.length)
+      : encodeKunosSparseFrame(packed, packed, 4 + lmu.length);
+    const capture = Buffer.concat([encodeMetaFrame(), encodeFrameLength(wrongCheckpoint.length), wrongCheckpoint,
+      encodeFrameLength(delta.length), delta]);
+    const secondOffset = 12 + 4 + wrongCheckpoint.length;
+    expect(() => [...iterateSessionCaptureRecords(capture, secondOffset)]).toThrow(/checkpoint/);
+    const rawFile = join(directory, `bad-${wrongCheckpoint === packed ? "kunos" : "lmu"}.bin`);
+    writeFileSync(rawFile, capture);
+    await expect(async () => {
+      for await (const _record of iterateSessionCaptureRecordsFromSource({ rawFile, source: null, gameId: "lmu", carOrdinal: -1, trackOrdinal: -1 })) {}
+    }).toThrow(/checkpoint/);
+  }
+});

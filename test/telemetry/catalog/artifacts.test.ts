@@ -179,8 +179,8 @@ describe("semantic telemetry catalog artifacts", () => {
           "ac-evo"
         ],
       ).toMatchObject({
-        kind: "unavailable",
-        reason: "source-not-populated",
+        kind: "normalized",
+        nativeUnit: "°C",
       });
     }
     expect(

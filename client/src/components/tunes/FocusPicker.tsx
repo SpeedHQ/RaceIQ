@@ -1,4 +1,5 @@
-import { EXPERIMENT_FOCUS_HINTS, EXPERIMENT_FOCUS_LABELS, EXPERIMENT_FOCUSES, type ExperimentFocus } from "@shared/racing/experiments/focus";
+import { m } from "@/paraglide/messages";
+import { EXPERIMENT_FOCUSES, type ExperimentFocus } from "@shared/racing/experiments/focus";
 import { Button } from "../ui/button";
 
 /**
@@ -18,7 +19,7 @@ import { Button } from "../ui/button";
 export function FocusPicker({
   value,
   onChange,
-  label = "Start by varying",
+  label = m.experiment_start_by_varying(),
 }: {
   value: ExperimentFocus;
   onChange: (focus: ExperimentFocus) => void;
@@ -31,12 +32,12 @@ export function FocusPicker({
       <div className="grid grid-cols-2 gap-2">
         {EXPERIMENT_FOCUSES.map((f) => (
           <Button key={f} variant={value === f ? "focus-option-selected" : "focus-option"} size="app-md" onClick={() => onChange(f)} aria-pressed={value === f}>
-            <div className="text-xs font-semibold text-app-text">{EXPERIMENT_FOCUS_LABELS[f]}</div>
-            <div className="mt-0.5 text-app-compact text-app-text-dim">{EXPERIMENT_FOCUS_HINTS[f]}</div>
+            <div className="text-xs font-semibold text-app-text">{f === "driver" ? m.experiment_focus_driver() : m.experiment_focus_setup()}</div>
+            <div className="mt-0.5 text-app-compact text-app-text-dim">{f === "driver" ? m.experiment_focus_driver_hint() : m.experiment_focus_setup_hint()}</div>
           </Button>
         ))}
       </div>
-      <p className="text-app-compact text-app-text-dim">You can switch focus later without starting a new experiment.</p>
+      <p className="text-app-compact text-app-text-dim">{m.experiment_focus_switch_hint()}</p>
     </div>
   );
 }

@@ -12,7 +12,7 @@ const utf8Encoder = new TextEncoder();
 const utf8Decoder = new TextDecoder();
 const coalescingReports = new Map<string, PendingReport>();
 const reportQueue: PendingReport[] = [];
-let flushTimer: number | undefined;
+let flushScheduled = false;
 let inFlightReports = 0;
 let reportingInstalled = false;
 const rawConsoleError = typeof console === "undefined" ? undefined : console.error.bind(console);
@@ -35,13 +35,14 @@ export function reportClientError(scope: string, message: string, detail?: unkno
   } catch (error) { reportReporterFailure(error); }
 }
 function scheduleFlush(): void {
-  if (flushTimer !== undefined || coalescingReports.size === 0) return;
+  if (flushScheduled || coalescingReports.size === 0) return;
   const first = coalescingReports.values().next().value as PendingReport | undefined;
   if (!first) return;
-  flushTimer = window.setTimeout(flushDueReports, Math.max(0, first.flushAt - Date.now()));
+  flushScheduled = true;
+  globalThis.setTimeout(flushDueReports, Math.max(0, first.flushAt - Date.now()));
 }
 function flushDueReports(): void {
-  flushTimer = undefined;
+  flushScheduled = false;
   const now = Date.now();
   for (const [fingerprint, report] of coalescingReports) {
     if (report.flushAt > now) continue;

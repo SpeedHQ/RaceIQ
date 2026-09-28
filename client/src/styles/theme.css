@@ -79,6 +79,7 @@
   --status-success-hover: var(--color-emerald-300);
   --status-warning: #fbbf24;
   --status-danger: #ef4444;
+  --status-danger-foreground: #ffffff;
   --status-danger-hover: var(--color-red-400);
   --status-info: #22d3ee;
   --status-unavailable: #7b7b7b;
@@ -449,6 +450,7 @@
   --color-status-success-hover: var(--status-success-hover);
   --color-status-warning: var(--status-warning);
   --color-status-danger: var(--status-danger);
+  --color-status-danger-foreground: var(--status-danger-foreground);
   --color-status-danger-hover: var(--status-danger-hover);
   --color-status-info: var(--status-info);
   --color-status-unavailable: var(--status-unavailable);

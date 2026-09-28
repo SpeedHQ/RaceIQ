@@ -24,28 +24,28 @@ export interface CategoryOption {
 // The four in-game ACC setup types plus a wet flag. Matches the four session
 // categories Kunos exposes in the setup menu.
 export const ACC_CATEGORIES: CategoryOption[] = [
-  { value: "qualifying", label: "Qualifying" },
-  { value: "race", label: "Race" },
-  { value: "safe", label: "Safe" },
-  { value: "wet", label: "Wet" },
+  { value: "qualifying", label: m.setup_tune_category_qualifying() },
+  { value: "race", label: m.setup_tune_category_race() },
+  { value: "safe", label: m.setup_tune_category_safe() },
+  { value: "wet", label: m.setup_tune_category_wet() },
 ];
 
 // AC EVO covers road and track driving, so the categories include a broader
 // mix than ACC's four in-game types.
 export const AC_EVO_CATEGORIES: CategoryOption[] = [
-  { value: "qualifying", label: "Qualifying" },
-  { value: "race", label: "Race" },
-  { value: "endurance", label: "Endurance" },
-  { value: "safe", label: "Safe / Baseline" },
-  { value: "wet", label: "Wet" },
-  { value: "trackday", label: "Track Day" },
-  { value: "road", label: "Road" },
+  { value: "qualifying", label: m.setup_tune_category_qualifying() },
+  { value: "race", label: m.setup_tune_category_race() },
+  { value: "endurance", label: m.setup_tune_category_endurance() },
+  { value: "safe", label: m.setup_tune_category_safe_baseline() },
+  { value: "wet", label: m.setup_tune_category_wet() },
+  { value: "trackday", label: m.setup_tune_category_track_day() },
+  { value: "road", label: m.setup_tune_category_road() },
 ];
 
 export function getCategoriesForGame(gameId: GameId): CategoryOption[] {
   if (gameId === "acc") return ACC_CATEGORIES;
   if (gameId === "ac-evo") return AC_EVO_CATEGORIES;
-  return [{ value: "circuit", label: "Circuit" }];
+  return [{ value: "circuit", label: m.setup_tune_category_circuit() }];
 }
 
 type Mode = "form" | "json";
@@ -75,7 +75,7 @@ export function SetupTuneForm({
   const defaultCategory = categories[0]?.value ?? "race";
 
   const [name, setName] = useState(initialData?.name ?? "");
-  const [author, setAuthor] = useState(initialData?.author ?? "Me");
+  const [author, setAuthor] = useState(initialData?.author ?? m.setup_tune_default_author());
   const [carOrdinal, setCarOrdinal] = useState<number>(initialData?.carOrdinal ?? cars[0]?.ordinal ?? 0);
   const [category, setCategory] = useState(initialData?.category ?? defaultCategory);
   const [description, setDescription] = useState(initialData?.description ?? "");
@@ -91,7 +91,7 @@ export function SetupTuneForm({
   useEffect(() => {
     if (!initialData) return;
     setName(initialData.name ?? "");
-    setAuthor(initialData.author ?? "Me");
+    setAuthor(initialData.author ?? m.setup_tune_default_author());
     setCarOrdinal(initialData.carOrdinal ?? cars[0]?.ordinal ?? 0);
     setCategory(initialData.category ?? defaultCategory);
     setDescription(initialData.description ?? "");
@@ -137,11 +137,11 @@ export function SetupTuneForm({
           setSettings(parsed as Record<string, unknown>);
           setJsonError("");
         } else {
-          setJsonError("Settings must be a JSON object");
+          setJsonError(m.setup_tune_json_object_required());
           return;
         }
-      } catch (err) {
-        setJsonError(err instanceof Error ? err.message : "Invalid JSON");
+      } catch {
+        setJsonError(m.setup_tune_invalid_json());
         return;
       }
     }
@@ -157,11 +157,11 @@ export function SetupTuneForm({
       try {
         const parsed = JSON.parse(jsonText);
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-          throw new Error("Settings must be a JSON object");
+          throw new Error(m.setup_tune_json_object_required());
         }
         finalSettings = parsed;
       } catch (err) {
-        setJsonError(err instanceof Error ? err.message : "Invalid JSON");
+        setJsonError(err instanceof Error ? err.message : m.setup_tune_invalid_json());
         return;
       }
     }
@@ -191,7 +191,7 @@ export function SetupTuneForm({
       <div className="p-6 grid grid-cols-2 gap-4 max-w-3xl">
         {/* Mode picker — first thing the user sees. Determines whether the
             settings come from the structured form or a pasted JSON blob. */}
-        <div className="col-span-2 flex items-center gap-2" role="radiogroup" aria-label="Input mode">
+        <div className="col-span-2 flex items-center gap-2" role="radiogroup" aria-label={m.setup_tune_input_mode()}>
           <span className="text-xs font-medium text-app-text-muted mr-1">{m.setupform_input_label()}</span>
           <Button
             type="button"
@@ -287,8 +287,7 @@ export function SetupTuneForm({
               className="w-full h-96 bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs font-mono text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
             />
             <p className="text-app-caption text-app-text-muted">
-              Paste the full setup JSON produced by {gameLabel}. Every in-game tunable lives inside <code>basicSetup</code> or <code>advancedSetup</code> — the section counter above shows which groups
-              are present.
+              {m.setup_tune_json_help({ game: gameLabel })}
             </p>
           </label>
         )}

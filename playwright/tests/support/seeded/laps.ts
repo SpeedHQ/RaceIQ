@@ -8,7 +8,6 @@ interface SeededLapListItem {
   lapNumber: number;
   lapTime: number;
   carOrdinal: number;
-  sessionId: number;
   trackOrdinal: number;
   isValid: boolean;
 }

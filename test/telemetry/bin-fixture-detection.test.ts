@@ -188,11 +188,11 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     expect(getAcEvoCarName(last.CarOrdinal)).toBe("Porsche 992 GT3 R Rennsport");
   }, { timeout: 60000 });
 
-  test("iracing-road-america-gt3.bin.gz — iRacing recorder fixture", () => {
+  test("iracing-road-america-gt3.bin.gz — iRacing recorder dump import", () => {
     const file = `${DIR}/iracing-road-america-gt3.bin.gz`;
-    // Dump containers intentionally remain separate from the production
-    // length-prefixed session-import format.
-    expect(detectGameIdFromBuffer(readFileSync(file))).toBeNull();
+    // Unlike AC Evo dump-mode captures, IRACING_DUMP_MAGIC is an explicitly
+    // supported importSessionBin format, so content detection must identify it.
+    expect(detectGameIdFromBuffer(readFileSync(file))).toBe("iracing");
     expect(hasMetaFrame(gunzip(file))).toBe(false);
 
     const frames = readIRacingFrames(file);

@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import { DEFAULT_TRACK_OVERLAYS, type SemanticAnalysisFrame, type TrackMapBoundaries } from "../analyse/track-map/types";
 import { useEffect, useMemo, useState } from "react";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
@@ -44,12 +45,12 @@ function viewToSemanticFrame(view: LiveTelemetryView): SemanticAnalysisFrame {
 const MAX_LIVE_TRACE = 5000;
 
 const WEATHER_LABELS: Record<number, string> = {
-  0: "Clear",
-  1: "Light Cloud",
-  2: "Overcast",
-  3: "Light Rain",
-  4: "Heavy Rain",
-  5: "Storm",
+  0: m.tunes_weather_clear(),
+  1: m.tunes_weather_light_cloud(),
+  2: m.tunes_weather_overcast(),
+  3: m.tunes_weather_light_rain(),
+  4: m.tunes_weather_heavy_rain(),
+  5: m.tunes_weather_storm(),
 };
 
 /** Top-level track conditions from catalog-resolved semantic telemetry. */
@@ -60,11 +61,11 @@ export function LiveTrackConditions({ view }: { view: LiveTelemetryView | null |
   if (weather.kind == null && weather.trackTemperatureC == null && weather.airTemperatureC == null) return null;
   return (
     <div className="absolute bottom-2 right-2 bg-app-surface-alt/80 backdrop-blur border border-app-border-input/50 rounded-lg px-2.5 py-1.5 text-app-caption space-y-0.5">
-      {weather.kind != null && <div className="text-app-text font-medium">{WEATHER_LABELS[weather.kind] ?? "Unknown"}</div>}
+      {weather.kind != null && <div className="text-app-text font-medium">{WEATHER_LABELS[weather.kind] ?? m.common_unknown()}</div>}
       {(weather.trackTemperatureC != null || weather.airTemperatureC != null) && (
         <div className="flex gap-3 text-app-text-muted">
-          {weather.trackTemperatureC != null && <span>Track {convertTemp(weather.trackTemperatureC, temperatureUnit, "C").toFixed(0)}°{temperatureUnit}</span>}
-          {weather.airTemperatureC != null && <span>Air {convertTemp(weather.airTemperatureC, temperatureUnit, "C").toFixed(0)}°{temperatureUnit}</span>}
+          {weather.trackTemperatureC != null && <span>{m.tunes_track_temperature({ temperature: convertTemp(weather.trackTemperatureC, temperatureUnit, "C").toFixed(0), unit: temperatureUnit })}</span>}
+          {weather.airTemperatureC != null && <span>{m.tunes_air_temperature({ temperature: convertTemp(weather.airTemperatureC, temperatureUnit, "C").toFixed(0), unit: temperatureUnit })}</span>}
         </div>
       )}
     </div>
@@ -146,7 +147,7 @@ export function LiveTestDashboard({
       {/* Top row: live track position + lap info */}
       <div className="grid shrink-0 grid-cols-1 border-b border-app-border @5xl/workspace:grid-cols-[1.8fr_1.5fr]">
         <div className="flex flex-col border-app-border @5xl/workspace:border-r">
-          <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Track Position</div>
+          <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{m.tunes_track_position()}</div>
           <div className="relative h-[22.5rem]">
             <AnalyseTrackPanel
               gameId={gameId}
@@ -177,13 +178,13 @@ export function LiveTestDashboard({
       <div className="flex-1 min-h-0 flex flex-col">
         {/* recorded laps so far, as a card row, with the in-progress lap leading */}
         <div className="shrink-0 border-b border-app-border">
-          <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Laps</div>
+          <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{m.tunes_laps_heading()}</div>
           <LiveLapCards laps={gameLaps} trackOrdinal={trackOrd ?? undefined} sectors={gameSectors} currentLapNumber={currentView?.timing.lapNumber ?? null} maxLaps={30} />
         </div>
         {/* compact live tyre readout for the in-progress lap — sector-by-sector
             breakdown reviews a completed lap, not what's happening right now */}
         <div className="flex-1 min-h-0 overflow-y-auto">
-          <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">This Test — Tyres &amp; Fuel</div>
+          <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{m.tunes_this_test_tires_fuel()}</div>
           <CurrentLapTireStrip telemetry={tuneTrace} />
         </div>
       </div>

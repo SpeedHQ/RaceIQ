@@ -21,7 +21,7 @@ export interface LMUFrameReader {
 
 export interface LMUTelemetrySourceOptions {
   reader?: LMUFrameReader;
-  dispatchRawFrame?: (rawFrame: Buffer) => Promise<void>;
+  dispatchRawFrame?: (rawFrame: Buffer, frameTimeMs?: number) => Promise<void>;
   pollIntervalMs?: number;
   recordingEnabled?: boolean;
   recordingDir?: string;
@@ -30,22 +30,23 @@ export interface LMUTelemetrySourceOptions {
 
 interface QueuedLMUFrame {
   rawFrame: Buffer;
+  frameTimeMs: number;
   identity?: LMUIdentity;
   identityKey: string;
   resolve: (accepted: boolean) => void;
 }
 
-async function dispatchThroughParser(rawFrame: Buffer): Promise<void> {
+async function dispatchThroughParser(rawFrame: Buffer, frameTimeMs?: number): Promise<void> {
   const packet = parsePacket(rawFrame);
   if (packet?.IsRaceOn) {
-    await processPacket(packet, rawFrame);
+    await processPacket(packet, rawFrame, frameTimeMs);
   }
 }
 
 /** Polls LMU_Data and publishes compact frames through RaceIQ parser pipeline. */
 export class LMUTelemetrySource {
   private readonly reader: LMUFrameReader;
-  private readonly dispatchRawFrame: (rawFrame: Buffer) => Promise<void>;
+  private readonly dispatchRawFrame: (rawFrame: Buffer, frameTimeMs?: number) => Promise<void>;
   private readonly pollIntervalMs: number;
   private readonly recordingEnabled: boolean;
   private readonly recordingDir: string | undefined;
@@ -120,6 +121,7 @@ export class LMUTelemetrySource {
     try {
       const sharedMemory = this.reader.readLatest();
       if (!sharedMemory) return false;
+      const frameTimeMs = Date.now();
       const rawFrame = encodeLMUSourceFrame(sharedMemory);
       if (!rawFrame) return false;
       const frame = decodeLMUSourceFrame(rawFrame);
@@ -138,7 +140,7 @@ export class LMUTelemetrySource {
       const changedIdentity = identityKey === this.queuedIdentityKey ? undefined : identity;
       this.queuedIdentityKey = identityKey;
       return await new Promise<boolean>((resolve) => {
-        this.frameQueue.push({ rawFrame, identity: changedIdentity, identityKey, resolve });
+        this.frameQueue.push({ rawFrame, frameTimeMs, identity: changedIdentity, identityKey, resolve });
         this.ensureDrain();
       });
     } catch (error) {
@@ -164,7 +166,7 @@ export class LMUTelemetrySource {
           this.activeIdentityKey = entry.identityKey;
         }
         if (this.recordingEnabled) this.recorder.writeFrame(entry.rawFrame);
-        await this.dispatchRawFrame(entry.rawFrame);
+        await this.dispatchRawFrame(entry.rawFrame, entry.frameTimeMs);
         entry.resolve(true);
       } catch (error) {
         this.logFrameFailure(error);

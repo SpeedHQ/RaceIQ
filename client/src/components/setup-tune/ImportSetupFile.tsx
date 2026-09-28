@@ -48,7 +48,7 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars }: { game
         .split(/[\\/]/)
         .pop()
         ?.replace(/\.json$/i, "") ||
-      "Imported";
+      m.setup_tune_imported_fallback();
     importMut.mutate({ gameId, filePath: selectedPath, name: finalName, author, carOrdinal, category }, { onSuccess: () => navigate({ to: `${routePrefix}/setups` }) });
   };
 

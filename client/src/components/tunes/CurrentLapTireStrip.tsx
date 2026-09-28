@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import { useMemo } from "react";
 import { useUnits } from "../../hooks/useUnits";
 import type { SemanticTuneSample } from "./semantic-tune";
@@ -56,7 +57,7 @@ export function CurrentLapTireStrip({ telemetry }: { telemetry: SemanticTuneSamp
       ))}
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline justify-between mb-1">
-          <span className="text-app-caption font-semibold uppercase tracking-wider text-app-text-muted">Fuel</span>
+          <span className="text-app-caption font-semibold uppercase tracking-wider text-app-text-muted">{m.label_fuel()}</span>
           <span className="text-app-micro text-app-text-dim">{fuel?.unit ?? "—"}</span>
         </div>
         {fuel ? (

@@ -1,4 +1,4 @@
-import { EXPERIMENT_FOCUS_LABELS } from "@shared/racing/experiments/focus";
+import { m } from "@/paraglide/messages";
 import { useState } from "react";
 import { AppInput } from "@/components/ui/AppInput";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
   const normalizedSearch = search.trim().toLocaleLowerCase();
   const filteredSessions = normalizedSearch
     ? sessions.filter((session) =>
-        [session.name, session.carName, session.trackName, session.baseSetupPath?.split(/[\\/]/).pop(), EXPERIMENT_FOCUS_LABELS[session.focus]]
+        [session.name, session.carName, session.trackName, session.baseSetupPath?.split(/[\\/]/).pop(), session.focus === "driver" ? m.experiment_focus_driver() : m.experiment_focus_setup()]
           .filter(Boolean)
           .some((value) => value!.toLocaleLowerCase().includes(normalizedSearch)),
       )
@@ -26,23 +26,23 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
     <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto p-3 @3xl/workspace:p-4">
       <div className="space-y-2">
         <div>
-          <h1 className="text-app-title font-semibold text-app-text">Experiments</h1>
-          <p className="mt-0.5 text-app-subtext text-app-text-dim">An experiment tracks one car + track as you iterate setups — base setup, stints driven, versions, and lap deltas.</p>
+          <h1 className="text-app-title font-semibold text-app-text">{m.experiment_list_title()}</h1>
+          <p className="mt-0.5 text-app-subtext text-app-text-dim">{m.experiment_list_description()}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <AppInput
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search experiments…"
-            aria-label="Search experiments"
+            placeholder={m.experiment_search_placeholder()}
+            aria-label={m.experiment_search_aria()}
             className="min-w-[200px] flex-1 @3xl/workspace:w-64 @3xl/workspace:flex-none"
           />
           <Button variant="app-outline" size="app-md" onClick={() => setGuideOpen(true)}>
-            Guide
+            {m.experiment_guide()}
           </Button>
           <Button variant="app-primary" size="app-md" onClick={() => setCreating(true)}>
-            + New experiment
+            {m.experiment_new_button()}
           </Button>
         </div>
       </div>

@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { useGameStore } from "../stores/game";
 import { useTelemetryStore, telemetryStore } from "../stores/telemetry";
 import { useUiStore } from "../stores/ui";
-import { Button } from "./ui/button";
+import { Switch } from "./ui/switch";
 
 export type DevStateContentProps = {
   server: unknown | null;
@@ -17,9 +17,10 @@ export function DevStateContent({ server, stores, paused, onTogglePause }: DevSt
     <div className="flex flex-col h-full overflow-hidden p-2 gap-2">
       <div className="flex items-center justify-between">
         <span className="text-xs text-app-text-muted uppercase tracking-wider">{m.dev_state_title()}</span>
-        <Button variant="app-outline" size="app-sm" onClick={onTogglePause}>
-          {paused ? m.dev_state_resume() : m.dev_state_pause()}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Switch size="sm" checked={paused} aria-label={paused ? m.dev_state_resume() : m.dev_state_pause()} onCheckedChange={() => onTogglePause()} />
+          <span className="text-xs text-app-text-muted">{paused ? m.dev_state_resume() : m.dev_state_pause()}</span>
+        </div>
       </div>
       <div className="flex gap-2 flex-1 min-h-0">
         <div className="flex-1 flex flex-col min-w-0">

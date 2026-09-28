@@ -178,8 +178,7 @@ describe("session-compressor", () => {
     }
 
     expect(readFileSync(binPath)).toEqual(payload);
-    expect(gunzipSync(readFileSync(`${binPath}.gz`))).toEqual(payload);
-    expect(readdirSync(tmpDir).sort()).toEqual(["session.bin", "session.bin.gz"]);
+    expect(readdirSync(tmpDir)).toEqual(["session.bin"]);
     const row = await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get();
     expect(row?.rawFile).toBe(binPath);
   });

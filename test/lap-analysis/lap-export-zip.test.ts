@@ -206,6 +206,24 @@ describe("buildLapsZip", () => {
     expect(slice.indexOf(Buffer.from("SEGM"))).toBeGreaterThanOrEqual(0);
   });
 
+  test("export stops at a source segment boundary instead of taking next segment's frame", async () => {
+    const capture = makeCapture(3);
+    const boundary = Buffer.alloc(16);
+    boundary.writeUInt32LE(META_FRAME_MAGIC, 0);
+    boundary.writeUInt32LE(8, 4);
+    boundary.writeUInt32LE(SEGMENT_BOUNDARY_MAGIC, 8);
+    boundary.writeUInt32LE(1, 12);
+    const path = `${process.env.DATA_DIR ?? "."}/zip-test-boundary-${Date.now()}.bin`;
+    await Bun.write(path, Buffer.concat([capture.subarray(0, frameAt(2)), boundary, capture.subarray(frameAt(2))]));
+    tmpFiles.push(path);
+    const sid = await insertSession(path);
+    const lapId = await insertLap(sid, 1, frameAt(0), 2);
+
+    const { bytes, manifest } = await buildLapsZip([lapId]);
+    const slice = readEntry(bytes, manifest.entries[0]!.file);
+    expect(frameIndices(slice)).toEqual([0, 1]);
+  });
+
   test("F1 export bounds parser context instead of copying all prior frames", async () => {
     const frameBytes = 29;
     const path = `${process.env.DATA_DIR ?? "."}/zip-test-f1-context-${Date.now()}.bin`;

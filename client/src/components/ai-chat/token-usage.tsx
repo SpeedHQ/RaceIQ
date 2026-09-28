@@ -5,6 +5,7 @@ import { useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
 import { contextWindowFor } from "@shared/integrations/ai/context-window";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { m } from "@/paraglide/messages";
 import { Button } from "@/components/ui/button";
 import { useSettings } from "@/hooks/settings";
 import { client } from "@/lib/rpc";
@@ -88,7 +89,7 @@ export function TokenUsageFooter({
       if (!res.ok) {
         const body: unknown = await res.json().catch(() => ({}));
         const error = body && typeof body === "object" && "error" in body && typeof body.error === "string" ? body.error : undefined;
-        setCompactMsg(error ?? "Compact failed");
+        setCompactMsg(error ?? m.ai_chat_compact_failed());
       } else {
         const body = (await res.json()) as { generation: number };
         await queryClient.invalidateQueries({ queryKey: ["chat-generations", compactThreadId] });
@@ -96,7 +97,7 @@ export function TokenUsageFooter({
         onForked(body.generation);
       }
     } catch {
-      setCompactMsg("Compact failed");
+      setCompactMsg(m.ai_chat_compact_failed());
     } finally {
       setCompacting(false);
       setTimeout(() => setCompactMsg(null), 4000);
@@ -107,7 +108,7 @@ export function TokenUsageFooter({
   const hasUsage = (usage?.totalTokens ?? 0) > 0;
   return (
     <div className="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-app-border/40 px-2 py-1 text-app-micro text-app-text-muted tabular-nums">
-      <span className="flex items-center gap-1" title={level === "ok" ? undefined : "Context is filling up — consider starting a new chat"}>
+      <span className="flex items-center gap-1" title={level === "ok" ? undefined : m.ai_chat_context_filling()}>
         <span>
           {formatTokens(used)} / {limit != null ? formatTokens(limit) : "?"}
         </span>
@@ -117,11 +118,11 @@ export function TokenUsageFooter({
           </span>
         )}
       </span>
-      {hasUsage && <span>{usage!.totalTokens} tok</span>}
-      {hasUsage && usage!.inputTokens != null && <span>in {usage!.inputTokens}</span>}
-      {hasUsage && usage!.outputTokens != null && <span>out {usage!.outputTokens}</span>}
-      {hasUsage && (usage!.reasoningTokens ?? 0) > 0 && <span>think {usage!.reasoningTokens}</span>}
-      {hasUsage && (usage!.cachedInputTokens ?? 0) > 0 && <span>cached {usage!.cachedInputTokens}</span>}
+      {hasUsage && <span>{usage!.totalTokens} {m.ai_chat_tokens_short()}</span>}
+      {hasUsage && usage!.inputTokens != null && <span>{m.ai_chat_input_short()} {usage!.inputTokens}</span>}
+      {hasUsage && usage!.outputTokens != null && <span>{m.ai_chat_output_short()} {usage!.outputTokens}</span>}
+      {hasUsage && (usage!.reasoningTokens ?? 0) > 0 && <span>{m.ai_chat_reasoning_short()} {usage!.reasoningTokens}</span>}
+      {hasUsage && (usage!.cachedInputTokens ?? 0) > 0 && <span>{m.ai_chat_cached_short()} {usage!.cachedInputTokens}</span>}
       {hasUsage && cost > 0 && <span>≈ ${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(3)}</span>}
       {maxGen > 1 && (
         <span className="flex items-center gap-0.5">
@@ -130,7 +131,7 @@ export function TokenUsageFooter({
             onClick={() => onViewGen(Math.max(1, viewingGen - 1))}
             disabled={viewingGen <= 1}
             className="px-1 rounded border border-app-border/50 hover:bg-app-surface-hover/20 disabled:opacity-30"
-            title="Previous chat generation"
+            title={m.ai_chat_previous_generation()}
           >
             ‹
           </Button>
@@ -142,7 +143,7 @@ export function TokenUsageFooter({
             onClick={() => onViewGen(Math.min(maxGen, viewingGen + 1))}
             disabled={viewingGen >= maxGen}
             className="px-1 rounded border border-app-border/50 hover:bg-app-surface-hover/20 disabled:opacity-30"
-            title="Next chat generation"
+            title={m.ai_chat_next_generation()}
           >
             ›
           </Button>
@@ -155,9 +156,9 @@ export function TokenUsageFooter({
             void fetch(`/api/chats/${encodeURIComponent(activeThreadId)}/run/cancel`, { method: "POST" });
           }}
           className="px-1.5 py-0.5 rounded border border-app-border/50 hover:bg-app-surface-hover/20"
-          title="Stop the agent turn on the server (not just this view)"
+          title={m.ai_chat_stop_server_turn()}
         >
-          Cancel
+          {m.common_cancel()}
         </Button>
       )}
       {compactThreadId && (
@@ -166,9 +167,9 @@ export function TokenUsageFooter({
           onClick={onNewChat}
           disabled={compacting || isRunning}
           className="ml-auto px-1.5 py-0.5 rounded border border-app-border/50 hover:bg-app-surface-hover/20 disabled:opacity-40"
-          title="Compact this chat into a summary and continue in a fresh chat (keeps this chat as read-only history)"
+          title={m.ai_chat_compact_title()}
         >
-          {compacting ? "Compacting…" : "Compact & New chat"}
+          {compacting ? m.ai_chat_compacting() : m.ai_chat_compact_new_chat()}
         </Button>
       )}
       {compactMsg && <span className="text-app-text-dim">{compactMsg}</span>}

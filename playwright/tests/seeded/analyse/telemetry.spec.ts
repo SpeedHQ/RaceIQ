@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
-import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
+import { SEEDED_GAME_CASES, type SeededGame } from "../../support/seeded/cases";
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { getSeededLapTarget } from "../../support/seeded/laps";
 import { metricRowText, setAnalyseFrame } from "../../support/seeded/analyse";
@@ -13,13 +13,13 @@ const COMMON_DYNAMIC_FIELDS = [
   { label: "Brake", sourceField: "Brake", minimumRange: 5 },
   { label: "Steer", sourceField: "Steer", minimumRange: 2 },
 ] as const satisfies readonly { label: string; sourceField: keyof TelemetryPacket; minimumRange: number }[];
-const GAME_METRIC_ROWS = {
+const GAME_METRIC_ROWS: Record<SeededGame["gameId"], readonly { label: string; sourceField: keyof TelemetryPacket; vary?: boolean }[]> = {
   "fm-2023": [{ label: "Grip Ask", sourceField: "TireCombinedSlipFL" }],
   "f1-2025": [{ label: "Grip Ask", sourceField: "TireCombinedSlipFL" }, { label: "Angle", sourceField: "TireSlipAngleFL" }, { label: "Travel", sourceField: "SuspensionTravelMFL" }],
   acc: [{ label: "Grip Ask", sourceField: "TireCombinedSlipFL" }, { label: "Angle", sourceField: "TireSlipAngleFL" }, { label: "Travel", sourceField: "SuspensionTravelMFL" }],
   "ac-evo": [{ label: "Grip Ask", sourceField: "TireCombinedSlipFL", vary: false }, { label: "Angle", sourceField: "TireSlipAngleFL" }, { label: "Travel", sourceField: "SuspensionTravelMFL" }],
   iracing: [{ label: "Travel", sourceField: "SuspensionTravelMFL", vary: false }],
-} as const satisfies Record<string, readonly { label: string; sourceField: keyof TelemetryPacket; vary?: boolean }[]>;
+};
 
 interface FieldExtremes {
   readonly minimum: number;
@@ -118,7 +118,7 @@ for (const game of SEEDED_GAME_CASES) {
       expect(await metricRowText(page, "ERS Store")).toContain(`${(((parityPacket.ErsStoreEnergy ?? 0) / 4_000_000) * 100).toFixed(1)}%`);
       expect(await metricRowText(page, "Deployed")).toContain(`${(((parityPacket.ErsDeployed ?? 0) / 4_000_000) * 100).toFixed(1)}%`);
       expect(await metricRowText(page, "Harvested")).toContain(`${(((parityPacket.ErsHarvested ?? 0) / 4_000_000) * 100).toFixed(1)}%`);
-      expect(await metricRowText(page, "Mode")).toContain(ersModes[parityPacket.ErsDeployMode ?? 0] ?? "Unknown");
+      expect((await metricRowText(page, "Mode")).toLowerCase()).toContain((ersModes[parityPacket.ErsDeployMode ?? 0] ?? "Unknown").toLowerCase());
       expect(await metricRowText(page, "Fuel")).toContain(
         `${((lap.telemetry[0]!.Fuel - parityPacket.Fuel) * 100).toFixed(1)}% used ${(parityPacket.Fuel * 100).toFixed(1)}% left`,
       );

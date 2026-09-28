@@ -37,7 +37,7 @@ export interface StyleAxes {
   controlLossFraction: number | null;
   steerReversalsPerS: number | null;
   slipVariabilityDeg: number | null;
-  /** −100 early/over-slowing … +100 late/overshooting. */
+  /** −100 coasting … +100 late/overshooting; neutral corner observations are excluded. */
   brakingStyle: number;
   /** 0–100 repeatability from recent normalized trend window. */
   consistency: number | null;
@@ -62,10 +62,19 @@ export const ALL_DETECTOR_IDS: readonly string[] = [
   ...perWheel("susp-overload-"),
   "susp-imbalance",
   ...perWheel("tire-overheat-"),
+  ...perWheel("tire-core-overheat-"),
+  ...perWheel("tire-surface-edge-imbalance-"),
+  ...perWheel("tire-surface-pressure-shape-"),
   ...perWheel("tire-lockup-"),
   ...perWheel("tire-spin-"),
   "tire-wear-imbalance",
   "tire-temp-split",
+  "tire-pressure-imbalance",
+  ...perWheel("tire-rapid-pressure-loss-"),
+  "driving-abs-activation",
+  "driving-traction-control-activation",
+  "driving-unused-drs",
+  "driving-delayed-throttle-pickup",
   "driving-brake-traction-loss",
   "driving-rev-limiter",
   "driving-coasting",
@@ -80,21 +89,29 @@ export const ALL_DETECTOR_IDS: readonly string[] = [
   "driving-downshift-over-rev",
   "driving-late-braking-overshoot",
   "driving-understeer-scrub",
+  "driving-oversteer-slide",
   "driving-steering-sawing",
   "driving-throttle-micro-lifts",
   "driving-kerb-riding",
   "mech-fuel",
   "mech-peak-power",
   "mech-boost-anomaly",
+  "mech-ers-depletion",
 ];
 
 /**
- * Detectors that describe rather than fault. `mech-peak-power` and `mech-fuel`
- * always fire on a healthy lap, and `driving-trail-brake` reports a *technique
- * statistic* whose severity is hardcoded to "info". Ranking any of them as a
- * weakness (or celebrating their absence as a strength) would be noise.
+ * Descriptive observations are not proof of driver error. Keep them visible in
+ * the detector table without turning frequency into a weakness.
  */
-const DESCRIPTIVE_IDS = new Set(["mech-peak-power", "mech-fuel", "driving-trail-brake"]);
+const DESCRIPTIVE_IDS = new Set([
+  "mech-peak-power", "mech-fuel", "driving-trail-brake",
+  "driving-early-braking", "driving-over-slowing", "driving-delayed-throttle-pickup",
+  "driving-abs-activation", "driving-traction-control-activation",
+  "driving-unused-drs", "mech-ers-depletion",
+  ...perWheel("tire-rapid-pressure-loss-"),
+  ...perWheel("tire-surface-edge-imbalance-"),
+  ...perWheel("tire-surface-pressure-shape-"),
+]);
 
 /** Minimum usable laps for style axis output, and style-dependent confidence floor. */
 export const MIN_LAPS_FOR_STYLE = 3;
@@ -197,12 +214,8 @@ function meanIntensity(byId: Map<string, DetectorStat>, ids: readonly string[]):
   return sum / ids.length;
 }
 
-const BRAKING_EARLY_IDS = ["driving-early-braking", "driving-over-slowing", "driving-coasting"] as const;
-const BRAKING_LATE_IDS = [
-  "driving-late-braking-overshoot",
-  "driving-brake-traction-loss",
-  ...perWheel("tire-lockup-"),
-] as const;
+const BRAKING_EARLY_IDS = ["driving-coasting"] as const;
+const BRAKING_LATE_IDS = ["driving-late-braking-overshoot", "driving-brake-traction-loss", ...perWheel("tire-lockup-")] as const;
 
 /**
  * Build the style axes.
@@ -218,11 +231,7 @@ const BRAKING_LATE_IDS = [
  * ±100 per side, always traceable back to "these detectors fired this often,
  * this badly". See its doc comment for why it has no continuous equivalent.
  */
-export function computeStyleAxes(
-  detectors: readonly DetectorStat[],
-  paceConsistency: number | null,
-  styleSummaries: readonly LapStyleSummary[] = [],
-): StyleAxes {
+export function computeStyleAxes(detectors: readonly DetectorStat[], paceConsistency: number | null, styleSummaries: readonly LapStyleSummary[] = []): StyleAxes {
   const byId = new Map(detectors.map((d) => [d.id, d]));
   const scale = (v: number): number => round4(clamp(v * 100, -100, 100));
 

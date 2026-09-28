@@ -9,6 +9,7 @@ import { useMotecTargets, type MotecTargetInfo } from "../../hooks/catalog-queri
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
 import { SearchSelect } from "../ui/SearchSelect";
+import { FavoriteToggleButton } from "../FavoriteToggleButton";
 
 function buildAnalyseLapOption(lap: LapMeta, locale?: "en" | "de") {
   return {
@@ -166,6 +167,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[160px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
             fallbackLabel={selectedLap ? buildAnalyseLapOption(selectedLap).label : selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
           />
+          {selectedLap && <FavoriteToggleButton target="lap" id={selectedLap.id} isFavorite={Boolean(selectedLap.isFavorite)} />}
           {selectedLapId != null && selectedLap?.source === "motec" && <MotecBadge />}
         </div>
 
@@ -253,7 +255,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
           <DropdownMenu
             trigger={
               <Button variant="app-outline" size="app-md" disabled={exportingBin || importingBin}>
-                {exportingBin ? "Exporting..." : importingBin ? "Importing..." : m.label_actions()}
+                {exportingBin ? m.analyse_exporting() : importingBin ? m.analyse_importing() : m.label_actions()}
                 <ChevronDown className="size-3.5" />
               </Button>
             }
@@ -294,7 +296,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
                 ? [
                     {
                       key: "export-bin",
-                      label: "Export .bin",
+                      label: m.analyse_export_bin_button(),
                       icon: <Download className="size-3.5" />,
                       onClick: onExportBin,
                       disabled: exportingBin,
@@ -321,7 +323,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             <OwnershipChoice value={ownership} onChange={onOwnershipChange} disabled={importingBin} />
             <DialogFooter>
               <Button variant="app-ghost" size="app-sm" disabled={importingBin} onClick={() => setPendingImport(null)}>
-                Cancel
+                {m.common_cancel()}
               </Button>
               <Button
                 variant="app-primary"
@@ -333,7 +335,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
                   onImportBin(file);
                 }}
               >
-                Import
+                {m.analyse_import_button()}
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -7,7 +7,7 @@
 <h1 align="center">RaceIQ</h1>
 
 <p align="center">
-  Real-time racing telemetry dashboard, lap analysis and catalogue for <strong>Forza Motorsport 2023</strong>, <strong>F1 2025</strong>, <strong>Assetto Corsa Competizione</strong>, <strong>Assetto Corsa Evo</strong>, <strong>iRacing</strong>, and <strong>Le Mans Ultimate</strong>.
+  Real-time racing telemetry dashboard, lap analysis and catalogue for <strong>Forza Motorsport 2023</strong>, <strong>F1 2025</strong>, <strong>Assetto Corsa Competizione</strong>, <strong>Assetto Corsa Evo</strong> and <strong>Le Mans Ultimate</strong>.
 </p>
 
 <p align="center">
@@ -57,7 +57,7 @@ Check out the [screenshots](assets/screenshots/) to see it in action.
 | Game | Priority | Public Tunes | Public Guides | Tune Creator |
 |------|----------|--------------|---------------|--------------|
 | Assetto Corsa Evo | High | No | No | No |
-| iRacing | High | No | No | No |
+| iRacing | High - Blocked | No | No | No |
 | Le Mans Ultimate | High | No | No | No |
 | F1 2025 | Medium | Yes | Yes | No |
 | Assetto Corsa Competizione | Medium | Yes | Yes | No |

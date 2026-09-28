@@ -17,7 +17,8 @@ From `client/`:
 ```sh
 bun run storybook
 bun run snapshot:test
+bun run snapshot:compare
 bun run snapshot:test:docker
 ```
 
-`storybook` serves stories on port 6006. `snapshot:test` renders snapshots against the configured Storybook server. `snapshot:test:docker` runs the same render in the repository's pinned container. For semantic browser workflows, route coverage, and limits of visual evidence, use [`docs/contributing/e2e-testing.md`](../../../docs/contributing/e2e-testing.md).
+`snapshot:test` generates ignored images; it does not compare revisions. `snapshot:compare` renders `origin/main` and the current worktree, then writes visual differences to `.ui-diff/report/index.html`. It needs Git, installed dependencies, Node.js, and Playwright Chromium. No checked-in baselines required; direct `playwright test` without `--update-snapshots` fails when snapshots are absent. `snapshot:test:docker` renders in the pinned container. For semantic browser workflows, route coverage, and limits of visual evidence, use [`docs/contributing/e2e-testing.md`](../../../docs/contributing/e2e-testing.md).

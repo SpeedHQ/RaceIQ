@@ -6,6 +6,7 @@ import { DashShell } from "./dash-shell";
 import { FitToViewport } from "./FitToViewport";
 import { RevBar } from "./RevBar";
 import { getLocale } from "@/paraglide/runtime";
+import { m } from "@/paraglide/messages";
 interface ComboDashProps {
   view?: LiveTelemetryView | null;
   sectors: LiveSectorData | null;
@@ -106,7 +107,7 @@ export function ComboDash({ view, sectors, pit, unitSystem, tireHealthThresholds
                 </div>
               </FitToViewport>
             ) : (
-              <div className="h-full flex items-center justify-center text-app-text/40 text-sm tracking-widest uppercase">Waiting for lap data…</div>
+              <div className="h-full flex items-center justify-center text-app-text/40 text-sm tracking-widest uppercase">{m.dash_waiting_lap_data()}</div>
             )}
           </div>
           <div className="flex-[2] min-w-0 min-h-0 rounded-md border border-app-text/10 bg-app-text/[0.02] overflow-hidden">
@@ -146,7 +147,7 @@ export function ComboDash({ view, sectors, pit, unitSystem, tireHealthThresholds
                 </div>
               </FitToViewport>
             ) : (
-              <div className="h-full flex items-center justify-center text-app-text/40 text-sm tracking-widest uppercase">Waiting for tire data…</div>
+              <div className="h-full flex items-center justify-center text-app-text/40 text-sm tracking-widest uppercase">{m.dash_waiting_tire_data()}</div>
             )}
           </div>
         </div>

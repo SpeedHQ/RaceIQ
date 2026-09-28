@@ -74,7 +74,21 @@ export const LoadedMainParity: Story = {
     } as never,
     wearRate: { FL: 0.1, FR: 0.2, RL: 0.3, RR: 0.4 },
     lapInsights: [],
+    detectorCoverage: [],
     onJumpToFrame: () => {},
+  },
+};
+export const DetectorCoverage: Story = {
+  ...LoadedMainParity,
+  args: {
+    ...LoadedMainParity.args,
+    sidebarTab: "insights",
+    lapInsights: [{ id: "tire-lockup-FL", category: "tires", severity: "warning", label: "Wheel Lockup", detail: "FL locked once", frameIndices: [25] }],
+    detectorCoverage: [
+      { id: "tire-lockup", category: "tires", label: "Wheel Lockup", status: "finding" },
+      { id: "tire-spin", category: "tires", label: "Wheelspin", status: "checked" },
+      { id: "driving-traction-control-activation", category: "driving", label: "Traction Control Activation", status: "unavailable", reason: "Wheel-rotation telemetry unavailable" },
+    ],
   },
 };
 

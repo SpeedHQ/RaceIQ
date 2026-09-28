@@ -1,5 +1,5 @@
 /**
- * Copies shared/data CSV/JSON contents directly into dist/data and preserves
+ * Copies shared/data CSV/JSON/SVG contents directly into dist/data and preserves
  * other shared umbrella names beneath dist/data. Used by production builds so
  * compiled code sees the same logical data roots as source code.
  *
@@ -39,13 +39,13 @@ function copyDir(srcDir: string, destDir: string, filter?: (name: string) => boo
 // Static data umbrella is the compiled data root; other shared umbrellas keep
 // their names so game catalogs and generated telemetry remain addressable.
 const sharedDir = path.join(ROOT, "shared");
-copyDir(path.join(sharedDir, "data"), DIST, (name) => name.endsWith(".csv") || name.endsWith(".json"));
+copyDir(path.join(sharedDir, "data"), DIST, (name) => /\.(?:csv|json|svg)$/.test(name));
 for (const entry of readdirSync(sharedDir, { withFileTypes: true })) {
   if (!entry.isDirectory() || entry.name === "data") continue;
   copyDir(
     path.join(sharedDir, entry.name),
     path.join(DIST, entry.name),
-    (name) => name.endsWith(".csv") || name.endsWith(".json"),
+    (name) => /\.(?:csv|json|svg)$/.test(name),
   );
 }
 

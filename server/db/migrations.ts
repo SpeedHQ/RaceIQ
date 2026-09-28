@@ -1263,5 +1263,32 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        ON sessions(game_id, track_id)`,
     ],
   },
+  // v60: Protect favourite sessions and laps during capture cleanup.
+  {
+    version: 60,
+    name: "persist session/lap favorites",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE laps ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0`,
+    ],
+  },
+  // v61: Version deterministic static lap analysis independently from segment
+  // metrics. Existing rows start stale (0) and remain readable by older builds;
+  // current code recomputes them lazily or through the explicit backfill route.
+  {
+    version: 61,
+    name: "version static lap analysis",
+    sql: [
+      `ALTER TABLE lap_metrics ADD COLUMN insight_version INTEGER NOT NULL DEFAULT 0`,
+    ],
+  },
+  // v62: Mark whether canonical captures use current sparse storage.
+  {
+    version: 62,
+    name: "version session capture storage",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN capture_format_version INTEGER`,
+    ],
+  },
 ];
 

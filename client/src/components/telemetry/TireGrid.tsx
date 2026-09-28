@@ -170,28 +170,52 @@ export function TireGrid({
                 </div>
 
                 <div className="relative w-6 h-12 rounded-sm overflow-hidden bg-app-surface-alt/50 shrink-0">
-                  {(hasCoreTemperature || hasCarcassTemperature) && (
+                  {hasTemperatureBands && (hasCoreTemperature || hasCarcassTemperature) ? (
                     <>
-                      <div className="absolute inset-x-0 top-0 h-[5px]" style={{ backgroundColor: temperatureColor }} />
-                      <div className="absolute inset-x-0 bottom-0 h-[5px]" style={{ backgroundColor: temperatureColor }} />
-                    </>
-                  )}
-                  {visualTemperatureBands ? (
-                    <div className={hasCoreTemperature || hasCarcassTemperature ? "absolute inset-x-0 top-[7px] bottom-[7px] flex gap-px" : "absolute inset-0 flex gap-px"}>
-                      {visualTemperatureBands.map(([label, value]) => (
-                        <div
-                          key={label}
-                          className="min-w-0 flex-1"
-                          aria-label={`${label} ${bandLabel}: ${units.temp(value).toFixed(0)}${units.tempLabel}`}
-                          style={{ backgroundColor: tireTempColor(value, normalizedTempThresholds) }}
-                        />
+                      {(["top-0", "bottom-0"] as const).map((position) => (
+                        <div key={position} className={`absolute inset-x-0 ${position} h-[6px] flex gap-px`}>
+                          {visualTemperatureBands!.map(([label, value]) => (
+                            <div
+                              key={label}
+                              className="min-w-0 flex-1"
+                              aria-label={`${label} ${m.label_surface()}: ${units.temp(value).toFixed(0)}${units.tempLabel}`}
+                              style={{ backgroundColor: tireTempColor(value, normalizedTempThresholds) }}
+                            />
+                          ))}
+                        </div>
                       ))}
-                    </div>
+                      <div
+                        className="absolute inset-x-0 top-[7px] bottom-[7px]"
+                        aria-label={`${hasCoreTemperature ? m.label_core() : m.label_carcass()}: ${hasCoreTemperature ? coreTemperature : carcassTemperature}${units.tempLabel}`}
+                        style={{ backgroundColor: hasCoreTemperature ? coreTemperatureColor : carcassTemperatureColor }}
+                      />
+                    </>
                   ) : (
-                    <div
-                      className={hasCoreTemperature || hasCarcassTemperature ? "absolute inset-x-0 top-[7px] bottom-[7px]" : "absolute inset-0"}
-                      style={{ backgroundColor: showsTemperature ? temperatureColor : "transparent" }}
-                    />
+                    <>
+                      {(hasCoreTemperature || hasCarcassTemperature) && (
+                        <>
+                          <div className="absolute inset-x-0 top-0 h-[5px]" style={{ backgroundColor: temperatureColor }} />
+                          <div className="absolute inset-x-0 bottom-0 h-[5px]" style={{ backgroundColor: temperatureColor }} />
+                        </>
+                      )}
+                      {visualTemperatureBands ? (
+                        <div className={hasCoreTemperature || hasCarcassTemperature ? "absolute inset-x-0 top-[7px] bottom-[7px] flex gap-px" : "absolute inset-0 flex gap-px"}>
+                          {visualTemperatureBands.map(([label, value]) => (
+                            <div
+                              key={label}
+                              className="min-w-0 flex-1"
+                              aria-label={`${label} ${bandLabel}: ${units.temp(value).toFixed(0)}${units.tempLabel}`}
+                              style={{ backgroundColor: tireTempColor(value, normalizedTempThresholds) }}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <div
+                          className={hasCoreTemperature || hasCarcassTemperature ? "absolute inset-x-0 top-[7px] bottom-[7px]" : "absolute inset-0"}
+                          style={{ backgroundColor: showsTemperature ? temperatureColor : "transparent" }}
+                        />
+                      )}
+                    </>
                   )}
                 </div>
                 {hasBrake && (

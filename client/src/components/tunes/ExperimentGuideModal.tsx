@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -19,38 +20,37 @@ export function ExperimentGuideModal({ onClose }: { onClose: () => void }) {
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent size="md" showCloseButton={false} overlayClassName="bg-app-bg/60" layout="scrollable" className="max-h-[85vh]">
         <DialogHeader className="flex flex-row items-center justify-between gap-3">
-          <DialogTitle className="text-sm font-semibold text-app-text">How Experiments work</DialogTitle>
-          <Button variant="app-ghost" size="app-sm" aria-label="Close guide" onClick={onClose}>
+          <DialogTitle className="text-sm font-semibold text-app-text">{m.tunes_experiment_guide_title()}</DialogTitle>
+          <Button variant="app-ghost" size="app-sm" aria-label={m.common_close()} onClick={onClose}>
             <X className="size-4" />
           </Button>
         </DialogHeader>
 
         <div className="space-y-5">
           <p className="text-sm leading-relaxed text-app-text-muted">
-            Experiments are an agent-driven loop for testing setup changes. You drive the car and describe what you feel; Setup Engineer handles setup analysis and records each version.
+            {m.tunes_experiment_guide_intro()}
           </p>
 
           <div className="space-y-4">
-            <Section number={1} title="Create an experiment">
-              Choose one car and track, add a base setup, and select what you want to improve. This gives the agent a fixed starting point and a clear focus.
+            <Section number={1} title={m.tunes_experiment_guide_create_title()}>
+              {m.tunes_experiment_guide_create_body()}
             </Section>
-            <Section number={2} title="Talk to Setup Engineer">
-              Use chat beside the version tree. The agent reads the current setup, your symptoms, and experiment history. Ask questions or describe handling problems in plain language.
+            <Section number={2} title={m.tunes_experiment_guide_chat_title()}>
+              {m.tunes_experiment_guide_chat_body()}
             </Section>
-            <Section number={3} title="Preview, then approve changes">
-              The agent proposes specific setup changes and can preview their effect. Nothing is applied until you confirm. Approved changes create a new version in the tree.
+            <Section number={3} title={m.tunes_experiment_guide_preview_title()}>
+              {m.tunes_experiment_guide_preview_body()}
             </Section>
-            <Section number={4} title="Drive clean laps">
-              Start Dashboard, drive a consistent stint, then review the recorded laps. Clean, repeatable laps make comparisons and recommendations more useful.
+            <Section number={4} title={m.tunes_experiment_guide_drive_title()}>
+              {m.tunes_experiment_guide_drive_body()}
             </Section>
-            <Section number={5} title="Compare and repeat">
-              Open Review laps to compare versions and lap deltas. Keep the better version as your head, then ask the agent for the next focused change. Import past laps when you already have useful
-              history.
+            <Section number={5} title={m.tunes_experiment_guide_compare_title()}>
+              {m.tunes_experiment_guide_compare_body()}
             </Section>
           </div>
 
           <div className="rounded-md border border-status-warning/30 bg-status-warning/5 px-3 py-2 text-xs leading-relaxed text-status-warning">
-            Best results: change one area at a time, tell the agent what changed between runs, and drive similar fuel and tyre conditions.
+            {m.tunes_experiment_guide_tip()}
           </div>
         </div>
       </DialogContent>

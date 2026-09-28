@@ -87,7 +87,7 @@ export function AnalyseDynamicsPanel({ frame, gameId, units }: Props) {
       <svg viewBox="0 0 200 132" className="!w-full !h-auto" aria-hidden="true">
         {[
           {
-            label: "Slip Δ",
+            label: m.analyse_dynamics_slip_delta(),
             value: balance.uSlip,
             color: signedBalanceColor(balance.uSlip, 0.05),
             y: 16,

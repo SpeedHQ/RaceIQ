@@ -90,9 +90,16 @@ describe("AC Evo v0.6 recording", () => {
 		expect(movingPacket!.TirePressureFrontLeft).toBeLessThan(50);
 		expect(movingPacket!.TireTempFL).toBeGreaterThan(20);
 		expect(movingPacket!.TireCarcassTempFL).toBeGreaterThan(20);
-		expect(movingPacket!.TireSurfaceTempInnerFL).toBeUndefined();
-		expect(movingPacket!.TireSurfaceTempMiddleFL).toBeUndefined();
-		expect(movingPacket!.TireSurfaceTempOuterFL).toBeUndefined();
+		expect(movingPacket!.TireSurfaceTempInnerFL).toBeGreaterThan(20);
+		expect(movingPacket!.TireSurfaceTempMiddleFL).toBeGreaterThan(20);
+		expect(movingPacket!.TireSurfaceTempOuterFL).toBeGreaterThan(20);
+		const corneringPacket = packets.find((p) =>
+			p.Speed > 13 &&
+			Math.abs((p.TireSurfaceTempInnerFL ?? 0) - (p.TireSurfaceTempOuterFL ?? 0)) > 2
+		);
+		expect(corneringPacket).toBeDefined();
+		expect(corneringPacket!.TireTempFL).toBe(corneringPacket!.TireSurfaceTempMiddleFL!);
+		expect(corneringPacket!.TireTempFL).not.toBe(corneringPacket!.TireCarcassTempFL);
 	});
 
 	test("lap timing: current_lap_time_ms ticks up during a lap", () => {

@@ -6,6 +6,7 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
   const seededBaseURL = `http://localhost:${runtime.devServer ? runtime.seeded.clientPort : runtime.seeded.port}`;
   const tunesBaseURL = `http://localhost:${runtime.devServer ? runtime.tunes.clientPort : runtime.tunes.port}`;
   const tunesUnseededBaseURL = `http://localhost:${runtime.devServer ? runtime.tunesUnseeded.clientPort : runtime.tunesUnseeded.port}`;
+  const captureMigrationTest = /imports all six games raw, then requires Convert and preserves Analyse replay$/;
   const sequentialImportSpecs = [
     "seeded/analyse/core-flow.spec.ts",
     "seeded/catalog/tracks.spec.ts",
@@ -82,7 +83,17 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
     {
       name: "seeded-imports",
       testMatch: sequentialImportSpecs,
+      grepInvert: captureMigrationTest,
       fullyParallel: true,
+      workers: 1,
+      use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
+    },
+    {
+      name: "seeded-capture-migration",
+      testMatch: "seeded/sessions/import.spec.ts",
+      grep: captureMigrationTest,
+      // Conversion also changes shared seeded captures and cannot be retried.
+      retries: 0,
       workers: 1,
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },

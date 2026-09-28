@@ -19,12 +19,12 @@ async function openOverlayMenu(page: Page, hasRacingLine: boolean): Promise<void
 
 async function openWireframeViewMenu(page: Page, hasRacingLine: boolean): Promise<void> {
   await page.getByRole("tabpanel", { name: "3D", exact: true }).getByRole("button", { name: "View", exact: true }).click();
-  for (const label of ["Springs", "Trails", "Inputs", "Track", "Grid", "Drive", "Tire Info"]) {
+  for (const label of ["Trails", "Inputs", "Track", "Grid", "Tire Info"]) {
     await expect(page.getByRole("menuitemcheckbox", { name: label, exact: true })).toBeVisible();
   }
   const racingLine = page.getByRole("menuitemcheckbox", { name: "Racing line", exact: true });
   if (hasRacingLine) await expect(racingLine).toBeVisible();
-  else await expect(racingLine).toHaveCount(0);
+  else await expect(racingLine).toBeDisabled();
 }
 
 async function seekToClosestRacingLine(page: Page, request: APIRequestContext, lapId: number, gameId: "acc" | "ac-evo", raceLine: Array<{ x: number; z: number }>): Promise<void> {
@@ -73,7 +73,7 @@ async function seekToClosestRacingLine(page: Page, request: APIRequestContext, l
 }
 
 async function expectVisible3dRacingLine(page: Page): Promise<void> {
-  for (const label of ["Springs", "Trails", "Inputs", "Track", "Grid", "Drive", "Tire Info"]) {
+  for (const label of ["Trails", "Inputs", "Track", "Grid", "Tire Info"]) {
     await setOverlayChecked(page, label, false);
   }
   await setOverlayChecked(page, "Racing line", true);
@@ -161,9 +161,10 @@ test("Analyse racing-line overlay follows seeded track availability", async ({ p
   const accTarget = await getSeededLapTarget(request, "acc");
   const accBoundariesResponse = await request.get(`/api/track-boundaries/${accTarget.trackOrdinal}?gameId=acc`);
   expect(accBoundariesResponse.ok(), "ACC track boundaries response").toBe(true);
-  const accBoundaries = (await accBoundariesResponse.json()) as { raceLine?: Array<{ x: number; z: number }> };
-  expect(Array.isArray(accBoundaries.raceLine), "ACC racing-line payload").toBe(true);
-  expect(accBoundaries.raceLine!.length).toBeGreaterThan(1);
+  const accBoundaries = (await accBoundariesResponse.json()) as { raceLine?: Array<{ x: number; z: number }> } | null;
+  expect(accBoundaries, "ACC bundled track boundaries").not.toBeNull();
+  expect(Array.isArray(accBoundaries?.raceLine), "ACC racing-line payload").toBe(true);
+  expect(accBoundaries!.raceLine!.length).toBeGreaterThan(1);
   await openAnalyseLap(page, accTarget, "acc");
   await expectTrackMapCanvases(page);
   await openOverlayMenu(page, true);
@@ -174,7 +175,7 @@ test("Analyse racing-line overlay follows seeded track availability", async ({ p
     await expect(page.getByRole("menuitemcheckbox", { name: label, exact: true })).toHaveAttribute("aria-checked", "true");
   }
   await page.keyboard.press("Escape");
-  await seekToClosestRacingLine(page, request, accTarget.id, "acc", accBoundaries.raceLine!);
+  await seekToClosestRacingLine(page, request, accTarget.id, "acc", accBoundaries!.raceLine!);
   await page.getByRole("tab", { name: "3D", exact: true }).click();
   await openWireframeViewMenu(page, true);
   await expect(page.getByRole("menuitemcheckbox", { name: "Racing line", exact: true })).toHaveAttribute("aria-checked", "false");

@@ -73,12 +73,12 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-app-text-muted uppercase tracking-wider font-semibold">{m.telemetry_fuel()}</div>
             <div className="text-lg font-mono font-bold tabular-nums" style={{ color: fuelLaps != null ? fuelColor : "var(--app-text-dim)" }}>
-              {fuelLaps != null ? `~${fuelLaps.toFixed(1)} laps` : "—"}
+              {fuelLaps != null ? `~${fuelLaps.toFixed(1)} ${m.gauges_laps_left()}` : "—"}
             </div>
           </div>
           <div className="flex items-center gap-3">
             {fuelPct === undefined ? (
-              <div className="flex-1 h-3 rounded-full border border-dashed border-app-border" title="Fuel capacity unavailable" />
+              <div className="flex-1 h-3 rounded-full border border-dashed border-app-border" title={m.pit_fuel_capacity_unavailable()} />
             ) : (
               <div className="flex-1 h-3 rounded-full overflow-hidden">
                 <div className="h-full rounded-full" style={{ backgroundColor: fuelColor, width: `${fuelPct}%` }} />

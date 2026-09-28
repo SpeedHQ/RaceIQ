@@ -1,55 +1,19 @@
-import { Line } from "@react-three/drei";
-import { useMemo } from "react";
+import * as THREE from "three/webgpu";
 import { suspensionColor, threeColor, THREE_COLORS } from "../../lib/wireframe-utils";
+import { createRibbonPool, disposeRibbonPool, updateRibbonPool, type RibbonPool } from "./LineResources";
 
-export function SuspensionSpring({
-  bodyPos,
-  wheelPos,
-  suspTravel,
-  suspThresholds,
-}: {
-  bodyPos: [number, number, number];
-  wheelPos: [number, number, number];
-  suspTravel: number;
-  suspThresholds: number[];
-}) {
-  const coilRadius = 0.032; // ~64mm diameter (GT3 spec)
-  const coils = 6;
-  const segments = coils * 12;
-  const topY = bodyPos[1]; // body mount (drops with body)
-  const botY = wheelPos[1]; // wheel mount (stays on ground)
-  const height = topY - botY;
-
-  // Generate helix points
-  const points = useMemo(() => {
-    const pts: [number, number, number][] = [];
-    for (let i = 0; i <= segments; i++) {
-      const t = i / segments;
-      const angle = t * coils * Math.PI * 2;
-      const y = botY + t * height;
-      pts.push([bodyPos[0] + Math.cos(angle) * coilRadius, y, bodyPos[2] + Math.sin(angle) * coilRadius]);
-    }
-    return pts;
-  }, [botY, height, bodyPos[0], bodyPos[2]]);
-
-  const color = threeColor(suspensionColor(suspTravel, suspThresholds));
-
-  return (
-    <group>
-      {/* Coil spring */}
-      <Line points={points} color={color} lineWidth={4} depthTest={false} renderOrder={10} transparent />
-      {/* Damper rod (thin line through center) */}
-      <Line
-        points={[
-          [bodyPos[0], topY + 0.05, bodyPos[2]],
-          [bodyPos[0], botY - 0.05, bodyPos[2]],
-        ]}
-        color={THREE_COLORS.appTextDim}
-        lineWidth={1}
-        depthTest={false}
-        renderOrder={10}
-        transparent
-      />
-    </group>
-  );
+export type SuspensionSpringResource = { spring: RibbonPool; rod: RibbonPool };
+export function createSuspensionSpringResource(scene: THREE.Scene): SuspensionSpringResource {
+  const spring = createRibbonPool({ depthTest: false }), rod = createRibbonPool({ depthTest: false });
+  spring.group.renderOrder = 10; rod.group.renderOrder = 10; scene.add(spring.group, rod.group);
+  return { spring, rod };
 }
+export function updateSuspensionSpringResource(resource: SuspensionSpringResource, camera: THREE.PerspectiveCamera, bodyPos: [number, number, number], wheelPos: [number, number, number], suspTravel: number, suspThresholds: number[], viewportHeight: number): void {
+  const pts = [];
+  const tint = threeColor(suspensionColor(suspTravel, suspThresholds));
+  const coils = 6, segments = coils * 12, radius = 0.032;
+  for (let i = 0; i <= segments; i++) { const t = i / segments, angle = t * coils * Math.PI * 2; pts.push({ x: bodyPos[0] + Math.cos(angle) * radius, y: wheelPos[1] + t * (bodyPos[1] - wheelPos[1]), z: bodyPos[2] + Math.sin(angle) * radius, color: tint, alpha: 1 }); }
+  updateRibbonPool(resource.spring, camera, [pts], 4, viewportHeight);
+  updateRibbonPool(resource.rod, camera, [[{ x: bodyPos[0], y: bodyPos[1] + 0.05, z: bodyPos[2], color: THREE_COLORS.appTextDim }, { x: bodyPos[0], y: wheelPos[1] - 0.05, z: bodyPos[2], color: THREE_COLORS.appTextDim }]], 1, viewportHeight);
+}
+export function disposeSuspensionSpringResource(resource: SuspensionSpringResource): void { disposeRibbonPool(resource.spring); disposeRibbonPool(resource.rod); resource.spring.group.removeFromParent(); resource.rod.group.removeFromParent(); }

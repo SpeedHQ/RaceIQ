@@ -71,6 +71,22 @@ const PACKET_SOURCE_OVERRIDES: Partial<
       "AC-Evo.Static.track",
       "AC-Evo.Static.track_configuration",
     ],
+    TireTempFL: ["AC-Evo.Graphics.tyre_lf.tyre_temperature_center"],
+    TireTempFR: ["AC-Evo.Graphics.tyre_rf.tyre_temperature_center"],
+    TireTempRL: ["AC-Evo.Graphics.tyre_lr.tyre_temperature_center"],
+    TireTempRR: ["AC-Evo.Graphics.tyre_rr.tyre_temperature_center"],
+    TireSurfaceTempInnerFL: ["AC-Evo.Graphics.tyre_lf.tyre_temperature_right"],
+    TireSurfaceTempInnerFR: ["AC-Evo.Graphics.tyre_rf.tyre_temperature_left"],
+    TireSurfaceTempInnerRL: ["AC-Evo.Graphics.tyre_lr.tyre_temperature_right"],
+    TireSurfaceTempInnerRR: ["AC-Evo.Graphics.tyre_rr.tyre_temperature_left"],
+    TireSurfaceTempMiddleFL: ["AC-Evo.Graphics.tyre_lf.tyre_temperature_center"],
+    TireSurfaceTempMiddleFR: ["AC-Evo.Graphics.tyre_rf.tyre_temperature_center"],
+    TireSurfaceTempMiddleRL: ["AC-Evo.Graphics.tyre_lr.tyre_temperature_center"],
+    TireSurfaceTempMiddleRR: ["AC-Evo.Graphics.tyre_rr.tyre_temperature_center"],
+    TireSurfaceTempOuterFL: ["AC-Evo.Graphics.tyre_lf.tyre_temperature_left"],
+    TireSurfaceTempOuterFR: ["AC-Evo.Graphics.tyre_rf.tyre_temperature_right"],
+    TireSurfaceTempOuterRL: ["AC-Evo.Graphics.tyre_lr.tyre_temperature_left"],
+    TireSurfaceTempOuterRR: ["AC-Evo.Graphics.tyre_rr.tyre_temperature_right"],
   },
   lmu: {
     DrsActive: ["LMU.Telemetry.rearFlapActivated"],
@@ -614,15 +630,6 @@ function packetGameLink(
     return unavailable(
       "parser-placeholder",
       `${gameId} currently copies current-lap time into CurrentRaceTime; no distinct session elapsed time is populated.`,
-    );
-  }
-  if (
-    gameId === "ac-evo" &&
-    /^TireSurfaceTemp(Inner|Middle|Outer)$/.test(set.key)
-  ) {
-    return unavailable(
-      "source-not-populated",
-      "AC Evo v0.6 reserves matching fields, but fixture-backed pages report zero instead of live surface-band temperatures.",
     );
   }
   const fields = set.fields;

@@ -234,7 +234,7 @@ function WeatherIcon({ weather }: { weather: number }) {
 
 function WeatherWidget({ weather }: { weather: LiveTelemetryView["weather"] }) {
   const units = useUnits();
-  const label = weather.kind === undefined ? "—" : (WEATHER_LABELS[weather.kind] ?? "Unknown");
+  const label = weather.kind === undefined ? "—" : (WEATHER_LABELS[weather.kind] ?? m.f1live_weather_unknown());
   const hasRain = weather.rainPercent !== undefined && weather.rainPercent > 0;
 
   return (

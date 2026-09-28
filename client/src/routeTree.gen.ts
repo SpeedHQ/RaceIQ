@@ -17,8 +17,8 @@ import { Route as DevRouteImport } from './routes/dev'
 import { Route as F125RouteImport } from './routes/f125'
 import { Route as Fm23RouteImport } from './routes/fm23'
 import { Route as IracingRouteImport } from './routes/iracing'
+import { Route as LiveRouteImport } from './routes/live'
 import { Route as LmuRouteImport } from './routes/lmu'
-import { Route as GameLiveRouteImport } from './routes/$game/live'
 import { Route as GameidCarsRouteImport } from './routes/$gameid/cars'
 import { Route as GameidChatsRouteImport } from './routes/$gameid/chats'
 import { Route as GameidCompareRouteImport } from './routes/$gameid/compare'
@@ -40,10 +40,9 @@ import { Route as F125IndexRouteImport } from './routes/f125/index'
 import { Route as F125SetupsRouteImport } from './routes/f125/setups'
 import { Route as F125TunesRouteImport } from './routes/f125/tunes'
 import { Route as Fm23IndexRouteImport } from './routes/fm23/index'
-import { Route as Fm23LiveRouteImport } from './routes/fm23/live'
 import { Route as Fm23SetupsRouteImport } from './routes/fm23/setups'
 import { Route as IracingIndexRouteImport } from './routes/iracing/index'
-import { Route as IracingLiveRouteImport } from './routes/iracing/live'
+import { Route as LivePitRouteImport } from './routes/live.pit'
 import { Route as LmuIndexRouteImport } from './routes/lmu/index'
 import { Route as PortableIndexRouteImport } from './routes/portable.index'
 import { Route as PortableCombo1RouteImport } from './routes/portable.combo-1'
@@ -65,13 +64,9 @@ import { Route as DevSpeechSpotterRouteImport } from './routes/dev/speech/spotte
 import { Route as F125SetupsIndexRouteImport } from './routes/f125/setups/index'
 import { Route as F125TunesIndexRouteImport } from './routes/f125/tunes/index'
 import { Route as Fm23CarsCarOrdinalRouteImport } from './routes/fm23/cars_.$carOrdinal'
-import { Route as Fm23LiveDriverRouteImport } from './routes/fm23/live/driver'
-import { Route as Fm23LivePitRouteImport } from './routes/fm23/live/pit'
 import { Route as Fm23SetupsIndexRouteImport } from './routes/fm23/setups/index'
 import { Route as Fm23SetupsCatalogRouteImport } from './routes/fm23/setups/catalog'
 import { Route as Fm23SetupsNewRouteImport } from './routes/fm23/setups/new'
-import { Route as IracingLiveDriverRouteImport } from './routes/iracing/live/driver'
-import { Route as IracingLivePitRouteImport } from './routes/iracing/live/pit'
 import { Route as GameidExperimentsExperimentIdReviewRouteImport } from './routes/$gameid/experiments.$experimentId_.review'
 import { Route as GameidSessionsSessionIdAnalyseRouteImport } from './routes/$gameid/sessions/$sessionId/analyse'
 import { Route as GameidTracksTrackOrdinalIndexRouteImport } from './routes/$gameid/tracks.$trackOrdinal.index'
@@ -121,14 +116,14 @@ const IracingRoute = IracingRouteImport.update({
   path: '/iracing',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LiveRoute = LiveRouteImport.update({
+  id: '/live',
+  path: '/live',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LmuRoute = LmuRouteImport.update({
   id: '/lmu',
   path: '/lmu',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GameLiveRoute = GameLiveRouteImport.update({
-  id: '/$game/live',
-  path: '/$game/live',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GameidCarsRoute = GameidCarsRouteImport.update({
@@ -236,11 +231,6 @@ const Fm23IndexRoute = Fm23IndexRouteImport.update({
   path: '/',
   getParentRoute: () => Fm23Route,
 } as any)
-const Fm23LiveRoute = Fm23LiveRouteImport.update({
-  id: '/live',
-  path: '/live',
-  getParentRoute: () => Fm23Route,
-} as any)
 const Fm23SetupsRoute = Fm23SetupsRouteImport.update({
   id: '/setups',
   path: '/setups',
@@ -251,10 +241,10 @@ const IracingIndexRoute = IracingIndexRouteImport.update({
   path: '/',
   getParentRoute: () => IracingRoute,
 } as any)
-const IracingLiveRoute = IracingLiveRouteImport.update({
-  id: '/live',
-  path: '/live',
-  getParentRoute: () => IracingRoute,
+const LivePitRoute = LivePitRouteImport.update({
+  id: '/pit',
+  path: '/pit',
+  getParentRoute: () => LiveRoute,
 } as any)
 const LmuIndexRoute = LmuIndexRouteImport.update({
   id: '/',
@@ -362,16 +352,6 @@ const Fm23CarsCarOrdinalRoute = Fm23CarsCarOrdinalRouteImport.update({
   path: '/cars/$carOrdinal',
   getParentRoute: () => Fm23Route,
 } as any)
-const Fm23LiveDriverRoute = Fm23LiveDriverRouteImport.update({
-  id: '/driver',
-  path: '/driver',
-  getParentRoute: () => Fm23LiveRoute,
-} as any)
-const Fm23LivePitRoute = Fm23LivePitRouteImport.update({
-  id: '/pit',
-  path: '/pit',
-  getParentRoute: () => Fm23LiveRoute,
-} as any)
 const Fm23SetupsIndexRoute = Fm23SetupsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -386,16 +366,6 @@ const Fm23SetupsNewRoute = Fm23SetupsNewRouteImport.update({
   id: '/new',
   path: '/new',
   getParentRoute: () => Fm23SetupsRoute,
-} as any)
-const IracingLiveDriverRoute = IracingLiveDriverRouteImport.update({
-  id: '/driver',
-  path: '/driver',
-  getParentRoute: () => IracingLiveRoute,
-} as any)
-const IracingLivePitRoute = IracingLivePitRouteImport.update({
-  id: '/pit',
-  path: '/pit',
-  getParentRoute: () => IracingLiveRoute,
 } as any)
 const GameidExperimentsExperimentIdReviewRoute =
   GameidExperimentsExperimentIdReviewRouteImport.update({
@@ -452,8 +422,8 @@ export interface FileRoutesByFullPath {
   '/f125': typeof F125RouteWithChildren
   '/fm23': typeof Fm23RouteWithChildren
   '/iracing': typeof IracingRouteWithChildren
+  '/live': typeof LiveRouteWithChildren
   '/lmu': typeof LmuRouteWithChildren
-  '/$game/live': typeof GameLiveRoute
   '/$gameid/cars': typeof GameidCarsRoute
   '/$gameid/chats': typeof GameidChatsRoute
   '/$gameid/compare': typeof GameidCompareRoute
@@ -471,9 +441,8 @@ export interface FileRoutesByFullPath {
   '/dev/telemetry': typeof DevTelemetryRoute
   '/f125/setups': typeof F125SetupsRouteWithChildren
   '/f125/tunes': typeof F125TunesRouteWithChildren
-  '/fm23/live': typeof Fm23LiveRouteWithChildren
   '/fm23/setups': typeof Fm23SetupsRouteWithChildren
-  '/iracing/live': typeof IracingLiveRouteWithChildren
+  '/live/pit': typeof LivePitRoute
   '/portable/combo-1': typeof PortableCombo1Route
   '/portable/combo-2': typeof PortableCombo2Route
   '/ac-evo/': typeof AcEvoIndexRoute
@@ -493,12 +462,8 @@ export interface FileRoutesByFullPath {
   '/dev/speech/race-engineer': typeof DevSpeechRaceEngineerRoute
   '/dev/speech/spotter': typeof DevSpeechSpotterRoute
   '/fm23/cars/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
-  '/fm23/live/driver': typeof Fm23LiveDriverRoute
-  '/fm23/live/pit': typeof Fm23LivePitRoute
   '/fm23/setups/catalog': typeof Fm23SetupsCatalogRoute
   '/fm23/setups/new': typeof Fm23SetupsNewRoute
-  '/iracing/live/driver': typeof IracingLiveDriverRoute
-  '/iracing/live/pit': typeof IracingLivePitRoute
   '/$gameid/experiments/': typeof GameidExperimentsIndexRoute
   '/$gameid/sessions/': typeof GameidSessionsIndexRoute
   '/$gameid/tracks/': typeof GameidTracksIndexRoute
@@ -520,7 +485,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$gameid': typeof GameidRouteWithChildren
   '/dev': typeof DevRouteWithChildren
-  '/$game/live': typeof GameLiveRoute
+  '/live': typeof LiveRouteWithChildren
   '/$gameid/cars': typeof GameidCarsRoute
   '/$gameid/chats': typeof GameidChatsRoute
   '/$gameid/compare': typeof GameidCompareRoute
@@ -531,8 +496,7 @@ export interface FileRoutesByTo {
   '/dev/speech': typeof DevSpeechRouteWithChildren
   '/dev/state': typeof DevStateRoute
   '/dev/telemetry': typeof DevTelemetryRoute
-  '/fm23/live': typeof Fm23LiveRouteWithChildren
-  '/iracing/live': typeof IracingLiveRouteWithChildren
+  '/live/pit': typeof LivePitRoute
   '/portable/combo-1': typeof PortableCombo1Route
   '/portable/combo-2': typeof PortableCombo2Route
   '/ac-evo': typeof AcEvoIndexRoute
@@ -552,12 +516,8 @@ export interface FileRoutesByTo {
   '/dev/speech/race-engineer': typeof DevSpeechRaceEngineerRoute
   '/dev/speech/spotter': typeof DevSpeechSpotterRoute
   '/fm23/cars/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
-  '/fm23/live/driver': typeof Fm23LiveDriverRoute
-  '/fm23/live/pit': typeof Fm23LivePitRoute
   '/fm23/setups/catalog': typeof Fm23SetupsCatalogRoute
   '/fm23/setups/new': typeof Fm23SetupsNewRoute
-  '/iracing/live/driver': typeof IracingLiveDriverRoute
-  '/iracing/live/pit': typeof IracingLivePitRoute
   '/$gameid/experiments': typeof GameidExperimentsIndexRoute
   '/$gameid/sessions': typeof GameidSessionsIndexRoute
   '/$gameid/tracks': typeof GameidTracksIndexRoute
@@ -585,8 +545,8 @@ export interface FileRoutesById {
   '/f125': typeof F125RouteWithChildren
   '/fm23': typeof Fm23RouteWithChildren
   '/iracing': typeof IracingRouteWithChildren
+  '/live': typeof LiveRouteWithChildren
   '/lmu': typeof LmuRouteWithChildren
-  '/$game/live': typeof GameLiveRoute
   '/$gameid/cars': typeof GameidCarsRoute
   '/$gameid/chats': typeof GameidChatsRoute
   '/$gameid/compare': typeof GameidCompareRoute
@@ -604,9 +564,8 @@ export interface FileRoutesById {
   '/dev/telemetry': typeof DevTelemetryRoute
   '/f125/setups': typeof F125SetupsRouteWithChildren
   '/f125/tunes': typeof F125TunesRouteWithChildren
-  '/fm23/live': typeof Fm23LiveRouteWithChildren
   '/fm23/setups': typeof Fm23SetupsRouteWithChildren
-  '/iracing/live': typeof IracingLiveRouteWithChildren
+  '/live/pit': typeof LivePitRoute
   '/portable/combo-1': typeof PortableCombo1Route
   '/portable/combo-2': typeof PortableCombo2Route
   '/ac-evo/': typeof AcEvoIndexRoute
@@ -626,12 +585,8 @@ export interface FileRoutesById {
   '/dev/speech/race-engineer': typeof DevSpeechRaceEngineerRoute
   '/dev/speech/spotter': typeof DevSpeechSpotterRoute
   '/fm23/cars_/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
-  '/fm23/live/driver': typeof Fm23LiveDriverRoute
-  '/fm23/live/pit': typeof Fm23LivePitRoute
   '/fm23/setups/catalog': typeof Fm23SetupsCatalogRoute
   '/fm23/setups/new': typeof Fm23SetupsNewRoute
-  '/iracing/live/driver': typeof IracingLiveDriverRoute
-  '/iracing/live/pit': typeof IracingLivePitRoute
   '/$gameid/experiments/': typeof GameidExperimentsIndexRoute
   '/$gameid/sessions/': typeof GameidSessionsIndexRoute
   '/$gameid/tracks/': typeof GameidTracksIndexRoute
@@ -660,8 +615,8 @@ export interface FileRouteTypes {
     | '/f125'
     | '/fm23'
     | '/iracing'
+    | '/live'
     | '/lmu'
-    | '/$game/live'
     | '/$gameid/cars'
     | '/$gameid/chats'
     | '/$gameid/compare'
@@ -679,9 +634,8 @@ export interface FileRouteTypes {
     | '/dev/telemetry'
     | '/f125/setups'
     | '/f125/tunes'
-    | '/fm23/live'
     | '/fm23/setups'
-    | '/iracing/live'
+    | '/live/pit'
     | '/portable/combo-1'
     | '/portable/combo-2'
     | '/ac-evo/'
@@ -701,12 +655,8 @@ export interface FileRouteTypes {
     | '/dev/speech/race-engineer'
     | '/dev/speech/spotter'
     | '/fm23/cars/$carOrdinal'
-    | '/fm23/live/driver'
-    | '/fm23/live/pit'
     | '/fm23/setups/catalog'
     | '/fm23/setups/new'
-    | '/iracing/live/driver'
-    | '/iracing/live/pit'
     | '/$gameid/experiments/'
     | '/$gameid/sessions/'
     | '/$gameid/tracks/'
@@ -728,7 +678,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$gameid'
     | '/dev'
-    | '/$game/live'
+    | '/live'
     | '/$gameid/cars'
     | '/$gameid/chats'
     | '/$gameid/compare'
@@ -739,8 +689,7 @@ export interface FileRouteTypes {
     | '/dev/speech'
     | '/dev/state'
     | '/dev/telemetry'
-    | '/fm23/live'
-    | '/iracing/live'
+    | '/live/pit'
     | '/portable/combo-1'
     | '/portable/combo-2'
     | '/ac-evo'
@@ -760,12 +709,8 @@ export interface FileRouteTypes {
     | '/dev/speech/race-engineer'
     | '/dev/speech/spotter'
     | '/fm23/cars/$carOrdinal'
-    | '/fm23/live/driver'
-    | '/fm23/live/pit'
     | '/fm23/setups/catalog'
     | '/fm23/setups/new'
-    | '/iracing/live/driver'
-    | '/iracing/live/pit'
     | '/$gameid/experiments'
     | '/$gameid/sessions'
     | '/$gameid/tracks'
@@ -792,8 +737,8 @@ export interface FileRouteTypes {
     | '/f125'
     | '/fm23'
     | '/iracing'
+    | '/live'
     | '/lmu'
-    | '/$game/live'
     | '/$gameid/cars'
     | '/$gameid/chats'
     | '/$gameid/compare'
@@ -811,9 +756,8 @@ export interface FileRouteTypes {
     | '/dev/telemetry'
     | '/f125/setups'
     | '/f125/tunes'
-    | '/fm23/live'
     | '/fm23/setups'
-    | '/iracing/live'
+    | '/live/pit'
     | '/portable/combo-1'
     | '/portable/combo-2'
     | '/ac-evo/'
@@ -833,12 +777,8 @@ export interface FileRouteTypes {
     | '/dev/speech/race-engineer'
     | '/dev/speech/spotter'
     | '/fm23/cars_/$carOrdinal'
-    | '/fm23/live/driver'
-    | '/fm23/live/pit'
     | '/fm23/setups/catalog'
     | '/fm23/setups/new'
-    | '/iracing/live/driver'
-    | '/iracing/live/pit'
     | '/$gameid/experiments/'
     | '/$gameid/sessions/'
     | '/$gameid/tracks/'
@@ -866,8 +806,8 @@ export interface RootRouteChildren {
   F125Route: typeof F125RouteWithChildren
   Fm23Route: typeof Fm23RouteWithChildren
   IracingRoute: typeof IracingRouteWithChildren
+  LiveRoute: typeof LiveRouteWithChildren
   LmuRoute: typeof LmuRouteWithChildren
-  GameLiveRoute: typeof GameLiveRoute
   PortableCombo1Route: typeof PortableCombo1Route
   PortableCombo2Route: typeof PortableCombo2Route
   PortableIndexRoute: typeof PortableIndexRoute
@@ -931,18 +871,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IracingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/live': {
+      id: '/live'
+      path: '/live'
+      fullPath: '/live'
+      preLoaderRoute: typeof LiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lmu': {
       id: '/lmu'
       path: '/lmu'
       fullPath: '/lmu'
       preLoaderRoute: typeof LmuRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/$game/live': {
-      id: '/$game/live'
-      path: '/$game/live'
-      fullPath: '/$game/live'
-      preLoaderRoute: typeof GameLiveRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$gameid/cars': {
@@ -1092,13 +1032,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Fm23IndexRouteImport
       parentRoute: typeof Fm23Route
     }
-    '/fm23/live': {
-      id: '/fm23/live'
-      path: '/live'
-      fullPath: '/fm23/live'
-      preLoaderRoute: typeof Fm23LiveRouteImport
-      parentRoute: typeof Fm23Route
-    }
     '/fm23/setups': {
       id: '/fm23/setups'
       path: '/setups'
@@ -1113,12 +1046,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IracingIndexRouteImport
       parentRoute: typeof IracingRoute
     }
-    '/iracing/live': {
-      id: '/iracing/live'
-      path: '/live'
-      fullPath: '/iracing/live'
-      preLoaderRoute: typeof IracingLiveRouteImport
-      parentRoute: typeof IracingRoute
+    '/live/pit': {
+      id: '/live/pit'
+      path: '/pit'
+      fullPath: '/live/pit'
+      preLoaderRoute: typeof LivePitRouteImport
+      parentRoute: typeof LiveRoute
     }
     '/lmu/': {
       id: '/lmu/'
@@ -1267,20 +1200,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Fm23CarsCarOrdinalRouteImport
       parentRoute: typeof Fm23Route
     }
-    '/fm23/live/driver': {
-      id: '/fm23/live/driver'
-      path: '/driver'
-      fullPath: '/fm23/live/driver'
-      preLoaderRoute: typeof Fm23LiveDriverRouteImport
-      parentRoute: typeof Fm23LiveRoute
-    }
-    '/fm23/live/pit': {
-      id: '/fm23/live/pit'
-      path: '/pit'
-      fullPath: '/fm23/live/pit'
-      preLoaderRoute: typeof Fm23LivePitRouteImport
-      parentRoute: typeof Fm23LiveRoute
-    }
     '/fm23/setups/': {
       id: '/fm23/setups/'
       path: '/'
@@ -1301,20 +1220,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/fm23/setups/new'
       preLoaderRoute: typeof Fm23SetupsNewRouteImport
       parentRoute: typeof Fm23SetupsRoute
-    }
-    '/iracing/live/driver': {
-      id: '/iracing/live/driver'
-      path: '/driver'
-      fullPath: '/iracing/live/driver'
-      preLoaderRoute: typeof IracingLiveDriverRouteImport
-      parentRoute: typeof IracingLiveRoute
-    }
-    '/iracing/live/pit': {
-      id: '/iracing/live/pit'
-      path: '/pit'
-      fullPath: '/iracing/live/pit'
-      preLoaderRoute: typeof IracingLivePitRouteImport
-      parentRoute: typeof IracingLiveRoute
     }
     '/$gameid/experiments/$experimentId_/review': {
       id: '/$gameid/experiments/$experimentId_/review'
@@ -1583,20 +1488,6 @@ const F125RouteChildren: F125RouteChildren = {
 
 const F125RouteWithChildren = F125Route._addFileChildren(F125RouteChildren)
 
-interface Fm23LiveRouteChildren {
-  Fm23LiveDriverRoute: typeof Fm23LiveDriverRoute
-  Fm23LivePitRoute: typeof Fm23LivePitRoute
-}
-
-const Fm23LiveRouteChildren: Fm23LiveRouteChildren = {
-  Fm23LiveDriverRoute: Fm23LiveDriverRoute,
-  Fm23LivePitRoute: Fm23LivePitRoute,
-}
-
-const Fm23LiveRouteWithChildren = Fm23LiveRoute._addFileChildren(
-  Fm23LiveRouteChildren,
-)
-
 interface Fm23SetupsRouteChildren {
   Fm23SetupsCatalogRoute: typeof Fm23SetupsCatalogRoute
   Fm23SetupsNewRoute: typeof Fm23SetupsNewRoute
@@ -1616,14 +1507,12 @@ const Fm23SetupsRouteWithChildren = Fm23SetupsRoute._addFileChildren(
 )
 
 interface Fm23RouteChildren {
-  Fm23LiveRoute: typeof Fm23LiveRouteWithChildren
   Fm23SetupsRoute: typeof Fm23SetupsRouteWithChildren
   Fm23IndexRoute: typeof Fm23IndexRoute
   Fm23CarsCarOrdinalRoute: typeof Fm23CarsCarOrdinalRoute
 }
 
 const Fm23RouteChildren: Fm23RouteChildren = {
-  Fm23LiveRoute: Fm23LiveRouteWithChildren,
   Fm23SetupsRoute: Fm23SetupsRouteWithChildren,
   Fm23IndexRoute: Fm23IndexRoute,
   Fm23CarsCarOrdinalRoute: Fm23CarsCarOrdinalRoute,
@@ -1631,32 +1520,26 @@ const Fm23RouteChildren: Fm23RouteChildren = {
 
 const Fm23RouteWithChildren = Fm23Route._addFileChildren(Fm23RouteChildren)
 
-interface IracingLiveRouteChildren {
-  IracingLiveDriverRoute: typeof IracingLiveDriverRoute
-  IracingLivePitRoute: typeof IracingLivePitRoute
-}
-
-const IracingLiveRouteChildren: IracingLiveRouteChildren = {
-  IracingLiveDriverRoute: IracingLiveDriverRoute,
-  IracingLivePitRoute: IracingLivePitRoute,
-}
-
-const IracingLiveRouteWithChildren = IracingLiveRoute._addFileChildren(
-  IracingLiveRouteChildren,
-)
-
 interface IracingRouteChildren {
-  IracingLiveRoute: typeof IracingLiveRouteWithChildren
   IracingIndexRoute: typeof IracingIndexRoute
 }
 
 const IracingRouteChildren: IracingRouteChildren = {
-  IracingLiveRoute: IracingLiveRouteWithChildren,
   IracingIndexRoute: IracingIndexRoute,
 }
 
 const IracingRouteWithChildren =
   IracingRoute._addFileChildren(IracingRouteChildren)
+
+interface LiveRouteChildren {
+  LivePitRoute: typeof LivePitRoute
+}
+
+const LiveRouteChildren: LiveRouteChildren = {
+  LivePitRoute: LivePitRoute,
+}
+
+const LiveRouteWithChildren = LiveRoute._addFileChildren(LiveRouteChildren)
 
 interface LmuRouteChildren {
   LmuIndexRoute: typeof LmuIndexRoute
@@ -1677,8 +1560,8 @@ const rootRouteChildren: RootRouteChildren = {
   F125Route: F125RouteWithChildren,
   Fm23Route: Fm23RouteWithChildren,
   IracingRoute: IracingRouteWithChildren,
+  LiveRoute: LiveRouteWithChildren,
   LmuRoute: LmuRouteWithChildren,
-  GameLiveRoute: GameLiveRoute,
   PortableCombo1Route: PortableCombo1Route,
   PortableCombo2Route: PortableCombo2Route,
   PortableIndexRoute: PortableIndexRoute,

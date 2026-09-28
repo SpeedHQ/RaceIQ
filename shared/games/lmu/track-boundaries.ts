@@ -4,7 +4,7 @@ import { GAMES_DIR } from "@shared/platform/runtime/data-paths";
 import { lmuTrackCatalog } from "./catalog";
 import type { Point, TrackBoundary } from "../../racing/tracks/geometry/types";
 
-const cache = new Map<string, TrackBoundary | null>();
+const cache = new Map<string, (TrackBoundary & { raceLine: Point[] | null }) | null>();
 const tracksById = new Map(lmuTrackCatalog.map((track) => [track.id, track]));
 
 function parsePath(svg: string, id: string): Point[] | null {
@@ -26,7 +26,7 @@ function parsePath(svg: string, id: string): Point[] | null {
 }
 
 /** Load LMU's shipped track-limit geometry from its catalog SVG asset. */
-export function getLMUTrackBoundaries(trackId: string): TrackBoundary | null {
+export function getLMUTrackBoundaries(trackId: string): (TrackBoundary & { raceLine: Point[] | null }) | null {
   if (cache.has(trackId)) return cache.get(trackId)!;
   const track = tracksById.get(trackId);
   if (!track) { cache.set(trackId, null); return null; }
@@ -38,7 +38,7 @@ export function getLMUTrackBoundaries(trackId: string): TrackBoundary | null {
     const rightEdge = parsePath(svg, "right");
     const centerLine = parsePath(svg, "center-line");
     if (!leftEdge || !rightEdge || !centerLine) { cache.set(trackId, null); return null; }
-    const result: TrackBoundary = { leftEdge, rightEdge: rightEdge.reverse(), centerLine, pitLane: parsePath(svg, "pit-lane") };
+    const result = { leftEdge, rightEdge: rightEdge.reverse(), centerLine, pitLane: parsePath(svg, "pit-lane"), raceLine: parsePath(svg, "racing-line") };
     cache.set(trackId, result);
     return result;
   } catch {

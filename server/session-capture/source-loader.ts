@@ -1,4 +1,5 @@
-import { gunzipBuffer, META_FRAME_MAGIC, SEGMENT_BOUNDARY_MAGIC, SEGMENT_BOUNDARY_VERSION, SEGMENT_CONTEXT_MAGIC, SEGMENT_CONTEXT_VERSION, SEGMENT_CONTEXT_END_MAGIC, iterateSessionFrameRecords, type SessionCaptureRecord } from "./framing";
+import { gunzipBuffer, META_FRAME_MAGIC, SEGMENT_BOUNDARY_MAGIC, SEGMENT_BOUNDARY_VERSION, SEGMENT_CONTEXT_MAGIC, SEGMENT_CONTEXT_VERSION, SEGMENT_CONTEXT_END_MAGIC, iterateSessionFrameRecords, readFramePrefix, type SessionCaptureRecord } from "./framing";
+import { ACC_BROADCAST_CAPTURE_MAGIC, ACC_BROADCAST_CAPTURE_VERSION, decodeAccBroadcastCaptureRecord } from "../games/acc/broadcast-capture";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { MOTEC_SESSION_SOURCE } from "@shared/integrations/motec";
@@ -7,8 +8,12 @@ import { parseLd } from "../motec/ld";
 import { parseLdxBeacons } from "../motec/ldx";
 import { resolveMotecTarget } from "../motec/targets";
 import { countSourceFrameScanned } from "./test-instrumentation";
+import { decodeLmuSparseFrame, isLmuSparseFrame } from "./lmu-sparse";
+import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "../games/lmu/source-frame";
+import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "./kunos-sparse";
+import { decodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } from "./generic-sparse";
 
-export interface SessionCaptureFrameRecord { readonly offset: number; readonly prefixOffset: number; readonly length: number; readonly frameIndex: number; }
+export interface SessionCaptureFrameRecord { readonly offset: number; readonly prefixOffset: number; readonly length: number; readonly frameIndex: number; readonly frame: Buffer; }
 export interface SessionCaptureFrameIndex {
   readonly records: readonly SessionCaptureFrameRecord[];
   readonly byOffset: ReadonlyMap<number, SessionCaptureFrameRecord>;
@@ -41,7 +46,7 @@ export function indexCaptureFrames(buffer: Buffer): SessionCaptureFrameIndex {
   let frameIndex = 0;
   for (const { offset, prefixOffset, frame } of iterateSessionFrameRecords(buffer)) {
     countSourceFrameScanned();
-    const record = { offset, prefixOffset, length: frame.length, frameIndex };
+    const record = { offset, prefixOffset, length: frame.length, frameIndex, frame };
     records.push(record);
     byOffset.set(offset, record);
     byOffset.set(prefixOffset, record);
@@ -49,7 +54,16 @@ export function indexCaptureFrames(buffer: Buffer): SessionCaptureFrameIndex {
   }
   return { records, byOffset };
 }
-export function clearRawFileCacheForTest(): void { cache.clear(); }
+export function clearSessionCaptureCache(rawFile?: string): void {
+  if (rawFile === undefined) {
+    cache.clear();
+    return;
+  }
+  const prefix = `${rawFile}\0`;
+  for (const cacheKey of cache.keys()) {
+    if (cacheKey.startsWith(prefix)) cache.delete(cacheKey);
+  }
+}
 export function setCaptureFileFactoryForTest(factory: CaptureFileFactory | null): void {
   captureFileFactory = factory ?? ((path) => Bun.file(path));
 }
@@ -60,6 +74,7 @@ function key(source: SessionCaptureSource): string { return `${source.rawFile}\0
  */
 export async function* iterateSessionCaptureRecordsFromSource(
   source: SessionCaptureSource,
+  options: { strict?: boolean } = {},
 ): AsyncGenerator<SessionCaptureRecord> {
   if (source.rawFile.endsWith(".motec.zip")) {
     throw new Error("Motec source archives expose canonical packets, not BIN frames");
@@ -78,7 +93,11 @@ export async function* iterateSessionCaptureRecordsFromSource(
   const reader = stream.getReader();
   let pending = Buffer.alloc(0);
   let offset = 0;
+  let initialized = false;
   let prefixOffset: number | undefined;
+  let previous: Buffer | null = null;
+  let checkpointOffset = -1;
+  let checkpointIdentity: string | null = null;
   try {
     while (true) {
       const next = await reader.read();
@@ -87,6 +106,18 @@ export async function* iterateSessionCaptureRecordsFromSource(
         ? Buffer.from(next.value)
         : Buffer.concat([pending, next.value]);
 
+      if (!initialized) {
+        if (pending.length < 8) continue;
+        if (pending.readUInt32LE(0) === META_FRAME_MAGIC) {
+          const metaLength = pending.readUInt32LE(4);
+          if (options.strict && metaLength !== 4) throw new Error("Invalid canonical capture header");
+          assertCaptureRecordLength(metaLength);
+          if (pending.length < 8 + metaLength) continue;
+          pending = pending.subarray(8 + metaLength);
+          offset = 8 + metaLength;
+        }
+        initialized = true;
+      }
 
       while (pending.length >= 4) {
         const frameLength = pending.readUInt32LE(0);
@@ -95,32 +126,100 @@ export async function* iterateSessionCaptureRecordsFromSource(
           const metaLength = pending.readUInt32LE(4);
           assertCaptureRecordLength(metaLength);
           if (pending.length < 8 + metaLength) break;
-          const magic = metaLength >= 4 ? pending.readUInt32LE(8) : null;
-          const version = metaLength >= 8 ? pending.readUInt32LE(12) : null;
-          if (metaLength === 8 && magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) yield { kind: "segment-boundary", offset };
-          else if (metaLength === 8 && magic === SEGMENT_CONTEXT_MAGIC && version === SEGMENT_CONTEXT_VERSION) yield { kind: "segment-context", offset };
-          else if (metaLength === 8 && magic === SEGMENT_CONTEXT_END_MAGIC && version === SEGMENT_CONTEXT_VERSION) yield { kind: "segment-context-end", offset };
-          else if ((offset === 0 && metaLength === 4) ||
-            (metaLength === 8 && ((magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) ||
-              ((magic === SEGMENT_CONTEXT_MAGIC || magic === SEGMENT_CONTEXT_END_MAGIC) && version === SEGMENT_CONTEXT_VERSION)))) {
+          const metaPayload = pending.subarray(8, 8 + metaLength);
+          const magic = metaLength >= 4 ? metaPayload.readUInt32LE(0) : null;
+          const version = metaLength >= 8 ? metaPayload.readUInt32LE(4) : null;
+          if (magic === ACC_BROADCAST_CAPTURE_MAGIC && (version === ACC_BROADCAST_CAPTURE_VERSION || version === null)) {
+            prefixOffset ??= offset;
+            try {
+              yield { kind: "acc-broadcast", offset, batch: decodeAccBroadcastCaptureRecord(metaPayload) };
+            } catch (error) {
+              yield { kind: "acc-broadcast-malformed", offset, reason: error instanceof Error ? error.message : "invalid ACCB record" };
+            }
+          } else if (metaLength === 8 && magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) {
+            previous = null;
+            checkpointOffset = -1;
+            checkpointIdentity = null;
             prefixOffset = undefined;
+            yield { kind: "segment-boundary", offset };
+          } else if (metaLength === 8 && magic === SEGMENT_CONTEXT_MAGIC && version === SEGMENT_CONTEXT_VERSION) {
+            prefixOffset = undefined;
+            yield { kind: "segment-context", offset };
+          } else if (metaLength === 8 && magic === SEGMENT_CONTEXT_END_MAGIC && version === SEGMENT_CONTEXT_VERSION) {
+            previous = null;
+            checkpointOffset = -1;
+            checkpointIdentity = null;
+            prefixOffset = undefined;
+            yield { kind: "segment-context-end", offset };
           } else {
             prefixOffset ??= offset;
+            yield { kind: "metadata", offset, bytes: pending.subarray(0, 8 + metaLength) };
+            if (options.strict && (metaLength === 8 || !(offset === 0 && metaLength === 4))) throw new Error(`Unknown capture metadata at ${offset}`);
           }
           pending = pending.subarray(8 + metaLength);
           offset += 8 + metaLength;
           continue;
         }
-        assertCaptureRecordLength(frameLength);
-        if (frameLength <= 0 || pending.length < 4 + frameLength) break;
+        assertCaptureRecordLength(frameLength & 0x7fffffff);
+        if ((frameLength & 0x80000000) !== 0 && pending.length < 12) break;
+        const prefix = readFramePrefix(pending, 0);
+        if (!prefix) {
+          if (options.strict) throw new Error(`Invalid capture frame prefix at ${offset}`);
+          break;
+        }
+        const payloadLength = prefix.length;
+        if (payloadLength <= 0) {
+          if (options.strict) throw new Error(`Invalid capture frame length at ${offset}`);
+          break;
+        }
+        if (pending.length < prefix.prefixBytes + payloadLength) break;
         const frameOffset = offset;
-        const frame = pending.subarray(4, 4 + frameLength);
-        pending = pending.subarray(4 + frameLength);
-        offset += 4 + frameLength;
-        yield { kind: "frame", offset: frameOffset, frame, prefixOffset: prefixOffset ?? frameOffset };
+        const payload = pending.subarray(prefix.prefixBytes, prefix.prefixBytes + payloadLength);
+        pending = pending.subarray(prefix.prefixBytes + payloadLength);
+        offset += prefix.prefixBytes + payloadLength;
+        let frame: Buffer = payload;
+        const lmuDelta = isLmuSparseFrame(payload);
+        const kunosDelta = isKunosSparseFrame(payload);
+        const genericDelta = isGenericSparseFrame(payload);
+        if (lmuDelta || kunosDelta || genericDelta) {
+          const backDistance = genericDelta
+            ? (payload.length >= 9 ? payload.readUInt32LE(5) : 0)
+            : (payload.length >= 8 ? payload.readUInt32LE(4) : 0);
+          if (!previous || checkpointOffset < 0 || backDistance <= 0 ||
+              backDistance !== frameOffset - checkpointOffset) {
+            throw new Error(`Invalid sparse checkpoint at ${frameOffset}`);
+          }
+          if (lmuDelta && checkpointIdentity !== "lmu-v2") throw new Error(`Invalid LMU sparse checkpoint identity at ${frameOffset}`);
+          if (kunosDelta && (!checkpointIdentity || !checkpointIdentity.startsWith("kunos-") || Number(checkpointIdentity.slice(6)) !== kunosSourceMagic(previous))) {
+            throw new Error(`Invalid Kunos sparse checkpoint identity at ${frameOffset}`);
+          }
+          if (genericDelta && (!checkpointIdentity || genericFrameIdentity(previous) !== checkpointIdentity)) {
+            throw new Error(`Invalid generic sparse checkpoint identity at ${frameOffset}`);
+          }
+          frame = genericDelta ? decodeGenericSparseFrame(payload, previous)
+            : lmuDelta ? decodeLmuSparseFrame(payload, previous) : decodeKunosSparseFrame(payload, previous);
+          if (lmuDelta && (frame.length !== LMU_SOURCE_FRAME_V2_SIZE ||
+              !frame.subarray(0, LMU_SOURCE_FRAME_MAGIC.length).equals(LMU_SOURCE_FRAME_MAGIC))) {
+            throw new Error(`Invalid LMU sparse frame at ${frameOffset}`);
+          }
+          if (kunosDelta && kunosSourceMagic(frame) !== Number(checkpointIdentity!.slice(6))) {
+            throw new Error(`Invalid Kunos sparse frame identity at ${frameOffset}`);
+          }
+        } else {
+          const isLmu = payload.length === LMU_SOURCE_FRAME_V2_SIZE &&
+            payload.subarray(0, LMU_SOURCE_FRAME_MAGIC.length).equals(LMU_SOURCE_FRAME_MAGIC);
+          const magic = kunosSourceMagic(payload);
+          checkpointIdentity = isLmu ? "lmu-v2" : magic ? `kunos-${magic}` : genericFrameIdentity(payload);
+          checkpointOffset = checkpointIdentity ? frameOffset : -1;
+        }
+        previous = frame;
+        const framePrefixOffset = prefixOffset ?? frameOffset;
         prefixOffset = undefined;
+        if (prefix.frameTimeMs === undefined) yield { kind: "frame", offset: frameOffset, prefixOffset: framePrefixOffset, frame };
+        else yield { kind: "frame", offset: frameOffset, prefixOffset: framePrefixOffset, frame, frameTimeMs: prefix.frameTimeMs };
       }
     }
+    if (options.strict && (!initialized || pending.length !== 0)) throw new Error(`Truncated capture record at ${offset}`);
   } finally {
     try {
       await reader.cancel();
@@ -132,7 +231,7 @@ export async function* iterateSessionCaptureRecordsFromSource(
 
 export async function* iterateSessionCaptureFrames(
   source: SessionCaptureSource,
-): AsyncGenerator<{ offset: number; prefixOffset: number; frame: Buffer }> {
+): AsyncGenerator<{ offset: number; prefixOffset: number; frame: Buffer; frameTimeMs?: number }> {
   for await (const record of iterateSessionCaptureRecordsFromSource(source)) {
     if (record.kind === "frame") yield record;
   }

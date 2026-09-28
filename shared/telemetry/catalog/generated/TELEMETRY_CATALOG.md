@@ -4,22 +4,22 @@
 
 ## Manifest
 
-- Catalog version: `0.18.0`
+- Catalog version: `0.19.0`
 - Schema version: `v7`
-- Generator: `RaceIQ telemetry-catalog generator@0.18.0`
-- Generator source SHA-256: `5900ecdcf8f4f14101ca46a58bf0ae9047739b21434e179bc1510dee5f493498`
-- Content SHA-256: `044b9506072b0e103ec5c35ec269d392bf61cdd553de45cf3172c5ea991cc3cb`
+- Generator: `RaceIQ telemetry-catalog generator@0.19.0`
+- Generator source SHA-256: `9810526e2c0a2bc398635b83822093e4c097b2934c9412638766e0be5b9a4999`
+- Content SHA-256: `610a27a319d298b268472aa0dc7d0050c1c719a39cd5599094e619907afa63a6`
 
 ## Coverage
 
 | Simulator | Sources | Recorded | Packet | Extension | SDK | YAML | Setup |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| fm-2023 | 95 | 95 | 95 | 0 | 0 | 0 | 0 |
-| f1-2025 | 314 | 314 | 118 | 196 | 0 | 0 | 0 |
-| acc | 230 | 197 | 124 | 73 | 0 | 0 | 33 |
-| ac-evo | 285 | 249 | 124 | 125 | 0 | 0 | 36 |
-| iracing | 971 | 721 | 115 | 37 | 324 | 495 | 0 |
-| lmu | 171 | 171 | 126 | 45 | 0 | 0 | 0 |
+| fm-2023 | 96 | 96 | 95 | 1 | 0 | 0 | 0 |
+| f1-2025 | 315 | 315 | 118 | 197 | 0 | 0 | 0 |
+| acc | 231 | 198 | 124 | 74 | 0 | 0 | 33 |
+| ac-evo | 286 | 250 | 124 | 126 | 0 | 0 | 36 |
+| iracing | 972 | 722 | 115 | 38 | 324 | 495 | 0 |
+| lmu | 172 | 172 | 126 | 46 | 0 | 0 | 0 |
 
 ## Semantic variables
 
@@ -423,6 +423,7 @@
 | `race.driver-incident-count` | Current-driver incident count | number | dimensionless | count | scalar |  |  |  |
 | `race.driver-marker` | Driver Marker | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.driver-status` | Driver Status | number | dimensionless | count | scalar |  |  |  |
+| `race.extended-race-iq` | Extended Race IQ | number | unit:unitless | unitless | scalar |  |  |  |
 | `race.flag-status` | Flag Status | string | unit:unitless | unitless | scalar |  |  |  |
 | `race.grid-completion-source-sequence` | Grid completion Source Sequence | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
 | `race.grid-connected` | Grid connected | structured | dimensionless | boolean | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:boolean |  |
@@ -659,6 +660,7 @@
 | `timing.delta-to-session-last-lap-valid` | Delta to session last lap valid | boolean | dimensionless | boolean | scalar |  |  |  |
 | `timing.distance-traveled` | Distance Traveled | number | length | m | scalar |  |  |  |
 | `timing.drs-activation-distance` | DRS Activation Distance | number | length | m | scalar |  |  |  |
+| `timing.frame-time-ms` | Frame Time Ms | number | time | ms | scalar |  |  |  |
 | `timing.gap-ahead-ms` | Gap Ahead Ms | number | time | ms | scalar |  |  |  |
 | `timing.gap-behind-ms` | Gap Behind Ms | number | time | ms | scalar |  |  |  |
 | `timing.grid-class-position` | Grid class Position | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |

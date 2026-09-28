@@ -89,7 +89,7 @@ export function RawTelemetry({ packet }: Props) {
         {entries.map(([key, value]) => {
           const metadata = metadataForField(key, packet.gameId);
           const unsupported = metadata?.category === "unsupported";
-          const displayValue = unsupported ? "Unavailable" : typeof value === "number" ? (Number.isInteger(value) ? String(value) : value.toFixed(3)) : String(value);
+          const displayValue = unsupported ? m.rawtel_unavailable() : typeof value === "number" ? (Number.isInteger(value) ? String(value) : value.toFixed(3)) : String(value);
           const provenance = metadata
             ? metadata.link.kind === "unavailable"
               ? `unavailable:${metadata.link.reason}`

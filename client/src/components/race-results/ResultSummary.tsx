@@ -1,35 +1,36 @@
 import type { RaceResult, RaceResultAggregate, RaceResultOutcomeStatus, RaceResultStatus } from "@shared/racing/results/types";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { m } from "@/paraglide/messages";
 import { cn } from "@/lib/utils";
 import type { GameId } from "../../../../shared/games/ids";
 import { queryKeys } from "../../hooks/query-keys";
 import { client } from "../../lib/rpc";
 
 const classificationLabels: Record<RaceResultStatus, string> = {
-  finished: "Finished",
-  dnf: "DNF",
-  disqualified: "Disqualified",
-  "not-classified": "Not classified",
-  retired: "Retired",
-  qualifying: "Qualifying",
-  unknown: "Classification unavailable",
+  finished: m.race_result_finished(),
+  dnf: m.race_result_dnf(),
+  disqualified: m.race_result_disqualified(),
+  "not-classified": m.race_result_not_classified(),
+  retired: m.race_result_retired(),
+  qualifying: m.race_result_qualifying(),
+  unknown: m.race_result_classification_unavailable(),
 };
 
 const outcomeStatusPresentation: Record<RaceResultOutcomeStatus, { label: string; description: string; className: string }> = {
   confirmed: {
-    label: "Confirmed",
-    description: "Validated simulator or session result",
+    label: m.race_result_confirmed(),
+    description: m.race_result_validated_source_description(),
     className: "border-status-success/30 bg-status-success/10 text-status-success",
   },
   provisional: {
-    label: "Provisional · derived",
-    description: "Deterministic fallback or unresolved source conflict",
+    label: m.race_result_provisional_derived(),
+    description: m.race_result_provisional_description(),
     className: "border-status-warning/30 bg-status-warning/10 text-status-warning",
   },
   unavailable: {
-    label: "Unavailable",
-    description: "No authoritative outcome was recorded",
+    label: m.race_result_unavailable(),
+    description: m.race_result_outcome_unavailable_description(),
     className: "border-status-unavailable/30 bg-status-unavailable/10 text-status-unavailable",
   },
 };
@@ -49,19 +50,19 @@ export function ResultAuthorityBadge({ status }: { status: RaceResultOutcomeStat
 
 export function ResultAggregateGrid({ aggregate }: { aggregate: RaceResultAggregate }) {
   const rows: Array<[string, number | string]> = [
-    ["Recorded results", aggregate.sessions],
-    ["Confirmed", aggregate.confirmed],
-    ["Provisional", aggregate.provisional],
-    ["Unavailable", aggregate.unavailable],
-    ["Recorded finishes", aggregate.finished],
-    ["Recorded DNF / retired", aggregate.dnf + aggregate.retired],
-    ["Recorded disqualifications", aggregate.disqualified],
-    ["Recorded not classified", aggregate.notClassified],
-    ["Recorded qualifying", aggregate.qualifying],
-    ["Recorded podiums", aggregate.podiums],
-    ["Recorded fastest laps", aggregate.fastestLaps],
-    ["Recorded pit stops", aggregate.pitStops],
-    ["Known pit time", aggregate.pitDurationSeconds == null ? "Not recorded" : `${aggregate.pitDurationSeconds.toFixed(1)}s`],
+    [m.race_result_recorded_results(), aggregate.sessions],
+    [m.race_result_confirmed(), aggregate.confirmed],
+    [m.race_result_provisional(), aggregate.provisional],
+    [m.race_result_unavailable(), aggregate.unavailable],
+    [m.race_result_recorded_finishes(), aggregate.finished],
+    [m.race_result_dnf_retired(), aggregate.dnf + aggregate.retired],
+    [m.race_result_recorded_disqualifications(), aggregate.disqualified],
+    [m.race_result_recorded_not_classified(), aggregate.notClassified],
+    [m.race_result_recorded_qualifying(), aggregate.qualifying],
+    [m.race_result_recorded_podiums(), aggregate.podiums],
+    [m.race_result_recorded_fastest_laps(), aggregate.fastestLaps],
+    [m.race_result_recorded_pit_stops(), aggregate.pitStops],
+    [m.race_result_known_pit_time(), aggregate.pitDurationSeconds == null ? m.race_result_not_recorded() : `${aggregate.pitDurationSeconds.toFixed(1)}s`],
   ];
   return (
     <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
@@ -90,16 +91,16 @@ function RecentResult({ result }: { result: RaceResult }) {
   const { fieldStatus, conflicts } = result.evidence;
   const position =
     result.finishingPosition != null && fieldStatus.finishingPosition !== "unavailable"
-      ? { label: "Finished", value: result.finishingPosition }
+      ? { label: m.race_result_finished(), value: result.finishingPosition }
       : result.qualifyingPosition != null && fieldStatus.qualifyingPosition !== "unavailable"
-        ? { label: "Qualified", value: result.qualifyingPosition }
+        ? { label: m.race_result_qualified(), value: result.qualifyingPosition }
         : null;
   return (
     <li className="border-t border-app-border py-3 first:border-t-0 first:pt-0 last:pb-0">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <div className="font-medium text-app-text">Session {result.sessionId}</div>
-          <div className="text-app-caption text-app-text-muted">{fieldStatus.sessionType === "unavailable" || result.sessionType === "unknown" ? "Session type unavailable" : result.sessionType}</div>
+          <div className="font-medium text-app-text">{m.race_result_session_number({ id: result.sessionId })}</div>
+          <div className="text-app-caption text-app-text-muted">{fieldStatus.sessionType === "unavailable" || result.sessionType === "unknown" ? m.race_result_session_type_unavailable() : result.sessionType}</div>
         </div>
         <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
           <ResultAuthorityBadge status={result.outcomeStatus} />
@@ -109,14 +110,14 @@ function RecentResult({ result }: { result: RaceResult }) {
               {position.label} P{position.value}
             </span>
           )}
-          {result.isPodium === true && fieldStatus.isPodium !== "unavailable" && <span className="text-app-caption text-app-text-muted">Podium</span>}
-          {result.isFastestLap === true && fieldStatus.isFastestLap !== "unavailable" && <span className="text-app-caption text-app-text-muted">Fastest lap</span>}
+          {result.isPodium === true && fieldStatus.isPodium !== "unavailable" && <span className="text-app-caption text-app-text-muted">{m.race_result_podium()}</span>}
+          {result.isFastestLap === true && fieldStatus.isFastestLap !== "unavailable" && <span className="text-app-caption text-app-text-muted">{m.race_result_fastest_lap()}</span>}
         </div>
       </div>
-      {result.outcomeStatus === "unavailable" && <p className="mt-1 text-xs text-app-text-muted">No authoritative outcome was recorded for this session.</p>}
+      {result.outcomeStatus === "unavailable" && <p className="mt-1 text-xs text-app-text-muted">{m.race_result_no_authoritative_outcome_session()}</p>}
       {conflicts.length > 0 && (
         <div className="mt-2 rounded-lg border border-status-warning/30 bg-status-warning/5 px-3 py-2 text-xs text-status-warning" role="note">
-          <div className="font-medium">Conflicting result evidence</div>
+          <div className="font-medium">{m.race_result_conflicting_evidence()}</div>
           <ul className="mt-1 list-disc space-y-0.5 pl-4">
             {conflicts.map((conflict) => (
               <li key={conflict}>{conflict}</li>
@@ -135,7 +136,7 @@ export interface RaceResultSummaryProps {
   trackOrdinal?: number;
 }
 
-export function RaceResultSummary({ className, gameId, title = "Race results", trackOrdinal }: RaceResultSummaryProps) {
+export function RaceResultSummary({ className, gameId, title = m.race_result_summary_title(), trackOrdinal }: RaceResultSummaryProps) {
   const query = useQuery({
     queryKey: queryKeys.raceResultSummary(gameId, trackOrdinal),
     enabled: gameId != null,
@@ -164,7 +165,7 @@ export function RaceResultSummary({ className, gameId, title = "Race results", t
     return (
       <SummaryShell busy className={className} title={title}>
         <p className="mt-2 text-sm text-app-text-muted" role="status">
-          Loading recorded results…
+          {m.race_result_loading()}
         </p>
       </SummaryShell>
     );
@@ -173,7 +174,7 @@ export function RaceResultSummary({ className, gameId, title = "Race results", t
     return (
       <SummaryShell className={className} title={title}>
         <p className="mt-2 text-sm text-status-danger" role="alert">
-          Recorded results are unavailable right now.
+          {m.race_result_summary_unavailable()}
         </p>
       </SummaryShell>
     );
@@ -181,29 +182,29 @@ export function RaceResultSummary({ className, gameId, title = "Race results", t
   if (query.data.sessions === 0) {
     return (
       <SummaryShell className={className} title={title}>
-        <p className="mt-2 text-sm text-app-text-muted">No recorded race or qualifying outcomes yet.</p>
+        <p className="mt-2 text-sm text-app-text-muted">{m.race_result_no_outcomes()}</p>
       </SummaryShell>
     );
   }
 
   return (
     <SummaryShell className={className} title={title}>
-      <p className="mt-1 mb-3 text-xs text-app-text-muted">Confirmed outcomes use validated session data. Provisional outcomes use deterministic fallback and remain labeled.</p>
+      <p className="mt-1 mb-3 text-xs text-app-text-muted">{m.race_result_outcome_explanation()}</p>
       <ResultAggregateGrid aggregate={query.data} />
       {trackOrdinal == null && (
         <div className="mt-4">
-          <h3 className="text-sm font-medium text-app-text">Recent sessions</h3>
+          <h3 className="text-sm font-medium text-app-text">{m.race_result_recent_sessions()}</h3>
           {recentQuery.isLoading && (
             <p className="mt-2 text-xs text-app-text-muted" role="status">
-              Loading recent session details…
+              {m.race_result_loading_recent()}
             </p>
           )}
           {recentQuery.isError && (
             <p className="mt-2 text-xs text-status-danger" role="alert">
-              Recent session details are unavailable.
+              {m.race_result_recent_unavailable()}
             </p>
           )}
-          {recentQuery.data && recentQuery.data.length === 0 && <p className="mt-2 text-xs text-app-text-muted">No recent session details are available.</p>}
+          {recentQuery.data && recentQuery.data.length === 0 && <p className="mt-2 text-xs text-app-text-muted">{m.race_result_no_recent_details()}</p>}
           {recentQuery.data && recentQuery.data.length > 0 && (
             <ul className="mt-2">
               {recentQuery.data.map((result) => (

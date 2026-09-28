@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
+import { m } from "@/paraglide/messages";
 const useFileSrc = (file: File | undefined) => {
   const [src, setSrc] = useState<string | undefined>(undefined);
 
@@ -47,7 +48,7 @@ const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
   return (
     <img
       src={src}
-      alt="Attachment preview"
+      alt={m.ai_chat_attachment_preview()}
       className={cn("block h-auto max-h-[80vh] w-auto max-w-full object-contain", isLoaded ? "aui-attachment-preview-image-loaded" : "aui-attachment-preview-image-loading invisible")}
       onLoad={() => setIsLoaded(true)}
     />
@@ -67,7 +68,7 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
         render={isValidElement(children) ? children : <button type="button" />}
       />
       <DialogContent className="aui-attachment-preview-dialog-content max-w-3xl p-2 [&>button]:rounded-full [&>button]:bg-foreground/60 [&>button]:p-1 [&>button]:opacity-100 [&>button]:ring-0! [&>button]:hover:[&_svg]:text-destructive [&_svg]:text-background">
-        <DialogTitle className="aui-sr-only sr-only">Image Attachment Preview</DialogTitle>
+        <DialogTitle className="aui-sr-only sr-only">{m.ai_chat_image_attachment_preview()}</DialogTitle>
         <div className="aui-attachment-preview bg-background relative mx-auto flex max-h-[80dvh] w-full items-center justify-center overflow-hidden">
           <AttachmentPreview src={src} />
         </div>
@@ -81,7 +82,7 @@ const AttachmentThumb: FC = () => {
 
   return (
     <Avatar className="aui-attachment-tile-avatar h-full w-full rounded-none">
-      <AvatarImage src={src} alt="Attachment preview" className="aui-attachment-tile-image object-cover" />
+      <AvatarImage src={src} alt={m.ai_chat_attachment_preview()} className="aui-attachment-tile-image object-cover" />
       <AvatarFallback>
         <FileText className="aui-attachment-tile-fallback-icon text-muted-foreground size-8" />
       </AvatarFallback>
@@ -98,11 +99,11 @@ const AttachmentUI: FC = () => {
     const type = s.attachment.type;
     switch (type) {
       case "image":
-        return "Image";
+        return m.ai_chat_attachment_image();
       case "document":
-        return "Document";
+        return m.ai_chat_attachment_document();
       case "file":
-        return "File";
+        return m.ai_chat_attachment_file();
       default:
         return type;
     }
@@ -114,7 +115,7 @@ const AttachmentUI: FC = () => {
   const isUploading = uploadState === "uploading";
   const isError = uploadState === "error";
 
-  const errorMessage = useAuiState((s) => (s.attachment.status.type === "incomplete" && s.attachment.status.reason === "error" ? (s.attachment.status.message ?? "Upload failed") : undefined));
+  const errorMessage = useAuiState((s) => (s.attachment.status.type === "incomplete" && s.attachment.status.reason === "error" ? (s.attachment.status.message ?? m.ai_chat_upload_failed()) : undefined));
 
   return (
     <TooltipProvider>
@@ -129,7 +130,7 @@ const AttachmentUI: FC = () => {
                     "aui-attachment-tile bg-muted relative size-14 cursor-pointer overflow-hidden rounded-[calc(var(--composer-radius)-var(--composer-padding))] border transition-opacity hover:opacity-75",
                     isError && "border-destructive",
                   )}
-                  aria-label={`${typeLabel} attachment${isError ? ", upload failed" : isUploading ? ", uploading" : ""}`}
+                  aria-label={m.ai_chat_attachment_aria({ type: typeLabel, status: isError ? m.ai_chat_upload_failed() : isUploading ? m.ai_chat_uploading() : "" })}
                 />
               }
             >
@@ -162,7 +163,7 @@ const AttachmentRemove: FC = () => {
     <AttachmentPrimitive.Remove
       render={
         <TooltipIconButton
-          tooltip="Remove file"
+          tooltip={m.ai_chat_remove_file()}
           className="aui-attachment-tile-remove text-muted-foreground hover:[&_svg]:text-destructive absolute end-1.5 top-1.5 size-3.5 rounded-full bg-app-text opacity-100 shadow-sm hover:bg-app-text! [&_svg]:text-app-on-filled"
           side="top"
         />
@@ -194,12 +195,12 @@ export const ComposerAddAttachment: FC = () => {
     <ComposerPrimitive.AddAttachment
       render={
         <TooltipIconButton
-          tooltip="Add Attachment"
+          tooltip={m.ai_chat_add_attachment()}
           side="bottom"
           variant="ghost"
           size="icon"
           className="aui-composer-add-attachment hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30 size-7 rounded-full p-1 text-xs font-semibold"
-          aria-label="Add Attachment"
+          aria-label={m.ai_chat_add_attachment()}
         />
       }
     >

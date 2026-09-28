@@ -69,6 +69,7 @@ export const AnalyseChartsPanel = memo(
         const chartW = w - leftPad - rightPad;
         const cx = Math.max(leftPad + 2, leftPad + xFrac * chartW);
         line.style.display = "";
+        line.style.height = `${scroll.scrollHeight}px`;
         line.style.left = `${Math.round(cx)}px`;
       },
       [semanticFrames.length],
@@ -106,20 +107,32 @@ export const AnalyseChartsPanel = memo(
           <TelemetryChart series={[{ data: chartData.speed, color: "var(--telemetry-speed)", label: `${m.label_speed()} (${speedLabel})` }]} {...common} height={100} />
           <TelemetryChart
             series={[
-              { data: chartData.throttle, color: "var(--ch-throttle)", label: "Throttle %" },
-              { data: chartData.brake, color: "var(--ch-brake)", label: "Brake %" },
+              { data: chartData.throttle, color: "var(--ch-throttle)", label: m.analyse_chart_throttle() },
+              { data: chartData.brake, color: "var(--ch-brake)", label: m.analyse_chart_brake() },
             ]}
             {...common}
             height={100}
           />
           <TelemetryChart series={[{ data: chartData.rpm, color: "var(--telemetry-rpm)", label: m.dataguide_rpm() }]} {...common} height={100} />
           <TelemetryChart series={[{ data: chartData.steering, color: "var(--telemetry-steering)", label: m.analyse_chart_steering() }]} {...common} height={80} />
-          {chartData.drs && <TelemetryChart series={[{ data: chartData.drs, color: "var(--telemetry-drs)", label: "DRS" }]} {...common} height={40} />}
+          {chartData.wheelRotationFL && chartData.wheelRotationFR && chartData.wheelRotationRL && chartData.wheelRotationRR && (
+            <TelemetryChart
+              series={[
+                { data: chartData.wheelRotationFL, color: WHEEL_COLOR_VARS[0], label: `${m.analyse_chart_wheel_rotation()} FL (rad/s)` },
+                { data: chartData.wheelRotationFR, color: WHEEL_COLOR_VARS[1], label: `${m.analyse_chart_wheel_rotation()} FR (rad/s)` },
+                { data: chartData.wheelRotationRL, color: WHEEL_COLOR_VARS[2], label: `${m.analyse_chart_wheel_rotation()} RL (rad/s)` },
+                { data: chartData.wheelRotationRR, color: WHEEL_COLOR_VARS[3], label: `${m.analyse_chart_wheel_rotation()} RR (rad/s)` },
+              ]}
+              {...common}
+              height={80}
+            />
+          )}
+          {chartData.drs && <TelemetryChart series={[{ data: chartData.drs, color: "var(--telemetry-drs)", label: m.analyse_chart_drs() }]} {...common} height={40} />}
           {chartData.ersStore && chartData.ersDeployed && (
             <TelemetryChart
               series={[
-                { data: chartData.ersStore, color: "var(--telemetry-ers-store)", label: "ERS Store %" },
-                { data: chartData.ersDeployed, color: "var(--telemetry-ers-deployed)", label: "ERS Deployed %" },
+                { data: chartData.ersStore, color: "var(--telemetry-ers-store)", label: m.analyse_chart_ers_store() },
+                { data: chartData.ersDeployed, color: "var(--telemetry-ers-deployed)", label: m.analyse_chart_ers_deployed() },
               ]}
               {...common}
               height={80}
@@ -127,10 +140,10 @@ export const AnalyseChartsPanel = memo(
           )}
           <TelemetryChart
             series={[
-              { data: chartData.tireTempFL, color: WHEEL_COLOR_VARS[0], label: `${chartData.tireCoreTempFL || chartData.tireCarcassTempFL ? "Surface" : "Tire Temp"} FL ${units.tempLabel}` },
-              { data: chartData.tireTempFR, color: WHEEL_COLOR_VARS[1], label: `${chartData.tireCoreTempFR || chartData.tireCarcassTempFR ? "Surface" : "Tire Temp"} FR ${units.tempLabel}` },
-              { data: chartData.tireTempRL, color: WHEEL_COLOR_VARS[2], label: `${chartData.tireCoreTempRL || chartData.tireCarcassTempRL ? "Surface" : "Tire Temp"} RL ${units.tempLabel}` },
-              { data: chartData.tireTempRR, color: WHEEL_COLOR_VARS[3], label: `${chartData.tireCoreTempRR || chartData.tireCarcassTempRR ? "Surface" : "Tire Temp"} RR ${units.tempLabel}` },
+              { data: chartData.tireTempFL, color: WHEEL_COLOR_VARS[0], label: `${chartData.tireCoreTempFL || chartData.tireCarcassTempFL ? m.analyse_chart_surface_temp() : m.analyse_chart_tire_temp()} FL ${units.tempLabel}` },
+              { data: chartData.tireTempFR, color: WHEEL_COLOR_VARS[1], label: `${chartData.tireCoreTempFR || chartData.tireCarcassTempFR ? m.analyse_chart_surface_temp() : m.analyse_chart_tire_temp()} FR ${units.tempLabel}` },
+              { data: chartData.tireTempRL, color: WHEEL_COLOR_VARS[2], label: `${chartData.tireCoreTempRL || chartData.tireCarcassTempRL ? m.analyse_chart_surface_temp() : m.analyse_chart_tire_temp()} RL ${units.tempLabel}` },
+              { data: chartData.tireTempRR, color: WHEEL_COLOR_VARS[3], label: `${chartData.tireCoreTempRR || chartData.tireCarcassTempRR ? m.analyse_chart_surface_temp() : m.analyse_chart_tire_temp()} RR ${units.tempLabel}` },
             ]}
             {...common}
             height={80}
@@ -162,10 +175,10 @@ export const AnalyseChartsPanel = memo(
           {chartData.brakeTempFL && chartData.brakeTempFR && chartData.brakeTempRL && chartData.brakeTempRR && (
             <TelemetryChart
               series={[
-                { data: chartData.brakeTempFL, color: WHEEL_COLOR_VARS[0], label: `Brake FL ${units.tempLabel}` },
-                { data: chartData.brakeTempFR, color: WHEEL_COLOR_VARS[1], label: `Brake FR ${units.tempLabel}` },
-                { data: chartData.brakeTempRL, color: WHEEL_COLOR_VARS[2], label: `Brake RL ${units.tempLabel}` },
-                { data: chartData.brakeTempRR, color: WHEEL_COLOR_VARS[3], label: `Brake RR ${units.tempLabel}` },
+                { data: chartData.brakeTempFL, color: WHEEL_COLOR_VARS[0], label: `${m.analyse_wheels_brake()} FL ${units.tempLabel}` },
+                { data: chartData.brakeTempFR, color: WHEEL_COLOR_VARS[1], label: `${m.analyse_wheels_brake()} FR ${units.tempLabel}` },
+                { data: chartData.brakeTempRL, color: WHEEL_COLOR_VARS[2], label: `${m.analyse_wheels_brake()} RL ${units.tempLabel}` },
+                { data: chartData.brakeTempRR, color: WHEEL_COLOR_VARS[3], label: `${m.analyse_wheels_brake()} RR ${units.tempLabel}` },
               ]}
               {...common}
               height={80}

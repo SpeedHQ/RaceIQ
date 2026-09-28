@@ -15,6 +15,7 @@ import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "../games/lmu/recorder"
 import { readKunosFrames } from "../games/kunos/frame-reader";
 import { getServerGame } from "../games/registry";
 import { decompressIfGzipSync, iterateSessionCaptureRecords, iterateSessionFrames } from "./framing";
+import { applyFrameTime } from "./frame-time";
 
 export interface RecordedTelemetry {
   readonly packets: TelemetryPacket[];
@@ -44,7 +45,10 @@ function readFramedPackets(gameId: GameId, recordingPath: string): TelemetryPack
     }
     if (record.kind !== "frame") continue;
     const packet = game.tryParse(record.frame, parserState);
-    if (packet && !inContext) packets.push(packet);
+    if (packet && !inContext) {
+      applyFrameTime(packet, record.frameTimeMs);
+      packets.push(packet);
+    }
   }
   return packets;
 }

@@ -10,6 +10,7 @@ export interface Triplet {
   physics: Buffer;
   graphics: Buffer;
   staticData: Buffer;
+  frameTimeMs?: number;
 }
 
 /** Processor that may halt downstream handling by returning false. */

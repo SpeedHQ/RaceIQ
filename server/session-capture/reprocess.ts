@@ -5,14 +5,15 @@
 import { getServerGame } from "../games/registry";
 import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
 import type { GameId } from "../../shared/games/ids";
-import { loadSessionSource } from "./source-loader";
+import { loadSessionSource, iterateSessionCaptureRecordsFromSource } from "./source-loader";
 import { packetIndexToLegacyMotecOffset } from "../motec/source-archive";
 import { getLapsForSession, updateLapRawIndex, insertReprocessedLap, deleteLapsForSession } from "../db/lap-reprocessing-queries";
 import { updateSessionRawFile } from "../db/session-queries";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { readFrameStreamStart, iterateSessionCaptureRecords } from "./framing";
+import { withSessionCaptureMaintenanceLock } from "./cleanup";
+import { applyFrameTime } from "./frame-time";
 interface ReprocessResult {
   sessionId: number;
   lapsDetected: number;
@@ -43,6 +44,10 @@ export class SessionNotFoundError extends Error {
  * Updates lap frame indexes and metadata in the DB.
  */
 export async function reprocessSession(sessionId: number): Promise<ReprocessResult> {
+  return withSessionCaptureMaintenanceLock(() => reprocessSessionUnlocked(sessionId));
+}
+
+async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessResult> {
   const sessionRows = await db
     .select({ rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId, carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal })
     .from(sessions)
@@ -63,28 +68,16 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   const serverGame = getServerGame(gameId);
   const versionIdentity = currentTelemetryVersionIdentity(gameId);
 
-  const loaded = await loadSessionSource({
-    rawFile: session.rawFile, source: session.source, gameId: session.gameId as GameId,
+  const source = {
+    rawFile: session.rawFile, source: session.source, gameId,
     carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal,
-  });
+  };
+  const loaded = session.rawFile.endsWith(".motec.zip") ? await loadSessionSource(source) : null;
   const existingLaps = await getLapsForSession(sessionId);
-  if (loaded.kind === "capture") {
-    const frameStreamStart = readFrameStreamStart(loaded.buffer);
-    const hasSegmentBoundaries = [...iterateSessionCaptureRecords(loaded.buffer, frameStreamStart)]
-      .some((record) => record.kind === "segment-boundary");
-    if (hasSegmentBoundaries) {
-      return {
-        sessionId,
-        lapsDetected: existingLaps.length,
-        lapsUpdated: existingLaps.length,
-        strategy: "in-place",
-      };
-    }
-  }
 
   const capturingDb = new CapturingDbAdapter();
-  const detector = serverGame.createLapDetector({ db: capturingDb, bypassPacketRateFilter: true });
-  if (loaded.kind === "packets") {
+  let detector = serverGame.createLapDetector({ db: capturingDb, bypassPacketRateFilter: true });
+  if (loaded?.kind === "packets") {
     for (let index = 0; index < loaded.packets.length; index++) {
       const offset = loaded.offsetEncoding === "packet-index"
         ? index
@@ -92,17 +85,24 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
       await detector.feed(loaded.packets[index], offset);
     }
   } else {
-    const buf = loaded.buffer;
-    const frameStreamStart = readFrameStreamStart(buf);
+    // Canonical captures, including gzip and sparse records, stream one frame
+    // at a time; only MoTeC archives require packet materialization.
     let parserState = serverGame.createParserState?.() ?? null;
     let inContext = false;
-    for (const record of iterateSessionCaptureRecords(buf, frameStreamStart)) {
+    let segmentHasFrames = false;
+    for await (const record of iterateSessionCaptureRecordsFromSource(source)) {
       if (record.kind === "segment-boundary") {
+        // Imports start a fresh detector per segment while retaining the same
+        // session. A boundary discards the previous detector's partial lap.
+        detector = serverGame.createLapDetector({ db: capturingDb, bypassPacketRateFilter: true });
+        detector.expectCompleteLapStart?.();
         parserState = serverGame.createParserState?.() ?? null;
+        segmentHasFrames = false;
         inContext = false;
         continue;
       }
       if (record.kind === "segment-context") {
+        if (!segmentHasFrames) detector.expectCompleteLapStart?.();
         inContext = true;
         continue;
       }
@@ -111,8 +111,10 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
         continue;
       }
       if (record.kind !== "frame") continue;
+      if (!inContext) segmentHasFrames = true;
       const packet = serverGame.tryParse(record.frame, parserState);
       if (packet && !inContext) {
+        applyFrameTime(packet, record.frameTimeMs);
         const startingSession = !detector.session;
         await detector.feed(packet, record.prefixOffset);
         if (startingSession) detector.setCurrentLapByteOffset?.(record.prefixOffset);
@@ -127,13 +129,18 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   let strategy: "in-place" | "replace";
   let lapsUpdated = 0;
 
-  if (detectedLaps.length === existingLaps.length) {
-    // Same count — update frame indexes and metadata in-place, matched by lap number
+  const matched = new Set<number>();
+  const inPlaceMatches = detectedLaps.map((detected) => {
+    const existing = existingLaps.find((lap) => lap.lapNumber === detected.lapNumber && lap.rawByteOffset === detected.rawByteOffset && !matched.has(lap.id))
+      ?? existingLaps.find((lap) => lap.lapNumber === detected.lapNumber && !matched.has(lap.id));
+    if (existing) matched.add(existing.id);
+    return existing;
+  });
+  if (detectedLaps.length === existingLaps.length && inPlaceMatches.every(Boolean)) {
     strategy = "in-place";
-    const existingByLapNum = new Map(existingLaps.map(l => [l.lapNumber, l]));
-    for (const detected of detectedLaps) {
-      const existing = existingByLapNum.get(detected.lapNumber);
-      if (!existing) continue;
+    for (let index = 0; index < detectedLaps.length; index++) {
+      const detected = detectedLaps[index]!;
+      const existing = inPlaceMatches[index]!;
       const sectors = detected.sectors ? [...detected.sectors] : null;
       await updateLapRawIndex(
         existing.id,
@@ -148,30 +155,16 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
       lapsUpdated++;
     }
   } else {
-    // Count changed — rebuild detected laps. Match old rows by lap number and
-    // raw offset so notes and tune links survive on detected replacements.
-    // Existing rows without a detected replacement are removed.
+    // Rebuild when count or lap numbers change. Offset matches preserve notes,
+    // tune links and favourites even when detector changes a lap's number.
     strategy = "replace";
-    const candidatesByLapNumber = new Map<
-      number,
-      (typeof existingLaps)[number][]
-    >();
-    for (const existing of existingLaps) {
-      const candidates = candidatesByLapNumber.get(existing.lapNumber);
-      if (candidates) candidates.push(existing);
-      else candidatesByLapNumber.set(existing.lapNumber, [existing]);
-    }
+    const available = [...existingLaps];
     const replacements = detectedLaps.map((detected) => {
-      const candidates = candidatesByLapNumber.get(detected.lapNumber) ?? [];
-      const exactIndex = candidates.findIndex(
-        (candidate) =>
-          candidate.rawByteOffset === detected.rawByteOffset,
-      );
-      const candidateIndex = exactIndex >= 0 ? exactIndex : 0;
-      const preserved =
-        candidates.length > 0
-          ? candidates.splice(candidateIndex, 1)[0]
-          : undefined;
+      const exact = detected.rawByteOffset == null ? -1
+        : available.findIndex((lap) => lap.rawByteOffset === detected.rawByteOffset);
+      const byNumber = exact >= 0 ? exact
+        : available.findIndex((lap) => lap.lapNumber === detected.lapNumber);
+      const preserved = byNumber >= 0 ? available.splice(byNumber, 1)[0] : undefined;
       return { detected, preserved };
     });
     await deleteLapsForSession(sessionId);
@@ -182,6 +175,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
         detected.lapNumber,
         detected.lapTime,
         detected.isValid,
+        preserved?.isFavorite ?? false,
         detected.rawByteOffset,
         detected.rawFrameCount,
         preserved?.tuneId ?? null,

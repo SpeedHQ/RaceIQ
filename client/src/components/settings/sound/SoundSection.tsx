@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { getSoundEnabled, getSoundType, getSoundUrl, getSoundVolume, SOUND_PRESETS, setSoundEnabled, setSoundType, setSoundUrl, setSoundVolume } from "@/lib/settings-storage";
 import { m } from "@/paraglide/messages";
 import { playBlip, preloadSound, removeCachedSound } from "@/lib/sound";
@@ -16,27 +17,19 @@ export function SoundSection() {
       <h2 className="text-lg font-semibold text-app-text mb-1">{m.label_sound()}</h2>
       <p className="text-sm text-app-text-muted mb-4">{m.settings_sound_desc()}</p>
       <div className="flex items-center gap-3 mb-4">
-        <Label className="text-app-text-secondary">{m.settings_sound_sector_blip()}</Label>
-        <Button
-          size="sm"
-          variant={soundEnabled ? "selected-toggle" : "outline"}
-          onClick={() => {
-            setSoundEnabledState(true);
-            setSoundEnabled(true);
+        <Label htmlFor="settings-sound-enabled" className="text-app-text-secondary">
+          {m.settings_sound_sector_blip()}
+        </Label>
+        <Switch
+          id="settings-sound-enabled"
+          checked={soundEnabled}
+          aria-label={m.settings_sound_sector_blip()}
+          onCheckedChange={(checked) => {
+            setSoundEnabledState(checked);
+            setSoundEnabled(checked);
           }}
-        >
-          {m.common_on()}
-        </Button>
-        <Button
-          size="sm"
-          variant={!soundEnabled ? "selected-toggle" : "outline"}
-          onClick={() => {
-            setSoundEnabledState(false);
-            setSoundEnabled(false);
-          }}
-        >
-          {m.common_off()}
-        </Button>
+        />
+        <span className="text-sm text-app-text-muted">{soundEnabled ? m.common_on() : m.common_off()}</span>
       </div>
       <div className="mb-4">
         <Label className="text-app-text-secondary mb-2 block">{m.settings_sound_preset()}</Label>

@@ -22,6 +22,11 @@ import { LAPS_ZIP_LIMITS, unzipBounded } from "../archive/bounded-unzip";
 import type { SessionOwnership } from "../../shared/racing/sessions/types";
 import { getLapsRaw } from "../db/lap-read-queries";
 import { loadSessionCapture } from "../session-capture/source-loader";
+import { encodeLmuSparseFrame } from "../session-capture/lmu-sparse";
+import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "../games/lmu/source-frame";
+import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC } from "../games/kunos/pack-triplet";
+import { encodeKunosSparseFrame } from "../session-capture/kunos-sparse";
+import { encodeGenericSparseFrame, genericFrameIdentity } from "../session-capture/generic-sparse";
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { extractMotecArchive } from "../motec/import-staging";
@@ -41,6 +46,7 @@ import {
   encodeSegmentContextFrame,
   gzipBufferSync,
   iterateSessionCaptureRecords,
+  readFramePrefix,
   type SessionCaptureRecord,
   sessionFrameAt,
 } from "../session-capture/framing";
@@ -186,16 +192,20 @@ function buildIRacingContextRecord(
 ): Buffer | null {
   const state = createIRacingSourceDecoderState();
   let latest: IRacingSourceFrame | null = null;
+  let latestFrameTimeMs: number | undefined;
   for (const record of iterateSessionCaptureRecords(buf)) {
     if (record.kind !== "frame") continue;
     if (record.offset >= beforeOffset && latest) break;
     const decoded = decodeIRacingSourceFrame(record.frame, state);
-    if (decoded) latest = decoded;
+    if (decoded) {
+      latest = decoded;
+      latestFrameTimeMs = record.frameTimeMs;
+    }
     if (record.offset >= beforeOffset) break;
   }
   if (!latest) return null;
   const context = new IRacingSourceFrameEncoder().encode(latest);
-  return Buffer.concat([encodeFrameLength(context.length), context]);
+  return Buffer.concat([encodeFrameLength(context.length, latestFrameTimeMs), context]);
 }
 function buildF1ContextRecords(buf: Buffer, beforeOffset: number): Buffer[] {
   const selected = [...iterateSessionCaptureRecords(buf, beforeOffset)]
@@ -210,7 +220,7 @@ function buildF1ContextRecords(buf: Buffer, beforeOffset: number): Buffer[] {
     if (record.kind !== "frame") continue;
     if (parseF1Header(record.frame).sessionUID !== sessionUID) continue;
     records.push(Buffer.concat([
-      encodeFrameLength(record.frame.length),
+      encodeFrameLength(record.frame.length, record.frameTimeMs),
       record.frame,
     ]));
   }
@@ -229,10 +239,13 @@ function iracingSegmentEnd(
   let seen = 0;
   let staleLastLap: number | undefined;
   for (const record of iterateSessionCaptureRecords(buf, start)) {
+    if (record.kind === "segment-boundary") return end;
     if (record.kind !== "frame") continue;
+    const prefix = readFramePrefix(buf, record.offset);
+    if (!prefix) throw new Error(`Invalid frame prefix at ${record.offset}`);
     const decoded = decodeIRacingSourceFrame(record.frame, state);
     seen++;
-    end = record.offset + 4 + record.frame.length;
+    end = record.offset + prefix.prefixBytes + prefix.length;
     const lastLap = decoded?.values.LapLastLapTime;
     if (seen <= frameCount && typeof lastLap === "number") staleLastLap = lastLap;
     if (seen > frameCount && typeof lastLap === "number" && lastLap > 0 && staleLastLap !== undefined && Math.abs(lastLap - staleLastLap) > 0.000_1) return end;
@@ -246,7 +259,10 @@ function buildParserContextRecords(buf: Buffer, beforeOffset: number): Buffer[] 
     if (record.kind === "segment-boundary") {
       records.length = 0;
     } else if (record.kind === "frame") {
-      records.push(buf.subarray(record.offset, record.offset + 4 + record.frame.length));
+      records.push(Buffer.concat([
+        encodeFrameLength(record.frame.length, record.frameTimeMs),
+        record.frame,
+      ]));
     } else if (record.kind === "acc-broadcast" || record.kind === "acc-broadcast-malformed" || record.kind === "metadata") {
       records.push(buf.subarray(record.offset, record.offset + 8 + buf.readUInt32LE(record.offset + 4)));
     }
@@ -254,6 +270,57 @@ function buildParserContextRecords(buf: Buffer, beforeOffset: number): Buffer[] 
   return records;
 }
 
+/** Re-encode lap frames with segment-local checkpoints and source identities. */
+function sparseLapRecords(buf: Buffer, start: number, end: number, gameId: GameId): Buffer[] {
+  const parts: Buffer[] = [];
+  let previous: Buffer | null = null;
+  let checkpoint = 0;
+  let outputOffset = 0;
+  let emitted = 0;
+  for (const record of iterateSessionCaptureRecords(buf, start)) {
+    if (record.offset >= end) break;
+    if (record.kind === "acc-broadcast" || record.kind === "acc-broadcast-malformed" || record.kind === "metadata") {
+      parts.push(buf.subarray(record.offset, record.offset + 8 + buf.readUInt32LE(record.offset + 4)));
+      outputOffset += 8 + buf.readUInt32LE(record.offset + 4);
+      continue;
+    }
+    if (record.kind !== "frame") continue;
+    const isLmuV2 = gameId === "lmu" && record.frame.length === LMU_SOURCE_FRAME_V2_SIZE &&
+      record.frame.subarray(0, LMU_SOURCE_FRAME_MAGIC.length).equals(LMU_SOURCE_FRAME_MAGIC);
+    const magic = record.frame.length >= 4 ? record.frame.readUInt32LE(0) : 0;
+    const isKunos = (gameId === "acc" && magic === ACC_PACKED_MAGIC) ||
+      (gameId === "ac-evo" && magic === ACEVO_PACKED_MAGIC);
+    const supportsGeneric = gameId === "fm-2023" || gameId === "f1-2025" || gameId === "iracing";
+    const identity = supportsGeneric ? genericFrameIdentity(record.frame) : null;
+    const canDelta = isLmuV2 || isKunos || identity !== null;
+    const sameIdentity = previous !== null && (
+      (isLmuV2 && previous.length === record.frame.length) ||
+      (isKunos && previous.length === record.frame.length) ||
+      (identity !== null && genericFrameIdentity(previous) === identity)
+    );
+    let frame = record.frame;
+    let full = !canDelta || !sameIdentity || emitted % 128 === 0;
+    if (!full) {
+      if (isLmuV2) frame = encodeLmuSparseFrame(record.frame, previous!, outputOffset - checkpoint);
+      else if (isKunos) frame = encodeKunosSparseFrame(record.frame, previous!, outputOffset - checkpoint);
+      else {
+        const sparse = encodeGenericSparseFrame(record.frame, previous!, outputOffset - checkpoint);
+        if (sparse.length < record.frame.length) frame = sparse;
+        else full = true;
+      }
+    }
+    if (full) {
+      frame = record.frame;
+      checkpoint = outputOffset;
+    }
+    const prefix = encodeFrameLength(frame.length, record.frameTimeMs);
+    parts.push(prefix, frame);
+    outputOffset += prefix.length + frame.length;
+    previous = canDelta ? record.frame : null;
+    emitted++;
+  }
+  return parts;
+}
 function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
@@ -334,7 +401,10 @@ export async function buildLapsZip(
           ? [encodeSegmentContextFrame(), ...context, encodeSegmentContextEndFrame()]
           : []),
         ...(prefix ? [prefix] : []),
-        buf.subarray(start, end),
+        ...(first.gameId === "lmu" || first.gameId === "acc" || first.gameId === "ac-evo" ||
+          first.gameId === "fm-2023" || first.gameId === "f1-2025" || first.gameId === "iracing"
+          ? sparseLapRecords(buf, start, end, first.gameId)
+          : [buf.subarray(start, end)]),
       ]));
     }
     if (segments.length === 0) continue;

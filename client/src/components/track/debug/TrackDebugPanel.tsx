@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import { useEffect, useState } from "react";
 import { client } from "@/lib/rpc";
 import { useGameId } from "@/stores/game";
@@ -71,14 +72,14 @@ export function TrackDebugPanel({
   }, [trackOrdinal, gid]);
 
   if (loading) {
-    return <div className="text-app-subtext text-app-text-dim py-8 text-center">Loading debug data...</div>;
+    return <div className="text-app-subtext text-app-text-dim py-8 text-center">{m.trackdebugpanel_loading()}</div>;
   }
 
   return (
     <div className="grid h-auto grid-cols-1 gap-4 @5xl/workspace:h-[calc(100vh-160px)] @5xl/workspace:grid-cols-[1fr_280px]">
       {mapUrl?.startsWith("/api/lmu-assets/") ? (
         <div className="min-h-0 rounded-lg border border-app-border bg-app-bg">
-          <InlineTrackMap src={mapUrl} alt="LMU extracted track geometry" layers="debug" className="h-full w-full p-3" />
+          <InlineTrackMap src={mapUrl} alt={m.trackdebugpanel_lmu_geometry()} layers="debug" className="h-full w-full p-3" />
         </div>
       ) : (
         <TrackDebugCanvas
@@ -102,39 +103,39 @@ export function TrackDebugPanel({
       {/* Info sidebar */}
       <div className="flex flex-col gap-3 overflow-auto">
         <div className="bg-app-surface/50 rounded-lg border border-app-border p-3">
-          <div className="text-app-label text-app-text-muted uppercase tracking-wider mb-2">Outline</div>
+          <div className="text-app-label text-app-text-muted uppercase tracking-wider mb-2">{m.trackdebugpanel_outline()}</div>
           <div className="space-y-1 text-app-body">
             <div className="flex justify-between">
-              <span className="text-app-text-muted">Points</span>
+              <span className="text-app-text-muted">{m.trackdebugpanel_points()}</span>
               <span className="font-mono text-app-text">{outline?.length ?? 0}</span>
             </div>
           </div>
         </div>
 
         <div className="bg-app-surface/50 rounded-lg border border-app-border p-3">
-          <div className="text-app-label text-app-text-muted uppercase tracking-wider mb-2">Boundaries</div>
+          <div className="text-app-label text-app-text-muted uppercase tracking-wider mb-2">{m.trackdebugpanel_boundaries()}</div>
           <div className="space-y-1 text-app-body">
             <div className="flex justify-between">
-              <span className="text-app-text-muted">Available</span>
-              <span className={`font-mono ${boundaries ? "text-status-success" : "text-status-danger"}`}>{boundaries ? "Yes" : "No"}</span>
+              <span className="text-app-text-muted">{m.trackdebugpanel_available()}</span>
+              <span className={`font-mono ${boundaries ? "text-status-success" : "text-status-danger"}`}>{boundaries ? m.trackdetail_yes() : m.curbdebug_no()}</span>
             </div>
             {boundaries && (
               <>
                 <div className="flex justify-between">
-                  <span className="text-app-text-muted">Left edge pts</span>
+                  <span className="text-app-text-muted">{m.trackdebugpanel_left_edge_pts()}</span>
                   <span className="font-mono text-app-text">{boundaries.leftEdge.length}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-app-text-muted">Right edge pts</span>
+                  <span className="text-app-text-muted">{m.trackdebugpanel_right_edge_pts()}</span>
                   <span className="font-mono text-app-text">{boundaries.rightEdge.length}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-app-text-muted">Coord system</span>
+                  <span className="text-app-text-muted">{m.trackdebugpanel_coord_system()}</span>
                   <span className="font-mono text-app-text">{boundaries.coordSystem}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-app-text-muted">Pit lane</span>
-                  <span className={`font-mono ${boundaries.pitLane ? "text-status-success" : "text-app-text-dim"}`}>{boundaries.pitLane ? `${boundaries.pitLane.length} pts` : "None"}</span>
+                  <span className="text-app-text-muted">{m.trackdebugpanel_pit_lane()}</span>
+                  <span className={`font-mono ${boundaries.pitLane ? "text-status-success" : "text-app-text-dim"}`}>{boundaries.pitLane ? `${boundaries.pitLane.length} pts` : m.trackdebugpanel_none()}</span>
                 </div>
               </>
             )}

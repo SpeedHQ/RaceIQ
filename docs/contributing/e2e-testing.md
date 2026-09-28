@@ -28,7 +28,7 @@ Audit route families, not only home pages:
 - Global: `/`, `/portable`, `/portable/combo-1`, `/portable/combo-2`, `/dev`.
 - Shared game routes: `/:gameid`, `/:gameid/analyse`, `/:gameid/cars`, `/:gameid/chats`, `/:gameid/compare`, `/:gameid/sessions`, `/:gameid/tracks`, `/:gameid/tracks/:trackOrdinal/info`, and each track detail tab.
 - Capability-gated shared routes: `/:gameid/driver` and `/:gameid/experiments`. Support is defined in `client/src/lib/game-routes.ts`; see [game feature coverage](../reference/game-feature-coverage.md).
-- Live surfaces: `/fm23/live`, `/f125/live`, `/acc/live`, `/ac-evo/live`, and the specialized `/iracing/live/driver` and `/iracing/live/pit`.
+- Live surfaces: `/live` for Driver dashboards and `/live/pit` for Forza Motorsport/iRacing Pit Crew; detected telemetry selects dashboard game.
 - Explicit raw/setup surfaces: `/fm23/raw`, `/fm23/setups` (catalog/new/edit/import and car ordinal); `/f125/raw`, `/f125/setups`, `/f125/tunes`; `/acc/raw`, `/acc/setups` (new/edit/import); `/ac-evo/raw`, `/ac-evo/setups` (new/edit/import); `/iracing/raw`.
 - Route reachability checks must include navigation into and back out of each family. A page that renders shell only is not functional coverage.
 
@@ -207,6 +207,7 @@ bun run snapshot:test
 ```
 
 Generated snapshot PNGs are gitignored. Pull-request CI renders the base and PR revisions on the same runner, compares those outputs directly, and publishes visual differences as review warnings.
+Snapshot tests intercept `/api/*` with explicit offline fixtures; unexpected requests fail instead of reaching a live backend. Add fixture responses when new stories depend on API data.
 
 Snapshots cover reusable primitives and dashboard stories. They do not cover route data or native adapter semantics.
 

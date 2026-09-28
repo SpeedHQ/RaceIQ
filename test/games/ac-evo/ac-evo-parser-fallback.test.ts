@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../../server/games/ac-evo/parser";
-import { PHYSICS, GRAPHICS_EVO, STATIC_EVO, ACEVO_STATUS } from "../../../server/games/ac-evo/structs";
+import { PHYSICS, GRAPHICS_EVO, STATIC_EVO, TYRE_STATE, ACEVO_STATUS } from "../../../server/games/ac-evo/structs";
 
 function emptyBuffers() {
   const graphics = Buffer.alloc(GRAPHICS_EVO.SIZE);
@@ -100,5 +100,31 @@ describe("AC Evo parser — malformed/empty STATIC recovery", () => {
     expect(packet).not.toBeNull();
     expect(packet!.Fuel).toBeCloseTo(42);
     expect(packet!.FuelCapacity).toBeCloseTo(100);
+  });
+
+  test("reads graphics contact-patch bands with wheel-relative inner and outer, not mirrored physics core", () => {
+    const { physics, graphics, staticData } = emptyBuffers();
+    const wheels = [
+      { wheel: "FL", base: GRAPHICS_EVO.tyre_lf_base.offset, left: 71, middle: 72, right: 73 },
+      { wheel: "FR", base: GRAPHICS_EVO.tyre_rf_base.offset, left: 81, middle: 82, right: 83 },
+      { wheel: "RL", base: GRAPHICS_EVO.tyre_lr_base.offset, left: 91, middle: 92, right: 93 },
+      { wheel: "RR", base: GRAPHICS_EVO.tyre_rr_base.offset, left: 101, middle: 102, right: 103 },
+    ] as const;
+    for (const { wheel, base, left, middle, right } of wheels) {
+      physics.writeFloatLE(60, PHYSICS[`tyreCore${wheel}`].offset);
+      physics.writeFloatLE(60, PHYSICS[`tyreTemp${wheel}`].offset);
+      graphics.writeFloatLE(left, base + TYRE_STATE.temperatureLeft);
+      graphics.writeFloatLE(middle, base + TYRE_STATE.temperatureCenter);
+      graphics.writeFloatLE(right, base + TYRE_STATE.temperatureRight);
+    }
+
+    const packet = parseAcEvoBuffers(physics, graphics, staticData, createAcEvoParserCache())!;
+    for (const { wheel, left, middle, right } of wheels) {
+      expect(packet[`TireTemp${wheel}`]).toBe(middle);
+      expect(packet[`TireCarcassTemp${wheel}`]).toBe(60);
+      expect(packet[`TireSurfaceTempInner${wheel}`]).toBe(wheel.endsWith("L") ? right : left);
+      expect(packet[`TireSurfaceTempMiddle${wheel}`]).toBe(middle);
+      expect(packet[`TireSurfaceTempOuter${wheel}`]).toBe(wheel.endsWith("L") ? left : right);
+    }
   });
 });

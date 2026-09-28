@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import type { CalibrationComparison, CalibrationTransform } from "./calibration-comparison";
 
 function TransformValues({ transform }: { transform: CalibrationTransform }) {
@@ -22,19 +23,19 @@ export function CalibrationComparisonSection({
   return (
     <section className="rounded-lg border border-app-border bg-app-surface/50 p-3" aria-labelledby="calibration-comparison-title">
       <div id="calibration-comparison-title" className="mb-2 text-app-label uppercase tracking-wider text-app-text-muted">
-        Calibration comparison
+        {m.trackcalibration_title()}
       </div>
 
       {!comparison ? (
-        <p className="text-app-compact text-app-text-dim">Comparison data unavailable.</p>
+        <p className="text-app-compact text-app-text-dim">{m.trackcalibration_unavailable()}</p>
       ) : (
         <>
           <div className="space-y-1.5 text-app-compact">
             <div className="flex items-start gap-2">
               <span className="mt-1.5 h-0.5 w-3 shrink-0 bg-app-accent" aria-hidden="true" />
               <div className="min-w-0">
-                <div className="text-app-text-secondary">Current</div>
-                {comparison.current ? <TransformValues transform={comparison.current} /> : <span className="text-app-text-dim">Not calibrated</span>}
+                <div className="text-app-text-secondary">{m.trackcalibration_current()}</div>
+                {comparison.current ? <TransformValues transform={comparison.current} /> : <span className="text-app-text-dim">{m.trackcalibration_not_calibrated()}</span>}
               </div>
             </div>
 
@@ -43,10 +44,10 @@ export function CalibrationComparisonSection({
                 <span className="mt-1.5 h-0.5 w-3 shrink-0 bg-status-warning/60" aria-hidden="true" />
                 <div className="min-w-0">
                   <div className="text-app-text-secondary">
-                    Fit #{entry.sequence} · Lap {entry.lapNumber}
+                    {m.trackcalibration_fit_lap({ sequence: entry.sequence, lapNumber: entry.lapNumber })}
                   </div>
                   <div className="font-mono tabular-nums text-app-text-dim">
-                    {entry.rmse == null ? "RMSE —" : `${entry.rmse.toFixed(2)} m RMSE`} · {entry.points} pts
+                    {entry.rmse == null ? m.trackcalibration_rmse_unavailable({ points: entry.points }) : m.trackcalibration_rmse({ rmse: entry.rmse.toFixed(2), points: entry.points })}
                   </div>
                 </div>
               </div>
@@ -55,7 +56,7 @@ export function CalibrationComparisonSection({
 
           {historyCount === 0 && (
             <p id="calibration-history-status" className="mt-2 text-app-compact text-app-text-dim">
-              No accepted calibration fits yet · {comparison.pointsCollected} points collected
+              {m.trackcalibration_no_history({ points: comparison.pointsCollected })}
             </p>
           )}
 
@@ -68,7 +69,7 @@ export function CalibrationComparisonSection({
               aria-describedby={historyCount === 0 ? "calibration-history-status" : undefined}
               onChange={(event) => onShowHistoryChange(event.target.checked)}
             />
-            <span>Show historical fits</span>
+            <span>{m.trackcalibration_show_history()}</span>
           </label>
         </>
       )}

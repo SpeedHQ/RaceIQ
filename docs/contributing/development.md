@@ -13,14 +13,11 @@ cd client && bun install && cd ..
 bun run dev
 ```
 
-Default services:
+`bun run dev` shares one Portless proxy at `http://raceiq.localhost:1355` (main checkout). Linked Git worktrees get URLs of form `http://<branch>.raceiq-<worktree-id>.localhost:1355` (Portless prints exact URL); stable path-derived ID keeps even detached worktrees or branches with same short name distinct. Run `bun run dev` in each worktree concurrently. Backend HTTP ports are allocated per invocation; all dev servers listen for UDP telemetry on `5301` by default, matching Forza's default Data Out port. Vite also uses a Portless-assigned port. Each worktree stores development data in its own `./data` directory.
 
-- HTTP and WebSocket server: `http://localhost:3117`
-- Vite development client: `http://localhost:5173`
-- UDP telemetry listener: `5301`
-- Development data: `./data`
+Standalone `bun run dev:server` defaults to HTTP/WebSocket port `3117`, Vite alone defaults to `5173`, and UDP telemetry defaults to persisted settings (`5301` initially). `bun run dev` overrides persisted UDP settings with port `5301`; set `RACEIQ_DEV_UDP_PORT` to override it. Multiple concurrent dev servers cannot all bind the same UDP port.
 
-Set `SERVER_PORT`, `UDP_PORT`, or `DATA_DIR` to override those defaults. Use `bun run dev --onboarding false` to bypass onboarding without changing persisted settings.
+Set `SERVER_PORT` to override automatic backend port selection or `DATA_DIR` to override development data location. Use `bun run dev --onboarding false` to bypass onboarding without changing persisted settings.
 
 ## Seed a disposable database
 
@@ -41,7 +38,7 @@ bun run db:seed --games fm-2023,acc,ac-evo,iracing
 bun run db:seed --force
 ```
 
-Seed is idempotent. `--clean` deletes all database rows and referenced captured-session files, preserves schema migrations, then reseeds; use disposable `DATA_DIR` because it is destructive. `--reset` replaces seeded rows only. Without `--force`, seed refuses to mix demo data into a database containing captured user data.
+Seed is idempotent. Seeded sessions retain live `source` metadata (`NULL`); seed ownership is tracked in notes for `--reset`. `--clean` deletes all database rows and referenced captured-session files, preserves schema migrations, then reseeds; use disposable `DATA_DIR` because it is destructive. `--reset` replaces seeded rows only. Without `--force`, seed refuses to mix demo data into a database containing captured user data.
 
 ## Database changes
 

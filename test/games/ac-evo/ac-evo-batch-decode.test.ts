@@ -18,7 +18,7 @@ import { parseRawLapFrames, parseRawLapFramesFromBuffer, parseSessionLapsBatched
 import { parseAcEvoLapIndex } from "../../../server/games/kunos/lap-index";
 import { createAcEvoParserCache, parseAcEvoBuffers } from "../../../server/games/ac-evo/parser";
 import { unpackTriplet } from "../../../server/games/kunos/pack-triplet";
-import { loadSessionCapture, setCaptureFileFactoryForTest, clearRawFileCacheForTest } from "../../../server/session-capture/source-loader";
+import { loadSessionCapture, setCaptureFileFactoryForTest, clearSessionCaptureCache } from "../../../server/session-capture/source-loader";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -123,7 +123,7 @@ test("batch decode streams capture without materializing full file", async () =>
   const source = { rawFile: FIXTURE, source: null, gameId: "ac-evo" as const, carOrdinal: 0, trackOrdinal: 0 };
   const originalNow = Date.now;
   Date.now = () => 1_000_000_000;
-  clearRawFileCacheForTest();
+  clearSessionCaptureCache();
   setCaptureFileFactoryForTest((path) => {
     const file = Bun.file(path);
     return {
@@ -143,6 +143,6 @@ test("batch decode streams capture without materializing full file", async () =>
   } finally {
     Date.now = originalNow;
     setCaptureFileFactoryForTest(null);
-    clearRawFileCacheForTest();
+    clearSessionCaptureCache();
   }
 }, { timeout: 90_000 });

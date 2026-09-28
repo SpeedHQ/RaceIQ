@@ -40,83 +40,83 @@ export function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
       key: "tires",
       title: sectionTitles.tires,
       rows: rows(
-        row("Front Pressure", settings.tires?.frontPressure, (v) => `${v.toFixed(2)} bar`),
-        row("Rear Pressure", settings.tires?.rearPressure, (v) => `${v.toFixed(2)} bar`),
+        row(m.tune_field_front_pressure(), settings.tires?.frontPressure, (v) => `${v.toFixed(2)} bar`),
+        row(m.tune_field_rear_pressure(), settings.tires?.rearPressure, (v) => `${v.toFixed(2)} bar`),
       ),
     },
     {
       key: "gearing",
       title: sectionTitles.gearing,
       rows: [
-        ...rows(row("Final Drive", settings.gearing?.finalDrive, (v) => v.toFixed(2))),
-        ...ratios.map((ratio, index) => [`Gear ${index + 1}`, ratio.toFixed(2)] as Row),
-        ...(settings.gearing?.description ? [["Notes", settings.gearing.description] as Row] : []),
+        ...rows(row(m.tune_field_final_drive(), settings.gearing?.finalDrive, (v) => v.toFixed(2))),
+        ...ratios.map((ratio, index) => [m.tune_gear_number({ number: index + 1 }), ratio.toFixed(2)] as Row),
+        ...(settings.gearing?.description ? [[m.tune_field_notes(), settings.gearing.description] as Row] : []),
       ],
     },
     {
       key: "alignment",
       title: sectionTitles.alignment,
       rows: rows(
-        row("Front Camber", settings.alignment?.frontCamber, (v) => `${v.toFixed(1)}°`),
-        row("Rear Camber", settings.alignment?.rearCamber, (v) => `${v.toFixed(1)}°`),
-        row("Front Toe", settings.alignment?.frontToe, (v) => `${v.toFixed(1)}°`),
-        row("Rear Toe", settings.alignment?.rearToe, (v) => `${v.toFixed(1)}°`),
-        row("Front Caster", settings.alignment?.frontCaster, (v) => `${v.toFixed(1)}°`),
+        row(m.tune_field_front_camber(), settings.alignment?.frontCamber, (v) => `${v.toFixed(1)}°`),
+        row(m.tune_field_rear_camber(), settings.alignment?.rearCamber, (v) => `${v.toFixed(1)}°`),
+        row(m.tune_field_front_toe(), settings.alignment?.frontToe, (v) => `${v.toFixed(1)}°`),
+        row(m.tune_field_rear_toe(), settings.alignment?.rearToe, (v) => `${v.toFixed(1)}°`),
+        row(m.tune_field_front_caster(), settings.alignment?.frontCaster, (v) => `${v.toFixed(1)}°`),
       ),
     },
     {
       key: "antiRollBars",
       title: sectionTitles.antiRollBars,
       rows: rows(
-        row("Front", settings.antiRollBars?.front, (v) => v.toFixed(1)),
-        row("Rear", settings.antiRollBars?.rear, (v) => v.toFixed(1)),
+        row(m.tune_position_front(), settings.antiRollBars?.front, (v) => v.toFixed(1)),
+        row(m.tune_position_rear(), settings.antiRollBars?.rear, (v) => v.toFixed(1)),
       ),
     },
     {
       key: "springs",
       title: sectionTitles.springs,
       rows: rows(
-        row("Front Rate", settings.springs?.frontRate, (v) => `${v.toFixed(1)} ${springUnit}`),
-        row("Rear Rate", settings.springs?.rearRate, (v) => `${v.toFixed(1)} ${springUnit}`),
-        row("Front Height", settings.springs?.frontHeight, (v) => `${v.toFixed(1)} ${heightUnit}`),
-        row("Rear Height", settings.springs?.rearHeight, (v) => `${v.toFixed(1)} ${heightUnit}`),
+        row(m.tune_field_front_rate(), settings.springs?.frontRate, (v) => `${v.toFixed(1)} ${springUnit}`),
+        row(m.tune_field_rear_rate(), settings.springs?.rearRate, (v) => `${v.toFixed(1)} ${springUnit}`),
+        row(m.tune_field_front_height(), settings.springs?.frontHeight, (v) => `${v.toFixed(1)} ${heightUnit}`),
+        row(m.tune_field_rear_height(), settings.springs?.rearHeight, (v) => `${v.toFixed(1)} ${heightUnit}`),
       ),
     },
     {
       key: "damping",
       title: sectionTitles.damping,
       rows: rows(
-        row("Front Bump", settings.damping?.frontBump, (v) => v.toFixed(1)),
-        row("Rear Bump", settings.damping?.rearBump, (v) => v.toFixed(1)),
-        row("Front Rebound", settings.damping?.frontRebound, (v) => v.toFixed(1)),
-        row("Rear Rebound", settings.damping?.rearRebound, (v) => v.toFixed(1)),
+        row(m.tune_field_front_bump(), settings.damping?.frontBump, (v) => v.toFixed(1)),
+        row(m.tune_field_rear_bump(), settings.damping?.rearBump, (v) => v.toFixed(1)),
+        row(m.tune_field_front_rebound(), settings.damping?.frontRebound, (v) => v.toFixed(1)),
+        row(m.tune_field_rear_rebound(), settings.damping?.rearRebound, (v) => v.toFixed(1)),
       ),
     },
     {
       key: "aero",
       title: sectionTitles.aero,
       rows: rows(
-        row("Front Downforce", settings.aero?.frontDownforce, (v) => `${v} ${aeroUnit}`),
-        row("Rear Downforce", settings.aero?.rearDownforce, (v) => `${v} ${aeroUnit}`),
+        row(m.tune_field_front_downforce(), settings.aero?.frontDownforce, (v) => `${v} ${aeroUnit}`),
+        row(m.tune_field_rear_downforce(), settings.aero?.rearDownforce, (v) => `${v} ${aeroUnit}`),
       ),
     },
     {
       key: "differential",
       title: sectionTitles.differential,
       rows: rows(
-        row("Rear Accel", settings.differential?.rearAccel, (v) => `${v}%`),
-        row("Rear Decel", settings.differential?.rearDecel, (v) => `${v}%`),
-        row("Front Accel", settings.differential?.frontAccel, (v) => `${v}%`),
-        row("Front Decel", settings.differential?.frontDecel, (v) => `${v}%`),
-        row("Center", settings.differential?.center, (v) => `${v}%`),
+        row(m.tune_field_rear_accel(), settings.differential?.rearAccel, (v) => `${v}%`),
+        row(m.tune_field_rear_decel(), settings.differential?.rearDecel, (v) => `${v}%`),
+        row(m.tune_field_front_accel(), settings.differential?.frontAccel, (v) => `${v}%`),
+        row(m.tune_field_front_decel(), settings.differential?.frontDecel, (v) => `${v}%`),
+        row(m.tune_field_center_differential(), settings.differential?.center, (v) => `${v}%`),
       ),
     },
     {
       key: "brakes",
       title: sectionTitles.brakes,
       rows: rows(
-        row("Balance", settings.brakes?.balance, (v) => `${v}%`),
-        row("Pressure", settings.brakes?.pressure, (v) => `${v}%`),
+        row(m.tune_field_brake_balance(), settings.brakes?.balance, (v) => `${v}%`),
+        row(m.tune_field_brake_pressure(), settings.brakes?.pressure, (v) => `${v}%`),
       ),
     },
   ];
@@ -132,7 +132,7 @@ export function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
               {section.rows.map(([label, value]) => (
                 <div key={label} className="flex justify-between text-xs gap-2">
                   <span className="text-app-text-muted whitespace-nowrap">{label}</span>
-                  <span className="text-app-text font-mono whitespace-nowrap" style={label === "Notes" ? { whiteSpace: "normal", textAlign: "right" } : undefined}>
+                  <span className="text-app-text font-mono whitespace-nowrap" style={label === m.tune_field_notes() ? { whiteSpace: "normal", textAlign: "right" } : undefined}>
                     {value}
                   </span>
                 </div>

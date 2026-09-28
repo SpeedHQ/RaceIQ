@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { findTrackCarPairWithTwoLaps, getSeededLaps, lapOptionLabel } from "../seeded/compare/helpers";
 import { getSeededLapTarget } from "../support/seeded/laps";
 import { writeFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -8,7 +9,7 @@ const SCREENSHOT_DIR = resolve(__dirname, "..", "..", "..", "assets", "screensho
 const PAGES = [
   { name: "home", path: "/" },
   { name: "lap-analytics", path: "/f125/sessions", readyText: "Metrics at Cursor" },
-  { name: "compare", path: "/f125/compare?track=19&carA=41&lapA=4&carB=41&lapB=5&cursor=7", hover: ".u-over" },
+  { name: "compare", path: "/f125/compare", hover: ".u-over" },
   { name: "tracks", path: "/f125/tracks" },
   { name: "track-detail-guide", path: "/f125/tracks/19", readyText: "Expert guide" },
   { name: "car-catalogue-f125-grid", path: "/f125/cars" },
@@ -21,36 +22,41 @@ const PAGES = [
 
 for (const page of PAGES) {
   test(`screenshot: ${page.name}`, async ({ page: p }) => {
-    if (page.name === "lap-analytics" || page.name.startsWith("experiments-review")) test.setTimeout(140_000);
     await p.addInitScript(() => localStorage.setItem("forza-onboarding-complete", "true"));
-    if (page.name.startsWith("experiments-review-")) {
-      const response = await p.request.post("/api/experiments/1/import-laps", {
-        data: { lapIds: [4, 5, 6, 7, 8], experimentVersionId: 2 },
-      });
-      if (![201, 409].includes(response.status())) throw new Error(`Failed to seed experiment review laps: ${response.status()}`);
+    const comparePair = page.name === "compare"
+      ? findTrackCarPairWithTwoLaps(await getSeededLaps(p.request, "f1-2025"))
+      : null;
+    if (page.name === "compare" && !comparePair) {
+      throw new Error("No F1 seeded lap pair for compare screenshot");
     }
     const target = page.name === "lap-analytics"
       ? await getSeededLapTarget(p.request, "f1-2025")
       : null;
-    const path = target
-      ? `/f125/sessions/${target.sessionId}/replay/${target.id}?viz=3d`
-      : page.path;
+    const path = comparePair
+      ? `/f125/compare?${new URLSearchParams({
+          track: String(comparePair.trackOrdinal),
+          carA: String(comparePair.carOrdinal),
+          lapA: String(comparePair.lapA.id),
+          carB: String(comparePair.carOrdinal),
+          lapB: String(comparePair.lapB.id),
+          cursor: "7",
+        })}`
+      : target
+        ? `/f125/sessions/${target.sessionId}/replay/${target.id}?viz=3d`
+        : page.path;
     await p.goto(path, { waitUntil: "domcontentloaded" });
-    // Dynamic route selected above avoids coupling screenshot coverage to auto-increment IDs.
+    // Dynamic route IDs avoid coupling screenshots to fixture database IDs.
+    if (comparePair) {
+      await p.getByLabel("Lap A").waitFor({ state: "visible" });
+      await expect(p.getByLabel("Lap A")).toHaveValue(lapOptionLabel(comparePair.lapA));
+      await expect(p.getByLabel("Lap B")).toHaveValue(lapOptionLabel(comparePair.lapB));
+      await p.getByTestId("lap-compare-workspace").getByText("Time Delta").waitFor({ state: "visible" });
+    }
+
     if ("readyText" in page && page.readyText) {
       const ready = p.getByText(page.readyText, { exact: true }).first();
       await ready.waitFor({ state: "visible", timeout: 30_000 });
       await ready.scrollIntoViewIfNeeded();
-    }
-    if (page.name.startsWith("experiments-review-track") && page.name !== "experiments-review-track-tires") {
-      await p.waitForTimeout(15_000);
-      await expect(p.getByText("No telemetry", { exact: true })).toHaveCount(0, { timeout: 30_000 });
-    }
-    if (page.name === "experiments-review-overview") {
-      await expect.poll(() => p.locator('svg[aria-label="Lap track map coloured by sector"]').count(), { timeout: 60_000 }).toBeGreaterThanOrEqual(3);
-    }
-    if (page.name === "experiments-review-sector-1") {
-      for (const label of ["Core temp", "Brake temp", "Pressure", "Wear"]) await waitForMetricData(p, label);
     }
     await p.waitForTimeout(1500);
     if ("hover" in page && page.hover) {
@@ -65,7 +71,7 @@ for (const page of PAGES) {
     await p.screenshot({
       path: `${SCREENSHOT_DIR}/${page.name}.png`,
       fullPage: false,
-      timeout: page.name === "lap-analytics" || page.name.startsWith("experiments-review") ? 60_000 : undefined,
+      timeout: page.name === "lap-analytics" ? 60_000 : undefined,
     });
   });
 }

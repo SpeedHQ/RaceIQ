@@ -48,7 +48,7 @@ export class ParsingProcessor implements TripletProcessor {
     this.trackOrdinal = trackOrdinal;
   }
 
-  async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<undefined> {
+  async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer; frameTimeMs?: number }): Promise<undefined> {
     try {
       if (this.carOrdinal === -1 && triplet.staticData.length >= STATIC.SIZE) {
         const cm = readWString(triplet.staticData, STATIC.carModel.offset, STATIC.carModel.size);
@@ -78,7 +78,7 @@ export class ParsingProcessor implements TripletProcessor {
           capturePrefixRecords: () => [accBroadcastCapture.encode(cursor)],
           captureSessionContextRecords: () => accBroadcastCapture.encodeSessionContext(cursor),
           acknowledgeRecorded: () => accBroadcastCapture.acknowledge(cursor, playerCarIndex),
-        });
+        }, triplet.frameTimeMs);
       }
     } catch (err) {
       console.error("[ACC ParsingProcessor] Error:", err instanceof Error ? err.message : err);

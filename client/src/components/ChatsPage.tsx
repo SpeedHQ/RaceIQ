@@ -6,6 +6,7 @@ import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 import { Button } from "./ui/button";
+import { useLaps } from "@/hooks/laps";
 
 interface LapSummary {
   id: number;
@@ -56,6 +57,7 @@ function formatRelative(iso: string): string {
 }
 export function ChatsPage() {
   const gameId = useGameId();
+  const { data: allLaps = [] } = useLaps();
   const navigate = useNavigate();
   const [rows, setRows] = useState<ChatRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -110,10 +112,11 @@ export function ChatsPage() {
         navigate({
           to: `${routePrefix}/compare` as never,
           search: {
+            track: allLaps.find((lap) => lap.id === a.id)?.trackOrdinal ?? allLaps.find((lap) => lap.id === b.id)?.trackOrdinal,
+            carA: allLaps.find((lap) => lap.id === a.id)?.carOrdinal,
+            carB: allLaps.find((lap) => lap.id === b.id)?.carOrdinal,
             lapA: a.id,
             lapB: b.id,
-            carA: undefined,
-            carB: undefined,
             ai: 1,
           } as never,
         });
@@ -124,7 +127,7 @@ export function ChatsPage() {
         });
       }
     },
-    [navigate],
+    [allLaps, navigate],
   );
   return (
     <div className="flex flex-col gap-4 p-4 h-full overflow-hidden">

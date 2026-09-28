@@ -62,6 +62,10 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   // populated by queries that ask for it; undefined means "not selected", not
   // "no frames".
   rawFrameCount?: number | null;
+  /** Whether raw telemetry remains available for this lap. */
+  telemetryAvailable?: boolean;
+  /** User flag protecting the parent capture from space cleanup. */
+  isFavorite?: boolean;
 }
 
 export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
@@ -90,6 +94,10 @@ export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
    */
   source?: string;
   ownership?: SessionOwnership;
+  /** Whether raw telemetry remains available for this session. */
+  telemetryAvailable?: boolean;
+  /** User flag protecting this session's capture from space cleanup. */
+  isFavorite?: boolean;
   gameId?: GameId;
 }
 
