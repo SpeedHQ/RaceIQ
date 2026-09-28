@@ -1,9 +1,7 @@
 ## Unreleased
 
-### Features
-- Show highest-severity lap insight findings first within each category.
-
 ### Fixes
+- Show highest-severity lap insight findings first within each category.
 - Report Counter-Steer only for observed steering reversals against continuing corner rotation, not ordinary turns with game-specific yaw sign conventions or unverified rear traction loss.
 - Restore sustained understeer and oversteer findings in ACC/AC Evo replays when multiple capture frames share one simulator timestamp.
 - Use simulator time for lap insight detection across supported games, independent of recorder arrival time; restore checks on older ACC captures without frame timestamps.
