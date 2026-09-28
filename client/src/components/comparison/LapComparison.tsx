@@ -277,6 +277,18 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
       cancelled = true;
     };
   }, [laps, gameId]);
+  // Saved chat links carry lap IDs only; restore their track/car context once laps load.
+  useEffect(() => {
+    if (laps.length === 0) return;
+    const lapA = lapAId == null ? undefined : laps.find((lap) => lap.id === lapAId);
+    const lapB = lapBId == null ? undefined : laps.find((lap) => lap.id === lapBId);
+    const contextLap = lapA ?? lapB;
+    if (!contextLap) return;
+    if (selectedTrack == null && contextLap.trackOrdinal != null) setSelectedTrack(contextLap.trackOrdinal);
+    if (carAOrd == null && lapA?.carOrdinal != null) setCarAOrd(lapA.carOrdinal);
+    if (carBOrd == null && lapB?.carOrdinal != null) setCarBOrd(lapB.carOrdinal);
+  }, [laps, lapAId, lapBId, selectedTrack, carAOrd, carBOrd]);
+
 
   // Reset car/lap selections when track changes (skip initial mount to preserve URL params)
   useEffect(() => {

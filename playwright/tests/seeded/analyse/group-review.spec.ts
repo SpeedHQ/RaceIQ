@@ -94,7 +94,7 @@ for (const game of REVIEW_GAMES) {
 
     await page.goto(`/${game.prefix}/sessions/${targetLap.sessionId}/analyse?track=${targetLap.trackOrdinal}&car=${targetLap.carOrdinal}&lap=${targetLap.id}`, { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Actions", exact: true }).click();
-    await page.getByRole("menuitem", { name: "Analyse", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Analyse Session", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/${game.prefix}/sessions/${targetLap.sessionId}/analyse(?:\\?|$)`));
     await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible();
   });

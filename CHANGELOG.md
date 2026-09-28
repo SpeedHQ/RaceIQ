@@ -29,6 +29,8 @@
 - Render 3D replays, onboarding preview, and model comparisons with WebGPU where available and WebGL2 fallback; pause stops recurring scene draws.
 
 ### Fixes
+- Restore track and car context when opening Compare chats from saved lap IDs.
+- Open session-level Analyse from lap Actions using its current menu label.
 - Verify seeded database upgrades against migrations actually pending from PR base, without failing when base already includes earlier migrations.
 - Ignore stale Compare lap selections from another game, track, or car so drivers can pick a valid lap without a misleading mismatch error.
 - Read recorded frame acquisition times as telemetry for all six games; older captures without timestamps remain supported.
