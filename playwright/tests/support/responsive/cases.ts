@@ -46,7 +46,7 @@ export const RESPONSIVE_PAGES: readonly ResponsivePage[] = [
   { name: "iracing-landing", path: "/iracing", viewports: DESKTOP_ONLY },
   { name: "fm23-live-pit", path: "/fm23/live/pit", viewports: DESKTOP_ONLY },
   { name: "ac-evo-live", path: "/ac-evo/live", viewports: DESKTOP_ONLY },
-  { name: "iracing-live-driver", path: "/iracing/live/driver", viewports: DESKTOP_ONLY },
+  { name: "iracing-live", path: "/iracing/live", viewports: DESKTOP_ONLY },
   { name: "iracing-live-pit", path: "/iracing/live/pit", viewports: DESKTOP_ONLY },
   { name: "acc-cars", path: "/acc/cars", viewports: DESKTOP_ONLY },
   { name: "ac-evo-cars", path: "/ac-evo/cars", viewports: DESKTOP_ONLY },

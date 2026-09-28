@@ -12,13 +12,13 @@ for (const game of SEEDED_GAME_CASES) {
   test(`${game.name} live channels and reconnect use committed recording`, async ({ page, request }) => {
     test.setTimeout(95_000);
     const browserErrors = collectBrowserErrors(page);
-    const livePath = game.gameId === "iracing" ? "/iracing/live/driver" : `/${game.prefix}/live`;
+    const livePath = `/${game.prefix}/live`;
     await page.goto(livePath, { waitUntil: "domcontentloaded" });
     await assertRecordingChangesLiveChannels(page, request, game.gameId, RECORDING_BY_GAME[game.gameId]);
 
     if (game.gameId === "iracing") {
-      await expect(page.getByRole("link", { name: "Driver", exact: true })).toBeVisible();
-      await page.getByRole("link", { name: "Pit Crew", exact: true }).click();
+      await expect(page.getByRole("main").getByRole("link", { name: "Driver", exact: true })).toBeVisible();
+      await page.getByRole("main").getByRole("link", { name: "Pit Crew", exact: true }).click();
       await expect(page).toHaveURL(/\/iracing\/live\/pit$/);
       await expect(page.getByText(/Telemetry \(60s\)/)).toBeVisible();
       await expect(page.getByText(/Tires/).first()).toBeVisible();

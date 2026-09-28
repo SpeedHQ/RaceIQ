@@ -1,13 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { AccLiveDashboard } from "../../components/acc/AccLiveDashboard";
-import { LMULiveDashboard } from "../../components/lmu/LMULiveDashboard";
-import { ForzaLiveDashboard } from "../../components/ForzaLiveDashboard";
-import { F1LiveDashboard } from "../../components/f1/F1LiveDashboard";
-import { gameIdForRoutePrefix, liveDashboardForGame } from "../../lib/game-routes";
+import { gameIdForRoutePrefix } from "../../lib/game-routes";
 import { gameStore } from "../../stores/game";
 
-function LiveDashboardRoute() {
+function LiveDashboardLayout() {
   const { game: routePrefix } = Route.useParams();
   const gameId = gameIdForRoutePrefix(routePrefix);
   const setGameId = gameStore.actions.setGameId;
@@ -21,16 +17,7 @@ function LiveDashboardRoute() {
     return () => setGameId(null);
   }, [gameId, setGameId]);
 
-  switch (liveDashboardForGame(gameId)) {
-    case "forza":
-      return <ForzaLiveDashboard mode="driver" />;
-    case "f1":
-      return <F1LiveDashboard />;
-    case "acc":
-      return <AccLiveDashboard gameId={gameId} />;
-    case "lmu":
-      return <LMULiveDashboard />;
-  }
+  return <Outlet />;
 }
 
 export const Route = createFileRoute("/$game/live")({
@@ -39,5 +26,5 @@ export const Route = createFileRoute("/$game/live")({
       throw new Error(`Unknown live game route prefix: ${params.game}`);
     }
   },
-  component: LiveDashboardRoute,
+  component: LiveDashboardLayout,
 });

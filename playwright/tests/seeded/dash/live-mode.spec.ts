@@ -6,7 +6,7 @@ test("live dashboard mode toggle exposes selected route and no-data guide state"
   test.setTimeout(80_000);
   const browserErrors = collectBrowserErrors(page);
   await page.routeWebSocket("**/ws", () => {});
-  await page.goto("/fm23/live/driver", { waitUntil: "domcontentloaded" });
+  await page.goto("/fm23/live", { waitUntil: "domcontentloaded" });
   const dashboardModes = page.getByRole("main");
   const driverLink = dashboardModes.getByRole("link", { name: "Driver", exact: true });
   const pitLink = dashboardModes.getByRole("link", { name: "Pit Crew", exact: true });
