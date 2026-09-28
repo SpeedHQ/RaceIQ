@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
+import { parseUtcTimestamp } from "@/lib/utc-date";
 import { rangeBandGradient } from "./helpers";
 import type { TrackLap } from "./types";
 export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLap[]; sectorCount: number; showSessionFilter?: boolean }) {
@@ -97,7 +98,7 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
   const trendX2 = sparkPoints[n - 1].x;
   const trendY1 = trendM * trendX1 + trendB;
   const trendY2 = trendM * trendX2 + trendB;
-  const lastDate = chronoLaps[chronoLaps.length - 1]?.createdAt ? new Date(chronoLaps[chronoLaps.length - 1].createdAt!).toLocaleDateString([], { month: "short", day: "numeric" }) : m.trackdetail_recent_label();
+  const lastDate = chronoLaps[chronoLaps.length - 1]?.createdAt ? parseUtcTimestamp(chronoLaps[chronoLaps.length - 1].createdAt!).toLocaleDateString([], { month: "short", day: "numeric" }) : m.trackdetail_recent_label();
   // Theoretical best sectors
   const lapsWithSectors = chronoLaps.filter((lap) => sectorCount >= 2 && lap.sectorTimes?.length === sectorCount && lap.sectorTimes.every((time) => time > 0));
   const hasSectors = lapsWithSectors.length > 0;
@@ -369,7 +370,7 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
                       }}
                     >
                       <div style={{ color: "var(--lap-record)" }}>{formatLapTime(lap.lapTime)}</div>
-                      {lap.createdAt && <div className="text-app-text-dim">{new Date(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}</div>}
+                      {lap.createdAt && <div className="text-app-text-dim">{parseUtcTimestamp(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}</div>}
                     </div>
                   );
                 })()}

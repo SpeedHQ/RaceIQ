@@ -11,6 +11,7 @@ import { useTrackOutline, useTrackSectorBoundaries } from "@/hooks/track-queries
 import { queryKeys } from "@/hooks/query-keys";
 import { client } from "@/lib/rpc";
 import { getGameRoute, useGameId } from "@/stores/game";
+import { parseUtcTimestamp } from "@/lib/utc-date";
 import { uiStore } from "@/stores/ui";
 import { HomePageView } from "./HomePageView";
 import type { GameStats, PeriodKey, PeriodStats } from "./types";
@@ -25,7 +26,7 @@ export function HomePageContainer() {
   const { openSettings } = uiStore.actions;
   const hiddenGames: string[] = displaySettings.hiddenGames ?? [];
 
-  const recentSessions = useMemo(() => [...sessions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 10), [sessions]);
+  const recentSessions = useMemo(() => [...sessions].sort((a, b) => parseUtcTimestamp(b.createdAt).getTime() - parseUtcTimestamp(a.createdAt).getTime()).slice(0, 10), [sessions]);
   const latestSession = recentSessions[0] ?? null;
   const { data: latestRecap, isLoading: latestRecapLoading, isError: latestRecapError } = useSessionRecap(latestSession?.id, latestSession?.gameId ?? null);
   const { data: latestRecapOutline } = useTrackOutline(latestRecap?.trackId, latestRecap?.gameId ?? latestSession?.gameId ?? null);
@@ -94,10 +95,10 @@ export function HomePageContainer() {
 
     const gameLaps = gameId ? allLaps.filter((l) => l.gameId === gameId) : allLaps;
     return {
-      today: computePeriod(gameLaps.filter((l) => new Date(l.createdAt).getTime() >= todayStart)),
-      week: computePeriod(gameLaps.filter((l) => new Date(l.createdAt).getTime() >= weekAgo)),
-      month: computePeriod(gameLaps.filter((l) => new Date(l.createdAt).getTime() >= monthAgo)),
-      year: computePeriod(gameLaps.filter((l) => new Date(l.createdAt).getTime() >= yearAgo)),
+      today: computePeriod(gameLaps.filter((l) => parseUtcTimestamp(l.createdAt).getTime() >= todayStart)),
+      week: computePeriod(gameLaps.filter((l) => parseUtcTimestamp(l.createdAt).getTime() >= weekAgo)),
+      month: computePeriod(gameLaps.filter((l) => parseUtcTimestamp(l.createdAt).getTime() >= monthAgo)),
+      year: computePeriod(gameLaps.filter((l) => parseUtcTimestamp(l.createdAt).getTime() >= yearAgo)),
       allTime: computePeriod(gameLaps),
     };
   }, [allLaps, gameId, todayStart, weekAgo, monthAgo, yearAgo]);

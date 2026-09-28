@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
+import { parseUtcTimestamp } from "../lib/utc-date";
 
 const CELL = 11;
 const GAP = 3;
@@ -54,7 +55,7 @@ export function ActivityHeatmap({ laps, showTitle = true }: { laps: LapMeta[]; s
     const secs = new Map<string, number>();
     for (const lap of laps) {
       if (lap.lapTime <= 0) continue;
-      const key = dayKey(new Date(lap.createdAt));
+      const key = dayKey(parseUtcTimestamp(lap.createdAt));
       secs.set(key, (secs.get(key) ?? 0) + lap.lapTime);
     }
 

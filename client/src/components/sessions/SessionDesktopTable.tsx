@@ -14,6 +14,7 @@ import { SessionResultMeta } from "./SessionResultMeta";
 import type { LapSortKey, SessionSelectionEvent, SortDir, SortKey } from "./types";
 import { getLocale } from "@/paraglide/runtime";
 import { m } from "@/paraglide/messages";
+import { parseUtcTimestamp } from "@/lib/utc-date";
 
 export type SessionDesktopTableProps = {
   lapsBySession: Map<number, LapMeta[]>;
@@ -144,8 +145,8 @@ export function SessionDesktopTable({
                     <TD nowrap tone="primary">
                       <div className="flex items-center gap-2">
                         <span>
-                          {new Date(session.createdAt).toLocaleDateString(getLocale())}{" "}
-                          <span className="text-app-text/90">{new Date(session.createdAt).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" })}</span>
+                          {parseUtcTimestamp(session.createdAt).toLocaleDateString(getLocale())}{" "}
+                          <span className="text-app-text/90">{parseUtcTimestamp(session.createdAt).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" })}</span>
                         </span>
                         {session.source === "motec" && <MotecBadge />}
                         <FavoriteToggleButton target="session" id={session.id} isFavorite={Boolean(session.isFavorite)} />

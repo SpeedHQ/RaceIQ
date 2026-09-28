@@ -10,6 +10,7 @@ import { formatLapTime } from "../lib/format";
 import { getGameRoute, useGameId } from "../stores/game";
 import { Button } from "./ui/button";
 import { getLocale } from "@/paraglide/runtime";
+import { parseUtcTimestamp } from "../lib/utc-date";
 import { buildRecapText } from "./sessions/helpers";
 
 export type TrackOutlineData =
@@ -188,7 +189,7 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishP
           <div className="break-words text-base font-bold text-app-text/90">
             {recap.carName} · {recap.trackName}
           </div>
-          <div className="mt-0.5 text-xs text-app-text-muted">{new Date(recap.createdAt).toLocaleString(getLocale())}</div>
+          <div className="mt-0.5 text-xs text-app-text-muted">{parseUtcTimestamp(recap.createdAt).toLocaleString(getLocale())}</div>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           {canAnalyse && (

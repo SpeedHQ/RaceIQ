@@ -3,6 +3,7 @@ import type { LapMeta, RacingIdentityFields, SessionMeta, SessionRecap } from "@
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
 import type { LapSortKey, SessionNames, SessionsTab, SortDir, SortKey } from "./types";
+import { parseUtcTimestamp } from "@/lib/utc-date";
 
 export const PAGE_SIZE = 25;
 
@@ -52,7 +53,7 @@ export function sortSessions(sessions: SessionMeta[], sortKey: SortKey, sortDir:
     let valueA: string | number;
     let valueB: string | number;
     switch (sortKey) {
-      case "date": valueA = new Date(a.createdAt).getTime(); valueB = new Date(b.createdAt).getTime(); break;
+      case "date": valueA = parseUtcTimestamp(a.createdAt).getTime(); valueB = parseUtcTimestamp(b.createdAt).getTime(); break;
       case "track": valueA = sessionTrackName(a, names); valueB = sessionTrackName(b, names); break;
       case "car": valueA = sessionCarName(a, names); valueB = sessionCarName(b, names); break;
       case "laps": valueA = a.lapCount ?? 0; valueB = b.lapCount ?? 0; break;

@@ -1,6 +1,7 @@
 import { memo, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getLocale } from "@/paraglide/runtime";
+import { parseUtcTimestamp } from "../../lib/utc-date";
 import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2 } from "lucide-react";
 import type { LapMeta, SessionOwnership } from "../../../../shared/racing/sessions/types";
 import type { GameId } from "../../../../shared/games/ids";
@@ -121,7 +122,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
     }
     return filteredLaps.map((lap) => {
       const sessionLaps = sessions.get(lap.sessionId) ?? [lap];
-      const sessionDate = new Date(sessionLaps[sessionLaps.length - 1].createdAt);
+      const sessionDate = parseUtcTimestamp(sessionLaps[sessionLaps.length - 1].createdAt);
       const sessionLabel = m.analyse_session_group({ date: sessionDate.toLocaleDateString(getLocale()), time: sessionDate.toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" }), count: sessionLaps.length });
       return { ...buildAnalyseLapOption(lap), group: sessionLabel };
     });

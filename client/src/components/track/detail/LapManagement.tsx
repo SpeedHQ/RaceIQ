@@ -6,6 +6,7 @@ import { SearchMultiSelect } from "@/components/ui/SearchMultiSelect";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
 import { getGameRoute } from "@/stores/game";
+import { parseUtcTimestamp } from "@/lib/utc-date";
 import type { TrackInfo } from "../types";
 import { carClassColor } from "./helpers";
 import { LapStatsPanel } from "./LapStatsPanel";
@@ -276,8 +277,8 @@ export function LapManagement(props: LapManagementProps) {
                                     </div>
                                     {lap.createdAt && (
                                       <div className="mt-1 text-app-compact text-app-text-dim font-mono">
-                                        {new Date(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}{" "}
-                                        {new Date(lap.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                        {parseUtcTimestamp(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}{" "}
+                                        {parseUtcTimestamp(lap.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                                       </div>
                                     )}
                                     {lap.notes && <div className="mt-1 text-xs text-app-text-secondary truncate">{lap.notes}</div>}
@@ -411,7 +412,7 @@ export function LapManagement(props: LapManagementProps) {
                               ))}
                               <TD nowrap numeric>
                                 {lap.createdAt
-                                  ? `${new Date(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })} ${new Date(lap.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                                  ? `${parseUtcTimestamp(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })} ${parseUtcTimestamp(lap.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
                                   : "—"}
                               </TD>
                               <TD truncate="wide" title={lap.notes ?? undefined}>

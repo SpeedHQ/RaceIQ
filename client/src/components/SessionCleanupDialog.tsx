@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatBytes } from "@/lib/format-bytes";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
+import { parseUtcTimestamp } from "@/lib/utc-date";
 
 type Props = {
   request: SessionCleanupRequest | null;
@@ -52,7 +53,7 @@ function CleanupGameTables({ game }: { game: SessionCleanupGameSummary }) {
                     #{session.id}
                   </TD>
                   <TD nowrap tone="primary">
-                    {new Date(session.createdAt).toLocaleString(getLocale(), { dateStyle: "medium", timeStyle: "short" })}
+                    {parseUtcTimestamp(session.createdAt).toLocaleString(getLocale(), { dateStyle: "medium", timeStyle: "short" })}
                   </TD>
                   <TD tone="primary">{session.trackName}</TD>
                   <TD>{session.carName}</TD>

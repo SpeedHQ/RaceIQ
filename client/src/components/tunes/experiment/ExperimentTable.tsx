@@ -2,6 +2,7 @@ import { m } from "@/paraglide/messages";
 import type { ExperimentFocus } from "@shared/racing/experiments/focus";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { parseUtcTimestamp } from "@/lib/utc-date";
 
 function FocusBadge({ focus }: { focus: ExperimentFocus }) {
   return (
@@ -67,7 +68,7 @@ export function ExperimentTable({
           result = compareText(left.baseSetupPath?.split(/[\\/]/).pop(), right.baseSetupPath?.split(/[\\/]/).pop());
           break;
         case "updatedAt":
-          result = new Date(left.updatedAt).getTime() - new Date(right.updatedAt).getTime();
+          result = parseUtcTimestamp(left.updatedAt).getTime() - parseUtcTimestamp(right.updatedAt).getTime();
           break;
       }
       return (sortDirection === "ascending" ? result : -result) || left.seq - right.seq;
@@ -150,7 +151,7 @@ export function ExperimentTable({
                   {base}
                 </TD>
                 <TD showFrom="workspace-xl" nowrap tone="dim">
-                  {new Date(s.updatedAt).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                  {parseUtcTimestamp(s.updatedAt).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                 </TD>
               </TRow>
             );

@@ -14,6 +14,7 @@ import { storedLapsSectorCount } from "@/lib/lap-sectors";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "@/stores/game";
+import { parseUtcTimestamp } from "@/lib/utc-date";
 import { CatalogTrackSetups } from "./CatalogTrackSetups";
 import { CommunityLeaderboard } from "./CommunityLeaderboard";
 import { TrackDebugPanel } from "./debug/TrackDebugPanel";
@@ -233,7 +234,7 @@ export function TrackDetail({
       .filter((l) => selectedCars.size === 0 || selectedCars.has(l.carOrdinal))
       .filter((l) => !selectedDivision || l.division === selectedDivision)
       .sort((a, b) => {
-        const cmp = sortBy === "time" ? a.lapTime - b.lapTime : sortBy === "date" ? new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime() : a.lapNumber - b.lapNumber;
+        const cmp = sortBy === "time" ? a.lapTime - b.lapTime : sortBy === "date" ? (a.createdAt ? parseUtcTimestamp(a.createdAt).getTime() : 0) - (b.createdAt ? parseUtcTimestamp(b.createdAt).getTime() : 0) : a.lapNumber - b.lapNumber;
         return sortAsc ? cmp : -cmp;
       });
   }, [trackLaps, selectedCars, selectedDivision, sortBy, sortAsc]);

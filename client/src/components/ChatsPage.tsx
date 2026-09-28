@@ -8,6 +8,7 @@ import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 import { Button } from "./ui/button";
 import { useLaps } from "@/hooks/laps";
 
+import { parseUtcTimestamp } from "@/lib/utc-date";
 interface LapSummary {
   id: number;
   sessionId: number;
@@ -42,7 +43,7 @@ function formatLapTime(seconds: number): string {
 }
 
 function formatRelative(iso: string): string {
-  const ts = new Date(iso).getTime();
+  const ts = parseUtcTimestamp(iso).getTime();
   if (!Number.isFinite(ts)) return "—";
   const diff = Date.now() - ts;
   const sec = Math.floor(diff / 1000);
@@ -53,7 +54,7 @@ function formatRelative(iso: string): string {
   if (hr < 24) return `${hr}h ${m.home_hours_ago()}`;
   const day = Math.floor(hr / 24);
   if (day < 30) return `${day}d ${m.home_days_ago()}`;
-  return new Date(iso).toLocaleDateString(getLocale());
+  return parseUtcTimestamp(iso).toLocaleDateString(getLocale());
 }
 export function ChatsPage() {
   const gameId = useGameId();

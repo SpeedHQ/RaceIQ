@@ -13,6 +13,7 @@ import { useExperiment, useExperimentLapMetrics, useExperimentVersions, useAddBa
 import { useLaps } from "@/hooks/laps";
 import { formatLapTime } from "@/lib/format";
 import { client } from "@/lib/rpc";
+import { parseUtcTimestamp } from "@/lib/utc-date";
 import { useTelemetryStore } from "@/stores/telemetry";
 import { AddBaseModal } from "./AddBaseModal";
 import { BackButton } from "./BackButton";
@@ -150,9 +151,9 @@ export function ExperimentWorkspace({ gameId, experimentId, manageActivation = t
     const sorted = [...tests].sort((a, b) => a.version - b.version);
     const testForLap = (lap: LapMeta): number | null => {
       let match: number | null = sorted[0]?.id ?? null;
-      const lapMs = new Date(lap.createdAt).getTime();
+      const lapMs = parseUtcTimestamp(lap.createdAt).getTime();
       for (const t of sorted) {
-        if (new Date(t.createdAt).getTime() <= lapMs) match = t.id;
+        if (parseUtcTimestamp(t.createdAt).getTime() <= lapMs) match = t.id;
         else break;
       }
       return match;

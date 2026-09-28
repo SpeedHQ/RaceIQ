@@ -5,6 +5,7 @@ import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Badge } from "@/components/ui/badge";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
+import { parseUtcTimestamp } from "@/lib/utc-date";
 
 function formatTimeAgo(date: Date): string {
   const sec = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -81,7 +82,7 @@ export function RecentSessionsTable({
                 <button
                   type="button"
                   className="text-left focus-visible:outline-2 focus-visible:outline-app-text"
-                  aria-label={`${m.sessions_analyse_session()}: ${track || "—"}, ${new Date(session.createdAt).toLocaleDateString(getLocale())}`}
+                  aria-label={`${m.sessions_analyse_session()}: ${track || "—"}, ${parseUtcTimestamp(session.createdAt).toLocaleDateString(getLocale())}`}
                   onClick={(event) => {
                     event.stopPropagation();
                     onAnalyseSession(session);
@@ -93,7 +94,7 @@ export function RecentSessionsTable({
               <TD tone="primary" truncate="narrow" title={car}>{car || "—"}</TD>
               <TD numeric tone="primary">{session.lapCount ?? 0}</TD>
               <TD emphasis numeric nowrap tone="primary">{session.bestLapTime ? formatLapTime(session.bestLapTime) : "—"}</TD>
-              <TD align="end" nowrap tone="primary">{formatTimeAgo(new Date(session.createdAt))}</TD>
+                  <TD align="end" nowrap tone="primary">{formatTimeAgo(parseUtcTimestamp(session.createdAt))}</TD>
             </TRow>
           );
         })}

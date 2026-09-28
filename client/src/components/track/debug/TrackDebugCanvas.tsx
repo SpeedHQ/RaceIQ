@@ -7,6 +7,7 @@ import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import type { Point, TrackBoundaries, TrackCurb, TrackSectors } from "../types";
 import { transformCalibrationPath, type CalibrationComparison } from "./calibration-comparison";
 import { getLocale } from "@/paraglide/runtime";
+import { parseUtcTimestamp } from "@/lib/utc-date";
 
 type TrackDebugCanvasProps = {
   outline: Point[] | null;
@@ -490,7 +491,7 @@ export function TrackDebugCanvas({
           {trackCreatedAt && (
             <>
               <span className="text-app-text-dim/40">·</span>
-              <span>{new Date(trackCreatedAt).toLocaleDateString(getLocale())}</span>
+              <span>{parseUtcTimestamp(trackCreatedAt).toLocaleDateString(getLocale())}</span>
             </>
           )}
         </div>

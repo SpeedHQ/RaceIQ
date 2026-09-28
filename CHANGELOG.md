@@ -3,6 +3,7 @@
 ### Features
 
 ### Fixes
+- Display session, lap, and experiment timestamps in the system's local timezone.
 
 ### Internal
 

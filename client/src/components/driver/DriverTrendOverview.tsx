@@ -4,6 +4,7 @@ import type { DriverProfileSummary } from "../../../../server/ai/schemas";
 import type { DriverTrend, DriverTrendLap, DriverTrendWindow, TrendDirection } from "../../../../server/driver-profile/trend";
 import type { DriverProfileState } from "../../hooks/driver-profile";
 import { getLocale } from "@/paraglide/runtime";
+import { parseUtcTimestamp } from "../../lib/utc-date";
 
 interface DriverTrendOverviewProps {
   trend: DriverTrend;
@@ -34,7 +35,7 @@ function paceMovement(value: number | null): string {
 }
 
 function lapLabel(lap: DriverTrendLap, position: number, total: number): string {
-  const date = new Date(lap.createdAt);
+  const date = parseUtcTimestamp(lap.createdAt);
   const when = Number.isNaN(date.valueOf()) ? lap.createdAt : date.toLocaleString(getLocale());
   const pace = lap.relativePacePct !== null && Number.isFinite(lap.relativePacePct) ? m.driver_pace_from_benchmark({ pace: `${lap.relativePacePct.toFixed(1)}%` }) : m.driver_pace_unavailable();
   return m.driver_lap_aria_label({ position: String(position), total: String(total), when, validity: lap.isValid ? m.driver_valid() : m.driver_dirty(), pace });

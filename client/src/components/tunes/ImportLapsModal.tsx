@@ -6,6 +6,7 @@ import { useImportableLaps, useImportLaps } from "../../hooks/experiments";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 
+import { parseUtcTimestamp } from "@/lib/utc-date";
 function fmtLapTime(ms: number | null | undefined): string {
   if (ms == null || ms <= 0) return "—";
   const totalSec = ms / 1000;
@@ -110,7 +111,7 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
       <span className="text-app-text tabular-nums">{fmtLapTime(lap.lapTime)}</span>
       <span className="text-app-text-dim">{lap.isValid ? m.tunes_valid() : m.tunes_invalid()}</span>
       {lap.tuneName && <span className="text-app-text-dim truncate">{lap.tuneName}</span>}
-      <span className="ml-auto text-app-text-muted">{new Date(lap.createdAt).toLocaleString()}</span>
+      <span className="ml-auto text-app-text-muted">{parseUtcTimestamp(lap.createdAt).toLocaleString()}</span>
     </label>
   );
 
