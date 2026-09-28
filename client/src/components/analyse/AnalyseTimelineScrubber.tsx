@@ -4,6 +4,7 @@ import { formatLapTime } from "@/lib/format";
 import { Button } from "../ui/button";
 import { type SemanticAnalysisFrame, semanticNumber } from "./track-map/types";
 import { hasTelemetryGap } from "./AnalyseTelemetryChart";
+import { replayGapSeconds } from "../../lib/replay-clock";
 import { m } from "../../paraglide/messages";
 
 const currentLap = (frame: SemanticAnalysisFrame): number => semanticNumber(frame, "timing.current-lap") ?? 0;
@@ -33,7 +34,7 @@ interface TimelineScrubberProps {
 }
 interface TimelineData {
   timeFracs: number[];
-  times: number[];
+  gapSeconds: number[];
 }
 
 const PlaybackControls = memo(function PlaybackControls({
@@ -73,10 +74,8 @@ const PlaybackControls = memo(function PlaybackControls({
 });
 
 const TimelineGapHighlights = memo(function TimelineGapHighlights({ timelineData }: { timelineData: TimelineData }) {
-  return timelineData.times.map((time, index) => {
-    if (index === 0) return null;
-    const delta = time - timelineData.times[index - 1];
-    if (!hasTelemetryGap(timelineData.times[index - 1], time)) return null;
+  return timelineData.gapSeconds.map((delta, index) => {
+    if (index === 0 || !hasTelemetryGap(0, delta)) return null;
     const left = timelineData.timeFracs[index - 1] * 100;
     const right = timelineData.timeFracs[index] * 100;
     return (
@@ -133,8 +132,10 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
       prevFrac = frac;
       return frac;
     });
-    const times = displayTelemetry.map(currentLap);
-    return { timeFracs, times };
+    const gapSeconds = displayTelemetry.map((frame, index) =>
+      index === 0 ? 0 : replayGapSeconds(displayTelemetry[index - 1], frame),
+    );
+    return { timeFracs, gapSeconds };
   }, [displayTelemetry]);
 
   const cursorFrac = visualTimeFrac ?? timelineData?.timeFracs?.[cursorIdx] ?? cursorIdx / (totalPackets - 1);

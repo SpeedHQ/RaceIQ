@@ -1,4 +1,5 @@
 import type { SemanticReplayFrame } from "../hooks/laps";
+import { semanticNumber, type SemanticAnalysisFrame } from "../components/analyse/track-map/types";
 
 /** Recorder UTC identifies missing capture time; only simulator lap time drives replay. */
 export function replayLapTimes(frames: readonly SemanticReplayFrame[]): number[] {
@@ -22,4 +23,13 @@ export function replayLapTimes(frames: readonly SemanticReplayFrame[]): number[]
     times[index] = time - removed;
   }
   return times;
+}
+
+/** Gap markers describe missing acquisition data, not elapsed playback time. */
+export function replayGapSeconds(previous: SemanticAnalysisFrame, current: SemanticAnalysisFrame): number {
+  const before = previous.recordedLapTime ?? semanticNumber(previous, "timing.current-lap") ?? 0;
+  const after = current.recordedLapTime ?? semanticNumber(current, "timing.current-lap") ?? 0;
+  const captureGap = previous.captureTimeMs !== undefined && current.captureTimeMs !== undefined
+    ? (current.captureTimeMs - previous.captureTimeMs) / 1000 : 0;
+  return Math.max(after - before, captureGap);
 }

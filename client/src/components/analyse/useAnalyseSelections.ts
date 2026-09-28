@@ -71,6 +71,8 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
         sequence: envelope.sequence,
         observedAtMs: envelope.observedAt.milliseconds,
         values,
+        recordedLapTime: typeof nativeValues["timing.current-lap"] === "number" ? nativeValues["timing.current-lap"] : undefined,
+        captureTimeMs: envelope.captureTimeMs,
         states: Object.fromEntries(envelope.values.filter((entry) => entry.state).map((entry) => [entry.semanticId, entry.state])),
         freshness: Object.fromEntries(envelope.values.filter((entry) => entry.freshness).map((entry) => [entry.semanticId, entry.freshness])),
         source: selectedLap?.source ?? null,

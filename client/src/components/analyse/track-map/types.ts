@@ -7,6 +7,8 @@ export interface SemanticAnalysisFrame {
   states: Readonly<Record<string, string | undefined>>;
   freshness: Readonly<Record<string, string | undefined>>;
   source?: "motec" | null;
+  recordedLapTime?: number;
+  captureTimeMs?: number;
 }
 
 export interface SemanticValueEntry {
