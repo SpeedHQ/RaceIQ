@@ -30,6 +30,8 @@
 - Render 3D replays, onboarding preview, and model comparisons with WebGPU where available and WebGL2 fallback; pause stops recurring scene draws.
 
 ### Fixes
+- Keep seeded telemetry sessions' source metadata identical to live recordings (`NULL`); remove obsolete `seed` exception from capture-migration eligibility.
+- Convert legacy session captures newest-first, including captures shared by multiple sessions.
 - Restore track and car context when opening Compare chats from saved lap IDs.
 - Open session-level Analyse from lap Actions using its current menu label.
 - Verify seeded database upgrades against migrations actually pending from PR base, without failing when base already includes earlier migrations.

@@ -120,7 +120,7 @@ async function main(): Promise<void> {
         if (seededSessionIds.length === 0) {
           throw new Error(`No ${game} telemetry imported from ${fixturePath}`);
         }
-        await db.update(sessions).set({ notes: SEED_MARKER, source: "seed" }).where(inArray(sessions.id, seededSessionIds)).run();
+        await db.update(sessions).set({ notes: SEED_MARKER }).where(inArray(sessions.id, seededSessionIds)).run();
         importedLapIds.push(...result.laps.filter((lap) => lap.isValid).map((lap) => lap.lapId));
         console.log(`[DB Seed] ${game}: ${result.laps.length} laps from ${fixture}`);
       } finally {

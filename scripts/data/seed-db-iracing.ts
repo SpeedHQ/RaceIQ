@@ -45,7 +45,7 @@ export async function seedIRacingSession(fixturePath: string): Promise<void> {
   if (seededSessionIds.length === 0 || packetCount === 0) {
     throw new Error(`No iRacing telemetry imported from ${fixturePath}`);
   }
-  await db.update(sessions).set({ notes: SEED_MARKER, source: "seed" }).where(inArray(sessions.id, seededSessionIds)).run();
+  await db.update(sessions).set({ notes: SEED_MARKER }).where(inArray(sessions.id, seededSessionIds)).run();
   console.log(`[DB Seed] iracing: ${packetCount} telemetry packets from ${fixturePath}`);
 }
 

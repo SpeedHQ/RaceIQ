@@ -176,15 +176,33 @@ describe("historical capture migration", () => {
     expect(await records(updated!.rawFile!)).toEqual(frames);
   });
 
-  test("includes seeded raw captures in sparse migration candidates", async () => {
+  test("converts newest capture first, including recordings shared with older sessions", async () => {
     const dir = tempCaptureDir();
-    const rawFile = join(dir, "seeded-lmu.bin");
-    writeFileSync(rawFile, capture(makeFrames(6)));
-    const sessionId = await insertSession(rawFile, "lmu");
-    await db.update(sessions).set({ source: "seed" }).where(eq(sessions.id, sessionId)).run();
+    const paths = ["old.bin", "shared.bin", "middle.bin"].map((name) => join(dir, name));
+    for (const path of paths) writeFileSync(path, capture(makeFrames(4)));
+    const old = await insertSession(paths[0]!);
+    const sharedOld = await insertSession(paths[1]!);
+    const middle = await insertSession(paths[2]!);
+    const sharedNew = await insertSession(paths[1]!);
+    for (const [id, createdAt] of [
+      [old, "2026-01-01 00:00:00"],
+      [sharedOld, "2026-01-02 00:00:00"],
+      [middle, "2026-01-03 00:00:00"],
+      [sharedNew, "2026-01-04 00:00:00"],
+    ] as const) {
+      await db.update(sessions).set({ createdAt }).where(eq(sessions.id, id)).run();
+    }
 
-    const candidates = await listCaptureMigrationCandidates();
-    expect(candidates).toContainEqual({ rawFile, gameId: "lmu", sessionIds: [sessionId] });
+    const selected = (await listCaptureMigrationCandidates()).filter(({ rawFile }) => paths.includes(rawFile));
+    expect(selected).toEqual([
+      { rawFile: paths[1], gameId: "fm-2023", sessionIds: [sharedOld, sharedNew] },
+      { rawFile: paths[2], gameId: "fm-2023", sessionIds: [middle] },
+      { rawFile: paths[0], gameId: "fm-2023", sessionIds: [old] },
+    ]);
+    const result = await migrateCaptures();
+    expect(result.results.filter(({ rawFile }) => paths.includes(rawFile)).map(({ rawFile, status }) => ({ rawFile, status }))).toEqual(
+      [paths[1], paths[2], paths[0]].map((rawFile) => ({ rawFile, status: "migrated" })),
+    );
   });
 
   test.each([false, true])("migrates shared legacy capture and remaps every lap offset (gzip=%s)", async (compressed) => {

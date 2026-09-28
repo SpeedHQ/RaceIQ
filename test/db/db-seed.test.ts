@@ -177,6 +177,18 @@ describe("db:seed", () => {
     expect(counts(dataDir)).toEqual(initial);
   }, 480000);
 
+  test("seeded telemetry keeps production session source", async () => {
+    const dataDir = makeDataDir();
+    const seeded = await runSeed(dataDir, "--games=acc,iracing");
+    expect(seeded.code, seeded.output).toBe(0);
+    expect(withSeedDb(dataDir, (db) => db.query(
+      "SELECT game_id AS gameId, source FROM sessions ORDER BY game_id, id",
+    ).all())).toEqual([
+      { gameId: "acc", source: null },
+      { gameId: "iracing", source: null },
+    ]);
+  }, 180000);
+
   test("reset replaces seed rows without deleting user sessions", async () => {
     const dataDir = makeDataDir();
     const games = "--games=fm-2023,f1-2025";

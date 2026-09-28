@@ -161,6 +161,7 @@ export async function listCaptureMigrationCandidates(): Promise<{ rawFile: strin
     .select({ rawFile: sessions.rawFile })
     .from(sessions)
     .where(and(isNull(sessions.captureFormatVersion), sql`${sessions.rawFile} IS NOT NULL`))
+    .orderBy(desc(sessions.createdAt), desc(sessions.id))
     .all();
   const supported = new Set<GameId>(["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu"]);
   const paths = new Set<string>();
@@ -185,7 +186,7 @@ export async function listCaptureMigrationCandidates(): Promise<{ rawFile: strin
     if (
       !gameId ||
       !supported.has(gameId as GameId) ||
-      shared.some((row) => row.ownership !== "mine" || (row.source !== null && row.source !== "seed") || row.gameId !== gameId)
+      shared.some((row) => row.ownership !== "mine" || row.source !== null || row.gameId !== gameId)
     ) continue;
     result.push({ rawFile, gameId: gameId as GameId, sessionIds: shared.map((row) => row.id) });
   }
