@@ -100,9 +100,10 @@ export const resourceRoutes = new Hono()
         lapId: replay.lapId, requestedSemanticIds: replay.requestedSemanticIds,
         sectorTimes: meta.sectorTimes ?? null, sectorStarts: nativeLayout?.starts ?? null,
         insights: analysis.insights, detectorCoverage: analysis.detectorCoverage, parseError: lap.parseError ?? null,
-        envelopes: replay.envelopes.map((envelope) => ({
+        envelopes: replay.envelopes.map((envelope, index) => ({
           sequence: Number(envelope.sequence),
           observedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.observedAt) },
+          captureTimeMs: lap.telemetry[index]?.extendedRaceIQ?.frameTimeMs,
           receivedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.receivedAt) },
           simulator: envelope.simulator,
           values: envelope.values.map(({ semanticId, value, state, freshness }) => ({ semanticId, value, state, freshness })),

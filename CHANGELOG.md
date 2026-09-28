@@ -7,7 +7,7 @@
 ### Features
 - Add Le Mans Ultimate support.
 - Store recordings from every supported game in a lossless sparse format and convert older recordings in the background; measured raw captures use up to 98% less space while existing laps remain available.
-- Preserve real pauses and capture gaps in replay across supported games.
+- Preserve recorder pause and capture-gap timestamps for diagnostics without stretching Analyse lap replay.
 - Live dashboard moved to bottom of sidebar, outside game-specific navigation.
 - Use French and Italian interfaces, with expanded German translations across setup, analysis, telemetry, sessions, and assistant screens.
 - Review lap-analysis checks by category in Analyse, including findings, clear checks, and unavailable checks.
@@ -31,7 +31,7 @@
 - Restore track and car context when opening Compare chats from saved laps.
 - Open session-level Analyse from lap Actions using its current menu label.
 - Discard stale Compare lap selections from another game, track, or car so valid laps can be selected without mismatch errors.
-- Replay recorded frame times across supported games while keeping older recordings without timestamps playable.
+- Keep recorded acquisition times available for debugging while replay runs on lap telemetry time; older recordings without timestamps remain playable.
 - Keep exported lap slices within their source sessions and preserve lap positions after recording conversion.
 - Stop invalid recordings from producing misleading replay.
 - Do not prompt to convert newly imported recordings again.

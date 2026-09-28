@@ -10,6 +10,7 @@ import { useCookieState } from "../../hooks/useCookieState";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import type { AnalyseSearch } from "../../lib/game-routes";
 import { mergeNameCache } from "../../lib/name-cache";
+import { replayLapTimes } from "../../lib/replay-clock";
 import { routePrefixForGameId } from "../../lib/game-routes";
 import {
   DEFAULT_TRACK_OVERLAYS,
@@ -58,18 +59,24 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const { data: allLaps = emptyLaps } = useLapsQuery();
   const selectedLap = allLaps.find((lap) => lap.id === selectedLapId && (sessionId == null || lap.sessionId === sessionId) && (lap.gameId == null || lap.gameId === gameId));
   const { data: semanticReplay, isLoading: semanticLoading, error: semanticError } = useLapSemanticTelemetry(search.view === "track" ? null : sessionId != null && !selectedLap ? null : selectedLapId);
-  const semanticFrames = useMemo<AnalyseSemanticFrame[]>(
-    () =>
-      semanticReplay?.envelopes.map((envelope: SemanticReplayFrame) => ({
+  const semanticFrames = useMemo<AnalyseSemanticFrame[]>(() => {
+    const envelopes = semanticReplay?.envelopes ?? [];
+    const replayTimes = replayLapTimes(envelopes);
+    return envelopes.map((envelope: SemanticReplayFrame, index) => {
+      const nativeValues = semanticValues(envelope.values);
+      const values = typeof nativeValues["timing.current-lap"] === "number" && nativeValues["timing.current-lap"] !== replayTimes[index]
+        ? { ...nativeValues, "timing.current-lap": replayTimes[index]! }
+        : nativeValues;
+      return {
         sequence: envelope.sequence,
         observedAtMs: envelope.observedAt.milliseconds,
-        values: semanticValues(envelope.values),
+        values,
         states: Object.fromEntries(envelope.values.filter((entry) => entry.state).map((entry) => [entry.semanticId, entry.state])),
         freshness: Object.fromEntries(envelope.values.filter((entry) => entry.freshness).map((entry) => [entry.semanticId, entry.freshness])),
         source: selectedLap?.source ?? null,
-      })) ?? [],
-    [semanticReplay, selectedLap?.source],
-  );
+      };
+    });
+  }, [semanticReplay, selectedLap?.source]);
   const lapLoading = semanticLoading;
 
   const parseError = semanticError instanceof Error && "parseError" in semanticError ? String((semanticError as Error & { parseError?: unknown }).parseError ?? "") : null;

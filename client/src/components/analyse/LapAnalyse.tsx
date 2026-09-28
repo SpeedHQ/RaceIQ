@@ -304,7 +304,12 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
   const lapInsights = useMemo<LapInsight[]>(() => (semanticReplay?.insights ?? []) as LapInsight[], [semanticReplay]);
   const detectorCoverage = useMemo<LapDetectorCoverage[]>(() => semanticReplay?.detectorCoverage ?? [], [semanticReplay]);
   const currentTime = playing ? interpolatedTimeRef.current : (semanticNumber(currentFrame, "timing.current-lap") ?? 0);
-  const totalTime = selectedLap?.lapTime ?? 0;
+  const totalTime = useMemo(() => {
+    const lastNative = semanticReplay?.envelopes.at(-1)?.values.find((value) => value.semanticId === "timing.current-lap")?.value;
+    const lastReplay = semanticNumber(semanticFrames.at(-1), "timing.current-lap");
+    const skipped = typeof lastNative === "number" && lastReplay != null ? Math.max(0, lastNative - lastReplay) : 0;
+    return Math.max(0, (selectedLap?.lapTime ?? 0) - skipped);
+  }, [selectedLap?.lapTime, semanticReplay, semanticFrames]);
 
   // Tune selector
   const { data: availableTunes } = useQuery({

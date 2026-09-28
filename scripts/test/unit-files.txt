@@ -42,6 +42,7 @@ test/lap-analysis/time-loss.test.ts
 test/archive/bounded-unzip.test.ts
 test/client/aligned-telemetry-fidelity.test.ts
 test/client/analyse-chart-data.test.ts
+test/client/replay-clock.test.ts
 test/games/shared/parser.test.ts
 test/lap-analysis/clean-lap-aggregate.test.ts
 test/lap-analysis/corner-resolution.test.ts

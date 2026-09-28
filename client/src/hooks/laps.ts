@@ -141,6 +141,7 @@ export function useLapComparisonRange(lapAId: number | null, lapBId: number | nu
 export interface SemanticReplayFrame {
   sequence: number;
   observedAt: { domain: string; milliseconds: number };
+  captureTimeMs?: number;
   receivedAt: { domain: string; milliseconds: number };
   simulator: string;
   values: Array<{ semanticId: string; value: unknown; state?: string; freshness?: string }>;
