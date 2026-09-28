@@ -4,12 +4,15 @@ import type { LapInsight } from "./types";
 
 /** Prepare recorded frames for analysis without changing the original lap. */
 export function processLap(telemetry: TelemetryPacket[], gameId: GameId): { packets: TelemetryPacket[]; sourceIndices?: number[] } {
-  return gameId === "f1-2025" ? coalesceF1Frames(telemetry) : { packets: telemetry };
-}
-
-/** Keep the last snapshot of each consecutive same-tick update within a session. */
-function coalesceF1Frames(telemetry: TelemetryPacket[]): { packets: TelemetryPacket[]; sourceIndices?: number[] } {
-  if (!telemetry.some((packet, i) => i > 0 && packet.TimestampMS === telemetry[i - 1].TimestampMS && packet.sessionUID === telemetry[i - 1].sessionUID)) {
+  if (gameId !== "f1-2025" && gameId !== "acc" && gameId !== "ac-evo") return { packets: telemetry };
+  const sameTick = gameId === "f1-2025"
+    ? (packet: TelemetryPacket, last: TelemetryPacket) =>
+      packet.TimestampMS === last.TimestampMS && packet.sessionUID === last.sessionUID
+    : (packet: TelemetryPacket, last: TelemetryPacket) =>
+      Number.isFinite(packet.CurrentLap) && packet.CurrentLap === last.CurrentLap;
+  // Kunos acquisition can outpace simulator-time updates. Zero-duration
+  // snapshots split sustained detector events; keep last update for each tick.
+  if (!telemetry.some((packet, i) => i > 0 && sameTick(packet, telemetry[i - 1]))) {
     return { packets: telemetry };
   }
 
@@ -18,7 +21,7 @@ function coalesceF1Frames(telemetry: TelemetryPacket[]): { packets: TelemetryPac
   for (let i = 0; i < telemetry.length; i++) {
     const packet = telemetry[i];
     const last = packets[packets.length - 1];
-    if (last && packet.TimestampMS === last.TimestampMS && packet.sessionUID === last.sessionUID) {
+    if (last && sameTick(packet, last)) {
       packets[packets.length - 1] = packet;
       sourceIndices[sourceIndices.length - 1] = i;
     } else {
@@ -30,7 +33,7 @@ function coalesceF1Frames(telemetry: TelemetryPacket[]): { packets: TelemetryPac
 }
 
 /** Translate insight indices from coalesced frames back to original packet positions. */
-export function restoreF1FrameIndices(insights: LapInsight[], sourceIndices: number[] | undefined): void {
+export function restoreFrameIndices(insights: LapInsight[], sourceIndices: number[] | undefined): void {
   if (!sourceIndices) return;
   for (const insight of insights) insight.frameIndices = insight.frameIndices.map((index) => sourceIndices[index]);
 }

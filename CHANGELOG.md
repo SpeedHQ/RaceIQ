@@ -1,8 +1,11 @@
 ## Unreleased
 
 ### Features
+- Show highest-severity lap insight findings first within each category.
 
 ### Fixes
+- Report Counter-Steer only for observed steering reversals against continuing corner rotation, not ordinary turns with game-specific yaw sign conventions or unverified rear traction loss.
+- Restore sustained understeer and oversteer findings in ACC/AC Evo replays when multiple capture frames share one simulator timestamp.
 - Use simulator time for lap insight detection across supported games, independent of recorder arrival time; restore checks on older ACC captures without frame timestamps.
 - Show detector findings for the primary lap alongside tune issues in session Analyse, without loading full replay telemetry.
 - Stop treating ACC and AC Evo tyre/road vibration as TC or ABS intervention; label ACC physics-signal findings as possible rather than game-confirmed, and use AC Evo's explicit aid-active flags for confirmed findings.

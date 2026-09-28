@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { initGameAdapters } from "../../shared/games/init";
 import {
   detectBrakeDrag,
   detectDownshiftOverRev,
@@ -8,9 +9,13 @@ import {
   detectThrottleMicroLifts,
   detectUndersteerScrub,
 } from "../../shared/racing/analysis/laps/insights/driving-advanced";
+import { processLap, restoreFrameIndices } from "../../shared/racing/analysis/laps/insights/process";
+import { runInsightScanWithCoverage } from "../../shared/racing/analysis/laps/insights/scan";
 import { eventDurations, type TimeLossCtx } from "../../shared/racing/analysis/laps/insights/types";
 import type { AllWheelStates } from "../../shared/racing/analysis/laps/physics/vehicle";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+
+initGameAdapters();
 
 function samples(hz: number, seconds: number, values: (time: number) => Partial<TelemetryPacket>): TelemetryPacket[] {
   return Array.from({ length: Math.round(hz * seconds) }, (_, index) => ({
@@ -62,6 +67,27 @@ function liftThrottle(time: number): number {
 }
 
 describe("advanced insight elapsed-time contracts", () => {
+  test.each(["acc", "ac-evo"] as const)("%s repeated simulator ticks retain sustained balance evidence and replay indices", (gameId) => {
+    const telemetry = samples(60, 3, (time) => ({
+      CurrentLap: Math.floor(time * 40) / 40,
+      TireSlipAngleFL: time < 1 ? 0.3 : 0,
+      TireSlipAngleFR: time < 1 ? 0.3 : 0,
+      TireSlipAngleRL: time >= 1 && time < 2 ? 0.3 : 0,
+      TireSlipAngleRR: time >= 1 && time < 2 ? 0.3 : 0,
+    }));
+    const processed = processLap(telemetry, gameId);
+    const result = runInsightScanWithCoverage(processed.packets, gameId);
+    restoreFrameIndices(result.insights, processed.sourceIndices);
+    for (const id of ["driving-understeer-scrub", "driving-oversteer-slide"]) {
+      const insight = result.insights.find((item) => item.id === id);
+      expect(insight?.frameIndices.length).toBeGreaterThan(0);
+      expect(result.detectorCoverage.find((item) => item.id === id)?.status).toBe("finding");
+      for (const index of insight!.frameIndices) {
+        expect(telemetry[index].CurrentLap).not.toBe(telemetry[index + 1]?.CurrentLap);
+      }
+    }
+  });
+
   test("duration severity is invariant to telemetry rate", () => {
     for (const hz of [30, 60, 120]) {
       const drag = samples(hz, 3.5, () => ({ Accel: 255, Brake: 20 }));

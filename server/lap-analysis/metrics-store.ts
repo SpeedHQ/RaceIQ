@@ -7,7 +7,7 @@ import { lapMetrics, laps } from "../db/schema";
 import { getLapById, getLapsByIds } from "../db/lap-read-queries";
 import { resolveLapSegments, resolveRacingLineReference, STATIC_LAP_ANALYSIS_VERSION } from "./insights";
 import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
-import { processLap, restoreF1FrameIndices } from "../../shared/racing/analysis/laps/insights/process";
+import { processLap, restoreFrameIndices } from "../../shared/racing/analysis/laps/insights/process";
 import {
   computeLapMetrics,
   deriveFuelPerLap,
@@ -165,7 +165,7 @@ async function rerunLapInsights(lapId: number, existing?: MetricsRow): Promise<L
   const insights = analyzeLap(processed.packets, gameId, {
     racingLine: resolveRacingLineReference(gameId, lap.trackId),
   });
-  restoreF1FrameIndices(insights, processed.sourceIndices);
+  restoreFrameIndices(insights, processed.sourceIndices);
   if (row) {
     await persistInsights(lapId, insights);
     const refreshed = { ...row, insightVersion: STATIC_LAP_ANALYSIS_VERSION, insights: JSON.stringify(insights), computedAt: new Date().toISOString() };
@@ -250,7 +250,7 @@ export async function getOrComputeLapInsightsBatch(lapIds: number[]): Promise<Ma
       const computed = analyzeLap(processed.packets, gameId, {
         racingLine: resolveRacingLineReference(gameId, lap.trackId),
       });
-      restoreF1FrameIndices(computed, processed.sourceIndices);
+      restoreFrameIndices(computed, processed.sourceIndices);
       if (current) await persistInsights(lap.id, computed);
       else await persist(computeForLap(lap, computed));
       return computed;
