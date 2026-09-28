@@ -3,7 +3,7 @@ import { m } from "@/paraglide/messages";
 import { useCarName } from "../hooks/catalog-queries";
 import { useTrackName } from "../hooks/track-queries";
 import { useDemoMode } from "../hooks/useDemoMode";
-import { useGameId, useGameRoute } from "../stores/game";
+import { useGameId } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
 import { LapTimeChart } from "./LapTimeChart";
 import { type DashboardMode, LiveTelemetry } from "./LiveTelemetry";
@@ -13,7 +13,6 @@ import { RecordedLaps } from "./RecordedLaps";
 import { Button } from "./ui/button";
 
 function PageHeader({ dashMode, demo }: { dashMode: DashboardMode; demo: ReturnType<typeof useDemoMode> }) {
-  const prefix = useGameRoute();
   const gameId = useGameId();
 
   if (gameId === "acc") return null;
@@ -21,24 +20,10 @@ function PageHeader({ dashMode, demo }: { dashMode: DashboardMode; demo: ReturnT
   return (
     <div className="p-2 border-b border-app-border flex items-center justify-between">
       <div className="flex items-center gap-1 rounded p-0.5">
-        <Link
-          to={
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            `${prefix}/live` as any
-          }
-          aria-current={dashMode === "driver" ? "page" : undefined}
-          className={`text-app-caption font-semibold px-2 py-0.5 rounded transition-colors ${dashMode === "driver" ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text"}`}
-        >
+        <Link to="/live" aria-current={dashMode === "driver" ? "page" : undefined} className={`text-app-caption font-semibold px-2 py-0.5 rounded transition-colors ${dashMode === "driver" ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text"}`}>
           {m.label_driver()}
         </Link>
-        <Link
-          to={
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            `${prefix}/live/pit` as any
-          }
-          aria-current={dashMode === "pitcrew" ? "page" : undefined}
-          className={`text-app-caption font-semibold px-2 py-0.5 rounded transition-colors ${dashMode === "pitcrew" ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text"}`}
-        >
+        <Link to="/live/pit" aria-current={dashMode === "pitcrew" ? "page" : undefined} className={`text-app-caption font-semibold px-2 py-0.5 rounded transition-colors ${dashMode === "pitcrew" ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text"}`}>
           {m.label_pit_crew()}
         </Link>
       </div>

@@ -163,6 +163,7 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
         carModel={DEMO_CAR}
         minimal
         hideControls
+        toggleOverrides={{ track: true, wheelInfo: false }}
         autoOrbit
       />
     </div>

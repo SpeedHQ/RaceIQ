@@ -1,3 +1,4 @@
+import type { GameId } from "../../../../shared/games/ids";
 export const RESPONSIVE_VIEWPORTS = [
   { name: "mobile", width: 390, height: 844 },
   { name: "tablet", width: 768, height: 1024 },
@@ -13,6 +14,7 @@ interface ResponsivePage {
   readyText?: string;
   seedReadyText?: string;
   requiresSeed?: boolean;
+  liveGameId?: GameId;
 }
 
 const DESKTOP_ONLY = ["desktop"] as const;
@@ -20,9 +22,8 @@ const DESKTOP_ONLY = ["desktop"] as const;
 export const RESPONSIVE_PAGES: readonly ResponsivePage[] = [
   { name: "home", path: "/" },
   { name: "fm23-landing", path: "/fm23" },
-  { name: "fm23-live", path: "/fm23/live" },
-  { name: "f125-live", path: "/f125/live" },
-  { name: "acc-live", path: "/acc/live" },
+  { name: "fm23-live", path: "/live", liveGameId: "fm-2023" },
+  { name: "live-pit", path: "/live/pit", viewports: DESKTOP_ONLY, liveGameId: "fm-2023" },
   { name: "fm23-sessions", path: "/fm23/sessions" },
   { name: "fm23-analyse", path: "/fm23/sessions/analyse" },
   { name: "fm23-compare", path: "/fm23/compare" },
@@ -44,10 +45,10 @@ export const RESPONSIVE_PAGES: readonly ResponsivePage[] = [
   { name: "acc-landing", path: "/acc", viewports: DESKTOP_ONLY },
   { name: "ac-evo-landing", path: "/ac-evo", viewports: DESKTOP_ONLY },
   { name: "iracing-landing", path: "/iracing", viewports: DESKTOP_ONLY },
-  { name: "fm23-live-pit", path: "/fm23/live/pit", viewports: DESKTOP_ONLY },
-  { name: "ac-evo-live", path: "/ac-evo/live", viewports: DESKTOP_ONLY },
-  { name: "iracing-live", path: "/iracing/live", viewports: DESKTOP_ONLY },
-  { name: "iracing-live-pit", path: "/iracing/live/pit", viewports: DESKTOP_ONLY },
+  { name: "f125-live", path: "/live", viewports: DESKTOP_ONLY, liveGameId: "f1-2025" },
+  { name: "acc-live", path: "/live", viewports: DESKTOP_ONLY, liveGameId: "acc" },
+  { name: "ac-evo-live", path: "/live", viewports: DESKTOP_ONLY, liveGameId: "ac-evo" },
+  { name: "iracing-live", path: "/live", viewports: DESKTOP_ONLY, liveGameId: "iracing" },
   { name: "acc-cars", path: "/acc/cars", viewports: DESKTOP_ONLY },
   { name: "ac-evo-cars", path: "/ac-evo/cars", viewports: DESKTOP_ONLY },
   { name: "iracing-cars", path: "/iracing/cars", viewports: DESKTOP_ONLY },

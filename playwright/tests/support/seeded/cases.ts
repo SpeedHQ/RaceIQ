@@ -1,4 +1,4 @@
-export type SeededFeature = "landing" | "live" | "sessions" | "compare" | "analyse" | "chats" | "tracks" | "cars" | "raw" | "driver" | "experiments" | "setups" | "track-info" | "track-laps";
+export type SeededFeature = "landing" | "sessions" | "compare" | "analyse" | "chats" | "tracks" | "cars" | "raw" | "driver" | "experiments" | "setups" | "track-info" | "track-laps";
 
 export type SeededGame = {
   gameId: "fm-2023" | "f1-2025" | "acc" | "ac-evo" | "iracing";
@@ -24,7 +24,7 @@ export type SeededRouteCase = {
   trackHeading?: string;
 };
 
-const BASE_FEATURES = ["landing", "live", "sessions", "compare", "analyse", "chats", "tracks", "cars", "raw", "track-info", "track-laps"] as const satisfies readonly SeededFeature[];
+const BASE_FEATURES = ["landing", "sessions", "compare", "analyse", "chats", "tracks", "cars", "raw", "track-info", "track-laps"] as const satisfies readonly SeededFeature[];
 
 const DRIVER_FEATURES = ["driver"] as const satisfies readonly SeededFeature[];
 const SETUP_FEATURES = ["setups"] as const satisfies readonly SeededFeature[];
@@ -80,7 +80,6 @@ export const SEEDED_GAME_CASES: readonly SeededGame[] = [
 
 const FEATURE_LABELS: Record<SeededFeature, string> = {
   landing: "landing",
-  live: "live",
   sessions: "sessions",
   compare: "compare",
   analyse: "analyse",
@@ -99,8 +98,6 @@ function routeFor(game: SeededGame, feature: SeededFeature): Omit<SeededRouteCas
   switch (feature) {
     case "landing":
       return { path: `/${game.prefix}` };
-    case "live":
-      return { path: `/${game.prefix}/live` };
     case "analyse":
       return { path: `/${game.prefix}/sessions/analyse` };
     case "track-info":
@@ -123,6 +120,7 @@ export const SEEDED_ROUTE_CASES: readonly SeededRouteCase[] = SEEDED_GAME_CASES.
 
 export const SEEDED_GLOBAL_ROUTE_CASES: readonly SeededGlobalRouteCase[] = [
   { label: "home", path: "/" },
+  { label: "live", path: "/live" },
   { label: "portable catalogue", path: "/portable" },
   { label: "portable combo 1", path: "/portable/combo-1" },
   { label: "portable combo 2", path: "/portable/combo-2" },

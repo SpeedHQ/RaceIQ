@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { mockLiveScreenshotTelemetry } from "../support/responsive/live-screenshot";
 import { RESPONSIVE_INTERACTION_CASES, RESPONSIVE_PAGES, RESPONSIVE_VIEWPORTS } from "../support/responsive/cases";
 import { getSeededLapTarget } from "../support/seeded/laps";
 // Responsive screenshot tests.
@@ -38,9 +39,13 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
     for (const page of RESPONSIVE_PAGES) {
       if (page.viewports && !page.viewports.includes(viewport.name)) continue;
 
-      test(page.name, async ({ page: p }) => {
+      test(page.name, async ({ page: p, request }) => {
+        if (page.liveGameId) await mockLiveScreenshotTelemetry(p, request, page.liveGameId);
         await p.goto(page.path, { waitUntil: "networkidle" });
         await expect(p.locator("[data-responsive-workspace]")).toBeVisible();
+        if (page.liveGameId) {
+          await expect(p.locator("[data-live-dashboard-layout]")).toBeVisible();
+        }
         if (page.readyText) {
           await expect(p.getByText(page.readyText, { exact: false }).first()).toBeVisible();
         }

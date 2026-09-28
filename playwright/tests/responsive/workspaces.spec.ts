@@ -8,7 +8,8 @@ const PAGES = [
 const APP_ROUTES = [
   { name: "global home", path: "/" },
   { name: "game home", path: "/fm23" },
-  { name: "live", path: "/fm23/live" },
+  { name: "live", path: "/live" },
+  { name: "live pit", path: "/live/pit" },
   { name: "sessions", path: "/fm23/sessions" },
   { name: "tracks", path: "/fm23/tracks" },
   { name: "track detail", path: "/fm23/tracks/5/info" },

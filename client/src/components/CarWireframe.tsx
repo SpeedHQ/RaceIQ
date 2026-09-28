@@ -41,6 +41,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   minimal,
   hideControls,
   autoOrbit,
+  toggleOverrides,
   source,
   onRuntime,
 }: {
@@ -60,7 +61,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   minimal?: boolean;
   hideControls?: boolean;
   autoOrbit?: boolean;
-  onModelOffset?: (offset: { x: number; y: number; z: number }) => void;
+  toggleOverrides?: Partial<ViewToggles>;
 }) {
   const [configsLoaded, setConfigsLoaded] = useState(false);
   useEffect(() => {
@@ -117,7 +118,8 @@ export const CarWireframe = React.memo(function CarWireframe({
     springs: true,
     drivetrain: true,
     ...(hideControls ? { inputs: true } : {}),
-  }), [storedToggles, hideControls]);
+    ...toggleOverrides,
+  }), [storedToggles, hideControls, toggleOverrides]);
   const [viewPreset, setViewPreset] = useState<ViewPreset>("3/4");
 
   const flippedBoundaries = useMemo(() => {

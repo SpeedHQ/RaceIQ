@@ -11,6 +11,7 @@
 - Preserve real pauses and capture gaps in six-game telemetry replay without changing simulator source frames.
 - Convert older `.bin` and `.bin.gz` recordings losslessly in the background; existing laps and Analyse replay remain usable after conversion.
 - Import native iRacing dumps and opt into full raw capture storage through the import API for later conversion; ordinary UI imports stay sparse.
+- Move Live dashboard to bottom-left of app sidebar, outside game-specific navigation.
 - Add French and Italian interface translations and complete German catalog coverage; localize audited setup, analysis, telemetry, session, and assistant UI copy.
 - List lap detector checks by category in Analyse, separating findings from checks with no finding and unavailable checks; infer aid checks where wheel telemetry supports them without native intervention channels
 - Chart per-wheel rotation speed (rad/s) in lap replay when rotation telemetry is available

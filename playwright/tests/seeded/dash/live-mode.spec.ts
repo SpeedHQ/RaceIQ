@@ -2,27 +2,16 @@ import { expect, test } from "@playwright/test";
 
 import { collectBrowserErrors } from "../../support/browser-errors";
 
-test("live dashboard mode toggle exposes selected route and no-data guide state", async ({ page }) => {
-  test.setTimeout(80_000);
+test("shared live routes resolve without game-specific URL prefixes", async ({ page }) => {
   const browserErrors = collectBrowserErrors(page);
   await page.routeWebSocket("**/ws", () => {});
-  await page.goto("/fm23/live", { waitUntil: "domcontentloaded" });
-  const dashboardModes = page.getByRole("main");
-  const driverLink = dashboardModes.getByRole("link", { name: "Driver", exact: true });
-  const pitLink = dashboardModes.getByRole("link", { name: "Pit Crew", exact: true });
-  await expect(driverLink).toHaveAttribute("aria-current", "page");
-  await expect(page.getByText("Waiting for telemetry", { exact: false })).toBeVisible();
-  const guide = page.getByRole("button", { name: /How to enable Data Out/ });
-  await expect(guide).toHaveAttribute("aria-expanded", "false");
-  await guide.click();
-  await expect(guide).toHaveAttribute("aria-expanded", "true");
+  await page.goto("/live", { waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/\/live$/);
+  await expect(page.getByRole("main")).toBeVisible();
 
-  await pitLink.click();
-  await expect(page).toHaveURL(/\/fm23\/live\/pit$/);
-  await expect(pitLink).toHaveAttribute("aria-current", "page");
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page).toHaveURL(/\/fm23\/live\/pit$/);
-  await expect(pitLink).toHaveAttribute("aria-current", "page");
+  await page.goto("/live/pit", { waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/\/live\/pit$/);
+  await expect(page.getByRole("main")).toBeVisible();
 
-  expect(browserErrors.errors, "unexpected browser errors in live dashboard mode flow").toEqual([]);
+  expect(browserErrors.errors, "unexpected browser errors in shared live routes").toEqual([]);
 });
