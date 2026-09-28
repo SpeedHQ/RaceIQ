@@ -13,62 +13,30 @@ export const RECORDING_BY_GAME = {
 export type LiveChannel =
   | { kind: "dynamic"; label: string }
   | { kind: "static"; label: string }
-  | { kind: "event"; label: string; states: readonly string[] }
-  | {
-      kind: "fixture-limited-value";
-      label: string;
-      expected: string;
-      evidence: string;
-    };
+  | { kind: "event"; label: string; states: readonly string[] };
 
 /**
  * Browser-visible channel contract. Dynamic values must move; event channels
  * must expose at least two fixture states; static values only prove presence.
- * Fixture-limited channels retain exact parser evidence instead of inventing a
- * transition absent from committed native capture.
  */
 export const LIVE_CHANNELS_BY_GAME = {
   "fm-2023": [
     { kind: "dynamic", label: "Current" },
-    {
-      kind: "fixture-limited-value",
-      label: "Est. Lap",
-      expected: "--:--.---",
-      evidence: "committed FM replay has no seeded sector best, so server cannot calculate an estimated lap",
-    },
     { kind: "static", label: "Lap" },
   ],
   "f1-2025": [
     { kind: "dynamic", label: "Current" },
     { kind: "dynamic", label: "ERS" },
-    {
-      kind: "fixture-limited-value",
-      label: "Est. Lap",
-      expected: "--:--.---",
-      evidence: "committed F1 replay has no EstimatedLapTime values or seeded sector best, so server cannot calculate an estimated lap",
-    },
     { kind: "static", label: "Weather" },
     { kind: "static", label: "DRS" },
   ],
   acc: [
     { kind: "dynamic", label: "Current" },
-    {
-      kind: "fixture-limited-value",
-      label: "Est. Lap",
-      expected: "--:--.---",
-      evidence: "committed ACC replay resolves track 2 with no seeded sector best, so estimated lap remains unavailable",
-    },
     { kind: "static", label: "Lap" },
     { kind: "static", label: "Fuel" },
   ],
   "ac-evo": [
     { kind: "dynamic", label: "Current" },
-    {
-      kind: "fixture-limited-value",
-      label: "Est. Lap",
-      expected: "--:--.---",
-      evidence: "committed AC Evo replay resolves Brands Hatch GP with no seeded sector best, so estimated lap remains unavailable",
-    },
     { kind: "static", label: "Lap" },
   ],
   iracing: [

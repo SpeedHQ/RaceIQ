@@ -1,4 +1,4 @@
-import { expect, test } from "./snapshot-test";
+import { expectScreenshot, test } from "./snapshot-test";
 import { THEME_SNAPSHOT_CASE } from "./snapshot-cases";
 import { openStory } from "./storybook-ready";
 
@@ -10,7 +10,7 @@ test(`snapshot: ${THEME_SNAPSHOT_CASE.name}`, async ({ page }) => {
   await page.evaluate(() => document.fonts.ready);
   await page.getByRole("button", { name: THEME_SNAPSHOT_CASE.hoverLabel }).hover();
 
-  await expect(page).toHaveScreenshot("ThemeContract.png", {
+  await expectScreenshot(page, "ThemeContract.png", {
     fullPage: false,
     animations: "disabled",
   });

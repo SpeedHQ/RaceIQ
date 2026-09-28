@@ -16,6 +16,8 @@ export default defineConfig({
   outputDir: RESULTS_DIR,
   snapshotDir: SNAPSHOT_DIR,
   snapshotPathTemplate: "{snapshotDir}/{testName}.png",
+  // snapshot-test initializes absent baselines; existing differences must fail.
+  updateSnapshots: "missing",
   // Tolerate sub-pixel antialiasing / font-rendering noise so only real UI
   // changes trip the diff. `threshold` is per-pixel colour distance (0–1);
   // `maxDiffPixelRatio` is the fraction of pixels allowed to differ overall.

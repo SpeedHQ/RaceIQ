@@ -1,4 +1,4 @@
-import { expect, test } from "./snapshot-test";
+import { expect, expectScreenshot, test } from "./snapshot-test";
 import { DASHBOARD_SNAPSHOT_CASES } from "./snapshot-cases";
 import { openStoryForSnapshot } from "./storybook-ready";
 
@@ -55,7 +55,7 @@ for (const story of DASHBOARD_SNAPSHOT_CASES) {
       ).toBe(true);
     }
 
-    await expect(page).toHaveScreenshot(`${story.name}.png`, {
+    await expectScreenshot(page, `${story.name}.png`, {
       fullPage: false,
       animations: "disabled",
     });

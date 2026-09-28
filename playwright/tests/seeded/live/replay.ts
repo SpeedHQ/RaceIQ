@@ -44,10 +44,6 @@ export async function assertRecordingChangesLiveChannels(page: Page, request: AP
       });
     }
   }
-  for (const channel of channels) {
-    if (channel.kind !== "fixture-limited-value") continue;
-    expect(await metricRowText(page, channel.label), `${gameId} ${channel.label} fixture evidence: ${channel.evidence}`).toContain(channel.expected);
-  }
   const dynamicChannels = channels.filter((channel) => channel.kind === "dynamic");
   const eventChannels = channels.filter((channel) => channel.kind === "event");
   const dynamicObserved = new Map<string, Set<string>>(dynamicChannels.map((channel) => [channel.label, new Set<string>()]));

@@ -13,7 +13,10 @@ import type { DashboardMode } from "./LiveTelemetry";
 export function LiveDashboardPage({ mode }: { mode: DashboardMode }) {
   const detectedId = useTelemetryStore((s) => s.serverStatus?.detectedGame?.id);
   const view = useTelemetryStore((s) => s.telemetryView);
-  const game = detectedId ? tryGetGame(detectedId) : undefined;
+  // Replays provide a simulator on the telemetry view even when periodic
+  // source status reports no detected game.
+  const gameId = detectedId ?? view?.simulator;
+  const game = gameId ? tryGetGame(gameId) : undefined;
   const setGameId = gameStore.actions.setGameId;
   useEffect(() => {
     setGameId(game?.id ?? null);

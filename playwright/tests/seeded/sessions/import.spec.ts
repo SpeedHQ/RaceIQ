@@ -47,13 +47,19 @@ test("imports all six games raw, then requires Convert and preserves Analyse rep
     { gameId: "iracing", file: "iracing-road-america-gt3.bin.gz" },
     { gameId: "lmu", file: "lmu-spa-iron-lynx-gte.bin.gz" },
   ];
-  const importedLapIds: number[] = [];
   const importedSessionIds: number[] = [];
+  const sessionBaselines = new Map<GameId, Set<number>>();
   const replays: Array<{ gameId: GameId; lapId: number; before: unknown }> = [];
   try {
+    // Import fresh raw captures and exercise the mandatory dialog on seeded data.
+    // The dedicated project disables retries because conversion is irreversible.
     for (const { gameId, file } of fixtures) {
       const sessionsBefore = await sessionsFor(request, gameId);
+      sessionBaselines.set(gameId, new Set(sessionsBefore.map(({ id }) => id)));
       const upload = await request.post("/api/laps/import", {
+        // Full captures are decompressed and replayed through lap persistence before
+        // this endpoint responds; the shared 10s action limit is too short.
+        timeout: 120_000,
         multipart: {
           file: { name: file, mimeType: "application/octet-stream", buffer: readFileSync(resolve(__dirname, "../../../../test/artifacts/sessions", file)) },
           ownership: "mine",
@@ -63,7 +69,6 @@ test("imports all six games raw, then requires Convert and preserves Analyse rep
       expect(upload.ok(), `${gameId} raw API import`).toBe(true);
       const imported = (await upload.json()) as { gameId: GameId; laps: Array<{ lapId: number; isValid: boolean }> };
       expect(imported.gameId).toBe(gameId);
-      importedLapIds.push(...imported.laps.map(({ lapId }) => lapId));
       const lapId = imported.laps.find(({ isValid }) => isValid)?.lapId;
       expect(lapId, `${gameId} valid lap`).toBeDefined();
       const beforeIds = new Set(sessionsBefore.map(({ id }) => id));
@@ -80,7 +85,7 @@ test("imports all six games raw, then requires Convert and preserves Analyse rep
     expect(status.ok()).toBe(true);
     expect((await status.json() as { sessionCount: number }).sessionCount).toBeGreaterThanOrEqual(importedSessionIds.length);
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    const dialog = page.getByRole("dialog", { name: "Save space in older recordings" });
+    const dialog = page.getByRole("dialog", { name: "Convert old recordings" });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole("button", { name: "Not now" })).toHaveCount(0);
     await page.keyboard.press("Escape");
@@ -89,11 +94,13 @@ test("imports all six games raw, then requires Convert and preserves Analyse rep
     await dialog.getByRole("button", { name: "Convert", exact: true }).click();
     const migrated = await migrationResponse;
     expect(migrated.ok()).toBe(true);
-    const migration = await migrated.json() as { migrated: number; unchanged: number; failed: number; results: Array<{ rawFile: string; status: "migrated" | "unchanged" | "error" }> };
+    const migration = await migrated.json() as { migrated: number; failed: number; results: Array<{ rawFile: string; status: "migrated" | "error" }> };
     expect(migration.failed).toBe(0);
-    expect(migration.migrated + migration.unchanged).toBeGreaterThanOrEqual(fixtures.length);
+    expect(migration.migrated).toBeGreaterThanOrEqual(fixtures.length);
+    expect(migration.results).toHaveLength(migration.migrated);
     for (const result of migration.results) {
-      expect(existsSync(result.rawFile)).toBe(result.status === "unchanged");
+      expect(result.status).toBe("migrated");
+      expect(existsSync(result.rawFile), `migrated source removed: ${result.rawFile}`).toBe(false);
     }
     const remaining = await request.get("/api/sessions/capture-migration-status");
     expect(remaining.ok()).toBe(true);
@@ -105,11 +112,21 @@ test("imports all six games raw, then requires Convert and preserves Analyse rep
       expect(await after.json()).toEqual(before);
     }
   } finally {
-    if (importedLapIds.length) {
-      expect((await request.post("/api/laps/bulk-delete", { data: { ids: importedLapIds } })).ok()).toBe(true);
-    }
-    if (importedSessionIds.length) {
-      expect((await request.post("/api/sessions/bulk-delete", { data: { ids: importedSessionIds } })).ok()).toBe(true);
+    // A client timeout does not cancel the server import. Discover its sessions
+    // even when no response IDs were received, or the next test gets the mandatory
+    // conversion dialog instead of an accessible Sessions toolbar.
+    for (const [gameId, beforeIds] of sessionBaselines) {
+      const response = await request.get(`/api/sessions?gameId=${gameId}`, { timeout: 120_000 });
+      expect(response.ok(), `${gameId} cleanup session list`).toBe(true);
+      const sessions = await response.json() as Array<{ id: number }>;
+      const ids = sessions.filter(({ id }) => !beforeIds.has(id)).map(({ id }) => id);
+      if (ids.length) {
+        // Session deletion also removes its laps and owned capture files.
+        const cleanup = await request.post("/api/sessions/bulk-delete", { data: { ids }, timeout: 120_000 });
+        expect(cleanup.ok(), `${gameId} cleanup imported sessions`).toBe(true);
+      }
+      const remaining = await sessionsFor(request, gameId);
+      expect(remaining.filter(({ id }) => !beforeIds.has(id)), `${gameId} no leaked imports`).toEqual([]);
     }
   }
 });
@@ -119,8 +136,12 @@ const motecLd = MOTEC_FIXTURES.find((path) => path.endsWith(".ld") && existsSync
 const motecLdx = MOTEC_FIXTURES.find((path) => path.endsWith(".ldx") && existsSync(path));
 const motecZip = resolve(__dirname, "../../../../test/artifacts/motec/acc-barcelona-porsche-992.zip");
 
-test("session importer sends a MoTeC ZIP directly to configuration", async ({ page }) => {
+test("session importer sends a MoTeC ZIP directly to configuration", async ({ page, request }) => {
   test.skip(!existsSync(motecZip), "No repository MoTeC ZIP fixture available");
+  const migrationStatus = await request.get("/api/sessions/capture-migration-status");
+  expect(migrationStatus.ok()).toBe(true);
+  expect((await migrationStatus.json() as { captureCount: number }).captureCount,
+    "raw import cleanup must not leave the mandatory conversion dialog blocking Import").toBe(0);
   let stageRequests = 0;
   page.on("request", (request) => {
     if (new URL(request.url()).pathname === "/api/laps/stage-motec") {
@@ -130,7 +151,10 @@ test("session importer sends a MoTeC ZIP directly to configuration", async ({ pa
 
   await page.goto("/acc/sessions?tab=mine", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Import", exact: true }).click();
+  const staged = page.waitForResponse((response) => response.request().method() === "POST"
+    && new URL(response.url()).pathname === "/api/laps/stage-motec", { timeout: 30_000 });
   await page.locator('input[type="file"][accept*=".zip"]').setInputFiles(motecZip);
+  expect((await staged).ok(), "MoTeC ZIP stages successfully").toBe(true);
 
   await expect(page.getByRole("heading", { name: "Import MoTeC log" })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("Barcelona-porsche_992_gt3_r-4-2024.12.06-14.54.26.ld", { exact: true })).toBeVisible();

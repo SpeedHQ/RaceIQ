@@ -1,4 +1,6 @@
-import { expect, test as base } from "@playwright/test";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
+import { expect, test as base, type Locator, type Page } from "@playwright/test";
 import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
 
 const test = base.extend<{ isolatedApi: void }>({
@@ -50,4 +52,23 @@ const test = base.extend<{ isolatedApi: void }>({
   ],
 });
 
-export { expect, test };
+// Seed only absent baselines: Playwright's default "missing" mode writes them
+// but still fails the test. Always run the screenshot assertion afterwards so
+// capture failures, unstable rendering, and existing image differences still fail.
+async function expectScreenshot(target: Page | Locator, name: string, options: { fullPage?: boolean; animations?: "disabled" | "allow"; timeout?: number } = {}) {
+  const info = test.info();
+  const baseline = info.snapshotPath(name, { kind: "screenshot" });
+  if (info.config.updateSnapshots === "missing" && !existsSync(baseline)) {
+    const screenshot = await target.screenshot({ animations: "disabled", caret: "hide", scale: "css", ...options });
+    mkdirSync(dirname(baseline), { recursive: true });
+    try {
+      writeFileSync(baseline, screenshot, { flag: "wx" });
+    } catch (error) {
+      // Another worker may have initialized it while we captured the page.
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    }
+  }
+  await expect(target).toHaveScreenshot(name, options);
+}
+
+export { expect, expectScreenshot, test };

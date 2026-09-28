@@ -153,11 +153,14 @@ test("selected-session cleanup previews protection and waits for confirmation", 
   const first = sessionRows(page).first();
   await first.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Free space", exact: true }).click();
-  await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(page.getByText("Removes raw capture files to free disk space. Session and lap details remain, and favorite sessions and laps are protected.")).toBeVisible();
-  await expect(page.getByText("Protected sessions")).toBeVisible();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("Removes .bin recording files to free disk space. Session and lap details remain, and favorite sessions and laps are protected.", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("Protected sessions", { exact: true })).toBeVisible();
+  const confirm = dialog.getByRole("button", { name: "Remove raw telemetry", exact: true });
+  await expect(confirm).toBeEnabled();
   expect(executeCalls).toBe(0);
-  await page.getByRole("button", { name: "Remove raw telemetry", exact: true }).click();
+  await confirm.click();
   await expect.poll(() => executeCalls).toBe(1);
   expect(browserErrors.errors).toEqual([]);
 });

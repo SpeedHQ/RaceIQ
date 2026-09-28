@@ -41,20 +41,36 @@ export async function importDisposableLap(request: APIRequestContext, gameId: Ga
     },
   });
   expect(importResponse.ok(), "disposable lap import").toBe(true);
-  const imported = (await importResponse.json()) as { laps?: { lapId: number }[] };
+  const imported = (await importResponse.json()) as { laps?: { lapId: number; sessionId: number }[] };
   const lapIds = imported.laps?.map((lap) => lap.lapId) ?? [];
   expect(lapIds.length, "disposable import lap ids").toBeGreaterThan(0);
 
-  const sessionsAfter = await sessionsFor(request, gameId);
+  // Other tests can import concurrently: a before/after list difference can
+  // capture their sessions and overwrite the note they are searching for.
+  const sessionIds = [...new Set(imported.laps!.map((lap) => lap.sessionId))];
   const beforeIds = new Set(sessionsBefore.map((session) => session.id));
-  const sessionIds = sessionsAfter.filter((session) => !beforeIds.has(session.id)).map((session) => session.id);
   expect(sessionIds.length, "disposable import session ids").toBeGreaterThan(0);
-  const note = `seeded-e2e-disposable-${label}-${Date.now()}`;
   for (const sessionId of sessionIds) {
-    const noteResponse = await request.patch(`/api/sessions/${sessionId}/notes`, { data: { notes: note } });
-    expect(noteResponse.ok(), `label disposable session ${sessionId}`).toBe(true);
+    expect(Number.isInteger(sessionId), "import returns a session id").toBe(true);
+    expect(beforeIds.has(sessionId), "import must not reuse a preexisting session").toBe(false);
   }
-  return { sessionIds, lapIds, note };
+  const note = `seeded-e2e-disposable-${label}-${crypto.randomUUID()}`;
+  const disposable = { sessionIds, lapIds, note };
+  try {
+    for (const sessionId of sessionIds) {
+      const noteResponse = await request.patch(`/api/sessions/${sessionId}/notes`, { data: { notes: note } });
+      expect(noteResponse.ok(), `label disposable session ${sessionId}`).toBe(true);
+    }
+    const sessionsAfter = await sessionsFor(request, gameId);
+    for (const sessionId of sessionIds) {
+      expect(sessionsAfter.find((session) => session.id === sessionId)?.notes, `persisted note for disposable session ${sessionId}`).toBe(note);
+    }
+    return disposable;
+  } catch (error) {
+    // The caller cannot clean up until this helper returns its owned IDs.
+    await cleanDisposable(request, disposable, gameId);
+    throw error;
+  }
 }
 
 export async function cleanDisposable(request: APIRequestContext, disposable: DisposableImport | undefined, gameId: GameId = "fm-2023"): Promise<void> {
