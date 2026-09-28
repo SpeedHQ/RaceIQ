@@ -171,6 +171,23 @@ describe("ACC parser", () => {
     expect(packet!.acc!.brakeBias).toBeCloseTo(0.58);
   });
 
+  test("road vibration never impersonates native TC or ABS activity", () => {
+    const physics = makePhysicsBuf({ tc: 0, abs: 0, speedKmh: 240, steerAngle: 0 });
+    physics.writeFloatLE(0.5, PHYSICS.slipVibrations.offset);
+    physics.writeFloatLE(0.5, PHYSICS.absVibrations.offset);
+    const graphics = makeGraphicsBuf();
+    const staticData = makeStaticBuf();
+    const straight = parseAccBuffers(physics, graphics, staticData);
+    expect(straight!.acc!.tcIntervention).toBe(0);
+    expect(straight!.acc!.absIntervention).toBe(0);
+
+    physics.writeFloatLE(1, PHYSICS.tc.offset);
+    physics.writeFloatLE(1, PHYSICS.abs.offset);
+    const intervention = parseAccBuffers(physics, graphics, staticData);
+    expect(intervention!.acc!.tcIntervention).toBe(1);
+    expect(intervention!.acc!.absIntervention).toBe(1);
+  });
+
   test("maps ACC core temperature without relabeling reserved bands", () => {
     const packet = parseAccBuffers(makePhysicsBuf(), makeGraphicsBuf(), makeStaticBuf());
 

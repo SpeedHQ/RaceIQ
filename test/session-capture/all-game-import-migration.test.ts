@@ -9,6 +9,7 @@ import { deleteSession } from "../../server/db/session-queries";
 import { initServerGameAdapters } from "../../server/games/init";
 import { transferRoutes } from "../../server/routes/laps/transfer-routes";
 import { sessionRoutes } from "../../server/routes/session-routes";
+import { lapRoutes } from "../../server/routes/laps";
 import { iterateSessionCaptureRecordsFromSource } from "../../server/session-capture/source-loader";
 import { initGameAdapters } from "../../shared/games/init";
 import type { GameId } from "../../shared/games/ids";
@@ -18,7 +19,7 @@ const fixtures: ReadonlyArray<{ gameId: GameId; file: string }> = [
   { gameId: "f1-2025", file: "f1-2025-2026-04-22T11-42-43-029Z.bin.gz" },
   { gameId: "acc", file: "acc-2026-04-23T16-42-16-158Z.bin.gz" },
   { gameId: "ac-evo", file: "session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz" },
-  { gameId: "iracing", file: "iracing-road-america-gt3.bin.gz" },
+  { gameId: "iracing", file: "iracing-daytona-am-vantage-gt3-pit.bin.gz" },
   { gameId: "lmu", file: "lmu-spa-iron-lynx-gte.bin.gz" },
 ];
 
@@ -104,6 +105,7 @@ test("imports all six complete game bins through API, then migrates every candid
     }
   }
 
+  const candidates = new Map<GameId, { id: number; frames: number }>();
   const response = await sessionRoutes.request("/api/sessions/migrate-captures", { method: "POST" });
   expect(response.status).toBe(200);
   const result = await response.json() as { results: Array<{ rawFile: string; status: "migrated" | "error"; error?: string }> };
@@ -122,8 +124,27 @@ test("imports all six complete game bins through API, then migrates every candid
       const current = await db.select().from(laps).where(eq(laps.id, lap.id)).get();
       expect(current).toMatchObject({ id: lap.id, rawFrameCount: lap.rawFrameCount, lapTime: lap.lapTime, isValid: lap.isValid, notes: lap.notes });
       if (lap.rawByteOffset !== null) remapped.set(lap.rawByteOffset, current!.rawByteOffset!);
+      const frameCount = current!.rawFrameCount ?? 0;
+      if (frameCount > (candidates.get(capture.gameId)?.frames ?? 0)) {
+        candidates.set(capture.gameId, { id: current!.id, frames: frameCount });
+      }
     }
     await compareEveryRecord(capture, finalPath, remapped);
+  }
+  for (const { gameId } of fixtures) {
+    const candidate = candidates.get(gameId);
+    expect(candidate?.frames).toBeGreaterThan(0);
+    const replay = await lapRoutes.request(`/api/laps/${candidate!.id}/semantic-telemetry`, {
+      headers: { "X-Game-Id": gameId },
+    });
+    expect(replay.status).toBe(200);
+    const body = await replay.json() as { detectorCoverage: Array<{ status: string; reason?: string }> };
+    expect(body.detectorCoverage.some((detector) => detector.status === "checked" || detector.status === "finding")).toBe(true);
+    const findings = await lapRoutes.request(`/api/laps/${candidate!.id}/insights`, {
+      headers: { "X-Game-Id": gameId },
+    });
+    expect(findings.status).toBe(200);
+    expect((await findings.json() as { insights: unknown[] }).insights.length).toBeGreaterThan(0);
   }
   expect(result.results.length).toBe(captures.length);
 }, { timeout: 300_000 });

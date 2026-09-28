@@ -168,6 +168,15 @@ export const resourceRoutes = new Hono()
     return c.json({ setup: gameIdResult.data === "f1-2025" ? resolveLapF1Setup({ carSetup: lap.carSetup, telemetry: lap.telemetry }) : null });
   })
 
+  .get("/api/laps/:id/insights", zValidator("param", IdParamSchema), async (c) => {
+    const gameId = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
+    if (!gameId.success) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
+    const { id } = c.req.valid("param");
+    const meta = await getLapMetaById(id);
+    if (!meta || meta.gameId !== gameId.data) return c.json({ error: "Lap not found" }, 404);
+    return c.json({ insights: await getOrComputeLapInsights(id) ?? [] });
+  })
+
   .get("/api/laps/:id", zValidator("param", IdParamSchema), async (c) => {
     const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
     if (!gameIdResult.success) {

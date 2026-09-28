@@ -9,6 +9,7 @@ import { SparseSessionRecorderAdapter } from "../../server/telemetry/pipeline-po
 import { SessionRecorder } from "../../server/session-capture/recorder";
 import { SparseSessionRecorder } from "../../server/session-capture/sparse-recorder";
 import { parseRawLapFrames } from "../../server/db/telemetry-replay-storage";
+import { runInsightScanWithCoverage } from "../../shared/racing/analysis/laps/insights/scan";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { iterateSessionCaptureFrames } from "../../server/session-capture/source-loader";
@@ -48,8 +49,8 @@ describe("generic sparse session recorder", () => {
     ["fm-2023", "fm-2023-2026-04-09T21-55-03-186Z.bin.gz"],
     ["f1-2025", "f1-2025-2026-04-09T21-34-10-190Z.bin.gz"],
     ["acc", "acc-2026-04-10T02-55-22-777Z.bin.gz"],
-    ["ac-evo", "session-ac-evo-menu-exit-2026-04-23T18-11-48-959Z.bin.gz"],
-    ["iracing", "iracing-road-america-gt3.bin.gz"],
+    ["ac-evo", "session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz"],
+    ["iracing", "iracing-daytona-am-vantage-gt3-pit.bin.gz"],
     ["lmu", "lmu-spa-iron-lynx-gte.bin.gz"],
   ] as const)("restores fixture source bytes and seeks for %s", async (gameId, fixture) => {
     const dir = mkdtempSync(join(tmpdir(), "raceiq-generic-sparse-")); dirs.push(dir);
@@ -74,14 +75,12 @@ describe("generic sparse session recorder", () => {
     const sparseStreamedPackets = await parseRawLapFrames(captureSource(file), 12, frames.length);
     expect(rawStreamedPackets.length).toBeGreaterThan(0);
     if (gameId === "acc" || gameId === "ac-evo") {
-      // Legacy packed frames omit capture time; both parsers generate TimestampMS from Date.now().
       const withoutReplayClock = (packets: typeof rawStreamedPackets) =>
         packets.map(({ TimestampMS: _timestamp, ...packet }) => packet);
       expect(withoutReplayClock(sparseStreamedPackets)).toEqual(withoutReplayClock(rawStreamedPackets));
     } else {
       expect(sparseStreamedPackets).toEqual(rawStreamedPackets);
     }
-
     const bytes = readFileSync(file);
     const records = [...iterateSessionCaptureRecords(bytes)];
     expect(records.map((record) => record.kind === "frame" ? record.offset : -1)).toEqual(offsets);
@@ -144,6 +143,13 @@ describe("generic sparse session recorder", () => {
     expect(sparsePackets[0]?.extendedRaceIQ?.frameTimeMs).toBeDefined();
     if (gameId === "acc" || gameId === "ac-evo") {
       expect(sparsePackets[0]!.TimestampMS).toBe(sparsePackets[0]!.extendedRaceIQ!.frameTimeMs!);
+    }
+    if (gameId === "acc") {
+      const coverage = runInsightScanWithCoverage(sparsePackets, "acc").detectorCoverage;
+      expect(coverage.some((detector) => detector.status === "checked" || detector.status === "finding")).toBe(true);
+      expect(runInsightScanWithCoverage(sparsePackets.map((packet) => ({ ...packet, CurrentLap: 0 })), "acc").detectorCoverage
+        .every((detector) => detector.reason === "Insufficient valid-duration lap telemetry")).toBe(true);
+      expect(sparsePackets[0]!.TimestampMS).toBe(timestamps[0]);
     }
     const gzFile = join(dir, "sparse.bin.gz");
     writeFileSync(gzFile, gzipSync(bytes));

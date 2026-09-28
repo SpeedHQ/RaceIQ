@@ -43,10 +43,9 @@ export interface KunosExtendedData {
   abs: number;
   engineMap: number;
   brakeBias: number;
-  // Electronics — runtime intervention. tc@204 and abs@252 are the canonical
-  // aid floats; slipVibrations@788 and absVibrations@796 are fallbacks that
-  // some ACC versions populate instead. `tcIntervention`/`absIntervention`
-  // are 1 when any of the sources indicates activity.
+  // ACC's physics tc@204 and abs@252 are aid-related signals, not explicit
+  // active flags. AC Evo uses its explicit graphics tc_active/abs_active flags.
+  // Vibration is independent road/tyre feedback, not intervention evidence.
   tcIntervention: number;
   absIntervention: number;
   tcRaw: number;

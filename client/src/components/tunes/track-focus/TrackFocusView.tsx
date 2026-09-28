@@ -6,11 +6,13 @@ import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import type { GameId } from "../../../../../shared/games/ids";
 import type { AlignedLapSet, AlignedLapTrace, WheelAverages } from "@shared/racing/laps/alignment/types";
 import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
+import type { LapInsight } from "@shared/racing/analysis/laps/insights/types";
 import type { LineSpreadTrace } from "../../../hooks/experiments";
 import { useLineSpread } from "../../../hooks/experiments";
 import type { TrackCorner } from "../../../hooks/track-queries";
 import { useTrackBoundaries, useTrackCorners, useTrackSectorBoundaries } from "../../../hooks/track-queries";
 import { useLapIssues } from "../../../hooks/tunes";
+import { useLapInsights } from "../../../hooks/laps";
 import { useAlignedTelemetryZoom } from "../../../hooks/useAlignedTelemetryZoom";
 import { semanticTuneSamplesFromAlignedTrace, type SemanticTuneSample } from "../semantic-tune";
 import type { TuneReviewTrackTab } from "../../../lib/game-routes";
@@ -116,6 +118,7 @@ export function TrackFocusView({
     return lap ? semanticTuneSamplesFromAlignedTrace(lap, gameId, trackOrdinal, alignedSet?.nominalSpanMeters ?? 0) : null;
   }, [alignedSet, gameId, primaryLapId, trackOrdinal]);
   const { data: issues } = useLapIssues(primaryLapId);
+  const { data: lapInsights } = useLapInsights(primaryLapId);
   const { data: bounds } = useTrackBoundaries(trackOrdinal, gameId);
   const { data: corners } = useTrackCorners(trackOrdinal, gameId);
   const { data: sectorBoundaries } = useTrackSectorBoundaries(trackOrdinal, gameId);
@@ -156,6 +159,7 @@ export function TrackFocusView({
       corners={corners ?? []}
       focusTelemetry={focusTelemetry}
       issues={issues ?? []}
+      insights={lapInsights ?? []}
       lineSpread={lineSpread ?? null}
       metaSectors={metaSectors}
       gameId={gameId}
@@ -196,6 +200,7 @@ export interface TrackFocusViewInnerProps {
   edges: { left: Pt[]; right: Pt[] } | null;
   corners: TrackCorner[];
   issues: TuneIssue[];
+  insights?: LapInsight[];
   lineSpread: LineSpreadTrace | null;
   metaSectors?: { s1End: number; s2End: number } | null;
   nominalSpanMeters: number;
@@ -215,6 +220,7 @@ export function TrackFocusViewInner({
   edges,
   corners,
   issues,
+  insights = [],
   lineSpread,
   metaSectors,
   activeTab: controlledActiveTab,
@@ -436,6 +442,24 @@ export function TrackFocusViewInner({
             <div className="mb-1 flex-none text-app-compact font-semibold uppercase tracking-wider text-app-text-muted">Issues</div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               <IssuesList issues={issues} onIssueClick={setCursorFrac} onIssueHover={handleIssueHover} highlightedIssueKey={highlightedIssueKey} />
+              {insights.length > 0 && (
+                <section className="mt-3 space-y-1" aria-label="Detector findings">
+                  <h3 className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Detector findings ({insights.length})</h3>
+                  <ul className="space-y-1">
+                    {insights.map((insight) => (
+                      <li key={insight.id} className="rounded border border-app-border px-2 py-1.5 text-sm">
+                        <div className="flex items-start gap-2">
+                          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: insight.severity === "critical" ? "var(--status-danger)" : insight.severity === "warning" ? "var(--status-warning)" : "var(--status-info)" }} />
+                          <div>
+                            <div className="text-app-text">{insight.label}</div>
+                            <div className="text-app-caption text-app-text-muted">{insight.detail}</div>
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
             </div>
           </div>
         </div>

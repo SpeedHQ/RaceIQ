@@ -9,8 +9,8 @@ import type { KunosExtendedData } from "@shared/telemetry/kunos";
 import type { TelemetryPacket } from "@shared/telemetry/types";
 
 initGameAdapters();
-const inferred = { nativeChannelAvailable: false, wheelRotationAvailable: true };
-const native = { nativeChannelAvailable: true, wheelRotationAvailable: false };
+const inferred = { nativeChannelAvailable: false, nativeChannelExplicit: false, wheelRotationAvailable: true };
+const native = { nativeChannelAvailable: true, nativeChannelExplicit: true, wheelRotationAvailable: false };
 
 function frame(index: number, overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
   return {
@@ -83,15 +83,52 @@ describe("static driver-aid activation detection", () => {
     expect(detectAbsActivation(telemetry, inferred)).toBeNull();
   });
 
-  test("keeps native activity observational despite aid settings and repeated events", () => {
+  test("keeps native aid pulses separate across brief inactive intervals", () => {
     const telemetry = Array.from({ length: 64 }, (_, index) => frame(index, {
       acc: { abs: 0, tc: 0, absIntervention: index % 10 < 2 ? 1 : 0, tcIntervention: index % 10 < 2 ? 1 : 0 } as KunosExtendedData,
     }));
     for (const insight of [detectAbsActivation(telemetry, native), detectTractionControlActivation(telemetry, native)]) {
       expect(insight?.evidenceSource).toBe("native");
-      expect(insight?.severity).toBe("info");
-      expect(insight!.frameIndices.length).toBeGreaterThan(5);
+      expect(insight?.frameIndices).toHaveLength(7);
     }
+  });
+
+  test("duplicate-timestamp packets do not split an active burst", () => {
+    const telemetry = Array.from({ length: 128 }, (_, index) => frame(index, {
+      TimestampMS: Math.floor(index / 2) * 16,
+      acc: { absIntervention: index % 20 < 4 ? 1 : 0, tcIntervention: index % 20 < 4 ? 1 : 0 } as KunosExtendedData,
+    }));
+    for (const insight of [detectAbsActivation(telemetry, native), detectTractionControlActivation(telemetry, native)]) {
+      expect(insight?.frameIndices).toHaveLength(7);
+    }
+  });
+
+  test("retains each separate native aid burst", () => {
+    const telemetry = Array.from({ length: 120 }, (_, index) => {
+      const active = index < 3 || (index >= 12 && index < 15) || (index >= 65 && index < 68) || (index >= 76 && index < 79) ? 1 : 0;
+      return frame(index, { acc: { absIntervention: active, tcIntervention: active } as KunosExtendedData });
+    });
+    for (const insight of [detectAbsActivation(telemetry, native), detectTractionControlActivation(telemetry, native)]) {
+      expect(insight?.frameIndices).toHaveLength(4);
+    }
+  });
+
+  test("physics aid signal stays possible evidence, unlike explicit active flags", () => {
+    const telemetry = Array.from({ length: 64 }, (_, index) => frame(index, {
+      acc: { absIntervention: index % 10 < 2 ? 1 : 0, tcIntervention: index % 10 < 2 ? 1 : 0 } as KunosExtendedData,
+    }));
+    for (const insight of [
+      detectAbsActivation(telemetry, { ...native, nativeChannelExplicit: false }),
+      detectTractionControlActivation(telemetry, { ...native, nativeChannelExplicit: false }),
+    ]) {
+      expect(insight?.evidenceSource).toBe("inferred");
+      expect(insight?.label).toMatch(/^Possible /);
+      expect(insight?.detail).toContain("inferred from physics aid signal");
+      expect(insight?.detail).not.toContain("reported by game");
+    }
+    const confirmed = detectTractionControlActivation(telemetry, native);
+    expect(confirmed?.evidenceSource).toBe("native");
+    expect(confirmed?.detail).toContain("explicit aid-active flag");
   });
 
   test("native duty cycle excludes samples whose intervention channel is unavailable", () => {

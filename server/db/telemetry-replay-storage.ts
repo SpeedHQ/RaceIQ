@@ -384,6 +384,11 @@ function parseReplayFrame(frame: Buffer, serverGame: ReturnType<typeof getServer
     const packet = serverGame.tryParse(frame, state);
     if (packet) {
       applyFrameTime(packet, frameTimeMs);
+      // Legacy ACC captures have no recorder timestamps. Parsing them in a tight
+      // loop collapses Date.now() to milliseconds; use the simulator lap clock.
+      if (frameTimeMs === undefined && serverGame.id === "acc" && Number.isFinite(packet.CurrentLap) && packet.CurrentLap >= 0) {
+        packet.TimestampMS = packet.CurrentLap * 1000;
+      }
       normalizeReplayPacket(packet, serverGame);
     }
     return packet;

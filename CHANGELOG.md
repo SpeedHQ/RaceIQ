@@ -3,6 +3,9 @@
 ### Features
 
 ### Fixes
+- Use simulator time for lap insight detection across supported games, independent of recorder arrival time; restore checks on older ACC captures without frame timestamps.
+- Show detector findings for the primary lap alongside tune issues in session Analyse, without loading full replay telemetry.
+- Stop treating ACC and AC Evo tyre/road vibration as TC or ABS intervention; label ACC physics-signal findings as possible rather than game-confirmed, and use AC Evo's explicit aid-active flags for confirmed findings.
 
 ### Internal
 
