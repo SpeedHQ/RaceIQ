@@ -116,7 +116,7 @@ describe("capture migration consent and progress", () => {
       const progress = connected.sent.map((value) => JSON.parse(value)).filter((event) => event.type === "capture-migration-progress");
       expect(progress).toHaveLength(candidateBaseline.captureCount + 4);
       expect(progress.slice(0, -1).map((event) => event.done)).toEqual(Array.from({ length: candidateBaseline.captureCount + 3 }, (_, index) => index + 1));
-      expect(progress.at(-2)?.status).toBe("error");
+      expect(progress.filter((event) => event.status === "error")).toHaveLength(1);
       const notifications = connected.sent.map((value) => JSON.parse(value));
       expect(notifications.at(-2)).toMatchObject({
         type: "capture-migration-available",
