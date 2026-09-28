@@ -1,5 +1,13 @@
 ## Unreleased
 
+### Features
+
+### Fixes
+
+### Internal
+
+## v0.19.0 - 2026-09-28
+
 ### Breaking
 - Open lap replays from session links; old track/car/lap query links no longer work.
 - Older RaceIQ versions cannot open new recordings; keep current version installed to replay captures made with it.
@@ -26,6 +34,7 @@
 - See recent sessions rather than individual laps on game and global home pages, including sessions without laps.
 - Expand static lap detection in Analyse for sustained oversteer, tire-pressure imbalance and rapid loss, ACC/AC Evo braking overshoots, observed or inferred aid activity, tire-temperature patterns, DRS left closed on eligible F1 full-throttle straights, ERS depletion, and low corner-exit throttle.
 - Sort laps by S1, S2, or S3 sector time in Analyse session lap-selection dialog.
+- Seed Forza's recorded pit inlap and outlap for demo data.
 
 ### Fixes
 - Restore track and car context when opening Compare chats from saved laps.
