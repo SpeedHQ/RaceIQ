@@ -1,5 +1,13 @@
 ## Unreleased
 
+### Features
+
+### Fixes
+
+### Internal
+
+## v0.19.0 - 2026-09-28
+
 ### Breaking
 - Open lap replays from session links; old track/car/lap query links no longer work.
 - Older RaceIQ versions cannot open new recordings; keep current version installed to replay captures made with it.
