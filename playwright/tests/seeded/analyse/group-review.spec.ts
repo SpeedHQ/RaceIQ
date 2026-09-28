@@ -100,7 +100,6 @@ for (const game of REVIEW_GAMES) {
   });
 
 }
- 
 test("Analyse session route rejects mixed session and lap selections", async ({ page }) => {
   await page.goto("/acc/sessions/analyse?session=1&lap=2", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Invalid Analyse selection" })).toBeVisible();

@@ -11,6 +11,8 @@ export function gameAdaptersForFeatures(
   flags: ReleaseFeatureFlags = releaseFeatureFlags({
     RACEIQ_FEATURE_F1_EXPERIMENTS: import.meta.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
     RACEIQ_FEATURE_IRACING_ADAPTER: import.meta.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+    RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER: import.meta.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER,
+    RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS: import.meta.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS,
   }),
 ) {
   const adapters = [forzaAdapter, f1Adapter, accAdapter, acEvoAdapter];
@@ -24,6 +26,8 @@ export function initGameAdapters(
   flags: ReleaseFeatureFlags = releaseFeatureFlags({
     RACEIQ_FEATURE_F1_EXPERIMENTS: import.meta.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
     RACEIQ_FEATURE_IRACING_ADAPTER: import.meta.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+    RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER: import.meta.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER,
+    RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS: import.meta.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS,
   }),
 ): void {
   for (const adapter of gameAdaptersForFeatures(flags)) registerGame(adapter);

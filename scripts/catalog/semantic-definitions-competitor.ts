@@ -37,6 +37,7 @@ const SEMANTIC_DEFINITIONS_COMPETITOR: Record<string, SemanticDefinition> = {
     parentId: "race.competitor.results",
     canonicalUnit: "enum",
     shape: "structured",
+    valueType: "string",
   },
   "race.competitor.pit-stops": {
     label: "Competitor pit-stop count",
@@ -184,6 +185,7 @@ const SEMANTIC_DEFINITIONS_COMPETITOR: Record<string, SemanticDefinition> = {
     parentId: "identity",
     canonicalUnit: "id",
     shape: "scalar",
+    valueType: "string",
   },
   "race.player-class-position": {
     label: "Player class position",
@@ -597,6 +599,13 @@ const SEMANTIC_DEFINITIONS_COMPETITOR: Record<string, SemanticDefinition> = {
     "Maximum allowed fuel percentage for each competitor car class.",
     "race.competitor.identity",
     "%",
+    "structured",
+  ),
+  "timing.competitor.last-lap-valid": semanticDefinition(
+    "Competitor last-lap validity",
+    "Whether each competitor's most recently completed lap is valid.",
+    "race.competitor.timing",
+    "boolean",
     "structured",
   ),
 };

@@ -37,6 +37,8 @@ export function telemetryCatalogSourceHash(source: string): string {
 export const ENUM_DOMAINS: Readonly<Record<string, readonly string[]>> = {
   "fuel.ers-deploy-mode": ["0", "1", "2", "3", "4"],
   "race.driver-change-lap-status": ["0", "1", "2", "3"],
+  "race.penalty-code": Array.from({ length: 22 }, (_, code) => String(code)),
+  "weather.rain-intensity-code": ["0", "1", "2", "3", "4", "5"],
   "session.session-type-ordinal": [
     "0",
     "1",
@@ -179,7 +181,7 @@ export function valueTypeFor(
 ): ValueType {
   return variable.shape === "structured"
     ? "structured"
-    : scalarValueTypeFor(variable, sourceVariables);
+    : variable.valueType ?? scalarValueTypeFor(variable, sourceVariables);
 }
 
 export function structuredSchemaFor(
@@ -261,7 +263,7 @@ export function structuredSchemaFor(
             },
           ];
   }
-  const scalarType = scalarValueTypeFor(variable, sourceVariables);
+  const scalarType = variable.id === "race.competitor.pit-status" ? "string" : scalarValueTypeFor(variable, sourceVariables);
   const enumDomain = ENUM_DOMAINS[variable.id];
   const valueType =
     scalarType === "enum" && !enumDomain

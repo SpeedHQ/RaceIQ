@@ -1,0 +1,13 @@
+{
+  "segmentId": "race-engineer.fuel-to-finish",
+  "spokenText": "You now have enough fuel to finish at this consumption.",
+  "seed": 2390815105,
+  "path": "chunks/race-engineer.fuel-to-finish.flac",
+  "sha256": "48f1fafbeeaf3c77c529624408b9c9fe6fc9c1253f4bbb068d851c4035bf143f",
+  "frames": 90240,
+  "sampleRate": 24000,
+  "durationMs": 3760,
+  "sourceTranscript": "You now have enough fuel to finish at this consumption.",
+  "sourceHash": "08bd2eb7c1e1e6345d3f0a94eac4d94ec66fbf74de6fe107fbe7089089be7749",
+  "role": "fixed"
+}

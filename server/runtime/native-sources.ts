@@ -1,3 +1,4 @@
+import { accBroadcastClient } from "../games/acc/broadcast-client";
 import { AccSharedMemoryReader } from "../games/acc/shared-memory";
 import { AcEvoSharedMemoryReader } from "../games/ac-evo/shared-memory";
 import { IRacingTelemetrySource } from "../games/iracing/source";
@@ -26,10 +27,8 @@ export interface NativeSourceSupervisor {
 export function startNativeSourceSupervisor(
   recordingGameId: string | null,
 ): NativeSourceSupervisor {
-  if (!IS_WINDOWS) {
-    return { stop: async () => {} };
-  }
-
+  if (!IS_WINDOWS) return { stop: async () => {} };
+  console.log("[Supervisor] Watching for native telemetry games (acc, ac-evo, iracing, lmu) — 2s poll");
   const pendingStops = new Set<Promise<void>>();
   const trackStop = (stop: Promise<void> | null): void => {
     if (!stop) return;
@@ -39,9 +38,15 @@ export function startNativeSourceSupervisor(
       () => pendingStops.delete(stop),
     );
   };
-
-  console.log("[Supervisor] Watching for native telemetry games (acc, ac-evo, iracing, lmu) — 2s poll");
+  let wasAccRunning = false;
   const pollTimer = setInterval(() => {
+    const accRunning = isGameRunning("acc");
+    if (accRunning) {
+      void accBroadcastClient.start().catch((error) => console.error("[ACC Broadcast] Start failed:", error));
+    } else if (wasAccRunning) {
+      void accBroadcastClient.stop().catch((error) => console.error("[ACC Broadcast] Stop failed:", error));
+    }
+    wasAccRunning = accRunning;
     trackStop(superviseSource(
       isGameRunning("acc"),
       "ACC",
@@ -89,6 +94,7 @@ export function startNativeSourceSupervisor(
       setAccReader(null);
       setAcEvoReader(null);
       setIracingSource(null);
+      trackStop(accBroadcastClient.stop());
       setLmuSource(null);
       for (const reader of readers) {
         if (reader) trackStop(reader.stop());

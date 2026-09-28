@@ -58,6 +58,7 @@ const PACKET_SOURCE_OVERRIDES: Partial<
 > = {
   "f1-2025": {
     CarOrdinal: ["F1.Participants.player.teamId"],
+    WeatherType: ["f1.weatherType"],
     NumCylinders: ["RaceIQ.ParserConstant.NumCylinders"],
   },
   acc: {

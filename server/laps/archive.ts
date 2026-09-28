@@ -46,7 +46,6 @@ import {
   encodeSegmentContextFrame,
   gzipBufferSync,
   iterateSessionCaptureRecords,
-  iterateSessionFrameRecords,
   readFramePrefix,
   type SessionCaptureRecord,
   sessionFrameAt,
@@ -254,14 +253,21 @@ function iracingSegmentEnd(
   return end;
 }
 function buildParserContextRecords(buf: Buffer, beforeOffset: number): Buffer[] {
-  return [...iterateSessionCaptureRecords(buf)]
-    .filter((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> =>
-      record.kind === "frame" && record.offset < beforeOffset,
-    )
-    .map((record) => Buffer.concat([
-      encodeFrameLength(record.frame.length, record.frameTimeMs),
-      record.frame,
-    ]));
+  const records: Buffer[] = [];
+  for (const record of iterateSessionCaptureRecords(buf)) {
+    if (record.offset >= beforeOffset) break;
+    if (record.kind === "segment-boundary") {
+      records.length = 0;
+    } else if (record.kind === "frame") {
+      records.push(Buffer.concat([
+        encodeFrameLength(record.frame.length, record.frameTimeMs),
+        record.frame,
+      ]));
+    } else if (record.kind === "acc-broadcast" || record.kind === "acc-broadcast-malformed" || record.kind === "metadata") {
+      records.push(buf.subarray(record.offset, record.offset + 8 + buf.readUInt32LE(record.offset + 4)));
+    }
+  }
+  return records;
 }
 
 /** Re-encode lap frames with segment-local checkpoints and source identities. */
@@ -271,8 +277,14 @@ function sparseLapRecords(buf: Buffer, start: number, end: number, gameId: GameI
   let checkpoint = 0;
   let outputOffset = 0;
   let emitted = 0;
-  for (const record of iterateSessionFrameRecords(buf, start)) {
+  for (const record of iterateSessionCaptureRecords(buf, start)) {
     if (record.offset >= end) break;
+    if (record.kind === "acc-broadcast" || record.kind === "acc-broadcast-malformed" || record.kind === "metadata") {
+      parts.push(buf.subarray(record.offset, record.offset + 8 + buf.readUInt32LE(record.offset + 4)));
+      outputOffset += 8 + buf.readUInt32LE(record.offset + 4);
+      continue;
+    }
+    if (record.kind !== "frame") continue;
     const isLmuV2 = gameId === "lmu" && record.frame.length === LMU_SOURCE_FRAME_V2_SIZE &&
       record.frame.subarray(0, LMU_SOURCE_FRAME_MAGIC.length).equals(LMU_SOURCE_FRAME_MAGIC);
     const magic = record.frame.length >= 4 ? record.frame.readUInt32LE(0) : 0;
@@ -377,7 +389,7 @@ export async function buildLapsZip(
           : null;
       const context = first.gameId === "f1-2025"
         ? buildF1ContextRecords(buf, start)
-        : first.gameId === "ac-evo"
+        : first.gameId === "ac-evo" || first.gameId === "acc"
           ? buildParserContextRecords(buf, start)
           : [];
       const end = first.gameId === "iracing"

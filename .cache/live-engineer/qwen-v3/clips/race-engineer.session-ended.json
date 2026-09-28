@@ -1,0 +1,13 @@
+{
+  "segmentId": "race-engineer.session-ended",
+  "spokenText": "Session finished.",
+  "seed": 2472706861,
+  "path": "chunks/race-engineer.session-ended.flac",
+  "sha256": "74addf2264d86dc9c8d896f5abcca3f14d54c82b950d4131b2c0ceef885d3abf",
+  "frames": 19200,
+  "sampleRate": 24000,
+  "durationMs": 800,
+  "sourceTranscript": "Session finished.",
+  "sourceHash": "c547a3971d7f17aa343306c69a92795bac5e40898d6e46f0680fe1981e590ae5",
+  "role": "fixed"
+}

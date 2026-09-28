@@ -8,6 +8,7 @@ import { ForzaLiveDashboard } from "./ForzaLiveDashboard";
 import { F1LiveDashboard } from "./f1/F1LiveDashboard";
 import { AccLiveDashboard } from "./acc/AccLiveDashboard";
 import { LMULiveDashboard } from "./lmu/LMULiveDashboard";
+import { RadioDock } from "./live-engineer/RadioDock";
 import type { DashboardMode } from "./LiveTelemetry";
 
 export function LiveDashboardPage({ mode }: { mode: DashboardMode }) {
@@ -23,10 +24,13 @@ export function LiveDashboardPage({ mode }: { mode: DashboardMode }) {
     return () => setGameId(null);
   }, [game?.id, setGameId]);
   if (!game || !view || view.simulator !== game.id) return <NoDataView />;
-  switch (liveDashboardForGame(game.id)) {
-    case "forza": return <ForzaLiveDashboard mode={mode} />;
-    case "f1": return <F1LiveDashboard />;
-    case "acc": return <AccLiveDashboard gameId={game.id} />;
-    case "lmu": return <LMULiveDashboard />;
-  }
+  const dashboard = (() => {
+    switch (liveDashboardForGame(game.id)) {
+      case "forza": return <ForzaLiveDashboard mode={mode} />;
+      case "f1": return <F1LiveDashboard />;
+      case "acc": return <AccLiveDashboard gameId={game.id} />;
+      case "lmu": return <LMULiveDashboard />;
+    }
+  })();
+  return <div className="relative h-full"><RadioDock />{dashboard}</div>;
 }

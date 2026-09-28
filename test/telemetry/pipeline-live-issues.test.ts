@@ -125,6 +125,25 @@ describe("LiveTelemetryPipeline live issue gating", () => {
     expect(pipeline.lapDetector?.session).toBeNull();
   });
 
+  test("disabled engineer gate still publishes telemetry without voice or catalog diagnostics", async () => {
+    const db = new CapturingDbAdapter();
+    const ws = new CapturingWsAdapter();
+    const notifications: unknown[] = [];
+    const pipeline = new LiveTelemetryPipeline(db, ws, {
+      bypassPacketRateFilter: true,
+      skipHistorySeeding: true,
+      skipDevState: true,
+      recorder: new NullSessionRecorderAdapter(),
+      engineerEnabled: () => false,
+    });
+    const broadcastNotification = ws.broadcastNotification.bind(ws);
+    ws.broadcastNotification = (message) => { notifications.push(message); broadcastNotification(message); };
+    await pipeline.processPacket(pkt());
+    expect(ws.broadcastedPackets).toHaveLength(1);
+    expect(notifications.filter((message) =>
+      typeof message === "object" && message !== null && "type" in message &&
+      (message.type === "live-engineer-callout" || message.type === "live-engineer-voice-line"))).toEqual([]);
+  });
   test("keeps an FM lap buffered through arbitrary telemetry silence", async () => {
     const { pipeline, db } = makePipeline();
     for (let index = 0; index < 60; index++) {

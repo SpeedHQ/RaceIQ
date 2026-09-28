@@ -1,0 +1,332 @@
+{
+  "catalogVersion": "live-engineer-qwen-v3",
+  "expectedClipCount": 975,
+  "sampleRate": 24000,
+  "channels": 1,
+  "model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+  "modelRevision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+  "referenceText": "G'day mate, Tom here.",
+  "ranges": {
+    "number.integer": {
+      "start": 0,
+      "end": 99,
+      "spoken": "compound-hotset"
+    },
+    "number.tenth": {
+      "start": 1,
+      "end": 9,
+      "spoken": "point digit",
+      "precision": "tenths"
+    },
+    "number.atom": [
+      "zero",
+      "one",
+      "two",
+      "three",
+      "four",
+      "five",
+      "six",
+      "seven",
+      "eight",
+      "nine",
+      "ten",
+      "eleven",
+      "twelve",
+      "thirteen",
+      "fourteen",
+      "fifteen",
+      "sixteen",
+      "seventeen",
+      "eighteen",
+      "nineteen",
+      "twenty",
+      "thirty",
+      "forty",
+      "fifty",
+      "sixty",
+      "seventy",
+      "eighty",
+      "ninety",
+      "hundred",
+      "minutes"
+    ],
+    "lap.body": {
+      "minutes": [
+        0,
+        9
+      ],
+      "seconds": [
+        0,
+        59
+      ],
+      "spoken": "lap body"
+    },
+    "lap.minutes": {
+      "start": 10,
+      "end": 99,
+      "spoken": "compound hotset minutes"
+    },
+    "lap.seconds": {
+      "start": 1,
+      "end": 59,
+      "spoken": "long lap seconds"
+    },
+    "lap.tenth": {
+      "start": 1,
+      "end": 9,
+      "spoken": "point digit"
+    }
+  },
+  "fixed": [
+    [
+      "lap.lead.your-lap-was",
+      "Your lap was"
+    ],
+    [
+      "lap.tail.flat",
+      "flat."
+    ],
+    [
+      "pace.lead.you-are",
+      "You are"
+    ],
+    [
+      "pace.lead.that-lap-is",
+      "That lap is"
+    ],
+    [
+      "phrase.fastest.class",
+      "Fastest in class."
+    ],
+    [
+      "phrase.fastest.overall",
+      "Fastest overall."
+    ],
+    [
+      "phrase.setting-race-pace",
+      "You are setting the current race pace."
+    ],
+    [
+      "opponent-lap.lead.opponent-was",
+      "Opponent was"
+    ],
+    [
+      "opponent-lap.lead.you-were",
+      "You were"
+    ],
+    [
+      "opponent-lap.same-pace",
+      "Same pace as opponent last lap."
+    ],
+    [
+      "spotter.car-left",
+      "Car left."
+    ],
+    [
+      "spotter.car-right",
+      "Car right."
+    ],
+    [
+      "spotter.still-there",
+      "Still there."
+    ],
+    [
+      "spotter.three-wide-left",
+      "Three wide, left."
+    ],
+    [
+      "spotter.three-wide-right",
+      "Three wide, right."
+    ],
+    [
+      "spotter.clear-left",
+      "Clear left."
+    ],
+    [
+      "spotter.clear-right",
+      "Clear right."
+    ],
+    [
+      "race-engineer.opponent-ahead",
+      "Opponent ahead."
+    ],
+    [
+      "race-engineer.opponent-behind",
+      "Opponent behind."
+    ]
+  ],
+  "paceTails": [
+    [
+      "pace.tail.second-from-class",
+      "second from class pace."
+    ],
+    [
+      "pace.tail.seconds-from-class",
+      "seconds from class pace."
+    ],
+    [
+      "pace.tail.second-off-class",
+      "second off class pace."
+    ],
+    [
+      "pace.tail.seconds-off-class",
+      "seconds off class pace."
+    ],
+    [
+      "pace.tail.second-from-overall",
+      "second from overall pace."
+    ],
+    [
+      "pace.tail.seconds-from-overall",
+      "seconds from overall pace."
+    ],
+    [
+      "pace.tail.second-off-overall",
+      "second off overall pace."
+    ],
+    [
+      "pace.tail.seconds-off-overall",
+      "seconds off overall pace."
+    ]
+  ],
+  "opponentTails": [
+    [
+      "opponent-lap.tail.second-faster-last-lap",
+      "second faster last lap."
+    ],
+    [
+      "opponent-lap.tail.seconds-faster-last-lap",
+      "seconds faster last lap."
+    ]
+  ],
+  "raceEngineer": [
+    ["race-time-15-minutes", "Fifteen minutes remaining."],
+    ["race-time-10-minutes", "Ten minutes remaining."],
+    ["race-time-5-minutes", "Five minutes remaining."],
+    ["race-time-2-minutes", "Two minutes remaining."],
+    ["race-time-1-minute", "One minute remaining."],
+    ["session-ended", "Session finished."],
+    ["gap-ahead-closing", "You're closing the gap to the car ahead."],
+    ["gap-ahead-growing", "The car ahead is pulling away."],
+    ["gap-behind-closing", "The car behind is closing in."],
+    ["gap-behind-growing", "You're pulling away from the car behind."],
+    ["driver-changed", "An opponent has changed drivers."],
+    ["fuel-save-required", "At this consumption, you'll need more fuel to finish."],
+    ["fuel-to-finish", "You now have enough fuel to finish at this consumption."],
+    ["push-now", "Closing laps. Fuel looks good. Push now."],
+    ["drs-open", "DRS is open."],
+    ["drs-closed", "DRS is closed."],
+    [
+      "position-changed",
+      "Position changed."
+    ],
+    [
+      "pre-lights",
+      "Get ready for the start."
+    ],
+    [
+      "green-flag",
+      "Green flag."
+    ],
+    [
+      "final-lap",
+      "Final lap."
+    ],
+    [
+      "lap-completed",
+      "Lap completed."
+    ],
+    [
+      "lap-invalidated",
+      "Lap invalidated."
+    ],
+    [
+      "opponent-lap-completed",
+      "Opponent lap completed."
+    ],
+    [
+      "multiclass-traffic",
+      "Multiclass traffic ahead."
+    ],
+    [
+      "penalty-issued",
+      "Penalty issued."
+    ],
+    [
+      "pit-entry",
+      "Pit entry."
+    ],
+    [
+      "pit-exit",
+      "Pit exit."
+    ],
+    [
+      "fuel-low",
+      "Fuel is low."
+    ],
+    [
+      "fuel-critical",
+      "Fuel is critical."
+    ],
+    [
+      "flag-change",
+      "Flag changed."
+    ],
+    [
+      "black-flag",
+      "Black flag."
+    ],
+    [
+      "blue-flag",
+      "Blue flag."
+    ],
+    [
+      "tyres-cold",
+      "Tires are cold."
+    ],
+    [
+      "tyres-hot",
+      "Tires are hot."
+    ],
+    [
+      "tyres-cooking",
+      "Tires are overheating."
+    ],
+    [
+      "water-temperature-hot",
+      "Water temperature is high."
+    ],
+    [
+      "water-temperature-clear",
+      "Water temperature is clear."
+    ],
+    [
+      "damage-reported",
+      "Damage reported."
+    ],
+    [
+      "rain-changed",
+      "Rain conditions changed."
+    ]
+  ],
+  "damageLocations": [
+    "front",
+    "rear",
+    "left",
+    "right",
+    "centre"
+  ],
+  "recipes": {
+    "automatic": [
+      "pace status both scopes",
+      "opponent last lap both directions",
+      "lap common tenth and flat",
+      "lap long seconds tenth and flat",
+      "lap completed prefix"
+    ],
+    "exact-response": [
+      "pace status both scopes",
+      "opponent last lap both directions"
+    ]
+  }
+}

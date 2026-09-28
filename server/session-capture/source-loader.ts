@@ -1,4 +1,5 @@
-import { gunzipBuffer, META_FRAME_MAGIC, readFrameStreamStart, iterateSessionFrameRecords } from "./framing";
+import { gunzipBuffer, META_FRAME_MAGIC, SEGMENT_BOUNDARY_MAGIC, SEGMENT_BOUNDARY_VERSION, SEGMENT_CONTEXT_MAGIC, SEGMENT_CONTEXT_VERSION, SEGMENT_CONTEXT_END_MAGIC, iterateSessionFrameRecords, readFramePrefix, type SessionCaptureRecord } from "./framing";
+import { ACC_BROADCAST_CAPTURE_MAGIC, ACC_BROADCAST_CAPTURE_VERSION, decodeAccBroadcastCaptureRecord } from "../games/acc/broadcast-capture";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { MOTEC_SESSION_SOURCE } from "@shared/integrations/motec";
@@ -7,13 +8,12 @@ import { parseLd } from "../motec/ld";
 import { parseLdxBeacons } from "../motec/ldx";
 import { resolveMotecTarget } from "../motec/targets";
 import { countSourceFrameScanned } from "./test-instrumentation";
-import { SEGMENT_BOUNDARY_MAGIC, SEGMENT_BOUNDARY_VERSION, SEGMENT_CONTEXT_MAGIC, SEGMENT_CONTEXT_VERSION, SEGMENT_CONTEXT_END_MAGIC, readFramePrefix, type SessionCaptureRecord } from "./framing";
 import { decodeLmuSparseFrame, isLmuSparseFrame } from "./lmu-sparse";
 import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "../games/lmu/source-frame";
 import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "./kunos-sparse";
 import { decodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } from "./generic-sparse";
 
-export interface SessionCaptureFrameRecord { readonly offset: number; readonly length: number; readonly frameIndex: number; }
+export interface SessionCaptureFrameRecord { readonly offset: number; readonly prefixOffset: number; readonly length: number; readonly frameIndex: number; readonly frame: Buffer; }
 export interface SessionCaptureFrameIndex {
   readonly records: readonly SessionCaptureFrameRecord[];
   readonly byOffset: ReadonlyMap<number, SessionCaptureFrameRecord>;
@@ -44,13 +44,12 @@ export function indexCaptureFrames(buffer: Buffer): SessionCaptureFrameIndex {
   const records: SessionCaptureFrameRecord[] = [];
   const byOffset = new Map<number, SessionCaptureFrameRecord>();
   let frameIndex = 0;
-  for (const { offset } of iterateSessionFrameRecords(buffer, readFrameStreamStart(buffer), { skipMetaFrames: true })) {
+  for (const { offset, prefixOffset, frame } of iterateSessionFrameRecords(buffer)) {
     countSourceFrameScanned();
-    const prefix = readFramePrefix(buffer, offset);
-    if (!prefix) throw new Error(`Invalid capture frame prefix at ${offset}`);
-    const record = { offset, length: prefix.length, frameIndex };
+    const record = { offset, prefixOffset, length: frame.length, frameIndex, frame };
     records.push(record);
     byOffset.set(offset, record);
+    byOffset.set(prefixOffset, record);
     frameIndex++;
   }
   return { records, byOffset };
@@ -93,8 +92,9 @@ export async function* iterateSessionCaptureRecordsFromSource(
 
   const reader = stream.getReader();
   let pending = Buffer.alloc(0);
-  let initialized = false;
   let offset = 0;
+  let initialized = false;
+  let prefixOffset: number | undefined;
   let previous: Buffer | null = null;
   let checkpointOffset = -1;
   let checkpointIdentity: string | null = null;
@@ -126,25 +126,36 @@ export async function* iterateSessionCaptureRecordsFromSource(
           const metaLength = pending.readUInt32LE(4);
           assertCaptureRecordLength(metaLength);
           if (pending.length < 8 + metaLength) break;
-          if (metaLength === 8) {
-            const magic = pending.readUInt32LE(8);
-            const version = pending.readUInt32LE(12);
-            if (magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) {
-              previous = null;
-              checkpointOffset = -1;
-              checkpointIdentity = null;
-              yield { kind: "segment-boundary", offset };
+          const metaPayload = pending.subarray(8, 8 + metaLength);
+          const magic = metaLength >= 4 ? metaPayload.readUInt32LE(0) : null;
+          const version = metaLength >= 8 ? metaPayload.readUInt32LE(4) : null;
+          if (magic === ACC_BROADCAST_CAPTURE_MAGIC && (version === ACC_BROADCAST_CAPTURE_VERSION || version === null)) {
+            prefixOffset ??= offset;
+            try {
+              yield { kind: "acc-broadcast", offset, batch: decodeAccBroadcastCaptureRecord(metaPayload) };
+            } catch (error) {
+              yield { kind: "acc-broadcast-malformed", offset, reason: error instanceof Error ? error.message : "invalid ACCB record" };
             }
-            else if (magic === SEGMENT_CONTEXT_MAGIC && version === SEGMENT_CONTEXT_VERSION) yield { kind: "segment-context", offset };
-            else if (magic === SEGMENT_CONTEXT_END_MAGIC && version === SEGMENT_CONTEXT_VERSION) {
-              previous = null;
-              checkpointOffset = -1;
-              checkpointIdentity = null;
-              yield { kind: "segment-context-end", offset };
-            }
-            else if (options.strict) throw new Error(`Unknown capture segment marker at ${offset}`);
+          } else if (metaLength === 8 && magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) {
+            previous = null;
+            checkpointOffset = -1;
+            checkpointIdentity = null;
+            prefixOffset = undefined;
+            yield { kind: "segment-boundary", offset };
+          } else if (metaLength === 8 && magic === SEGMENT_CONTEXT_MAGIC && version === SEGMENT_CONTEXT_VERSION) {
+            prefixOffset = undefined;
+            yield { kind: "segment-context", offset };
+          } else if (metaLength === 8 && magic === SEGMENT_CONTEXT_END_MAGIC && version === SEGMENT_CONTEXT_VERSION) {
+            previous = null;
+            checkpointOffset = -1;
+            checkpointIdentity = null;
+            prefixOffset = undefined;
+            yield { kind: "segment-context-end", offset };
+          } else {
+            prefixOffset ??= offset;
+            yield { kind: "metadata", offset, bytes: pending.subarray(0, 8 + metaLength) };
+            if (options.strict && (metaLength === 8 || !(offset === 0 && metaLength === 4))) throw new Error(`Unknown capture metadata at ${offset}`);
           }
-          else if (options.strict) throw new Error(`Unknown capture metadata at ${offset}`);
           pending = pending.subarray(8 + metaLength);
           offset += 8 + metaLength;
           continue;
@@ -202,8 +213,10 @@ export async function* iterateSessionCaptureRecordsFromSource(
           checkpointOffset = checkpointIdentity ? frameOffset : -1;
         }
         previous = frame;
-        if (prefix.frameTimeMs === undefined) yield { kind: "frame", offset: frameOffset, frame };
-        else yield { kind: "frame", offset: frameOffset, frame, frameTimeMs: prefix.frameTimeMs };
+        const framePrefixOffset = prefixOffset ?? frameOffset;
+        prefixOffset = undefined;
+        if (prefix.frameTimeMs === undefined) yield { kind: "frame", offset: frameOffset, prefixOffset: framePrefixOffset, frame };
+        else yield { kind: "frame", offset: frameOffset, prefixOffset: framePrefixOffset, frame, frameTimeMs: prefix.frameTimeMs };
       }
     }
     if (options.strict && (!initialized || pending.length !== 0)) throw new Error(`Truncated capture record at ${offset}`);
@@ -218,7 +231,7 @@ export async function* iterateSessionCaptureRecordsFromSource(
 
 export async function* iterateSessionCaptureFrames(
   source: SessionCaptureSource,
-): AsyncGenerator<{ offset: number; frame: Buffer; frameTimeMs?: number }> {
+): AsyncGenerator<{ offset: number; prefixOffset: number; frame: Buffer; frameTimeMs?: number }> {
   for await (const record of iterateSessionCaptureRecordsFromSource(source)) {
     if (record.kind === "frame") yield record;
   }
@@ -237,7 +250,12 @@ export async function loadSessionSource(source: SessionCaptureSource): Promise<L
     loaded = { kind: "packets", packets: target.convert(log, beacons, carTrack).packets, offsetEncoding: archive.offsetEncoding };
   } else {
     const buffer = bytes[0] === 0x1f && bytes[1] === 0x8b ? await gunzipBuffer(bytes) : bytes;
-    loaded = { kind: "capture", buffer, frameIndex: indexCaptureFrames(buffer) };
+    let frameIndex: SessionCaptureFrameIndex | undefined;
+    loaded = {
+      kind: "capture",
+      buffer,
+      get frameIndex() { return frameIndex ??= indexCaptureFrames(buffer); },
+    };
   }
   cache.set(cacheKey, { size, mtimeMs, loaded }); while (cache.size > MAX_ENTRIES) { const oldest = cache.keys().next().value; if (oldest) cache.delete(oldest); }
   return loaded;

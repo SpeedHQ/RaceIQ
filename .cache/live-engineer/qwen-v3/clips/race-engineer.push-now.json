@@ -1,0 +1,13 @@
+{
+  "segmentId": "race-engineer.push-now",
+  "spokenText": "Closing laps. Fuel looks good. Push now.",
+  "seed": 2481390446,
+  "path": "chunks/race-engineer.push-now.flac",
+  "sha256": "d1df98d980fe7e40c13f952e4c94fa080a53d1239a2896decc57c734cad07ca7",
+  "frames": 80640,
+  "sampleRate": 24000,
+  "durationMs": 3360,
+  "sourceTranscript": "Closing laps. Fuel looks good. Push now.",
+  "sourceHash": "fea420ba482a08972afaccded13093461e4fe70ee664679a8371c1525e94862b",
+  "role": "fixed"
+}

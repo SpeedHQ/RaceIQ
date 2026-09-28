@@ -1,0 +1,13 @@
+{
+  "segmentId": "race-engineer.gap-ahead-growing",
+  "spokenText": "The car ahead is pulling away.",
+  "seed": 2469786059,
+  "path": "chunks/race-engineer.gap-ahead-growing.flac",
+  "sha256": "28805676bcf7246150f3937a50ada8efe1eb40a670abf73c76fcd55f168217fa",
+  "frames": 34560,
+  "sampleRate": 24000,
+  "durationMs": 1440,
+  "sourceTranscript": "The car ahead is pulling away.",
+  "sourceHash": "60184edf3032348aaee674c7cd11831f1120e4c5785227e52ee7989a08730efe",
+  "role": "fixed"
+}

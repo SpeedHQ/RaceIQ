@@ -10,6 +10,8 @@ import type { GameId } from "../../../shared/games/ids";
 import { PHYSICS, GRAPHICS, STATIC, FLAG_STATUS } from "./structs";
 import { readWString } from "./utils";
 
+const SESSION_TYPES = ["practice", "qualifying", "race", "hotlap", "time_attack", "drift", "drag", "hot_stint", "hot_stint"] as const;
+
 /**
  * Parse the three ACC shared memory buffers into a unified TelemetryPacket.
  * Returns null if the buffers are too small.
@@ -321,6 +323,17 @@ export function parseAccBuffers(
     drsEnabled: false,
     pitStatus,
     isValidLap,
+    sessionTimeRemainingSeconds: graphicsBuf.readFloatLE(GRAPHICS.sessionTimeLeft.offset) / 1000,
+    sessionType: SESSION_TYPES[graphicsBuf.readInt32LE(GRAPHICS.session.offset)] ?? "unknown",
+    penaltyCode: graphicsBuf.readInt32LE(GRAPHICS.penalty.offset),
+    waterTempC: physicsBuf.readFloatLE(PHYSICS.waterTemp.offset),
+    ...(graphicsBuf.length >= GRAPHICS.rainIntensity.offset + 4
+      ? { rainIntensityCode: graphicsBuf.readInt32LE(GRAPHICS.rainIntensity.offset) } : {}),
+    ...(graphicsBuf.length >= GRAPHICS.gapBehind.offset + 4
+      ? {
+          gapAheadMs: graphicsBuf.readInt32LE(GRAPHICS.gapAhead.offset),
+          gapBehindMs: graphicsBuf.readInt32LE(GRAPHICS.gapBehind.offset),
+        } : {}),
     fuelPerLap,
     currentSectorIndex,
     lastSectorTime,

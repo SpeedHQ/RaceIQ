@@ -1,0 +1,437 @@
+import { expect, test } from "bun:test";
+import type { GameId } from "../../shared/games/ids";
+import type { ResolvedValue } from "../../shared/telemetry/resolver/contracts";
+import { LiveEngineerVoiceEngine } from "../../server/live-strategy/live-engineer-voice-engine";
+import { crewChiefSource, type CrewChiefTriggerEventV1 } from "../../server/live-strategy/crewchief-triggers/contracts";
+import { extractLiveEngineerSemanticInput } from "../../server/live-strategy/live-engineer-semantic-input";
+import type { LiveResolvedSemanticFrame } from "../../server/telemetry/live-projector";
+
+const ok = (semanticId: string, value: unknown): ResolvedValue<unknown> => ({
+  semanticId, value, unit: null, mappingStatus: "direct", state: "ok", confidence: 1, freshness: "fresh",
+  confidenceComponents: { semanticFidelity: 1, freshness: 1, inputCompleteness: 1 },
+  provenance: {} as never, schemaVersion: "v7", limitations: [],
+});
+const missing = (semanticId: string): ResolvedValue<unknown> => ({ ...ok(semanticId, null), state: "missing", confidence: null });
+const messagesOfType = (messages: readonly unknown[], type: string): Record<string, unknown>[] =>
+  messages.filter((message): message is Record<string, unknown> =>
+    typeof message === "object" && message !== null && "type" in message && message.type === type);
+const familyOf = (message: unknown): string | undefined => typeof message === "object" && message !== null && "family" in message && typeof message.family === "string" ? message.family : undefined;
+const frame = (sequence: number, lap: number, overrides: Record<string, ResolvedValue<unknown>> = {}, simulator: GameId = "acc") => {
+  const values: Record<string, unknown> = {
+    "identity.player-car-index": 0, "identity.player-car-class-id": "gt3", "identity.player-track-surface": 3,
+    "timing.lap-number": lap, "timing.last-lap": 90, "timing.current-lap-valid": true, "race.pit-status": "out", "race.on-pit-road": false,
+    "session.session-state": 5, "session.session-type": "practice", "race.competitor.car-index": [0, 1], "race.competitor.connected": [true, true], "race.competitor.driver-id": ["player", "opp"],
+    "race.competitor.driver-name": ["Player", "Opponent"], "race.competitor.car-class-id": ["gt3", "gt3"], "race.competitor.car-class-name": ["GT3", "GT3"],
+    "race.competitor.laps-complete": [lap, lap], "race.competitor.pit-status": ["out", "out"], "race.competitor.track-location": ["track", "track"],
+    "timing.competitor.last-lap-time": [90, 88], "timing.competitor.last-lap-valid": [true, true],
+    "race.safety-car-status": false, "race.flag-status": "green", "session.session-flags": 0,
+  };
+  const ids = [...new Set([...Object.keys(values), ...Object.keys(overrides)])];
+  return {
+    simulator, sessionId: 1, streamId: "stream", sequence,
+    observedAt: { domain: "session" as const, milliseconds: sequence * 1000 }, ids,
+    values: ids.map((id) => overrides[id] ?? (id in values ? ok(id, values[id]) : missing(id))),
+  };
+};
+
+test("unrelated missing semantics do not suppress opponent pace", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  engine.consume(frame(0, 1, { "damage.engine-damage": missing("damage.engine-damage"), "race.safety-car-status": missing("race.safety-car-status") }));
+  engine.consume(frame(1, 2, { "damage.engine-damage": missing("damage.engine-damage"), "race.safety-car-status": missing("race.safety-car-status") }));
+  expect(emitted.some((message) => (message as { type?: string }).type === "live-engineer-callout")).toBe(true);
+});
+test("returns exact pace response for latest automatic decision", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  engine.consume(frame(0, 1));
+  engine.consume(frame(1, 2));
+  const callout = emitted.find((message) => (message as { type?: string }).type === "live-engineer-callout") as { decisionId: string } | undefined;
+  expect(callout).toBeDefined();
+  const response = engine.handle({ type: "live-engineer-voice-request", protocolVersion: 3, action: "exact-pace", requestId: "req-1", decisionId: callout!.decisionId });
+  expect(response?.type).toBe("live-engineer-voice-line");
+  expect(response?.mode).toBe("exact-response");
+  expect(response?.requestId).toBe("req-1");
+});
+
+test("does not benchmark player car against itself", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  const first = {
+    "race.competitor.car-index": ok("race.competitor.car-index", [0, 7]),
+    "race.competitor.driver-id": ok("race.competitor.driver-id", ["player", "opponent"]),
+    "race.competitor.connected": ok("race.competitor.connected", [true, true]),
+    "race.competitor.driver-name": ok("race.competitor.driver-name", ["Player", "Opponent"]),
+    "race.competitor.car-class-id": ok("race.competitor.car-class-id", ["gt3", "gt3"]),
+    "race.competitor.car-class-name": ok("race.competitor.car-class-name", ["GT3", "GT3"]),
+    "race.competitor.laps-complete": ok("race.competitor.laps-complete", [1, 1]),
+    "race.competitor.pit-status": ok("race.competitor.pit-status", ["on-track", "on-track"]),
+    "race.competitor.track-location": ok("race.competitor.track-location", ["track", "track"]),
+    "timing.competitor.last-lap-time": ok("timing.competitor.last-lap-time", [60, 88]),
+    "timing.competitor.last-lap-valid": ok("timing.competitor.last-lap-valid", [true, true]),
+  };
+  const second = { ...first, "race.competitor.laps-complete": ok("race.competitor.laps-complete", [2, 2]) };
+  engine.consume(frame(0, 1, first));
+  engine.consume(frame(1, 2, second));
+  const callout = emitted.find((message) => (message as { type?: string }).type === "live-engineer-callout") as { render?: { parameters?: { benchmarkLapTimeMs?: number } } } | undefined;
+  expect(callout?.render?.parameters?.benchmarkLapTimeMs).toBe(88_000);
+});
+
+test("unavailable required pace field suppresses only opponent pace", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  engine.consume(frame(0, 1, { "timing.competitor.last-lap-valid": missing("timing.competitor.last-lap-valid") }));
+  engine.consume(frame(1, 2, { "timing.competitor.last-lap-valid": missing("timing.competitor.last-lap-valid") }));
+  expect(emitted).toHaveLength(0);
+});
+test("F1 remains silent without complete player pace identity or a spotter branch", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  engine.consume(frame(0, 1, {
+    "identity.player-car-index": missing("identity.player-car-index"),
+    "race.competitor.car-index": ok("race.competitor.car-index", [0, 1]),
+    "race.competitor.connected": ok("race.competitor.connected", [true, true]),
+    "race.competitor.position-x": ok("race.competitor.position-x", [0, 2.2]),
+    "race.competitor.pit-status": ok("race.competitor.pit-status", ["on-track", "on-track"]),
+    "race.competitor.position-z": ok("race.competitor.position-z", [0, -1]),
+    "race.competitor.speed": ok("race.competitor.speed", [20, 20]),
+    "motion.position-x": ok("motion.position-x", 0),
+    "motion.position-z": ok("motion.position-z", 0),
+    "motion.speed": ok("motion.speed", 20),
+    "motion.yaw": ok("motion.yaw", 0),
+  }, "f1-2025"));
+  engine.consume(frame(1, 2, {
+    "identity.player-car-index": missing("identity.player-car-index"),
+    "race.competitor.car-index": ok("race.competitor.car-index", [0, 1]),
+    "race.competitor.connected": ok("race.competitor.connected", [true, true]),
+    "race.competitor.position-x": ok("race.competitor.position-x", [0, 2.2]),
+    "race.competitor.pit-status": ok("race.competitor.pit-status", ["on-track", "on-track"]),
+    "race.competitor.position-z": ok("race.competitor.position-z", [0, -1]),
+    "race.competitor.speed": ok("race.competitor.speed", [20, 20]),
+    "motion.position-x": ok("motion.position-x", 0),
+    "motion.position-z": ok("motion.position-z", 0),
+    "motion.speed": ok("motion.speed", 20),
+    "motion.yaw": ok("motion.yaw", 0),
+  }, "f1-2025"));
+  expect(emitted).toHaveLength(0);
+});
+
+test("F1 pace falls back to car index identity and follows a lap time with overall pace", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  const pace = (laps: readonly number[]) => ({
+    "identity.player-car-index": ok("identity.player-car-index", 0),
+    "identity.player-car-class-id": ok("identity.player-car-class-id", "formula-0"),
+    "race.competitor.car-index": ok("race.competitor.car-index", [0, 1]),
+    "race.competitor.driver-id": missing("race.competitor.driver-id"),
+    "race.competitor.driver-name": ok("race.competitor.driver-name", ["Player", "Opponent"]),
+    "race.competitor.car-class-id": ok("race.competitor.car-class-id", ["formula-0", "formula-0"]),
+    "race.competitor.car-class-name": ok("race.competitor.car-class-name", ["F1", "F1"]),
+    "race.competitor.laps-complete": ok("race.competitor.laps-complete", laps),
+    "race.competitor.pit-status": ok("race.competitor.pit-status", ["out", "out"]),
+    "timing.competitor.last-lap-time": ok("timing.competitor.last-lap-time", [90, 88]),
+    "timing.competitor.last-lap-valid": ok("timing.competitor.last-lap-valid", [true, true]),
+  });
+  engine.consume(frame(0, 1, pace([1, 1]), "f1-2025"));
+  engine.consume(frame(1, 2, pace([2, 2]), "f1-2025"));
+  expect(messagesOfType(emitted, "live-engineer-callout")).toContainEqual(expect.objectContaining({
+    family: "opponent-pace",
+    render: expect.objectContaining({ parameters: expect.objectContaining({ scope: "overall", deltaMs: 2_000 }) }),
+  }));
+});
+
+test("chains lap time and pace without repeating the lap lead", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  const batch = (semanticFrame: LiveResolvedSemanticFrame, events: readonly CrewChiefTriggerEventV1[]) => ({
+    streamId: semanticFrame.streamId,
+    sessionId: "1",
+    timelineEpoch: 1,
+    sourceSequence: semanticFrame.sequence,
+    sessionTimeMs: semanticFrame.sequence * 1000,
+    context: { simulator: "acc" as const, sessionActive: true, formation: false, caution: false, pit: false, spectating: false },
+    semanticFrame,
+    events,
+  });
+  const pace = (laps: readonly number[]) => ({
+    "identity.player-car-index": ok("identity.player-car-index", 0),
+    "identity.player-car-class-id": ok("identity.player-car-class-id", "formula-0"),
+    "race.competitor.car-index": ok("race.competitor.car-index", [0, 1]),
+    "race.competitor.driver-id": missing("race.competitor.driver-id"),
+    "race.competitor.driver-name": ok("race.competitor.driver-name", ["Player", "Opponent"]),
+    "race.competitor.car-class-id": ok("race.competitor.car-class-id", ["formula-0", "formula-0"]),
+    "race.competitor.car-class-name": ok("race.competitor.car-class-name", ["F1", "F1"]),
+    "race.competitor.laps-complete": ok("race.competitor.laps-complete", laps),
+    "race.competitor.pit-status": ok("race.competitor.pit-status", ["out", "out"]),
+    "timing.competitor.last-lap-time": ok("timing.competitor.last-lap-time", [90, 88]),
+    "timing.competitor.last-lap-valid": ok("timing.competitor.last-lap-valid", [true, true]),
+  });
+  engine.consume(batch(frame(0, 1, pace([1, 1]), "f1-2025"), []));
+  engine.consume(batch(frame(1, 2, pace([2, 2]), "f1-2025"), [{
+    eventKey: "lap-completed",
+    family: "LapTimes" as const,
+    severity: "info" as const,
+    triggerId: "stream/1/0/LapTimes/lap-completed/0",
+    sessionId: "1",
+    timelineEpoch: 1,
+    sourceSequence: 0,
+    sessionTimeMs: 1_000,
+    source: crewChiefSource("LapTimes"),
+    payload: { lap: 1, time: 90.5 },
+    evidenceSemanticIds: ["timing.lap-number", "timing.last-lap"],
+  }]));
+  expect(messagesOfType(emitted, "live-engineer-voice-line")).toHaveLength(0);
+  engine.consume(batch(frame(2, 2, pace([2, 2]), "f1-2025"), []));
+  const voiceLines = messagesOfType(emitted, "live-engineer-voice-line");
+  expect(voiceLines).toHaveLength(1);
+  expect(voiceLines[0]?.segmentIds).toEqual([
+    "lap.lead.your-lap-was",
+    "lap.body.1-30",
+    "lap.tenth.5",
+    "number.integer.2",
+    "pace.tail.seconds-off-overall",
+  ]);
+});
+
+test("ACC broadcast semantics emit pace and spotter callouts", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  const make = (sequence: number, lap: number) => {
+    const values: Record<string, unknown> = {
+      "identity.player-car-index": 0, "identity.player-car-class-id": "gt3", "identity.player-track-surface": 3,
+      "timing.lap-number": lap, "timing.last-lap": 90, "timing.current-lap-valid": true, "race.pit-status": "out",
+      "session.session-state": 5, "session.session-type": "practice", "race.competitor.car-index": [0, 1], "race.competitor.connected": [true, true], "race.competitor.driver-id": ["p", "o"],
+      "race.competitor.driver-name": ["Player", "Opponent"], "race.competitor.car-class-id": ["gt3", "gt3"], "race.competitor.car-class-name": ["GT3", "GT3"],
+      "race.competitor.laps-complete": [lap, lap], "race.competitor.pit-status": ["out", "out"], "race.competitor.track-location": ["track", "track"],
+      "timing.competitor.last-lap-time": [90, 88], "timing.competitor.last-lap-valid": [true, true],
+      "motion.position-x": 0, "motion.position-z": 0, "motion.speed": 20, "motion.yaw": 0,
+      "motion.competitor.position-x": [0, 2.2], "motion.competitor.position-z": [0, -1], "motion.competitor.speed": [20, 20],
+    };
+    const ids = Object.keys(values);
+    return { simulator: "acc" as const, sessionId: 1, streamId: "acc", sequence, observedAt: { domain: "session" as const, milliseconds: sequence * 1000 }, ids, values: ids.map((id) => ok(id, values[id])) };
+  };
+  engine.consume(make(0, 1));
+  engine.consume(make(1, 2));
+  expect(emitted.some((message) => familyOf(message) === "spotter")).toBe(true);
+  expect(emitted.some((message) => familyOf(message) === "opponent-pace")).toBe(true);
+});
+test("invalidity remains latched when pace disappears during lap", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  engine.consume(frame(0, 1));
+  engine.consume(frame(1, 1, { "timing.current-lap-valid": ok("timing.current-lap-valid", false), "race.competitor.connected": missing("race.competitor.connected") }));
+  engine.consume(frame(2, 2));
+  expect(emitted.filter((message) => familyOf(message) === "opponent-pace")).toHaveLength(0);
+});
+
+test("pace comparison recovers at the next valid lap boundary after transient source loss", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  engine.consume(frame(0, 1));
+  engine.consume(frame(1, 2, { "race.competitor.connected": missing("race.competitor.connected") }));
+  engine.consume(frame(2, 3));
+  expect(messagesOfType(emitted, "live-engineer-callout")).toContainEqual(expect.objectContaining({
+    family: "opponent-pace",
+    render: expect.objectContaining({ parameters: expect.objectContaining({ playerLapNumber: 2 }) }),
+  }));
+});
+
+test("FM remains silent while registered engineer games can dispatch", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  engine.consume(frame(0, 1, {}, "fm-2023"));
+  engine.consume(frame(1, 2, {}, "fm-2023"));
+  expect(emitted).toHaveLength(0);
+});
+
+test("iRacing native Spotter emits a V3 callout", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  engine.consume(frame(0, 1, { "identity.car-left-right": ok("identity.car-left-right", 2) }, "iracing"));
+  expect(emitted.some((message) => familyOf(message) === "spotter")).toBe(true);
+});
+test("ACC fuel-low structured trigger emits matching V3 callout and voice line", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  const semanticFrame = frame(7, 3);
+  engine.consume({
+    streamId: semanticFrame.streamId,
+    sessionId: "1",
+    timelineEpoch: 12,
+    sourceSequence: 7,
+    sessionTimeMs: 3456,
+    context: { simulator: "acc", sessionActive: true, formation: false, caution: false, pit: false, spectating: false },
+    semanticFrame,
+    events: [{
+      eventKey: "fuel-low",
+      family: "Fuel",
+      severity: "warning",
+      triggerId: "stream/12/7/Fuel/fuel-low/0",
+      sessionId: "1",
+      timelineEpoch: 12,
+      sourceSequence: 7,
+      sessionTimeMs: 3456,
+      source: crewChiefSource("Fuel"),
+      payload: {},
+      evidenceSemanticIds: [],
+    }],
+  });
+  const callouts = messagesOfType(emitted, "live-engineer-callout");
+  const lines = messagesOfType(emitted, "live-engineer-voice-line");
+  expect(callouts).toHaveLength(1);
+  expect(lines).toHaveLength(1);
+  expect(callouts[0]).toMatchObject({ family: "race-engineer", sessionId: "1", timelineEpoch: 12, sourceSequence: 7, expiresSessionTimeMs: 3456 + 12_000, render: { renderingVersion: "crewchief-v1", parameters: { triggerFamily: "Fuel", eventKey: "fuel-low" } } });
+  expect(lines[0]).toMatchObject({ sessionId: "1", timelineEpoch: 12, sourceSequence: 7 });
+});
+
+test("automatic speech keeps player lap callouts and suppresses low-value position and opponent completion chatter", () => {
+  const emitted: unknown[] = [];
+  const candidates: string[] = [];
+  const engine = new LiveEngineerVoiceEngine({
+    emit: (message) => emitted.push(message),
+    onCandidate: (candidate) => candidates.push(candidate.actionKey),
+  });
+  const semanticFrame = frame(8, 2);
+  const event = (eventKey: string, family: "Position" | "Opponents" | "LapTimes", payload: Record<string, number>, ordinal: number) => ({
+    eventKey,
+    family,
+    severity: "info" as const,
+    triggerId: `stream/12/8/${family}/${eventKey}/${ordinal}`,
+    sessionId: "1",
+    timelineEpoch: 12,
+    sourceSequence: 8,
+    sessionTimeMs: 4_000,
+    source: crewChiefSource(family),
+    payload,
+    evidenceSemanticIds: [],
+  });
+  engine.consume({
+    streamId: semanticFrame.streamId,
+    sessionId: "1",
+    timelineEpoch: 12,
+    sourceSequence: 8,
+    sessionTimeMs: 4_000,
+    context: { simulator: "acc", sessionActive: true, formation: false, caution: false, pit: false, spectating: false },
+    semanticFrame,
+    events: [
+      event("position-changed", "Position", { position: 2 }, 0),
+      event("opponent-lap-completed", "Opponents", { competitorIndex: 1, lap: 2 }, 1),
+      event("lap-completed", "LapTimes", { lap: 1, time: 90.5 }, 2),
+    ],
+  });
+  expect(candidates).toEqual(["lap-completed"]);
+  expect(messagesOfType(emitted, "live-engineer-callout")).toEqual([
+    expect.objectContaining({ render: expect.objectContaining({ textKey: "lap-completed" }) }),
+  ]);
+  expect(messagesOfType(emitted, "live-engineer-voice-line")).toHaveLength(1);
+});
+
+test("structured batch epoch remains authoritative across reset and stream changes", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  const makeBatch = (streamId: string, epoch: number, sequence: number) => {
+    const semanticFrame = { ...frame(sequence, 1), streamId };
+    return {
+      streamId, sessionId: "1", timelineEpoch: epoch, sourceSequence: sequence, sessionTimeMs: sequence * 100,
+      context: { simulator: "acc" as const, sessionActive: true, formation: false, caution: false, pit: false, spectating: false },
+      semanticFrame,
+      events: [{
+        eventKey: "fuel-low", family: "Fuel" as const, severity: "warning" as const,
+        triggerId: `${streamId}/${epoch}/${sequence}`, sessionId: "1", timelineEpoch: epoch,
+        sourceSequence: sequence, sessionTimeMs: sequence * 100, source: crewChiefSource("Fuel"),
+        payload: {}, evidenceSemanticIds: [],
+      }],
+    };
+  };
+  engine.consume(makeBatch("one", 4, 1));
+  engine.reset();
+  engine.consume(makeBatch("two", 9, 2));
+  expect(messagesOfType(emitted, "live-engineer-callout").map((message) => message.timelineEpoch)).toEqual([4, 9]);
+});
+
+test("ACC pace rejects missing location, non-fresh required values, and invalid player/grid identity", () => {
+  const failures: Record<string, ResolvedValue<unknown>>[] = [
+    { "race.competitor.track-location": missing("race.competitor.track-location") },
+    { "race.competitor.laps-complete": { ...ok("race.competitor.laps-complete", [1, 1]), freshness: "stale" as const } },
+    { "identity.player-car-index": ok("identity.player-car-index", 9) },
+    { "race.competitor.car-index": ok("race.competitor.car-index", [0, 0]) },
+    { "race.competitor.car-index": ok("race.competitor.car-index", [0, Number.NaN]) },
+    { "timing.competitor.last-lap-time": ok("timing.competitor.last-lap-time", [88]) },
+  ];
+  for (const failure of failures) {
+    const emitted: unknown[] = [];
+    const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+    for (const lap of [1, 2]) {
+      const invalid = frame(lap, lap, failure);
+      expect(extractLiveEngineerSemanticInput(invalid).pace).toBeNull();
+      engine.consume(invalid);
+    }
+    expect(emitted).toEqual([]);
+  }
+});
+
+test("ACC source loss drops prior pace facts and exact responses without a clearance", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  engine.consume(frame(0, 1));
+  engine.consume(frame(1, 2));
+  const callout = messagesOfType(emitted, "live-engineer-callout")[0]!;
+  expect(callout).toMatchObject({ family: "opponent-pace" });
+  engine.consume({
+    ...frame(2, 2),
+    opponentSource: { source: "acc-broadcast", state: "stale", reasonCode: "source-timeout" },
+  });
+  expect(engine.handle({ type: "live-engineer-voice-request", protocolVersion: 3, action: "exact-pace", requestId: "lost", decisionId: String(callout.decisionId) })).toBeUndefined();
+  const candidates: unknown[] = [];
+  const recovered = new LiveEngineerVoiceEngine({ emit: () => {}, onCandidate: (candidate) => candidates.push(candidate.renderParameters) });
+  recovered.consume(frame(0, 1));
+  recovered.consume({ ...frame(1, 1), opponentSource: { source: "acc-broadcast", state: "unavailable", reasonCode: "session-reset" } });
+  recovered.consume(frame(2, 2, { "timing.competitor.last-lap-time": ok("timing.competitor.last-lap-time", [90, 100]) }));
+  expect(candidates).toEqual([expect.objectContaining({ benchmarkLapTimeMs: 100_000 })]);
+});
+
+test("queued opponent pace is revalidated before source-loss dispatch", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  const consume = (semanticFrame: LiveResolvedSemanticFrame) => engine.consume({
+    streamId: "stream", sessionId: "1", timelineEpoch: 1, sourceSequence: semanticFrame.sequence,
+    sessionTimeMs: semanticFrame.sequence * 1000,
+    context: { simulator: "acc", sessionActive: true, formation: false, caution: false, pit: false, spectating: false },
+    semanticFrame, events: [],
+  });
+  consume(frame(0, 1));
+  consume(frame(1, 2));
+  consume(frame(2, 2, { "race.competitor.connected": missing("race.competitor.connected") }));
+  consume(frame(3, 2));
+  expect(emitted).toEqual([]);
+});
+
+test("ACC spotter clears baselines silently for stale, empty, duplicate, oversized, and misaligned source", () => {
+  const poses = (indexes: readonly unknown[], far = false) => ({
+    "race.competitor.car-index": ok("race.competitor.car-index", indexes),
+    "race.competitor.connected": ok("race.competitor.connected", indexes.map(() => true)),
+    "race.competitor.pit-status": ok("race.competitor.pit-status", indexes.map(() => "out")),
+    "motion.competitor.position-x": ok("motion.competitor.position-x", indexes.map((_, i) => i === 0 ? 0 : 2.2)),
+    "motion.competitor.position-z": ok("motion.competitor.position-z", indexes.map((_, i) => i === 0 ? 0 : far ? 100 : -1)),
+    "motion.competitor.speed": ok("motion.competitor.speed", indexes.map(() => 20)),
+    "motion.position-x": ok("motion.position-x", 0), "motion.position-z": ok("motion.position-z", 0),
+    "motion.speed": ok("motion.speed", 20), "motion.yaw": ok("motion.yaw", 0),
+  });
+  for (const failure of ["source", "freshness", "empty", "duplicate", "oversized", "misaligned", "missing-player", "non-finite", "disconnected", "removed"] as const) {
+    const events: unknown[] = [];
+    const engine = new LiveEngineerVoiceEngine({ emit: () => {}, onSpotterEvent: (event) => events.push(event) });
+    engine.consume(frame(0, 1, poses([0, 1])));
+    expect(events).toEqual([expect.objectContaining({ state: "car-left" })]);
+    const indexes = failure === "empty" ? [] : failure === "duplicate" ? [0, 0] :
+      failure === "oversized" ? Array.from({ length: 65 }, (_, i) => i) :
+      failure === "missing-player" ? [5, 7] : failure === "non-finite" ? [0, Number.NaN] : failure === "removed" ? [0] : [0, 1];
+    const overrides = poses(indexes, true);
+    if (failure === "freshness") overrides["motion.competitor.position-z"].freshness = "stale";
+    if (failure === "misaligned") overrides["motion.competitor.position-z"] = ok("motion.competitor.position-z", [0]);
+    if (failure === "disconnected") overrides["race.competitor.connected"] = ok("race.competitor.connected", [true, false]);
+    const bad = frame(1, 1, overrides);
+    engine.consume(failure === "source" ? { ...bad, opponentSource: { source: "acc-broadcast", state: "malformed", reasonCode: "duplicate-car-index" } } : bad);
+    engine.consume(frame(2, 1, poses([0, 1], true)));
+    expect(events).toEqual([expect.objectContaining({ state: "car-left" })]);
+  }
+});

@@ -4,6 +4,7 @@ import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "../games/lmu/s
 import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "./kunos-sparse";
 import { gzip, gzipSync, gunzip, gunzipSync } from "node:zlib";
 import { promisify } from "node:util";
+import { ACC_BROADCAST_CAPTURE_MAGIC, ACC_BROADCAST_CAPTURE_VERSION, decodeAccBroadcastCaptureRecord } from "../games/acc/broadcast-capture";
 import { MAX_DECOMPRESSED_CAPTURE_BYTES } from "../archive/bounded-unzip";
 
 function isLmuSourceFrame(frame: Buffer): boolean {
@@ -21,10 +22,13 @@ export const SESSION_SEGMENT_BOUNDARY = Symbol("session-segment-boundary");
 export const SESSION_SEGMENT_CONTEXT = Symbol("session-segment-context");
 export const SESSION_SEGMENT_CONTEXT_END = Symbol("session-segment-context-end");
 export type SessionCaptureRecord =
-  | { kind: "frame"; offset: number; frame: Buffer; frameTimeMs?: number }
+  | { kind: "frame"; offset: number; prefixOffset: number; frame: Buffer; frameTimeMs?: number }
   | { kind: "segment-boundary"; offset: number }
   | { kind: "segment-context"; offset: number }
-  | { kind: "segment-context-end"; offset: number };
+  | { kind: "segment-context-end"; offset: number }
+  | { kind: "metadata"; offset: number; bytes: Buffer }
+  | { kind: "acc-broadcast"; offset: number; batch: import("../games/acc/broadcast-capture").AccBroadcastCaptureBatch }
+  | { kind: "acc-broadcast-malformed"; offset: number; reason: string };
 
 const gunzipAsync = promisify(gunzip);
 const gzipAsync = promisify(gzip);
@@ -96,9 +100,9 @@ export function readFrameStreamStart(bytes: Uint8Array): number {
   return view.readUInt32LE(0) === META_FRAME_MAGIC ? 8 + view.readUInt32LE(4) : 0;
 }
 function readRecorderFrameStreamStart(bytes: Buffer): number {
-  return bytes.length >= 4 && bytes.readUInt32LE(0) === META_FRAME_MAGIC ? META_FRAME_BYTES : 0;
+  return bytes.length >= META_FRAME_BYTES && bytes.readUInt32LE(0) === META_FRAME_MAGIC && bytes.readUInt32LE(4) === META_FRAME_PAYLOAD_BYTES ? META_FRAME_BYTES : 0;
 }
-interface SessionFrameRecord { offset: number; frame: Buffer; frameTimeMs?: number }
+interface SessionFrameRecord { offset: number; prefixOffset: number; frame: Buffer; frameTimeMs?: number }
 interface SessionFrameIterationOptions { skipMetaFrames?: boolean; allowEmptyFrames?: boolean; }
 
 export function* iterateSessionCaptureRecords(bytes: Buffer, requestedOffset = readRecorderFrameStreamStart(bytes)): Generator<SessionCaptureRecord> {
@@ -124,6 +128,7 @@ export function* iterateSessionCaptureRecords(bytes: Buffer, requestedOffset = r
     }
     else offset = requestedOffset;
   }
+  let pendingPrefixOffset: number | undefined;
   let checkpointOffset = -1;
   let previous: Buffer | null = null;
   let checkpointIdentity: string | null = null;
@@ -137,22 +142,34 @@ export function* iterateSessionCaptureRecords(bytes: Buffer, requestedOffset = r
       if (offset + 8 > bytes.length) break;
       const payloadBytes = bytes.readUInt32LE(offset + 4);
       if (offset + 8 + payloadBytes > bytes.length) break;
-      if (payloadBytes === 8) {
-        const magic = bytes.readUInt32LE(offset + 8);
-        const version = bytes.readUInt32LE(offset + 12);
-        if (magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) {
-          previous = null;
-          checkpointOffset = -1;
-          checkpointIdentity = null;
-          if (recordOffset >= requestedOffset) yield { kind: "segment-boundary", offset: recordOffset };
-        } else if (magic === SEGMENT_CONTEXT_MAGIC && version === SEGMENT_CONTEXT_VERSION) {
-          if (recordOffset >= requestedOffset) yield { kind: "segment-context", offset: recordOffset };
-        } else if (magic === SEGMENT_CONTEXT_END_MAGIC && version === SEGMENT_CONTEXT_VERSION) {
-          previous = null;
-          checkpointIdentity = null;
-          checkpointOffset = -1;
-          if (recordOffset >= requestedOffset) yield { kind: "segment-context-end", offset: recordOffset };
+      const payload = bytes.subarray(offset + 8, offset + 8 + payloadBytes);
+      const magic = payloadBytes >= 4 ? payload.readUInt32LE(0) : null;
+      const version = payloadBytes >= 8 ? payload.readUInt32LE(4) : null;
+      if (magic === ACC_BROADCAST_CAPTURE_MAGIC && (version === ACC_BROADCAST_CAPTURE_VERSION || version === null)) {
+        pendingPrefixOffset ??= recordOffset;
+        try {
+          yield { kind: "acc-broadcast", offset: recordOffset, batch: decodeAccBroadcastCaptureRecord(payload) };
+        } catch (error) {
+          yield { kind: "acc-broadcast-malformed", offset: recordOffset, reason: error instanceof Error ? error.message : "invalid ACCB record" };
         }
+      } else if (payloadBytes === 8 && magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) {
+        pendingPrefixOffset = undefined;
+        previous = null;
+        checkpointOffset = -1;
+        checkpointIdentity = null;
+        if (recordOffset >= requestedOffset) yield { kind: "segment-boundary", offset: recordOffset };
+      } else if (payloadBytes === 8 && magic === SEGMENT_CONTEXT_MAGIC && version === SEGMENT_CONTEXT_VERSION) {
+        pendingPrefixOffset = undefined;
+        if (recordOffset >= requestedOffset) yield { kind: "segment-context", offset: recordOffset };
+      } else if (payloadBytes === 8 && magic === SEGMENT_CONTEXT_END_MAGIC && version === SEGMENT_CONTEXT_VERSION) {
+        pendingPrefixOffset = undefined;
+        previous = null;
+        checkpointOffset = -1;
+        checkpointIdentity = null;
+        if (recordOffset >= requestedOffset) yield { kind: "segment-context-end", offset: recordOffset };
+      } else {
+        pendingPrefixOffset ??= recordOffset;
+        if (recordOffset >= requestedOffset) yield { kind: "metadata", offset: recordOffset, bytes: bytes.subarray(offset, offset + 8 + payloadBytes) };
       }
       offset += 8 + payloadBytes;
       continue;
@@ -191,18 +208,24 @@ export function* iterateSessionCaptureRecords(bytes: Buffer, requestedOffset = r
     }
     previous = frame;
     if (recordOffset >= requestedOffset) {
-      if (frameTimeMs === undefined) yield { kind: "frame", offset: recordOffset, frame };
-      else yield { kind: "frame", offset: recordOffset, frame, frameTimeMs };
+      yield {
+        kind: "frame", offset: recordOffset,
+        prefixOffset: pendingPrefixOffset ?? recordOffset,
+        frame, ...(frameTimeMs === undefined ? {} : { frameTimeMs }),
+      };
     }
+    pendingPrefixOffset = undefined;
     offset = payloadOffset + length;
   }
 }
-export function* iterateSessionImportFrames(bytes: Buffer): Generator<Buffer | typeof SESSION_SEGMENT_BOUNDARY | typeof SESSION_SEGMENT_CONTEXT | typeof SESSION_SEGMENT_CONTEXT_END> {
+export type SessionImportFrame = Buffer | typeof SESSION_SEGMENT_BOUNDARY | typeof SESSION_SEGMENT_CONTEXT | typeof SESSION_SEGMENT_CONTEXT_END | { kind: "metadata"; bytes: Buffer };
+export function* iterateSessionImportFrames(bytes: Buffer): Generator<SessionImportFrame> {
   for (const record of iterateSessionCaptureRecords(bytes)) {
     if (record.kind === "segment-boundary") yield SESSION_SEGMENT_BOUNDARY;
     else if (record.kind === "segment-context") yield SESSION_SEGMENT_CONTEXT;
     else if (record.kind === "segment-context-end") yield SESSION_SEGMENT_CONTEXT_END;
-    else yield record.frame;
+    else if (record.kind === "frame") yield record.frame;
+    else yield { kind: "metadata", bytes: bytes.subarray(record.offset, record.offset + 8 + bytes.readUInt32LE(record.offset + 4)) };
   }
 }
 export function* iterateSessionFrameRecords(bytes: Buffer, offset = readRecorderFrameStreamStart(bytes), _options?: SessionFrameIterationOptions): Generator<SessionFrameRecord> {
@@ -214,18 +237,22 @@ export function* iterateSessionFrames(bytes: Buffer, offset = readRecorderFrameS
 export function sessionFrameAt(bytes: Buffer, offset: number): Buffer | null {
   if (offset < 0 || offset + 4 > bytes.length) return null;
   for (const record of iterateSessionCaptureRecords(bytes, offset)) {
-    if (record.kind === "frame" && record.offset === offset) return record.frame;
-    if (record.offset > offset) break;
+    if (record.kind !== "frame") continue;
+    if (record.offset === offset || record.prefixOffset === offset) return record.frame;
+    if (record.prefixOffset > offset) break;
   }
   return null;
 }
 export function advanceSessionFrames(bytes: Buffer, offset: number, count: number): number {
   let at = offset;
-  for (let i = 0; i < count; i++) {
-    if (at < 0 || at + 4 > bytes.length) break;
-    const prefix = readFramePrefix(bytes, at);
-    if (!prefix || prefix.length === 0 || at + prefix.prefixBytes + prefix.length > bytes.length) break;
-    at += prefix.prefixBytes + prefix.length;
+  if (count <= 0 || offset < 0) return at;
+  for (const record of iterateSessionCaptureRecords(bytes, offset)) {
+    if (record.kind === "segment-boundary") break;
+    if (record.kind !== "frame") continue;
+    const prefix = readFramePrefix(bytes, record.offset);
+    if (!prefix) break;
+    at = record.offset + prefix.prefixBytes + prefix.length;
+    if (--count === 0) break;
   }
   return at;
 }

@@ -115,7 +115,9 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
       const packet = serverGame.tryParse(record.frame, parserState);
       if (packet && !inContext) {
         applyFrameTime(packet, record.frameTimeMs);
-        await detector.feed(packet, record.offset);
+        const startingSession = !detector.session;
+        await detector.feed(packet, record.prefixOffset);
+        if (startingSession) detector.setCurrentLapByteOffset?.(record.prefixOffset);
       }
     }
   }

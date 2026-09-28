@@ -50,6 +50,12 @@ const AppSettingsSchema = z.object({
   // size of the per-lap TelemetryPacket[] cache used by analyse/compare/chat
   // workflows. LRU eviction kicks in once the budget is exceeded.
   cacheMaxMB: z.number().int().min(16).max(2048).default(256),
+  // Preserve opponent grid snapshots in compressed recordings for Engineer Replay.
+  storeOpponentGrid: z.boolean().default(true),
+  radioSpotterEnabled: z.boolean().default(false),
+  radioRaceEngineerEnabled: z.boolean().default(false),
+  radioTextCalloutsEnabled: z.boolean().default(true),
+  radioVolume: z.number().min(0).max(1).default(0.8),
   // Automatic deletion of raw captures is opt-in; session/lap metadata remains.
   sessionCleanupEnabled: z.boolean().default(false),
   sessionCleanupAgeDays: z.union([z.literal(30), z.literal(90), z.literal(180), z.literal(365)]).default(90),
@@ -61,9 +67,10 @@ const AppSettingsSchema = z.object({
   communityTunesSyncedAt: z.string().nullable().default(null),
 });
 
+const DEFAULTS: AppSettings = AppSettingsSchema.parse({});
+
 export type AppSettings = z.infer<typeof AppSettingsSchema>;
 
-const DEFAULTS: AppSettings = AppSettingsSchema.parse({});
 
 function ensureSettingsDir(): void {
   if (!existsSync(SETTINGS_DIR)) {

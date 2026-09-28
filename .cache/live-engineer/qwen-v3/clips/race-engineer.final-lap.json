@@ -1,0 +1,13 @@
+{
+  "segmentId": "race-engineer.final-lap",
+  "spokenText": "Final lap.",
+  "seed": 1462426322,
+  "path": "chunks/race-engineer.final-lap.flac",
+  "sha256": "09bc919b39744f272bfb84a23cb80b87ce55bcd8d117dd2124adf3215be63874",
+  "frames": 23040,
+  "sampleRate": 24000,
+  "durationMs": 960,
+  "sourceTranscript": "Final lap.",
+  "sourceHash": "7fa3a7b80adab0994bf359b8858dba50b23f794fbde9816e415f96f9aa0b0a89",
+  "role": "fixed"
+}

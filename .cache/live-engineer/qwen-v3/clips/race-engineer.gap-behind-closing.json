@@ -1,0 +1,13 @@
+{
+  "segmentId": "race-engineer.gap-behind-closing",
+  "spokenText": "The car behind is closing in.",
+  "seed": 1882986670,
+  "path": "chunks/race-engineer.gap-behind-closing.flac",
+  "sha256": "f9f59b5541260c8d2b1a6002607411e50fb319a195e211197e2280f0fdac83c8",
+  "frames": 44160,
+  "sampleRate": 24000,
+  "durationMs": 1840,
+  "sourceTranscript": "The car behind is closing in.",
+  "sourceHash": "4af971cd7212d8de7b0a59ff57f84bcd322030cdb0f9d4d5be60782ea1753e62",
+  "role": "fixed"
+}

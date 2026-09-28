@@ -1,0 +1,13 @@
+{
+  "segmentId": "race-engineer.fuel-save-required",
+  "spokenText": "At this consumption, you'll need more fuel to finish.",
+  "seed": 1811559322,
+  "path": "chunks/race-engineer.fuel-save-required.flac",
+  "sha256": "cafd78d38067774792265ad4e34237f809daf4ddb48b0fddd2f8f245966dc80b",
+  "frames": 69120,
+  "sampleRate": 24000,
+  "durationMs": 2880,
+  "sourceTranscript": "At this consumption, you'll need more fuel to finish.",
+  "sourceHash": "0e80115626f8521cb04b40f8ea505e73d602012e6d07053362b812ca619411b7",
+  "role": "fixed"
+}

@@ -81,3 +81,15 @@ the expected lap or parser behavior in the test that consumes it.
 - Do not rename fixtures after capture without preserving the game identifier.
 - Stage developer-only recordings under `test/artifacts/`, not production
   session storage.
+
+## Normal ACC capture
+
+Use normal `bun run dev` with ACC running; do not use `dev:dump:acc` for canonical Broadcast acceptance, since that separate ACCTEST recorder captures shared-memory pages only. Configure ACC's protocol-v4 Broadcast endpoint at `127.0.0.1:9000`, or set matching `ACC_BROADCAST_HOST` and `ACC_BROADCAST_PORT`. Set `ACC_BROADCAST_PASSWORD` and `ACC_BROADCAST_COMMAND_PASSWORD` when required by game configuration.
+
+Broadcast capture starts whenever ACC starts, independently of voice enablement. To exercise live callouts, also enable `RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER` and include `acc` in `RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS`; these existing gates are unchanged.
+
+Drive a multiplayer session with multiple opponents, completed laps, pit entry/exit, position changes, disconnect/reconnect, source dropout/recovery, and a session restart. Stop cleanly and retain the canonical session `.bin` or `.bin.gz`. ACCB records and recording-start raw context stay inside that one file; ACCP player frames remain unchanged. Lap export/import and reprocess preserve source evidence, and unavailable/malformed opponent data does not discard player telemetry.
+
+In Engineer Replay, check typed `opponentSourceCapture` status/count and captured-clock availability, then compare identity/class/position/lap/pit/connectivity and pace/spotter evidence against live observations. Verify source-loss panels, player focus, seek/reset, mute, preemption, and exact-pace response. Heard audio and in-game usability require human observation.
+
+Native ACC acceptance remains blocked until that real-game capture and comparison are retained. Synthetic fixtures and older shared-memory-only recordings prove automated compatibility, not native Broadcast support. Do not promote the [ADR capability](../architecture/decisions/opponent-callout-capabilities-and-phasing.md) solely because automated tests pass.

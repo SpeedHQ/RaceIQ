@@ -8,10 +8,11 @@ import type { FreshnessState, ResolutionState } from "../resolver/contracts";
 import type { CanonicalTelemetryScalar } from "../replay/contracts";
 
 export const LIVE_TELEMETRY_PROTOCOL_VERSION = 1 as const;
-
+export type OpponentSourceStateV1 = "available" | "unavailable" | "stale" | "malformed";
+export interface OpponentSourceStatusV1 { source: "acc-broadcast"; state: OpponentSourceStateV1; reasonCode: string; }
 export interface LiveTelemetryDefinitionV1 { semanticId: string; unit: string | null; mappingStatus: MappingStatus; schemaVersion: string; limitations: readonly string[]; }
 export interface LiveTelemetrySchemaMessageV1 { type: "telemetry-schema"; protocolVersion: 1; schemaId: string; simulator: GameId; catalogVersion: string; catalogHash: string; catalogSchemaVersion: string; parserVersion: string; resolverVersion: string; derivationVersion: string; definitions: readonly LiveTelemetryDefinitionV1[]; }
-export interface LiveTelemetryFrameMessageV1 { type: "telemetry-frame"; protocolVersion: 1; schemaId: string; streamId: string; sessionId: number | null; sequence: number; observedAt: { domain: "session" | "wall-clock"; milliseconds: number }; receivedAtMs: number; values: readonly CanonicalTelemetryScalar[]; states?: Readonly<Record<number, Exclude<ResolutionState, "ok">>>; freshness?: Readonly<Record<number, Exclude<FreshnessState, "fresh">>>; context: { sectors?: LiveSectorData; pit?: LivePitData; liveIssues?: readonly TuneIssue[]; }; }
+export interface LiveTelemetryFrameMessageV1 { type: "telemetry-frame"; protocolVersion: 1; schemaId: string; streamId: string; sessionId: number | null; sequence: number; observedAt: { domain: "session" | "wall-clock"; milliseconds: number }; receivedAtMs: number; values: readonly CanonicalTelemetryScalar[]; states?: Readonly<Record<number, Exclude<ResolutionState, "ok">>>; freshness?: Readonly<Record<number, Exclude<FreshnessState, "fresh">>>; context: { sectors?: LiveSectorData; pit?: LivePitData; liveIssues?: readonly TuneIssue[]; opponentSource?: OpponentSourceStatusV1 | null; }; }
 export type DevTelemetryControlMessageV1 = { type: "subscribe"; channel: "dev-telemetry" | "dev-state" } | { type: "unsubscribe"; channel: "dev-telemetry" | "dev-state" };
 export interface DevTelemetrySubscriptionMessageV1 { type: "subscription"; channel: "dev-telemetry" | "dev-state"; subscribed: boolean; error?: "not-available" | "invalid-message"; }
 export interface DevTelemetryPacketMessageV1 { type: "dev-telemetry"; protocolVersion: 1; packet: TelemetryPacket; }

@@ -1,0 +1,170 @@
+import dgram from "node:dgram";
+import { encodeAccBroadcastEntryListRequest, encodeAccBroadcastRegistration, parseAccBroadcastMessage } from "./broadcast-protocol";
+import { accBroadcastState, AccBroadcastState } from "./broadcast-state";
+import { AccBroadcastCaptureBuffer, accBroadcastCapture } from "./broadcast-capture";
+
+type DatagramSocket = {
+  connect(port: number, address: string, callback?: () => void): void;
+  send(message: Uint8Array, callback?: (error: Error | null) => void): void;
+  on(event: string, listener: (message: Buffer) => void): void;
+  close(callback?: () => void): void;
+};
+
+export interface AccBroadcastClientOptions {
+  host?: string;
+  port?: number;
+  displayName?: string;
+  connectionPassword?: string;
+  commandPassword?: string;
+  realtimeIntervalMs?: number;
+  now?: () => number;
+  state?: AccBroadcastState;
+  capture?: AccBroadcastCaptureBuffer;
+  socketFactory?: () => DatagramSocket;
+}
+
+export class AccBroadcastClient {
+  private readonly options: Required<Omit<AccBroadcastClientOptions, "state" | "capture" | "socketFactory">> & Pick<AccBroadcastClientOptions, "state" | "capture" | "socketFactory">;
+  private socket: DatagramSocket | null = null;
+  private connectPromise: Promise<void> | null = null;
+  private registered = false;
+  private registrationConnectionId: number | null = null;
+  private lastEntryListRequestAt = -Infinity;
+  private generation = 0;
+  private stopped = false;
+
+  constructor(options: AccBroadcastClientOptions = {}) {
+    this.options = {
+      host: options.host ?? process.env.ACC_BROADCAST_HOST ?? "127.0.0.1",
+      port: options.port ?? Number(process.env.ACC_BROADCAST_PORT ?? 9000),
+      displayName: options.displayName ?? "RaceIQ",
+      connectionPassword: options.connectionPassword ?? process.env.ACC_BROADCAST_PASSWORD ?? "",
+      commandPassword: options.commandPassword ?? process.env.ACC_BROADCAST_COMMAND_PASSWORD ?? "",
+      realtimeIntervalMs: options.realtimeIntervalMs ?? 100,
+      now: options.now ?? Date.now,
+      state: options.state,
+      capture: options.capture,
+      socketFactory: options.socketFactory,
+    };
+  }
+
+  async start(): Promise<void> {
+    this.stopped = false;
+    if (this.connectPromise) {
+      await this.connectPromise;
+      if (this.socket && !this.registered) this.sendRegistration(this.socket);
+      return;
+    }
+    if (this.socket) {
+      if (!this.registered) this.sendRegistration(this.socket);
+      return;
+    }
+    const generation = ++this.generation;
+    const socket = this.options.socketFactory?.() ?? dgram.createSocket("udp4");
+    this.socket = socket;
+    const state = this.options.state ?? accBroadcastState;
+    const capture = this.options.capture;
+    const openedAt = this.options.now();
+    state.setSocketConnected(true);
+    if (capture?.recordLifecycle("socket-open", openedAt).overflowed) state.markMalformed("capture-overflow");
+    socket.on("message", (payload) => {
+      if (this.stopped || this.socket !== socket || this.generation !== generation) return;
+      const at = this.options.now();
+      if (capture?.recordDatagram(payload, at).overflowed) {
+        state.markMalformed("capture-overflow");
+        this.requestEntryListIfReady(socket, generation);
+        // Overflow can discard the original socket/registration evidence.
+        // Reconnect through the native supervisor so recovery records both again.
+        void this.stop().catch(() => {});
+        return; // Overflow marker replaces this datagram in the canonical stream.
+      }
+      const message = parseAccBroadcastMessage(payload);
+      if (!message) {
+        state.markMalformed("malformed-datagram");
+        this.requestEntryListIfReady(socket, generation);
+        return;
+      }
+      if (message.type === "registration-result") {
+        state.apply(message, at);
+        if (!message.success) {
+          this.registered = false;
+          this.registrationConnectionId = null;
+          return;
+        }
+        if (this.registered) return;
+        this.registered = true;
+        this.registrationConnectionId = message.connectionId;
+        this.lastEntryListRequestAt = -Infinity;
+        this.sendEntryListRequest(socket, generation);
+        return;
+      }
+      if (message.type === "realtime-car-update" && !state.hasEntry(message.carIndex)) {
+        this.requestEntryListIfReady(socket, generation);
+      }
+      state.apply(message, at);
+      if (state.needsEntryList()) this.requestEntryListIfReady(socket, generation);
+    });
+    socket.on("error", () => {
+      if (this.socket !== socket || this.generation !== generation) return;
+      const overflowed = capture?.recordLifecycle("socket-error", this.options.now()).overflowed;
+      state.setSocketConnected(false);
+      if (overflowed) state.markMalformed("capture-overflow");
+      if (!this.stopped) this.stop().catch(() => {});
+    });
+    socket.on("close", () => {
+      if (this.socket !== socket || this.generation !== generation) return;
+      const overflowed = capture?.recordLifecycle("socket-close", this.options.now()).overflowed;
+      state.setSocketConnected(false);
+      if (overflowed) state.markMalformed("capture-overflow");
+      this.socket = null;
+      this.registered = false;
+      this.registrationConnectionId = null;
+      this.lastEntryListRequestAt = -Infinity;
+      if (!this.stopped) this.generation += 1;
+    });
+    const connect = new Promise<void>((resolve) => socket.connect(this.options.port, this.options.host, resolve));
+    const pending = connect.then(() => {
+      if (this.stopped || this.socket !== socket || this.generation !== generation) {
+        socket.close();
+        return;
+      }
+      this.sendRegistration(socket);
+    }).finally(() => {
+      if (this.connectPromise) this.connectPromise = null;
+    });
+    this.connectPromise = pending;
+    return pending;
+  }
+
+  private sendRegistration(socket: DatagramSocket): void {
+    socket.send(encodeAccBroadcastRegistration(this.options.displayName, this.options.connectionPassword, this.options.realtimeIntervalMs, this.options.commandPassword));
+  }
+  private sendEntryListRequest(socket: DatagramSocket, generation: number): void {
+    if (!this.registered || this.socket !== socket || this.generation !== generation || this.registrationConnectionId === null) return;
+    this.lastEntryListRequestAt = this.options.now();
+    socket.send(encodeAccBroadcastEntryListRequest(this.registrationConnectionId));
+  }
+
+  private requestEntryListIfReady(socket: DatagramSocket, generation: number): void {
+    if (this.options.now() - this.lastEntryListRequestAt < 1_000) return;
+    this.sendEntryListRequest(socket, generation);
+  }
+
+
+  async stop(): Promise<void> {
+    this.stopped = true;
+    this.generation += 1;
+    const socket = this.socket;
+    this.socket = null;
+    this.registered = false;
+    this.registrationConnectionId = null;
+    this.lastEntryListRequestAt = -Infinity;
+    const state = this.options.state ?? accBroadcastState;
+    state.setSocketConnected(false);
+    if (!socket) return;
+    if (this.options.capture?.recordLifecycle("socket-close", this.options.now()).overflowed) state.markMalformed("capture-overflow");
+    await new Promise<void>((resolve) => socket.close(resolve));
+  }
+}
+
+export const accBroadcastClient = new AccBroadcastClient({ capture: accBroadcastCapture });

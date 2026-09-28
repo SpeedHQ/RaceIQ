@@ -46,7 +46,13 @@ function* canonicalImportFrames(bytes: Buffer) {
     if (record.kind === "frame") yield { frame: record.frame, frameTimeMs: record.frameTimeMs };
     else if (record.kind === "segment-boundary") yield SESSION_SEGMENT_BOUNDARY;
     else if (record.kind === "segment-context") yield SESSION_SEGMENT_CONTEXT;
-    else yield SESSION_SEGMENT_CONTEXT_END;
+    else if (record.kind === "segment-context-end") yield SESSION_SEGMENT_CONTEXT_END;
+    else {
+      const recordBytes = record.kind === "metadata"
+        ? record.bytes
+        : bytes.subarray(record.offset, record.offset + 8 + bytes.readUInt32LE(record.offset + 4));
+      yield { kind: "metadata" as const, bytes: recordBytes };
+    }
   }
 }
 
