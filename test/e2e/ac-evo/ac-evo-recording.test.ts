@@ -13,11 +13,16 @@ import { describe, test, expect, beforeAll } from "bun:test";
 import { existsSync } from "node:fs";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import type { CapturedLap } from "../../../server/telemetry/pipeline-ports"
+import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports";
 import {
 	readAcEvoPackets,
 	parseDump,
 	ensureInit,
 } from "../../support/recordings/parse-dump";
+import { readKunosFrames } from "../../../server/games/kunos/frame-reader";
+import { parseAcEvoLapIndex } from "../../../server/games/kunos/lap-index";
+import { createAcEvoParserCache } from "../../../server/games/ac-evo/parser";
+import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector";
 import { generateRecordingVisualizations } from "../../support/laps/visualizations";
 import { assertValidLapHasSectors } from "../../support/laps/assertions";
 import { getTrackSectorsByOrdinal } from "../../../shared/racing/tracks/storage/sectors";
@@ -131,6 +136,24 @@ describe("AC Evo v0.6 recording", () => {
 		const liveCount = packets.filter((p) => p.IsRaceOn === 1).length;
 		// Majority of recorded frames should be live
 		expect(liveCount / packets.length).toBeGreaterThan(0.5);
+	});
+
+	test("compact replay retains AC Evo track-limits classification", async () => {
+		if (!recording) return;
+		const cache = createAcEvoParserCache();
+		const db = new CapturingDbAdapter();
+		const detector = new LapDetectorAcEvo({ db });
+		for (const frame of readKunosFrames(recording)) {
+			const packet = parseAcEvoLapIndex(frame.physics, frame.graphics, frame.staticData, cache);
+			// Compact projection supplies fields consumed by lap detection, not full live telemetry.
+			if (packet) await detector.feed(packet as unknown as TelemetryPacket);
+		}
+		await detector.flushIncompleteLap();
+		expect(db.laps.map(({ isValid, invalidReason }) => ({ isValid, invalidReason }))).toEqual([
+			{ isValid: false, invalidReason: "outlap" },
+			{ isValid: false, invalidReason: "track limits" },
+			{ isValid: false, invalidReason: "incomplete" },
+		]);
 	});
 
 	// This recording holds three laps and no clean one: a garage-start outlap, a

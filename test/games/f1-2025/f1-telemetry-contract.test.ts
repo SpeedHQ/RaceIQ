@@ -58,6 +58,19 @@ describe("F1 telemetry contract", () => {
     expect(packet!.TireCarcassTempFL).toBe(88);
   });
 
+  test("reads player's raw lap-invalid flag into emitted telemetry", () => {
+    const accumulator = new F1StateAccumulator();
+    accumulator.feed(header(0), frame(Buffer.alloc(60)));
+    accumulator.feed(header(1), frame(Buffer.alloc(9)));
+    accumulator.feed(header(6), frame(Buffer.alloc(60)));
+    const lapData = Buffer.alloc(57);
+    for (const raw of [0, 1] as const) {
+      lapData.writeUInt8(raw, 37);
+      const packet = accumulator.feed(header(2), frame(lapData));
+      expect(packet?.f1?.currentLapInvalid).toBe(raw);
+    }
+  });
+
   test("real multi-packet snapshots support sustained DRS and ERS observations", () => {
     initGameAdapters();
     for (const drsActive of [false, true]) {

@@ -333,6 +333,15 @@ describe("LMU adapter", () => {
     expect(resolveLMUInvalidReason([packet!])).toBe("game-invalidated");
   });
 
+  test("preserves clean lap-invalidated flag without inventing an exclusion", () => {
+    const packet = lmuServerAdapter.tryParse(
+      encodeLMUSourceFrame(lmuSharedMemoryFixture(), 1_800_000_000_000)!,
+      null,
+    );
+    expect(packet?.lmu?.lapInvalidated).toBe(false);
+    expect(resolveLMUInvalidReason([packet!])).toBeNull();
+  });
+
   test("records lap boundaries from low-rate live LMU frames", async () => {
     const db = new CapturingDbAdapter();
     const detector = lmuServerAdapter.createLapDetector({ db });
