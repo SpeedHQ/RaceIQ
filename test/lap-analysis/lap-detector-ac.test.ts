@@ -466,7 +466,7 @@ describe("ACC recorded validity precedence", () => {
 
   test("false invalidates a clean lap even when reset signal turns true", async () => {
     expect(await completeLap(false, { resetValidity: true })).toMatchObject({
-      valid: false, invalidReason: "recording invalid",
+      valid: false, invalidReason: "game reported invalid",
     });
   });
 
@@ -504,7 +504,7 @@ describe("ACC recorded validity precedence", () => {
       }));
     }
     expect(db.inserted.map(({ valid, invalidReason }: { valid: boolean; invalidReason: string | null }) => ({ valid, invalidReason }))).toEqual([
-      { valid: false, invalidReason: "recording invalid" },
+      { valid: false, invalidReason: "game reported invalid" },
       { valid: true, invalidReason: null },
     ]);
     expect(detector.session?.bestLapTime).toBeCloseTo(90, 0);
@@ -520,7 +520,7 @@ test("V3 recording persists ACC source validity for completed laps", async () =>
   const result = await parseDump("acc", "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz");
   const byLap = new Map(result.laps.map((lap) => [lap.lapNumber, lap]));
   expect(byLap.get(2)).toMatchObject({ isValid: true, invalidReason: null });
-  expect(byLap.get(3)).toMatchObject({ isValid: false, invalidReason: "recording invalid" });
+  expect(byLap.get(3)).toMatchObject({ isValid: false, invalidReason: "game reported invalid" });
   expect(byLap.get(4)).toMatchObject({ isValid: false, invalidReason: "incomplete" });
   expect(byLap.get(3)?.packets.at(-2)?.acc?.isValidLap).toBe(false);
 }, { timeout: 60000 });

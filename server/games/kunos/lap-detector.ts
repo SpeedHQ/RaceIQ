@@ -270,7 +270,7 @@ export abstract class KunosLapDetector implements ILapDetector {
       const recordedValidity = this.recordedLapValidity(packets, opts?.trigger);
       if (recordedValidity !== null) {
         isValid = recordedValidity;
-        invalidReason = recordedValidity ? null : "recording invalid";
+        invalidReason = recordedValidity ? null : "game reported invalid";
       } else {
         const quality = assessLapRecording(packets, lapTime);
         const pitReason = classifyPitCycleLap(packets);
