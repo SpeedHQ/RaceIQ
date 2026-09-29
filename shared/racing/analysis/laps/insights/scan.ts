@@ -9,7 +9,7 @@ import { createElectronicScan } from './electronics';
 import { createCoreDrivingScan } from './driving-core';
 import { createAdvancedDrivingScan } from './driving-advanced';
 import { createMechanicalScan } from './mechanical';
-import { INSIGHT_DETECTORS, type LapDetectorCoverage, type LapAnalysisContext, type LapInsight, type OrderedInsight, type TimeLossCtx } from './types';
+import { INSIGHT_DETECTORS, INSIGHT_ORDER, type LapDetectorCoverage, type LapAnalysisContext, type LapInsight, type OrderedInsight, type TimeLossCtx } from './types';
 
 export interface InsightAccumulator {
   observe(index: number, seconds: number, previousSeconds: number, wheelState?: AllWheelStates): void;
@@ -64,6 +64,12 @@ export function runInsightScanWithCoverage(sourceTelemetry: TelemetryPacket[], g
   const nativeTc = nativeAid && telemetry.some((packet) => Number.isFinite(packet.acc?.tcIntervention));
   const unavailableReason: Record<number, string> = {};
   if (!physicalSuspensionStroke) unavailableReason[0] = "Continuous direct suspension-travel channel unavailable";
+  if (!telemetry.some((packet) => Number.isFinite(packet.SuspensionTravelMFL) &&
+    Number.isFinite(packet.SuspensionTravelMFR) && Number.isFinite(packet.SuspensionTravelMRL) &&
+    Number.isFinite(packet.SuspensionTravelMRR) && (packet.SuspensionTravelMFL !== 0 ||
+      packet.SuspensionTravelMFR !== 0 || packet.SuspensionTravelMRL !== 0 || packet.SuspensionTravelMRR !== 0))) {
+    unavailableReason[INSIGHT_ORDER.kerbRiding] = "Direct suspension travel unavailable";
+  }
   if (!wheelEnabled) for (const order of [5, 6, 15, 22]) unavailableReason[order] = "Continuous direct wheel-rotation telemetry unavailable";
   if (!primaryTemperature && !separateCoreTemperature) for (const order of [2, 8]) unavailableReason[order] = "Tire temperature channel unavailable";
   if (!primaryTemperature && !separateCoreTemperature) unavailableReason[3] = "Tire carcass-temperature channel unavailable";
@@ -133,7 +139,8 @@ export function runInsightScanWithCoverage(sourceTelemetry: TelemetryPacket[], g
     const aliases: Record<number, string[]> = { 34: ["mech-fuel"], 35: ["mech-peak-power"], 36: ["mech-boost-anomaly"] };
     const findings = insights.filter((insight) => insight.id === detector.id || insight.id.startsWith(`${detector.id}-`) || aliases[order]?.includes(insight.id));
     const reason = unavailableReason[order];
-    return { ...detector, status: findings.length ? "finding" as const : reason ? "unavailable" as const : "checked" as const, ...(findings.length || !reason ? {} : { reason }) };
+    return { ...detector, label: order === INSIGHT_ORDER.kerbRiding ? findings[0]?.label ?? detector.label : detector.label,
+      status: findings.length ? "finding" as const : reason ? "unavailable" as const : "checked" as const, ...(findings.length || !reason ? {} : { reason }) };
   });
   return { insights, detectorCoverage: coverage };
 }

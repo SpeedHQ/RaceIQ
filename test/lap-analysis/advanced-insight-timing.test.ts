@@ -37,6 +37,10 @@ function samples(hz: number, seconds: number, values: (time: number) => Partial<
     NormSuspensionTravelFR: 0.1,
     NormSuspensionTravelRL: 0.1,
     NormSuspensionTravelRR: 0.1,
+    SuspensionTravelMFL: 0.005,
+    SuspensionTravelMFR: 0.005,
+    SuspensionTravelMRL: 0.005,
+    SuspensionTravelMRR: 0.005,
     WheelOnRumbleStripFL: 0,
     WheelOnRumbleStripFR: 0,
     WheelOnRumbleStripRL: 0,
@@ -175,24 +179,84 @@ describe("advanced insight elapsed-time contracts", () => {
 
   test("kerb compression rate and duration are consistent across sample rates", () => {
     for (const hz of [30, 60, 120]) {
-      for (const nativeRumble of [false, true]) {
-        const telemetry = samples(hz, 3, (time) => {
-          const phase = time % 1 - 0.2;
-          const compression = phase < 0 || phase >= 0.1 ? 0 : phase < 0.05 ? phase * 15 : (0.1 - phase) * 15;
-          return { NormSuspensionTravelFL: 0.1 + compression, WheelOnRumbleStripFL: nativeRumble && phase >= 0 && phase <= 0.1 ? 1 : 0 };
-        });
-        expect(detectKerbRiding(telemetry)?.frameIndices).toHaveLength(3);
-        expect(detectKerbRiding(telemetry)?.severity).toBe("info");
-      }
-      const gradual = samples(hz, 3, (time) => ({ NormSuspensionTravelFL: 0.4 + 0.2 * Math.sin(2 * Math.PI * time), WheelOnRumbleStripFL: 1 }));
+      const telemetry = samples(hz, 3, (time) => {
+        const phase = time % 1 - 0.2;
+        const compression = phase < 0 || phase >= 0.1 ? 0 : phase < 0.05 ? phase * 15 : (0.1 - phase) * 15;
+        return {
+          SuspensionTravelMFL: 0.005 + compression * 0.05,
+          SuspensionTravelMFR: 0.005,
+          SuspensionTravelMRL: 0.005,
+          SuspensionTravelMRR: 0.005,
+          WheelOnRumbleStripFL: phase >= 0 && phase <= 0.1 ? 1 : 0,
+        };
+      });
+      expect(detectKerbRiding(telemetry)?.frameIndices).toHaveLength(3);
+      expect(detectKerbRiding(telemetry)?.severity).toBe("info");
+      expect(detectKerbRiding(telemetry.map((packet) => ({ ...packet, WheelOnRumbleStripFL: 0 })))?.label).toBe("Suspension Spikes");
+      const gradual = samples(hz, 3, (time) => ({ SuspensionTravelMFL: 0.02 + 0.01 * Math.sin(2 * Math.PI * time), WheelOnRumbleStripFL: 1 }));
       expect(detectKerbRiding(gradual)).toBeNull();
     }
+  });
+
+  test("all-wheel zero suspension samples do not create kerb strikes on dropout edges", () => {
+    const telemetry = samples(60, 4, (time) => {
+      const dropout = time % 1 >= 0.2 && time % 1 < 0.3;
+      return {
+        Steer: 15,
+        SuspensionTravelMFL: 0.006,
+        SuspensionTravelMFR: 0.009,
+        SuspensionTravelMRL: 0.012,
+        SuspensionTravelMRR: 0.016,
+        NormSuspensionTravelFL: dropout ? 0 : 0.12,
+        NormSuspensionTravelFR: dropout ? 0 : 0.18,
+        NormSuspensionTravelRL: dropout ? 0 : 0.24,
+        NormSuspensionTravelRR: dropout ? 0 : 0.32,
+      };
+    });
+    expect(detectKerbRiding(telemetry)).toBeNull();
+  });
+
+  test("ACC raw travel detects suspension spikes without steering or rumble contact", () => {
+    const telemetry = samples(60, 3, (time) => {
+      const phase = time % 1;
+      const raw = phase >= 0.2 && phase < 0.27 ? 0.01 + (phase - 0.2) * 0.35 : 0.01;
+      return {
+        Steer: 0,
+        SuspensionTravelMFL: raw,
+        SuspensionTravelMFR: 0.01,
+        SuspensionTravelMRL: 0.01,
+        SuspensionTravelMRR: 0.01,
+      };
+    });
+    const insight = detectKerbRiding(telemetry);
+    expect(insight?.label).toBe("Suspension Spikes");
+    expect(insight?.frameIndices).toHaveLength(3);
+    expect(insight?.evidenceSource).toBe("inferred");
+  });
+
+  test("ACC missing static suspension maxima cannot turn steady raw travel into strikes", () => {
+    const telemetry = samples(60, 3, (time) => {
+      const missingMax = time % 1 >= 0.2 && time % 1 < 0.3;
+      return {
+        SuspensionTravelMFL: 0.006,
+        SuspensionTravelMFR: 0.015,
+        SuspensionTravelMRL: 0.011,
+        SuspensionTravelMRR: 0.023,
+        NormSuspensionTravelFL: missingMax ? 0 : 0.12,
+        NormSuspensionTravelFR: missingMax ? 0 : 0.3,
+        NormSuspensionTravelRL: missingMax ? 0 : 0.22,
+        NormSuspensionTravelRR: missingMax ? 0 : 0.46,
+      };
+    });
+    const result = runInsightScanWithCoverage(telemetry, "acc");
+    expect(result.insights.find((insight) => insight.id === "driving-kerb-riding")).toBeUndefined();
+    expect(result.detectorCoverage.find((check) => check.id === "driving-kerb-riding")?.status).toBe("checked");
   });
 
   test("suspension displacement across missing telemetry is not a kerb strike", () => {
     const telemetry = samples(60, 4, (time) => ({
       TimestampMS: time * 1000 + Math.floor(time / 0.5) * 1000,
-      NormSuspensionTravelFL: Math.floor(time / 0.5) % 2 === 0 ? 0.1 : 0.9,
+      SuspensionTravelMFL: Math.floor(time / 0.5) % 2 === 0 ? 0.005 : 0.04,
     }));
     expect(detectKerbRiding(telemetry)).toBeNull();
   });

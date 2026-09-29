@@ -93,7 +93,7 @@ Each `LapInsight` contains:
 | `driving-oversteer-slide` | Oversteer Slide | Above 30 mph, steering above 15, oversteer severity above `0.4` for `1/6 s`. | Warning at 4+ corners or above 3 s active time; otherwise info. | No |
 | `driving-steering-sawing` | Steering Sawing | Above 40 mph, four meaningful steering-rate reversals within 1 s while steering exceeds 15; rate deadband `300 input units/s`. | Warning at 3+ zones; otherwise info. | No |
 | `driving-throttle-micro-lifts` | Throttle Micro-Lifts | At least four drops of 60 input units within `0.1 s`, recovering toward the pre-lift level within `1/3 s`, with nearby calibrated rear spin. Moderate lifts need not cross an absolute low-throttle threshold. | Warning at 8+ lifts; otherwise info. | Yes |
-| `driving-kerb-riding` | Hard Kerb Strikes | Above 30 mph, rumble contact and normalized suspension rate above `6/s`, or spike-only rate above `10.8/s`; `1/30 s` active evidence per event. At least three events. | Warning at 8+ events; otherwise info. | No |
+| `driving-kerb-riding` | Hard Kerb Strikes / Suspension Spikes | Above 30 mph, raw suspension-travel rate in metres/second: with recorded rumble contact, above `0.3 m/s` for `1/30 s` across at least three events; without contact evidence, above `0.2 m/s` for `1/30 s` gives a suspension-spike finding, not a confirmed kerb strike. | Confirmed-contact warning at 8+ events; otherwise info. | No |
 
 ## Mechanical
 
