@@ -140,8 +140,8 @@ export const PHYSICS = {
   slipAngleRL:    { offset: 664, type: "f32" },
   slipAngleRR:    { offset: 668, type: "f32" },
   // tcInAction (672), absInAction (676), suspensionDamage[4] (680-692)
-  // — all marked "Not used in ACC" per Kunos header; real intervention
-  // signals are the vibration floats at the very end of the struct.
+  // — marked "Not used in ACC" per Kunos header. The physics tc/abs floats
+  // at 204/252 report aid activity; vibrations also occur without intervention.
   // tyreTemp[4] — ACC core-temperature alias, °C; not a surface channel
   tyreTempFL:     { offset: 696, type: "f32" },
   tyreTempFR:     { offset: 700, type: "f32" },

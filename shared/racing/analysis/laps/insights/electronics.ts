@@ -8,6 +8,8 @@ type Aid = "ABS" | "Traction Control";
 
 export interface AidDetectionOptions {
   nativeChannelAvailable: boolean;
+  /** True only for an explicit game-provided aid-active flag. */
+  nativeChannelExplicit: boolean;
   /** Direct, continuous wheel rotation, not a vehicle-speed-derived substitute. */
   wheelRotationAvailable: boolean;
   /** Calibrated states provide traction evidence independent of engine RPM. */
@@ -17,16 +19,18 @@ export interface AidDetectionOptions {
 const wheelRotation = ["WheelRotationSpeedFL", "WheelRotationSpeedFR", "WheelRotationSpeedRL", "WheelRotationSpeedRR"] as const;
 const wheelKeys = ["fl", "fr", "rl", "rr"] as const;
 const f1Surfaces = ["surfaceTypeFL", "surfaceTypeFR", "surfaceTypeRL", "surfaceTypeRR"] as const;
-function nativeInsight(aid: Aid, frames: number[], activeSeconds: number, demandSeconds: number, activeDemandSeconds: number): LapInsight | null {
+function nativeInsight(aid: Aid, frames: number[], activeSeconds: number, demandSeconds: number, activeDemandSeconds: number, explicit: boolean): LapInsight | null {
   if (frames.length === 0) return null;
   const duty = demandSeconds > 0
-    ? `; active during ${(100 * activeDemandSeconds / demandSeconds).toFixed(0)}% of ${demandSeconds.toFixed(1)}s observed ${aid === "ABS" ? "braking" : "acceleration"}`
+    ? `; ${explicit ? "active" : "signal present"} during ${(100 * activeDemandSeconds / demandSeconds).toFixed(0)}% of ${demandSeconds.toFixed(1)}s observed ${aid === "ABS" ? "braking" : "acceleration"}`
     : "";
   return {
     id: aid === "ABS" ? "driving-abs-activation" : "driving-traction-control-activation",
-    category: "driving", severity: "info", label: `${aid} Activation`,
-    detail: `${frames.length} ${aid} intervention${frames.length === 1 ? "" : "s"} reported by game, ${activeSeconds.toFixed(2)}s active${duty}`,
-    frameIndices: frames, evidenceSource: "native",
+    category: "driving", severity: "info", label: `${explicit ? "" : "Possible "}${aid} Activation`,
+    detail: explicit
+      ? `${frames.length} ${aid} intervention${frames.length === 1 ? "" : "s"} reported by game's explicit aid-active flag, ${activeSeconds.toFixed(2)}s active${duty}`
+      : `${frames.length} possible ${aid} intervention period${frames.length === 1 ? "" : "s"} inferred from physics aid signal, signal present for ${activeSeconds.toFixed(2)}s${duty}`,
+    frameIndices: frames, evidenceSource: explicit ? "native" : "inferred",
   };
 }
 
@@ -57,7 +61,7 @@ function disturbed(packet: TelemetryPacket): boolean {
 }
 
 
-/** Native activity is observational, even when aid settings or driving conditions disagree. */
+/** Source aid signals are observational; explicit flags alone confirm activation. */
 export function detectAbsActivation(telemetry: readonly TelemetryPacket[], options: AidDetectionOptions): LapInsight | null {
   return insightAt(runSelectedInsightScan(telemetry, createElectronicScan(telemetry, { abs: options }), { wheelStates: options.wheelStates }), INSIGHT_ORDER.absActivation);
 }
@@ -180,7 +184,8 @@ export function createElectronicScan(
 }
 
 function createAidScan(telemetry: readonly TelemetryPacket[], aid: Aid, options: AidDetectionOptions) {
-  const nativeEvents = createOnlineEvents(0, 4 / 60);
+  // Count each uninterrupted aid-active burst; do not merge across inactive time.
+  const nativeEvents = createOnlineEvents(0, 0);
   const frames: number[] = [];
   const observedWheelStates = aid === "Traction Control" && !options.wheelStates ? new Array<AllWheelStates | undefined>(telemetry.length) : undefined;
   let activeSeconds = 0, demandSeconds = 0, activeDemandSeconds = 0;
@@ -290,7 +295,11 @@ function createAidScan(telemetry: readonly TelemetryPacket[], aid: Aid, options:
         if (active) activeSeconds += seconds;
         const demand = aid === "ABS" ? p.Brake >= 90 && p.Speed >= 8 : p.Accel >= 150 && p.Speed >= 5;
         if (valid && demand) { demandSeconds += seconds; if (active) activeDemandSeconds += seconds; }
-        nativeEvents.observe(i, seconds, !!active);
+        // Captures can contain adjacent packets at the same simulator time.
+        // They add no activity duration and must not end the episode.
+        if (seconds > 0 || telemetry[i + 1]?.TimestampMS !== p.TimestampMS) {
+          nativeEvents.observe(i, seconds, !!active);
+        }
         return;
       }
       while (nextIndex < i) {
@@ -306,7 +315,7 @@ function createAidScan(telemetry: readonly TelemetryPacket[], aid: Aid, options:
     },
     finish() {
       if (options.nativeChannelAvailable) {
-        return nativeInsight(aid, nativeEvents.finish().frames, activeSeconds, demandSeconds, activeDemandSeconds);
+        return nativeInsight(aid, nativeEvents.finish().frames, activeSeconds, demandSeconds, activeDemandSeconds, options.nativeChannelExplicit);
       }
       while (nextIndex < telemetry.length) {
         const j = nextIndex++;

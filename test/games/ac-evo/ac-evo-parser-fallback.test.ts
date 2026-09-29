@@ -46,6 +46,24 @@ describe("AC Evo parser — malformed/empty STATIC recovery", () => {
     expect(cache.trackOrdinal).toBe(-1);
   });
 
+  test("only explicit graphics flags confirm TC or ABS intervention", () => {
+    const { physics, graphics, staticData } = emptyBuffers();
+    physics.writeFloatLE(0.5, PHYSICS.slipVibrations.offset);
+    physics.writeFloatLE(0.5, PHYSICS.absVibrations.offset);
+    physics.writeFloatLE(1, PHYSICS.tc.offset);
+    physics.writeFloatLE(1, PHYSICS.abs.offset);
+    const cache = createAcEvoParserCache();
+    const vibration = parseAcEvoBuffers(physics, graphics, staticData, cache);
+    expect(vibration!.acc!.tcIntervention).toBe(0);
+    expect(vibration!.acc!.absIntervention).toBe(0);
+
+    graphics.writeUInt8(1, GRAPHICS_EVO.tc_active.offset);
+    graphics.writeUInt8(1, GRAPHICS_EVO.abs_active.offset);
+    const intervention = parseAcEvoBuffers(physics, graphics, staticData, cache);
+    expect(intervention!.acc!.tcIntervention).toBe(1);
+    expect(intervention!.acc!.absIntervention).toBe(1);
+  });
+
   test("track name populated mid-session resolves on the frame it appears", () => {
     const { physics, graphics, staticData } = emptyBuffers();
     const cache = createAcEvoParserCache();

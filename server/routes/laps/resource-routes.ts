@@ -9,7 +9,7 @@ import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { getGame, tryGetGame } from "../../../shared/games/registry";
 import { analyseSemanticIds } from "../../../shared/games/metric-contracts";
 import { runInsightScanWithCoverage } from "../../../shared/racing/analysis/laps/insights/scan";
-import { processLap, restoreF1FrameIndices } from "../../../shared/racing/analysis/laps/insights/process";
+import { processLap, restoreFrameIndices } from "../../../shared/racing/analysis/laps/insights/process";
 import { INSIGHT_DETECTORS } from "../../../shared/racing/analysis/laps/insights/types";
 import { resolveRacingLineReference } from "../../lap-analysis/insights";
 import { backfillLapInsights, getOrComputeLapInsights, recomputeLapInsights } from "../../lap-analysis/metrics-store";
@@ -95,7 +95,7 @@ export const resourceRoutes = new Hono()
       const nativeLayout = getGame(meta.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
       const processed = processLap(lap.telemetry, meta.gameId);
       const analysis = runInsightScanWithCoverage(processed.packets, meta.gameId, { racingLine: resolveRacingLineReference(meta.gameId, meta.trackId) });
-      restoreF1FrameIndices(analysis.insights, processed.sourceIndices);
+      restoreFrameIndices(analysis.insights, processed.sourceIndices);
       return c.json({
         lapId: replay.lapId, requestedSemanticIds: replay.requestedSemanticIds,
         sectorTimes: meta.sectorTimes ?? null, sectorStarts: nativeLayout?.starts ?? null,
@@ -166,6 +166,15 @@ export const resourceRoutes = new Hono()
     const lap = await getLapById(Number(c.req.valid("param").id));
     if (!lap || lap.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
     return c.json({ setup: gameIdResult.data === "f1-2025" ? resolveLapF1Setup({ carSetup: lap.carSetup, telemetry: lap.telemetry }) : null });
+  })
+
+  .get("/api/laps/:id/insights", zValidator("param", IdParamSchema), async (c) => {
+    const gameId = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
+    if (!gameId.success) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
+    const { id } = c.req.valid("param");
+    const meta = await getLapMetaById(id);
+    if (!meta || meta.gameId !== gameId.data) return c.json({ error: "Lap not found" }, 404);
+    return c.json({ insights: await getOrComputeLapInsights(id) ?? [] });
   })
 
   .get("/api/laps/:id", zValidator("param", IdParamSchema), async (c) => {

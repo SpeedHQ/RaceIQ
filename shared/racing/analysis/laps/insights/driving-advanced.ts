@@ -251,22 +251,21 @@ export function createAdvancedDrivingScan(
         }
       }
 
-      hasRumble ||= packet.WheelOnRumbleStripFL > 0 || packet.WheelOnRumbleStripFR > 0 ||
-        packet.WheelOnRumbleStripRL > 0 || packet.WheelOnRumbleStripRR > 0;
       let travelRate = 0;
       if (index > 0 && previousSeconds > 0 && seconds > 0 && packet.Speed * 2.23694 >= 30) {
         travelRate = Math.max(
-          Math.abs(packet.NormSuspensionTravelFL - previous.NormSuspensionTravelFL),
-          Math.abs(packet.NormSuspensionTravelFR - previous.NormSuspensionTravelFR),
-          Math.abs(packet.NormSuspensionTravelRL - previous.NormSuspensionTravelRL),
-          Math.abs(packet.NormSuspensionTravelRR - previous.NormSuspensionTravelRR),
+          Math.abs(packet.SuspensionTravelMFL - previous.SuspensionTravelMFL),
+          Math.abs(packet.SuspensionTravelMFR - previous.SuspensionTravelMFR),
+          Math.abs(packet.SuspensionTravelMRL - previous.SuspensionTravelMRL),
+          Math.abs(packet.SuspensionTravelMRR - previous.SuspensionTravelMRR),
         ) / previousSeconds;
       }
+      hasRumble ||= packet.WheelOnRumbleStripFL > 0 || packet.WheelOnRumbleStripFR > 0 ||
+        packet.WheelOnRumbleStripRL > 0 || packet.WheelOnRumbleStripRR > 0;
       const onKerb = packet.WheelOnRumbleStripFL > 0 || packet.WheelOnRumbleStripFR > 0 ||
         packet.WheelOnRumbleStripRL > 0 || packet.WheelOnRumbleStripRR > 0;
-      kerbWithRumble.feed(index, seconds, previousSeconds > 0 && seconds > 0 && onKerb && travelRate > 6);
-      kerbWithoutRumble.feed(index, seconds, previousSeconds > 0 && seconds > 0 && travelRate > 10.8);
-
+      kerbWithRumble.feed(index, seconds, previousSeconds > 0 && seconds > 0 && onKerb && travelRate > 0.3);
+      kerbWithoutRumble.feed(index, seconds, previousSeconds > 0 && seconds > 0 && travelRate > 0.2);
       if (index > 0) {
         if (previousSeconds <= 0) {
           lastShiftElapsed = Number.NEGATIVE_INFINITY;
@@ -364,10 +363,14 @@ export function createAdvancedDrivingScan(
         frameIndices: liftFrames,
         timeLossS: microLiftLoss,
       } : null);
-      appendInsights(results, INSIGHT_ORDER.kerbRiding, makeEvent("driving-kerb-riding", "Hard Kerb Strikes",
-        kerbEvents.length >= 8 ? "warning" : "info",
-        `${kerbEvents.length} heavy kerb strikes — big compression spikes unsettle the car and can cost time or damage`,
-        kerbEvents.length >= 3 ? kerbEvents : []));
+      const kerbInsight = makeEvent("driving-kerb-riding", hasRumble ? "Hard Kerb Strikes" : "Suspension Spikes",
+        hasRumble && kerbEvents.length >= 8 ? "warning" : "info",
+        hasRumble
+          ? `${kerbEvents.length} heavy kerb strikes — big compression spikes unsettle the car and can cost time or damage`
+          : `${kerbEvents.length} suspension spike${kerbEvents.length === 1 ? "" : "s"}; kerb contact cannot be determined from suspension alone`,
+        hasRumble && kerbEvents.length < 3 ? [] : kerbEvents);
+      if (kerbInsight && !hasRumble) kerbInsight.evidenceSource = "inferred";
+      appendInsights(results, INSIGHT_ORDER.kerbRiding, kerbInsight);
       return results;
     },
   };

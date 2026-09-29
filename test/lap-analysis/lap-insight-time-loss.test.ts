@@ -156,6 +156,24 @@ describe("analyzeLap wheel-state capabilities", () => {
   });
 });
 
+describe("simulator-clock insight coverage", () => {
+  test.each(["acc", "ac-evo", "lmu"] as const)("%s ignores capture-time jitter and stalled game time", (gameId) => {
+    const packets = lap([{ n: 60, a: 0, accel: 0 }]).map((packet) => ({
+      ...packet,
+      CurrentLap: packet.TimestampMS / 1000,
+      CurrentRaceTime: packet.TimestampMS / 1000,
+      TimestampMS: 1_700_000_000_000,
+    }));
+    const active = runInsightScanWithCoverage(packets, gameId).detectorCoverage;
+    expect(active.some((detector) => detector.status === "checked" || detector.status === "finding")).toBe(true);
+    expect(packets[0]!.TimestampMS).toBe(1_700_000_000_000);
+
+    const stalled = packets.map((packet, index) => ({ ...packet, CurrentLap: 0, CurrentRaceTime: 0, TimestampMS: index * STEP_MS }));
+    const inactive = runInsightScanWithCoverage(stalled, gameId).detectorCoverage;
+    expect(inactive.every((detector) => detector.reason === "Insufficient valid-duration lap telemetry")).toBe(true);
+  });
+});
+
 describe("analyzeLap deterministic signal guards", () => {
   test("does not interpret Forza normalized lateral slip as radians", () => {
     const telemetry = repeated(30, {

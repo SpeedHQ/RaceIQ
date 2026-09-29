@@ -262,8 +262,8 @@ export function parseAcEvoBuffers(
 
   const tcActiveBool = graphicsBuf.readUInt8(GRAPHICS_EVO.tc_active.offset);
   const absActiveBool = graphicsBuf.readUInt8(GRAPHICS_EVO.abs_active.offset);
-  const tcActive = tcActiveBool || tcFloat > 0.01 || slipVib > 0.01 ? 1 : 0;
-  const absActive = absActiveBool || absFloat > 0.01 || absVib > 0.01 ? 1 : 0;
+  const tcActive = tcActiveBool ? 1 : 0;
+  const absActive = absActiveBool ? 1 : 0;
 
   // Electronics (setting-level integers) — from embedded Electronics sub-struct
   const elecBase = GRAPHICS_EVO.electronics_base.offset;

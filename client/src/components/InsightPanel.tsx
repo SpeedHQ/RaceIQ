@@ -9,6 +9,7 @@ const SEVERITY_COLOR: Record<string, string> = {
   warning: "var(--status-warning)",
   critical: "var(--status-danger)",
 };
+const SEVERITY_RANK: Record<LapInsight["severity"], number> = { critical: 3, warning: 2, info: 1 };
 
 function InsightRow({ insight, onJump }: { insight: LapInsight; onJump: (idx: number) => void }) {
   const [eventIdx, setEventIdx] = useState(0);
@@ -74,7 +75,8 @@ export function InsightPanel({ insights, detectorCoverage, onJumpToFrame }: { in
   return (
     <div className="flex flex-col gap-3">
       {categories.map(({ key, icon, label }) => {
-        const items = insights.filter((i) => i.category === key);
+        const items = insights.filter((i) => i.category === key)
+          .sort((a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity]);
         const checks = detectorCoverage.filter((check) => check.category === key);
         return (
           <div key={key}>

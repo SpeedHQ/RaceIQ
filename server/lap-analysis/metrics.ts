@@ -5,7 +5,7 @@
 
 import { resolveRacingLineReference, STATIC_LAP_ANALYSIS_VERSION } from "./insights";
 import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
-import { processLap, restoreF1FrameIndices } from "../../shared/racing/analysis/laps/insights/process";
+import { processLap, restoreFrameIndices } from "../../shared/racing/analysis/laps/insights/process";
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import { tryGetGame } from "../../shared/games/registry";
 import type { NamedSegment } from "../../shared/racing/tracks/named-segments";
@@ -321,7 +321,7 @@ export function computeLapMetrics(
     insights = analyzeLap(processed.packets, gameId, {
       racingLine: resolveRacingLineReference(gameId, trackId),
     });
-    restoreF1FrameIndices(insights, processed.sourceIndices);
+    restoreFrameIndices(insights, processed.sourceIndices);
   }
   return {
     lapId,

@@ -29,6 +29,7 @@ Each `LapInsight` contains:
 
 - Event thresholds, merge gaps, lookahead, and duration severity use seconds, not frame counts. Only active sample duration satisfies minimum evidence; merged quiet gaps do not count.
 - Positive timestamp intervals up to 100 ms contribute evidence. Invalid intervals and clock resets split events. No duration is extrapolated beyond the final packet. Ordinary duplicate F1 tick updates are coalesced before this check.
+- ACC/AC Evo repeated simulator-time snapshots are coalesced to their final update for insight detection; replay retains every recorded frame and findings point back to original frame positions.
 - Wheel-state detectors require direct continuous rotation telemetry. Authoritative per-wheel radii take precedence; otherwise calibration requires at least 0.5 s of clean moving coast with low controls/cornering and consistent rotations. Calibration freezes during traction events and resets after stops, dropouts, or time discontinuities. Uncalibrated states are unknown, not clean grip. F1 speed-derived wheel substitutes without MotionEx cannot establish traction.
 - Acceleration references require calibrated four-wheel grip and at least one sixth of a second of clean full-throttle evidence per speed bin. Unknown traction cannot train the reference.
 - Suspension overload/imbalance require a direct continuous physical normalized-stroke contract. AC Evo's display-scaled movement is not a physical end stop.
@@ -74,7 +75,7 @@ Each `LapInsight` contains:
 | `driving-trail-brake` | Trail Braking | Brake zones lasting at least `0.05 s`; reports zones containing steering above 15. | Info. | No |
 | `driving-early-braking` | Coast After Braking | At least `0.25 s` low throttle after brake release, then strong throttle while turning within `1.5 s`. Stable ID retained; no claim that braking was too early. | Info. | No |
 | `driving-over-slowing` | Corner Speed Reduction | Speed falls at least 8% within 2 s after release, then throttle resumes while turning. Geometry/grip may require this; no excess-slowness diagnosis. | Info. | No |
-| `driving-counter-steer` | Counter-Steer | Above 20 mph, opposite yaw/steering signs with yaw above `0.3 rad/s` and steering above 20 for `0.05 s`. | Critical at 5+ events; warning at 2–4; otherwise info. | No |
+| `driving-counter-steer` | Counter-Steer | Calibrate steering versus lateral-acceleration sign from at least six loaded samples with a 3:1 directional majority. Above 20 mph, steering reverses from a loaded turn within 1 s while yaw and lateral acceleration retain their direction; opposite steering above 20 and yaw above `0.3 rad/s` persist for `0.05 s`. Clock gaps and turn-direction changes reset the reference. Event links select an actual correcting frame. Does not claim rear traction loss without independent evidence. | Critical at 5+ events; warning at 2–4; otherwise info. | No |
 | `driving-throttle-traction-loss` | Throttle Traction Loss | Throttle at least `150/255` with calibrated wheelspin for `0.05 s`. | Critical at 5+ events; warning at 2–4; otherwise info. | No |
 | `driving-early-throttle` | Corner Throttle Correction | Corner power above `100/255`, steering above 40, and speed above 30 mph, corroborated by spin, excess rotation, or corrective lift for `0.1 s`. | Warning at 5+ zones; otherwise info. | No |
 | `driving-binary-throttle` | Abrupt Corner Throttle | Localized low→near-full→low reversal during one continuous turn; sustained high/low evidence and rapid release required. Flat-out occupancy is not a fault. | Warning at 3+ events; otherwise info. | No |
@@ -92,7 +93,7 @@ Each `LapInsight` contains:
 | `driving-oversteer-slide` | Oversteer Slide | Above 30 mph, steering above 15, oversteer severity above `0.4` for `1/6 s`. | Warning at 4+ corners or above 3 s active time; otherwise info. | No |
 | `driving-steering-sawing` | Steering Sawing | Above 40 mph, four meaningful steering-rate reversals within 1 s while steering exceeds 15; rate deadband `300 input units/s`. | Warning at 3+ zones; otherwise info. | No |
 | `driving-throttle-micro-lifts` | Throttle Micro-Lifts | At least four drops of 60 input units within `0.1 s`, recovering toward the pre-lift level within `1/3 s`, with nearby calibrated rear spin. Moderate lifts need not cross an absolute low-throttle threshold. | Warning at 8+ lifts; otherwise info. | Yes |
-| `driving-kerb-riding` | Hard Kerb Strikes | Above 30 mph, rumble contact and normalized suspension rate above `6/s`, or spike-only rate above `10.8/s`; `1/30 s` active evidence per event. At least three events. | Warning at 8+ events; otherwise info. | No |
+| `driving-kerb-riding` | Hard Kerb Strikes / Suspension Spikes | Above 30 mph, raw suspension-travel rate in metres/second: with recorded rumble contact, above `0.3 m/s` for `1/30 s` across at least three events; without contact evidence, above `0.2 m/s` for `1/30 s` gives a suspension-spike finding, not a confirmed kerb strike. | Confirmed-contact warning at 8+ events; otherwise info. | No |
 
 ## Mechanical
 

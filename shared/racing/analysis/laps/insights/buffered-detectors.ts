@@ -16,6 +16,25 @@ export function createBufferedScan(
   const brakeRun = wheelStatesEnabled ? new EventRun(3 / 60, 15 / 60) : undefined;
   const throttleRun = wheelStatesEnabled ? new EventRun(3 / 60, 15 / 60) : undefined;
   const counterRun = new EventRun(3 / 60, 10 / 60);
+  const counterEvidence: number[] = [];
+  // Calibrate steering/lateral-acceleration sign from loaded turns rather
+  // than assuming every game's yaw and steering axes share a convention.
+  let alignedTurns = 0;
+  let opposedTurns = 0;
+  for (const packet of telemetry) {
+    if (!Number.isFinite(packet.Speed) || !Number.isFinite(packet.Steer) ||
+      !Number.isFinite(packet.AccelerationX) || packet.Speed * 2.23694 < 20 ||
+      Math.abs(packet.Steer) <= 20 || Math.abs(packet.AccelerationX) <= 2.5) continue;
+    if (packet.Steer * packet.AccelerationX > 0) alignedTurns++;
+    else opposedTurns++;
+  }
+  const steeringLateralSign = alignedTurns >= 6 && alignedTurns >= opposedTurns * 3 ? 1
+    : opposedTurns >= 6 && opposedTurns >= alignedTurns * 3 ? -1 : 0;
+  let turnSteerSign = 0;
+  let turnYawSign = 0;
+  let turnLateralSign = 0;
+  let lastTurnSteerTime = 0;
+  let elapsed = 0;
   let totalDelta = 0;
   let seconds = 0;
   let peakIdx = 0;
@@ -24,7 +43,7 @@ export function createBufferedScan(
   let peakGear = 0;
 
   return {
-    observe(index: number, duration: number, _previousSeconds: number, wheelState?: AllWheelStates): void {
+    observe(index: number, duration: number, previousSeconds: number, wheelState?: AllWheelStates): void {
       const p = telemetry[index];
       if (overloadRuns) {
         const moving = p.Speed > 7;
@@ -54,8 +73,31 @@ export function createBufferedScan(
         brakeRun.feed(index, duration, p.Brake >= 30 && (flLock || frLock || rlLock || rrLock));
         throttleRun.feed(index, duration, p.Accel >= 150 && (flSpin || frSpin || rlSpin || rrSpin));
       }
-      counterRun.feed(index, duration, !(p.Speed * 2.23694 < 20) && Math.abs(p.AngularVelocityY) > 0.3 &&
-        Math.abs(p.Steer) > 20 && Math.sign(p.AngularVelocityY) !== Math.sign(p.Steer));
+      if (index > 0) {
+        if (previousSeconds > 0) elapsed += previousSeconds;
+        else turnSteerSign = 0;
+      }
+      const rotating = p.Speed * 2.23694 >= 20 &&
+        Math.abs(p.AngularVelocityY) > 0.15 && Math.abs(p.AccelerationX) > 2.5;
+      const yawSign = Math.sign(p.AngularVelocityY);
+      const lateralSign = Math.sign(p.AccelerationX);
+      if (!rotating || (turnSteerSign && (yawSign !== turnYawSign || lateralSign !== turnLateralSign))) {
+        turnSteerSign = 0;
+      }
+      const steerSign = Math.sign(p.Steer);
+      const correcting = rotating && steeringLateralSign !== 0 && turnSteerSign !== 0 &&
+        steerSign === -turnSteerSign && Math.abs(p.Steer) > 20 &&
+        Math.abs(p.AngularVelocityY) > 0.3 && elapsed - lastTurnSteerTime <= 1;
+      counterRun.feed(index, duration, correcting);
+      if (correcting && duration > 0) counterEvidence.push(index);
+      if (rotating && steeringLateralSign !== 0 && Math.abs(p.Steer) > 35 &&
+        steerSign * lateralSign === steeringLateralSign &&
+        (turnSteerSign === 0 || steerSign === turnSteerSign)) {
+        turnSteerSign = steerSign;
+        turnYawSign = yawSign;
+        turnLateralSign = lateralSign;
+        lastTurnSteerTime = elapsed;
+      }
       if (p.Power > peakVal) {
         peakVal = p.Power;
         peakIdx = index;
@@ -111,10 +153,20 @@ export function createBufferedScan(
       } : null;
       counterRun.finish();
       const corrections = counterRun.events;
+      let evidence = 0;
+      const correctionFrames = corrections.map(([start, end]) => {
+        while (counterEvidence[evidence] < start) evidence++;
+        let peak = counterEvidence[evidence];
+        while (counterEvidence[evidence] <= end) {
+          const index = counterEvidence[evidence++];
+          if (Math.abs(telemetry[index].Steer) > Math.abs(telemetry[peak].Steer)) peak = index;
+        }
+        return peak;
+      });
       const counterSteer: LapInsight | null = corrections.length ? {
         id: "driving-counter-steer", category: "driving",
         severity: corrections.length >= 5 ? "critical" : corrections.length >= 2 ? "warning" : "info",
-        label: "Counter-Steer", detail: `${corrections.length} correction${corrections.length > 1 ? "s" : ""} — Loss of rear traction`, frameIndices: midFrame(corrections),
+        label: "Counter-Steer", detail: `${corrections.length} steering reversal${corrections.length > 1 ? "s" : ""} against continuing corner rotation`, frameIndices: correctionFrames,
       } : null;
       const peakPower: LapInsight | null = peakVal !== 0 ? {
         id: "mech-peak-power", category: "mechanical", severity: "info", label: "Peak Power",
