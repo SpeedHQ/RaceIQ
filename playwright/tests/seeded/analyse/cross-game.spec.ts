@@ -60,7 +60,7 @@ async function seekToClosestRacingLine(page: Page, request: APIRequestContext, l
   expect(Math.sqrt(bestDistanceSquared), `${gameId} replay should cross its reference line`).toBeLessThan(1);
 
   const firstTime = frameTimes[0];
-  const lastTime = frameTimes.at(-1)!;
+  const lastTime = frameTimes.reduce((maximum, time) => Math.max(maximum, time), firstTime);
   const bestTime = frameTimes[bestFrameIndex];
   const timeFraction = (bestTime - firstTime) / (lastTime - firstTime);
   const slider = page.getByRole("slider", { name: "Lap timeline" });

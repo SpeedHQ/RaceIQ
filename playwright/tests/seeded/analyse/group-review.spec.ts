@@ -28,17 +28,24 @@ for (const game of REVIEW_GAMES) {
   test(`Analyse session review reuses base telemetry for ${game.gameId}`, async ({ page, request }) => {
     test.setTimeout(200_000);
     const browserErrors = collectBrowserErrors(page);
-    const target = await getSeededLapTarget(request, game.gameId);
     const lapsResponse = await request.get(`/api/laps?gameId=${game.gameId}`);
     expect(lapsResponse.ok()).toBe(true);
-    const targetLap = ((await lapsResponse.json()) as LapMeta[]).find((lap) => lap.id === target.id);
-    if (!targetLap) throw new Error(`Seeded target lap ${target.id} missing`);
-    const sessionId = targetLap.sessionId;
-    const reviewResponse = await request.get(`/api/laps/review?gameId=${game.gameId}&sessionId=${sessionId}&limit=5`);
-    expect(reviewResponse.ok()).toBe(true);
-    const evaluationLaps = (await reviewResponse.json()) as LapMeta[];
-    const expectedIds = evaluationLaps.map((lap) => lap.id);
-    expect(expectedIds.length).toBeGreaterThan(0);
+    const laps = (await lapsResponse.json()) as LapMeta[];
+    const sessions = [...new Set(laps.filter((lap) => lap.isValid).map((lap) => lap.sessionId))];
+    let sessionId: number | undefined;
+    let expectedIds: number[] = [];
+    for (const candidateSessionId of sessions) {
+      const reviewResponse = await request.get(`/api/laps/review?gameId=${game.gameId}&sessionId=${candidateSessionId}&limit=5`);
+      expect(reviewResponse.ok()).toBe(true);
+      const evaluationLaps = (await reviewResponse.json()) as LapMeta[];
+      if (evaluationLaps.length > 0) {
+        sessionId = candidateSessionId;
+        expectedIds = evaluationLaps.map((lap) => lap.id);
+        break;
+      }
+    }
+    expect(sessionId, `${game.gameId} seeded data needs a session with reviewable laps`).toBeDefined();
+    if (sessionId == null) throw new Error(`${game.gameId} seeded data has no reviewable session`);
 
     const alignedRequests: Array<{ ids: number[]; step: number; start?: number; end?: number }> = [];
     let semanticRequests = 0;
