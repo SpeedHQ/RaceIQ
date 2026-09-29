@@ -1,8 +1,11 @@
+import { eq } from "drizzle-orm";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, test } from "bun:test";
 
+import { db } from "../../server/db/index";
+import { laps } from "../../server/db/schema";
 import { insertLap } from "../../server/db/lap-mutation-queries";
 import { deleteSession, insertSession, updateSessionRawFile } from "../../server/db/session-queries";
 import { cacheDelete } from "../../server/db/telemetry-replay-storage";
@@ -74,7 +77,7 @@ describe("F1 Analyse semantic telemetry integration", () => {
         { path: sparseFile, offset: sparseOffset },
         { path: rawFile, offset: rawOffset },
       ];
-      const results: unknown[] = [];
+      const results: Array<{ receivedAt: { milliseconds: number }; sequence: number; observedAt: unknown; simulator: string; values: unknown[] }[]> = [];
       let fileCalls = 0;
       let streamCalls = 0;
       const originalFile = Bun.file;
@@ -95,6 +98,9 @@ describe("F1 Analyse semantic telemetry integration", () => {
           sessionIds.push(sessionId);
           const lapId = await insertLap(sessionId, 1, 1, true, recording.offset, 1_000);
           lapIds.push(lapId);
+          if (results.length === 1) {
+            await db.update(laps).set({ createdAt: "2000-01-01 00:00:00" }).where(eq(laps.id, lapId)).run();
+          }
           await updateSessionRawFile(sessionId, recording.path, "test-detector");
           const response = await lapRoutes.request(`/api/laps/${lapId}/semantic-telemetry`, {
             headers: { "X-Game-Id": "f1-2025" },
@@ -103,7 +109,7 @@ describe("F1 Analyse semantic telemetry integration", () => {
           const body = await response.json() as {
             lapId: number;
             requestedSemanticIds: string[];
-            envelopes: { sequence: number; values: { semanticId: string; value?: unknown }[] }[];
+            envelopes: { receivedAt: { milliseconds: number }; sequence: number; observedAt: unknown; simulator: string; values: { semanticId: string; value?: unknown }[] }[];
             parseError: string | null;
           };
           expect(body.lapId).toBe(lapId);
@@ -111,6 +117,7 @@ describe("F1 Analyse semantic telemetry integration", () => {
           expect(body.requestedSemanticIds).toContain("tire.temperature.core");
           expect(body.envelopes.length).toBeGreaterThan(0);
           expect(body.envelopes.map((envelope) => envelope.sequence)).toEqual(body.envelopes.map((_, index) => index));
+          expect(body.envelopes.every((envelope) => envelope.receivedAt.milliseconds === body.envelopes[0]!.receivedAt.milliseconds)).toBe(true);
           results.push(body.envelopes);
         }
         expect(fileCalls).toBe(2);
@@ -118,7 +125,10 @@ describe("F1 Analyse semantic telemetry integration", () => {
       } finally {
         setCaptureFileFactoryForTest(null);
       }
-      expect(results[0]).toEqual(results[1]);
+      expect(results[1]![0]!.receivedAt.milliseconds).toBe(Date.parse("2000-01-01T00:00:00Z"));
+      expect(results[0]![0]!.receivedAt).not.toEqual(results[1]![0]!.receivedAt);
+      expect(results[0]!.map(({ receivedAt: _receivedAt, ...capture }) => capture))
+        .toEqual(results[1]!.map(({ receivedAt: _receivedAt, ...capture }) => capture));
     } finally {
       setCaptureFileFactoryForTest(null);
       for (const lapId of lapIds) cacheDelete(lapId);
