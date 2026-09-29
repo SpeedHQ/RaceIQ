@@ -15,3 +15,5 @@ pre-commit:
     - name: lint
       run: bun run lint
 
+    - name: telemetry catalog
+      run: bun run telemetry:catalog:check

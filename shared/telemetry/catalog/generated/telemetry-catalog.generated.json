@@ -10,8 +10,8 @@
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
-      "server/games/ac-evo/parser.ts": "ab6545961e854782bd7274958f8726b916ed0da4e170bc3c32e3aef514b707a5",
-      "server/games/acc/parser.ts": "2f9aeab3d9e05cf214ba03ddd118416533028b9b7245a695a029a371b9391e09",
+      "server/games/ac-evo/parser.ts": "69e66c0ab3bc04b53cc13beda19cd99aeb4f73ab2d5095d592e04a61f58c7cef",
+      "server/games/acc/parser.ts": "8b03270644cc98f2c18737e27dbe4e6639ea9df49fa6ab5a6bdb56b94bbb52a1",
       "server/games/f1-2025/f1-state.ts": "a9e464d9f96e115874402b16d57d660e509ecc30cc4070f1395b72d27ec26b9c",
       "server/games/fm-2023/parser.ts": "8ac6812fc6622f9c1cd4587268583997325fa1ce207d9a8f8c7930fdb6bc1c56",
       "server/games/iracing/normalizer.ts": "7a9f061a649426812b3689b5848a045a7b51208334db4b2167b3c188a9864775",
@@ -20,7 +20,7 @@
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "d54001629b878ade73b641ee6f896140cefb5eee79533f687ad85f36e458e5a3"
+    "contentHash": "713c6cdb08ced03173a58eeafef9b307a9beab0568039ab19304ba949b3cf04d"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -10389,7 +10389,7 @@
     {
       "id": "electronics.tc-intervention",
       "label": "TC Intervention",
-      "description": "are 1 when any of the sources indicates activity.",
+      "description": "Vibration is independent road/tyre feedback, not intervention evidence.",
       "parentId": "electronics",
       "canonicalUnit": "count",
       "shape": "scalar",
@@ -67577,7 +67577,7 @@
         "unit": "count",
         "dataType": "number",
         "count": 1,
-        "description": "are 1 when any of the sources indicates activity.",
+        "description": "Vibration is independent road/tyre feedback, not intervention evidence.",
         "semanticId": "electronics.tc-intervention",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -70651,7 +70651,7 @@
         "unit": "count",
         "dataType": "number",
         "count": 1,
-        "description": "are 1 when any of the sources indicates activity.",
+        "description": "Vibration is independent road/tyre feedback, not intervention evidence.",
         "semanticId": "electronics.tc-intervention",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
