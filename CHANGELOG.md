@@ -1,5 +1,9 @@
 ## Unreleased
 
+### Features
+
+- Add Spanish, Brazilian Portuguese, Japanese, Ukrainian, Dutch, Polish, Finnish, and Russian interfaces.
+
 ### Fixes
 - Display session, lap, and experiment timestamps in the system's local timezone.
 - Measure suspension spikes from raw wheel travel rather than normalized travel, which can collapse to zero when calibration data is missing; distinguish spikes from confirmed rumble-strip impacts.

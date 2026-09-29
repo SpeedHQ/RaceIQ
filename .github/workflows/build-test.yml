@@ -71,6 +71,9 @@ jobs:
       - name: Check test shard coverage
         run: bun run test:shards
 
+      - name: Check locale message keys
+        run: bun run i18n:check-keys
+
       - name: Lint server, shared, scripts, tests, and client
         run: bun run lint
 

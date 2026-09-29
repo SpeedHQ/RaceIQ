@@ -1,9 +1,11 @@
 pre-commit:
   parallel: false
   jobs:
+    - name: locale message keys
+      run: bun run i18n:check-keys
+
     - name: typecheck
       run: bun run typecheck
-
     - name: test shards
       run: bun run test:shards
     - name: unit tests

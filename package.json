@@ -36,6 +36,7 @@
     "lint": "bun run --cwd client lint:root",
     "format": "cd client && bun run format",
     "i18n:machine-translate": "bunx @inlang/cli machine translate --project ./client/project.inlang",
+    "i18n:check-keys": "bun scripts/i18n/check-message-keys.ts",
     "i18n:validate": "bunx @inlang/cli validate --project ./client/project.inlang",
     "test:ai": "bun test ./test/ai/evals/ai-quality.ai-eval.ts --timeout 120000",
     "ai:baseline": "bun scripts/quality/ai-baseline.ts",
