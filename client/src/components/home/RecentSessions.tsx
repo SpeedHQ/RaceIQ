@@ -1,7 +1,7 @@
 import { getLMUCar, getLMUTrack } from "@shared/games/lmu/catalog";
 import type { SessionMeta } from "@shared/racing/sessions/types";
 import { formatLapTime } from "@/components/LiveTelemetry";
-import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
@@ -53,15 +53,17 @@ export function RecentSessionsTable({
 
   return (
     <Table>
-      <THead>
-        {!gameId && <TH>{m.home_col_game()}</TH>}
-        <TH>{m.label_track()}</TH>
-        <TH>{m.label_car()}</TH>
-        <TH>{m.label_laps()}</TH>
-        <TH>{m.sessions_col_best_lap()}</TH>
-        <TH align="end">{m.home_col_when()}</TH>
-      </THead>
-      <TBody>
+      <TableHeader>
+        <TableRow>
+          {!gameId && <TableHead>{m.home_col_game()}</TableHead>}
+          <TableHead>{m.label_track()}</TableHead>
+          <TableHead>{m.label_car()}</TableHead>
+          <TableHead>{m.label_laps()}</TableHead>
+          <TableHead>{m.sessions_col_best_lap()}</TableHead>
+          <TableHead className="text-right">{m.home_col_when()}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
         {sessions.map((session) => {
           const track = session.gameId === "lmu" && typeof session.trackId === "string"
             ? getLMUTrack(session.trackId)?.name ?? session.trackId
@@ -70,15 +72,15 @@ export function RecentSessionsTable({
             ? getLMUCar(session.carId)?.name ?? session.carId
             : carNames[`${session.gameId}:${session.carOrdinal}`] ?? "";
           return (
-            <TRow key={session.id} onClick={() => onAnalyseSession(session)}>
+            <TableRow key={session.id} onClick={() => onAnalyseSession(session)}>
               {!gameId && (
-                <TD>
+                <TableCell>
                   <Badge variant="game-brand" size="compact" data-game-brand={session.gameId ?? "fm-2023"}>
                     {session.gameId === "f1-2025" ? "F1" : session.gameId === "acc" ? "ACC" : session.gameId === "ac-evo" ? "ACE" : session.gameId === "iracing" ? "iR" : session.gameId === "lmu" ? "LMU" : "FM"}
                   </Badge>
-                </TD>
+                </TableCell>
               )}
-              <TD tone="primary" truncate="narrow" title={track}>
+              <TableCell className="text-app-text" title={track}>
                 <button
                   type="button"
                   className="text-left focus-visible:outline-2 focus-visible:outline-app-text"
@@ -90,15 +92,15 @@ export function RecentSessionsTable({
                 >
                   {track || "—"}
                 </button>
-              </TD>
-              <TD tone="primary" truncate="narrow" title={car}>{car || "—"}</TD>
-              <TD numeric tone="primary">{session.lapCount ?? 0}</TD>
-              <TD emphasis numeric nowrap tone="primary">{session.bestLapTime ? formatLapTime(session.bestLapTime) : "—"}</TD>
-                  <TD align="end" nowrap tone="primary">{formatTimeAgo(parseUtcTimestamp(session.createdAt))}</TD>
-            </TRow>
+              </TableCell>
+              <TableCell className="text-app-text" title={car}>{car || "—"}</TableCell>
+              <TableCell className="text-right tabular-nums text-app-text">{session.lapCount ?? 0}</TableCell>
+              <TableCell className="text-right tabular-nums font-medium text-app-text">{session.bestLapTime ? formatLapTime(session.bestLapTime) : "—"}</TableCell>
+              <TableCell className="text-right tabular-nums text-app-text">{formatTimeAgo(parseUtcTimestamp(session.createdAt))}</TableCell>
+            </TableRow>
           );
         })}
-      </TBody>
+      </TableBody>
     </Table>
   );
 }

@@ -2,7 +2,7 @@ import type { ResolvedTrackGuide } from "@shared/racing/tracks/guide/types";
 import { segmentDisplayNames, turnNumbers } from "@shared/racing/tracks/segment-label";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { countryName } from "@/lib/country-names";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
@@ -199,33 +199,34 @@ export function TrackInfoPanel({
         </div>
         {segments.length > 0 ? (
           <Table>
-            {/* THead owns its row; pass header cells directly. */}
-            <THead>
-              <TH>{m.trackinfo_col_section()}</TH>
-              <TH>{m.trackinfo_col_type()}</TH>
-              <TH>{m.trackinfo_col_direction()}</TH>
-              <TH>{m.trackinfo_col_sector()}</TH>
-              <TH>{m.trackinfo_col_lap_position()}</TH>
-            </THead>
-            <TBody>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{m.trackinfo_col_section()}</TableHead>
+                <TableHead>{m.trackinfo_col_type()}</TableHead>
+                <TableHead>{m.trackinfo_col_direction()}</TableHead>
+                <TableHead>{m.trackinfo_col_sector()}</TableHead>
+                <TableHead>{m.trackinfo_col_lap_position()}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {segments.map((s, i) => (
-                <TRow key={`${s.name}-${s.startFrac}-${s.endFrac}`}>
-                  <TD>
+                <TableRow key={`${s.name}-${s.startFrac}-${s.endFrac}`}>
+                  <TableCell>
                     <span className={s.type === "corner" ? "text-app-text" : "text-app-text-muted"}>
                       {s.type === "corner" ? "🔶" : "🔷"} {labels[i]}
                     </span>
-                  </TD>
-                  <TD tone="muted">{s.type === "corner" ? m.trackinfo_type_corner() : m.trackinfo_type_straight()}</TD>
-                  <TD tone="muted">{s.direction === "left" ? m.trackinfo_dir_left() : s.direction === "right" ? m.trackinfo_dir_right() : "—"}</TD>
-                  <TD numeric tone="muted">
+                  </TableCell>
+                  <TableCell className="text-app-text-muted">{s.type === "corner" ? m.trackinfo_type_corner() : m.trackinfo_type_straight()}</TableCell>
+                  <TableCell className="text-app-text-muted">{s.direction === "left" ? m.trackinfo_dir_left() : s.direction === "right" ? m.trackinfo_dir_right() : "—"}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums text-app-text-muted">
                     {sectorBounds ? `S${sectorOf(s.startFrac, s.endFrac)}` : "—"}
-                  </TD>
-                  <TD numeric tone="muted">
+                  </TableCell>
+                  <TableCell className="text-right font-mono tabular-nums text-app-text-muted">
                     {(s.startFrac * 100).toFixed(1)}% – {(s.endFrac * 100).toFixed(1)}%
-                  </TD>
-                </TRow>
+                  </TableCell>
+                </TableRow>
               ))}
-            </TBody>
+            </TableBody>
           </Table>
         ) : (
           <div className="text-app-subtext text-app-text-dim">{track.hasOutline ? m.trackinfo_no_segments() : m.trackdetail_no_outline_available()}</div>

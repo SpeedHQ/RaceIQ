@@ -4,7 +4,7 @@ import { ExternalLink, MessageSquare, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
-import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Button } from "./ui/button";
 import { useLaps } from "@/hooks/laps";
 
@@ -148,42 +148,44 @@ export function ChatsPage() {
       )}
       {!loading && rows.length > 0 && (
         <div className="flex-1 min-h-0 overflow-auto">
-          <Table fit>
-            <THead>
-              <TH nowrap>{m.label_type()}</TH>
-              <TH nowrap>{m.label_track()}</TH>
-              <TH nowrap>{m.chats_col_cars()}</TH>
-              <TH nowrap>{m.chats_col_laps()}</TH>
-              <TH nowrap>{m.chats_col_updated()}</TH>
-              <TH align="end" nowrap>{m.label_actions()}</TH>
-            </THead>
-            <TBody>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="whitespace-nowrap">{m.label_type()}</TableHead>
+                <TableHead className="whitespace-nowrap">{m.label_track()}</TableHead>
+                <TableHead className="whitespace-nowrap">{m.chats_col_cars()}</TableHead>
+                <TableHead className="whitespace-nowrap">{m.chats_col_laps()}</TableHead>
+                <TableHead className="whitespace-nowrap">{m.chats_col_updated()}</TableHead>
+                <TableHead className="text-right whitespace-nowrap">{m.label_actions()}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.map((row) => (
-                <TRow key={row.threadId} data-testid={`chat-row-${row.threadId}`}>
-                  <TD>
+                <TableRow key={row.threadId} data-testid={`chat-row-${row.threadId}`}>
+                  <TableCell>
                     <span className={`text-app-caption font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${row.type === "compare" ? "bg-status-info/15 text-status-info border border-status-info/30" : row.type === "tune" ? "bg-status-success/15 text-status-success border border-status-success/30" : "bg-status-warning/15 text-status-warning border border-status-warning/30"}`}>
                       {row.type === "tune" ? "setup" : row.type}
                     </span>
-                  </TD>
-                  <TD tone="primary" nowrap truncate="wide">{row.trackName || "—"}</TD>
-                  <TD>
+                  </TableCell>
+                  <TableCell className="text-app-text-primary whitespace-nowrap">{row.trackName || "—"}</TableCell>
+                  <TableCell>
                     {row.type === "tune" && row.tune ? <span className="block truncate max-w-[180px]">{row.tune.carName || "—"}</span> : row.laps.map((l, lapIndex) => (
                       <div key={`${row.threadId}:${l.id}`} className="flex items-center gap-1.5">
                         {row.type === "compare" && <span className={`w-1.5 h-1.5 rounded-full ${lapIndex === 0 ? "bg-(--comparison-lap-a)" : "bg-(--comparison-lap-b)"}`} />}
                         <span className="truncate max-w-[180px]">{l.carName}</span>
                       </div>
                     ))}
-                  </TD>
-                  <TD numeric>
+                  </TableCell>
+                  <TableCell className="font-mono tabular-nums">
                     {row.type === "tune" && row.tune ? <span className="block truncate max-w-[220px]">#{row.tune.seq} — {row.tune.name}</span> : row.laps.map((l) => (
                       <div key={`${row.threadId}:${l.id}-lap-${l.lapNumber}`}>
                         {m.chats_lap_number()} {l.lapNumber} — {formatLapTime(l.lapTime)}
                         {!l.isValid && <span className="text-status-danger ml-1">(inv)</span>}
                       </div>
                     ))}
-                  </TD>
-                  <TD tone="muted" nowrap>{formatRelative(row.updatedAt)}</TD>
-                  <TD align="end">
+                  </TableCell>
+                  <TableCell className="text-app-text-muted whitespace-nowrap">{formatRelative(row.updatedAt)}</TableCell>
+                  <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button onClick={() => handleOpen(row)} className="inline-flex items-center gap-1 text-app-compact px-2 py-1 rounded hover:bg-app-surface-hover text-app-text-secondary hover:text-app-text" title={m.chats_open()}>
                         <ExternalLink className="size-3" /> {m.chats_open()}
@@ -192,10 +194,10 @@ export function ChatsPage() {
                         <Trash2 className="size-3" />
                       </Button>
                     </div>
-                  </TD>
-                </TRow>
+                  </TableCell>
+                </TableRow>
               ))}
-            </TBody>
+            </TableBody>
           </Table>
         </div>
       )}

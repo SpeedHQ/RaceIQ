@@ -242,7 +242,7 @@ export function WelcomeStep() {
       </div>
       <div className="mt-6 w-full max-w-[220px] text-left">
         <div className="text-xs text-app-text-muted mb-1.5 text-center">{m.label_language()}</div>
-        <SearchSelect value={currentLang} onChange={selectLanguage} options={langOptions} placeholder={m.settings_language_search_placeholder()} focusColor="app-accent" />
+        <SearchSelect value={currentLang} onChange={selectLanguage} options={langOptions} placeholder={m.settings_language_search_placeholder()} />
       </div>
     </div>
   );

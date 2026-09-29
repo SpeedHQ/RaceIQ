@@ -1,5 +1,5 @@
 import { PiBadge } from "@/components/forza/PiBadge";
-import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { m } from "@/paraglide/messages";
@@ -63,38 +63,38 @@ export function CompareModal({ cars, onClose, fmtSpeed, fmtBrake, fmtWeight, isM
           </Button>
         </DialogHeader>
         <div className="overflow-auto">
-          <Table density="compact" fit>
-            <THead>
-              <TH sticky="start">{m.cars_stat_column()}</TH>
-              {cars.map((car) => (
-                <TH key={car.ordinal} align="center">
-                  {car.specs?.imageUrl && <img src={car.specs.imageUrl} alt={car.name} loading="lazy" className="mx-auto mb-1 h-14 w-full object-contain" />}
-                  <div className="font-semibold leading-tight text-app-text/90">{car.name}</div>
-                  {car.specs?.pi && <PiBadge showNumber={false} pi={car.specs.pi} />}
-                </TH>
-              ))}
-            </THead>
-            <TBody>
+          <Table className="w-full text-xs">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="sticky left-0">{m.cars_stat_column()}</TableHead>
+                {cars.map((car) => (
+                  <TableHead key={car.ordinal} className="text-center">
+                    {car.specs?.imageUrl && <img src={car.specs.imageUrl} alt={car.name} loading="lazy" className="mx-auto mb-1 h-14 w-full object-contain" />}
+                    <div className="font-semibold leading-tight text-app-text/90">{car.name}</div>
+                    {car.specs?.pi && <PiBadge showNumber={false} pi={car.specs.pi} />}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.map((row) => {
                 const bestIdxs = getBestIdx(row);
                 return (
-                  <TRow key={`${row.label}|${bestIdxs.join(",")}`}>
-                    <TD emphasis sticky="start" tone="primary">
-                      {row.label}
-                    </TD>
+                  <TableRow key={`${row.label}|${bestIdxs.join(",")}`}>
+                    <TableCell className="sticky left-0 font-semibold">{row.label}</TableCell>
                     {cars.map((car, index) => {
                       const value = car.specs ? row.getValue(car.specs) : "—";
                       const isBest = bestIdxs.includes(index);
                       return (
-                        <TD key={car.ordinal} align="center" emphasis={isBest} numeric tone={isBest ? "success" : "primary"}>
+                        <TableCell key={car.ordinal} className={`text-center font-mono tabular-nums ${isBest ? "font-semibold text-[var(--status-success)]" : ""}`}>
                           {value}
-                        </TD>
+                        </TableCell>
                       );
                     })}
-                  </TRow>
+                  </TableRow>
                 );
               })}
-            </TBody>
+            </TableBody>
           </Table>
         </div>
       </DialogContent>

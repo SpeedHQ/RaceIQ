@@ -87,7 +87,7 @@ export function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => vo
           </label>
           <div className="flex flex-col gap-1 flex-1">
             <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{m.label_track()}</span>
-            <SearchSelect value={track} onChange={setTrack} options={trackOptions} placeholder={m.experiment_search_tracks()} focusColor="purple-500" />
+            <SearchSelect value={track} onChange={setTrack} options={trackOptions} placeholder={m.experiment_search_tracks()} />
           </div>
         </div>
 

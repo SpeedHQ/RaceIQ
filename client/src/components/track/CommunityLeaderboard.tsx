@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useLaptimes } from "@/hooks/tunes";
 import { tracksMatch } from "@/lib/track-match";
 import { m } from "@/paraglide/messages";
@@ -49,25 +49,23 @@ export function CommunityLeaderboard({ trackName, trackVariant }: { trackName: s
         <div className="text-xs text-app-text-dim">{m.leaderboard_unverified()}</div>
       </div>
       <div className="overflow-y-auto flex-1">
-        <Table fit>
-          <THead>
-            <TH>{m.communityleaderboard_car()}</TH>
-            <TH>{m.communityleaderboard_driver()}</TH>
-            <TH align="end">{m.communityleaderboard_time()}</TH>
-          </THead>
-          <TBody>
+        <Table className="w-full text-app-detail [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-app-surface [&_thead>tr]:border-b [&_thead>tr]:border-app-border [&_thead>tr]:text-app-label [&_thead>tr]:uppercase [&_thead>tr]:tracking-wider [&_thead>tr]:text-app-text-muted [&_tbody]:divide-y [&_tbody]:divide-app-border/40">
+          <TableHeader>
+            <TableRow className="text-app-label uppercase tracking-wider text-app-text-muted border-b border-app-border">
+              <TableHead>{m.communityleaderboard_car()}</TableHead>
+              <TableHead>{m.communityleaderboard_driver()}</TableHead>
+              <TableHead className="text-right">{m.communityleaderboard_time()}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {rows.map((e) => (
-              <TRow key={e.rowKey}>
-                <TD emphasis tone="primary">
-                  {e.car}
-                </TD>
-                <TD>{e.driver || "—"}</TD>
-                <TD align="end" numeric tone="primary">
-                  {e.laptime}
-                </TD>
-              </TRow>
+              <TableRow key={e.rowKey} className="group/row relative transition-colors hover:bg-app-surface-hover/50">
+                <TableCell className="px-3 py-2 font-semibold text-app-text">{e.car}</TableCell>
+                <TableCell className="px-3 py-2 text-app-text-secondary">{e.driver || "—"}</TableCell>
+                <TableCell className="px-3 py-2 text-right font-mono tabular-nums text-app-accent">{e.laptime}</TableCell>
+              </TableRow>
             ))}
-          </TBody>
+          </TableBody>
         </Table>
       </div>
     </div>

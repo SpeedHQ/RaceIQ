@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { SearchMultiSelect } from "@/components/ui/SearchMultiSelect";
 import { formatLapTime } from "@/lib/format";
@@ -319,62 +320,60 @@ export function LapManagement(props: LapManagementProps) {
                 <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} sectorCount={sectorCount} showSessionFilter={isF125} />
                 {/* Lap table (md+) */}
                 <div className="flex-1 min-w-0 overflow-y-auto">
-                  <Table fit>
-                    <THead>
-                      <TH>
-                        <input type="checkbox" checked={selectedLaps.size === filteredLaps.length && filteredLaps.length > 0} onChange={toggleAllLaps} className="accent-app-accent" />
-                      </TH>
-                      <TH>{m.label_car()}</TH>
-                      {!hideClassCol && <TH>{m.track_detail_class()}</TH>}
-                      {hasSessionTypes && <TH>{m.label_type()}</TH>}
-                      <SortableTH direction={sortBy === "lap" ? (sortAsc ? "ascending" : "descending") : undefined} nowrap onSort={() => handleSort("lap")}>
-                        {m.track_detail_lap_num()}
-                      </SortableTH>
-                      <SortableTH align="end" direction={sortBy === "time" ? (sortAsc ? "ascending" : "descending") : undefined} nowrap onSort={() => handleSort("time")}>
-                        {m.label_time()}
-                      </SortableTH>
-                      <TH />
-                      {Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`).map((label) => (
-                        <TH key={label}>{label}</TH>
-                      ))}
-                      <SortableTH direction={sortBy === "date" ? (sortAsc ? "ascending" : "descending") : undefined} onSort={() => handleSort("date")}>
-                        {m.sessions_col_date()}
-                      </SortableTH>
-                      <TH>{m.sessions_col_notes()}</TH>
-                    </THead>
-                    <TBody>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>
+                          <input type="checkbox" checked={selectedLaps.size === filteredLaps.length && filteredLaps.length > 0} onChange={toggleAllLaps} className="accent-app-accent" />
+                        </TableHead>
+                        <TableHead>{m.label_car()}</TableHead>
+                        {!hideClassCol && <TableHead>{m.track_detail_class()}</TableHead>}
+                        {hasSessionTypes && <TableHead>{m.label_type()}</TableHead>}
+                        <SortableTableHead className="whitespace-nowrap" direction={sortBy === "lap" ? (sortAsc ? "ascending" : "descending") : undefined} onSort={() => handleSort("lap")}>
+                          {m.track_detail_lap_num()}
+                        </SortableTableHead>
+                        <SortableTableHead className="text-right whitespace-nowrap" direction={sortBy === "time" ? (sortAsc ? "ascending" : "descending") : undefined} onSort={() => handleSort("time")}>
+                          {m.label_time()}
+                        </SortableTableHead>
+                        <TableHead />
+                        {Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`).map((label) => (
+                          <TableHead key={label}>{label}</TableHead>
+                        ))}
+                        <SortableTableHead direction={sortBy === "date" ? (sortAsc ? "ascending" : "descending") : undefined} onSort={() => handleSort("date")}>
+                          {m.sessions_col_date()}
+                        </SortableTableHead>
+                        <TableHead>{m.sessions_col_notes()}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {(() => {
                         const validLaps = filteredLaps.filter((l) => l.isValid !== false);
                         const fastestTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
                         return filteredLaps.map((lap) => {
                           const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
                           return (
-                            <TRow key={lap.lapId} data-testid={`track-lap-${lap.lapId}`} selected={selectedLaps.has(lap.lapId)}>
-                              <TD>
+                            <TableRow key={lap.lapId} data-testid={`track-lap-${lap.lapId}`} data-state={selectedLaps.has(lap.lapId) ? "selected" : undefined}>
+                              <TableCell>
                                 <input type="checkbox" checked={selectedLaps.has(lap.lapId)} onChange={() => toggleLapSelect(lap.lapId)} className="accent-app-accent" />
-                              </TD>
-                              <TD truncate="wide">{lap.carName}</TD>
+                              </TableCell>
+                              <TableCell className="max-w-[240px] truncate">{lap.carName}</TableCell>
                               {!hideClassCol && (
-                                <TD>
-                                  <span className="font-bold font-mono" style={{ color: carClassColor(lap.carClass) }}>
-                                    {lap.carClass}
-                                  </span>
+                                <TableCell>
+                                  <span className="font-bold font-mono" style={{ color: carClassColor(lap.carClass) }}>{lap.carClass}</span>
                                   <span className="text-app-text-secondary ml-1">PI {lap.pi}</span>
-                                </TD>
+                                </TableCell>
                               )}
                               {hasSessionTypes && (
-                                <TD>
+                                <TableCell>
                                   {lap.sessionId != null && (sessionLapCounts.get(lap.sessionId) ?? 0) > 1 ? (
                                     <span className="text-app-caption text-status-success font-medium">{m.track_detail_race()}</span>
                                   ) : (
                                     <span className="text-app-caption text-status-warning font-medium">{m.track_detail_quali()}</span>
                                   )}
-                                </TD>
+                                </TableCell>
                               )}
-                              <TD numeric nowrap>
-                                {lap.lapNumber}
-                              </TD>
-                              <TD align="end" nowrap>
+                              <TableCell className="font-mono tabular-nums whitespace-nowrap">{lap.lapNumber}</TableCell>
+                              <TableCell className="text-right whitespace-nowrap">
                                 <div className="flex items-center justify-end gap-1">
                                   <span className={`font-mono tabular-nums ${isFastest ? "font-bold" : ""}`} style={{ color: isFastest ? "var(--lap-record)" : undefined }}>
                                     {formatLapTime(lap.lapTime)}
@@ -382,16 +381,14 @@ export function LapManagement(props: LapManagementProps) {
                                   {lap.isValid === false ? (
                                     <span className="group/inv relative text-sm text-status-danger cursor-default">
                                       ✕
-                                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/inv:block w-max max-w-[200px] bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-app-caption text-app-text-secondary z-50 pointer-events-none leading-relaxed">
-                                        {lap.invalidReason ?? m.trackdetail_invalid_lap()}
-                                      </span>
+                                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/inv:block w-max max-w-[200px] bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-app-caption text-app-text-secondary z-50 pointer-events-none leading-relaxed">{lap.invalidReason ?? m.trackdetail_invalid_lap()}</span>
                                     </span>
                                   ) : (
                                     <span className="text-sm text-status-success">✓</span>
                                   )}
                                 </div>
-                              </TD>
-                              <TD nowrap>
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap">
                                 <Button
                                   variant="app-outline"
                                   size="app-sm"
@@ -404,32 +401,30 @@ export function LapManagement(props: LapManagementProps) {
                                 >
                                   {m.trackdetail_analyse()}
                                 </Button>
-                              </TD>
+                              </TableCell>
                               {Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`).map((label, index) => (
-                                <TD key={label} numeric tone="primary">
+                                <TableCell key={label} className="text-right font-mono tabular-nums text-app-text">
                                   {lap.sectorTimes?.[index] != null ? formatLapTime(lap.sectorTimes[index]) : "—"}
-                                </TD>
+                                </TableCell>
                               ))}
-                              <TD nowrap numeric>
+                              <TableCell className="whitespace-nowrap text-right font-mono tabular-nums">
                                 {lap.createdAt
                                   ? `${parseUtcTimestamp(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })} ${parseUtcTimestamp(lap.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
                                   : "—"}
-                              </TD>
-                              <TD truncate="wide" title={lap.notes ?? undefined}>
-                                {lap.notes ?? ""}
-                              </TD>
-                            </TRow>
+                              </TableCell>
+                              <TableCell className="max-w-[240px] truncate" title={lap.notes ?? undefined}>{lap.notes ?? ""}</TableCell>
+                            </TableRow>
                           );
                         });
                       })()}
                       {filteredLaps.length === 0 && (
-                        <TRow variant="separator">
-                          <TD align="center" colSpan={6} tone="dim">
+                        <TableRow>
+                          <TableCell className="text-center text-app-text-dim" colSpan={6}>
                             <div className="py-2">{m.track_detail_no_laps_match_filters()}</div>
-                          </TD>
-                        </TRow>
+                          </TableCell>
+                        </TableRow>
                       )}
-                    </TBody>
+                    </TableBody>
                   </Table>
                 </div>
               </div>

@@ -1,8 +1,9 @@
-import { Star } from "lucide-react";
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
 import { useNavigate } from "@tanstack/react-router";
-import { AppInput } from "@/components/ui/AppInput";
 import { Button } from "@/components/ui/button";
+import { AppInput } from "@/components/ui/AppInput";
+import { Toggle } from "@/components/ui/toggle";
+import { ToggleGroup03 } from "@/components/shadcn-studio/toggle-group/toggle-group-03";
 import { m } from "@/paraglide/messages";
 import { useGameRoute } from "@/stores/game";
 import type { SessionsTab } from "./types";
@@ -65,35 +66,32 @@ export function SessionToolbar({
 
   return (
     <div className="flex items-center flex-wrap gap-3">
-      <div className="flex items-center rounded border border-app-border overflow-hidden shrink-0">
-        {(["mine", "others"] as const satisfies readonly SessionsTab[]).map((nextTab) => (
-          <Button
-            key={nextTab}
-            variant="app-ghost"
-            size="app-md"
-            onClick={() => {
-              setTab(nextTab);
-              setPage(0);
-            }}
-            className={`!rounded-none text-app-subtext font-semibold transition-colors ${tab === nextTab ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}
-          >
-            {nextTab === "mine" ? m.sessions_tab_mine() : m.sessions_tab_others()}
-          </Button>
-        ))}
-      </div>
-      <Button
+      <ToggleGroup03
+        ariaLabel={m.label_sessions()}
+        value={tab}
+        onValueChange={(nextTab) => {
+          if (nextTab === "mine" || nextTab === "others") {
+            setTab(nextTab);
+            setPage(0);
+          }
+        }}
+        options={[
+          { value: "mine", label: m.sessions_tab_mine() },
+          { value: "others", label: m.sessions_tab_others() },
+        ]}
+      />
+      <Toggle
         variant="app-outline"
         size="app-md"
-        aria-pressed={favoriteOnly}
-        onClick={() => {
-          setFavoriteOnly(!favoriteOnly);
+        showStar
+        pressed={favoriteOnly}
+        onPressedChange={(pressed) => {
+          setFavoriteOnly(pressed);
           setPage(0);
         }}
-        className={favoriteOnly ? "border-app-accent text-app-accent" : undefined}
       >
-        <Star className={favoriteOnly ? "fill-current" : ""} aria-hidden="true" />
         {m.sessions_filter_favorites()}
-      </Button>
+      </Toggle>
       <Button variant="app-outline" size="app-md" onClick={() => setImportOpen(true)}>
         {m.sessions_import()}
       </Button>
@@ -102,7 +100,7 @@ export function SessionToolbar({
         value={search}
         onChange={(event) => setSearch(event.target.value)}
         placeholder={m.sessions_search_placeholder()}
-        className="min-w-[200px] flex-1 @3xl/workspace:w-64 @3xl/workspace:flex-none"
+        className="h-8 min-w-[200px] flex-1 px-2.5 py-1 focus-visible:border-app-accent focus-visible:ring-app-accent @3xl/workspace:w-64 @3xl/workspace:flex-none"
       />
       <h1 className="text-app-title font-semibold text-app-text/90 shrink-0">
         {m.label_sessions()}

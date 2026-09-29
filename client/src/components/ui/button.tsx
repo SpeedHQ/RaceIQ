@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center border border-transparent bg-clip-padding text-app-subtext font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center border border-transparent bg-clip-padding text-app-subtext font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 active:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-1 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -33,14 +33,10 @@ const buttonVariants = cva(
         "analysis-summary": "w-full !justify-start !gap-2 bg-status-success/10 !px-2 !py-1.5 text-left hover:bg-status-success/15",
         "settings-nav": "shrink-0 md:w-full !justify-start !px-4 !py-2 text-app-subtext whitespace-nowrap transition-colors text-app-text-muted hover:text-app-text hover:bg-app-surface-hover",
         "settings-nav-selected": "shrink-0 md:w-full !justify-start !px-4 !py-2 text-app-subtext whitespace-nowrap transition-colors text-app-accent bg-app-accent/10",
-        "focus-option":
-          "!h-auto !min-h-16 !w-full !flex-col !items-start !justify-start !border !px-3 !py-3 w-full min-w-0 whitespace-normal break-words text-left transition-colors border-app-border hover:border-app-accent/50",
-        "focus-option-selected":
-          "!h-auto !min-h-16 !w-full !flex-col !items-start !justify-start !border !px-3 !py-3 w-full min-w-0 whitespace-normal break-words text-left transition-colors border-app-accent bg-app-accent/10",
-        "search-select-trigger":
-          "border border-app-border-input px-3 py-2 text-app-subtext text-app-text-secondary outline-none transition-colors hover:text-app-text focus-visible:border-app-accent focus-visible:ring-1 focus-visible:ring-app-accent/30 @3xl/workspace:px-2 @3xl/workspace:py-0.5 @3xl/workspace:text-app-compact",
-        "search-select-clear":
-          "px-2 py-2 text-app-subtext text-app-text-dim outline-none transition-colors hover:text-app-text focus-visible:text-app-text @3xl/workspace:px-1 @3xl/workspace:py-0.5 @3xl/workspace:text-app-compact",
+        "focus-option": "!h-auto !min-h-16 !w-full !flex-col !items-start !justify-start !border !px-3 !py-3 w-full min-w-0 whitespace-normal break-words text-left transition-colors border-app-border hover:border-app-accent/50",
+        "focus-option-selected": "!h-auto !min-h-16 !w-full !flex-col !items-start !justify-start !border !px-3 !py-3 w-full min-w-0 whitespace-normal break-words text-left transition-colors border-app-accent bg-app-accent/10",
+        "search-select-trigger": "border border-app-border-input px-3 py-2 text-app-subtext text-app-text-secondary outline-none transition-colors hover:text-app-text focus-visible:border-app-accent focus-visible:ring-1 focus-visible:ring-app-accent/30 @3xl/workspace:px-2 @3xl/workspace:py-0.5 @3xl/workspace:text-app-compact",
+        "search-select-clear": "px-2 py-2 text-app-subtext text-app-text-dim outline-none transition-colors hover:text-app-text focus-visible:text-app-text @3xl/workspace:px-1 @3xl/workspace:py-0.5 @3xl/workspace:text-app-compact",
         "focus-toggle": "text-app-label transition-colors text-app-text-dim hover:text-app-text hover:bg-app-surface-hover/30",
         "focus-toggle-driver": "text-app-label transition-colors bg-(--focus-driver)/20 text-(--focus-driver) font-semibold",
         "focus-toggle-setup": "text-app-label transition-colors bg-(--focus-setup)/20 text-(--focus-setup) font-semibold",

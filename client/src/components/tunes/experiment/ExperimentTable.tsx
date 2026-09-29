@@ -16,7 +16,8 @@ function FocusBadge({ focus }: { focus: ExperimentFocus }) {
   );
 }
 
-import { SortableTH, Table, TBody, TD, THead, TRow } from "@/components/ui/AppTable";
+import { Table, TableBody as TBody, TableCell as TD, TableHeader as THead, TableRow as TRow } from "@/components/ui/table";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import { useAccCarName } from "@/hooks/catalog-queries";
 import type { Experiment, ExperimentGameId } from "@/hooks/experiments";
 
@@ -87,34 +88,36 @@ export function ExperimentTable({
 
   return (
     <div className="min-w-0 max-w-full overflow-x-auto">
-      <Table fit layout="auto">
+      <Table className="w-full min-w-0 text-app-detail [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-app-surface [&_thead>tr]:border-b [&_thead>tr]:border-app-border [&_thead>tr]:text-app-label [&_thead>tr]:uppercase [&_thead>tr]:tracking-wider [&_thead>tr]:text-app-text-muted [&_tbody]:divide-y [&_tbody]:divide-app-border/40">
         <THead>
-          <SortableTH align="start" showFrom="workspace-sm" direction={direction("seq")} onSort={() => toggleSort("seq")}>
+          <TRow className="border-b border-app-border">
+          <SortableTableHead className="hidden @sm/workspace:table-cell px-2 py-1.5 text-left" direction={direction("seq")} onSort={() => toggleSort("seq")}>
             #
-          </SortableTH>
-          <SortableTH direction={direction("name")} onSort={() => toggleSort("name")}>
+          </SortableTableHead>
+          <SortableTableHead className="px-2 py-1.5 text-left" direction={direction("name")} onSort={() => toggleSort("name")}>
             Session
-          </SortableTH>
-          <SortableTH showFrom="workspace-md" direction={direction("focus")} onSort={() => toggleSort("focus")}>
+          </SortableTableHead>
+          <SortableTableHead className="hidden @3xl/workspace:table-cell px-2 py-1.5 text-left" direction={direction("focus")} onSort={() => toggleSort("focus")}>
             Focus
-          </SortableTH>
-          <SortableTH showFrom="workspace-md" direction={direction("car")} onSort={() => toggleSort("car")}>
+          </SortableTableHead>
+          <SortableTableHead className="hidden @3xl/workspace:table-cell px-2 py-1.5 text-left" direction={direction("car")} onSort={() => toggleSort("car")}>
             Car
-          </SortableTH>
-          <SortableTH showFrom="workspace-lg" direction={direction("track")} onSort={() => toggleSort("track")}>
+          </SortableTableHead>
+          <SortableTableHead className="hidden @5xl/workspace:table-cell px-2 py-1.5 text-left" direction={direction("track")} onSort={() => toggleSort("track")}>
             Track
-          </SortableTH>
-          <SortableTH showFrom="workspace-lg" direction={direction("baseSetup")} onSort={() => toggleSort("baseSetup")}>
+          </SortableTableHead>
+          <SortableTableHead className="hidden @5xl/workspace:table-cell px-2 py-1.5 text-left" direction={direction("baseSetup")} onSort={() => toggleSort("baseSetup")}>
             Base setup
-          </SortableTH>
-          <SortableTH showFrom="workspace-xl" direction={direction("updatedAt")} onSort={() => toggleSort("updatedAt")}>
+          </SortableTableHead>
+          <SortableTableHead className="hidden @7xl/workspace:table-cell px-2 py-1.5 text-left" direction={direction("updatedAt")} onSort={() => toggleSort("updatedAt")}>
             Last active
-          </SortableTH>
+          </SortableTableHead>
+          </TRow>
         </THead>
         <TBody>
           {isError && (
-            <TRow variant="separator">
-              <TD align="center" colSpan={7} tone="dim">
+            <TRow className="text-app-label text-app-text-dim">
+              <TD className="px-2 py-1.5 text-center" colSpan={7}>
                 <div role="alert" className="py-4 text-status-danger">
                   Could not load experiments. Try again.
                 </div>
@@ -122,8 +125,8 @@ export function ExperimentTable({
             </TRow>
           )}
           {!isError && sessions.length === 0 && (
-            <TRow variant="separator">
-              <TD align="center" colSpan={7} tone="dim">
+            <TRow className="text-app-label text-app-text-dim">
+              <TD className="px-2 py-1.5 text-center" colSpan={7}>
                 <div className="py-4">{isLoading ? "Loading experiments…" : "No experiments yet. Create one above to get started."}</div>
               </TD>
             </TRow>
@@ -131,26 +134,26 @@ export function ExperimentTable({
           {sortedSessions.map((s) => {
             const base = s.baseSetupPath?.split(/[\\/]/).pop() ?? "—";
             return (
-              <TRow key={s.id} onClick={() => onOpen(s.id)}>
-                <TD align="start" showFrom="workspace-sm" numeric tone="dim">
+              <TRow key={s.id} onClick={() => onOpen(s.id)} className="group/row relative cursor-pointer transition-colors hover:bg-app-surface-hover/50">
+                <TD className="hidden @sm/workspace:table-cell px-2 py-1.5 text-left font-mono tabular-nums text-app-text-dim">
                   {s.seq}
                 </TD>
-                <TD emphasis tone="primary" truncate="wide">
+                <TD className="max-w-[200px] truncate px-2 py-1.5 font-semibold text-app-text">
                   {s.name}
                 </TD>
-                <TD showFrom="workspace-md">
+                <TD className="hidden @3xl/workspace:table-cell px-2 py-1.5 text-app-text-secondary">
                   <FocusBadge focus={s.focus} />
                 </TD>
-                <TD showFrom="workspace-md" tone="dim">
+                <TD className="hidden @3xl/workspace:table-cell px-2 py-1.5 text-app-text-dim">
                   {carName(s.carName)}
                 </TD>
-                <TD showFrom="workspace-lg" tone="dim">
+                <TD className="hidden @5xl/workspace:table-cell px-2 py-1.5 text-app-text-dim">
                   {s.trackName ?? "—"}
                 </TD>
-                <TD showFrom="workspace-lg" numeric tone="dim" truncate="wide" title={s.baseSetupPath ?? undefined}>
+                <TD className="hidden @5xl/workspace:table-cell max-w-[200px] truncate px-2 py-1.5 font-mono tabular-nums text-app-text-dim" title={s.baseSetupPath ?? undefined}>
                   {base}
                 </TD>
-                <TD showFrom="workspace-xl" nowrap tone="dim">
+                <TD className="hidden @7xl/workspace:table-cell whitespace-nowrap px-2 py-1.5 text-app-text-dim">
                   {parseUtcTimestamp(s.updatedAt).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                 </TD>
               </TRow>

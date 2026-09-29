@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { SetupRangeBar } from "@/components/SetupRangeBar";
-import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { Table, TableBody as TBody, TableCell as TD, TableHead as TH, TableHeader as THead, TableRow as TRow } from "@/components/ui/table";
 import { type LapTrace, consistencyAt, sampleAt } from "../../../lib/stint-traces";
 
 interface SectorLedgerProps {
@@ -75,22 +75,24 @@ export function SectorLedger({ traces, primaryLapId, sectorBoundaryFracs, cursor
     <div className="space-y-2">
       <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Sector Ledger</div>
       <div className="rounded border border-app-border overflow-x-auto">
-        <Table density="compact" fit>
+        <Table className="w-full min-w-0 text-app-detail text-app-compact [&_th]:px-2 [&_th]:py-1.5 [&_td]:px-2 [&_td]:py-1.5 [&_tbody]:divide-y [&_tbody]:divide-app-border/40">
           <THead>
-            {["Sector", "Primary time", "Speed range", "Δ worst", "Brake consistency", "Throttle consistency", "Consistency"].map((header) => (
-              <TH key={header} nowrap>
-                {header}
-              </TH>
-            ))}
+            <TRow className="border-b border-app-border">
+              {["Sector", "Primary time", "Speed range", "Δ worst", "Brake consistency", "Throttle consistency", "Consistency"].map((header) => (
+                <TH key={header} className="whitespace-nowrap px-2 py-1.5 text-left">
+                  {header}
+                </TH>
+              ))}
+            </TRow>
           </THead>
           <TBody>
             {rows.map((row) => (
-              <TRow key={row.sector.index} selected={cursorFrac != null && cursorFrac >= row.sector.start && cursorFrac <= row.sector.end} onClick={() => onCursorFrac(row.sector.mid)}>
-                <TD nowrap emphasis tone="primary">
+              <TRow key={row.sector.index} className={`group/row relative transition-colors ${cursorFrac != null && cursorFrac >= row.sector.start && cursorFrac <= row.sector.end ? "bg-app-accent/10" : "hover:bg-app-surface-hover/50"}`} onClick={() => onCursorFrac(row.sector.mid)}>
+                <TD className="whitespace-nowrap px-2 py-1.5 font-semibold text-app-text">
                   {row.sector.label}
                 </TD>
-                <TD numeric>{row.bestTime == null || !Number.isFinite(row.bestTime) ? "—" : `${row.bestTime.toFixed(3)}s`}</TD>
-                <TD>
+                <TD className="px-2 py-1.5 text-right font-mono tabular-nums text-app-text-secondary">{row.bestTime == null || !Number.isFinite(row.bestTime) ? "—" : `${row.bestTime.toFixed(3)}s`}</TD>
+                <TD className="px-2 py-1.5 text-app-text-secondary">
                   {row.minSpeed != null && row.medianSpeed != null && row.topSpeed != null ? (
                     <div className="flex items-center gap-2">
                       <span className="w-8 text-right font-mono tabular-nums text-app-caption text-app-text-dim">{row.minSpeed.toFixed(0)}</span>
@@ -103,12 +105,12 @@ export function SectorLedger({ traces, primaryLapId, sectorBoundaryFracs, cursor
                     "—"
                   )}
                 </TD>
-                <TD numeric>
+                <TD className="px-2 py-1.5 text-right font-mono tabular-nums text-app-text-secondary">
                   <span className={deltaColor(row.delta)}>{row.delta == null ? "—" : `${row.delta >= 0 ? "+" : ""}${row.delta.toFixed(3)}`}</span>
                 </TD>
-                <TD numeric>{row.brake == null ? "—" : row.brake.toFixed(0)}</TD>
-                <TD numeric>{row.throttle == null ? "—" : row.throttle.toFixed(0)}</TD>
-                <TD numeric>{row.combined == null ? "—" : row.combined.toFixed(0)}</TD>
+                <TD className="px-2 py-1.5 text-right font-mono tabular-nums text-app-text-secondary">{row.brake == null ? "—" : row.brake.toFixed(0)}</TD>
+                <TD className="px-2 py-1.5 text-right font-mono tabular-nums text-app-text-secondary">{row.throttle == null ? "—" : row.throttle.toFixed(0)}</TD>
+                <TD className="px-2 py-1.5 text-right font-mono tabular-nums text-app-text-secondary">{row.combined == null ? "—" : row.combined.toFixed(0)}</TD>
               </TRow>
             ))}
           </TBody>

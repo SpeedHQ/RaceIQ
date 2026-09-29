@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 
@@ -47,25 +47,23 @@ export function F125Leaderboard({ trackOrdinal }: { trackOrdinal: number }) {
         </a>
       </div>
       <div className="overflow-y-auto flex-1">
-        <Table fit>
-          <THead>
-            <TH>{m.f125lb_player()}</TH>
-            <TH>{m.f125lb_team()}</TH>
-            <TH align="end">{m.label_time()}</TH>
-          </THead>
-          <TBody>
+        <Table className="w-full">
+          <TableHeader>
+            <TableRow>
+              <TableHead>{m.f125lb_player()}</TableHead>
+              <TableHead>{m.f125lb_team()}</TableHead>
+              <TableHead className="text-right">{m.label_time()}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {leaderboard.map((e) => (
-              <TRow key={e.rank}>
-                <TD emphasis tone="primary">
-                  {e.player}
-                </TD>
-                <TD>{e.team}</TD>
-                <TD align="end" numeric>
-                  {e.lapTime}
-                </TD>
-              </TRow>
+              <TableRow key={e.rank}>
+                <TableCell className="font-semibold">{e.player}</TableCell>
+                <TableCell>{e.team}</TableCell>
+                <TableCell className="text-right font-mono tabular-nums">{e.lapTime}</TableCell>
+              </TableRow>
             ))}
-          </TBody>
+          </TableBody>
         </Table>
       </div>
     </div>

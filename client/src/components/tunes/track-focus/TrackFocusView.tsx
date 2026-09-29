@@ -20,6 +20,7 @@ import { trackFractionRange } from "../../../lib/aligned-telemetry-fidelity";
 
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
 import { Button } from "../../ui/button";
+import { ToggleGroup03 } from "../../shadcn-studio/toggle-group/toggle-group-03";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../ui/dialog";
 import { BalanceLanes } from "./BalanceLanes";
 import { ConsistencyLanes } from "./ConsistencyLanes";
@@ -476,14 +477,19 @@ export function TrackFocusViewInner({
                 {TAB_LABELS[t]}
               </Button>
             ))}
-            {activeTab !== "consistency" && <div className="ml-auto flex items-center gap-1 pl-2 text-app-caption text-app-text-muted" aria-label="Tooltip display">
+            {activeTab !== "consistency" && <div className="ml-auto flex items-center gap-1 pl-2 text-app-caption text-app-text-muted">
               <span className="hidden @md/workspace:inline">Tooltip:</span>
-              <Button variant={tooltipMode === "per-lap" ? "selected-toggle" : "app-outline"} size="app-sm" aria-pressed={tooltipMode === "per-lap"} onClick={() => setTooltipMode("per-lap")}>
-                Per lap
-              </Button>
-              <Button variant={tooltipMode === "summary" ? "selected-toggle" : "app-outline"} size="app-sm" aria-pressed={tooltipMode === "summary"} onClick={() => setTooltipMode("summary")}>
-                Primary · median · max · min
-              </Button>
+              <ToggleGroup03
+                ariaLabel="Tooltip display"
+                value={tooltipMode}
+                onValueChange={(mode) => {
+                  if (mode === "per-lap" || mode === "summary") setTooltipMode(mode);
+                }}
+                options={[
+                  { value: "per-lap", label: "Per lap" },
+                  { value: "summary", label: "Primary · median · max · min" },
+                ]}
+              />
             </div>}
           </div>
 

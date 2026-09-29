@@ -2,6 +2,7 @@ import { Popover } from "@base-ui/react/popover";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { Button } from "./button";
+import { AppInput } from "./AppInput";
 
 export interface SearchMultiSelectOption<K extends string | number = string | number> {
   key: K;
@@ -129,7 +130,7 @@ export function SearchMultiSelect<K extends string | number>({
                 className={`max-h-[min(12rem,var(--available-height))] max-w-[var(--available-width)] overflow-hidden ${menuWidthClass} ${OVERLAY_SURFACE_CLASS}`}
               >
                 <div className="border-b border-app-border-input p-1.5">
-                  <input
+                  <AppInput
                     ref={searchInputRef}
                     type="search"
                     aria-controls={listboxId}
@@ -138,7 +139,7 @@ export function SearchMultiSelect<K extends string | number>({
                     onChange={(e) => setSearch(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={searchPlaceholder}
-                    className="w-full rounded border border-app-border-input bg-app-surface px-2 py-2 text-sm text-app-text outline-none transition-colors placeholder:text-app-text-dim focus-visible:border-app-accent focus-visible:ring-1 focus-visible:ring-app-accent/30 @3xl/workspace:py-1 @3xl/workspace:text-app-label"
+                    className="w-full py-2 text-sm transition-colors focus-visible:border-app-accent focus-visible:ring-app-accent/30 @3xl/workspace:py-1 @3xl/workspace:text-app-label"
                   />
                 </div>
                 <div className="max-h-48 overflow-y-auto py-1">

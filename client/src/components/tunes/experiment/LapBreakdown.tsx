@@ -2,7 +2,8 @@ import { isPitCycleLap } from "@shared/racing/laps/pit-cycle";
 import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/racing/laps/review-selection";
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { useMemo, useState } from "react";
-import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { Table, TableBody as TBody, TableCell as TD, TableHead as TH, TableHeader as THead, TableRow as TRow } from "@/components/ui/table";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import { Button } from "@/components/ui/button";
 import type { ExperimentLapMetric } from "@/hooks/experiments";
 import { useSetLapExcluded } from "@/hooks/laps";
@@ -80,22 +81,16 @@ export function LapBreakdown({ laps, bestT, metricsById, experimentId }: { laps:
   const cycleStatusFilter = () => setStatusFilter((s) => STATUS_FILTERS[(STATUS_FILTERS.indexOf(s) + 1) % STATUS_FILTERS.length]);
   if (laps.length === 0) return <div className="px-3 py-2 text-app-subtext text-app-text-dim">No laps recorded against this version yet.</div>;
   return (
-    <Table density="compact" fit>
+    <Table className="w-full min-w-0 text-app-detail [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-app-surface [&_thead>tr]:border-b [&_thead>tr]:border-app-border [&_thead>tr]:text-app-label [&_thead>tr]:uppercase [&_thead>tr]:tracking-wider [&_thead>tr]:text-app-text-muted [&_tbody]:divide-y [&_tbody]:divide-app-border/40 text-app-compact [&_th]:px-2 [&_th]:py-1.5 [&_td]:px-2 [&_td]:py-1.5">
       <THead>
-        <SortableTH direction={sort.key === "lap" ? (sort.dir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("lap")} title="Sort by lap">
+        <TRow className="border-b border-app-border">
+        <SortableTableHead className="px-2 py-1.5 text-left" direction={sort.key === "lap" ? (sort.dir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("lap")} title="Sort by lap">
           Lap
-        </SortableTH>
-        <TH
-          onClick={cycleStatusFilter}
-          onKeyDown={(event) => {
-            if (event.key !== "Enter" && event.key !== " ") return;
-            event.preventDefault();
-            cycleStatusFilter();
-          }}
-          tabIndex={0}
-          title="Filter by status"
-        >
-          <span className={statusFilter !== "all" ? "text-app-accent" : undefined}>{STATUS_FILTER_LABELS[statusFilter]}</span>
+        </SortableTableHead>
+        <TH className="px-2 py-1.5 text-left">
+          <button type="button" className="inline-flex items-center gap-1 text-inherit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" onClick={cycleStatusFilter} title="Filter by status">
+            <span className={statusFilter !== "all" ? "text-app-accent" : undefined}>{STATUS_FILTER_LABELS[statusFilter]}</span>
+          </button>
         </TH>
         {(
           [
@@ -104,16 +99,17 @@ export function LapBreakdown({ laps, bestT, metricsById, experimentId }: { laps:
             ["wear", "Tyre wear"],
           ] as [SortKey, string][]
         ).map(([key, label]) => (
-          <SortableTH
+          <SortableTableHead
             key={key}
-            align="end"
+            className="px-2 py-1.5 text-right"
             direction={sort.key === key ? (sort.dir === 1 ? "ascending" : "descending") : undefined}
             onSort={() => toggleSort(key)}
             title={`Sort by ${label.toLowerCase()}`}
           >
             {label}
-          </SortableTH>
+          </SortableTableHead>
         ))}
+        </TRow>
       </THead>
       <TBody>
         {sortedLaps.map((l) => {
@@ -125,8 +121,8 @@ export function LapBreakdown({ laps, bestT, metricsById, experimentId }: { laps:
           const reason = selection.reasonById.get(l.id);
           const strike = excluded ? "line-through decoration-app-text-dim/60 opacity-60" : "";
           return (
-            <TRow key={l.id}>
-              <TD numeric tone={l.isValid ? "muted" : "danger"} title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}>
+            <TRow key={l.id} className="group/row relative transition-colors">
+              <TD className={`px-2 py-1.5 text-right font-mono tabular-nums ${l.isValid ? "text-app-text-muted" : "text-status-danger"}`} title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}>
                 <span className={strike}>
                   {showSession && (
                     <span className="text-app-text-dim mr-1" title={`Imported from session ${l.sessionId}`}>
@@ -136,7 +132,7 @@ export function LapBreakdown({ laps, bestT, metricsById, experimentId }: { laps:
                   {l.lapNumber}
                 </span>
               </TD>
-              <TD>
+              <TD className="px-2 py-1.5 text-app-text-secondary">
                 <div className="flex items-center gap-1">
                   <span className="w-[130px] shrink-0 flex items-center gap-2">
                     {status && (
@@ -174,13 +170,13 @@ export function LapBreakdown({ laps, bestT, metricsById, experimentId }: { laps:
                   )}
                 </div>
               </TD>
-              <TD align="end" numeric tone={isFastest ? "best" : "primary"}>
+              <TD className={`px-2 py-1.5 text-right font-mono tabular-nums ${isFastest ? "text-(--lap-pace-best)" : "text-app-text"}`}>
                 <span className={strike}>{formatLapTime(l.lapTime)}</span>
               </TD>
-              <TD align="end" numeric tone="primary">
+              <TD className="px-2 py-1.5 text-right font-mono tabular-nums text-app-text">
                 <span className={strike}>{metric?.fuelPerLap != null ? `${metric.fuelPerLap.toFixed(2)} L` : <span className="text-app-text-dim">—</span>}</span>
               </TD>
-              <TD align="end" numeric tone="primary">
+              <TD className="px-2 py-1.5 text-right font-mono tabular-nums text-app-text">
                 <span className={strike}>{metric?.tyreWear != null ? `${metric.tyreWear.toFixed(0)}%` : <span className="text-app-text-dim">—</span>}</span>
               </TD>
             </TRow>

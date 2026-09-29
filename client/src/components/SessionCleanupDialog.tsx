@@ -5,7 +5,7 @@ import { formatLapTime } from "@/components/LiveTelemetry";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatBytes } from "@/lib/format-bytes";
 import { m } from "@/paraglide/messages";
@@ -38,31 +38,29 @@ function CleanupGameTables({ game }: { game: SessionCleanupGameSummary }) {
       <section className="space-y-1.5">
         <h3 className="text-xs font-semibold text-app-text">{m.label_sessions()}</h3>
         <div className="max-h-48 overflow-y-auto rounded-lg border border-app-border">
-          <Table density="compact" fit variant="embedded">
-            <THead>
-              <TH nowrap>ID</TH>
-              <TH nowrap>{m.sessions_col_date()}</TH>
-              <TH>{m.label_track()}</TH>
-              <TH>{m.label_car()}</TH>
-              <TH align="end">{m.label_laps()}</TH>
-            </THead>
-            <TBody>
+          <Table className="w-full text-xs">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="whitespace-nowrap">ID</TableHead>
+                <TableHead className="whitespace-nowrap">{m.sessions_col_date()}</TableHead>
+                <TableHead>{m.label_track()}</TableHead>
+                <TableHead>{m.label_car()}</TableHead>
+                <TableHead className="text-right">{m.label_laps()}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {game.sessions.map((session) => (
-                <TRow key={session.id} variant="static">
-                  <TD numeric tone="dim">
-                    #{session.id}
-                  </TD>
-                  <TD nowrap tone="primary">
+                <TableRow key={session.id}>
+                  <TableCell className="text-right font-mono text-app-text-dim">#{session.id}</TableCell>
+                  <TableCell className="whitespace-nowrap font-medium">
                     {parseUtcTimestamp(session.createdAt).toLocaleString(getLocale(), { dateStyle: "medium", timeStyle: "short" })}
-                  </TD>
-                  <TD tone="primary">{session.trackName}</TD>
-                  <TD>{session.carName}</TD>
-                  <TD align="end" numeric>
-                    {session.laps.length}
-                  </TD>
-                </TRow>
+                  </TableCell>
+                  <TableCell className="font-medium">{session.trackName}</TableCell>
+                  <TableCell>{session.carName}</TableCell>
+                  <TableCell className="text-right tabular-nums">{session.laps.length}</TableCell>
+                </TableRow>
               ))}
-            </TBody>
+            </TableBody>
           </Table>
         </div>
       </section>
@@ -70,29 +68,27 @@ function CleanupGameTables({ game }: { game: SessionCleanupGameSummary }) {
         <section className="space-y-1.5">
           <h3 className="text-xs font-semibold text-app-text">{m.label_laps()}</h3>
           <div className="max-h-48 overflow-y-auto rounded-lg border border-app-border">
-            <Table density="compact" fit variant="embedded">
-              <THead>
-                <TH nowrap>{m.label_sessions()}</TH>
-                <TH align="end">{m.label_lap()}</TH>
-                <TH align="end">{m.label_time()}</TH>
-                <TH>{m.sessions_cleanup_status()}</TH>
-              </THead>
-              <TBody>
+            <Table className="w-full text-xs">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="whitespace-nowrap">{m.label_sessions()}</TableHead>
+                  <TableHead className="text-right">{m.label_lap()}</TableHead>
+                  <TableHead className="text-right">{m.label_time()}</TableHead>
+                  <TableHead>{m.sessions_cleanup_status()}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {gameLaps.map((lap) => (
-                  <TRow key={lap.id} variant="static">
-                    <TD numeric tone="dim">
-                      #{lap.cleanupSessionId}
-                    </TD>
-                    <TD align="end" numeric tone="primary">
-                      {lap.lapNumber}
-                    </TD>
-                    <TD align="end" numeric>
-                      {formatLapTime(lap.lapTime)}
-                    </TD>
-                    <TD tone={lap.isValid ? "success" : "danger"}>{lap.isValid ? m.sessions_cleanup_valid() : m.sessions_cleanup_invalid()}</TD>
-                  </TRow>
+                  <TableRow key={lap.id}>
+                    <TableCell className="text-right font-mono text-app-text-dim">#{lap.cleanupSessionId}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{lap.lapNumber}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{formatLapTime(lap.lapTime)}</TableCell>
+                    <TableCell className={lap.isValid ? "text-[var(--status-success)]" : "text-[var(--status-danger)]"}>
+                      {lap.isValid ? m.sessions_cleanup_valid() : m.sessions_cleanup_invalid()}
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </TBody>
+              </TableBody>
             </Table>
           </div>
         </section>

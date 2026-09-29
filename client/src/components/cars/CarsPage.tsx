@@ -135,6 +135,7 @@ export function CarsPage() {
           </Button>
         </div>
         <AppInput
+          type="search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder={m.cars_search_placeholder()}

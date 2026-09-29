@@ -61,7 +61,7 @@ export function TuneInfoSection({
       <div className="space-y-1 relative">
         <span className="text-xs font-medium text-app-text-muted">{m.label_car()}</span>
         <AppInput
-          type="text"
+          type="search"
           value={carDropOpen ? carSearchQuery : selectedCarName || m.tune_form_select_car_placeholder()}
           onChange={(e) => {
             setCarSearchQuery(e.target.value);

@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/AppTable";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 
 interface WheelTableRow {
   id?: string;
@@ -46,7 +46,7 @@ export function WheelTable({ title, showHeaders = true, borderTop = false, rows 
   const headerContentClass = borderTop ? "block pt-2 border-t border-app-border" : undefined;
   const rowKeyState = new Map<string, number>();
   return (
-    <Table density="telemetry" fit variant="embedded">
+    <Table className="w-auto table-fixed text-xs">
       <colgroup>
         <col className="w-[85px]" />
         <col />
@@ -56,21 +56,23 @@ export function WheelTable({ title, showHeaders = true, borderTop = false, rows 
       </colgroup>
       {showHeaders && (
         <TableHeader>
-          <TableHead>
-            <span className={cn("block font-semibold uppercase tracking-wider", headerContentClass)}>{title}</span>
-          </TableHead>
-          <TableHead align="center">
-            <span className={headerContentClass}>FL</span>
-          </TableHead>
-          <TableHead align="center">
-            <span className={headerContentClass}>FR</span>
-          </TableHead>
-          <TableHead align="center">
-            <span className={headerContentClass}>RL</span>
-          </TableHead>
-          <TableHead align="center">
-            <span className={headerContentClass}>RR</span>
-          </TableHead>
+          <TableRow>
+            <TableHead>
+              <span className={cn("block font-semibold uppercase tracking-wider", headerContentClass)}>{title}</span>
+            </TableHead>
+            <TableHead className="text-center">
+              <span className={headerContentClass}>FL</span>
+            </TableHead>
+            <TableHead className="text-center">
+              <span className={headerContentClass}>FR</span>
+            </TableHead>
+            <TableHead className="text-center">
+              <span className={headerContentClass}>RL</span>
+            </TableHead>
+            <TableHead className="text-center">
+              <span className={headerContentClass}>RR</span>
+            </TableHead>
+          </TableRow>
         </TableHeader>
       )}
       <TableBody>
@@ -78,22 +80,22 @@ export function WheelTable({ title, showHeaders = true, borderTop = false, rows 
           const key = getRowKey(row, rowKeyState);
           return (
             <TableRow key={key}>
-              <TableCell tone="muted">{row.label}</TableCell>
+              <TableCell className="text-app-text-secondary">{row.label}</TableCell>
               {row.span2 ? (
                 <>
-                  <TableCell align="end" colSpan={2}>
+                  <TableCell className="text-right" colSpan={2}>
                     {row.fl}
                   </TableCell>
-                  <TableCell align="end" colSpan={2}>
+                  <TableCell className="text-right" colSpan={2}>
                     {row.rl}
                   </TableCell>
                 </>
               ) : (
                 <>
-                  <TableCell align="end">{row.fl}</TableCell>
-                  <TableCell align="end">{row.fr}</TableCell>
-                  <TableCell align="end">{row.rl}</TableCell>
-                  <TableCell align="end">{row.rr}</TableCell>
+                  <TableCell className="text-right">{row.fl}</TableCell>
+                  <TableCell className="text-right">{row.fr}</TableCell>
+                  <TableCell className="text-right">{row.rl}</TableCell>
+                  <TableCell className="text-right">{row.rr}</TableCell>
                 </>
               )}
             </TableRow>

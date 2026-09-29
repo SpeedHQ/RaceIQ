@@ -46,7 +46,7 @@ function TabsTrigger({ className, variant = "default", ...props }: TabsTriggerPr
       data-variant={variant}
       className={cn(
         variants[variant],
-        "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        "focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className,
         "rounded",
       )}

@@ -273,7 +273,6 @@ export function SetupFilePicker({
             options={cars}
             placeholder={loadingFiles ? m.common_loading() : noCars ? m.experiment_no_cars() : m.experiment_search_cars()}
             disabled={loadingFiles || noCars}
-            focusColor="purple-500"
           />
         </div>
       )}
@@ -289,7 +288,6 @@ export function SetupFilePicker({
           })}
           placeholder={!value.car ? m.experiment_pick_car_first() : m.experiment_search_tracks()}
           disabled={!value.car}
-          focusColor="purple-500"
         />
       </div>
       <div className="flex flex-col gap-1">
@@ -315,7 +313,6 @@ export function SetupFilePicker({
           options={carTrackFiles.map((f) => ({ value: f.absolutePath, label: f.fileName }))}
           placeholder={!value.car || !value.track ? m.experiment_pick_car_track() : m.experiment_search_setups()}
           disabled={!value.car || !value.track}
-          focusColor="purple-500"
         />
       </div>
     </div>

@@ -63,7 +63,7 @@ export function IRacingCars() {
   return (
     <div className="flex-1 overflow-auto p-4 space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
-        <AppInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder={m.cars_search_placeholder()} className="w-full @3xl/workspace:w-72" />
+        <AppInput type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={m.cars_search_placeholder()} className="w-full @3xl/workspace:w-72" />
         {!isLoading && (
           <span className="text-xs text-app-text/90 whitespace-nowrap">
             {filtered.length} / {cars.length}

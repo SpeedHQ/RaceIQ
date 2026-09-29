@@ -1,6 +1,6 @@
 import { Cloud, CloudLightning, CloudRain, CloudSun, Sun } from "lucide-react";
 import { useState } from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/AppTable";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { severityColor, severityRangeColor } from "@/lib/colors";
 import { m } from "@/paraglide/messages";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
@@ -364,25 +364,27 @@ function GridSection({ competitors, playerPosition }: { competitors: LiveTelemet
         </Button>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto">
-        <Table density="compact" fit variant="embedded">
+        <Table className="w-full text-xs">
           <TableHeader>
-            <TableHead>{m.f1grid_header_position()}</TableHead>
-            <TableHead>{m.f1grid_header_driver()}</TableHead>
-            <TableHead align="end">{m.f1grid_header_s1()}</TableHead>
-            <TableHead align="end">{m.f1grid_header_s2()}</TableHead>
-            <TableHead align="end">{m.f1grid_header_s3()}</TableHead>
-            <TableHead align="end">{m.label_delta()}</TableHead>
-            <TableHead align="end">{m.f1grid_header_ahead()}</TableHead>
-            <TableHead align="center">{m.label_tires()}</TableHead>
-            <TableHead align="end">{m.f1grid_header_age()}</TableHead>
-            <TableHead align="center">{m.f1grid_header_pit()}</TableHead>
+            <TableRow>
+              <TableHead>{m.f1grid_header_position()}</TableHead>
+              <TableHead>{m.f1grid_header_driver()}</TableHead>
+              <TableHead className="text-right">{m.f1grid_header_s1()}</TableHead>
+              <TableHead className="text-right">{m.f1grid_header_s2()}</TableHead>
+              <TableHead className="text-right">{m.f1grid_header_s3()}</TableHead>
+              <TableHead className="text-right">{m.label_delta()}</TableHead>
+              <TableHead className="text-right">{m.f1grid_header_ahead()}</TableHead>
+              <TableHead className="text-center">{m.label_tires()}</TableHead>
+              <TableHead className="text-right">{m.f1grid_header_age()}</TableHead>
+              <TableHead className="text-center">{m.f1grid_header_pit()}</TableHead>
+            </TableRow>
           </TableHeader>
           <TableBody>
             {focused.map((entry) => {
               if ("separator" in entry) {
                 return (
-                  <TableRow key={`sep-${entry.position}`} variant="separator">
-                    <TableCell align="center" colSpan={10} tone="dim">
+                  <TableRow key={`sep-${entry.position}`}>
+                    <TableCell className="text-center text-app-text-dim" colSpan={10}>
                       {m.f1grid_separator()}
                     </TableCell>
                   </TableRow>
@@ -390,35 +392,25 @@ function GridSection({ competitors, playerPosition }: { competitors: LiveTelemet
               }
               const isPlayer = entry.position === playerPosition;
               return (
-                <TableRow key={entry.position} selected={isPlayer}>
-                  <TableCell emphasis numeric tone="primary">
-                    {entry.position}
-                  </TableCell>
-                  <TableCell emphasis={isPlayer} tone={isPlayer ? "accent" : "default"} truncate="narrow">
+                <TableRow key={entry.position} className={isPlayer ? "bg-app-accent/10" : ""}>
+                  <TableCell className="font-semibold tabular-nums">{entry.position}</TableCell>
+                  <TableCell className={`${isPlayer ? "font-semibold text-app-accent" : ""} truncate`}>
                     {entry.name || `${m.label_car()} ${entry.position}`}
                   </TableCell>
-                  <TableCell align="end" numeric>
-                    {entry.lastS1S && entry.lastS1S > 0 ? entry.lastS1S.toFixed(3) : "—"}
-                  </TableCell>
-                  <TableCell align="end" numeric>
-                    {entry.lastS2S && entry.lastS2S > 0 ? entry.lastS2S.toFixed(3) : "—"}
-                  </TableCell>
-                  <TableCell align="end" numeric>
-                    {entry.lastS3S && entry.lastS3S > 0 ? entry.lastS3S.toFixed(3) : "—"}
-                  </TableCell>
-                  <TableCell align="end" numeric tone="muted">
+                  <TableCell className="text-right font-mono tabular-nums">{entry.lastS1S && entry.lastS1S > 0 ? entry.lastS1S.toFixed(3) : "—"}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{entry.lastS2S && entry.lastS2S > 0 ? entry.lastS2S.toFixed(3) : "—"}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{entry.lastS3S && entry.lastS3S > 0 ? entry.lastS3S.toFixed(3) : "—"}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums text-app-text-muted">
                     {entry.position === 1 ? m.f1grid_leader() : entry.gapToLeaderS === undefined ? "—" : formatGap(entry.gapToLeaderS)}
                   </TableCell>
-                  <TableCell align="end" numeric tone="muted">
+                  <TableCell className="text-right font-mono tabular-nums text-app-text-muted">
                     {entry.gapToAheadS === undefined ? "—" : formatGap(entry.gapToAheadS)}
                   </TableCell>
-                  <TableCell align="center">
+                  <TableCell className="text-center">
                     <span className="tire-compound-dot inline-block w-2.5 h-2.5 rounded-full" data-tire-compound={String(entry.tireCompound ?? "unknown").toLowerCase()} />
                   </TableCell>
-                  <TableCell align="end" numeric tone="muted">
-                    {entry.tireAge ?? "—"}
-                  </TableCell>
-                  <TableCell align="center" tone="muted">
+                  <TableCell className="text-right font-mono tabular-nums text-app-text-muted">{entry.tireAge ?? "—"}</TableCell>
+                  <TableCell className="text-center text-app-text-muted">
                     {entry.pitStatus === 1 ? (
                       <span className="text-status-warning font-bold">IN</span>
                     ) : entry.pitStatus === 2 ? (

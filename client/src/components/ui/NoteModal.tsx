@@ -22,7 +22,7 @@ export function NoteModal({ value, onSave, onClose }: { value?: string; onSave: 
         <textarea
           ref={ref}
           rows={5}
-          className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs text-app-text/90 outline-none resize-none focus:border-app-accent/60"
+          className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs text-app-text/90 outline-none resize-none focus:border-app-accent"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {

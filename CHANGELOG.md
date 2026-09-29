@@ -3,8 +3,15 @@
 ### Features
 
 - Add Spanish, Brazilian Portuguese, Japanese, Ukrainian, Dutch, Polish, Finnish, and Russian interfaces.
+- Search track, car, language, and other option lists with accessible combobox controls.
+- Slightly reduce corner radii through shared Tailwind tokens.
+- Use accessible toggle groups for Sessions Mine/Others and Analyse tooltip display.
 
 ### Fixes
+- Use shared inputs with transparent backgrounds and cyan focus borders for searches, including searchable selectors.
+- Keep input borders at 1px when focused, matching table borders; use cyan focus borders across shared controls instead of gray or purple.
+- Give segmented toggle groups a black background that stays black on hover, with a thin cyan border and cyan text on the selected option.
+- Keep the Sessions Favorites label neutral when enabled, while retaining the highlighted star.
 - Display session, lap, and experiment timestamps in the system's local timezone.
 - Measure suspension spikes from raw wheel travel rather than normalized travel, which can collapse to zero when calibration data is missing; distinguish spikes from confirmed rumble-strip impacts.
 - Show highest-severity lap insight findings first within each category.
@@ -13,8 +20,10 @@
 - Use simulator time for lap insight detection across supported games, independent of recorder arrival time; restore checks on older ACC captures without frame timestamps.
 - Show detector findings for the primary lap alongside tune issues in session Analyse, without loading full replay telemetry.
 - Stop treating ACC and AC Evo tyre/road vibration as TC or ABS intervention; label ACC physics-signal findings as possible rather than game-confirmed, and use AC Evo's explicit aid-active flags for confirmed findings.
+- Keep expanded session lap tables readable with separate replay actions, internal horizontal scrolling, and rounded table corners.
 
 ### Internal
+- Centralize the Sessions Favorites control in the shared Toggle component with optional star rendering and built-in active styling.
 
 ## v0.19.0 - 2026-09-28
 

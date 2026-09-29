@@ -11,8 +11,8 @@ function buildComparisonLapOption(lap: LapMeta, locale?: "en" | "de") {
     label: `${m.compare_lap_label({}, { locale })} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others({}, { locale }) : m.import_ownership_mine({}, { locale })}${!lap.isValid ? " (inv)" : ""}`,
   };
 }
-
 type TrackGroup = { trackOrdinal: number; trackName: string; laps: LapMeta[] };
+
 
 export function ComparisonSelectors({
   trackGroups,
@@ -81,7 +81,6 @@ export function ComparisonSelectors({
           options={trackCars.map((ord) => ({ value: String(ord), label: carNames.get(ord) || `${m.compare_car_fallback()} ${ord}` }))}
           placeholder={m.compare_search_cars()}
           disabled={!selectedTrack}
-          focusColor="orange-500"
         />
       </div>
       <div className="flex w-full min-w-0 flex-col gap-1 @sm/workspace:w-auto @sm/workspace:min-w-[120px] @sm/workspace:flex-1 @3xl/workspace:max-w-[200px]">
@@ -97,7 +96,6 @@ export function ComparisonSelectors({
             options={carALaps.map((lap) => buildComparisonLapOption(lap))}
             placeholder={m.compare_search_laps()}
             disabled={!carAOrd}
-            focusColor="orange-500"
           />
           {lapAId != null && (
             <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
@@ -120,7 +118,6 @@ export function ComparisonSelectors({
           options={trackCars.map((ord) => ({ value: String(ord), label: carNames.get(ord) || `${m.compare_car_fallback()} ${ord}` }))}
           placeholder={m.compare_search_cars()}
           disabled={!selectedTrack}
-          focusColor="blue-500"
         />
       </div>
       <div className="flex w-full min-w-0 flex-col gap-1 @sm/workspace:w-auto @sm/workspace:min-w-[120px] @sm/workspace:flex-1 @3xl/workspace:max-w-[200px]">
@@ -135,7 +132,6 @@ export function ComparisonSelectors({
             onChange={(v) => setLapBId(v ? Number(v) : null)}
             disabled={!carBOrd}
             options={carBLaps.map((lap) => buildComparisonLapOption(lap))}
-            focusColor="blue-500"
           />
           {lapBId != null && (
             <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-app-text-muted">

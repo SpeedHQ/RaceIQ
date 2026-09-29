@@ -109,6 +109,7 @@ export function TrackViewer() {
     <div className="p-4 overflow-auto h-full">
       <div className="flex items-center flex-wrap gap-3 mb-3">
         <AppInput
+          type="search"
           placeholder={m.trackviewer_search_placeholder()}
           value={search}
           onChange={(e) => setSearch(e.target.value)}

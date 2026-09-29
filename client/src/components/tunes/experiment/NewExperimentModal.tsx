@@ -398,7 +398,6 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
                     options={allPlaceCars}
                     placeholder={allPlaceCars.length ? m.experiment_search_cars() : m.experiment_no_cars()}
                     disabled={allPlaceCars.length === 0}
-                    focusColor="purple-500"
                   />
                 </div>
               </div>
@@ -411,7 +410,6 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
                     options={allTracks}
                     placeholder={allTracks.length ? m.experiment_search_tracks() : m.experiment_no_track_folders()}
                     disabled={allTracks.length === 0}
-                    focusColor="purple-500"
                   />
                 </div>
               </div>

@@ -1,6 +1,7 @@
 import { type ReactNode, useMemo, useRef, useState } from "react";
 import { AppInput } from "@/components/ui/AppInput";
-import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import { m } from "@/paraglide/messages";
@@ -108,7 +109,7 @@ export function SetupBrowser(props: SetupBrowserProps) {
             {s.label}
           </Button>
         ))}
-        <AppInput type="text" value={author} placeholder={m.setup_search_author()} onChange={(e) => pickAuthor(e.target.value)} className="text-app-compact w-40" />
+        <AppInput type="search" value={author} placeholder={m.setup_search_author()} onChange={(e) => pickAuthor(e.target.value)} className="text-app-compact w-40" />
         {props.onRefresh && (
           <Button
             type="button"
@@ -154,22 +155,22 @@ export function SetupBrowser(props: SetupBrowserProps) {
         </div>
       </div>
 
-      <Table fit layout="fixed">
-        <THead>
-          <TH>{m.setup_table_rank()}</TH>
-          <TH>{m.setup_table_tune()}</TH>
-          <TH showFrom="workspace-md">{m.label_car()}</TH>
-          <TH showFrom="workspace-md">{m.label_track()}</TH>
-          <TH showFrom="workspace-md">{m.label_category()}</TH>
-          <TH showFrom="workspace-md">{m.label_author()}</TH>
-          <SortableTH align="end" direction={sortAsc ? "ascending" : "descending"} onSort={() => setSortAsc((ascending) => !ascending)}>
-            {m.label_lap()}
-          </SortableTH>
-          <TH showFrom="workspace-md" visuallyHidden>
-            {m.label_actions()}
-          </TH>
-        </THead>
-        <TBody>
+      <Table className="table-fixed">
+        <TableHeader>
+          <TableRow>
+            <TableHead>{m.setup_table_rank()}</TableHead>
+            <TableHead>{m.setup_table_tune()}</TableHead>
+            <TableHead className="hidden @3xl/workspace:table-cell">{m.label_car()}</TableHead>
+            <TableHead className="hidden @3xl/workspace:table-cell">{m.label_track()}</TableHead>
+            <TableHead className="hidden @3xl/workspace:table-cell">{m.label_category()}</TableHead>
+            <TableHead className="hidden @3xl/workspace:table-cell">{m.label_author()}</TableHead>
+            <SortableTableHead className="text-right" direction={sortAsc ? "ascending" : "descending"} onSort={() => setSortAsc((ascending) => !ascending)}>
+              {m.label_lap()}
+            </SortableTableHead>
+            <TableHead className="hidden @3xl/workspace:table-cell sr-only">{m.label_actions()}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {pageRows.map((row, index) => (
             <TuneBrowserRow
               key={row.key}
@@ -189,13 +190,13 @@ export function SetupBrowser(props: SetupBrowserProps) {
             />
           ))}
           {visible.length === 0 && (
-            <TRow variant="separator">
-              <TD align="center" colSpan={8} tone="primary">
+            <TableRow>
+              <TableCell className="text-center" colSpan={8}>
                 <div className="py-10">{m.setup_no_matches()}</div>
-              </TD>
-            </TRow>
+              </TableCell>
+            </TableRow>
           )}
-        </TBody>
+        </TableBody>
       </Table>
 
       {visible.length > 0 && (
