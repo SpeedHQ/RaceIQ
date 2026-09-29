@@ -141,7 +141,7 @@ export function SessionDesktopTable({
               const bestTime = session.bestLapTime || (sessionLaps.length > 0 ? Math.min(...sessionLaps.map((lap) => lap.lapTime)) : 0);
               return (
                 <Fragment key={session.id}>
-                  <TableRow onClick={() => toggleExpand(session.id)} data-state={isExpanded ? "selected" : undefined}>
+                  <TableRow onClick={() => toggleExpand(session.id)} data-state={isExpanded ? "selected" : undefined} className={isExpanded && sessionLaps.length > 0 ? "border-b-0" : undefined}>
                     <TableCell className="text-center" onClick={(event) => event.stopPropagation()}>
                       <input type="checkbox" checked={selectedSessions.has(session.id)} onChange={(event) => toggleSessionSelection(session.id, event)} className="accent-app-accent w-4 h-4" />
                     </TableCell>
@@ -202,8 +202,8 @@ export function SessionDesktopTable({
                     </TableCell>
                   </TableRow>
                   {isExpanded && gameId && (
-                    <TableRow className="hover:bg-transparent">
-                      <TableCell colSpan={colCount}>
+                    <TableRow className={sessionLaps.length > 0 ? "border-b-0 hover:bg-transparent" : "hover:bg-transparent"}>
+                      <TableCell colSpan={colCount} className={sessionLaps.length > 0 ? "[&>section]:border-b-0 [&>div]:border-b-0" : undefined}>
                         <RaceResultLedger sessionId={session.id} gameId={gameId} enabled={isExpanded} />
                       </TableCell>
                     </TableRow>
@@ -211,7 +211,7 @@ export function SessionDesktopTable({
                   {isExpanded && sessionLaps.length > 0 && (
                     <TableRow className="hover:bg-transparent">
                       <TableCell colSpan={colCount} className="p-0 max-w-0">
-                        <div className="bg-app-surface-alt/20 border-y border-app-border">
+                        <div className="bg-transparent [&>[data-slot=table-container]]:rounded-none [&>[data-slot=table-container]]:border-0 [&_[data-slot=table-head]]:bg-transparent">
                           <SessionLapTable
                             session={session}
                             laps={sessionLaps}

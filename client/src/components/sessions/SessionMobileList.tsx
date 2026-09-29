@@ -170,9 +170,13 @@ export function SessionMobileList({
                   </div>
                 </div>
               </div>
-              {isExpanded && gameId && <RaceResultLedger sessionId={session.id} gameId={gameId} enabled={isExpanded} />}
+              {isExpanded && gameId && (
+                <div className={sessionLaps.length > 0 ? "[&>section]:border-b-0 [&>div]:border-b-0" : undefined}>
+                  <RaceResultLedger sessionId={session.id} gameId={gameId} enabled={isExpanded} />
+                </div>
+              )}
               {isExpanded && sessionLaps.length > 0 && (
-                <div className="border-t border-app-border">
+                <div className="bg-transparent [&>[data-slot=table-container]]:rounded-none [&>[data-slot=table-container]]:border-0 [&_[data-slot=table-head]]:bg-transparent">
                   <SessionLapTable
                     session={session}
                     laps={sessionLaps}

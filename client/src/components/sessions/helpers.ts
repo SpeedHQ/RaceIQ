@@ -98,7 +98,17 @@ export function paginateSessions(sessions: SessionMeta[], page: number, pageSize
 
 export function sortLaps(laps: LapMeta[], sortKey: LapSortKey, sortDir: SortDir): LapMeta[] {
   return [...laps].sort((a, b) => {
-    const comparison = sortKey === "lap" ? a.lapNumber - b.lapNumber : a.lapTime - b.lapTime;
+    let comparison: number;
+    if (typeof sortKey === "number") {
+      const aTime = a.sectorTimes?.[sortKey] ?? 0;
+      const bTime = b.sectorTimes?.[sortKey] ?? 0;
+      if (aTime <= 0 || bTime <= 0) return (aTime <= 0 ? 1 : 0) - (bTime <= 0 ? 1 : 0);
+      comparison = aTime - bTime;
+    } else if (sortKey === "notes") {
+      comparison = (a.notes ?? "").localeCompare(b.notes ?? "");
+    } else {
+      comparison = sortKey === "lap" ? a.lapNumber - b.lapNumber : a.lapTime - b.lapTime;
+    }
     return sortDir === "asc" ? comparison : -comparison;
   });
 }

@@ -498,3 +498,14 @@
 .status-dot-unavailable {
   background: var(--status-unavailable);
 }
+
+table th:hover,
+table th:focus-within {
+  background-color: var(--app-surface-hover);
+  color: var(--app-accent-hover);
+}
+
+table th[aria-sort="ascending"],
+table th[aria-sort="descending"] {
+  color: var(--app-accent);
+}

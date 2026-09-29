@@ -12,6 +12,10 @@
 - Keep input borders at 1px when focused, matching table borders; use cyan focus borders across shared controls instead of gray or purple.
 - Give segmented toggle groups a black background that stays black on hover, with a thin cyan border and cyan text on the selected option.
 - Keep the Sessions Favorites label neutral when enabled, while retaining the highlighted star.
+- Blend expanded session lap tables into their parent with transparent backgrounds and headers, without an upper divider or separate table frame on desktop and mobile.
+- Place lap favorite and replay actions together after the lap number, keep checkbox columns compact, and group right-aligned sectors beside lap time while Notes uses available width.
+- Sort expanded session laps by sector times and notes; keep missing sector times last in both directions.
+- Give all table headers hover colors and cyan active-sort text, and make shared sortable headers clickable across the whole cell.
 - Display session, lap, and experiment timestamps in the system's local timezone.
 - Measure suspension spikes from raw wheel travel rather than normalized travel, which can collapse to zero when calibration data is missing; distinguish spikes from confirmed rumble-strip impacts.
 - Show highest-severity lap insight findings first within each category.

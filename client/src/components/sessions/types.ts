@@ -1,7 +1,7 @@
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
 
 export type SessionsTab = "mine" | "others";
-export type LapSortKey = "lap" | "time";
+export type LapSortKey = "lap" | "time" | "notes" | number;
 export type SortKey = "date" | "track" | "car" | "laps" | "best" | "type" | "result";
 export type SortDir = "asc" | "desc";
 
