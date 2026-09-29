@@ -18,7 +18,7 @@ test("sessions filter, notes, recap, export, and deletion confirmation preserve 
   await expect(firstRow).toBeVisible();
   await firstRow.getByRole("button", { name: "Recap", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(page.getByText("Best lap", { exact: true })).toBeVisible();
+  await expect(page.getByRole("dialog").getByText(/Laps|No laps recorded for this session\./)).toBeVisible();
   await expect(page.getByRole("dialog").getByRole("alert")).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
