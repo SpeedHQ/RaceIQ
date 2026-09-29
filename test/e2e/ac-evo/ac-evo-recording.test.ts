@@ -154,13 +154,13 @@ describe("AC Evo v0.6 recording", () => {
 
 		expect(laps.length).toBe(3);
 
-		// Lap 1: source reports invalidity, taking precedence over outlap heuristics.
-		expect(laps[0].invalidReason).toBe("recording invalid");
+		// Lap 1: outlap — driver exits pit, not a valid timed lap
+		expect(laps[0].invalidReason).toBe("outlap");
 		expect(laps[0].isValid).toBe(false);
 
 		// Lap 2: a real flying lap, invalidated on track rather than by pit contact.
 		const flying = laps[1];
-		expect(flying.invalidReason).toBe("recording invalid");
+		expect(flying.invalidReason).toBe("track limits");
 		expect(flying.isValid).toBe(false);
 		// Provenance of the cut: the lap started clean, went invalid mid-lap, and
 		// stayed invalid — not a flag inherited across the start/finish line.

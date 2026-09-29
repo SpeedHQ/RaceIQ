@@ -2,6 +2,7 @@ import { describe, test, expect, afterAll } from "bun:test";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { parseAccBuffers } from "../../../server/games/acc/parser";
+import { parseAccLapIndex } from "../../../server/games/kunos/lap-index";
 import { PHYSICS, GRAPHICS, STATIC } from "../../../server/games/acc/structs";
 import { initGameAdapters } from "../../../shared/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
@@ -154,6 +155,20 @@ describe("ACC parser", () => {
     expect(packet!.LapNumber).toBe(4);
     expect(packet!.RacePosition).toBe(1);
     expect(packet!.Yaw).toBeCloseTo(1.5);
+  });
+
+  test("full and compact parsers agree on known, unknown, and legacy validity", () => {
+    const physics = makePhysicsBuf();
+    const stat = makeStaticBuf();
+    for (const [raw, expected] of [[0, false], [1, true], [2, null]] as const) {
+      const graphics = makeGraphicsBuf();
+      graphics.writeInt32LE(raw, GRAPHICS.isValidLap.offset);
+      expect(parseAccBuffers(physics, graphics, stat)?.acc?.isValidLap).toBe(expected);
+      expect(parseAccLapIndex(physics, graphics, stat, 0, 0)?.acc?.isValidLap).toBe(expected);
+    }
+    const legacy = makeGraphicsBuf().subarray(0, 1320);
+    expect(parseAccBuffers(physics, legacy, stat)?.acc?.isValidLap).toBeNull();
+    expect(parseAccLapIndex(physics, legacy, stat, 0, 0)?.acc?.isValidLap).toBeNull();
   });
 
   test("parseAccBuffers populates ACC extended data", () => {

@@ -13,7 +13,6 @@ import type {
 import { kunosFirstPacketIsMidLap } from "./lap-rules";
 import { classifyPitCycleLap } from "../../../shared/racing/laps/pit-cycle";
 import { logger } from "../../runtime/logger";
-import { recordedLapValidity as getRecordedLapValidity } from "../../lap-detection/recorded-validity";
 
 function traceLap(game: string, event: string, fields: Record<string, unknown>): void {
   logger.trace({ component: "capture", event, game, ...fields }, "Kunos lap capture trace");
@@ -21,8 +20,8 @@ function traceLap(game: string, event: string, fields: Record<string, unknown>):
 
 /** Shared Kunos (ACC / AC Evo) lap detector state machine. */
 export abstract class KunosLapDetector implements ILapDetector {
-  protected recordedLapValidity(packets: readonly TelemetryPacket[], trigger?: TelemetryPacket): boolean | null {
-    return getRecordedLapValidity(packets[packets.length - (trigger ? 2 : 1)]);
+  protected recordedLapValidity(_packets: readonly TelemetryPacket[], _trigger?: TelemetryPacket): boolean | null {
+    return null;
   }
   readonly detectorId: string;
   private readonly loggerLabel: string;

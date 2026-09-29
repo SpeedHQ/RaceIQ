@@ -26,7 +26,6 @@ import { reconcileAutoExclusionsForLap } from "../experiments/auto-exclude";
 import { computeLapSectors as computeLapSectorsHelper } from "../lap-analysis/sectors";
 import { detectSessionBoundary, detectLapBoundary, detectLapReset } from "./boundaries";
 import { logger } from "../runtime/logger";
-import { recordedLapValidity } from "./recorded-validity";
 import type { SessionIdentity } from "../telemetry/pipeline-ports";
 
 function traceCapture(game: string, event: string, fields: Record<string, unknown>): void {
@@ -90,7 +89,7 @@ export interface LapSavedNotification extends LapSavedEvent {
 }
 
 /** Bump this whenever lap detection logic changes — triggers UI prompt to reprocess old sessions. */
-export const LAP_DETECTOR_ID = "lapdetector_v8";
+export const LAP_DETECTOR_ID = "lapdetector_v7";
 
 export interface LapCompleteEvent {
   packets: TelemetryPacket[];
@@ -538,29 +537,22 @@ export class LapDetector implements ILapDetector {
 
       // Catalog-native pit state and FM's gap/service evidence both become
       // lap-level exclusions only after the complete lap window is available.
-      const sourceValidity = recordedLapValidity(this.lapBuffer[this.lapBuffer.length - 1]);
-      const pitReason = sourceValidity === null
-        ? mergePitCycleReason(
-            this.currentPitCycleReason,
-            this.lapPolicy.classifyPitCycle(this.lapBuffer, this.completedLapCount),
-          )
-        : null;
-      const policyReason = sourceValidity === null
-        ? this.lapPolicy.invalidReason?.(this.lapBuffer) ?? null
-        : null;
-      const quality = sourceValidity === null ? assessLapRecording(this.lapBuffer, lapTime) : null;
-      const valid = this.invalidReason !== null
-        ? false
-        : sourceValidity !== null
-          ? sourceValidity
-          : this.lapIsValid &&
-            policyReason === null &&
-            pitReason === null &&
-            quality!.valid;
+      const pitReason = mergePitCycleReason(
+        this.currentPitCycleReason,
+        this.lapPolicy.classifyPitCycle(this.lapBuffer, this.completedLapCount),
+      );
+      const policyReason = this.lapPolicy.invalidReason?.(this.lapBuffer) ?? null;
+      const quality = assessLapRecording(this.lapBuffer, lapTime);
+      const valid =
+        this.lapIsValid &&
+        policyReason === null &&
+        pitReason === null &&
+        quality.valid;
       const invalidReason =
         this.invalidReason ??
-        (sourceValidity === false ? "recording invalid" : null) ??
-        (sourceValidity === true ? null : policyReason ?? pitReason ?? (quality!.valid ? null : quality!.reason));
+        policyReason ??
+        pitReason ??
+        (!quality.valid ? quality.reason : null);
       traceCapture(this.currentSession.gameId, "lap-boundary-stage", {
         sessionId: this.currentSession.sessionId,
         lapNumber: this.currentLapNumber,
