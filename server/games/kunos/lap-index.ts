@@ -40,7 +40,7 @@ export function parseAccLapIndex(physics: Buffer, graphics: Buffer, stat: Buffer
     Yaw: f(ACC_PHYSICS.heading.offset), Fuel: f(ACC_PHYSICS.fuel.offset),
     TireWearFL: f(ACC_PHYSICS.tyreWearFL.offset), TireWearFR: f(ACC_PHYSICS.tyreWearFR.offset), TireWearRL: f(ACC_PHYSICS.tyreWearRL.offset), TireWearRR: f(ACC_PHYSICS.tyreWearRR.offset),
     RacePosition: i(ACC_GRAPHICS.position.offset), WheelOnRumbleStripFL: 0, WheelOnRumbleStripFR: 0, WheelOnRumbleStripRL: 0, WheelOnRumbleStripRR: 0,
-    acc: { pitStatus: i(ACC_GRAPHICS.isInPit.offset) ? "in_pit" : i(ACC_GRAPHICS.isInPitLane.offset) ? "pit_lane" : "out", currentSectorIndex: i(ACC_GRAPHICS.currentSectorIndex.offset), lastSectorTime: i(ACC_GRAPHICS.lastSectorTime.offset), isValidLap: graphics.length >= ACC_GRAPHICS.isValidLap.offset + 4 ? i(ACC_GRAPHICS.isValidLap.offset) === 1 : null } as never,
+    acc: { pitStatus: i(ACC_GRAPHICS.isInPit.offset) ? "in_pit" : i(ACC_GRAPHICS.isInPitLane.offset) ? "pit_lane" : "out", currentSectorIndex: i(ACC_GRAPHICS.currentSectorIndex.offset), lastSectorTime: i(ACC_GRAPHICS.lastSectorTime.offset), isValidLap: graphics.length >= ACC_GRAPHICS.isValidLap.offset + 4 ? (i(ACC_GRAPHICS.isValidLap.offset) === 1 ? true : i(ACC_GRAPHICS.isValidLap.offset) === 0 ? false : null) : null } as never,
   };
   return packet;
 }

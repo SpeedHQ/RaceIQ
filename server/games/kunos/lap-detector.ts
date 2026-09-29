@@ -13,6 +13,7 @@ import type {
 import { kunosFirstPacketIsMidLap } from "./lap-rules";
 import { classifyPitCycleLap } from "../../../shared/racing/laps/pit-cycle";
 import { logger } from "../../runtime/logger";
+import { recordedLapValidity as getRecordedLapValidity } from "../../lap-detection/recorded-validity";
 
 function traceLap(game: string, event: string, fields: Record<string, unknown>): void {
   logger.trace({ component: "capture", event, game, ...fields }, "Kunos lap capture trace");
@@ -20,6 +21,9 @@ function traceLap(game: string, event: string, fields: Record<string, unknown>):
 
 /** Shared Kunos (ACC / AC Evo) lap detector state machine. */
 export abstract class KunosLapDetector implements ILapDetector {
+  protected recordedLapValidity(packets: readonly TelemetryPacket[], trigger?: TelemetryPacket): boolean | null {
+    return getRecordedLapValidity(packets[packets.length - (trigger ? 2 : 1)]);
+  }
   readonly detectorId: string;
   private readonly loggerLabel: string;
 
@@ -258,16 +262,28 @@ export abstract class KunosLapDetector implements ILapDetector {
       frames: packets.length,
     });
 
-    const quality = assessLapRecording(packets, lapTime);
-    const pitReason = classifyPitCycleLap(packets);
-    let isValid = !forcedInvalidReason && !pitReason && quality.valid;
-    let invalidReason = forcedInvalidReason ?? pitReason ?? quality.reason;
-
-    if (isValid) {
-      const cutReason = this.classifyTrackLimits(packets);
-      if (cutReason) {
-        isValid = false;
-        invalidReason = cutReason;
+    let isValid: boolean;
+    let invalidReason: string | null;
+    if (forcedInvalidReason) {
+      isValid = false;
+      invalidReason = forcedInvalidReason;
+    } else {
+      const recordedValidity = this.recordedLapValidity(packets, opts?.trigger);
+      if (recordedValidity !== null) {
+        isValid = recordedValidity;
+        invalidReason = recordedValidity ? null : "recording invalid";
+      } else {
+        const quality = assessLapRecording(packets, lapTime);
+        const pitReason = classifyPitCycleLap(packets);
+        isValid = !pitReason && quality.valid;
+        invalidReason = pitReason ?? quality.reason;
+        if (isValid) {
+          const cutReason = this.classifyTrackLimits(packets);
+          if (cutReason) {
+            isValid = false;
+            invalidReason = cutReason;
+          }
+        }
       }
     }
     traceLap(traceGameId, "lap-boundary-stage", {

@@ -23,6 +23,7 @@ test/games/ac-evo/ac-evo-mid-session.test.ts
 test/games/iracing/iracing-ibt-import.test.ts
 test/games/shared/semantic-replay-native.test.ts
 test/lap-analysis/lap-detector-ac.test.ts
+test/lap-analysis/recorded-validity.test.ts
 test/lap-analysis/lap-export-import-roundtrip.test.ts
 test/live-strategy/f1-2025-session-sectors.test.ts
 test/telemetry/telemetry-fidelity.test.ts
