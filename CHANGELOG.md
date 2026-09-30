@@ -8,6 +8,14 @@
 - Use accessible toggle groups for Sessions Mine/Others and Analyse tooltip display.
 
 ### Fixes
+- Reduce oversized Best, Median, and Worst lap Stats times; keep typography readable at different panel widths and text sizes, and label sector totals as theoretical best and delta.
+- Place Replay immediately after the lap number in the track lap table.
+- Sort every data column in the track lap table, including car, class, session type, sectors, and notes; keep missing sector times last in either direction.
+- Align selected-lap Compare and Delete actions with the lap table in the existing desktop header row without shifting the table; keep actions above lap cards on mobile.
+- Apply the Laps car filter to the Community Leaderboard, matching car names despite display punctuation differences.
+- Place the Laps label and filters before the Stats and Community Leaderboard tabs in a shared desktop header, keeping the reference panel left and lap list right.
+- Use available workspace height across track detail tabs, keep overflowing content scrollable on desktop and mobile, and keep community leaderboard headers visible while scrolling.
+- Replace the track map in Laps with full-height Stats and Community Leaderboard tabs beside the lap list, align table headers, remove redundant leaderboard labels, and use the same Replay action as Sessions.
 - Remove duplicate borders around Sector Ledger and Segment Ledger tables in session Analyse.
 - Show a pointer cursor across clickable recent session rows on Home, including track buttons.
 - Show pointer cursors on enabled shared buttons and toggles, including toggle groups, while disabled controls retain default cursors.

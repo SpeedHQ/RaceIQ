@@ -76,9 +76,9 @@ export function TrackDebugPanel({
   }
 
   return (
-    <div className="grid h-auto grid-cols-1 gap-4 @5xl/workspace:h-[calc(100vh-160px)] @5xl/workspace:grid-cols-[1fr_280px]">
+    <div className="grid grid-cols-1 gap-4 @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:grid-cols-[minmax(0,1fr)_280px] @5xl/workspace:grid-rows-[minmax(0,1fr)]">
       {mapUrl?.startsWith("/api/lmu-assets/") ? (
-        <div className="min-h-0 rounded-lg border border-app-border bg-app-bg">
+        <div className="h-[320px] min-h-0 rounded-lg border border-app-border bg-app-bg @5xl/workspace:h-auto">
           <InlineTrackMap src={mapUrl} alt={m.trackdebugpanel_lmu_geometry()} layers="debug" className="h-full w-full p-3" />
         </div>
       ) : (
@@ -101,7 +101,7 @@ export function TrackDebugPanel({
       )}
 
       {/* Info sidebar */}
-      <div className="flex flex-col gap-3 overflow-auto">
+      <div className="flex flex-col gap-3 @5xl/workspace:min-h-0 @5xl/workspace:overflow-auto">
         <div className="bg-app-surface/50 rounded-lg border border-app-border p-3">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider mb-2">{m.trackdebugpanel_outline()}</div>
           <div className="space-y-1 text-app-body">

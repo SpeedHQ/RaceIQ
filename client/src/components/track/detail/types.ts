@@ -14,3 +14,5 @@ export interface TrackLap {
   division?: string | null;
   notes?: string | null;
 }
+
+export type TrackLapSortKey = "car" | "class" | "type" | "lap" | "time" | "date" | "notes" | number;

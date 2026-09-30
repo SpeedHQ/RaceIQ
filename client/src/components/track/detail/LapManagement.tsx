@@ -1,17 +1,20 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { F125Leaderboard } from "@/components/f1/F125Leaderboard";
 import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { SearchMultiSelect } from "@/components/ui/SearchMultiSelect";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
 import { getGameRoute } from "@/stores/game";
 import { parseUtcTimestamp } from "@/lib/utc-date";
 import type { TrackInfo } from "../types";
+import { CommunityLeaderboard } from "../CommunityLeaderboard";
 import { carClassColor } from "./helpers";
 import { LapStatsPanel } from "./LapStatsPanel";
-import type { TrackLap } from "./types";
+import type { TrackLap, TrackLapSortKey } from "./types";
 
 interface LapManagementProps {
   track: TrackInfo;
@@ -39,9 +42,9 @@ interface LapManagementProps {
   setConfirmDelete: (value: boolean) => void;
   deleting: boolean;
   handleBulkDelete: () => void;
-  sortBy: "time" | "lap" | "date";
+  sortBy: TrackLapSortKey;
   sortAsc: boolean;
-  handleSort: (column: "time" | "lap" | "date") => void;
+  handleSort: (column: TrackLapSortKey) => void;
 }
 
 export function LapManagement(props: LapManagementProps) {
@@ -79,6 +82,7 @@ export function LapManagement(props: LapManagementProps) {
   const [carouselEl, setCarouselEl] = useState<HTMLDivElement | null>(null);
   const [carouselPage, setCarouselPage] = useState(0);
   const [carouselHeight, setCarouselHeight] = useState<number | null>(null);
+  const [referenceTab, setReferenceTab] = useState("stats");
   const gotoCarouselPage = useCallback(
     (i: number) => {
       if (!carouselEl) return;
@@ -103,60 +107,38 @@ export function LapManagement(props: LapManagementProps) {
     carouselEl.addEventListener("scroll", onScroll, { passive: true });
     return () => carouselEl.removeEventListener("scroll", onScroll);
   }, [carouselEl]);
+  const selectedCarNames = useMemo(
+    () => uniqueCars.filter((car) => selectedCars.has(car.carOrdinal)).map((car) => car.carName),
+    [uniqueCars, selectedCars],
+  );
+  const leaderboard = isF125
+    ? <F125Leaderboard trackOrdinal={track.ordinal} />
+    : <CommunityLeaderboard trackName={track.name} trackVariant={track.variant} selectedCarNames={selectedCarNames} />;
+  const referenceContent = (
+    <>
+      <TabsContent value="stats" className="min-h-0 @3xl/workspace:flex-1 @3xl/workspace:overflow-hidden">
+        <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} sectorCount={sectorCount} showSessionFilter={isF125} />
+      </TabsContent>
+      <TabsContent value="community" className="flex h-[400px] min-h-0 flex-col overflow-hidden @3xl/workspace:h-auto @3xl/workspace:flex-1">
+        {leaderboard}
+      </TabsContent>
+    </>
+  );
+  const referencePanel = (
+    <Tabs value={referenceTab} onValueChange={setReferenceTab} className="flex h-full min-h-0 flex-col gap-3 @3xl/workspace:row-span-2 @3xl/workspace:grid @3xl/workspace:grid-rows-subgrid">
+      <TabsList className="shrink-0">
+        <TabsTrigger value="stats">{m.track_detail_stats()}</TabsTrigger>
+        <TabsTrigger value="community">{m.leaderboard_community()}</TabsTrigger>
+      </TabsList>
+      {referenceContent}
+    </Tabs>
+  );
   return (
-    <div className="flex flex-col gap-3 @5xl/workspace:h-full @5xl/workspace:overflow-hidden">
-      <div className="flex flex-col gap-3 @5xl/workspace:h-full @5xl/workspace:overflow-hidden">
+    <div className="flex flex-col gap-3 @3xl/workspace:h-full @3xl/workspace:min-h-0 @3xl/workspace:overflow-hidden">
+      <div className="flex flex-col gap-3 @3xl/workspace:h-full @3xl/workspace:min-h-0 @3xl/workspace:overflow-hidden">
         {(() => {
-          const filterRow = (
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="text-app-label text-app-text-muted uppercase tracking-wider">
-                {m.label_laps()} ({filteredLaps.length})
-              </div>
-              {/* Division filter — Forza only */}
-              {hasForzaTunes && uniqueDivisions.length > 1 && (
-                <SearchMultiSelect<string>
-                  mode="single"
-                  buttonLabel={selectedDivision ?? m.trackdetail_all_divisions()}
-                  options={uniqueDivisions.map((d) => ({ key: d, label: d }))}
-                  isSelected={(k) => selectedDivision === k}
-                  onSelect={(k) => setSelectedDivision(k)}
-                  onClear={selectedDivision ? () => setSelectedDivision(null) : undefined}
-                  searchPlaceholder={m.trackdetail_search_divisions_placeholder()}
-                  menuWidthClass="w-56"
-                />
-              )}
-              <SearchMultiSelect<number>
-                buttonLabel={selectedCars.size === 0 ? m.track_detail_all_cars() : `${selectedCars.size} ${selectedCars.size > 1 ? m.label_cars() : m.label_car()}`}
-                options={uniqueCars.map((c) => ({ key: c.carOrdinal, label: c.carName, search: c.carName }))}
-                isSelected={(k) => selectedCars.has(k)}
-                onSelect={(k) => toggleCar(k)}
-                onClear={
-                  selectedCars.size > 0
-                    ? () => {
-                        setSelectedCars(new Set());
-                        setSelectedLaps(new Set());
-                      }
-                    : undefined
-                }
-                searchPlaceholder={m.trackdetail_search_cars_placeholder()}
-                menuAlign="right"
-                renderItem={(opt) => {
-                  const car = uniqueCars.find((c) => c.carOrdinal === opt.key);
-                  return (
-                    <>
-                      {!hideClassCol && car && (
-                        <span className="font-bold font-mono text-app-caption flex-shrink-0" style={{ color: carClassColor(car.carClass) }}>
-                          {car.carClass}
-                        </span>
-                      )}
-                      <span className="truncate">{opt.label}</span>
-                    </>
-                  );
-                }}
-              />
-              {/* Selection actions — inline in header row */}
-              {selectedLaps.size > 0 && (
-                <div className="flex items-center gap-2 ml-auto">
+          const selectionActions = selectedLaps.size > 0 && (
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <span className="text-app-compact text-app-text-dim">
                     {selectedLaps.size} {m.trackdetail_selected()}
                   </span>
@@ -209,14 +191,58 @@ export function LapManagement(props: LapManagementProps) {
                     </div>
                   )}
                 </div>
+          );
+          const filterRow = (
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="text-app-label text-app-text-muted uppercase tracking-wider">
+                {m.label_laps()} ({filteredLaps.length})
+              </div>
+              {/* Division filter — Forza only */}
+              {hasForzaTunes && uniqueDivisions.length > 1 && (
+                <SearchMultiSelect<string>
+                  mode="single"
+                  buttonLabel={selectedDivision ?? m.trackdetail_all_divisions()}
+                  options={uniqueDivisions.map((d) => ({ key: d, label: d }))}
+                  isSelected={(k) => selectedDivision === k}
+                  onSelect={(k) => setSelectedDivision(k)}
+                  onClear={selectedDivision ? () => setSelectedDivision(null) : undefined}
+                  searchPlaceholder={m.trackdetail_search_divisions_placeholder()}
+                  menuWidthClass="w-56"
+                />
               )}
+              <SearchMultiSelect<number>
+                buttonLabel={selectedCars.size === 0 ? m.track_detail_all_cars() : `${selectedCars.size} ${selectedCars.size > 1 ? m.label_cars() : m.label_car()}`}
+                options={uniqueCars.map((c) => ({ key: c.carOrdinal, label: c.carName, search: c.carName }))}
+                isSelected={(k) => selectedCars.has(k)}
+                onSelect={(k) => toggleCar(k)}
+                onClear={
+                  selectedCars.size > 0
+                    ? () => {
+                        setSelectedCars(new Set());
+                        setSelectedLaps(new Set());
+                      }
+                    : undefined
+                }
+                searchPlaceholder={m.trackdetail_search_cars_placeholder()}
+                menuAlign="right"
+                renderItem={(opt) => {
+                  const car = uniqueCars.find((c) => c.carOrdinal === opt.key);
+                  return (
+                    <>
+                      {!hideClassCol && car && (
+                        <span className="font-bold font-mono text-app-caption flex-shrink-0" style={{ color: carClassColor(car.carClass) }}>
+                          {car.carClass}
+                        </span>
+                      )}
+                      <span className="truncate">{opt.label}</span>
+                    </>
+                  );
+                }}
+              />
             </div>
           );
           return (
             <>
-              {/* Desktop filter row */}
-              <div className="hidden @3xl/workspace:block">{filterRow}</div>
-
               {/* Mobile: filter + 2-page carousel (stats / laps) */}
               <div className="flex flex-col gap-2 @3xl/workspace:hidden">
                 {filterRow}
@@ -238,9 +264,10 @@ export function LapManagement(props: LapManagementProps) {
                   style={carouselHeight ? { height: carouselHeight } : undefined}
                 >
                   <div className="snap-center shrink-0 w-full">
-                    <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} sectorCount={sectorCount} showSessionFilter={isF125} />
+                    {referencePanel}
                   </div>
                   <div className="snap-center shrink-0 w-full flex flex-col gap-2">
+                    {selectionActions}
                     {(() => {
                       const validLaps = filteredLaps.filter((l) => l.isValid !== false);
                       const fastestTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
@@ -315,34 +342,49 @@ export function LapManagement(props: LapManagementProps) {
                 </div>
               </div>
 
-              {/* Desktop: stats + table side-by-side */}
-              <div className="hidden min-h-0 flex-1 gap-3 overflow-hidden @3xl/workspace:flex">
-                <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} sectorCount={sectorCount} showSessionFilter={isF125} />
-                {/* Lap table (md+) */}
-                <div className="flex-1 min-w-0 overflow-y-auto">
+              {/* Desktop: shared filters / tabs header; reference left, lap list right */}
+              <Tabs value={referenceTab} onValueChange={setReferenceTab} className="hidden min-h-0 flex-1 grid-cols-[minmax(0,2fr)_minmax(0,3fr)] grid-rows-[auto_minmax(0,1fr)] gap-3 overflow-hidden @3xl/workspace:grid">
+                <div className="col-span-2 grid grid-cols-subgrid items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    {filterRow}
+                    <TabsList className="shrink-0">
+                      <TabsTrigger value="stats">{m.track_detail_stats()}</TabsTrigger>
+                      <TabsTrigger value="community">{m.leaderboard_community()}</TabsTrigger>
+                    </TabsList>
+                  </div>
+                  <div className="flex min-h-10 items-center">
+                    {selectionActions}
+                  </div>
+                </div>
+                <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+                  {referenceContent}
+                </div>
+                <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+                  {/* Lap table */}
+                  <div className="min-h-0 min-w-0 flex-1 overflow-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>
                           <input type="checkbox" checked={selectedLaps.size === filteredLaps.length && filteredLaps.length > 0} onChange={toggleAllLaps} className="accent-app-accent" />
                         </TableHead>
-                        <TableHead>{m.label_car()}</TableHead>
-                        {!hideClassCol && <TableHead>{m.track_detail_class()}</TableHead>}
-                        {hasSessionTypes && <TableHead>{m.label_type()}</TableHead>}
+                        <SortableTableHead direction={sortBy === "car" ? (sortAsc ? "ascending" : "descending") : undefined} onSort={() => handleSort("car")}>{m.label_car()}</SortableTableHead>
+                        {!hideClassCol && <SortableTableHead direction={sortBy === "class" ? (sortAsc ? "ascending" : "descending") : undefined} onSort={() => handleSort("class")}>{m.track_detail_class()}</SortableTableHead>}
+                        {hasSessionTypes && <SortableTableHead direction={sortBy === "type" ? (sortAsc ? "ascending" : "descending") : undefined} onSort={() => handleSort("type")}>{m.label_type()}</SortableTableHead>}
                         <SortableTableHead className="whitespace-nowrap" direction={sortBy === "lap" ? (sortAsc ? "ascending" : "descending") : undefined} onSort={() => handleSort("lap")}>
                           {m.track_detail_lap_num()}
                         </SortableTableHead>
+                        <TableHead />
                         <SortableTableHead className="text-right whitespace-nowrap" direction={sortBy === "time" ? (sortAsc ? "ascending" : "descending") : undefined} onSort={() => handleSort("time")}>
                           {m.label_time()}
                         </SortableTableHead>
-                        <TableHead />
-                        {Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`).map((label) => (
-                          <TableHead key={label}>{label}</TableHead>
+                        {Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`).map((label, index) => (
+                          <SortableTableHead key={label} className="text-right" direction={sortBy === index ? (sortAsc ? "ascending" : "descending") : undefined} onSort={() => handleSort(index)}>{label}</SortableTableHead>
                         ))}
                         <SortableTableHead direction={sortBy === "date" ? (sortAsc ? "ascending" : "descending") : undefined} onSort={() => handleSort("date")}>
                           {m.sessions_col_date()}
                         </SortableTableHead>
-                        <TableHead>{m.sessions_col_notes()}</TableHead>
+                        <SortableTableHead direction={sortBy === "notes" ? (sortAsc ? "ascending" : "descending") : undefined} onSort={() => handleSort("notes")}>{m.sessions_col_notes()}</SortableTableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -373,6 +415,19 @@ export function LapManagement(props: LapManagementProps) {
                                 </TableCell>
                               )}
                               <TableCell className="font-mono tabular-nums whitespace-nowrap">{lap.lapNumber}</TableCell>
+                              <TableCell className="whitespace-nowrap">
+                                <Button
+                                  variant="app-primary"
+                                  size="app-sm"
+                                  disabled={!gameId || lap.sessionId == null}
+                                  onClick={() => {
+                                    if (!gameId || lap.sessionId == null) return;
+                                    navTo({ to: `${getGameRoute(gameId)}/sessions/${lap.sessionId}/replay/${lap.lapId}` } as never);
+                                  }}
+                                >
+                                  {m.sessions_replay_lap()}
+                                </Button>
+                              </TableCell>
                               <TableCell className="text-right whitespace-nowrap">
                                 <div className="flex items-center justify-end gap-1">
                                   <span className={`font-mono tabular-nums ${isFastest ? "font-bold" : ""}`} style={{ color: isFastest ? "var(--lap-record)" : undefined }}>
@@ -387,20 +442,6 @@ export function LapManagement(props: LapManagementProps) {
                                     <span className="text-sm text-status-success">✓</span>
                                   )}
                                 </div>
-                              </TableCell>
-                              <TableCell className="whitespace-nowrap">
-                                <Button
-                                  variant="app-outline"
-                                  size="app-sm"
-                                  disabled={!gameId || lap.sessionId == null}
-                                  className="bg-app-accent/10 !border-app-accent/40 text-app-accent hover:bg-app-accent/20"
-                                  onClick={() => {
-                                    if (!gameId || lap.sessionId == null) return;
-                                    navTo({ to: `${getGameRoute(gameId)}/sessions/${lap.sessionId}/replay/${lap.lapId}` } as never);
-                                  }}
-                                >
-                                  {m.trackdetail_analyse()}
-                                </Button>
                               </TableCell>
                               {Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`).map((label, index) => (
                                 <TableCell key={label} className="text-right font-mono tabular-nums text-app-text">
@@ -427,7 +468,8 @@ export function LapManagement(props: LapManagementProps) {
                     </TableBody>
                   </Table>
                 </div>
-              </div>
+                </div>
+              </Tabs>
               {/* end stats+table flex */}
             </>
           );

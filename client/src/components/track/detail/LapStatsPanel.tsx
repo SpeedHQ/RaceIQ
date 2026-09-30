@@ -11,7 +11,7 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   if (laps.length === 0) {
     return (
-      <div className="w-full min-w-0 @3xl/workspace:w-2/5">
+      <div className="w-full min-w-0">
         <div className="flex shrink-0 items-center justify-between rounded-none border-b border-app-border bg-app-surface p-3 py-2">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_stats()}</div>
           <div className="text-app-compact text-app-text-dim font-mono">{m.track_detail_last_100()}</div>
@@ -24,8 +24,8 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
               { key: "worst", label: m.track_detail_worst() },
             ].map(({ key, label }) => (
               <div key={key} className="flex items-baseline gap-1.5">
-                <div className="text-xs text-app-text-dim uppercase tracking-wider">{label}</div>
-                <div className="font-mono text-app-body tabular-nums text-app-text-dim">—:—.—</div>
+                <div className="text-app-label text-app-text-dim uppercase tracking-wider">{label}</div>
+                <div className="font-mono text-app-label tabular-nums text-app-text-dim">—:—.—</div>
               </div>
             ))}
           </div>
@@ -162,19 +162,19 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
   const showLapNumBreakdown = lapNumData.length > 1;
 
   return (
-    <div className="w-full min-w-0 @3xl/workspace:w-2/5">
+    <div className="flex w-full min-w-0 flex-col @3xl/workspace:h-full @3xl/workspace:min-h-0">
       {/* Fixed header — outside scroll container */}
       <div className="flex shrink-0 items-center justify-between rounded-none border-b border-app-border bg-app-surface p-3 py-2">
         <div className="flex items-center gap-2">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_stats()}</div>
           {hasRaceFilter && (
-            <div className="flex rounded overflow-hidden border border-app-border text-xs">
+            <div className="flex rounded overflow-hidden border border-app-border text-app-label">
               {(["race", "quali"] as const).map((f) => (
                 <Button
                   type="button"
                   key={f}
                   onClick={() => setLapFilter(lapFilter === f ? null : f)}
-                  className={`px-2 py-1 transition-colors capitalize ${
+                  className={`px-2 py-1 text-app-label transition-colors capitalize ${
                     lapFilter === f
                       ? f === "race"
                         ? "bg-status-success/15 text-status-success border-r border-app-border"
@@ -191,7 +191,7 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
         <div className="text-app-compact text-app-text-dim font-mono">{m.track_detail_last_100()}</div>
       </div>
       {/* Scrollable body */}
-      <div className="flex flex-1 flex-col gap-3 p-3 @3xl/workspace:overflow-y-auto">
+      <div className="flex flex-1 flex-col gap-3 p-3 @3xl/workspace:min-h-0 @3xl/workspace:overflow-y-auto">
         <div className="flex flex-wrap gap-x-4 gap-y-1">
           {[
             { key: "best", label: m.label_best(), value: minT, color: "var(--lap-record)" },
@@ -199,8 +199,8 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
             { key: "worst", label: m.track_detail_worst(), value: maxT, color: "var(--app-text)" },
           ].map(({ key, label, value, color }) => (
             <div key={key} className="flex items-baseline gap-1.5">
-              <div className="text-xs text-app-text-dim uppercase tracking-wider">{label}</div>
-              <div className="font-mono text-app-body tabular-nums" style={{ color }}>
+              <div className="text-app-label text-app-text-dim uppercase tracking-wider">{label}</div>
+              <div className="font-mono text-app-label tabular-nums" style={{ color }}>
                 {formatLapTime(value)}
               </div>
             </div>
@@ -217,9 +217,9 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
             />
             <div className="absolute top-1/2 -translate-y-1/2 w-2 h-3 rounded-sm shadow" style={{ left: `calc(${medPct}% - 4px)`, background: "var(--app-text)", opacity: 0.8 }} />
           </div>
-          <div className="flex justify-between items-center text-app-compact text-app-text-secondary font-mono">
+          <div className="flex justify-between items-center text-app-detail text-app-text-secondary font-mono">
             <span>{formatLapTime(minT)}</span>
-            <span className="flex items-center gap-1 text-app-caption text-app-text-dim font-sans">
+            <span className="flex items-center gap-1 text-app-compact text-app-text-dim font-sans">
               <span className="inline-block w-2.5 h-1.5 rounded-sm" style={{ background: "var(--lap-pace-on-target)", opacity: 0.7 }} />
               {m.track_detail_typical_range()}
             </span>
@@ -230,18 +230,18 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
         {chronoLaps.length >= 2 && (
           <div className="flex flex-col gap-0.5 border-t border-app-border pt-2.5">
             <div className="flex items-center gap-1.5 mb-1">
-              <div className="text-xs text-app-text-dim uppercase tracking-wider">{m.trackdetail_trend()}</div>
+              <div className="text-app-label text-app-text-dim uppercase tracking-wider">{m.trackdetail_trend()}</div>
               {trendDir === "faster" && (
-                <span className="text-xs font-medium" style={{ color: "var(--lap-pace-on-target)" }}>
+                <span className="text-app-label font-medium" style={{ color: "var(--lap-pace-on-target)" }}>
                   ↓ {m.trackdetail_faster()}
                 </span>
               )}
               {trendDir === "slower" && (
-                <span className="text-xs font-medium" style={{ color: "var(--lap-pace-off-target)" }}>
+                <span className="text-app-label font-medium" style={{ color: "var(--lap-pace-off-target)" }}>
                   ↑ {m.trackdetail_slower()}
                 </span>
               )}
-              {trendDir === "neutral" && chronoLaps.length >= 4 && <span className="text-xs text-app-text-secondary font-medium">→ {m.trackdetail_keeping_pace()}</span>}
+              {trendDir === "neutral" && chronoLaps.length >= 4 && <span className="text-app-label text-app-text-secondary font-medium">→ {m.trackdetail_keeping_pace()}</span>}
             </div>
             <div className="relative">
               <svg
@@ -278,13 +278,6 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
                 <line x1={padL} y1={padT + plotH} x2={padL + plotW} y2={padT + plotH} stroke="var(--app-text)" strokeOpacity={0.08} strokeWidth="0.5" />
                 {/* Area fill */}
                 <polygon points={`${polyline} ${(padL + plotW).toFixed(1)},${(padT + plotH).toFixed(1)} ${padL},${(padT + plotH).toFixed(1)}`} fill="url(#areaFill)" />
-                {/* Axis labels */}
-                <text x={padL} y={vbH - 2} fontSize="8" fill="var(--app-text)" fillOpacity={0.3} fontFamily="var(--font-sans)">
-                  {m.trackdetail_older()}
-                </text>
-                <text x={padL + plotW - 30} y={vbH - 2} fontSize="8" fill="var(--app-text)" fillOpacity={0.3} fontFamily="var(--font-sans)">
-                  {lastDate}
-                </text>
                 {/* Trend line */}
                 <line
                   x1={trendX1.toFixed(1)}
@@ -313,32 +306,9 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
                 {/* Worst point */}
                 <circle cx={worstPoint.x} cy={worstPoint.y} r="4" fill="var(--lap-pace-off-target)" fillOpacity={0.7} style={{ pointerEvents: "none" }} />
                 <line x1={worstPoint.x} y1={worstPoint.y - 4} x2={worstPoint.x} y2={worstPoint.y - 14} stroke="var(--lap-pace-off-target)" strokeOpacity={0.5} strokeWidth="0.5" />
-                <text
-                  x={worstPoint.x > vbW / 2 ? worstPoint.x - 4 : worstPoint.x + 4}
-                  y={worstPoint.y - 16}
-                  fontSize="8"
-                  fill="var(--lap-pace-off-target)"
-                  fillOpacity={0.8}
-                  fontFamily="var(--font-sans)"
-                  textAnchor={worstPoint.x > vbW / 2 ? "end" : "start"}
-                  style={{ pointerEvents: "none" }}
-                >
-                  {m.trackdetail_worst_point()}
-                </text>
                 {/* Best point + callout */}
                 <circle cx={bestPoint.x} cy={bestPoint.y} r="4" fill="var(--lap-record)" style={{ pointerEvents: "none" }} />
                 <line x1={bestPoint.x} y1={bestPoint.y - 4} x2={bestPoint.x} y2={bestPoint.y - 14} stroke="var(--lap-record)" strokeOpacity={0.5} strokeWidth="0.5" />
-                <text
-                  x={bestPoint.x > vbW / 2 ? bestPoint.x - 4 : bestPoint.x + 4}
-                  y={bestPoint.y - 16}
-                  fontSize="8"
-                  fill="var(--lap-record)"
-                  fontFamily="var(--font-sans)"
-                  textAnchor={bestPoint.x > vbW / 2 ? "end" : "start"}
-                  style={{ pointerEvents: "none" }}
-                >
-                  {m.trackdetail_best_point()}
-                </text>
                 {/* Hover vertical line */}
                 {hoveredIdx !== null && (
                   <line
@@ -354,6 +324,27 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
                   />
                 )}
               </svg>
+              {[
+                { key: "worst", point: worstPoint, label: m.trackdetail_worst_point(), color: "var(--lap-pace-off-target)" },
+                { key: "best", point: bestPoint, label: m.trackdetail_best_point(), color: "var(--lap-record)" },
+              ].map(({ key, point, label, color }) => (
+                <span
+                  key={key}
+                  className="pointer-events-none absolute whitespace-nowrap text-app-compact"
+                  style={{
+                    left: `${(point.x / vbW) * 100}%`,
+                    top: `${(Math.max(point.y - 30, 0) / vbH) * 100}%`,
+                    transform: point.x > vbW / 2 ? "translateX(-100%)" : undefined,
+                    color,
+                  }}
+                >
+                  {label}
+                </span>
+              ))}
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between text-app-compact text-app-text-secondary">
+                <span>{m.trackdetail_older()}</span>
+                <span>{lastDate}</span>
+              </div>
               {/* Hover tooltip */}
               {hoveredIdx !== null &&
                 (() => {
@@ -362,7 +353,7 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
                   const pctX = p.x / vbW;
                   return (
                     <div
-                      className="absolute pointer-events-none z-10 bg-app-surface border border-app-border rounded px-2 py-1 text-app-compact font-mono text-app-text shadow-lg -translate-y-full"
+                      className="absolute pointer-events-none z-10 bg-app-surface border border-app-border rounded px-2 py-1 text-app-detail font-mono text-app-text shadow-lg -translate-y-full"
                       style={{
                         left: `${Math.min(Math.max(pctX * 100, 5), 85)}%`,
                         top: `${(p.y / vbH) * 100}%`,
@@ -381,19 +372,22 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
         {/* Theoretical best sectors */}
         {hasSectors && theoretical != null && (
           <div className="flex flex-col gap-2 border-t border-app-border pt-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs text-app-text-dim uppercase tracking-wider">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-2">
+              <div className="flex items-center gap-1.5 text-app-label text-app-text-dim uppercase tracking-wider">
                 {m.trackdetail_sectors()}
                 <InfoTooltip position="bottom">{m.trackdetail_theoretical_best_tooltip()}</InfoTooltip>
               </div>
               {theoretical != null && (
-                <div className="flex items-baseline gap-2 text-app-compact font-mono tabular-nums">
-                  <span style={{ color: "var(--app-accent)" }}>{formatLapTime(theoretical)}</span>
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-app-detail font-mono tabular-nums">
+                  <span className="inline-flex flex-wrap items-baseline gap-x-1.5">
+                    <span className="font-sans text-app-label text-app-text-secondary">{m.recap_theoretical_best()}</span>
+                    <span style={{ color: "var(--app-accent)" }}>{formatLapTime(theoretical)}</span>
+                  </span>
                   {sectorGap != null && sectorGap > 0.001 && (
-                    <>
-                      <span className="text-app-text-dim">·</span>
+                    <span className="inline-flex items-baseline gap-1.5">
+                      <span className="font-sans text-app-label text-app-text-secondary">{m.label_delta()}</span>
                       <span style={{ color: "var(--delta-focus)" }}>+{formatLapTime(sectorGap)}</span>
-                    </>
+                    </span>
                   )}
                 </div>
               )}
@@ -407,22 +401,22 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
                   const pctOfTheoretical = theoretical ? ((bestSectorTimes[i]! / theoretical) * 100).toFixed(0) : null;
                   return (
                     <div key={label} className="flex flex-col gap-0.5">
-                      <div className="flex justify-between items-baseline">
+                      <div className="flex flex-wrap justify-between items-baseline gap-x-3 gap-y-1">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-app-text-dim">{label}</span>
-                          {pctOfTheoretical && <span className="text-app-caption text-app-text-muted">{pctOfTheoretical}%</span>}
+                          <span className="text-app-label text-app-text-dim">{label}</span>
+                          {pctOfTheoretical && <span className="text-app-compact text-app-text-muted">{pctOfTheoretical}%</span>}
                           {isWorstVariance && (
                             <span className="group/tip relative inline-flex items-center shrink-0 cursor-help">
                               <span className="text-app-micro" style={{ color: "var(--status-warning)", opacity: 0.8 }}>
                                 ↔
                               </span>
-                              <span className="absolute left-0 top-full mt-2 w-max max-w-[200px] hidden group-hover/tip:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-app-caption text-app-text-secondary z-50 pointer-events-none leading-relaxed">
+                              <span className="absolute left-0 top-full mt-2 w-max max-w-[200px] hidden group-hover/tip:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-app-compact text-app-text-secondary z-50 pointer-events-none leading-relaxed">
                                 {m.trackdetail_most_variance_tooltip()}
                               </span>
                             </span>
                           )}
                         </div>
-                        <div className="flex items-baseline gap-2 text-app-compact font-mono tabular-nums">
+                        <div className="flex items-baseline gap-2 text-app-detail font-mono tabular-nums">
                           <span style={{ color: "var(--lap-record)" }}>{formatLapTime(min)}</span>
                           <span className="text-app-text-dim">·</span>
                           <span className="text-app-text-secondary">{formatLapTime(med)}</span>
@@ -449,16 +443,16 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
         {/* Per-car best times */}
         {showCarBreakdown && (
           <div className="flex flex-col gap-1.5 border-t border-app-border pt-2.5">
-            <div className="text-xs text-app-text-dim uppercase tracking-wider">{m.trackdetail_by_car()}</div>
+            <div className="text-app-label text-app-text-dim uppercase tracking-wider">{m.trackdetail_by_car()}</div>
             {carList.map((car, i) => {
               const barPct = 100 - ((car.bestTime - minT) / carRange) * 100;
               return (
                 <div key={car.carOrdinal} className="flex flex-col gap-0.5">
                   <div className="flex justify-between items-baseline">
-                    <span className="text-xs text-app-text truncate max-w-[160px]" title={car.carName}>
+                    <span className="text-app-label text-app-text truncate max-w-[160px]" title={car.carName}>
                       {car.carName}
                     </span>
-                    <span className="font-mono text-xs tabular-nums" style={{ color: i === 0 ? "var(--lap-record)" : "var(--app-text)" }}>
+                    <span className="font-mono text-app-detail tabular-nums" style={{ color: i === 0 ? "var(--lap-record)" : "var(--app-text)" }}>
                       {formatLapTime(car.bestTime)}
                     </span>
                   </div>
@@ -474,17 +468,17 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
         {/* By lap number */}
         {showLapNumBreakdown && (
           <div className="flex flex-col gap-1.5 border-t border-app-border pt-2.5">
-            <div className="text-xs text-app-text-dim uppercase tracking-wider">{m.trackdetail_by_lap_num()}</div>
+            <div className="text-app-label text-app-text-dim uppercase tracking-wider">{m.trackdetail_by_lap_num()}</div>
             {lapNumData.map(({ lapNum, bestTime, count }) => {
               const barPct = 100 - ((bestTime - lapNumBest) / lapNumRange) * 100;
               const isFastest = bestTime === lapNumBest;
               return (
                 <div key={lapNum} className="flex items-center gap-2">
-                  <span className="text-xs text-app-text-secondary font-mono w-6 shrink-0 text-right">#{lapNum}</span>
+                  <span className="text-app-label text-app-text-secondary font-mono w-6 shrink-0 text-right">#{lapNum}</span>
                   <div className="flex-1 h-1.5 bg-app-surface-alt rounded-full overflow-hidden">
                     <div className="h-full rounded-full" style={{ width: `${barPct}%`, background: "var(--app-accent)", opacity: 0.4 }} />
                   </div>
-                  <span className="font-mono text-xs tabular-nums shrink-0" style={{ color: isFastest ? "var(--lap-record)" : "var(--app-text)" }}>
+                  <span className="font-mono text-app-detail tabular-nums shrink-0" style={{ color: isFastest ? "var(--lap-record)" : "var(--app-text)" }}>
                     {formatLapTime(bestTime)}
                   </span>
                   <span className="text-app-compact text-app-text-secondary shrink-0">×{count}</span>

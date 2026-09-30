@@ -415,7 +415,7 @@ export function TrackDebugCanvas({
   }, [outline, boundaries, curbs, zoom, pan, flipX, displaySectors, sectorBounds, overlayMode, editingSegments, editingSectors, calibrationComparison, showCalibrationHistory]);
 
   return (
-    <div className="bg-app-bg rounded-lg border border-app-border relative min-h-0">
+    <div className="bg-app-bg rounded-lg border border-app-border relative h-[320px] min-h-0 @5xl/workspace:h-auto">
       <canvas
         ref={canvasRef}
         className="w-full h-full cursor-grab active:cursor-grabbing"
