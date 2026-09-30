@@ -676,7 +676,7 @@ export const PanelSectionHeaderStates: Story = {
 };
 
 export const SearchSelectMenu: Story = {
-  render: () => <SearchSelectDemo />,
+  render: () => <div data-visual-ready="pending"><SearchSelectDemo /></div>,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const input = canvas.getByRole("combobox", { name: "Search tracks..." });
@@ -690,6 +690,13 @@ export const SearchSelectMenu: Story = {
     await userEvent.click(body.getByRole("option", { name: "Silverstone" }));
     await expect(input).toHaveAttribute("aria-expanded", "false");
     await expect(input).toHaveValue("Silverstone");
+
+    // Finish behavior checks before exposing the named open-menu snapshot state.
+    await userEvent.click(input);
+    await waitFor(() => expect(body.getByRole("listbox", { name: "Search tracks..." })).toBeVisible());
+    const readyMarker = canvasElement.querySelector<HTMLElement>("[data-visual-ready]");
+    await expect(readyMarker).not.toBeNull();
+    readyMarker?.setAttribute("data-visual-ready", "ready");
   },
 };
 

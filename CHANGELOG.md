@@ -55,6 +55,7 @@
 - Automatically mark dev-panel segment saves as curated overrides and retain override protection when editing sector boundaries.
 - Centralize the Sessions Favorites control in the shared Toggle component with optional star rendering and built-in active styling.
 - Keep PR Storybook comparisons advisory for new, changed, and missing screenshots; preserve preview artifacts and warnings when either render is incomplete.
+- Keep the SearchSelect Storybook menu open after interaction checks and wait for visual readiness before capture, preventing missing PR comparison screenshots.
 
 ## v0.19.0 - 2026-09-28
 
