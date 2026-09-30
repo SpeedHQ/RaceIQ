@@ -24,9 +24,8 @@ async function dragTelemetryLane(page: Page): Promise<void> {
   await page.mouse.up();
 }
 
-for (const game of REVIEW_GAMES) {
+for (const game of REVIEW_GAMES.filter((game) => game.gameId === "acc")) {
   test(`Analyse session review reuses base telemetry for ${game.gameId}`, async ({ page, request }) => {
-    test.skip(game.gameId === "ac-evo", "AC Evo seeded recording has no valid complete laps; telemetry-reuse coverage gap documented in playwright/README.md.");
     test.setTimeout(200_000);
     const browserErrors = collectBrowserErrors(page);
     const lapsResponse = await request.get(`/api/laps?gameId=${game.gameId}`);
@@ -91,6 +90,9 @@ for (const game of REVIEW_GAMES) {
     expect(semanticRequests).toBe(0);
     expect(browserErrors.errors, `unexpected browser errors for ${game.gameId} review`).toEqual([]);
   });
+}
+
+for (const game of REVIEW_GAMES) {
   test(`Analyse lap header returns to session review for ${game.gameId}`, async ({ page, request }) => {
     const target = await getSeededLapTarget(request, game.gameId);
     const lapsResponse = await request.get(`/api/laps?gameId=${game.gameId}`);
@@ -108,6 +110,28 @@ for (const game of REVIEW_GAMES) {
   });
 
 }
+
+test("Analyse session review preserves invalid laps for ac-evo", async ({ page, request }) => {
+  const browserErrors = collectBrowserErrors(page);
+  const lapsResponse = await request.get("/api/laps?gameId=ac-evo");
+  expect(lapsResponse.ok()).toBe(true);
+  const laps = (await lapsResponse.json()) as LapMeta[];
+  const sessionId = laps.find((lap) => lap.invalidReason === "track limits")?.sessionId;
+  expect(sessionId, "AC Evo seed needs a session with track-limit violations").toBeDefined();
+  if (sessionId == null) throw new Error("AC Evo seed has no invalid session");
+  const sessionLaps = laps.filter((lap) => lap.sessionId === sessionId);
+  expect(sessionLaps.every((lap) => !lap.isValid && lap.invalidReason != null)).toBe(true);
+
+  const reviewResponse = await request.get(`/api/laps/review?gameId=ac-evo&sessionId=${sessionId}&limit=5`);
+  expect(reviewResponse.ok()).toBe(true);
+  expect(await reviewResponse.json()).toEqual([]);
+
+  await page.goto(`/ac-evo/sessions/analyse?session=${sessionId}`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTitle("Invalid", { exact: true })).toBeVisible();
+  await expect(page.getByTitle("valid lap", { exact: true })).toHaveCount(0);
+  expect(browserErrors.errors, "unexpected browser errors for invalid AC Evo session").toEqual([]);
+});
  
 test("Analyse session route rejects mixed session and lap selections", async ({ page }) => {
   await page.goto("/acc/sessions/analyse?session=1&lap=2", { waitUntil: "domcontentloaded" });

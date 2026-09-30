@@ -39,9 +39,9 @@ Migration E2E imports all six complete game fixtures first via `POST /api/laps/i
 
 ## Known seeded coverage gaps
 
-`seeded/analyse/group-review.spec.ts` explicitly skips **Analyse session review reuses base telemetry for ac-evo**. The seeded recording, `session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz`, imports four invalid laps: a partial-start lap (`start/end positions too far apart`), two `track limits` laps, and an `incomplete` final lap. None qualifies for `/api/laps/review`; this is a fixture limitation, not a reason to relax production validity filtering.
+`seeded/analyse/group-review.spec.ts` covers AC Evo invalid-session review. The seeded recording, `session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz`, imports four invalid laps: a partial-start lap (`start/end positions too far apart`), two `track limits` laps, and an `incomplete` final lap. The test verifies their invalid status, exclusion from `/api/laps/review`, and the session dashboard's invalid-lap indicator. Production validity filtering remains unchanged.
 
-ACC still exercises base-telemetry reuse, sector/view interactions, and detail-range requests. AC Evo lap-header navigation remains enabled, but AC Evo session-review telemetry reuse is not covered. Re-enable the skipped case when the AC Evo seed includes a valid complete lap with replayable telemetry.
+ACC exercises base-telemetry reuse, sector/view interactions, and detail-range requests. AC Evo lap-header navigation is also covered, but AC Evo session-review telemetry reuse is not. Add that coverage when the AC Evo seed includes a valid complete lap with replayable telemetry. No cases are skipped for this fixture limitation.
 
 ## Data safety and generated output
 
