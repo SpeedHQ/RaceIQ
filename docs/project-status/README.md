@@ -4,5 +4,6 @@ This directory contains active, unresolved engineering work. Completed checklist
 
 - [Setup Engineer](setup-engineer.md): remaining end-to-end and real-lap validation
 - [Per-car setup ranges](per-car-setup-ranges.md): remaining ACC range data and client mapping work
+- [Test coverage gaps](test-gaps.md): confirmed behavioral coverage gaps, blockers, and closure criteria
 
 Durable system contracts live under [architecture](../architecture/), [integrations](../integrations/), and [reference](../reference/).
