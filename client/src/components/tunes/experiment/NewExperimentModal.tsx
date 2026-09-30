@@ -7,7 +7,7 @@ import { SetupFilePicker } from "@/components/tunes/SetupFilePicker";
 import { AppInput } from "@/components/ui/AppInput";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import { useCreateExperiment } from "@/hooks/experiments";
 import { useInspectCarSetup, usePlaceSetup, useSetupFiles } from "@/hooks/setup-queries";
@@ -263,10 +263,11 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="lg" layout="scrollable" className="flex w-[680px] max-w-[94vw] flex-col">
-        <DialogHeader className="min-w-0 pr-8">
+      <DialogContent size="lg" className="flex w-[680px] max-w-[94vw] flex-col overflow-hidden">
+        <DialogHeader className="min-w-0 shrink-0 pr-8">
           <DialogTitle className="truncate text-sm font-semibold">{m.experiment_new_title()}</DialogTitle>
         </DialogHeader>
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
         {/* What this experiment starts on. Presented as a starting mode rather
             than a type, because it is switchable from the workspace at any
             point — the driver who fixes a balance problem and then wants to
@@ -460,14 +461,15 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
         )}
         {error && <div className="text-xs text-status-danger">{error}</div>}
 
-        <div className="flex justify-end gap-2 pt-1">
+        </div>
+        <DialogFooter className="shrink-0 flex-row justify-end border-0 bg-transparent p-0 pt-1 -mx-0 -mb-0">
           <Button variant="app-outline" size="app-md" onClick={onClose}>
             {m.common_cancel()}
           </Button>
           <Button variant="app-primary" size="app-md" onClick={submit} disabled={create.isPending || !canCreate} title={!canCreate ? m.experiment_pick_base_setup() : undefined}>
             {create.isPending ? m.experiment_creating() : m.experiment_create_session()}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

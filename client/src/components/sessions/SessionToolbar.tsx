@@ -113,7 +113,7 @@ export function SessionToolbar({
       <div className="flex items-center flex-wrap gap-2">
         {selectedTelemetryLaps.length > 0 && (
           <Button variant="app-primary" size="app-md" disabled={exporting} onClick={() => runExport({ lapIds: selectedTelemetryLaps.map((lap) => lap.id) })}>
-            {exporting ? m.common_loading() : m.sessions_export_lap()}
+            {exporting ? m.common_loading() : m.label_export()}
           </Button>
         )}
         {selectedLaps.size === 2 &&

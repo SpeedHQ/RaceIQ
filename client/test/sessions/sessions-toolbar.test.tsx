@@ -57,7 +57,7 @@ function toolbar(selectedLaps: Set<number>, allLaps: LapMeta[] = [lap], toolbarS
 }
 
 function capturedExportButton(): CapturedButtonProps | undefined {
-  return capturedButtons.find(({ children }) => children === m.sessions_export_lap() || children === m.common_loading());
+  return capturedButtons.find(({ children }) => children === m.label_export() || children === m.common_loading());
 }
 
 describe("Sessions toolbar controls", () => {
@@ -65,8 +65,8 @@ describe("Sessions toolbar controls", () => {
     expect(toolbar(new Set())).toContain(m.sessions_import());
   });
 
-  test("shows Export lap when a lap is selected", () => {
-    expect(toolbar(new Set([lap.id]))).toContain(m.sessions_export_lap());
+  test("shows Export when a lap is selected", () => {
+    expect(toolbar(new Set([lap.id]))).toContain(m.label_export());
   });
 
   test("exports every selected lap id", () => {

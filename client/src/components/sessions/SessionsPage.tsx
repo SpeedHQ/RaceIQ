@@ -279,8 +279,6 @@ export function SessionsPage() {
         lapSortDir={lapSortDir}
         toggleLapSort={toggleLapSort}
         saveSessionNotes={saveSessionNotes}
-        exporting={exporting}
-        runExport={runExport}
         setRecapSessionId={setRecapSessionId}
       />
       <SessionDesktopTable
@@ -310,8 +308,6 @@ export function SessionsPage() {
         lapSortDir={lapSortDir}
         toggleLapSort={toggleLapSort}
         saveSessionNotes={saveSessionNotes}
-        exporting={exporting}
-        runExport={runExport}
         setRecapSessionId={setRecapSessionId}
       />
       {totalPages > 1 && (

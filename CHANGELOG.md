@@ -9,6 +9,7 @@
 - Preview segments, sectors, and guide corners on the track map by hovering or focusing their reference rows or cards, highlighting the selected sections and hiding unrelated labels.
 
 ### Fixes
+- Keep the New experiment dialog header and footer visible while its form content scrolls.
 - Keep the track map full height beside a scrollable circuit reference, place compact stats above sector boundaries, and remove the redundant laps-recorded stat; stack track details on mobile.
 - Show ACC track lengths derived from available circuit outlines instead of leaving length blank.
 - List sector turns as separate bullet rows and keep Trap notes anchored to the bottom of track guide cards.

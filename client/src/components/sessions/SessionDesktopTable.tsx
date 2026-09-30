@@ -43,8 +43,6 @@ export type SessionDesktopTableProps = {
   lapSortDir: SortDir;
   toggleLapSort: (key: LapSortKey) => void;
   saveSessionNotes: (id: number, notes: string) => void;
-  exporting: boolean;
-  runExport: (selection: { sessionIds?: number[] }) => void;
   setRecapSessionId: (id: number) => void;
   analyseSession: (session: SessionMeta) => void;
 };
@@ -75,8 +73,6 @@ export function SessionDesktopTable({
   lapSortDir,
   toggleLapSort,
   saveSessionNotes,
-  exporting,
-  runExport,
   setRecapSessionId,
   analyseSession,
 }: SessionDesktopTableProps) {
@@ -174,18 +170,6 @@ export function SessionDesktopTable({
                           }}
                         >
                           {m.sessions_analyse_session()}
-                        </Button>
-                        <Button
-                          variant="app-outline"
-                          size="app-sm"
-                          disabled={exporting || session.telemetryAvailable === false}
-                          title={session.telemetryAvailable === false ? m.sessions_raw_telemetry_removed() : m.sessions_export_session()}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            runExport({ sessionIds: [session.id] });
-                          }}
-                        >
-                          {m.label_export()}
                         </Button>
                       </div>
                     </TableCell>
