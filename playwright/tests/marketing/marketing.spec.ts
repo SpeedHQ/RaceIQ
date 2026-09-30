@@ -11,7 +11,7 @@ const PAGES = [
   { name: "lap-analytics", path: "/f125/sessions", readyText: "Metrics at Cursor" },
   { name: "compare", path: "/f125/compare", hover: ".u-over" },
   { name: "tracks", path: "/f125/tracks" },
-  { name: "track-detail-guide", path: "/f125/tracks/19", readyText: "Expert guide" },
+  { name: "track-detail-guide", path: "/f125/tracks/19", readyText: "Guide" },
   { name: "car-catalogue-f125-grid", path: "/f125/cars" },
   { name: "car-catalogue-forza", path: "/fm23/cars" },
   { name: "setups", path: "/f125/tracks/19/setups" },
@@ -57,6 +57,9 @@ for (const page of PAGES) {
       const ready = p.getByText(page.readyText, { exact: true }).first();
       await ready.waitFor({ state: "visible", timeout: 30_000 });
       await ready.scrollIntoViewIfNeeded();
+    }
+    if (page.name === "track-detail-guide") {
+      await expect(p.getByText("High-altitude circuit", { exact: false })).toBeVisible();
     }
     await p.waitForTimeout(1500);
     if ("hover" in page && page.hover) {

@@ -13,7 +13,7 @@ export async function assertNoHorizontalOverflow(page: Page): Promise<void> {
 }
 
 export async function assertInputsInsideViewport(page: Page, testId: string, expectedCount: number) {
-  const inputs = page.getByTestId(testId).locator('input[type="text"]');
+  const inputs = page.getByTestId(testId).getByRole("combobox");
   await expect(inputs).toHaveCount(expectedCount);
 
   for (let index = 0; index < expectedCount; index++) {

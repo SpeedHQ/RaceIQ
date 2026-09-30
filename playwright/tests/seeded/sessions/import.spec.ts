@@ -69,13 +69,22 @@ test("imports all six games raw, then requires Convert and preserves Analyse rep
       expect(upload.ok(), `${gameId} raw API import`).toBe(true);
       const imported = (await upload.json()) as { gameId: GameId; laps: Array<{ lapId: number; isValid: boolean }> };
       expect(imported.gameId).toBe(gameId);
-      const lapId = imported.laps.find(({ isValid }) => isValid)?.lapId;
-      expect(lapId, `${gameId} valid lap`).toBeDefined();
       const beforeIds = new Set(sessionsBefore.map(({ id }) => id));
       const newSessionIds = (await sessionsFor(request, gameId))
         .filter(({ id }) => !beforeIds.has(id)).map(({ id }) => id);
       expect(newSessionIds.length, `${gameId} raw sessions`).toBeGreaterThan(0);
       importedSessionIds.push(...newSessionIds);
+
+      // The checked-in AC Evo recording is documented to contain four invalid
+      // laps; migration must preserve captures without inventing a reviewable lap.
+      if (gameId === "ac-evo") {
+        expect(imported.laps.length, "AC Evo imported laps").toBeGreaterThan(0);
+        expect(imported.laps.every(({ isValid }) => !isValid), "AC Evo fixture remains invalid").toBe(true);
+        continue;
+      }
+
+      const lapId = imported.laps.find(({ isValid }) => isValid)?.lapId;
+      expect(lapId, `${gameId} valid lap`).toBeDefined();
       const replay = await request.get(`/api/laps/${lapId}/semantic-telemetry`, { headers: { "X-Game-Id": gameId } });
       expect(replay.ok(), `${gameId} replay before conversion`).toBe(true);
       replays.push({ gameId, lapId: lapId!, before: await replay.json() });

@@ -15,7 +15,7 @@ test("sessions replay and compare navigation uses selected seeded laps", async (
   await first.click();
   const lapTable = page.locator("[data-slot='table-container'] table").last();
   await expect(lapTable.getByRole("columnheader", { name: "Time" })).toBeVisible();
-  await expect(lapTable.getByRole("columnheader", { name: "Replay" })).toBeVisible();
+  await expect(lapTable.getByRole("button", { name: "Replay", exact: true }).first()).toBeVisible();
   await expect(lapTable.getByRole("columnheader", { name: /^S\d+$/ }).first()).toBeVisible();
   await expect(lapTable.getByRole("button", { name: /Add note/ }).first()).toBeVisible();
   const lapSort = lapTable.getByRole("columnheader", { name: /Lap/ }).getByRole("button");
@@ -58,13 +58,14 @@ test("expanded lap ledger scrolls internally on mobile", async ({ page, request 
   await page.goto("/fm23/sessions", { waitUntil: "domcontentloaded" });
   const card = page.locator('[class*="@3xl/workspace:hidden"] > div').nth(targetSessionIndex);
   await card.click();
-  const replay = page.getByRole("button", { name: "Replay", exact: true }).last();
-  const childTable = replay.locator("xpath=ancestor::div[@data-slot='table-container'][1]");
-  await expect(replay).toBeAttached();
+  const notesCell = card.locator("[data-slot='table-container'] table").last().locator("tbody tr").last().locator("td").last();
+  const childTable = notesCell.locator("xpath=ancestor::div[@data-slot='table-container'][1]");
+  await expect(notesCell).toBeAttached();
+  await childTable.scrollIntoViewIfNeeded();
   await childTable.evaluate((element) => {
     element.scrollLeft = element.scrollWidth;
   });
-  await expect(replay).toBeInViewport();
+  await expect(notesCell).toBeInViewport();
   const overflow = await page.evaluate(() => ({
     document: document.documentElement.scrollWidth,
     viewport: document.documentElement.clientWidth,

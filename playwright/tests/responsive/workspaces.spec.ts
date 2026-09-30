@@ -61,7 +61,7 @@ for (const viewport of WORKSPACE_VIEWPORTS) {
         await assertInputsInsideViewport(page, target.testId, target.inputCount);
         await assertNoHorizontalOverflow(page);
 
-        const firstInput = page.getByTestId(target.testId).locator('input[type="text"]').first();
+        const firstInput = page.getByTestId(target.testId).getByRole("combobox").first();
         await firstInput.click();
         await expect(firstInput).toBeFocused();
         await assertNoHorizontalOverflow(page);

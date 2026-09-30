@@ -76,7 +76,7 @@ export function SessionMobileList({
           const sessionLaps = lapsBySession.get(session.id) ?? [];
           const bestTime = session.bestLapTime || (sessionLaps.length > 0 ? Math.min(...sessionLaps.map((lap) => lap.lapTime)) : 0);
           return (
-            <div key={session.id} className={`rounded-lg border border-app-border bg-app-surface ${isExpanded ? "bg-app-surface-alt/40" : ""}`}>
+            <div key={session.id} className={`min-w-0 overflow-hidden rounded-lg border border-app-border bg-app-surface ${isExpanded ? "bg-app-surface-alt/40" : ""}`}>
               {/* oxlint-disable-next-line a11y/useSemanticElements: wraps checkbox and buttons */}
               <div
                 role="button"
@@ -160,7 +160,7 @@ export function SessionMobileList({
                 </div>
               )}
               {isExpanded && sessionLaps.length > 0 && (
-                <div className="bg-transparent [&>[data-slot=table-container]]:rounded-none [&>[data-slot=table-container]]:border-0 [&_[data-slot=table-head]]:bg-transparent">
+                <div className="min-w-0 bg-transparent [&>[data-slot=table-container]]:max-w-full [&>[data-slot=table-container]]:rounded-none [&>[data-slot=table-container]]:border-0 [&_[data-slot=table-head]]:bg-transparent">
                   <SessionLapTable
                     session={session}
                     laps={sessionLaps}
