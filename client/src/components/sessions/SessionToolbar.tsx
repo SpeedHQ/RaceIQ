@@ -66,6 +66,14 @@ export function SessionToolbar({
 
   return (
     <div className="flex items-center flex-wrap gap-3">
+      <h1 className="text-app-title font-semibold text-app-text/90 shrink-0">
+        {m.label_sessions()}
+        {!isLoading && !sessionsError && (
+          <span className="text-app-subtext text-app-text/90 font-normal ml-2">
+            {filteredCount === sessions.length ? `${sessions.length} ${m.sessions_total()}` : `${filteredCount} ${m.sessions_filtered_count()} ${sessions.length}`}
+          </span>
+        )}
+      </h1>
       <ToggleGroup03
         ariaLabel={m.label_sessions()}
         value={tab}
@@ -102,14 +110,6 @@ export function SessionToolbar({
         placeholder={m.sessions_search_placeholder()}
         className="h-8 min-w-[200px] flex-1 px-2.5 py-1 focus-visible:border-app-accent focus-visible:ring-app-accent @3xl/workspace:w-64 @3xl/workspace:flex-none"
       />
-      <h1 className="text-app-title font-semibold text-app-text/90 shrink-0">
-        {m.label_sessions()}
-        {!isLoading && !sessionsError && (
-          <span className="text-app-subtext text-app-text/90 font-normal ml-2">
-            {filteredCount === sessions.length ? `${sessions.length} ${m.sessions_total()}` : `${filteredCount} ${m.sessions_filtered_count()} ${sessions.length}`}
-          </span>
-        )}
-      </h1>
       <div className="flex items-center flex-wrap gap-2">
         {selectedTelemetryLaps.length > 0 && (
           <Button variant="app-primary" size="app-md" disabled={exporting} onClick={() => runExport({ lapIds: selectedTelemetryLaps.map((lap) => lap.id) })}>
