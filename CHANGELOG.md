@@ -17,6 +17,7 @@
 - Stop treating ACC and AC Evo tyre/road vibration as TC or ABS intervention; label ACC physics-signal findings as possible rather than game-confirmed, and use AC Evo's explicit aid-active flags for confirmed findings.
 
 ### Internal
+- Keep PR Storybook comparisons advisory for new, changed, and missing screenshots; preserve preview artifacts and warnings when either render is incomplete.
 
 ## v0.19.0 - 2026-09-28
 

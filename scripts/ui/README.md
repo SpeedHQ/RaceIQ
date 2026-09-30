@@ -19,6 +19,8 @@ Local visual-regression utilities. These scripts capture equivalent base/current
 
 `visual-diff-config.ts` is shared policy for Playwright assertions and collector. Keep color threshold and aggregate pixel allowance aligned through this module.
 
+PR Storybook comparison is advisory: added, changed, and removed screenshots produce before/after/diff artifacts for the PR comment; unchanged images are omitted. Base and PR render failures emit warnings without failing the comparison job, so available screenshots still reach visual review. A missing render is not proof of an intentional removal; inspect render warnings when artifacts are incomplete.
+
 ## Boundaries
 
 This domain owns capture orchestration, image comparison, local HTML/JSON reporting, and canonical Docker snapshot execution. Product UI styling, screenshot case definitions, Playwright specs, workflow wiring, package commands, and checked-in baseline review remain outside this directory.

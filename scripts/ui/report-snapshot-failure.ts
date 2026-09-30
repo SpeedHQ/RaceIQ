@@ -12,6 +12,5 @@ if (diffNames.length > 0) {
   console.error("Download 'pr-screenshot-preview' artifact for before/after/diff images.");
 }
 
-console.error("::warning::Storybook snapshot render failed; visual review artifact may be incomplete.");
-console.error("::warning::Inspect PR render step for underlying test or server failure.");
-process.exitCode = 1;
+console.error("::warning::Base or PR Storybook snapshot render failed; visual review artifact may be incomplete.");
+console.error("::warning::Inspect snapshot render steps for underlying test or server failure. Comparison is advisory.");
