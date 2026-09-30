@@ -37,6 +37,12 @@ Launchers and screenshot database seeding live together in `support/server/`. Th
 
 Migration E2E imports all six complete game fixtures first via `POST /api/laps/import` with multipart `file`, `ownership=mine`, and `captureStorage=raw`. This stores full canonical records without direct database/file seeding. The test then opens the mandatory conversion dialog, presses Convert, and verifies replay before/after. Omit `captureStorage` for ordinary UI imports; those continue using sparse storage immediately. Raw storage is supported only for `.bin` and `.bin.gz` uploads, including native iRacing and LMU dumps.
 
+## Known seeded coverage gaps
+
+`seeded/analyse/group-review.spec.ts` explicitly skips **Analyse session review reuses base telemetry for ac-evo**. The seeded recording, `session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz`, imports four invalid laps: a partial-start lap (`start/end positions too far apart`), two `track limits` laps, and an `incomplete` final lap. None qualifies for `/api/laps/review`; this is a fixture limitation, not a reason to relax production validity filtering.
+
+ACC still exercises base-telemetry reuse, sector/view interactions, and detail-range requests. AC Evo lap-header navigation remains enabled, but AC Evo session-review telemetry reuse is not covered. Re-enable the skipped case when the AC Evo seed includes a valid complete lap with replayable telemetry.
+
 ## Data safety and generated output
 
 Launchers create configured E2E data directories and delete only their SQLite database files at startup. They preserve non-database fixture files and do not perform teardown cleanup. Seeded tests share one isolated server per shard; tests that mutate notes, imports, sessions, or settings must restore their own state. CI containers are disposable.

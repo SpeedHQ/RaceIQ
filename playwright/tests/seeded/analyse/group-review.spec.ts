@@ -26,6 +26,7 @@ async function dragTelemetryLane(page: Page): Promise<void> {
 
 for (const game of REVIEW_GAMES) {
   test(`Analyse session review reuses base telemetry for ${game.gameId}`, async ({ page, request }) => {
+    test.skip(game.gameId === "ac-evo", "AC Evo seeded recording has no valid complete laps; telemetry-reuse coverage gap documented in playwright/README.md.");
     test.setTimeout(200_000);
     const browserErrors = collectBrowserErrors(page);
     const lapsResponse = await request.get(`/api/laps?gameId=${game.gameId}`);
