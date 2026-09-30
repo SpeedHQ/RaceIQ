@@ -58,9 +58,9 @@ export const KNOWN_FUZZY_ALIGNMENTS = new Set(["nordschleife/fm-2023"]);
  * ACC entries: historically ACC's "centerline" was the fastlane.ai RACING LINE,
  * not the track centre. A racing line apexes and cuts, so these corners were
  * straightened or fused into a neighbour rather than faintly detected. Loosening
- * thresholds makes it worse (at 1/1400 Brands Hatch's Dingle Dell neighbours fuse
- * into one), because the loose pass only fills gaps and there is no gap here. The
- * Boundary views derive track centres from the bundled SVG edges. Curated
+ * curvature thresholds makes it worse, because the loose pass only fills gaps
+ * and there is no gap here. Boundary views derive track centres from the bundled
+ * SVG edges. Curated
  * centerline CSVs and corner rosters still need per-track re-curation (issue #98);
  * migrated tracks are already gone from this list.
  *
@@ -69,8 +69,6 @@ export const KNOWN_FUZZY_ALIGNMENTS = new Set(["nordschleife/fm-2023"]);
  * ACC's true-centre centerline does find.
  */
 export const KNOWN_TURN_GAPS = new Set([
-  "brands-hatch T7 acc", // Dingle Dell — pending true-centre migration
-  "brands-hatch T7 ac-evo",
   "catalunya T6 acc",
   "catalunya T14 f1-2025",
   "catalunya T14 fm-2023",

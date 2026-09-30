@@ -1,10 +1,9 @@
 /**
  * Runs the real segment generator (same code path as `bun run
  * tracks:segments`) over every curated track and asserts:
- *   1. every game centerline aligns cleanly (no unsanctioned fuzz), and
- *   2. the committed meta files exactly match what --write would produce — the
- *      shared facts and every game's geometry file — i.e. name lists, detector,
- *      shared/data/tracks/meta and shared/data/tracks/<game> cannot drift apart.
+ *   1. every game has valid segments, from a curated override or clean alignment,
+ *   2. regeneration preserves overrides and otherwise reproduces committed meta.
+ *      Shared facts and each game's geometry must stay consistent.
  *
  * If this fails after editing a name list or the detector, regenerate with:
  *   bun run tracks:segments --all --write
@@ -26,6 +25,21 @@ const slugs = listCuratedSlugs();
 
 
 describe("track segment generator", () => {
+  test("curated override wins over incoming regenerated boundaries", () => {
+    const facts = loadTrackFacts("brands-hatch")!;
+    const committed = loadTrackGeometry("brands-hatch", "acc")!;
+    const { aligned } = generateTrackSegments("brands-hatch", facts, "acc");
+    const incoming = {
+      ...aligned[0],
+      segments: aligned[0].segments.map((s) => s.number === 7
+        ? { ...s, startFrac: 0.6345, endFrac: 0.6847 }
+        : s),
+    };
+    const result = buildUpdatedMeta("brands-hatch", facts, { acc: committed }, [incoming]);
+    expect(result.geometry.acc).toEqual(committed);
+    expect(result.facts).toEqual(facts);
+  });
+
   test("curated corner-name lists exist", () => {
     expect(slugs.length).toBeGreaterThan(0);
   });
@@ -41,7 +55,7 @@ describe("track segment generator", () => {
         expect(validateFacts(facts, hints)).toEqual([]);
       });
 
-      test("aligns on every available game centerline", () => {
+      test("uses a curated override or aligns every available game centerline", () => {
         if (outcomes.length === 1 && outcomes[0].gameId === "-") {
           expect(outcomes[0].detail).toBe("no centerline found");
           expect(aligned).toEqual([]);
@@ -69,11 +83,10 @@ describe("track segment generator", () => {
         expect(writableAlignments(aligned)).toHaveLength(aligned.length - fuzzy);
       });
 
-      test("committed meta matches generator output (run tracks:segments --all --write if stale)", () => {
+      test("regeneration preserves overrides and reproduces generated meta", () => {
         expect(facts).not.toBeNull();
         const writable = writableAlignments(aligned);
-        // Feeding the committed geometry back in is what proves curated sectors
-        // survive: a generated pair may only fill a game that has none.
+        // Committed geometry supplies authoritative segment overrides and sectors.
         const committed: Record<string, TrackGeometry> = {};
         for (const a of writable) {
           const geometry = loadTrackGeometry(slug, a.gameId);

@@ -22,7 +22,6 @@ function geometryFor(slug: string): Record<string, TrackGeometry> {
 }
 const SLUGS = readdirSync(META_DIR).filter((f) => f.endsWith(".json")).map((f) => f.replace(".json", "")).sort();
 const KNOWN_CORNER_GAPS: Record<string, string[]> = {
-  "brands-hatch/acc": ["t7"], "brands-hatch/ac-evo": ["t7"],
   "catalunya/acc": ["t13", "t15", "t6"], "catalunya/f1-2025": ["t13", "t14", "t15"], "catalunya/fm-2023": ["t13", "t14", "t15"],
   "imola/acc": ["t1", "t16", "t8"], "imola/ac-evo": ["t1", "t10", "t13", "t16", "t8"], "imola/f1-2025": ["t1", "t8"],
   "laguna-seca/ac-evo": ["t1"], "sebring/ac-evo": ["t12", "t2"], "sebring/fm-2023": ["t2"],

@@ -1,9 +1,9 @@
 /**
  * Turn-count accuracy against real-world data: the corner roster in each
  * shared/data/tracks/meta/<slug>.json is the official turn count from the
- * circuit's own map / FIA track guide (see the `source` field). Every game's
- * centerline must align onto that roster such that every official turn
- * 1..officialTurnCount is accounted for.
+ * circuit's own map / FIA track guide (see the `source` field). Every
+ * available game must place every official turn 1..officialTurnCount, using
+ * curated geometry overrides where present and centerline alignment otherwise.
  *
  * This is deliberately NOT a snapshot of what the detector currently finds — a
  * detector regression that drops Blanchimont must fail, not be re-baselined.
@@ -113,7 +113,7 @@ describe("turn counts match real-world circuit data", () => {
 
     // A failed alignment produces no GameAlignment, so without this every
     // per-game assertion below would silently vanish instead of failing.
-    test(`${slug}: every game centerline aligns`, () => {
+    test(`${slug}: every game has curated segments or aligns its centerline`, () => {
       const games = [...new Set(findCenterlines(slug).map((c) => c.gameId))];
       if (games.length === 0) {
         expect(outcomes).toContainEqual(expect.objectContaining({

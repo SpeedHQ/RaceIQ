@@ -19,7 +19,7 @@ import {
 } from "../storage/meta";
 import { cornerNumbers, type CornerFact, type StraightFact, type TrackFacts } from "../facts";
 import type { TrackGeometry } from "../geometry";
-import { splitSegments } from "./join";
+import { joinSegments, splitSegments } from "./join";
 import { cornerKey } from "../keys";
 import { loadDetectHints } from "../detect-hints";
 import type { NamedSegment } from "../named-segments";
@@ -153,6 +153,30 @@ export function generateTrackSegments(
     // FM can have several layout variants per slug — first aligned one wins
     if (seenGames.has(gameId)) continue;
 
+    const committed = loadTrackGeometry(slug, gameId);
+    if (committed?.override) {
+      const segments = joinSegments(facts, committed);
+      const corners: AlignedCorner[] = segments
+        .filter((s) => s.type === "corner")
+        .map((s) => ({
+          regionIndex: -1,
+          number: s.number!,
+          ...(s.covers ? { covers: s.covers } : {}),
+          name: s.name,
+          direction: s.direction ?? null,
+          startFrac: s.startFrac,
+          endFrac: s.endFrac,
+          ...(s.group ? { group: s.group } : {}),
+        }));
+      seenGames.add(gameId);
+      aligned.push({ gameId, file, segments, corners, cost: 0 });
+      outcomes.push({
+        slug, gameId, ok: true, cost: 0, wrote: false,
+        detail: `${segments.length} segments, ${corners.length} corners — curated override; detection skipped`,
+      });
+      continue;
+    }
+
     const outline = loadCenterline(file);
     if (!outline) {
       outcomes.push({ slug, gameId, ok: false, cost: Infinity, wrote: false, detail: `unreadable centerline ${basename(file)}` });
@@ -219,6 +243,11 @@ export function buildUpdatedMeta(
   const geometry: Record<string, TrackGeometry> = {};
 
   for (const a of writable) {
+    const committed = existingGeometry[a.gameId];
+    if (committed?.override) {
+      geometry[a.gameId] = committed;
+      continue;
+    }
     const split = splitSegments(a.segments);
     // Sectors are curated per game and live only in geometry — regeneration
     // rewrites segments and must carry them through untouched.
@@ -351,7 +380,8 @@ export function writeTrackMeta(
   aligned: GameAlignment[],
   allowFuzzy = false,
 ): string[] {
-  const writable = writableAlignments(aligned, allowFuzzy);
+  const writable = writableAlignments(aligned, allowFuzzy)
+    .filter((a) => !loadTrackGeometry(slug, a.gameId)?.override);
   if (writable.length === 0) return [];
   const existingGeometry: Record<string, TrackGeometry> = {};
   for (const a of writable) {

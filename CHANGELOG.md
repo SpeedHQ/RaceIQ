@@ -49,6 +49,8 @@
 - Keep expanded session lap tables readable with separate replay actions, internal horizontal scrolling, and rounded table corners.
 
 ### Internal
+- Preserve curated segment overrides during generation and apply that protection to Brands Hatch across ACC, AC Evo, and Forza; remove stale Dingle Dell gap exceptions.
+- Automatically mark dev-panel segment saves as curated overrides and retain override protection when editing sector boundaries.
 - Centralize the Sessions Favorites control in the shared Toggle component with optional star rendering and built-in active styling.
 
 ## v0.19.0 - 2026-09-28

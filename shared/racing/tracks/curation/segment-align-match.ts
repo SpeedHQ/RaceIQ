@@ -20,7 +20,7 @@ export interface AlignmentIssue {
 }
 
 export interface AlignedCorner {
-  /** Index into the detected corner-region list (last region when merged). */
+  /** Index into the detected region list (last when merged), or -1 for a curated override. */
   regionIndex: number;
   /** Official number of the turn this section is. One section per turn. */
   number: number;

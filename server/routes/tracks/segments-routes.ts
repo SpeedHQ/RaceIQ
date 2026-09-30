@@ -185,6 +185,7 @@ export const trackSectorBoundaryRoutes = new Hono()
       if (slug && gameId) {
         const geometry = loadTrackGeometry(slug, gameId);
         saveTrackGeometry(slug, gameId, {
+          ...(geometry?.override !== undefined ? { override: geometry.override } : {}),
           sectors: { s1End, s2End },
           segments: geometry?.segments ?? [],
         });
@@ -247,6 +248,7 @@ export const trackSegmentRoutes = new Hono()
       });
       const existingGeometry = loadTrackGeometry(slug, gameId);
       saveTrackGeometry(slug, gameId, {
+        override: true,
         ...(existingGeometry?.sectors ? { sectors: existingGeometry.sectors } : {}),
         segments: geometry,
       });

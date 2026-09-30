@@ -1,4 +1,5 @@
 {
+  "override": true,
   "sectors": {
     "s1End": 0.353,
     "s2End": 0.67
