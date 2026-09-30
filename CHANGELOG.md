@@ -8,6 +8,10 @@
 - Use accessible toggle groups for Sessions Mine/Others and Analyse tooltip display.
 
 ### Fixes
+- Remove duplicate borders around Sector Ledger and Segment Ledger tables in session Analyse.
+- Show a pointer cursor across clickable recent session rows on Home, including track buttons.
+- Show pointer cursors on enabled shared buttons and toggles, including toggle groups, while disabled controls retain default cursors.
+- Choose visible games with labelled, keyboard-accessible switches in a grouped settings list.
 - Use shared inputs with transparent backgrounds and cyan focus borders for searches, including searchable selectors.
 - Keep input borders at 1px when focused, matching table borders; use cyan focus borders across shared controls instead of gray or purple.
 - Give segmented toggle groups a black background that stays black on hover, with a thin cyan border and cyan text on the selected option.

@@ -72,7 +72,7 @@ export function RecentSessionsTable({
             ? getLMUCar(session.carId)?.name ?? session.carId
             : carNames[`${session.gameId}:${session.carOrdinal}`] ?? "";
           return (
-            <TableRow key={session.id} onClick={() => onAnalyseSession(session)}>
+            <TableRow key={session.id} className="cursor-pointer" onClick={() => onAnalyseSession(session)}>
               {!gameId && (
                 <TableCell>
                   <Badge variant="game-brand" size="compact" data-game-brand={session.gameId ?? "fm-2023"}>
@@ -83,7 +83,7 @@ export function RecentSessionsTable({
               <TableCell className="text-app-text" title={track}>
                 <button
                   type="button"
-                  className="text-left focus-visible:outline-2 focus-visible:outline-app-text"
+                  className="cursor-pointer text-left focus-visible:outline-2 focus-visible:outline-app-text"
                   aria-label={`${m.sessions_analyse_session()}: ${track || "—"}, ${parseUtcTimestamp(session.createdAt).toLocaleDateString(getLocale())}`}
                   onClick={(event) => {
                     event.stopPropagation();

@@ -232,7 +232,6 @@ export function SegmentLedger({ traces, primaryLapId, cornerFracs, corners, curs
   return (
     <div className="space-y-2">
       <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Segment Ledger</div>
-      <div className="rounded border border-app-border overflow-x-auto">
         <Table className="w-full min-w-0 text-app-detail text-app-compact [&_th]:px-2 [&_th]:py-1.5 [&_td]:px-2 [&_td]:py-1.5 [&_tbody]:divide-y [&_tbody]:divide-app-border/40">
           <THead>
             <TRow className="border-b border-app-border">
@@ -306,7 +305,6 @@ export function SegmentLedger({ traces, primaryLapId, cornerFracs, corners, curs
             })}
           </TBody>
         </Table>
-      </div>
     </div>
   );
 }
