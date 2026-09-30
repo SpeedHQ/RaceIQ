@@ -1561,7 +1561,7 @@
 "trackinfo_dir_left": "Vasen",
 "trackinfo_dir_right": "Oikea",
 "trackdetailroute_not_found": "Rataa ei löytynyt",
-"trackinfo_guide": "Asiantuntijaopas",
+  "trackinfo_guide": "Opas",
 "trackinfo_priority": "tärkeys",
 "trackinfo_trap": "Ansa:",
 "dev_state_title": "Kehittäjän tila",

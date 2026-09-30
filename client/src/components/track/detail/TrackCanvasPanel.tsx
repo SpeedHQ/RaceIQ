@@ -27,7 +27,7 @@ interface TrackCanvasPanelProps {
 export function TrackCanvasPanel(props: TrackCanvasPanelProps) {
   const { track, outline, canvasRef, dragging, pan, setPan, zoom, setZoom, sectorBounds, displaySectors, mapDisplayMode, setMapDisplayMode, corners, straights } = props;
   return (
-    <div className="relative order-1 h-[260px] min-w-0 shrink-0 rounded-lg border border-app-border bg-app-bg @3xl/workspace:order-2 @3xl/workspace:h-auto @3xl/workspace:flex-1">
+    <div className="relative h-[260px] min-w-0 shrink-0 rounded-lg border border-app-border bg-app-bg @3xl/workspace:min-h-0 @3xl/workspace:h-auto @3xl/workspace:flex-1">
       {outline ? (
         <canvas
           ref={canvasRef}

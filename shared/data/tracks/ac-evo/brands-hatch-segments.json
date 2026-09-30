@@ -46,8 +46,13 @@
       "endFrac": 0.6416
     },
     {
-      "key": "t8",
+      "key": "t7",
       "startFrac": 0.6416,
+      "endFrac": 0.6946
+    },
+    {
+      "key": "t8",
+      "startFrac": 0.6946,
       "endFrac": 0.7413
     },
     {

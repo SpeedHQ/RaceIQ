@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { OrdinalParamSchema, GameIdQuerySchema } from "@shared/platform/http/route-schemas";
 import { getLapCountsByTrack, getLMULapCountsByTrack } from "../../db/lap-read-queries";
-import { getTrackOutlineByOrdinal, hasRecordedOutline as sharedHasRecordedOutline } from "../../../shared/racing/tracks/recording/outlines";
+import { getTrackLengthMeters, getTrackOutlineByOrdinal, hasRecordedOutline as sharedHasRecordedOutline } from "../../../shared/racing/tracks/recording/outlines";
 import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
 import { loadSharedOutline } from "../../../shared/racing/tracks/geometry/shared";
 import { resolveTrackName } from "../../../shared/racing/tracks/resolve-name";
@@ -102,7 +102,7 @@ export const trackCatalogRoutes = new Hono()
             location: "",
             country: "",
             variant: info.variant,
-            lengthKm: 0,
+            lengthKm: Math.round((getTrackLengthMeters(id, "acc", info.commonTrackName || undefined) ?? 0) / 10) / 100,
             hasOutline: hasBundled,
             outlineSource: hasBundled ? "bundled" : null,
             createdAt: null,

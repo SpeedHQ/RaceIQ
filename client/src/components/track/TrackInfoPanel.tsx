@@ -19,10 +19,10 @@ import type { TrackInfo as TrackInfoType, TrackSectors } from "./types";
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-lg border border-app-border bg-app-surface/50 px-3 py-2">
-      <div className="text-app-label text-app-text-muted">{label}</div>
-      <div className="text-app-body font-medium text-app-text tabular-nums">{value}</div>
-      {hint && <div className="text-app-label text-app-text-dim">{hint}</div>}
+    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-lg border border-app-border bg-app-surface/50 px-3 py-1.5">
+      <span className="text-app-label text-app-text-muted">{label}</span>
+      <span className="ml-auto text-app-subtext font-medium text-app-text tabular-nums">{value}</span>
+      {hint && <span className="text-app-compact text-app-text-dim">{hint}</span>}
     </div>
   );
 }
@@ -46,21 +46,17 @@ export function TrackInfoPanel({
   sectors,
   sectorBounds,
   segSource,
-  lapCount,
   gameId,
-  part = "summary",
+  onSegmentHover,
+  onSectorHover,
 }: {
   track: TrackInfoType;
   sectors: (TrackSectors & { source?: string }) | null;
   sectorBounds: { s1End: number; s2End: number } | null;
   segSource: string;
-  lapCount: number;
   gameId?: GameId | null;
-  /**
-   * "summary" sits beside the map in the top row, like the laps leaderboard;
-   * "details" is the full-width reading below it.
-   */
-  part?: "summary" | "details";
+  onSegmentHover?: (indices: readonly number[] | null) => void;
+  onSectorHover?: (index: number | null) => void;
 }) {
   // The expert guide the AI analyst is given for this track, if we have one.
   const { data: guide } = useQuery<ResolvedTrackGuide | null>({
@@ -93,21 +89,14 @@ export function TrackInfoPanel({
 
   const cornersInSector = (n: 1 | 2 | 3) => corners.filter((s) => sectorOf(s.startFrac, s.endFrac) === n);
 
-  if (part === "summary") {
-    return (
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-2">
-          <Stat label={m.trackinfo_length()} value={track.lengthKm > 0 ? `${track.lengthKm} km` : "—"} />
-          <Stat label={m.trackinfo_turns()} value={turnCount > 0 ? String(turnCount) : "—"} hint={corners.length > 0 ? m.trackinfo_sections({ n: String(corners.length) }) : undefined} />
-          <Stat label={m.trackinfo_straights()} value={straights.length > 0 ? String(straights.length) : "—"} />
-          <Stat label={m.trackinfo_laps_recorded()} value={String(lapCount)} />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-2 @3xl/workspace:grid-cols-3">
+        <Stat label={m.trackinfo_length()} value={track.lengthKm > 0 ? `${track.lengthKm} km` : "—"} />
+        <Stat label={m.trackinfo_turns()} value={turnCount > 0 ? String(turnCount) : "—"} hint={corners.length > 0 ? m.trackinfo_sections({ n: String(corners.length) }) : undefined} />
+        <Stat label={m.trackinfo_straights()} value={straights.length > 0 ? String(straights.length) : "—"} />
+      </div>
       {/* Sectors */}
       <div>
         <div className="flex items-center gap-2 mb-1.5">
@@ -120,14 +109,30 @@ export function TrackInfoPanel({
               const to = n === 1 ? sectorBounds.s1End : n === 2 ? sectorBounds.s2End : 1;
               const within = cornersInSector(n);
               return (
-                <div key={n} className="rounded-lg border border-app-border bg-app-surface/50 px-3 py-2">
+                <div
+                  key={n}
+                  tabIndex={onSectorHover ? 0 : undefined}
+                  onMouseEnter={() => onSectorHover?.(n - 1)}
+                  onMouseLeave={() => onSectorHover?.(null)}
+                  onFocus={() => onSectorHover?.(n - 1)}
+                  onBlur={() => onSectorHover?.(null)}
+                  className="rounded-lg border border-app-border bg-app-surface/50 px-3 py-2 hover:bg-app-surface-hover focus-visible:outline focus-visible:outline-app-accent focus-visible:-outline-offset-2"
+                >
                   <div className="flex items-baseline justify-between">
                     <span className="text-app-body font-medium text-app-text">S{n}</span>
                     <span className="text-app-label text-app-text-muted tabular-nums">
                       {(from * 100).toFixed(1)}% – {(to * 100).toFixed(1)}%
                     </span>
                   </div>
-                  <div className="text-app-label text-app-text-dim mt-0.5">{within.length > 0 ? within.map((s) => labels[segments.indexOf(s)]).join(", ") : m.trackinfo_no_named_corners()}</div>
+                  {within.length > 0 ? (
+                    <ul className="mt-1 list-disc space-y-0.5 pl-4 text-app-label text-app-text-dim">
+                      {within.map((s) => (
+                        <li key={`${s.startFrac}-${s.endFrac}`}>{labels[segments.indexOf(s)]}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="mt-1 text-app-label text-app-text-dim">{m.trackinfo_no_named_corners()}</div>
+                  )}
                 </div>
               );
             })}
@@ -137,7 +142,7 @@ export function TrackInfoPanel({
         )}
       </div>
 
-      {/* Expert guide — the coaching knowledge the AI analyst is given */}
+      {/* Guide — the coaching knowledge the AI analyst is given */}
       {guide && (
         <div>
           <div className="text-app-label text-app-text-muted mb-1.5">{m.trackinfo_guide()}</div>
@@ -146,23 +151,37 @@ export function TrackInfoPanel({
           </div>
           {guide.corners.length > 0 && (
             <div className="mt-2 grid grid-cols-1 gap-2 @5xl/workspace:grid-cols-2">
-              {guide.corners.map((c) => (
-                <div key={c.label} className="rounded-lg border border-app-border bg-app-surface/50 px-3 py-2">
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <span className="text-app-body font-medium text-app-text">{c.label}</span>
-                    {c.priority && (
-                      <span className="text-app-caption px-1.5 py-0.5 rounded border font-mono leading-none bg-status-warning/15 border-status-warning/50 text-status-warning">
-                        {m.trackinfo_priority()}
-                      </span>
-                    )}
-                    <span className="text-app-label text-app-text-dim">{c.type}</span>
+              {guide.corners.map((c) => {
+                const matchingSegments = segments.flatMap((segment, index) =>
+                  segment.type === "corner" && turnNumbers(segment).some((number) => c.numbers?.includes(number)) ? [index] : [],
+                );
+                const canPreview = !!onSegmentHover && matchingSegments.length > 0;
+                return (
+                  <div
+                    key={c.label}
+                    tabIndex={canPreview ? 0 : undefined}
+                    onMouseEnter={() => onSegmentHover?.(canPreview ? matchingSegments : null)}
+                    onMouseLeave={() => onSegmentHover?.(null)}
+                    onFocus={() => onSegmentHover?.(canPreview ? matchingSegments : null)}
+                    onBlur={() => onSegmentHover?.(null)}
+                    className="flex flex-col rounded-lg border border-app-border bg-app-surface/50 px-3 py-2 hover:bg-app-surface-hover focus-visible:outline focus-visible:outline-app-accent focus-visible:-outline-offset-2"
+                  >
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="text-app-body font-medium text-app-text">{c.label}</span>
+                      {c.priority && (
+                        <span className="text-app-caption px-1.5 py-0.5 rounded border font-mono leading-none bg-status-warning/15 border-status-warning/50 text-status-warning">
+                          {m.trackinfo_priority()}
+                        </span>
+                      )}
+                      <span className="text-app-label text-app-text-dim">{c.type}</span>
+                    </div>
+                    <div className="text-app-subtext text-app-text-secondary mt-1">{c.technique}</div>
+                    <div className="mt-auto pt-2 text-app-label text-app-text-dim">
+                      <span className="text-status-warning/80">{m.trackinfo_trap()}</span> {c.trap}
+                    </div>
                   </div>
-                  <div className="text-app-subtext text-app-text-secondary mt-1">{c.technique}</div>
-                  <div className="text-app-label text-app-text-dim mt-0.5">
-                    <span className="text-status-warning/80">{m.trackinfo_trap()}</span> {c.trap}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -187,7 +206,15 @@ export function TrackInfoPanel({
             </TableHeader>
             <TableBody>
               {segments.map((s, i) => (
-                <TableRow key={`${s.name}-${s.startFrac}-${s.endFrac}`}>
+                <TableRow
+                  key={`${s.name}-${s.startFrac}-${s.endFrac}`}
+                  tabIndex={onSegmentHover ? 0 : undefined}
+                  onMouseEnter={() => onSegmentHover?.([i])}
+                  onMouseLeave={() => onSegmentHover?.(null)}
+                  onFocus={() => onSegmentHover?.([i])}
+                  onBlur={() => onSegmentHover?.(null)}
+                  className="focus-visible:outline focus-visible:outline-app-accent focus-visible:-outline-offset-2"
+                >
                   <TableCell>
                     <span className={s.type === "corner" ? "text-app-text" : "text-app-text-muted"}>
                       {s.type === "corner" ? "🔶" : "🔷"} {labels[i]}

@@ -111,6 +111,10 @@ export function drawTrack(
   sectorColors?: string[],
   /** Debug editing: label every segment individually instead of once per group. */
   perSegmentLabels?: boolean,
+  /** Reference preview: emphasize matching segments and suppress other labels. */
+  highlightedSegments?: readonly number[] | null,
+  /** Zero-based sector preview, using the source-defined boundaries. */
+  highlightedSector?: number | null,
 ) {
   const ctx = getSemanticCanvasContext(canvas);
   if (!ctx || outline.length < 2) return;
@@ -164,6 +168,7 @@ export function drawTrack(
 
   // Sector override mode: draw source-defined sector bands, suppressing segment coloring.
   if (sectorOverride) {
+    const hasSectorHighlight = highlightedSector != null && highlightedSector >= 0 && highlightedSector < sectorOverride.starts.length;
     const n = outline.length;
     const palette = sectorColors ?? SECTOR_COLOR_VARS;
     const sectorDefs = sectorOverride.starts.map((start, index) => ({
@@ -196,8 +201,9 @@ export function drawTrack(
       if (startIdx >= endIdx) continue;
       ctx.beginPath();
       ctx.strokeStyle = sec.color;
-      ctx.globalAlpha = 0.9;
-      ctx.lineWidth = 3;
+      const highlighted = hasSectorHighlight && sec === sectorDefs[highlightedSector];
+      ctx.globalAlpha = hasSectorHighlight ? highlighted ? 1 : 0.2 : 0.9;
+      ctx.lineWidth = highlighted ? 6 : 3;
       ctx.lineCap = "round";
       const [fx, fy] = toCanvas(outline[startIdx].x, outline[startIdx].z);
       ctx.moveTo(fx, fy);
@@ -209,7 +215,7 @@ export function drawTrack(
       ctx.globalAlpha = 1;
 
       // Boundary dot at sector start (except S1 which starts at finish)
-      if (startIdx > 0) {
+      if (startIdx > 0 && (!hasSectorHighlight || highlighted)) {
         ctx.beginPath();
         ctx.arc(fx, fy, 5, 0, Math.PI * 2);
         ctx.fillStyle = sec.color;
@@ -219,6 +225,7 @@ export function drawTrack(
         ctx.stroke();
       }
 
+      if (hasSectorHighlight && !highlighted) continue;
       // Label at midpoint
       const midIdx = Math.round((startIdx + endIdx) / 2);
       const midPt = outline[Math.min(midIdx, n - 1)];
@@ -263,21 +270,23 @@ export function drawTrack(
     // anchoring on the longest member instead of the first and emitting the bare
     // group name, so the map disagreed with every other surface. Debug editing
     // wants every turn labelled, so it opts out.
-    const labelTexts = perSegmentLabels ? segmentDisplayNames(forLabels) : segmentGroupLabels(forLabels);
+    const hasHighlight = highlightedSegments?.some((index) => index >= 0 && index < sectors.segments.length) ?? false;
+    const labelTexts = perSegmentLabels || hasHighlight ? segmentDisplayNames(forLabels) : segmentGroupLabels(forLabels);
 
     let segIdx = 0;
     for (const seg of sectors.segments) {
       // "" means this segment is a non-anchor member of a group, so the piece
       // is already labelled once at its first member.
+      const highlighted = hasHighlight && (highlightedSegments?.includes(segIdx) ?? false);
       const labelText = labelTexts[segIdx++];
       const start = Math.round(seg.startFrac * n);
       const end = Math.min(Math.round(seg.endFrac * n), n - 1);
       const color = seg.type === "corner" ? TRACK_CORNER_COLOR_VARS[cornerIdx++ % TRACK_CORNER_COLOR_VARS.length] : TRACK_STRAIGHT_COLOR_VARS[straightIdx++ % TRACK_STRAIGHT_COLOR_VARS.length];
 
       ctx.beginPath();
-      ctx.strokeStyle = color;
-      ctx.globalAlpha = large ? 0.85 : 0.5;
-      ctx.lineWidth = large ? 3 : 1.5;
+      ctx.strokeStyle = highlighted ? "var(--app-accent)" : color;
+      ctx.globalAlpha = hasHighlight ? highlighted ? 1 : 0.2 : large ? 0.85 : 0.5;
+      ctx.lineWidth = highlighted ? 6 : large ? 3 : 1.5;
       ctx.lineCap = "round";
       const [fx, fy] = toCanvas(outline[start].x, outline[start].z);
       ctx.moveTo(fx, fy);
@@ -289,7 +298,7 @@ export function drawTrack(
       ctx.globalAlpha = 1;
 
       // Boundary dot at segment start
-      if (large && start > 0) {
+      if (large && start > 0 && (!hasHighlight || highlighted)) {
         ctx.beginPath();
         ctx.arc(fx, fy, 3, 0, Math.PI * 2);
         ctx.fillStyle = color;
@@ -301,7 +310,7 @@ export function drawTrack(
 
       // Collect the label; placement happens after every segment is drawn so
       // labels can be tested against each other (see placeLabels below).
-      if ((large || seg.type === "corner") && labelText) {
+      if ((large || seg.type === "corner") && labelText && (!hasHighlight || highlighted)) {
         const midIdx = Math.round((start + end) / 2);
         const midPt = outline[Math.min(midIdx, n - 1)];
         const [mx, my] = toCanvas(midPt.x, midPt.z);
@@ -314,7 +323,7 @@ export function drawTrack(
         const len = Math.sqrt(dx * dx + dz * dz) || 1;
         labels.push({
           text: labelText,
-          color,
+          color: highlighted ? "var(--app-accent)" : color,
           mx,
           my,
           nx: -dz / len,

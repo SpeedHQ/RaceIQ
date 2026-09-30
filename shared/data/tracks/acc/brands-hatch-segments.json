@@ -42,11 +42,16 @@
     {
       "key": "t6",
       "startFrac": 0.568,
-      "endFrac": 0.6563
+      "endFrac": 0.625
+    },
+    {
+      "key": "t7",
+      "startFrac": 0.625,
+      "endFrac": 0.682
     },
     {
       "key": "t8",
-      "startFrac": 0.6563,
+      "startFrac": 0.682,
       "endFrac": 0.7382
     },
     {

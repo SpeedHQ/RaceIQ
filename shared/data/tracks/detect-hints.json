@@ -14,7 +14,7 @@
   },
   "brands-hatch": {
     "7": {
-      "optional": true
+      "mergeGapM": 0
     }
   },
   "budapest": {

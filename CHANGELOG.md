@@ -6,8 +6,13 @@
 - Search track, car, language, and other option lists with accessible combobox controls.
 - Slightly reduce corner radii through shared Tailwind tokens.
 - Use accessible toggle groups for Sessions Mine/Others and Analyse tooltip display.
+- Preview segments, sectors, and guide corners on the track map by hovering or focusing their reference rows or cards, highlighting the selected sections and hiding unrelated labels.
 
 ### Fixes
+- Keep the track map full height beside a scrollable circuit reference, place compact stats above sector boundaries, and remove the redundant laps-recorded stat; stack track details on mobile.
+- Show ACC track lengths derived from available circuit outlines instead of leaving length blank.
+- List sector turns as separate bullet rows and keep Trap notes anchored to the bottom of track guide cards.
+- Restore Brands Hatch T7 Dingle Dell as a separate right-hand kink between T6 Westfield Bend and T8 Sheene Curve, including track labels and segment previews.
 - Reduce oversized Best, Median, and Worst lap Stats times; keep typography readable at different panel widths and text sizes, and label sector totals as theoretical best and delta.
 - Place Replay immediately after the lap number in the track lap table.
 - Sort every data column in the track lap table, including car, class, session type, sectors, and notes; keep missing sector times last in either direction.

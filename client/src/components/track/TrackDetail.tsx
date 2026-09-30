@@ -57,6 +57,8 @@ export function TrackDetail({
   panRef.current = pan;
   const dragging = useRef<{ startX: number; startY: number; startPanX: number; startPanZ: number } | null>(null);
   const [mapDisplayMode, setMapDisplayMode] = useState<"segments" | "sectors">("segments");
+  const [hoveredSegments, setHoveredSegments] = useState<readonly number[] | null>(null);
+  const [hoveredSector, setHoveredSector] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
   const [editSegments, setEditSegments] = useState<TrackSegment[]>([]);
   const [saving, setSaving] = useState(false);
@@ -113,6 +115,11 @@ export function TrackDetail({
   // current game doesn't have falls back to info rather than rendering blank.
   const activeTab: Tab = (validTabs as readonly string[]).includes(tab) ? (tab as Tab) : "info";
 
+  useEffect(() => {
+    setHoveredSegments(null);
+    setHoveredSector(null);
+  }, [activeTab, trackKey, gameId]);
+
   const { data: trackMapData } = useQuery({
     queryKey: ["track-map", trackKey, gameId ?? null],
     queryFn: () =>
@@ -165,14 +172,16 @@ export function TrackDetail({
 
   useEffect(() => {
     if (!outline || !canvasRef.current) return;
-    const showSectors = editingSectors || mapDisplayMode === "sectors";
+    const previewSegment = activeTab === "info" ? hoveredSegments : null;
+    const previewSector = activeTab === "info" ? hoveredSector : null;
+    const showSectors = previewSegment == null && (previewSector != null || editingSectors || mapDisplayMode === "sectors");
     const sectorBoundsForDraw = editingSectors ? { starts: [0, editS1 / 100, editS2 / 100] } : sectorBounds ? { starts: [0, sectorBounds.s1End, sectorBounds.s2End] } : undefined;
     const sectorOverride = showSectors ? sectorBoundsForDraw : undefined;
     // While editing, every turn of a complex gets its own label so the row
     // being edited is identifiable on the map; otherwise the complex is
     // labelled once under its group name.
-    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX, undefined, editing);
-  }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX, editing]);
+    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX, undefined, editing, previewSegment, previewSector);
+  }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX, editing, hoveredSegments, hoveredSector]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -338,8 +347,7 @@ export function TrackDetail({
           <div className="min-w-0">
             <div className="text-app-heading font-semibold text-app-text">{track.name}</div>
             <div className="text-app-label text-app-text-muted">
-              {track.variant} · {track.location}, {countryName(track.country)}
-              {track.lengthKm > 0 && ` · ${track.lengthKm} km`}
+              {[track.variant, track.location, countryName(track.country), track.lengthKm > 0 ? `${track.lengthKm} km` : ""].filter(Boolean).join(" · ")}
             </div>
           </div>
         </div>
@@ -415,14 +423,9 @@ export function TrackDetail({
           <div className="flex flex-col gap-4 @3xl/workspace:min-h-0 @3xl/workspace:flex-1 @3xl/workspace:overflow-hidden">
             {/* Track map — reference views only; laps and setups use the full workspace. */}
             {activeTab !== "setups" && activeTab !== "laps" && (
-              <div className={`flex shrink-0 flex-col gap-3 @3xl/workspace:flex-row ${activeTab === "guide" && isF125 ? "@3xl/workspace:h-[min(160px,35%)]" : "@3xl/workspace:h-[min(320px,45%)]"}`}>
-                {/* Info summary left of map */}
-                {activeTab === "info" && (
-                  <div className="order-2 min-h-[200px] w-full shrink-0 @3xl/workspace:order-1 @3xl/workspace:min-h-0 @3xl/workspace:w-[560px] @3xl/workspace:overflow-auto">
-                    <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="summary" />
-                  </div>
-                )}
-
+              <div className={activeTab === "info"
+                ? "grid shrink-0 grid-cols-1 gap-3 @3xl/workspace:min-h-0 @3xl/workspace:flex-1 @3xl/workspace:shrink @3xl/workspace:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] @3xl/workspace:grid-rows-[minmax(0,1fr)] @3xl/workspace:overflow-hidden"
+                : `flex shrink-0 flex-col gap-3 @3xl/workspace:flex-row ${isF125 ? "@3xl/workspace:h-[min(160px,35%)]" : "@3xl/workspace:h-[min(320px,45%)]"}`}>
                 <TrackCanvasPanel
                   track={track}
                   outline={outline}
@@ -439,11 +442,16 @@ export function TrackDetail({
                   corners={corners}
                   straights={straights}
                 />
+                {activeTab === "info" && (
+                  <div className="min-w-0 @3xl/workspace:min-h-0 @3xl/workspace:overflow-auto">
+                    <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} gameId={gameId} onSegmentHover={outline ? setHoveredSegments : undefined} onSectorHover={outline ? setHoveredSector : undefined} />
+                  </div>
+                )}
               </div>
             )}
 
             {/* Tab content */}
-            <div className="flex flex-col @3xl/workspace:min-h-0 @3xl/workspace:flex-1 @3xl/workspace:overflow-auto">
+            <div className={`flex flex-col @3xl/workspace:min-h-0 @3xl/workspace:flex-1 @3xl/workspace:overflow-auto ${activeTab === "info" ? "hidden" : ""}`}>
               {/* Setups tab — no outer scroll, component handles its own */}
               {activeTab === "setups" && (
                 <div className="flex-1 min-h-0">
@@ -465,10 +473,6 @@ export function TrackDetail({
               )}
 
               <div className={`@3xl/workspace:min-h-0 @3xl/workspace:flex-1 ${activeTab === "laps" ? "@3xl/workspace:overflow-hidden" : "@3xl/workspace:overflow-auto"} ${activeTab === "setups" || activeTab === "guide" ? "hidden" : ""}`}>
-                {/* Info tab — guide + segments read full width under the map */}
-                {activeTab === "info" && (
-                  <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="details" />
-                )}
 
                 {activeTab === "laps" && (
                   <LapManagement
