@@ -290,9 +290,10 @@ export function parseAccBuffers(
 
 
   // V3-only tail fields (absent in legacy 1320-byte recordings). Null on V2.
-  const isValidLap = graphicsBuf.length >= GRAPHICS.isValidLap.offset + 4
-    ? graphicsBuf.readInt32LE(GRAPHICS.isValidLap.offset) === 1
+  const isValidLapValue = graphicsBuf.length >= GRAPHICS.isValidLap.offset + 4
+    ? graphicsBuf.readInt32LE(GRAPHICS.isValidLap.offset)
     : null;
+  const isValidLap = isValidLapValue === 1 ? true : isValidLapValue === 0 ? false : null;
 
   const tireCompound = readWString(graphicsBuf, GRAPHICS.currentTyreCompound.offset, GRAPHICS.currentTyreCompound.size);
 

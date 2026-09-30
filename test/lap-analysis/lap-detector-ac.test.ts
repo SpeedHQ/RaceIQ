@@ -434,16 +434,93 @@ describe("LapDetectorAc — reset detection", () => {
   });
 });
 
+describe("ACC recorded validity precedence", () => {
+  async function completeLap(
+    recorded: boolean | null,
+    options: { pit?: boolean; short?: boolean; resetValidity?: boolean | null; flush?: boolean } = {},
+  ) {
+    const db = makeFakeDb();
+    const detector = new LapDetectorAcc({ db });
+    for (let t = 0; t <= 90; t++) {
+      await detector.feed(packet({
+        CurrentLap: t,
+        DistanceTraveled: t * (options.short ? 1 : 50),
+        TimestampMS: t * 1000,
+        acc: { pitStatus: options.pit && t < 20 ? "pit_lane" : "out", isValidLap: recorded } as TelemetryPacket["acc"],
+      }));
+    }
+    if (options.flush) await detector.flushIncompleteLap();
+    else await detector.feed(packet({
+      CurrentLap: 0.2,
+      DistanceTraveled: 91 * (options.short ? 1 : 50),
+      TimestampMS: 91000,
+      acc: { pitStatus: "out", isValidLap: options.resetValidity ?? null } as TelemetryPacket["acc"],
+    }));
+    return db.inserted[0];
+  }
+
+  test("true overrides pit and quality rules on completed laps", async () => {
+    expect(await completeLap(true, { pit: true })).toMatchObject({ valid: true, invalidReason: null });
+    expect(await completeLap(true, { short: true })).toMatchObject({ valid: true, invalidReason: null });
+  });
+
+  test("false invalidates a clean lap even when reset signal turns true", async () => {
+    expect(await completeLap(false, { resetValidity: true })).toMatchObject({
+      valid: false, invalidReason: "game reported invalid",
+    });
+  });
+
+  test("unknown last-lap signal retains custom rules", async () => {
+    expect(await completeLap(null, { pit: true, resetValidity: true })).toMatchObject({
+      valid: false, invalidReason: "outlap",
+    });
+  });
+
+  test("incomplete laps remain invalid despite recorded true", async () => {
+    expect(await completeLap(true, { flush: true })).toMatchObject({
+      valid: false, invalidReason: "incomplete",
+    });
+  });
+
+  test("session best lap includes only completed valid laps", async () => {
+    const db = makeFakeDb();
+    const detector = new LapDetectorAcc({ db });
+    for (const [lap, validity, duration] of [[0, false, 70], [1, true, 90]] as const) {
+      for (let t = 0; t <= duration; t++) {
+        await detector.feed(packet({
+          LapNumber: lap,
+          CurrentLap: t,
+          DistanceTraveled: lap * 5000 + t * 50,
+          TimestampMS: lap * 100000 + t * 1000,
+          acc: { pitStatus: "out", isValidLap: validity } as TelemetryPacket["acc"],
+        }));
+      }
+      await detector.feed(packet({
+        LapNumber: lap + 1,
+        CurrentLap: 0.2,
+        DistanceTraveled: lap * 5000 + (duration + 1) * 50,
+        TimestampMS: lap * 100000 + (duration + 1) * 1000,
+        acc: { pitStatus: "out", isValidLap: true } as TelemetryPacket["acc"],
+      }));
+    }
+    expect(db.inserted.map(({ valid, invalidReason }: { valid: boolean; invalidReason: string | null }) => ({ valid, invalidReason }))).toEqual([
+      { valid: false, invalidReason: "game reported invalid" },
+      { valid: true, invalidReason: null },
+    ]);
+    expect(detector.session?.bestLapTime).toBeCloseTo(90, 0);
+  });
+});
+
 test("parseDump runs against the problem recording without throwing", async () => {
   const result = await parseDump("acc", "test/artifacts/sessions/acc-2026-04-10T02-59-28-972Z.bin.gz");
   expect(result.laps.length).toBeGreaterThan(0);
 }, { timeout: 30000 });
 
-test("session bin: laps 1+2 have no isValidLap=false, laps 3+4 contain isValidLap=false frames", async () => {
+test("V3 recording persists ACC source validity for completed laps", async () => {
   const result = await parseDump("acc", "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz");
-  const byLap = new Map(result.laps.map((l) => [l.lapNumber, l]));
-  expect(byLap.get(1)?.packets?.some((p) => p.acc?.isValidLap === false)).toBe(false);
-  expect(byLap.get(2)?.packets?.some((p) => p.acc?.isValidLap === false)).toBe(false);
-  expect(byLap.get(3)?.packets?.some((p) => p.acc?.isValidLap === false)).toBe(true);
-  expect(byLap.get(4)?.packets?.some((p) => p.acc?.isValidLap === false)).toBe(true);
+  const byLap = new Map(result.laps.map((lap) => [lap.lapNumber, lap]));
+  expect(byLap.get(2)).toMatchObject({ isValid: true, invalidReason: null });
+  expect(byLap.get(3)).toMatchObject({ isValid: false, invalidReason: "game reported invalid" });
+  expect(byLap.get(4)).toMatchObject({ isValid: false, invalidReason: "incomplete" });
+  expect(byLap.get(3)?.packets.at(-2)?.acc?.isValidLap).toBe(false);
 }, { timeout: 60000 });

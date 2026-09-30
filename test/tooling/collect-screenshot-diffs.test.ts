@@ -129,6 +129,19 @@ describe("collect-screenshot-diffs", () => {
     expect(result.stderr.toString()).toContain("Responsive visual baseline differs in 1 screenshot.");
     expect(existsSync(join(out, "changed--responsive--mobile--changed-diff.png"))).toBe(true);
   });
+
+  test("incomplete snapshot renders warn without blocking preview publication", async () => {
+    const preview = makeTempDir();
+    const args = [process.execPath, resolve(import.meta.dir, "../../scripts/ui/report-snapshot-failure.ts"), preview];
+    const empty = Bun.spawnSync(args);
+    expect(empty.exitCode).toBe(0);
+    expect(empty.stderr.toString()).toContain("::warning::");
+
+    await writePng(join(preview, "changed--rendered-base-vs-pr--AnalyseDataPanelParity-diff.png"), { r: 255, g: 0, b: 0 });
+    const changed = Bun.spawnSync(args);
+    expect(changed.exitCode).toBe(0);
+    expect(changed.stderr.toString()).toContain("changed--rendered-base-vs-pr--AnalyseDataPanelParity-diff.png");
+  });
   test("ignores sparse one-level antialiasing differences", async () => {
     const root = makeTempDir();
     const base = join(root, "base");

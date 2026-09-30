@@ -20,6 +20,9 @@ function traceLap(game: string, event: string, fields: Record<string, unknown>):
 
 /** Shared Kunos (ACC / AC Evo) lap detector state machine. */
 export abstract class KunosLapDetector implements ILapDetector {
+  protected recordedLapValidity(_packets: readonly TelemetryPacket[], _trigger?: TelemetryPacket): boolean | null {
+    return null;
+  }
   readonly detectorId: string;
   private readonly loggerLabel: string;
 
@@ -258,16 +261,28 @@ export abstract class KunosLapDetector implements ILapDetector {
       frames: packets.length,
     });
 
-    const quality = assessLapRecording(packets, lapTime);
-    const pitReason = classifyPitCycleLap(packets);
-    let isValid = !forcedInvalidReason && !pitReason && quality.valid;
-    let invalidReason = forcedInvalidReason ?? pitReason ?? quality.reason;
-
-    if (isValid) {
-      const cutReason = this.classifyTrackLimits(packets);
-      if (cutReason) {
-        isValid = false;
-        invalidReason = cutReason;
+    let isValid: boolean;
+    let invalidReason: string | null;
+    if (forcedInvalidReason) {
+      isValid = false;
+      invalidReason = forcedInvalidReason;
+    } else {
+      const recordedValidity = this.recordedLapValidity(packets, opts?.trigger);
+      if (recordedValidity !== null) {
+        isValid = recordedValidity;
+        invalidReason = recordedValidity ? null : "game reported invalid";
+      } else {
+        const quality = assessLapRecording(packets, lapTime);
+        const pitReason = classifyPitCycleLap(packets);
+        isValid = !pitReason && quality.valid;
+        invalidReason = pitReason ?? quality.reason;
+        if (isValid) {
+          const cutReason = this.classifyTrackLimits(packets);
+          if (cutReason) {
+            isValid = false;
+            invalidReason = cutReason;
+          }
+        }
       }
     }
     traceLap(traceGameId, "lap-boundary-stage", {

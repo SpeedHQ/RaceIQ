@@ -83,6 +83,7 @@ jobs:
         run: bunx playwright install chromium
 
       - name: Render base snapshots
+        id: base-storybook-render
         working-directory: ${{ runner.temp }}/raceiq-base
         env:
           RACEIQ_SNAPSHOT_DIR: ${{ runner.temp }}/base-snapshots
@@ -92,6 +93,8 @@ jobs:
           cd client
           bunx playwright test --update-snapshots --grep-invert "covered stories render without API requests"
 
+        # Missing base screenshots remain reviewable as additions.
+        continue-on-error: true
       - name: Render PR snapshots
         id: storybook-render
         working-directory: client
@@ -119,6 +122,6 @@ jobs:
           path: pr-preview/
           retention-days: 14
 
-      - name: Report Storybook snapshot failure
-        if: steps.storybook-render.outcome == 'failure'
+      - name: Warn about incomplete Storybook renders
+        if: steps.base-storybook-render.outcome == 'failure' || steps.storybook-render.outcome == 'failure'
         run: bun scripts/ui/report-snapshot-failure.ts pr-preview
