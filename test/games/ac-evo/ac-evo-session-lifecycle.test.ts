@@ -22,7 +22,7 @@ import { META_FRAME_MAGIC } from "../../../server/session-capture/framing"
 import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../../server/games/ac-evo/parser";
 import { AcEvoStatusCheckProcessor } from "../../../server/games/ac-evo/shared-memory";
-import { ACEVO_STATUS, GRAPHICS_EVO } from "../../../server/games/ac-evo/structs";
+import { ACEVO_STATUS, GRAPHICS_EVO, STATIC_EVO } from "../../../server/games/ac-evo/structs";
 import { unpackTriplet } from "../../../server/games/kunos/pack-triplet";
 import { TripletPipeline } from "../../../server/games/kunos/triplet-pipeline";
 
@@ -131,6 +131,21 @@ describe("AC Evo live pipeline — status gating", () => {
 });
 
 describe("AC Evo lap detector — session lifecycle", () => {
+  test("records AC Evo modes using its own session enum", async () => {
+    for (const [ordinal, expected] of [
+      [0, "time_attack"], [1, "race"], [2, "hot_stint"], [3, "cruise"],
+      [-1, "unknown"], [99, "unknown"],
+    ] as const) {
+      const t = readFirstTriplet();
+      t.staticData.writeInt32LE(ordinal, STATIC_EVO.session.offset);
+      const graphics = setStatus(t.graphics, ACEVO_STATUS.AC_LIVE);
+      const packet = parseAcEvoBuffers(t.physics, graphics, t.staticData, createAcEvoParserCache());
+      const db = new CapturingDbAdapter();
+      await new LapDetectorAcEvo({ db }).feed(packet!);
+      expect(db.sessions[0].sessionType).toBe(expected);
+    }
+  });
+
   test("flushStaleLap finalises session after 10s silence", async () => {
     const serverGame = getServerGame("ac-evo");
     const parserState = serverGame.createParserState?.() ?? null;

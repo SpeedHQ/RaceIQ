@@ -15,6 +15,7 @@ import type {
   ResultClassification,
   ResultSessionType,
 } from "./types";
+import { isPracticeSession } from "../../shared/racing/sessions/session-type";
 
 const SESSION_TYPES: Record<string, ResultSessionType> = {
   practice: "practice",
@@ -28,7 +29,7 @@ export function normalizeSessionType(value: string | null | undefined): ResultSe
   if (!value) return "unknown";
   const normalized = value.trim().toLowerCase();
   if (SESSION_TYPES[normalized]) return SESSION_TYPES[normalized];
-  if (normalized.startsWith("practice")) return "practice";
+  if (isPracticeSession(normalized)) return "practice";
   if (normalized.startsWith("qualif")) return "qualifying";
   if (normalized.startsWith("race")) return "race";
   return "other";
@@ -121,6 +122,9 @@ function stableEvents(events: PitEvent[] | undefined): PitEvent[] {
 
 export function deriveRaceResult(source: RaceSourceObservation): DerivedRaceResult {
   const sessionType = normalizeSessionType(source.sessionType);
+  const practice = sessionType === "practice";
+  const finishingPosition = practice ? null : source.finishingPosition ?? null;
+  const qualifyingPosition = practice ? null : source.qualifyingPosition ?? null;
   const classificationInput = classificationEvidence(source, sessionType);
   const classificationDecision = arbitrateRaceResultClaim(
     classificationInput.scope,
@@ -136,16 +140,20 @@ export function deriveRaceResult(source: RaceSourceObservation): DerivedRaceResu
     classification,
     status: resolveRaceResultSourceStatusFromAuthority(winningEvidence?.authority),
   };
-  const events = stableEvents([...(source.pitEvents ?? []), ...(source.positionChanges ?? [])]);
+  const events = stableEvents([...(source.pitEvents ?? []), ...(practice ? [] : source.positionChanges ?? []), ...(source.penalties ?? [])]);
   const reasons = [...new Set(source.reasons)];
   const conflicts = [...source.evidence.conflicts];
   const fieldStatus = { ...source.evidence.fieldStatus };
   fieldStatus.classification = classificationResult.status;
+  if (practice) {
+    fieldStatus.finishingPosition = "unavailable";
+    fieldStatus.qualifyingPosition = "unavailable";
+  }
 
   if (source.classification && sessionType === "qualifying" && source.classification !== "qualifying") {
     conflicts.push(`classification-vs-session-type:${source.classification}|${sessionType}`);
   }
-  const isPodium = derivePodium(source.finishingPosition ?? null, classification);
+  const isPodium = derivePodium(finishingPosition, classification);
   fieldStatus.isPodium = isPodium == null ? "unavailable" : "derived";
 
   if (!source.sessionType) reasons.push("session-type-missing");
@@ -166,11 +174,11 @@ export function deriveRaceResult(source: RaceSourceObservation): DerivedRaceResu
   return {
     sessionType,
     classification,
-    finishingPosition: source.finishingPosition ?? null,
-    qualifyingPosition: source.qualifyingPosition ?? null,
+    finishingPosition,
+    qualifyingPosition,
     isPodium,
     isFastestLap: source.isFastestLap ?? null,
-    pitCount: events.filter((event) => (event.eventType ?? "pit") !== "position-change").length,
+    pitCount: events.filter((event) => (event.eventType ?? "pit") === "pit").length,
     events,
     tyreStrategy: source.tyreStrategy ?? null,
     fuelStrategy: source.fuelStrategy ?? null,

@@ -2007,6 +2007,8 @@
   "race_result_session_type_unavailable": "Тип сесії недоступний",
   "race_result_start": "Старт",
   "race_result_stop_duration": "Зупинка: {duration} с",
+  "race_result_penalty": "Штраф",
+  "race_result_penalty_time": "Штраф: {duration} с",
   "race_result_summary_title": "Результати гонки",
   "race_result_summary_unavailable": "Зафіксовані результати наразі недоступні.",
   "race_result_timeline": "Хронологія гонки",

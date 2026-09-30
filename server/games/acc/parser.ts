@@ -10,6 +10,47 @@ import type { GameId } from "../../../shared/games/ids";
 import { PHYSICS, GRAPHICS, STATIC, FLAG_STATUS } from "./structs";
 import { readWString } from "./utils";
 
+// ACC shared-memory AC_SESSION_TYPE (distinct from AC Evo's session enum).
+const SESSION_TYPE_NAMES: Record<number, string> = {
+  0: "practice",
+  1: "qualifying",
+  2: "race",
+  3: "hotlap",
+  4: "time-attack",
+  5: "drift",
+  6: "drag",
+  7: "hot-stint",
+  8: "hotlap-superpole",
+};
+// ACC_PENALTY_TYPE from PyAccSharedMemory / ACC shared-memory documentation.
+// Keep raw enum separately; codes 18 and 22 intentionally have distinct labels.
+const PENALTY_TYPE_NAMES: Record<number, string> = {
+  0: "none",
+  1: "drive-through-cutting",
+  2: "stop-and-go-10-cutting",
+  3: "stop-and-go-20-cutting",
+  4: "stop-and-go-30-cutting",
+  5: "disqualified-cutting",
+  6: "remove-best-lap-time-cutting",
+  7: "drive-through-pit-speeding",
+  8: "stop-and-go-10-pit-speeding",
+  9: "stop-and-go-20-pit-speeding",
+  10: "stop-and-go-30-pit-speeding",
+  11: "disqualified-pit-speeding",
+  12: "remove-best-lap-time-pit-speeding",
+  13: "disqualified-ignored-mandatory-pit",
+  14: "post-race-time",
+  15: "disqualified-trolling",
+  16: "disqualified-pit-entry",
+  17: "disqualified-pit-exit",
+  18: "disqualified-wrong-way-old",
+  19: "drive-through-ignored-driver-stint",
+  20: "disqualified-ignored-driver-stint",
+  21: "disqualified-exceeded-driver-stint-limit",
+  22: "disqualified-wrong-way",
+};
+
+
 /**
  * Parse the three ACC shared memory buffers into a unified TelemetryPacket.
  * Returns null if the buffers are too small.
@@ -244,6 +285,9 @@ export function parseAccBuffers(
   const windSpeed = graphicsBuf.readFloatLE(GRAPHICS.windSpeed.offset);
   const windDirection = graphicsBuf.readFloatLE(GRAPHICS.windDirection.offset);
   const rainTyres = graphicsBuf.readInt32LE(GRAPHICS.rainTyres.offset);
+  const penalty = graphicsBuf.readInt32LE(GRAPHICS.penalty.offset);
+  const penaltyTime = graphicsBuf.readFloatLE(GRAPHICS.penaltyTime.offset);
+
 
   // V3-only tail fields (absent in legacy 1320-byte recordings). Null on V2.
   const isValidLap = graphicsBuf.length >= GRAPHICS.isValidLap.offset + 4
@@ -286,6 +330,10 @@ export function parseAccBuffers(
   const isRaceOn = status === 2 ? 1 : 0;
 
   const acc: KunosExtendedData = {
+    sessionType: SESSION_TYPE_NAMES[graphicsBuf.readInt32LE(GRAPHICS.session.offset)] ?? "unknown",
+    penalty,
+    penaltyType: PENALTY_TYPE_NAMES[penalty] ?? "unknown",
+    penaltyTime,
     tireCompound: tireCompound || (rainTyres ? "wet_compound" : "dry_compound"),
     tireCoreTemp: [coreFL, coreFR, coreRL, coreRR],
     tireInnerTemp: [innerFL, innerFR, innerRL, innerRR],

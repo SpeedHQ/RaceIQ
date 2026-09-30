@@ -2007,6 +2007,8 @@
   "race_result_session_type_unavailable": "Sessietype niet beschikbaar",
   "race_result_start": "Start",
   "race_result_stop_duration": "{duration}s stop",
+  "race_result_penalty": "Straf",
+  "race_result_penalty_time": "{duration}s straf",
   "race_result_summary_title": "Race-uitslagen",
   "race_result_summary_unavailable": "Geregistreerde resultaten zijn momenteel niet beschikbaar.",
   "race_result_timeline": "Racetijdlijn",

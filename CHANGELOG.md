@@ -7,8 +7,12 @@
 - Slightly reduce corner radii through shared Tailwind tokens.
 - Use accessible toggle groups for Sessions Mine/Others and Analyse tooltip display.
 - Preview segments, sectors, and guide corners on the track map by hovering or focusing their reference rows or cards, highlighting the selected sections and hiding unrelated labels.
+- Show session types for ACC and AC Evo in desktop session tables and mobile session cards.
+- Expose ACC penalty codes, types, and time in telemetry, and list observed penalties on the race timeline without counting them as pit stops.
 
 ### Fixes
+- Stop showing race finishing, grid, and position-change ranks for practice sessions, including LMU test days; retain raw simulator timing ranks.
+- Place qualifying position before Start on the race timeline instead of alongside Finish.
 - Keep the New experiment dialog header and footer visible while its form content scrolls.
 - Keep the track map full height beside a scrollable circuit reference, place compact stats above sector boundaries, and remove the redundant laps-recorded stat; stack track details on mobile.
 - Show ACC track lengths derived from available circuit outlines instead of leaving length blank.

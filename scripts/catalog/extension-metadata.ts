@@ -91,6 +91,10 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "acc.roadTempC": "weather.track-temp",
   "acc.windSpeed": "weather.wind-speed",
   "acc.windDirection": "weather.wind-direction",
+  "acc.penalty": "race.penalty-code",
+  "acc.penaltyType": "race.penalty-type",
+  "acc.penaltyTime": "race.penalty-time",
+  "acc.sessionType": "session.session-type",
   "acc.acEvo.airTempC": "weather.air-temp",
   "acc.acEvo.roadTempC": "weather.track-temp",
   "acc.acEvo.tyreMiddleTempC": "tire.temperature.surface.middle",
@@ -309,6 +313,27 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
     unit: "enum",
     description: "ACC brake-pad compound identifier.",
   },
+  "acc.penalty": {
+    unit: "enum",
+    description: "ACC native penalty enum code; raw Graphics.penalty value.",
+  },
+  "acc.penaltyType": {
+    unit: "text",
+    description: "Stable label mapped from ACC Graphics.penalty; unknown codes are labeled unknown and preserved as raw code separately.",
+    kind: "normalized",
+    normalization: "map documented ACC penalty enum; unmapped values label unknown",
+  },
+  "acc.penaltyTime": {
+    unit: "s",
+    description: "ACC native Graphics.penaltyTime float seconds; raw SDK value, not stop-and-go service duration.",
+  },
+  "acc.sessionType": {
+    unit: "text",
+    description: "ACC session mode normalized from Graphics.session.",
+    kind: "normalized",
+    normalization: "map ACC session ordinal to stable session label",
+    freshness: "session-update",
+  },
   "acc.windSpeed": {
     unit: "m/s",
     description: "ACC wind speed in metres per second.",
@@ -472,6 +497,18 @@ const UNAVAILABLE_EXTENSION_SOURCES: Partial<Record<GameId, Record<string, Unava
     "acc.brakePadCompound": {
       reason: "parser-placeholder",
       description: "AC Evo parser currently emits constant 0; brake-pad compound source is not wired.",
+    },
+    "acc.penalty": {
+      reason: "source-not-provided",
+      description: "AC Evo v0.6 does not expose ACC penalty enum codes.",
+    },
+    "acc.penaltyType": {
+      reason: "source-not-provided",
+      description: "AC Evo v0.6 does not expose ACC penalty types.",
+    },
+    "acc.penaltyTime": {
+      reason: "source-not-provided",
+      description: "AC Evo v0.6 does not expose ACC penalty time.",
     },
     "acc.rainIntensity": {
       reason: "parser-placeholder",

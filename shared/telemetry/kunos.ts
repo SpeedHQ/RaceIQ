@@ -68,6 +68,14 @@ export interface KunosExtendedData {
   roadTempC?: number | null;
 
   // Race state
+  /** ACC session mode; absent for imports without game-reported session context. */
+  sessionType?: string;
+  /** ACC native penalty enum code; absent for sources without this field. */
+  penalty?: number;
+  /** Stable kebab-case ACC penalty label, or "unknown" for unmapped codes. */
+  penaltyType?: string;
+  /** ACC Graphics.penaltyTime native float seconds; not served stop duration. */
+  penaltyTime?: number;
   flagStatus: string;
   drsAvailable: boolean;
   drsEnabled: boolean;

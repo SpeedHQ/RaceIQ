@@ -2004,6 +2004,8 @@
   "race_result_session_type_unavailable": "Тип сессии недоступен",
   "race_result_start": "Старт",
   "race_result_stop_duration": "Остановка: {duration} с",
+  "race_result_penalty": "Штраф",
+  "race_result_penalty_time": "Штраф: {duration} с",
   "race_result_summary_title": "Результаты гонки",
   "race_result_summary_unavailable": "Записанные результаты сейчас недоступны.",
   "race_result_timeline": "Хронология гонки",

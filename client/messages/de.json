@@ -2031,6 +2031,8 @@
   "race_result_session_type_unavailable": "Sessiontyp nicht verfügbar",
   "race_result_start": "Start",
   "race_result_stop_duration": "Stopp von {duration}s",
+  "race_result_penalty": "Strafe",
+  "race_result_penalty_time": "{duration}s Strafe",
   "race_result_summary_title": "Rennergebnisse",
   "race_result_summary_unavailable": "Aufgezeichnete Ergebnisse sind derzeit nicht verfügbar.",
   "race_result_timeline": "Rennverlauf",

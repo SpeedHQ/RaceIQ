@@ -12,8 +12,8 @@ import {
 import { RACE_RESULT_OUTCOME_POLICY } from "./authority";
 
 const RACE_RESULT_DERIVATION_ID = "race-result-derivation";
-const RACE_RESULT_DERIVATION_VERSION = "3";
-const RACE_RESULT_DERIVATION_CODE_HASH = "sha256:cffa4cebb957096212111001a2dcc14186df97a4bf74734fc853db6054c4c8e8";
+const RACE_RESULT_DERIVATION_VERSION = "5";
+const RACE_RESULT_DERIVATION_CODE_HASH = "sha256:679c2a2e740f21cacf5fd4dd831f8a78a6a511705897861def7761c5a8652bc5";
 
 export function createRaceResultProvenance(
   gameId: GameId,

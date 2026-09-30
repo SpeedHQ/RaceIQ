@@ -211,7 +211,7 @@ export function SessionsPage() {
     },
     [queryClient],
   );
-  const showSessionType = gameId === "f1-2025" || gameId === "lmu";
+  const showSessionType = gameId === "f1-2025" || gameId === "lmu" || gameId === "acc" || gameId === "ac-evo";
   const colCount = showSessionType ? 9 : 8;
   const emptyMessage = favoriteOnly ? m.sessions_none_favorites() : tab === "others" ? m.sessions_none_others() : m.sessions_none();
 

@@ -2005,6 +2005,8 @@
   "race_result_session_type_unavailable": "Typ sesji niedostępny",
   "race_result_start": "Start",
   "race_result_stop_duration": "Postój: {duration}s",
+  "race_result_penalty": "Kara",
+  "race_result_penalty_time": "Kara: {duration}s",
   "race_result_summary_title": "Wyniki wyścigu",
   "race_result_summary_unavailable": "Zarejestrowane wyniki są teraz niedostępne.",
   "race_result_timeline": "Oś czasu wyścigu",

@@ -2007,6 +2007,8 @@
   "race_result_session_type_unavailable": "Type de session indisponible",
   "race_result_start": "Départ",
   "race_result_stop_duration": "Arrêt de {duration}s",
+  "race_result_penalty": "Pénalité",
+  "race_result_penalty_time": "Pénalité de {duration}s",
   "race_result_summary_title": "Résultats de la course",
   "race_result_summary_unavailable": "Les résultats enregistrés sont momentanément indisponibles.",
   "race_result_timeline": "Chronologie de la course",

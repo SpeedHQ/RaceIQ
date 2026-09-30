@@ -88,7 +88,7 @@ export abstract class KunosLapDetector implements ILapDetector {
         resolvedCarOrdinal,
         packet.TrackOrdinal ?? 0,
         packet.gameId,
-        packet.f1?.sessionType,
+        packet.acc?.acEvo?.sessionType ?? packet.acc?.sessionType,
       );
       this.currentSession = {
         sessionId,

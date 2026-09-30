@@ -53,6 +53,7 @@ export const ENUM_DOMAINS: Readonly<Record<string, readonly string[]>> = {
     "12",
     "13",
   ],
+  "race.penalty-code": Array.from({ length: 23 }, (_, code) => String(code)),
   "setup.tires.compound": ["0", "1"],
   "tires.tire-compound": [
     "7",

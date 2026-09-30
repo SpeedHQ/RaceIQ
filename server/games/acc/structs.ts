@@ -202,9 +202,10 @@ export const GRAPHICS = {
   // carID[60] at 976 (240 bytes → 1216)
   carIDBase:        { offset: 976, type: "i32" },   // stride: 4 bytes per car
   playerCarID:      { offset: 1216, type: "i32" },
-  // penaltyTime (1220)
+  penaltyTime:      { offset: 1220, type: "f32" },
   flag:             { offset: 1224, type: "i32" },
-  // penalty (1228), idealLineOn (1232)
+  penalty:          { offset: 1228, type: "i32" },
+  // idealLineOn (1232)
   isInPitLane:      { offset: 1236, type: "i32" },
   // surfaceGrip (1240), mandatoryPitDone (1244)
   windSpeed:        { offset: 1248, type: "f32" },

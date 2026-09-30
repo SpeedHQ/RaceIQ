@@ -2005,6 +2005,8 @@
   "race_result_session_type_unavailable": "Tipo de sessão indisponível",
   "race_result_start": "Largada",
   "race_result_stop_duration": "Parada de {duration}s",
+  "race_result_penalty": "Penalidade",
+  "race_result_penalty_time": "Penalidade de {duration}s",
   "race_result_summary_title": "Resultados da corrida",
   "race_result_summary_unavailable": "Os resultados registrados estão indisponíveis no momento.",
   "race_result_timeline": "Linha do tempo da corrida",

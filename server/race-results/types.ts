@@ -11,7 +11,7 @@ export type ResultSessionType = "practice" | "qualifying" | "race" | "other" | "
 export type ResultClassification = RaceResultStatus;
 export type PitService = "tyres" | "fuel" | "combined" | "unknown";
 export type PitLinkage = "linked" | "unlinked" | "unknown";
-export type RaceEventType = "pit" | "position-change";
+export type RaceEventType = "pit" | "position-change" | "penalty";
 
 export interface PitEvent {
   eventType?: RaceEventType;
@@ -48,6 +48,7 @@ export interface RaceSourceObservation {
   claims?: RaceResultClaimEvidence[];
   pitEvents?: PitEvent[];
   positionChanges?: PositionChangeEvent[];
+  penalties?: PitEvent[];
   tyreStrategy?: unknown;
   fuelStrategy?: unknown;
   provenance: RaceResultProvenance;

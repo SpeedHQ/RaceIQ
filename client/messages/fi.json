@@ -2005,6 +2005,8 @@
 "race_result_session_type_unavailable": "Ajokerran tyyppi ei ole saatavilla",
 "race_result_start": "Lähtö",
 "race_result_stop_duration": "{duration} s pysähdys",
+"race_result_penalty": "Rangaistus",
+"race_result_penalty_time": "{duration} s rangaistus",
 "race_result_summary_title": "Kilpailutulokset",
 "race_result_summary_unavailable": "Tallennetut tulokset eivät ole juuri nyt saatavilla.",
 "race_result_timeline": "Kilpailun aikajana",

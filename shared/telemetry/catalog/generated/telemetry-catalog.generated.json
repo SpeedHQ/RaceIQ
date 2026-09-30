@@ -6,12 +6,12 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.19.0",
-      "sourceHash": "91302eb626fe1f5bf86dc86e7c790f5ba61d1f8316042e3c3cfc4fde432f457e"
+      "sourceHash": "8ccaf31d0d5ee0bd8870207f674222fc8c84894d73155e458f124328bfebdb40"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
       "server/games/ac-evo/parser.ts": "69e66c0ab3bc04b53cc13beda19cd99aeb4f73ab2d5095d592e04a61f58c7cef",
-      "server/games/acc/parser.ts": "8b03270644cc98f2c18737e27dbe4e6639ea9df49fa6ab5a6bdb56b94bbb52a1",
+      "server/games/acc/parser.ts": "3decc943b558a9b8cdc9f741179b4c203e9b016dc0a7835928c06c8e404c1981",
       "server/games/f1-2025/f1-state.ts": "a9e464d9f96e115874402b16d57d660e509ecc30cc4070f1395b72d27ec26b9c",
       "server/games/fm-2023/parser.ts": "8ac6812fc6622f9c1cd4587268583997325fa1ce207d9a8f8c7930fdb6bc1c56",
       "server/games/iracing/normalizer.ts": "7a9f061a649426812b3689b5848a045a7b51208334db4b2167b3c188a9864775",
@@ -20,7 +20,7 @@
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "713c6cdb08ced03173a58eeafef9b307a9beab0568039ab19304ba949b3cf04d"
+    "contentHash": "28f7fe77746e14f2c3a319e464f28c32dec0695e3360460c50aa18eafb01bbf1"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -528,6 +528,8 @@
         "race.on-pit-road",
         "race.pace-car-index",
         "race.penalties",
+        "race.penalty-code",
+        "race.penalty-type",
         "race.pit-lane-timer-active",
         "race.pit-speed-limit",
         "race.pit-stall-lap-fraction",
@@ -988,6 +990,7 @@
       "label": "Timing",
       "description": "Lap, sector, delta, and race-timing values.",
       "children": [
+        "race.penalty-time",
         "timing.best-lap",
         "timing.best-lap-number",
         "timing.car-dist-ahead",
@@ -30078,6 +30081,214 @@
       "limitations": []
     },
     {
+      "id": "race.penalty-code",
+      "label": "Penalty",
+      "description": "ACC native penalty enum code; raw Graphics.penalty value.",
+      "parentId": "race",
+      "canonicalUnit": "enum",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "direct",
+          "nativeUnit": "enum",
+          "sources": [
+            "acc.penalty"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": []
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "AC Evo v0.6 does not expose ACC penalty enum codes."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "enum",
+      "dimensions": [
+        "unit:enum"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "enumDomain": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22"
+      ],
+      "limitations": []
+    },
+    {
+      "id": "race.penalty-time",
+      "label": "Penalty Time",
+      "description": "ACC native Graphics.penaltyTime float seconds; raw SDK value, not stop-and-go service duration.",
+      "parentId": "timing",
+      "canonicalUnit": "s",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "acc.penaltyTime"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": []
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "AC Evo v0.6 does not expose ACC penalty time."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.penalty-type",
+      "label": "Penalty Type",
+      "description": "Stable label mapped from ACC Graphics.penalty; unknown codes are labeled unknown and preserved as raw code separately.",
+      "parentId": "race",
+      "canonicalUnit": "text",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "normalized",
+          "nativeUnit": "text",
+          "sources": [
+            "acc.penaltyType"
+          ],
+          "freshness": "continuous",
+          "normalization": "map documented ACC penalty enum; unmapped values label unknown",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "acc:race.penalty-type:normalized",
+            "version": "0.19.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.penaltyType"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "9935215e2dca37b1f87a99d1c69542853409089b15ee59c4db2a89e59dccb89d"
+          }
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "AC Evo v0.6 does not expose ACC penalty types."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "string",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "race.pit-lane-timer-active",
       "label": "Pit Lane Timer Active",
       "description": "Pit Lane Timer Active source value reported by f1-2025 in s.",
@@ -35695,23 +35906,58 @@
           "limitations": []
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "ac-evo": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "text",
           "sources": [
+            "acc.sessionType"
+          ],
+          "freshness": "session-update",
+          "normalization": "map ACC session ordinal to stable session label",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "acc:session.session-type:normalized",
+            "version": "0.19.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.sessionType"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "64aafdf37e4e0742a022c50eb97ee66c2024d697dd1c04b64d98b1aba506e313"
+          }
+        },
+        "ac-evo": {
+          "kind": "normalized",
+          "nativeUnit": "text",
+          "sources": [
+            "acc.sessionType",
             "acc.acEvo.sessionType"
           ],
-          "freshness": "continuous",
+          "freshness": "session-update",
+          "normalization": "map ACC session ordinal to stable session label",
           "description": "ac-evo parser exposes 1 linked field.",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/ac-evo/parser.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "ac-evo:session.session-type:normalized",
+            "version": "0.19.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.sessionType",
+              "acc.acEvo.sessionType"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "6df2f502956b1da59c4de4abdbc3543ce6706a3ffdfd55ef18ab8122d1a80b18"
+          }
         },
         "iracing": {
           "kind": "normalized",
@@ -67488,6 +67734,42 @@
         "retention": "exact"
       },
       {
+        "path": "acc.penalty",
+        "label": "Penalty",
+        "unit": "enum",
+        "dataType": "number",
+        "count": 1,
+        "description": "ACC native penalty enum code; raw Graphics.penalty value.",
+        "semanticId": "race.penalty-code",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.penaltyTime",
+        "label": "Penalty Time",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "ACC native Graphics.penaltyTime float seconds; raw SDK value, not stop-and-go service duration.",
+        "semanticId": "race.penalty-time",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.penaltyType",
+        "label": "Penalty Type",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Stable label mapped from ACC Graphics.penalty; unknown codes are labeled unknown and preserved as raw code separately.",
+        "semanticId": "race.penalty-type",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "acc.pitStatus",
         "label": "Pit Status",
         "unit": "text",
@@ -67531,6 +67813,18 @@
         "count": 1,
         "description": "Road Temp C source value reported by acc in °C.",
         "semanticId": "weather.track-temp",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.sessionType",
+        "label": "Session Type",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "ACC session mode normalized from Graphics.session.",
+        "semanticId": "session.session-type",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -70562,6 +70856,42 @@
         "retention": "exact"
       },
       {
+        "path": "acc.penalty",
+        "label": "Penalty",
+        "unit": "enum",
+        "dataType": "number",
+        "count": 1,
+        "description": "AC Evo v0.6 does not expose ACC penalty enum codes.",
+        "semanticId": "race.penalty-code",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.penaltyTime",
+        "label": "Penalty Time",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "AC Evo v0.6 does not expose ACC penalty time.",
+        "semanticId": "race.penalty-time",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.penaltyType",
+        "label": "Penalty Type",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "AC Evo v0.6 does not expose ACC penalty types.",
+        "semanticId": "race.penalty-type",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "acc.pitStatus",
         "label": "Pit Status",
         "unit": "text",
@@ -70605,6 +70935,18 @@
         "count": 1,
         "description": "Road Temp C source value reported by ac-evo in °C.",
         "semanticId": "weather.track-temp",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.sessionType",
+        "label": "Session Type",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "ACC session mode normalized from Graphics.session.",
+        "semanticId": "session.session-type",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -84212,7 +84554,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 149,
-    "semanticVariables": 774,
+    "semanticVariables": 777,
     "sourceCounts": {
       "fm-2023": {
         "total": 96,
@@ -84233,22 +84575,22 @@
         "recorded": 289
       },
       "acc": {
-        "total": 201,
+        "total": 205,
         "packet": 124,
-        "extension": 44,
+        "extension": 48,
         "sdk": 0,
         "yaml": 0,
         "setup": 33,
-        "recorded": 168
+        "recorded": 172
       },
       "ac-evo": {
-        "total": 256,
+        "total": 260,
         "packet": 124,
-        "extension": 96,
+        "extension": 100,
         "sdk": 0,
         "yaml": 0,
         "setup": 36,
-        "recorded": 220
+        "recorded": 224
       },
       "iracing": {
         "total": 952,

@@ -180,7 +180,7 @@ export function SessionDesktopTable({
                     <TableCell className="text-app-label">
                       <SessionResultMeta session={session} />
                     </TableCell>
-                    {showSessionType && <TableCell className="text-app-label">{formatSessionType(session.sessionType)}</TableCell>}
+                    {showSessionType && <TableCell className="text-app-label">{formatSessionType(session.sessionType) || "—"}</TableCell>}
                     <TableCell>
                       <NoteCell value={session.notes ?? undefined} onSave={(notes) => saveSessionNotes(session.id, notes)} />
                     </TableCell>

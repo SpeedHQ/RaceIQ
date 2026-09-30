@@ -2,11 +2,11 @@ import type { RaceResultClaimEvidence, RaceResultEvidence, RaceResultSourceStatu
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { derivePitLedger, type PitServiceSignals } from "./pit-ledger";
-import type { RaceSourceObservation, ResultClassification } from "./types";
+import type { PitEvent, RaceSourceObservation, ResultClassification } from "./types";
 import { createRaceResultProvenance } from "./provenance";
 import { resolveRaceResultAuthorityFromSourceStatus } from "./authority";
 
-const SOURCE_EXTRACTOR = { id: "race-result-source", version: "3" } as const;
+const SOURCE_EXTRACTOR = { id: "race-result-source", version: "5" } as const;
 
 function classifyF1Result(status: number | undefined): ResultClassification | null {
   switch (status) {
@@ -58,6 +58,9 @@ export class RaceSourceAccumulator {
   private tyreStrategy: unknown = null;
   private fuelPerLap: number | null = null;
   private lapPositions = new Map<number, number>();
+  private penalties: PitEvent[] = [];
+  private activePenalty = 0;
+  private activePenaltyTime = 0;
 
   private readonly gameId: GameId;
 
@@ -72,11 +75,29 @@ export class RaceSourceAccumulator {
       this.pitSignals ??= [];
       if (inPit && !this.inPit) {
         this.pitSignals.push({
+          sequence: index + 1,
           lapNumber: packet.LapNumber, elapsedSeconds: packet.CurrentRaceTime,
           linkage: "linked", source: pitSource(this.gameId, packet),
         });
       }
       this.inPit = inPit;
+    }
+
+    if (this.gameId === "acc" && packet.acc?.penalty != null) {
+      const { penalty, penaltyType, penaltyTime } = packet.acc;
+      const time = penaltyTime != null && Number.isFinite(penaltyTime) && penaltyTime > 0 ? penaltyTime : 0;
+      if (penalty > 0 && (penalty !== this.activePenalty || time > this.activePenaltyTime)) {
+        this.penalties.push({
+          eventType: "penalty", sequence: index + 1,
+          lapNumber: positive(packet.LapNumber), elapsedSeconds: positive(packet.CurrentRaceTime),
+          durationSeconds: null, service: "unknown", tyreChange: null,
+          fuelAdded: null, fuelBefore: null, fuelAfter: null, linkage: "linked",
+          source: { channel: "acc.penalty", penalty, penaltyType: penaltyType ?? "unknown", penaltyTime: time },
+        });
+      }
+      this.activePenaltyTime = penalty === this.activePenalty ? Math.max(this.activePenaltyTime, time) : time;
+      this.activePenalty = penalty;
+      if (penalty === 0) this.activePenaltyTime = 0;
     }
 
     const position = positive(packet.RacePosition);
@@ -127,6 +148,12 @@ export class RaceSourceAccumulator {
     } else if (packet.acc?.acEvo?.sessionType && packet.acc.acEvo.sessionType !== "unknown") {
       this.sessionType = packet.acc.acEvo.sessionType;
     }
+    if (this.gameId === "acc" && packet.acc?.sessionType && packet.acc.sessionType !== "unknown") {
+      this.sessionType = packet.acc.sessionType;
+    }
+    if (this.gameId === "lmu" && packet.lmu?.sessionType && packet.lmu.sessionType !== "unknown") {
+      this.sessionType = packet.lmu.sessionType;
+    }
   }
 
   finish(): RaceSourceObservation {
@@ -172,13 +199,14 @@ export class RaceSourceAccumulator {
     const provenance = createRaceResultProvenance(this.gameId, {
       extractor: SOURCE_EXTRACTOR,
       fields: {
-        sessionType: fieldStatus.sessionType === "direct" ? (f1 ? "f1.sessionType" : "acc.acEvo.sessionType") : null,
+        sessionType: fieldStatus.sessionType === "direct" ? (f1 ? "f1.sessionType" : this.gameId === "lmu" ? "lmu.sessionType" : this.gameId === "acc" ? "acc.sessionType" : "acc.acEvo.sessionType") : null,
         classification: classification == null ? null : `f1.resultStatus:${classificationSource ?? "unknown"}`,
         finishingPosition: finishingPosition == null ? null : `TelemetryPacket.RacePosition:${this.finalPosition != null ? "final-classification" : f1 ? "lap-data" : "continuous"}`,
         qualifyingPosition: qualifyingPosition == null ? null : `f1.gridPosition:${this.finalGridPosition != null ? "final-classification" : "lap-data"}`,
         isFastestLap: this.isFastestLap == null ? null : "player-vs-f1.grid.bestLapTime",
         pitEvents: pitSignals ? `${this.gameId}-pit-transition` : null,
         positionChanges: positionChanges ? "TelemetryPacket.RacePosition at lap boundaries" : null,
+        penalties: this.penalties.length ? "acc.penalty transitions" : null,
         tyreStrategy: tyreStrategy == null ? null : "initial-compound-only",
         fuelStrategy: fuelStrategy == null ? null : "initial-acc.fuelPerLap-only",
         resultReason: this.resultReason == null ? null : "f1.finalClassification.resultReason",
@@ -197,8 +225,8 @@ export class RaceSourceAccumulator {
       gameId: this.gameId, sessionType: this.sessionType, classification,
       finishingPosition, qualifyingPosition, isFastestLap: this.isFastestLap,
       fastestLapSource: f1 ? "f1-grid" : null, claims,
-      pitEvents: pitSignals ? derivePitLedger(pitSignals) : undefined,
-      positionChanges, tyreStrategy, fuelStrategy, provenance,
+      pitEvents: pitSignals ? derivePitLedger(pitSignals).map((event, index) => ({ ...event, sequence: pitSignals[index].sequence ?? event.sequence })) : undefined,
+      penalties: this.penalties, positionChanges, tyreStrategy, fuelStrategy, provenance,
       evidence: { fieldStatus, conflicts }, reasons: [],
     };
   }

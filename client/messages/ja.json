@@ -2008,6 +2008,8 @@
   "race_result_session_type_unavailable": "セッション種別を利用できません",
   "race_result_start": "スタート",
   "race_result_stop_duration": "{duration}秒停止",
+  "race_result_penalty": "ペナルティ",
+  "race_result_penalty_time": "{duration}秒のペナルティ",
   "race_result_summary_title": "レース結果",
   "race_result_summary_unavailable": "現在、記録された結果を利用できません。",
   "race_result_timeline": "レースタイムライン",

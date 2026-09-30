@@ -1,10 +1,12 @@
 import type { GameId } from "@shared/games/ids";
 import type { RaceResult } from "@shared/racing/results/types";
+import { isPracticeSession } from "@shared/racing/sessions/session-type";
 import { useSessionResult } from "@/hooks/session-queries";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 
 type RaceResultTimelineNode =
+  | { kind: "qualifying"; position: number }
   | { kind: "start"; position: number | null }
   | {
       kind: "pit";
@@ -14,6 +16,13 @@ type RaceResultTimelineNode =
       service: RaceResult["events"][number]["service"];
       tyreChange: unknown;
       fuelAdded: number | null;
+    }
+  | {
+      kind: "penalty";
+      sequence: number;
+      lapNumber: number | null;
+      penaltyType: string;
+      penaltyTime: number;
     }
   | {
       kind: "position";
@@ -26,7 +35,6 @@ type RaceResultTimelineNode =
       kind: "finish";
       classification: RaceResult["classification"];
       finishingPosition: number | null;
-      qualifyingPosition: number | null;
     };
 
 const RESULT_PRESENTATION: Record<RaceResult["classification"], { label: string; surfaceClassName: string; accentClassName: string }> = {
@@ -68,10 +76,26 @@ const RESULT_PRESENTATION: Record<RaceResult["classification"], { label: string;
 };
 
 export function buildRaceResultTimeline(result: RaceResult): RaceResultTimelineNode[] {
-  let currentPosition = result.qualifyingPosition;
+  const practice = isPracticeSession(result.sessionType);
+  const qualifyingPosition = practice ? null : result.qualifyingPosition;
+  let currentPosition = qualifyingPosition;
   const eventNodes: RaceResultTimelineNode[] = [];
   for (const event of result.events.slice().sort((a, b) => a.sequence - b.sequence)) {
+    if (event.eventType === "penalty") {
+      const source = event.source as { penaltyType?: unknown; penaltyTime?: unknown } | null;
+      eventNodes.push({
+        kind: "penalty",
+        sequence: event.sequence,
+        lapNumber: event.lapNumber,
+        penaltyType: typeof source?.penaltyType === "string"
+          ? source.penaltyType.replace(/[-_]+/g, " ")
+          : m.race_result_penalty(),
+        penaltyTime: typeof source?.penaltyTime === "number" ? source.penaltyTime : 0,
+      });
+      continue;
+    }
     if (event.eventType === "position-change") {
+      if (practice) continue;
       const position = event.positionAfter ?? null;
       if (position == null) continue;
       if (currentPosition != null && position === currentPosition) continue;
@@ -96,13 +120,13 @@ export function buildRaceResultTimeline(result: RaceResult): RaceResultTimelineN
     });
   }
   return [
-    { kind: "start", position: result.qualifyingPosition },
+    ...(qualifyingPosition != null ? [{ kind: "qualifying" as const, position: qualifyingPosition }] : []),
+    { kind: "start", position: qualifyingPosition },
     ...eventNodes,
     {
       kind: "finish",
       classification: result.classification,
-      finishingPosition: result.finishingPosition,
-      qualifyingPosition: result.qualifyingPosition,
+      finishingPosition: practice ? null : result.finishingPosition,
     },
   ];
 }
@@ -129,6 +153,15 @@ function ResultFlag({ className }: { className: string }) {
 }
 
 function TimelineNode({ node }: { node: RaceResultTimelineNode }) {
+  if (node.kind === "qualifying") {
+    return (
+      <div className="min-w-32 rounded-xl border border-status-info/50 bg-status-info/10 px-4 py-3">
+        <div className="text-app-caption font-semibold uppercase tracking-app-label text-status-info">{m.race_result_qualifying()}</div>
+        <div className="mt-1 text-sm font-semibold text-app-text">{m.race_result_qualified_position({ position: node.position })}</div>
+      </div>
+    );
+  }
+
   if (node.kind === "start") {
     return (
       <div className="min-w-32 rounded-xl border border-app-border/80 bg-app-surface px-4 py-3 shadow-sm shadow-app-bg/20">
@@ -157,7 +190,16 @@ function TimelineNode({ node }: { node: RaceResultTimelineNode }) {
       </div>
     );
   }
-
+  if (node.kind === "penalty") {
+    return (
+      <div className="min-w-32 rounded-xl border border-status-danger/50 bg-status-danger/10 px-4 py-3">
+        <div className="text-app-caption font-semibold uppercase tracking-app-label text-status-danger">{m.race_result_penalty()}</div>
+        {node.lapNumber != null && <div className="mt-1 text-xs text-app-text/65">{m.race_result_lap({ lap: node.lapNumber })}</div>}
+        <div className="mt-0.5 text-sm font-semibold capitalize text-app-text">{node.penaltyType}</div>
+        {node.penaltyTime > 0 && <div className="text-xs text-app-text/70">{m.race_result_penalty_time({ duration: node.penaltyTime.toFixed(1) })}</div>}
+      </div>
+    );
+  }
   if (node.kind === "finish") {
     const presentation = RESULT_PRESENTATION[node.classification];
     return (
@@ -167,7 +209,6 @@ function TimelineNode({ node }: { node: RaceResultTimelineNode }) {
           <div className={cn("text-app-caption font-semibold uppercase tracking-app-label", presentation.accentClassName)}>{presentation.label}</div>
         </div>
         {node.classification !== "qualifying" && node.finishingPosition != null && <div className="mt-1 text-xs text-app-text/70">{m.race_result_finish_position({ position: node.finishingPosition })}</div>}
-        {node.qualifyingPosition != null && <div className="mt-1 text-xs text-app-text/70">{m.race_result_qualified_position({ position: node.qualifyingPosition })}</div>}
       </div>
     );
   }
@@ -198,7 +239,7 @@ export function RaceResultLedger({ sessionId, gameId, enabled }: { sessionId: nu
       <div className="overflow-x-auto pb-1">
         <div className="flex min-w-max items-center">
           {nodes.map((node, index) => (
-            <div key={node.kind === "pit" || node.kind === "position" ? `${node.kind}-${node.sequence}` : node.kind} className="flex items-center">
+            <div key={"sequence" in node ? `${node.kind}-${node.sequence}` : node.kind} className="flex items-center">
               <TimelineNode node={node} />
               {index < nodes.length - 1 && <div aria-hidden="true" className="mx-2 h-px w-10 bg-app-border/80" />}
             </div>

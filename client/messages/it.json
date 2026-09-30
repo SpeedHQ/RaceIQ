@@ -2007,6 +2007,8 @@
   "race_result_session_type_unavailable": "Tipo di sessione non disponibile",
   "race_result_start": "Partenza",
   "race_result_stop_duration": "Sosta di {duration}s",
+  "race_result_penalty": "Penalità",
+  "race_result_penalty_time": "Penalità di {duration}s",
   "race_result_summary_title": "Risultati di gara",
   "race_result_summary_unavailable": "I risultati registrati non sono al momento disponibili.",
   "race_result_timeline": "Cronologia della gara",

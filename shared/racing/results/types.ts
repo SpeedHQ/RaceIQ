@@ -171,7 +171,7 @@ export interface RaceResult {
   outcomeStatus: RaceResultOutcomeStatus;
   evidence: RaceResultEvidence;
   events: Array<{
-    eventType?: "pit" | "position-change";
+    eventType?: "pit" | "position-change" | "penalty";
     sequence: number;
     lapNumber: number | null;
     elapsedSeconds: number | null;

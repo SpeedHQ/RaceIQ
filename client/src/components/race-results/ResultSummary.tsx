@@ -1,4 +1,5 @@
 import type { RaceResult, RaceResultAggregate, RaceResultOutcomeStatus, RaceResultStatus } from "@shared/racing/results/types";
+import { isPracticeSession } from "@shared/racing/sessions/session-type";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { m } from "@/paraglide/messages";
@@ -89,7 +90,8 @@ function SummaryShell({ children, className, title, busy }: { children: ReactNod
 
 function RecentResult({ result }: { result: RaceResult }) {
   const { fieldStatus, conflicts } = result.evidence;
-  const position =
+  const practice = isPracticeSession(result.sessionType);
+  const position = practice ? null :
     result.finishingPosition != null && fieldStatus.finishingPosition !== "unavailable"
       ? { label: m.race_result_finished(), value: result.finishingPosition }
       : result.qualifyingPosition != null && fieldStatus.qualifyingPosition !== "unavailable"
@@ -110,7 +112,7 @@ function RecentResult({ result }: { result: RaceResult }) {
               {position.label} P{position.value}
             </span>
           )}
-          {result.isPodium === true && fieldStatus.isPodium !== "unavailable" && <span className="text-app-caption text-app-text-muted">{m.race_result_podium()}</span>}
+          {!practice && result.isPodium === true && fieldStatus.isPodium !== "unavailable" && <span className="text-app-caption text-app-text-muted">{m.race_result_podium()}</span>}
           {result.isFastestLap === true && fieldStatus.isFastestLap !== "unavailable" && <span className="text-app-caption text-app-text-muted">{m.race_result_fastest_lap()}</span>}
         </div>
       </div>

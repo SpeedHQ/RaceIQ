@@ -13,7 +13,7 @@ import type { RaceResultRawInputIdentity } from "../../shared/racing/results/typ
 import { hashRawCapture, rawCaptureObjectId } from "../session-capture/identity";
 import { getAllServerGames } from "../games/registry";
 
-export const RACE_RESULT_PROCESSOR_ID = "race-result-v2";
+export const RACE_RESULT_PROCESSOR_ID = "race-result-v4";
 
 async function rawInputIdentity(sessionId: number, rawFile: string | null | undefined): Promise<RaceResultRawInputIdentity | null> {
   if (!rawFile) return null;

@@ -157,6 +157,63 @@ describe("ACC lap detector — session re-created on race re-entry", () => {
 });
 
 describe("ACC lap detector — session lifecycle", () => {
+  test("records game-reported session modes, including hotlap and unknown", async () => {
+    const first = readKunosFrames(ACC_FIXTURE)[0];
+    for (const [ordinal, expected] of [
+      [0, "practice"], [1, "qualifying"], [2, "race"], [3, "hotlap"],
+      [4, "time-attack"], [5, "drift"], [6, "drag"], [7, "hot-stint"],
+      [8, "hotlap-superpole"], [-1, "unknown"], [99, "unknown"],
+    ] as const) {
+      const graphics = Buffer.from(first.graphics);
+      graphics.writeInt32LE(ordinal, GRAPHICS.session.offset);
+      const packet = parseAccBuffers(first.physics, graphics, first.staticData, {
+        carOrdinal: 1,
+        trackOrdinal: 1,
+      });
+      const db = new CapturingDbAdapter();
+      await new LapDetectorAcc({ db }).feed(packet!);
+      expect(db.sessions[0].sessionType).toBe(expected);
+    }
+  });
+  test("exposes documented penalty enums and retains native penalty seconds", () => {
+    const first = readKunosFrames(ACC_FIXTURE)[0];
+    const parsePenalty = (code: number, seconds: number) => {
+      const graphics = Buffer.from(first.graphics);
+      graphics.writeInt32LE(code, GRAPHICS.penalty.offset);
+      graphics.writeFloatLE(seconds, GRAPHICS.penaltyTime.offset);
+      return parseAccBuffers(first.physics, graphics, first.staticData, {
+        carOrdinal: 1,
+        trackOrdinal: 1,
+      })!.acc!;
+    };
+
+    expect(parsePenalty(0, 0)).toMatchObject({
+      penalty: 0,
+      penaltyType: "none",
+      penaltyTime: 0,
+    });
+    expect(parsePenalty(1, 10.25)).toMatchObject({
+      penalty: 1,
+      penaltyType: "drive-through-cutting",
+      penaltyTime: 10.25,
+    });
+    expect(parsePenalty(22, 4.5)).toMatchObject({
+      penalty: 22,
+      penaltyType: "disqualified-wrong-way",
+      penaltyTime: 4.5,
+    });
+    expect(parsePenalty(18, 0)).toMatchObject({
+      penalty: 18,
+      penaltyType: "disqualified-wrong-way-old",
+      penaltyTime: 0,
+    });
+    expect(parsePenalty(777, 0)).toMatchObject({
+      penalty: 777,
+      penaltyType: "unknown",
+    });
+    expect(parsePenalty(0, 9.75).penaltyTime).toBe(9.75);
+  });
+
   test("flushStaleLap finalises session after 10s silence", async () => {
     const frames = readKunosFrames(ACC_FIXTURE);
     expect(frames.length).toBeGreaterThan(0);
