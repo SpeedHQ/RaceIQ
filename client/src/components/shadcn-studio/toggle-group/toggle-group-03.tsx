@@ -35,7 +35,7 @@ export function ToggleGroup03({
         <ToggleGroupItem
           key={option.value}
           value={option.value}
-          className="!rounded-none h-[30px] border border-transparent bg-app-bg px-3 py-1 text-app-text/90 text-app-subtext font-semibold transition-colors hover:bg-muted hover:text-app-text aria-pressed:border-app-accent aria-pressed:bg-app-bg aria-pressed:text-app-accent"
+          className="!rounded-none h-[30px] border border-transparent bg-app-bg px-3 py-1 text-app-label text-app-text/90 font-medium transition-colors hover:bg-muted hover:text-app-text aria-pressed:border-app-accent aria-pressed:bg-app-bg aria-pressed:text-app-accent"
         >
           {option.label}
         </ToggleGroupItem>
