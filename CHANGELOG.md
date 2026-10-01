@@ -11,6 +11,11 @@
 - Expose ACC penalty codes, types, and time in telemetry, and list observed penalties on the race timeline without counting them as pit stops.
 
 ### Fixes
+- Preserve LMU track map orientation when segment data loads, keeping segment overlays aligned with the initial map.
+- Use common circuit definitions and guides for LMU tracks, aligning the map's lap origin with curated segment percentages instead of showing anonymous auto-detected turns.
+- Show track facts and guides before slow map geometry loads, keeping reference data visible while the outline is loading.
+- Show all 14 Barcelona 2025 turns as separate LMU segments, restoring T6 and T11 and using the correct no-chicane layout and guide.
+- Restore missing official turns across ACC, AC Evo, F1 25, and Forza, keeping Barcelona's 14-turn no-chicane and 16-turn chicane layouts distinct.
 - Stop showing race finishing, grid, and position-change ranks for practice sessions, including LMU test days; retain raw simulator timing ranks.
 - Place qualifying position before Start on the race timeline instead of alongside Finish.
 - Keep the New experiment dialog header and footer visible while its form content scrolls.
@@ -51,6 +56,7 @@
 - Keep expanded session lap tables within mobile viewport with internal horizontal scrolling, separate replay actions, and rounded corners.
 
 ### Internal
+- Enforce complete segment turn coverage against layout facts across committed game geometry, including LMU; reject missing, duplicate, extra, and unnumbered turns without historical gap exemptions.
 - Preserve curated segment overrides during generation and apply that protection to Brands Hatch across ACC, AC Evo, and Forza; remove stale Dingle Dell gap exceptions.
 - Automatically mark dev-panel segment saves as curated overrides and retain override protection when editing sector boundaries.
 - Centralize the Sessions Favorites control in the shared Toggle component with optional star rendering and built-in active styling.

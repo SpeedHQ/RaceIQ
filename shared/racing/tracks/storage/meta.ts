@@ -6,6 +6,7 @@ import type { TrackFacts } from "../facts";
 import type { TrackGeometry } from "../geometry";
 import type { NamedSegment } from "../named-segments";
 import type { TrackSectors } from "../sectors";
+import type { Point } from "../geometry/types";
 import { readDataFile } from "./files";
 
 /** Game-agnostic track facts (turn names, numbers, groups). */
@@ -26,6 +27,7 @@ const GEOMETRY_FALLBACKS: Record<string, string[]> = {
 
 const factsCache = new Map<string, TrackFacts | null>();
 const geometryCache = new Map<string, TrackGeometry | null>();
+const geometrySourceCache = new Map<string, string>();
 
 /**
  * Load a layout's physical facts by slug. Takes no gameId, deliberately: turn
@@ -66,6 +68,7 @@ export function loadTrackGeometry(slug: string, gameId: string): TrackGeometry |
     if (!content) continue;
     try {
       parsed = JSON.parse(content) as TrackGeometry;
+      geometrySourceCache.set(cacheKey, candidate);
       break;
     } catch {
       parsed = null;
@@ -73,6 +76,20 @@ export function loadTrackGeometry(slug: string, gameId: string): TrackGeometry |
   }
   geometryCache.set(cacheKey, parsed);
   return parsed;
+}
+
+/** Centerline using the same lap origin as the selected segment geometry. */
+export function loadTrackGeometryCenterline(slug: string, gameId: string): Point[] | null {
+  if (!loadTrackGeometry(slug, gameId)) return null;
+  const source = geometrySourceCache.get(`${gameId}:${slug}`);
+  if (!source) return null;
+  const content = readDataFile(resolve(SHARED_DIR, "tracks", source, `${slug}-centerline.csv`));
+  if (!content) return null;
+  const points = content.trim().split("\n").slice(1).map((line) => {
+    const [x, z] = line.split(",").map(Number);
+    return { x, z };
+  });
+  return points.length >= 20 && points.every((point) => Number.isFinite(point.x) && Number.isFinite(point.z)) ? points : null;
 }
 
 /**
@@ -108,4 +125,5 @@ export function saveTrackGeometry(slug: string, gameId: string, geometry: TrackG
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   writeFileSync(resolve(dir, `${slug}-segments.json`), `${JSON.stringify(geometry, null, 2)}\n`);
   geometryCache.set(`${gameId}:${slug}`, geometry);
+  geometrySourceCache.set(`${gameId}:${slug}`, gameId);
 }

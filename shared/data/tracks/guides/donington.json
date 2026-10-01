@@ -2,7 +2,7 @@
   "id": "donington",
   "locale": "en",
   "character": "Historic, undulating British circuit with dramatic elevation change through the Craner Curves. Technical and flowing in equal measure — rewards precision and confidence over blind crests.",
-  "sources": "https://driver61.com/circuit-guide/donington/ — Redgate/Craner Curves/Old Hairpin/McLean's/Coppice verified",
+  "sources": "https://www.donington-park.co.uk/about/circuit-map (official GP layout); https://driver61.com/circuit-guide/donington/ (driving technique)",
   "corners": [
     {
       "key": "redgate",
@@ -32,7 +32,7 @@
       "key": "mcleans",
       "name": "McLeans",
       "numbers": [7],
-      "type": "fast, uphill left-hander",
+      "type": "uphill right-hander",
       "technique": "Commit through the uphill corner, smooth steering",
       "trap": "Lifting on the uphill entry kills exit speed"
     },

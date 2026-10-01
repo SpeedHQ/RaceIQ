@@ -3,7 +3,7 @@ ordinal,name,location,country,variant,lengthKm,commonTrackName
 1,Circuit Paul Ricard,Le Castellet,FRA,Grand Prix,5.842,
 2,Shanghai International Circuit,Shanghai,CHN,Grand Prix,5.451,shanghai
 3,Bahrain International Circuit,Sakhir,BHR,Grand Prix,5.412,sakhir
-4,Circuit de Barcelona-Catalunya,Barcelona,ESP,Grand Prix,4.657,catalunya
+4,Circuit de Barcelona-Catalunya,Barcelona,ESP,Grand Prix,4.657,catalunya-no-chicane
 5,Circuit de Monaco,Monte Carlo,MCO,Grand Prix,3.337,monaco
 6,Circuit Gilles Villeneuve,Montreal,CAN,Grand Prix,4.361,montreal
 7,Silverstone Circuit,Silverstone,GBR,Grand Prix,5.891,silverstone

@@ -1,0 +1,73 @@
+{
+  "id": "catalunya-no-chicane",
+  "locale": "en",
+  "character": "Technical 4.657km, 14-turn Grand Prix circuit without the final chicane. High-speed right-handers load the left-side tires; the final two right-handers lead directly onto the start/finish straight.",
+  "sources": "Layout and turn numbering: https://lemansultimate.com/circuit/circuit-de-barcelona-catalunya/",
+  "corners": [
+    {
+      "key": "turn-1",
+      "name": "Turn 1",
+      "numbers": [1],
+      "type": "medium-speed right (Elf)",
+      "technique": "Control entry speed for the right-left opening sequence. A stable exit sets up T2 and T3",
+      "trap": "Getting on the kerb too aggressively into the right-left sequence"
+    },
+    {
+      "key": "turn-3",
+      "name": "Turn 3",
+      "numbers": [3],
+      "type": "fast right-hander",
+      "technique": "Carry momentum from T1-T2, smooth exit leads to T4",
+      "trap": "Over-driving T1 entry compromises the entire opening complex"
+    },
+    {
+      "key": "turn-4",
+      "name": "Turn 4",
+      "numbers": [4],
+      "type": "medium-speed right (Repsol)",
+      "technique": "Early apex and slowest point, speed reduction early in the corner",
+      "trap": "Going deep on entry compromises the exit and preparation for T5"
+    },
+    {
+      "key": "turn-5",
+      "name": "Turn 5",
+      "numbers": [5],
+      "type": "slow left-hander (Seat)",
+      "technique": "Control entry speed on the downhill approach and apply throttle progressively on exit",
+      "trap": "Carrying too much speed into T5 and running wide on exit"
+    },
+    {
+      "key": "turn-7",
+      "name": "Turn 7",
+      "numbers": [7],
+      "type": "uphill left into right at T8",
+      "technique": "Use camber for grip and stay smooth through the direction change. Prepare the exit for T8-T9",
+      "trap": "Snap oversteer on throttle application at T7 apex"
+    },
+    {
+      "key": "turn-9",
+      "name": "Turn 9",
+      "numbers": [9],
+      "type": "fast right onto back straight",
+      "technique": "Critical corner — exit speed feeds the back straight. Late apex, progressive throttle",
+      "trap": "Compromising T9 exit by over-driving T7-T8"
+    },
+    {
+      "key": "turn-10",
+      "name": "Turn 10",
+      "numbers": [10],
+      "type": "left-hander (La Caixa)",
+      "technique": "Finish the main braking phase before committing to the left-hand turn and keep the car balanced into T11",
+      "trap": "Locking up on entry or using too much exit width before T11"
+    },
+    {
+      "key": "turn-14",
+      "name": "Turn 14",
+      "numbers": [14],
+      "type": "fast right-hander onto the start/finish straight",
+      "technique": "Prioritise exit speed onto the start/finish straight. Keep steering inputs smooth and use the available exit width",
+      "trap": "Running wide on exit or carrying an unstable car out of T13"
+    }
+  ],
+  "priorityCorners": ["turn-5", "turn-9", "turn-14"]
+}

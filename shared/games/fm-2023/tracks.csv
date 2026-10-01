@@ -25,7 +25,7 @@ ordinal,name,location,country,variant,lengthKm,commonTrackName
 83,Fujimi Kaido,Japan,jp,Full Reverse,16.42,fujimi-kaido-r
 100,Le Mans - Circuit International de la Sarthe,Le Mans,fra,Full Circuit,13.63,le-mans
 101,Le Mans - Circuit International de la Sarthe,Le Mans,fra,Old Mulsanne Circuit,13.54,le-mans-old
-110,Circuit de Barcelona-Catalunya,Barcelona,esp,Grand Prix Circuit,4.66,catalunya
+110,Circuit de Barcelona-Catalunya,Barcelona,esp,Grand Prix Circuit,4.66,catalunya-no-chicane
 111,Circuit de Barcelona-Catalunya,Barcelona,esp,National Circuit,3.07,catalunya-s
 113,Circuit de Barcelona-Catalunya,Barcelona,esp,National Circuit Alt,3.00,catalunya-s2
 231,Indianapolis Motor Speedway,Indianapolis,usa,The Brickyard Speedway,4.02,indianapolis-oval

@@ -22,7 +22,7 @@ import {
   listCuratedSlugs,
   listMetaSlugs,
 } from "../../../shared/racing/tracks/curation/generate";
-import { KNOWN_ALIGNMENT_GAPS, KNOWN_TURN_GAPS } from "../../support/tracks/known-gaps";
+import { KNOWN_ALIGNMENT_GAPS } from "../../support/tracks/known-gaps";
 
 const slugs = listCuratedSlugs();
 
@@ -57,7 +57,7 @@ describe("turn counts match real-world circuit data", () => {
   // An optional corner is only honest if EVERY game misses it. Where one game
   // finds it and another doesn't, the corner is real and the detector is the
   // problem — surface that instead of letting `optional` absorb it.
-  test("no undeclared detector gaps (optional corner one game sees and another misses)", () => {
+  test("no detector gaps between games for optional corners", () => {
     const found: string[] = [];
     for (const slug of slugs) {
       const facts = loadTrackFacts(slug)!;
@@ -74,13 +74,10 @@ describe("turn counts match real-world circuit data", () => {
         for (const m of misses) found.push(`${slug} T${opt.number} ${m.gameId}`);
       }
     }
-    const undeclared = found.filter((f) => !KNOWN_TURN_GAPS.has(f));
-    const fixed = [...KNOWN_TURN_GAPS].filter((k) => !found.includes(k));
     expect(
-      undeclared,
-      `new detector gap — these games see the corner, this one doesn't: ${undeclared.join(", ")}`,
+      found,
+      `detector gap — these games see the corner, this one doesn't: ${found.join(", ")}`,
     ).toEqual([]);
-    expect(fixed, `fixed! remove from KNOWN_TURN_GAPS: ${fixed.join(", ")}`).toEqual([]);
   });
 
   for (const slug of slugs) {

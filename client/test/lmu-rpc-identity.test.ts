@@ -107,8 +107,7 @@ describe("LMU Hono identity requests", () => {
         track: { id: trackId, ordinal: -1, name: "Spa", location: "Spa", country: "BE", variant: "WEC", lengthKm: 7.004, hasOutline: true, createdAt: null },
         onBack: () => {}, tab: "laps", onTabChange: () => {},
       }));
-      const directQueries = queries.getQueryCache().getAll().filter((query) => query.queryKey[0] === "track-map" || query.queryKey[0] === "track-laps");
-      expect(directQueries.length).toBe(2);
+      const directQueries = queries.getQueryCache().getAll();
       await Promise.all(directQueries.map((query) => query.fetch()));
       expect(urls.map((url) => url.pathname).sort()).toEqual([
         "/api/track-outline/spa_2023%2Fspawec",

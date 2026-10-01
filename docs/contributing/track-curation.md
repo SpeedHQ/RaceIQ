@@ -156,7 +156,7 @@ Generated — do not hand-edit. `✅` = signed off and unchanged since; `⚠️ 
 |-------|----------------|---------------|-------------------|
 | brands-hatch | ✅ | — | — |
 | brands-hatch-indy | ✅ | — | — |
-| catalunya | ✅ | — | — |
+| catalunya-no-chicane | ✅ | — | — |
 | catalunya-s | ✅ | — | — |
 | catalunya-s2 | ✅ | — | — |
 | daytona | ✅ | — | — |
@@ -235,7 +235,7 @@ Generated — do not hand-edit. `✅` = signed off and unchanged since; `⚠️ 
 | austin | ✅ | — | — |
 | baku | ✅ | — | — |
 | budapest | ✅ | — | — |
-| catalunya | ✅ | — | — |
+| catalunya-no-chicane | ✅ | — | — |
 | imola | ✅ | — | — |
 | interlagos | ✅ | — | — |
 | jeddah | ✅ | — | — |
