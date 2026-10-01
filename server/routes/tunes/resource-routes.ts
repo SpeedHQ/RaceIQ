@@ -21,7 +21,7 @@ const CreateTuneSchema = z.object({
   carOrdinal: z.number().int(),
   category: z.string().min(1),
   settings: z.record(z.string(), z.unknown()),
-  trackOrdinal: z.number().int().optional(),
+  trackOrdinal: z.number().int().nullable().optional(),
   description: z.string().optional().default(""),
   strengths: z.array(z.string()).optional(),
   weaknesses: z.array(z.string()).optional(),

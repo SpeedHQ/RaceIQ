@@ -18,9 +18,9 @@
       "server/games/lmu/normalizer.ts": "857907ba7c281de8cdd53acfbbdbaa5a72bf695b9dbc18ace4732cff62676596",
       "server/session-capture/frame-time.ts": "fb6d18d5da69d0a1cb946e72ec8ee62bc01eb9d21b1176c11cfd5d44cf5ce0f0",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
-      "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
+      "shared/racing/setups/schema.ts": "02f68ba8509a78f03f30265efe6740ae93bd5adb6527c3b2394023666a56952b"
     },
-    "contentHash": "a6fc19bb45b4dd767bd19ae547068e4c018d1108f241a963d561d1d776f1ef70"
+    "contentHash": "0eee7d5c44ca6099b49259690cdada3338a338d8199b6f881e3d804bb4362b9a"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -903,9 +903,6 @@
       "children": [
         "setup.suspension.bump-stop-range",
         "setup.suspension.bump-stop-rate",
-        "setup.suspension.bumpstops",
-        "setup.suspension.helper-springs",
-        "setup.suspension.packers",
         "setup.suspension.ride-height",
         "setup.suspension.shock-deflection",
         "setup.suspension.spring-perch-offset",
@@ -36396,18 +36393,9 @@
           "limitations": []
         },
         "ac-evo": {
-          "kind": "direct",
-          "nativeUnit": "level",
-          "sources": [
-            "ACEvo.SetupFile.advancedSetup.aeroBalance.brakeDuct"
-          ],
-          "freshness": "static",
-          "description": "ac-evo setup file exposes this 2-value value.",
-          "provenance": {
-            "origin": "schema",
-            "artifact": "shared/racing/setups/schema.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent setup source is currently identified for this game."
         },
         "iracing": {
           "kind": "unavailable",
@@ -36631,9 +36619,18 @@
           "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "level",
+          "sources": [
+            "ACEvo.SetupFile.frontWing"
+          ],
+          "freshness": "static",
+          "description": "ac-evo setup file exposes this scalar value.",
+          "provenance": {
+            "origin": "schema",
+            "artifact": "shared/racing/setups/schema.ts"
+          },
+          "limitations": []
         },
         "iracing": {
           "kind": "unavailable",
@@ -36867,32 +36864,18 @@
           }
         },
         "ac-evo": {
-          "kind": "simplified",
+          "kind": "direct",
           "nativeUnit": "level",
           "sources": [
-            "ACEvo.SetupFile.advancedSetup.aeroBalance.rearWing"
+            "ACEvo.SetupFile.rearWing"
           ],
           "freshness": "static",
-          "normalization": "retain source discrete rear-wing level",
           "description": "ac-evo setup file exposes this scalar value.",
           "provenance": {
-            "origin": "projection",
+            "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts"
           },
-          "limitations": [
-            "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
-          ],
-          "execution": {
-            "kind": "simplification",
-            "id": "ac-evo:setup.aero.rear-wing.setting:simplified",
-            "version": "0.19.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "ACEvo.SetupFile.advancedSetup.aeroBalance.rearWing"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "3edee0e2f45f1684bbd7ab84326b1857861cbd93aee5b128157bec6e6b72c401"
-          }
+          "limitations": []
         },
         "iracing": {
           "kind": "normalized",
@@ -36972,18 +36955,9 @@
           "limitations": []
         },
         "ac-evo": {
-          "kind": "direct",
-          "nativeUnit": "level",
-          "sources": [
-            "ACEvo.SetupFile.advancedSetup.aeroBalance.splitter"
-          ],
-          "freshness": "static",
-          "description": "ac-evo setup file exposes this scalar value.",
-          "provenance": {
-            "origin": "schema",
-            "artifact": "shared/racing/setups/schema.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent setup source is currently identified for this game."
         },
         "iracing": {
           "kind": "unavailable",
@@ -37077,31 +37051,31 @@
           }
         },
         "ac-evo": {
-          "kind": "simplified",
-          "nativeUnit": "click",
+          "kind": "normalized",
+          "nativeUnit": "deg",
           "sources": [
-            "ACEvo.SetupFile.basicSetup.alignment.camber"
+            "ACEvo.SetupFile.frontCamber",
+            "ACEvo.SetupFile.rearCamber"
           ],
           "freshness": "static",
-          "normalization": "resolve click through car-specific setup range",
-          "description": "ac-evo setup file exposes this 4-value value.",
+          "description": "ac-evo setup file exposes this scalar value.",
+          "normalization": "convert deg to °",
           "provenance": {
-            "origin": "projection",
+            "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts"
           },
-          "limitations": [
-            "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
-          ],
+          "limitations": [],
           "execution": {
-            "kind": "simplification",
-            "id": "ac-evo:setup.alignment.camber:simplified",
+            "kind": "conversion",
+            "id": "ac-evo:setup.alignment.camber:normalized",
             "version": "0.19.0",
             "deterministic": true,
             "declaredInputs": [
-              "ACEvo.SetupFile.basicSetup.alignment.camber"
+              "ACEvo.SetupFile.frontCamber",
+              "ACEvo.SetupFile.rearCamber"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "7c649e92d9879cd562ff16f9d083cc07d394e99f7cf66d647b435393f6f60994"
+            "codeHash": "5039f2b0b9625fc8dd9e1668f45039969b405ae43ef06290833caf9a17ea72cb"
           }
         },
         "iracing": {
@@ -37215,34 +37189,9 @@
           }
         },
         "ac-evo": {
-          "kind": "simplified",
-          "nativeUnit": "click",
-          "sources": [
-            "ACEvo.SetupFile.basicSetup.alignment.casterLF",
-            "ACEvo.SetupFile.basicSetup.alignment.casterRF"
-          ],
-          "freshness": "static",
-          "normalization": "resolve LF click through car-specific setup range",
-          "description": "ac-evo setup file exposes this scalar value.",
-          "provenance": {
-            "origin": "projection",
-            "artifact": "shared/racing/setups/schema.ts"
-          },
-          "limitations": [
-            "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
-          ],
-          "execution": {
-            "kind": "simplification",
-            "id": "ac-evo:setup.alignment.caster:simplified",
-            "version": "0.19.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "ACEvo.SetupFile.basicSetup.alignment.casterLF",
-              "ACEvo.SetupFile.basicSetup.alignment.casterRF"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "0abaa1b0fefa64815b12f5637c67af97104f28ee5735c80576360cd73bd7c6ff"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent setup source is currently identified for this game."
         },
         "iracing": {
           "kind": "normalized",
@@ -37353,32 +37302,18 @@
           }
         },
         "ac-evo": {
-          "kind": "simplified",
-          "nativeUnit": "click",
+          "kind": "direct",
+          "nativeUnit": "ratio",
           "sources": [
-            "ACEvo.SetupFile.basicSetup.alignment.steerRatio"
+            "ACEvo.SetupFile.steerRatio"
           ],
           "freshness": "static",
-          "normalization": "resolve click through car-specific setup range",
           "description": "ac-evo setup file exposes this scalar value.",
           "provenance": {
-            "origin": "projection",
+            "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts"
           },
-          "limitations": [
-            "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
-          ],
-          "execution": {
-            "kind": "simplification",
-            "id": "ac-evo:setup.alignment.steering-ratio:simplified",
-            "version": "0.19.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "ACEvo.SetupFile.basicSetup.alignment.steerRatio"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "a170c6c092c07281833186de4bab07ff8a3d38349fa74a05eeecbff0ad7cd259"
-          }
+          "limitations": []
         },
         "iracing": {
           "kind": "direct",
@@ -37486,31 +37421,31 @@
           }
         },
         "ac-evo": {
-          "kind": "simplified",
-          "nativeUnit": "click",
+          "kind": "normalized",
+          "nativeUnit": "deg",
           "sources": [
-            "ACEvo.SetupFile.basicSetup.alignment.toe"
+            "ACEvo.SetupFile.frontToe",
+            "ACEvo.SetupFile.rearToe"
           ],
           "freshness": "static",
-          "normalization": "resolve click through car-specific setup range",
-          "description": "ac-evo setup file exposes this 4-value value.",
+          "description": "ac-evo setup file exposes this scalar value.",
+          "normalization": "convert deg to °",
           "provenance": {
-            "origin": "projection",
+            "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts"
           },
-          "limitations": [
-            "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
-          ],
+          "limitations": [],
           "execution": {
-            "kind": "simplification",
-            "id": "ac-evo:setup.alignment.toe:simplified",
+            "kind": "conversion",
+            "id": "ac-evo:setup.alignment.toe:normalized",
             "version": "0.19.0",
             "deterministic": true,
             "declaredInputs": [
-              "ACEvo.SetupFile.basicSetup.alignment.toe"
+              "ACEvo.SetupFile.frontToe",
+              "ACEvo.SetupFile.rearToe"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "15e4d5d0c9850655a12d3f52127fdb5e1f0cd5c293cc5e1ad7000f88740c6e1c"
+            "codeHash": "65513a9fec009df3a4cd07b76605e37808a3afbb2842ee2d13a49b0d599ba6b1"
           }
         },
         "iracing": {
@@ -37641,32 +37576,18 @@
           }
         },
         "ac-evo": {
-          "kind": "simplified",
-          "nativeUnit": "click",
+          "kind": "direct",
+          "nativeUnit": "%",
           "sources": [
-            "ACEvo.SetupFile.advancedSetup.mechanicalBalance.brakeBias"
+            "ACEvo.SetupFile.brakeBias"
           ],
           "freshness": "static",
-          "normalization": "resolve click through car-specific setup range",
           "description": "ac-evo setup file exposes this scalar value.",
           "provenance": {
-            "origin": "projection",
+            "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts"
           },
-          "limitations": [
-            "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
-          ],
-          "execution": {
-            "kind": "simplification",
-            "id": "ac-evo:setup.brakes.bias:simplified",
-            "version": "0.19.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "ACEvo.SetupFile.advancedSetup.mechanicalBalance.brakeBias"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "734001624499b0c2ec5abed4d89ad79aab70d07a0021ee5b920c255235ec26f6"
-          }
+          "limitations": []
         },
         "iracing": {
           "kind": "normalized",
@@ -37826,19 +37747,9 @@
           "limitations": []
         },
         "ac-evo": {
-          "kind": "direct",
-          "nativeUnit": "enum",
-          "sources": [
-            "ACEvo.SetupFile.basicSetup.strategy.frontBrakePadCompound",
-            "ACEvo.SetupFile.basicSetup.strategy.rearBrakePadCompound"
-          ],
-          "freshness": "static",
-          "description": "ac-evo setup file exposes this scalar value.",
-          "provenance": {
-            "origin": "schema",
-            "artifact": "shared/racing/setups/schema.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "AC Evo parser currently emits constant 0; brake-pad compound source is not wired."
         },
         "iracing": {
           "kind": "direct",
@@ -38042,22 +37953,32 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "No equivalent setup source is currently identified for this game."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "No equivalent setup source is currently identified for this game."
         },
         "acc": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "No equivalent setup source is currently identified for this game."
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "kind": "direct",
+          "nativeUnit": "level",
+          "sources": [
+            "ACEvo.SetupFile.frontBump",
+            "ACEvo.SetupFile.rearBump"
+          ],
+          "freshness": "static",
+          "description": "ac-evo setup file exposes this scalar value.",
+          "provenance": {
+            "origin": "schema",
+            "artifact": "shared/racing/setups/schema.ts"
+          },
+          "limitations": []
         },
         "iracing": {
           "kind": "direct",
@@ -38091,7 +38012,7 @@
         "lmu": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "No equivalent setup source is currently identified for this game."
         }
       },
       "valueType": "number",
@@ -38157,32 +38078,9 @@
           }
         },
         "ac-evo": {
-          "kind": "simplified",
-          "nativeUnit": "click",
-          "sources": [
-            "ACEvo.SetupFile.advancedSetup.dampers.bumpFast"
-          ],
-          "freshness": "static",
-          "normalization": "retain car-specific damper click setting",
-          "description": "ac-evo setup file exposes this 4-value value.",
-          "provenance": {
-            "origin": "projection",
-            "artifact": "shared/racing/setups/schema.ts"
-          },
-          "limitations": [
-            "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
-          ],
-          "execution": {
-            "kind": "simplification",
-            "id": "ac-evo:setup.dampers.fast-compression:simplified",
-            "version": "0.19.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "ACEvo.SetupFile.advancedSetup.dampers.bumpFast"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "b8708c864dcec63891571da705abff836c307dbe2b536e7907b81d6b320dae15"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent setup source is currently identified for this game."
         },
         "iracing": {
           "kind": "direct",
@@ -38274,32 +38172,9 @@
           }
         },
         "ac-evo": {
-          "kind": "simplified",
-          "nativeUnit": "click",
-          "sources": [
-            "ACEvo.SetupFile.advancedSetup.dampers.reboundFast"
-          ],
-          "freshness": "static",
-          "normalization": "retain car-specific damper click setting",
-          "description": "ac-evo setup file exposes this 4-value value.",
-          "provenance": {
-            "origin": "projection",
-            "artifact": "shared/racing/setups/schema.ts"
-          },
-          "limitations": [
-            "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
-          ],
-          "execution": {
-            "kind": "simplification",
-            "id": "ac-evo:setup.dampers.fast-rebound:simplified",
-            "version": "0.19.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "ACEvo.SetupFile.advancedSetup.dampers.reboundFast"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "5b718ac4e4b676bf60ed7098c5cfabab9f7a467cc33a99bedda5920a50075d53"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent setup source is currently identified for this game."
         },
         "iracing": {
           "kind": "direct",
@@ -38355,22 +38230,32 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "No equivalent setup source is currently identified for this game."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "No equivalent setup source is currently identified for this game."
         },
         "acc": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "No equivalent setup source is currently identified for this game."
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "kind": "direct",
+          "nativeUnit": "level",
+          "sources": [
+            "ACEvo.SetupFile.frontRebound",
+            "ACEvo.SetupFile.rearRebound"
+          ],
+          "freshness": "static",
+          "description": "ac-evo setup file exposes this scalar value.",
+          "provenance": {
+            "origin": "schema",
+            "artifact": "shared/racing/setups/schema.ts"
+          },
+          "limitations": []
         },
         "iracing": {
           "kind": "direct",
@@ -38404,7 +38289,7 @@
         "lmu": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "No equivalent setup source is currently identified for this game."
         }
       },
       "valueType": "number",
@@ -38470,32 +38355,9 @@
           }
         },
         "ac-evo": {
-          "kind": "simplified",
-          "nativeUnit": "click",
-          "sources": [
-            "ACEvo.SetupFile.advancedSetup.dampers.bumpSlow"
-          ],
-          "freshness": "static",
-          "normalization": "retain car-specific damper click setting",
-          "description": "ac-evo setup file exposes this 4-value value.",
-          "provenance": {
-            "origin": "projection",
-            "artifact": "shared/racing/setups/schema.ts"
-          },
-          "limitations": [
-            "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
-          ],
-          "execution": {
-            "kind": "simplification",
-            "id": "ac-evo:setup.dampers.slow-compression:simplified",
-            "version": "0.19.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "ACEvo.SetupFile.advancedSetup.dampers.bumpSlow"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "01fb02cc61248ee931152bdffd56ca26680f7156f6f0f50018c559b93c21a7af"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent setup source is currently identified for this game."
         },
         "iracing": {
           "kind": "direct",
@@ -38587,32 +38449,9 @@
           }
         },
         "ac-evo": {
-          "kind": "simplified",
-          "nativeUnit": "click",
-          "sources": [
-            "ACEvo.SetupFile.advancedSetup.dampers.reboundSlow"
-          ],
-          "freshness": "static",
-          "normalization": "retain car-specific damper click setting",
-          "description": "ac-evo setup file exposes this 4-value value.",
-          "provenance": {
-            "origin": "projection",
-            "artifact": "shared/racing/setups/schema.ts"
-          },
-          "limitations": [
-            "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
-          ],
-          "execution": {
-            "kind": "simplification",
-            "id": "ac-evo:setup.dampers.slow-rebound:simplified",
-            "version": "0.19.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "ACEvo.SetupFile.advancedSetup.dampers.reboundSlow"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "a2ee64bc79a0b0beec210274bce2ce41859ae18a43b1d40a5f2e48ca43ef9db2"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent setup source is currently identified for this game."
         },
         "iracing": {
           "kind": "direct",
@@ -38905,34 +38744,18 @@
           }
         },
         "ac-evo": {
-          "kind": "simplified",
-          "nativeUnit": "click",
+          "kind": "direct",
+          "nativeUnit": "Nm",
           "sources": [
-            "ACEvo.SetupFile.advancedSetup.mechanicalBalance.preloadDifferential",
-            "ACEvo.SetupFile.advancedSetup.drivetrain.preload"
+            "ACEvo.SetupFile.diffPreload"
           ],
           "freshness": "static",
-          "normalization": "resolve click through car-specific setup range",
           "description": "ac-evo setup file exposes this scalar value.",
           "provenance": {
-            "origin": "projection",
+            "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts"
           },
-          "limitations": [
-            "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
-          ],
-          "execution": {
-            "kind": "simplification",
-            "id": "ac-evo:setup.drivetrain.differential-preload:simplified",
-            "version": "0.19.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "ACEvo.SetupFile.advancedSetup.mechanicalBalance.preloadDifferential",
-              "ACEvo.SetupFile.advancedSetup.drivetrain.preload"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "8527bb98bd6f9b8dc15ff68a4af0761f4ee4a97f73148a36076fa393de3e3ccb"
-          }
+          "limitations": []
         },
         "iracing": {
           "kind": "normalized",
@@ -39210,9 +39033,30 @@
           "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "ratio",
+          "sources": [
+            "ACEvo.SetupFile.diffCoast"
+          ],
+          "freshness": "static",
+          "description": "ac-evo setup file exposes this scalar value.",
+          "normalization": "convert ratio to %",
+          "provenance": {
+            "origin": "schema",
+            "artifact": "shared/racing/setups/schema.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "ac-evo:setup.drivetrain.off-throttle-lock:normalized",
+            "version": "0.19.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "ACEvo.SetupFile.diffCoast"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "08ca6c33a4587c7af2132d238dbf03972d5b7294269b17da323562f876d99da2"
+          }
         },
         "iracing": {
           "kind": "unavailable",
@@ -39271,9 +39115,30 @@
           "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "ratio",
+          "sources": [
+            "ACEvo.SetupFile.diffPower"
+          ],
+          "freshness": "static",
+          "description": "ac-evo setup file exposes this scalar value.",
+          "normalization": "convert ratio to %",
+          "provenance": {
+            "origin": "schema",
+            "artifact": "shared/racing/setups/schema.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "ac-evo:setup.drivetrain.on-throttle-lock:normalized",
+            "version": "0.19.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "ACEvo.SetupFile.diffPower"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "7acde1eacaf759d815dcc449de0f8fcd3dafd9b4de517b2c417aa379c2977521"
+          }
         },
         "iracing": {
           "kind": "unavailable",
@@ -39335,7 +39200,7 @@
           "kind": "direct",
           "nativeUnit": "level",
           "sources": [
-            "ACEvo.SetupFile.basicSetup.electronics.abs"
+            "ACEvo.SetupFile.abs"
           ],
           "freshness": "static",
           "description": "ac-evo setup file exposes this scalar value.",
@@ -39539,7 +39404,7 @@
           "kind": "direct",
           "nativeUnit": "level",
           "sources": [
-            "ACEvo.SetupFile.basicSetup.electronics.eCUMap"
+            "ACEvo.SetupFile.engineMap"
           ],
           "freshness": "static",
           "description": "ac-evo setup file exposes this scalar value.",
@@ -39612,18 +39477,9 @@
           "limitations": []
         },
         "ac-evo": {
-          "kind": "direct",
-          "nativeUnit": "level",
-          "sources": [
-            "ACEvo.SetupFile.basicSetup.electronics.fuelMix"
-          ],
-          "freshness": "static",
-          "description": "ac-evo setup file exposes this scalar value.",
-          "provenance": {
-            "origin": "schema",
-            "artifact": "shared/racing/setups/schema.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent setup source is currently identified for this game."
         },
         "iracing": {
           "kind": "unavailable",
@@ -39792,18 +39648,9 @@
           "limitations": []
         },
         "ac-evo": {
-          "kind": "direct",
-          "nativeUnit": "count",
-          "sources": [
-            "ACEvo.SetupFile.basicSetup.electronics.telemetryLaps"
-          ],
-          "freshness": "static",
-          "description": "ac-evo setup file exposes this scalar value.",
-          "provenance": {
-            "origin": "schema",
-            "artifact": "shared/racing/setups/schema.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent setup source is currently identified for this game."
         },
         "iracing": {
           "kind": "unavailable",
@@ -39918,7 +39765,7 @@
           "kind": "direct",
           "nativeUnit": "level",
           "sources": [
-            "ACEvo.SetupFile.basicSetup.electronics.tC1"
+            "ACEvo.SetupFile.tc"
           ],
           "freshness": "static",
           "description": "ac-evo setup file exposes this scalar value.",
@@ -39994,7 +39841,7 @@
           "kind": "direct",
           "nativeUnit": "level",
           "sources": [
-            "ACEvo.SetupFile.basicSetup.electronics.tC2"
+            "ACEvo.SetupFile.tc2"
           ],
           "freshness": "static",
           "description": "ac-evo setup file exposes this scalar value.",
@@ -40548,7 +40395,7 @@
           "kind": "direct",
           "nativeUnit": "L",
           "sources": [
-            "ACEvo.SetupFile.basicSetup.strategy.fuel"
+            "ACEvo.SetupFile.fuel"
           ],
           "freshness": "static",
           "description": "ac-evo setup file exposes this scalar value.",
@@ -40648,32 +40495,9 @@
           }
         },
         "ac-evo": {
-          "kind": "simplified",
-          "nativeUnit": "click",
-          "sources": [
-            "ACEvo.SetupFile.advancedSetup.mechanicalBalance.bumpStopWindow"
-          ],
-          "freshness": "static",
-          "normalization": "resolve click through car-specific setup range",
-          "description": "ac-evo setup file exposes this 4-value value.",
-          "provenance": {
-            "origin": "projection",
-            "artifact": "shared/racing/setups/schema.ts"
-          },
-          "limitations": [
-            "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
-          ],
-          "execution": {
-            "kind": "simplification",
-            "id": "ac-evo:setup.suspension.bump-stop-range:simplified",
-            "version": "0.19.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "ACEvo.SetupFile.advancedSetup.mechanicalBalance.bumpStopWindow"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "41d1cf0da617e0efaf20dab7c5ca43f6037bf1811485b1dabcd4fa5a04dbc489"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent setup source is currently identified for this game."
         },
         "iracing": {
           "kind": "unavailable",
@@ -40749,32 +40573,9 @@
           }
         },
         "ac-evo": {
-          "kind": "simplified",
-          "nativeUnit": "click",
-          "sources": [
-            "ACEvo.SetupFile.advancedSetup.mechanicalBalance.bumpStopRateUp"
-          ],
-          "freshness": "static",
-          "normalization": "resolve click through car-specific setup range",
-          "description": "ac-evo setup file exposes this 4-value value.",
-          "provenance": {
-            "origin": "projection",
-            "artifact": "shared/racing/setups/schema.ts"
-          },
-          "limitations": [
-            "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
-          ],
-          "execution": {
-            "kind": "simplification",
-            "id": "ac-evo:setup.suspension.bump-stop-rate:simplified",
-            "version": "0.19.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "ACEvo.SetupFile.advancedSetup.mechanicalBalance.bumpStopRateUp"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "e44f741bebabc62e52cf977f695f51a8287921754316d391527f1c1f48c6eb12"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent setup source is currently identified for this game."
         },
         "iracing": {
           "kind": "unavailable",
@@ -40790,70 +40591,6 @@
       "valueType": "number",
       "dimensions": [
         "unit:n/mm"
-      ],
-      "cardinality": {
-        "kind": "fixed",
-        "count": 4
-      },
-      "ordering": [
-        "FL",
-        "FR",
-        "RL",
-        "RR"
-      ],
-      "limitations": []
-    },
-    {
-      "id": "setup.suspension.bumpstops",
-      "label": "Bump-stop selection",
-      "description": "Discrete bump-stop selection for each wheel.",
-      "parentId": "setup.suspension",
-      "canonicalUnit": "level",
-      "shape": "per-wheel",
-      "games": {
-        "fm-2023": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent setup source is currently identified for this game."
-        },
-        "f1-2025": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent setup source is currently identified for this game."
-        },
-        "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent setup source is currently identified for this game."
-        },
-        "ac-evo": {
-          "kind": "direct",
-          "nativeUnit": "level",
-          "sources": [
-            "ACEvo.SetupFile.advancedSetup.suspension.bumpstops"
-          ],
-          "freshness": "static",
-          "description": "ac-evo setup file exposes this 4-value value.",
-          "provenance": {
-            "origin": "schema",
-            "artifact": "shared/racing/setups/schema.ts"
-          },
-          "limitations": []
-        },
-        "iracing": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent setup source is currently identified for this game."
-        },
-        "lmu": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent setup source is currently identified for this game."
-        }
-      },
-      "valueType": "number",
-      "dimensions": [
-        "unit:level"
       ],
       "cardinality": {
         "kind": "fixed",
@@ -41309,31 +41046,29 @@
           }
         },
         "ac-evo": {
-          "kind": "simplified",
-          "nativeUnit": "level",
+          "kind": "normalized",
+          "nativeUnit": "click",
           "sources": [
-            "ACEvo.SetupFile.advancedSetup.mechanicalBalance.aRBFront"
+            "ACEvo.SetupFile.frontARB"
           ],
           "freshness": "static",
-          "normalization": "retain source anti-roll-bar level",
           "description": "ac-evo setup file exposes this scalar value.",
+          "normalization": "convert click to configuration",
           "provenance": {
-            "origin": "projection",
+            "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts"
           },
-          "limitations": [
-            "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
-          ],
+          "limitations": [],
           "execution": {
-            "kind": "simplification",
-            "id": "ac-evo:setup.suspension.front-anti-roll-bar.setting:simplified",
+            "kind": "conversion",
+            "id": "ac-evo:setup.suspension.front-anti-roll-bar.setting:normalized",
             "version": "0.19.0",
             "deterministic": true,
             "declaredInputs": [
-              "ACEvo.SetupFile.advancedSetup.mechanicalBalance.aRBFront"
+              "ACEvo.SetupFile.frontARB"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "6cd543806ea002ef233f5e0b236567ccdf2f76a5a166fc2e94e1f0cfcd042b0a"
+            "codeHash": "377600c51989f776658c4bb49633e7cbee0a050ddc69e488ccd1ac2b1614cb97"
           }
         },
         "iracing": {
@@ -41364,148 +41099,6 @@
       "cardinality": {
         "kind": "scalar"
       },
-      "limitations": []
-    },
-    {
-      "id": "setup.suspension.helper-springs",
-      "label": "Helper springs",
-      "description": "Helper-spring selection for each wheel.",
-      "parentId": "setup.suspension",
-      "canonicalUnit": "level",
-      "shape": "per-wheel",
-      "games": {
-        "fm-2023": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent setup source is currently identified for this game."
-        },
-        "f1-2025": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent setup source is currently identified for this game."
-        },
-        "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent setup source is currently identified for this game."
-        },
-        "ac-evo": {
-          "kind": "direct",
-          "nativeUnit": "level",
-          "sources": [
-            "ACEvo.SetupFile.advancedSetup.suspension.helperSprings"
-          ],
-          "freshness": "static",
-          "description": "ac-evo setup file exposes this 4-value value.",
-          "provenance": {
-            "origin": "schema",
-            "artifact": "shared/racing/setups/schema.ts"
-          },
-          "limitations": []
-        },
-        "iracing": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent setup source is currently identified for this game."
-        },
-        "lmu": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent setup source is currently identified for this game."
-        }
-      },
-      "valueType": "number",
-      "dimensions": [
-        "unit:level"
-      ],
-      "cardinality": {
-        "kind": "fixed",
-        "count": 4
-      },
-      "ordering": [
-        "FL",
-        "FR",
-        "RL",
-        "RR"
-      ],
-      "limitations": []
-    },
-    {
-      "id": "setup.suspension.packers",
-      "label": "Packers",
-      "description": "Suspension packer setting for each wheel.",
-      "parentId": "setup.suspension",
-      "canonicalUnit": "mm",
-      "shape": "per-wheel",
-      "games": {
-        "fm-2023": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent setup source is currently identified for this game."
-        },
-        "f1-2025": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent setup source is currently identified for this game."
-        },
-        "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent setup source is currently identified for this game."
-        },
-        "ac-evo": {
-          "kind": "simplified",
-          "nativeUnit": "click",
-          "sources": [
-            "ACEvo.SetupFile.advancedSetup.suspension.packers"
-          ],
-          "freshness": "static",
-          "normalization": "resolve click through car-specific setup range",
-          "description": "ac-evo setup file exposes this 4-value value.",
-          "provenance": {
-            "origin": "projection",
-            "artifact": "shared/racing/setups/schema.ts"
-          },
-          "limitations": [
-            "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
-          ],
-          "execution": {
-            "kind": "simplification",
-            "id": "ac-evo:setup.suspension.packers:simplified",
-            "version": "0.19.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "ACEvo.SetupFile.advancedSetup.suspension.packers"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "4c26f4fee651969d0ed6f9017898d3603407e8c83cd703366490e694535f7b8c"
-          }
-        },
-        "iracing": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent setup source is currently identified for this game."
-        },
-        "lmu": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent setup source is currently identified for this game."
-        }
-      },
-      "valueType": "number",
-      "dimensions": [
-        "length"
-      ],
-      "cardinality": {
-        "kind": "fixed",
-        "count": 4
-      },
-      "ordering": [
-        "FL",
-        "FR",
-        "RL",
-        "RR"
-      ],
       "limitations": []
     },
     {
@@ -41950,31 +41543,29 @@
           }
         },
         "ac-evo": {
-          "kind": "simplified",
-          "nativeUnit": "level",
+          "kind": "normalized",
+          "nativeUnit": "click",
           "sources": [
-            "ACEvo.SetupFile.advancedSetup.mechanicalBalance.aRBRear"
+            "ACEvo.SetupFile.rearARB"
           ],
           "freshness": "static",
-          "normalization": "retain source anti-roll-bar level",
           "description": "ac-evo setup file exposes this scalar value.",
+          "normalization": "convert click to configuration",
           "provenance": {
-            "origin": "projection",
+            "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts"
           },
-          "limitations": [
-            "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
-          ],
+          "limitations": [],
           "execution": {
-            "kind": "simplification",
-            "id": "ac-evo:setup.suspension.rear-anti-roll-bar.setting:simplified",
+            "kind": "conversion",
+            "id": "ac-evo:setup.suspension.rear-anti-roll-bar.setting:normalized",
             "version": "0.19.0",
             "deterministic": true,
             "declaredInputs": [
-              "ACEvo.SetupFile.advancedSetup.mechanicalBalance.aRBRear"
+              "ACEvo.SetupFile.rearARB"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "a4b4752f0a77aa1196d3dce892be494f33e9ae5a3bbe8165b762a839408cc642"
+            "codeHash": "0f616d9c173bfe382475888cd0a80c6a0c429e5fde0f0c73983d94dd03234db3"
           }
         },
         "iracing": {
@@ -42079,32 +41670,19 @@
           }
         },
         "ac-evo": {
-          "kind": "simplified",
-          "nativeUnit": "click",
+          "kind": "direct",
+          "nativeUnit": "mm",
           "sources": [
-            "ACEvo.SetupFile.advancedSetup.aeroBalance.rideHeight"
+            "ACEvo.SetupFile.frontRideHeight",
+            "ACEvo.SetupFile.rearRideHeight"
           ],
           "freshness": "static",
-          "normalization": "resolve click through car-specific setup range",
-          "description": "ac-evo setup file exposes this 4-value value.",
+          "description": "ac-evo setup file exposes this scalar value.",
           "provenance": {
-            "origin": "projection",
+            "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts"
           },
-          "limitations": [
-            "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
-          ],
-          "execution": {
-            "kind": "simplification",
-            "id": "ac-evo:setup.suspension.ride-height:simplified",
-            "version": "0.19.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "ACEvo.SetupFile.advancedSetup.aeroBalance.rideHeight"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "fef643e0eb1c5abbfdbdc19afae1c8575e999d3b2f7ddb19d7d4f2aba98b0157"
-          }
+          "limitations": []
         },
         "iracing": {
           "kind": "normalized",
@@ -42420,31 +41998,31 @@
           }
         },
         "ac-evo": {
-          "kind": "simplified",
-          "nativeUnit": "click",
+          "kind": "normalized",
+          "nativeUnit": "N/m",
           "sources": [
-            "ACEvo.SetupFile.advancedSetup.mechanicalBalance.wheelRate"
+            "ACEvo.SetupFile.frontSpringRate",
+            "ACEvo.SetupFile.rearSpringRate"
           ],
           "freshness": "static",
-          "normalization": "resolve click through car-specific setup range",
-          "description": "ac-evo setup file exposes this 4-value value.",
+          "description": "ac-evo setup file exposes this scalar value.",
+          "normalization": "convert N/m to N/mm",
           "provenance": {
-            "origin": "projection",
+            "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts"
           },
-          "limitations": [
-            "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
-          ],
+          "limitations": [],
           "execution": {
-            "kind": "simplification",
-            "id": "ac-evo:setup.suspension.spring-rate:simplified",
+            "kind": "conversion",
+            "id": "ac-evo:setup.suspension.spring-rate:normalized",
             "version": "0.19.0",
             "deterministic": true,
             "declaredInputs": [
-              "ACEvo.SetupFile.advancedSetup.mechanicalBalance.wheelRate"
+              "ACEvo.SetupFile.frontSpringRate",
+              "ACEvo.SetupFile.rearSpringRate"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "162af1e28c297783052d0ac3a690abdd1053bb3eb0e11c5133a0a4e3e3b2334f"
+            "codeHash": "fce060615fecf514c999d866631a0976297f7813807a25b370480c92995fed3d"
           }
         },
         "iracing": {
@@ -42613,18 +42191,9 @@
           "limitations": []
         },
         "ac-evo": {
-          "kind": "direct",
-          "nativeUnit": "enum",
-          "sources": [
-            "ACEvo.SetupFile.basicSetup.tyres.tyreCompound"
-          ],
-          "freshness": "static",
-          "description": "ac-evo setup file exposes this scalar value.",
-          "provenance": {
-            "origin": "schema",
-            "artifact": "shared/racing/setups/schema.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent setup source is currently identified for this game."
         },
         "iracing": {
           "kind": "unavailable",
@@ -42902,18 +42471,9 @@
           "limitations": []
         },
         "ac-evo": {
-          "kind": "direct",
-          "nativeUnit": "index",
-          "sources": [
-            "ACEvo.SetupFile.basicSetup.strategy.tyreSet"
-          ],
-          "freshness": "static",
-          "description": "ac-evo setup file exposes this scalar value.",
-          "provenance": {
-            "origin": "schema",
-            "artifact": "shared/racing/setups/schema.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent setup source is currently identified for this game."
         },
         "iracing": {
           "kind": "unavailable",
@@ -43008,13 +42568,16 @@
         },
         "ac-evo": {
           "kind": "normalized",
-          "nativeUnit": "click",
+          "nativeUnit": "psi",
           "sources": [
-            "ACEvo.SetupFile.basicSetup.tyres.tyrePressure"
+            "ACEvo.SetupFile.frontLeftTyrePressure",
+            "ACEvo.SetupFile.frontRightTyrePressure",
+            "ACEvo.SetupFile.rearLeftTyrePressure",
+            "ACEvo.SetupFile.rearRightTyrePressure"
           ],
           "freshness": "static",
-          "normalization": "kPa = (20.3 + click * 0.1) psi * 6.894757",
-          "description": "ac-evo setup file exposes this 4-value value.",
+          "description": "ac-evo setup file exposes this scalar value.",
+          "normalization": "convert psi to kPa",
           "provenance": {
             "origin": "schema",
             "artifact": "shared/racing/setups/schema.ts"
@@ -43026,10 +42589,13 @@
             "version": "0.19.0",
             "deterministic": true,
             "declaredInputs": [
-              "ACEvo.SetupFile.basicSetup.tyres.tyrePressure"
+              "ACEvo.SetupFile.frontLeftTyrePressure",
+              "ACEvo.SetupFile.frontRightTyrePressure",
+              "ACEvo.SetupFile.rearLeftTyrePressure",
+              "ACEvo.SetupFile.rearRightTyrePressure"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "50cb6822c1c327252f37eed0f394bf27b8d239ba150c940e7e71dc450d2fa11b"
+            "codeHash": "e65bfda4a30cd3e1672821e1c16787d6935214967ace7b47aa4668ab2df75c10"
           }
         },
         "iracing": {
@@ -68048,295 +67614,7 @@
     ],
     "ac-evo": [
       {
-        "path": "ACEvo.SetupFile.advancedSetup.aeroBalance.brakeDuct",
-        "label": "Brake Duct",
-        "unit": "level",
-        "dataType": "setup-value",
-        "count": 2,
-        "description": "Brake Duct from ac-evo setup file.",
-        "semanticId": "setup.aero.brake-duct",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.advancedSetup.aeroBalance.rearWing",
-        "label": "Rear Wing",
-        "unit": "level",
-        "dataType": "setup-value",
-        "count": 1,
-        "description": "Rear Wing from ac-evo setup file.",
-        "semanticId": "setup.aero.rear-wing.setting",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.advancedSetup.aeroBalance.rideHeight",
-        "label": "Ride Height",
-        "unit": "click",
-        "dataType": "setup-value",
-        "count": 4,
-        "description": "Ride Height from ac-evo setup file.",
-        "semanticId": "setup.suspension.ride-height",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.advancedSetup.aeroBalance.splitter",
-        "label": "Splitter",
-        "unit": "level",
-        "dataType": "setup-value",
-        "count": 1,
-        "description": "Splitter from ac-evo setup file.",
-        "semanticId": "setup.aero.splitter",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.advancedSetup.dampers.bumpFast",
-        "label": "Bump Fast",
-        "unit": "click",
-        "dataType": "setup-value",
-        "count": 4,
-        "description": "Bump Fast from ac-evo setup file.",
-        "semanticId": "setup.dampers.fast-compression",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.advancedSetup.dampers.bumpSlow",
-        "label": "Bump Slow",
-        "unit": "click",
-        "dataType": "setup-value",
-        "count": 4,
-        "description": "Bump Slow from ac-evo setup file.",
-        "semanticId": "setup.dampers.slow-compression",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.advancedSetup.dampers.reboundFast",
-        "label": "Rebound Fast",
-        "unit": "click",
-        "dataType": "setup-value",
-        "count": 4,
-        "description": "Rebound Fast from ac-evo setup file.",
-        "semanticId": "setup.dampers.fast-rebound",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.advancedSetup.dampers.reboundSlow",
-        "label": "Rebound Slow",
-        "unit": "click",
-        "dataType": "setup-value",
-        "count": 4,
-        "description": "Rebound Slow from ac-evo setup file.",
-        "semanticId": "setup.dampers.slow-rebound",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.advancedSetup.drivetrain.preload",
-        "label": "Diff Preload",
-        "unit": "click",
-        "dataType": "setup-value",
-        "count": 1,
-        "description": "Diff Preload from ac-evo setup file.",
-        "semanticId": "setup.drivetrain.differential-preload",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.advancedSetup.mechanicalBalance.aRBFront",
-        "label": "Front Anti Roll Bar",
-        "unit": "level",
-        "dataType": "setup-value",
-        "count": 1,
-        "description": "Front Anti Roll Bar from ac-evo setup file.",
-        "semanticId": "setup.suspension.front-anti-roll-bar.setting",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.advancedSetup.mechanicalBalance.aRBRear",
-        "label": "Rear Anti Roll Bar",
-        "unit": "level",
-        "dataType": "setup-value",
-        "count": 1,
-        "description": "Rear Anti Roll Bar from ac-evo setup file.",
-        "semanticId": "setup.suspension.rear-anti-roll-bar.setting",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.advancedSetup.mechanicalBalance.brakeBias",
-        "label": "Brake Bias (clicks)",
-        "unit": "click",
-        "dataType": "setup-value",
-        "count": 1,
-        "description": "Brake Bias (clicks) from ac-evo setup file.",
-        "semanticId": "setup.brakes.bias",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.advancedSetup.mechanicalBalance.bumpStopRateUp",
-        "label": "Bumpstop Rate",
-        "unit": "click",
-        "dataType": "setup-value",
-        "count": 4,
-        "description": "Bumpstop Rate from ac-evo setup file.",
-        "semanticId": "setup.suspension.bump-stop-rate",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.advancedSetup.mechanicalBalance.bumpStopWindow",
-        "label": "Bumpstop Range",
-        "unit": "click",
-        "dataType": "setup-value",
-        "count": 4,
-        "description": "Bumpstop Range from ac-evo setup file.",
-        "semanticId": "setup.suspension.bump-stop-range",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.advancedSetup.mechanicalBalance.preloadDifferential",
-        "label": "Differential Preload",
-        "unit": "click",
-        "dataType": "setup-value",
-        "count": 1,
-        "description": "Differential Preload from ac-evo setup file.",
-        "semanticId": "setup.drivetrain.differential-preload",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.advancedSetup.mechanicalBalance.wheelRate",
-        "label": "Wheel Rate",
-        "unit": "click",
-        "dataType": "setup-value",
-        "count": 4,
-        "description": "Wheel Rate from ac-evo setup file.",
-        "semanticId": "setup.suspension.spring-rate",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.advancedSetup.suspension.bumpstops",
-        "label": "Bumpstops",
-        "unit": "level",
-        "dataType": "setup-value",
-        "count": 4,
-        "description": "Bumpstops from ac-evo setup file.",
-        "semanticId": "setup.suspension.bumpstops",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.advancedSetup.suspension.helperSprings",
-        "label": "Helper Springs",
-        "unit": "level",
-        "dataType": "setup-value",
-        "count": 4,
-        "description": "Helper Springs from ac-evo setup file.",
-        "semanticId": "setup.suspension.helper-springs",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.advancedSetup.suspension.packers",
-        "label": "Packers",
-        "unit": "click",
-        "dataType": "setup-value",
-        "count": 4,
-        "description": "Packers from ac-evo setup file.",
-        "semanticId": "setup.suspension.packers",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.basicSetup.alignment.camber",
-        "label": "Camber (clicks)",
-        "unit": "click",
-        "dataType": "setup-value",
-        "count": 4,
-        "description": "Camber (clicks) from ac-evo setup file.",
-        "semanticId": "setup.alignment.camber",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.basicSetup.alignment.casterLF",
-        "label": "Caster LF",
-        "unit": "click",
-        "dataType": "setup-value",
-        "count": 1,
-        "description": "Caster LF from ac-evo setup file.",
-        "semanticId": "setup.alignment.caster",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.basicSetup.alignment.casterRF",
-        "label": "Caster RF",
-        "unit": "click",
-        "dataType": "setup-value",
-        "count": 1,
-        "description": "Caster RF from ac-evo setup file.",
-        "semanticId": "setup.alignment.caster",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.basicSetup.alignment.steerRatio",
-        "label": "Steer Ratio",
-        "unit": "click",
-        "dataType": "setup-value",
-        "count": 1,
-        "description": "Steer Ratio from ac-evo setup file.",
-        "semanticId": "setup.alignment.steering-ratio",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.basicSetup.alignment.toe",
-        "label": "Toe (clicks)",
-        "unit": "click",
-        "dataType": "setup-value",
-        "count": 4,
-        "description": "Toe (clicks) from ac-evo setup file.",
-        "semanticId": "setup.alignment.toe",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.basicSetup.electronics.abs",
+        "path": "ACEvo.SetupFile.abs",
         "label": "ABS",
         "unit": "level",
         "dataType": "setup-value",
@@ -68348,79 +67626,187 @@
         "retention": "not-recorded"
       },
       {
-        "path": "ACEvo.SetupFile.basicSetup.electronics.eCUMap",
-        "label": "ECU Map",
+        "path": "ACEvo.SetupFile.brakeBias",
+        "label": "Brake bias (%)",
+        "unit": "%",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Brake bias (%) from ac-evo setup file.",
+        "semanticId": "setup.brakes.bias",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.diffCoast",
+        "label": "Differential coast (fraction)",
+        "unit": "ratio",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Differential coast (fraction) from ac-evo setup file.",
+        "semanticId": "setup.drivetrain.off-throttle-lock",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.diffPower",
+        "label": "Differential power (fraction)",
+        "unit": "ratio",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Differential power (fraction) from ac-evo setup file.",
+        "semanticId": "setup.drivetrain.on-throttle-lock",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.diffPreload",
+        "label": "Differential preload (Nm)",
+        "unit": "Nm",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Differential preload (Nm) from ac-evo setup file.",
+        "semanticId": "setup.drivetrain.differential-preload",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.engineMap",
+        "label": "Engine map",
         "unit": "level",
         "dataType": "setup-value",
         "count": 1,
-        "description": "ECU Map from ac-evo setup file.",
+        "description": "Engine map from ac-evo setup file.",
         "semanticId": "setup.electronics.engine-map",
         "sourceKind": "setup",
         "recordedByRaceIQ": false,
         "retention": "not-recorded"
       },
       {
-        "path": "ACEvo.SetupFile.basicSetup.electronics.fuelMix",
-        "label": "Fuel Mix",
+        "path": "ACEvo.SetupFile.frontARB",
+        "label": "Front anti-roll bar (clicks)",
+        "unit": "click",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Front anti-roll bar (clicks) from ac-evo setup file.",
+        "semanticId": "setup.suspension.front-anti-roll-bar.setting",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.frontBump",
+        "label": "Front bump",
         "unit": "level",
         "dataType": "setup-value",
         "count": 1,
-        "description": "Fuel Mix from ac-evo setup file.",
-        "semanticId": "setup.electronics.fuel-mix",
+        "description": "Front bump from ac-evo setup file.",
+        "semanticId": "setup.dampers.compression",
         "sourceKind": "setup",
         "recordedByRaceIQ": false,
         "retention": "not-recorded"
       },
       {
-        "path": "ACEvo.SetupFile.basicSetup.electronics.tC1",
-        "label": "TC1",
+        "path": "ACEvo.SetupFile.frontCamber",
+        "label": "Front camber (°)",
+        "unit": "deg",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Front camber (°) from ac-evo setup file.",
+        "semanticId": "setup.alignment.camber",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.frontLeftTyrePressure",
+        "label": "Front left pressure (psi)",
+        "unit": "psi",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Front left pressure (psi) from ac-evo setup file.",
+        "semanticId": "setup.tires.starting-pressure",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.frontRebound",
+        "label": "Front rebound",
         "unit": "level",
         "dataType": "setup-value",
         "count": 1,
-        "description": "TC1 from ac-evo setup file.",
-        "semanticId": "setup.electronics.traction-control",
+        "description": "Front rebound from ac-evo setup file.",
+        "semanticId": "setup.dampers.rebound",
         "sourceKind": "setup",
         "recordedByRaceIQ": false,
         "retention": "not-recorded"
       },
       {
-        "path": "ACEvo.SetupFile.basicSetup.electronics.tC2",
-        "label": "TC2",
+        "path": "ACEvo.SetupFile.frontRideHeight",
+        "label": "Front ride height (mm)",
+        "unit": "mm",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Front ride height (mm) from ac-evo setup file.",
+        "semanticId": "setup.suspension.ride-height",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.frontRightTyrePressure",
+        "label": "Front right pressure (psi)",
+        "unit": "psi",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Front right pressure (psi) from ac-evo setup file.",
+        "semanticId": "setup.tires.starting-pressure",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.frontSpringRate",
+        "label": "Front spring rate (N/m)",
+        "unit": "N/m",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Front spring rate (N/m) from ac-evo setup file.",
+        "semanticId": "setup.suspension.spring-rate",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.frontToe",
+        "label": "Front toe (°)",
+        "unit": "deg",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Front toe (°) from ac-evo setup file.",
+        "semanticId": "setup.alignment.toe",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.frontWing",
+        "label": "Front wing",
         "unit": "level",
         "dataType": "setup-value",
         "count": 1,
-        "description": "TC2 from ac-evo setup file.",
-        "semanticId": "setup.electronics.traction-control-2",
+        "description": "Front wing from ac-evo setup file.",
+        "semanticId": "setup.aero.front-wing",
         "sourceKind": "setup",
         "recordedByRaceIQ": false,
         "retention": "not-recorded"
       },
       {
-        "path": "ACEvo.SetupFile.basicSetup.electronics.telemetryLaps",
-        "label": "Telemetry Laps",
-        "unit": "count",
-        "dataType": "setup-value",
-        "count": 1,
-        "description": "Telemetry Laps from ac-evo setup file.",
-        "semanticId": "setup.electronics.telemetry-laps",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.basicSetup.strategy.frontBrakePadCompound",
-        "label": "Front Brake Pads",
-        "unit": "enum",
-        "dataType": "setup-value",
-        "count": 1,
-        "description": "Front Brake Pads from ac-evo setup file.",
-        "semanticId": "setup.brakes.pad-compound",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.basicSetup.strategy.fuel",
+        "path": "ACEvo.SetupFile.fuel",
         "label": "Fuel (L)",
         "unit": "L",
         "dataType": "setup-value",
@@ -68432,49 +67818,157 @@
         "retention": "not-recorded"
       },
       {
-        "path": "ACEvo.SetupFile.basicSetup.strategy.rearBrakePadCompound",
-        "label": "Rear Brake Pads",
-        "unit": "enum",
-        "dataType": "setup-value",
-        "count": 1,
-        "description": "Rear Brake Pads from ac-evo setup file.",
-        "semanticId": "setup.brakes.pad-compound",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.basicSetup.strategy.tyreSet",
-        "label": "Tyre Set",
-        "unit": "index",
-        "dataType": "setup-value",
-        "count": 1,
-        "description": "Tyre Set from ac-evo setup file.",
-        "semanticId": "setup.tires.set",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.basicSetup.tyres.tyreCompound",
-        "label": "Compound",
-        "unit": "enum",
-        "dataType": "setup-value",
-        "count": 1,
-        "description": "Compound from ac-evo setup file; 0 = dry, 1 = wet.",
-        "semanticId": "setup.tires.compound",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
-        "path": "ACEvo.SetupFile.basicSetup.tyres.tyrePressure",
-        "label": "Pressure (clicks)",
+        "path": "ACEvo.SetupFile.rearARB",
+        "label": "Rear anti-roll bar (clicks)",
         "unit": "click",
         "dataType": "setup-value",
-        "count": 4,
-        "description": "Pressure (clicks) from ac-evo setup file; 20.3 psi + n × 0.1.",
+        "count": 1,
+        "description": "Rear anti-roll bar (clicks) from ac-evo setup file.",
+        "semanticId": "setup.suspension.rear-anti-roll-bar.setting",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.rearBump",
+        "label": "Rear bump",
+        "unit": "level",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Rear bump from ac-evo setup file.",
+        "semanticId": "setup.dampers.compression",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.rearCamber",
+        "label": "Rear camber (°)",
+        "unit": "deg",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Rear camber (°) from ac-evo setup file.",
+        "semanticId": "setup.alignment.camber",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.rearLeftTyrePressure",
+        "label": "Rear left pressure (psi)",
+        "unit": "psi",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Rear left pressure (psi) from ac-evo setup file.",
         "semanticId": "setup.tires.starting-pressure",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.rearRebound",
+        "label": "Rear rebound",
+        "unit": "level",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Rear rebound from ac-evo setup file.",
+        "semanticId": "setup.dampers.rebound",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.rearRideHeight",
+        "label": "Rear ride height (mm)",
+        "unit": "mm",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Rear ride height (mm) from ac-evo setup file.",
+        "semanticId": "setup.suspension.ride-height",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.rearRightTyrePressure",
+        "label": "Rear right pressure (psi)",
+        "unit": "psi",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Rear right pressure (psi) from ac-evo setup file.",
+        "semanticId": "setup.tires.starting-pressure",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.rearSpringRate",
+        "label": "Rear spring rate (N/m)",
+        "unit": "N/m",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Rear spring rate (N/m) from ac-evo setup file.",
+        "semanticId": "setup.suspension.spring-rate",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.rearToe",
+        "label": "Rear toe (°)",
+        "unit": "deg",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Rear toe (°) from ac-evo setup file.",
+        "semanticId": "setup.alignment.toe",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.rearWing",
+        "label": "Rear wing",
+        "unit": "level",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Rear wing from ac-evo setup file.",
+        "semanticId": "setup.aero.rear-wing.setting",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.steerRatio",
+        "label": "Steering ratio",
+        "unit": "ratio",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Steering ratio from ac-evo setup file.",
+        "semanticId": "setup.alignment.steering-ratio",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.tc",
+        "label": "Traction control",
+        "unit": "level",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Traction control from ac-evo setup file.",
+        "semanticId": "setup.electronics.traction-control",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.tc2",
+        "label": "Traction control 2",
+        "unit": "level",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Traction control 2 from ac-evo setup file.",
+        "semanticId": "setup.electronics.traction-control-2",
         "sourceKind": "setup",
         "recordedByRaceIQ": false,
         "retention": "not-recorded"
@@ -84554,7 +84048,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 149,
-    "semanticVariables": 777,
+    "semanticVariables": 774,
     "sourceCounts": {
       "fm-2023": {
         "total": 96,
@@ -84584,12 +84078,12 @@
         "recorded": 172
       },
       "ac-evo": {
-        "total": 260,
+        "total": 254,
         "packet": 124,
         "extension": 100,
         "sdk": 0,
         "yaml": 0,
-        "setup": 36,
+        "setup": 30,
         "recorded": 224
       },
       "iracing": {

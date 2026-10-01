@@ -1,6 +1,6 @@
 import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "./index";
-import { tunes, tuneAssignments, laps } from "./schema";
+import { tunes, tuneAssignments, laps, sessions } from "./schema";
 
 interface InsertTuneData {
   gameId: string;
@@ -8,7 +8,7 @@ interface InsertTuneData {
   author: string;
   carOrdinal: number;
   category: string;
-  trackOrdinal?: number;
+  trackOrdinal?: number | null;
   description: string;
   strengths?: string;
   weaknesses?: string;
@@ -50,8 +50,36 @@ export async function getTunes(filters: { gameId?: string; carOrdinal?: number }
   if (filters.gameId != null) conds.push(eq(tunes.gameId, filters.gameId));
   if (filters.carOrdinal != null) conds.push(eq(tunes.carOrdinal, filters.carOrdinal));
   const query = db.select().from(tunes).orderBy(desc(tunes.id));
-  if (conds.length > 0) return await query.where(and(...conds)).all();
-  return await query.all();
+  const rows = conds.length > 0
+    ? await query.where(and(...conds)).all()
+    : await query.all();
+  if (rows.length === 0) return [];
+
+  const bestLaps = await db
+    .select({
+      tuneId: laps.tuneId,
+      bestLapTime: sql<number>`MIN(${laps.lapTime})`,
+    })
+    .from(laps)
+    .innerJoin(tunes, eq(laps.tuneId, tunes.id))
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .where(and(
+      sql`${laps.tuneId} IS NOT NULL`,
+      eq(laps.isValid, true),
+      sql`${laps.lapTime} > 0`,
+      eq(sessions.gameId, tunes.gameId),
+      eq(sessions.carOrdinal, tunes.carOrdinal),
+      sql`(${tunes.trackOrdinal} IS NULL OR ${sessions.trackOrdinal} = ${tunes.trackOrdinal})`,
+      ...(filters.gameId != null ? [eq(tunes.gameId, filters.gameId)] : []),
+      ...(filters.carOrdinal != null ? [eq(tunes.carOrdinal, filters.carOrdinal)] : []),
+    ))
+    .groupBy(laps.tuneId)
+    .all();
+  const bestLapByTuneId = new Map(bestLaps.map((row) => [row.tuneId, row.bestLapTime]));
+  return rows.map((row) => ({
+    ...row,
+    bestLapTime: bestLapByTuneId.get(row.id) ?? null,
+  }));
 }
 
 export async function getTuneById(id: number) {

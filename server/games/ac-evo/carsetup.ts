@@ -21,6 +21,7 @@
  */
 import { readFile } from "node:fs/promises";
 import { parseCarSetup, type CarSetupFile, type WireField } from "./carsetup-wire";
+import type { SetupContentRow, SetupContentSection } from "../../../shared/racing/setups/content";
 
 /**
  * The car slug embedded in a preset id, or null.
@@ -74,27 +75,6 @@ export function formatCarSetup(setup: CarSetupFile, fields = setup.raw, indent =
     }
   }
   return lines.join("\n");
-}
-
-/** One human-readable row of a decoded setup (label + display value).
- *  `num`/`min`/`max` are present when the row is a confirmed numeric field with
- *  a real extracted per-car range — the UI draws a range bar (like the AI
- *  analysis result) only for those rows; nothing is invented. */
-export interface CarSetupRow {
-  label: string;
-  value: string;
-  num?: number;
-  min?: number;
-  max?: number;
-  /** True when the value is stored in the file but has no in-game slider for
-   *  this car (fixed physics parameter) — UI greys it out. */
-  fixed?: boolean;
-}
-
-/** A titled group of rows, e.g. "Front left" or "Aero". */
-export interface CarSetupSection {
-  title: string;
-  rows: CarSetupRow[];
 }
 
 const CORNER_NAMES = ["Front left", "Front right", "Rear left", "Rear right"] as const;
@@ -152,8 +132,8 @@ function genericRows(
   skip: Set<number> = new Set(),
   guesses: Record<string, GuessEntry> = {},
   path = "",
-): CarSetupRow[] {
-  const rows: CarSetupRow[] = [];
+): SetupContentRow[] {
+  const rows: SetupContentRow[] = [];
   const guessFor = (no: number): { label: string; fixed?: true } | null => {
     const g = guesses[`${path}#${no}`];
     if (g == null) return null;
@@ -234,11 +214,11 @@ const MECH_GUESSES: Record<string, string> = {
 export function summarizeCarSetup(
   setup: CarSetupFile,
   ranges?: Record<string, { min: number; max: number; step: number } | null> | null,
-): CarSetupSection[] {
-  const sections: CarSetupSection[] = [];
+): SetupContentSection[] {
+  const sections: SetupContentSection[] = [];
   const msgs = (no: number) => setup.raw.filter((f): f is Extract<WireField, { type: "message" }> => f.no === no && f.type === "message");
   /** Attach a real extracted per-car range to a numeric row when one exists. */
-  const withRange = (row: CarSetupRow, n: number, key: string): CarSetupRow => {
+  const withRange = (row: SetupContentRow, n: number, key: string): SetupContentRow => {
     const r = ranges?.[key];
     return r ? { ...row, num: n, min: r.min, max: r.max } : row;
   };
@@ -251,9 +231,9 @@ export function summarizeCarSetup(
   //   #1.#4 diff: #1 power (0.2) · #2 coast (0.25) · #3 preload (45 Nm)
   const mech = msgs(1)[0];
   if (mech) {
-    const frontRows: CarSetupRow[] = [];
-    const rearRows: CarSetupRow[] = [];
-    const rows: CarSetupRow[] = [];
+    const frontRows: SetupContentRow[] = [];
+    const rearRows: SetupContentRow[] = [];
+    const rows: SetupContentRow[] = [];
     const skip = new Set<number>();
     // In-game the ARB sliders are plain click values (single digits) — show raw.
     const arb = mech.fields.find((f): f is Extract<WireField, { type: "bytes" }> => f.no === 1 && f.type === "bytes");
@@ -262,11 +242,11 @@ export function summarizeCarSetup(
       // (verified Audi R8 GT3 Evo II front click→stiffness: 1→16, (2→22 assumed),
       // 3→28 kN/m). Range from setup-ranges.json is in clicks, so only attach it
       // when we have a click number.
-      const arbRow = (raw: number, key: string): CarSetupRow => {
+      const arbRow = (raw: number, key: string): SetupContentRow => {
         if (raw > 100) {
           const kNm = raw / 1000;
           const click = arbClickFromKnm(kNm);
-          const row: CarSetupRow = {
+          const row: SetupContentRow = {
             label: "Anti-roll bar",
             value: click != null ? `${click} (${fmt(kNm)} kN/m)` : `${fmt(kNm)} kN/m`,
           };
@@ -314,7 +294,7 @@ export function summarizeCarSetup(
   const alignment = msgs(4);
   let tyreCompound: number | undefined;
   for (let i = 0; i < 4; i++) {
-    const rows: CarSetupRow[] = [];
+    const rows: SetupContentRow[] = [];
     const align = alignment[i];
     if (align) {
       // Range keys per corner (extraction order FL, FR, RL, RR): pressure is
@@ -349,7 +329,7 @@ export function summarizeCarSetup(
   // #5 — electronics/assists (TC/ABS-style click values).
   const electronics = msgs(5)[0];
   if (electronics) {
-    const rows: CarSetupRow[] = [];
+    const rows: SetupContentRow[] = [];
     // #4 — engine map, 0-indexed (verified: UI map 6 stored as 5; absent at default).
     const engineMap = num(electronics.fields.find((f) => f.no === 4));
     if (engineMap != null) rows.push({ label: "Engine map", value: fmt(engineMap + 1) });
@@ -363,7 +343,7 @@ export function summarizeCarSetup(
   // (verified: Audi save 55/75/–/4 vs extracted ranges 54–70 / 60–90 / null / 1–6).
   const aero = msgs(6)[0];
   if (aero) {
-    const rows: CarSetupRow[] = [];
+    const rows: SetupContentRow[] = [];
     const labelled: Array<[number, string, string, string]> = [
       [2, "Front ride height", "frontRideHeight", " mm"],
       [3, "Rear ride height", "rearRideHeight", " mm"],
@@ -387,7 +367,7 @@ export function summarizeCarSetup(
   // are NOT persisted in .carsetup (F1 save diff showed no change).
   const fuel = msgs(7)[0];
   if (fuel || tyreCompound != null) {
-    const rows: CarSetupRow[] = [];
+    const rows: SetupContentRow[] = [];
     if (fuel) {
       const fuelLoad = num(fuel.fields.find((f) => f.no === 1));
       if (fuelLoad != null) rows.push(withRange({ label: "Fuel load", value: `${fmt(fuelLoad)} L` }, fuelLoad, "fuel"));

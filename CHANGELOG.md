@@ -5,12 +5,20 @@
 - Add Spanish, Brazilian Portuguese, Japanese, Ukrainian, Dutch, Polish, Finnish, and Russian interfaces.
 - Search track, car, language, and other option lists with accessible combobox controls.
 - Slightly reduce corner radii through shared Tailwind tokens.
-- Use accessible toggle groups for Sessions Mine/Others and Analyse tooltip display.
+- Use accessible toggle groups for Sessions Mine/Others, Analyse tooltip display, setup sections, and setup sources.
 - Preview segments, sectors, and guide corners on the track map by hovering or focusing their reference rows or cards, highlighting the selected sections and hiding unrelated labels.
 - Show session types for ACC and AC Evo in desktop session tables and mobile session cards.
 - Expose ACC penalty codes, types, and time in telemetry, and list observed penalties on the race timeline without counting them as pit stops.
+- Use structured setup editing without a Paste JSON mode, and label the save action “Save Setup”.
+- Show each saved setup's best valid recorded lap from sessions using that setup, and sort setups by recorded lap time.
+- Select or clear a track when creating or editing ACC and AC Evo setups; restrict track-specific setup best laps to that circuit.
 
 ### Fixes
+- Restore AC Evo `.carsetup` imports from Sessions and the setup-file browser, with automatic car selection for uploaded setups that identify their car.
+- Match AC Evo setup editing to the experiment setup viewer's tabs, corner cards, units, and ranges; preserve imported per-wheel details and saved edits.
+- Align AC Evo setup inputs regardless of units, use compact controls without native number spinners, fill the available editor width, and arrange wheel sections side by side on desktop and stacked on mobile.
+- Use searchable car, track, and category selectors in ACC and AC Evo setup forms.
+- Use the application background instead of gray fill for shared text and numeric inputs.
 - Stop showing race finishing, grid, and position-change ranks for practice sessions, including LMU test days; retain raw simulator timing ranks.
 - Place qualifying position before Start on the race timeline instead of alongside Finish.
 - Keep the New experiment dialog header and footer visible while its form content scrolls.

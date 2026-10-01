@@ -72,7 +72,7 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
           <span className={hasTime ? "text-(--lap-pace-average)" : undefined}>
             {hasTime ? row.lapTimeRaw : "—"}
             <span className="mt-0.5 hidden text-app-nano uppercase tracking-wide text-app-text-dim @3xl/workspace:block">
-              {hasTime ? (row.lapTimeTrack ?? m.browser_lap_label()) : m.browser_no_time()}
+              {hasTime ? (isUser ? m.tunes_best_lap() : (row.lapTimeTrack ?? m.browser_lap_label())) : m.browser_no_time()}
             </span>
           </span>
         </TD>

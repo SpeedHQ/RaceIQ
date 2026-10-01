@@ -1,16 +1,19 @@
 import { getSchemaForGame, readSetupSection } from "@shared/racing/setups/schema";
 import { useEffect, useMemo, useState } from "react";
+import { AcEvoSetupContent } from "./AcEvoSetupContent";
 import { AppInput } from "@/components/ui/AppInput";
+import { SearchSelect } from "../ui/SearchSelect";
+import { useTracksForGame } from "../../hooks/catalog-queries";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../../shared/games/ids";
 import { Button } from "../ui/button";
 import { FillForm } from "./FillForm";
-
 export interface SetupTuneData {
   gameId: GameId;
   name: string;
   author: string;
   carOrdinal: number;
+  trackOrdinal: number | null;
   category: string;
   description: string;
   settings: Record<string, unknown>;
@@ -48,11 +51,7 @@ export function getCategoriesForGame(gameId: GameId): CategoryOption[] {
   return [{ value: "circuit", label: m.setup_tune_category_circuit() }];
 }
 
-type Mode = "form" | "json";
-
-/** ACC / AC-EVO tune editor. Users pick an input mode up front — fill the
- *  structured form or paste the raw setup JSON. Both modes read/write the same
- *  `settings` object, so switching modes is lossless. */
+/** Structured ACC / AC Evo setup editor. */
 export function SetupTuneForm({
   gameId,
   cars,
@@ -70,6 +69,8 @@ export function SetupTuneForm({
   title: string;
   isSubmitting: boolean;
 }) {
+  const { data: tracks = [] } = useTracksForGame(gameId);
+  const [trackOrdinal, setTrackOrdinal] = useState<number | null>(initialData?.trackOrdinal ?? null);
   const categories = getCategoriesForGame(gameId);
   const schema = useMemo(() => getSchemaForGame(gameId), [gameId]);
   const defaultCategory = categories[0]?.value ?? "race";
@@ -79,14 +80,8 @@ export function SetupTuneForm({
   const [carOrdinal, setCarOrdinal] = useState<number>(initialData?.carOrdinal ?? cars[0]?.ordinal ?? 0);
   const [category, setCategory] = useState(initialData?.category ?? defaultCategory);
   const [description, setDescription] = useState(initialData?.description ?? "");
-
   // Structured-form state: keep a live settings object the fill-form mutates.
-  const [settings, setSettings] = useState<Record<string, unknown>>(() => (initialData?.settings as Record<string, unknown>) ?? {});
-  // JSON-mode state: the textarea string (may be invalid mid-edit).
-  const [jsonText, setJsonText] = useState(() => (initialData?.settings ? JSON.stringify(initialData.settings, null, 2) : "{}"));
-  const [jsonError, setJsonError] = useState("");
-
-  const [mode, setMode] = useState<Mode>("form");
+  const [settings, setSettings] = useState<Record<string, unknown>>(() => initialData?.settings ?? {});
 
   useEffect(() => {
     if (!initialData) return;
@@ -95,202 +90,116 @@ export function SetupTuneForm({
     setCarOrdinal(initialData.carOrdinal ?? cars[0]?.ordinal ?? 0);
     setCategory(initialData.category ?? defaultCategory);
     setDescription(initialData.description ?? "");
-    const next = (initialData.settings as Record<string, unknown>) ?? {};
+    setTrackOrdinal(initialData.trackOrdinal ?? null);
+    const next = initialData.settings ?? {};
     setSettings(next);
-    setJsonText(initialData.settings ? JSON.stringify(initialData.settings, null, 2) : "{}");
-    setJsonError("");
   }, [initialData, cars, defaultCategory]);
 
-  // Detect which tunable sections are populated — from whichever source is
-  // currently authoritative (live settings in form mode, parsed JSON in JSON
-  // mode so the count updates as the user types).
-  const coveredSections = useMemo(() => {
-    let source: Record<string, Record<string, unknown>> | null;
-    if (mode === "form") {
-      source = settings as Record<string, Record<string, unknown>>;
-    } else {
-      try {
-        source = JSON.parse(jsonText);
-      } catch {
-        source = null;
-      }
-    }
-    const covered = new Set<string>();
-    if (!source) return covered;
-    for (const section of schema) {
-      if (readSetupSection(source, section)) covered.add(section.key);
-    }
-    return covered;
-  }, [mode, settings, jsonText, schema]);
 
-  // When user flips to JSON mode, seed the textarea from the live settings.
-  // When user flips to form mode, parse the textarea into settings (if valid).
-  const switchMode = (next: Mode) => {
-    if (next === mode) return;
-    if (next === "json") {
-      setJsonText(JSON.stringify(settings, null, 2));
-      setJsonError("");
-    } else {
-      try {
-        const parsed = JSON.parse(jsonText);
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-          setSettings(parsed as Record<string, unknown>);
-          setJsonError("");
-        } else {
-          setJsonError(m.setup_tune_json_object_required());
-          return;
-        }
-      } catch {
-        setJsonError(m.setup_tune_invalid_json());
-        return;
-      }
-    }
-    setMode(next);
+  const coveredSections = useMemo(
+    () => gameId === "ac-evo" ? 0 : schema.reduce((count, section) => count + (readSetupSection(settings, section) ? 1 : 0), 0),
+    [gameId, settings, schema],
+  );
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    onSubmit({ gameId, name, author, carOrdinal, trackOrdinal, category, description, settings });
   };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    let finalSettings: Record<string, unknown>;
-    if (mode === "form") {
-      finalSettings = settings;
-    } else {
-      try {
-        const parsed = JSON.parse(jsonText);
-        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-          throw new Error(m.setup_tune_json_object_required());
-        }
-        finalSettings = parsed;
-      } catch (err) {
-        setJsonError(err instanceof Error ? err.message : m.setup_tune_invalid_json());
-        return;
-      }
-    }
-    setJsonError("");
-    onSubmit({ gameId, name, author, carOrdinal, category, description, settings: finalSettings });
-  };
-
-  const gameLabel = gameId === "acc" ? "ACC" : "AC EVO";
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col min-h-full">
-      <div className="sticky top-0 z-10 bg-app-bg border-b border-app-border flex items-center gap-3 px-4 py-2">
+      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-app-border bg-app-bg px-4 py-3 sm:px-6">
         <Button variant="app-ghost" size="app-sm" onClick={onCancel}>
           &larr;
         </Button>
-        <h2 className="text-sm font-semibold text-app-text">{title}</h2>
+        <h2 className="min-w-0 flex-1 text-base font-semibold text-app-text">{title}</h2>
         <div className="flex items-center gap-2 ml-auto">
           <Button variant="app-outline" size="app-sm" onClick={onCancel}>
             {m.common_cancel()}
           </Button>
           <Button type="submit" variant="app-primary" size="app-sm" disabled={!name || isSubmitting}>
-            {isSubmitting ? m.common_saving() : m.setupform_save_tune()}
+            {isSubmitting ? m.common_saving() : m.setupform_save_setup()}
           </Button>
         </div>
       </div>
 
-      <div className="p-6 grid grid-cols-2 gap-4 max-w-3xl">
-        {/* Mode picker — first thing the user sees. Determines whether the
-            settings come from the structured form or a pasted JSON blob. */}
-        <div className="col-span-2 flex items-center gap-2" role="radiogroup" aria-label={m.setup_tune_input_mode()}>
-          <span className="text-xs font-medium text-app-text-muted mr-1">{m.setupform_input_label()}</span>
-          <Button
-            type="button"
-            role="radio"
-            aria-checked={mode === "form"}
-            onClick={() => switchMode("form")}
-            className={`px-3 py-1 text-xs rounded border ${
-              mode === "form" ? "bg-app-accent/20 border-app-accent text-app-text" : "bg-app-surface border-app-border text-app-text-muted hover:text-app-text"
-            }`}
-          >
-            {m.setupform_fill_form()}
-          </Button>
-          <Button
-            type="button"
-            role="radio"
-            aria-checked={mode === "json"}
-            onClick={() => switchMode("json")}
-            className={`px-3 py-1 text-xs rounded border ${
-              mode === "json" ? "bg-app-accent/20 border-app-accent text-app-text" : "bg-app-surface border-app-border text-app-text-muted hover:text-app-text"
-            }`}
-          >
-            {m.setupform_paste_json()}
-          </Button>
-          {jsonError && <span className="text-app-caption text-status-danger ml-2">{jsonError}</span>}
-        </div>
+      <div className="grid w-full grid-cols-1 gap-4 p-4 sm:grid-cols-2">
 
-        <label className="col-span-2 space-y-1">
+        <label className="min-w-0 space-y-2">
           <span className="text-xs font-medium text-app-text-muted">{m.tune_form_name()}</span>
-          <AppInput type="text" value={name} onChange={(e) => setName(e.target.value)} required className="w-full" />
+          <AppInput type="text" value={name} onChange={(e) => setName(e.target.value)} required className="h-8 w-full py-1" />
         </label>
 
-        <label className="space-y-1">
+        <label className="min-w-0 space-y-2">
           <span className="text-xs font-medium text-app-text-muted">{m.label_author()}</span>
-          <AppInput type="text" value={author} onChange={(e) => setAuthor(e.target.value)} required className="w-full" />
+          <AppInput type="text" value={author} onChange={(e) => setAuthor(e.target.value)} required className="h-8 w-full py-1" />
         </label>
 
-        <label className="space-y-1">
+        <label className="min-w-0 space-y-2">
           <span className="text-xs font-medium text-app-text-muted">{m.label_car()}</span>
-          <select
-            value={carOrdinal}
-            onChange={(e) => setCarOrdinal(Number(e.target.value))}
-            className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
-          >
-            {cars.map((c) => (
-              <option key={c.ordinal} value={c.ordinal}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <SearchSelect
+            value={String(carOrdinal)}
+            onChange={(value) => setCarOrdinal(Number(value))}
+            options={cars.map((car) => ({ value: String(car.ordinal), label: car.name }))}
+            ariaLabel={m.label_car()}
+            placeholder={m.analyse_search_cars()}
+            className="h-8 w-full min-w-0 text-sm"
+          />
         </label>
 
-        <label className="space-y-1">
+        <label className="min-w-0 space-y-2">
+          <span className="text-xs font-medium text-app-text-muted">{m.label_track()}</span>
+          <SearchSelect
+            value={trackOrdinal == null ? "" : String(trackOrdinal)}
+            onChange={(value) => setTrackOrdinal(value ? Number(value) : null)}
+            options={[
+              { value: "", label: m.setup_any_track() },
+              ...tracks.map((track) => ({ value: String(track.ordinal), label: track.name })),
+            ]}
+            fallbackLabel={trackOrdinal != null && !tracks.some((track) => track.ordinal === trackOrdinal) ? `Track ${trackOrdinal}` : undefined}
+            ariaLabel={m.label_track()}
+            placeholder={m.analyse_search_tracks()}
+            className="h-8 w-full min-w-0 text-sm"
+          />
+        </label>
+
+        <label className="min-w-0 space-y-2">
           <span className="text-xs font-medium text-app-text-muted">{m.label_category()}</span>
-          <select
+          <SearchSelect
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
-          >
-            {categories.map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
-            ))}
-          </select>
+            onChange={setCategory}
+            options={categories}
+            ariaLabel={m.label_category()}
+            placeholder={m.label_category()}
+            className="h-8 w-full min-w-0 text-sm"
+          />
         </label>
 
-        <label className="col-span-2 space-y-1">
+        <label className="space-y-2 sm:col-span-2">
           <span className="text-xs font-medium text-app-text-muted">{m.tune_form_description()}</span>
-          <AppInput type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full" />
+          <AppInput type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="h-8 w-full py-1" />
         </label>
 
-        {schema.length > 0 && (
-          <div className="col-span-2 flex items-center justify-between">
+        {gameId !== "ac-evo" && schema.length > 0 && (
+          <div className="flex items-center justify-between sm:col-span-2">
             <span className="text-xs font-medium text-app-text-muted">{m.setupform_tunable_sections()}</span>
             <span className="text-app-caption text-app-text-muted">
-              {coveredSections.size} / {schema.length} {m.setupform_covered()}
+              {coveredSections} / {schema.length} {m.setupform_covered()}
             </span>
           </div>
         )}
 
-        {mode === "form" && schema.length > 0 && <FillForm sections={schema} settings={settings} onChange={setSettings} />}
+        {gameId === "ac-evo" ? (
+          <div className="min-w-0 border-t border-app-border pt-5 sm:col-span-2">
+            <AcEvoSetupContent settings={settings} onChange={(knob, value) => setSettings((previous) => {
+              const next = { ...previous };
+              if (value === undefined) delete next[knob];
+              else next[knob] = value;
+              return next;
+            })} />
+          </div>
+        ) : schema.length > 0 && <FillForm sections={schema} settings={settings} onChange={setSettings} />}
 
-        {mode === "json" && (
-          <label className="col-span-2 space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-app-text-muted">{m.setupform_setup_json()}</span>
-              {jsonError && <span className="text-app-caption text-status-danger">{jsonError}</span>}
-            </div>
-            <textarea
-              value={jsonText}
-              onChange={(e) => setJsonText(e.target.value)}
-              spellCheck={false}
-              className="w-full h-96 bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs font-mono text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
-            />
-            <p className="text-app-caption text-app-text-muted">
-              {m.setup_tune_json_help({ game: gameLabel })}
-            </p>
-          </label>
-        )}
       </div>
     </form>
   );

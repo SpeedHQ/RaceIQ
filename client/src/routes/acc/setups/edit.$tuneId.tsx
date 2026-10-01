@@ -10,6 +10,7 @@ interface TuneRow {
   name: string;
   author: string;
   carOrdinal: number;
+  trackOrdinal: number | null;
   category: string;
   description: string;
   settings: Record<string, unknown>;
@@ -42,6 +43,7 @@ function EditAccTunePage() {
             carOrdinal: tune.carOrdinal,
             category: tune.category,
             description: tune.description,
+            trackOrdinal: tune.trackOrdinal,
             settings: tune.settings,
           }}
           onCancel={() => navigate({ to: "/acc/setups" })}

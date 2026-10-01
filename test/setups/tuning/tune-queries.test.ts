@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach } from "bun:test";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "../../../server/db/index";
-import { tunes, tuneAssignments } from "../../../server/db/schema";
+import { tunes, tuneAssignments, laps, sessions } from "../../../server/db/schema";
 import {
   insertTune,
   getTunes,
@@ -66,6 +67,46 @@ describe("tune CRUD", () => {
     const filtered = await getTunes({ carOrdinal: 100 });
     expect(filtered.length).toBe(1);
     expect(filtered[0].name).toBe("A");
+  });
+
+  test("getTunes reports fastest valid lap for exact setup and matching session identity", async () => {
+    const data = { gameId: "ac-evo", name: "Recorded setup", author: "t", carOrdinal: 100, category: "race", description: "", settings: "{}" };
+    const tuneId = await insertTune(data);
+    const otherTuneId = await insertTune({ ...data, name: "Unused setup" });
+    const fixtures = await db.insert(sessions).values([
+      { gameId: "ac-evo", carOrdinal: 100, trackOrdinal: 1 },
+      { gameId: "ac-evo", carOrdinal: 100, trackOrdinal: 2 },
+      { gameId: "acc", carOrdinal: 100, trackOrdinal: 1 },
+      { gameId: "ac-evo", carOrdinal: 200, trackOrdinal: 1 },
+    ]).returning({ id: sessions.id }).all();
+    const sessionIds = fixtures.map((session) => session.id);
+    try {
+      await db.insert(laps).values([
+        { sessionId: sessionIds[0], tuneId, lapNumber: 1, lapTime: 101.2, isValid: true },
+        { sessionId: sessionIds[1], tuneId, lapNumber: 1, lapTime: 92.345, isValid: true },
+        { sessionId: sessionIds[0], tuneId, lapNumber: 2, lapTime: 80, isValid: false },
+        { sessionId: sessionIds[0], tuneId, lapNumber: 3, lapTime: 0, isValid: true },
+        { sessionId: sessionIds[0], tuneId, lapNumber: 4, lapTime: -1, isValid: true },
+        { sessionId: sessionIds[0], tuneId: null, lapNumber: 5, lapTime: 50, isValid: true },
+        { sessionId: sessionIds[2], tuneId, lapNumber: 1, lapTime: 60, isValid: true },
+        { sessionId: sessionIds[3], tuneId, lapNumber: 1, lapTime: 70, isValid: true },
+      ]).run();
+      const listed = await getTunes({ gameId: "ac-evo", carOrdinal: 100 });
+      expect(listed.find((tune) => tune.id === tuneId)?.bestLapTime).toBe(92.345);
+      expect(listed.find((tune) => tune.id === otherTuneId)?.bestLapTime).toBeNull();
+      await updateTune(tuneId, { trackOrdinal: 1 });
+      expect((await getTuneById(tuneId))?.trackOrdinal).toBe(1);
+      expect((await getTunes()).find((tune) => tune.id === tuneId)?.bestLapTime).toBe(101.2);
+      await updateTune(tuneId, { trackOrdinal: 3 });
+      expect((await getTunes()).find((tune) => tune.id === tuneId)?.bestLapTime).toBeNull();
+      await updateTune(tuneId, { trackOrdinal: null });
+      expect((await getTuneById(tuneId))?.trackOrdinal).toBeNull();
+      expect((await getTunes()).find((tune) => tune.id === tuneId)?.bestLapTime).toBe(92.345);
+      await db.delete(laps).where(eq(laps.tuneId, tuneId)).run();
+      expect((await getTunes()).find((tune) => tune.id === tuneId)?.bestLapTime).toBeNull();
+    } finally {
+      await db.delete(sessions).where(inArray(sessions.id, sessionIds)).run();
+    }
   });
 
   test("updateTune modifies fields", async () => {

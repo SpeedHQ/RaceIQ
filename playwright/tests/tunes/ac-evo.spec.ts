@@ -2,8 +2,7 @@ import { test, expect } from "@playwright/test";
 import { collectBrowserErrors } from "../support/browser-errors";
 import { completeOnboarding, resetTunes, waitForTunesList } from "../support/tunes";
 
-// AC EVO mirrors the ACC flow but uses the broader category set and the
-// additional "Suspension Presets" section.
+// AC Evo uses flat decoded settings and its own road/track categories.
 test.describe("AC EVO tunes", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
@@ -14,7 +13,7 @@ test.describe("AC EVO tunes", () => {
     await resetTunes(page);
   });
 
-  test("create via form with EVO-specific section, edit, duplicate, delete", async ({ page }) => {
+  test("create setup, preserve values through edit, duplicate, delete", async ({ page }) => {
     const browserErrors = collectBrowserErrors(page);
     try {
       await page.goto("/ac-evo/setups");
@@ -29,22 +28,9 @@ test.describe("AC EVO tunes", () => {
       // EVO-only category — confirms the dropdown isn't sharing ACC's list.
       await page.getByLabel("Category").selectOption("trackday");
 
-      // Switch from the default structured form to the raw JSON paste mode.
-      await page.getByRole("radio", { name: "Paste JSON" }).click();
-
-      // Populate both a core section and the EVO-only suspension presets section.
-      const setupJson = {
-        basicSetup: {
-          tyres: { tyreCompound: 0, tyrePressure: [28, 28, 28, 28] },
-        },
-        advancedSetup: {
-          suspension: { bumpstops: [10, 10, 10, 10], packers: [0, 0, 0, 0] },
-        },
-      };
-      await page.getByLabel("Setup JSON").fill(JSON.stringify(setupJson, null, 2));
-      await expect(page.getByText(/\d+ \/ 9 covered/)).toBeVisible();
-
-      await page.getByRole("button", { name: /save tune/i }).click();
+      await page.getByRole("spinbutton", { name: "Front left Tyre pressure", exact: true }).fill("28");
+      await page.getByRole("spinbutton", { name: "Rear left Toe", exact: true }).fill("0");
+      await page.getByRole("button", { name: /save setup/i }).click();
       await waitForTunesList(page);
       await page.getByRole("button", { name: /^yours$/i }).click();
       await expect(page.getByText("E2E EVO Tune")).toBeVisible({ timeout: 10_000 });
@@ -52,8 +38,10 @@ test.describe("AC EVO tunes", () => {
       await page.getByText("E2E EVO Tune").first().click();
       await page.getByRole("button", { name: /^edit$/i }).click();
       await expect(page.getByRole("heading", { name: /edit: e2e evo tune/i })).toBeVisible();
+      await expect(page.getByRole("spinbutton", { name: "Front left Tyre pressure", exact: true })).toHaveValue("28");
+      await expect(page.getByRole("spinbutton", { name: "Rear left Toe", exact: true })).toHaveValue("0");
       await page.getByLabel("Name").fill("E2E EVO Edited");
-      await page.getByRole("button", { name: /save tune/i }).click();
+      await page.getByRole("button", { name: /save setup/i }).click();
       await page.waitForURL(/\/ac-evo\/setups\/?$/);
       await page.getByRole("button", { name: /^yours$/i }).click();
       await expect(page.getByText("E2E EVO Edited")).toBeVisible();

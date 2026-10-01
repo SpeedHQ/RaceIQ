@@ -10,7 +10,8 @@ import { getAllAcEvoCars } from "../../../shared/racing/cars/ac-evo"
 import { getAcEvoSetupFolderAliases, getAcEvoSetupFolderKeys, getAcEvoTrackBySetupFolder } from "../../../shared/racing/tracks/catalogs/ac-evo"
 import { AccSetupJsonSchema, setupFileFormat, setupFileRejectReason } from "../../../shared/racing/setups/file-formats";
 import { getTuneById, insertTune } from "../../db/tune-queries";
-import { carSlugFromPresetId, formatCarSetup, readCarSetupFile, summarizeCarSetup } from "../../games/ac-evo/carsetup";
+import { carSetupToKnobValues, carSlugFromPresetId, formatCarSetup, readCarSetupFile, summarizeCarSetup } from "../../games/ac-evo/carsetup";
+import { annotateAcEvoSections } from "../../../shared/racing/setups/ac-evo-content";
 import { parseCarSetup } from "../../games/ac-evo/carsetup-wire";
 import { getSetupsBaseDir, resolveGuardedSetupFile } from "../../setups/file-guard";
 import { getAcEvoCarRanges } from "../../setups/rules/catalog";
@@ -40,8 +41,16 @@ function listSetupFiles(baseDir: string): SetupFileListing[] {
 }
 
 const ImportFileSchema = z.object({
-  gameId: z.enum(["acc", "ac-evo"]), filePath: z.string().min(1), name: z.string().optional(),
+  gameId: z.enum(["acc", "ac-evo"]), filePath: z.string().min(1).optional(), name: z.string().optional(),
+  fileName: z.string().min(1).optional(), contentBase64: z.string().min(1).optional(),
   author: z.string().optional(), carOrdinal: z.number().int(), category: z.string().optional().default("circuit"),
+}).superRefine((body, ctx) => {
+  if ((body.filePath != null) === (body.contentBase64 != null)) {
+    ctx.addIssue({ code: "custom", message: "Provide exactly one of filePath or contentBase64" });
+  }
+  if (body.contentBase64 != null && (body.gameId !== "ac-evo" || !body.fileName)) {
+    ctx.addIssue({ code: "custom", message: "Uploaded setups require AC Evo and a .carsetup file name" });
+  }
 });
 
 const PlaceSetupSchema = z.object({
@@ -113,7 +122,8 @@ export const tuneSetupFileRoutes = new Hono()
             if (relSegments.length >= 2) carModel = relSegments[0];
           }
         } catch { /* base dir vanished mid-request — render without ranges */ }
-        return c.json({ fileName, kind: "carsetup" as const, presetId: parsed.presetId ?? null, formatted: formatCarSetup(parsed), sections: summarizeCarSetup(parsed, getAcEvoCarRanges(carModel)), setup: null });
+        const sections = annotateAcEvoSections(summarizeCarSetup(parsed, getAcEvoCarRanges(carModel)), carSetupToKnobValues(parsed));
+        return c.json({ fileName, kind: "carsetup" as const, presetId: parsed.presetId ?? null, formatted: formatCarSetup(parsed), sections, setup: null });
       }
       return c.json({ fileName, kind: "json" as const, presetId: null, formatted: null, sections: null, setup: guarded.setup });
     })
@@ -127,7 +137,10 @@ export const tuneSetupFileRoutes = new Hono()
       if (!decoded || decoded.raw.length === 0) return c.json({ error: "Couldn't decode that .carsetup file" }, 400);
       const slug = carSlugFromPresetId(decoded.presetId);
       const known = slug ? getAllAcEvoCars().find((car) => car.model === slug) : undefined;
-      return c.json({ presetId: decoded.presetId, carModel: slug, carName: known?.name ?? null, knownCar: known != null });
+      const ranges = getAcEvoCarRanges(slug ?? undefined);
+      const knobs = carSetupToKnobValues(decoded);
+      const sections = annotateAcEvoSections(summarizeCarSetup(decoded, ranges), knobs);
+      return c.json({ presetId: decoded.presetId, carModel: slug, carName: known?.name ?? null, knownCar: known != null, sections, knobs });
     })
 
   .post("/api/tunes/place-setup",
@@ -175,27 +188,44 @@ export const tuneSetupFileRoutes = new Hono()
     zValidator("json", ImportFileSchema),
     async (c) => {
       const body = c.req.valid("json");
-      const baseDir = await getSetupsBaseDir(body.gameId);
-      if (!baseDir) return c.json({ error: "Setups folder not found" }, 404);
-      const absPath = resolve(body.filePath);
-      if (!existsSync(absPath)) return c.json({ error: "File not found" }, 404);
-      let realPath: string;
-      let realBase: string;
-      try { realPath = realpathSync(absPath); realBase = realpathSync(resolve(baseDir)); }
-      catch (err: any) {
-        if (err?.code === "ENOENT") return c.json({ error: "File not found" }, 404);
-        return c.json({ error: `Read failed: ${err.message}` }, 500);
+      let bytes: Buffer;
+      let fileName: string;
+      if (body.contentBase64 != null) {
+        bytes = Buffer.from(body.contentBase64, "base64");
+        fileName = body.fileName!;
+      } else {
+        const baseDir = await getSetupsBaseDir(body.gameId);
+        if (!baseDir) return c.json({ error: "Setups folder not found" }, 404);
+        const absPath = resolve(body.filePath!);
+        if (!existsSync(absPath)) return c.json({ error: "File not found" }, 404);
+        let realPath: string;
+        let realBase: string;
+        try { realPath = realpathSync(absPath); realBase = realpathSync(resolve(baseDir)); }
+        catch (err: unknown) {
+          if (err && typeof err === "object" && "code" in err && err.code === "ENOENT") return c.json({ error: "File not found" }, 404);
+          return c.json({ error: `Read failed: ${err instanceof Error ? err.message : String(err)}` }, 500);
+        }
+        if (!(realPath + sep).startsWith(realBase + sep)) return c.json({ error: "Path must be inside the Setups folder" }, 400);
+        fileName = realPath.split(/[\\/]/).pop() ?? "imported";
+        try { bytes = readFileSync(realPath); }
+        catch (err: unknown) { return c.json({ error: `Read failed: ${err instanceof Error ? err.message : String(err)}` }, 500); }
       }
-      if (!(realPath + sep).startsWith(realBase + sep)) return c.json({ error: "Path must be inside the Setups folder" }, 400);
-      if (!realPath.toLowerCase().endsWith(".json")) return c.json({ error: "Only .json setup files can be imported" }, 400);
-      let raw: string;
-      try { raw = readFileSync(realPath, "utf-8"); }
-      catch (err: any) { return c.json({ error: `Read failed: ${err.message}` }, 500); }
-      let parsed: any;
-      try { parsed = JSON.parse(raw); }
-      catch (err: any) { return c.json({ error: `Invalid JSON: ${err.message}` }, 400); }
-      const fileName = realPath.split(/[\\/]/).pop() ?? "imported";
-      const name = body.name ?? fileName.replace(/\.json$/i, "");
+      const reject = setupFileRejectReason(body.gameId, fileName);
+      if (reject) return c.json({ error: reject }, 400);
+      let parsed: unknown;
+      if (body.gameId === "ac-evo") {
+        const setup = parseCarSetup(bytes);
+        if (!setup || setup.raw.length === 0) return c.json({ error: "Couldn't decode that .carsetup file" }, 400);
+        const slug = carSlugFromPresetId(setup.presetId);
+        const car = slug ? getAllAcEvoCars().find((candidate) => candidate.model === slug) : undefined;
+        if (car && car.id !== body.carOrdinal) return c.json({ error: `This setup belongs to ${car.name}` }, 400);
+        parsed = { ...carSetupToKnobValues(setup), carSetupBase64: bytes.toString("base64") };
+      } else {
+        try { parsed = JSON.parse(bytes.toString("utf-8")); }
+        catch (err: unknown) { return c.json({ error: `Invalid JSON: ${err instanceof Error ? err.message : String(err)}` }, 400); }
+        if (!AccSetupJsonSchema.safeParse(parsed).success) return c.json({ error: "That JSON isn't a saved setup — it needs a carName and basicSetup" }, 400);
+      }
+      const name = body.name ?? fileName.replace(/\.(json|carsetup)$/i, "");
       const id = await insertTune({ gameId: body.gameId, name, author: body.author ?? "Imported", carOrdinal: body.carOrdinal, category: body.category, description: `Imported from ${fileName}`, settings: JSON.stringify(parsed), unitSystem: "metric", source: "imported-file" });
       const created = await getTuneById(id);
       return c.json(parseTuneRow(created), 201);

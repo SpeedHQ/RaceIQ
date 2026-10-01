@@ -4,6 +4,7 @@ import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { SearchSelect } from "@/components/ui/SearchSelect";
+import { ToggleGroup03 } from "@/components/shadcn-studio/toggle-group/toggle-group-03";
 import { m } from "@/paraglide/messages";
 import { TuneBrowserRow } from "./TuneBrowserRow";
 import type { SourceTab, TuneRow } from "./types";
@@ -36,12 +37,6 @@ export interface SetupBrowserProps {
 
 const PAGE_SIZE = 10;
 
-// Active-tab colouring per source.
-const TAB_ACTIVE: Record<string, string> = {
-  all: "border-app-accent text-app-accent",
-  community: "border-(--tune-source-community) text-(--tune-source-community)",
-  user: "border-(--tune-source-user) text-(--tune-source-user)",
-};
 
 export function SetupBrowser(props: SetupBrowserProps) {
   const { rows, trackOptions, carOptions, sources } = props;
@@ -97,19 +92,25 @@ export function SetupBrowser(props: SetupBrowserProps) {
   };
 
   return (
-    <div className="w-full min-w-0 p-3 pb-20 text-app-text @3xl/workspace:p-4">
+    <div className="min-w-0 p-4">
       <div className="flex flex-wrap items-center gap-2 pb-4">
-        {sources.map((s) => (
-          <Button
-            type="button"
-            key={s.key}
-            className={`text-app-caption uppercase tracking-wide px-2.5 py-1.5 rounded border ${source === s.key ? (TAB_ACTIVE[s.key] ?? TAB_ACTIVE.all) : "border-app-border text-app-text-muted hover:text-app-text-secondary"}`}
-            onClick={() => pickSource(s.key)}
-          >
-            {s.label}
-          </Button>
-        ))}
-        <AppInput type="search" value={author} placeholder={m.setup_search_author()} onChange={(e) => pickAuthor(e.target.value)} className="text-app-compact w-40" />
+        <div className="min-w-0 max-w-full overflow-x-auto">
+          <ToggleGroup03
+            ariaLabel="Setup sources"
+            value={source}
+            onValueChange={(value) => {
+              if (sources.some((item) => item.key === value)) pickSource(value as SourceTab["key"]);
+            }}
+            options={sources.map((item) => ({ value: item.key, label: item.label }))}
+          />
+        </div>
+        <AppInput
+          type="search"
+          value={author}
+          onChange={(event) => pickAuthor(event.target.value)}
+          placeholder={m.setup_search_author()}
+          className="h-8 w-40"
+        />
         {props.onRefresh && (
           <Button
             type="button"

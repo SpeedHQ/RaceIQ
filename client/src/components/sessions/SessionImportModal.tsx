@@ -7,6 +7,8 @@ import { importLapsZip } from "../../lib/lap-export";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { m } from "../../paraglide/messages";
+import { ImportSetupFile } from "../setup-tune/ImportSetupFile";
+import { useAcEvoCars } from "../setup-tune/use-game-cars";
 
 type DetectedFormat = "zip" | "bin" | "duckdb" | "ibt" | "motec" | "unknown";
 type DetectionResult = {
@@ -41,6 +43,18 @@ function formatLabel(format: DetectedFormat): string {
   }
 }
 
+function AcEvoSetupImport({ file, onClose }: { file: File; onClose: () => void }) {
+  const { data: cars = [] } = useAcEvoCars();
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="lg" layout="scrollable" showCloseButton={false}>
+        <DialogHeader><DialogTitle variant="import">{m.import_import_setup()}</DialogTitle></DialogHeader>
+        <ImportSetupFile gameId="ac-evo" routePrefix="/ac-evo" gameLabel="AC EVO" cars={cars} initialFile={file} onClose={onClose} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: GameId | null; onClose: () => void; onImported?: (result: ImportResult) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -59,6 +73,7 @@ export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: G
     setError(null);
     setResult(null);
     if (!nextFile) return;
+    if (gameId === "ac-evo" && nextFile.name.toLowerCase().endsWith(".carsetup")) return;
     setDetecting(true);
     try {
       const body = new FormData();
@@ -108,6 +123,9 @@ export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: G
   }
 
   const canImport = !!file && !!detected?.supported && ["zip", "bin", "duckdb"].includes(detected.format) && !busy;
+  if (gameId === "ac-evo" && file?.name.toLowerCase().endsWith(".carsetup")) {
+    return <AcEvoSetupImport file={file} onClose={onClose} />;
+  }
   if (detected?.format === "motec" && file) {
     return (
       <MotecImportModal
@@ -139,7 +157,7 @@ export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: G
               <input
                 ref={inputRef}
                 type="file"
-                accept=".zip,.bin,.bin.gz,.duckdb,.wal,.ibt,.ld"
+                accept={gameId === "ac-evo" ? ".zip,.bin,.bin.gz,.duckdb,.wal,.ibt,.ld,.carsetup" : ".zip,.bin,.bin.gz,.duckdb,.wal,.ibt,.ld"}
                 multiple
                 className="hidden"
                 onChange={(event) => {

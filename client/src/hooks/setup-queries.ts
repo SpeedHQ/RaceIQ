@@ -3,6 +3,7 @@ import { client } from "../lib/rpc";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { errorFromResponse } from "../lib/rpc-error";
 import { queryKeys } from "./query-keys";
+import type { SetupContentSection } from "../../../shared/racing/setups/content";
 
 export function useSetupFiles(gameId: "acc" | "ac-evo" | null) {
   return useQuery({
@@ -36,7 +37,7 @@ export function useSetupFileContent(gameId: "acc" | "ac-evo" | null, path: strin
         kind: "json" | "carsetup";
         presetId: string | null;
         formatted: string | null;
-        sections: { title: string; rows: { label: string; value: string; num?: number; min?: number; max?: number; fixed?: boolean }[] }[] | null;
+        sections: SetupContentSection[] | null;
         setup: Record<string, unknown> | null;
         error?: string;
       }>;
@@ -49,9 +50,12 @@ export function useSetupFileContent(gameId: "acc" | "ac-evo" | null, path: strin
 export function useInspectCarSetup() {
   return useMutation({
     mutationFn: async (contentBase64: string) => {
-      const res = await (client.api.tunes as any)["inspect-carsetup"].$post({ json: { contentBase64 } });
+      const res = await client.api.tunes["inspect-carsetup"].$post({ json: { contentBase64 } });
       if (!res.ok) throw await errorFromResponse(res);
-      return (await res.json()) as { presetId: string | null; carModel: string | null; carName: string | null; knownCar: boolean };
+      return (await res.json()) as {
+        presetId: string | null; carModel: string | null; carName: string | null; knownCar: boolean;
+        sections: SetupContentSection[]; knobs: Record<string, number>;
+      };
     },
   });
 }
@@ -71,8 +75,8 @@ export function usePlaceSetup() {
 export function useImportTuneFile() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { gameId: "acc" | "ac-evo"; filePath: string; name?: string; author?: string; carOrdinal: number; category?: string }) => {
-      const res = await (client.api.tunes as any)["import-file"].$post({ json: data });
+    mutationFn: async (data: { gameId: "acc" | "ac-evo"; filePath?: string; fileName?: string; contentBase64?: string; name?: string; author?: string; carOrdinal: number; category?: string }) => {
+      const res = await client.api.tunes["import-file"].$post({ json: data });
       if (!res.ok) throw await errorFromResponse(res);
       return res.json();
     },

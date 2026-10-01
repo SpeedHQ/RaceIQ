@@ -1,4 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { carSetupToKnobValues, summarizeCarSetup } from "../../server/games/ac-evo/carsetup";
+import { parseCarSetup } from "../../server/games/ac-evo/carsetup-wire";
+import { patchCarSetup } from "../../server/games/ac-evo/carsetup-writer";
 import { IRACING_SETUP_INFO_FIELDS } from "../../shared/games/iracing/session-info/catalog";
 import { SETUP_CONCEPT_DEFINITIONS } from "../../shared/racing/setups/catalog/concepts";
 import {
@@ -12,6 +17,7 @@ import {
   readSetupSection,
   writeSetupField,
 } from "../../shared/racing/setups/schema";
+import { annotateAcEvoSections, summarizeAcEvoKnobs } from "../../shared/racing/setups/ac-evo-content";
 
 describe("setup source catalog", () => {
   test("derives typed paths, labels, semantics, and cardinality from one source tree", () => {
@@ -32,9 +38,6 @@ describe("setup source catalog", () => {
 
   test("schema readers and writers use catalogued field handles", () => {
     const accSections = getSchemaForGame("acc");
-    const evoSections = getSchemaForGame("ac-evo");
-    expect(accSections.some((section) => section.key === "advancedSetup.suspension")).toBe(false);
-    expect(evoSections.some((section) => section.key === "advancedSetup.suspension")).toBe(true);
 
     const tyreSection = accSections.find((section) => section.key === "basicSetup.tyres")!;
     const pressure = tyreSection.fields.find((field) => field.path === "basicSetup.tyres.tyrePressure")!;
@@ -48,6 +51,27 @@ describe("setup source catalog", () => {
     expect(readSetupField(setup, pressure)).toEqual([49, 50, 49, 49]);
     writeSetupField(setup, pressure, [50, 50, 50, 50]);
     expect(readSetupField(setup, pressure)).toEqual([50, 50, 50, 50]);
+  });
+
+  test("AC Evo imported values populate form fields and edits round-trip through the binary writer", () => {
+    const bytes = readFileSync(resolve(import.meta.dir, "../artifacts/carsetup/Default-12312.carsetup"));
+    const parsed = parseCarSetup(bytes)!;
+    const original = carSetupToKnobValues(parsed);
+    const settings: Record<string, unknown> = { ...original };
+    const rows = annotateAcEvoSections(summarizeCarSetup(parsed), original).flatMap((section) => section.rows);
+    expect(rows.find((row) => row.knob === "frontLeftTyrePressure")?.num).toBeCloseTo(35, 3);
+    expect(rows.find((row) => row.knob === "frontSpringRate")?.num).toBe(240);
+    const flatRows = summarizeAcEvoKnobs(settings).flatMap((section) => section.rows);
+    expect(flatRows.find((row) => row.knob === "rearToe")?.num).toBe(0);
+    expect(summarizeAcEvoKnobs({}).flatMap((section) => section.rows).find((row) => row.knob === "rearToe")?.num).toBeUndefined();
+
+    const bias = rows.find((row) => row.knob === "brakeBias")!;
+    settings[bias.knob!] = 55 / (bias.scale ?? 1);
+    const patched = patchCarSetup(bytes, [{ knob: bias.knob!, value: Number(settings[bias.knob!]) }]);
+    const after = carSetupToKnobValues(parseCarSetup(patched)!);
+    expect(after.brakeBias).toBeCloseTo(55, 3);
+    expect(after.frontLeftTyrePressure).toBeCloseTo(35, 3);
+    expect(after.frontSpringRate).toBe(240000);
   });
 
   test("exposes known iRacing CarSetup metadata as read-only sources", () => {
