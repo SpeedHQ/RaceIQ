@@ -19,16 +19,17 @@ test.describe("AC EVO tunes", () => {
       await page.goto("/ac-evo/setups");
       await waitForTunesList(page);
 
-      await page.getByRole("button", { name: /\+ New Tune/i }).click();
+      await page.getByRole("button", { name: /\+ New Setup/i }).click();
       await expect(page.getByRole("heading", { name: /create new ac evo tune/i })).toBeVisible();
 
       await page.getByLabel("Name").fill("E2E EVO Tune");
       await page.getByLabel("Description").fill("Playwright-created");
 
       // EVO-only category — confirms the dropdown isn't sharing ACC's list.
-      await page.getByLabel("Category").selectOption("trackday");
+      await page.getByLabel("Category").click();
+      await page.getByRole("listbox").getByRole("option", { name: "Track Day", exact: true }).click();
 
-      await page.getByRole("spinbutton", { name: "Front left Tyre pressure", exact: true }).fill("28");
+      await page.getByRole("spinbutton", { name: /Front left Tyre pressure/ }).fill("28");
       await page.getByRole("spinbutton", { name: "Rear left Toe", exact: true }).fill("0");
       await page.getByRole("button", { name: /save setup/i }).click();
       await waitForTunesList(page);
@@ -38,7 +39,7 @@ test.describe("AC EVO tunes", () => {
       await page.getByText("E2E EVO Tune").first().click();
       await page.getByRole("button", { name: /^edit$/i }).click();
       await expect(page.getByRole("heading", { name: /edit: e2e evo tune/i })).toBeVisible();
-      await expect(page.getByRole("spinbutton", { name: "Front left Tyre pressure", exact: true })).toHaveValue("28");
+      await expect(page.getByRole("spinbutton", { name: /Front left Tyre pressure/ })).toHaveValue("28");
       await expect(page.getByRole("spinbutton", { name: "Rear left Toe", exact: true })).toHaveValue("0");
       await page.getByLabel("Name").fill("E2E EVO Edited");
       await page.getByRole("button", { name: /save setup/i }).click();
