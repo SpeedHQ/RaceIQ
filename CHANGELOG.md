@@ -2,6 +2,14 @@
 
 ### Features
 
+### Fixes
+
+### Internal
+
+## v0.19.1 - 2026-10-01
+
+### Features
+
 - Add Spanish, Brazilian Portuguese, Japanese, Ukrainian, Dutch, Polish, Finnish, and Russian interfaces.
 - Search track, car, language, and other option lists with accessible combobox controls.
 - Slightly reduce corner radii through shared Tailwind tokens.
