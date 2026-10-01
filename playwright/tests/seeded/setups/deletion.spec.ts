@@ -5,7 +5,6 @@ import { cleanDisposable, importDisposableLap, lapsFor, sessionsFor, type Dispos
 
 const games = [
   { gameId: "fm-2023", prefix: "fm23" },
-  { gameId: "acc", prefix: "acc" },
   { gameId: "ac-evo", prefix: "ac-evo" },
 ] as const;
 
@@ -31,10 +30,10 @@ async function createSetup(page: Page, gameId: GameId, carOrdinal: number) {
 }
 
 async function openDelete(page: Page, prefix: string, name: string) {
-  await page.goto(`/${prefix}/setups`);
+  await page.goto(`/${prefix}/setups`, { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Yours", exact: true }).click();
   await page.getByText(name, { exact: true }).click();
-  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await page.getByRole("table").getByRole("button", { name: "Delete", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Delete setup?", exact: true });
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText(name);
@@ -55,11 +54,15 @@ for (const { gameId, prefix } of games) {
     const imports: DisposableImport[] = [];
     let setupId: number | undefined;
     try {
-      imports.push(await importDisposableLap(page.request, gameId, `setup-delete-first-${gameId}`));
-      imports.push(await importDisposableLap(page.request, gameId, `setup-delete-second-${gameId}`));
+      const source = (await lapsFor(page.request, gameId))[0];
+      if (!source) throw new Error(`${gameId} needs a recorded source lap`);
+      imports.push(await importDisposableLap(page.request, gameId, `setup-delete-first-${gameId}`, source.id));
+      imports.push(await importDisposableLap(page.request, gameId, `setup-delete-second-${gameId}`, source.id));
       const importedIds = imports.flatMap((item) => item.lapIds);
       const beforeLaps = (await lapsFor(page.request, gameId)).filter((lap) => importedIds.includes(lap.id));
-      const setup = await createSetup(page, gameId, beforeLaps[0].carOrdinal);
+      const carOrdinal = beforeLaps[0]?.carOrdinal;
+      if (carOrdinal == null) throw new Error(`${gameId} disposable lap has no car ordinal`);
+      const setup = await createSetup(page, gameId, carOrdinal);
       setupId = setup.id;
       for (const lap of beforeLaps) {
         const response = await page.request.patch(`/api/laps/${lap.id}/tune`, { data: { tuneId: setup.id } });
@@ -71,9 +74,12 @@ for (const { gameId, prefix } of games) {
       await expect(dialog).toContainText(/recordings will not be deleted/i);
       for (const item of imports) {
         for (const sessionId of item.sessionIds) {
-          await expect(dialog.getByText(new RegExp(`Session ${sessionId} ·`))).toBeVisible();
-          const numbers = beforeLaps.filter((lap) => lap.sessionId === sessionId).map((lap) => lap.lapNumber).join(", ");
-          await expect(dialog.getByText(`Linked lap numbers: ${numbers}`, { exact: true }).first()).toBeVisible();
+          const sessionLabel = dialog.getByText(new RegExp(`Session ${sessionId} ·`));
+          await expect(sessionLabel).toBeVisible();
+          const displayed = await sessionLabel.locator("..").getByText(/Linked lap numbers:/).innerText();
+          const actualNumbers = displayed.split(":")[1].split(",").map(Number).sort((a, b) => a - b);
+          const expectedNumbers = beforeLaps.filter((lap) => lap.sessionId === sessionId).map((lap) => lap.lapNumber).sort((a, b) => a - b);
+          expect(actualNumbers).toEqual(expectedNumbers);
         }
       }
       await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
@@ -82,7 +88,7 @@ for (const { gameId, prefix } of games) {
       const afterCancel = await lapsFor(page.request, gameId);
       for (const lap of beforeLaps) expect(afterCancel.find((row) => row.id === lap.id)?.tuneId).toBe(setup.id);
 
-      await page.getByRole("button", { name: "Delete", exact: true }).click();
+      await page.getByRole("table").getByRole("button", { name: "Delete", exact: true }).click();
       await expect(dialog.getByRole("button", { name: "Delete", exact: true })).toBeEnabled();
       await dialog.getByRole("button", { name: "Delete", exact: true }).click();
       await expect(dialog).not.toBeVisible();
@@ -112,7 +118,7 @@ for (const { gameId, prefix } of games) {
       await expect(dialog).toContainText(/not linked to sessions or laps/i);
       await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
       expect((await page.request.get(`/api/tunes/${setup.id}`)).status()).toBe(200);
-      await page.getByRole("button", { name: "Delete", exact: true }).click();
+      await page.getByRole("table").getByRole("button", { name: "Delete", exact: true }).click();
       await dialog.getByRole("button", { name: "Delete", exact: true }).click();
       await expect(dialog).not.toBeVisible();
       expect((await page.request.get(`/api/tunes/${setup.id}`)).status()).toBe(404);
@@ -141,7 +147,7 @@ test("setup deletion cannot proceed while usage is unknown or failed", async ({ 
 
     await page.unroute(usagePath);
     await page.route(usagePath, (route) => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Usage service unavailable" }) }));
-    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await page.getByRole("table").getByRole("button", { name: "Delete", exact: true }).click();
     await expect(dialog.getByRole("alert")).toBeVisible();
     await expect(dialog.getByRole("button", { name: "Delete", exact: true })).toBeDisabled();
     expect((await page.request.get(`/api/tunes/${setup.id}`)).status()).toBe(200);

@@ -7,9 +7,9 @@ import { tuneResourceRoutes } from "../../server/routes/tunes/resource-routes";
 const tuneIds: number[] = [];
 const sessionIds: number[] = [];
 
-async function createTune(name: string): Promise<number> {
+async function createTune(name: string, gameId = "ac-evo"): Promise<number> {
   const row = await db.insert(tunes).values({
-    gameId: "ac-evo", name, author: "test", carOrdinal: 1, category: "race", description: "", settings: "{}",
+    gameId, name, author: "test", carOrdinal: 1, category: "race", description: "", settings: "{}",
   }).returning({ id: tunes.id }).get();
   tuneIds.push(row!.id);
   return row!.id;
@@ -29,14 +29,14 @@ afterEach(async () => {
 });
 
 describe("tune deletion guard API", () => {
-  test("refuses linked deletion without explicit confirmation and returns full usage", async () => {
-    const tuneId = await createTune("Referenced");
-    const sessionId = await createSession();
+  test.each(["fm-2023", "acc", "ac-evo"])("%s: refuses linked deletion without explicit confirmation and returns full usage", async (gameId) => {
+    const tuneId = await createTune("Referenced", gameId);
+    const sessionId = await createSession(gameId);
     const inserted = await db.insert(laps).values([
       { sessionId, tuneId, lapNumber: 1, lapTime: 90, isValid: true },
       { sessionId, tuneId, lapNumber: 2, lapTime: 89, isValid: true },
     ]).returning({ id: laps.id }).all();
-    await db.insert(tuneAssignments).values({ gameId: "ac-evo", carOrdinal: 1, trackOrdinal: 2, tuneId }).run();
+    await db.insert(tuneAssignments).values({ gameId, carOrdinal: 1, trackOrdinal: 2, tuneId }).run();
 
     for (const query of ["", "?confirmInUse=false"]) {
       const response = await tuneResourceRoutes.request(`/api/tunes/${tuneId}${query}`, { method: "DELETE" });
@@ -44,24 +44,26 @@ describe("tune deletion guard API", () => {
       if (query === "") {
         expect(response.status).toBe(409);
         expect((await response.json()).usage).toMatchObject({
-          sessions: [{ sessionId, laps: [{ id: inserted[0].id, lapNumber: 1 }, { id: inserted[1].id, lapNumber: 2 }] }],
-          assignments: [{ gameId: "ac-evo", carOrdinal: 1, trackOrdinal: 2 }],
+          sessions: [{ sessionId, gameId, laps: [{ id: inserted[0].id, lapNumber: 1 }, { id: inserted[1].id, lapNumber: 2 }] }],
+          assignments: [{ gameId, carOrdinal: 1, trackOrdinal: 2 }],
         });
       } else {
         expect(response.status).toBe(400);
       }
     }
     expect(await db.select({ id: tunes.id }).from(tunes).where(eq(tunes.id, tuneId)).get()).toBeDefined();
+    expect(await db.select({ id: laps.id, tuneId: laps.tuneId }).from(laps).where(eq(laps.sessionId, sessionId)).all()).toEqual(inserted.map(({ id }) => ({ id, tuneId })));
   });
 
-  test("confirmed linked deletion clears tune links but preserves all recordings and unrelated setups", async () => {
-    const tuneId = await createTune("Referenced");
-    const unrelatedTuneId = await createTune("Unrelated");
-    const linkedSessionId = await createSession();
-    const otherSessionId = await createSession("acc");
+  test.each(["fm-2023", "acc", "ac-evo"])("%s: confirmed linked deletion clears tune links but preserves all recordings and unrelated setups", async (gameId) => {
+    const otherGameId = gameId === "acc" ? "ac-evo" : "acc";
+    const tuneId = await createTune("Referenced", gameId);
+    const unrelatedTuneId = await createTune("Unrelated", otherGameId);
+    const linkedSessionId = await createSession(gameId);
+    const otherSessionId = await createSession(otherGameId);
     const linkedLap = await db.insert(laps).values({ sessionId: linkedSessionId, tuneId, lapNumber: 7, lapTime: 91, isValid: true }).returning({ id: laps.id }).get();
     const unrelatedLap = await db.insert(laps).values({ sessionId: otherSessionId, tuneId: unrelatedTuneId, lapNumber: 8, lapTime: 92, isValid: true }).returning({ id: laps.id }).get();
-    await db.insert(tuneAssignments).values({ gameId: "ac-evo", carOrdinal: 1, trackOrdinal: 2, tuneId }).run();
+    await db.insert(tuneAssignments).values({ gameId, carOrdinal: 1, trackOrdinal: 2, tuneId }).run();
 
     const response = await tuneResourceRoutes.request(`/api/tunes/${tuneId}?confirmInUse=true`, { method: "DELETE" });
     expect(response.status).toBe(200);
