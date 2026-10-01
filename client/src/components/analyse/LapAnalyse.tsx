@@ -13,6 +13,7 @@ import { useUnits } from "../../hooks/useUnits";
 import type { AnalyseSearch } from "../../lib/game-routes";
 import { client } from "../../lib/rpc";
 import { useRequiredGameId } from "../../stores/game";
+import { queryKeys } from "../../hooks/query-keys";
 import type { ChartsPanelHandle } from "./AnalyseChartsPanel";
 import { AnalyseLapHeader } from "./AnalyseLapHeader";
 import { AnalyseWorkspaceModals } from "./AnalyseWorkspaceModals";
@@ -332,6 +333,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["laps"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.userTunes });
     },
   });
 
@@ -350,6 +352,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     onSuccess: () => {
       setSelectedLapId(null);
       queryClient.invalidateQueries({ queryKey: ["laps"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.userTunes });
       if (sessionId != null) {
         const routePrefix = routePrefixForGameId(gameId);
         if (routePrefix) void navigate({ to: `/${routePrefix}/sessions` as never, replace: true });

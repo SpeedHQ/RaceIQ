@@ -6,6 +6,7 @@ import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
 import { rpcJson } from "../lib/rpc-json";
 
+import { queryKeys } from "./query-keys";
 export interface Experiment {
   id: number;
   seq: number;
@@ -278,6 +279,7 @@ export function useImportLaps() {
       qc.invalidateQueries({ queryKey: ["experiment-tests", sessionId] });
       qc.invalidateQueries({ queryKey: ["experiment-importable-laps", sessionId] });
       qc.invalidateQueries({ queryKey: ["laps"] });
+      qc.invalidateQueries({ queryKey: queryKeys.userTunes });
       qc.invalidateQueries({ queryKey: ["experiment-lap-metrics", sessionId] });
       qc.invalidateQueries({ queryKey: ["experiment-chat-history", sessionId] });
     },

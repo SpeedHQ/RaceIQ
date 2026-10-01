@@ -125,6 +125,7 @@ export function useWebSocket() {
             telemetryStore.actions.setDevState(data);
           } else if (data.type === "lap-saved") {
             queryClient.invalidateQueries({ queryKey: ["laps"] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.userTunes });
           } else if (data.type === "stale-lap-detection") {
             telemetryStore.actions.setStaleLapDetection({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
           } else if (data.type === "capture-migration-available") {
@@ -168,6 +169,7 @@ export function useWebSocket() {
           } else if (data.type === "lap-reprocessed") {
             queryClient.invalidateQueries({ queryKey: ["laps"] });
             queryClient.invalidateQueries({ queryKey: ["sessions"] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.userTunes });
             telemetryStore.actions.incrementReprocessProgress();
           } else if (data.type === "experiment-updated") {
             const sid = data.sessionId as number;

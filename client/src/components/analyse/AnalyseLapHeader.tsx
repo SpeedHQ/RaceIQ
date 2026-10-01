@@ -11,6 +11,7 @@ import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
 import { SearchSelect } from "../ui/SearchSelect";
 import { FavoriteToggleButton } from "../FavoriteToggleButton";
+import { queryKeys } from "../../hooks/query-keys";
 
 function buildAnalyseLapOption(lap: LapMeta, locale?: "en" | "de") {
   return {
@@ -353,6 +354,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
           onImported={() => {
             queryClient.invalidateQueries({ queryKey: ["laps"] });
             queryClient.invalidateQueries({ queryKey: ["sessions"] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.userTunes });
           }}
         />
       )}

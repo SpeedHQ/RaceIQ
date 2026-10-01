@@ -122,7 +122,8 @@ export const tuneSetupFileRoutes = new Hono()
             if (relSegments.length >= 2) carModel = relSegments[0];
           }
         } catch { /* base dir vanished mid-request — render without ranges */ }
-        const sections = annotateAcEvoSections(summarizeCarSetup(parsed, getAcEvoCarRanges(carModel)), carSetupToKnobValues(parsed));
+        const ranges = getAcEvoCarRanges(carModel);
+        const sections = annotateAcEvoSections(summarizeCarSetup(parsed, ranges), carSetupToKnobValues(parsed), ranges);
         return c.json({ fileName, kind: "carsetup" as const, presetId: parsed.presetId ?? null, formatted: formatCarSetup(parsed), sections, setup: null });
       }
       return c.json({ fileName, kind: "json" as const, presetId: null, formatted: null, sections: null, setup: guarded.setup });
@@ -139,7 +140,7 @@ export const tuneSetupFileRoutes = new Hono()
       const known = slug ? getAllAcEvoCars().find((car) => car.model === slug) : undefined;
       const ranges = getAcEvoCarRanges(slug ?? undefined);
       const knobs = carSetupToKnobValues(decoded);
-      const sections = annotateAcEvoSections(summarizeCarSetup(decoded, ranges), knobs);
+      const sections = annotateAcEvoSections(summarizeCarSetup(decoded, ranges), knobs, ranges);
       return c.json({ presetId: decoded.presetId, carModel: slug, carName: known?.name ?? null, knownCar: known != null, sections, knobs });
     })
 

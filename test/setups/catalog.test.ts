@@ -74,6 +74,22 @@ describe("setup source catalog", () => {
     expect(after.frontSpringRate).toBe(240000);
   });
 
+  test("AC Evo capability annotations keep unavailable imported values read-only", () => {
+    const sections = [{
+      title: "Front left",
+      rows: [{ label: "Camber", value: "-2.5°", num: -2.5 }],
+    }];
+    const knobs = { frontCamber: -2.5 };
+    const unavailable = annotateAcEvoSections(sections, knobs, { frontCamber: null });
+    expect(unavailable[0].rows[0]).toMatchObject({ value: "-2.5°", num: -2.5, fixed: true });
+    expect(unavailable[0].rows[0].knob).toBeUndefined();
+
+    const unknown = annotateAcEvoSections(sections, knobs, {});
+    expect(unknown[0].rows[0]).toMatchObject({ value: "-2.5°", num: -2.5, knob: "frontCamber" });
+    const available = annotateAcEvoSections(sections, knobs, { frontCamber: { min: -5, max: 5, step: 0.1 } });
+    expect(available[0].rows[0]).toMatchObject({ value: "-2.5°", num: -2.5, knob: "frontCamber" });
+  });
+
   test("exposes known iRacing CarSetup metadata as read-only sources", () => {
     const sources = getSetupCatalogSources("iracing");
     expect(sources).toHaveLength(IRACING_SETUP_INFO_FIELDS.length);

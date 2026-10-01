@@ -47,13 +47,20 @@ const descriptorByRow: Record<string, KnobDescriptor> = Object.fromEntries(
 const format = (value: number): string => Number.isInteger(value) ? String(value) : String(+value.toFixed(4));
 
 /** Annotate authoritative decoded summary rows; unmatched/fixed/source-only rows stay read-only. */
-export function annotateAcEvoSections(sections: readonly SetupContentSection[], knobs: Record<string, number>): SetupContentSection[] {
+export function annotateAcEvoSections(
+  sections: readonly SetupContentSection[],
+  knobs: Record<string, number>,
+  ranges?: Record<string, { min: number; max: number; step: number } | null> | null,
+): SetupContentSection[] {
   return sections.map((section) => ({
     ...section,
     rows: section.rows.map((row) => {
       if (row.fixed) return row;
       const descriptor = descriptorByRow[`${section.title}\0${row.label}`];
       if (!descriptor || !Number.isFinite(knobs[descriptor.knob])) return row;
+      if (ranges && Object.hasOwn(ranges, descriptor.knob) && ranges[descriptor.knob] === null) {
+        return { ...row, fixed: true };
+      }
       const scale = descriptor.scale ?? 1;
       const displayNum = row.num != null ? row.num * scale : Number.parseFloat(row.value);
       return {
