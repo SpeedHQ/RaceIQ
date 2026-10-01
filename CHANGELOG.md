@@ -23,6 +23,7 @@
 - Use the application background instead of gray fill for shared text and numeric inputs.
 
 ### Internal
+- Prevent setup deletion from refetching usage data for a removed setup.
 
 ## v0.19.1 - 2026-10-01
 

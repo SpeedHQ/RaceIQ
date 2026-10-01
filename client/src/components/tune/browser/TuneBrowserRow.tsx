@@ -42,7 +42,7 @@ export function TuneBrowserRow({ row, rank, showLapTime, carName, trackName, isO
   const { data: usage, isFetching: usageLoading, error: usageError } = useQuery({
     queryKey: ["tune-usage", row.dbId],
     queryFn: async () => rpcJson<{ sessions: Array<{sessionId:number; gameId:string; createdAt:string; laps:Array<{id:number; lapNumber:number}>}>; assignments: Array<{gameId:string;carOrdinal:number;trackOrdinal:number}> }>(await client.api.tunes[":id"].usage.$get({ param: { id: String(row.dbId) } })),
-    enabled: confirmDelete && row.dbId != null,
+    enabled: confirmDelete && row.dbId != null && !isDeleting,
     staleTime: 0,
     retry: false,
   });

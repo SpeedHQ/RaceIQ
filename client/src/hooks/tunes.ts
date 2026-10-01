@@ -87,8 +87,7 @@ export function useDeleteTune() {
       });
       if (!res.ok) throw await errorFromResponse(res);
     },
-    onSuccess: async (_data, { id }) => {
-      qc.removeQueries({ queryKey: ["tune-usage", id], exact: true });
+    onSuccess: async () => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
         qc.invalidateQueries({ queryKey: ["tunes"] }),
