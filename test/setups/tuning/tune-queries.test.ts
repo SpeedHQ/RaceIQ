@@ -12,6 +12,7 @@ import {
   getTuneAssignment,
   getTuneAssignments,
   deleteTuneAssignment,
+  getTuneUsage,
 } from "../../../server/db/tune-queries";
 
 const TEST_SETTINGS = JSON.stringify({
@@ -116,6 +117,44 @@ describe("tune CRUD", () => {
     expect((await getTuneById(id))!.name).toBe("New");
   });
 
+
+  test("getTuneUsage groups linked laps and reports defaults; deleting tune preserves recordings", async () => {
+    const data = { gameId: "ac-evo", name: "Referenced setup", author: "t", carOrdinal: 100, category: "race", description: "", settings: "{}" };
+    const tuneId = await insertTune(data);
+    const unrelatedTuneId = await insertTune({ ...data, name: "Other setup" });
+    const sessionRows = await db.insert(sessions).values([
+      { gameId: "ac-evo", carOrdinal: 100, trackOrdinal: 1, carId: "car-a", trackId: "track-a", createdAt: "2026-01-01" },
+      { gameId: "ac-evo", carOrdinal: 100, trackOrdinal: 2, carId: "car-a", trackId: "track-b", createdAt: "2026-01-02" },
+      { gameId: "ac-evo", carOrdinal: 200, trackOrdinal: 3 },
+    ]).returning({ id: sessions.id }).all();
+    const [first, second, unrelated] = sessionRows.map((row) => row.id);
+    try {
+      const lapRows = await db.insert(laps).values([
+        { sessionId: first, tuneId, lapNumber: 3, lapTime: 100, isValid: true },
+        { sessionId: first, tuneId, lapNumber: 4, lapTime: 99, isValid: true },
+        { sessionId: second, tuneId, lapNumber: 1, lapTime: 98, isValid: true },
+        { sessionId: unrelated, tuneId: unrelatedTuneId, lapNumber: 2, lapTime: 97, isValid: true },
+      ]).returning({ id: laps.id }).all();
+      await setTuneAssignment("ac-evo", 100, 1, tuneId);
+      const usage = await getTuneUsage(tuneId);
+      expect(usage).toEqual({
+        sessions: [
+          { sessionId: first, gameId: "ac-evo", createdAt: "2026-01-01", carOrdinal: 100, trackOrdinal: 1, carId: "car-a", trackId: "track-a", laps: [{ id: lapRows[0].id, lapNumber: 3 }, { id: lapRows[1].id, lapNumber: 4 }] },
+          { sessionId: second, gameId: "ac-evo", createdAt: "2026-01-02", carOrdinal: 100, trackOrdinal: 2, carId: "car-a", trackId: "track-b", laps: [{ id: lapRows[2].id, lapNumber: 1 }] },
+        ],
+        assignments: [{ gameId: "ac-evo", carOrdinal: 100, trackOrdinal: 1 }],
+      });
+      expect(await deleteTune(tuneId)).toBe(true);
+      expect(await getTuneUsage(tuneId)).toBeNull();
+      const persisted = await db.select({ id: laps.id, sessionId: laps.sessionId, tuneId: laps.tuneId }).from(laps).where(inArray(laps.id, lapRows.slice(0, 3).map((row) => row.id))).all();
+      expect(persisted).toEqual(lapRows.slice(0, 3).map((row, index) => ({ id: row.id, sessionId: [first, first, second][index], tuneId: null })));
+      expect((await db.select({ id: sessions.id }).from(sessions).where(inArray(sessions.id, [first, second, unrelated])).all()).map((row) => row.id)).toEqual([first, second, unrelated]);
+      expect((await getTuneUsage(unrelatedTuneId))?.sessions).toHaveLength(1);
+      expect(await getTuneUsage(-1)).toBeNull();
+    } finally {
+      await db.delete(sessions).where(inArray(sessions.id, sessionRows.map((row) => row.id))).run();
+    }
+  });
   test("deleteTune removes tune", async () => {
     const id = await insertTune({ gameId: "fm-2023", name: "X", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
     expect(await deleteTune(id)).toBe(true);

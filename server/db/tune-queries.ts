@@ -1,4 +1,4 @@
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, asc } from "drizzle-orm";
 import { db } from "./index";
 import { tunes, tuneAssignments, laps, sessions } from "./schema";
 
@@ -102,6 +102,67 @@ export async function updateTune(id: number, data: Partial<Omit<InsertTuneData, 
   if (data.unitSystem !== undefined) sets.unitSystem = data.unitSystem;
   const result = await db.update(tunes).set(sets).where(eq(tunes.id, id)).returning().all();
   return result.length > 0;
+}
+
+export async function getTuneUsage(id: number) {
+  const [tune] = await db.select({ id: tunes.id }).from(tunes).where(eq(tunes.id, id)).limit(1);
+  if (!tune) return null;
+
+  const rows = await db
+    .select({
+      sessionId: sessions.id,
+      gameId: sessions.gameId,
+      createdAt: sessions.createdAt,
+      carOrdinal: sessions.carOrdinal,
+      trackOrdinal: sessions.trackOrdinal,
+      carId: sessions.carId,
+      trackId: sessions.trackId,
+      lapId: laps.id,
+      lapNumber: laps.lapNumber,
+    })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .where(eq(laps.tuneId, id))
+    .orderBy(asc(sessions.id), asc(laps.id))
+    .all();
+  const grouped = new Map<number, {
+    sessionId: number;
+    gameId: string;
+    createdAt: string;
+    carOrdinal: number;
+    trackOrdinal: number;
+    carId: string | null;
+    trackId: string | null;
+    laps: { id: number; lapNumber: number }[];
+  }>();
+  for (const row of rows) {
+    let session = grouped.get(row.sessionId);
+    if (!session) {
+      session = {
+        sessionId: row.sessionId,
+        gameId: row.gameId,
+        createdAt: row.createdAt,
+        carOrdinal: row.carOrdinal,
+        trackOrdinal: row.trackOrdinal,
+        carId: row.carId,
+        trackId: row.trackId,
+        laps: [],
+      };
+      grouped.set(row.sessionId, session);
+    }
+    session.laps.push({ id: row.lapId, lapNumber: row.lapNumber });
+  }
+  const assignments = await db
+    .select({
+      gameId: tuneAssignments.gameId,
+      carOrdinal: tuneAssignments.carOrdinal,
+      trackOrdinal: tuneAssignments.trackOrdinal,
+    })
+    .from(tuneAssignments)
+    .where(eq(tuneAssignments.tuneId, id))
+    .orderBy(asc(tuneAssignments.gameId), asc(tuneAssignments.carOrdinal), asc(tuneAssignments.trackOrdinal))
+    .all();
+  return { sessions: [...grouped.values()], assignments };
 }
 
 export async function deleteTune(id: number): Promise<boolean> {

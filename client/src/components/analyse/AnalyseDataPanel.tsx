@@ -127,7 +127,7 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame,
           {lapInsights.length > 0 && <span className="ml-1 rounded-full bg-app-border-input px-1.5 text-app-micro text-app-text">{lapInsights.length}</span>}
         </TabsTrigger>
       </TabsList>
-      <TabsContent value="live" className="flex flex-col">
+      <TabsContent value="live" className="flex flex-col @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:overflow-x-hidden @5xl/workspace:overflow-y-auto">
         <div className="flex shrink-0 items-center justify-between px-3 pt-3 pb-1">
           <h3 className="mb-0 flex items-center gap-1 text-app-caption font-semibold text-app-text-muted uppercase tracking-wider">
             {m.analyse_metrics_at_cursor()}

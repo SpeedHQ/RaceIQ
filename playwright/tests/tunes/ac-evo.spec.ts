@@ -59,7 +59,7 @@ test.describe("AC EVO tunes", () => {
         .getByRole("button", { name: /^delete$/i })
         .first()
         .click();
-      await page.getByRole("button", { name: /^yes$/i }).first().click();
+      await page.getByRole("dialog").getByRole("button", { name: "Delete", exact: true }).click();
       await expect(page.getByText("E2E EVO Edited (copy)")).toHaveCount(0);
     } finally {
       await resetTunes(page);

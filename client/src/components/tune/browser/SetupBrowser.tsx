@@ -19,7 +19,7 @@ export interface SetupBrowserProps {
   renderSettings: (row: TuneRow) => ReactNode;
   onClone?: (row: TuneRow) => void;
   onEdit?: (row: TuneRow) => void;
-  onDelete?: (row: TuneRow) => void;
+  onDelete?: (row: TuneRow) => Promise<void>;
   onDuplicate?: (row: TuneRow) => void;
   isDuplicating?: boolean;
   onNewTune?: () => void;
@@ -58,7 +58,7 @@ export function SetupBrowser(props: SetupBrowserProps) {
       if (authorQuery && !r.author.toLowerCase().includes(authorQuery)) return false;
       return true;
     });
-    filtered.sort((a, b) => {
+    if (track) filtered.sort((a, b) => {
       const ta = a.lapTimeSec ?? Number.POSITIVE_INFINITY;
       const tb = b.lapTimeSec ?? Number.POSITIVE_INFINITY;
       if (ta === tb) return 0;
@@ -165,9 +165,11 @@ export function SetupBrowser(props: SetupBrowserProps) {
             <TableHead className="hidden @3xl/workspace:table-cell">{m.label_track()}</TableHead>
             <TableHead className="hidden @3xl/workspace:table-cell">{m.label_category()}</TableHead>
             <TableHead className="hidden @3xl/workspace:table-cell">{m.label_author()}</TableHead>
-            <SortableTableHead className="text-right" direction={sortAsc ? "ascending" : "descending"} onSort={() => setSortAsc((ascending) => !ascending)}>
-              {m.label_lap()}
-            </SortableTableHead>
+            {track && (
+              <SortableTableHead className="text-right" direction={sortAsc ? "ascending" : "descending"} onSort={() => setSortAsc((ascending) => !ascending)}>
+                {m.label_lap()}
+              </SortableTableHead>
+            )}
             <TableHead className="hidden @3xl/workspace:table-cell sr-only">{m.label_actions()}</TableHead>
           </TableRow>
         </TableHeader>
@@ -177,6 +179,7 @@ export function SetupBrowser(props: SetupBrowserProps) {
               key={row.key}
               row={row}
               rank={safePage * PAGE_SIZE + index + 1}
+              showLapTime={Boolean(track)}
               carName={props.carNames[row.carOrdinal] ?? `Car #${row.carOrdinal}`}
               trackName={row.trackOrdinal != null ? (props.trackNames[row.trackOrdinal] ?? `Track #${row.trackOrdinal}`) : null}
               isOpen={openKey === row.key}
@@ -192,7 +195,7 @@ export function SetupBrowser(props: SetupBrowserProps) {
           ))}
           {visible.length === 0 && (
             <TableRow>
-              <TableCell className="text-center" colSpan={8}>
+              <TableCell className="text-center" colSpan={track ? 8 : 7}>
                 <div className="py-10">{m.setup_no_matches()}</div>
               </TableCell>
             </TableRow>
@@ -223,7 +226,7 @@ export function SetupBrowser(props: SetupBrowserProps) {
           </Button>
         </div>
       )}
-      <p className="text-app-caption text-app-text-dim mt-2.5">{m.setup_sort_info()}</p>
+      {track && <p className="text-app-caption text-app-text-dim mt-2.5">{m.setup_sort_info()}</p>}
     </div>
   );
 }

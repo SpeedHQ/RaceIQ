@@ -11,7 +11,8 @@ export async function resetTunes(page: Page) {
   }
   const rows = (await list.json()) as { id: number }[];
   for (const t of rows) {
-    await page.request.delete(`/api/tunes/${t.id}`);
+    const deleted = await page.request.delete(`/api/tunes/${t.id}?confirmInUse=true`);
+    expect(deleted.ok(), `cleanup setup ${t.id}`).toBe(true);
   }
 }
 

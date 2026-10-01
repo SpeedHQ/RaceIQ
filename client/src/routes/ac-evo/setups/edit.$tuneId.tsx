@@ -31,7 +31,7 @@ function EditAcEvoTunePage() {
   if (!tune) return <div className="p-4 text-app-text-muted text-sm">{m.tuneedit_not_found()}</div>;
 
   return (
-    <div className="flex-1 overflow-auto">
+    <div className="flex-1">
       <div className="w-full min-w-0">
         <SetupTuneForm
           gameId="ac-evo"

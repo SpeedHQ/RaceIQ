@@ -14,6 +14,11 @@
 - Select or clear a track when creating or editing ACC and AC Evo setups; restrict track-specific setup best laps to that circuit.
 
 ### Fixes
+- Warn before deleting a setup that is in use, list its linked sessions and laps, and preserve recordings when removing their setup associations.
+- Keep Analyse Data vertically scrollable; restore borderless wheel metrics, right-align wheel headings, show the combined balance signal, and label pressure units once per row.
+- Label the lap replay selector “Setup” and let users select “No setup” to unlink a saved setup from a lap.
+- Hide setup lap times and lap-time sorting until a specific track is selected.
+- Keep AC Evo setup editor actions visible while scrolling and remove excess left padding from the editor header.
 - Restore AC Evo `.carsetup` imports from Sessions and the setup-file browser, with automatic car selection for uploaded setups that identify their car.
 - Match AC Evo setup editing to the experiment setup viewer's tabs, corner cards, units, and ranges; preserve imported per-wheel details and saved edits.
 - Align AC Evo setup inputs regardless of units, use compact controls without native number spinners, fill the available editor width, and arrange wheel sections side by side on desktop and stacked on mobile.

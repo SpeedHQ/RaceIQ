@@ -117,6 +117,7 @@ test/routes/lmu-string-identity.test.ts
 test/routes/place-setup-sanitise.test.ts
 test/routes/recording-support.test.ts
 test/routes/storage-routes.test.ts
+test/routes/tune-deletion-guard.test.ts
 test/runtime/native-sources.test.ts
 test/runtime/release-feature-flags.test.ts
 test/runtime/runtime-options.test.ts

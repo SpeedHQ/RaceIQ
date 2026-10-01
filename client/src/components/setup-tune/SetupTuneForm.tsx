@@ -108,7 +108,7 @@ export function SetupTuneForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col min-h-full">
-      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-app-border bg-app-bg px-4 py-3 sm:px-6">
+      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-app-border bg-app-bg py-3 pr-4">
         <Button variant="app-ghost" size="app-sm" onClick={onCancel}>
           &larr;
         </Button>

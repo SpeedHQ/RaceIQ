@@ -6,7 +6,7 @@ import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import { GameIdSchema } from "../../../shared/games/ids";
 import type { GameId } from "../../../shared/games/ids";
 import { getCommunityTuneById } from "../../db/community-tune-queries";
-import { deleteTune, getTuneById, getTunes, insertTune, updateTune } from "../../db/tune-queries";
+import { deleteTune, getTuneById, getTuneUsage, getTunes, insertTune, updateTune } from "../../db/tune-queries";
 import {
   CarOrdinalQuerySchema,
   communityRowToCatalog,
@@ -84,6 +84,17 @@ export const tuneResourceRoutes = new Hono()
     },
   )
 
+  .get(
+    "/api/tunes/:id/usage",
+    zValidator("param", IdParamSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const usage = await getTuneUsage(id);
+      if (!usage) return c.json({ error: "Tune not found" }, 404);
+      return c.json(usage);
+    },
+  )
+
   // POST /api/tunes — create tune
   .post(
     "/api/tunes",
@@ -135,8 +146,15 @@ export const tuneResourceRoutes = new Hono()
   .delete(
     "/api/tunes/:id",
     zValidator("param", IdParamSchema),
+    zValidator("query", z.object({ confirmInUse: z.enum(["true"]).optional() })),
     async (c) => {
       const { id } = c.req.valid("param");
+      const { confirmInUse } = c.req.valid("query");
+      const usage = await getTuneUsage(id);
+      if (!usage) return c.json({ error: "Tune not found" }, 404);
+      if ((usage.sessions.length > 0 || usage.assignments.length > 0) && confirmInUse !== "true") {
+        return c.json({ error: "Tune is in use", usage }, 409);
+      }
       const deleted = await deleteTune(id);
       if (!deleted) return c.json({ error: "Tune not found" }, 404);
       return c.json({ success: true });
