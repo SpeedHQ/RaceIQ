@@ -38,6 +38,11 @@ on:
         required: false
         type: string
         default: ""
+      seed-database-artifact:
+        description: "Optional pre-seeded app.db artifact for seeded Playwright gate"
+        required: false
+        type: string
+        default: ""
       artifact-name:
         description: "Trace and test-result artifact name"
         required: false
@@ -68,6 +73,13 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+
+      - name: Download seeded database artifact
+        if: inputs.server-set == 'seeded' && inputs.seed-database-artifact != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.seed-database-artifact }}
+          path: playwright/test-data-seed-artifact
 
       - name: Download dist artifact
         if: inputs.dist-artifact != ''
@@ -114,6 +126,7 @@ jobs:
           PW_WORKERS: "1"
           RACEIQ_DISABLE_TRAY: "1"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
+          PW_SEEDED_DATABASE: ${{ inputs.server-set == 'seeded' && inputs.seed-database-artifact != '' && 'playwright/test-data-seed-artifact/app.db' || '' }}
         run: bun run ../scripts/playwright-ci.ts test ${{ inputs.shard != '' && format('--shard={0}', inputs.shard) || '' }}
 
 

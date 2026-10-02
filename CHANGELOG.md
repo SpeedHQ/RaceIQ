@@ -23,6 +23,7 @@
 - Use the application background instead of gray fill for shared text and numeric inputs.
 
 ### Internal
+- Seed and validate the compiled E2E database once per workflow, then restore isolated database and capture copies in seeded shards instead of repeating fixture imports.
 - Remove redundant development database-seed tests from CI and verify recording imports after database upgrades.
 - Prevent setup deletion from refetching usage data for a removed setup.
 - Restore query context for setup browser snapshots, fail immediately on Storybook render errors, and show per-test snapshot progress in CI.

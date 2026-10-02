@@ -14,7 +14,37 @@ on:
         default: ""
 
 jobs:
+  seed-database:
+    runs-on: mars-windows-x64-4vcpu-15g
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target-ref || github.ref }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4
+
+      - name: Install workspace dependencies
+        run: bun scripts/ci/workflow-ops.ts install-retry
+
+      - name: Prepare seeded database
+        env:
+          DATA_DIR: playwright/test-data-seed-producer
+        run: bun playwright/support/server/prepare-seeded-database.ts
+
+      - name: Upload seeded database
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-seeded-database
+          path: |
+            playwright/test-data-seed-producer/app.db
+            playwright/test-data-seed-producer/sessions/
+          if-no-files-found: error
+          retention-days: 1
+
   playwright:
+    needs: seed-database
     strategy:
       fail-fast: false
       matrix:
@@ -76,4 +106,5 @@ jobs:
       artifact-name: playwright-${{ matrix.name }}
       diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
       target-ref: ${{ inputs.target-ref }}
+      seed-database-artifact: ${{ matrix.server_set == 'seeded' && 'playwright-seeded-database' || '' }}
       paraglide-artifact: ${{ inputs.paraglide-artifact }}

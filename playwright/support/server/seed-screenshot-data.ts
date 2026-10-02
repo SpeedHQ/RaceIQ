@@ -1,6 +1,7 @@
 import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { restoreSeededDatabase } from "./seeded-database";
 
 export function seedE2ESetupData(repoDir: string, dataDir: string): void {
   const setupHome = resolve(dataDir, "setup-home");
@@ -14,6 +15,10 @@ export function seedE2ESetupData(repoDir: string, dataDir: string): void {
 
 export function seedScreenshotData(repoDir: string, dataDir: string): void {
   if (process.env.PW_SEED_SCREENSHOTS !== "1") return;
+  if (process.env.PW_SEEDED_DATABASE) {
+    restoreSeededDatabase(repoDir, dataDir, process.env.PW_SEEDED_DATABASE);
+    return;
+  }
 
   const result = spawnSync("bun", ["run", "scripts/data/seed-db.ts", `--games=${process.env.PW_SEED_GAMES ?? "fm-2023,f1-2025,acc,ac-evo,iracing"}`], {
     cwd: repoDir,
