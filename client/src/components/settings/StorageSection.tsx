@@ -266,6 +266,7 @@ function StorageFilesSection() {
       queryClient.invalidateQueries({ queryKey: queryKeys.sessions }),
       queryClient.invalidateQueries({ queryKey: queryKeys.laps }),
       queryClient.invalidateQueries({ queryKey: queryKeys.cacheStatus }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.userTunes }),
     ]);
     if (result.failed.length === 0) setCleanupRequest(null);
   };

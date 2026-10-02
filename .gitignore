@@ -35,9 +35,8 @@ client/storybook-static/
 .superset/
 
 playwright/test-data/
-playwright/test-data-tunes/
+playwright/test-data-*/
 playwright/test-results/
-playwright/test-data-seeded/
 
 # Generated SQLite sidecars and local audit data
 *.db-shm

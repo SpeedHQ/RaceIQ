@@ -22,10 +22,10 @@ test("global landing cards, period filters, and recent sessions navigate", async
   const recentRows = page.locator("tbody tr");
   await expect(recentRows.first()).toBeVisible();
   await recentRows.first().click();
-  await expect(page).toHaveURL(/\/(fm23|f125|acc|ac-evo|iracing)\/sessions\/\d+\/analyse(?:\?|$)/);
+  await expect(page).toHaveURL(/\/(fm23|f125|acc|ac-evo|iracing|lmu)\/sessions\/\d+\/analyse(?:\?|$)/);
   await expect(page.getByRole("button", { name: /^Laps: \d+ · Primary: Lap \d+$/ })).toBeVisible();
   await page.getByRole("button", { name: /^Analyse lap \d+$/ }).click();
-  await expect(page).toHaveURL(/\/(fm23|f125|acc|ac-evo|iracing)\/sessions\/\d+\/replay\/\d+(?:\?|$)/);
+  await expect(page).toHaveURL(/\/(fm23|f125|acc|ac-evo|iracing|lmu)\/sessions\/\d+\/replay\/\d+(?:\?|$)/);
   await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({
     timeout: 20_000,
   });

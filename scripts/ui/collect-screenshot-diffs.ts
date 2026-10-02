@@ -107,13 +107,12 @@ function blankCanvas(width: number, height: number): Promise<Buffer> {
     .toBuffer();
 }
 
-async function fitOnCanvas(path: string, width: number, height: number): Promise<Buffer> {
-  const metadata = await sharp(path).metadata();
+async function fitOnCanvas(path: string, imageWidth: number, imageHeight: number, width: number, height: number): Promise<Buffer> {
   return sharp(path)
     .ensureAlpha()
     .extend({
-      right: width - (metadata.width ?? width),
-      bottom: height - (metadata.height ?? height),
+      right: width - imageWidth,
+      bottom: height - imageHeight,
       background: { r: 17, g: 24, b: 39, alpha: 1 },
     })
     .png()
@@ -133,16 +132,22 @@ async function writeTriplet(
   options: ScreenshotDiffOptions,
   status: ChangeStatus,
   relativePath: string,
-  basePath?: string,
-  currentPath?: string,
+  basePath: string | undefined,
+  currentPath: string | undefined,
+  baseDimensions: Pick<DecodedImage, "width" | "height"> | undefined,
+  currentDimensions: Pick<DecodedImage, "width" | "height"> | undefined,
 ): Promise<Pick<ScreenshotDiff, "stem" | "width" | "height" | "beforeFile" | "afterFile" | "diffFile">> {
-  const baseImage = basePath ? await decode(basePath) : undefined;
-  const currentImage = currentPath ? await decode(currentPath) : undefined;
-  const width = Math.max(baseImage?.width ?? 0, currentImage?.width ?? 0);
-  const height = Math.max(baseImage?.height ?? 0, currentImage?.height ?? 0);
+  const baseMetadata = basePath && !baseDimensions ? await sharp(basePath).metadata() : undefined;
+  const currentMetadata = currentPath && !currentDimensions ? await sharp(currentPath).metadata() : undefined;
+  const baseWidth = baseDimensions?.width ?? baseMetadata?.width ?? 0;
+  const baseHeight = baseDimensions?.height ?? baseMetadata?.height ?? 0;
+  const currentWidth = currentDimensions?.width ?? currentMetadata?.width ?? 0;
+  const currentHeight = currentDimensions?.height ?? currentMetadata?.height ?? 0;
+  const width = Math.max(baseWidth, currentWidth);
+  const height = Math.max(baseHeight, currentHeight);
 
-  const before = basePath ? await fitOnCanvas(basePath, width, height) : await placeholder(width, height, "New screenshot");
-  const after = currentPath ? await fitOnCanvas(currentPath, width, height) : await placeholder(width, height, "Screenshot removed");
+  const before = basePath ? await fitOnCanvas(basePath, baseWidth, baseHeight, width, height) : await placeholder(width, height, "New screenshot");
+  const after = currentPath ? await fitOnCanvas(currentPath, currentWidth, currentHeight, width, height) : await placeholder(width, height, "Screenshot removed");
   const blank = !basePath || !currentPath ? await blankCanvas(width, height) : undefined;
   const diffBefore = basePath ? before : blank!;
   const diffAfter = currentPath ? after : blank!;
@@ -160,6 +165,7 @@ async function writeTriplet(
   return { stem, width, height, beforeFile, afterFile, diffFile };
 }
 
+
 export async function collectScreenshotDiffs(options: ScreenshotDiffOptions): Promise<ScreenshotDiff[]> {
   mkdirSync(options.outDir, { recursive: true });
   const baseFiles = listPngs(options.baseDir);
@@ -174,6 +180,8 @@ export async function collectScreenshotDiffs(options: ScreenshotDiffOptions): Pr
 
     let status: ChangeStatus;
     let comparison: ImageComparison | undefined;
+    let baseDimensions: Pick<DecodedImage, "width" | "height"> | undefined;
+    let currentDimensions: Pick<DecodedImage, "width" | "height"> | undefined;
 
     if (!basePath) {
       status = "added";
@@ -181,12 +189,14 @@ export async function collectScreenshotDiffs(options: ScreenshotDiffOptions): Pr
       status = "removed";
     } else {
       const [baseImage, currentImage] = await Promise.all([decode(basePath), decode(currentPath)]);
+      baseDimensions = { width: baseImage.width, height: baseImage.height };
+      currentDimensions = { width: currentImage.width, height: currentImage.height };
       comparison = compareImages(baseImage, currentImage);
       if (comparison.matches) continue;
       status = "changed";
     }
 
-    const output = await writeTriplet(options, status, relativePath, basePath, currentPath);
+    const output = await writeTriplet(options, status, relativePath, basePath, currentPath, baseDimensions, currentDimensions);
     changes.push({
       status,
       prefix: options.prefix,

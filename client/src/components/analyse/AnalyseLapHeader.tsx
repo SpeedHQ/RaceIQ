@@ -11,6 +11,7 @@ import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
 import { SearchSelect } from "../ui/SearchSelect";
 import { FavoriteToggleButton } from "../FavoriteToggleButton";
+import { queryKeys } from "../../hooks/query-keys";
 
 function buildAnalyseLapOption(lap: LapMeta, locale?: "en" | "de") {
   return {
@@ -188,7 +189,10 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
                 <SearchSelect
                   value={selectedLap?.tuneId != null ? String(selectedLap.tuneId) : ""}
                   onChange={(value) => onTuneChange(value ? Number.parseInt(value, 10) : null)}
-                  options={availableTunes?.map((tune) => ({ value: String(tune.id), label: tune.name })) ?? []}
+                  options={[
+                    { value: "", label: m.analyse_no_tune() },
+                    ...(availableTunes?.map((tune) => ({ value: String(tune.id), label: tune.name })) ?? []),
+                  ]}
                   placeholder={m.analyse_no_tune()}
                   ariaLabel={m.analyse_tune_label()}
                   disabled={tunePending}
@@ -350,6 +354,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
           onImported={() => {
             queryClient.invalidateQueries({ queryKey: ["laps"] });
             queryClient.invalidateQueries({ queryKey: ["sessions"] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.userTunes });
           }}
         />
       )}

@@ -23,10 +23,11 @@ export async function lapsFor(request: APIRequestContext, gameId: GameId): Promi
   return (await response.json()) as LapMeta[];
 }
 
-export async function importDisposableLap(request: APIRequestContext, gameId: GameId, label: string): Promise<DisposableImport> {
+export async function importDisposableLap(request: APIRequestContext, gameId: GameId, label: string, sourceLapId?: number): Promise<DisposableImport> {
   const sessionsBefore = await sessionsFor(request, gameId);
-  const source = (await lapsFor(request, gameId)).find((lap) => lap.isValid);
-  expect(source, `${gameId} needs valid lap for disposable import`).toBeDefined();
+  const available = await lapsFor(request, gameId);
+  const source = sourceLapId == null ? available.find((lap) => lap.isValid) : available.find((lap) => lap.id === sourceLapId);
+  expect(source, `${gameId} needs a source lap for disposable import`).toBeDefined();
 
   const exportResponse = await request.get(`/api/laps/${source!.id}/export-bin`);
   expect(exportResponse.ok(), "seeded lap export for disposable import").toBe(true);

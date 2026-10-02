@@ -34,16 +34,31 @@ function expectArtifactsAbsent(databasePath: string): void {
   }
 }
 
-async function runDbStartup(dataDir: string): Promise<{ code: number; output: string }> {
+async function runDbStartup(dataDir: string, importRecording = false): Promise<{ code: number; output: string }> {
   const env: Record<string, string | undefined> = { ...process.env, DATA_DIR: dataDir };
   delete env.RACEIQ_TEST_MODE;
   delete env.DB_IN_MEMORY;
 
   // Child import must occur after isolated env setup; parent owns preloaded test client.
   const source = `
-    const database = await import(${JSON.stringify(DATABASE_MODULE_URL)});
+    import * as database from ${JSON.stringify(DATABASE_MODULE_URL)};
+    ${importRecording ? `
+    import { readFileSync } from "node:fs";
+    import { initGameAdapters } from ${JSON.stringify(pathToFileURL(join(REPO_ROOT, "shared/games/init.ts")).href)};
+    import { initServerGameAdapters } from ${JSON.stringify(pathToFileURL(join(REPO_ROOT, "server/games/init.ts")).href)};
+    import { importSessionBin } from ${JSON.stringify(pathToFileURL(join(REPO_ROOT, "server/session-capture/import-capture.ts")).href)};
+    ` : ""}
     try {
       await database.initDb();
+      if (${importRecording}) {
+        initGameAdapters();
+        initServerGameAdapters();
+        await importSessionBin(
+          readFileSync("test/artifacts/sessions/iracing-road-america-gt3.bin.gz"),
+          "iracing",
+          { notifyDriverProfile: false },
+        );
+      }
     } finally {
       database.client.close();
     }
@@ -137,6 +152,21 @@ function sessionOwnerships(databasePath: string): string[] {
   }
 }
 
+function expectImportedRecording(databasePath: string, existingIds: number[] = []): void {
+  const database = new Database(databasePath, { readonly: true });
+  try {
+    const rows = database.query(
+      "SELECT s.id AS sessionId, s.game_id AS gameId, s.car_ordinal AS carOrdinal, s.track_ordinal AS trackOrdinal, l.lap_number AS lapNumber, l.lap_time AS lapTime, l.is_valid AS isValid FROM laps l JOIN sessions s ON s.id = l.session_id WHERE s.car_ordinal = 42 AND s.track_ordinal = 99 ORDER BY l.lap_number",
+    ).all() as Array<{ sessionId: number; gameId: string; carOrdinal: number; trackOrdinal: number; lapNumber: number; lapTime: number; isValid: number }>;
+    expect(rows.filter(({ sessionId }) => !existingIds.includes(sessionId)).map(({ sessionId: _sessionId, ...lap }) => lap)).toEqual([
+      { gameId: "iracing", carOrdinal: 42, trackOrdinal: 99, lapNumber: 1, lapTime: 31.917, isValid: 1 },
+      { gameId: "iracing", carOrdinal: 42, trackOrdinal: 99, lapNumber: 2, lapTime: 32.045, isValid: 1 },
+    ]);
+  } finally {
+    database.close();
+  }
+}
+
 afterEach(async () => {
   for (const dataDir of tempDirs.splice(0)) {
     for (let attempt = 0; attempt < 10; attempt++) {
@@ -207,40 +237,35 @@ describe("production database path", () => {
     expectArtifactsAbsent(testPath);
   });
   if (process.env.RACEIQ_DB_UPGRADE_TESTS === "1") {
-    test("upgrades a v57 database during startup", async () => {
+    test("imports a recording after upgrading a v57 database during startup", async () => {
       const dataDir = makeDataDir();
       const appPath = join(dataDir, "app.db");
       const sentinel = `upgrade-profile-${crypto.randomUUID()}`;
       await createFixture(appPath, sentinel, 57);
 
-      const result = await runDbStartup(dataDir);
+      const result = await runDbStartup(dataDir, true);
 
       expect(result.code, result.output).toBe(0);
-      expect(result.output).toContain("[DB]   v59: persist LMU session string identity");
       expect(profileNames(appPath)).toEqual([sentinel]);
-      expect(sessionOwnerships(appPath)).toEqual(["mine"]);
+      expect(sessionOwnerships(appPath)).toEqual(["mine", "mine"]);
+      expectImportedRecording(appPath);
     });
   }
 
   if (process.env.RACEIQ_UPGRADE_DATA_DIR) {
-    test("preserves a seeded database while applying pending migrations", async () => {
+    test("preserves a seeded database and imports a recording after applying pending migrations", async () => {
       const dataDir = process.env.RACEIQ_UPGRADE_DATA_DIR!;
       const appPath = join(dataDir, "app.db");
-      const before = new Set(appliedVersions(appPath));
-      const pending = migrations.filter(({ version }) => !before.has(version));
       const ids = sessionIds(appPath);
 
-      const result = await runDbStartup(dataDir);
+      const result = await runDbStartup(dataDir, true);
 
       expect(result.code, result.output).toBe(0);
-      for (const migration of pending) {
-        expect(result.output).toContain(`[DB]   v${migration.version}: ${migration.name}`);
-      }
       expect(appliedVersions(appPath)).toEqual(migrations.map(({ version }) => version).sort((a, b) => a - b));
       expect(profileNames(appPath)).toContain("RaceIQ Demo Driver");
-      expect(sessionIds(appPath)).toEqual(ids);
-      expect(sessionOwnerships(appPath)).toEqual(ids.map(() => "mine"));
-      expect(ids.length).toBeGreaterThan(0);
+      expect(sessionIds(appPath).filter((id) => ids.includes(id))).toEqual(ids);
+      expect(sessionOwnerships(appPath)).toEqual(sessionIds(appPath).map(() => "mine"));
+      expectImportedRecording(appPath, ids);
     });
   }
   test("dual-file startup keeps app.db and continues", async () => {

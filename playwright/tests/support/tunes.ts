@@ -11,7 +11,8 @@ export async function resetTunes(page: Page) {
   }
   const rows = (await list.json()) as { id: number }[];
   for (const t of rows) {
-    await page.request.delete(`/api/tunes/${t.id}`);
+    const deleted = await page.request.delete(`/api/tunes/${t.id}?confirmInUse=true`);
+    expect(deleted.ok(), `cleanup setup ${t.id}`).toBe(true);
   }
 }
 
@@ -32,9 +33,8 @@ export async function completeOnboarding(page: Page) {
 }
 
 /** Common guard used by each game's spec — waits for the SetupBrowser to
- *  render (loaded or empty). Anchors on the "+ New tune" button since the
- *  page title heading was dropped in the SetupBrowser rewrite; the button is
- *  present for FM23 / ACC / AC-EVO alike. */
+ * render (loaded or empty). Anchors on its create-setup button because the
+ * page title heading was dropped in the SetupBrowser rewrite. */
 export async function waitForTunesList(page: Page) {
-  await expect(page.getByRole("button", { name: /\+ New tune/i })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("button", { name: /\+ New Setup/i })).toBeVisible({ timeout: 15_000 });
 }

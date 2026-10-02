@@ -1,39 +1,20 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { m } from "@/paraglide/messages";
 import { useSetupFileContent, useSetupFiles } from "../../hooks/setup-queries";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 import { SearchSelect } from "../ui/SearchSelect";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { SetupSections } from "./SetupSections";
+
 
 /** Read-only modal showing the picked setup file — human-readable sections
  *  when available, otherwise parsed JSON pretty-printed for ACC or decoded
  *  wire-tree text for AC Evo .carsetup files. */
-/** Which tab a corner-section row belongs to, by its label. */
-function rowTab(label: string): string {
-  const l = label.toLowerCase();
-  if (/(tyre|pressure|camber|toe|caster|compound)/.test(l)) return "Tyres";
-  if (l.includes("bumpstop") || l.includes("packer")) return "Suspension"; // bump stops/packers live with springs in the ACE suspension screen
-  if (/(bump|rebound|damper)/.test(l)) return "Dampers";
-  return "Suspension";
-}
 
-/** Which tab a non-corner section belongs to, by its title. */
-function sectionTab(title: string): string {
-  const t = title.toLowerCase();
-  if (t.startsWith("aero")) return "Aero";
-  if (t.startsWith("electronics")) return "Electronics";
-  if (t.startsWith("fuel")) return "Fuel & strategy";
-  if (t.startsWith("mechanical") || t.startsWith("suspension") || t.startsWith("front") || t.startsWith("rear")) return "Suspension";
-  return title;
-}
-
-const TAB_ORDER = ["Tyres", "Suspension", "Dampers", "Electronics", "Aero", "Fuel & strategy"];
 
 export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId: "acc" | "ac-evo"; path: string; fileName: string; onClose: () => void }) {
   const { data, isLoading, error } = useSetupFileContent(gameId, path);
   const sections = data?.sections?.length ? data.sections : null;
-  const [activeTab, setActiveTab] = useState<string | null>(null);
   const body = data?.formatted ?? (data?.setup ? JSON.stringify(data.setup, null, 2) : null);
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -46,112 +27,7 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
         <div className="min-h-0 flex-1 overflow-auto">
           {isLoading && <div className="text-sm text-muted-foreground">{m.common_loading()}</div>}
           {(error || data?.error) && <div className="text-sm text-status-danger">{data?.error ?? m.experiment_setup_read_error()}</div>}
-          {sections && (
-            <div className="space-y-4">
-              {/* Tabbed view: corner sections (FL/FR/RL/RR) mix tyre, suspension
-                  and damper rows, so their rows are split per-tab; every other
-                  section maps to a whole tab. Corner cards keep the aligned 2x2
-                  grid (FL/FR over RL/RR); other sections flow in masonry. */}
-              {(() => {
-                const CORNER_ORDER = ["Front left", "Front right", "Rear left", "Rear right"];
-                const allCorners = [...sections].filter((s) => CORNER_ORDER.includes(s.title)).sort((a, b) => CORNER_ORDER.indexOf(a.title) - CORNER_ORDER.indexOf(b.title));
-                const allOthers = sections.filter((s) => !CORNER_ORDER.includes(s.title));
-                const tabs: string[] = [];
-                const seen = new Set<string>();
-                const push = (t: string) => {
-                  if (!seen.has(t)) {
-                    seen.add(t);
-                    tabs.push(t);
-                  }
-                };
-                for (const s of allCorners) for (const r of s.rows) push(rowTab(r.label));
-                for (const s of allOthers) push(sectionTab(s.title));
-                tabs.sort((a, b) => {
-                  const ia = TAB_ORDER.indexOf(a);
-                  const ib = TAB_ORDER.indexOf(b);
-                  return (ia === -1 ? TAB_ORDER.length : ia) - (ib === -1 ? TAB_ORDER.length : ib);
-                });
-                const tab = (activeTab && tabs.includes(activeTab) ? activeTab : tabs[0]) ?? "";
-                const corners = allCorners.map((s) => ({ ...s, rows: s.rows.filter((r) => rowTab(r.label) === tab) })).filter((s) => s.rows.length > 0);
-                const others = allOthers.filter((s) => sectionTab(s.title) === tab);
-                const card = (s: (typeof sections)[number], masonry: boolean) => (
-                  <div key={s.title} className={`${masonry ? "mb-3 break-inside-avoid " : ""}rounded-lg bg-app-bg p-3`}>
-                    <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-accent">{s.title}</h4>
-                    <div className="space-y-0.5">
-                      {s.rows.map((r) => (
-                        <div key={r.label} className={`text-xs${r.fixed ? " opacity-45" : ""}`} title={r.fixed ? "Fixed for this car — not adjustable in the in-game tune menu" : undefined}>
-                          <div className="flex justify-between gap-2">
-                            <span className="whitespace-nowrap text-app-text-muted">{r.label}</span>
-                            <span className="whitespace-nowrap font-mono text-app-text">{r.value}</span>
-                          </div>
-                          {/* Range bar (like the AI analysis result) — only for rows
-                              with a real extracted per-car min/max from the server. */}
-                          {r.num != null && r.min != null && r.max != null && r.max > r.min && (
-                            <div className="mt-1 flex items-center gap-2">
-                              <span className="text-app-caption font-mono tabular-nums text-muted-foreground">{r.min}</span>
-                              <div className="relative h-1 flex-1 rounded bg-muted">
-                                <span
-                                  className="absolute top-1/2 h-2.5 w-0.5 -translate-y-1/2 rounded bg-(--focus-setup)"
-                                  style={{ left: `${Math.min(100, Math.max(0, ((r.num - r.min) / (r.max - r.min)) * 100))}%` }}
-                                />
-                              </div>
-                              <span className="text-app-caption font-mono tabular-nums text-muted-foreground">{r.max}</span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-                return (
-                  <Tabs value={tab} onValueChange={setActiveTab}>
-                    <TabsList>
-                      {tabs.map((t) => (
-                        <TabsTrigger key={t} value={t}>
-                          {t}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
-                    <TabsContent value={tab} className="space-y-3">
-                      {tab === "Aero" && others.length > 0 ? (
-                        // Aero: rear fields on the left, front fields on the right.
-                        <div className="grid grid-cols-1 gap-3 @3xl/setup-file:grid-cols-2">
-                          {(() => {
-                            const rows = others.flatMap((s) => s.rows);
-                            const rear = rows.filter((r) => /rear|wing/i.test(r.label));
-                            const front = rows.filter((r) => !/rear|wing/i.test(r.label));
-                            return [card({ title: "Rear", rows: rear }, false), card({ title: "Front", rows: front }, false)];
-                          })()}
-                        </div>
-                      ) : tab === "Suspension" ? (
-                        // Suspension: front card above the FL/FR/RL/RR grid, rear card below.
-                        <div className="flex flex-col gap-3">
-                          {(() => {
-                            const rear = others.filter((s) => /rear/i.test(s.title));
-                            const front = others.filter((s) => !/rear/i.test(s.title));
-                            return (
-                              <>
-                                {front.map((s) => card(s, false))}
-                                {corners.length > 0 && <div className="grid grid-cols-1 content-start gap-3 @3xl/setup-file:grid-cols-2">{corners.map((s) => card(s, false))}</div>}
-                                {rear.map((s) => card(s, false))}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-3 @5xl/setup-file:flex-row @5xl/setup-file:items-start">
-                          {corners.length > 0 && (
-                            <div className="grid shrink-0 grid-cols-1 content-start gap-3 @3xl/setup-file:grid-cols-2 @5xl/setup-file:w-1/2">{corners.map((s) => card(s, false))}</div>
-                          )}
-                          {others.length > 0 && <div className="w-full min-w-0 columns-1 gap-3 @3xl/setup-file:columns-2">{others.map((s) => card(s, true))}</div>}
-                        </div>
-                      )}
-                    </TabsContent>
-                  </Tabs>
-                );
-              })()}
-            </div>
-          )}
+          {sections && <SetupSections sections={sections} />}
           {!sections && body && <pre className="text-app-label leading-relaxed whitespace-pre-wrap font-mono">{body}</pre>}
         </div>
       </DialogContent>

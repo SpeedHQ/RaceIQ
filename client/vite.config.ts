@@ -1,5 +1,5 @@
+import { spawn } from "node:child_process";
 import path from "node:path";
-import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
 import { TanStackRouterVite } from "@tanstack/router-vite-plugin";
@@ -17,7 +17,25 @@ const devWebSocketTarget = {
   port: serverUrl.port,
 };
 
+const paraglideBuildScript = path.resolve(import.meta.dirname, "../scripts/dev/paraglide-build.ts");
 const paraglideOutdir = path.resolve(import.meta.dirname, "src/paraglide");
+
+function paraglideBuildPlugin(): Plugin {
+  return {
+    name: "raceiq-paraglide-build",
+    apply: "build",
+    async buildStart() {
+      await new Promise<void>((resolve, reject) => {
+        const child = spawn("bun", [paraglideBuildScript, "--client-root", import.meta.dirname], { stdio: "inherit" });
+        child.once("error", reject);
+        child.once("exit", (code, signal) => {
+          if (code === 0) resolve();
+          else reject(new Error(`Paraglide build failed${signal ? ` (${signal})` : ` (${code})`}`));
+        });
+      });
+    },
+  };
+}
 
 function paraglideFullReloadPlugin(): Plugin {
   let reloadTimer: NodeJS.Timeout | undefined;
@@ -70,17 +88,7 @@ export default defineConfig(({ command }) => {
       react(),
       tailwindcss(),
       TanStackRouterVite(),
-      ...(isBuild
-        ? [
-            paraglideVitePlugin({
-              project: "./project.inlang",
-              outdir: "./src/paraglide",
-              emitTsDeclarations: true,
-              outputStructure: "message-modules",
-              strategy: ["localStorage", "baseLocale"],
-            }),
-          ]
-        : []),
+      ...(isBuild ? [paraglideBuildPlugin()] : []),
     ],
     customLogger: logger,
     define: {

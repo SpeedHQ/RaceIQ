@@ -3,7 +3,10 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { resolve } from "node:path";
 import { errorFromResponse } from "../../../client/src/lib/rpc-error";
 import { tuneCrudRoutes } from "../../../server/routes/tunes";
-
+import { getAllAcEvoCars } from "../../../shared/racing/cars/ac-evo";
+import { deleteTune, getTuneById } from "../../../server/db/tune-queries";
+import { parseCarSetup } from "../../../server/games/ac-evo/carsetup-wire";
+import { summarizeCarSetup } from "../../../server/games/ac-evo/carsetup";
 /**
  * End-to-end route tests for importing a binary AC EVO `.carsetup`, driven
  * through the real Hono app with the driver's own files.
@@ -42,7 +45,22 @@ describe("POST /api/tunes/inspect-carsetup", () => {
     expect(json.carModel).toBe("ford_mustang_gt3");
     expect(json.carName).toBe("Ford Mustang GT3");
     expect(json.knownCar).toBe(true);
+    expect(json.knobs).toBeDefined();
+    expect(Array.isArray(json.sections)).toBe(true);
   });
+  test("inspect exposes source corner rows and knob metadata", async () => {
+    const bytes = read("Default-12312.carsetup");
+    const res = await inspect(bytes);
+    expect(res.status).toBe(200);
+    const json = await res.json() as { sections: Array<{ title: string; rows: Array<{ label: string; value: string; num?: number; knob?: string }> }> };
+    const frontLeft = json.sections.find((section) => section.title === "Front left")!;
+    const frontRight = json.sections.find((section) => section.title === "Front right")!;
+    expect(frontLeft.rows.find((row) => row.label === "Wheel rate")?.num).toBe(240);
+    expect(frontLeft.rows.find((row) => row.label === "Wheel rate")?.knob).toBe("frontSpringRate");
+    expect(Number.parseFloat(frontRight.rows.find((row) => row.label === "Wheel rate")!.value)).toBe(220);
+    expect(frontRight.rows.find((row) => row.label === "Wheel rate")?.knob).toBeUndefined();
+  });
+
 
   test("Tourist.carsetup — decodes, but states no car", async () => {
     const res = await inspect(read("Tourist.carsetup"));
@@ -71,6 +89,58 @@ describe("POST /api/tunes/inspect-carsetup", () => {
     for (const name of ["mustang.carsetup", "Tourist.carsetup"]) {
       const res = await inspect(read(name));
       expect(res.headers.get("content-type") ?? "", name).toContain("application/json");
+    }
+  });
+});
+
+describe("POST /api/tunes/import-file — AC Evo binary uploads", () => {
+  const audi = getAllAcEvoCars().find((car) => car.model === "audi_r8_lms_gt3_evo_2")!;
+
+  test("imports real setup values into the catalog without a game installation", async () => {
+    const res = await tuneCrudRoutes.request("/api/tunes/import-file", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        gameId: "ac-evo", fileName: "Default-12312.carsetup",
+        contentBase64: read("Default-12312.carsetup").toString("base64"),
+        carOrdinal: audi.id,
+      }),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json() as { id: number };
+    try {
+      const tune = await getTuneById(body.id);
+      expect(tune?.gameId).toBe("ac-evo");
+      expect(tune?.name).toBe("Default-12312");
+      expect(tune?.carOrdinal).toBe(audi.id);
+      const settings = JSON.parse(tune!.settings);
+      const source = read("Default-12312.carsetup");
+      expect(settings.carSetupBase64).toBe(source.toString("base64"));
+      const saved = parseCarSetup(Buffer.from(settings.carSetupBase64, "base64"));
+      expect(summarizeCarSetup(saved!).find((section) => section.title === "Front right")!
+        .rows.find((row) => row.label === "Wheel rate")?.value).toBe("220 kN/m");
+      expect(settings.frontLeftTyrePressure).toBeCloseTo(35, 3);
+    } finally {
+      await deleteTune(body.id);
+    }
+  });
+
+  test("rejects a setup assigned to another car and non-setup bytes", async () => {
+    for (const overrides of [
+      { carOrdinal: -1 },
+      { contentBase64: Buffer.from("not a setup").toString("base64") },
+      { fileName: "setup.json" },
+    ]) {
+      const res = await tuneCrudRoutes.request("/api/tunes/import-file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gameId: "ac-evo", fileName: "Default-12312.carsetup", carOrdinal: audi.id,
+          contentBase64: read("Default-12312.carsetup").toString("base64"),
+          ...overrides,
+        }),
+      });
+      expect(res.status).toBe(400);
     }
   });
 });

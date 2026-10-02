@@ -79,7 +79,7 @@ test.describe("Forza Motorsport tunes", () => {
       .getByRole("button", { name: /^delete$/i })
       .first()
       .click();
-    await page.getByRole("button", { name: /^yes$/i }).first().click();
+    await page.getByRole("dialog").getByRole("button", { name: "Delete", exact: true }).click();
     await expect(page.getByText("E2E Forza Tune (copy)")).toHaveCount(0);
     expect(browserErrors.errors, "unexpected browser errors in FM tune list").toEqual([]);
   });

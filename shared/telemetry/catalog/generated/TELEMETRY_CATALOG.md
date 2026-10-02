@@ -8,7 +8,7 @@
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.19.1`
 - Generator source SHA-256: `8ccaf31d0d5ee0bd8870207f674222fc8c84894d73155e458f124328bfebdb40`
-- Content SHA-256: `4cea9c73b912f8f2be5499e2d4078f24c6fa5831f7987722ca38a55747a81561`
+- Content SHA-256: `b43d1b7122e046b21f1a1dc918d6fba004b2f6ab347fe926f23cc5237a03683b`
 
 ## Coverage
 
@@ -17,7 +17,7 @@
 | fm-2023 | 96 | 96 | 95 | 1 | 0 | 0 | 0 |
 | f1-2025 | 289 | 289 | 119 | 170 | 0 | 0 | 0 |
 | acc | 205 | 172 | 124 | 48 | 0 | 0 | 33 |
-| ac-evo | 260 | 224 | 124 | 100 | 0 | 0 | 36 |
+| ac-evo | 254 | 224 | 124 | 100 | 0 | 0 | 30 |
 | iracing | 952 | 702 | 115 | 18 | 324 | 495 | 0 |
 | lmu | 172 | 172 | 126 | 46 | 0 | 0 | 0 |
 
@@ -563,7 +563,6 @@
 | `setup.strategy.fuel-volume` | Configured fuel volume | number | length^3 | L | scalar |  |  |  |
 | `setup.suspension.bump-stop-range` | Bump-stop range | number | length | mm | fixed:4 | FL, FR, RL, RR |  |  |
 | `setup.suspension.bump-stop-rate` | Bump-stop rate | number | unit:n/mm | N/mm | fixed:4 | FL, FR, RL, RR |  |  |
-| `setup.suspension.bumpstops` | Bump-stop selection | number | unit:level | level | fixed:4 | FL, FR, RL, RR |  |  |
 | `setup.suspension.front-anti-roll-bar.arms` | Front anti-roll-bar arms | number | dimensionless | count | scalar |  |  |  |
 | `setup.suspension.front-anti-roll-bar.blades` | Front anti-roll-bar blades | number | unit:level | level | scalar |  |  |  |
 | `setup.suspension.front-anti-roll-bar.connection` | Front anti-roll-bar connection | number | unit:configuration | configuration | scalar |  |  |  |
@@ -571,8 +570,6 @@
 | `setup.suspension.front-anti-roll-bar.outer-diameter` | Front anti-roll-bar outer diameter | number | length | mm | scalar |  |  |  |
 | `setup.suspension.front-anti-roll-bar.rate` | Front anti-roll-bar rate | number | unit:configuration | configuration | scalar |  |  |  |
 | `setup.suspension.front-anti-roll-bar.setting` | Front anti-roll-bar setting | number | unit:configuration | configuration | scalar |  |  |  |
-| `setup.suspension.helper-springs` | Helper springs | number | unit:level | level | fixed:4 | FL, FR, RL, RR |  |  |
-| `setup.suspension.packers` | Packers | number | length | mm | fixed:4 | FL, FR, RL, RR |  |  |
 | `setup.suspension.rear-anti-roll-bar.arms` | Rear anti-roll-bar arms | number | dimensionless | count | scalar |  |  |  |
 | `setup.suspension.rear-anti-roll-bar.blades` | Rear anti-roll-bar blades | number | unit:level | level | scalar |  |  |  |
 | `setup.suspension.rear-anti-roll-bar.connection` | Rear anti-roll-bar connection | number | unit:configuration | configuration | scalar |  |  |  |

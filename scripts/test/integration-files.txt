@@ -38,7 +38,6 @@ test/client/tune-browser-model.test.ts
 test/client/websocket-url.test.ts
 test/client/wireframe-utils.test.ts
 test/db/database-path.test.ts
-test/db/db-seed.test.ts
 test/db/lap-ownership.test.ts
 test/db/lmu-session-identity.test.ts
 test/db/migrations/migration-regression.test.ts
@@ -117,6 +116,7 @@ test/routes/lmu-string-identity.test.ts
 test/routes/place-setup-sanitise.test.ts
 test/routes/recording-support.test.ts
 test/routes/storage-routes.test.ts
+test/routes/tune-deletion-guard.test.ts
 test/runtime/native-sources.test.ts
 test/runtime/release-feature-flags.test.ts
 test/runtime/runtime-options.test.ts

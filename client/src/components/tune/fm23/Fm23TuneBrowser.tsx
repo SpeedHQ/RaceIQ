@@ -102,8 +102,8 @@ export function Fm23TuneBrowser() {
       onEdit={(row: TuneRow) => {
         if (row.dbId != null) navigate({ to: `/fm23/setups/edit/${row.dbId}` });
       }}
-      onDelete={(row: TuneRow) => {
-        if (row.dbId != null) del.mutate(row.dbId);
+      onDelete={async (row: TuneRow) => {
+        if (row.dbId != null) await del.mutateAsync({ id: row.dbId, confirmInUse: true });
       }}
       onDuplicate={(row: TuneRow) => {
         if (row.dbId != null) duplicate.mutate(row.dbId);

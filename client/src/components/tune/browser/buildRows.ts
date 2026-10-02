@@ -1,3 +1,5 @@
+import { formatLapTime } from "@/lib/format";
+
 import { m } from "@/paraglide/messages";
 import type { CatalogTune } from "@/data/tune-catalog";
 import { parseLapTime } from "./parseLapTime";
@@ -12,6 +14,7 @@ export interface RawUserTune {
   trackOrdinal: number | null;
   description: string;
   settings: unknown;
+  bestLapTime: number | null;
 }
 
 function lapFields(description: string) {
@@ -50,7 +53,10 @@ export function buildRows(catalog: CatalogTune[], userTunes: RawUserTune[]): Tun
     trackOrdinal: t.trackOrdinal ?? null,
     description: t.description ?? "",
     settings: t.settings,
-    ...lapFields(t.description ?? ""),
+    lapTimeSec: t.bestLapTime != null && t.bestLapTime > 0 ? t.bestLapTime : null,
+    lapTimeRaw: t.bestLapTime != null && t.bestLapTime > 0 ? formatLapTime(t.bestLapTime) : null,
+    lapTimeTrack: null,
   }));
   return [...cat, ...usr];
 }
+

@@ -1,11 +1,11 @@
 import { getSchemaForGame, readSetupField } from "@shared/racing/setups/schema";
 import type { GameId } from "../../../../shared/games/ids";
+import { AcEvoSetupContent } from "./AcEvoSetupContent";
 
-/** Read-only summary of an ACC / AC-EVO setup JSON, grouped by the same
- *  sections FillForm edits. Skips fields absent from the settings object —
- *  imported / community setups may only cover a subset. */
+/** Setup summary: AC Evo shares experiment rendering; ACC uses its catalogued JSON fields. */
 export function SetupSettingsPanel({ gameId, settings }: { gameId: GameId; settings: Record<string, unknown> }) {
   const sections = getSchemaForGame(gameId);
+  if (gameId === "ac-evo") return <AcEvoSetupContent settings={settings} />;
 
   return (
     <div className="w-full columns-1 gap-3 @3xl/workspace:columns-2 @7xl/workspace:columns-3">

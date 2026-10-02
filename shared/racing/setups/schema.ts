@@ -1,30 +1,29 @@
 import type { GameId } from "@shared/games/ids";
+import { AC_EVO_SETUP_SCHEMA } from "./ac-evo-schema";
 import {
   SETUP_FILE_SECTION_DEFINITIONS,
   SETUP_FILE_SOURCE_DEFINITIONS,
   SETUP_FORM_TAB_ORDER,
-  type SetupFileSectionId,
-  type SetupFileSource,
 } from "./catalog/file-source-mappings";
 import type {
   SetupFileGameId,
   SetupFormTab,
+  SetupFileSourceDefinition,
 } from "./catalog/groups";
 
 export { SETUP_FORM_TAB_ORDER };
 
-// Kunos stores ACC/EVO setups as nested JSON with in-game "click" values.
-// Catalog entries own source paths, labels, descriptions, units, semantics,
-// and cardinality. Form code receives those exact entries instead of rebuilding
-// dotted paths or parallel label/arity tables.
+// ACC stores nested JSON click values; AC Evo stores decoded flat knob values.
+// Both schemas retain native units and use the same field readers and writers.
 
-export type FieldDef = SetupFileSource;
+export type FieldDef = SetupFileSourceDefinition;
 
 export interface SectionDef {
-  key: SetupFileSectionId;
+  key: string;
   label: string;
   description: string;
   tab: SetupFormTab;
+  storage: "nested" | "flat";
   fields: readonly FieldDef[];
 }
 
@@ -43,6 +42,7 @@ function compileSchema(gameId: SetupFileGameId): readonly SectionDef[] {
     label: section.label,
     description: section.description,
     tab: section.tab,
+    storage: "nested",
     fields: SETUP_FILE_SOURCE_DEFINITIONS.filter((field) =>
       field.path.startsWith(`${section.id}.`),
     ),
@@ -51,7 +51,7 @@ function compileSchema(gameId: SetupFileGameId): readonly SectionDef[] {
 
 const SETUP_SCHEMAS = {
   acc: compileSchema("acc"),
-  "ac-evo": compileSchema("ac-evo"),
+  "ac-evo": AC_EVO_SETUP_SCHEMA,
 } as const satisfies Record<SetupFileGameId, readonly SectionDef[]>;
 
 const EMPTY_SETUP_SCHEMA: readonly SectionDef[] = [];
@@ -83,6 +83,9 @@ export function readSetupSection(
   obj: unknown,
   section: SectionDef,
 ): unknown {
+  if (section.storage === "flat") {
+    return section.fields.some((field) => readSetupField(obj, field) != null) ? obj : undefined;
+  }
   return readPath(obj, section.key);
 }
 
