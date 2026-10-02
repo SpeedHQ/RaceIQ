@@ -24,6 +24,8 @@
 
 ### Internal
 - Prevent setup deletion from refetching usage data for a removed setup.
+- Restore query context for setup browser snapshots, fail immediately on Storybook render errors, and show per-test snapshot progress in CI.
+- Reduce snapshot memory churn by checking canvas stability inside the browser without PNG serialization and reusing screenshot dimensions during diff generation.
 
 ## v0.19.1 - 2026-10-01
 

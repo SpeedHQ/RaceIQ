@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SetupBrowser } from "../components/tune/browser/SetupBrowser";
 import type { SourceTab, TuneRow } from "../components/tune/browser/types";
 
@@ -100,6 +101,8 @@ const sources: SourceTab[] = [
   { key: "user", label: "Yours" },
 ];
 
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+
 const meta: Meta<typeof SetupBrowser> = {
   title: "Setups/SetupBrowser",
   component: SetupBrowser,
@@ -108,9 +111,11 @@ const meta: Meta<typeof SetupBrowser> = {
   },
   decorators: [
     (Story) => (
-      <div style={{ height: "100vh", overflow: "auto", background: "var(--app-bg)" }}>
-        <Story />
-      </div>
+      <QueryClientProvider client={queryClient}>
+        <div style={{ height: "100vh", overflow: "auto", background: "var(--app-bg)" }}>
+          <Story />
+        </div>
+      </QueryClientProvider>
     ),
   ],
 };
@@ -129,7 +134,7 @@ export const AllData: Story = {
     renderSettings: (row) => <div className="text-xs text-app-text-secondary p-2">Settings for {row.name}</div>,
     onClone: () => {},
     onEdit: () => {},
-    onDelete: () => {},
+    onDelete: async () => {},
     onDuplicate: () => {},
     onNewTune: () => {},
   },

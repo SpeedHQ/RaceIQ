@@ -19,6 +19,8 @@ Local visual-regression utilities. These scripts capture equivalent base/current
 
 `visual-diff-config.ts` is shared policy for Playwright assertions and collector. Keep color threshold and aggregate pixel allowance aligned through this module.
 
+The collector processes image pairs serially. Changed pairs reuse dimensions from pixel comparison; added and removed images read dimensions from metadata, avoiding raw pixel decoding solely to size preview output.
+
 PR Storybook comparison is advisory: added, changed, and removed screenshots produce before/after/diff artifacts for the PR comment; unchanged images are omitted. Base and PR render failures emit warnings without failing the comparison job, so available screenshots still reach visual review. A missing render is not proof of an intentional removal; inspect render warnings when artifacts are incomplete.
 
 ## Boundaries

@@ -91,7 +91,7 @@ jobs:
         run: |
           bun install
           cd client
-          bunx playwright test --update-snapshots --grep-invert "covered stories render without API requests"
+          bunx playwright test --update-snapshots --reporter=line --grep-invert "covered stories render without API requests"
 
         # Missing base screenshots remain reviewable as additions.
         continue-on-error: true
@@ -101,7 +101,7 @@ jobs:
         env:
           RACEIQ_SNAPSHOT_DIR: ${{ runner.temp }}/pr-snapshots
           RACEIQ_SNAPSHOT_RESULTS_DIR: ${{ runner.temp }}/pr-snapshot-results
-        run: bunx playwright test --update-snapshots
+        run: bunx playwright test --update-snapshots --reporter=line
         # Keep running so diffs can be collected and posted as UI awareness.
         continue-on-error: true
 

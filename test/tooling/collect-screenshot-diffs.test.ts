@@ -233,17 +233,32 @@ describe("collect-screenshot-diffs", () => {
     expect(existsSync(join(out, "changed--responsive--desktop--changed-diff.png"))).toBe(true);
   });
 
-  test("reports same-path dimension changes", async () => {
+  test("reports same-path dimension changes and pads both images to maximum dimensions", async () => {
     const root = makeTempDir();
     const base = join(root, "base");
     const current = join(root, "current");
     const out = join(root, "out");
 
-    await writePng(join(base, "desktop", "resized.png"), { r: 20, g: 20, b: 20 }, 100, 100);
-    await writePng(join(current, "desktop", "resized.png"), { r: 20, g: 20, b: 20 }, 101, 100);
+    await writePng(join(base, "desktop", "resized.png"), { r: 220, g: 10, b: 20 }, 100, 80);
+    await writePng(join(current, "desktop", "resized.png"), { r: 10, g: 220, b: 20 }, 80, 100);
 
-    await collect(base, current, out);
-    expect(existsSync(join(out, "changed--responsive--desktop--resized-diff.png"))).toBe(true);
+    const [change] = await collect(base, current, out);
+    expect(change).toMatchObject({ width: 100, height: 100, differingPixels: 0 });
+
+    const before = join(out, change!.beforeFile);
+    const after = join(out, change!.afterFile);
+    expect(await sharp(before).metadata()).toMatchObject({ width: 100, height: 100 });
+    expect(await sharp(after).metadata()).toMatchObject({ width: 100, height: 100 });
+    const [beforeBottom, afterRight, beforeContent, afterContent] = await Promise.all([
+      sharp(before).extract({ left: 40, top: 99, width: 1, height: 1 }).raw().toBuffer(),
+      sharp(after).extract({ left: 99, top: 40, width: 1, height: 1 }).raw().toBuffer(),
+      sharp(before).extract({ left: 40, top: 40, width: 1, height: 1 }).raw().toBuffer(),
+      sharp(after).extract({ left: 40, top: 40, width: 1, height: 1 }).raw().toBuffer(),
+    ]);
+    expect([...beforeBottom]).toEqual([17, 24, 39, 255]);
+    expect([...afterRight]).toEqual([17, 24, 39, 255]);
+    expect([...beforeContent]).toEqual([220, 10, 20, 255]);
+    expect([...afterContent]).toEqual([10, 220, 20, 255]);
   });
 
   test("merges shard outputs and metadata without decoding screenshots", async () => {
