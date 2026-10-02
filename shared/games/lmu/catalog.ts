@@ -34,7 +34,7 @@ export interface LMUTrackCatalogEntry {
 
 const COMMON_TRACK_BY_PREFIX: Record<string, string> = {
   bahrainwec_: "sakhir",
-  barcelona_: "catalunya",
+  barcelona_: "catalunya-no-chicane",
   cotawec_: "austin",
   daytona_: "daytona",
   imolawec_: "imola",

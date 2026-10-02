@@ -13,6 +13,7 @@
 
 ### Fixes
 
+- Stop opening a browser automatically on startup, including first-run and development launches.
 - Warn before deleting a setup that is in use, list its linked sessions and laps, and preserve recordings when removing their setup associations.
 - Keep Analyse Data vertically scrollable; restore borderless wheel metrics, right-align wheel headings, show the combined balance signal, and label pressure units once per row.
 - Label the lap replay selector “Setup” and let users select “No setup” to unlink a saved setup from a lap.
@@ -27,6 +28,7 @@
 - Use the application background instead of gray fill for shared text and numeric inputs.
 
 ### Internal
+- Use bundled ACC track SVGs for segment generation, visualization, and runtime centerlines; remove obsolete centerline CSVs and migrate saved segment and sector positions while preserving curated turns.
 - Exclude generated JavaScript from client typechecking and emit Paraglide declarations in development so translation imports remain typed.
 - Seed and validate the compiled E2E database once per workflow, then restore isolated database and capture copies in seeded shards instead of repeating fixture imports.
 - Include LMU recordings and saved Analyse/Compare chat histories in shared Playwright seed artifacts; restore isolated chat-memory databases in each seeded shard.
@@ -55,6 +57,11 @@
 - Expose ACC penalty codes, types, and time in telemetry, and list observed penalties on the race timeline without counting them as pit stops.
 
 ### Fixes
+- Preserve LMU track map orientation when segment data loads, keeping segment overlays aligned with the initial map.
+- Use common circuit definitions and guides for LMU tracks, aligning the map's lap origin with curated segment percentages instead of showing anonymous auto-detected turns.
+- Show track facts and guides before slow map geometry loads, keeping reference data visible while the outline is loading.
+- Show all 14 Barcelona 2025 turns as separate LMU segments, restoring T6 and T11 and using the correct no-chicane layout and guide.
+- Restore missing official turns across ACC, AC Evo, F1 25, and Forza, keeping Barcelona's 14-turn no-chicane and 16-turn chicane layouts distinct.
 - Stop showing race finishing, grid, and position-change ranks for practice sessions, including LMU test days; retain raw simulator timing ranks.
 - Place qualifying position before Start on the race timeline instead of alongside Finish.
 - Keep the New experiment dialog header and footer visible while its form content scrolls.
@@ -95,6 +102,7 @@
 - Keep expanded session lap tables within mobile viewport with internal horizontal scrolling, separate replay actions, and rounded corners.
 
 ### Internal
+- Enforce complete segment turn coverage against layout facts across committed game geometry, including LMU; reject missing, duplicate, extra, and unnumbered turns without historical gap exemptions.
 - Preserve curated segment overrides during generation and apply that protection to Brands Hatch across ACC, AC Evo, and Forza; remove stale Dingle Dell gap exceptions.
 - Automatically mark dev-panel segment saves as curated overrides and retain override protection when editing sector boundaries.
 - Centralize the Sessions Favorites control in the shared Toggle component with optional star rendering and built-in active styling.

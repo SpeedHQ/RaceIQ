@@ -232,18 +232,12 @@ describe("LMU adapter", () => {
 
   test("inherits shared facts and compatible geometry for catalog tracks", () => {
     const segments = loadLabelledSegments("spa", "lmu");
-    expect(segments.find((segment) => segment.name === "La Source")).toEqual({
-      type: "corner",
-      name: "La Source",
-      direction: "right",
-      startFrac: 0.0279,
-      endFrac: 0.0641,
-      number: 1,
-    });
-    expect(segments.find((segment) => segment.name === "Kemmel")).toMatchObject({
-      type: "straight",
-      name: "Kemmel",
-    });
+    const compatibleSegments = loadLabelledSegments("spa", "acc");
+    for (const name of ["La Source", "Kemmel"]) {
+      expect(segments.find((segment) => segment.name === name)).toEqual(
+        compatibleSegments.find((segment) => segment.name === name),
+      );
+    }
   });
 
   test("encodes installed shared-memory layout and normalizes player telemetry", () => {

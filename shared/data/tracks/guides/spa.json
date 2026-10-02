@@ -2,7 +2,7 @@
   "id": "spa",
   "locale": "en",
   "character": "High-speed, 7km flowing circuit with huge elevation changes and unpredictable weather. Rewards bravery, smooth inputs, and good exits onto long straights.",
-  "sources": "https://www.formula1.com/en/latest/article/circuit-guide-everything-you-need-to-know-about-spa-francorchamps circuit character/corners; long-established F1 circuit knowledge",
+  "sources": "https://www.spa-francorchamps.be/assets/1dc2f8bb-48fc-4ab8-b013-404fc31a0ba3/spagp-map-2024.pdf (official 19-turn map); https://www.formula1.com/en/latest/article/circuit-guide-everything-you-need-to-know-about-spa-francorchamps (circuit character)",
   "corners": [
     {
       "key": "la-source",
@@ -71,24 +71,24 @@
     {
       "key": "stavelot",
       "name": "Stavelot",
-      "numbers": [15],
-      "type": "double-apex right",
-      "technique": "Late first apex, short straight, then commit to second part — exit speed is critical",
-      "trap": "Too much speed into first part compromises second apex and exit onto Courbe Paul Frère"
+      "numbers": [14],
+      "type": "medium-speed right",
+      "technique": "Prioritize a clean exit from T14 — it sets up the fast right-hand Paul Frère bend",
+      "trap": "An early apex compromises traction and the following high-speed section"
     },
     {
       "key": "courbe-paul-frere",
       "name": "Courbe Paul Frère",
-      "numbers": [16],
-      "type": "fast flowing left",
-      "technique": "Near-flat off Stavelot's exit — minimal lift, let the car run out to track edge to set up Blanchimont",
-      "trap": "Lifting early or running wide scrubs momentum all the way through Blanchimont onto the Bus Stop straight"
+      "numbers": [15],
+      "type": "fast flowing right",
+      "technique": "Commit to the right-hand bend after Stavelot with smooth throttle and minimal steering — exit speed feeds Blanchimont",
+      "trap": "Excess steering or a wide exit scrubs momentum on the long run to Blanchimont"
     },
     {
       "key": "blanchimont",
       "name": "Blanchimont",
-      "numbers": [17],
-      "type": "very fast left kink",
+      "numbers": [16, 17],
+      "type": "very fast double left",
       "technique": "Flat in most cars, tiny lift if needed — smooth steering only",
       "trap": "Any snap correction at 250+ km/h risks losing the car"
     },

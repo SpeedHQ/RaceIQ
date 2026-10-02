@@ -17,7 +17,7 @@ import { getIRacingSvgTrackMap } from "@raceiq/game-iracing/track-map";
 import { alignIRacingAutoSegmentsToTurnLabels, type IRacingMapLabel } from "@raceiq/game-iracing/track-map-svg";
 import { lapPath } from "../../../shared/racing/tracks/path";
 import { getLMUTrack } from "@raceiq/games/lmu/catalog";
-import { getLMUTrackBoundaries } from "@raceiq/games/lmu/track-boundaries";
+import { getLMUTrackOutline } from "@raceiq/games/lmu/track-boundaries";
 
 // ─── Param schemas ──────────────────────────────────────────────────────────
 
@@ -204,7 +204,11 @@ export async function resolveTrackSegments(
 ): Promise<{ segments: NamedSegment[]; totalDist: number; source: "shared" | "auto" | "none" }> {
   if (gameId === "lmu") {
     const track = getLMUTrack(String(trackKey));
-    const centerLine = track ? getLMUTrackBoundaries(track.id)?.centerLine : null;
+    const metaSegments = track?.commonTrackName ? loadLabelledSegments(track.commonTrackName, gameId) : [];
+    if (track && metaSegments.length > 0) {
+      return { segments: metaSegments, totalDist: track.lengthKm * 1_000, source: "shared" };
+    }
+    const centerLine = track ? getLMUTrackOutline(track.id) : null;
     if (!centerLine || centerLine.length < 20) return { segments: [], totalDist: 0, source: "none" };
     const result = autoTrackSegments(centerLine);
     return { ...result, source: "auto" };

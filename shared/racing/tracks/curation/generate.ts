@@ -25,6 +25,7 @@ import { loadDetectHints } from "../detect-hints";
 import type { NamedSegment } from "../named-segments";
 import { SHARED_DIR } from "@shared/platform/runtime/data-paths";
 import type { GameId } from "@raceiq/games/ids";
+import { loadAccSvgBoundaryByName } from "../geometry/acc-svg";
 
 export const TRACK_META_DIR = resolve(SHARED_DIR, "tracks", "meta");
 const NO_CENTERLINE_DIR = null;
@@ -62,6 +63,9 @@ export function listCuratedSlugs(): string[] {
 }
 
 export function loadCenterline(filePath: string): { x: number; z: number }[] | null {
+  if (filePath.endsWith(".track.svg")) {
+    return loadAccSvgBoundaryByName(basename(filePath, ".track.svg"))?.centerLine ?? null;
+  }
   try {
     const lines = readFileSync(filePath, "utf-8").split("\n").filter(Boolean);
     const pts = lines.slice(1).map((l) => {
@@ -74,7 +78,7 @@ export function loadCenterline(filePath: string): { x: number; z: number }[] | n
   }
 }
 
-/** Find centerline files for a slug per game. FM files embed the ordinal. */
+/** Find geometry sources per game: ACC SVGs, CSV centerlines elsewhere. */
 export function findCenterlines(slug: string, gameFilter?: string): { gameId: GameId; file: string }[] {
   const found: { gameId: GameId; file: string }[] = [];
   for (const [gameId, dir] of Object.entries(GAME_DIRS) as [GameId, string | null][]) {
@@ -87,7 +91,7 @@ export function findCenterlines(slug: string, gameFilter?: string): { gameId: Ga
         if (re.test(f)) found.push({ gameId, file: resolve(dir, f) });
       }
     } else {
-      const f = resolve(dir, `${slug}-centerline.csv`);
+      const f = resolve(dir, gameId === "acc" ? `${slug}.track.svg` : `${slug}-centerline.csv`);
       if (existsSync(f)) found.push({ gameId, file: f });
     }
   }
@@ -359,15 +363,16 @@ export function autoTrackSegments(outline: { x: number; z: number }[]): {
   };
 }
 
-/** Every centerline file per game (basename without -centerline.csv suffix). */
+/** Every per-game geometry source, keyed by its track slug. */
 export function listAllCenterlines(): { gameId: GameId; slug: string; file: string }[] {
   const found: { gameId: GameId; slug: string; file: string }[] = [];
   for (const [gameId, dir] of Object.entries(GAME_DIRS) as [GameId, string | null][]) {
     if (dir === NO_CENTERLINE_DIR) continue;
     if (!existsSync(dir)) continue;
     for (const f of readdirSync(dir)) {
-      if (!f.endsWith("-centerline.csv")) continue;
-      found.push({ gameId, slug: f.replace(/-centerline\.csv$/, ""), file: resolve(dir, f) });
+      const suffix = gameId === "acc" ? ".track.svg" : "-centerline.csv";
+      if (!f.endsWith(suffix)) continue;
+      found.push({ gameId, slug: f.slice(0, -suffix.length), file: resolve(dir, f) });
     }
   }
   return found;

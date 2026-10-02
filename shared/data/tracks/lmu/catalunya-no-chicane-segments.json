@@ -1,0 +1,27 @@
+{
+  "override": true,
+  "sectors": {
+    "s1End": 0.35167448721499706,
+    "s2End": 0.7211610120489224,
+    "source": "LMU catalog"
+  },
+  "segments": [
+    { "key": "s14", "startFrac": 0, "endFrac": 0.1503 },
+    { "key": "t1", "startFrac": 0.1503, "endFrac": 0.1981 },
+    { "key": "t2", "startFrac": 0.1981, "endFrac": 0.225 },
+    { "key": "t3", "startFrac": 0.225, "endFrac": 0.3354 },
+    { "key": "t4", "startFrac": 0.3354, "endFrac": 0.4274 },
+    { "key": "t5", "startFrac": 0.4274, "endFrac": 0.4921 },
+    { "key": "t6", "startFrac": 0.4921, "endFrac": 0.5398 },
+    { "key": "t7", "startFrac": 0.5398, "endFrac": 0.5658 },
+    { "key": "t8", "startFrac": 0.5658, "endFrac": 0.6103 },
+    { "key": "t9", "startFrac": 0.6103, "endFrac": 0.6628 },
+    { "key": "s9", "startFrac": 0.6628, "endFrac": 0.7208 },
+    { "key": "t10", "startFrac": 0.7208, "endFrac": 0.7681 },
+    { "key": "t11", "startFrac": 0.7681, "endFrac": 0.8008 },
+    { "key": "t12", "startFrac": 0.8008, "endFrac": 0.8567 },
+    { "key": "t13", "startFrac": 0.8567, "endFrac": 0.912 },
+    { "key": "t14", "startFrac": 0.912, "endFrac": 0.9742 },
+    { "key": "s14", "startFrac": 0.9742, "endFrac": 1 }
+  ]
+}

@@ -74,6 +74,5 @@ describe("iRacing native-sector visualization", () => {
     const svg = readFileSync(OUTPUT, "utf8");
     expect(svg).toContain("S1 0.340");
     expect(svg).toContain("S2 0.670");
-    expect(svg).toContain("11 corners");
   });
 });

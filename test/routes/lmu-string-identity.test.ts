@@ -6,6 +6,7 @@ import { sessionRoutes } from "../../server/routes/session-routes";
 import { trackRoutes } from "../../server/routes/tracks";
 import { settingsRoutes } from "../../server/routes/settings-routes";
 import tracksJson from "@raceiq/games/lmu/tracks.json";
+import { loadLabelledSegments } from "../../shared/racing/tracks/storage/meta";
 
 const sessionIds: number[] = [];
 
@@ -38,6 +39,79 @@ describe("LMU string identity routes", () => {
     const outline = await outlineResponse.json() as { points: unknown[]; source: string };
     expect(outline.source).toBe("extracted");
     expect(outline.points.length).toBeGreaterThan(10);
+  });
+
+  test("keeps SVG-space LMU outlines unmirrored when rendered with segments", async () => {
+    const response = await trackRoutes.request(`/api/track-outline/${encodeURIComponent("spa_2023/spaelms")}?gameId=lmu`);
+    expect(response.status).toBe(200);
+    const outline = await response.json() as { flipX: boolean };
+    // drawTrack mirrors telemetry-space X by default; SVG-space X must be preserved.
+    expect(outline.flipX).toBe(true);
+  });
+
+  test("uses common Spa corner definitions and starting percentages for LMU", async () => {
+    const encoded = encodeURIComponent("spa_2023/spaelms");
+    const compatibleSegments = loadLabelledSegments("spa", "acc");
+    const expectedLaSource = compatibleSegments.find((segment) => segment.name === "La Source")!;
+    const kemmel = compatibleSegments.find((segment) => segment.name === "Kemmel")!;
+    const response = await trackRoutes.request(`/api/track-sectors/${encoded}?gameId=lmu`);
+    expect(response.status).toBe(200);
+    const data = await response.json() as { source: string; segments: Array<{ name: string; startFrac: number; endFrac: number }> };
+    expect(data.source).toBe("shared");
+    expect(data.segments.find((segment) => segment.name === "La Source")).toMatchObject({
+      startFrac: expectedLaSource.startFrac,
+      endFrac: expectedLaSource.endFrac,
+    });
+    expect(data.segments.find((segment) => segment.name === "Kemmel")).toMatchObject({
+      startFrac: kemmel.startFrac,
+      endFrac: kemmel.endFrac,
+    });
+
+    const outlineResponse = await trackRoutes.request(`/api/track-outline/${encoded}?gameId=lmu`);
+    const { points } = await outlineResponse.json() as { points: Array<{ x: number; z: number }> };
+    const cumulative = [0];
+    for (let index = 1; index < points.length; index++) {
+      cumulative.push(cumulative[index - 1] + Math.hypot(points[index].x - points[index - 1].x, points[index].z - points[index - 1].z));
+    }
+    const laSource = data.segments.find((segment) => segment.name === "La Source")!;
+    const target = (laSource.startFrac + laSource.endFrac) / 2 * cumulative[cumulative.length - 1];
+    const index = cumulative.findIndex((distance) => distance >= target);
+    const minZ = Math.min(...points.map((point) => point.z));
+    const maxZ = Math.max(...points.map((point) => point.z));
+    // La Source is the top hairpin, not the Eau Rouge approach halfway down the map.
+    expect((points[index].z - minZ) / (maxZ - minZ)).toBeLessThan(0.1);
+  });
+
+  test("resolves the common Spa guide using the canonical LMU track ID", async () => {
+    const response = await trackRoutes.request(`/api/track-guide/${encodeURIComponent("spa_2023/spaelms")}?gameId=lmu`);
+    expect(response.status).toBe(200);
+    const guide = await response.json() as { id: string; corners: Array<{ numbers: number[]; label: string }> };
+    expect(guide.id).toBe("spa");
+    expect(guide.corners.find((corner) => corner.numbers?.includes(1))?.label).toContain("La Source");
+  });
+
+  test("places every Barcelona no-chicane turn in a separate segment", async () => {
+    const encoded = encodeURIComponent("barcelona_2025/barcelonaelms");
+    const response = await trackRoutes.request(`/api/track-sectors/${encoded}?gameId=lmu`);
+    expect(response.status).toBe(200);
+    const data = await response.json() as { source: string; segments: Array<{ type: string; number?: number; covers?: number[]; direction?: string; startFrac: number; endFrac: number }> };
+    expect(data.source).toBe("shared");
+    const corners = data.segments.filter((segment) => segment.type === "corner");
+    expect(corners.map((segment) => segment.number)).toEqual(Array.from({ length: 14 }, (_, index) => index + 1));
+    expect(corners.every((segment) => !segment.covers?.length)).toBe(true);
+    expect(corners[5]).toMatchObject({ number: 6, direction: "left" });
+    expect(corners[10]).toMatchObject({ number: 11, direction: "left" });
+    for (let index = 0; index < data.segments.length; index++) {
+      const segment = data.segments[index];
+      expect(segment.endFrac).toBeGreaterThan(segment.startFrac);
+      expect(segment.startFrac).toBe(index === 0 ? 0 : data.segments[index - 1].endFrac);
+    }
+    expect(data.segments[data.segments.length - 1].endFrac).toBe(1);
+
+    const guideResponse = await trackRoutes.request(`/api/track-guide/${encoded}?gameId=lmu`);
+    const guide = await guideResponse.json() as { corners: Array<{ numbers?: number[]; priority: boolean }> };
+    expect(guide.corners.every((corner) => corner.numbers?.every((number) => number >= 1 && number <= 14))).toBe(true);
+    expect(guide.corners.find((corner) => corner.numbers?.includes(14))?.priority).toBe(true);
   });
 
   test("counts and filters LMU laps by canonical string while preserving legacy rows", async () => {

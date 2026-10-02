@@ -30,7 +30,7 @@ export function guideAnchors(): GuideAnchor[] {
 export const KNOWN_ANCHOR_GAPS: Record<string, string[]> = {
   "mount-panorama": ["Mountain Straight", "Conrod Straight"], montreal: ["Wall of Champions"], interlagos: ["Subida dos Boxes"],
   valencia: ["Turn 9", "Turn 12"], misano: ["Tramonto"], nurburgring: ["Bit-Kurve", "Veedol"], nordschleife: ["Fuchsröhre", "Döttinger Höhe"],
-  catalunya: ["Turn 12-13", "Turn 14-15"], fuji: ["TGR Corner", "Coca-Cola Corner", "Toyopet 100R", "Advan Corner", "300R", "Dunlop Corner", "GR Supra Corner", "Panasonic Corner"],
+  fuji: ["TGR Corner", "Coca-Cola Corner", "Toyopet 100R", "Advan Corner", "300R", "Dunlop Corner", "GR Supra Corner", "Panasonic Corner"],
   "yas-marina": ["Hotel Corners", "Marina Section"], hockenheim: ["Motodrom", "Turn 6"], "mid-ohio": ["Madness", "Thunder Valley", "Carousel"],
   zolder: ["Kanaalbocht", "Butte"], kyalami: ["The Kink", "Crowthorne"], snetterton: ["Wilson"], "lime-rock": ["Righthander (No Name Straight approach)"], "paul-ricard": ["Mistral Straight Chicane"], indianapolis: ["Turn 16"],
   sochi: ["Turn 2", "Turn 3", "Turn 4", "Turn 12-13"], portimao: ["Primeira", "Turn 4", "Torre Vip", "Turn 15"], hanoi: ["Turn 1", "Turn 6-9", "Turn 11"],

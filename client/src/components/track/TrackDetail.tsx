@@ -7,6 +7,7 @@ import { F125SetupsWithGuide } from "@/components/f1/f125/TrackSetups";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBulkDeleteLaps } from "@/hooks/laps";
+import { queryKeys } from "@/hooks/query-keys";
 import { drawTrack } from "@/lib/canvas/draw-track";
 import { countryName } from "@/lib/country-names";
 import { storedLapsSectorCount } from "@/lib/lap-sectors";
@@ -120,39 +121,58 @@ export function TrackDetail({
     setHoveredSector(null);
   }, [activeTab, trackKey, gameId]);
 
-  const { data: trackMapData } = useQuery({
-    queryKey: ["track-map", trackKey, gameId ?? null],
+  const { data: sectorData, isFetched: sectorsFetched } = useQuery({
+    queryKey: [...queryKeys.trackSectors(trackKey), gameId ?? null],
     queryFn: () =>
-      Promise.all([
-        client.api["track-outline"][":ordinal"]
-          .$get({ param: { ordinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gid ?? undefined } })
-          .then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[]),
-        client.api["track-sectors"][":ordinal"]
-          .$get({ param: { ordinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gid! } })
-          .then((r) => r.json() as unknown as (TrackSectors & { source?: string }) | null),
-        client.api["track-sector-boundaries"][":ordinal"]
-          .$get({ param: { ordinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gid! } })
-          .then((r) => r.json() as unknown as { s1End: number; s2End: number } | null),
-      ]).then(([outlineData, sectorData, boundsData]) => ({ outlineData, sectorData, boundsData })),
-    enabled: !!gameId && (track.hasOutline || !!track.hasMap),
+      client.api["track-sectors"][":ordinal"]
+        .$get({ param: { ordinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gid! } })
+        .then((r) => r.json() as unknown as (TrackSectors & { source?: string }) | null),
+    enabled: !!gameId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: boundsData, isFetched: boundsFetched } = useQuery({
+    queryKey: [...queryKeys.trackSectorBoundaries(trackKey), gameId ?? null],
+    queryFn: () =>
+      client.api["track-sector-boundaries"][":ordinal"]
+        .$get({ param: { ordinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gid! } })
+        .then((r) => r.json() as unknown as { s1End: number; s2End: number } | null),
+    enabled: !!gameId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: outlineData } = useQuery({
+    queryKey: [...queryKeys.trackOutline(trackKey), gameId ?? null],
+    queryFn: () =>
+      client.api["track-outline"][":ordinal"]
+        .$get({ param: { ordinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gid ?? undefined } })
+        .then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[]),
+    // Return lightweight facts before cold outline alignment can block the server.
+    enabled: !!gameId && (track.hasOutline || !!track.hasMap) && sectorsFetched && boundsFetched,
     staleTime: 5 * 60 * 1000,
   });
 
   useEffect(() => {
-    if (!trackMapData) return;
-    const { outlineData, sectorData, boundsData } = trackMapData;
     if (!Array.isArray(outlineData) && outlineData?.points && Array.isArray(outlineData.points)) {
       setOutline(outlineData.points);
       setFlipX(outlineData.flipX ?? false);
     } else if (Array.isArray(outlineData)) {
       setOutline(outlineData as Point[]);
+      setFlipX(false);
     } else {
       setOutline(null);
+      setFlipX(false);
     }
-    setSectors(sectorData);
-    setSegSource((sectorData as (TrackSectors & { source?: string }) | null)?.source ?? "");
+  }, [outlineData]);
+
+  useEffect(() => {
+    setSectors(sectorData ?? null);
+    setSegSource(sectorData?.source ?? "");
+  }, [sectorData]);
+
+  useEffect(() => {
     setSectorBounds(boundsData ?? (gameId === "lmu" ? { s1End: 1 / 3, s2End: 2 / 3 } : null));
-  }, [trackMapData, track.hasOutline, gameId]);
+  }, [boundsData, gameId]);
 
   // Fetch all laps for this track
   const { data: trackLapsData = [], refetch: refetchLaps } = useQuery<TrackLap[]>({

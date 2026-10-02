@@ -1,4 +1,5 @@
 {
+  "override": true,
   "sectors": {
     "s1End": 0.336,
     "s2End": 0.641
@@ -87,11 +88,16 @@
     {
       "key": "t13-14",
       "startFrac": 0.8845,
-      "endFrac": 0.9472
+      "endFrac": 0.92311
     },
     {
-      "key": "s13",
-      "startFrac": 0.9472,
+      "key": "t15",
+      "startFrac": 0.92311,
+      "endFrac": 0.93544
+    },
+    {
+      "key": "s15",
+      "startFrac": 0.93544,
       "endFrac": 1
     }
   ]

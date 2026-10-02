@@ -16,7 +16,7 @@ import {
 } from "../../lap-detection/detector";
 import type { GameId } from "@raceiq/games/ids";
 import { computeLapSectors } from "../../lap-analysis/sectors";
-import { getLMUTrackBoundaries } from "@raceiq/games/lmu/track-boundaries";
+import { getLMUTrackOutline } from "@raceiq/games/lmu/track-boundaries";
 import {
   decodeTrackKey,
   OrdinalKeyParamSchema,
@@ -191,9 +191,10 @@ export const trackOutlineRoutes = new Hono()
       const trackKey = decodeTrackKey(c.req.valid("param").ordinal);
       const gameId = c.req.query("gameId");
       if (gameId === "lmu") {
-        const boundaries = getLMUTrackBoundaries(trackKey);
-        if (!boundaries?.centerLine?.length) return c.json({ error: "No outline available" }, 404);
-        return c.json({ points: boundaries.centerLine, flipX: false, source: "extracted" });
+        const points = getLMUTrackOutline(trackKey);
+        if (!points?.length) return c.json({ error: "No outline available" }, 404);
+        // SVG coordinates already use display-space X; disable the canvas telemetry-space mirror.
+        return c.json({ points, flipX: true, source: "extracted" });
       }
       const ordinal = Number(trackKey);
       if (!Number.isInteger(ordinal)) return c.json({ error: "ordinal must be an integer" }, 400);

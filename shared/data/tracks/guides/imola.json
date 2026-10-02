@@ -2,7 +2,7 @@
   "id": "imola",
   "locale": "en",
   "character": "Historic 4.9km circuit, narrow and technical with limited overtaking. Undulating, flowing, and punishing mistakes with little runoff. Precision and curb management are key.",
-  "sources": "https://www.formula1.com/en/racing/2026/emilia-romagna/circuit official F1 circuit guide; Tamburello/Villeneuve/Tosa/Rivazza naming long-established",
+  "sources": "https://www.fia.com/system/files/decision-document/2025_imola_event_-_circuit_map_-_imola_2025.pdf (official 19-turn numbered map)",
   "corners": [
     {
       "key": "variante-tamburello",
@@ -32,7 +32,7 @@
       "key": "piratella",
       "name": "Piratella",
       "numbers": [9],
-      "type": "fast uphill right (T9)",
+      "type": "fast uphill left (T9)",
       "technique": "Near-flat or light braking, use the elevation to your advantage. Commitment rewarded",
       "trap": "Lifting kills momentum through the fast section that follows"
     },
@@ -48,14 +48,14 @@
       "key": "variante-alta",
       "name": "Variante Alta",
       "numbers": [14, 15],
-      "type": "left-right chicane (T14-T15)",
+      "type": "right-left chicane (T14-T15)",
       "technique": "Hard braking, carry speed to late apex. Critical exit feeds Rivazza approach",
       "trap": "Compromising exit speed by over-driving the entry"
     },
     {
       "key": "rivazza-1",
       "name": "Rivazza 1",
-      "numbers": [17, 18],
+      "numbers": [17],
       "type": "fast downhill left (T17)",
       "technique": "Brave entry, trail brake to apex, use camber for grip",
       "trap": "Braking too early wastes the downhill advantage"
@@ -63,7 +63,7 @@
     {
       "key": "rivazza-2",
       "name": "Rivazza 2",
-      "numbers": [17, 18],
+      "numbers": [18],
       "type": "medium-speed left (T18)",
       "technique": "Late apex, progressive throttle. Exit speed feeds start/finish straight",
       "trap": "Early apex = wheelspin on exit = slow pit straight"

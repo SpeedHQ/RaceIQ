@@ -33,6 +33,41 @@ Track domain owns static track facts, game-specific fractions, and label-ready h
 - `splitSegments` is inverse for editors/normalization loops.
 - Fact keys come from `keys.ts`; straight keys are `s<number>` and corner keys are `t<number>` or `tN-M`.
 
+### Barcelona layouts
+- `catalunya` describes the older 16-turn Grand Prix layout with the final chicane.
+- LMU Barcelona 2025, F1 25, and Forza's Grand Prix Circuit select `catalunya-no-chicane`: the official 14-turn layout, with its own facts, guide, and per-game geometry.
+- Native geometry is measured independently for each game. The continuous left-hand T10/T11 bend is split at its curvature transition; the following right-hand bands are T12, T13, and final T14, not extra turns on the intervening straights.
+- ACC retains the 16-turn chicane layout, including shallow T6 and separate T14/T15 chicane sections. Do not reuse its fractions or final-sector numbering for the no-chicane layout.
+
+### Research-backed turn restoration
+The 29 repaired track/game lists use native CSV arc length and circuit-map landmarks, not evenly divided gaps or renamed neighboring corners. Curvature sign is calibrated against a known corner in each coordinate frame; reflected game coordinates do not change real-world handedness. Measured geometry carries `override: true` so regeneration preserves the complete roster.
+
+| Circuit | Repaired games | Reference map |
+| --- | --- | --- |
+| Barcelona-Catalunya | ACC, F1 25, Forza | [Circuit manual](https://premsa.circuitcat.com/2025/Oficials/2025%20Manual%20del%20Oficial%20de%20Carrera%20%28febrero%29.pdf), [LMU no-chicane layout](https://lemansultimate.com/circuit/circuit-de-barcelona-catalunya/), [ACC layout](https://unitedcorsa.com/en-gb/discover/assetto-corsa-competizione/tracks/barcelona) |
+| Donington | ACC, AC Evo | [Official circuit map](https://www.donington-park.co.uk/about/circuit-map) |
+| Imola | ACC, AC Evo, F1 25 | [FIA 2025 numbered map, page 2](https://www.fia.com/system/files/decision-document/2025_imola_event_-_circuit_map_-_imola_2025.pdf) |
+| Red Bull Ring | ACC, AC Evo, F1 25 | [Official numbered corners](https://www.redbullring.com/en/events-tickets/formula-1/formula-1-circuit/) |
+| Laguna Seca | AC Evo | [Official track information and racing lines](https://weathertechraceway.com/pages/track-information) |
+| Mid-Ohio | Forza | [Official facility map](https://www.midohio.com/plan-your-visit/facilitymap) |
+| Montréal | F1 25 | [FIA 2025 circuit map](https://www.fia.com/system/files/decision-document/2025_canadian_grand_prix_-_event_notes_-_circuit_map_pit_lane_emergency_exits_map_ers_battery_containment_area_red_zones.pdf) |
+| Road America | Forza | [Official maps](https://www.roadamerica.com/maps) |
+| Road Atlanta | AC Evo | [Official track map](https://www.roadatlanta.com/track-info/about-mrra/track-map) |
+| Sebring | AC Evo, Forza | [Official track maps](https://www.sebringraceway.com/track-maps/) |
+| VIR | Forza | [Official configurations](https://virnow.com/track/configurations/) |
+| Baku | F1 25 | [Formula 1 map](https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Baku_Circuit.webp) |
+| Jeddah | F1 25 | [Formula 1 map](https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Saudi_Arabia_Circuit.webp) |
+| Las Vegas | F1 25 | [Formula 1 map](https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Las_Vegas_Circuit.webp) |
+| Lusail | F1 25 | [Formula 1 map](https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Qatar_Circuit.webp) |
+| Sakhir | F1 25 | [Formula 1 map](https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Bahrain_Circuit.webp) |
+| Shanghai | F1 25 | [Formula 1 map](https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/China_Circuit.webp) |
+| Hockenheim | Forza | [FIA numbered GP map](https://www.fia.com/sites/default/files/circuit_map_13.pdf) |
+| Silverstone | ACC | [Official circuit map](https://www.silverstone.co.uk/sites/default/files/pdf/British%20GT%202025%20Map.pdf) |
+| Spa | AC Evo | [Official numbered GP map](https://www.spa-francorchamps.be/assets/1dc2f8bb-48fc-4ab8-b013-404fc31a0ba3/spagp-map-2024.pdf) |
+| Zandvoort | ACC | [Official corner map](https://www.circuitzandvoort.nl/en/corners/) |
+
+Map correspondence matters beyond counts: Montréal T10 is the main hairpin and T11 its weak exit bend; Imola T16 is the right-hand kink before the two Rivazza left-handers; Red Bull Ring T7 is left and T8 right. Spa T15 is Paul Frère, while T16/T17 are Blanchimont. Shanghai T15 uses the secondary hairpin-exit curvature peak, not the nearly straight run to T16.
+
 ## Browser vs Node boundary
 ### Browser-safe imports
 - `facts.ts`, `geometry.ts`, `keys.ts`, `named-segments.ts`, `segment-label.ts`, `projection.ts`, `coords.ts`, `sectors.ts`, `path.ts`, `geometry/points.ts`, `geometry/types.ts`, `curation/join.ts`, `curation/segment-align-detect.ts`, and `curation/segment-align-match.ts`.
@@ -65,3 +100,5 @@ Track domain owns static track facts, game-specific fractions, and label-ready h
 - `shared/racing/tracks/curation/verified.ts` records human sign-off hashes in `shared/data/tracks/verified.json`.
 - `shared/racing/tracks/curation/coverage.ts` renders curation coverage.
 - `bun run tracks:coverage --write` refreshes the generated coverage tables in the track-curation contribution guide.
+- `bun test test/tracks/model/track-roster.test.ts` checks every committed game's displayed corner list against its layout facts. Expanded `number` + `covers` must match the complete fact roster exactly, including multiplicity; missing, extra, duplicate, and unnumbered turns fail.
+- Facts must account for the contiguous official sequence `1..N`. Detector `optional` hints and historical corner-gap allow-lists do not exempt committed segment lists from coverage.

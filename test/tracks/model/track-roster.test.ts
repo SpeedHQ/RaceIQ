@@ -4,11 +4,15 @@ import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { cornerNumbers, type TrackFacts } from "../../../shared/racing/tracks/facts";
 import type { TrackGeometry } from "../../../shared/racing/tracks/geometry";
-import { checkKeys } from "../../../shared/racing/tracks/curation/join";
+import { checkKeys, joinSegments } from "../../../shared/racing/tracks/curation/join";
 import { SHARED_DIR } from "../../../shared/platform/runtime/data-paths";
+import { turnNumbers } from "../../../shared/racing/tracks/segment-label";
 
 const META_DIR = resolve(SHARED_DIR, "tracks", "meta");
-const GAME_IDS = ["fm-2023", "acc", "ac-evo", "f1-2025"] as const;
+const GAME_IDS = readdirSync(resolve(SHARED_DIR, "tracks"), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name)
+  .sort();
 function loadFacts(slug: string): TrackFacts {
   return JSON.parse(readFileSync(resolve(META_DIR, `${slug}.json`), "utf-8")) as TrackFacts;
 }
@@ -21,17 +25,6 @@ function geometryFor(slug: string): Record<string, TrackGeometry> {
   return out;
 }
 const SLUGS = readdirSync(META_DIR).filter((f) => f.endsWith(".json")).map((f) => f.replace(".json", "")).sort();
-const KNOWN_CORNER_GAPS: Record<string, string[]> = {
-  "catalunya/acc": ["t13", "t15", "t6"], "catalunya/f1-2025": ["t13", "t14", "t15"], "catalunya/fm-2023": ["t13", "t14", "t15"],
-  "imola/acc": ["t1", "t16", "t8"], "imola/ac-evo": ["t1", "t10", "t13", "t16", "t8"], "imola/f1-2025": ["t1", "t8"],
-  "laguna-seca/ac-evo": ["t1"], "sebring/ac-evo": ["t12", "t2"], "sebring/fm-2023": ["t2"],
-  "silverstone/acc": ["t5"], "spa/ac-evo": ["t16"], "zandvoort/acc": ["t13"],
-  "baku/f1-2025": ["t13", "t14"], "hockenheim/fm-2023": ["t11", "t4", "t5"], "jeddah/f1-2025": ["t19", "t25"],
-  "las-vegas/f1-2025": ["t11"], "lusail/f1-2025": ["t11"], "mid-ohio/fm-2023": ["t3"], "montreal/f1-2025": ["t11"],
-  "road-america/fm-2023": ["t2", "t4"], "sakhir/f1-2025": ["t15"], "shanghai/f1-2025": ["t15"], "vir/fm-2023": ["t2"],
-  "donington/acc": ["t6"], "donington/ac-evo": ["t6"], "spielberg/acc": ["t2", "t8"], "spielberg/ac-evo": ["t2", "t8"], "spielberg/f1-2025": ["t2", "t8"],
-  "road-atlanta/ac-evo": ["t8"],
-};
 const KNOWN_STRAIGHT_GAPS: Record<string, string[]> = {};
 
 describe("committed roster", () => {
@@ -55,10 +48,13 @@ describe("committed roster", () => {
       expect(leaked, `${slug}/${gameId}`).toEqual([]);
     }
   });
-  test("a corner's turn numbers are unique within its layout", () => {
+  test("facts account for every official turn exactly once", () => {
     for (const slug of SLUGS) {
-      const seen = new Set<number>();
-      for (const corner of loadFacts(slug).corners) for (const n of cornerNumbers(corner)) { expect(seen.has(n), `${slug} turn ${n} claimed twice`).toBe(false); seen.add(n); }
+      const turns = loadFacts(slug).corners.flatMap(cornerNumbers).sort((a, b) => a - b);
+      const turnCount = turns.at(-1) ?? 0;
+      expect(turns, `${slug}: missing or duplicate fact turn numbers`).toEqual(
+        Array.from({ length: turnCount }, (_, index) => index + 1),
+      );
     }
   });
   test("a corner's `number` is the lowest of the span it covers", () => {
@@ -70,23 +66,35 @@ describe("committed roster", () => {
       for (const s of facts.straights ?? []) expect(turns.has(s.after), `${slug} straight after T${s.after}`).toBe(true);
     }
   });
-  test("no game silently drops a corner its layout declares", () => {
-    const gaps: Record<string, string[]> = {};
-    for (const slug of SLUGS) {
-      const geometry = geometryFor(slug); if (Object.keys(geometry).length === 0) continue;
-      for (const m of checkKeys(loadFacts(slug), geometry)) { expect(m.unknown, `${slug}/${m.gameId} references turns the layout lacks`).toEqual([]); if (m.missing.length) gaps[`${slug}/${m.gameId}`] = m.missing; }
+  for (const slug of SLUGS) {
+    const facts = loadFacts(slug);
+    const expectedTurns = facts.corners.flatMap(cornerNumbers).sort((a, b) => a - b);
+    for (const [gameId, geometry] of Object.entries(geometryFor(slug))) {
+      test(`${gameId}/${slug}: displayed segments cover every fact turn exactly once`, () => {
+        const corners = joinSegments(facts, geometry).filter((segment) => segment.type === "corner");
+        expect(corners.every((corner) => Number.isInteger(corner.number)), "unnumbered corner").toBe(true);
+        // Do not deduplicate: duplicates can hide a missing turn when counts match.
+        const actualTurns = corners.flatMap(turnNumbers).sort((a, b) => a - b);
+        const missing = expectedTurns.filter((number) => !actualTurns.includes(number));
+        const extra = actualTurns.filter((number) => !expectedTurns.includes(number));
+        const duplicates = actualTurns.filter((number, index) => actualTurns.indexOf(number) !== index);
+        expect(
+          actualTurns,
+          `missing: [${missing}]; extra: [${extra}]; duplicate: [${duplicates}]; expected ${expectedTurns.length} official turns`,
+        ).toEqual(expectedTurns);
+      });
     }
-    const unexpected = Object.entries(gaps).filter(([k, missing]) => (KNOWN_CORNER_GAPS[k] ?? []).join() !== missing.join()).map(([k, missing]) => `${k}: missing ${missing.join(",")}`);
-    expect(unexpected, "new corner gap — fix the detector or record it in KNOWN_CORNER_GAPS").toEqual([]);
-  });
-  test("KNOWN_CORNER_GAPS has no stale entries", () => {
-    const live = new Set<string>();
-    for (const slug of SLUGS) { const geometry = geometryFor(slug); if (!Object.keys(geometry).length) continue; for (const m of checkKeys(loadFacts(slug), geometry)) if (m.missing.length) live.add(`${slug}/${m.gameId}`); }
-    expect(Object.keys(KNOWN_CORNER_GAPS).filter((k) => !live.has(k)), "gap is fixed — delete it from KNOWN_CORNER_GAPS").toEqual([]);
-  });
+  }
   test("no game silently drops a named straight", () => {
     const gaps: Record<string, string[]> = {};
-    for (const slug of SLUGS) { const geometry = geometryFor(slug); if (!Object.keys(geometry).length) continue; for (const m of checkKeys(loadFacts(slug), geometry)) if (m.unplacedStraights.length) gaps[`${slug}/${m.gameId}`] = m.unplacedStraights; }
+    for (const slug of SLUGS) {
+      const geometry = geometryFor(slug);
+      if (!Object.keys(geometry).length) continue;
+      for (const m of checkKeys(loadFacts(slug), geometry)) {
+        expect(m.unknown, `${slug}/${m.gameId} references keys the layout lacks`).toEqual([]);
+        if (m.unplacedStraights.length) gaps[`${slug}/${m.gameId}`] = m.unplacedStraights;
+      }
+    }
     const unexpected = Object.entries(gaps).filter(([k, unplaced]) => (KNOWN_STRAIGHT_GAPS[k] ?? []).join() !== unplaced.join()).map(([k, unplaced]) => `${k}: never places ${unplaced.join(",")}`);
     expect(unexpected, "new unplaced named straight — fix the detector or record it in KNOWN_STRAIGHT_GAPS").toEqual([]);
   });
@@ -103,4 +111,29 @@ describe("committed roster", () => {
     const seen = new Set<string>();
     for (const slug of SLUGS) { const facts = loadFacts(slug); const pair = `${facts.track}/${facts.layout}`; expect(seen.has(pair), `duplicate layout ${pair} at ${slug}`).toBe(false); seen.add(pair); }
   });
+});
+
+describe("curated native corner landmarks", () => {
+  // Native centerline apex locations checked against the official maps cited
+  // in the track README. These are independent of the edited section bounds:
+  // a complete numbered list must not hide a turn placed on the wrong bend.
+  const cases = [
+    ["acc", "imola", [[14, 0.684449], [15, 0.696388], [16, 0.801587], [17, 0.850699], [18, 0.878461], [19, 0.936216]]],
+    ["ac-evo", "imola", [[14, 0.686022], [15, 0.692708], [16, 0.808773], [17, 0.847632], [18, 0.871428], [19, 0.945783]]],
+    ["f1-2025", "imola", [[14, 0.729924], [15, 0.737697], [16, 0.854711], [17, 0.889661], [18, 0.919032], [19, 0.988975]]],
+    ["f1-2025", "catalunya-no-chicane", [[10, 0.751846], [11, 0.783967], [12, 0.830048], [13, 0.882708], [14, 0.927844]]],
+    ["fm-2023", "catalunya-no-chicane", [[10, 0.727547], [11, 0.755778], [12, 0.788697], [13, 0.846450], [14, 0.908861]]],
+    ["f1-2025", "shanghai", [[14, 0.882334], [15, 0.899322], [16, 0.950348]]],
+  ] as const;
+
+  for (const [gameId, slug, landmarks] of cases) {
+    test(`${gameId}/${slug}: official turns own their native apex landmarks`, () => {
+      const segments = joinSegments(loadFacts(slug), geometryFor(slug)[gameId]);
+      for (const [number, apexFrac] of landmarks) {
+        const section = segments.find((segment) => apexFrac >= segment.startFrac && apexFrac < segment.endFrac);
+        expect(section?.type, `${gameId}/${slug} T${number} apex is not a straight`).toBe("corner");
+        expect(section?.number, `${gameId}/${slug} apex at ${apexFrac} belongs to T${number}`).toBe(number);
+      }
+    });
+  }
 });

@@ -11,6 +11,8 @@ Start local development services.
 
 Inputs: optional onboarding override, `SERVER_PORT` for a fixed backend port, `PORT` for Mastra Studio, and local source/dependencies. Outputs: inherited child-process logs and exit status from development process. Portless provides `http://<branch>.raceiq-<worktree-id>.localhost:1355` for linked worktrees (actual URL printed at startup) and `http://raceiq.localhost:1355` for main checkout.
 
+Startup does not open a browser automatically. Open the printed Portless URL manually when needed.
+
 Translation build reuse hashes message files, project settings, dependency lockfile, installed compiler version, and generation options. Every generated file is validated before reuse; missing, modified, or obsolete output triggers staged regeneration. Failed compilation preserves the previous valid output. Development watching keeps its separate locale-module profile.
 
 Boundary: development orchestration and generated translation preparation. Release packaging remains under `scripts/build/`; scripts here do not modify application service configuration.
