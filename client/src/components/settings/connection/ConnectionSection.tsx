@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { useSaveSettings, useSettings } from "@/hooks/settings";
 import { m } from "@/paraglide/messages";
 
-export function ConnectionSection() {
+export function ConnectionSection({ setupOnly = false }: { setupOnly?: boolean } = {}) {
   const { displaySettings } = useSettings();
   const saveSettings = useSaveSettings();
   const [showSetupGuide, setShowSetupGuide] = useState(false);
@@ -79,6 +79,7 @@ export function ConnectionSection() {
           {m.settings_listening_on()} 0.0.0.0:{savedPort}
         </p>
       )}
+      {!setupOnly && <>
       <div className="mt-4 max-w-xs">
         <Label htmlFor="ws-refresh-rate" className="text-app-text-secondary">
           {m.settings_live_refresh_rate()}
@@ -115,6 +116,7 @@ export function ConnectionSection() {
         </select>
         <p className="text-app-text-muted text-xs mt-1">{m.settings_render_frame_cap_desc()}</p>
       </div>
+      </>}
       <div className="mt-6 pt-6 border-t border-app-border">
         <Button variant="app-ghost" size="app-sm" onClick={() => setShowSetupGuide(!showSetupGuide)}>
           <svg aria-hidden="true" className={`w-4 h-4 transition-transform ${showSetupGuide ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

@@ -11,7 +11,6 @@ import { useSaveSettings, useSettings } from "@/hooks/settings";
 import { applyLocale } from "@/lib/locale";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
-import { useTelemetryStore } from "@/stores/telemetry";
 
 interface DemoFixture {
   frames: SemanticAnalysisFrame[];
@@ -171,7 +170,6 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
 }
 
 export function WelcomeStep() {
-  const versionInfo = useTelemetryStore((s) => s.versionInfo);
   const { data: demoTelemetry, isLoading } = useQuery({
     queryKey: ["demo-lap"],
     queryFn: async () => {
@@ -232,14 +230,8 @@ export function WelcomeStep() {
           </svg>
         </div>
       )}
-      <h2 className="text-2xl font-bold text-app-text mb-1 tracking-tight">RaceIQ</h2>
-      {versionInfo?.current && <div className="text-xs font-mono text-app-text-muted mb-2">v{versionInfo.current}</div>}
-      <p className="text-sm text-app-text-muted max-w-sm leading-relaxed">{m.ob_welcome_tagline()}</p>
-      <div className="flex items-center gap-2 mt-5">
-        <span className="px-2.5 py-1 rounded-full border border-app-border bg-app-surface-alt text-xs text-app-text-secondary">{m.ob_welcome_feature_live()}</span>
-        <span className="px-2.5 py-1 rounded-full border border-app-border bg-app-surface-alt text-xs text-app-text-secondary">{m.ob_welcome_feature_compare()}</span>
-        <span className="px-2.5 py-1 rounded-full border border-app-border bg-app-surface-alt text-xs text-app-text-secondary">{m.ob_welcome_feature_ai()}</span>
-      </div>
+      <p className="text-sm text-app-text-muted max-w-sm leading-relaxed">{m.ob_install_title()}</p>
+      {hasTelemetry && <p className="mt-1 text-xs text-app-text-muted">{m.ob_install_sample_data()}</p>}
       <div className="mt-6 w-full max-w-[220px] text-left">
         <div className="text-xs text-app-text-muted mb-1.5 text-center">{m.label_language()}</div>
         <SearchSelect value={currentLang} onChange={selectLanguage} options={langOptions} placeholder={m.settings_language_search_placeholder()} />

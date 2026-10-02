@@ -49,51 +49,41 @@ test.describe
       await page.goto("/", { waitUntil: "domcontentloaded" });
 
       // Step 1: Welcome — demo 3D render (R3F canvas) should mount from demo-lap.csv
-      await expect(page.getByRole("heading", { name: "RaceIQ", level: 2 })).toBeVisible({ timeout: 15_000 });
       const demoCanvas = page.locator("canvas").first();
       await expect(demoCanvas).toBeVisible({ timeout: 15_000 });
       const canvasBox = await demoCanvas.boundingBox();
       expect(canvasBox?.width ?? 0).toBeGreaterThan(0);
       expect(canvasBox?.height ?? 0).toBeGreaterThan(0);
-      await page.getByRole("button", { name: "Get Started" }).click();
+      await page.getByRole("button", { name: "Next", exact: true }).click();
 
-      // Step 2: Profile
-      await expect(page.getByRole("heading", { name: "What's your name?" })).toBeVisible();
       await page.getByLabel("Driver name").fill("TestDriver");
-      await page.getByRole("button", { name: "Next" }).click();
-
-      // Step 3: Wheel
-      await expect(page.getByText(/Choose the steering wheel/i)).toBeVisible();
-      await page.getByRole("button", { name: "Next" }).click();
-
-      // Step 4: Units
-      await expect(page.getByRole("heading", { name: "Units" })).toBeVisible();
       await page.getByRole("button", { name: /^Metric/ }).click();
-      await page.getByRole("button", { name: "Next" }).click();
+      await page.getByRole("button", { name: "Next", exact: true }).click();
 
-      // Step 5: Sound
-      await expect(page.getByRole("heading", { name: "Sound" })).toBeVisible();
-      await page.getByRole("switch", { name: "Sector blip" }).click();
-      await page.getByRole("button", { name: "Next" }).click();
-
-      // Step 6: Startup (Launch on Login)
-      await expect(page.getByRole("heading", { name: "Launch on Login" })).toBeVisible();
-      await page.getByRole("button", { name: "Next" }).click();
-
-      // Step 7: Community — final. Button reads "Next" when not receiving telemetry; clicking it finishes.
-      await expect(page.getByRole("heading", { name: "You're all set!" })).toBeVisible();
+      // Connection remains optional: offline users can reach app without a game running.
+      await page.getByRole("button", { name: "Next", exact: true }).click();
       const saveSettings = page.waitForResponse((response) => {
         if (response.request().method() !== "PUT" || !response.url().endsWith("/api/settings")) return false;
         const body = response.request().postDataJSON() as { onboardingComplete?: boolean } | null;
         return body?.onboardingComplete === true;
       });
-      await page.getByRole("button", { name: "Next" }).click();
+      await page.getByRole("button", { name: "Start walkthrough" }).click();
       expect((await saveSettings).ok(), "onboarding settings save").toBe(true);
-
-      // Onboarding modal closes after settings mutation invalidates cached settings.
-      await expect(page.getByRole("heading", { name: "You're all set!" })).toBeHidden({ timeout: 15_000 });
-      await expect(page.getByRole("link", { name: "Home" })).toBeVisible();
+      const guide = page.getByRole("complementary", { name: "RaceIQ walkthrough" });
+      await expect(guide).toBeVisible();
+      await page.getByRole("navigation", { name: "Navigation" }).getByRole("link", { name: "Forza Motorsport 2023" }).click();
+      await guide.getByRole("button", { name: "Next", exact: true }).click();
+      await expect(page.locator('[data-guide="live"][data-guide-active="true"]')).toBeVisible();
+      await guide.getByRole("button", { name: "Next", exact: true }).click();
+      await expect(page.locator('[data-guide="sessions"][data-guide-active="true"]')).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(guide).toBeHidden();
+      await page.getByRole("button", { name: "UI walkthrough" }).click();
+      await expect(guide).toBeVisible();
+      await page.keyboard.press("Escape");
+      await page.goto("/", { waitUntil: "domcontentloaded" });
       await expect(page.getByRole("heading", { name: "Hello, TestDriver" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Skip for now" })).toHaveCount(0);
 
       // Server persisted driver name + onboardingComplete to settings.json
       const settings = JSON.parse(readFileSync(SETTINGS_PATH, "utf8"));

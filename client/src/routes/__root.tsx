@@ -4,6 +4,7 @@ import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-rout
 import { Menu } from "lucide-react";
 import { useEffect, useState } from "react";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
+import { UIWalkthrough } from "@/components/onboarding/UIWalkthrough";
 import { Settings } from "@/components/settings/Settings";
 import { useSettings } from "@/hooks/settings";
 import { applyLocale } from "@/lib/locale";
@@ -60,6 +61,13 @@ function AppShell() {
   const onboardingOpen = useUiStore((s) => s.onboardingOpen);
   const { openSettings, closeSettings, closeOnboarding } = uiStore.actions;
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [walkthroughOpen, setWalkthroughOpen] = useState(false);
+  function startWalkthrough() {
+    closeOnboarding();
+    closeSettings();
+    setSidebarCollapsed(false);
+    setWalkthroughOpen(true);
+  }
   const [sidebarCollapsed, setSidebarCollapsed] = useLocalStorage<boolean>("raceiq-sidebar-collapsed", false);
   const [showUpdateModal, setShowUpdateModal] = useState(() => {
     const params = new URLSearchParams(window.location.search);
@@ -89,7 +97,7 @@ function AppShell() {
 
   const forceWelcome = new URLSearchParams(window.location.search).has("welcome");
   if (forceWelcome || !displaySettings.onboardingComplete) {
-    return <OnboardingModal />;
+    return <OnboardingModal onStartWalkthrough={startWalkthrough} />;
   }
 
   if (isPortable) {
@@ -114,6 +122,7 @@ function AppShell() {
             mobile={false}
             onCollapsedChange={setSidebarCollapsed}
             onOpenSettings={openSettings}
+            onStartWalkthrough={startWalkthrough}
             onShowUpdate={() => setShowUpdateModal(true)}
             packetsPerSec={packetsPerSec}
             updateAvailable={!updateState?.updatesDisabled && (updateState?.updateAvailable ?? false)}
@@ -149,6 +158,7 @@ function AppShell() {
                 mobile
                 onClose={() => setMobileNavOpen(false)}
                 onOpenSettings={openSettings}
+                onStartWalkthrough={startWalkthrough}
                 onShowUpdate={() => setShowUpdateModal(true)}
                 packetsPerSec={packetsPerSec}
                 updateAvailable={!updateState?.updatesDisabled && (updateState?.updateAvailable ?? false)}
@@ -176,7 +186,8 @@ function AppShell() {
         )}
 
         {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? updateAvailable ?? "?"} currentVersion={updateState?.current ?? "?"} newReleases={updateState?.newReleases ?? []} fullReleaseNotes={updateState?.fullReleaseNotes ?? null} currentReleaseNotes={updateState?.currentReleaseNotes ?? null} currentReleaseDate={updateState?.currentReleaseDate ?? null} updatesDisabled={updateState?.updatesDisabled} onClose={() => setShowUpdateModal(false)} />}
-        {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
+        {onboardingOpen && <OnboardingModal onClose={closeOnboarding} onStartWalkthrough={startWalkthrough} />}
+        {walkthroughOpen && <UIWalkthrough onClose={() => setWalkthroughOpen(false)} />}
       </div>
       <CaptureMigration />
       <StaleLapReprocessing />
