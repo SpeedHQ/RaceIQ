@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Ford Mustang GT3 Misano",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Misano",
+    "downloadUrl": "https://www.youtube.com/watch?v=FZYc_Awb8ms",
+    "videoUrl": "https://www.youtube.com/watch?v=FZYc_Awb8ms",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/misano",
+    "author": "Ohne Speed",
+    "lapTime": "1:32.8",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 Misano",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Misano",
+    "downloadUrl": "https://www.youtube.com/watch?v=h1mh1cUv2YU",
+    "videoUrl": "https://www.youtube.com/watch?v=h1mh1cUv2YU",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/misano",
+    "author": "PS_Racing",
+    "lapTime": "1:32.992",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

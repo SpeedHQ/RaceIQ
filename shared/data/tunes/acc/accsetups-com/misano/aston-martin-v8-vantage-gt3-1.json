@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Aston Martin V8 Vantage GT3 Misano",
+    "carModel": "aston-martin-v8-vantage-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Misano",
+    "downloadUrl": "https://www.youtube.com/watch?v=4x6PfcPz7qE",
+    "videoUrl": "https://www.youtube.com/watch?v=4x6PfcPz7qE",
+    "pageUrl": "https://accsetups.com/free-setups/for/aston-martin-v8-vantage-gt3-1/on/misano",
+    "author": "Fri3d0lf",
+    "lapTime": "1:32.8",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Aston Martin V8 Vantage GT3 Misano",
+    "carModel": "aston-martin-v8-vantage-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Misano",
+    "downloadUrl": "https://www.youtube.com/watch?v=IaC_xjzpMHk",
+    "videoUrl": "https://www.youtube.com/watch?v=IaC_xjzpMHk",
+    "pageUrl": "https://accsetups.com/free-setups/for/aston-martin-v8-vantage-gt3-1/on/misano",
+    "author": "PS_Racing",
+    "lapTime": "1:33.192",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Aston Martin V8 Vantage GT3 Misano",
+    "carModel": "aston-martin-v8-vantage-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Misano",
+    "downloadUrl": "https://www.youtube.com/watch?v=kIqQNIZWQRQ",
+    "videoUrl": "https://www.youtube.com/watch?v=kIqQNIZWQRQ",
+    "pageUrl": "https://accsetups.com/free-setups/for/aston-martin-v8-vantage-gt3-1/on/misano",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

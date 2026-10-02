@@ -1,0 +1,18 @@
+[
+  {
+    "name": "BMW M4 GT3 Zandvoort",
+    "carModel": "bmw-m4-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Zandvoort",
+    "downloadUrl": "https://www.youtube.com/watch?v=lWeV3DswTts",
+    "videoUrl": "https://www.youtube.com/watch?v=lWeV3DswTts",
+    "pageUrl": "https://accsetups.com/free-setups/for/bmw-m4-gt3-1/on/zandvoort",
+    "author": "Fri3d0lf",
+    "lapTime": "1:34.4",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

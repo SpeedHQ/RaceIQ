@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Ford Mustang GT3 Bathurst",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Bathurst",
+    "downloadUrl": "https://www.youtube.com/watch?v=xyw3D_Sj4RQ",
+    "videoUrl": "https://www.youtube.com/watch?v=xyw3D_Sj4RQ",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/bathurst",
+    "author": "Fri3d0lf",
+    "lapTime": "1:59.8",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 Bathurst",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Bathurst",
+    "downloadUrl": "https://www.youtube.com/watch?v=tez0zsUKuMA",
+    "videoUrl": "https://www.youtube.com/watch?v=tez0zsUKuMA",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/bathurst",
+    "author": "Ohne Speed",
+    "lapTime": "1:59.9",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 Bathurst",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Bathurst",
+    "downloadUrl": "https://www.youtube.com/watch?v=SkiruQe68Fk",
+    "videoUrl": "https://www.youtube.com/watch?v=SkiruQe68Fk",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/bathurst",
+    "author": "PS_Racing",
+    "lapTime": "2:00.105",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

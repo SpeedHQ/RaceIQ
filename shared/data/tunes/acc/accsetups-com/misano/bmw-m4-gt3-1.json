@@ -1,0 +1,34 @@
+[
+  {
+    "name": "BMW M4 GT3 Misano",
+    "carModel": "bmw-m4-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Misano",
+    "downloadUrl": "https://www.youtube.com/watch?v=L_s_AHaS4rQ",
+    "videoUrl": "https://www.youtube.com/watch?v=L_s_AHaS4rQ",
+    "pageUrl": "https://accsetups.com/free-setups/for/bmw-m4-gt3-1/on/misano",
+    "author": "Fri3d0lf",
+    "lapTime": "1:32.6",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "BMW M4 GT3 Misano",
+    "carModel": "bmw-m4-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Misano",
+    "downloadUrl": "https://www.youtube.com/watch?v=8kOKNpZpGVg",
+    "videoUrl": "https://www.youtube.com/watch?v=8kOKNpZpGVg",
+    "pageUrl": "https://accsetups.com/free-setups/for/bmw-m4-gt3-1/on/misano",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

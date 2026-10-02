@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Ford Mustang GT3 Hungaroring",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Hungaroring",
+    "downloadUrl": "https://www.youtube.com/watch?v=QQxHEa4vkq4",
+    "videoUrl": "https://www.youtube.com/watch?v=QQxHEa4vkq4",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/hungaroring",
+    "author": "Ohne Speed",
+    "lapTime": "1:42.5",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 Hungaroring",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Hungaroring",
+    "downloadUrl": "https://www.youtube.com/watch?v=otpgmI2L9GQ",
+    "videoUrl": "https://www.youtube.com/watch?v=otpgmI2L9GQ",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/hungaroring",
+    "author": "Fri3d0lf",
+    "lapTime": "1:42.6",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 Hungaroring",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Hungaroring",
+    "downloadUrl": "https://www.youtube.com/watch?v=Fm5IOeU5PNg",
+    "videoUrl": "https://www.youtube.com/watch?v=Fm5IOeU5PNg",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/hungaroring",
+    "author": "PS_Racing",
+    "lapTime": "1:42.792",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

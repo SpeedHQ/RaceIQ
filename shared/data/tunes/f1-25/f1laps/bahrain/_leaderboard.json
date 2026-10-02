@@ -1,0 +1,82 @@
+[
+  {
+    "rank": 1,
+    "date": "Mar 28, 2026",
+    "lapTime": "1:27.964",
+    "player": "Brazzouz",
+    "team": "McLaren",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 2,
+    "date": "Apr 02, 2026",
+    "lapTime": "1:28.446",
+    "player": "Riku",
+    "team": "F1 Custom Team",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 3,
+    "date": "Mar 29, 2026",
+    "lapTime": "1:28.565",
+    "player": "zhiyangzhao67",
+    "team": "McLaren",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 4,
+    "date": "Jun 03, 2025",
+    "lapTime": "1:28.627",
+    "player": "zach10",
+    "team": "McLaren",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 5,
+    "date": "Feb 16, 2026",
+    "lapTime": "1:28.668",
+    "player": "gdunks",
+    "team": "McLaren",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 6,
+    "date": "Dec 26, 2025",
+    "lapTime": "1:28.688",
+    "player": "nieto010",
+    "team": "McLaren",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 7,
+    "date": "Jul 17, 2025",
+    "lapTime": "1:28.710",
+    "player": "Dondej212",
+    "team": "F1 Custom Team",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 8,
+    "date": "Jul 18, 2025",
+    "lapTime": "1:28.743",
+    "player": "JustChillz",
+    "team": "McLaren",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 9,
+    "date": "Mar 27, 2026",
+    "lapTime": "1:28.750",
+    "player": "begunwolf",
+    "team": "Racing Bulls",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 10,
+    "date": "Jul 02, 2025",
+    "lapTime": "1:28.808",
+    "player": "Gar3d",
+    "team": "Red Bull Racing",
+    "sessionType": "Time Trial"
+  }
+]

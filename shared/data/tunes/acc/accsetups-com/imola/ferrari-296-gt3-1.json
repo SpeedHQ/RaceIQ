@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Ferrari 296 GT3 Imola",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Imola",
+    "downloadUrl": "https://www.youtube.com/watch?v=g1bxlXAFS0o",
+    "videoUrl": "https://www.youtube.com/watch?v=g1bxlXAFS0o",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/imola",
+    "author": "bernagk1",
+    "lapTime": "1:39.130",
+    "date": "2025-06",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": true
+  },
+  {
+    "name": "Ferrari 296 GT3 Imola",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Imola",
+    "downloadUrl": "https://www.youtube.com/watch?v=91VW8Oyo3Os",
+    "videoUrl": "https://www.youtube.com/watch?v=91VW8Oyo3Os",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/imola",
+    "author": "bernagk1",
+    "lapTime": "1:39.3",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": true
+  },
+  {
+    "name": "Ferrari 296 GT3 Imola",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Imola",
+    "downloadUrl": "https://www.youtube.com/watch?v=JiyluM-f4E4",
+    "videoUrl": "https://www.youtube.com/watch?v=JiyluM-f4E4",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/imola",
+    "author": "bernagk1",
+    "lapTime": "1:39.6",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": true
+  }
+]

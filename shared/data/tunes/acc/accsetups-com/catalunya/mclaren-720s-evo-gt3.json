@@ -1,0 +1,34 @@
+[
+  {
+    "name": "McLaren 720s Evo GT3 Barcelona",
+    "carModel": "mclaren-720s-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Barcelona",
+    "downloadUrl": "https://www.youtube.com/watch?v=6sgiefS6JxM",
+    "videoUrl": "https://www.youtube.com/watch?v=6sgiefS6JxM",
+    "pageUrl": "https://accsetups.com/free-setups/for/mclaren-720s-evo-gt3/on/barcelona",
+    "author": "PS_Racing",
+    "lapTime": "1:43.322",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "McLaren 720s Evo GT3 Barcelona",
+    "carModel": "mclaren-720s-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Barcelona",
+    "downloadUrl": "https://www.youtube.com/watch?v=Hp00UqzVZBU",
+    "videoUrl": "https://www.youtube.com/watch?v=Hp00UqzVZBU",
+    "pageUrl": "https://accsetups.com/free-setups/for/mclaren-720s-evo-gt3/on/barcelona",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

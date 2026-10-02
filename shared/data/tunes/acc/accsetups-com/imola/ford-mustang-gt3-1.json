@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Ford Mustang GT3 Imola",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Imola",
+    "downloadUrl": "https://www.youtube.com/watch?v=S1oG-MO7TWU",
+    "videoUrl": "https://www.youtube.com/watch?v=S1oG-MO7TWU",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/imola",
+    "author": "PS_Racing",
+    "lapTime": "1:40.277",
+    "date": "2025-11",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

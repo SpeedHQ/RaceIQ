@@ -1,0 +1,119 @@
+import { useMemo } from "react";
+import { SetupRangeBar } from "@/components/SetupRangeBar";
+import { Table, TableBody as TBody, TableCell as TD, TableHead as TH, TableHeader as THead, TableRow as TRow } from "@/components/ui/table";
+import { type LapTrace, consistencyAt, sampleAt } from "../../../lib/stint-traces";
+
+interface SectorLedgerProps {
+  traces: LapTrace[];
+  primaryLapId: number | null;
+  sectorBoundaryFracs: number[];
+  cursorFrac: number | null;
+  onCursorFrac: (f: number | null) => void;
+}
+interface Sector {
+  index: number;
+  label: string;
+  start: number;
+  end: number;
+  mid: number;
+}
+interface SectorRow {
+  sector: Sector;
+  bestTime: number | null;
+  minSpeed: number | null;
+  medianSpeed: number | null;
+  topSpeed: number | null;
+  delta: number | null;
+  brake: number | null;
+  throttle: number | null;
+  combined: number | null;
+}
+function sectors(boundaries: number[]): Sector[] {
+  const points = [...boundaries].filter((f) => f > 0 && f < 1).sort((a, b) => a - b);
+  const bounds = points.length ? [0, ...points, 1] : [0, 1 / 3, 2 / 3, 1];
+  return bounds.slice(0, -1).map((start, index) => ({ index, label: `S${index + 1}`, start, end: bounds[index + 1]!, mid: (start + bounds[index + 1]!) / 2 }));
+}
+function speedStats(trace: LapTrace, sector: Sector): [number | null, number | null, number | null] {
+  const values = Array.from({ length: trace.n }, (_, index) => (trace.frac[index] >= sector.start && trace.frac[index] <= sector.end ? trace.speedKmh[index] : Number.NaN))
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b);
+  if (!values.length) return [null, null, null];
+  const middle = Math.floor(values.length / 2);
+  return [values[0]!, values.length % 2 ? values[middle]! : (values[middle - 1]! + values[middle]!) / 2, values.at(-1)!];
+}
+function consistency(traces: LapTrace[], sector: Sector, channel: "brake" | "throttle"): number | null {
+  if (traces.length < 2) return null;
+  const values = [1, 2, 3, 4]
+    .map((step) => consistencyAt(traces, sector.start + ((sector.end - sector.start) * step) / 5, channel))
+    .filter((value): value is number => value != null && Number.isFinite(value));
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+}
+function deltaColor(value: number | null): string {
+  if (value == null) return "text-app-text-dim";
+  if (value > 0.3) return "text-(--severity-critical)";
+  if (value > 0.1) return "text-(--severity-caution)";
+  return "text-(--severity-nominal)";
+}
+export function SectorLedger({ traces, primaryLapId, sectorBoundaryFracs, cursorFrac, onCursorFrac }: SectorLedgerProps) {
+  const defs = useMemo(() => sectors(sectorBoundaryFracs), [sectorBoundaryFracs]);
+  const best = traces.find((trace) => trace.lapId === primaryLapId) ?? traces[0];
+  const rows = useMemo<SectorRow[]>(() => {
+    if (!best) return [];
+    return defs.map((sector) => {
+      const bestTime = sampleAt(best, "timeS", sector.end) - sampleAt(best, "timeS", sector.start);
+      const deltas = traces.filter((trace) => trace.lapId !== best.lapId).map((trace) => sampleAt(trace, "timeS", sector.end) - sampleAt(trace, "timeS", sector.start) - bestTime);
+      const delta = deltas.length ? Math.max(...deltas) : null;
+      const [minSpeed, medianSpeed, topSpeed] = speedStats(best, sector);
+      const brake = consistency(traces, sector, "brake");
+      const throttle = consistency(traces, sector, "throttle");
+      const available = [brake, throttle].filter((value): value is number => value != null);
+      return { sector, bestTime, minSpeed, medianSpeed, topSpeed, delta, brake, throttle, combined: available.length ? available.reduce((sum, value) => sum + value, 0) / available.length : null };
+    });
+  }, [best, defs, traces]);
+  if (!best || !rows.length) return <div className="text-app-text-dim text-sm">No sector data available for this track.</div>;
+  return (
+    <div className="space-y-2">
+      <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Sector Ledger</div>
+        <Table className="w-full min-w-0 text-app-detail text-app-compact [&_th]:px-2 [&_th]:py-1.5 [&_td]:px-2 [&_td]:py-1.5 [&_tbody]:divide-y [&_tbody]:divide-app-border/40">
+          <THead>
+            <TRow className="border-b border-app-border">
+              {["Sector", "Primary time", "Speed range", "Δ worst", "Brake consistency", "Throttle consistency", "Consistency"].map((header) => (
+                <TH key={header} className="whitespace-nowrap px-2 py-1.5 text-left">
+                  {header}
+                </TH>
+              ))}
+            </TRow>
+          </THead>
+          <TBody>
+            {rows.map((row) => (
+              <TRow key={row.sector.index} className={`group/row relative transition-colors ${cursorFrac != null && cursorFrac >= row.sector.start && cursorFrac <= row.sector.end ? "bg-app-accent/10" : "hover:bg-app-surface-hover/50"}`} onClick={() => onCursorFrac(row.sector.mid)}>
+                <TD className="whitespace-nowrap px-2 py-1.5 font-semibold text-app-text">
+                  {row.sector.label}
+                </TD>
+                <TD className="px-2 py-1.5 text-right font-mono tabular-nums text-app-text-secondary">{row.bestTime == null || !Number.isFinite(row.bestTime) ? "—" : `${row.bestTime.toFixed(3)}s`}</TD>
+                <TD className="px-2 py-1.5 text-app-text-secondary">
+                  {row.minSpeed != null && row.medianSpeed != null && row.topSpeed != null ? (
+                    <div className="flex items-center gap-2">
+                      <span className="w-8 text-right font-mono tabular-nums text-app-caption text-app-text-dim">{row.minSpeed.toFixed(0)}</span>
+                      <div className="w-32">
+                        <SetupRangeBar min={row.minSpeed} max={row.topSpeed} median={row.medianSpeed} values={[row.minSpeed, row.medianSpeed, row.topSpeed]} showMedianLabel />
+                      </div>
+                      <span className="w-14 font-mono tabular-nums text-app-caption text-app-text-dim">{row.topSpeed.toFixed(0)} km/h</span>
+                    </div>
+                  ) : (
+                    "—"
+                  )}
+                </TD>
+                <TD className="px-2 py-1.5 text-right font-mono tabular-nums text-app-text-secondary">
+                  <span className={deltaColor(row.delta)}>{row.delta == null ? "—" : `${row.delta >= 0 ? "+" : ""}${row.delta.toFixed(3)}`}</span>
+                </TD>
+                <TD className="px-2 py-1.5 text-right font-mono tabular-nums text-app-text-secondary">{row.brake == null ? "—" : row.brake.toFixed(0)}</TD>
+                <TD className="px-2 py-1.5 text-right font-mono tabular-nums text-app-text-secondary">{row.throttle == null ? "—" : row.throttle.toFixed(0)}</TD>
+                <TD className="px-2 py-1.5 text-right font-mono tabular-nums text-app-text-secondary">{row.combined == null ? "—" : row.combined.toFixed(0)}</TD>
+              </TRow>
+            ))}
+          </TBody>
+        </Table>
+    </div>
+  );
+}

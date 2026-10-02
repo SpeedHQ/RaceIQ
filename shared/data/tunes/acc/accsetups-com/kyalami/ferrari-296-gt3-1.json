@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Ferrari 296 GT3 Kyalami",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Kyalami",
+    "downloadUrl": "https://www.youtube.com/watch?v=N6jG3liQxqY",
+    "videoUrl": "https://www.youtube.com/watch?v=N6jG3liQxqY",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/kyalami",
+    "author": "bernagk1",
+    "lapTime": "1:39.3",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": true
+  },
+  {
+    "name": "Ferrari 296 GT3 Kyalami",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Kyalami",
+    "downloadUrl": "https://www.youtube.com/watch?v=b9jEa6wY6wY",
+    "videoUrl": "https://www.youtube.com/watch?v=b9jEa6wY6wY",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/kyalami",
+    "author": "bernagk1",
+    "lapTime": "1:39.320",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": true
+  },
+  {
+    "name": "Ferrari 296 GT3 Kyalami",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Kyalami",
+    "downloadUrl": "https://www.youtube.com/watch?v=fHDD9RnDb3E",
+    "videoUrl": "https://www.youtube.com/watch?v=fHDD9RnDb3E",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/kyalami",
+    "author": "PS_Racing",
+    "lapTime": "1:40.540",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

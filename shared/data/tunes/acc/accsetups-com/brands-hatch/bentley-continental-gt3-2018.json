@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Bentley Continental GT3 '18 Brands Hatch",
+    "carModel": "bentley-continental-gt3-2018",
+    "carClass": "GT3",
+    "trackName": "Brands Hatch",
+    "downloadUrl": "https://www.youtube.com/watch?v=i0Au6C5ZHGM",
+    "videoUrl": "https://www.youtube.com/watch?v=i0Au6C5ZHGM",
+    "pageUrl": "https://accsetups.com/free-setups/for/bentley-continental-gt3-2018/on/brands-hatch",
+    "author": "PS_Racing",
+    "lapTime": "1:22.517",
+    "date": "2025-05",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Bentley Continental GT3 '18 Brands Hatch",
+    "carModel": "bentley-continental-gt3-2018",
+    "carClass": "GT3",
+    "trackName": "Brands Hatch",
+    "downloadUrl": "https://www.youtube.com/watch?v=tas41RR16pY",
+    "videoUrl": "https://www.youtube.com/watch?v=tas41RR16pY",
+    "pageUrl": "https://accsetups.com/free-setups/for/bentley-continental-gt3-2018/on/brands-hatch",
+    "author": "PS_Racing",
+    "lapTime": "1:22.970",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

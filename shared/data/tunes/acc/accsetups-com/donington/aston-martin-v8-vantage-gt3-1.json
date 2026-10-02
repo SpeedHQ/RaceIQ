@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Aston Martin V8 Vantage GT3 Donington",
+    "carModel": "aston-martin-v8-vantage-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Donington",
+    "downloadUrl": "https://www.youtube.com/watch?v=MnBImOcgRXs",
+    "videoUrl": "https://www.youtube.com/watch?v=MnBImOcgRXs",
+    "pageUrl": "https://accsetups.com/free-setups/for/aston-martin-v8-vantage-gt3-1/on/donington",
+    "author": "PS_Racing",
+    "lapTime": "1:26.257",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Aston Martin V8 Vantage GT3 Donington",
+    "carModel": "aston-martin-v8-vantage-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Donington",
+    "downloadUrl": "https://www.youtube.com/watch?v=t94Tudj9g3o",
+    "videoUrl": "https://www.youtube.com/watch?v=t94Tudj9g3o",
+    "pageUrl": "https://accsetups.com/free-setups/for/aston-martin-v8-vantage-gt3-1/on/donington",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

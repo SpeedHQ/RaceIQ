@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Mercedes AMG GT4 Watkins Glen",
+    "carModel": "mercedes-amg",
+    "carClass": "GT4",
+    "trackName": "Watkins Glen",
+    "downloadUrl": "https://www.youtube.com/watch?v=RWar9Oo-CQA",
+    "videoUrl": "https://www.youtube.com/watch?v=RWar9Oo-CQA",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg/on/watkins-glen",
+    "author": "Ohne Speed",
+    "lapTime": "1:53.3",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

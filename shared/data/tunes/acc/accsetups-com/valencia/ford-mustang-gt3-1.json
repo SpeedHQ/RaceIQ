@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Ford Mustang GT3 Valencia",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Valencia",
+    "downloadUrl": "https://www.youtube.com/watch?v=T1RPfJHxpPk",
+    "videoUrl": "https://www.youtube.com/watch?v=T1RPfJHxpPk",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/valencia",
+    "author": "Ohne Speed",
+    "lapTime": "1:30.2",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 Valencia",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Valencia",
+    "downloadUrl": "https://www.youtube.com/watch?v=LHoizNNH7YQ",
+    "videoUrl": "https://www.youtube.com/watch?v=LHoizNNH7YQ",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/valencia",
+    "author": "Fri3d0lf",
+    "lapTime": "1:30.3",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 Valencia",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Valencia",
+    "downloadUrl": "https://www.youtube.com/watch?v=_gpXdtkpNkU",
+    "videoUrl": "https://www.youtube.com/watch?v=_gpXdtkpNkU",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/valencia",
+    "author": "PS_Racing",
+    "lapTime": "1:30.480",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

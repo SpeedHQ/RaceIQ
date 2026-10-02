@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Mercedes AMG Evo GT3 Watkins Glen",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Watkins Glen",
+    "downloadUrl": "https://www.youtube.com/watch?v=85WTxQF1rno",
+    "videoUrl": "https://www.youtube.com/watch?v=85WTxQF1rno",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/watkins-glen",
+    "author": "bernagk1",
+    "lapTime": "1:42.4",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": true
+  },
+  {
+    "name": "Mercedes AMG Evo GT3 Watkins Glen",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Watkins Glen",
+    "downloadUrl": "https://www.youtube.com/watch?v=PGVUxCKfGVM",
+    "videoUrl": "https://www.youtube.com/watch?v=PGVUxCKfGVM",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/watkins-glen",
+    "author": "Fri3d0lf",
+    "lapTime": "1:43.1",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Mercedes AMG Evo GT3 Watkins Glen",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Watkins Glen",
+    "downloadUrl": "https://www.youtube.com/watch?v=iqxR5k9qjKo",
+    "videoUrl": "https://www.youtube.com/watch?v=iqxR5k9qjKo",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/watkins-glen",
+    "author": "Fri3d0lf",
+    "lapTime": "1:43.3",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

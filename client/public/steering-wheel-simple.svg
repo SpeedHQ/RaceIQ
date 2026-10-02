@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" stroke="#a0a0a0" stroke-width="3" stroke-linecap="round">
+  <!-- Outer rim -->
+  <circle cx="60" cy="60" r="50" />
+  <!-- Center hub -->
+  <circle cx="60" cy="60" r="12" />
+  <!-- Spoke left -->
+  <line x1="48" y1="60" x2="18" y2="60" />
+  <!-- Spoke right -->
+  <line x1="72" y1="60" x2="102" y2="60" />
+  <!-- Spoke bottom -->
+  <line x1="60" y1="72" x2="60" y2="100" />
+</svg>

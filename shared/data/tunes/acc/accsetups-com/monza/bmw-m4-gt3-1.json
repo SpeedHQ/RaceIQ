@@ -1,0 +1,34 @@
+[
+  {
+    "name": "BMW M4 GT3 Monza",
+    "carModel": "bmw-m4-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Monza",
+    "downloadUrl": "https://www.youtube.com/watch?v=-bngQ-7LcUY",
+    "videoUrl": "https://www.youtube.com/watch?v=-bngQ-7LcUY",
+    "pageUrl": "https://accsetups.com/free-setups/for/bmw-m4-gt3-1/on/monza",
+    "author": "PS_Racing",
+    "lapTime": "1:46.830",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "BMW M4 GT3 Monza",
+    "carModel": "bmw-m4-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Monza",
+    "downloadUrl": "https://www.youtube.com/watch?v=DLeLyDyV5kM",
+    "videoUrl": "https://www.youtube.com/watch?v=DLeLyDyV5kM",
+    "pageUrl": "https://accsetups.com/free-setups/for/bmw-m4-gt3-1/on/monza",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

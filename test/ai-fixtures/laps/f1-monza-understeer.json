@@ -1,0 +1,28 @@
+{
+  "id": "f1-monza-understeer",
+  "game": "f1-2025",
+  "units": "metric",
+  "lap": {
+    "lapNumber": 5,
+    "lapTime": 82.450,
+    "isValid": true,
+    "carOrdinal": 0,
+    "trackOrdinal": 7
+  },
+  "packetsPath": "../packets/f1-monza-understeer.zip",
+  "expected": {
+    "slowestCorners": ["Parabolica", "Variante del Rettifilo", "Ascari"],
+    "trackCorners": [
+      "Variante del Rettifilo",
+      "Curva Grande",
+      "Variante della Roggia",
+      "Lesmo 1",
+      "Lesmo 2",
+      "Variante Ascari",
+      "Ascari",
+      "Parabolica"
+    ],
+    "dominantIssue": "front-end understeer through high-speed sections",
+    "setupDirection": { "component": "Front Wing", "direction": "increase" }
+  }
+}

@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Aston Martin V8 Vantage GT3 Red Bull Ring",
+    "carModel": "aston-martin-v8-vantage-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Red Bull Ring",
+    "downloadUrl": "https://www.youtube.com/watch?v=hpdWtIzB9l4",
+    "videoUrl": "https://www.youtube.com/watch?v=hpdWtIzB9l4",
+    "pageUrl": "https://accsetups.com/free-setups/for/aston-martin-v8-vantage-gt3-1/on/red-bull-ring",
+    "author": "PS_Racing",
+    "lapTime": "1:27.715",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Aston Martin V8 Vantage GT3 Red Bull Ring",
+    "carModel": "aston-martin-v8-vantage-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Red Bull Ring",
+    "downloadUrl": "https://www.youtube.com/watch?v=xSsfiyYB9yo",
+    "videoUrl": "https://www.youtube.com/watch?v=xSsfiyYB9yo",
+    "pageUrl": "https://accsetups.com/free-setups/for/aston-martin-v8-vantage-gt3-1/on/red-bull-ring",
+    "author": "Fri3d0lf",
+    "lapTime": "1:27.8",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

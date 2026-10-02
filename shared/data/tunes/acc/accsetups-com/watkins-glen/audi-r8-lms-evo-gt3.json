@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Audi R8 LMS Evo GT3 Watkins Glen",
+    "carModel": "audi-r8-lms-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Watkins Glen",
+    "downloadUrl": "https://www.youtube.com/watch?v=vYPfZvBI6w8",
+    "videoUrl": "https://www.youtube.com/watch?v=vYPfZvBI6w8",
+    "pageUrl": "https://accsetups.com/free-setups/for/audi-r8-lms-evo-gt3/on/watkins-glen",
+    "author": "PS_Racing",
+    "lapTime": "1:43.330",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Audi R8 LMS Evo GT3 Watkins Glen",
+    "carModel": "audi-r8-lms-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Watkins Glen",
+    "downloadUrl": "https://www.youtube.com/watch?v=6NB7nAayTZI",
+    "videoUrl": "https://www.youtube.com/watch?v=6NB7nAayTZI",
+    "pageUrl": "https://accsetups.com/free-setups/for/audi-r8-lms-evo-gt3/on/watkins-glen",
+    "author": "PS_Racing",
+    "lapTime": "1:43.920",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

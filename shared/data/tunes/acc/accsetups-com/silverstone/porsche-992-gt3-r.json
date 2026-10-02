@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Porsche 992 GT3-R Silverstone",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Silverstone",
+    "downloadUrl": "https://www.youtube.com/watch?v=ApRpuc0cig0",
+    "videoUrl": "https://www.youtube.com/watch?v=ApRpuc0cig0",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/silverstone",
+    "author": "PS_Racing",
+    "lapTime": "1:57.730",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Porsche 992 GT3-R Silverstone",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Silverstone",
+    "downloadUrl": "https://www.youtube.com/watch?v=GLOnN91_Exs",
+    "videoUrl": "https://www.youtube.com/watch?v=GLOnN91_Exs",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/silverstone",
+    "author": "Ohne Speed",
+    "lapTime": "1:58.2",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

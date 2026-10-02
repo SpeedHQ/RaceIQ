@@ -1,0 +1,50 @@
+[
+  {
+    "name": "McLaren 720s Evo GT3 Brands Hatch",
+    "carModel": "mclaren-720s-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Brands Hatch",
+    "downloadUrl": "https://www.youtube.com/watch?v=ewEzLwtyEUw",
+    "videoUrl": "https://www.youtube.com/watch?v=ewEzLwtyEUw",
+    "pageUrl": "https://accsetups.com/free-setups/for/mclaren-720s-evo-gt3/on/brands-hatch",
+    "author": "bernagk1",
+    "lapTime": "1:22.0",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": true
+  },
+  {
+    "name": "McLaren 720s Evo GT3 Brands Hatch",
+    "carModel": "mclaren-720s-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Brands Hatch",
+    "downloadUrl": "https://www.youtube.com/watch?v=bhZCovA1eH4",
+    "videoUrl": "https://www.youtube.com/watch?v=bhZCovA1eH4",
+    "pageUrl": "https://accsetups.com/free-setups/for/mclaren-720s-evo-gt3/on/brands-hatch",
+    "author": "PS_Racing",
+    "lapTime": "1:22.262",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "McLaren 720s Evo GT3 Brands Hatch",
+    "carModel": "mclaren-720s-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Brands Hatch",
+    "downloadUrl": "https://www.youtube.com/watch?v=m9NTMO97knY",
+    "videoUrl": "https://www.youtube.com/watch?v=m9NTMO97knY",
+    "pageUrl": "https://accsetups.com/free-setups/for/mclaren-720s-evo-gt3/on/brands-hatch",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Red Bull Ring",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Red Bull Ring",
+    "downloadUrl": "https://www.youtube.com/watch?v=v_T9X7DPqJ4",
+    "videoUrl": "https://www.youtube.com/watch?v=v_T9X7DPqJ4",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/red-bull-ring",
+    "author": "Fri3d0lf",
+    "lapTime": "1:27.4",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Red Bull Ring",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Red Bull Ring",
+    "downloadUrl": "https://www.youtube.com/watch?v=rqJ4m_fMLAo",
+    "videoUrl": "https://www.youtube.com/watch?v=rqJ4m_fMLAo",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/red-bull-ring",
+    "author": "PS_Racing",
+    "lapTime": "1:27.960",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Red Bull Ring",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Red Bull Ring",
+    "downloadUrl": "https://www.youtube.com/watch?v=pU2eKu3H9xg",
+    "videoUrl": "https://www.youtube.com/watch?v=pU2eKu3H9xg",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/red-bull-ring",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

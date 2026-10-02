@@ -1,0 +1,49 @@
+{
+  "id": "donington",
+  "locale": "en",
+  "character": "Historic, undulating British circuit with dramatic elevation change through the Craner Curves. Technical and flowing in equal measure — rewards precision and confidence over blind crests.",
+  "sources": "https://driver61.com/circuit-guide/donington/ — Redgate/Craner Curves/Old Hairpin/McLean's/Coppice verified",
+  "corners": [
+    {
+      "key": "redgate",
+      "name": "Redgate",
+      "numbers": [1],
+      "type": "medium-speed right-hander (T1)",
+      "technique": "Firm braking from the start/finish straight, late apex to set up the downhill run",
+      "trap": "Running wide compromises the entry to the Craner Curves"
+    },
+    {
+      "key": "craner-curves",
+      "name": "Craner Curves",
+      "numbers": [2],
+      "type": "fast, downhill sweeping sequence",
+      "technique": "Commit through the downhill esses with smooth, minimal steering",
+      "trap": "Braking or lifting mid-sequence unsettles the car on the downhill camber"
+    },
+    {
+      "key": "old-hairpin",
+      "name": "Old Hairpin",
+      "numbers": [4],
+      "type": "tight, slow corner at the bottom of the hill",
+      "technique": "Hard braking after the fast downhill section, patient throttle on exit",
+      "trap": "Carrying too much speed from Craner Curves and missing the braking point"
+    },
+    {
+      "key": "mcleans",
+      "name": "McLeans",
+      "numbers": [7],
+      "type": "fast, uphill left-hander",
+      "technique": "Commit through the uphill corner, smooth steering",
+      "trap": "Lifting on the uphill entry kills exit speed"
+    },
+    {
+      "key": "coppice",
+      "name": "Coppice",
+      "numbers": [8],
+      "type": "medium-speed final corner",
+      "technique": "Late apex, clean exit is critical — feeds the run to the line",
+      "trap": "Poor exit here costs time down the entire straight"
+    }
+  ],
+  "priorityCorners": ["craner-curves","old-hairpin","coppice"]
+}

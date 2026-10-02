@@ -1,0 +1,228 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump type"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      skip_tests:
+        description: "Skip release Playwright tests after local verification"
+        required: false
+        type: boolean
+        default: false
+  release:
+    types: [published]
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  # --- Triggered by manual dispatch: compute version, build, create draft ---
+  compute-version:
+    timeout-minutes: 30
+    if: github.event_name == 'workflow_dispatch'
+    runs-on:
+      - mars-windows-x64-4vcpu-15g
+      - mars-macos-arm64-2vcpu-10g
+      - mars-ubuntu-2vcpu-10g
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4
+
+      - name: Compute new version
+        id: bump
+        env:
+          RELEASE_BUMP: ${{ inputs.bump }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: bun scripts/ci/compute-release-version.ts
+
+  build:
+    timeout-minutes: 30
+    if: github.event_name == 'workflow_dispatch'
+    needs: compute-version
+    runs-on: mars-windows-x64-4vcpu-15g
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4
+      - name: Set version in package.json
+        run: bun scripts/ci/update-release-version.ts "${{ needs.compute-version.outputs.version }}"
+
+      - name: Install dependencies
+        run: bun install
+      - name: Verify database upgrade startup
+        env:
+          RACEIQ_DB_UPGRADE_TESTS: "1"
+        run: bun test ./test/db/database-path.test.ts --timeout 120000
+
+      - name: Generate release note artifact
+        run: bun scripts/release/generate-release-note.ts "${{ needs.compute-version.outputs.version }}"
+
+      - name: Build client
+        run: bun scripts/ci/workflow-ops.ts release-client
+
+      - name: Prepare dist
+        run: bun scripts/ci/workflow-ops.ts prepare-dist
+
+      - name: Copy client assets
+        run: bun scripts/ci/workflow-ops.ts copy-client
+
+      - name: Copy shared data
+        run: bun scripts/build/copy-shared-data.ts
+      - name: Optimize packaged images
+        run: bun scripts/build/optimize-client-images.ts
+
+      - name: Compile server binary
+        run: bun scripts/build/compile-release.ts "${{ needs.compute-version.outputs.version }}"
+
+      - name: Patch PE version info (ProductName)
+        run: bun scripts/ci/workflow-ops.ts patch-pe
+
+      - name: Copy native addons
+        run: bun scripts/ci/workflow-ops.ts copy-addon
+
+
+      - name: Smoke test server startup
+        run: bun scripts/ci/workflow-ops.ts smoke-server
+      - name: Install Inno Setup
+        run: bun scripts/ci/workflow-ops.ts install-inno
+
+      - name: Build installer
+        shell: cmd
+        run: |
+          SET VERSION=${{ needs.compute-version.outputs.version }}
+          iscc /DMyAppVersion=%VERSION% installer\raceiq.iss
+
+      - name: Upload dist artifact (for E2E test)
+        uses: actions/upload-artifact@v7
+        with:
+          name: raceiq-dist-windows
+          path: dist/
+          retention-days: 1
+
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: raceiq-v${{ needs.compute-version.outputs.version }}-setup
+          path: RaceIQ-Setup-v${{ needs.compute-version.outputs.version }}.exe
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: raceiq-v${{ needs.compute-version.outputs.version }}-release-note
+          path: releasenote.md
+
+      - name: Summarize release test mode
+        env:
+          SKIP_TESTS: ${{ inputs.skip_tests }}
+        run: bun scripts/ci/workflow-ops.ts release-summary
+
+  playwright-test:
+    if: github.event_name == 'workflow_dispatch' && !inputs.skip_tests
+    needs: build
+    uses: ./.github/workflows/playwright-e2e.yml
+  draft-release:
+    timeout-minutes: 30
+    if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.compute-version.result == 'success' && needs.build.result == 'success' && (needs.playwright-test.result == 'success' || needs.playwright-test.result == 'skipped') }}
+    needs: [compute-version, build, playwright-test]
+    runs-on:
+      - mars-windows-x64-4vcpu-15g
+      - mars-macos-arm64-2vcpu-10g
+      - mars-ubuntu-2vcpu-10g
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          pattern: raceiq-v*
+
+      - name: Delete existing draft for this tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: v${{ needs.compute-version.outputs.version }}
+          REPO: ${{ github.repository }}
+        run: bun scripts/ci/delete-draft-release.ts
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ needs.compute-version.outputs.version }}
+          name: RaceIQ v${{ needs.compute-version.outputs.version }}
+          files: artifacts/raceiq-v${{ needs.compute-version.outputs.version }}-setup/RaceIQ-Setup-v${{ needs.compute-version.outputs.version }}.exe
+          body_path: artifacts/raceiq-v${{ needs.compute-version.outputs.version }}-release-note/releasenote.md
+          draft: true
+
+  # --- Triggered when draft is published: commit version bump + tag ---
+  finalize:
+    timeout-minutes: 30
+    if: github.event_name == 'release'
+    runs-on:
+      - mars-windows-x64-4vcpu-15g
+      - mars-macos-arm64-2vcpu-10g
+      - mars-ubuntu-2vcpu-10g
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4
+
+
+      - name: Roll over changelog
+        run: bun scripts/release/rollover-changelog.ts "${{ github.event.release.tag_name }}" "${{ github.event.release.published_at }}"
+
+      - name: Update version in package.json
+        run: bun scripts/ci/update-release-version.ts "${{ github.event.release.tag_name }}"
+      - name: Regenerate telemetry catalog
+        run: bun run telemetry:catalog
+
+
+      - name: Resolve release version
+        id: release-version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Create version bump pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: release/v${{ steps.release-version.outputs.version }}
+          delete-branch: true
+          title: "chore: bump version to ${{ steps.release-version.outputs.version }}"
+          commit-message: "chore: bump version to ${{ steps.release-version.outputs.version }}"
+          body: |
+            Automated release finalization for v${{ steps.release-version.outputs.version }}.
+
+            Includes changelog rollover, package version update, and regenerated telemetry catalog.
+  publish-image:
+    needs: finalize
+    if: github.event_name == 'release' && needs.finalize.result == 'success'
+    uses: ./.github/workflows/publish-image.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      release_tag: ${{ github.event.release.tag_name }}
+    secrets: inherit

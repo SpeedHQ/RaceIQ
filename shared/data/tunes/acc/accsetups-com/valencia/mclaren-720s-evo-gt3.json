@@ -1,0 +1,34 @@
+[
+  {
+    "name": "McLaren 720s Evo GT3 Valencia",
+    "carModel": "mclaren-720s-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Valencia",
+    "downloadUrl": "https://www.youtube.com/watch?v=lNZAijZocxM",
+    "videoUrl": "https://www.youtube.com/watch?v=lNZAijZocxM",
+    "pageUrl": "https://accsetups.com/free-setups/for/mclaren-720s-evo-gt3/on/valencia",
+    "author": "PS_Racing",
+    "lapTime": "1:30.132",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "McLaren 720s Evo GT3 Valencia",
+    "carModel": "mclaren-720s-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Valencia",
+    "downloadUrl": "https://www.youtube.com/watch?v=tibf7V3Eg1E",
+    "videoUrl": "https://www.youtube.com/watch?v=tibf7V3Eg1E",
+    "pageUrl": "https://accsetups.com/free-setups/for/mclaren-720s-evo-gt3/on/valencia",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

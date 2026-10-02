@@ -1,0 +1,550 @@
+import type { LMUIdentityRecord } from "../../../shared/games/lmu";
+import {
+  resolveLMUCar,
+  resolveLMUTrack,
+} from "../../../shared/games/lmu/catalog";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { LMUExtendedData } from "../../../shared/telemetry/lmu";
+import {
+  LMU_SCORING_INFO,
+  LMU_SCORING_VEHICLE,
+  LMU_TELEMETRY,
+  LMU_WHEEL,
+  LMU_WHEEL_SIZE,
+} from "./layout";
+import { readCString, type LMUSourceFrameV1 } from "./source-frame";
+
+const KELVIN_TO_CELSIUS = 273.15;
+
+const LMU_SESSION_TYPES: Readonly<Record<number, string>> = {
+  0: "test-day",
+  1: "practice-1",
+  2: "practice-2",
+  3: "practice-3",
+  4: "practice-4",
+  5: "qualifying-1",
+  6: "qualifying-2",
+  7: "qualifying-3",
+  8: "qualifying-4",
+  9: "warmup",
+  10: "race",
+  11: "race-2",
+  12: "race-3",
+  13: "race-4",
+};
+const KPA_TO_PSI = 0.1450377377;
+const TWO_PI_PER_MINUTE = (Math.PI * 2) / 60;
+const WHEEL_KEYS = ["FL", "FR", "RL", "RR"] as const;
+
+type WheelKey = (typeof WHEEL_KEYS)[number];
+
+interface Vec3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+interface NormalizedWheel {
+  suspensionTravelM: number;
+  brakeTemperatureC: number;
+  rotationRadPerSecond: number;
+  slipRatio: number;
+  slipAngle: number;
+  combinedSlip: number;
+  pressurePsi: number;
+  temperatureLeftC: number;
+  temperatureMiddleC: number;
+  temperatureRightC: number;
+  temperatureAverageC: number;
+  carcassTemperatureC: number;
+  wear: number;
+  onRumbleStrip: number;
+}
+
+function finiteDouble(buffer: Buffer, offset: number, fallback = 0): number {
+  const value = buffer.readDoubleLE(offset);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function finiteFloat(buffer: Buffer, offset: number, fallback = 0): number {
+  const value = buffer.readFloatLE(offset);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function vector(buffer: Buffer, offset: number): Vec3 {
+  return {
+    x: finiteDouble(buffer, offset),
+    y: finiteDouble(buffer, offset + 8),
+    z: finiteDouble(buffer, offset + 16),
+  };
+}
+
+function input255(value: number): number {
+  return Math.round(clamp(value, 0, 1) * 255);
+}
+
+function canonicalGear(nativeGear: number): number {
+  if (nativeGear < 0) return 0;
+  if (nativeGear === 0) return 11;
+  return Math.trunc(nativeGear);
+}
+
+function positiveTime(value: number): number {
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function wheel(telemetry: Buffer, index: number): NormalizedWheel {
+  const offset = LMU_TELEMETRY.wheels + index * LMU_WHEEL_SIZE;
+  const longitudinalPatchVelocity = finiteDouble(
+    telemetry,
+    offset + LMU_WHEEL.longitudinalPatchVelocity,
+  );
+  const longitudinalGroundVelocity = finiteDouble(
+    telemetry,
+    offset + LMU_WHEEL.longitudinalGroundVelocity,
+  );
+  const lateralPatchVelocity = finiteDouble(
+    telemetry,
+    offset + LMU_WHEEL.lateralPatchVelocity,
+  );
+  const slipRatio =
+    longitudinalPatchVelocity /
+    Math.max(Math.abs(longitudinalGroundVelocity), 1);
+  const slipAngle = Math.atan2(
+    lateralPatchVelocity,
+    Math.max(Math.abs(longitudinalGroundVelocity), 0.1),
+  );
+  const left = finiteDouble(
+    telemetry,
+    offset + LMU_WHEEL.temperature,
+    KELVIN_TO_CELSIUS,
+  ) - KELVIN_TO_CELSIUS;
+  const middle = finiteDouble(
+    telemetry,
+    offset + LMU_WHEEL.temperature + 8,
+    KELVIN_TO_CELSIUS,
+  ) - KELVIN_TO_CELSIUS;
+  const right = finiteDouble(
+    telemetry,
+    offset + LMU_WHEEL.temperature + 16,
+    KELVIN_TO_CELSIUS,
+  ) - KELVIN_TO_CELSIUS;
+  return {
+    suspensionTravelM: finiteDouble(
+      telemetry,
+      offset + LMU_WHEEL.suspensionDeflection,
+    ),
+    brakeTemperatureC: finiteDouble(
+      telemetry,
+      offset + LMU_WHEEL.brakeTemperature,
+    ),
+    rotationRadPerSecond: finiteDouble(
+      telemetry,
+      offset + LMU_WHEEL.rotation,
+    ),
+    slipRatio,
+    slipAngle,
+    combinedSlip: Math.hypot(slipRatio, Math.tan(slipAngle)),
+    pressurePsi:
+      finiteDouble(telemetry, offset + LMU_WHEEL.pressureKpa) * KPA_TO_PSI,
+    temperatureLeftC: left,
+    temperatureMiddleC: middle,
+    temperatureRightC: right,
+    temperatureAverageC: (left + middle + right) / 3,
+    carcassTemperatureC:
+      finiteDouble(
+        telemetry,
+        offset + LMU_WHEEL.tireCarcassTemperature,
+        KELVIN_TO_CELSIUS,
+      ) - KELVIN_TO_CELSIUS,
+    // LMU reports remaining tire health; RaceIQ packet field stores consumed wear.
+    wear: 1 - clamp(finiteDouble(telemetry, offset + LMU_WHEEL.wear), 0, 1),
+    onRumbleStrip:
+      telemetry.readUInt8(offset + LMU_WHEEL.surfaceType) === 5 ? 1 : 0,
+  };
+}
+
+function weatherType(raining: number, cloudCoverage: number): number {
+  if (raining >= 0.66) return 4;
+  if (raining > 0) return 3;
+  if (cloudCoverage >= 4) return 2;
+  if (cloudCoverage > 0) return 1;
+  return 0;
+}
+
+export function identityFromLMUSourceFrame(
+  frame: LMUSourceFrameV1,
+): LMUIdentityRecord {
+  const carName = readCString(
+    frame.telemetry,
+    LMU_TELEMETRY.vehicleName,
+    64,
+  );
+  const carModel = readCString(
+    frame.telemetry,
+    LMU_TELEMETRY.vehicleModel,
+    30,
+  );
+  const scoringTrackName = readCString(
+    frame.scoringInfo,
+    LMU_SCORING_INFO.trackName,
+    64,
+  );
+  const telemetryTrackName = readCString(
+    frame.telemetry,
+    LMU_TELEMETRY.trackName,
+    64,
+  );
+  const carId = carModel || carName;
+  const trackId = scoringTrackName || telemetryTrackName;
+  const canonicalCar = resolveLMUCar(carId, carName);
+  const canonicalTrack = resolveLMUTrack(
+    scoringTrackName,
+    telemetryTrackName,
+  );
+  return {
+    carId: canonicalCar?.id ?? carId,
+    carName,
+    carModel,
+    trackId: canonicalTrack?.id ?? trackId,
+    trackName: trackId,
+  };
+}
+
+export function normalizeLMUSourceFrame(
+  frame: LMUSourceFrameV1,
+): TelemetryPacket {
+  const telemetry = frame.telemetry;
+  const scoringInfo = frame.scoringInfo;
+  const scoring = frame.playerScoring;
+  const identity = identityFromLMUSourceFrame(frame);
+  const sessionTypeOrdinal = scoringInfo.readInt32LE(LMU_SCORING_INFO.session);
+  const position = vector(telemetry, LMU_TELEMETRY.position);
+  const localVelocity = vector(telemetry, LMU_TELEMETRY.localVelocity);
+  const localAcceleration = vector(
+    telemetry,
+    LMU_TELEMETRY.localAcceleration,
+  );
+  const localRotation = vector(telemetry, LMU_TELEMETRY.localRotation);
+  const orientation = [
+    vector(telemetry, LMU_TELEMETRY.orientation),
+    vector(telemetry, LMU_TELEMETRY.orientation + 24),
+    vector(telemetry, LMU_TELEMETRY.orientation + 48),
+  ];
+  const forward = {
+    x: -orientation[0].z,
+    y: -orientation[1].z,
+    z: -orientation[2].z,
+  };
+  const yaw = Math.atan2(forward.x, forward.z);
+  const pitch = Math.asin(clamp(forward.y, -1, 1));
+  const roll = Math.atan2(-orientation[1].x, orientation[1].y);
+  const wheels = Object.fromEntries(
+    WHEEL_KEYS.map((key, index) => [key, wheel(telemetry, index)]),
+  ) as Record<WheelKey, NormalizedWheel>;
+
+  const elapsedTime = Math.max(
+    0,
+    finiteDouble(telemetry, LMU_TELEMETRY.elapsedTime),
+  );
+  const lapStartElapsedTime = Math.max(
+    0,
+    finiteDouble(telemetry, LMU_TELEMETRY.lapStartElapsedTime),
+  );
+  const trackLengthM = Math.max(
+    0,
+    finiteDouble(scoringInfo, LMU_SCORING_INFO.lapDistance),
+  );
+  const lapDistanceM = scoring
+    ? Math.max(0, finiteDouble(scoring, LMU_SCORING_VEHICLE.lapDistance))
+    : 0;
+  const completedLaps = scoring
+    ? Math.max(0, scoring.readInt16LE(LMU_SCORING_VEHICLE.totalLaps))
+    : Math.max(0, telemetry.readInt32LE(LMU_TELEMETRY.lapNumber) - 1);
+  const currentSector = telemetry.readInt32LE(LMU_TELEMETRY.currentSector);
+  const currentSectorIndex = currentSector & 0x7fffffff;
+  const positiveScoringTime = (offset: number) =>
+    scoring ? positiveTime(finiteDouble(scoring, offset)) : 0;
+  const engineRpm = Math.max(
+    0,
+    finiteDouble(telemetry, LMU_TELEMETRY.engineRpm),
+  );
+  const engineTorque = finiteDouble(telemetry, LMU_TELEMETRY.engineTorque);
+  const motorRpm = finiteDouble(
+    telemetry,
+    LMU_TELEMETRY.electricBoostMotorRpm,
+  );
+  const motorTorque = finiteDouble(
+    telemetry,
+    LMU_TELEMETRY.electricBoostMotorTorque,
+  );
+  const raining = clamp(
+    finiteDouble(scoringInfo, LMU_SCORING_INFO.raining),
+    0,
+    1,
+  );
+  const cloudCoverage = scoringInfo.readUInt8(
+    LMU_SCORING_INFO.cloudCoverage,
+  );
+  const driverName = scoring
+    ? readCString(scoring, LMU_SCORING_VEHICLE.driverName, 32)
+    : readCString(scoringInfo, LMU_SCORING_INFO.playerName, 32);
+  const carName = readCString(
+    telemetry,
+    LMU_TELEMETRY.vehicleName,
+    64,
+  );
+  const carModel = readCString(
+    telemetry,
+    LMU_TELEMETRY.vehicleModel,
+    30,
+  );
+  const frontTireCompound = readCString(
+    telemetry,
+    LMU_TELEMETRY.frontTireCompoundName,
+    18,
+  );
+  const rearTireCompound = readCString(
+    telemetry,
+    LMU_TELEMETRY.rearTireCompoundName,
+    18,
+  );
+  const vehicleClass = telemetry.readUInt8(LMU_TELEMETRY.vehicleClass);
+  const inPits = scoring
+    ? scoring.readUInt8(LMU_SCORING_VEHICLE.inPits) !== 0
+    : false;
+  const lmu: LMUExtendedData = {
+    carId: identity.carId,
+    trackId: identity.trackId,
+    gameVersion: frame.gameVersion,
+    sessionType: LMU_SESSION_TYPES[sessionTypeOrdinal] ?? "unknown",
+    sessionTypeOrdinal,
+    deltaBest: finiteDouble(telemetry, LMU_TELEMETRY.deltaBest),
+    vehicleId: telemetry.readInt32LE(LMU_TELEMETRY.id),
+    driverName,
+    carName,
+    carModel,
+    vehicleClass,
+    trackName: identity.trackName,
+    trackLengthM,
+    lapDistanceM,
+    currentSectorIndex,
+    bestSector1: positiveScoringTime(LMU_SCORING_VEHICLE.bestSector1),
+    bestSector2: positiveScoringTime(LMU_SCORING_VEHICLE.bestSector2),
+    lastSector1: positiveScoringTime(LMU_SCORING_VEHICLE.lastSector1),
+    lastSector2: positiveScoringTime(LMU_SCORING_VEHICLE.lastSector2),
+    currentSector1: positiveScoringTime(LMU_SCORING_VEHICLE.currentSector1),
+    currentSector2: positiveScoringTime(LMU_SCORING_VEHICLE.currentSector2),
+    lapInvalidated:
+      telemetry.readUInt8(LMU_TELEMETRY.lapInvalidated) !== 0,
+    inPits,
+    pitState: scoring
+      ? scoring.readUInt8(LMU_SCORING_VEHICLE.pitState)
+      : 0,
+    frontTireCompound,
+    rearTireCompound,
+    rearFlapActivated:
+      telemetry.readUInt8(LMU_TELEMETRY.rearFlapActivated) !== 0,
+    rearFlapLegalStatus: telemetry.readUInt8(
+      LMU_TELEMETRY.rearFlapLegalStatus,
+    ),
+    speedLimiterActive:
+      telemetry.readUInt8(LMU_TELEMETRY.speedLimiterActive) !== 0,
+    tcActive: telemetry.readUInt8(LMU_TELEMETRY.tcActive) !== 0,
+    absActive: telemetry.readUInt8(LMU_TELEMETRY.absActive) !== 0,
+    tcLevel: telemetry.readUInt8(LMU_TELEMETRY.tc),
+    tcCutLevel: telemetry.readUInt8(LMU_TELEMETRY.tcCut),
+    absLevel: telemetry.readUInt8(LMU_TELEMETRY.abs),
+    motorMap: telemetry.readUInt8(LMU_TELEMETRY.motorMap),
+    migration: telemetry.readUInt8(LMU_TELEMETRY.migration),
+    frontAntiSway: telemetry.readUInt8(LMU_TELEMETRY.frontAntiSway),
+    rearAntiSway: telemetry.readUInt8(LMU_TELEMETRY.rearAntiSway),
+    batteryChargeFraction: clamp(
+      finiteDouble(telemetry, LMU_TELEMETRY.batteryChargeFraction),
+      0,
+      1,
+    ),
+    stateOfCharge: finiteFloat(telemetry, LMU_TELEMETRY.stateOfCharge),
+    virtualEnergy: finiteFloat(telemetry, LMU_TELEMETRY.virtualEnergy),
+    regenKw: finiteFloat(telemetry, LMU_TELEMETRY.regenKw),
+    trackLimitsSteps: telemetry.readUInt8(LMU_TELEMETRY.trackLimitsSteps),
+    trackGripLevel: scoringInfo.readUInt8(
+      LMU_SCORING_INFO.trackGripLevel,
+    ),
+    cloudCoverage,
+  };
+
+  return {
+    gameId: "lmu",
+    lmu,
+    sessionUID: JSON.stringify([
+      frame.gameVersion,
+      frame.sessionEvent,
+      scoringInfo.readInt32LE(LMU_SCORING_INFO.session),
+      identity.carId,
+      identity.trackId,
+    ]),
+    IsRaceOn:
+      scoringInfo.readUInt8(LMU_SCORING_INFO.inRealtime) !== 0 ? 1 : 0,
+    TimestampMS: Math.round(frame.captureTimestampMs),
+    EngineMaxRpm: Math.max(
+      0,
+      finiteDouble(telemetry, LMU_TELEMETRY.engineMaxRpm),
+    ),
+    EngineIdleRpm: 0,
+    CurrentEngineRpm: engineRpm,
+    AccelerationX: localAcceleration.x,
+    AccelerationY: localAcceleration.y,
+    AccelerationZ: -localAcceleration.z,
+    VelocityX: localVelocity.x,
+    VelocityY: localVelocity.y,
+    VelocityZ: -localVelocity.z,
+    AngularVelocityX: localRotation.x,
+    AngularVelocityY: localRotation.y,
+    AngularVelocityZ: localRotation.z,
+    Yaw: yaw,
+    Pitch: pitch,
+    Roll: roll,
+    NormSuspensionTravelFL: 0,
+    NormSuspensionTravelFR: 0,
+    NormSuspensionTravelRL: 0,
+    NormSuspensionTravelRR: 0,
+    TireSlipRatioFL: wheels.FL.slipRatio,
+    TireSlipRatioFR: wheels.FR.slipRatio,
+    TireSlipRatioRL: wheels.RL.slipRatio,
+    TireSlipRatioRR: wheels.RR.slipRatio,
+    WheelRotationSpeedFL: wheels.FL.rotationRadPerSecond,
+    WheelRotationSpeedFR: wheels.FR.rotationRadPerSecond,
+    WheelRotationSpeedRL: wheels.RL.rotationRadPerSecond,
+    WheelRotationSpeedRR: wheels.RR.rotationRadPerSecond,
+    WheelOnRumbleStripFL: wheels.FL.onRumbleStrip,
+    WheelOnRumbleStripFR: wheels.FR.onRumbleStrip,
+    WheelOnRumbleStripRL: wheels.RL.onRumbleStrip,
+    WheelOnRumbleStripRR: wheels.RR.onRumbleStrip,
+    WheelInPuddleDepthFL: 0,
+    WheelInPuddleDepthFR: 0,
+    WheelInPuddleDepthRL: 0,
+    WheelInPuddleDepthRR: 0,
+    SurfaceRumbleFL_2: 0,
+    SurfaceRumbleFR_2: 0,
+    SurfaceRumbleRL_2: 0,
+    SurfaceRumbleRR_2: 0,
+    TireSlipCombinedFL_2: wheels.FL.combinedSlip,
+    TireTempFL: wheels.FL.temperatureAverageC,
+    TireTempFR: wheels.FR.temperatureAverageC,
+    TireTempRL: wheels.RL.temperatureAverageC,
+    TireTempRR: wheels.RR.temperatureAverageC,
+    TireCarcassAverageTempFL: wheels.FL.carcassTemperatureC,
+    TireCarcassAverageTempFR: wheels.FR.carcassTemperatureC,
+    TireCarcassAverageTempRL: wheels.RL.carcassTemperatureC,
+    TireCarcassAverageTempRR: wheels.RR.carcassTemperatureC,
+    TireSurfaceTempInnerFL: wheels.FL.temperatureRightC,
+    TireSurfaceTempInnerFR: wheels.FR.temperatureLeftC,
+    TireSurfaceTempInnerRL: wheels.RL.temperatureRightC,
+    TireSurfaceTempInnerRR: wheels.RR.temperatureLeftC,
+    TireSurfaceTempMiddleFL: wheels.FL.temperatureMiddleC,
+    TireSurfaceTempMiddleFR: wheels.FR.temperatureMiddleC,
+    TireSurfaceTempMiddleRL: wheels.RL.temperatureMiddleC,
+    TireSurfaceTempMiddleRR: wheels.RR.temperatureMiddleC,
+    TireSurfaceTempOuterFL: wheels.FL.temperatureLeftC,
+    TireSurfaceTempOuterFR: wheels.FR.temperatureRightC,
+    TireSurfaceTempOuterRL: wheels.RL.temperatureLeftC,
+    TireSurfaceTempOuterRR: wheels.RR.temperatureRightC,
+    Boost: 0,
+    Fuel: Math.max(0, finiteDouble(telemetry, LMU_TELEMETRY.fuel)),
+    FuelCapacity: Math.max(
+      0,
+      finiteDouble(telemetry, LMU_TELEMETRY.fuelCapacity),
+    ),
+    DistanceTraveled:
+      completedLaps * trackLengthM + Math.max(0, lapDistanceM),
+    BestLap: scoring
+      ? positiveTime(finiteDouble(scoring, LMU_SCORING_VEHICLE.bestLapTime))
+      : 0,
+    LastLap: scoring
+      ? positiveTime(finiteDouble(scoring, LMU_SCORING_VEHICLE.lastLapTime))
+      : 0,
+    CurrentLap: Math.max(0, elapsedTime - lapStartElapsedTime),
+    CurrentRaceTime: elapsedTime,
+    // LMU telemetry reports zero-based current-lap numbers. RaceIQ lap
+    // identity is one-based, matching the displayed lap and persisted laps.
+    LapNumber: Math.max(
+      1,
+      telemetry.readInt32LE(LMU_TELEMETRY.lapNumber) + 1,
+    ),
+    RacePosition: scoring
+      ? scoring.readUInt8(LMU_SCORING_VEHICLE.place)
+      : 0,
+    Accel: input255(finiteDouble(telemetry, LMU_TELEMETRY.throttle)),
+    Brake: input255(finiteDouble(telemetry, LMU_TELEMETRY.brake)),
+    Clutch: input255(finiteDouble(telemetry, LMU_TELEMETRY.clutch)),
+    HandBrake: 0,
+    Gear: canonicalGear(telemetry.readInt32LE(LMU_TELEMETRY.gear)),
+    Steer: Math.round(
+      clamp(finiteDouble(telemetry, LMU_TELEMETRY.steering), -1, 1) * 127,
+    ),
+    NormDrivingLine: 0,
+    NormAIBrakeDiff: 0,
+    TireWearFL: wheels.FL.wear,
+    TireWearFR: wheels.FR.wear,
+    TireWearRL: wheels.RL.wear,
+    TireWearRR: wheels.RR.wear,
+    SurfaceRumbleFL: 0,
+    SurfaceRumbleFR: 0,
+    SurfaceRumbleRL: 0,
+    SurfaceRumbleRR: 0,
+    TireSlipAngleFL: wheels.FL.slipAngle,
+    TireSlipAngleFR: wheels.FR.slipAngle,
+    TireSlipAngleRL: wheels.RL.slipAngle,
+    TireSlipAngleRR: wheels.RR.slipAngle,
+    TireCombinedSlipFL: wheels.FL.combinedSlip,
+    TireCombinedSlipFR: wheels.FR.combinedSlip,
+    TireCombinedSlipRL: wheels.RL.combinedSlip,
+    TireCombinedSlipRR: wheels.RR.combinedSlip,
+    SuspensionTravelMFL: wheels.FL.suspensionTravelM,
+    SuspensionTravelMFR: wheels.FR.suspensionTravelM,
+    SuspensionTravelMRL: wheels.RL.suspensionTravelM,
+    SuspensionTravelMRR: wheels.RR.suspensionTravelM,
+    CarOrdinal: -1,
+    CarClass: vehicleClass,
+    CarPerformanceIndex: 0,
+    DrivetrainType: 1,
+    NumCylinders: 0,
+    PositionX: position.x,
+    PositionY: position.y,
+    PositionZ: position.z,
+    Speed: Math.hypot(
+      localVelocity.x,
+      localVelocity.y,
+      localVelocity.z,
+    ),
+    Power:
+      engineTorque * engineRpm * TWO_PI_PER_MINUTE +
+      motorTorque * motorRpm * TWO_PI_PER_MINUTE,
+    Torque: engineTorque + motorTorque,
+    TrackOrdinal: -1,
+    BrakeTempFrontLeft: wheels.FL.brakeTemperatureC,
+    BrakeTempFrontRight: wheels.FR.brakeTemperatureC,
+    BrakeTempRearLeft: wheels.RL.brakeTemperatureC,
+    BrakeTempRearRight: wheels.RR.brakeTemperatureC,
+    TirePressureFrontLeft: wheels.FL.pressurePsi,
+    TirePressureFrontRight: wheels.FR.pressurePsi,
+    TirePressureRearLeft: wheels.RL.pressurePsi,
+    TirePressureRearRight: wheels.RR.pressurePsi,
+    DrsActive: lmu.rearFlapActivated ? 1 : 0,
+    TrackTemp: finiteDouble(
+      scoringInfo,
+      LMU_SCORING_INFO.trackTemperature,
+    ),
+    AirTemp: finiteDouble(
+      scoringInfo,
+      LMU_SCORING_INFO.ambientTemperature,
+    ),
+    RainPercent: Math.round(raining * 100),
+    WeatherType: weatherType(raining, cloudCoverage),
+  };
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Ferrari 488 GT3 Suzuka",
+    "carModel": "ferrari-488-gt3",
+    "carClass": "GT3",
+    "trackName": "Suzuka",
+    "downloadUrl": "https://www.youtube.com/watch?v=vRs4D0oSl7k",
+    "videoUrl": "https://www.youtube.com/watch?v=vRs4D0oSl7k",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-488-gt3/on/suzuka",
+    "author": "PS_Racing",
+    "lapTime": "1:58.735",
+    "date": "2025-12",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

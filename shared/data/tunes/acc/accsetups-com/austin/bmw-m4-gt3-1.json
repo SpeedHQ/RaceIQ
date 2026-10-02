@@ -1,0 +1,34 @@
+[
+  {
+    "name": "BMW M4 GT3 COTA",
+    "carModel": "bmw-m4-gt3-1",
+    "carClass": "GT3",
+    "trackName": "COTA",
+    "downloadUrl": "https://www.youtube.com/watch?v=Gc_Bgz2ofR0",
+    "videoUrl": "https://www.youtube.com/watch?v=Gc_Bgz2ofR0",
+    "pageUrl": "https://accsetups.com/free-setups/for/bmw-m4-gt3-1/on/cota",
+    "author": "Fri3d0lf",
+    "lapTime": "2:04.3",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "BMW M4 GT3 COTA",
+    "carModel": "bmw-m4-gt3-1",
+    "carClass": "GT3",
+    "trackName": "COTA",
+    "downloadUrl": "https://www.youtube.com/watch?v=2fw9iDPEyio",
+    "videoUrl": "https://www.youtube.com/watch?v=2fw9iDPEyio",
+    "pageUrl": "https://accsetups.com/free-setups/for/bmw-m4-gt3-1/on/cota",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

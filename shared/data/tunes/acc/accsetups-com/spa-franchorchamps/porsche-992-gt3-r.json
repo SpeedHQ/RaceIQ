@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Porsche 992 GT3-R Spa Franchorchamps",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Spa Franchorchamps",
+    "downloadUrl": "https://www.youtube.com/watch?v=habHih74Izw",
+    "videoUrl": "https://www.youtube.com/watch?v=habHih74Izw",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/spa-franchorchamps",
+    "author": "Fri3d0lf",
+    "lapTime": "2:16.0",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Porsche 992 GT3-R Spa Franchorchamps",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Spa Franchorchamps",
+    "downloadUrl": "https://www.youtube.com/watch?v=QdRdKocupio",
+    "videoUrl": "https://www.youtube.com/watch?v=QdRdKocupio",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/spa-franchorchamps",
+    "author": "PS_Racing",
+    "lapTime": "2:16.715",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Porsche 992 GT3-R Spa Franchorchamps",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Spa Franchorchamps",
+    "downloadUrl": "https://www.youtube.com/watch?v=Ve7Qhx0lFzg",
+    "videoUrl": "https://www.youtube.com/watch?v=Ve7Qhx0lFzg",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/spa-franchorchamps",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

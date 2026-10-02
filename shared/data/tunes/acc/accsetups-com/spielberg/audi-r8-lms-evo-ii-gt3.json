@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Audi R8 LMS Evo II GT3 Red Bull Ring",
+    "carModel": "audi-r8-lms-evo-ii-gt3",
+    "carClass": "GT3",
+    "trackName": "Red Bull Ring",
+    "downloadUrl": "https://www.youtube.com/watch?v=ha0Q4XJ6MQI",
+    "videoUrl": "https://www.youtube.com/watch?v=ha0Q4XJ6MQI",
+    "pageUrl": "https://accsetups.com/free-setups/for/audi-r8-lms-evo-ii-gt3/on/red-bull-ring",
+    "author": "Fri3d0lf",
+    "lapTime": "1:27.5",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

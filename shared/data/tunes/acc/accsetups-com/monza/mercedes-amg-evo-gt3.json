@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Mercedes AMG Evo GT3 Monza",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Monza",
+    "downloadUrl": "https://www.youtube.com/watch?v=E00OUgCkS9c",
+    "videoUrl": "https://www.youtube.com/watch?v=E00OUgCkS9c",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/monza",
+    "author": "PS_Racing",
+    "lapTime": "1:46.697",
+    "date": "2025-05",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Mercedes AMG Evo GT3 Monza",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Monza",
+    "downloadUrl": "https://www.youtube.com/watch?v=wnC5VgeHJy4",
+    "videoUrl": "https://www.youtube.com/watch?v=wnC5VgeHJy4",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/monza",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Bentley Continental GT3 '18 Silverstone",
+    "carModel": "bentley-continental-gt3-2018",
+    "carClass": "GT3",
+    "trackName": "Silverstone",
+    "downloadUrl": "https://www.youtube.com/watch?v=7e8ST4oNFuI",
+    "videoUrl": "https://www.youtube.com/watch?v=7e8ST4oNFuI",
+    "pageUrl": "https://accsetups.com/free-setups/for/bentley-continental-gt3-2018/on/silverstone",
+    "author": "PS_Racing",
+    "lapTime": "1:57.357",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Bentley Continental GT3 '18 Silverstone",
+    "carModel": "bentley-continental-gt3-2018",
+    "carClass": "GT3",
+    "trackName": "Silverstone",
+    "downloadUrl": "https://www.youtube.com/watch?v=Zt6OC7Vszcs",
+    "videoUrl": "https://www.youtube.com/watch?v=Zt6OC7Vszcs",
+    "pageUrl": "https://accsetups.com/free-setups/for/bentley-continental-gt3-2018/on/silverstone",
+    "author": "PS_Racing",
+    "lapTime": "1:57.870",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

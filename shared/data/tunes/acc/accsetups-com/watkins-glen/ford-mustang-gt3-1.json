@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Ford Mustang GT3 Watkins Glen",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Watkins Glen",
+    "downloadUrl": "https://www.youtube.com/watch?v=31cFnPg7H0M",
+    "videoUrl": "https://www.youtube.com/watch?v=31cFnPg7H0M",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/watkins-glen",
+    "author": "Fri3d0lf",
+    "lapTime": "1:43.0",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 Watkins Glen",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Watkins Glen",
+    "downloadUrl": "https://www.youtube.com/watch?v=f9-xMjmrWwU",
+    "videoUrl": "https://www.youtube.com/watch?v=f9-xMjmrWwU",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/watkins-glen",
+    "author": "PS_Racing",
+    "lapTime": "1:43.180",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

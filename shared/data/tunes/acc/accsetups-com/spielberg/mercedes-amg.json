@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Mercedes AMG GT4 Red Bull Ring",
+    "carModel": "mercedes-amg",
+    "carClass": "GT4",
+    "trackName": "Red Bull Ring",
+    "downloadUrl": "https://www.youtube.com/watch?v=nfDsWcKKais",
+    "videoUrl": "https://www.youtube.com/watch?v=nfDsWcKKais",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg/on/red-bull-ring",
+    "author": "Ohne Speed",
+    "lapTime": "1:35.4",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

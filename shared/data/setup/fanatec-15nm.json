@@ -1,0 +1,109 @@
+{
+  "id": "fanatec-15nm",
+  "name": "Fanatec 15Nm",
+  "description": "Wheel base and in-game settings for Fanatec DD bases running at 15Nm in Forza Motorsport. Based on community-recommended settings from Fanatec forums and sim racing guides.",
+  "sources": [
+    "https://forum.fanatec.com/discussion/28268/forza-motorsport-settings",
+    "https://simracingsetup.com/forza/forza-motorsport-fanatec-csl-dd-wheel-settings/",
+    "https://support.forzamotorsport.net/hc/en-us/articles/21423900676371-Forza-Motorsport-Advanced-Wheel-Tuning"
+  ],
+  "wheelBase": {
+    "name": "Fanatec Direct Drive",
+    "maxTorque": "15Nm",
+    "notes": "Applies to CSL DD (8Nm boost kit), GT DD Pro (8Nm boost kit), DD1, DD2, or ClubSport DD+ at 15Nm peak torque. Settings sourced from Fanatec community forums — no official Fanatec game-specific profile exists for Forza Motorsport (2024)."
+  },
+  "fanalab": {
+    "title": "Fanalab / Base Settings",
+    "description": "Configure in Fanalab or on the wheel base directly. These are community-recommended starting points.",
+    "settings": [
+      { "name": "SEN", "value": "900", "unit": "°", "description": "Steering range — 900° matches Forza's default. Use Auto if your base supports it." },
+      { "name": "FF", "value": "50", "unit": "%", "description": "Force feedback strength — reduced from 100 at 15Nm to avoid clipping. Increase for weaker bases." },
+      { "name": "FFS", "value": "Peak", "description": "Force feedback mode — Peak for maximum detail at lower overall force." },
+      { "name": "NDP", "value": "18", "unit": "%", "description": "Natural damper — light damping to reduce oscillation on straights." },
+      { "name": "NFR", "value": "0", "unit": "%", "description": "Natural friction — off for cleanest FFB signal." },
+      { "name": "NIN", "value": "0", "unit": "%", "description": "Natural inertia — off to keep wheel responsive." },
+      { "name": "INT", "value": "Off", "description": "Interpolation — off for most direct FFB. Increase to 3-4 if FFB feels grainy." },
+      { "name": "FEI", "value": "100", "unit": "%", "description": "Force effect intensity — max for strong kerb and rumble strip effects." },
+      { "name": "FOR", "value": "100", "unit": "%", "description": "Force — maximum base output, controlled by FF above." },
+      { "name": "SPR", "value": "0", "unit": "%", "description": "Spring — off. Let the game handle centring." },
+      { "name": "DPR", "value": "0", "unit": "%", "description": "Damper — off. Using NDP for smoother damping instead." },
+      { "name": "BLI", "value": "50", "unit": "%", "description": "Brake force indicator — vibrate at 50% to feel lockup." },
+      { "name": "SHO", "value": "100", "unit": "%", "description": "Vibration motor — full for gear shift and ABS feedback." },
+      { "name": "MPS", "value": "Auto", "description": "Multi-position switch — auto detect." }
+    ]
+  },
+  "inGamePresets": [
+    {
+      "id": "detailed",
+      "name": "Detailed & Responsive",
+      "description": "High road feel and pneumatic trail. Prioritises information over weight. Best for learning tracks and improving consistency.",
+      "settings": [
+        { "name": "Vibration Scale", "value": "50", "unit": "%", "description": "Moderate vibration — enough to feel tire slip without overwhelming the wheel." },
+        { "name": "Force Feedback Scale", "value": "50", "unit": "%", "description": "50% at 15Nm avoids clipping. Start here and increase by 5 until you feel deadspots." },
+        { "name": "Steering Sensitivity", "value": "50", "unit": "%", "description": "Linear — do not change. 1:1 steering input." },
+        { "name": "Steering Linearity", "value": "50", "unit": "%", "description": "Linear — do not change. 1:1 mapping." },
+        { "name": "Force Feedback Understeer", "value": "65", "unit": "%", "description": "Lightens wheel on understeer — helps feel front wash." },
+        { "name": "Force Feedback Minimum Force", "value": "30", "unit": "%", "description": "Ensures FFB is always present, even at low speed." },
+        { "name": "Wheel Damper Scale", "value": "30", "unit": "%", "description": "Light in-game damping — most comes from base NDP." },
+        { "name": "Centre Spring Scale", "value": "0", "unit": "%", "description": "Off — artificial spring hides real FFB." },
+        { "name": "Pneumatic Trail Scale", "value": "100", "unit": "%", "description": "Maximum tire feel through the wheel — single best slider for sensing grip." },
+        { "name": "Mechanical Trail Scale", "value": "110", "unit": "%", "description": "Above default for stronger suspension and geometry feedback." },
+        { "name": "Road Feel Scale", "value": "105", "unit": "%", "description": "Slightly above default for surface texture detail." },
+        { "name": "Load Sensitivity", "value": "50", "unit": "%", "description": "Moderate — keeps wheel weight manageable in high-downforce cars." },
+        { "name": "Dynamic Damper Behaviour", "value": "50", "unit": "%", "description": "Default — balanced damper response." }
+      ]
+    },
+    {
+      "id": "heavy-realistic",
+      "name": "Heavy & Realistic",
+      "description": "Higher forces and load sensitivity for a heavier, more physical experience. Closer to a real GT3 car's steering weight. Demanding on arms over long stints.",
+      "settings": [
+        { "name": "Vibration Scale", "value": "70", "unit": "%", "description": "Strong vibration for pronounced tire slip and collision feedback." },
+        { "name": "Force Feedback Scale", "value": "70", "unit": "%", "description": "Higher force — may clip in high-downforce corners. Monitor for dead spots." },
+        { "name": "Steering Sensitivity", "value": "50", "unit": "%", "description": "Linear — do not change." },
+        { "name": "Steering Linearity", "value": "50", "unit": "%", "description": "Linear — do not change." },
+        { "name": "Force Feedback Understeer", "value": "55", "unit": "%", "description": "Less understeer lightening — heavier wheel at all times." },
+        { "name": "Force Feedback Minimum Force", "value": "20", "unit": "%", "description": "Lower minimum — allows more dynamic range." },
+        { "name": "Wheel Damper Scale", "value": "50", "unit": "%", "description": "Moderate damping for a heavier, planted feel." },
+        { "name": "Centre Spring Scale", "value": "0", "unit": "%", "description": "Off — always off." },
+        { "name": "Pneumatic Trail Scale", "value": "85", "unit": "%", "description": "Slightly reduced — avoids overloading feel when combined with high FFB Scale." },
+        { "name": "Mechanical Trail Scale", "value": "100", "unit": "%", "description": "Default — balanced with higher overall force." },
+        { "name": "Road Feel Scale", "value": "80", "unit": "%", "description": "Reduced slightly to avoid harshness at higher FFB levels." },
+        { "name": "Load Sensitivity", "value": "100", "unit": "%", "description": "Full — wheel gets very heavy under load, realistic weight transfer." },
+        { "name": "Dynamic Damper Behaviour", "value": "50", "unit": "%", "description": "Default — balanced damper response." }
+      ]
+    },
+    {
+      "id": "smooth-endurance",
+      "name": "Smooth Endurance",
+      "description": "Softer forces and damping for long races. Reduces arm fatigue while keeping enough information to drive consistently. Good for 30+ minute stints.",
+      "settings": [
+        { "name": "Vibration Scale", "value": "40", "unit": "%", "description": "Lower vibration to reduce fatigue over long stints." },
+        { "name": "Force Feedback Scale", "value": "45", "unit": "%", "description": "Light overall force — easy on the arms." },
+        { "name": "Steering Sensitivity", "value": "50", "unit": "%", "description": "Linear — do not change." },
+        { "name": "Steering Linearity", "value": "50", "unit": "%", "description": "Linear — do not change." },
+        { "name": "Force Feedback Understeer", "value": "70", "unit": "%", "description": "More lightening on understeer — easier to hold through long corners." },
+        { "name": "Force Feedback Minimum Force", "value": "25", "unit": "%", "description": "Moderate minimum to maintain feel at low speeds." },
+        { "name": "Wheel Damper Scale", "value": "40", "unit": "%", "description": "Higher damping smooths out the wheel for comfort." },
+        { "name": "Centre Spring Scale", "value": "0", "unit": "%", "description": "Off — always off." },
+        { "name": "Pneumatic Trail Scale", "value": "90", "unit": "%", "description": "High but not maxed — still plenty of grip feel." },
+        { "name": "Mechanical Trail Scale", "value": "100", "unit": "%", "description": "Default — no need to push with lower forces." },
+        { "name": "Road Feel Scale", "value": "80", "unit": "%", "description": "Reduced to soften road bumps and kerb harshness." },
+        { "name": "Load Sensitivity", "value": "40", "unit": "%", "description": "Reduced — prevents wheel getting too heavy under load." },
+        { "name": "Dynamic Damper Behaviour", "value": "60", "unit": "%", "description": "Slightly more damping for smoother transitions." }
+      ]
+    }
+  ],
+  "perCarOverrides": [],
+  "tips": [
+    "Always set Steering to Simulation in Driving Assists before touching FFB settings.",
+    "Start with the Detailed & Responsive preset and adjust from there.",
+    "Force Feedback Scale is the most important slider — if you feel dead spots or sudden loss of detail, it's clipping. Lower it by 5%.",
+    "Centre Spring Scale should always be 0 — it creates an artificial dead zone that fights real FFB.",
+    "Steering Sensitivity and Linearity should always stay at 50 — changing these breaks the 1:1 input mapping.",
+    "Pneumatic Trail is the single most important slider for feeling grip. Keep it high.",
+    "If the wheel oscillates on straights, increase NDP on the base by 5 at a time.",
+    "If FFB feels grainy or noisy, increase INT on the base to 3-4.",
+    "These are starting points — every driver prefers different weight and detail levels."
+  ]
+}

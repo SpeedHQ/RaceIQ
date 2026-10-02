@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Valencia",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Valencia",
+    "downloadUrl": "https://www.youtube.com/watch?v=zvEE51TwgNg",
+    "videoUrl": "https://www.youtube.com/watch?v=zvEE51TwgNg",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/valencia",
+    "author": "PS_Racing",
+    "lapTime": "1:30.5",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Valencia",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Valencia",
+    "downloadUrl": "https://www.youtube.com/watch?v=joF4pUBZtHA",
+    "videoUrl": "https://www.youtube.com/watch?v=joF4pUBZtHA",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/valencia",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

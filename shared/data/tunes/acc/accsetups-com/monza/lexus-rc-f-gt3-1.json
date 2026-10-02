@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Lexus RC F GT3 Monza",
+    "carModel": "lexus-rc-f-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Monza",
+    "downloadUrl": "https://www.youtube.com/watch?v=7nwcVFtzIvA",
+    "videoUrl": "https://www.youtube.com/watch?v=7nwcVFtzIvA",
+    "pageUrl": "https://accsetups.com/free-setups/for/lexus-rc-f-gt3-1/on/monza",
+    "author": "PS_Racing",
+    "lapTime": "1:46.362",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Lexus RC F GT3 Monza",
+    "carModel": "lexus-rc-f-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Monza",
+    "downloadUrl": "https://www.youtube.com/watch?v=A91V0cBuMPE",
+    "videoUrl": "https://www.youtube.com/watch?v=A91V0cBuMPE",
+    "pageUrl": "https://accsetups.com/free-setups/for/lexus-rc-f-gt3-1/on/monza",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

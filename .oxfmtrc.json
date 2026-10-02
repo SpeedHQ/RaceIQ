@@ -1,0 +1,14 @@
+{
+  "useTabs": false,
+  "tabWidth": 2,
+  "printWidth": 200,
+  "singleQuote": false,
+  "jsxSingleQuote": false,
+  "quoteProps": "as-needed",
+  "trailingComma": "all",
+  "semi": true,
+  "arrowParens": "always",
+  "bracketSameLine": false,
+  "bracketSpacing": true,
+  "ignorePatterns": ["client/dist", "client/src/paraglide", "dist", ".ui-diff", "shared/data/tracks/**/*-boundaries.json", "shared/telemetry/catalog/generated", "test/e2e/output"]
+}

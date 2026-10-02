@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Porsche 992 GT3-R Brands Hatch",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Brands Hatch",
+    "downloadUrl": "https://www.youtube.com/watch?v=Kk7XEKoAI38",
+    "videoUrl": "https://www.youtube.com/watch?v=Kk7XEKoAI38",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/brands-hatch",
+    "author": "PS_Racing",
+    "lapTime": "1:22.890",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Porsche 992 GT3-R Brands Hatch",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Brands Hatch",
+    "downloadUrl": "https://www.youtube.com/watch?v=Y3iyPLT2iuw",
+    "videoUrl": "https://www.youtube.com/watch?v=Y3iyPLT2iuw",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/brands-hatch",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

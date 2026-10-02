@@ -1,0 +1,18 @@
+[
+  {
+    "name": "BMW M4 GT3 Suzuka",
+    "carModel": "bmw-m4-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Suzuka",
+    "downloadUrl": "https://www.youtube.com/watch?v=r0l64SwCV9Q",
+    "videoUrl": "https://www.youtube.com/watch?v=r0l64SwCV9Q",
+    "pageUrl": "https://accsetups.com/free-setups/for/bmw-m4-gt3-1/on/suzuka",
+    "author": "Fri3d0lf",
+    "lapTime": "1:58.9",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

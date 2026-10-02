@@ -1,0 +1,179 @@
+import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
+import { useNavigate } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
+import { AppInput } from "@/components/ui/AppInput";
+import { Toggle } from "@/components/ui/toggle";
+import { ToggleGroup03 } from "@/components/shadcn-studio/toggle-group/toggle-group-03";
+import { m } from "@/paraglide/messages";
+import { useGameRoute } from "@/stores/game";
+import type { SessionsTab } from "./types";
+type RunExport = (selection: { lapIds?: number[]; sessionIds?: number[] }) => void;
+
+export type SessionToolbarProps = {
+  sessions: SessionMeta[];
+  allLaps: LapMeta[];
+  filteredCount: number;
+  isLoading: boolean;
+  sessionsError: boolean;
+  tab: SessionsTab;
+  setTab: (tab: SessionsTab) => void;
+  favoriteOnly: boolean;
+  setFavoriteOnly: (value: boolean) => void;
+  search: string;
+  setSearch: (value: string) => void;
+  setPage: (page: number) => void;
+  selectedSessions: Set<number>;
+  selectedLaps: Set<number>;
+  exporting: boolean;
+  runExport: RunExport;
+  setImportOpen: (open: boolean) => void;
+  openCleanup: () => void;
+  confirmDelete: boolean;
+  setConfirmDelete: (confirm: boolean) => void;
+  deleteSelected: () => void;
+  isDeleting: boolean;
+  deleteError: string | null;
+};
+
+export function SessionToolbar({
+  sessions,
+  allLaps,
+  filteredCount,
+  isLoading,
+  sessionsError,
+  tab,
+  setTab,
+  favoriteOnly,
+  setFavoriteOnly,
+  search,
+  setSearch,
+  setPage,
+  selectedSessions,
+  selectedLaps,
+  exporting,
+  runExport,
+  setImportOpen,
+  openCleanup,
+  confirmDelete,
+  setConfirmDelete,
+  deleteSelected,
+  isDeleting,
+  deleteError,
+}: SessionToolbarProps) {
+  const gameRoute = useGameRoute();
+  const navigate = useNavigate();
+  const selectedTelemetryLaps = allLaps.filter((lap) => selectedLaps.has(lap.id) && lap.telemetryAvailable !== false);
+
+  return (
+    <div className="flex items-center flex-wrap gap-3">
+      <h1 className="text-app-title font-semibold text-app-text/90 shrink-0">
+        {m.label_sessions()}
+        {!isLoading && !sessionsError && (
+          <span className="text-app-subtext text-app-text/90 font-normal ml-2">
+            {filteredCount === sessions.length ? `${sessions.length} ${m.sessions_total()}` : `${filteredCount} ${m.sessions_filtered_count()} ${sessions.length}`}
+          </span>
+        )}
+      </h1>
+      <ToggleGroup03
+        ariaLabel={m.label_sessions()}
+        value={tab}
+        onValueChange={(nextTab) => {
+          if (nextTab === "mine" || nextTab === "others") {
+            setTab(nextTab);
+            setPage(0);
+          }
+        }}
+        options={[
+          { value: "mine", label: m.sessions_tab_mine() },
+          { value: "others", label: m.sessions_tab_others() },
+        ]}
+      />
+      <Toggle
+        variant="app-outline"
+        size="app-md"
+        showStar
+        pressed={favoriteOnly}
+        onPressedChange={(pressed) => {
+          setFavoriteOnly(pressed);
+          setPage(0);
+        }}
+      >
+        {m.sessions_filter_favorites()}
+      </Toggle>
+      <Button variant="app-outline" size="app-md" onClick={() => setImportOpen(true)}>
+        {m.sessions_import()}
+      </Button>
+      <AppInput
+        type="search"
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        placeholder={m.sessions_search_placeholder()}
+        className="h-8 min-w-[200px] flex-1 px-2.5 py-1 focus-visible:border-app-accent focus-visible:ring-app-accent @3xl/workspace:w-64 @3xl/workspace:flex-none"
+      />
+      <div className="flex items-center flex-wrap gap-2">
+        {selectedTelemetryLaps.length > 0 && (
+          <Button variant="app-primary" size="app-md" disabled={exporting} onClick={() => runExport({ lapIds: selectedTelemetryLaps.map((lap) => lap.id) })}>
+            {exporting ? m.common_loading() : m.label_export()}
+          </Button>
+        )}
+        {selectedLaps.size === 2 &&
+          (() => {
+            const ids = [...selectedLaps];
+            const lapA = allLaps.find((lap) => lap.id === ids[0]);
+            const lapB = allLaps.find((lap) => lap.id === ids[1]);
+            if (!lapA || !lapB) return null;
+            const sessionA = sessions.find((session) => session.id === lapA.sessionId);
+            const sessionB = sessions.find((session) => session.id === lapB.sessionId);
+            if (!sessionA || !sessionB || sessionA.trackOrdinal !== sessionB.trackOrdinal || lapA.telemetryAvailable === false || lapB.telemetryAvailable === false) return null;
+            return (
+              <Button
+                variant="app-primary"
+                size="app-md"
+                onClick={() =>
+                  navigate({
+                    to: `${gameRoute}/compare` as never,
+                    search: { track: sessionA.trackOrdinal, carA: sessionA.carOrdinal, carB: sessionB.carOrdinal, lapA: lapA.id, lapB: lapB.id } as never,
+                  })
+                }
+              >
+                {m.sessions_compare_two()}
+              </Button>
+            );
+          })()}
+        {selectedSessions.size > 0 && (
+          <Button variant="app-outline" size="app-md" onClick={openCleanup}>
+            {m.sessions_cleanup_free_space()}
+          </Button>
+        )}
+        {(selectedSessions.size > 0 || selectedLaps.size > 0) &&
+          (!confirmDelete ? (
+            <Button variant="app-danger" size="app-md" onClick={() => setConfirmDelete(true)}>
+              {m.common_delete()} {selectedSessions.size > 0 ? `${selectedSessions.size} ${m.sessions_count_sessions()}` : ""}
+              {selectedSessions.size > 0 && selectedLaps.size > 0 ? " + " : ""}
+              {selectedLaps.size > 0 ? `${selectedLaps.size} ${m.sessions_count_laps()}` : ""}
+            </Button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="text-app-caption font-medium text-status-danger">{m.trackdetail_confirm()}</span>
+              <Button variant="app-danger" size="app-sm" onClick={deleteSelected} disabled={isDeleting}>
+                {isDeleting ? m.common_loading() : m.trackdetail_yes()}
+              </Button>
+              <Button variant="app-outline" size="app-sm" onClick={() => setConfirmDelete(false)} disabled={isDeleting}>
+                {m.common_cancel()}
+              </Button>
+            </div>
+          ))}
+      </div>
+      {deleteError && (
+        <p role="alert" className="text-app-caption text-status-danger">
+          {deleteError}
+        </p>
+      )}
+      {sessionsError && (
+        <p role="alert" className="text-app-caption text-status-danger">
+          {m.common_error()}
+        </p>
+      )}
+    </div>
+  );
+}

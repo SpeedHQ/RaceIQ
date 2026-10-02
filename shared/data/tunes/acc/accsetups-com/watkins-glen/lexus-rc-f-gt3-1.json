@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Lexus RC F GT3 Watkins Glen",
+    "carModel": "lexus-rc-f-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Watkins Glen",
+    "downloadUrl": "https://www.youtube.com/watch?v=vA3w-pTfEKg",
+    "videoUrl": "https://www.youtube.com/watch?v=vA3w-pTfEKg",
+    "pageUrl": "https://accsetups.com/free-setups/for/lexus-rc-f-gt3-1/on/watkins-glen",
+    "author": "PS_Racing",
+    "lapTime": "1:42.930",
+    "date": "2025-11",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

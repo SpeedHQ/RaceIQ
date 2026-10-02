@@ -1,0 +1,82 @@
+[
+  {
+    "rank": 1,
+    "date": "Jan 16, 2026",
+    "lapTime": "1:28.621",
+    "player": "matimk",
+    "team": "Ferrari",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 2,
+    "date": "Mar 15, 2026",
+    "lapTime": "1:29.276",
+    "player": "lazr00",
+    "team": "Racing Bulls",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 3,
+    "date": "Mar 21, 2026",
+    "lapTime": "1:29.500",
+    "player": "Riku",
+    "team": "F1 Custom Team",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 4,
+    "date": "Feb 16, 2026",
+    "lapTime": "1:29.605",
+    "player": "gdunks",
+    "team": "McLaren",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 5,
+    "date": "Jan 19, 2026",
+    "lapTime": "1:30.333",
+    "player": "nickjacks",
+    "team": "F1 Custom Team",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 6,
+    "date": "Mar 25, 2026",
+    "lapTime": "1:30.493",
+    "player": "01chudziutki",
+    "team": "Ferrari",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 7,
+    "date": "Feb 04, 2026",
+    "lapTime": "1:30.509",
+    "player": "quikroz",
+    "team": "Red Bull Racing",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 8,
+    "date": "Mar 09, 2026",
+    "lapTime": "1:30.513",
+    "player": "zombieexodus",
+    "team": "Racing Bulls",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 9,
+    "date": "Jan 13, 2026",
+    "lapTime": "1:30.559",
+    "player": "llllgodly",
+    "team": "Aston Martin",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 10,
+    "date": "Feb 18, 2026",
+    "lapTime": "1:30.665",
+    "player": "plbabin",
+    "team": "Ferrari",
+    "sessionType": "Time Trial"
+  }
+]

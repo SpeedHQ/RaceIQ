@@ -1,0 +1,49 @@
+id,model,name,class
+0,porsche_991_gt3_r,Porsche 991 GT3 R 2018,GT3
+1,mercedes_amg_gt3,Mercedes-AMG GT3 2015,GT3
+2,ferrari_488_gt3,Ferrari 488 GT3 2018,GT3
+3,audi_r8_lms,Audi R8 LMS 2015,GT3
+4,lamborghini_huracan_gt3,Lamborghini Huracan GT3 2015,GT3
+5,mclaren_650s_gt3,McLaren 650S GT3 2015,GT3
+6,nissan_gt_r_gt3_2018,Nissan GT-R Nismo GT3 2018,GT3
+7,bmw_m6_gt3,BMW M6 GT3 2017,GT3
+8,bentley_continental_gt3_2018,Bentley Continental GT3 2018,GT3
+9,porsche_991ii_gt3_cup,Porsche 991 II GT3 Cup 2017,GTC
+10,nissan_gt_r_gt3_2017,Nissan GT-R Nismo GT3 2015,GT3
+11,bentley_continental_gt3_2016,Bentley Continental GT3 2015,GT3
+12,amr_v12_vantage_gt3,Aston Martin V12 Vantage GT3 2013,GT3
+13,lamborghini_gallardo_rex,Lamborghini Gallardo G3 Reiter 2017,GT3
+14,jaguar_g3,Emil Frey Jaguar G3 2012,GT3
+15,lexus_rc_f_gt3,Lexus RC F GT3 2016,GT3
+16,lamborghini_huracan_gt3_evo,Lamborghini Huracan GT3 Evo 2019,GT3
+17,honda_nsx_gt3,Honda NSX GT3 2017,GT3
+18,lamborghini_huracan_st,Lamborghini Huracan ST 2015,GTC
+19,audi_r8_lms_evo,Audi R8 LMS Evo 2019,GT3
+20,amr_v8_vantage_gt3,Aston Martin V8 Vantage GT3 2019,GT3
+21,honda_nsx_gt3_evo,Honda NSX GT3 Evo 2019,GT3
+22,mclaren_720s_gt3,McLaren 720S GT3 2019,GT3
+23,porsche_991ii_gt3_r,Porsche 911 II GT3 R 2019,GT3
+24,ferrari_488_gt3_evo,Ferrari 488 GT3 Evo 2020,GT3
+25,mercedes_amg_gt3_evo,Mercedes-AMG GT3 Evo 2020,GT3
+26,ferrari_488_challenge_evo,Ferrari 488 Challenge Evo 2020,GTC
+27,bmw_m2_cs_racing,BMW M2 CS Racing 2020,TCX
+28,porsche_992_gt3_cup,Porsche 992 GT3 Cup 2021,GTC
+29,lamborghini_huracan_st_evo2,Lamborghini Huracan ST Evo2 2021,GTC
+30,bmw_m4_gt3,BMW M4 GT3 2021,GT3
+31,audi_r8_lms_evo_ii,Audi R8 LMS Evo II 2022,GT3
+32,ferrari_296_gt3,Ferrari 296 GT3 2023,GT3
+33,porsche_992_gt3_r,Porsche 992 GT3 R 2023,GT3
+34,mclaren_720s_gt3_evo,McLaren 720S GT3 Evo 2023,GT3
+35,ford_mustang_gt3,Ford Mustang GT3 2024,GT3
+36,bmw_m4_gt3_evo,BMW M4 GT3 Evo 2024,GT3
+50,alpine_a110_gt4,Alpine A110 GT4 2018,GT4
+51,amr_v8_vantage_gt4,Aston Martin Vantage AMR GT4 2018,GT4
+52,audi_r8_gt4,Audi R8 LMS GT4 2016,GT4
+53,bmw_m4_gt4,BMW M4 GT4 2018,GT4
+55,chevrolet_camaro_gt4r,Chevrolet Camaro GT4.R 2017,GT4
+56,ginetta_g55_gt4,Ginetta G55 GT4 2012,GT4
+57,ktm_xbow_gt4,KTM X-Bow GT4 2016,GT4
+58,maserati_mc_gt4,Maserati MC GT4 2016,GT4
+59,mclaren_570s_gt4,McLaren 570S GT4 2016,GT4
+60,mercedes_amg_gt4,Mercedes-AMG GT4 2016,GT4
+61,porsche_718_cayman_gt4_mr,Porsche 718 Cayman GT4 MR 2019,GT4

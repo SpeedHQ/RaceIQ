@@ -1,0 +1,34 @@
+[
+  {
+    "name": "BMW M4 GT3 Nürburgring",
+    "carModel": "bmw-m4-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Nürburgring",
+    "downloadUrl": "https://www.youtube.com/watch?v=SV7rvrOb2bQ",
+    "videoUrl": "https://www.youtube.com/watch?v=SV7rvrOb2bQ",
+    "pageUrl": "https://accsetups.com/free-setups/for/bmw-m4-gt3-1/on/nurburgring",
+    "author": "Fri3d0lf",
+    "lapTime": "1:53.3",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "BMW M4 GT3 Nürburgring",
+    "carModel": "bmw-m4-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Nürburgring",
+    "downloadUrl": "https://www.youtube.com/watch?v=OV6Sy3WxngE",
+    "videoUrl": "https://www.youtube.com/watch?v=OV6Sy3WxngE",
+    "pageUrl": "https://accsetups.com/free-setups/for/bmw-m4-gt3-1/on/nurburgring",
+    "author": "PS_Racing",
+    "lapTime": "1:53.570",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

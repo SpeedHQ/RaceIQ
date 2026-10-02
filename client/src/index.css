@@ -1,0 +1,144 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+@import "tw-shimmer";
+@import "./styles/theme.css";
+@import "./styles/branding.css";
+@plugin "@tailwindcss/typography";
+
+@keyframes drawLine {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+/* ─── Always-visible scrollbar (must be outside @layer to override browser defaults) ─── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  -webkit-appearance: none;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--app-scrollbar-thumb);
+  border-radius: 4px;
+  min-height: 40px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--app-scrollbar-thumb-hover);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: var(--app-scrollbar-thumb) var(--app-scrollbar-track);
+  }
+
+  html,
+  body,
+  #root {
+    @apply h-full overflow-hidden;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  html {
+    @apply font-sans;
+  }
+}
+
+/* Compact markdown for AI chat messages */
+.prose-chat {
+  font-size: var(--text-app-compact);
+  line-height: var(--leading-normal);
+}
+
+.prose-chat p {
+  margin: 0.25em 0;
+}
+
+.prose-chat p:first-child {
+  margin-top: 0;
+}
+
+.prose-chat p:last-child {
+  margin-bottom: 0;
+}
+
+.prose-chat strong {
+  color: var(--app-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.prose-chat em {
+  font-style: italic;
+}
+
+.prose-chat ul,
+.prose-chat ol {
+  margin: 0.25em 0;
+  padding-left: 1.25em;
+}
+
+.prose-chat li {
+  margin: 0.15em 0;
+}
+
+.prose-chat li::marker {
+  color: var(--app-text-dim);
+}
+
+.prose-chat code {
+  font-size: var(--text-app-caption);
+  background: var(--app-surface-alt);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+}
+
+.prose-chat pre {
+  margin: 0.5em 0;
+  padding: 0.5em;
+  background: var(--app-surface-alt);
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.prose-chat h1,
+.prose-chat h2,
+.prose-chat h3,
+.prose-chat h4 {
+  font-weight: var(--font-weight-semibold);
+  color: var(--app-text);
+  margin: 0.5em 0 0.25em;
+}
+
+.prose-chat h3 {
+  font-size: var(--text-app-label);
+}
+
+.prose-chat h4 {
+  font-size: var(--text-app-compact);
+}
+
+@custom-variant data-open (&:where([data-state="open"], [data-open]:not([data-open="false"])));
+
+@custom-variant data-closed (&:where([data-state="closed"], [data-closed]:not([data-closed="false"])));

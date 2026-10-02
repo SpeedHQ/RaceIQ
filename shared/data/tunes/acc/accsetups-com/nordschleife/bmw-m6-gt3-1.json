@@ -1,0 +1,34 @@
+[
+  {
+    "name": "BMW M6 GT3 Nordschleife",
+    "carModel": "bmw-m6-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Nordschleife",
+    "downloadUrl": "https://www.youtube.com/watch?v=OGCDLdgC15E",
+    "videoUrl": "https://www.youtube.com/watch?v=OGCDLdgC15E",
+    "pageUrl": "https://accsetups.com/free-setups/for/bmw-m6-gt3-1/on/nordschleife",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "BMW M6 GT3 Nordschleife",
+    "carModel": "bmw-m6-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Nordschleife",
+    "downloadUrl": "https://www.youtube.com/watch?v=-SzoXGFCS64",
+    "videoUrl": "https://www.youtube.com/watch?v=-SzoXGFCS64",
+    "pageUrl": "https://accsetups.com/free-setups/for/bmw-m6-gt3-1/on/nordschleife",
+    "author": "Fri3d0lf",
+    "lapTime": "",
+    "date": "2025-04",
+    "hasRace": false,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

@@ -1,0 +1,39 @@
+{
+  "id": "zolder",
+  "locale": "en",
+  "character": "Compact, undulating Belgian circuit built through pine forest alongside the Albert Canal. A mix of technical, blind corners (the Jacky Ickx complex) and one genuinely fast turn (Butte) reward precision over outright commitment.",
+  "sources": "https://www.lotus-on-track.com/circuit-guides/zolder/ ; https://www.fullgripmotorsport.com/tracks/info/zolder — Kanaalbocht/Butte/Jacky Ickx complex verified",
+  "corners": [
+    {
+      "key": "turn-1",
+      "name": "Turn 1",
+      "numbers": [1],
+      "type": "tight right-hander off the front straight",
+      "technique": "Brake hard, late apex",
+      "trap": "Over-braking and losing momentum into the following section"
+    },
+    {
+      "key": "kanaalbocht",
+      "name": "Kanaalbocht",
+      "type": "flat, smooth-turn-in corner alongside the Albert Canal",
+      "technique": "Minimal braking, smooth commitment",
+      "trap": "Over-slowing for a corner that needs little braking"
+    },
+    {
+      "key": "butte",
+      "name": "Butte",
+      "type": "one of the few genuinely fast corners on the circuit",
+      "technique": "Commit with smooth steering, carry as much speed as possible",
+      "trap": "Lifting unnecessarily costs significant time"
+    },
+    {
+      "key": "jacky-ickx-complex",
+      "name": "Jacky Ickx complex",
+      "numbers": [11, 12],
+      "type": "blind corner complex at the end of an uphill section under a bridge",
+      "technique": "Trust your reference points, commit to the blind entry",
+      "trap": "Hesitating on the blind approach and missing the apex"
+    }
+  ],
+  "priorityCorners": ["butte","jacky-ickx-complex"]
+}

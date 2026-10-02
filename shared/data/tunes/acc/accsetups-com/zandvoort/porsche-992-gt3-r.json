@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Porsche 992 GT3-R Zandvoort",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Zandvoort",
+    "downloadUrl": "https://www.youtube.com/watch?v=rsJGzYGGmeo",
+    "videoUrl": "https://www.youtube.com/watch?v=rsJGzYGGmeo",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/zandvoort",
+    "author": "Fri3d0lf",
+    "lapTime": "1:34.3",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Porsche 992 GT3-R Zandvoort",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Zandvoort",
+    "downloadUrl": "https://www.youtube.com/watch?v=lZil3DOcqXc",
+    "videoUrl": "https://www.youtube.com/watch?v=lZil3DOcqXc",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/zandvoort",
+    "author": "Ohne Speed",
+    "lapTime": "1:43.9",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

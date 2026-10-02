@@ -1,0 +1,82 @@
+[
+  {
+    "rank": 1,
+    "date": "Oct 20, 2025",
+    "lapTime": "1:32.417",
+    "player": "Saiyzzo",
+    "team": "McLaren",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 2,
+    "date": "Mar 26, 2026",
+    "lapTime": "1:32.507",
+    "player": "Riku",
+    "team": "F1 Custom Team",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 3,
+    "date": "Dec 18, 2025",
+    "lapTime": "1:32.544",
+    "player": "seely",
+    "team": "Ferrari",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 4,
+    "date": "Aug 05, 2025",
+    "lapTime": "1:32.546",
+    "player": "th2JZ",
+    "team": "Haas F1 Team",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 5,
+    "date": "Aug 04, 2025",
+    "lapTime": "1:32.586",
+    "player": "IKembaI",
+    "team": "McLaren",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 6,
+    "date": "Feb 17, 2026",
+    "lapTime": "1:32.588",
+    "player": "miqdadlilani",
+    "team": "Red Bull Racing",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 7,
+    "date": "Nov 26, 2025",
+    "lapTime": "1:32.712",
+    "player": "mururoa27",
+    "team": "Ferrari",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 8,
+    "date": "Nov 19, 2025",
+    "lapTime": "1:32.718",
+    "player": "kimir_03a3",
+    "team": "Ferrari",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 9,
+    "date": "Feb 16, 2026",
+    "lapTime": "1:32.740",
+    "player": "gdunks",
+    "team": "McLaren",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 10,
+    "date": "Mar 14, 2026",
+    "lapTime": "1:32.836",
+    "player": "quikroz",
+    "team": "Haas F1 Team",
+    "sessionType": "Time Trial"
+  }
+]

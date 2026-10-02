@@ -1,0 +1,178 @@
+/**
+ * Renders a MoTeC-reconstructed lap against the centerline its channels were
+ * derived from, one SVG per track, committed under
+ * `test/e2e/output/motec-reconstruction/`.
+ *
+ * This is the check the rest of the MoTeC suite cannot make. Those tests build
+ * synthetic circles and confirm the integrator runs; they cannot tell a correct
+ * track from a mirrored or transposed one, because a circle looks the same
+ * either way. Here the input geometry is known, so the output has something to
+ * be wrong against.
+ *
+ * Method: differentiate a committed centerline into the speed and yaw-rate
+ * channels a logger would have recorded driving it, write those into a real
+ * `.ld`, run the real transcoder and direct AC Evo packet converter over it,
+ * then compare the packets' reconstructed positions back to the centerline.
+ */
+
+import { describe, expect, test } from "bun:test";
+import { mkdirSync, rmSync } from "node:fs";
+import { resolve } from "node:path";
+
+import { initGameAdapters } from "../../shared/games/init";
+import { initServerGameAdapters } from "../../server/games/init";
+import { loadCenterline } from "../../shared/racing/tracks/curation/generate";
+import { getAcEvoTrackByName } from "../../shared/racing/tracks/catalogs/ac-evo";
+import { parseLd } from "../../server/motec/ld";
+import { resolveMotecTarget } from "../../server/motec/targets";
+import { MOTEC_SYNTH_HZ } from "../../server/motec/kunos-synthesis";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { buildLd } from "../support/motec/ld";
+import {
+  centerlineToStint,
+  normalizeToOriginHeading,
+  signedArea,
+  type Point,
+} from "../support/motec/from-centerline";
+import { writeOverlaySvg } from "../support/motec/overlay-svg";
+
+initGameAdapters();
+initServerGameAdapters();
+
+const OUTPUT_DIR = resolve(import.meta.dir, "..", "e2e", "output", "motec-reconstruction");
+rmSync(OUTPUT_DIR, { recursive: true, force: true });
+mkdirSync(OUTPUT_DIR, { recursive: true });
+
+/**
+ * Tracks to render. A spread of shapes rather than all twenty: a long fast
+ * circuit, a short tight one, one with heavy elevation and one with a
+ * distinctive asymmetric layout — enough that a systematic error in the
+ * reconstruction has somewhere to show up, without making the suite slow.
+ */
+const TRACKS = ["spa", "monza", "brands-hatch", "suzuka", "laguna-seca"];
+
+/**
+ * Absolute metres, not a fraction of lap length. A percentage threshold sounds
+ * safer but is useless here: 2% of Spa is 140 m, which a badly wrong map would
+ * sail through. Measured across these five circuits the reconstruction lands
+ * within ~1.2 m mean and ~3.7 m max, so these leave roughly 4x headroom for
+ * centerline resampling noise while still failing on the errors that matter —
+ * an axis transpose, a sign flip, a units mistake, an off-by-one in heading.
+ *
+ * Loop closure is included in what is being measured: these are the first lap
+ * of a two-lap stint, so the closure ramp has already been applied.
+ */
+const MAX_MEAN_DEVIATION_M = 5;
+const MAX_PEAK_DEVIATION_M = 20;
+
+function reconstructPositions(packets: TelemetryPacket[]): Point[] {
+  return packets.map((packet) => ({ x: packet.PositionX, z: packet.PositionZ }));
+}
+
+/** Nearest-point deviation of each reconstructed point from the reference path. */
+function deviations(reference: Point[], reconstructed: Point[]): number[] {
+  return reconstructed.map((r) => {
+    let best = Infinity;
+    for (const ref of reference) {
+      const d = Math.hypot(ref.x - r.x, ref.z - r.z);
+      if (d < best) best = d;
+    }
+    return best;
+  });
+}
+
+describe("MoTeC reconstruction vs real centerlines", () => {
+  for (const slug of TRACKS) {
+    const raw = loadCenterline(resolve("shared/data/tracks/ac-evo", `${slug}-centerline.csv`));
+
+    test(`${slug} reconstructs the centerline it was derived from`, () => {
+      expect(raw).not.toBeNull();
+      const stint = centerlineToStint(raw!, { laps: 2, hz: MOTEC_SYNTH_HZ });
+      const log = parseLd(buildLd(stint.spec));
+      const track = getAcEvoTrackByName(slug);
+      expect(track).not.toBeNull();
+      const target = resolveMotecTarget("ac-evo");
+      const carTrack = target.resolveCarTrack(log, { trackOrdinal: track!.id });
+      const conversion = target.convert(log, stint.beacons, carTrack);
+      const all = reconstructPositions(conversion.packets);
+
+      // First lap only — the second is the open final window and is not closed.
+      const lapFrames = Math.min(stint.reference.length, Math.floor(all.length / 2));
+      const reconstructed = all.slice(0, lapFrames);
+      const reference = stint.reference.slice(0, lapFrames);
+      expect(reconstructed.length).toBeGreaterThan(100);
+
+      // The transcoder rigidly places reconstructed metre-space geometry in
+      // AC Evo world coordinates; compare those packets directly to source
+      // coordinates, without projecting onto or re-aligning the centreline.
+      const referenceRaw = stint.referenceRaw.slice(0, lapFrames);
+      const aligned = reconstructed;
+
+      const devs = deviations(referenceRaw, aligned);
+      const meanDeviationM = devs.reduce((a, b) => a + b, 0) / devs.length;
+      const maxDeviationM = Math.max(...devs);
+
+      // Handedness is the mirror test: a reconstruction flipped in X traces the
+      // same shape with the opposite winding, which no deviation threshold
+      // loose enough to allow integration drift would reliably catch.
+      const refArea = signedArea(reference);
+      const recArea = signedArea(normalizeToOriginHeading(reconstructed));
+      const handednessMatches = Math.sign(refArea) === Math.sign(recArea);
+
+      // Full centerline for the track outline so the panel shows the whole
+      // circuit, not just the frames this lap happened to cover.
+      writeOverlaySvg(OUTPUT_DIR, `${slug}-ac-evo`, "ac-evo", raw!, aligned, {
+        meanDeviationM,
+        maxDeviationM,
+        handednessMatches,
+      });
+
+      expect(handednessMatches).toBe(true);
+      expect(meanDeviationM).toBeLessThan(6);
+      expect(maxDeviationM).toBeLessThan(MAX_PEAK_DEVIATION_M);
+
+      // The lap must also actually go round the track, not sit in a corner of
+      // it — a near-zero-area path would trivially satisfy a deviation bound
+      // against a reference it never left the start of.
+      expect(Math.abs(signedArea(reference))).toBeGreaterThan(0);
+      expect(Math.abs(recArea)).toBeGreaterThan(Math.abs(refArea) * 0.8);
+    });
+  }
+
+test("preserves a driven line instead of projecting onto the centreline", () => {
+  const raw = loadCenterline(resolve("shared/data/tracks/ac-evo", "spa-centerline.csv"));
+  expect(raw).not.toBeNull();
+  const drivenRaw = raw!.map((point, index) => {
+    const previous = raw![(index + raw!.length - 1) % raw!.length]!;
+    const next = raw![(index + 1) % raw!.length]!;
+    const tx = next.x - previous.x;
+    const tz = next.z - previous.z;
+    const length = Math.hypot(tx, tz) || 1;
+    const offset = 4 * Math.sin((2 * Math.PI * index) / (raw!.length - 1));
+    return { x: point.x - (tz / length) * offset, z: point.z + (tx / length) * offset };
+  });
+  const stint = centerlineToStint(drivenRaw, { laps: 2, hz: MOTEC_SYNTH_HZ });
+  const log = parseLd(buildLd(stint.spec));
+  const target = resolveMotecTarget("ac-evo");
+  const conversion = target.convert(log, stint.beacons, target.resolveCarTrack(log));
+  const all = reconstructPositions(conversion.packets);
+  const lapFrames = Math.min(stint.reference.length, Math.floor(all.length / 2));
+  const aligned = all.slice(0, lapFrames);
+  const drivenReference = stint.referenceRaw.slice(0, lapFrames);
+  const centrelineReference = centerlineToStint(raw!, { laps: 1, hz: MOTEC_SYNTH_HZ }).referenceRaw.slice(0, lapFrames);
+  const drivenDeviation = deviations(drivenReference, aligned);
+  const centrelineDeviation = deviations(centrelineReference, aligned);
+  expect(Math.min(...drivenDeviation)).toBeLessThan(1);
+  expect(Math.max(...centrelineDeviation)).toBeGreaterThan(8);
+});
+
+  test("a mirrored reconstruction is actually caught", () => {
+    // Guards the guard: if signedArea stopped discriminating, every track above
+    // would keep passing and the mirror check would be decoration.
+    const raw = loadCenterline(resolve("shared/data/tracks/ac-evo", "spa-centerline.csv"));
+    const stint = centerlineToStint(raw!, { laps: 2, hz: MOTEC_SYNTH_HZ });
+    const mirrored = stint.reference.map((p) => ({ x: -p.x, z: p.z }));
+
+    expect(Math.sign(signedArea(stint.reference))).not.toBe(Math.sign(signedArea(mirrored)));
+  });
+});

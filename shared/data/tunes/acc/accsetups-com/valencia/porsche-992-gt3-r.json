@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Porsche 992 GT3-R Valencia",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Valencia",
+    "downloadUrl": "https://www.youtube.com/watch?v=mn0GO6Fdsj4",
+    "videoUrl": "https://www.youtube.com/watch?v=mn0GO6Fdsj4",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/valencia",
+    "author": "Fri3d0lf",
+    "lapTime": "1:29.9",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Porsche 992 GT3-R Valencia",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Valencia",
+    "downloadUrl": "https://www.youtube.com/watch?v=9wWccUgNZKA",
+    "videoUrl": "https://www.youtube.com/watch?v=9wWccUgNZKA",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/valencia",
+    "author": "PS_Racing",
+    "lapTime": "1:30.377",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Porsche 992 GT3-R Valencia",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Valencia",
+    "downloadUrl": "https://www.youtube.com/watch?v=vNLrpB_DmuA",
+    "videoUrl": "https://www.youtube.com/watch?v=vNLrpB_DmuA",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/valencia",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

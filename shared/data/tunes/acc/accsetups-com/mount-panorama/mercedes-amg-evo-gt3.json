@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Mercedes AMG Evo GT3 Bathurst",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Bathurst",
+    "downloadUrl": "https://www.youtube.com/watch?v=0SGZpJnPED8",
+    "videoUrl": "https://www.youtube.com/watch?v=0SGZpJnPED8",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/bathurst",
+    "author": "Fri3d0lf",
+    "lapTime": "2:00.0",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Ferrari 296 GT3 Brands Hatch",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Brands Hatch",
+    "downloadUrl": "https://www.youtube.com/watch?v=KfvmvhXiDdU",
+    "videoUrl": "https://www.youtube.com/watch?v=KfvmvhXiDdU",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/brands-hatch",
+    "author": "bernagk1",
+    "lapTime": "1:21.9",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": true
+  },
+  {
+    "name": "Ferrari 296 GT3 Brands Hatch",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Brands Hatch",
+    "downloadUrl": "https://www.youtube.com/watch?v=Nny_m6VWND8",
+    "videoUrl": "https://www.youtube.com/watch?v=Nny_m6VWND8",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/brands-hatch",
+    "author": "Fri3d0lf",
+    "lapTime": "1:22.4",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Ferrari 296 GT3 Brands Hatch",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Brands Hatch",
+    "downloadUrl": "https://www.youtube.com/watch?v=T7ywDwlQVVk",
+    "videoUrl": "https://www.youtube.com/watch?v=T7ywDwlQVVk",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/brands-hatch",
+    "author": "PS_Racing",
+    "lapTime": "1:22.862",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

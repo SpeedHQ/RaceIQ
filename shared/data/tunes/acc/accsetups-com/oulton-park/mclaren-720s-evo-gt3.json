@@ -1,0 +1,50 @@
+[
+  {
+    "name": "McLaren 720s Evo GT3 Oulton Park",
+    "carModel": "mclaren-720s-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Oulton Park",
+    "downloadUrl": "https://www.youtube.com/watch?v=hl5kv1-Dhv4",
+    "videoUrl": "https://www.youtube.com/watch?v=hl5kv1-Dhv4",
+    "pageUrl": "https://accsetups.com/free-setups/for/mclaren-720s-evo-gt3/on/oulton-park",
+    "author": "bernagk1",
+    "lapTime": "1:31.3",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": true
+  },
+  {
+    "name": "McLaren 720s Evo GT3 Oulton Park",
+    "carModel": "mclaren-720s-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Oulton Park",
+    "downloadUrl": "https://www.youtube.com/watch?v=v2_ZLT2svNI",
+    "videoUrl": "https://www.youtube.com/watch?v=v2_ZLT2svNI",
+    "pageUrl": "https://accsetups.com/free-setups/for/mclaren-720s-evo-gt3/on/oulton-park",
+    "author": "PS_Racing",
+    "lapTime": "1:32.325",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "McLaren 720s Evo GT3 Oulton Park",
+    "carModel": "mclaren-720s-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Oulton Park",
+    "downloadUrl": "https://www.youtube.com/watch?v=g41ur5MRR0M",
+    "videoUrl": "https://www.youtube.com/watch?v=g41ur5MRR0M",
+    "pageUrl": "https://accsetups.com/free-setups/for/mclaren-720s-evo-gt3/on/oulton-park",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

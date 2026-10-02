@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Porsche 992 GT3-R Imola",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Imola",
+    "downloadUrl": "https://www.youtube.com/watch?v=bH1Sh0MGG-E",
+    "videoUrl": "https://www.youtube.com/watch?v=bH1Sh0MGG-E",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/imola",
+    "author": "Fri3d0lf",
+    "lapTime": "1:40.1",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Porsche 992 GT3-R Imola",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Imola",
+    "downloadUrl": "https://www.youtube.com/watch?v=Xiv3UYOcbv4",
+    "videoUrl": "https://www.youtube.com/watch?v=Xiv3UYOcbv4",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/imola",
+    "author": "PS_Racing",
+    "lapTime": "1:40.585",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Porsche 992 GT3-R Imola",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Imola",
+    "downloadUrl": "https://www.youtube.com/watch?v=MFaMS_F4qT0",
+    "videoUrl": "https://www.youtube.com/watch?v=MFaMS_F4qT0",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/imola",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

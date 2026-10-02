@@ -1,0 +1,130 @@
+name: Playwright E2E+
+
+on:
+  workflow_call:
+    inputs:
+      server-mode:
+        description: "Playwright server mode: dev or compiled"
+        required: false
+        type: string
+        default: compiled
+      runs-on:
+        description: "Runner label; compiled server builds on selected runner"
+        required: false
+        type: string
+        default: '["mars-windows-x64-4vcpu-10g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
+      projects:
+        description: "Playwright project flags passed to the gate"
+        required: false
+        type: string
+        default: "--project=fresh-install --project=tunes --project=tunes-unseeded --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device"
+      shard:
+        description: "Optional Playwright shard in N/M format"
+        required: false
+        type: string
+        default: ""
+      server-set:
+        description: "Playwright server set: all, fresh, tunes, tunes-unseeded, or seeded"
+        required: false
+        type: string
+        default: all
+      dist-artifact:
+        description: "Optional prebuilt dist artifact for compiled-server gate"
+        required: false
+        type: string
+        default: ""
+      artifact-name:
+        description: "Trace and test-result artifact name"
+        required: false
+        type: string
+        default: playwright-results
+      diagnostic-artifact-name:
+        description: "Server diagnostic artifact name"
+        required: false
+        type: string
+      target-ref:
+        description: "Branch or ref to test"
+        required: false
+        type: string
+
+
+jobs:
+  playwright:
+    timeout-minutes: 30
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target-ref || github.ref }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Download dist artifact
+        if: inputs.dist-artifact != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.dist-artifact }}
+          path: dist
+      - name: Restore compiled server permissions
+        if: inputs.dist-artifact != '' && runner.os != 'Windows'
+        run: chmod +x dist/raceiq
+
+
+      - name: Install workspace dependencies
+        run: bun scripts/ci/workflow-ops.ts install-retry
+      - name: Build local compiled server
+        if: inputs.server-mode == 'compiled' && inputs.dist-artifact == ''
+        run: bun run build
+
+      - name: Install Chromium
+        working-directory: playwright
+        run: bun run ../scripts/playwright-ci.ts install chromium
+
+      - name: Check Playwright project discovery
+        working-directory: playwright
+        env:
+          E2E_SERVER_MODE: ${{ inputs.server-mode }}
+          PW_SERVER_SET: ${{ inputs.server-set }}
+          PW_WORKERS: "1"
+          PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
+        run: bun run ../scripts/playwright-ci.ts test --list ${{ inputs.shard != '' && format('--shard={0}', inputs.shard) || '' }}
+
+      - name: Run Playwright gate
+        working-directory: playwright
+        env:
+          E2E_SERVER_MODE: ${{ inputs.server-mode }}
+          PW_SERVER_SET: ${{ inputs.server-set }}
+          PW_WORKERS: "1"
+          RACEIQ_DISABLE_TRAY: "1"
+          PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
+        run: bun run ../scripts/playwright-ci.ts test ${{ inputs.shard != '' && format('--shard={0}', inputs.shard) || '' }}
+
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: |
+            playwright/test-results/
+            playwright/screenshots/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload server diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.diagnostic-artifact-name }}
+          path: |
+            playwright/test-data*/raceiq*.log
+            playwright/test-data*/crash.log
+            dist/crash.log
+            crash.log
+          retention-days: 7
+          if-no-files-found: warn

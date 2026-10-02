@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Mercedes AMG GT4 Nürburgring",
+    "carModel": "mercedes-amg",
+    "carClass": "GT4",
+    "trackName": "Nürburgring",
+    "downloadUrl": "https://www.youtube.com/watch?v=r6HVZfucego",
+    "videoUrl": "https://www.youtube.com/watch?v=r6HVZfucego",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg/on/nurburgring",
+    "author": "Ohne Speed",
+    "lapTime": "2:03.4",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

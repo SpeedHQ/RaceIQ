@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Mercedes AMG Evo GT3 Imola",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Imola",
+    "downloadUrl": "https://www.youtube.com/watch?v=C9Se7YUd7sI",
+    "videoUrl": "https://www.youtube.com/watch?v=C9Se7YUd7sI",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/imola",
+    "author": "Fri3d0lf",
+    "lapTime": "1:39.8",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Mercedes AMG Evo GT3 Imola",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Imola",
+    "downloadUrl": "https://www.youtube.com/watch?v=xnsC59S5fxs",
+    "videoUrl": "https://www.youtube.com/watch?v=xnsC59S5fxs",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/imola",
+    "author": "Fri3d0lf",
+    "lapTime": "1:40.1",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Mercedes AMG Evo GT3 Imola",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Imola",
+    "downloadUrl": "https://www.youtube.com/watch?v=MM8kdgvKcS0",
+    "videoUrl": "https://www.youtube.com/watch?v=MM8kdgvKcS0",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/imola",
+    "author": "PS_Racing",
+    "lapTime": "1:40.502",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

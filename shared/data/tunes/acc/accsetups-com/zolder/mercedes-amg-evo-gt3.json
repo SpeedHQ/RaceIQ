@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Mercedes AMG Evo GT3 Zolder",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Zolder",
+    "downloadUrl": "https://www.youtube.com/watch?v=Gxaab-fI6GY",
+    "videoUrl": "https://www.youtube.com/watch?v=Gxaab-fI6GY",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/zolder",
+    "author": "Fri3d0lf",
+    "lapTime": "1:27.0",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Mercedes AMG Evo GT3 Zolder",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Zolder",
+    "downloadUrl": "https://www.youtube.com/watch?v=P8JpbtPcWV4",
+    "videoUrl": "https://www.youtube.com/watch?v=P8JpbtPcWV4",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/zolder",
+    "author": "PS_Racing",
+    "lapTime": "1:27.150",
+    "date": "2025-06",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Mercedes AMG Evo GT3 Zolder",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Zolder",
+    "downloadUrl": "https://www.youtube.com/watch?v=kjxqAIVTEjA",
+    "videoUrl": "https://www.youtube.com/watch?v=kjxqAIVTEjA",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/zolder",
+    "author": "PS_Racing",
+    "lapTime": "1:27.612",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Nordschleife",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Nordschleife",
+    "downloadUrl": "https://www.youtube.com/watch?v=sI88Ufnbgvs",
+    "videoUrl": "https://www.youtube.com/watch?v=sI88Ufnbgvs",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/nordschleife",
+    "author": "Fri3d0lf",
+    "lapTime": "8:10.2",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Nordschleife",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Nordschleife",
+    "downloadUrl": "https://www.youtube.com/watch?v=mE59NEb9G9Q",
+    "videoUrl": "https://www.youtube.com/watch?v=mE59NEb9G9Q",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/nordschleife",
+    "author": "Fri3d0lf",
+    "lapTime": "",
+    "date": "2025-04",
+    "hasRace": false,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Nordschleife",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Nordschleife",
+    "downloadUrl": "https://www.youtube.com/watch?v=-QUxIb-RkkY",
+    "videoUrl": "https://www.youtube.com/watch?v=-QUxIb-RkkY",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/nordschleife",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

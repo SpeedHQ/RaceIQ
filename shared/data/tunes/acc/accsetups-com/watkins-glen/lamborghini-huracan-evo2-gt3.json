@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Watkins Glen",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Watkins Glen",
+    "downloadUrl": "https://www.youtube.com/watch?v=2GMkcIxqGmk",
+    "videoUrl": "https://www.youtube.com/watch?v=2GMkcIxqGmk",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/watkins-glen",
+    "author": "PS_Racing",
+    "lapTime": "1:43.717",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Watkins Glen",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Watkins Glen",
+    "downloadUrl": "https://www.youtube.com/watch?v=TN9gu4cP4V8",
+    "videoUrl": "https://www.youtube.com/watch?v=TN9gu4cP4V8",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/watkins-glen",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

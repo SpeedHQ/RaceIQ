@@ -1,0 +1,175 @@
+/**
+ * ACC Shared Memory Reader using Bun FFI with BufferedKunosMemoryReader + TripletAssembler.
+ *
+ * Architecture:
+ *   BufferedKunosMemoryReader (reads at native rates: 300Hz physics, 60Hz graphics, once static)
+ *     → TripletAssembler (polls at 100Hz)
+ *       → TripletPipeline (processes via registered processors)
+ *
+ * Pipeline processors:
+ *   - DumpToBinProcessor (recording mode): writes raw buffers only
+ *   - ParsingProcessor (normal mode): parses and feeds to pipeline
+ *
+ * Uses kernel32.dll via Bun FFI to open and map shared memory.
+ */
+
+import { BufferedKunosMemoryReader } from "../kunos/buffered-memory-reader";
+import type { IRealtimeKunosMemoryReader } from "../kunos/memory-reader";
+import { accRecorder, KunosRecorder } from "../kunos/recorder";
+import { TripletAssembler } from "../kunos/triplet-assembler";
+import {
+  createKunosTripletPipeline,
+  TripletPipeline,
+  type TripletProcessor,
+} from "../kunos/triplet-pipeline";
+import { acquireHighResolutionTimer, releaseHighResolutionTimer } from "../shared/win-timer-resolution";
+import { ParsingProcessor, StatusCheckProcessor } from "./processors";
+import { GRAPHICS, PHYSICS, STATIC } from "./structs";
+
+export interface AccSharedMemoryReaderOptions {
+  recordingEnabled?: boolean;
+  memoryReader?: IRealtimeKunosMemoryReader;
+  recorder?: KunosRecorder;
+  recordingDir?: string;
+  parser?: TripletProcessor;
+  enableMetrics?: boolean;
+}
+
+export class AccSharedMemoryReader {
+  private _bufferedReader: IRealtimeKunosMemoryReader;
+  private _tripletAssembler: TripletAssembler;
+  private _pipeline: TripletPipeline;
+  private _running = false;
+  private _connected = false;
+  // -1 = not yet resolved from static data. 0 is a real ACC ordinal (Monza /
+  // first car in the list), so it can't double as the "unknown" sentinel —
+  // see processors.ts ParsingProcessor.
+  private _carOrdinal = -1;
+  private _trackOrdinal = -1;
+  private _retryTimer: ReturnType<typeof setInterval> | null = null;
+  private _recordingEnabled = false;
+  private readonly _recorder: KunosRecorder;
+  private readonly _recordingDir: string | undefined;
+  private readonly _parser: TripletProcessor;
+  /** True while we hold a timer-resolution reference, so stop() releases exactly one. */
+  private _holdsTimerResolution = false;
+
+  constructor(options: boolean | AccSharedMemoryReaderOptions = false) {
+    const config = typeof options === "boolean"
+      ? { recordingEnabled: options }
+      : options;
+    this._recordingEnabled = config.recordingEnabled ?? false;
+    this._bufferedReader = config.memoryReader ?? new BufferedKunosMemoryReader({
+      physicsSize: PHYSICS.SIZE,
+      graphicsSize: GRAPHICS.SIZE,
+      staticSize: STATIC.SIZE,
+      physicsName: "Local\\acpmf_physics",
+      graphicsName: "Local\\acpmf_graphics",
+      staticName: "Local\\acpmf_static",
+      sessionIdOffset: 8,
+      logPrefix: "ACC",
+    });
+    const enableMetrics = config.enableMetrics ??
+      (process.env.NODE_ENV !== "production" || process.env.ACC_METRICS === "1");
+    this._tripletAssembler = new TripletAssembler(this._bufferedReader, enableMetrics, "ACC");
+    this._pipeline = new TripletPipeline();
+    this._recorder = config.recorder ?? accRecorder;
+    this._recordingDir = config.recordingDir;
+    this._parser = config.parser ??
+      new ParsingProcessor(this._carOrdinal, this._trackOrdinal);
+
+    if (this._recordingEnabled) {
+      const recordPath = this._recorder.start(this._recordingDir);
+      console.log(`[ACC] Recording mode: bin file created at ${recordPath}`);
+    }
+  }
+
+  get connected(): boolean {
+    return this._connected;
+  }
+
+  get running(): boolean {
+    return this._running;
+  }
+
+  /** Read current raw buffers for debugging. Returns null if not connected. */
+  getDebugBuffers(): { physics: Buffer; graphics: Buffer; staticData: Buffer } | null {
+    return this._bufferedReader.getDebugBuffers();
+  }
+
+  start(): void {
+    if (this._running) return;
+    this._running = true;
+    console.log("[ACC] Starting shared memory reader...");
+
+    // Process detection is handled by the central supervisor in server/runtime/native-sources.ts.
+    // This reader is only instantiated once the ACC process is already running,
+    // so connect immediately instead of polling for the process ourselves.
+    this._onAccDetected();
+  }
+
+  async stop(): Promise<void> {
+    this._running = false;
+    await this._tripletAssembler.stop();
+    await this._bufferedReader.stop();
+    if (this._retryTimer) {
+      clearInterval(this._retryTimer);
+      this._retryTimer = null;
+    }
+    this._connected = false;
+    // Drop the timer resolution once no capture interval needs it. Guarded so a
+    // stop() without a matching start() cannot underflow the refcount.
+    if (this._holdsTimerResolution) {
+      this._holdsTimerResolution = false;
+      releaseHighResolutionTimer();
+    }
+    // Recording mode: this reader opened the bin file in its constructor, so
+    // close it when the reader goes down (game exit / shutdown). Finalizes the
+    // frameCount header instead of relying on the killed-process scan path.
+    if (this._recordingEnabled) {
+      await this._recorder.stop();
+    }
+    console.log("[ACC] Shared memory reader stopped");
+  }
+
+  private _onAccDetected(): void {
+    if (this._connected) return;
+
+    console.log("[ACC] ACC process detected, starting buffered reader...");
+
+    // Raise the process timer resolution BEFORE any capture interval is armed.
+    // On Windows the default 15.625ms tick rounds up every setInterval below it,
+    // which silently collapses the reader's 300Hz/60Hz timers and the
+    // assembler's 100Hz timer to ~63.5Hz. Held only for the capture's lifetime
+    // because a raised resolution costs power.
+    // See docs/research/telemetry-fidelity.md section 1.
+    if (!this._holdsTimerResolution) {
+      acquireHighResolutionTimer();
+      this._holdsTimerResolution = true;
+    }
+
+    // Start buffered reader (loads FFI, opens shared memory, starts 300Hz/60Hz timers)
+    this._bufferedReader.start();
+
+    this._connected = true;
+
+    this._pipeline = createKunosTripletPipeline({
+      recordingEnabled: this._recordingEnabled,
+      recorder: this._recorder,
+      parser: this._parser,
+      gate: new StatusCheckProcessor("ACC"),
+    });
+    console.log(
+      this._recordingEnabled
+        ? "[ACC] Triplet pipeline: StatusCheckProcessor → DumpToBinProcessor"
+        : "[ACC] Triplet pipeline: StatusCheckProcessor → ParsingProcessor",
+    );
+
+    // Start assembling triplets at 100Hz
+    // Buffers are being populated by 300Hz/60Hz timers, TripletAssembler will poll as they arrive
+    // StatusCheckProcessor validates AC_LIVE on each triplet
+    this._tripletAssembler.start(this._pipeline.process.bind(this._pipeline));
+
+    console.log("[ACC] Connected - buffers reading and pipeline active");
+  }
+}

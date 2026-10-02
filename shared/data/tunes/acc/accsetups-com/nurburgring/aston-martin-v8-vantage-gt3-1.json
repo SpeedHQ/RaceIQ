@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Aston Martin V8 Vantage GT3 Nürburgring",
+    "carModel": "aston-martin-v8-vantage-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Nürburgring",
+    "downloadUrl": "https://www.youtube.com/watch?v=AePo1ANBwiw",
+    "videoUrl": "https://www.youtube.com/watch?v=AePo1ANBwiw",
+    "pageUrl": "https://accsetups.com/free-setups/for/aston-martin-v8-vantage-gt3-1/on/nurburgring",
+    "author": "Fri3d0lf",
+    "lapTime": "1:53.2",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Aston Martin V8 Vantage GT3 Nürburgring",
+    "carModel": "aston-martin-v8-vantage-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Nürburgring",
+    "downloadUrl": "https://www.youtube.com/watch?v=IV51Sw2ew9g",
+    "videoUrl": "https://www.youtube.com/watch?v=IV51Sw2ew9g",
+    "pageUrl": "https://accsetups.com/free-setups/for/aston-martin-v8-vantage-gt3-1/on/nurburgring",
+    "author": "PS_Racing",
+    "lapTime": "1:53.795",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Aston Martin V8 Vantage GT3 Nürburgring",
+    "carModel": "aston-martin-v8-vantage-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Nürburgring",
+    "downloadUrl": "https://www.youtube.com/watch?v=V6kA-JQues8",
+    "videoUrl": "https://www.youtube.com/watch?v=V6kA-JQues8",
+    "pageUrl": "https://accsetups.com/free-setups/for/aston-martin-v8-vantage-gt3-1/on/nurburgring",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

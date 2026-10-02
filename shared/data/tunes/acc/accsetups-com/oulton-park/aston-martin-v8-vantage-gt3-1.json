@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Aston Martin V8 Vantage GT3 Oulton Park",
+    "carModel": "aston-martin-v8-vantage-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Oulton Park",
+    "downloadUrl": "https://www.youtube.com/watch?v=43cSGSRx0Tk",
+    "videoUrl": "https://www.youtube.com/watch?v=43cSGSRx0Tk",
+    "pageUrl": "https://accsetups.com/free-setups/for/aston-martin-v8-vantage-gt3-1/on/oulton-park",
+    "author": "PS_Racing",
+    "lapTime": "1:33.040",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Aston Martin V8 Vantage GT3 Oulton Park",
+    "carModel": "aston-martin-v8-vantage-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Oulton Park",
+    "downloadUrl": "https://www.youtube.com/watch?v=F2EIW5jY-fw",
+    "videoUrl": "https://www.youtube.com/watch?v=F2EIW5jY-fw",
+    "pageUrl": "https://accsetups.com/free-setups/for/aston-martin-v8-vantage-gt3-1/on/oulton-park",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

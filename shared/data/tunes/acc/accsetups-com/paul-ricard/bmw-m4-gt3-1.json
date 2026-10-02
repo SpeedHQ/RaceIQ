@@ -1,0 +1,34 @@
+[
+  {
+    "name": "BMW M4 GT3 Paul Ricard",
+    "carModel": "bmw-m4-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Paul Ricard",
+    "downloadUrl": "https://www.youtube.com/watch?v=gaSpkhfJ_lw",
+    "videoUrl": "https://www.youtube.com/watch?v=gaSpkhfJ_lw",
+    "pageUrl": "https://accsetups.com/free-setups/for/bmw-m4-gt3-1/on/paul-ricard",
+    "author": "Fri3d0lf",
+    "lapTime": "1:53.0",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "BMW M4 GT3 Paul Ricard",
+    "carModel": "bmw-m4-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Paul Ricard",
+    "downloadUrl": "https://www.youtube.com/watch?v=_S0MI8VgiH4",
+    "videoUrl": "https://www.youtube.com/watch?v=_S0MI8VgiH4",
+    "pageUrl": "https://accsetups.com/free-setups/for/bmw-m4-gt3-1/on/paul-ricard",
+    "author": "PS_Racing",
+    "lapTime": "1:53.722",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Ferrari 296 GT3 Monza",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Monza",
+    "downloadUrl": "https://www.youtube.com/watch?v=UriOroPYhdE",
+    "videoUrl": "https://www.youtube.com/watch?v=UriOroPYhdE",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/monza",
+    "author": "bernagk1",
+    "lapTime": "1:45.6",
+    "date": "2025-05",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": true
+  },
+  {
+    "name": "Ferrari 296 GT3 Monza",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Monza",
+    "downloadUrl": "https://www.youtube.com/watch?v=IEbgFQsmb-k",
+    "videoUrl": "https://www.youtube.com/watch?v=IEbgFQsmb-k",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/monza",
+    "author": "Ohne Speed",
+    "lapTime": "1:46.7",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Ferrari 296 GT3 Monza",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Monza",
+    "downloadUrl": "https://www.youtube.com/watch?v=yeO88jgfaug",
+    "videoUrl": "https://www.youtube.com/watch?v=yeO88jgfaug",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/monza",
+    "author": "PS_Racing",
+    "lapTime": "1:46.780",
+    "date": "2025-05",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

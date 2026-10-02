@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Monza",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Monza",
+    "downloadUrl": "https://www.youtube.com/watch?v=SLiRoFwnuJU",
+    "videoUrl": "https://www.youtube.com/watch?v=SLiRoFwnuJU",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/monza",
+    "author": "PS_Racing",
+    "lapTime": "1:46.717",
+    "date": "2025-05",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Monza",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Monza",
+    "downloadUrl": "https://www.youtube.com/watch?v=z16M0hfHd8k",
+    "videoUrl": "https://www.youtube.com/watch?v=z16M0hfHd8k",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/monza",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

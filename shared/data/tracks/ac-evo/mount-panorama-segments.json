@@ -1,0 +1,119 @@
+{
+  "sectors": {
+    "s1End": 0.3106,
+    "s2End": 0.6226,
+    "source": "corner-anchored"
+  },
+  "segments": [
+    {
+      "key": "s15",
+      "startFrac": 0,
+      "endFrac": 0.0168
+    },
+    {
+      "key": "t1",
+      "startFrac": 0.0168,
+      "endFrac": 0.0564
+    },
+    {
+      "key": "s1",
+      "startFrac": 0.0564,
+      "endFrac": 0.1888
+    },
+    {
+      "key": "t2",
+      "startFrac": 0.1888,
+      "endFrac": 0.2481
+    },
+    {
+      "key": "s2",
+      "startFrac": 0.2481,
+      "endFrac": 0.272
+    },
+    {
+      "key": "t3",
+      "startFrac": 0.272,
+      "endFrac": 0.3106
+    },
+    {
+      "key": "t4",
+      "startFrac": 0.3106,
+      "endFrac": 0.38
+    },
+    {
+      "key": "t5",
+      "startFrac": 0.38,
+      "endFrac": 0.44
+    },
+    {
+      "key": "t6",
+      "startFrac": 0.44,
+      "endFrac": 0.4842
+    },
+    {
+      "key": "s6",
+      "startFrac": 0.4842,
+      "endFrac": 0.5074
+    },
+    {
+      "key": "t7",
+      "startFrac": 0.5074,
+      "endFrac": 0.5424
+    },
+    {
+      "key": "t8",
+      "startFrac": 0.5424,
+      "endFrac": 0.5508
+    },
+    {
+      "key": "t9",
+      "startFrac": 0.5508,
+      "endFrac": 0.5642
+    },
+    {
+      "key": "t10",
+      "startFrac": 0.5642,
+      "endFrac": 0.5775
+    },
+    {
+      "key": "t11",
+      "startFrac": 0.5775,
+      "endFrac": 0.5957
+    },
+    {
+      "key": "t12",
+      "startFrac": 0.5957,
+      "endFrac": 0.6226
+    },
+    {
+      "key": "s12",
+      "startFrac": 0.6226,
+      "endFrac": 0.8379
+    },
+    {
+      "key": "t13",
+      "startFrac": 0.8379,
+      "endFrac": 0.8744
+    },
+    {
+      "key": "t14",
+      "startFrac": 0.8744,
+      "endFrac": 0.9064
+    },
+    {
+      "key": "s14",
+      "startFrac": 0.9064,
+      "endFrac": 0.9293
+    },
+    {
+      "key": "t15",
+      "startFrac": 0.9293,
+      "endFrac": 0.9757
+    },
+    {
+      "key": "s15",
+      "startFrac": 0.9757,
+      "endFrac": 1
+    }
+  ]
+}

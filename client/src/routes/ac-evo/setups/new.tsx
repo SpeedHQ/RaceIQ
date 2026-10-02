@@ -1,0 +1,34 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { m } from "@/paraglide/messages";
+import { SetupTuneForm } from "../../../components/setup-tune/SetupTuneForm";
+import { useAcEvoCars } from "../../../components/setup-tune/use-game-cars";
+import { useCreateTune } from "../../../hooks/tunes";
+
+function NewAcEvoTunePage() {
+  const navigate = useNavigate();
+  const createTune = useCreateTune();
+  const { data: cars = [] } = useAcEvoCars();
+
+  return (
+    <div className="flex-1">
+      <div className="w-full min-w-0">
+        <SetupTuneForm
+          gameId="ac-evo"
+          cars={cars}
+          title={m.setup_create_ac_evo_tune_title()}
+          onCancel={() => navigate({ to: "/ac-evo/setups" })}
+          onSubmit={(data) =>
+            createTune.mutate(data, {
+              onSuccess: () => navigate({ to: "/ac-evo/setups" }),
+            })
+          }
+          isSubmitting={createTune.isPending}
+        />
+      </div>
+    </div>
+  );
+}
+
+export const Route = createFileRoute("/ac-evo/setups/new")({
+  component: NewAcEvoTunePage,
+});

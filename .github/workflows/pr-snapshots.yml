@@ -1,0 +1,212 @@
+name: Render dashboard snapshots
+
+# Renders Storybook snapshots for both the pull request and its base revision
+# in the same runner environment, then compares those renders. It also compares
+# committed baselines with the base revision so visual changes remain reviewable.
+# Any differences produce before/after/diff PNGs for the companion comment workflow.
+
+# This workflow runs the PR's code, so it deliberately uses the read-only
+# `pull_request` token — it never gets write access. All writes (comment,
+# label, preview hosting) happen in the separate workflow_run job, which does
+# NOT execute PR code.
+
+on:
+  workflow_call:
+    inputs:
+      pr:
+        description: "Pull request number to render"
+        required: true
+        type: number
+  # Manual dispatch remains available for any PR, including non-client changes.
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number to render (merges its base into the PR head and comments on it)"
+        required: true
+        type: number
+
+concurrency:
+  group: pr-snapshots-${{ github.event.pull_request.number || inputs.pr }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  render:
+    timeout-minutes: 30
+    runs-on:
+      - mars-any-4vcpu-15g
+      - mars-macos-arm64-2vcpu-10g
+      - mars-ubuntu-arm64-2vcpu-10g
+      - mars-retry-3
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+    steps:
+      - name: Resolve pull request revisions
+        id: pull-request
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const prNumber = Number(process.env.PR_NUMBER);
+            const { data: pull } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+            core.setOutput("base-ref", pull.base.ref);
+            core.setOutput("base-sha", pull.base.sha);
+
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number || inputs.pr }}/head
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4
+
+      - name: Prepare merged PR snapshot workspace
+        env:
+          BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
+          BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
+        run: bun scripts/ui/prepare-pr-snapshot.ts
+      - name: Install current dependencies
+        run: bun install --frozen-lockfile
+      - name: Install current client dependencies
+        working-directory: client
+        run: bun install --frozen-lockfile
+      - name: Install base dependencies
+        working-directory: ${{ runner.temp }}/raceiq-base
+        run: bun install --frozen-lockfile
+        continue-on-error: true
+      - name: Install base client dependencies
+        working-directory: ${{ runner.temp }}/raceiq-base/client
+        run: bun install --frozen-lockfile
+        continue-on-error: true
+      - name: Pin Playwright Chromium
+        working-directory: client
+        run: bunx playwright install chromium
+
+      - name: Calculate static cache keys
+        id: cache-keys
+        run: |
+          echo "base=$(bun scripts/ui/build-storybook.ts --client-root '${{ runner.temp }}/raceiq-base/client' --key)" >> "$GITHUB_OUTPUT"
+          echo "pr=$(bun scripts/ui/build-storybook.ts --client-root client --key)" >> "$GITHUB_OUTPUT"
+          echo "locale=$(bun scripts/dev/paraglide-build.ts --client-root client --key)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore base Storybook
+        id: base-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ runner.temp }}/raceiq-base/client/storybook-static
+            ${{ runner.temp }}/raceiq-base/client/project.inlang/.cache/raceiq-storybook-build.json
+          key: storybook-base-${{ steps.cache-keys.outputs.base }}
+        continue-on-error: true
+      - name: Restore PR Storybook
+        id: pr-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            client/storybook-static
+            client/project.inlang/.cache/raceiq-storybook-build.json
+          key: storybook-pr-${{ steps.cache-keys.outputs.pr }}
+        continue-on-error: true
+      - name: Restore PR Paraglide
+        id: locale-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            client/src/paraglide
+            client/project.inlang/.cache/raceiq-paraglide-build.json
+          key: paraglide-pr-${{ steps.cache-keys.outputs.locale }}
+        continue-on-error: true
+      - name: Build PR locales
+        id: locale-build
+        run: bun scripts/dev/paraglide-build.ts --client-root client
+        continue-on-error: true
+      - name: Save PR Paraglide
+        if: steps.locale-build.outcome == 'success' && steps.locale-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            client/src/paraglide
+            client/project.inlang/.cache/raceiq-paraglide-build.json
+          key: paraglide-pr-${{ steps.cache-keys.outputs.locale }}
+        continue-on-error: true
+
+      - name: Build base Storybook
+        id: base-storybook-build
+        working-directory: ${{ github.workspace }}
+        run: bun scripts/ui/build-storybook.ts --client-root "${{ runner.temp }}/raceiq-base/client"
+        continue-on-error: true
+      - name: Build PR Storybook
+        id: pr-storybook-build
+        working-directory: ${{ github.workspace }}
+        run: bun scripts/ui/build-storybook.ts --client-root client
+        continue-on-error: true
+      - name: Save base Storybook
+        if: steps.base-storybook-build.outcome == 'success' && steps.base-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ runner.temp }}/raceiq-base/client/storybook-static
+            ${{ runner.temp }}/raceiq-base/client/project.inlang/.cache/raceiq-storybook-build.json
+          key: storybook-base-${{ steps.cache-keys.outputs.base }}
+        continue-on-error: true
+      - name: Save PR Storybook
+        if: steps.pr-storybook-build.outcome == 'success' && steps.pr-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            client/storybook-static
+            client/project.inlang/.cache/raceiq-storybook-build.json
+          key: storybook-pr-${{ steps.cache-keys.outputs.pr }}
+        continue-on-error: true
+
+      - name: Render base snapshots
+        if: steps.base-storybook-build.outcome == 'success'
+        id: base-storybook-render
+        working-directory: client
+        env:
+          RACEIQ_STORYBOOK_ROOT: ${{ runner.temp }}/raceiq-base/client
+          RACEIQ_SNAPSHOT_TEST_DIR: ${{ runner.temp }}/raceiq-base/client/src/stories
+          RACEIQ_STORYBOOK_PREBUILT: "1"
+          RACEIQ_SNAPSHOT_DIR: ${{ runner.temp }}/base-snapshots
+          RACEIQ_SNAPSHOT_RESULTS_DIR: ${{ runner.temp }}/base-snapshot-results
+        run: bunx playwright test --update-snapshots --reporter=line --grep-invert "covered stories render without API requests"
+        # Missing base screenshots remain reviewable as additions.
+        continue-on-error: true
+      - name: Render PR snapshots
+        if: steps.pr-storybook-build.outcome == 'success'
+        id: storybook-render
+        working-directory: client
+        env:
+          RACEIQ_STORYBOOK_PREBUILT: "1"
+          RACEIQ_SNAPSHOT_DIR: ${{ runner.temp }}/pr-snapshots
+          RACEIQ_SNAPSHOT_RESULTS_DIR: ${{ runner.temp }}/pr-snapshot-results
+        run: bunx playwright test --update-snapshots --reporter=line
+        # Keep running so diffs can be collected and posted as UI awareness.
+        continue-on-error: true
+      - name: Prepare PR snapshot preview
+        env:
+          PR_SNAPSHOT_OUT_DIR: ${{ github.workspace }}/pr-preview
+          PR_SNAPSHOT_BASE_RENDER_DIR: ${{ runner.temp }}/base-snapshots
+          PR_SNAPSHOT_RENDER_STATUS: ${{ steps.storybook-render.outcome }}
+          PR_SNAPSHOT_CURRENT_RENDER_DIR: ${{ runner.temp }}/pr-snapshots
+          PR_SNAPSHOT_BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
+          PR_SNAPSHOT_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+        run: bun scripts/ui/prepare-pr-snapshot-preview.ts
+
+      - name: Upload preview artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-screenshot-preview
+          path: pr-preview/
+          retention-days: 14
+
+      - name: Warn about incomplete Storybook renders
+        if: steps.base-storybook-build.outcome == 'failure' || steps.pr-storybook-build.outcome == 'failure' || steps.base-storybook-render.outcome == 'failure' || steps.storybook-render.outcome == 'failure'
+        run: bun scripts/ui/report-snapshot-failure.ts pr-preview

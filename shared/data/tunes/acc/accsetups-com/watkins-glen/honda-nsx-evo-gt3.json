@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Honda NSX Evo GT3 Watkins Glen",
+    "carModel": "honda-nsx-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Watkins Glen",
+    "downloadUrl": "https://www.youtube.com/watch?v=dQKmWnAbuBQ",
+    "videoUrl": "https://www.youtube.com/watch?v=dQKmWnAbuBQ",
+    "pageUrl": "https://accsetups.com/free-setups/for/honda-nsx-evo-gt3/on/watkins-glen",
+    "author": "PS_Racing",
+    "lapTime": "1:43.327",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

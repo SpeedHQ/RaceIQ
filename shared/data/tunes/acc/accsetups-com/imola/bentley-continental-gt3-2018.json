@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Bentley Continental GT3 '18 Imola",
+    "carModel": "bentley-continental-gt3-2018",
+    "carClass": "GT3",
+    "trackName": "Imola",
+    "downloadUrl": "https://www.youtube.com/watch?v=UozOg4Gj2z0",
+    "videoUrl": "https://www.youtube.com/watch?v=UozOg4Gj2z0",
+    "pageUrl": "https://accsetups.com/free-setups/for/bentley-continental-gt3-2018/on/imola",
+    "author": "PS_Racing",
+    "lapTime": "1:40.220",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Bentley Continental GT3 '18 Imola",
+    "carModel": "bentley-continental-gt3-2018",
+    "carClass": "GT3",
+    "trackName": "Imola",
+    "downloadUrl": "https://www.youtube.com/watch?v=3YxZ1qLM_oo",
+    "videoUrl": "https://www.youtube.com/watch?v=3YxZ1qLM_oo",
+    "pageUrl": "https://accsetups.com/free-setups/for/bentley-continental-gt3-2018/on/imola",
+    "author": "PS_Racing",
+    "lapTime": "1:40.235",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

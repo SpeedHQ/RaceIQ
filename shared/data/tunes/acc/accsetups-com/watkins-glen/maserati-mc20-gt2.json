@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Maserati MC20 GT2 Watkins Glen",
+    "carModel": "maserati-mc20-gt2",
+    "carClass": "GT2",
+    "trackName": "Watkins Glen",
+    "downloadUrl": "https://www.youtube.com/watch?v=rdHjMdowUTg",
+    "videoUrl": "https://www.youtube.com/watch?v=rdHjMdowUTg",
+    "pageUrl": "https://accsetups.com/free-setups/for/maserati-mc20-gt2/on/watkins-glen",
+    "author": "Fri3d0lf",
+    "lapTime": "1:43.9",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

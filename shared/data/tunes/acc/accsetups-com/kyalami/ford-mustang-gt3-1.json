@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Ford Mustang GT3 Kyalami",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Kyalami",
+    "downloadUrl": "https://www.youtube.com/watch?v=d-SsMrNsGQI",
+    "videoUrl": "https://www.youtube.com/watch?v=d-SsMrNsGQI",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/kyalami",
+    "author": "PS_Racing",
+    "lapTime": "1:40.057",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 Kyalami",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Kyalami",
+    "downloadUrl": "https://www.youtube.com/watch?v=eXx0cewSItw",
+    "videoUrl": "https://www.youtube.com/watch?v=eXx0cewSItw",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/kyalami",
+    "author": "Fri3d0lf",
+    "lapTime": "1:40.2",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 Kyalami",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Kyalami",
+    "downloadUrl": "https://www.youtube.com/watch?v=QEF5c_HPGW8",
+    "videoUrl": "https://www.youtube.com/watch?v=QEF5c_HPGW8",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/kyalami",
+    "author": "Ohne Speed",
+    "lapTime": "1:40.2",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

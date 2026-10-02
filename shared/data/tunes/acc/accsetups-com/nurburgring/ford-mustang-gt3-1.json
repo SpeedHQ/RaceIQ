@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Ford Mustang GT3 Nürburgring",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Nürburgring",
+    "downloadUrl": "https://www.youtube.com/watch?v=newQqK_Pxyw",
+    "videoUrl": "https://www.youtube.com/watch?v=newQqK_Pxyw",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/nurburgring",
+    "author": "Ohne Speed",
+    "lapTime": "1:53.3",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 Nürburgring",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Nürburgring",
+    "downloadUrl": "https://www.youtube.com/watch?v=i36Kj4cZmWA",
+    "videoUrl": "https://www.youtube.com/watch?v=i36Kj4cZmWA",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/nurburgring",
+    "author": "Fri3d0lf",
+    "lapTime": "1:53.4",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 Nürburgring",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Nürburgring",
+    "downloadUrl": "https://www.youtube.com/watch?v=KKrhKMu2yO4",
+    "videoUrl": "https://www.youtube.com/watch?v=KKrhKMu2yO4",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/nurburgring",
+    "author": "PS_Racing",
+    "lapTime": "1:53.635",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

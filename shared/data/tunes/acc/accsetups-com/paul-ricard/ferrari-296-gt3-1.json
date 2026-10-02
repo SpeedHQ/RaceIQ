@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Ferrari 296 GT3 Paul Ricard",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Paul Ricard",
+    "downloadUrl": "https://www.youtube.com/watch?v=u1YQnHKPL6s",
+    "videoUrl": "https://www.youtube.com/watch?v=u1YQnHKPL6s",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/paul-ricard",
+    "author": "Fri3d0lf",
+    "lapTime": "1:52.9",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Ferrari 296 GT3 Paul Ricard",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Paul Ricard",
+    "downloadUrl": "https://www.youtube.com/watch?v=1IOEvBy-V-U",
+    "videoUrl": "https://www.youtube.com/watch?v=1IOEvBy-V-U",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/paul-ricard",
+    "author": "PS_Racing",
+    "lapTime": "1:53.245",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

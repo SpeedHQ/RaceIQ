@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Ferrari 296 GT3 Zandvoort",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Zandvoort",
+    "downloadUrl": "https://www.youtube.com/watch?v=4cFOzEUsn-I",
+    "videoUrl": "https://www.youtube.com/watch?v=4cFOzEUsn-I",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/zandvoort",
+    "author": "bernagk1",
+    "lapTime": "1:33.8",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": true
+  },
+  {
+    "name": "Ferrari 296 GT3 Zandvoort",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Zandvoort",
+    "downloadUrl": "https://www.youtube.com/watch?v=Qrsm1xMGScQ",
+    "videoUrl": "https://www.youtube.com/watch?v=Qrsm1xMGScQ",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/zandvoort",
+    "author": "PS_Racing",
+    "lapTime": "1:35.077",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

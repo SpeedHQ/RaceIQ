@@ -1,0 +1,18 @@
+[
+  {
+    "name": "McLaren 650S GT3 Monza",
+    "carModel": "mclaren-650s-gt3",
+    "carClass": "GT3",
+    "trackName": "Monza",
+    "downloadUrl": "https://www.youtube.com/watch?v=FBR03Dxf_44",
+    "videoUrl": "https://www.youtube.com/watch?v=FBR03Dxf_44",
+    "pageUrl": "https://accsetups.com/free-setups/for/mclaren-650s-gt3/on/monza",
+    "author": "PS_Racing",
+    "lapTime": "1:46.650",
+    "date": "2025-05",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

@@ -1,0 +1,34 @@
+[
+  {
+    "name": "McLaren 720s Evo GT3 Paul Ricard",
+    "carModel": "mclaren-720s-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Paul Ricard",
+    "downloadUrl": "https://www.youtube.com/watch?v=i_6zau2g6s4",
+    "videoUrl": "https://www.youtube.com/watch?v=i_6zau2g6s4",
+    "pageUrl": "https://accsetups.com/free-setups/for/mclaren-720s-evo-gt3/on/paul-ricard",
+    "author": "PS_Racing",
+    "lapTime": "1:53.615",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "McLaren 720s Evo GT3 Paul Ricard",
+    "carModel": "mclaren-720s-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Paul Ricard",
+    "downloadUrl": "https://www.youtube.com/watch?v=1E_dBlLQBOI",
+    "videoUrl": "https://www.youtube.com/watch?v=1E_dBlLQBOI",
+    "pageUrl": "https://accsetups.com/free-setups/for/mclaren-720s-evo-gt3/on/paul-ricard",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

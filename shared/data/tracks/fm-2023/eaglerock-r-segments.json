@@ -1,0 +1,24 @@
+{
+  "segments": [
+    {
+      "key": "t1",
+      "startFrac": 0,
+      "endFrac": 0.4686
+    },
+    {
+      "key": "t2",
+      "startFrac": 0.4686,
+      "endFrac": 0.5303
+    },
+    {
+      "key": "t3",
+      "startFrac": 0.5303,
+      "endFrac": 0.591
+    },
+    {
+      "key": "t4",
+      "startFrac": 0.591,
+      "endFrac": 1
+    }
+  ]
+}

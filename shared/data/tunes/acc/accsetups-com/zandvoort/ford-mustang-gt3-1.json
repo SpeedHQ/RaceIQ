@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Ford Mustang GT3 Zandvoort",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Zandvoort",
+    "downloadUrl": "https://www.youtube.com/watch?v=QZUWpnxjZco",
+    "videoUrl": "https://www.youtube.com/watch?v=QZUWpnxjZco",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/zandvoort",
+    "author": "Fri3d0lf",
+    "lapTime": "1:34.4",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 Zandvoort",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Zandvoort",
+    "downloadUrl": "https://www.youtube.com/watch?v=QLTfNdrbN9w",
+    "videoUrl": "https://www.youtube.com/watch?v=QLTfNdrbN9w",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/zandvoort",
+    "author": "PS_Racing",
+    "lapTime": "1:34.827",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

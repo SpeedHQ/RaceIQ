@@ -1,0 +1,407 @@
+/**
+ * WebSocket manager: bridges UDP telemetry to browser clients.
+ *
+ * Two concerns handled here:
+ * 1. Live publication — retain every projection, serialize only the latest
+ *    frame when a client connects or the configured refresh timer fires.
+ * 2. Server-side history ring buffers — telemetry charts need ~60s of
+ *    backfill when a client connects or a tab switches. Sampling at 10Hz
+ *    (every 6th packet) keeps memory bounded at 600 samples per channel.
+ */
+import type { ServerWebSocket } from "bun";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { LiveSectorData, LivePitData } from "../../shared/racing/live/types";
+import type { LapMeta } from "../../shared/racing/sessions/types";
+import type { TuneIssue } from "../../shared/racing/tuning/issues";
+import type { LiveProjection } from "../telemetry/live-projector";
+import { IS_DEV, IS_E2E } from "./config/env";
+import {
+  isDevTelemetryControlMessageV1,
+  type DevTelemetryControlMessageV1,
+  type DevTelemetryPacketMessageV1,
+  type DevTelemetrySubscriptionMessageV1,
+} from "../../shared/telemetry/live/contracts";
+
+export interface WSData {
+  createdAt: number;
+  devTelemetrySubscribed: boolean;
+}
+
+const GRIP_MAX_SAMPLES = 600; // 60s of history at 10Hz sampling
+
+export interface FourWheelHistory {
+  fl: number[];
+  fr: number[];
+  rl: number[];
+  rr: number[];
+}
+
+export interface GripHistoryData extends FourWheelHistory {}
+
+export interface TelemetryHistoryData {
+  grip: FourWheelHistory;
+  temp: FourWheelHistory;
+  wear: FourWheelHistory;
+  slipAngle: FourWheelHistory;
+  slipRatio: FourWheelHistory;
+  suspension: FourWheelHistory;
+  throttle: number[];
+  brake: number[];
+  speed: number[];
+}
+
+function pushFourWheelSample(
+  target: FourWheelHistory,
+  fl: number,
+  fr: number,
+  rl: number,
+  rr: number,
+): void {
+  target.fl.push(fl);
+  target.fr.push(fr);
+  target.rl.push(rl);
+  target.rr.push(rr);
+  if (target.fl.length > GRIP_MAX_SAMPLES) {
+    target.fl.shift();
+    target.fr.shift();
+    target.rl.shift();
+    target.rr.shift();
+  }
+}
+
+export class WebSocketManager {
+  private clients = new Set<ServerWebSocket<WSData>>();
+  private devStateSubscribers = new Set<ServerWebSocket<WSData>>();
+  private nextDevStateAt = 0;
+  private _packetCount = 0;
+  private broadcastPeriodMs = 1000 / 60;
+  private gripSampleCounter = 0; // Counts to 6 for 10Hz history sampling
+  private gripHistory: GripHistoryData = { fl: [], fr: [], rl: [], rr: [] };
+  /** Last broadcast JSON — sent to new clients so they don't start blank */
+  private lastSchemaJson: string | null = null;
+  /** Schema waiting for delivery to clients already connected when it changed. */
+  private pendingSchemaJson: string | null = null;
+  /** Owned projection; packet-handler context must not mutate before publication. */
+  private lastFrame: LiveProjection["frame"] | null = null;
+  private lastFrameJson: string | null = null;
+  private lastDevPacketJson: string | null = null;
+  private readonly allowDevTelemetry = IS_DEV || IS_E2E;
+  /** Injected getter for session laps — avoids circular import with pipeline */
+  private _getSessionLaps: (() => readonly LapMeta[]) | null = null;
+  /** Stale lap detection notification — sent to each new client on connect */
+  private _staleSessionsNotification: Record<string, unknown> | null = null;
+  /** Stale race-result notification — sent to each new client on connect */
+  private _staleRaceResultsNotification: Record<string, unknown> | null = null;
+  private _captureMigrationNotification: { type: "capture-migration-available"; sessionCount: number; captureCount: number } | null = null;
+  private _captureMigrationCountProvider: (() => Promise<{ sessionCount: number; captureCount: number }>) | null = null;
+
+  setCaptureMigrationCountProvider(provider: () => Promise<{ sessionCount: number; captureCount: number }>): void {
+    this._captureMigrationCountProvider = provider;
+  }
+
+  setCaptureMigrationNotification(sessionCount: number, captureCount: number): void {
+    this._captureMigrationNotification = sessionCount > 0 && captureCount > 0
+      ? { type: "capture-migration-available", sessionCount, captureCount }
+      : null;
+    this.broadcastNotification(this._captureMigrationNotification ?? { type: "capture-migration-available", sessionCount: 0, captureCount: 0 });
+  }
+
+  broadcastCaptureMigrationProgress(payload: {
+    done: number;
+    total: number;
+    status: "migrated" | "unchanged" | "error" | "success" | "partial";
+    migrated?: number;
+    failed?: number;
+    error?: string;
+  }): void {
+    this.broadcastNotification({ type: "capture-migration-progress", ...payload });
+  }
+
+  get captureMigrationNotification(): Readonly<{ type: "capture-migration-available"; sessionCount: number; captureCount: number }> | null {
+    return this._captureMigrationNotification;
+  }
+
+  setSessionLapsProvider(fn: () => readonly LapMeta[]): void {
+    this._getSessionLaps = fn;
+  }
+
+  setStaleSessionsNotification(payload: Record<string, unknown> | null): void {
+    this._staleSessionsNotification = payload;
+  }
+  setStaleRaceResultsNotification(payload: Record<string, unknown> | null): void {
+    this._staleRaceResultsNotification = payload;
+  }
+  private telemetryHistory: TelemetryHistoryData = {
+    grip: { fl: [], fr: [], rl: [], rr: [] },
+    temp: { fl: [], fr: [], rl: [], rr: [] },
+    wear: { fl: [], fr: [], rl: [], rr: [] },
+    slipAngle: { fl: [], fr: [], rl: [], rr: [] },
+    slipRatio: { fl: [], fr: [], rl: [], rr: [] },
+    suspension: { fl: [], fr: [], rl: [], rr: [] },
+    throttle: [],
+    brake: [],
+    speed: [],
+  };
+
+  get connectedClients(): number {
+    return this.clients.size;
+  }
+  get wantsDevTelemetry(): boolean {
+    if (!this.allowDevTelemetry) return false;
+    for (const client of this.clients) if (client.data.devTelemetrySubscribed) return true;
+    return false;
+  }
+
+  /** Snapshot demand, sampled at most four times per second in every environment. */
+  get wantsDevState(): boolean {
+    return this.devStateSubscribers.size > 0 && performance.now() >= this.nextDevStateAt;
+  }
+
+  /** Monotonic count of packets handed to broadcast() — used by status
+   *  interval to detect active pipeline flow regardless of source (UDP, ACC
+   *  SHM, AC Evo SHM). Reset never; consumers track deltas. */
+  get packetCount(): number {
+    return this._packetCount;
+  }
+
+  setRefreshRate(hz: string): void {
+    const rate = parseInt(hz, 10) || 60;
+    this.broadcastPeriodMs = 1000 / (rate > 0 ? rate : 60);
+    if (this._broadcastTimer) this.startBroadcastTimer();
+  }
+
+  addClient(ws: ServerWebSocket<WSData>): void {
+    this.clients.add(ws);
+    let sendFailed = false;
+    if (this.lastSchemaJson) { try { ws.send(this.lastSchemaJson); } catch { sendFailed = true; } }
+    const frameJson = this.serializeLatestFrame();
+    if (frameJson) { try { ws.send(frameJson); } catch { sendFailed = true; } }
+    if (this.lastDevPacketJson && ws.data.devTelemetrySubscribed) { try { ws.send(this.lastDevPacketJson); } catch { sendFailed = true; } }
+    // Send current session laps so recorded laps survive refresh
+    const laps = this._getSessionLaps?.();
+    if (laps && laps.length > 0) {
+      try { ws.send(JSON.stringify({ type: "session-laps", laps })); } catch { sendFailed = true; }
+    }
+    // Send stale lap detection notification if any sessions need reprocessing
+    if (this._staleSessionsNotification) {
+      try { ws.send(JSON.stringify(this._staleSessionsNotification)); } catch { sendFailed = true; }
+    }
+    if (this._staleRaceResultsNotification) {
+      try { ws.send(JSON.stringify(this._staleRaceResultsNotification)); } catch { sendFailed = true; }
+    }
+    if (this._captureMigrationNotification) {
+      try { ws.send(JSON.stringify(this._captureMigrationNotification)); } catch { sendFailed = true; }
+    }
+    if (sendFailed) {
+      this.dropClient(ws);
+      return;
+    }
+    console.log(`[WS] Client connected. Active: ${this.clients.size}`);
+    if (this.clients.size === 1) this.startBroadcastTimer(); // first client — start pushing
+    void this._captureMigrationCountProvider?.().then(({ sessionCount, captureCount }) => {
+      if (!this.clients.has(ws)) return;
+      this.setCaptureMigrationNotification(sessionCount, captureCount);
+    }).catch((error) => console.error("[WS] Failed to refresh historical capture count:", error));
+  }
+
+  removeClient(ws: ServerWebSocket<WSData>): void {
+    this.dropClient(ws);
+  }
+
+  private dropClient(ws: ServerWebSocket<WSData>): void {
+    if (!this.clients.delete(ws)) return;
+    this.devStateSubscribers.delete(ws);
+    if (this.clients.size === 0) this.stopBroadcastTimer(); // no clients — stop pushing
+    console.log(`[WS] Client disconnected. Active: ${this.clients.size}`);
+  }
+
+  disconnectClients(code = 1012, reason = "Server restart simulation"): void {
+    for (const client of this.clients) {
+      try {
+        client.close(code, reason);
+      } catch {
+        this.dropClient(client);
+      }
+    }
+  }
+
+  getGripHistory(): GripHistoryData {
+    return this.gripHistory;
+  }
+
+  getTelemetryHistory(): TelemetryHistoryData {
+    return this.telemetryHistory;
+  }
+
+  /**
+   * Broadcast server status so clients stay in sync without polling.
+   * Fired every 1s from the UDP listener's interval timer.
+   */
+  broadcastStatus(status: {
+    telemetryPps: number;
+    udpPps: number;
+    isRaceOn: boolean;
+    droppedPackets: number;
+    udpPort: number;
+    detectedGame: { id: string; name: string } | null;
+    currentSession: {
+      id: number;
+      carOrdinal: number;
+      trackOrdinal: number;
+      carId: number | string;
+      trackId: number | string;
+    } | null;
+  }): void {
+    if (this.clients.size === 0) return;
+    const json = JSON.stringify({ type: "status", ...status });
+    for (const client of this.clients) {
+      try { client.send(json); } catch { this.dropClient(client); }
+    }
+  }
+
+  /**
+   * Broadcast an arbitrary JSON notification to all connected clients.
+   * Used for update-available and other server-initiated events.
+   */
+  broadcastNotification(payload: Record<string, unknown>): void {
+    if (this.clients.size === 0) return;
+    const json = JSON.stringify(payload);
+    for (const client of this.clients) {
+      try { client.send(json); } catch { this.dropClient(client); }
+    }
+  }
+
+  broadcastDevState(payload: Record<string, unknown>): void {
+    if (!this.wantsDevState) return;
+    this.nextDevStateAt = performance.now() + 250;
+    const json = JSON.stringify({ type: "dev-state", ...payload });
+    for (const client of this.devStateSubscribers) { try { client.send(json); } catch { this.dropClient(client); } }
+  }
+
+  publishTelemetry(projection: LiveProjection): void {
+    if (projection.schema) {
+      this.lastSchemaJson = JSON.stringify(projection.schema);
+      this.pendingSchemaJson = this.clients.size > 0 ? this.lastSchemaJson : null;
+      if (this.lastFrame?.schemaId !== projection.schema.schemaId) {
+        this.lastFrame = null;
+        this.lastFrameJson = null;
+      }
+    }
+    if (projection.frame) {
+      this.lastFrame = { ...projection.frame, context: structuredClone(projection.frame.context) };
+      this.lastFrameJson = null;
+    }
+  }
+
+  private serializeLatestFrame(): string | null {
+    if (!this.lastFrameJson && this.lastFrame) this.lastFrameJson = JSON.stringify(this.lastFrame);
+    return this.lastFrameJson;
+  }
+
+  handleMessage(ws: ServerWebSocket<WSData>, message: string | Buffer): void {
+    let parsed: unknown;
+    try { parsed = JSON.parse(typeof message === "string" ? message : message.toString()); } catch { parsed = null; }
+    if (!isDevTelemetryControlMessageV1(parsed)) {
+      ws.send(JSON.stringify({ type: "subscription", channel: "dev-telemetry", subscribed: false, error: "invalid-message" } satisfies DevTelemetrySubscriptionMessageV1)); return;
+    }
+    const control = parsed as DevTelemetryControlMessageV1;
+    if (control.channel === "dev-state") {
+      const subscribed = control.type === "subscribe" && this.clients.has(ws);
+      if (subscribed) this.devStateSubscribers.add(ws);
+      else this.devStateSubscribers.delete(ws);
+      ws.send(JSON.stringify({ type: "subscription", channel: "dev-state", subscribed } satisfies DevTelemetrySubscriptionMessageV1));
+      return;
+    }
+    if (!this.allowDevTelemetry) {
+      ws.data.devTelemetrySubscribed = false;
+      ws.send(JSON.stringify({ type: "subscription", channel: "dev-telemetry", subscribed: false, error: "not-available" } satisfies DevTelemetrySubscriptionMessageV1)); return;
+    }
+    ws.data.devTelemetrySubscribed = control.type === "subscribe";
+    ws.send(JSON.stringify({ type: "subscription", channel: "dev-telemetry", subscribed: ws.data.devTelemetrySubscribed } satisfies DevTelemetrySubscriptionMessageV1));
+    if (ws.data.devTelemetrySubscribed && this.lastDevPacketJson) ws.send(this.lastDevPacketJson);
+  }
+
+  stageDevTelemetry(packet: TelemetryPacket): void {
+    this.lastDevPacketJson = JSON.stringify({ type: "dev-telemetry", protocolVersion: 1, packet } satisfies DevTelemetryPacketMessageV1);
+  }
+
+  flushLatest(): void { this._pushToClients(); }
+
+  // Latest state — written by packet handler, read by broadcast timer
+  private _broadcastTimer: ReturnType<typeof setInterval> | null = null;
+
+  /**
+   * Store the latest telemetry packet and sample history.
+   * Does NOT send to clients — the broadcast timer handles that.
+   */
+  broadcast(
+    packet: TelemetryPacket,
+    _sectors?: LiveSectorData | null,
+    _pit?: LivePitData | null,
+    _liveIssues?: TuneIssue[],
+  ): void {
+    this._packetCount++;
+
+    // Sample telemetry history at ~10Hz
+    this.gripSampleCounter++;
+    if (this.gripSampleCounter % 6 === 0) {
+      const h = this.gripHistory;
+      const slipFL = Math.abs(packet.TireCombinedSlipFL);
+      const slipFR = Math.abs(packet.TireCombinedSlipFR);
+      const slipRL = Math.abs(packet.TireCombinedSlipRL);
+      const slipRR = Math.abs(packet.TireCombinedSlipRR);
+      pushFourWheelSample(h, slipFL, slipFR, slipRL, slipRR);
+
+      const t = this.telemetryHistory;
+      pushFourWheelSample(t.grip, slipFL, slipFR, slipRL, slipRR);
+      pushFourWheelSample(t.temp, packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR);
+      pushFourWheelSample(t.wear, packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR);
+      pushFourWheelSample(t.slipAngle, packet.TireSlipAngleFL, packet.TireSlipAngleFR, packet.TireSlipAngleRL, packet.TireSlipAngleRR);
+      pushFourWheelSample(t.slipRatio, packet.TireSlipRatioFL, packet.TireSlipRatioFR, packet.TireSlipRatioRL, packet.TireSlipRatioRR);
+      pushFourWheelSample(t.suspension, packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR);
+      t.throttle.push(packet.Accel / 255);
+      t.brake.push(packet.Brake / 255);
+      t.speed.push(packet.Speed * 2.23694);
+      if (t.throttle.length > GRIP_MAX_SAMPLES) { t.throttle.shift(); t.brake.shift(); t.speed.shift(); }
+    }
+  }
+
+  /** Start a deadline-based broadcast loop that preserves fractional periods. */
+  private startBroadcastTimer(): void {
+    this.stopBroadcastTimer();
+    const periodMs = this.broadcastPeriodMs;
+    let nextBroadcastAt = performance.now() + periodMs;
+    const tick = () => {
+      this._pushToClients();
+      nextBroadcastAt += periodMs;
+      const now = performance.now();
+      if (nextBroadcastAt <= now) nextBroadcastAt += (Math.floor((now - nextBroadcastAt) / periodMs) + 1) * periodMs;
+      this._broadcastTimer = setTimeout(tick, Math.max(0, nextBroadcastAt - now));
+    };
+    this._broadcastTimer = setTimeout(tick, periodMs);
+  }
+
+  /** Stop the broadcast timer. */
+  private stopBroadcastTimer(): void {
+    if (this._broadcastTimer) {
+      clearTimeout(this._broadcastTimer);
+      this._broadcastTimer = null;
+    }
+  }
+
+  private _pushToClients(): void {
+    if (this.clients.size === 0) return;
+    const frameJson = this.serializeLatestFrame();
+    const schemaJson = this.pendingSchemaJson;
+    for (const client of this.clients) {
+      try {
+        if (schemaJson) client.send(schemaJson);
+        if (frameJson) client.send(frameJson);
+        if (this.lastDevPacketJson && client.data.devTelemetrySubscribed) client.send(this.lastDevPacketJson);
+      } catch { this.dropClient(client); }
+    }
+    this.pendingSchemaJson = null;
+  }
+}
+
+export const wsManager = new WebSocketManager();

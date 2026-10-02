@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Porsche 992 GT3-R Suzuka",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Suzuka",
+    "downloadUrl": "https://www.youtube.com/watch?v=ZbmxLejTaXE",
+    "videoUrl": "https://www.youtube.com/watch?v=ZbmxLejTaXE",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/suzuka",
+    "author": "Fri3d0lf",
+    "lapTime": "1:58.4",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Porsche 992 GT3-R Suzuka",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Suzuka",
+    "downloadUrl": "https://www.youtube.com/watch?v=39f2NUlma6s",
+    "videoUrl": "https://www.youtube.com/watch?v=39f2NUlma6s",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/suzuka",
+    "author": "Ohne Speed",
+    "lapTime": "1:59.7",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

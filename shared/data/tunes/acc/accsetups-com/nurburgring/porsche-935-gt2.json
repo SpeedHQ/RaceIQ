@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Porsche 935 GT2 Nürburgring",
+    "carModel": "porsche-935-gt2",
+    "carClass": "GT2",
+    "trackName": "Nürburgring",
+    "downloadUrl": "https://www.youtube.com/watch?v=Qab255rReXI",
+    "videoUrl": "https://www.youtube.com/watch?v=Qab255rReXI",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-935-gt2/on/nurburgring",
+    "author": "Ohne Speed",
+    "lapTime": "1:55.3",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

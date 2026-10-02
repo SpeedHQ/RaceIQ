@@ -1,0 +1,50 @@
+[
+  {
+    "name": "BMW M4 GT3 Hungaroring",
+    "carModel": "bmw-m4-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Hungaroring",
+    "downloadUrl": "https://www.youtube.com/watch?v=nephW1AXzIw",
+    "videoUrl": "https://www.youtube.com/watch?v=nephW1AXzIw",
+    "pageUrl": "https://accsetups.com/free-setups/for/bmw-m4-gt3-1/on/hungaroring",
+    "author": "Fri3d0lf",
+    "lapTime": "1:42.6",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "BMW M4 GT3 Hungaroring",
+    "carModel": "bmw-m4-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Hungaroring",
+    "downloadUrl": "https://www.youtube.com/watch?v=O8Y5Ovky6-U",
+    "videoUrl": "https://www.youtube.com/watch?v=O8Y5Ovky6-U",
+    "pageUrl": "https://accsetups.com/free-setups/for/bmw-m4-gt3-1/on/hungaroring",
+    "author": "PS_Racing",
+    "lapTime": "1:43.012",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "BMW M4 GT3 Hungaroring",
+    "carModel": "bmw-m4-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Hungaroring",
+    "downloadUrl": "https://www.youtube.com/watch?v=4cVCUYbKu0Q",
+    "videoUrl": "https://www.youtube.com/watch?v=4cVCUYbKu0Q",
+    "pageUrl": "https://accsetups.com/free-setups/for/bmw-m4-gt3-1/on/hungaroring",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

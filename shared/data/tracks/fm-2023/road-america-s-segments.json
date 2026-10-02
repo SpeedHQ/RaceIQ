@@ -1,0 +1,44 @@
+{
+  "segments": [
+    {
+      "key": "s4",
+      "startFrac": 0,
+      "endFrac": 0.134
+    },
+    {
+      "key": "t1",
+      "startFrac": 0.134,
+      "endFrac": 0.2297
+    },
+    {
+      "key": "s1",
+      "startFrac": 0.2297,
+      "endFrac": 0.276
+    },
+    {
+      "key": "t2",
+      "startFrac": 0.276,
+      "endFrac": 0.3677
+    },
+    {
+      "key": "s2",
+      "startFrac": 0.3677,
+      "endFrac": 0.6958
+    },
+    {
+      "key": "t3",
+      "startFrac": 0.6958,
+      "endFrac": 0.7695
+    },
+    {
+      "key": "t4",
+      "startFrac": 0.7695,
+      "endFrac": 0.8361
+    },
+    {
+      "key": "s4",
+      "startFrac": 0.8361,
+      "endFrac": 1
+    }
+  ]
+}

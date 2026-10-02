@@ -1,0 +1,82 @@
+[
+  {
+    "rank": 1,
+    "date": "Sep 15, 2025",
+    "lapTime": "1:19.123",
+    "player": "MichiWizard",
+    "team": "Kick Sauber",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 2,
+    "date": "Sep 17, 2025",
+    "lapTime": "1:19.296",
+    "player": "slaapzz",
+    "team": "McLaren",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 3,
+    "date": "Dec 27, 2025",
+    "lapTime": "1:19.314",
+    "player": "1loveof1",
+    "team": "Mercedes",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 4,
+    "date": "Sep 07, 2025",
+    "lapTime": "1:19.374",
+    "player": "Jawnee",
+    "team": "Ferrari",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 5,
+    "date": "Feb 16, 2026",
+    "lapTime": "1:19.374",
+    "player": "gdunks",
+    "team": "McLaren",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 6,
+    "date": "Jan 13, 2026",
+    "lapTime": "1:19.392",
+    "player": "slathercordova",
+    "team": "Mercedes",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 7,
+    "date": "Feb 11, 2026",
+    "lapTime": "1:19.440",
+    "player": "lewish_9e4e",
+    "team": "McLaren",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 8,
+    "date": "Jun 17, 2025",
+    "lapTime": "1:19.461",
+    "player": "ok1ni",
+    "team": "Aston Martin",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 9,
+    "date": "Mar 14, 2026",
+    "lapTime": "1:19.500",
+    "player": "quikroz",
+    "team": "Haas F1 Team",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 10,
+    "date": "Oct 06, 2025",
+    "lapTime": "1:19.575",
+    "player": "Goughzi",
+    "team": "Haas F1 Team",
+    "sessionType": "Time Trial"
+  }
+]

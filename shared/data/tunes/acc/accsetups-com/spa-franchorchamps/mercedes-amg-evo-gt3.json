@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Mercedes AMG Evo GT3 Spa Franchorchamps",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Spa Franchorchamps",
+    "downloadUrl": "https://www.youtube.com/watch?v=MJFKDl2z4PY",
+    "videoUrl": "https://www.youtube.com/watch?v=MJFKDl2z4PY",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/spa-franchorchamps",
+    "author": "bernagk1",
+    "lapTime": "2:16.2",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": true
+  },
+  {
+    "name": "Mercedes AMG Evo GT3 Spa Franchorchamps",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Spa Franchorchamps",
+    "downloadUrl": "https://www.youtube.com/watch?v=1hrye75aUm4",
+    "videoUrl": "https://www.youtube.com/watch?v=1hrye75aUm4",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/spa-franchorchamps",
+    "author": "PS_Racing",
+    "lapTime": "2:16.7",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Mercedes AMG Evo GT3 Spa Franchorchamps",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Spa Franchorchamps",
+    "downloadUrl": "https://www.youtube.com/watch?v=doUgUCmkXK0",
+    "videoUrl": "https://www.youtube.com/watch?v=doUgUCmkXK0",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/spa-franchorchamps",
+    "author": "Fri3d0lf",
+    "lapTime": "2:16.9",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

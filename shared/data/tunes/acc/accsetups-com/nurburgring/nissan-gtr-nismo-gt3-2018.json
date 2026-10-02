@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Nissan GTR Nismo GT3 '18 Nürburgring",
+    "carModel": "nissan-gtr-nismo-gt3-2018",
+    "carClass": "GT3",
+    "trackName": "Nürburgring",
+    "downloadUrl": "https://www.youtube.com/watch?v=7wSNllY2Tso",
+    "videoUrl": "https://www.youtube.com/watch?v=7wSNllY2Tso",
+    "pageUrl": "https://accsetups.com/free-setups/for/nissan-gtr-nismo-gt3-2018/on/nurburgring",
+    "author": "PS_Racing",
+    "lapTime": "1:53.517",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Nissan GTR Nismo GT3 '18 Nürburgring",
+    "carModel": "nissan-gtr-nismo-gt3-2018",
+    "carClass": "GT3",
+    "trackName": "Nürburgring",
+    "downloadUrl": "https://www.youtube.com/watch?v=q7hAMGwAHyE",
+    "videoUrl": "https://www.youtube.com/watch?v=q7hAMGwAHyE",
+    "pageUrl": "https://accsetups.com/free-setups/for/nissan-gtr-nismo-gt3-2018/on/nurburgring",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

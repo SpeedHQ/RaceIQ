@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Porsche 992 GT3 CUP Imola",
+    "carModel": "porsche-992-gt3-cup",
+    "carClass": "PCUP",
+    "trackName": "Imola",
+    "downloadUrl": "https://www.youtube.com/watch?v=MzFL_11RvAc",
+    "videoUrl": "https://www.youtube.com/watch?v=MzFL_11RvAc",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-cup/on/imola",
+    "author": "bernagk1",
+    "lapTime": "1:42.1",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": true
+  },
+  {
+    "name": "Porsche 992 GT3 CUP Imola",
+    "carModel": "porsche-992-gt3-cup",
+    "carClass": "PCUP",
+    "trackName": "Imola",
+    "downloadUrl": "https://www.youtube.com/watch?v=WQ1V4GugZuA",
+    "videoUrl": "https://www.youtube.com/watch?v=WQ1V4GugZuA",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-cup/on/imola",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

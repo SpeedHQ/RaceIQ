@@ -1,0 +1,72 @@
+import { m } from "@/paraglide/messages";
+import { Info } from "lucide-react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { Button } from "./button";
+
+export function Tooltip({ children, content, position = "top" }: { children: ReactNode; content: ReactNode; position?: "top" | "bottom" }) {
+  const posClass = position === "top" ? "bottom-full mb-2" : "top-full mt-2";
+  return (
+    <span className="group/tip relative inline-flex items-center">
+      {children}
+      <span
+        className={`absolute left-0 ${posClass} w-max max-w-[280px] hidden group-hover/tip:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-app-caption text-app-text-secondary z-50 pointer-events-none leading-relaxed whitespace-normal`}
+      >
+        {content}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * Small info icon that shows a tooltip on hover.
+ * Wrap in a flex container alongside a label for best alignment.
+ */
+export function InfoTooltip({
+  children,
+  position = "top",
+  width = "max",
+}: {
+  children: ReactNode;
+  /** Whether tooltip pops above or below the icon */
+  position?: "top" | "bottom";
+  /** Tailwind max-w class token or "max" for w-max */
+  width?: "max" | "xs" | "sm" | "md";
+}) {
+  const posClass = position === "top" ? "bottom-full mb-2" : "top-full mt-2";
+  const widthClass = width === "max" ? "w-max max-w-[240px]" : width === "xs" ? "w-[180px]" : width === "sm" ? "w-[220px]" : "w-[280px]";
+  const [tapOpen, setTapOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!tapOpen) return;
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setTapOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, [tapOpen]);
+
+  return (
+    <span ref={ref} className="group/tip relative inline-flex items-center shrink-0">
+      <Button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setTapOpen((o) => !o);
+        }}
+        aria-label={m.common_more_info()}
+        className="inline-flex items-center p-0 m-0 bg-transparent border-0 cursor-help"
+      >
+        <Info className="w-3 h-3 text-app-text-dim" />
+      </Button>
+      <span
+        className={`absolute left-0 ${posClass} ${widthClass} ${tapOpen ? "block" : "hidden group-hover/tip:block"} bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-app-caption text-app-text-secondary z-50 pointer-events-none normal-case tracking-normal leading-relaxed`}
+      >
+        {children}
+      </span>
+    </span>
+  );
+}

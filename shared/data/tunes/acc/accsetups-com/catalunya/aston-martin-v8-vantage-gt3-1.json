@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Aston Martin V8 Vantage GT3 Barcelona",
+    "carModel": "aston-martin-v8-vantage-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Barcelona",
+    "downloadUrl": "https://www.youtube.com/watch?v=6N4cTPL9fog",
+    "videoUrl": "https://www.youtube.com/watch?v=6N4cTPL9fog",
+    "pageUrl": "https://accsetups.com/free-setups/for/aston-martin-v8-vantage-gt3-1/on/barcelona",
+    "author": "Fri3d0lf",
+    "lapTime": "1:43.3",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Aston Martin V8 Vantage GT3 Barcelona",
+    "carModel": "aston-martin-v8-vantage-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Barcelona",
+    "downloadUrl": "https://www.youtube.com/watch?v=R5MYTbJ-ZhA",
+    "videoUrl": "https://www.youtube.com/watch?v=R5MYTbJ-ZhA",
+    "pageUrl": "https://accsetups.com/free-setups/for/aston-martin-v8-vantage-gt3-1/on/barcelona",
+    "author": "PS_Racing",
+    "lapTime": "1:43.352",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Aston Martin V8 Vantage GT3 Barcelona",
+    "carModel": "aston-martin-v8-vantage-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Barcelona",
+    "downloadUrl": "https://www.youtube.com/watch?v=ygnckRDIIA4",
+    "videoUrl": "https://www.youtube.com/watch?v=ygnckRDIIA4",
+    "pageUrl": "https://accsetups.com/free-setups/for/aston-martin-v8-vantage-gt3-1/on/barcelona",
+    "author": "PS_Racing",
+    "lapTime": "1:57.440",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

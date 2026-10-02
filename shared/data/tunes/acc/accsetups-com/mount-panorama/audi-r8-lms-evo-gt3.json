@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Audi R8 LMS Evo GT3 Bathurst",
+    "carModel": "audi-r8-lms-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Bathurst",
+    "downloadUrl": "https://www.youtube.com/watch?v=Rbe3QAynHx8",
+    "videoUrl": "https://www.youtube.com/watch?v=Rbe3QAynHx8",
+    "pageUrl": "https://accsetups.com/free-setups/for/audi-r8-lms-evo-gt3/on/bathurst",
+    "author": "PS_Racing",
+    "lapTime": "2:01.035",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

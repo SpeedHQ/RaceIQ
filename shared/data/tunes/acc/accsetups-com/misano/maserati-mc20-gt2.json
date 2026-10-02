@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Maserati MC20 GT2 Misano",
+    "carModel": "maserati-mc20-gt2",
+    "carClass": "GT2",
+    "trackName": "Misano",
+    "downloadUrl": "https://www.youtube.com/watch?v=DMcnPqSt3nk",
+    "videoUrl": "https://www.youtube.com/watch?v=DMcnPqSt3nk",
+    "pageUrl": "https://accsetups.com/free-setups/for/maserati-mc20-gt2/on/misano",
+    "author": "Fri3d0lf",
+    "lapTime": "1:46.4",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

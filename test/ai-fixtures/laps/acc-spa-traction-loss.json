@@ -1,0 +1,31 @@
+{
+  "id": "acc-spa-traction-loss",
+  "game": "acc",
+  "units": "metric",
+  "lap": {
+    "lapNumber": 4,
+    "lapTime": 137.812,
+    "isValid": true,
+    "carOrdinal": 0,
+    "trackOrdinal": 0
+  },
+  "packetsPath": "../packets/acc-spa-traction-loss.zip",
+  "expected": {
+    "slowestCorners": ["La Source", "Les Combes", "Bus Stop"],
+    "trackCorners": [
+      "La Source",
+      "Eau Rouge",
+      "Raidillon",
+      "Les Combes",
+      "Malmedy",
+      "Rivage",
+      "Pouhon",
+      "Fagnes",
+      "Stavelot",
+      "Blanchimont",
+      "Bus Stop"
+    ],
+    "dominantIssue": "rear traction loss on corner exit",
+    "setupDirection": { "component": "Rear Differential Preload", "direction": "increase" }
+  }
+}

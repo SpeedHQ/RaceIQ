@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Ford Mustang GT3 Paul Ricard",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Paul Ricard",
+    "downloadUrl": "https://www.youtube.com/watch?v=WFoqIdbMgac",
+    "videoUrl": "https://www.youtube.com/watch?v=WFoqIdbMgac",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/paul-ricard",
+    "author": "Fri3d0lf",
+    "lapTime": "1:52.7",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 Paul Ricard",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Paul Ricard",
+    "downloadUrl": "https://www.youtube.com/watch?v=5WReMfhEIo4",
+    "videoUrl": "https://www.youtube.com/watch?v=5WReMfhEIo4",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/paul-ricard",
+    "author": "PS_Racing",
+    "lapTime": "1:53.137",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 Paul Ricard",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Paul Ricard",
+    "downloadUrl": "https://www.youtube.com/watch?v=IsQUvpzQHj0",
+    "videoUrl": "https://www.youtube.com/watch?v=IsQUvpzQHj0",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/paul-ricard",
+    "author": "Ohne Speed",
+    "lapTime": "1:53.6",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

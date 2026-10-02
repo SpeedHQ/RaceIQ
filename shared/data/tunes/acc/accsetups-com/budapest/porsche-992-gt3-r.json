@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Porsche 992 GT3-R Hungaroring",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Hungaroring",
+    "downloadUrl": "https://www.youtube.com/watch?v=9tYS_2G2m_U",
+    "videoUrl": "https://www.youtube.com/watch?v=9tYS_2G2m_U",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/hungaroring",
+    "author": "Ohne Speed",
+    "lapTime": "1:43.0",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Porsche 992 GT3-R Hungaroring",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Hungaroring",
+    "downloadUrl": "https://www.youtube.com/watch?v=m0WxxGjLeig",
+    "videoUrl": "https://www.youtube.com/watch?v=m0WxxGjLeig",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/hungaroring",
+    "author": "PS_Racing",
+    "lapTime": "1:43.082",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Lexus RC F GT3 Red Bull Ring",
+    "carModel": "lexus-rc-f-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Red Bull Ring",
+    "downloadUrl": "https://www.youtube.com/watch?v=w8-c-uA6y0c",
+    "videoUrl": "https://www.youtube.com/watch?v=w8-c-uA6y0c",
+    "pageUrl": "https://accsetups.com/free-setups/for/lexus-rc-f-gt3-1/on/red-bull-ring",
+    "author": "PS_Racing",
+    "lapTime": "1:27.465",
+    "date": "2026-01",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Lexus RC F GT3 Red Bull Ring",
+    "carModel": "lexus-rc-f-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Red Bull Ring",
+    "downloadUrl": "https://www.youtube.com/watch?v=W5_YswIZpN0",
+    "videoUrl": "https://www.youtube.com/watch?v=W5_YswIZpN0",
+    "pageUrl": "https://accsetups.com/free-setups/for/lexus-rc-f-gt3-1/on/red-bull-ring",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

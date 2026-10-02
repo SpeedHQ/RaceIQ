@@ -1,0 +1,631 @@
+/**
+ * AC Evo v0.6 parser: reads from SPageFilePhysics, SPageFileGraphicEvo, and
+ * SPageFileStaticEvo directly (no longer routed through the ACC parser).
+ *
+ * Diverges from ACC: graphics layout is completely different, and identifiers
+ * live in different pages:
+ *   - car model: GRAPHICS_EVO.car_model (char[33])
+ *   - track:     STATIC_EVO.track (char[33])
+ *   - driver:    GRAPHICS_EVO.driver_name / driver_surname
+ */
+
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { KunosExtendedData, AcEvoExtendedData } from "../../../shared/telemetry/kunos";
+import type { GameId } from "../../../shared/games/ids";
+import { createAcEvoDistanceState, integrateDistance, type AcEvoDistanceState } from "./distance";
+import { calibratePlayerSlot, createPlayerSlotState, type PlayerSlotState } from "./player-slot";
+import {
+  PHYSICS,
+  GRAPHICS_EVO,
+  TYRE_STATE,
+  STATIC_EVO,
+  SESSION_STATE,
+  TIMING_STATE,
+  ELECTRONICS,
+  ACEVO_STATUS,
+  ACEVO_FLAG_NAMES,
+  ACEVO_CAR_LOCATION,
+  ACEVO_SESSION_TYPE_NAMES,
+  ACEVO_STARTING_GRIP_NAMES,
+} from "./structs";
+import { readCString } from "./utils";
+import { getAcEvoCarByDisplayName } from "../../../shared/racing/cars/ac-evo"
+import { getAcEvoTrackByName } from "../../../shared/racing/tracks/catalogs/ac-evo"
+
+export interface AcEvoParserCache {
+  carOrdinal: number;
+  trackOrdinal: number;
+  lastCarModel: string;
+  lastTrack: string;
+  playerSlotState: PlayerSlotState;
+  distanceState: AcEvoDistanceState;
+}
+
+export function createAcEvoParserCache(): AcEvoParserCache {
+  return {
+    // -1 = not yet identified. Ordinal 0 is a real car (Ferrari SF90 Stradale)
+    // and a real track (Monza GP), so an empty/unknown name must NOT default
+    // to 0 — that is exactly the production bug where sessions imported as
+    // "Monza" / "Ferrari SF90 Stradale".
+    carOrdinal: -1,
+    trackOrdinal: -1,
+    lastCarModel: "",
+    lastTrack: "",
+    playerSlotState: createPlayerSlotState(),
+    distanceState: createAcEvoDistanceState(),
+  };
+}
+export function parseAcEvoBuffers(
+  physicsBuf: Buffer,
+  graphicsBuf: Buffer,
+  staticBuf: Buffer,
+  cache: AcEvoParserCache,
+): TelemetryPacket | null {
+  if (
+    physicsBuf.length < PHYSICS.SIZE ||
+    graphicsBuf.length < GRAPHICS_EVO.SIZE ||
+    staticBuf.length < STATIC_EVO.SIZE
+  ) {
+    return null;
+  }
+
+  // --- Identify car/track ---
+  // v0.6 puts car_model inside GRAPHICS_EVO, track inside STATIC_EVO
+  const carModelStr = readCString(graphicsBuf, GRAPHICS_EVO.car_model.offset, GRAPHICS_EVO.car_model.size);
+  const trackStr = readCString(staticBuf, STATIC_EVO.track.offset, STATIC_EVO.track.size);
+  const trackCfgStr = readCString(staticBuf, STATIC_EVO.track_configuration.offset, STATIC_EVO.track_configuration.size);
+
+  if (carModelStr && carModelStr !== cache.lastCarModel) {
+    cache.lastCarModel = carModelStr;
+    const car = getAcEvoCarByDisplayName(carModelStr);
+    if (car) {
+      cache.carOrdinal = car.id;
+      console.log(`[AC Evo Parser] Resolved car: "${carModelStr}" → ordinal ${car.id}`);
+    } else {
+      cache.carOrdinal = -1;
+      console.warn(`[AC Evo Parser] Unknown car "${carModelStr}" — add it to shared/games/ac-evo/cars.csv`);
+    }
+  }
+
+  // Include the layout in the cache key: switching GP → Indy at the same
+  // circuit changes only track_configuration, not track.
+  const trackKey = `${trackStr}|${trackCfgStr}`;
+  if (trackStr && trackKey !== cache.lastTrack) {
+    cache.lastTrack = trackKey;
+    const track = getAcEvoTrackByName(trackStr, trackCfgStr);
+    if (track) {
+      cache.trackOrdinal = track.id;
+      console.log(`[AC Evo Parser] Resolved track: "${trackStr}" (config "${trackCfgStr}") → ordinal ${track.id} (${track.name} - ${track.variant})`);
+    } else {
+      cache.trackOrdinal = -1;
+      console.warn(`[AC Evo Parser] Unknown track name: "${trackStr}" (config "${trackCfgStr}")`);
+    }
+  }
+
+  // --- Physics ---
+  const gas = physicsBuf.readFloatLE(PHYSICS.gas.offset);
+  const brake = physicsBuf.readFloatLE(PHYSICS.brake.offset);
+  const fuel = physicsBuf.readFloatLE(PHYSICS.fuel.offset);
+  const maxFuel = graphicsBuf.readFloatLE(GRAPHICS_EVO.max_fuel.offset);
+  const accGear = physicsBuf.readInt32LE(PHYSICS.gear.offset);
+  const rpms = physicsBuf.readInt32LE(PHYSICS.rpms.offset);
+  const steerAngle = physicsBuf.readFloatLE(PHYSICS.steerAngle.offset);
+  const speedKmh = physicsBuf.readFloatLE(PHYSICS.speedKmh.offset);
+  const physPacketId = physicsBuf.readInt32LE(PHYSICS.packetId.offset);
+
+  const velX = physicsBuf.readFloatLE(PHYSICS.velocityX.offset);
+  const velY = physicsBuf.readFloatLE(PHYSICS.velocityY.offset);
+  const velZ = physicsBuf.readFloatLE(PHYSICS.velocityZ.offset);
+  const angVelX = physicsBuf.readFloatLE(PHYSICS.localAngularVelX.offset);
+  const angVelY = physicsBuf.readFloatLE(PHYSICS.localAngularVelY.offset);
+  const angVelZ = physicsBuf.readFloatLE(PHYSICS.localAngularVelZ.offset);
+  const gX = physicsBuf.readFloatLE(PHYSICS.accGX.offset);
+  const gY = physicsBuf.readFloatLE(PHYSICS.accGY.offset);
+  const gZ = physicsBuf.readFloatLE(PHYSICS.accGZ.offset);
+
+  const heading = physicsBuf.readFloatLE(PHYSICS.heading.offset);
+  const pitch = physicsBuf.readFloatLE(PHYSICS.pitch.offset);
+  const roll = physicsBuf.readFloatLE(PHYSICS.roll.offset);
+
+  const pressFL = physicsBuf.readFloatLE(PHYSICS.tyrePressureFL.offset);
+  const pressFR = physicsBuf.readFloatLE(PHYSICS.tyrePressureFR.offset);
+  const pressRL = physicsBuf.readFloatLE(PHYSICS.tyrePressureRL.offset);
+  const pressRR = physicsBuf.readFloatLE(PHYSICS.tyrePressureRR.offset);
+
+  const coreFL = physicsBuf.readFloatLE(PHYSICS.tyreCoreFL.offset);
+  const coreFR = physicsBuf.readFloatLE(PHYSICS.tyreCoreFR.offset);
+  const coreRL = physicsBuf.readFloatLE(PHYSICS.tyreCoreRL.offset);
+  const coreRR = physicsBuf.readFloatLE(PHYSICS.tyreCoreRR.offset);
+
+  // AC Evo leaves the legacy physics tread slots at zero and mirrors core into
+  // physics tyreTemp. Its live contact-patch temperatures are in graphics.
+  // Graphics left/right are car-relative: left wheels have inner on the right.
+  const tyreLF = GRAPHICS_EVO.tyre_lf_base.offset;
+  const tyreRF = GRAPHICS_EVO.tyre_rf_base.offset;
+  const tyreLR = GRAPHICS_EVO.tyre_lr_base.offset;
+  const tyreRR = GRAPHICS_EVO.tyre_rr_base.offset;
+  const middleFL = graphicsBuf.readFloatLE(tyreLF + TYRE_STATE.temperatureCenter);
+  const middleFR = graphicsBuf.readFloatLE(tyreRF + TYRE_STATE.temperatureCenter);
+  const middleRL = graphicsBuf.readFloatLE(tyreLR + TYRE_STATE.temperatureCenter);
+  const middleRR = graphicsBuf.readFloatLE(tyreRR + TYRE_STATE.temperatureCenter);
+  const innerFL = graphicsBuf.readFloatLE(tyreLF + TYRE_STATE.temperatureRight);
+  const innerFR = graphicsBuf.readFloatLE(tyreRF + TYRE_STATE.temperatureLeft);
+  const innerRL = graphicsBuf.readFloatLE(tyreLR + TYRE_STATE.temperatureRight);
+  const innerRR = graphicsBuf.readFloatLE(tyreRR + TYRE_STATE.temperatureLeft);
+  const outerFL = graphicsBuf.readFloatLE(tyreLF + TYRE_STATE.temperatureLeft);
+  const outerFR = graphicsBuf.readFloatLE(tyreRF + TYRE_STATE.temperatureRight);
+  const outerRL = graphicsBuf.readFloatLE(tyreLR + TYRE_STATE.temperatureLeft);
+  const outerRR = graphicsBuf.readFloatLE(tyreRR + TYRE_STATE.temperatureRight);
+
+  const camberFL = physicsBuf.readFloatLE(PHYSICS.camberFL.offset);
+  const camberFR = physicsBuf.readFloatLE(PHYSICS.camberFR.offset);
+  const camberRL = physicsBuf.readFloatLE(PHYSICS.camberRL.offset);
+  const camberRR = physicsBuf.readFloatLE(PHYSICS.camberRR.offset);
+
+  const chBase = PHYSICS.contactHeadingBase.offset;
+  const contactHeading: [
+    [number, number, number],
+    [number, number, number],
+    [number, number, number],
+    [number, number, number],
+  ] = [
+    [physicsBuf.readFloatLE(chBase), physicsBuf.readFloatLE(chBase + 4), physicsBuf.readFloatLE(chBase + 8)],
+    [physicsBuf.readFloatLE(chBase + 12), physicsBuf.readFloatLE(chBase + 16), physicsBuf.readFloatLE(chBase + 20)],
+    [physicsBuf.readFloatLE(chBase + 24), physicsBuf.readFloatLE(chBase + 28), physicsBuf.readFloatLE(chBase + 32)],
+    [physicsBuf.readFloatLE(chBase + 36), physicsBuf.readFloatLE(chBase + 40), physicsBuf.readFloatLE(chBase + 44)],
+  ];
+
+  const wearFL = physicsBuf.readFloatLE(PHYSICS.tyreWearFL.offset);
+  const wearFR = physicsBuf.readFloatLE(PHYSICS.tyreWearFR.offset);
+  const wearRL = physicsBuf.readFloatLE(PHYSICS.tyreWearRL.offset);
+  const wearRR = physicsBuf.readFloatLE(PHYSICS.tyreWearRR.offset);
+
+  const brTempFL = physicsBuf.readFloatLE(PHYSICS.brakeTempFL.offset);
+  const brTempFR = physicsBuf.readFloatLE(PHYSICS.brakeTempFR.offset);
+  const brTempRL = physicsBuf.readFloatLE(PHYSICS.brakeTempRL.offset);
+  const brTempRR = physicsBuf.readFloatLE(PHYSICS.brakeTempRR.offset);
+
+  const padFL = physicsBuf.readFloatLE(PHYSICS.padLifeFL.offset);
+  const padFR = physicsBuf.readFloatLE(PHYSICS.padLifeFR.offset);
+  const padRL = physicsBuf.readFloatLE(PHYSICS.padLifeRL.offset);
+  const padRR = physicsBuf.readFloatLE(PHYSICS.padLifeRR.offset);
+
+  const suspFL = physicsBuf.readFloatLE(PHYSICS.suspTravelFL.offset);
+  const suspFR = physicsBuf.readFloatLE(PHYSICS.suspTravelFR.offset);
+  const suspRL = physicsBuf.readFloatLE(PHYSICS.suspTravelRL.offset);
+  const suspRR = physicsBuf.readFloatLE(PHYSICS.suspTravelRR.offset);
+
+  const loadFL = physicsBuf.readFloatLE(PHYSICS.wheelLoadFL.offset);
+  const loadFR = physicsBuf.readFloatLE(PHYSICS.wheelLoadFR.offset);
+  const loadRL = physicsBuf.readFloatLE(PHYSICS.wheelLoadRL.offset);
+  const loadRR = physicsBuf.readFloatLE(PHYSICS.wheelLoadRR.offset);
+  const cgHeight = physicsBuf.readFloatLE(PHYSICS.cgHeight.offset);
+
+  const tempFL = middleFL;
+  const tempFR = middleFR;
+  const tempRL = middleRL;
+  const tempRR = middleRR;
+
+  const combinedSlipFL = physicsBuf.readFloatLE(PHYSICS.wheelSlipFL.offset);
+  const combinedSlipFR = physicsBuf.readFloatLE(PHYSICS.wheelSlipFR.offset);
+  const combinedSlipRL = physicsBuf.readFloatLE(PHYSICS.wheelSlipRL.offset);
+  const combinedSlipRR = physicsBuf.readFloatLE(PHYSICS.wheelSlipRR.offset);
+  const slipRatioFL = physicsBuf.readFloatLE(PHYSICS.slipRatioFL.offset);
+  const slipRatioFR = physicsBuf.readFloatLE(PHYSICS.slipRatioFR.offset);
+  const slipRatioRL = physicsBuf.readFloatLE(PHYSICS.slipRatioRL.offset);
+  const slipRatioRR = physicsBuf.readFloatLE(PHYSICS.slipRatioRR.offset);
+  const slipAngleFL = physicsBuf.readFloatLE(PHYSICS.slipAngleFL.offset);
+  const slipAngleFR = physicsBuf.readFloatLE(PHYSICS.slipAngleFR.offset);
+  const slipAngleRL = physicsBuf.readFloatLE(PHYSICS.slipAngleRL.offset);
+  const slipAngleRR = physicsBuf.readFloatLE(PHYSICS.slipAngleRR.offset);
+  const rotFL = physicsBuf.readFloatLE(PHYSICS.wheelRotFL.offset);
+  const rotFR = physicsBuf.readFloatLE(PHYSICS.wheelRotFR.offset);
+  const rotRL = physicsBuf.readFloatLE(PHYSICS.wheelRotRL.offset);
+  const rotRR = physicsBuf.readFloatLE(PHYSICS.wheelRotRR.offset);
+
+  const damFront = physicsBuf.readFloatLE(PHYSICS.damFront.offset);
+  const damRear = physicsBuf.readFloatLE(PHYSICS.damRear.offset);
+  const damLeft = physicsBuf.readFloatLE(PHYSICS.damLeft.offset);
+  const damRight = physicsBuf.readFloatLE(PHYSICS.damRight.offset);
+  const damCentre = physicsBuf.readFloatLE(PHYSICS.damCentre.offset);
+
+  const tcFloat = physicsBuf.readFloatLE(PHYSICS.tc.offset);
+  const absFloat = physicsBuf.readFloatLE(PHYSICS.abs.offset);
+  const slipVib = physicsBuf.readFloatLE(PHYSICS.slipVibrations.offset);
+  const absVib = physicsBuf.readFloatLE(PHYSICS.absVibrations.offset);
+  const brakeBias = physicsBuf.readFloatLE(PHYSICS.brakeBias.offset);
+  const currentMaxRpm = physicsBuf.readInt32LE(PHYSICS.currentMaxRpm.offset);
+
+  // --- Graphics (v0.6) ---
+  const status = graphicsBuf.readInt32LE(GRAPHICS_EVO.status.offset);
+
+  // Gate out menu / replay frames. Pause (AC_PAUSE) still emits so the detector
+  // keeps `_lastActivePacketTime` fresh and doesn't falsely mark a paused
+  // session as stale. Only hard-exit to main menu (AC_OFF) or replay viewer
+  // (AC_REPLAY) is treated as session-over.
+  if (status === ACEVO_STATUS.AC_OFF || status === ACEVO_STATUS.AC_REPLAY) {
+    return null;
+  }
+  const completedLaps = graphicsBuf.readInt32LE(GRAPHICS_EVO.total_lap_count.offset);
+  const position = graphicsBuf.readUInt32LE(GRAPHICS_EVO.current_pos.offset);
+  const iCurrentTime = graphicsBuf.readInt32LE(GRAPHICS_EVO.current_lap_time_ms.offset);
+  const iLastTime = graphicsBuf.readInt32LE(GRAPHICS_EVO.last_laptime_ms.offset);
+  const iBestTime = graphicsBuf.readInt32LE(GRAPHICS_EVO.best_laptime_ms.offset);
+  const currentKm = graphicsBuf.readFloatLE(GRAPHICS_EVO.current_km.offset);
+  const normalizedCarPos = graphicsBuf.readFloatLE(GRAPHICS_EVO.npos.offset);
+  const carLocation = graphicsBuf.readInt32LE(GRAPHICS_EVO.car_location.offset);
+  const flagRaw = graphicsBuf.readInt32LE(GRAPHICS_EVO.flag.offset);
+  const isInPitBox = graphicsBuf.readUInt8(GRAPHICS_EVO.is_in_pit_box.offset);
+  const isInPitLane = graphicsBuf.readUInt8(GRAPHICS_EVO.is_in_pit_lane.offset);
+  const isValidLap = graphicsBuf.readUInt8(GRAPHICS_EVO.is_valid_lap.offset);
+  const activeCars = graphicsBuf.readUInt8(GRAPHICS_EVO.active_cars.offset);
+
+  const tcActiveBool = graphicsBuf.readUInt8(GRAPHICS_EVO.tc_active.offset);
+  const absActiveBool = graphicsBuf.readUInt8(GRAPHICS_EVO.abs_active.offset);
+  const tcActive = tcActiveBool ? 1 : 0;
+  const absActive = absActiveBool ? 1 : 0;
+
+  // Electronics (setting-level integers) — from embedded Electronics sub-struct
+  const elecBase = GRAPHICS_EVO.electronics_base.offset;
+  const tcLevel = graphicsBuf.readInt8(elecBase + 0);     // tc_level
+  const tcCutLevel = graphicsBuf.readInt8(elecBase + 1);  // tc_cut_level
+  const absLevel = graphicsBuf.readInt8(elecBase + 2);    // abs_level
+  const engineMapLevel = graphicsBuf.readInt8(elecBase + 12); // engine_map_level
+
+  // Tyre compound from front-left tyre state (FL and FR share tyre_compound_front)
+  const tyreLfBase = GRAPHICS_EVO.tyre_lf_base.offset;
+  const tyreCompound = readCString(graphicsBuf, tyreLfBase + 36, 33);
+
+  // Fuel projection
+  const fuelPerLap = graphicsBuf.readFloatLE(GRAPHICS_EVO.fuel_per_lap.offset);
+
+  // Player slot calibration (same velocity-correlation technique)
+  if (cache.playerSlotState.slot === -1) {
+    calibratePlayerSlot(physicsBuf, graphicsBuf, cache.playerSlotState, activeCars);
+  }
+  const playerSlot = cache.playerSlotState.slot === -1 ? 0 : cache.playerSlotState.slot;
+  const coordBase = GRAPHICS_EVO.car_coordinates_base.offset;
+  const carX = graphicsBuf.readFloatLE(coordBase + playerSlot * 12);
+  const carY = graphicsBuf.readFloatLE(coordBase + playerSlot * 12 + 4);
+  const carZ = graphicsBuf.readFloatLE(coordBase + playerSlot * 12 + 8);
+
+  // --- Static (v0.6) ---
+  const startingAmbient = staticBuf.readFloatLE(STATIC_EVO.starting_ambient_temperature_c.offset);
+  const startingGround = staticBuf.readFloatLE(STATIC_EVO.starting_ground_temperature_c.offset);
+  const trackLengthM = staticBuf.readFloatLE(STATIC_EVO.track_length_m.offset);
+
+  // --- AC Evo extended telemetry (previously-ignored shm fields) ---
+  const sessionRaw = staticBuf.readInt32LE(STATIC_EVO.session.offset);
+  const startingGripRaw = staticBuf.readInt32LE(STATIC_EVO.starting_grip.offset);
+  const sessBase = GRAPHICS_EVO.session_state_base.offset;
+  const timBase = GRAPHICS_EVO.timing_state_base.offset;
+
+  const acEvoExt: AcEvoExtendedData = {
+    physicsPacketId: physPacketId,
+    graphicsPacketId: graphicsBuf.readInt32LE(GRAPHICS_EVO.packetId.offset),
+    acEvoVersion: readCString(staticBuf, STATIC_EVO.ac_evo_version.offset, STATIC_EVO.ac_evo_version.size),
+
+    sessionType: ACEVO_SESSION_TYPE_NAMES[sessionRaw] ?? "unknown",
+    sessionName: readCString(staticBuf, STATIC_EVO.session_name.offset, STATIC_EVO.session_name.size),
+    startingGrip: ACEVO_STARTING_GRIP_NAMES[startingGripRaw] ?? "unknown",
+    isStaticWeather: staticBuf.readUInt8(STATIC_EVO.is_static_weather.offset) !== 0,
+    isTimedRace: staticBuf.readUInt8(STATIC_EVO.is_timed_race.offset) !== 0,
+    isOnline: staticBuf.readUInt8(STATIC_EVO.is_online.offset) !== 0,
+    numberOfSessions: staticBuf.readInt32LE(STATIC_EVO.number_of_sessions.offset),
+
+    airTempC: physicsBuf.readFloatLE(PHYSICS.airTemp.offset),
+    roadTempC: physicsBuf.readFloatLE(PHYSICS.roadTemp.offset),
+
+    deltaTimeMs: graphicsBuf.readInt32LE(GRAPHICS_EVO.delta_time_ms.offset),
+    predictedLapTimeMs: graphicsBuf.readInt32LE(GRAPHICS_EVO.predicted_lap_time_ms.offset),
+    deltaCurrent: readCString(graphicsBuf, timBase + TIMING_STATE.delta_current, 15),
+    deltaLast: readCString(graphicsBuf, timBase + TIMING_STATE.delta_last, 15),
+    idealLapTime: readCString(graphicsBuf, timBase + TIMING_STATE.ideal_laptime, 15),
+    timingIsInvalid: graphicsBuf.readUInt8(timBase + TIMING_STATE.is_invalid) !== 0,
+
+    sessionTimeLeftMs: graphicsBuf.readInt32LE(sessBase + SESSION_STATE.time_left_ms),
+    sessionTotalLaps: graphicsBuf.readInt32LE(sessBase + SESSION_STATE.total_lap),
+    sessionCurrentLap: graphicsBuf.readInt32LE(sessBase + SESSION_STATE.current_lap),
+    lapLengthKm: graphicsBuf.readFloatLE(sessBase + SESSION_STATE.lap_length_km),
+
+    escLevel: graphicsBuf.readInt8(elecBase + ELECTRONICS.esc_level),
+    engineMapLevel,
+    isDrsOpen: graphicsBuf.readUInt8(elecBase + ELECTRONICS.is_drs_open) !== 0,
+
+    clutchPercent: graphicsBuf.readFloatLE(GRAPHICS_EVO.clutch_percent.offset),
+    handbrakePercent: graphicsBuf.readFloatLE(GRAPHICS_EVO.handbrake_percent.offset),
+    waterTempC: physicsBuf.readFloatLE(PHYSICS.waterTemp.offset),
+    oilTempC: graphicsBuf.readFloatLE(GRAPHICS_EVO.oil_temperature_c.offset),
+    oilPressureBar: graphicsBuf.readFloatLE(GRAPHICS_EVO.oil_pressure_bar.offset),
+    exhaustTempC: graphicsBuf.readFloatLE(GRAPHICS_EVO.exhaust_temperature_c.offset),
+    turboBoost: graphicsBuf.readFloatLE(GRAPHICS_EVO.turbo_boost.offset),
+    currentTorque: graphicsBuf.readFloatLE(GRAPHICS_EVO.current_torque.offset),
+    currentBhp: graphicsBuf.readInt32LE(GRAPHICS_EVO.current_bhp.offset),
+    isWrongWay: graphicsBuf.readUInt8(GRAPHICS_EVO.is_wrong_way.offset) !== 0,
+
+    fuelLiters: graphicsBuf.readFloatLE(GRAPHICS_EVO.fuel_liter_current_quantity.offset),
+    fuelPercent: graphicsBuf.readFloatLE(GRAPHICS_EVO.fuel_liter_current_quantity_percent.offset),
+    fuelLitersPerLap: graphicsBuf.readFloatLE(GRAPHICS_EVO.fuel_liter_per_lap.offset),
+    fuelLitersUsed: graphicsBuf.readFloatLE(GRAPHICS_EVO.fuel_liter_used.offset),
+    lapsPossibleWithFuel: graphicsBuf.readFloatLE(GRAPHICS_EVO.laps_possible_with_fuel.offset),
+    kmPerFuelLiter: graphicsBuf.readFloatLE(GRAPHICS_EVO.km_per_fuel_liter.offset),
+    instantaneousKmPerLiter: graphicsBuf.readFloatLE(GRAPHICS_EVO.instantaneous_km_per_fuel_liter.offset),
+
+    brakeDiscLife: [
+      physicsBuf.readFloatLE(PHYSICS.discLifeFL.offset),
+      physicsBuf.readFloatLE(PHYSICS.discLifeFR.offset),
+      physicsBuf.readFloatLE(PHYSICS.discLifeRL.offset),
+      physicsBuf.readFloatLE(PHYSICS.discLifeRR.offset),
+    ],
+    tyreMiddleTempC: [middleFL, middleFR, middleRL, middleRR],
+
+    localVelocity: [
+      physicsBuf.readFloatLE(PHYSICS.localVelocityX.offset),
+      physicsBuf.readFloatLE(PHYSICS.localVelocityY.offset),
+      physicsBuf.readFloatLE(PHYSICS.localVelocityZ.offset),
+    ],
+
+    gapAheadMs: graphicsBuf.readFloatLE(GRAPHICS_EVO.gap_ahead.offset),
+    gapBehindMs: graphicsBuf.readFloatLE(GRAPHICS_EVO.gap_behind.offset),
+
+    sessionKm: currentKm,
+    totalDrivingTimeS: graphicsBuf.readUInt32LE(GRAPHICS_EVO.total_driving_time_s.offset),
+
+    timeOfDayHours: graphicsBuf.readInt32LE(GRAPHICS_EVO.time_of_day_hours.offset),
+    timeOfDayMinutes: graphicsBuf.readInt32LE(GRAPHICS_EVO.time_of_day_minutes.offset),
+    timeOfDaySeconds: graphicsBuf.readInt32LE(GRAPHICS_EVO.time_of_day_seconds.offset),
+  };
+
+  // --- Derived ---
+  const gear = accGear <= 1 ? 0 : accGear - 1;
+  const accel = Math.round(gas * 255);
+  const brakeVal = Math.round(brake * 255);
+  const steer = Math.round(steerAngle * 127);
+  const speed = speedKmh / 3.6;
+
+  const INV = 0x7fffffff;
+  const currentLap = iCurrentTime > 0 && iCurrentTime !== INV ? iCurrentTime / 1000 : 0;
+  const lastLap = iLastTime > 0 && iLastTime !== INV ? iLastTime / 1000 : 0;
+  const bestLap = iBestTime > 0 && iBestTime !== INV ? iBestTime / 1000 : 0;
+  // Physics-rate distance (see integrateDistance) — fills the 60Hz current_km
+  // gaps so distance-keyed charts advance once per ~100Hz frame, not per tick.
+  const distanceTraveled = integrateDistance(cache.distanceState, physPacketId, speed, currentKm);
+
+  const flagStatus = ACEVO_FLAG_NAMES[flagRaw] ?? "none";
+
+  let pitStatus = "out";
+  if (isInPitBox) pitStatus = "in_pit";
+  else if (isInPitLane || carLocation === ACEVO_CAR_LOCATION.ACEVO_PITLANE) pitStatus = "pit_lane";
+  else if (carLocation === ACEVO_CAR_LOCATION.ACEVO_UNASSIGNED) {
+    // Pre-session / pre-spawn frames have car_location=UNASSIGNED and all
+    // pit flags zero. Driver hasn't moved yet — safest assumption is "in pit
+    // garage", so downstream lap detection correctly classifies the first
+    // driven lap as an outlap.
+    pitStatus = "in_pit";
+  }
+
+  const isRaceOn = status === ACEVO_STATUS.AC_LIVE ? 1 : 0;
+
+  const acc: KunosExtendedData = {
+    tireCompound: tyreCompound || "dry_compound",
+    tireCoreTemp: [coreFL, coreFR, coreRL, coreRR],
+    tireInnerTemp: [innerFL, innerFR, innerRL, innerRR],
+    tireMiddleTemp: [middleFL, middleFR, middleRL, middleRR],
+    tireOuterTemp: [outerFL, outerFR, outerRL, outerRR],
+    tireCamber: [camberFL, camberFR, camberRL, camberRR],
+    wheelLoad: [loadFL, loadFR, loadRL, loadRR],
+    // rideHeight not exposed by AC Evo v0.6 physics page — left undefined.
+    cgHeight,
+    tireRadius: [0, 0, 0, 0], // not in v0.6 static
+    tireContactHeading: contactHeading,
+    brakePadCompound: 0,
+    brakePadWear: [padFL, padFR, padRL, padRR],
+    tc: tcLevel,
+    tcCut: tcCutLevel,
+    abs: absLevel,
+    engineMap: engineMapLevel,
+    brakeBias,
+    tcIntervention: tcActive,
+    absIntervention: absActive,
+    tcRaw: tcFloat,
+    absRaw: absFloat,
+    slipVibrations: slipVib,
+    absVibrations: absVib,
+    rainIntensity: 0,
+    trackGripStatus: "unknown",
+    windSpeed: 0,
+    windDirection: 0,
+    airTempC:
+      physicsBuf.length >= PHYSICS.airTemp.offset + 4
+        ? physicsBuf.readFloatLE(PHYSICS.airTemp.offset)
+        : null,
+    roadTempC:
+      physicsBuf.length >= PHYSICS.roadTemp.offset + 4
+        ? physicsBuf.readFloatLE(PHYSICS.roadTemp.offset)
+        : null,
+    flagStatus,
+    drsAvailable: false,
+    drsEnabled: false,
+    pitStatus,
+    fuelPerLap,
+    currentSectorIndex: -1,
+    lastSectorTime: 0,
+    carDamage: {
+      front: damFront,
+      rear: damRear,
+      left: damLeft,
+      right: damRight,
+      centre: damCentre,
+    },
+    // AC Evo reports is_valid_lap per-frame. Preserve the false state (previously
+    // collapsed to null) so downstream track-limits detection can see the cut.
+    // Only trust it while actually on track — in the pit lane/box the flag is
+    // cleared for reasons unrelated to track limits.
+    isValidLap: isValidLap ? true : isInPitLane || isInPitBox ? null : false,
+    acEvo: acEvoExt,
+  };
+
+  // Expose AC Evo-specific extras on the acc object for downstream use
+  (acc as any).normalizedCarPosition = normalizedCarPos;
+  (acc as any).trackLengthM = trackLengthM;
+
+  const packet: TelemetryPacket = {
+    gameId: "ac-evo" as GameId,
+    acc,
+    IsRaceOn: isRaceOn,
+    TimestampMS: Date.now(),
+
+    EngineMaxRpm: currentMaxRpm || 0,
+    EngineIdleRpm: 0,
+    CurrentEngineRpm: rpms,
+
+    AccelerationX: gX * 9.81,
+    AccelerationY: gY * 9.81,
+    AccelerationZ: gZ * 9.81,
+    VelocityX: velX,
+    VelocityY: velY,
+    VelocityZ: velZ,
+    AngularVelocityX: angVelX,
+    AngularVelocityY: angVelY,
+    AngularVelocityZ: angVelZ,
+
+    Yaw: heading,
+    Pitch: pitch,
+    Roll: roll,
+
+    // v0.6 signed travel (0 = rest, + = compression, - = extension).
+    // Encode as centered 0–1 so the bar fills correctly: 0.5 = rest,
+    // >0.5 = compressed, <0.5 = extended. ±50 mm assumed full range.
+    // SuspensionTravelMFL carries the raw metres for the mm display label.
+    NormSuspensionTravelFL: Math.max(0, Math.min(1, 0.5 + suspFL / 0.1)),
+    NormSuspensionTravelFR: Math.max(0, Math.min(1, 0.5 + suspFR / 0.1)),
+    NormSuspensionTravelRL: Math.max(0, Math.min(1, 0.5 + suspRL / 0.1)),
+    NormSuspensionTravelRR: Math.max(0, Math.min(1, 0.5 + suspRR / 0.1)),
+
+    TireSlipRatioFL: slipRatioFL,
+    TireSlipRatioFR: slipRatioFR,
+    TireSlipRatioRL: slipRatioRL,
+    TireSlipRatioRR: slipRatioRR,
+
+    WheelRotationSpeedFL: rotFL,
+    WheelRotationSpeedFR: rotFR,
+    WheelRotationSpeedRL: rotRL,
+    WheelRotationSpeedRR: rotRR,
+
+    WheelOnRumbleStripFL: 0,
+    WheelOnRumbleStripFR: 0,
+    WheelOnRumbleStripRL: 0,
+    WheelOnRumbleStripRR: 0,
+    WheelInPuddleDepthFL: 0,
+    WheelInPuddleDepthFR: 0,
+    WheelInPuddleDepthRL: 0,
+    WheelInPuddleDepthRR: 0,
+    SurfaceRumbleFL_2: 0,
+    SurfaceRumbleFR_2: 0,
+    SurfaceRumbleRL_2: 0,
+    SurfaceRumbleRR_2: 0,
+    TireSlipCombinedFL_2: 0,
+
+    TireTempFL: tempFL,
+    TireTempFR: tempFR,
+    TireTempRL: tempRL,
+    TireTempRR: tempRR,
+    TireCarcassTempFL: coreFL,
+    TireCarcassTempFR: coreFR,
+    TireCarcassTempRL: coreRL,
+    TireCarcassTempRR: coreRR,
+    TireSurfaceTempInnerFL: innerFL > 0 ? innerFL : undefined,
+    TireSurfaceTempInnerFR: innerFR > 0 ? innerFR : undefined,
+    TireSurfaceTempInnerRL: innerRL > 0 ? innerRL : undefined,
+    TireSurfaceTempInnerRR: innerRR > 0 ? innerRR : undefined,
+    TireSurfaceTempMiddleFL: middleFL > 0 ? middleFL : undefined,
+    TireSurfaceTempMiddleFR: middleFR > 0 ? middleFR : undefined,
+    TireSurfaceTempMiddleRL: middleRL > 0 ? middleRL : undefined,
+    TireSurfaceTempMiddleRR: middleRR > 0 ? middleRR : undefined,
+    TireSurfaceTempOuterFL: outerFL > 0 ? outerFL : undefined,
+    TireSurfaceTempOuterFR: outerFR > 0 ? outerFR : undefined,
+    TireSurfaceTempOuterRL: outerRL > 0 ? outerRL : undefined,
+    TireSurfaceTempOuterRR: outerRR > 0 ? outerRR : undefined,
+
+    Boost: 0,
+    Fuel: fuel,
+    FuelCapacity:
+      Number.isFinite(maxFuel) && maxFuel > 0 ? maxFuel : undefined,
+    DistanceTraveled: distanceTraveled,
+    BestLap: bestLap,
+    LastLap: lastLap,
+    CurrentLap: currentLap,
+    CurrentRaceTime: currentLap,
+
+    LapNumber: completedLaps + 1,
+    RacePosition: position,
+
+    Accel: accel,
+    Brake: brakeVal,
+    Clutch: 0,
+    HandBrake: 0,
+    Gear: gear,
+    Steer: steer,
+    NormDrivingLine: 0,
+    NormAIBrakeDiff: 0,
+
+    TireWearFL: wearFL,
+    TireWearFR: wearFR,
+    TireWearRL: wearRL,
+    TireWearRR: wearRR,
+
+    SurfaceRumbleFL: 0,
+    SurfaceRumbleFR: 0,
+    SurfaceRumbleRL: 0,
+    SurfaceRumbleRR: 0,
+    TireSlipAngleFL: slipAngleFL,
+    TireSlipAngleFR: slipAngleFR,
+    TireSlipAngleRL: slipAngleRL,
+    TireSlipAngleRR: slipAngleRR,
+    TireCombinedSlipFL: combinedSlipFL,
+    TireCombinedSlipFR: combinedSlipFR,
+    TireCombinedSlipRL: combinedSlipRL,
+    TireCombinedSlipRR: combinedSlipRR,
+
+    SuspensionTravelMFL: suspFL,
+    SuspensionTravelMFR: suspFR,
+    SuspensionTravelMRL: suspRL,
+    SuspensionTravelMRR: suspRR,
+
+    TirePressureFrontLeft: pressFL,
+    TirePressureFrontRight: pressFR,
+    TirePressureRearLeft: pressRL,
+    TirePressureRearRight: pressRR,
+
+    BrakeTempFrontLeft: brTempFL,
+    BrakeTempFrontRight: brTempFR,
+    BrakeTempRearLeft: brTempRL,
+    BrakeTempRearRight: brTempRR,
+
+    CarOrdinal: cache.carOrdinal,
+    // Surface the raw model string for unknown cars so the session layer can
+    // register them in discovered_cars (task #1) instead of "Unknown Car".
+    ...(cache.carOrdinal < 0 && cache.lastCarModel
+      ? { carModelName: cache.lastCarModel }
+      : {}),
+    CarClass: 0,
+    CarPerformanceIndex: 0,
+    DrivetrainType: 1,
+    NumCylinders: 0,
+
+    PositionX: carX,
+    PositionY: carY,
+    PositionZ: carZ,
+    Speed: speed,
+    Power: 0,
+    Torque: 0,
+    TrackOrdinal: cache.trackOrdinal,
+
+    WeatherType: 0,
+    TrackTemp: startingGround,
+    AirTemp: startingAmbient,
+    RainPercent: 0,
+  };
+
+  return packet;
+}

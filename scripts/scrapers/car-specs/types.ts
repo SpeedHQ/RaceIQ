@@ -1,0 +1,7 @@
+export interface WikiCar {
+  pageName: string; year?: number; wikiMake?: string; wikiModel?: string; hp?: number; torque?: number; weightLbs?: number; displacement?: number; engine?: string; drivetrain?: string; gears?: number; aspiration?: string; frontWeightPct?: number; imageFile?: string; directImageUrl?: string; pi?: number; speedRating?: number; brakingRating?: number; handlingRating?: number; accelRating?: number; price?: number; division?: string; topSpeedMph?: number; quarterMile?: number; zeroToSixty?: number; zeroToHundred?: number; braking60?: number; braking100?: number; lateralG60?: number; lateralG120?: number; synopsis?: string;
+}
+export interface OurCar { ordinal: number; year: number; make: string; model: string; }
+export interface CarSpecRow { ordinal: number; hp: number; torque: number; weightLbs: number; weightKg: number; displacement: number; engine: string; drivetrain: string; gears: number; aspiration: string; frontWeightPct: number; pi: number; speedRating: number; brakingRating: number; handlingRating: number; accelRating: number; price: number; division: string; topSpeedMph: number; quarterMile: number; zeroToSixty: number; zeroToHundred: number; braking60: number; braking100: number; lateralG60: number; lateralG120: number; cdnImageUrl: string; imageUrl: string; wikiUrl: string; synopsis: string; }
+export const API = "https://forza.fandom.com/api.php";
+export const BATCH = 50;

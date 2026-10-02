@@ -1,0 +1,39 @@
+{
+  "id": "eaglerock",
+  "locale": "en",
+  "character": "Fictional Iowa short oval/road circuit introduced in Forza Motorsport (2023), combining oval-speedway banking with an infield road course layout. No individual corners have established community names.",
+  "notes": "Community knowledge (no formal corner-name guide available). Character based on official Forza track-list description; no individual corners have established community names.",
+  "corners": [
+    {
+      "key": "turn-1",
+      "name": "Turn 1",
+      "numbers": [1],
+      "type": "banked oval corner off the front straight",
+      "technique": "Commit smoothly, use the banking to carry speed",
+      "trap": "Hesitating on the banking costs significant time"
+    },
+    {
+      "key": "turn-3",
+      "name": "Turn 3",
+      "numbers": [3],
+      "type": "tight infield corner",
+      "technique": "Firm braking, late apex, prioritise a clean exit",
+      "trap": "Early apex compromises the exit and the following section"
+    },
+    {
+      "key": "turn-6",
+      "name": "Turn 6",
+      "type": "fast infield sweeper",
+      "technique": "Commit with smooth steering, carry speed through the corner",
+      "trap": "Lifting unnecessarily costs momentum through the fast section"
+    },
+    {
+      "key": "final-corner",
+      "name": "Final Corner",
+      "type": "corner onto the front straight/banking",
+      "technique": "Late apex, clean exit is critical — feeds the front straight",
+      "trap": "Compromised exit costs time down the entire straight"
+    }
+  ],
+  "priorityCorners": ["turn-1","final-corner"]
+}

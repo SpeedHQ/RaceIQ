@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Mercedes AMG Evo GT3 Paul Ricard",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Paul Ricard",
+    "downloadUrl": "https://www.youtube.com/watch?v=1388Nsu9a00",
+    "videoUrl": "https://www.youtube.com/watch?v=1388Nsu9a00",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/paul-ricard",
+    "author": "Fri3d0lf",
+    "lapTime": "1:53.1",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Mercedes AMG Evo GT3 Paul Ricard",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Paul Ricard",
+    "downloadUrl": "https://www.youtube.com/watch?v=YsG2J2GltDo",
+    "videoUrl": "https://www.youtube.com/watch?v=YsG2J2GltDo",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/paul-ricard",
+    "author": "PS_Racing",
+    "lapTime": "1:53.105",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Mercedes AMG Evo GT3 Paul Ricard",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Paul Ricard",
+    "downloadUrl": "https://www.youtube.com/watch?v=JdmWpN_-wRE",
+    "videoUrl": "https://www.youtube.com/watch?v=JdmWpN_-wRE",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/paul-ricard",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

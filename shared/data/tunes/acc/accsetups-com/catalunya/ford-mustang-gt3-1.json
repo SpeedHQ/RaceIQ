@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Ford Mustang GT3 Barcelona",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Barcelona",
+    "downloadUrl": "https://www.youtube.com/watch?v=AxGIJW8Pz5U",
+    "videoUrl": "https://www.youtube.com/watch?v=AxGIJW8Pz5U",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/barcelona",
+    "author": "Fri3d0lf",
+    "lapTime": "1:42.9",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 Barcelona",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Barcelona",
+    "downloadUrl": "https://www.youtube.com/watch?v=LvRruCCuIVg",
+    "videoUrl": "https://www.youtube.com/watch?v=LvRruCCuIVg",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/barcelona",
+    "author": "PS_Racing",
+    "lapTime": "1:43.087",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Mercedes AMG Evo GT3 Suzuka",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Suzuka",
+    "downloadUrl": "https://www.youtube.com/watch?v=8MK84LrywXk",
+    "videoUrl": "https://www.youtube.com/watch?v=8MK84LrywXk",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/suzuka",
+    "author": "Fri3d0lf",
+    "lapTime": "1:58.6",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Mercedes AMG Evo GT3 Suzuka",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Suzuka",
+    "downloadUrl": "https://www.youtube.com/watch?v=wjD4ji94np0",
+    "videoUrl": "https://www.youtube.com/watch?v=wjD4ji94np0",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/suzuka",
+    "author": "Fri3d0lf",
+    "lapTime": "1:58.7",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Mercedes AMG Evo GT3 Suzuka",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Suzuka",
+    "downloadUrl": "https://www.youtube.com/watch?v=Wm5ZBs4ANSk",
+    "videoUrl": "https://www.youtube.com/watch?v=Wm5ZBs4ANSk",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/suzuka",
+    "author": "PS_Racing",
+    "lapTime": "1:58.987",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

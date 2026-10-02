@@ -1,0 +1,50 @@
+[
+  {
+    "name": "McLaren 720s Evo GT3 Suzuka",
+    "carModel": "mclaren-720s-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Suzuka",
+    "downloadUrl": "https://www.youtube.com/watch?v=N4OqcvjNdBc",
+    "videoUrl": "https://www.youtube.com/watch?v=N4OqcvjNdBc",
+    "pageUrl": "https://accsetups.com/free-setups/for/mclaren-720s-evo-gt3/on/suzuka",
+    "author": "Fri3d0lf",
+    "lapTime": "1:58.5",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "McLaren 720s Evo GT3 Suzuka",
+    "carModel": "mclaren-720s-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Suzuka",
+    "downloadUrl": "https://www.youtube.com/watch?v=ZBzE3yvqs7I",
+    "videoUrl": "https://www.youtube.com/watch?v=ZBzE3yvqs7I",
+    "pageUrl": "https://accsetups.com/free-setups/for/mclaren-720s-evo-gt3/on/suzuka",
+    "author": "PS_Racing",
+    "lapTime": "1:59.087",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "McLaren 720s Evo GT3 Suzuka",
+    "carModel": "mclaren-720s-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Suzuka",
+    "downloadUrl": "https://www.youtube.com/watch?v=5PCkqn0qHIs",
+    "videoUrl": "https://www.youtube.com/watch?v=5PCkqn0qHIs",
+    "pageUrl": "https://accsetups.com/free-setups/for/mclaren-720s-evo-gt3/on/suzuka",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

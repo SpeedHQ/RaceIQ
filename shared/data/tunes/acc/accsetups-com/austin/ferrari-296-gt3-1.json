@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Ferrari 296 GT3 COTA",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "COTA",
+    "downloadUrl": "https://www.youtube.com/watch?v=_wabZE9TBZ4",
+    "videoUrl": "https://www.youtube.com/watch?v=_wabZE9TBZ4",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/cota",
+    "author": "Fri3d0lf",
+    "lapTime": "2:04.5",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Ferrari 296 GT3 COTA",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "COTA",
+    "downloadUrl": "https://www.youtube.com/watch?v=sB6kVpjYnpU",
+    "videoUrl": "https://www.youtube.com/watch?v=sB6kVpjYnpU",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/cota",
+    "author": "PS_Racing",
+    "lapTime": "2:05.192",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

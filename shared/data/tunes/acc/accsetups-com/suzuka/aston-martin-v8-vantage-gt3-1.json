@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Aston Martin V8 Vantage GT3 Suzuka",
+    "carModel": "aston-martin-v8-vantage-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Suzuka",
+    "downloadUrl": "https://www.youtube.com/watch?v=HlsXxbv2zXM",
+    "videoUrl": "https://www.youtube.com/watch?v=HlsXxbv2zXM",
+    "pageUrl": "https://accsetups.com/free-setups/for/aston-martin-v8-vantage-gt3-1/on/suzuka",
+    "author": "Fri3d0lf",
+    "lapTime": "1:58.9",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Aston Martin V8 Vantage GT3 Suzuka",
+    "carModel": "aston-martin-v8-vantage-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Suzuka",
+    "downloadUrl": "https://www.youtube.com/watch?v=shGDQOfvcVM",
+    "videoUrl": "https://www.youtube.com/watch?v=shGDQOfvcVM",
+    "pageUrl": "https://accsetups.com/free-setups/for/aston-martin-v8-vantage-gt3-1/on/suzuka",
+    "author": "PS_Racing",
+    "lapTime": "1:59.117",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

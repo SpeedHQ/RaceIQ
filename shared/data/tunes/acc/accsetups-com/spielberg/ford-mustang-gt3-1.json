@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Ford Mustang GT3 Red Bull Ring",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Red Bull Ring",
+    "downloadUrl": "https://www.youtube.com/watch?v=OJyc85lBq-E",
+    "videoUrl": "https://www.youtube.com/watch?v=OJyc85lBq-E",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/red-bull-ring",
+    "author": "Fri3d0lf",
+    "lapTime": "1:27.6",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 Red Bull Ring",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Red Bull Ring",
+    "downloadUrl": "https://www.youtube.com/watch?v=q6hH1oaIKgc",
+    "videoUrl": "https://www.youtube.com/watch?v=q6hH1oaIKgc",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/red-bull-ring",
+    "author": "PS_Racing",
+    "lapTime": "1:27.995",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

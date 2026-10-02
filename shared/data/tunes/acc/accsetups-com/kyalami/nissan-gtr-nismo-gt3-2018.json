@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Nissan GTR Nismo GT3 '18 Kyalami",
+    "carModel": "nissan-gtr-nismo-gt3-2018",
+    "carClass": "GT3",
+    "trackName": "Kyalami",
+    "downloadUrl": "https://www.youtube.com/watch?v=QRS_XQC7Rwk",
+    "videoUrl": "https://www.youtube.com/watch?v=QRS_XQC7Rwk",
+    "pageUrl": "https://accsetups.com/free-setups/for/nissan-gtr-nismo-gt3-2018/on/kyalami",
+    "author": "PS_Racing",
+    "lapTime": "1:40.897",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Nissan GTR Nismo GT3 '18 Kyalami",
+    "carModel": "nissan-gtr-nismo-gt3-2018",
+    "carClass": "GT3",
+    "trackName": "Kyalami",
+    "downloadUrl": "https://www.youtube.com/watch?v=adLDrP4nTr4",
+    "videoUrl": "https://www.youtube.com/watch?v=adLDrP4nTr4",
+    "pageUrl": "https://accsetups.com/free-setups/for/nissan-gtr-nismo-gt3-2018/on/kyalami",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

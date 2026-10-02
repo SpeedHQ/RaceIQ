@@ -1,0 +1,34 @@
+[
+  {
+    "name": "McLaren 720s Evo GT3 Watkins Glen",
+    "carModel": "mclaren-720s-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Watkins Glen",
+    "downloadUrl": "https://www.youtube.com/watch?v=NYQc8dSIWrA",
+    "videoUrl": "https://www.youtube.com/watch?v=NYQc8dSIWrA",
+    "pageUrl": "https://accsetups.com/free-setups/for/mclaren-720s-evo-gt3/on/watkins-glen",
+    "author": "PS_Racing",
+    "lapTime": "1:43.617",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "McLaren 720s Evo GT3 Watkins Glen",
+    "carModel": "mclaren-720s-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Watkins Glen",
+    "downloadUrl": "https://www.youtube.com/watch?v=cTmL9cQUWMQ",
+    "videoUrl": "https://www.youtube.com/watch?v=cTmL9cQUWMQ",
+    "pageUrl": "https://accsetups.com/free-setups/for/mclaren-720s-evo-gt3/on/watkins-glen",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

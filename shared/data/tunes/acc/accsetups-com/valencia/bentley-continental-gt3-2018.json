@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Bentley Continental GT3 '18 Valencia",
+    "carModel": "bentley-continental-gt3-2018",
+    "carClass": "GT3",
+    "trackName": "Valencia",
+    "downloadUrl": "https://www.youtube.com/watch?v=Js2u2Eh7Ajo",
+    "videoUrl": "https://www.youtube.com/watch?v=Js2u2Eh7Ajo",
+    "pageUrl": "https://accsetups.com/free-setups/for/bentley-continental-gt3-2018/on/valencia",
+    "author": "PS_Racing",
+    "lapTime": "1:30.160",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Bentley Continental GT3 '18 Valencia",
+    "carModel": "bentley-continental-gt3-2018",
+    "carClass": "GT3",
+    "trackName": "Valencia",
+    "downloadUrl": "https://www.youtube.com/watch?v=hFGjHEOVI-Q",
+    "videoUrl": "https://www.youtube.com/watch?v=hFGjHEOVI-Q",
+    "pageUrl": "https://accsetups.com/free-setups/for/bentley-continental-gt3-2018/on/valencia",
+    "author": "PS_Racing",
+    "lapTime": "1:30.560",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

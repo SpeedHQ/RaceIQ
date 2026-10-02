@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Ferrari 296 GT3 Hungaroring",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Hungaroring",
+    "downloadUrl": "https://www.youtube.com/watch?v=yf6RdEf4mms",
+    "videoUrl": "https://www.youtube.com/watch?v=yf6RdEf4mms",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/hungaroring",
+    "author": "bernagk1",
+    "lapTime": "1:41.8",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": true
+  },
+  {
+    "name": "Ferrari 296 GT3 Hungaroring",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Hungaroring",
+    "downloadUrl": "https://www.youtube.com/watch?v=G1zaTn5ukyk",
+    "videoUrl": "https://www.youtube.com/watch?v=G1zaTn5ukyk",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/hungaroring",
+    "author": "Fri3d0lf",
+    "lapTime": "1:42.6",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Ferrari 296 GT3 Hungaroring",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Hungaroring",
+    "downloadUrl": "https://www.youtube.com/watch?v=iLWapP7WEgw",
+    "videoUrl": "https://www.youtube.com/watch?v=iLWapP7WEgw",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/hungaroring",
+    "author": "Ohne Speed",
+    "lapTime": "1:43.0",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Mercedes AMG Evo GT3 Valencia",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Valencia",
+    "downloadUrl": "https://www.youtube.com/watch?v=cnvJx6lz0kQ",
+    "videoUrl": "https://www.youtube.com/watch?v=cnvJx6lz0kQ",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/valencia",
+    "author": "Fri3d0lf",
+    "lapTime": "1:29.9",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Mercedes AMG Evo GT3 Valencia",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Valencia",
+    "downloadUrl": "https://www.youtube.com/watch?v=k3PpBnlhySo",
+    "videoUrl": "https://www.youtube.com/watch?v=k3PpBnlhySo",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/valencia",
+    "author": "PS_Racing",
+    "lapTime": "1:30.405",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

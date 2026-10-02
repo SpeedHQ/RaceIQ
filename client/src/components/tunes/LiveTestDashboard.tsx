@@ -1,0 +1,193 @@
+import { m } from "@/paraglide/messages";
+import { DEFAULT_TRACK_OVERLAYS, type SemanticAnalysisFrame, type TrackMapBoundaries } from "../analyse/track-map/types";
+import { useEffect, useMemo, useState } from "react";
+import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
+import type { ExperimentGameId } from "../../hooks/experiments";
+import { useTrackBoundaries, useTrackOutline } from "../../hooks/track-queries";
+import { useTelemetryStore } from "../../stores/telemetry";
+import { convertTemp } from "../../lib/temperature";
+import { semanticTuneSampleFromView } from "./semantic-tune";
+import { AnalyseTrackPanel } from "../analyse/AnalyseTrackPanel";
+import type { Point } from "../analyse/track-map/types";
+import { CurrentLapTireStrip } from "./CurrentLapTireStrip";
+import { LiveLapCards } from "./LiveLapCards";
+import { LiveLapInfo } from "./LiveLapInfo";
+
+function viewToSemanticFrame(view: LiveTelemetryView): SemanticAnalysisFrame {
+  return {
+    values: {
+      "identity.track-ordinal": view.identity.trackOrdinal,
+      "identity.car-ordinal": view.identity.carOrdinal,
+      "motion.position-x": view.motion.position?.x,
+      "motion.position-z": view.motion.position?.z,
+      "motion.speed": view.motion.speedMps,
+      "motion.yaw": view.motion.attitude?.yaw,
+      "motion.pitch": view.motion.attitude?.pitch,
+      "motion.roll": view.motion.attitude?.roll,
+      "inputs.accel": view.inputs.throttle,
+      "inputs.brake": view.inputs.brake,
+      "inputs.steer": view.inputs.steer,
+      "inputs.gear": view.inputs.gear,
+      "timing.distance-traveled": view.motion.distanceM,
+      "timing.current-lap": view.timing.currentLapS,
+      "tire.temperature.surface.representative": view.tires.surfaceTemperatureC && [
+        view.tires.surfaceTemperatureC.fl.representative,
+        view.tires.surfaceTemperatureC.fr.representative,
+        view.tires.surfaceTemperatureC.rl.representative,
+        view.tires.surfaceTemperatureC.rr.representative,
+      ],
+    },
+    states: {},
+    freshness: {},
+  };
+}
+
+const MAX_LIVE_TRACE = 5000;
+
+const WEATHER_LABELS: Record<number, string> = {
+  0: m.tunes_weather_clear(),
+  1: m.tunes_weather_light_cloud(),
+  2: m.tunes_weather_overcast(),
+  3: m.tunes_weather_light_rain(),
+  4: m.tunes_weather_heavy_rain(),
+  5: m.tunes_weather_storm(),
+};
+
+/** Top-level track conditions from catalog-resolved semantic telemetry. */
+export function LiveTrackConditions({ view }: { view: LiveTelemetryView | null | undefined }) {
+  const temperatureUnit = useTelemetryStore((state) => state.temperatureUnit);
+  if (!view) return null;
+  const weather = view.weather;
+  if (weather.kind == null && weather.trackTemperatureC == null && weather.airTemperatureC == null) return null;
+  return (
+    <div className="absolute bottom-2 right-2 bg-app-surface-alt/80 backdrop-blur border border-app-border-input/50 rounded-lg px-2.5 py-1.5 text-app-caption space-y-0.5">
+      {weather.kind != null && <div className="text-app-text font-medium">{WEATHER_LABELS[weather.kind] ?? m.common_unknown()}</div>}
+      {(weather.trackTemperatureC != null || weather.airTemperatureC != null) && (
+        <div className="flex gap-3 text-app-text-muted">
+          {weather.trackTemperatureC != null && <span>{m.tunes_track_temperature({ temperature: convertTemp(weather.trackTemperatureC, temperatureUnit, "C").toFixed(0), unit: temperatureUnit })}</span>}
+          {weather.airTemperatureC != null && <span>{m.tunes_air_temperature({ temperature: convertTemp(weather.airTemperatureC, temperatureUnit, "C").toFixed(0), unit: temperatureUnit })}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * LiveTestDashboard — the "live" phase of the Setup Engineer test workflow:
+ * watch a stint happen (track position, status strip, recorded laps so far),
+ * rather than reviewing it after the fact. Rendered only once the driver has
+ * clicked "Start Test" in ExperimentWorkspace; that parent owns the
+ * Start/End Test buttons.
+ */
+export function LiveTestDashboard({
+  gameId,
+  trackOrdinal,
+  initialViews,
+}: {
+  gameId: ExperimentGameId;
+  trackOrdinal: number | null;
+  /** Story-only canonical trace for immediate rendering. */
+  initialViews?: LiveTelemetryView[];
+}) {
+  const telemetryView = useTelemetryStore((state) => state.telemetryView);
+  const initialGameViews = useMemo(() => (initialViews ?? []).filter((view) => view.simulator === gameId), [gameId, initialViews]);
+  const liveView = telemetryView?.simulator === gameId ? telemetryView : null;
+  const currentView = liveView ?? initialGameViews.at(-1) ?? null;
+  const sessionLaps = useTelemetryStore((state) => state.sessionLaps);
+  const sectors = useTelemetryStore((state) => state.sectors);
+  const gameLaps = useMemo(() => sessionLaps.filter((lap) => lap.gameId === gameId), [gameId, sessionLaps]);
+  const gameSectors = telemetryView?.simulator === gameId ? sectors : null;
+
+  // Most-recently-completed lap's track ordinal, used as a fallback below.
+  const latestLap = useMemo(() => (gameLaps.length ? [...gameLaps].sort((a, b) => b.lapNumber - a.lapNumber)[0] : null), [gameLaps]);
+
+  const [rotateWithCar, setRotateWithCar] = useState(false);
+  const [mapZoom, setMapZoom] = useState(1);
+
+  // Canonical live trace for the in-progress lap. Trace carries its simulator
+  // identity so route changes cannot render samples from the previous game.
+  const [trace, setTrace] = useState<{ gameId: ExperimentGameId; views: LiveTelemetryView[] }>(() => ({ gameId, views: initialGameViews }));
+  useEffect(() => {
+    if (!liveView) {
+      setTrace((current) => (current.gameId === gameId ? current : { gameId, views: initialGameViews }));
+      return;
+    }
+    setTrace((current) => {
+      const currentViews = current.gameId === gameId ? current.views : initialGameViews;
+      const previous = currentViews.at(-1);
+      if (previous?.streamId === liveView.streamId && previous.sequence === liveView.sequence) {
+        return current.gameId === gameId ? current : { gameId, views: currentViews };
+      }
+      const streamChanged = previous !== undefined && previous.streamId !== liveView.streamId;
+      const lapChanged = previous?.timing.lapNumber !== undefined && liveView.timing.lapNumber !== undefined && previous.timing.lapNumber !== liveView.timing.lapNumber;
+      const next = streamChanged || lapChanged ? [liveView] : [...currentViews, liveView];
+      return { gameId, views: next.length > MAX_LIVE_TRACE ? next.slice(next.length - MAX_LIVE_TRACE) : next };
+    });
+  }, [gameId, initialGameViews, liveView]);
+  const viewTrace = trace.gameId === gameId ? trace.views : initialGameViews;
+  const activeViews = viewTrace.length > 0 ? viewTrace : currentView ? [currentView] : [];
+  const semanticTrace = useMemo(() => activeViews.map(viewToSemanticFrame), [activeViews]);
+  const tuneTrace = useMemo(() => activeViews.map(semanticTuneSampleFromView), [activeViews]);
+  const currentFrame = semanticTrace.at(-1) ?? null;
+
+  const trackOrd = trackOrdinal ?? latestLap?.trackOrdinal ?? currentView?.identity.trackOrdinal ?? null;
+  const { data: outlineRaw } = useTrackOutline(trackOrd ?? undefined, gameId);
+  const outline = useMemo(() => {
+    if (!outlineRaw) return null;
+    const d = outlineRaw as any;
+    if (d?.points && Array.isArray(d.points)) return d.points as Point[];
+    if (Array.isArray(d)) return d as Point[];
+    return null;
+  }, [outlineRaw]);
+  const { data: boundariesRaw } = useTrackBoundaries(trackOrd ?? undefined, gameId);
+  const boundaries = (boundariesRaw as TrackMapBoundaries | null) ?? null;
+
+  return (
+    <div className="flex flex-col h-full min-h-0">
+      {/* Top row: live track position + lap info */}
+      <div className="grid shrink-0 grid-cols-1 border-b border-app-border @5xl/workspace:grid-cols-[1.8fr_1.5fr]">
+        <div className="flex flex-col border-app-border @5xl/workspace:border-r">
+          <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{m.tunes_track_position()}</div>
+          <div className="relative h-[22.5rem]">
+            <AnalyseTrackPanel
+              gameId={gameId}
+              telemetry={semanticTrace}
+              cursorIdx={semanticTrace.length - 1}
+              outline={outline}
+              boundaries={boundaries}
+              sectors={null}
+              segments={null}
+              currentFrame={currentFrame}
+              showTrace={false}
+              rotateWithCar={rotateWithCar}
+              trackOverlays={DEFAULT_TRACK_OVERLAYS}
+              mapZoom={mapZoom}
+              onRotateWithCarToggle={() => setRotateWithCar((r) => !r)}
+              onMapZoomChange={setMapZoom}
+              hideSteeringOverlay
+              weatherBottomRight
+            />
+          </div>
+        </div>
+        <div className="overflow-y-auto">
+          <LiveLapInfo sectors={gameSectors} currentLap={currentView?.timing.lapNumber ?? null} totalLaps={gameLaps.length} />
+        </div>
+      </div>
+
+      {/* Bottom: full-width — lap cards, then the live tyre strip + fuel section */}
+      <div className="flex-1 min-h-0 flex flex-col">
+        {/* recorded laps so far, as a card row, with the in-progress lap leading */}
+        <div className="shrink-0 border-b border-app-border">
+          <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{m.tunes_laps_heading()}</div>
+          <LiveLapCards laps={gameLaps} trackOrdinal={trackOrd ?? undefined} sectors={gameSectors} currentLapNumber={currentView?.timing.lapNumber ?? null} maxLaps={30} />
+        </div>
+        {/* compact live tyre readout for the in-progress lap — sector-by-sector
+            breakdown reviews a completed lap, not what's happening right now */}
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{m.tunes_this_test_tires_fuel()}</div>
+          <CurrentLapTireStrip telemetry={tuneTrace} />
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Barcelona",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Barcelona",
+    "downloadUrl": "https://www.youtube.com/watch?v=l5qhn68zXx8",
+    "videoUrl": "https://www.youtube.com/watch?v=l5qhn68zXx8",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/barcelona",
+    "author": "PS_Racing",
+    "lapTime": "1:43.462",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Barcelona",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Barcelona",
+    "downloadUrl": "https://www.youtube.com/watch?v=wiP5V_RguXc",
+    "videoUrl": "https://www.youtube.com/watch?v=wiP5V_RguXc",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/barcelona",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

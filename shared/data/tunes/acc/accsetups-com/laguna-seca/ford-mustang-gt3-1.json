@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Ford Mustang GT3 Laguna Seca",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Laguna Seca",
+    "downloadUrl": "https://www.youtube.com/watch?v=6J0ukfFMmJo",
+    "videoUrl": "https://www.youtube.com/watch?v=6J0ukfFMmJo",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/laguna-seca",
+    "author": "Ohne Speed",
+    "lapTime": "1:22.1",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

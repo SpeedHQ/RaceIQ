@@ -1,0 +1,82 @@
+[
+  {
+    "rank": 1,
+    "date": "Feb 17, 2026",
+    "lapTime": "1:14.472",
+    "player": "Laurin Senna",
+    "team": "Red Bull Racing",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 2,
+    "date": "Mar 03, 2026",
+    "lapTime": "1:15.091",
+    "player": "ynic222",
+    "team": "Racing Bulls",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 3,
+    "date": "May 29, 2025",
+    "lapTime": "1:15.201",
+    "player": "bryanoliveira",
+    "team": "Ferrari",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 4,
+    "date": "Nov 01, 2025",
+    "lapTime": "1:15.291",
+    "player": "Goughzi",
+    "team": "Haas F1 Team",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 5,
+    "date": "Feb 16, 2026",
+    "lapTime": "1:15.352",
+    "player": "gdunks",
+    "team": "McLaren",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 6,
+    "date": "Mar 24, 2026",
+    "lapTime": "1:15.359",
+    "player": "mururoa27",
+    "team": "Ferrari",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 7,
+    "date": "Jun 04, 2025",
+    "lapTime": "1:15.372",
+    "player": "zach10",
+    "team": "McLaren",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 8,
+    "date": "Mar 24, 2026",
+    "lapTime": "1:15.385",
+    "player": "quikroz",
+    "team": "Williams",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 9,
+    "date": "Apr 04, 2026",
+    "lapTime": "1:15.405",
+    "player": "Riku",
+    "team": "F1 Custom Team",
+    "sessionType": "Time Trial"
+  },
+  {
+    "rank": 10,
+    "date": "Oct 23, 2025",
+    "lapTime": "1:15.408",
+    "player": "ggwakggwaki",
+    "team": "McLaren",
+    "sessionType": "Time Trial"
+  }
+]

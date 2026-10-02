@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Mercedes AMG GT3 Laguna Seca",
+    "carModel": "mercedes-amg-gt3",
+    "carClass": "GT3",
+    "trackName": "Laguna Seca",
+    "downloadUrl": "https://www.youtube.com/watch?v=DxzoH6l-TEU",
+    "videoUrl": "https://www.youtube.com/watch?v=DxzoH6l-TEU",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-gt3/on/laguna-seca",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Mercedes AMG GT3 Laguna Seca",
+    "carModel": "mercedes-amg-gt3",
+    "carClass": "GT3",
+    "trackName": "Laguna Seca",
+    "downloadUrl": "https://www.youtube.com/watch?v=wOKkZ66G3PE",
+    "videoUrl": "https://www.youtube.com/watch?v=wOKkZ66G3PE",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-gt3/on/laguna-seca",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

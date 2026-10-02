@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "types": ["bun", "@playwright/test"],
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@shared/*": ["../shared/*"]
+    },
+    "esModuleInterop": true
+  },
+  "include": ["config/**/*.ts", "support/**/*.ts", "tests/**/*.ts"]
+}

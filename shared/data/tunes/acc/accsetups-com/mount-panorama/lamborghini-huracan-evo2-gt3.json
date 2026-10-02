@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Bathurst",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Bathurst",
+    "downloadUrl": "https://www.youtube.com/watch?v=yY2wXgM8918",
+    "videoUrl": "https://www.youtube.com/watch?v=yY2wXgM8918",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/bathurst",
+    "author": "PS_Racing",
+    "lapTime": "2:00.540",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Bathurst",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Bathurst",
+    "downloadUrl": "https://www.youtube.com/watch?v=9z06jDTN-4A",
+    "videoUrl": "https://www.youtube.com/watch?v=9z06jDTN-4A",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/bathurst",
+    "author": "Ohne Speed",
+    "lapTime": "2:01",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Bathurst",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Bathurst",
+    "downloadUrl": "https://www.youtube.com/watch?v=lSW__nB5juI",
+    "videoUrl": "https://www.youtube.com/watch?v=lSW__nB5juI",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/bathurst",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

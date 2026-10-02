@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Oulton Park",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Oulton Park",
+    "downloadUrl": "https://www.youtube.com/watch?v=p4zTUK4AaX0",
+    "videoUrl": "https://www.youtube.com/watch?v=p4zTUK4AaX0",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/oulton-park",
+    "author": "Fri3d0lf",
+    "lapTime": "1:31.9",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Oulton Park",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Oulton Park",
+    "downloadUrl": "https://www.youtube.com/watch?v=FB_aLJszWb8",
+    "videoUrl": "https://www.youtube.com/watch?v=FB_aLJszWb8",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/oulton-park",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

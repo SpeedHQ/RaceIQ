@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Mercedes AMG Evo GT3 Kyalami",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Kyalami",
+    "downloadUrl": "https://www.youtube.com/watch?v=A6jW8OBmZV4",
+    "videoUrl": "https://www.youtube.com/watch?v=A6jW8OBmZV4",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/kyalami",
+    "author": "Fri3d0lf",
+    "lapTime": "1:40.3",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Mercedes AMG Evo GT3 Kyalami",
+    "carModel": "mercedes-amg-evo-gt3",
+    "carClass": "GT3",
+    "trackName": "Kyalami",
+    "downloadUrl": "https://www.youtube.com/watch?v=-f0RMMiKy5U",
+    "videoUrl": "https://www.youtube.com/watch?v=-f0RMMiKy5U",
+    "pageUrl": "https://accsetups.com/free-setups/for/mercedes-amg-evo-gt3/on/kyalami",
+    "author": "PS_Racing",
+    "lapTime": "1:40.447",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

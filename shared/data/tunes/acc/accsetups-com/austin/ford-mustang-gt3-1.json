@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Ford Mustang GT3 COTA",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "COTA",
+    "downloadUrl": "https://www.youtube.com/watch?v=o-DjDRGAu_U",
+    "videoUrl": "https://www.youtube.com/watch?v=o-DjDRGAu_U",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/cota",
+    "author": "Fri3d0lf",
+    "lapTime": "2:04.7",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 COTA",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "COTA",
+    "downloadUrl": "https://www.youtube.com/watch?v=kFVSzqeDSr4",
+    "videoUrl": "https://www.youtube.com/watch?v=kFVSzqeDSr4",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/cota",
+    "author": "Ohne Speed",
+    "lapTime": "2:05.2",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 COTA",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "COTA",
+    "downloadUrl": "https://www.youtube.com/watch?v=uAcQXew1a5I",
+    "videoUrl": "https://www.youtube.com/watch?v=uAcQXew1a5I",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/cota",
+    "author": "PS_Racing",
+    "lapTime": "2:05.270",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Porsche 992 GT3-R Zolder",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Zolder",
+    "downloadUrl": "https://www.youtube.com/watch?v=njPzryqHlnY",
+    "videoUrl": "https://www.youtube.com/watch?v=njPzryqHlnY",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/zolder",
+    "author": "PS_Racing",
+    "lapTime": "1:27.425",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Porsche 992 GT3-R Zolder",
+    "carModel": "porsche-992-gt3-r",
+    "carClass": "GT3",
+    "trackName": "Zolder",
+    "downloadUrl": "https://www.youtube.com/watch?v=e56Ez8e-9PQ",
+    "videoUrl": "https://www.youtube.com/watch?v=e56Ez8e-9PQ",
+    "pageUrl": "https://accsetups.com/free-setups/for/porsche-992-gt3-r/on/zolder",
+    "author": "Ohne Speed",
+    "lapTime": "1:38.3",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

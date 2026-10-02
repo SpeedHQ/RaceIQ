@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Silverstone",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Silverstone",
+    "downloadUrl": "https://www.youtube.com/watch?v=Hc7yafyVEOU",
+    "videoUrl": "https://www.youtube.com/watch?v=Hc7yafyVEOU",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/silverstone",
+    "author": "PS_Racing",
+    "lapTime": "1:57.492",
+    "date": "2025-12",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Lamborghini Huracan EVO2 GT3 Silverstone",
+    "carModel": "lamborghini-huracan-evo2-gt3",
+    "carClass": "GT3",
+    "trackName": "Silverstone",
+    "downloadUrl": "https://www.youtube.com/watch?v=s2K8Hq7yCl8",
+    "videoUrl": "https://www.youtube.com/watch?v=s2K8Hq7yCl8",
+    "pageUrl": "https://accsetups.com/free-setups/for/lamborghini-huracan-evo2-gt3/on/silverstone",
+    "author": "PS_Racing",
+    "lapTime": "1:57.670",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

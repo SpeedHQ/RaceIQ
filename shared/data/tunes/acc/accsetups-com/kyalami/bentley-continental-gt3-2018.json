@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Bentley Continental GT3 '18 Kyalami",
+    "carModel": "bentley-continental-gt3-2018",
+    "carClass": "GT3",
+    "trackName": "Kyalami",
+    "downloadUrl": "https://www.youtube.com/watch?v=AnNf_GS_Sp8",
+    "videoUrl": "https://www.youtube.com/watch?v=AnNf_GS_Sp8",
+    "pageUrl": "https://accsetups.com/free-setups/for/bentley-continental-gt3-2018/on/kyalami",
+    "author": "PS_Racing",
+    "lapTime": "1:40.427",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Bentley Continental GT3 '18 Kyalami",
+    "carModel": "bentley-continental-gt3-2018",
+    "carClass": "GT3",
+    "trackName": "Kyalami",
+    "downloadUrl": "https://www.youtube.com/watch?v=y76fQjaSxyM",
+    "videoUrl": "https://www.youtube.com/watch?v=y76fQjaSxyM",
+    "pageUrl": "https://accsetups.com/free-setups/for/bentley-continental-gt3-2018/on/kyalami",
+    "author": "PS_Racing",
+    "lapTime": "1:40.767",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Bentley Continental GT3 '18 Kyalami",
+    "carModel": "bentley-continental-gt3-2018",
+    "carClass": "GT3",
+    "trackName": "Kyalami",
+    "downloadUrl": "https://www.youtube.com/watch?v=4uUYCo31vtI",
+    "videoUrl": "https://www.youtube.com/watch?v=4uUYCo31vtI",
+    "pageUrl": "https://accsetups.com/free-setups/for/bentley-continental-gt3-2018/on/kyalami",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

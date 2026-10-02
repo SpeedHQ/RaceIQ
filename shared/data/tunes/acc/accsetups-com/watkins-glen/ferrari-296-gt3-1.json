@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Ferrari 296 GT3 Watkins Glen",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Watkins Glen",
+    "downloadUrl": "https://www.youtube.com/watch?v=tJDQ8XbgsR4",
+    "videoUrl": "https://www.youtube.com/watch?v=tJDQ8XbgsR4",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/watkins-glen",
+    "author": "bernagk1",
+    "lapTime": "1:42.542",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": true
+  },
+  {
+    "name": "Ferrari 296 GT3 Watkins Glen",
+    "carModel": "ferrari-296-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Watkins Glen",
+    "downloadUrl": "https://www.youtube.com/watch?v=21-NLGlkTkY",
+    "videoUrl": "https://www.youtube.com/watch?v=21-NLGlkTkY",
+    "pageUrl": "https://accsetups.com/free-setups/for/ferrari-296-gt3-1/on/watkins-glen",
+    "author": "Fri3d0lf",
+    "lapTime": "1:43.0",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]

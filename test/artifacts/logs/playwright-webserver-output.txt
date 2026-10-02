@@ -1,0 +1,137 @@
+[1A[2K[2m[WebServer] [22m[Cars] Loaded dimensions for 466 cars
+
+[1A[2K[2m[WebServer] [22m[DB] Running 11 migration(s)...
+
+[1A[2K[2m[WebServer] [22m[DB]   v1: current schema
+
+[1A[2K[2m[WebServer] [22m[DB]   v13: add car setup to laps
+
+[1A[2K[2m[WebServer] [22m[DB]   v14: add notes to sessions and laps
+
+[1A[2K[2m[WebServer] [22m[DB]   v15: add sector times to laps
+
+[1A[2K[2m[WebServer] [22m[DB]   v16: create compare_analyses table
+
+[1A[2K[2m[WebServer] [22m[DB]   v17: drop sectors column from track_outlines
+
+[1A[2K[2m[WebServer] [22m[DB]   v18: drop fm-2023 default from gameId columns
+
+[1A[2K[2m[WebServer] [22m[DB]   v19: raw binary lap storage
+
+[1A[2K[2m[WebServer] [22m[DB]   v20: community tunes
+
+[1A[2K[2m[WebServer] [22m[DB]   v21: add game_id to tunes
+
+[1A[2K[2m[WebServer] [22m[DB]   v22: scope tune_assignments by game_id
+
+[1A[2K[2m[WebServer] [22m[DB] Migrations complete.
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:36.659Z [INFO] [Server] Serving static assets from /Users/acoop/Documents/GitHub/forza-telemetry/.claude/worktrees/woolly-wiggling-unicorn/dist/public
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:36.660Z [INFO] [Server] caffeinate started — macOS will not sleep while server is running
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:36.662Z [INFO] [Server] Starting RaceIQ Server...
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:36.706Z [INFO] [Boot] Port cleared
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:36.711Z [INFO] [Server] HTTP/WS server listening on http://localhost:3118
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:36.711Z [INFO] [UDP] Starting listener on 0.0.0.0:15318...
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:36.716Z [INFO] [Server] RaceIQ Server is ready!
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:36.716Z [INFO] [Server] Listening for UDP on port 15318
+[2m[WebServer] [22m2026-07-15T11:06:36.716Z [INFO] [Compressor] No sessions to compress
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:36.716Z [INFO] [Cleanup] No orphan session files found
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:36.718Z [INFO] [UDP] Receive buffer set to 64MB
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:36.718Z [INFO] [UDP] Listening on 0.0.0.0:15318
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:36.831Z [INFO] [Laptimes] synced 2679 entry(ies) for fm-2023
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:36.842Z [INFO] [CommunityTunes] synced 163 tune(s) at version e6c529b25d8e4ed173928b211b07fa8a68daff4ca8e3d8f094b295c91c824076
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:36.856Z [INFO] [Laptimes] synced 613 entry(ies) for acc
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:36.885Z [INFO] [Laptimes] synced 1306 entry(ies) for ac-evo
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:36.885Z [INFO] [Laptimes] sync complete: 4598 total entry(ies) at version e6c529b25d8e4ed173928b211b07fa8a68daff4ca8e3d8f094b295c91c824076
+
+[1A[2K[2m[WebServer] [22m[Cars] Loaded dimensions for 466 cars
+
+[1A[2K[2m[WebServer] [22m[DB] Running 11 migration(s)...
+
+[1A[2K[2m[WebServer] [22m[DB]   v1: current schema
+
+[1A[2K[2m[WebServer] [22m[DB]   v13: add car setup to laps
+
+[1A[2K[2m[WebServer] [22m[DB]   v14: add notes to sessions and laps
+
+[1A[2K[2m[WebServer] [22m[DB]   v15: add sector times to laps
+
+[1A[2K[2m[WebServer] [22m[DB]   v16: create compare_analyses table
+
+[1A[2K[2m[WebServer] [22m[DB]   v17: drop sectors column from track_outlines
+
+[1A[2K[2m[WebServer] [22m[DB]   v18: drop fm-2023 default from gameId columns
+
+[1A[2K[2m[WebServer] [22m[DB]   v19: raw binary lap storage
+
+[1A[2K[2m[WebServer] [22m[DB]   v20: community tunes
+
+[1A[2K[2m[WebServer] [22m[DB]   v21: add game_id to tunes
+
+[1A[2K[2m[WebServer] [22m[DB]   v22: scope tune_assignments by game_id
+
+[1A[2K[2m[WebServer] [22m[DB] Migrations complete.
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:37.267Z [INFO] [Server] Serving static assets from /Users/acoop/Documents/GitHub/forza-telemetry/.claude/worktrees/woolly-wiggling-unicorn/dist/public
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:37.267Z [INFO] [Server] caffeinate started — macOS will not sleep while server is running
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:37.269Z [INFO] [Server] Starting RaceIQ Server...
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:37.311Z [INFO] [Boot] Port cleared
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:37.313Z [INFO] [Server] HTTP/WS server listening on http://localhost:3119
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:37.313Z [INFO] [UDP] Starting listener on 0.0.0.0:15319...
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:37.318Z [INFO] [Server] RaceIQ Server is ready!
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:37.318Z [INFO] [Server] Listening for UDP on port 15319
+[2m[WebServer] [22m2026-07-15T11:06:37.318Z [INFO] [Compressor] No sessions to compress
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:37.318Z [INFO] [Cleanup] No orphan session files found
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:37.319Z [INFO] [UDP] Receive buffer set to 64MB
+
+[1A[2K[2m[WebServer] [22m2026-07-15T11:06:37.319Z [INFO] [UDP] Listening on 0.0.0.0:15319
+
+Error: Playwright Test did not expect test.describe() to be called here.
+Most common reasons include:
+- You are calling test.describe() in a configuration file.
+- You are calling test.describe() in a file that is imported by the configuration file.
+- You have two different versions of @playwright/test. This usually happens
+  when one of the dependencies in your package.json depends on @playwright/test.
+- You are calling test.describe() from an async test.describe() block. Only sync ones are supported.
+
+[90m   at [39mfresh-install.spec.ts:54
+
+[0m [90m 52 |[39m [90m// Serial: wizard runs first and flips server-side onboardingComplete=true,[39m
+ [90m 53 |[39m [90m// so later tests can navigate straight to game routes without the modal.[39m
+[31m[1m>[22m[39m[90m 54 |[39m test[33m.[39mdescribe[33m.[39mserial([32m"fresh install"[39m[33m,[39m () [33m=>[39m {
+ [90m    |[39m               [31m[1m^[22m[39m
+ [90m 55 |[39m   test([32m"user steps through wizard and lands on home page"[39m[33m,[39m [36masync[39m ({ page }) [33m=>[39m {
+ [90m 56 |[39m     resetSettingsFile()[33m;[39m
+ [90m 57 |[39m     [36mconst[39m errors [33m=[39m collectErrors(page)[33m;[39m[0m
+[2m    at _TestTypeImpl._currentSuite (/Users/acoop/Documents/GitHub/forza-telemetry/.claude/worktrees/woolly-wiggling-unicorn/node_modules/.bun/playwright@1.61.1/node_modules/playwright/lib/common/index.js:2257:13)[22m
+[2m    at _TestTypeImpl._describe (/Users/acoop/Documents/GitHub/forza-telemetry/.claude/worktrees/woolly-wiggling-unicorn/node_modules/.bun/playwright@1.61.1/node_modules/playwright/lib/common/index.js:2298:24)[22m
+[2m    at Function.serial (/Users/acoop/Documents/GitHub/forza-telemetry/.claude/worktrees/woolly-wiggling-unicorn/node_modules/.bun/playwright@1.61.1/node_modules/playwright/lib/common/index.js:1220:12)[22m
+[2m    at Object.<anonymous> (/Users/acoop/Documents/GitHub/forza-telemetry/.claude/worktrees/woolly-wiggling-unicorn/playwright/fresh-install.spec.ts:54:15)[22m
+
+Error: No tests found
+
+[1A[2K[0m[31merror[0m[2m:[0m "[1mplaywright[0m" exited with code 1

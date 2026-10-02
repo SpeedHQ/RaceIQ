@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Ford Mustang GT3 Donington",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Donington",
+    "downloadUrl": "https://www.youtube.com/watch?v=rFfvgYKfulA",
+    "videoUrl": "https://www.youtube.com/watch?v=rFfvgYKfulA",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/donington",
+    "author": "Fri3d0lf",
+    "lapTime": "1:25.6",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": true,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 Donington",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Donington",
+    "downloadUrl": "https://www.youtube.com/watch?v=UrWlF6XATYM",
+    "videoUrl": "https://www.youtube.com/watch?v=UrWlF6XATYM",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/donington",
+    "author": "PS_Racing",
+    "lapTime": "1:26.267",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Ford Mustang GT3 Donington",
+    "carModel": "ford-mustang-gt3-1",
+    "carClass": "GT3",
+    "trackName": "Donington",
+    "downloadUrl": "https://www.youtube.com/watch?v=9xnYV9vdPjI",
+    "videoUrl": "https://www.youtube.com/watch?v=9xnYV9vdPjI",
+    "pageUrl": "https://accsetups.com/free-setups/for/ford-mustang-gt3-1/on/donington",
+    "author": "Ohne Speed",
+    "lapTime": "1:26.3",
+    "date": "2025-04",
+    "hasRace": true,
+    "hasQuali": true,
+    "hasSafe": false,
+    "hasWet": false
+  }
+]

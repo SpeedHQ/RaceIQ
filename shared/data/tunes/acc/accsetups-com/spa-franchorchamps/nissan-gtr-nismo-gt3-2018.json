@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Nissan GTR Nismo GT3 '18 Spa Franchorchamps",
+    "carModel": "nissan-gtr-nismo-gt3-2018",
+    "carClass": "GT3",
+    "trackName": "Spa Franchorchamps",
+    "downloadUrl": "https://www.youtube.com/watch?v=r0vSjHkjpMw",
+    "videoUrl": "https://www.youtube.com/watch?v=r0vSjHkjpMw",
+    "pageUrl": "https://accsetups.com/free-setups/for/nissan-gtr-nismo-gt3-2018/on/spa-franchorchamps",
+    "author": "PS_Racing",
+    "lapTime": "2:16.570",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": false,
+    "hasWet": false
+  },
+  {
+    "name": "Nissan GTR Nismo GT3 '18 Spa Franchorchamps",
+    "carModel": "nissan-gtr-nismo-gt3-2018",
+    "carClass": "GT3",
+    "trackName": "Spa Franchorchamps",
+    "downloadUrl": "https://www.youtube.com/watch?v=GfKaTbqBdW8",
+    "videoUrl": "https://www.youtube.com/watch?v=GfKaTbqBdW8",
+    "pageUrl": "https://accsetups.com/free-setups/for/nissan-gtr-nismo-gt3-2018/on/spa-franchorchamps",
+    "author": "Ohne Speed",
+    "lapTime": "",
+    "date": "2024-04",
+    "hasRace": true,
+    "hasQuali": false,
+    "hasSafe": true,
+    "hasWet": false
+  }
+]
