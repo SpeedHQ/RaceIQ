@@ -25,6 +25,7 @@
 ### Internal
 - Exclude generated JavaScript from client typechecking and emit Paraglide declarations in development so translation imports remain typed.
 - Seed and validate the compiled E2E database once per workflow, then restore isolated database and capture copies in seeded shards instead of repeating fixture imports.
+- Include LMU recordings and saved Analyse/Compare chat histories in shared Playwright seed artifacts; restore isolated chat-memory databases in each seeded shard.
 - Remove redundant development database-seed tests from CI and verify recording imports after database upgrades.
 - Prevent setup deletion from refetching usage data for a removed setup.
 - Restore query context for setup browser snapshots, fail immediately on Storybook render errors, and show per-test snapshot progress in CI.

@@ -27,6 +27,8 @@ Session-review telemetry reuse requires valid recorded laps. Invalid-only record
 
 Treat each spec as runnable alone under its project. Use deterministic seeded rows and test-owned disposable records. Never depend on another spec's order unless existing serial/stateful semantics require it. Restore settings, notes, imports, sessions, and deletions in `finally`; cancel destructive UI actions when testing cancellation. Keep server/data paths and generated output locations unchanged.
 
+Do not import recording fixtures merely to set up seeded route/control tests; use shared seeded laps and sessions. Keep imports that exercise import/export or capture conversion behavior, and imports that create disposable copies for destructive lifecycle tests. Shared baseline rows must survive those tests.
+
 ## Size guidance
 
 Target source files below 225 lines. Split by cohesive route or workflow when a file grows beyond that. A larger file is acceptable only when one orchestration owns one unavoidable lifecycle and splitting would obscure setup/cleanup. Avoid speculative abstractions, duplicated selectors, compatibility shims, and undocumented manual scripts.

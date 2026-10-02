@@ -39,6 +39,7 @@ jobs:
           name: playwright-seeded-database
           path: |
             playwright/test-data-seed-producer/app.db
+            playwright/test-data-seed-producer/chat-memory.db
             playwright/test-data-seed-producer/sessions/
           if-no-files-found: error
           retention-days: 1

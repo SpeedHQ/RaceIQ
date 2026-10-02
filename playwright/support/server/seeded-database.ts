@@ -2,13 +2,13 @@ import { Database } from "bun:sqlite";
 import { copyFileSync, existsSync, mkdirSync, statSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
-export const SEEDED_GAMES = ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"] as const;
+import { DEFAULT_GAMES } from "../../../scripts/data/seed-db-options";
 
 type CaptureRow = { id: number; game_id: string; raw_file: string | null };
 
 export function portableCapturePath(path: string): string {
   const normalized = path.replaceAll("\\", "/");
-  if (!/^sessions\/(?:fm-2023|f1-2025|acc|ac-evo|iracing)\/[^/]+\.bin(?:\.gz)?$/.test(normalized)) {
+  if (!/^sessions\/(?:fm-2023|f1-2025|acc|ac-evo|iracing|lmu)\/[^/]+\.bin(?:\.gz)?$/.test(normalized)) {
     throw new Error(`Invalid seeded capture path: ${path}`);
   }
   return normalized;
@@ -22,7 +22,7 @@ export function checkSeededDatabase(database: Database): CaptureRow[] {
   if (database.query("PRAGMA foreign_key_check").all().length) {
     throw new Error("Seeded database foreign key check failed");
   }
-  for (const game of SEEDED_GAMES) {
+  for (const game of DEFAULT_GAMES) {
     const row = database.query<{ count: number }, [string]>(`
       SELECT COUNT(*) AS count FROM laps l JOIN sessions s ON s.id = l.session_id
       WHERE s.game_id = ? AND l.raw_frame_count > 0 AND s.raw_file IS NOT NULL
@@ -36,7 +36,12 @@ export function restoreSeededDatabase(repoDir: string, dataDir: string, source: 
   const sourceDatabase = resolve(repoDir, source);
   const targetDatabase = resolve(dataDir, "app.db");
   if (sourceDatabase === targetDatabase) throw new Error("Seed artifact must be separate from runtime database");
+  const sourceChatDatabase = resolve(dirname(sourceDatabase), "chat-memory.db");
+  if (!existsSync(sourceChatDatabase) || !statSync(sourceChatDatabase).size) throw new Error(`Missing required seeded chat-memory database: ${sourceChatDatabase}`);
   copyFileSync(sourceDatabase, targetDatabase);
+  const targetChatDatabase = resolve(dataDir, "chat-memory.db");
+  mkdirSync(dirname(targetChatDatabase), { recursive: true });
+  copyFileSync(sourceChatDatabase, targetChatDatabase);
   const database = new Database(targetDatabase);
   try {
     const captures = checkSeededDatabase(database);
@@ -57,7 +62,7 @@ export function restoreSeededDatabase(repoDir: string, dataDir: string, source: 
         update.run(output, capture.id);
       }
     })();
-    console.log(`[E2E Seed] Restored database and ${captures.length} session references`);
+    console.log(`[E2E Seed] Restored database, chat memory, and ${captures.length} session references`);
   } finally {
     database.close();
   }
