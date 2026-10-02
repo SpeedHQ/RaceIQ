@@ -1,4 +1,4 @@
-import type { GameId } from "../../games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { TelemetryVariableId } from "./generated/telemetry-catalog.types";
 import type {
   TelemetryCatalogGroup,

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { IdParamSchema } from "@shared/platform/http/route-schemas";
-import { GameIdSchema } from "../../../shared/games/ids";
+import { GameIdSchema } from "@raceiq/games/ids";
 import { getActiveExperiment, setActiveExperiment } from "../../experiments/active";
 import { createExperiment, getExperiment, listExperimentFocusEvents, listExperiments, setExperimentFocus, setSessionHead, updateExperiment } from "../../db/experiment-queries";
 import { createExperimentVersion } from "../../db/experiment-version-queries";

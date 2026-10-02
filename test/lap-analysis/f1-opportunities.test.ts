@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { computeLapMetrics } from "../../server/lap-analysis/metrics";
-import { initGameAdapters } from "@shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { analyzeLap } from "@shared/racing/analysis/laps/insights/analyze";
 import { processLap, restoreFrameIndices } from "@shared/racing/analysis/laps/insights/process";
 import { detectErsDepletion, detectUnusedDrs } from "@shared/racing/analysis/laps/insights/electronics";

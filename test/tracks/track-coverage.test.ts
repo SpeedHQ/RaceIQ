@@ -9,7 +9,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { curatedCoverage, renderCoverageTable, renderDetailTables } from "../../shared/racing/tracks/curation/coverage";
 import { fileHash, loadVerified, verifiedKey, verifyState } from "../../shared/racing/tracks/curation/verified";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import {
   COVERAGE_END,
   COVERAGE_START,

@@ -1,4 +1,4 @@
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { LiveSectorData } from "../../shared/racing/live/types";
 import type { TuneIssue } from "../../shared/racing/tuning/issues";
 import type { CanonicalTelemetryScalar } from "../../shared/telemetry/replay/contracts";

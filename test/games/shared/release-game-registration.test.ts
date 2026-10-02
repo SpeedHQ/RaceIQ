@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { gameAdaptersForFeatures } from "../../../shared/games/init";
+import { gameAdaptersForFeatures } from "@raceiq/games/init";
 import { releaseFeatureFlags } from "../../../shared/platform/runtime/release-feature-flags";
 import { initServerGameAdapters, nativeTelemetryGameIds, serverGameAdaptersForFeatures } from "../../../server/games/init";
 import { getAllServerGames } from "../../../server/games/registry";

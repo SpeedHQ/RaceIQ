@@ -8,7 +8,7 @@ import { db } from "../../server/db";
 import { sessions } from "../../server/db/schema";
 import { deleteSession } from "../../server/db/session-queries";
 import { initServerGameAdapters } from "../../server/games/init";
-import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "../../server/games/lmu/recorder";
+import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "@raceiq/game-lmu/recorder";
 import { importSessionBin } from "../../server/session-capture/import-capture";
 import { encodeFrameLength, encodeMetaFrame } from "../../server/session-capture/framing";
 import { readRecordedTelemetry } from "../../server/session-capture/replay-packets";

@@ -1,4 +1,4 @@
-import { initGameAdapters } from "@shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";

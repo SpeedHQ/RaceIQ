@@ -1,18 +1,18 @@
 import { bench, group, do_not_optimize } from "mitata";
 
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { getAllServerGames } from "../../server/games/registry";
 import { LiveTelemetryPipeline, stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
 import { NullDbAdapter, NullWsAdapter, NullSessionRecorderAdapter } from "../../server/telemetry/pipeline-ports";
 import { readUdpDump } from "../support/recordings/udp";
-import { parseAccBuffers } from "../../server/games/acc/parser";
-import { readWString } from "../../server/games/acc/utils";
-import { STATIC } from "../../server/games/acc/structs";
+import { parseAccBuffers } from "@raceiq/game-acc/parser";
+import { readWString } from "@raceiq/game-acc/utils";
+import { STATIC } from "@raceiq/game-acc/structs";
 import { readKunosFrames } from "../../server/games/kunos/frame-reader";
 import { getAccCarByModel } from "../../shared/racing/cars/acc";
 import { getAccTrackByName } from "../../shared/racing/tracks/catalogs/acc";
-import { parseAcEvoBuffers, createAcEvoParserCache } from "../../server/games/ac-evo/parser";
+import { parseAcEvoBuffers, createAcEvoParserCache } from "@raceiq/game-ac-evo/parser";
 import { runMitataBenchmarks } from "./mitata-harness";
 import { createBoundedPipelineRunner } from "./pipeline-bench-support";
 

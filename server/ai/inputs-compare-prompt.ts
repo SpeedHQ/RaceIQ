@@ -6,12 +6,12 @@
 import { z } from "zod";
 import type { ComparisonResult } from "../lap-analysis/comparison";
 import { getPromptCarName, getPromptTrackName, compareLapHeader } from "./compare-engineer";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { buildTrackGuideContext } from "./track-guides";
 import { resolveTrack } from "../tracks/info";
 import { segmentPromptNames } from "../../shared/racing/tracks/segment-label";
 import { computeStatsRange, steerScaleFor, type InputStats } from "../lap-analysis/metrics";
-import { tryGetGame } from "../../shared/games/registry";
+import { tryGetGame } from "@raceiq/games/registry";
 import { resolveAnalysisTelemetry } from "../../shared/racing/analysis/telemetry-capabilities";
 
 /**

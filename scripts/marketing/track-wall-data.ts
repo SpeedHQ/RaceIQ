@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
+import { KNOWN_GAME_IDS, type GameId } from "@raceiq/games/ids";
 import { fmTrackCatalog } from "../../shared/racing/tracks/catalogs/fm";
 import { getF1Tracks } from "../../shared/racing/tracks/catalogs/f1";
 import { getAccTracks } from "../../shared/racing/tracks/catalogs/acc";

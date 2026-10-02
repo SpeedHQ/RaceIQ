@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
 import { formatLapTime } from "@/components/LiveTelemetry";
 import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";

@@ -1,4 +1,4 @@
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 export const RESPONSIVE_VIEWPORTS = [
   { name: "mobile", width: 390, height: 844 },
   { name: "tablet", width: 768, height: 1024 },

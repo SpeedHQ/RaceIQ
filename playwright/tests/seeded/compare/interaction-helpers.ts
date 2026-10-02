@@ -1,5 +1,5 @@
 import type { APIRequestContext } from "@playwright/test";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { fetchAlignedSet, getSeededLaps, type SeededLapPair } from "./helpers";
 
 export type ComparisonPayload = {

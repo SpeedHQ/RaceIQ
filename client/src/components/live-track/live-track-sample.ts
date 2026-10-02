@@ -1,4 +1,4 @@
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { pointAtLapFraction } from "@shared/racing/tracks/path";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 

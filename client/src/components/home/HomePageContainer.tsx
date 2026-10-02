@@ -1,4 +1,4 @@
-import { tryGetGame } from "@shared/games/registry";
+import { tryGetGame } from "@raceiq/games/registry";
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
 import { useQueries } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";

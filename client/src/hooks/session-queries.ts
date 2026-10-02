@@ -1,6 +1,6 @@
 import type { RaceResult } from "@shared/racing/results/types";
 import { useQuery } from "@tanstack/react-query";
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { SessionMeta, SessionRecap } from "../../../shared/racing/sessions/types";
 import { client } from "../lib/rpc";
 import { rpcJson } from "../lib/rpc-json";

@@ -1,6 +1,6 @@
 export type PacketSourceReference = Buffer | { rawOffset: number };
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import { resolveAnalysisTelemetry } from "../../shared/racing/analysis/telemetry-capabilities";
 import { type DbAdapter, type WsAdapter, type SessionRecorderAdapter, RealDbAdapter, SparseSessionRecorderAdapter } from "./pipeline-ports";

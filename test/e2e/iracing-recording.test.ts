@@ -9,13 +9,13 @@ import {
   IRACING_DUMP_VERSION,
   IRacingRecorder,
   readIRacingFrames,
-} from "../../server/games/iracing/recorder";
-import type { IRacingSdkSnapshot } from "../../server/games/iracing/sdk-reader";
+} from "@raceiq/game-iracing/recorder";
+import type { IRacingSdkSnapshot } from "@raceiq/game-iracing/sdk-reader";
 import {
   type IRacingFrameReader,
   IRacingTelemetrySource,
-} from "../../server/games/iracing/source";
-import { initGameAdapters } from "../../shared/games/init";
+} from "@raceiq/game-iracing/source";
+import { initGameAdapters } from "@raceiq/games/init";
 import { parseDump } from "../support/recordings/parse-dump";
 
 initGameAdapters();

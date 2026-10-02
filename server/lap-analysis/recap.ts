@@ -1,4 +1,4 @@
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { SessionRecap } from "../../shared/racing/sessions/types";
 import { isPitCycleLap } from "../../shared/racing/laps/pit-cycle";
 import { stddevPopulation, consistencyRating } from "./stats";

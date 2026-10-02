@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { getLapById } from "../db/lap-read-queries";
 import { getLapsForSession } from "../db/lap-reprocessing-queries";

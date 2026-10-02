@@ -1,5 +1,5 @@
 import { expect, type APIRequestContext } from "@playwright/test";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import type { LapMeta } from "../../../../shared/racing/sessions/types";
 

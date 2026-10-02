@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { m } from "@/paraglide/messages";
 import { cn } from "@/lib/utils";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { queryKeys } from "../../hooks/query-keys";
 import { client } from "../../lib/rpc";
 

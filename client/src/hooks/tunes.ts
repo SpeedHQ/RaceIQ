@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { TuneIssue } from "../../../shared/racing/tuning/issues";
 import type { CatalogTune } from "../data/tune-catalog";
 import { client } from "../lib/rpc";

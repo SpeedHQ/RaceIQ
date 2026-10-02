@@ -4,7 +4,7 @@
  */
 import { getServerGame } from "../games/registry";
 import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { loadSessionSource, iterateSessionCaptureRecordsFromSource } from "./source-loader";
 import { packetIndexToLegacyMotecOffset } from "../motec/source-archive";
 import { getLapsForSession, updateLapRawIndex, insertReprocessedLap, deleteLapsForSession } from "../db/lap-reprocessing-queries";

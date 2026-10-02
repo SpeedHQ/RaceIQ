@@ -13,7 +13,7 @@
 - `tracks/` handles track catalog, geometry, outlines, segments, sectors, corners, and leaderboards.
 - `tunes/` handles tune CRUD, setup-file workflows, and automatic setup resources; `experiments/` handles tuning-session lifecycle and comparisons.
 - `games/` exposes game-specific setup and source endpoints.
-- `system/` exposes diagnostics, storage, networking, updates, extraction, and telemetry history.
+- `system/` exposes diagnostics, storage, networking, updates, and telemetry history.
 - `dev/` exposes recording and import tools and is mounted only when `IS_DEV` is true.
 
 Subdirectories with an `index.ts` use it as their composition point. Shared helpers stay beside the routes that use them (`support.ts`, `tune-shared.ts`, or `recording-support.ts`).

@@ -21,13 +21,13 @@ import {
 import { tmpdir } from "node:os";
 import { basename, resolve } from "node:path";
 import { gzipSync } from "node:zlib";
-import { IRacingIbtReader } from "../../server/games/iracing/ibt-reader";
-import { IRacingRecorder } from "../../server/games/iracing/recorder";
-import { parseIRacingSessionInfo } from "../../server/games/iracing/session-info";
+import { IRacingIbtReader } from "@raceiq/game-iracing/ibt-reader";
+import { IRacingRecorder } from "@raceiq/game-iracing/recorder";
+import { parseIRacingSessionInfo } from "@raceiq/game-iracing/session-info";
 import {
   IRacingSourceFrameEncoder,
   type IRacingSessionSnapshot,
-} from "../../server/games/iracing/source-frame";
+} from "@raceiq/game-iracing/source-frame";
 
 const FIRST_LAP = 413;
 const PIT_LAP = 415;

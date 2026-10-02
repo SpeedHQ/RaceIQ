@@ -45,7 +45,7 @@ for (const entry of readdirSync(sharedDir, { withFileTypes: true })) {
   copyDir(
     path.join(sharedDir, entry.name),
     path.join(DIST, entry.name),
-    (name) => /\.(?:csv|json|svg)$/.test(name),
+    (name) => name !== "package.json" && /\.(?:csv|json|svg)$/.test(name),
   );
 }
 

@@ -1,5 +1,5 @@
 import type { Tune } from "../../shared/racing/tuning/types";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { getLapById } from "../db/lap-read-queries";
 import { getCorners } from "../db/track-queries";
 import { getAnalysis, saveAnalysis } from "../db/analysis-queries";
@@ -10,7 +10,7 @@ import { loadSettings } from "../runtime/config/settings";
 import { buildAnalystPrompt, type PromptSectors } from "./analyst-prompt";
 import { resolveTrack } from "../tracks/info";
 import { computeNativeSectorTimeline, computeLapSectors } from "../lap-analysis/sectors";
-import { getGame } from "../../shared/games/registry";
+import { getGame } from "@raceiq/games/registry";
 import { lapAnalystAgent } from "./agents";
 import { getAnalystJsonSchema, AnalystOutputSchema, parseAnalystOutput } from "./schemas";
 import { buildGoogleThinkingProviderOptions } from "./google-provider-options";

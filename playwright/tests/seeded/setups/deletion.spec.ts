@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { completeOnboarding } from "../../support/tunes";
 import { cleanDisposable, importDisposableLap, lapsFor, sessionsFor, type DisposableImport } from "../sessions/helpers";
 

@@ -8,10 +8,10 @@ import {
 import { db } from "../../../server/db/index";
 import { discoveredCars, discoveredTracks } from "../../../server/db/schema";
 import { initServerGameAdapters } from "../../../server/games/init";
-import { registerLiveIRacingIdentity } from "../../../server/games/iracing/identity";
+import { registerLiveIRacingIdentity } from "@raceiq/game-iracing/identity";
 import {
   normalizeIRacingFrame,
-} from "../../../server/games/iracing/normalizer";
+} from "@raceiq/game-iracing/normalizer";
 import {
   canHandleIRacingSourceFrame,
   createIRacingSourceDecoderState,
@@ -22,13 +22,13 @@ import {
   IRacingSourceFrameEncoder,
   isIRacingSessionFrame,
   type IRacingSourceFrameV2,
-} from "../../../server/games/iracing/source-frame";
+} from "@raceiq/game-iracing/source-frame";
 import { parsePacket } from "../../../server/games/packet-dispatch";
-import { initGameAdapters } from "../../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import {
   injectDiscoveredIRacingIdentity,
   iracingAdapter,
-} from "../../../shared/games/iracing";
+} from "@raceiq/games/iracing";
 
 initGameAdapters();
 initServerGameAdapters();

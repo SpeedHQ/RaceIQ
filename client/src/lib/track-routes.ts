@@ -1,5 +1,5 @@
-import { tryGetGame } from "@shared/games/registry";
-import type { GameId } from "../../../shared/games/ids";
+import { tryGetGame } from "@raceiq/games/registry";
+import type { GameId } from "@raceiq/games/ids";
 
 /**
  * Paths for the track routes.

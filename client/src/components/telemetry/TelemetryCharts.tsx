@@ -1,4 +1,4 @@
-import { getGame } from "@shared/games/registry";
+import { getGame } from "@raceiq/games/registry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { resolveGripDemand, resolveWheelMetric } from "@shared/racing/analysis/metric-values";
 import { useEffect, useRef, useState } from "react";

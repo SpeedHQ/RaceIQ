@@ -1,4 +1,4 @@
-import type { GameId } from "../games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { F1ExtendedData } from "./f1-2025";
 import type { KunosExtendedData } from "./kunos";
 import type { IRacingExtendedData } from "./iracing";

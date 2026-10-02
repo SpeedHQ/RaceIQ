@@ -6,7 +6,7 @@
 
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import type { KunosExtendedData } from "../../../shared/telemetry/kunos";
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { PHYSICS, GRAPHICS, STATIC, FLAG_STATUS } from "./structs";
 import { readWString } from "./utils";
 

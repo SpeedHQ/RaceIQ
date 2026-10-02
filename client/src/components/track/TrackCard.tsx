@@ -3,7 +3,7 @@ import { drawTrack } from "@/lib/canvas/draw-track";
 import { countryName } from "@/lib/country-names";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { Point, TrackInfo } from "./types";
 import { Button } from "../ui/button";
 import { InlineTrackMap } from "./InlineTrackMap";

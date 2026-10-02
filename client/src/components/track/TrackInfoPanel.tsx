@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { TrackInfo as TrackInfoType, TrackSectors } from "./types";
 
 /**

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { IdParamSchema } from "@shared/platform/http/route-schemas";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { getLapById } from "../db/lap-read-queries";
 import { getExperiment } from "../db/experiment-queries";
 import { telemetryToSymptoms } from "../ai/tune-symptoms";

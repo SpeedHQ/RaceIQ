@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { compileTelemetryResolver } from "../../shared/telemetry/resolver/compile";
 import type { CompiledTelemetryResolver, ResolvedValue, TelemetryFrameView } from "../../shared/telemetry/resolver/contracts";

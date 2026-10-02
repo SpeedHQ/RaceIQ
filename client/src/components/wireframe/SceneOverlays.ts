@@ -1,5 +1,5 @@
 import { resolveWheelStates } from "../../../../shared/racing/analysis/metric-values";
-import { getGame } from "@shared/games/registry";
+import { getGame } from "@raceiq/games/registry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import * as THREE from "three/webgpu";
 import type { Line2 } from "three/addons/lines/webgpu/Line2.js";

@@ -1,5 +1,5 @@
 import { expect, type APIRequestContext, type Response } from "@playwright/test";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { LapMeta } from "../../../../shared/racing/sessions/types";
 import { decodeAlignedLapSet } from "../../../../shared/racing/laps/alignment/codec";
 import type { EncodedAlignedLapSet } from "../../../../shared/racing/laps/alignment/types";

@@ -1,8 +1,8 @@
-import { AccSharedMemoryReader } from "../games/acc/shared-memory";
-import { AcEvoSharedMemoryReader } from "../games/ac-evo/shared-memory";
-import { IRacingTelemetrySource } from "../games/iracing/source";
-import { registerLiveIRacingIdentity } from "../games/iracing/identity";
-import { LMUTelemetrySource } from "../games/lmu/source";
+import { AccSharedMemoryReader } from "@raceiq/game-acc/shared-memory";
+import { AcEvoSharedMemoryReader } from "@raceiq/game-ac-evo/shared-memory";
+import { IRacingTelemetrySource } from "@raceiq/game-iracing/source";
+import { registerLiveIRacingIdentity } from "@raceiq/game-iracing/identity";
+import { LMUTelemetrySource } from "@raceiq/game-lmu/source";
 import { isGameRunning } from "../games/registry";
 import {
   getAccReader,

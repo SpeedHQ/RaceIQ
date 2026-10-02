@@ -6,8 +6,8 @@ import { homedir } from "node:os";
 import { resolve, sep } from "node:path";
 
 import { tryGetServerGame } from "../games/registry";
-import { carSetupToKnobValues } from "../games/ac-evo/carsetup";
-import { parseCarSetup } from "../games/ac-evo/carsetup-wire";
+import { carSetupToKnobValues } from "@raceiq/game-ac-evo/carsetup";
+import { parseCarSetup } from "@raceiq/game-ac-evo/carsetup-wire";
 
 export type AccGameId = "acc" | "ac-evo";
 

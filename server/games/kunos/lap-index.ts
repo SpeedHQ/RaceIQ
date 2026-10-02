@@ -1,15 +1,15 @@
 import type { LapIndexPacket } from "../../lap-detection/types";
-import type { AcEvoParserCache } from "../ac-evo/parser";
-import { PHYSICS as ACC_PHYSICS, GRAPHICS as ACC_GRAPHICS, STATIC as ACC_STATIC } from "../acc/structs";
-import { PHYSICS as EVO_PHYSICS, GRAPHICS_EVO, STATIC_EVO, ACEVO_STATUS } from "../ac-evo/structs";
-import { readWString } from "../acc/utils";
-import { readCString } from "../ac-evo/utils";
+import type { AcEvoParserCache } from "@raceiq/game-ac-evo/parser";
+import { PHYSICS as ACC_PHYSICS, GRAPHICS as ACC_GRAPHICS, STATIC as ACC_STATIC } from "@raceiq/game-acc/structs";
+import { PHYSICS as EVO_PHYSICS, GRAPHICS_EVO, STATIC_EVO, ACEVO_STATUS } from "@raceiq/game-ac-evo/structs";
+import { readWString } from "@raceiq/game-acc/utils";
+import { readCString } from "@raceiq/game-ac-evo/utils";
 import { getAccCarByModel } from "../../../shared/racing/cars/acc";
 import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc";
 import { getAcEvoCarByDisplayName } from "../../../shared/racing/cars/ac-evo";
 import { getAcEvoTrackByName } from "../../../shared/racing/tracks/catalogs/ac-evo";
-import { calibratePlayerSlot } from "../ac-evo/player-slot";
-import { integrateDistance } from "../ac-evo/distance";
+import { calibratePlayerSlot } from "@raceiq/game-ac-evo/player-slot";
+import { integrateDistance } from "@raceiq/game-ac-evo/distance";
 
 /** Direct detector projection for packed ACC frames. No TelemetryPacket allocation. */
 export function parseAccLapIndex(physics: Buffer, graphics: Buffer, stat: Buffer, carOrdinal: number, trackOrdinal: number): LapIndexPacket | null {

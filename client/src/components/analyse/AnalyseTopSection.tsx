@@ -1,5 +1,5 @@
 import type { SceneRuntime, SceneSource } from "../wireframe/SceneRuntime";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { type CSSProperties, type RefObject, useEffect, useRef } from "react";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
 import type { SemanticAnalysisFrame, Point, SectorBoundaries, TrackMapBoundaries, TrackMapHandle, TrackMapLabel, TrackOverlayKey, TrackOverlays, TrackZoomBehavior } from "./track-map/types";

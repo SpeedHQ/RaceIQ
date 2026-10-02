@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { telemetryStore } from "./telemetry";
 /** Map gameId → route path segment. Derived from each adapter's routePrefix. */
 const GAME_ROUTES: Record<string, string> = {

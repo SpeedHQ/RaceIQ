@@ -23,7 +23,7 @@ import type { SessionOwnership } from "../../shared/racing/sessions/types";
 import { getLapsRaw } from "../db/lap-read-queries";
 import { loadSessionCapture } from "../session-capture/source-loader";
 import { encodeLmuSparseFrame } from "../session-capture/lmu-sparse";
-import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "../games/lmu/source-frame";
+import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/game-lmu/source-frame";
 import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC } from "../games/kunos/pack-triplet";
 import { encodeKunosSparseFrame } from "../session-capture/kunos-sparse";
 import { encodeGenericSparseFrame, genericFrameIdentity } from "../session-capture/generic-sparse";
@@ -56,9 +56,9 @@ import {
   decodeIRacingSourceFrame,
   IRacingSourceFrameEncoder,
   type IRacingSourceFrame,
-} from "../games/iracing/source-frame";
-import { parseF1Header } from "../games/f1-2025/f1-wire";
-import type { GameId } from "@shared/games/ids";
+} from "@raceiq/game-iracing/source-frame";
+import { parseF1Header } from "@raceiq/game-f1-2025/f1-wire";
+import type { GameId } from "@raceiq/games/ids";
 
 export const LAPS_ZIP_VERSION = 4;
 

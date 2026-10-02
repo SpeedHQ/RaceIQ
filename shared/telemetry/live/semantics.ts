@@ -1,4 +1,4 @@
-import type { GameId } from "../../games/ids";
+import type { GameId } from "@raceiq/games/ids";
 
 export const LIVE_CORE_SEMANTIC_IDS = [
   "brakes.brake-temp", "engine.boost", "engine.current-engine-rpm", "engine.engine-idle-rpm", "engine.engine-max-rpm", "engine.power", "engine.torque",

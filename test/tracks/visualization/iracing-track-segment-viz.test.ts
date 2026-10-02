@@ -12,12 +12,12 @@ import {
 import { resolve } from "node:path";
 import {
   readIRacingFrames,
-} from "../../../server/games/iracing/recorder";
+} from "@raceiq/game-iracing/recorder";
 import {
   createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,
-} from "../../../server/games/iracing/source-frame";
-import { initGameAdapters } from "../../../shared/games/init";
+} from "@raceiq/game-iracing/source-frame";
+import { initGameAdapters } from "@raceiq/games/init";
 import {
   generateTrackSegments,
   loadCenterline,

@@ -12,12 +12,12 @@
  */
 import { resolve } from "node:path";
 import { parsePacket } from "../games/packet-dispatch";
-import { isForzaRaceOffPacket } from "../games/fm-2023/parser";
+import { isForzaRaceOffPacket } from "@raceiq/game-fm-2023/parser";
 import { wsManager } from "./websocket-manager";
 import { processPacket, flushSessionRecorderBuffer, lapDetector } from "../telemetry/live-pipeline";
 import { getRunningGame } from "../games/registry";
 import { SessionRecorder } from "../session-capture/recorder";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { timestampForFilename } from "../session-capture/filename";
 
 const MIN_PACKET_LENGTH = 29; // Minimum: F1 header size

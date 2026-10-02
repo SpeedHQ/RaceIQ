@@ -1,6 +1,6 @@
 import { decodeLmuSparseFrame, isLmuSparseFrame } from "./lmu-sparse";
 import { decodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } from "./generic-sparse";
-import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "../games/lmu/source-frame";
+import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/game-lmu/source-frame";
 import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "./kunos-sparse";
 import { gzip, gzipSync, gunzip, gunzipSync } from "node:zlib";
 import { promisify } from "node:util";

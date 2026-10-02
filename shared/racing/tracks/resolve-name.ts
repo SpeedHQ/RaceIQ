@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { tryGetGame } from "@shared/games/registry";
+import { tryGetGame } from "@raceiq/games/registry";
 import { SHARED_DIR, USER_TRACKS_DIR } from "@shared/platform/runtime/data-paths";
 import { getAccSharedTrackName } from "./catalogs/acc";
 import { getAcEvoSharedTrackName } from "./catalogs/ac-evo";

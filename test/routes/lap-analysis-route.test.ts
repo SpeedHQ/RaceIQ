@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import { initGameAdapters } from "../../shared/games/init";
-import { getGame } from "../../shared/games/registry";
-import { analyseSemanticIds } from "../../shared/games/metric-contracts";
+import { initGameAdapters } from "@raceiq/games/init";
+import { getGame } from "@raceiq/games/registry";
+import { analyseSemanticIds } from "@raceiq/games/metric-contracts";
 import { decodeAlignedLapSet } from "../../shared/racing/laps/alignment/codec";
 import type { EncodedAlignedLapSet } from "../../shared/racing/laps/alignment/types";
 

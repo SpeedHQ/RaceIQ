@@ -5,10 +5,10 @@ import { bench, do_not_optimize, group } from "mitata";
 import { parseRawLapFramesFromBuffer, type LapReplaySource } from "../../server/db/telemetry-replay-storage";
 import { resolveTelemetryReplay } from "../../server/telemetry/replay";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { getAllServerGames } from "../../server/games/registry";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { iterateSessionFrameRecords } from "../../server/session-capture/framing";
 import { runMitataBenchmarks } from "./mitata-harness";
 

@@ -1,5 +1,5 @@
-import type { GameId } from "@shared/games/ids";
-import { getAllGames, tryGetGame } from "@shared/games/registry";
+import type { GameId } from "@raceiq/games/ids";
+import { getAllGames, tryGetGame } from "@raceiq/games/registry";
 import type { ReleaseFeatureFlags } from "@shared/platform/runtime/release-feature-flags";
 import { clientReleaseFeatures } from "./release-features";
 

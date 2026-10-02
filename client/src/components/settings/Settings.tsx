@@ -8,8 +8,6 @@ import { AboutSection } from "./AboutSection";
 import { AiSection } from "./AiSection";
 import { ConnectionSection } from "./connection/ConnectionSection";
 import { DiagnosticsSection } from "./DiagnosticsSection";
-import { ExtractionSection } from "./ExtractionSection";
-import { F1ExtractionSection } from "./F1ExtractionSection";
 import { GamesSection } from "./GamesSection";
 import { GeneralSection } from "./general/GeneralSection";
 import { NAV_ITEMS, NAV_LABELS, type SectionId } from "./navigation";
@@ -93,12 +91,6 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
         {activeSection === "sound" && <SoundSection />}
         {activeSection === "storage" && <StorageSection />}
         {activeSection === "ai" && <AiSection />}
-        {activeSection === "developer" && (
-          <div className="space-y-8">
-            <ExtractionSection />
-            <F1ExtractionSection />
-          </div>
-        )}
         {activeSection === "diagnostics" && <DiagnosticsSection />}
         {activeSection === "updates" && <UpdatesSection />}
         {activeSection === "about" && <AboutSection />}

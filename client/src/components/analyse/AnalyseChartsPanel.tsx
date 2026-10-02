@@ -1,6 +1,6 @@
-import { getGame } from "@shared/games/registry";
+import { getGame } from "@raceiq/games/registry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import { WHEEL_COLOR_VARS } from "@/lib/colors";
 import type { SemanticAnalysisFrame } from "./track-map/types";

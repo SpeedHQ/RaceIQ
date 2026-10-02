@@ -1,4 +1,4 @@
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { RACING_LINE_SEMANTIC_ID, type RacingLineReference } from "../../shared/racing/analysis/laps/insights/types";
 import { getBundledTrackName, loadBundledPointCsvByName } from "../../shared/racing/tracks/resolve-name";
 import { loadLabelledSegments } from "../../shared/racing/tracks/storage/meta";

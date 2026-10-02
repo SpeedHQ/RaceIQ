@@ -15,7 +15,7 @@ import { getLapStats } from "../db/lap-read-queries";
 import { setCacheMaxBytes } from "../db/telemetry-replay-storage";
 import { getRunningGame } from "../games/registry";
 import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outlines";
-import { getLMUTrack } from "../../shared/games/lmu/catalog";
+import { getLMUTrack } from "@raceiq/games/lmu/catalog";
 import { withOnboardingOverride } from "../runtime/options";
 
 import { getGeminiModelsDetailed, getOpenAiCompatibleModelsDetailed, getOpenAiModelsDetailed, getProviders } from "../ai/providers";

@@ -13,7 +13,7 @@ import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame } from "./framing";
 import { clearSessionCaptureCache, iterateSessionCaptureRecordsFromSource, type SessionCaptureSource } from "./source-loader";
 import { SparseCaptureEncoder } from "./sparse-recorder";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 
 
 type Candidate = { rawFile: string; gameId: GameId; sessionIds: number[] };

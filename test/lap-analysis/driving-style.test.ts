@@ -8,8 +8,8 @@ import {
   summariseLapStyle,
   type LapStyleSummary,
 } from "@shared/racing/analysis/laps/driving-style";
-import { initGameAdapters } from "@shared/games/init";
-import type { GameId } from "../../shared/games/ids";
+import { initGameAdapters } from "@raceiq/games/init";
+import type { GameId } from "@raceiq/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 // Steering normalisation is the one genuinely game-dependent step, so the

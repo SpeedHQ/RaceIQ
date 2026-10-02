@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
-import { parseAcEvoBuffers, createAcEvoParserCache, type AcEvoParserCache } from "../../../server/games/ac-evo/parser";
-import { PHYSICS, GRAPHICS_EVO, STATIC_EVO, ACEVO_STATUS } from "../../../server/games/ac-evo/structs";
+import { parseAcEvoBuffers, createAcEvoParserCache, type AcEvoParserCache } from "@raceiq/game-ac-evo/parser";
+import { PHYSICS, GRAPHICS_EVO, STATIC_EVO, ACEVO_STATUS } from "@raceiq/game-ac-evo/structs";
 
 /**
  * Physics-rate DistanceTraveled derivation (`integrateDistance` in distance.ts).

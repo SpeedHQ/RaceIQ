@@ -4,8 +4,8 @@ import { getLapSummariesByTrack } from "../../db/lap-read-queries";
 import { fmCarSpecsCatalog } from "../../../shared/racing/cars/fm";
 import { resolveCarName } from "../../../shared/racing/cars/resolve-name";
 import { tryGetServerGame } from "../../games/registry";
-import type { GameId } from "../../../shared/games/ids";
-import { getLMUCar } from "../../../shared/games/lmu/catalog";
+import type { GameId } from "@raceiq/games/ids";
+import { getLMUCar } from "@raceiq/games/lmu/catalog";
 import { decodeTrackKey, TrackKeyParamSchema } from "./support";
 
 export const trackLeaderboardRoutes = new Hono()

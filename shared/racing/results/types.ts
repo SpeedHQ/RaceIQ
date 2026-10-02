@@ -1,4 +1,4 @@
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 
 export type RaceResultSourceStatus = "direct" | "derived" | "simplified" | "unavailable";
 export type RaceResultOutcomeStatus = "confirmed" | "provisional" | "unavailable";

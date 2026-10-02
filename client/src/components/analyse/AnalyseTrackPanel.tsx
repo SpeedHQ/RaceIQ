@@ -1,4 +1,4 @@
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { RefObject } from "react";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
 import { m } from "../../paraglide/messages";

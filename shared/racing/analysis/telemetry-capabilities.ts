@@ -3,7 +3,7 @@ import type {
   AnalysisTelemetryMetric,
   AnalysisTelemetryModel,
   GameAdapter,
-} from "../../games/types";
+} from "@raceiq/games/types";
 
 export const DEFAULT_ANALYSIS_TELEMETRY: AnalysisTelemetryModel = {
   balance: { source: "unavailable", reason: "missing-model" },

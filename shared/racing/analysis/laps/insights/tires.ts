@@ -1,5 +1,5 @@
 import type { TelemetryPacket } from "../../../../telemetry/types";
-import type { TelemetryModel } from "../../../../games/types";
+import type { TelemetryModel } from "@raceiq/games/types";
 import type { LapInsight, OrderedInsight } from "./types";
 import { appendInsights, INSIGHT_ORDER, insightAt, insightsAt, midFrame } from "./types";
 import { EventRun } from "./types";

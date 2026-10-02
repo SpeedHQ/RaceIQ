@@ -3,7 +3,7 @@ import { DuckDBInstance } from "@duckdb/node-api";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { previewLMUDuckDB, readLMUDuckDBFrames } from "../../../server/games/lmu/import-duckdb";
+import { previewLMUDuckDB, readLMUDuckDBFrames } from "@raceiq/game-lmu/import-duckdb";
 
 test("LMU database views cannot read files outside the imported database", async () => {
   const directory = mkdtempSync(join(tmpdir(), "raceiq-lmu-import-security-"));

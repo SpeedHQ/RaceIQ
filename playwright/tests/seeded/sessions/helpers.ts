@@ -1,6 +1,6 @@
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { LapMeta, SessionMeta } from "../../../../shared/racing/sessions/types";
 
 export type SessionRow = Pick<SessionMeta, "id" | "source" | "notes">;

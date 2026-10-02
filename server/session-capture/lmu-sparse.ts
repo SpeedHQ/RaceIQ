@@ -1,4 +1,4 @@
-import { LMU_SOURCE_FRAME_HEADER_SIZE, LMU_SOURCE_FRAME_V2_SIZE } from "../games/lmu/source-frame";
+import { LMU_SOURCE_FRAME_HEADER_SIZE, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/game-lmu/source-frame";
 
 export const LMU_SPARSE_MAGIC = Buffer.from("LMSD", "ascii");
 const SHARED_MEMORY_BYTES = 324_820;

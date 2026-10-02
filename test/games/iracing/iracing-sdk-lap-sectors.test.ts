@@ -5,11 +5,11 @@ import { initServerGameAdapters } from "../../../server/games/init";
 import {
   createIRacingParserState,
   normalizeIRacingFrame,
-} from "../../../server/games/iracing/normalizer";
-import { LapDetectorIRacing } from "../../../server/games/iracing/lap-detector";
+} from "@raceiq/game-iracing/normalizer";
+import { LapDetectorIRacing } from "@raceiq/game-iracing/lap-detector";
 import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports"
 import { SectorTracker } from "../../../server/live-strategy/sector-tracker";
-import { initGameAdapters } from "../../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 
 initGameAdapters();

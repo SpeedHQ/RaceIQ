@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getLMUTrackBoundaries } from "../../../shared/games/lmu/track-boundaries";
+import { getLMUTrackBoundaries } from "@raceiq/games/lmu/track-boundaries";
 
 
 interface Point {

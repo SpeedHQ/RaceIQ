@@ -1,4 +1,4 @@
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 
 import type { TelemetryVersionIdentity } from "@shared/telemetry/version";
 

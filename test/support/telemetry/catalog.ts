@@ -22,4 +22,4 @@ export {
   isTelemetryEnumValue,
 } from "../../../shared/telemetry/catalog/query";
 export { assertTelemetryCatalogComplete } from "../../../shared/telemetry/catalog/validation";
-export { KNOWN_GAME_IDS } from "../../../shared/games/ids";
+export { KNOWN_GAME_IDS } from "@raceiq/games/ids";

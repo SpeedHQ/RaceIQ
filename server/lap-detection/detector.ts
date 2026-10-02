@@ -12,7 +12,7 @@
  * Fuel and tire wear deltas are tracked per-lap for strategy overlays.
  */
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { ILapDetector, LapDetectorOptions, LapDetectorPolicy } from "./types";
 import { extractCurbSegments, recordCurbData } from "../../shared/racing/tracks/recording/curbs";
 import { recordLapTrace } from "../../shared/racing/tracks/recording/outlines";

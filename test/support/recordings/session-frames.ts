@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { getServerGame } from "../../../server/games/registry";
 import { META_FRAME_MAGIC } from "../../../server/session-capture/framing"

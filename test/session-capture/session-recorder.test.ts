@@ -6,7 +6,7 @@ import { gunzipSync } from "node:zlib";
 import { SessionRecorder } from "../../server/session-capture/recorder";
 import { META_FRAME_MAGIC } from "../../server/session-capture/framing";
 import { getServerGame } from "../../server/games/registry";
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { readUdpDump } from "../support/recordings/udp";
 

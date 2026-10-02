@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { initGameAdapters } from "../../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { getAccTracks } from "../../../shared/racing/tracks/catalogs/acc";
 import { flipPoints, needsTrackFlip } from "../../../shared/racing/tracks/coords";
 import { getTrackBoundariesByOrdinal } from "../../../shared/racing/tracks/geometry/extracted";

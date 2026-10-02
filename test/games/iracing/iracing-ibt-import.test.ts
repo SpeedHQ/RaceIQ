@@ -19,10 +19,10 @@ import {
   commitStagedIbt,
   previewIbtFile,
   stageIbtUpload,
-} from "../../../server/games/iracing/import-ibt";
+} from "@raceiq/game-iracing/import-ibt";
 import { initServerGameAdapters } from "../../../server/games/init";
-import { iracingAdapter } from "../../../shared/games/iracing";
-import { initGameAdapters } from "../../../shared/games/init";
+import { iracingAdapter } from "@raceiq/games/iracing";
+import { initGameAdapters } from "@raceiq/games/init";
 import {
   createRecording,
   drivenRows,

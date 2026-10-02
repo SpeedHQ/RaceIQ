@@ -8,7 +8,7 @@ import { describe, test, expect, afterEach } from "bun:test";
 import { db } from "../../server/db/index";
 import { sessions, laps } from "../../server/db/schema";
 import { eq } from "drizzle-orm";
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { tuneRoutes } from "../../server/routes/tune-routes";
 

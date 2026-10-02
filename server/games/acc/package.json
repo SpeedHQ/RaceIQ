@@ -1,0 +1,1 @@
+{"name":"@raceiq/game-acc","private":true,"type":"module","scripts":{"test":"bun ../../../scripts/test/run-game-tests.ts acc"},"exports":{"./index":"./index.ts","./*":"./*.ts"},"dependencies":{"@raceiq/games":"workspace:*"}}

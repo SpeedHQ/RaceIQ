@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { resolveCarName } from "../../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../../shared/racing/tracks/resolve-name";
-import { initGameAdapters } from "../../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { buildChatSystemPrompt, formatLapChatIdentity } from "../../../server/ai/chat-prompt";
 

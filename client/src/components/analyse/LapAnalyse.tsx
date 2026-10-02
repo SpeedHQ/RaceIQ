@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { routePrefixForGameId } from "../../lib/game-routes";
-import { resolveLMUCar } from "../../../../shared/games/lmu/catalog";
+import { resolveLMUCar } from "@raceiq/games/lmu/catalog";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { F1CarSetup } from "../../../../shared/telemetry/f1-2025";

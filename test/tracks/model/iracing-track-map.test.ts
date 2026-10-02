@@ -3,7 +3,7 @@ import {
   alignIRacingAutoSegmentsToTurnLabels,
   parseIRacingActiveSvg,
   parseIRacingTurnLabels,
-} from "../../../server/games/iracing/track-map-svg";
+} from "@raceiq/game-iracing/track-map-svg";
 import { getIRacingSharedTrackName,
 getIRacingTrack, } from "../../../shared/racing/tracks/catalogs/iracing"
 import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";

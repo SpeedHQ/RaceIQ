@@ -1,5 +1,5 @@
 import { Select } from "@base-ui/react/select";
-import { getAllGames } from "@shared/games/registry";
+import { getAllGames } from "@raceiq/games/registry";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   Binary,

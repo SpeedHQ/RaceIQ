@@ -1,4 +1,4 @@
-import { getGame } from "@shared/games/registry";
+import { getGame } from "@raceiq/games/registry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { resolveWheelMetric } from "../../../../shared/racing/analysis/metric-values";
 import { suspensionCompressionBias } from "../../../../shared/racing/analysis/laps/physics/vehicle";
@@ -10,7 +10,7 @@ import { WheelTable } from "./WheelTable";
 
 interface Props {
   frame: SemanticAnalysisFrame;
-  gameId: import("../../../../shared/games/ids").GameId;
+  gameId: import("@raceiq/games/ids").GameId;
 }
 const unavailable = <span className="text-app-text-dim">—</span>;
 

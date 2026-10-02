@@ -1,5 +1,5 @@
-import { getGame, tryGetGame } from "@shared/games/registry";
-import { WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
+import { getGame, tryGetGame } from "@raceiq/games/registry";
+import { WATTS_PER_HORSEPOWER } from "@raceiq/games/telemetry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { m } from "@/paraglide/messages";
 import { useCarName } from "../hooks/catalog-queries";

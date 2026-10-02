@@ -3,7 +3,7 @@
  * Provides comparison context; cached analyses are retrieved through the
  * visible get_lap_analysis tool call instead of being embedded here.
  */
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { ComparisonResult } from "../lap-analysis/comparison";
 import type { UnitSystem, TemperatureUnit } from "../lap-analysis/report";
 import { getPromptCarName, getPromptTrackName, compareEngineerPersona, compareLapHeader } from "./compare-engineer";

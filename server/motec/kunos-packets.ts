@@ -1,4 +1,4 @@
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { KunosExtendedData } from "../../shared/telemetry/kunos";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { PreparedKunosMotecCapture } from "./kunos-synthesis";

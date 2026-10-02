@@ -1,4 +1,4 @@
-import { getGame } from "@shared/games/registry";
+import { getGame } from "@raceiq/games/registry";
 import { m } from "@/paraglide/messages";
 import { useCarName } from "../../hooks/catalog-queries";
 import { useTrackName } from "../../hooks/track-queries";

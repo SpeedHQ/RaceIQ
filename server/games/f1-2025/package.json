@@ -1,0 +1,1 @@
+{"name":"@raceiq/game-f1-2025","private":true,"type":"module","scripts":{"test":"bun ../../../scripts/test/run-game-tests.ts f1-2025"},"exports":{"./index":"./index.ts","./*":"./*.ts"},"dependencies":{"@raceiq/games":"workspace:*","fzstd":"^0.1.1"}}

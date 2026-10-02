@@ -1,5 +1,5 @@
-import { getGame } from "@shared/games/registry";
-import { getFuelAmount, getFuelDisplaySemantic, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
+import { getGame } from "@raceiq/games/registry";
+import { getFuelAmount, getFuelDisplaySemantic, WATTS_PER_HORSEPOWER } from "@raceiq/games/telemetry";
 import { useEffect, useRef, useState } from "react";
 import { severityColor } from "@/lib/colors";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";

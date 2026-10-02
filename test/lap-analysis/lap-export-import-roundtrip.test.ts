@@ -16,10 +16,10 @@ import { eq, inArray } from "drizzle-orm";
 import { unzipSync, zipSync } from "fflate";
 import { db } from "../../server/db/index";
 import { sessions, laps } from "../../server/db/schema";
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
-import { isIRacingSessionFrame } from "../../server/games/iracing/source-frame";
-import { readIRacingFrames } from "../../server/games/iracing/recorder";
+import { isIRacingSessionFrame } from "@raceiq/game-iracing/source-frame";
+import { readIRacingFrames } from "@raceiq/game-iracing/recorder";
 import { importSessionFrames } from "../../server/session-capture/import-pipeline";
 import { getSessionResult } from "../../server/db/session-result-queries";
 import { buildLapsZip, importLapsZip, type LapsZipManifest } from "../../server/laps/archive";
@@ -34,7 +34,7 @@ import {
   META_FRAME_BYTES,
 } from "../../server/session-capture/framing";
 import { queryLapTelemetryBySemanticId } from "../../server/telemetry/replay";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { buildLd, buildLdx, syntheticStint } from "../support/motec/ld";
 initGameAdapters();
 initServerGameAdapters();

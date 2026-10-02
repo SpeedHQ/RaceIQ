@@ -1,6 +1,6 @@
 import { m } from "@/paraglide/messages";
 import { useMemo, useState } from "react";
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { formatLapTime } from "@/lib/format";
 import { useUnits } from "../../hooks/useUnits";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";

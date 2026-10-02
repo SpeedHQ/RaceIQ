@@ -6,10 +6,10 @@
  * client just renders numbers.
  */
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { LiveSectorData } from "../../shared/racing/live/types";
-import { getGame } from "../../shared/games/registry";
-import type { GameAdapter } from "../../shared/games/types";
+import { getGame } from "@raceiq/games/registry";
+import type { GameAdapter } from "@raceiq/games/types";
 import { resolveTrack } from "../tracks/info";
 import {
   interpolateMonotonic,

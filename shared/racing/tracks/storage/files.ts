@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { GameIdSchema } from "@shared/games/ids";
+import { GameIdSchema } from "@raceiq/games/ids";
 import { USER_TRACKS_DIR } from "@shared/platform/runtime/data-paths";
 
 export const userDir = USER_TRACKS_DIR;

@@ -3,9 +3,9 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from
 import { dirname, resolve } from "node:path";
 
 import { writeSetupFile } from "../ai/tune-writer";
-import { carSetupToKnobValues } from "../games/ac-evo/carsetup";
-import { parseCarSetup } from "../games/ac-evo/carsetup-wire";
-import { patchCarSetup } from "../games/ac-evo/carsetup-writer";
+import { carSetupToKnobValues } from "@raceiq/game-ac-evo/carsetup";
+import { parseCarSetup } from "@raceiq/game-ac-evo/carsetup-wire";
+import { patchCarSetup } from "@raceiq/game-ac-evo/carsetup-writer";
 import type { ExperimentGameId } from "../experiments/setup-lineage";
 import { isPathWithinSetupsFolder, sanitizeSetupStem, resolveGuardedSetupFile } from "./file-guard";
 

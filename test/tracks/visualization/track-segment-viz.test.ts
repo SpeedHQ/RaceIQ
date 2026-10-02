@@ -7,7 +7,7 @@
 import { describe, test, expect } from "bun:test";
 import { mkdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
-import { initGameAdapters } from "../../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import {
   autoTrackSegments,
   findCenterlines,

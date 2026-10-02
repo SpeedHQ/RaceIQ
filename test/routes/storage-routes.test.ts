@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { miscRoutes } from "../../server/routes/system";
-import { initGameAdapters } from "../../shared/games/init";
-import { getAllGames } from "../../shared/games/registry";
+import { initGameAdapters } from "@raceiq/games/init";
+import { getAllGames } from "@raceiq/games/registry";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { resolveDataDir } from "../../server/runtime/config/data-dir";

@@ -1,5 +1,5 @@
-import { getGame } from "@shared/games/registry";
-import { getFuelDisplay } from "@shared/games/telemetry";
+import { getGame } from "@raceiq/games/registry";
+import { getFuelDisplay } from "@raceiq/games/telemetry";
 import { hasTireHealthData, hasTireHealthDataSemantic, resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { severityColor } from "@/lib/colors";
 import { tireHealthPctColor } from "@/lib/vehicle-dynamics";

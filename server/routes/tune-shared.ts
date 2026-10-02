@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { GameIdSchema } from "../../shared/games/ids";
-import type { GameId } from "../../shared/games/ids";
+import { GameIdSchema } from "@raceiq/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { RaceStrategy, TuneSettings } from "../../shared/racing/tuning/types";
 
 

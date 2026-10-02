@@ -6,7 +6,7 @@ import type { ResolvedValue, SourceObservation, TelemetryFrameView, TelemetryTim
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { getLapById } from "../db/lap-read-queries";
 import { getLapReplaySource, type LapReplaySource } from "../db/telemetry-replay-storage";
-import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, type IRacingValue } from "../games/iracing/source-frame";
+import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, type IRacingValue } from "@raceiq/game-iracing/source-frame";
 import { iterateSessionCaptureRecords } from "../session-capture/framing";
 import { loadRawCaptureIdentity, type RawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
 export interface QueryLapTelemetryOptions {

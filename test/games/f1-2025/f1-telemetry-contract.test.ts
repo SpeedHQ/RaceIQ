@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { F1StateAccumulator } from "../../../server/games/f1-2025/f1-state";
-import { initGameAdapters } from "@shared/games/init";
+import { F1StateAccumulator } from "@raceiq/game-f1-2025/f1-state";
+import { initGameAdapters } from "@raceiq/games/init";
 import { analyzeLap } from "@shared/racing/analysis/laps/insights/analyze";
 import { processLap } from "@shared/racing/analysis/laps/insights/process";
 import type { TelemetryPacket } from "@shared/telemetry/types";
 import {
   F1_HEADER_SIZE,
   type F1Header,
-} from "../../../server/games/f1-2025/f1-wire";
+} from "@raceiq/game-f1-2025/f1-wire";
 
 function header(packetId: number): F1Header {
   return {

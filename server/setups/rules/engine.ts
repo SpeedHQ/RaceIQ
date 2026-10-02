@@ -1,5 +1,5 @@
 /** Deterministic setup mutation and live knob inspection. */
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { TuneIntent, TuneMagnitude } from "../../ai/schemas";
 import { getRuleTable, type FieldDef } from "./catalog";
 

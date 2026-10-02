@@ -5,7 +5,7 @@ import { AppInput } from "@/components/ui/AppInput";
 import { SearchSelect } from "../ui/SearchSelect";
 import { useTracksForGame } from "../../hooks/catalog-queries";
 import { m } from "@/paraglide/messages";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { Button } from "../ui/button";
 import { FillForm } from "./FillForm";
 export interface SetupTuneData {

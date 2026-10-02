@@ -16,7 +16,7 @@ import {
   hasRecordedOutline as sharedHasRecordedOutline,
 } from "../../../shared/racing/tracks/recording/outlines";
 import { loadSharedBoundary } from "../../../shared/racing/tracks/geometry/shared";
-import { getLMUTrackBoundaries } from "../../../shared/games/lmu/track-boundaries";
+import { getLMUTrackBoundaries } from "@raceiq/games/lmu/track-boundaries";
 import { decodeTrackKey, OrdinalKeyParamSchema } from "./support";
 import {
   calibrateFromPositions,
@@ -27,7 +27,7 @@ import {
   refineAlignmentWithCurbs,
   transformToSourceSpace,
 } from "../../tracks/calibration";
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { getSharedTrackName, requireGameId } from "./support";
 
 export const trackCalibrationRoutes = new Hono()

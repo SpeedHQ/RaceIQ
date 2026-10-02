@@ -1,7 +1,7 @@
 import { readKunosFrames } from "../../../server/games/kunos/frame-reader";
-import { parseAccBuffers } from "../../../server/games/acc/parser";
-import { readWString } from "../../../server/games/acc/utils";
-import { STATIC } from "../../../server/games/acc/structs";
+import { parseAccBuffers } from "@raceiq/game-acc/parser";
+import { readWString } from "@raceiq/game-acc/utils";
+import { STATIC } from "@raceiq/game-acc/structs";
 import { getAccCarByModel } from "../../../shared/racing/cars/acc"
 import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
 import { createWriteStream } from "node:fs";

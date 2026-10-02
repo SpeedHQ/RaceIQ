@@ -12,7 +12,7 @@
  */
 import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import { initGameAdapters } from "../../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { detectCorners } from "../../../server/lap-analysis/corners";
 import { telemetryToSymptoms } from "../../../server/ai/tune-symptoms";
 import { symptomsToIssues } from "../../../server/ai/tune-issues";

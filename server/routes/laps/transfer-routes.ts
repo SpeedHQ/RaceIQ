@@ -4,19 +4,19 @@ import { resolve } from "node:path";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
-import { KNOWN_GAME_IDS } from "../../../shared/games/ids";
-import { getGame } from "../../../shared/games/registry";
+import { KNOWN_GAME_IDS } from "@raceiq/games/ids";
+import { getGame } from "@raceiq/games/registry";
 import { getLapsForSession } from "../../db/lap-reprocessing-queries";
 import { getTuneById as getDbTune } from "../../db/tune-queries";
 import { buildLapsZip, lapsZipFilename, importLapsZip, detectLapsZip } from "../../laps/archive";
 import { importSessionBin, detectGameIdFromBuffer } from "../../session-capture/import-capture";
 import { RealSessionRecorderAdapter } from "../../telemetry/pipeline-ports";
-import { cancelStagedIbt, commitStagedIbt, IbtImportError, stageIbtUpload } from "../../games/iracing/import-ibt";
+import { cancelStagedIbt, commitStagedIbt, IbtImportError, stageIbtUpload } from "@raceiq/game-iracing/import-ibt";
 import {
   importLMUDuckDB,
   isDuckDBFile,
   previewLMUDuckDB,
-} from "../../games/lmu/import-duckdb";
+} from "@raceiq/game-lmu/import-duckdb";
 import { importMotec, resolveMotecTarget } from "../../motec/import";
 import { getMotecTargets, initMotecTargets } from "../../motec/targets";
 import { loadStagedMotec, removeStagedMotec, stageMotecArchive } from "../../motec/import-staging";

@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
-import { getGame } from "../../../shared/games/registry";
-import { initGameAdapters } from "../../../shared/games/init";
-import { requiredSemanticIds } from "../../../shared/games/metric-contracts";
+import { getGame } from "@raceiq/games/registry";
+import { initGameAdapters } from "@raceiq/games/init";
+import { requiredSemanticIds } from "@raceiq/games/metric-contracts";
 import { assertRecordedCatalogCoverage, changingPacketFields } from "../../support/telemetry/catalog-e2e";
 import { readKunosFrames } from "../../../server/games/kunos/frame-reader";
-import { createAcEvoParserCache, parseAcEvoBuffers } from "../../../server/games/ac-evo/parser";
+import { createAcEvoParserCache, parseAcEvoBuffers } from "@raceiq/game-ac-evo/parser";
 import { LiveTelemetryProjector } from "../../../server/telemetry/live-projector";
 import { buildLiveTelemetryView } from "../../../client/src/lib/live-telemetry-view";
 initGameAdapters();

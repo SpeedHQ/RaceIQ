@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { initGameAdapters } from "../../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { buildTrackGuideContext, guideCornerLabels, getAvailableTrackGuides } from "../../../server/ai/track-guides";
 

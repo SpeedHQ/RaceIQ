@@ -13,6 +13,10 @@ on:
         description: "Branch or ref to build and test"
         required: false
         type: string
+      base_ref:
+        description: "Base commit or ref for game unit, tooling, and integration test selection"
+        required: false
+        type: string
 concurrency:
   group: build-test-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
@@ -73,7 +77,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.target_ref || github.ref }}
-
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4
@@ -105,15 +109,27 @@ jobs:
 
       - name: Check generated telemetry catalog
         run: bun scripts/ci/check-telemetry-catalog.ts
+      - name: Select unit, tooling, and integration files
+        id: select-tests
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          INPUT_BASE_REF: ${{ inputs.base_ref }}
+          RUNNER_TEMP: ${{ runner.temp }}
+        run: bun scripts/test/select-game-tests-ci.ts
 
       - name: Run unit tests
-        run: bun run test:unit
+        if: steps.select-tests.outputs.run_unit == 'true'
+        run: bun scripts/test/run-suite.ts unit --files "${{ steps.select-tests.outputs.unit_files }}"
 
-      - name: Run toolchain tests
-        run: bun run test:tooling
+      - name: Run tooling tests
+        if: steps.select-tests.outputs.run_tooling == 'true'
+        run: bun scripts/test/run-suite.ts tooling --files "${{ steps.select-tests.outputs.tooling_files }}"
 
       - name: Run integration tests
-        run: bun run test:integration
+        if: steps.select-tests.outputs.run_integration == 'true'
+        run: bun scripts/test/run-suite.ts integration --files "${{ steps.select-tests.outputs.integration_files }}"
 
 
   changelog:

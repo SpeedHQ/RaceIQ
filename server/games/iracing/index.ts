@@ -1,4 +1,4 @@
-import { iracingAdapter } from "../../../shared/games/iracing";
+import { iracingAdapter } from "@raceiq/games/iracing";
 import { getIRacingSharedTrackName,
 getIRacingTrackName,
 getIRacingTrackOrdinalByName, } from "../../../shared/racing/tracks/catalogs/iracing"

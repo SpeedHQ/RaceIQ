@@ -2,13 +2,13 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { createReadStream } from "node:fs";
 import { createGunzip } from "node:zlib";
 import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
-import { LMU_TELEMETRY, LMU_WHEEL, LMU_WHEEL_SIZE } from "../../server/games/lmu/layout";
-import { decodeLMUSourceFrame } from "../../server/games/lmu/source-frame";
-import { normalizeLMUSourceFrame } from "../../server/games/lmu/normalizer";
+import { LMU_TELEMETRY, LMU_WHEEL, LMU_WHEEL_SIZE } from "@raceiq/game-lmu/layout";
+import { decodeLMUSourceFrame } from "@raceiq/game-lmu/source-frame";
+import { normalizeLMUSourceFrame } from "@raceiq/game-lmu/normalizer";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { combineRecordingParts, type CombinedRecording } from "../../scripts/lib/combine-recording-parts";
-import { lmuAdapter } from "../../shared/games/lmu";
-import { analyseSemanticIds } from "../../shared/games/metric-contracts";
+import { lmuAdapter } from "@raceiq/games/lmu";
+import { analyseSemanticIds } from "@raceiq/games/metric-contracts";
 import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
 import { compileTelemetryResolver } from "../../shared/telemetry/resolver/compile";
 const FIXTURE_PARTS = [

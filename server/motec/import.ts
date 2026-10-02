@@ -1,7 +1,7 @@
 /**
  * MoTeC `.ld` import entry point.
  *
- * Transcodes the log to an AC Evo session capture (see `../games/ac-evo/motec.ts`) and feeds
+ * Transcodes the log to an AC Evo session capture (see `@raceiq/game-ac-evo/motec`) and feeds
  * it through the ordinary import pipeline, so imported laps are built by the
  * same lap detector, sector timer and metrics code as recorded ones — and are
  * re-materialisable afterwards, because the pipeline's recorder persists the
@@ -14,7 +14,7 @@
  *
  * `.ld` is a container format, not a schema: the channel names, units and
  * corner-suffix conventions inside one are chosen by whichever exporter wrote
- * it. The mapping in `../games/ac-evo/motec.ts` was derived from an AC Evo export and has
+ * it. The mapping in `@raceiq/game-ac-evo/motec` was derived from an AC Evo export and has
  * only ever been checked against one. Pointing it at an iRacing or rFactor log
  * would produce frames that parse cleanly and mean the wrong things — silently.
  *
@@ -30,12 +30,12 @@ import { parseLd } from "./ld";
 import { parseLdxBeacons } from "./ldx";
 import type { MotecCarTrack } from "./types";
 import type { SessionOwnership } from "../../shared/racing/sessions/types";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import {
   analyseSemanticIds,
   unavailableAnalysisFeatures,
   type UnavailableAnalysisFeature,
-} from "../../shared/games/metric-contracts";
+} from "@raceiq/games/metric-contracts";
 import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
 import { groupsById } from "../../shared/telemetry/catalog/query";
 import { resolveMotecTarget } from "./targets";

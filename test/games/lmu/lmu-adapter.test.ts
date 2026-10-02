@@ -3,14 +3,14 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DuckDBInstance, type DuckDBConnection } from "@duckdb/node-api";
-import { lmuAdapter } from "../../../shared/games/lmu";
+import { lmuAdapter } from "@raceiq/games/lmu";
 import {
   resolveLMUCar,
   resolveLMUTrack,
-} from "../../../shared/games/lmu/catalog";
-import { resolveLMUInvalidReason } from "../../../server/games/lmu/lap-policy";
+} from "@raceiq/games/lmu/catalog";
+import { resolveLMUInvalidReason } from "@raceiq/game-lmu/lap-policy";
 import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
-import { lmuServerAdapter } from "../../../server/games/lmu";
+import { lmuServerAdapter } from "@raceiq/game-lmu/index";
 import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports";
 import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
 import { compileTelemetryResolver } from "../../../shared/telemetry/resolver/compile";
@@ -18,7 +18,7 @@ import { transferRoutes } from "../../../server/routes/laps/transfer-routes";
 import {
   previewLMUDuckDB,
   readLMUDuckDBFrames,
-} from "../../../server/games/lmu/import-duckdb";
+} from "@raceiq/game-lmu/import-duckdb";
 import {
   LMU_GAME_VERSION_OFFSET,
   LMU_SCORING_INFO,
@@ -33,17 +33,17 @@ import {
   LMU_TELEMETRY_INFO_OFFSET,
   LMU_WHEEL,
   LMU_WHEEL_SIZE,
-} from "../../../server/games/lmu/layout";
+} from "@raceiq/game-lmu/layout";
 import {
   LMURecorder,
   readLMUFrames,
-} from "../../../server/games/lmu/recorder";
-import { LMUTelemetrySource } from "../../../server/games/lmu/source";
+} from "@raceiq/game-lmu/recorder";
+import { LMUTelemetrySource } from "@raceiq/game-lmu/source";
 import {
   canHandleLMUSourceFrame,
   decodeLMUSourceFrame,
   encodeLMUSourceFrame,
-} from "../../../server/games/lmu/source-frame";
+} from "@raceiq/game-lmu/source-frame";
 
 const temporaryDirectories: string[] = [];
 

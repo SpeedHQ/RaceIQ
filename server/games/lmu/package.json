@@ -1,0 +1,1 @@
+{"name":"@raceiq/game-lmu","private":true,"type":"module","scripts":{"test":"bun ../../../scripts/test/run-game-tests.ts lmu"},"exports":{"./index":"./index.ts","./*":"./*.ts"},"dependencies":{"@raceiq/games":"workspace:*","drizzle-orm":"^0.45.2"}}

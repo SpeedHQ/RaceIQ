@@ -7,7 +7,7 @@ import { useResolveNames } from "@/hooks/catalog-queries";
 import { useCatalogTunes, useUserTunes } from "@/hooks/tunes";
 import { tuneMatchesTrack } from "@/lib/track-match";
 import { m } from "@/paraglide/messages";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { TuneSettings } from "../../../../shared/racing/tuning/types";
 import { Button } from "../ui/button";
 

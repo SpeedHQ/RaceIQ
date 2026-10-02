@@ -1,5 +1,5 @@
 import { type ReactNode, useLayoutEffect, useState } from "react";
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { gameStore } from "../stores/game";
 
 export function GameStoryScope({ gameId, children }: { gameId: GameId; children: ReactNode }) {

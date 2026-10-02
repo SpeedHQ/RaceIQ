@@ -1,11 +1,11 @@
 import { existsSync, unlinkSync } from "node:fs";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { LapMeta, SessionOwnership } from "../../shared/racing/sessions/types";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { deleteSession, updateSessionSource } from "../db/session-queries";
 import { getServerGame } from "../games/registry";
-import { isIRacingSessionFrame } from "../games/iracing/source-frame";
+import { isIRacingSessionFrame } from "@raceiq/game-iracing/source-frame";
 import { SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END } from "./framing";
 import { applyFrameTime } from "./frame-time";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";

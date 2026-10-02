@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { parseRawLapFramesFromBuffer } from "../../server/db/telemetry-replay-storage";
 import { loadSessionCapture } from "../../server/session-capture/source-loader";
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { META_FRAME_MAGIC } from "../../server/session-capture/framing"
 import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline"

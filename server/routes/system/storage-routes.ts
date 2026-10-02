@@ -6,7 +6,7 @@ import { z } from "zod";
 import { previewSessionCleanup, executeSessionCleanup, SessionCleanupBusyError } from "../../session-capture/session-cleanup";
 import type { SessionCleanupRequest } from "../../../shared/racing/sessions/cleanup";
 
-import { getAllGames } from "../../../shared/games/registry";
+import { getAllGames } from "@raceiq/games/registry";
 import { resolveDataDir } from "../../runtime/config/data-dir";
 
 interface GameStorageStats {

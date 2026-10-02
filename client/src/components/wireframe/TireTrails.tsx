@@ -1,11 +1,11 @@
 import { resolveWheelStates } from "../../../../shared/racing/analysis/metric-values";
-import { getGame } from "@shared/games/registry";
+import { getGame } from "@raceiq/games/registry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import * as THREE from "three/webgpu";
 import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { getWheelOffsets, resolveTrailLateralUtilization, trailColorFromState } from "../../lib/wireframe-utils";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 
 const TRAIL_LENGTH_M_DEFAULT = 4;
 const TRAIL_LENGTH_M_ACC = 2;

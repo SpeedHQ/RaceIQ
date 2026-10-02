@@ -18,7 +18,7 @@ import { resolveTrackName } from "../../../shared/racing/tracks/resolve-name";
 import { getTrackGuide } from "../../ai/track-guides";
 import type { Corner } from "../../lap-analysis/corners";
 import { cornerNumbers } from "../../../shared/racing/tracks/facts";
-import { getLMUTrack } from "../../../shared/games/lmu/catalog";
+import { getLMUTrack } from "@raceiq/games/lmu/catalog";
 import { splitSegments } from "../../../shared/racing/tracks/curation/join";
 import { cornerKey } from "../../../shared/racing/tracks/keys";
 import {

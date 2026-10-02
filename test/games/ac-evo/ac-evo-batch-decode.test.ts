@@ -7,16 +7,16 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
-import { initGameAdapters } from "../../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { getServerGame } from "../../../server/games/registry";
 import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports"
-import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector"
+import { LapDetectorAcEvo } from "@raceiq/game-ac-evo/lap-detector"
 import { META_FRAME_MAGIC } from "../../../server/session-capture/framing"
 import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
 import { parseRawLapFrames, parseRawLapFramesFromBuffer, parseSessionLapsBatchedForTest } from "../../../server/db/telemetry-replay-storage";
 import { parseAcEvoLapIndex } from "../../../server/games/kunos/lap-index";
-import { createAcEvoParserCache, parseAcEvoBuffers } from "../../../server/games/ac-evo/parser";
+import { createAcEvoParserCache, parseAcEvoBuffers } from "@raceiq/game-ac-evo/parser";
 import { unpackTriplet } from "../../../server/games/kunos/pack-triplet";
 import { loadSessionCapture, setCaptureFileFactoryForTest, clearSessionCaptureCache } from "../../../server/session-capture/source-loader";
 

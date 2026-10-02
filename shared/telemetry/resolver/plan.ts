@@ -1,4 +1,4 @@
-import type { GameId } from "../../games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { TelemetryVariableDefinition } from "../catalog/contracts";
 import type { TelemetryDerivation } from "../derivations/contracts";
 import type { SemanticSlot, SourceObservation } from "./contracts";

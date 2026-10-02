@@ -1,6 +1,6 @@
 import { m } from "@/paraglide/messages";
 import { useMemo, useState } from "react";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { ExperimentVersion, ImportableLap } from "../../hooks/experiments";
 import { useImportableLaps, useImportLaps } from "../../hooks/experiments";
 import { Button } from "../ui/button";

@@ -1,4 +1,4 @@
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { flipBoundaries, flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import type { AlignedTrace } from "@shared/racing/comparison/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

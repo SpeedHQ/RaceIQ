@@ -1,4 +1,4 @@
-import type { GameId } from "../../games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { MappingStatus } from "../derivations/contracts";
 import type { ConfidenceComponents, FreshnessState, ResolutionProvenance, ResolutionState, SemanticSlot, TelemetryTimestamp } from "../resolver/contracts";
 import type { TelemetryVersionIdentity } from "../version";

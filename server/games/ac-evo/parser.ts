@@ -11,7 +11,7 @@
 
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import type { KunosExtendedData, AcEvoExtendedData } from "../../../shared/telemetry/kunos";
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { createAcEvoDistanceState, integrateDistance, type AcEvoDistanceState } from "./distance";
 import { calibratePlayerSlot, createPlayerSlotState, type PlayerSlotState } from "./player-slot";
 import {

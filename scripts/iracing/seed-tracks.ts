@@ -7,7 +7,7 @@ const DEFAULT_TRACKS_SOURCE =
   "https://raw.githubusercontent.com/jasondilworth56/iracingdataapi/main/tests/mock_return_data/get_tracks.json";
 const DEFAULT_ASSETS_SOURCE =
   "https://raw.githubusercontent.com/jasondilworth56/iracingdataapi/main/tests/mock_return_data/get_tracks_assets.json";
-const DEFAULT_OUTPUT = resolve(import.meta.dir, "../../shared/games/iracing/tracks.csv");
+const DEFAULT_OUTPUT = resolve(import.meta.dir, "@raceiq/games/iracing/tracks.csv");
 const MILES_TO_KM = 1.609344;
 
 /**

@@ -1,5 +1,9 @@
 ## Unreleased
 
+### Breaking
+
+- Remove installed-game track extraction commands and Forza/F1 live extraction controls and endpoints. Checked-in catalogs and track assets remain available.
+
 ### Features
 
 - Use structured setup editing without a Paste JSON mode, and label the save action “Save Setup”.
@@ -36,6 +40,7 @@
 - Reuse compiled Paraglide output from the upstream build artifact in snapshot and compiled E2E jobs, with validated cache or compilation fallback.
 - Run compiled E2E gates after build and test without waiting for snapshot comparison.
 - Remove Storybook Docs generation and its addon from local previews and snapshot builds.
+- Split game source into Bun workspaces, migrate application, Storybook, and test consumers to package imports, and select game-owned unit, tooling, and integration tests conservatively by changed paths.
 
 ## v0.19.1 - 2026-10-01
 
@@ -99,8 +104,6 @@
 ## v0.19.0 - 2026-09-28
 
 ### Breaking
-- Open lap replays from session links; old track/car/lap query links no longer work.
-- Older RaceIQ versions cannot open new recordings; keep current version installed to replay captures made with it.
 
 ### Features
 - Add Le Mans Ultimate support.

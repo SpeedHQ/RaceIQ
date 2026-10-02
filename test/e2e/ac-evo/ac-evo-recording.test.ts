@@ -21,8 +21,8 @@ import {
 } from "../../support/recordings/parse-dump";
 import { readKunosFrames } from "../../../server/games/kunos/frame-reader";
 import { parseAcEvoLapIndex } from "../../../server/games/kunos/lap-index";
-import { createAcEvoParserCache } from "../../../server/games/ac-evo/parser";
-import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector";
+import { createAcEvoParserCache } from "@raceiq/game-ac-evo/parser";
+import { LapDetectorAcEvo } from "@raceiq/game-ac-evo/lap-detector";
 import { generateRecordingVisualizations } from "../../support/laps/visualizations";
 import { assertValidLapHasSectors } from "../../support/laps/assertions";
 import { getTrackSectorsByOrdinal } from "../../../shared/racing/tracks/storage/sectors";

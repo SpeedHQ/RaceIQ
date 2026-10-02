@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getFuelDisplaySemantic } from "../../shared/games/telemetry";
+import { getFuelDisplaySemantic } from "@raceiq/games/telemetry";
 import { semanticWheelDynamics, steerBalanceFromSignals } from "../../shared/racing/analysis/laps/physics/vehicle";
 
 describe("semantic Analyse panel parity", () => {

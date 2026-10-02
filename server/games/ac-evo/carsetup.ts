@@ -383,7 +383,7 @@ export function summarizeCarSetup(
 
 /**
  * Flatten a decoded `.carsetup` into a plain object keyed by the knob path
- * names `server/setups/rules/catalog.ts` and `shared/games/ac-evo/setup-ranges.json`
+ * names `server/setups/rules/catalog.ts` and `@raceiq/games/ac-evo/setup-ranges.json`
  * use (`frontARB`, `brakeBias`, `frontLeftTyrePressure`, ...), so
  * `getAllKnobStates`/`describeKnobs` return real current values instead of "?".
  *

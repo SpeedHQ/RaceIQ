@@ -1,5 +1,5 @@
-import type { AnalysisTelemetryMetric } from "../../games/types";
-import type { SemanticValueBinding } from "../../games/metric-contracts";
+import type { AnalysisTelemetryMetric } from "@raceiq/games/types";
+import type { SemanticValueBinding } from "@raceiq/games/metric-contracts";
 import type { SteerBalance, WheelState } from "./laps/physics/vehicle";
 import { frictionCircleUtil, steerBalanceFromSignals, wheelDynamicsFrame } from "./laps/physics/vehicle";
 

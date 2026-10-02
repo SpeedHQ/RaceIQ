@@ -2,7 +2,7 @@ import type { AnalysisUsage } from "./analysis-queries";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { db } from "./index";
 import { driverProfiles, driverProfileRuns } from "./schema";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 
 export interface DriverProfileScopeKey {
   gameId: GameId;

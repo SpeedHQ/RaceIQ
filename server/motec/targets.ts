@@ -18,7 +18,7 @@
  * ## Adding a game
  *
  * 1. Write `server/games/<game>/motec.ts` exporting a `synthesize`-shaped
- *    function and a limitations list, modelled on `server/games/ac-evo/motec.ts`.
+ *    function and a limitations list, modelled on `@raceiq/game-ac-evo/motec`.
  * 2. Add the target to the registry in {@link initMotecTargets}.
  * 3. Nothing else. The import route validates against the registry and the
  *    client surfaces only the selected game's matching target.
@@ -28,8 +28,8 @@
  * tell it went wrong.
  */
 
-import type { GameId } from "../../shared/games/ids";
-import { getGame } from "@shared/games/registry";
+import type { GameId } from "@raceiq/games/ids";
+import { getGame } from "@raceiq/games/registry";
 import type { LdLog } from "./ld";
 import type {
   MotecCarTrack,
@@ -40,8 +40,8 @@ import { MOTEC_IMPORT_LIMITATIONS } from "./kunos-synthesis";
 import {
   convertAccMotecToPackets,
   resolveAccMotecCarTrack,
-} from "../games/acc/motec";
-import { convertAcEvoMotecToPackets } from "../games/ac-evo/motec";
+} from "@raceiq/game-acc/motec";
+import { convertAcEvoMotecToPackets } from "@raceiq/game-ac-evo/motec";
 import { getAcEvoCarByModel, getAcEvoCarName } from "../../shared/racing/cars/ac-evo";
 import {
   getAcEvoTrackByName,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { KNOWN_GAME_IDS } from "../../../shared/games/ids";
+import { KNOWN_GAME_IDS } from "@raceiq/games/ids";
 import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
 import { compileTelemetryResolver } from "../../../shared/telemetry/resolver/compile";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";

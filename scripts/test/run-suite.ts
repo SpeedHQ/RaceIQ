@@ -1,11 +1,16 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { resolve, relative, sep } from "node:path";
+import { resolve, relative, sep, isAbsolute } from "node:path";
 import { checkTestShards } from "./check-shards";
 
 const suite = process.argv[2];
+const selectionArgs = process.argv.slice(3);
 if (suite !== "unit" && suite !== "integration" && suite !== "tooling" && suite !== "e2e") {
-  console.error("Usage: bun scripts/test/run-suite.ts <unit|integration|tooling|e2e>");
+  console.error("Usage: bun scripts/test/run-suite.ts <unit|integration|tooling|e2e> [--files <absolute JSON file>]");
+  process.exit(2);
+}
+if (selectionArgs.length !== 0 && (selectionArgs.length !== 2 || selectionArgs[0] !== "--files")) {
+  console.error("--files requires an absolute JSON file path");
   process.exit(2);
 }
 
@@ -34,6 +39,34 @@ for (const [index, raw] of text.split(/\r?\n/).entries()) {
   files.push(relativePath);
 }
 if (files.length === 0) throw new Error(`${manifestPath}: no test files`);
+if (selectionArgs.length === 2) {
+  if (!isAbsolute(selectionArgs[1]!)) throw new Error("--files requires an absolute JSON file path");
+  let selectedValue: unknown;
+  try {
+    selectedValue = JSON.parse(await Bun.file(selectionArgs[1]!).text());
+  } catch (error) {
+    throw new Error(`Invalid --files JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (!Array.isArray(selectedValue)) throw new Error("--files JSON must be an array");
+  const selectedFiles = new Set<string>();
+  for (const value of selectedValue) {
+    if (typeof value !== "string") throw new Error("--files entries must be strings");
+    const normalized = value.replaceAll("\\", "/");
+    const absolute = resolve(root, normalized);
+    const relativePath = relative(root, absolute).replaceAll(sep, "/");
+    if (relativePath !== normalized || !relativePath.startsWith("test/")) {
+      throw new Error(`--files path must stay inside test/: ${value}`);
+    }
+    if (selectedFiles.has(relativePath)) throw new Error(`Duplicate --files path: ${value}`);
+    if (!seen.has(relativePath)) throw new Error(`--files path is not a member of ${suite}: ${value}`);
+    selectedFiles.add(relativePath);
+  }
+  files.splice(0, files.length, ...files.filter((file) => selectedFiles.has(file)));
+}
+if (files.length === 0) {
+  if (selectionArgs.length === 2) process.exit(0);
+  throw new Error(`${manifestPath}: no test files`);
+}
 
 const workers = process.env.BUN_TEST_WORKERS ?? "4";
 const parallelSuite = suite === "unit";

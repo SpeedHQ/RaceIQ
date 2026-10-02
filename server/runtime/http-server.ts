@@ -2,7 +2,7 @@ import { execSync } from "node:child_process";
 import { resolve } from "node:path";
 import { wsManager, type WSData } from "./websocket-manager";
 import type { AppType } from "../routes/index";
-import { MAX_IBT_BYTES } from "../games/iracing/import-ibt";
+import { MAX_IBT_BYTES } from "@raceiq/game-iracing/import-ibt";
 import { IS_WINDOWS } from "./platform/shell";
 
 type HttpApp = Pick<AppType, "fetch">;

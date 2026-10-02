@@ -1,4 +1,4 @@
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { NamedSegment } from "../../shared/racing/tracks/named-segments";
 import { formatTurnNumbers, turnNumbers } from "../../shared/racing/tracks/segment-label";
 import type { TelemetryPacket } from "../../shared/telemetry/types";

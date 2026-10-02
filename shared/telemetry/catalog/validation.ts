@@ -1,4 +1,4 @@
-import { KNOWN_GAME_IDS, type GameId } from "../../games/ids";
+import { KNOWN_GAME_IDS, type GameId } from "@raceiq/games/ids";
 import type { TelemetryPacket } from "../types";
 import type {
   TelemetryCatalogData,

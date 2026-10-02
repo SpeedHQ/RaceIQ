@@ -1,5 +1,5 @@
-import { tryGetGame } from "../../../games/registry";
-import type { GameId } from "../../../games/ids";
+import { tryGetGame } from "@raceiq/games/registry";
+import type { GameId } from "@raceiq/games/ids";
 import type { TelemetryPacket } from "../../../telemetry/types";
 import { frameDt } from "./frame-time";
 import { LAT_G_FLOOR, SPEED_FLOOR, allFrictionCircle, steerBalance } from "./physics/vehicle";

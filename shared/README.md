@@ -7,7 +7,7 @@ Cross-runtime contracts, pure helpers, game adapters, and checked-in racing data
 - `core/` — dependency-free CSV and numeric primitives.
 - `data/` — checked-in setup, track, and tune assets copied into production data.
 - `games/` — game IDs, adapter contracts, registration, and per-game metadata.
-- `integrations/` — AI prompt policy, Forza extraction support, and MoTeC import contracts.
+- `integrations/` — AI prompt policy, MoTeC import contracts, and shared integration helpers.
 - `platform/` — HTTP schemas, locale metadata, and source/compiled runtime paths.
 - `racing/` — cars, tracks, laps, sessions, setups, tuning, experiments, results, and analysis.
 - `telemetry/` — normalized packet contracts, catalog, resolver, derivations, and replay.

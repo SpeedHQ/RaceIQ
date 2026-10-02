@@ -4,7 +4,7 @@ import { getLocale } from "@/paraglide/runtime";
 import { parseUtcTimestamp } from "../../lib/utc-date";
 import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2 } from "lucide-react";
 import type { LapMeta, SessionOwnership } from "../../../../shared/racing/sessions/types";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { formatLapTime } from "../../lib/format";
 import { useMotecTargets, type MotecTargetInfo } from "../../hooks/catalog-queries";
 import { m } from "../../paraglide/messages";

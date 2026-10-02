@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { eq, sql } from "drizzle-orm";
 import { getLapStats, getLapMetaForProfileScope, getLaps } from "../../server/db/lap-read-queries";
 import { deleteSession, getSessions, insertSession } from "../../server/db/session-queries";

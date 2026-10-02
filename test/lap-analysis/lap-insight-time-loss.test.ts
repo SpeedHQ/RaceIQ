@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { analyzeLap } from "@shared/racing/analysis/laps/insights/analyze";
 import { runInsightScanWithCoverage } from "@shared/racing/analysis/laps/insights/scan";
-import { initGameAdapters } from "@shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { MIN_REPORTABLE_LOSS_S } from "@shared/racing/analysis/laps/time-loss";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";

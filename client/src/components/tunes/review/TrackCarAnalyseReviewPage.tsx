@@ -1,5 +1,5 @@
 import { m } from "@/paraglide/messages";
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { selectEvaluationLaps } from "@shared/racing/laps/review-selection";
 import { parseAnalyseLapIds } from "@/lib/game-routes";
 import { useNavigate, useSearch } from "@tanstack/react-router";

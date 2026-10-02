@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { db, initDb } from "../../../server/db/index";
 import { sessions, laps } from "../../../server/db/schema";
 import { eq } from "drizzle-orm";
-import { initGameAdapters } from "../../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { developmentReleaseFeatures } from "../../release/development-release-features";
 import { getServerGame } from "../../../server/games/registry";

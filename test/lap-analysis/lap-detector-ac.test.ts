@@ -1,8 +1,8 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { parseDump } from "../support/recordings/parse-dump";
-import { LapDetectorAcc } from "../../server/games/acc/lap-detector"
+import { LapDetectorAcc } from "@raceiq/game-acc/lap-detector"
 import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline"
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 

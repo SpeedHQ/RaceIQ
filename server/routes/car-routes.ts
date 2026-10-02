@@ -9,12 +9,12 @@ import { fmCarCatalog, getFmCarSpecs } from "../../shared/racing/cars/fm";
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { getAllIRacingCars } from "../../shared/racing/cars/iracing";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
-import { GameIdSchema } from "../../shared/games/ids";
+import { GameIdSchema } from "@raceiq/games/ids";
 import {
   getDiscoveredCarName,
   listDiscoveredCars,
 } from "../db/discovered-cars";
-import { getLMUCar, lmuCarCatalog } from "../../shared/games/lmu/catalog";
+import { getLMUCar, lmuCarCatalog } from "@raceiq/games/lmu/catalog";
 import { tryGetServerGame } from "../games/registry";
 
 // ─── Car model config paths ────────────────────────────────────────────────────

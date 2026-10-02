@@ -13,7 +13,7 @@
  */
 import { describe, test, expect, beforeAll } from "bun:test";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import { initGameAdapters } from "../../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { buildAnalystPrompt } from "../../../server/ai/analyst-prompt";
 import { AnalystOutputSchema } from "../../../server/ai/schemas";

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { ComboDash } from "../../components/dashes/ComboDash";
 import { gameStore } from "../../stores/game";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";

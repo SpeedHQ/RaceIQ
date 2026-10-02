@@ -1,5 +1,5 @@
-import type { GameId } from "@shared/games/ids";
-import { IRACING_SETUP_INFO_FIELDS } from "@shared/games/iracing/session-info/catalog";
+import type { GameId } from "@raceiq/games/ids";
+import { IRACING_SETUP_INFO_FIELDS } from "@raceiq/games/iracing/session-info/catalog";
 import {
   SETUP_FILE_SECTION_DEFINITIONS,
   SETUP_FILE_SOURCE_DEFINITIONS,

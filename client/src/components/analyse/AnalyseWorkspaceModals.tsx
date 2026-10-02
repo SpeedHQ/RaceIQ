@@ -1,4 +1,4 @@
-import { getGame } from "@shared/games/registry";
+import { getGame } from "@raceiq/games/registry";
 import { useNavigate } from "@tanstack/react-router";
 import type { ComponentProps } from "react";
 import type { SessionOwnership } from "../../../../shared/racing/sessions/types";

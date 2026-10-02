@@ -2,7 +2,7 @@ import type { RefObject } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { WebGPURenderer } from "three/webgpu";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { CarModelEnrichment } from "../../data/car-models";
 import type { TelemetryVariableId } from "../../../../shared/telemetry/catalog/generated/telemetry-catalog.types";
 import { recordGpuSnapshot } from "../../lib/crash-diagnostics";

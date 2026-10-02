@@ -13,7 +13,7 @@
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { buildAnalystPrompt } from "../../server/ai/analyst-prompt";
 import { compareLapHeader } from "../../server/ai/compare-engineer";

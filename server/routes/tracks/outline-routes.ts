@@ -14,9 +14,9 @@ import {
   averageOutlines,
   smoothOutline,
 } from "../../lap-detection/detector";
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { computeLapSectors } from "../../lap-analysis/sectors";
-import { getLMUTrackBoundaries } from "../../../shared/games/lmu/track-boundaries";
+import { getLMUTrackBoundaries } from "@raceiq/games/lmu/track-boundaries";
 import {
   decodeTrackKey,
   OrdinalKeyParamSchema,

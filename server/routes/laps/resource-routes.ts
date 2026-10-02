@@ -5,9 +5,9 @@ import { promisify } from "node:util";
 import { z } from "zod";
 
 import { IdParamSchema } from "@shared/platform/http/route-schemas";
-import { GameIdSchema, type GameId } from "../../../shared/games/ids";
-import { getGame, tryGetGame } from "../../../shared/games/registry";
-import { analyseSemanticIds } from "../../../shared/games/metric-contracts";
+import { GameIdSchema, type GameId } from "@raceiq/games/ids";
+import { getGame, tryGetGame } from "@raceiq/games/registry";
+import { analyseSemanticIds } from "@raceiq/games/metric-contracts";
 import { runInsightScanWithCoverage } from "../../../shared/racing/analysis/laps/insights/scan";
 import { processLap, restoreFrameIndices } from "../../../shared/racing/analysis/laps/insights/process";
 import { INSIGHT_DETECTORS } from "../../../shared/racing/analysis/laps/insights/types";

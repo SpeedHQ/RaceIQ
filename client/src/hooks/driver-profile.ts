@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { DriverProfileSummary } from "../../../server/ai/schemas";
 import type { DriverFingerprint } from "../../../server/driver-profile/fingerprint";
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { client } from "../lib/rpc";
 import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";

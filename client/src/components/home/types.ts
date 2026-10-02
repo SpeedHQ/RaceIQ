@@ -1,4 +1,4 @@
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { LapMeta, SessionMeta, SessionRecap as SessionRecapDto } from "@shared/racing/sessions/types";
 import type { TrackOutlineData, TrackSectorBounds } from "@/components/SessionRecap";
 

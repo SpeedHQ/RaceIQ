@@ -1,5 +1,5 @@
 import type { SceneRuntime, SceneSource } from "../wireframe/SceneRuntime";
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { memo, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import type { useUnits } from "../../hooks/useUnits";
 import { BodyAttitude } from "../BodyAttitude";

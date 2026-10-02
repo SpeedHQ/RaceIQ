@@ -1,5 +1,5 @@
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { tryGetGame } from "../../shared/games/registry";
+import { tryGetGame } from "@raceiq/games/registry";
 import { resolveAnalysisTelemetry } from "../../shared/racing/analysis/telemetry-capabilities";
 
 export type UnitSystem = "metric" | "imperial";

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { KNOWN_GAME_IDS } from "../shared/games/ids";
+import { KNOWN_GAME_IDS } from "@raceiq/games/ids";
 import { fmTrackCatalog } from "../shared/racing/tracks/catalogs/fm";
 import { getF1Tracks } from "../shared/racing/tracks/catalogs/f1";
 import { getAccTracks } from "../shared/racing/tracks/catalogs/acc";

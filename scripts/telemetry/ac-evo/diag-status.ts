@@ -11,14 +11,14 @@
  */
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
-import { initGameAdapters } from "../../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { developmentReleaseFeatures } from "../../release/development-release-features";
 import { getServerGame } from "../../../server/games/registry";
 import { META_FRAME_MAGIC } from "../../../server/session-capture/framing";
-import { ACEVO_STATUS, GRAPHICS_EVO } from "../../../server/games/ac-evo/structs";
+import { ACEVO_STATUS, GRAPHICS_EVO } from "@raceiq/game-ac-evo/structs";
 import { unpackTriplet } from "../../../server/games/kunos/pack-triplet";
-import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector";
+import { LapDetectorAcEvo } from "@raceiq/game-ac-evo/lap-detector";
 import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports";
 
 initGameAdapters(developmentReleaseFeatures);

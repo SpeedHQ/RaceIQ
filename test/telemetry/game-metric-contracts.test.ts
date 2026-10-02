@@ -3,10 +3,10 @@ import {
   assertGameMetricContracts,
   assertSemanticBinding,
   unavailableAnalysisFeatures,
-} from "../../shared/games/metric-contracts";
-import { KNOWN_GAME_IDS } from "../../shared/games/ids";
-import { initGameAdapters } from "../../shared/games/init";
-import { getGame } from "../../shared/games/registry";
+} from "@raceiq/games/metric-contracts";
+import { KNOWN_GAME_IDS } from "@raceiq/games/ids";
+import { initGameAdapters } from "@raceiq/games/init";
+import { getGame } from "@raceiq/games/registry";
 import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
 describe("semantic metric bindings", () => {
   test("accepts Forza normalized lateral slip", () => {

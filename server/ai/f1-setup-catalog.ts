@@ -63,7 +63,7 @@ interface TrackCatalogMeta {
 
 /**
  * `trackOrdinal` → catalog metadata. Keys correspond to F1 25 track IDs
- * (see `shared/games/f1-2025/tracks.csv`). Tracks without community data
+ * (see `@raceiq/games/f1-2025/tracks.csv`). Tracks without community data
  * are omitted; tool returns `available: false` for those.
  *
  * Bundled at import time instead of via `getF1TrackInfo()` so this module

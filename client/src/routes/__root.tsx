@@ -1,4 +1,4 @@
-import { getAllGames } from "@shared/games/registry";
+import { getAllGames } from "@raceiq/games/registry";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { Menu } from "lucide-react";

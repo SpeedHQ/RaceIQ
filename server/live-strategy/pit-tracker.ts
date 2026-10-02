@@ -1,5 +1,5 @@
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { LivePitData } from "../../shared/racing/live/types";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import { getLaps, getLapById } from "../db/lap-read-queries";

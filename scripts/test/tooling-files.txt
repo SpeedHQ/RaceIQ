@@ -20,3 +20,4 @@ test/tooling/storybook-build.test.ts
 test/tooling/test-shards.test.ts
 test/tooling/theme-contract.test.ts
 test/tooling/version-label.test.ts
+test/tooling/select-game-tests.test.ts

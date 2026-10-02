@@ -18,20 +18,20 @@ import {
   IRACING_DUMP_VERSION,
   IRacingRecorder,
   readIRacingFrames,
-} from "../../../server/games/iracing/recorder";
+} from "@raceiq/game-iracing/recorder";
 import {
   IRACING_MAX_SOURCE_FRAME_SIZE,
   IRacingSourceFrameEncoder,
   type IRacingSourceFrameV3,
-} from "../../../server/games/iracing/source-frame";
+} from "@raceiq/game-iracing/source-frame";
 import {
   DumpToBinProcessor,
   IRacingFramePipeline,
   ParsingProcessor,
-} from "../../../server/games/iracing/frame-pipeline";
+} from "@raceiq/game-iracing/frame-pipeline";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { getServerGame } from "../../../server/games/registry";
-import { initGameAdapters } from "../../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 
 const FIXTURE =
   "test/artifacts/sessions/iracing-road-america-gt3.bin.gz";

@@ -1,10 +1,10 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
-import { parseAccBuffers } from "../../../server/games/acc/parser";
+import { parseAccBuffers } from "@raceiq/game-acc/parser";
 import { parseAccLapIndex } from "../../../server/games/kunos/lap-index";
-import { PHYSICS, GRAPHICS, STATIC } from "../../../server/games/acc/structs";
-import { initGameAdapters } from "../../../shared/games/init";
+import { PHYSICS, GRAPHICS, STATIC } from "@raceiq/game-acc/structs";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { getServerGame } from "../../../server/games/registry";
 import { parseRawLapFramesFromBuffer } from "../../../server/db/telemetry-replay-storage";

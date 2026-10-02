@@ -1,7 +1,7 @@
-import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
+import { KNOWN_GAME_IDS, type GameId } from "@raceiq/games/ids";
 import { getAllServerGames } from "../games/registry";
-import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "../games/lmu/recorder";
-import { IRACING_DUMP_MAGIC, readIRacingFramesFromBuffer } from "../games/iracing/recorder";
+import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "@raceiq/game-lmu/recorder";
+import { IRACING_DUMP_MAGIC, readIRacingFramesFromBuffer } from "@raceiq/game-iracing/recorder";
 import {
   decompressIfGzipSync,
   iterateSessionFrames,

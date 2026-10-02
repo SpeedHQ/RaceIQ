@@ -18,7 +18,7 @@ import { rmSync } from "node:fs";
 import { db } from "../../server/db/index";
 import { sessions, laps } from "../../server/db/schema";
 import { eq } from "drizzle-orm";
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { iterateSessionCaptureRecords, META_FRAME_MAGIC, SEGMENT_BOUNDARY_MAGIC } from "../../server/session-capture/framing";
 import { buildLapsZip, LAPS_ZIP_VERSION, type LapsZipManifest } from "../../server/laps/archive";
@@ -28,9 +28,9 @@ import {
   IRacingSourceFrameEncoder,
   isIRacingSessionFrame,
   type IRacingSourceFrameV2,
-} from "../../server/games/iracing/source-frame";
-import { F1_PACKET_IDS } from "../../server/games/f1-2025/f1-wire";
-import type { GameId } from "../../shared/games/ids";
+} from "@raceiq/game-iracing/source-frame";
+import { F1_PACKET_IDS } from "@raceiq/game-f1-2025/f1-wire";
+import type { GameId } from "@raceiq/games/ids";
 
 initGameAdapters();
 initServerGameAdapters();

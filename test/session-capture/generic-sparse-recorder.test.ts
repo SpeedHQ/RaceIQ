@@ -10,14 +10,14 @@ import { SessionRecorder } from "../../server/session-capture/recorder";
 import { SparseSessionRecorder } from "../../server/session-capture/sparse-recorder";
 import { parseRawLapFrames } from "../../server/db/telemetry-replay-storage";
 import { runInsightScanWithCoverage } from "../../shared/racing/analysis/laps/insights/scan";
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { iterateSessionCaptureFrames } from "../../server/session-capture/source-loader";
 import { readKunosFrames } from "../../server/games/kunos/frame-reader";
 import { ACC_PACKED_MAGIC, packTriplet } from "../../server/games/kunos/pack-triplet";
-import { readIRacingFrames } from "../../server/games/iracing/recorder";
-import { readLMUFramesFromBuffer } from "../../server/games/lmu/recorder";
-import type { GameId } from "../../shared/games/ids";
+import { readIRacingFrames } from "@raceiq/game-iracing/recorder";
+import { readLMUFramesFromBuffer } from "@raceiq/game-lmu/recorder";
+import type { GameId } from "@raceiq/games/ids";
 
 const dirs: string[] = [];
 initGameAdapters();

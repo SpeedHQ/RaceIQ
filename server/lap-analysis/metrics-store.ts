@@ -1,6 +1,6 @@
 import { and, asc, eq, gt, inArray, isNull, ne, or } from "drizzle-orm";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import { db } from "../db";
 import { lapMetrics, laps } from "../db/schema";

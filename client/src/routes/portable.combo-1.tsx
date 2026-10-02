@@ -1,7 +1,7 @@
-import { tryGetGame } from "@shared/games/registry";
+import { tryGetGame } from "@raceiq/games/registry";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { ComboDash } from "../components/dashes/ComboDash";
 import { gameStore } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";

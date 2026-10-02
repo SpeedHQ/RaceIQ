@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { formatCarSetup, readCarSetupFile } from "../../../server/games/ac-evo/carsetup";
-import { parseCarSetup } from "../../../server/games/ac-evo/carsetup-wire";
+import { formatCarSetup, readCarSetupFile } from "@raceiq/game-ac-evo/carsetup";
+import { parseCarSetup } from "@raceiq/game-ac-evo/carsetup-wire";
 
 const FIXTURE = join(import.meta.dir, "..", "..", "artifacts", "carsetup", "Default-12312.carsetup");
 
@@ -44,7 +44,7 @@ describe("ac-evo carsetup parser", () => {
   });
 
   it("summary matches in-game values (grounded, Audi R8 GT3 Evo II)", async () => {
-    const { summarizeCarSetup } = await import("../../../server/games/ac-evo/carsetup");
+    const { summarizeCarSetup } = await import("@raceiq/game-ac-evo/carsetup");
     const setup = parseCarSetup(readFileSync(FIXTURE))!;
     const sections = summarizeCarSetup(setup);
     const rows = (title: string) =>
@@ -99,7 +99,7 @@ describe("ac-evo carsetup parser", () => {
     // default 3, and saved as "default 3". Front must render click + kN/m.
     const setup = await readCarSetupFile(join(import.meta.dir, "..", "..", "artifacts", "carsetup", "audi-default-3.carsetup"));
     expect(setup).not.toBeNull();
-    const { summarizeCarSetup } = await import("../../../server/games/ac-evo/carsetup");
+    const { summarizeCarSetup } = await import("@raceiq/game-ac-evo/carsetup");
     const sections = summarizeCarSetup(setup!);
     const rowsOf = (title: string) =>
       Object.fromEntries(sections.find((s) => s.title === title)!.rows.map((r) => [r.label, r.value]));

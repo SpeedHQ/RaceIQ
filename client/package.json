@@ -18,6 +18,7 @@
     "snapshot:test:docker": "bun ../scripts/ui/run-snapshot-in-docker.ts"
   },
   "dependencies": {
+    "@raceiq/games": "workspace:*",
     "@ai-sdk/react": "4.0.108",
     "@assistant-ui/core": "0.3.19",
     "@assistant-ui/react": "0.15.20",

@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { GameId } from "../../shared/games/ids";
-import { initGameAdapters } from "../../shared/games/init";
+import type { GameId } from "@raceiq/games/ids";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { tryGetServerGame } from "../../server/games/registry";
 import { resolveTrack } from "../../server/tracks/info"

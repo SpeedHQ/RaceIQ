@@ -13,7 +13,7 @@ import { getF1Tracks } from "../../../shared/racing/tracks/catalogs/f1";
 import { getAccTracks } from "../../../shared/racing/tracks/catalogs/acc";
 import { getAcEvoTracks } from "../../../shared/racing/tracks/catalogs/ac-evo";
 import { getAllIRacingTracks } from "../../../shared/racing/tracks/catalogs/iracing";
-import { getLMUTrack, getLMUTrackByAssetName, lmuTrackCatalog } from "../../../shared/games/lmu/catalog";
+import { getLMUTrack, getLMUTrackByAssetName, lmuTrackCatalog } from "@raceiq/games/lmu/catalog";
 import { GAMES_DIR } from "../../runtime/config/paths";
 import { tryGetServerGame } from "../../games/registry";
 import { listDiscoveredTracks } from "../../db/discovered-tracks";

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { initGameAdapters } from "@shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { analyzeLap } from "@shared/racing/analysis/laps/insights/analyze";
 import { runInsightScanWithCoverage } from "@shared/racing/analysis/laps/insights/scan";
 import { detectAbsActivation, detectTractionControlActivation } from "@shared/racing/analysis/laps/insights/electronics";

@@ -10,9 +10,9 @@ import { getAllAcEvoCars } from "../../../shared/racing/cars/ac-evo"
 import { getAcEvoSetupFolderAliases, getAcEvoSetupFolderKeys, getAcEvoTrackBySetupFolder } from "../../../shared/racing/tracks/catalogs/ac-evo"
 import { AccSetupJsonSchema, setupFileFormat, setupFileRejectReason } from "../../../shared/racing/setups/file-formats";
 import { getTuneById, insertTune } from "../../db/tune-queries";
-import { carSetupToKnobValues, carSlugFromPresetId, formatCarSetup, readCarSetupFile, summarizeCarSetup } from "../../games/ac-evo/carsetup";
+import { carSetupToKnobValues, carSlugFromPresetId, formatCarSetup, readCarSetupFile, summarizeCarSetup } from "@raceiq/game-ac-evo/carsetup";
 import { annotateAcEvoSections } from "../../../shared/racing/setups/ac-evo-content";
-import { parseCarSetup } from "../../games/ac-evo/carsetup-wire";
+import { parseCarSetup } from "@raceiq/game-ac-evo/carsetup-wire";
 import { getSetupsBaseDir, resolveGuardedSetupFile } from "../../setups/file-guard";
 import { getAcEvoCarRanges } from "../../setups/rules/catalog";
 import { parseTuneRow, sanitisePathSegment } from "../tune-shared";

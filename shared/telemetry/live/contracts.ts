@@ -1,5 +1,5 @@
-import { KNOWN_GAME_IDS } from "../../games/ids";
-import type { GameId } from "../../games/ids";
+import { KNOWN_GAME_IDS } from "@raceiq/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { LivePitData, LiveSectorData } from "../../racing/live/types";
 import type { TuneIssue } from "../../racing/tuning/issues";
 import type { MappingStatus } from "../derivations/contracts";

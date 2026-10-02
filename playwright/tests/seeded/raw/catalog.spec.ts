@@ -1,7 +1,7 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { SEEDED_GAME_CASES, type SeededGame } from "../../support/seeded/cases";
 import { collectBrowserErrors } from "../../support/browser-errors";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { TelemetryGameLink } from "../../../../shared/telemetry/catalog/contracts";
 import { TELEMETRY_CATALOG } from "../../../../shared/telemetry/catalog/data";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";

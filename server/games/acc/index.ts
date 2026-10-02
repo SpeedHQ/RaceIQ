@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import type { ServerGameAdapter } from "../types";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import type { LapIndexPacket } from "../../lap-detection/types";
-import { accAdapter } from "../../../shared/games/acc";
+import { accAdapter } from "@raceiq/games/acc";
 import { getAccCarName, getAccCarByModel } from "../../../shared/racing/cars/acc"
 import { getAccTrackName, getAccSharedTrackName, getAccTrackByName, getAccTrackBySetupFolder } from "../../../shared/racing/tracks/catalogs/acc"
 import { LapDetectorAcc } from "./lap-detector"

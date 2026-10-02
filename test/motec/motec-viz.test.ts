@@ -19,7 +19,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { loadCenterline } from "../../shared/racing/tracks/curation/generate";
 import { getAcEvoTrackByName } from "../../shared/racing/tracks/catalogs/ac-evo";

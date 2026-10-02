@@ -1,6 +1,6 @@
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { Tune } from "../../shared/racing/tuning/types";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-analysis/report"
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { fmCarSpecsCatalog } from "../../shared/racing/cars/fm";

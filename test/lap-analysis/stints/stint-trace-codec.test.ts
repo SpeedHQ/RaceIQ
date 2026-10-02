@@ -5,7 +5,7 @@
  * decodeLapTrace must reproduce the original trace bit-for-bit.
  */
 import { describe, test, expect } from "bun:test";
-import { initGameAdapters } from "../../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { downsampleLap } from "../../../shared/racing/laps/trace/build";
 import {
   f32ToBase64,

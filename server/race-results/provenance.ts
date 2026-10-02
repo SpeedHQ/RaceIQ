@@ -1,5 +1,5 @@
 import type { RaceResultProvenance } from "../../shared/racing/results/types";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import {
   TELEMETRY_CATALOG_HASH,
   TELEMETRY_CATALOG_SCHEMA_VERSION,

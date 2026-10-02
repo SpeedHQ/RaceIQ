@@ -12,7 +12,7 @@ import { reprocessSession } from "../../server/session-capture/reprocess";
 import { db } from "../../server/db/index";
 import { sessions, laps } from "../../server/db/schema";
 import { eq } from "drizzle-orm";
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { countStaleSessions, getStaleSessions } from "../../server/db/session-queries";
 import { sessionRoutes } from "../../server/routes/session-routes";

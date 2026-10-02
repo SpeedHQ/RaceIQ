@@ -9,11 +9,11 @@ import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { LapDetectorCallbacks } from "../../server/lap-detection/types";
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../../server/telemetry/pipeline-ports"
 import { LiveTelemetryPipeline, stopMaintenanceTasks } from "../../server/telemetry/live-pipeline"
-import { isForzaRaceOffPacket, parseForzaPacket } from "../../server/games/fm-2023/parser";
+import { isForzaRaceOffPacket, parseForzaPacket } from "@raceiq/game-fm-2023/parser";
 import { iterateSessionFrames } from "../../server/session-capture/framing";
 
 initGameAdapters();

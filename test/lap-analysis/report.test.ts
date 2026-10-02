@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { generateExport } from "../../server/lap-analysis/report";
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 initGameAdapters();

@@ -13,8 +13,8 @@ import { migrateCaptures } from "../../server/session-capture/migrate-captures";
 import { sessionRoutes } from "../../server/routes/session-routes";
 import { transferRoutes } from "../../server/routes/laps/transfer-routes";
 import { resolveDataDir } from "../../server/runtime/config/data-dir";
-import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "../../server/games/lmu/source-frame";
-import { initGameAdapters } from "../../shared/games/init";
+import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/game-lmu/source-frame";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 
 const owned = new Set<number>();

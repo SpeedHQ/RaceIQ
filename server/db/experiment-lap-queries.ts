@@ -3,7 +3,7 @@ import { db } from "./index";
 import { toLapMeta } from "./lap-meta";
 import { sessions, laps, tunes } from "./schema";
 import type { LapMeta } from "../../shared/racing/sessions/types";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 
 export async function setLapExperimentExcluded(
   lapId: number,

@@ -4,7 +4,14 @@
   "type": "module",
   "workspaces": [
     "client",
-    "playwright"
+    "playwright",
+    "shared/games",
+    "server/games/fm-2023",
+    "server/games/f1-2025",
+    "server/games/acc",
+    "server/games/ac-evo",
+    "server/games/iracing",
+    "server/games/lmu"
   ],
   "scripts": {
     "dev": "bun scripts/dev/dev.ts",
@@ -41,15 +48,8 @@
     "test:ai": "bun test ./test/ai/evals/ai-quality.ai-eval.ts --timeout 120000",
     "ai:baseline": "bun scripts/quality/ai-baseline.ts",
     "bench": "bun test/benchmarks/pipeline.bench.ts",
-    "extract:tracks": "bun scripts/games/fm-2023/extract-tracks.ts && bun scripts/games/f1-2025/extract-tracks.ts",
-    "extract:tracks:forza": "bun scripts/games/fm-2023/extract-tracks.ts",
-    "extract:tracks:f1": "bun scripts/games/f1-2025/extract-tracks.ts",
-    "extract:tracks:acc": "bun scripts/games/acc/extract-tracks.ts",
-    "extract:ac-evo": "bun scripts/games/ac-evo/extract-tracks.ts && bun scripts/games/ac-evo/extract-cars.ts",
-    "extract:tracks:ac-evo": "bun scripts/games/ac-evo/extract-tracks.ts",
     "tracks:segments": "bun scripts/tracks/generate-track-segments.ts",
     "tracks:coverage": "bun scripts/tracks/track-coverage.ts",
-    "extract:cars:ac-evo": "bun scripts/games/ac-evo/extract-cars.ts",
     "laps:export": "bun scripts/data/export-laps.ts",
     "laps:import": "bun scripts/data/import-laps.ts",
     "ibt:probe": "bun scripts/iracing/probe-ibt.ts",
@@ -77,6 +77,13 @@
     "lighthouse": "lighthouse http://raceiq.localhost:1355/ --only-categories=accessibility,performance,best-practices --chrome-flags=\"--headless=new --no-sandbox --disable-gpu\" --output=html --output-path=./lighthouse-report.html && echo 'Report: lighthouse-report.html'"
   },
   "dependencies": {
+    "@raceiq/games": "workspace:*",
+    "@raceiq/game-fm-2023": "workspace:*",
+    "@raceiq/game-f1-2025": "workspace:*",
+    "@raceiq/game-acc": "workspace:*",
+    "@raceiq/game-ac-evo": "workspace:*",
+    "@raceiq/game-iracing": "workspace:*",
+    "@raceiq/game-lmu": "workspace:*",
     "@ai-sdk/google": "4.0.74",
     "@ai-sdk/openai": "^4.0.69",
     "@ai-sdk/provider-utils": "^5.0.43",

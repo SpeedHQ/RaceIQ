@@ -1,7 +1,7 @@
-import { tryGetGame } from "@shared/games/registry";
+import { tryGetGame } from "@raceiq/games/registry";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { client } from "../lib/rpc";
 import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";

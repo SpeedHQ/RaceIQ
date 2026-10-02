@@ -1,6 +1,6 @@
 import { m } from "@/paraglide/messages";
 import { useMemo, useRef, useState } from "react";
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import type { SemanticTuneSample } from "./semantic-tune";

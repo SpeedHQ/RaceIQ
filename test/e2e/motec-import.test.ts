@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { unzipSync } from "fflate";
 
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { parseLd, findChannel } from "../../server/motec/ld";
 import { parseLdxBeacons } from "../../server/motec/ldx";

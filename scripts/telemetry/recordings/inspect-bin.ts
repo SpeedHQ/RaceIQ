@@ -20,7 +20,7 @@ import {
   detectGameIdFromFilename,
 } from "../../../server/session-capture/import-capture";
 import { getAcEvoTrackName } from "../../../shared/racing/tracks/catalogs/ac-evo"
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 
 const args = process.argv.slice(2);
 const path = args.find((a) => !a.startsWith("--"));

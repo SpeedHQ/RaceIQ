@@ -24,7 +24,7 @@ import { cornerKey } from "../keys";
 import { loadDetectHints } from "../detect-hints";
 import type { NamedSegment } from "../named-segments";
 import { SHARED_DIR } from "@shared/platform/runtime/data-paths";
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 
 export const TRACK_META_DIR = resolve(SHARED_DIR, "tracks", "meta");
 const NO_CENTERLINE_DIR = null;

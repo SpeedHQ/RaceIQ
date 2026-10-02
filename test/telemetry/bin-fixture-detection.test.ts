@@ -16,10 +16,10 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { getServerGame } from "../../server/games/registry";
-import { getGame } from "../../shared/games/registry";
+import { getGame } from "@raceiq/games/registry";
 import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline"
 import { META_FRAME_MAGIC } from "../../server/session-capture/framing"
 import { detectGameIdFromBuffer } from "../../server/session-capture/import-capture"
@@ -29,7 +29,7 @@ import { getAcEvoTrackName } from "../../shared/racing/tracks/catalogs/ac-evo"
 import { getAcEvoCarName } from "../../shared/racing/cars/ac-evo"
 import { readAccPackets, readAcEvoPackets, readUdpPackets } from "../support/recordings/parse-dump";
 import { readSessionPackets } from "../support/recordings/session-frames";
-import { readIRacingFrames } from "../../server/games/iracing/recorder";
+import { readIRacingFrames } from "@raceiq/game-iracing/recorder";
 
 initGameAdapters();
 initServerGameAdapters();

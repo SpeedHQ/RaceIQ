@@ -1,0 +1,34 @@
+{
+  "name": "@raceiq/games",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun ../../scripts/test/run-game-tests.ts shared"
+  },
+  "exports": {
+    "./ids": "./ids.ts",
+    "./types": "./types.ts",
+    "./registry": "./registry.ts",
+    "./init": "./init.ts",
+    "./telemetry": "./telemetry.ts",
+    "./metric-contracts": "./metric-contracts.ts",
+    "./fm-2023": "./fm-2023/index.ts",
+    "./f1-2025": "./f1-2025/index.ts",
+    "./acc": "./acc/index.ts",
+    "./ac-evo": "./ac-evo/index.ts",
+    "./iracing": "./iracing/index.ts",
+    "./lmu": "./lmu/index.ts",
+    "./fm-2023/*": "./fm-2023/*.ts",
+    "./f1-2025/*": "./f1-2025/*.ts",
+    "./acc/*": "./acc/*.ts",
+    "./ac-evo/setup-ranges.json": "./ac-evo/setup-ranges.json",
+    "./ac-evo/*": "./ac-evo/*.ts",
+    "./iracing/*": "./iracing/*.ts",
+    "./lmu/tracks.json": "./lmu/tracks.json",
+    "./lmu/*": "./lmu/*.ts",
+    "./*": "./*.ts"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  }
+}

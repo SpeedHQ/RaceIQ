@@ -1,6 +1,6 @@
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { GameId } from "../../shared/games/ids";
-import { getGame } from "../../shared/games/registry";
+import type { GameId } from "@raceiq/games/ids";
+import { getGame } from "@raceiq/games/registry";
 import { resolveTrack } from "../tracks/info";
 
 export interface NativeSectorTimeline {

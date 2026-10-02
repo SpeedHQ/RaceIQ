@@ -16,12 +16,12 @@ export async function main(): Promise<void> {
   console.log("\nStep 4: Resolving image URLs...");
   const imageUrls = await resolveImageUrls(wikiCars);
   console.log("\nStep 5: Matching to cars.csv...");
-  const ourCars = readCatalog(resolve(projectRoot, "shared/games/fm-2023/cars.csv"));
+  const ourCars = readCatalog(resolve(projectRoot, "@raceiq/games/fm-2023/cars.csv"));
   const { rows, unmatched } = matchCatalog(ourCars, wikiCars, imageUrls);
   console.log(`  Matched: ${rows.length} / ${ourCars.length} (unmatched: ${unmatched.length})`);
   for (const value of unmatched) console.log(`    ${value}`);
   console.log("\nStep 6: Downloading car images...");
   await downloadImages(rows, projectRoot);
-  writeCsv(rows, resolve(projectRoot, "shared/games/fm-2023/car-specs.csv"));
+  writeCsv(rows, resolve(projectRoot, "@raceiq/games/fm-2023/car-specs.csv"));
   console.log(`\nWritten: shared/games/fm-2023/car-specs.csv (${rows.length} rows)`);
 }

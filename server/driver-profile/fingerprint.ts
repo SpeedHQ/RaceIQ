@@ -7,7 +7,7 @@
  */
 import type { LapStyleSummary } from "../../shared/racing/analysis/laps/driving-style";
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { Confidence } from "../experiments/lap-evidence/aggregate";
 import {

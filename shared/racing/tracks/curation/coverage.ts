@@ -16,7 +16,7 @@
 
 import { listAllCenterlines, listCuratedSlugs } from "./generate";
 import { loadVerified, verifyState, type VerifyState } from "./verified";
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 
 /** Human label per game. Adding a game to `GameId` breaks this on purpose. */
 const GAME_LABELS: Record<GameId, string> = {

@@ -1,4 +1,4 @@
-import type { GameId } from "../../games/ids";
+import type { GameId } from "@raceiq/games/ids";
 
 export const TELEMETRY_RESOLVER_VERSION = "1.1.0";
 

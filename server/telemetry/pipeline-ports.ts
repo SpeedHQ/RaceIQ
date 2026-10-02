@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { mkdirSync } from "node:fs";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { LapMeta, SessionOwnership } from "../../shared/racing/sessions/types";
 import type { LivePitData, LiveSectorData } from "../../shared/racing/live/types";
 import type { TelemetryPacket } from "../../shared/telemetry/types";

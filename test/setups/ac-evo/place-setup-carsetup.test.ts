@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { carSlugFromPresetId } from "../../../server/games/ac-evo/carsetup";
-import { parseCarSetup } from "../../../server/games/ac-evo/carsetup-wire";
+import { carSlugFromPresetId } from "@raceiq/game-ac-evo/carsetup";
+import { parseCarSetup } from "@raceiq/game-ac-evo/carsetup-wire";
 import { getAllAcEvoCars } from "../../../shared/racing/cars/ac-evo"
 
 /**

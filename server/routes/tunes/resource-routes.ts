@@ -3,8 +3,8 @@ import { Hono } from "hono";
 import { z } from "zod";
 
 import { IdParamSchema } from "@shared/platform/http/route-schemas";
-import { GameIdSchema } from "../../../shared/games/ids";
-import type { GameId } from "../../../shared/games/ids";
+import { GameIdSchema } from "@raceiq/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { getCommunityTuneById } from "../../db/community-tune-queries";
 import { deleteTune, getTuneById, getTuneUsage, getTunes, insertTune, updateTune } from "../../db/tune-queries";
 import {

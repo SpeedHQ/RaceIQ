@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
-import type { GameId } from "../../../shared/games/ids";
-import { tryGetGame } from "../../../shared/games/registry";
+import type { GameId } from "@raceiq/games/ids";
+import { tryGetGame } from "@raceiq/games/registry";
 import { convertDistance, convertSpeed, distanceLabel, speedLabel } from "../lib/speed";
 import { convertTemp } from "../lib/temperature";
 import { useGameId } from "../stores/game";

@@ -5,16 +5,16 @@ import { db } from "./index";
 import { sessions, laps, sessionResults, pitEvents } from "./schema";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import type { SessionMeta, SessionOwnership } from "../../shared/racing/sessions/types";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
-import { tryGetGame } from "../../shared/games/registry";
+import { tryGetGame } from "@raceiq/games/registry";
 import { existsSync, unlinkSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outlines";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
 import type { SessionIdentity } from "../telemetry/pipeline-ports";
-import { getLMUTrack } from "../../shared/games/lmu/catalog";
+import { getLMUTrack } from "@raceiq/games/lmu/catalog";
 
 export async function insertSession(
   carOrdinal: number,

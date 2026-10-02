@@ -5,8 +5,8 @@ import { errorFromResponse } from "../../../client/src/lib/rpc-error";
 import { tuneCrudRoutes } from "../../../server/routes/tunes";
 import { getAllAcEvoCars } from "../../../shared/racing/cars/ac-evo";
 import { deleteTune, getTuneById } from "../../../server/db/tune-queries";
-import { parseCarSetup } from "../../../server/games/ac-evo/carsetup-wire";
-import { summarizeCarSetup } from "../../../server/games/ac-evo/carsetup";
+import { parseCarSetup } from "@raceiq/game-ac-evo/carsetup-wire";
+import { summarizeCarSetup } from "@raceiq/game-ac-evo/carsetup";
 /**
  * End-to-end route tests for importing a binary AC EVO `.carsetup`, driven
  * through the real Hono app with the driver's own files.

@@ -37,22 +37,15 @@ Per-game dirs currently present:
 
 ## Sources of truth
 - `meta/<slug>.json` is authoritative for physical track identity, corner numbering/names, groups, and named straights. Its `source` field must cite the real-world claim.
-- `<gameId>/*-centerline.csv`, `*-raceline.csv`, and `*-boundaries.json` are generated snapshots of game data. The installed game data read by the matching extractor is authoritative.
-- `tumftm/*` is imported baseline geometry from TUMFTM/racetrack-database; retain its source identity when refreshing it.
+- `<gameId>/*-centerline.csv`, `*-raceline.csv`, and `*-boundaries.json` are checked-in geometry snapshots; preserve them as runtime assets.
 - `guides/*` and `detect-hints.json` are reviewed, hand-curated inputs. Hints describe detector behavior only and must not carry physical track facts.
 - `verified.json` records human review of exact file hashes. Generation must never stamp verification automatically.
 
-## Regeneration
-1. Refresh the committed track catalog in `shared/games/<game>/tracks.csv` when game content changes.
-2. Run the matching extractor:
-   - `bun run extract:tracks:forza`
-   - `bun run extract:tracks:f1`
-   - `bun run extract:tracks:acc`
-   - `bun run extract:tracks:ac-evo`
-3. Dry-run alignment with `bun run tracks:segments --track <slug> [--game <gameId>]`.
-4. Inspect alignment issues, then persist acceptable output with `bun run tracks:segments --track <slug> --write`. Use `--allow-fuzzy` only after reviewing the reported mismatch.
-5. Manually compare facts to the cited circuit source and geometry to a rendered/extracted lap before recording sign-off with `bun run tracks:coverage --verify ...`.
-6. Refresh contribution-guide coverage tables with `bun run tracks:coverage --write`.
+## Curation and alignment
+1. Dry-run alignment with `bun run tracks:segments --track <slug> [--game <gameId>]`.
+2. Inspect alignment issues, then persist acceptable output with `bun run tracks:segments --track <slug> --write`. Use `--allow-fuzzy` only after reviewing the reported mismatch.
+3. Manually compare facts to cited circuit sources and checked-in geometry before recording sign-off with `bun run tracks:coverage --verify ...`.
+4. Refresh contribution-guide coverage tables with `bun run tracks:coverage --write`.
 
 ## Curation expectations
 - Preserve the core invariant: facts contain classification and names but no fractions; game geometry contains fractions and keys but no names.

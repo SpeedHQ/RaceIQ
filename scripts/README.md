@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Operational, maintenance, extraction, and development commands live here. Prefer stable `bun run <name>` package commands for routine work. Invoke a file directly only for documented specialist or diagnostic workflows.
+Operational, maintenance, and development commands live here. Prefer stable `bun run <name>` package commands for routine work. Invoke a file directly only for documented specialist or diagnostic workflows.
 
 ## Directory map
 
@@ -12,7 +12,7 @@ Operational, maintenance, extraction, and development commands live here. Prefer
 | [`catalog/`](catalog/) | Semantic telemetry catalog generation and source capture |
 | [`data/`](data/) | Database seeding, lap archives, demos, and data maintenance |
 | [`dev/`](dev/) | Local process orchestration, proxying, and Mastra Studio |
-| [`games/`](games/) | Installed-game extraction and format-specific tooling |
+| [`games/`](games/) | External source imports and format-specific tooling |
 | [`iracing/`](iracing/) | iRacing probes, catalog seeding, and fixture generation |
 | [`lib/`](lib/) | Side-effect-free helpers shared by multiple script domains |
 | [`quality/`](quality/) | Bench comparison, AI baselines, and updater checks |

@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { initGameAdapters } from "../../shared/games/init";
-import { getGame } from "../../shared/games/registry";
+import { initGameAdapters } from "@raceiq/games/init";
+import { getGame } from "@raceiq/games/registry";
 import {
   getFuelDisplay,
-} from "../../shared/games/telemetry";
-import type { TelemetryModel } from "../../shared/games/types";
-import type { GameId } from "../../shared/games/ids";
+} from "@raceiq/games/telemetry";
+import type { TelemetryModel } from "@raceiq/games/types";
+import type { GameId } from "@raceiq/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 initGameAdapters();

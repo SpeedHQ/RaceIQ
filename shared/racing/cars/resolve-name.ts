@@ -1,4 +1,4 @@
-import { tryGetGame } from "@shared/games/registry";
+import { tryGetGame } from "@raceiq/games/registry";
 import { getFmCarName } from "./fm";
 
 /** Resolve display name through registered game adapter, then Forza fallback. */

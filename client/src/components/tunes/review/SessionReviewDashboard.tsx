@@ -1,5 +1,5 @@
-import type { GameId } from "@shared/games/ids";
-import { tryGetGame } from "@shared/games/registry";
+import type { GameId } from "@raceiq/games/ids";
+import { tryGetGame } from "@raceiq/games/registry";
 import { selectEvaluationLaps } from "@shared/racing/laps/review-selection";
 import { stintStats } from "@shared/racing/laps/stint-stats";
 import type { TuneIssue } from "@shared/racing/tuning/issues";

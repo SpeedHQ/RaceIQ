@@ -11,8 +11,8 @@ import { transferRoutes } from "../../server/routes/laps/transfer-routes";
 import { sessionRoutes } from "../../server/routes/session-routes";
 import { lapRoutes } from "../../server/routes/laps";
 import { iterateSessionCaptureRecordsFromSource } from "../../server/session-capture/source-loader";
-import { initGameAdapters } from "../../shared/games/init";
-import type { GameId } from "../../shared/games/ids";
+import { initGameAdapters } from "@raceiq/games/init";
+import type { GameId } from "@raceiq/games/ids";
 
 const fixtures: ReadonlyArray<{ gameId: GameId; file: string }> = [
   { gameId: "fm-2023", file: "fm-2023-2026-04-09T21-55-03-186Z.bin.gz" },

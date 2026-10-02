@@ -6,21 +6,21 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.19.1",
-      "sourceHash": "8ccaf31d0d5ee0bd8870207f674222fc8c84894d73155e458f124328bfebdb40"
+      "sourceHash": "ca91288722b742b1c79db90e948b911fa52266d7013f1ec3c29a9a27717b6c0e"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
-      "server/games/ac-evo/parser.ts": "69e66c0ab3bc04b53cc13beda19cd99aeb4f73ab2d5095d592e04a61f58c7cef",
-      "server/games/acc/parser.ts": "6d3438840e80ee60b536425f37ed466d3d5e07bd0d022f6b1d059a1395c39c4f",
+      "server/games/ac-evo/parser.ts": "3c3160ba8ed05d7b07f6e01c7cd40d820dc3cf96afe0371a07f275d8ec31649b",
+      "server/games/acc/parser.ts": "7f69e1f5f9e935e67f9cd2377afe29ddb896ee201a651a649b5dad47433d8cf9",
       "server/games/f1-2025/f1-state.ts": "a9e464d9f96e115874402b16d57d660e509ecc30cc4070f1395b72d27ec26b9c",
       "server/games/fm-2023/parser.ts": "8ac6812fc6622f9c1cd4587268583997325fa1ce207d9a8f8c7930fdb6bc1c56",
       "server/games/iracing/normalizer.ts": "7a9f061a649426812b3689b5848a045a7b51208334db4b2167b3c188a9864775",
-      "server/games/lmu/normalizer.ts": "857907ba7c281de8cdd53acfbbdbaa5a72bf695b9dbc18ace4732cff62676596",
+      "server/games/lmu/normalizer.ts": "c9bc5dcd1ae8c6771fd37f84804a13d88af1e8a4873c3703bd10692c41ce8f65",
       "server/session-capture/frame-time.ts": "fb6d18d5da69d0a1cb946e72ec8ee62bc01eb9d21b1176c11cfd5d44cf5ce0f0",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
-      "shared/racing/setups/schema.ts": "02f68ba8509a78f03f30265efe6740ae93bd5adb6527c3b2394023666a56952b"
+      "shared/racing/setups/schema.ts": "656ea16f6282ffc9a103259fca01a2bf0d5604ed03b5baf963396b0094678b1b"
     },
-    "contentHash": "b43d1b7122e046b21f1a1dc918d6fba004b2f6ab347fe926f23cc5237a03683b"
+    "contentHash": "5a9dff93ca44fd286df1a3844af705a9175ee1a76734b98fb23dda70634c327c"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",

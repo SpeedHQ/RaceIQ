@@ -1,20 +1,20 @@
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import type { CapturedLap, CapturedSession } from "../../../server/telemetry/pipeline-ports"
 import type { LapSavedNotification } from "../../../server/lap-detection/types"
 import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../../../server/telemetry/pipeline-ports"
 import { LiveTelemetryPipeline } from "../../../server/telemetry/live-pipeline"
-import { initGameAdapters } from "../../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { getAllServerGames, getServerGame } from "../../../server/games/registry";
 import { readUdpDump } from "./udp";
 import { readKunosFrames } from "../../../server/games/kunos/frame-reader";
-import { readIRacingFrames } from "../../../server/games/iracing/recorder";
-import { readLMUFrames } from "../../../server/games/lmu/recorder";
-import { parseAccBuffers } from "../../../server/games/acc/parser";
-import { parseAcEvoBuffers, createAcEvoParserCache } from "../../../server/games/ac-evo/parser";
-import { readWString } from "../../../server/games/acc/utils";
-import { STATIC } from "../../../server/games/acc/structs";
+import { readIRacingFrames } from "@raceiq/game-iracing/recorder";
+import { readLMUFrames } from "@raceiq/game-lmu/recorder";
+import { parseAccBuffers } from "@raceiq/game-acc/parser";
+import { parseAcEvoBuffers, createAcEvoParserCache } from "@raceiq/game-ac-evo/parser";
+import { readWString } from "@raceiq/game-acc/utils";
+import { STATIC } from "@raceiq/game-acc/structs";
 import { getAccCarByModel } from "../../../shared/racing/cars/acc"
 import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
 import { readFileSync } from "node:fs";

@@ -1,5 +1,5 @@
-import type { GameId } from "@shared/games/ids";
-import { getGame } from "@shared/games/registry";
+import type { GameId } from "@raceiq/games/ids";
+import { getGame } from "@raceiq/games/registry";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import type { SemanticReplayFrame } from "../../hooks/laps";
 

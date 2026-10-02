@@ -1,6 +1,6 @@
 import type { Preview } from "@storybook/react";
 import "../src/index.css";
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 
 // Storybook exercises every registered simulator regardless of release gating.
 initGameAdapters({ f1Experiments: true, iracingAdapter: true });

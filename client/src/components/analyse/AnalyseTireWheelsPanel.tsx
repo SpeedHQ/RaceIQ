@@ -1,7 +1,7 @@
-import { getGame } from "@shared/games/registry";
+import { getGame } from "@raceiq/games/registry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { resolveWheelMetric } from "../../../../shared/racing/analysis/metric-values";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { useTirePressureOptimal } from "../../hooks/catalog-queries";
 import type { useUnits } from "../../hooks/useUnits";
 import { brakeTempColor, tireHealthColor, tirePressureColor, tireTempColor, wearRateColor } from "../../lib/vehicle-dynamics";

@@ -9,7 +9,7 @@ import { isSessionActive } from "../telemetry/live-pipeline";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { clearSessionCaptureCache } from "./source-loader";
 import { isOwnedSessionRawFile } from "../db/session-queries";
-import { tryGetGame } from "../../shared/games/registry";
+import { tryGetGame } from "@raceiq/games/registry";
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import type { SessionCleanupGameSummary, SessionCleanupPreview, SessionCleanupRequest, SessionCleanupResult } from "../../shared/racing/sessions/cleanup";

@@ -5,29 +5,29 @@ import { join } from "node:path";
 import { initServerGameAdapters } from "../../../server/games/init";
 import {
   normalizeIRacingFrame,
-} from "../../../server/games/iracing/normalizer";
+} from "@raceiq/game-iracing/normalizer";
 import {
   type IRacingFrameReader,
   IRacingTelemetrySource,
-} from "../../../server/games/iracing/source";
+} from "@raceiq/game-iracing/source";
 import {
   createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,
   IRacingSourceFrameEncoder,
   type IRacingSourceFrameV3,
-} from "../../../server/games/iracing/source-frame";
+} from "@raceiq/game-iracing/source-frame";
 import { parsePacket } from "../../../server/games/packet-dispatch";
 import { getServerGame } from "../../../server/games/registry";
 import { timerResolutionRefCount } from "../../../server/games/shared/win-timer-resolution";
 import {
   IRacingRecorder,
   readIRacingFrames,
-} from "../../../server/games/iracing/recorder";
-import { initGameAdapters } from "../../../shared/games/init";
+} from "@raceiq/game-iracing/recorder";
+import { initGameAdapters } from "@raceiq/games/init";
 import {
   iracingAdapter,
   rememberIRacingIdentity,
-} from "../../../shared/games/iracing";
+} from "@raceiq/games/iracing";
 
 initGameAdapters();
 initServerGameAdapters();

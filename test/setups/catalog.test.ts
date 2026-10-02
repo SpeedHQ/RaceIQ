@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { carSetupToKnobValues, summarizeCarSetup } from "../../server/games/ac-evo/carsetup";
-import { parseCarSetup } from "../../server/games/ac-evo/carsetup-wire";
-import { patchCarSetup } from "../../server/games/ac-evo/carsetup-writer";
-import { IRACING_SETUP_INFO_FIELDS } from "../../shared/games/iracing/session-info/catalog";
+import { carSetupToKnobValues, summarizeCarSetup } from "@raceiq/game-ac-evo/carsetup";
+import { parseCarSetup } from "@raceiq/game-ac-evo/carsetup-wire";
+import { patchCarSetup } from "@raceiq/game-ac-evo/carsetup-writer";
+import { IRACING_SETUP_INFO_FIELDS } from "@raceiq/games/iracing/session-info/catalog";
 import { SETUP_CONCEPT_DEFINITIONS } from "../../shared/racing/setups/catalog/concepts";
 import {
   SETUP_FILE_SOURCE_DEFINITIONS,

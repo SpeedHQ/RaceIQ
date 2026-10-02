@@ -3,7 +3,7 @@ import { useMeasuredWidth } from "./use-measured-width";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Settings2 } from "lucide-react";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
-import type { GameId } from "../../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { AlignedLapSet, AlignedLapTrace, WheelAverages } from "@shared/racing/laps/alignment/types";
 import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
 import type { LapInsight } from "@shared/racing/analysis/laps/insights/types";
@@ -37,7 +37,7 @@ import { SuspensionLanes } from "./SuspensionLanes";
 import { FuelPanel, TiresPanel } from "./TiresPanel";
 import type { TooltipDisplayMode } from "./ChartTooltip";
 import { TrackFocusMap } from "./TrackFocusMap";
-import { tryGetGame } from "@shared/games/registry";
+import { tryGetGame } from "@raceiq/games/registry";
 import type { TrackFocusTrace } from "./types";
 import { TrackFocusZoom } from "./TrackFocusZoom";
 function alignedToLapTrace(t: AlignedLapTrace): TrackFocusTrace {

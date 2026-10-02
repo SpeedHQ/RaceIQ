@@ -7,9 +7,9 @@ import { resolveRacingLineReference, STATIC_LAP_ANALYSIS_VERSION } from "./insig
 import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
 import { processLap, restoreFrameIndices } from "../../shared/racing/analysis/laps/insights/process";
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
-import { tryGetGame } from "../../shared/games/registry";
+import { tryGetGame } from "@raceiq/games/registry";
 import type { NamedSegment } from "../../shared/racing/tracks/named-segments";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 /**

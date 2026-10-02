@@ -10,17 +10,17 @@
  * while the game process stayed alive. Mirror of the AC Evo fix.
  */
 import { describe, test, expect, afterAll } from "bun:test";
-import { initGameAdapters } from "../../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports"
-import { LapDetectorAcc } from "../../../server/games/acc/lap-detector"
+import { LapDetectorAcc } from "@raceiq/game-acc/lap-detector"
 import { TripletPipeline } from "../../../server/games/kunos/triplet-pipeline";
-import { StatusCheckProcessor } from "../../../server/games/acc/processors";
+import { StatusCheckProcessor } from "@raceiq/game-acc/processors";
 import type { TripletProcessor } from "../../../server/games/kunos/triplet-pipeline";
-import { GRAPHICS, AC_STATUS } from "../../../server/games/acc/structs";
+import { GRAPHICS, AC_STATUS } from "@raceiq/game-acc/structs";
 import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
 import { readKunosFrames } from "../../../server/games/kunos/frame-reader";
-import { parseAccBuffers } from "../../../server/games/acc/parser";
+import { parseAccBuffers } from "@raceiq/game-acc/parser";
 
 initGameAdapters();
 initServerGameAdapters();

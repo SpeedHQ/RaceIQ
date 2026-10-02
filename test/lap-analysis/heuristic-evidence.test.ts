@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { initGameAdapters } from "@shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { analyzeLap } from "@shared/racing/analysis/laps/insights/analyze";
 import { eventDurations, groupEvents, INSIGHT_ORDER, insightsAt } from "@shared/racing/analysis/laps/insights/types";
 import { detectBufferedInsights } from "@shared/racing/analysis/laps/insights/buffered-detectors";
 import type { TelemetryPacket } from "@shared/telemetry/types";
-import { parseForzaPacket } from "../../server/games/fm-2023/parser";
+import { parseForzaPacket } from "@raceiq/game-fm-2023/parser";
 import { computeStatsRange, steerScaleFor } from "../../server/lap-analysis/metrics";
 
 initGameAdapters();

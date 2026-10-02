@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
-import type { GameId } from "../../../shared/games/ids";
-import { tryGetGame } from "../../../shared/games/registry";
+import type { GameId } from "@raceiq/games/ids";
+import { tryGetGame } from "@raceiq/games/registry";
 import { flipPoints, needsTrackFlip, type Pt } from "../../../shared/racing/tracks/coords";
 import type { NamedSegment } from "../../../shared/racing/tracks/named-segments";
 import { turnNumbers } from "../../../shared/racing/tracks/segment-label";

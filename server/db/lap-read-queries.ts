@@ -5,7 +5,7 @@ import { db } from "./index";
 import { sessions, laps, tunes } from "./schema";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { LapMeta } from "../../shared/racing/sessions/types";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 const inFlightSessionDecodes = new Map<string, Promise<void>>();
 
 interface LapStats {

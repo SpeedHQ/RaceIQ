@@ -21,5 +21,3 @@ Game adapters own source interpretation. Preserve adapter IDs, registration orde
 Runtime owns source lifecycle and process supervision; telemetry owns normalized packet processing. Games may call those entry points but must not absorb their session orchestration. Database-backed identity registration is restricted to explicit live or committed-import boundaries so passive parsing remains side-effect free.
 
 ## Testing
-
-Use focused parser, codec, extraction, and native-source tests for the changed game. For dispatch or registry changes, verify adapter priority and per-game parser-state behavior. Binary changes require round-trip and legacy-capture coverage; native-reader changes require a source-level smoke test on Windows.

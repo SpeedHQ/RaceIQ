@@ -7,7 +7,7 @@ import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeS
 import { iterateSessionCaptureFrames, iterateSessionCaptureRecordsFromSource, setCaptureFileFactoryForTest } from "../../server/session-capture/source-loader";
 import { encodeKunosSparseFrame } from "../../server/session-capture/kunos-sparse";
 import { packTriplet, ACC_PACKED_MAGIC } from "../../server/games/kunos/pack-triplet";
-import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "../../server/games/lmu/source-frame";
+import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/game-lmu/source-frame";
 import { encodeLmuSparseFrame } from "../../server/session-capture/lmu-sparse";
 
 const directories: string[] = [];

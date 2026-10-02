@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { SessionRecap as SessionRecapDto } from "../../../shared/racing/sessions/types";
 import { useSessionRecap } from "../hooks/session-queries";
 import { useTrackOutline, useTrackSectorBoundaries } from "../hooks/track-queries";

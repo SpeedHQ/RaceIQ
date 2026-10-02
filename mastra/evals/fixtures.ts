@@ -16,7 +16,7 @@ import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { unzipSync } from "fflate";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import { decompressTelemetry } from "../../server/db/telemetry-codec";
 
 const FIXTURES_ROOT = resolve(import.meta.dir, "../../test/ai-fixtures");

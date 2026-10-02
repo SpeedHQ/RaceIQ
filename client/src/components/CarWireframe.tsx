@@ -1,10 +1,10 @@
-import { tryGetGame } from "@shared/games/registry";
+import { tryGetGame } from "@raceiq/games/registry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { flipBoundaries, needsTrackFlip } from "@shared/racing/tracks/coords";
 import { ChevronDownIcon } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { TrackMapBoundaries } from "./analyse/track-map/types";
 import { type CarModelEnrichment, DEMO_CAR, F1_CAR, getCarModel, getLMUClassCarModel, loadCarModelConfigs } from "../data/car-models";
 import { useTirePressureOptimal } from "../hooks/catalog-queries";

@@ -1,5 +1,5 @@
 import type { ServerGameAdapter } from "../types";
-import { forzaAdapter } from "../../../shared/games/fm-2023";
+import { forzaAdapter } from "@raceiq/games/fm-2023";
 import { parseForzaPacket } from "./parser";
 import { fmCarCatalog } from "../../../shared/racing/cars/fm";
 import { fmTrackCatalog } from "../../../shared/racing/tracks/catalogs/fm";

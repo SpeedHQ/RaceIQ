@@ -1,4 +1,4 @@
-import { getGame } from "@shared/games/registry";
+import { getGame } from "@raceiq/games/registry";
 import { resolveGripDemand } from "@shared/racing/analysis/metric-values";
 import { useEffect, useRef, useState } from "react";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";

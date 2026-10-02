@@ -1,5 +1,5 @@
 import { gunzipBuffer, META_FRAME_MAGIC, readFrameStreamStart, iterateSessionFrameRecords } from "./framing";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { MOTEC_SESSION_SOURCE } from "@shared/integrations/motec";
 import { decodeMotecSourceArchive, type MotecOffsetEncoding } from "../motec/source-archive";
@@ -9,7 +9,7 @@ import { resolveMotecTarget } from "../motec/targets";
 import { countSourceFrameScanned } from "./test-instrumentation";
 import { SEGMENT_BOUNDARY_MAGIC, SEGMENT_BOUNDARY_VERSION, SEGMENT_CONTEXT_MAGIC, SEGMENT_CONTEXT_VERSION, SEGMENT_CONTEXT_END_MAGIC, readFramePrefix, type SessionCaptureRecord } from "./framing";
 import { decodeLmuSparseFrame, isLmuSparseFrame } from "./lmu-sparse";
-import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "../games/lmu/source-frame";
+import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/game-lmu/source-frame";
 import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "./kunos-sparse";
 import { decodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } from "./generic-sparse";
 

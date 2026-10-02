@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { GameIdSchema } from "../../games/ids";
+import { GameIdSchema } from "@raceiq/games/ids";
 
 /** Path param `:id` — coerces to integer; a non-numeric id is rejected (400)
  *  rather than becoming NaN and reaching a DB lookup (500). */

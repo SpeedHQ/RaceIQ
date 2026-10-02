@@ -1,5 +1,5 @@
 import { m } from "@/paraglide/messages";
-import { getGame } from "@shared/games/registry";
+import { getGame } from "@raceiq/games/registry";
 import { DEFAULT_EXPERIMENT_FOCUS } from "@shared/racing/experiments/focus";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";

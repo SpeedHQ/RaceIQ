@@ -3,7 +3,7 @@ import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import { projectPointOntoPath } from "./path";
-import type { GameId } from "../../../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import {
   semanticNumber,
   type Point,

@@ -1,4 +1,4 @@
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../../shared/telemetry/live/contracts";
 import type { FreshnessState, ResolutionState } from "../../../shared/telemetry/resolver/contracts";
 

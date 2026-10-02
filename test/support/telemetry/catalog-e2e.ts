@@ -1,5 +1,5 @@
 import { expect } from "bun:test";
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/games/ids";
 import type { TelemetryLinkKind } from "../../../shared/telemetry/catalog/contracts";
 import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
 import { compileTelemetryResolver } from "../../../shared/telemetry/resolver/compile";

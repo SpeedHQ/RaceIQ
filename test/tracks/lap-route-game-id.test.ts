@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../../server/db/index";
 import { laps, sessions } from "../../server/db/schema";
 import { lapRoutes } from "../../server/routes/laps";
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 
 initGameAdapters();

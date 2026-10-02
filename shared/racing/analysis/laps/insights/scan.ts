@@ -1,5 +1,5 @@
-import { getGame } from '../../../../games/registry';
-import type { GameId } from '../../../../games/ids';
+import { getGame } from '@raceiq/games/registry';
+import type { GameId } from '@raceiq/games/ids';
 import type { TelemetryPacket } from '../../../../telemetry/types';
 import { createWheelCalibration, type AllWheelStates } from '../physics/vehicle';
 import { createAccelReferenceCollector, type AccelReference } from '../time-loss';

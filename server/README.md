@@ -16,7 +16,7 @@ All other code belongs to domain folders. Each domain README defines ownership, 
 
 ### Game and telemetry pipeline
 
-- [`games/`](games/README.md) — game adapters, packet parsing, extraction, and game-specific runtime policy.
+- [`games/`](games/README.md) — game adapters, packet parsing, and game-specific runtime policy.
 - [`telemetry/`](telemetry/README.md) — normalized live pipeline, replay, and injected persistence/transport ports.
 - [`session-capture/`](session-capture/README.md) — raw frame recording, compression, import, and reprocessing.
 - [`lap-detection/`](lap-detection/README.md) — shared session/lap boundary state machine.

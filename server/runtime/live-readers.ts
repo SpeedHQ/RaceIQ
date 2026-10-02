@@ -1,7 +1,7 @@
-import type { AccSharedMemoryReader } from "../games/acc/shared-memory";
-import type { AcEvoSharedMemoryReader } from "../games/ac-evo/shared-memory";
-import type { IRacingTelemetrySource } from "../games/iracing/source";
-import type { LMUTelemetrySource } from "../games/lmu/source";
+import type { AccSharedMemoryReader } from "@raceiq/game-acc/shared-memory";
+import type { AcEvoSharedMemoryReader } from "@raceiq/game-ac-evo/shared-memory";
+import type { IRacingTelemetrySource } from "@raceiq/game-iracing/source";
+import type { LMUTelemetrySource } from "@raceiq/game-lmu/source";
 
 let accReader: AccSharedMemoryReader | null = null;
 let acEvoReader: AcEvoSharedMemoryReader | null = null;
