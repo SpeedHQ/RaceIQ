@@ -27,7 +27,8 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { SHARED_DIR } from "../../shared/platform/runtime/data-paths"
 import type { CornerFact, TrackFacts } from "../../shared/racing/tracks/facts";
-import type { TrackGeometry } from "../../shared/racing/tracks/geometry";
+import { loadAccSvgBoundaryByName } from "../../shared/racing/tracks/geometry/acc-svg";
+import { TrackGeometry } from "@shared/racing/tracks/geometry";
 
 const META_DIR = resolve(SHARED_DIR, "tracks", "meta");
 const TRACKS_DIR = resolve(SHARED_DIR, "tracks");
@@ -56,8 +57,13 @@ function loadGeometry(slug: string, game: string): TrackGeometry | null {
   return JSON.parse(readFileSync(p, "utf-8")) as TrackGeometry;
 }
 
-/** Centerlines are named `<slug>-centerline.csv` or `<slug>-<ordinal>-centerline.csv`. */
+/** ACC centerlines derive from direction-aligned SVG edges; other games use CSV. */
 function loadCenterline(slug: string, game: string): Point[] | null {
+  if (game === "acc") {
+    const centerLine = loadAccSvgBoundaryByName(slug)?.centerLine;
+    return centerLine?.map((p) => [p.x, p.z]) ?? null;
+  }
+
   const dir = resolve(TRACKS_DIR, game);
   if (!existsSync(dir)) return null;
   const re = new RegExp(`^${slug}(?:-[0-9]+)?-centerline\\.csv$`);

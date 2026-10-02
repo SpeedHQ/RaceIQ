@@ -27,7 +27,8 @@ import {
   saveTrackFacts,
   saveTrackGeometry,
 } from "../../../shared/racing/tracks/storage/meta";
-import { GAMES_DIR, SHARED_DIR } from "../../../shared/platform/runtime/data-paths";
+import { loadAccSvgBoundaryByName } from "../../../shared/racing/tracks/geometry/acc-svg";
+import { GAMES_DIR, SHARED_DIR } from "@shared/platform/runtime/data-paths";
 
 interface TrackRow {
   id: number;
@@ -78,7 +79,6 @@ const CRITICAL_EXPECTED_M: Record<string, number> = {
 };
 
 const OUT_DIR = resolve(SHARED_DIR, "tracks", "ac-evo");
-const ACC_DIR = resolve(SHARED_DIR, "tracks", "acc");
 
 function readTracksCsv(): TrackRow[] {
   const raw = readFileSync(resolve(GAMES_DIR, "ac-evo", "tracks.csv"), "utf-8");
@@ -98,17 +98,12 @@ function polylineLength(pts: { x: number; z: number }[]): number {
   }
   return len;
 }
-
 function accLengthForSlug(slug: string): number | null {
-  const p = resolve(ACC_DIR, `${slug}-centerline.csv`);
-  if (!existsSync(p)) return null;
-  const lines = readFileSync(p, "utf-8").split("\n").filter(Boolean);
-  const pts = lines.slice(1).map((l) => {
-    const [x, z] = l.split(",").map(Number);
-    return { x, z };
-  });
-  return pts.length > 10 ? polylineLength(pts) : null;
+  const centerLine = loadAccSvgBoundaryByName(slug)?.centerLine;
+  return centerLine && centerLine.length > 10 ? polylineLength(centerLine) : null;
 }
+
+
 
 /** Find the ideal_line entry for folder+layout, preferring `layouts\` over `content\layouts\`. */
 function findIdealLineEntry(entries: KspkgEntry[], folder: string, layout: string): KspkgEntry | null {

@@ -1,3 +1,4 @@
+import { loadAccSvgBoundaryByName } from "./geometry/acc-svg";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { tryGetGame } from "@shared/games/registry";
@@ -92,9 +93,19 @@ export function loadBundledPointCsvByName(
   const key = `${suffix}:${gameId}:${name}`;
   const cached = bundledPointCache.get(key);
   if (cached !== undefined) return cached;
+  if (gameId === "acc" && suffix === "centerline") {
+    const result = loadAccSvgBoundaryByName(name)?.centerLine ?? null;
+    bundledPointCache.set(key, result);
+    return result;
+  }
   let content = readDataFile(resolve(bundledTrackDir(gameId), `${name}-${suffix}.csv`));
   if (!content && gameId === "ac-evo") {
-    content = readDataFile(resolve(bundledTrackDir("acc"), `${name}-${suffix}.csv`));
+    if (suffix === "centerline") {
+      const result = loadAccSvgBoundaryByName(name)?.centerLine ?? null;
+      bundledPointCache.set(key, result);
+      return result;
+    }
+    content = readDataFile(resolve(bundledTrackDir("acc"), `${name}-raceline.csv`));
   }
   if (!content) {
     bundledPointCache.set(key, null);
@@ -124,9 +135,20 @@ export function loadBundledPointCsv(
     return null;
   }
 
+  if (gameId === "acc" && suffix === "centerline") {
+    const points = loadAccSvgBoundaryByName(name)?.centerLine;
+    const result = points && points.length > 10 ? points : null;
+    bundledPointCache.set(key, result);
+    return result;
+  }
   let content = readDataFile(resolve(bundledTrackDir(gameId), `${name}-${suffix}.csv`));
   if (!content && gameId === "ac-evo") {
-    content = readDataFile(resolve(bundledTrackDir("acc"), `${name}-${suffix}.csv`));
+    if (suffix === "centerline") {
+      const result = loadAccSvgBoundaryByName(name)?.centerLine ?? null;
+      bundledPointCache.set(key, result);
+      return result;
+    }
+    content = readDataFile(resolve(bundledTrackDir("acc"), `${name}-raceline.csv`));
   }
   if (!content) {
     bundledPointCache.set(key, null);

@@ -1,6 +1,6 @@
 # ACC script tools
 
-ACC racing-line extraction and direct-bundled authoritative track geometry. Centreline curation remains independent.
+ACC racing-line extraction and direct-bundled authoritative track geometry. Centreline is derived from aligned SVG boundaries.
 
 ## Prerequisites
 
@@ -17,14 +17,13 @@ ACC racing-line extraction and direct-bundled authoritative track geometry. Cent
 | --- | --- | --- |
 | `bun run scripts/games/acc/extract-tracks.ts` | Extract ACC fastlane racing lines | Installed ACC cache |
 
-SVG left/right splines are authoritative for track edges. Its embedded `center-line` can cross the infield because source export pairs spline control points with opposite windings (Monza deviates over 280 m); boundary APIs derive centre points from direction-aligned, equal-progress SVG edges instead. Pit lane and racing-line paths remain in SVG. Do not convert or commit boundary JSON. Existing curated centreline CSVs and corner rosters remain unchanged.
+SVG left/right splines are authoritative for track edges. The embedded `center-line` can cross the infield because source export pairs spline control points with opposite windings (Monza deviates over 280 m); boundary APIs derive centre points from direction-aligned, equal-progress SVG edges instead. Pit lane and racing-line paths remain in SVG. Do not convert or commit boundary JSON. Consumers must use this derived SVG centreline; never use or restore ACC centreline CSVs.
 
 ## Outputs
 
 - `shared/data/tracks/acc/<slug>.track.svg`: authoritative ACC track geometry, bundled unchanged from SpeedHQ/extractions.
-- `shared/data/tracks/acc/<slug>-centerline.csv`: preserved curated centreline (some still follow racing line).
 - `shared/data/tracks/acc/<slug>-raceline.csv`: preserved fastlane racing line.
-- Numeric geometry for boundary APIs is derived from bundled SVGs at runtime and cached; no boundary JSON is committed.
+- Numeric geometry, including centreline, derives from bundled SVGs at runtime and is cached; no boundary JSON is committed.
 
 `extractAccTracks` remains owned by `server/games/acc/extract-tracks.ts` and is consumed by the game entrypoint. These scripts do not alter telemetry diagnostics or external callers.
 

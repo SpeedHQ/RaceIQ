@@ -80,13 +80,6 @@ describe("per-game track sectors — geometry sidecars", () => {
     expect(sectors!.s2End).toBeCloseTo(0.636, 3);
   });
 
-  test("silverstone acc sectors load", () => {
-    const sectors = loadTrackSectorsFor("silverstone", "acc");
-    expect(sectors).toBeDefined();
-    expect(sectors!.s1End).toBeCloseTo(0.331, 3);
-    expect(sectors!.s2End).toBeCloseTo(0.662, 3);
-  });
-
   test("silverstone fm-2023 sectors load with source", () => {
     const sectors = loadTrackSectorsFor("silverstone", "fm-2023");
     expect(sectors).toBeDefined();

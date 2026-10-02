@@ -1,79 +1,80 @@
 {
   "sectors": {
-    "s1End": 0.3251,
-    "s2End": 0.7702,
+    "s1End": 0.324594,
+    "s2End": 0.77052,
     "source": "corner-anchored"
   },
   "segments": [
     {
       "key": "s11",
       "startFrac": 0,
-      "endFrac": 0.028
+      "endFrac": 0.027545
     },
     {
       "key": "t1",
-      "startFrac": 0.028,
-      "endFrac": 0.0935
+      "startFrac": 0.027545,
+      "endFrac": 0.09326
     },
     {
       "key": "t2",
-      "startFrac": 0.0935,
-      "endFrac": 0.124
+      "startFrac": 0.09326,
+      "endFrac": 0.123331
     },
     {
       "key": "t3-4",
-      "startFrac": 0.124,
-      "endFrac": 0.1573
+      "startFrac": 0.123331,
+      "endFrac": 0.157499
     },
     {
       "key": "s3",
-      "startFrac": 0.1573,
-      "endFrac": 0.3375
+      "startFrac": 0.157499,
+      "endFrac": 0.336852
     },
     {
       "key": "t5",
-      "startFrac": 0.3375,
-      "endFrac": 0.4016
+      "startFrac": 0.336852,
+      "endFrac": 0.400948
     },
     {
       "key": "s5",
-      "startFrac": 0.4016,
-      "endFrac": 0.4267
+      "startFrac": 0.400948,
+      "endFrac": 0.427127
     },
     {
       "key": "t6",
-      "startFrac": 0.4267,
-      "endFrac": 0.4795
+      "startFrac": 0.427127,
+      "endFrac": 0.479123
     },
     {
       "key": "t7",
-      "startFrac": 0.4795,
-      "endFrac": 0.5644
+      "startFrac": 0.479123,
+      "endFrac": 0.563548
     },
     {
       "key": "t8",
-      "startFrac": 0.5644,
-      "endFrac": 0.7702
+      "startFrac": 0.563548,
+      "endFrac": 0.77052
     },
     {
       "key": "t9",
-      "startFrac": 0.7702,
-      "endFrac": 0.8318
+      "startFrac": 0.77052,
+      "endFrac": 0.832338
     },
     {
       "key": "t10",
-      "startFrac": 0.8318,
-      "endFrac": 0.9053
+      "startFrac": 0.832338,
+      "endFrac": 0.905175
     },
     {
       "key": "t11",
-      "startFrac": 0.9053,
-      "endFrac": 0.9638
+      "startFrac": 0.905175,
+      "endFrac": 0.963435
     },
     {
       "key": "s11",
-      "startFrac": 0.9638,
+      "startFrac": 0.963435,
       "endFrac": 1
     }
-  ]
+  ],
+  "override": true
 }

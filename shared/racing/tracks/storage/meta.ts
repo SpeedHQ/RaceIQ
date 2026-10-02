@@ -8,6 +8,7 @@ import type { NamedSegment } from "../named-segments";
 import type { TrackSectors } from "../sectors";
 import type { Point } from "../geometry/types";
 import { readDataFile } from "./files";
+import { loadAccSvgBoundaryByName } from "../geometry/acc-svg";
 
 /** Game-agnostic track facts (turn names, numbers, groups). */
 const trackFactsDir = resolve(SHARED_DIR, "tracks", "meta");
@@ -83,6 +84,7 @@ export function loadTrackGeometryCenterline(slug: string, gameId: string): Point
   if (!loadTrackGeometry(slug, gameId)) return null;
   const source = geometrySourceCache.get(`${gameId}:${slug}`);
   if (!source) return null;
+  if (source === "acc") return loadAccSvgBoundaryByName(slug)?.centerLine ?? null;
   const content = readDataFile(resolve(SHARED_DIR, "tracks", source, `${slug}-centerline.csv`));
   if (!content) return null;
   const points = content.trim().split("\n").slice(1).map((line) => {

@@ -5,6 +5,7 @@
 ### Fixes
 
 ### Internal
+- Use bundled ACC track SVGs for segment generation, visualization, and runtime centerlines; remove obsolete centerline CSVs and migrate saved segment and sector positions while preserving curated turns.
 
 ## v0.19.1 - 2026-10-01
 

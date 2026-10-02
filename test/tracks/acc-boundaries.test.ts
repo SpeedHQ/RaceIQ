@@ -2,6 +2,8 @@ import { expect, test } from "bun:test";
 import { getAccTracks } from "../../shared/racing/tracks/catalogs/acc";
 import { getTrackBoundariesByOrdinal } from "../../shared/racing/tracks/geometry/extracted";
 import { getTrackRacelineByOrdinal } from "../../shared/racing/tracks/recording/outlines";
+import { findCenterlines, loadCenterline } from "../../shared/racing/tracks/curation/generate";
+import { getBundledTrackName } from "../../shared/racing/tracks/resolve-name";
 
 const distance = (a: { x: number; z: number }, b: { x: number; z: number }) =>
   Math.hypot(a.x - b.x, a.z - b.z);
@@ -25,11 +27,14 @@ test("ACC bundled map edges follow the same closed track at driving width", () =
   }
 });
 
-test("ACC centre line stays on track near the timing origin", () => {
+test("ACC segment centre line stays on track near the timing origin", () => {
   for (const ordinal of getAccTracks().keys()) {
     const boundaries = getTrackBoundariesByOrdinal(ordinal, "acc")!;
     const racingLine = getTrackRacelineByOrdinal(ordinal, "acc")!;
-    const center = boundaries.centerLine!;
+    const slug = getBundledTrackName("acc", ordinal)!;
+    const source = findCenterlines(slug, "acc")[0];
+    expect(source, `ACC track ${ordinal} segment geometry`).toBeDefined();
+    const center = loadCenterline(source.file)!;
     expect(center.length, `ACC track ${ordinal} centre`).toBeGreaterThan(100);
     expect(distance(center[0], racingLine[0]), `ACC track ${ordinal} centre start`).toBeLessThan(25);
     for (let i = 0; i < center.length; i += 50) {
