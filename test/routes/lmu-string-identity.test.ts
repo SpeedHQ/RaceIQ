@@ -6,6 +6,7 @@ import { sessionRoutes } from "../../server/routes/session-routes";
 import { trackRoutes } from "../../server/routes/tracks";
 import { settingsRoutes } from "../../server/routes/settings-routes";
 import tracksJson from "../../shared/games/lmu/tracks.json";
+import { loadLabelledSegments } from "../../shared/racing/tracks/storage/meta";
 
 const sessionIds: number[] = [];
 
@@ -50,17 +51,20 @@ describe("LMU string identity routes", () => {
 
   test("uses common Spa corner definitions and starting percentages for LMU", async () => {
     const encoded = encodeURIComponent("spa_2023/spaelms");
+    const compatibleSegments = loadLabelledSegments("spa", "acc");
+    const expectedLaSource = compatibleSegments.find((segment) => segment.name === "La Source")!;
+    const kemmel = compatibleSegments.find((segment) => segment.name === "Kemmel")!;
     const response = await trackRoutes.request(`/api/track-sectors/${encoded}?gameId=lmu`);
     expect(response.status).toBe(200);
     const data = await response.json() as { source: string; segments: Array<{ name: string; startFrac: number; endFrac: number }> };
     expect(data.source).toBe("shared");
     expect(data.segments.find((segment) => segment.name === "La Source")).toMatchObject({
-      startFrac: 0.0279,
-      endFrac: 0.0641,
+      startFrac: expectedLaSource.startFrac,
+      endFrac: expectedLaSource.endFrac,
     });
     expect(data.segments.find((segment) => segment.name === "Kemmel")).toMatchObject({
-      startFrac: 0.2026,
-      endFrac: 0.3152,
+      startFrac: kemmel.startFrac,
+      endFrac: kemmel.endFrac,
     });
 
     const outlineResponse = await trackRoutes.request(`/api/track-outline/${encoded}?gameId=lmu`);
