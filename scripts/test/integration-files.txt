@@ -38,7 +38,6 @@ test/client/tune-browser-model.test.ts
 test/client/websocket-url.test.ts
 test/client/wireframe-utils.test.ts
 test/db/database-path.test.ts
-test/db/db-seed.test.ts
 test/db/lap-ownership.test.ts
 test/db/lmu-session-identity.test.ts
 test/db/migrations/migration-regression.test.ts
