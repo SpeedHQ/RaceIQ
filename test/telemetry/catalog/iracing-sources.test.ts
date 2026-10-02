@@ -309,8 +309,9 @@ CarSetup:
       sources: ["ACC.SetupFile.basicSetup.alignment.camber"],
     });
     expect(camber.games["ac-evo"]).toMatchObject({
-      kind: "simplified",
-      sources: ["ACEvo.SetupFile.basicSetup.alignment.camber"],
+      kind: "normalized",
+      nativeUnit: "deg",
+      sources: ["ACEvo.SetupFile.frontCamber", "ACEvo.SetupFile.rearCamber"],
     });
     expect(camber.games.iracing).toMatchObject({
       kind: "normalized",

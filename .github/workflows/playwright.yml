@@ -33,6 +33,16 @@ on:
         required: false
         type: string
         default: ""
+      paraglide-artifact:
+        description: "Optional compiled Paraglide artifact for local compiled-server builds"
+        required: false
+        type: string
+        default: ""
+      seed-database-artifact:
+        description: "Optional pre-seeded app.db artifact for seeded Playwright gate"
+        required: false
+        type: string
+        default: ""
       artifact-name:
         description: "Trace and test-result artifact name"
         required: false
@@ -64,6 +74,13 @@ jobs:
         with:
           node-version: 22
 
+      - name: Download seeded database artifact
+        if: inputs.server-set == 'seeded' && inputs.seed-database-artifact != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.seed-database-artifact }}
+          path: playwright/test-data-seed-artifact
+
       - name: Download dist artifact
         if: inputs.dist-artifact != ''
         uses: actions/download-artifact@v8
@@ -77,6 +94,13 @@ jobs:
 
       - name: Install workspace dependencies
         run: bun scripts/ci/workflow-ops.ts install-retry
+      - name: Download upstream Paraglide
+        if: inputs.server-mode == 'compiled' && inputs.dist-artifact == '' && inputs.paraglide-artifact != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.paraglide-artifact }}
+          path: client
+        continue-on-error: true
       - name: Build local compiled server
         if: inputs.server-mode == 'compiled' && inputs.dist-artifact == ''
         run: bun run build
@@ -102,6 +126,7 @@ jobs:
           PW_WORKERS: "1"
           RACEIQ_DISABLE_TRAY: "1"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
+          PW_SEEDED_DATABASE: ${{ inputs.server-set == 'seeded' && inputs.seed-database-artifact != '' && 'playwright/test-data-seed-artifact/app.db' || '' }}
         run: bun run ../scripts/playwright-ci.ts test ${{ inputs.shard != '' && format('--shard={0}', inputs.shard) || '' }}
 
 

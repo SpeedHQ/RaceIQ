@@ -45,6 +45,10 @@ Confirmed unresolved coverage gaps live in [Test Coverage Gaps](../docs/project-
 
 Launchers create configured E2E data directories and delete only their SQLite database files at startup. They preserve non-database fixture files and do not perform teardown cleanup. Seeded tests share one isolated server per shard; tests that mutate notes, imports, sessions, or settings must restore their own state. CI containers are disposable.
 
+Compiled E2E CI prepares seeded data once in a prerequisite job. Before upload, it checks SQLite integrity and foreign keys, replayable lap coverage for all five seeded games, capture availability, and telemetry readability, then checkpoints the WAL. The artifact contains `app.db` and generated `sessions/` captures; database capture references are portable paths rather than producer-specific absolute paths.
+
+Seeded shards download that artifact and set `PW_SEEDED_DATABASE` to its database path, resolved relative to the repository root. Both launchers reset their private database, copy the artifact's database and referenced captures into the shard data directory, rebase capture paths, and skip fixture imports. Fresh/tunes projects remain unchanged; local runs without this override still seed normally. Import and conversion tests continue exercising real imports. Generated `playwright/test-data-*` directories are ignored by Git.
+
 Playwright output goes to `playwright/test-results/`. Responsive captures go to `playwright/screenshots/` (mobile captures under `screenshots/mobile/`). Both are generated artifacts and must not be committed. Seeded data under `test-results/` is disposable.
 
 ## Responsive visual baselines

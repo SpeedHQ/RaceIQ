@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import type { E2ERuntime, ServerPorts } from "./runtime";
+import { DEFAULT_GAMES } from "../../scripts/data/seed-db-options";
 
 type WebServerDefinition = {
   command: string;
@@ -29,7 +30,7 @@ function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boole
     env.RACEIQ_E2E = "1";
     env.RACEIQ_FEATURE_F1_EXPERIMENTS = "true";
     env.RACEIQ_FEATURE_IRACING_ADAPTER = "true";
-    env.PW_SEED_GAMES = "fm-2023,f1-2025,acc,ac-evo,iracing";
+    env.PW_SEED_GAMES = DEFAULT_GAMES.join(",");
     if (seedSetups) env.PW_SEED_SETUP_DATA = "1";
   }
 

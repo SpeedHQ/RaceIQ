@@ -10,8 +10,8 @@ function NewAcEvoTunePage() {
   const { data: cars = [] } = useAcEvoCars();
 
   return (
-    <div className="flex-1 overflow-auto">
-      <div className="max-w-3xl mx-auto">
+    <div className="flex-1">
+      <div className="w-full min-w-0">
         <SetupTuneForm
           gameId="ac-evo"
           cars={cars}

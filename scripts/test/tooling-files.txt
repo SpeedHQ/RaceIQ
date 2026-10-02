@@ -9,12 +9,14 @@ test/tooling/optimize-gt3-model.test.ts
 test/tooling/optimize-peugeot-model.test.ts
 test/tooling/paraglide-cache.test.ts
 test/tooling/pipeline-bench-support.test.ts
+test/tooling/playwright-seeded-database.test.ts
 test/tooling/playwright-setup-seed.test.ts
 test/tooling/process-bench.test.ts
 test/tooling/release-version.test.ts
 test/tooling/responsive-workspace-contract.test.ts
 test/tooling/story-isolation.test.ts
 test/tooling/storybook-ready.test.ts
+test/tooling/storybook-build.test.ts
 test/tooling/test-shards.test.ts
 test/tooling/theme-contract.test.ts
 test/tooling/version-label.test.ts

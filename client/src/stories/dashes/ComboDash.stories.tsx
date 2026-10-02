@@ -66,10 +66,8 @@ function render({ game, rpm, gear, unitSystem }: Args) {
 
 const meta: Meta<Args> = {
   title: "Dashes/Combo/Combo Dash 1",
-  tags: ["autodocs"],
   parameters: {
     layout: "fullscreen",
-    docs: { story: { inline: true, height: "420px" } },
   },
   argTypes: {
     game: {

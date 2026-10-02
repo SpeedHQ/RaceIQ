@@ -1,6 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 
 interface WheelTableRow {
   id?: string;
@@ -43,10 +42,10 @@ function getRowKey(row: WheelTableRow, seen: Map<string, number>): string {
 }
 
 export function WheelTable({ title, showHeaders = true, borderTop = false, rows }: WheelTableProps) {
-  const headerContentClass = borderTop ? "block pt-2 border-t border-app-border" : undefined;
+  const headerContentClass = borderTop ? "block border-t border-app-border pt-2" : undefined;
   const rowKeyState = new Map<string, number>();
   return (
-    <Table className="w-auto table-fixed text-xs">
+    <table className="w-full min-w-0 table-fixed font-mono text-app-compact">
       <colgroup>
         <col className="w-[85px]" />
         <col />
@@ -55,53 +54,42 @@ export function WheelTable({ title, showHeaders = true, borderTop = false, rows 
         <col />
       </colgroup>
       {showHeaders && (
-        <TableHeader>
-          <TableRow>
-            <TableHead>
-              <span className={cn("block font-semibold uppercase tracking-wider", headerContentClass)}>{title}</span>
-            </TableHead>
-            <TableHead className="text-center">
-              <span className={headerContentClass}>FL</span>
-            </TableHead>
-            <TableHead className="text-center">
-              <span className={headerContentClass}>FR</span>
-            </TableHead>
-            <TableHead className="text-center">
-              <span className={headerContentClass}>RL</span>
-            </TableHead>
-            <TableHead className="text-center">
-              <span className={headerContentClass}>RR</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
+        <thead className="sticky top-0 z-10 bg-app-surface">
+          <tr className="text-app-label text-app-text-muted uppercase tracking-wider">
+            <th scope="col" className="p-0 text-left">
+              <span className={cn("block font-semibold", headerContentClass)}>{title}</span>
+            </th>
+            {(["FL", "FR", "RL", "RR"] as const).map((wheel) => (
+              <th key={wheel} scope="col" className="p-0 text-right">
+                <span className={headerContentClass}>{wheel}</span>
+              </th>
+            ))}
+          </tr>
+        </thead>
       )}
-      <TableBody>
+      <tbody>
         {rows.map((row) => {
           const key = getRowKey(row, rowKeyState);
           return (
-            <TableRow key={key}>
-              <TableCell className="text-app-text-secondary">{row.label}</TableCell>
+            <tr key={key}>
+              <td className="p-0 text-app-text-secondary">{row.label}</td>
               {row.span2 ? (
                 <>
-                  <TableCell className="text-right" colSpan={2}>
-                    {row.fl}
-                  </TableCell>
-                  <TableCell className="text-right" colSpan={2}>
-                    {row.rl}
-                  </TableCell>
+                  <td className="p-0 text-right" colSpan={2}>{row.fl}</td>
+                  <td className="p-0 text-right" colSpan={2}>{row.rl}</td>
                 </>
               ) : (
                 <>
-                  <TableCell className="text-right">{row.fl}</TableCell>
-                  <TableCell className="text-right">{row.fr}</TableCell>
-                  <TableCell className="text-right">{row.rl}</TableCell>
-                  <TableCell className="text-right">{row.rr}</TableCell>
+                  <td className="p-0 text-right">{row.fl}</td>
+                  <td className="p-0 text-right">{row.fr}</td>
+                  <td className="p-0 text-right">{row.rl}</td>
+                  <td className="p-0 text-right">{row.rr}</td>
                 </>
               )}
-            </TableRow>
+            </tr>
           );
         })}
-      </TableBody>
-    </Table>
+      </tbody>
+    </table>
   );
 }

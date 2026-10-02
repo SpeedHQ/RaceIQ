@@ -6,6 +6,7 @@ import { OwnershipChoice } from "../import/OwnershipChoice";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
 import { Button } from "../ui/button";
+import { queryKeys } from "@/hooks/query-keys";
 interface ImportedLap {
   lapId: number;
   sessionId: number;
@@ -74,6 +75,7 @@ export function ImportDumpPanel() {
         // Refresh lap/session lists so new data appears in the app
         qc.invalidateQueries({ queryKey: ["laps"] });
         qc.invalidateQueries({ queryKey: ["sessions"] });
+        qc.invalidateQueries({ queryKey: queryKeys.userTunes });
       }
     } catch (e) {
       setError((e as Error).message);

@@ -1,4 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../hooks/query-keys";
 import { useCallback, useState } from "react";
 import type { SessionOwnership } from "../../../../shared/racing/sessions/types";
 import { client } from "../../lib/rpc";
@@ -39,6 +40,7 @@ export function useAnalyseImports(args: {
       void queryClient.invalidateQueries({ queryKey: ["laps"] });
       void queryClient.invalidateQueries({ queryKey: ["sessions"] });
       void queryClient.invalidateQueries({ queryKey: ["tracks"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.userTunes });
       setImportResult(result);
     },
     [queryClient],

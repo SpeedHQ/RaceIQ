@@ -176,7 +176,7 @@ export function SessionsPage() {
       setSelectedLaps(new Set());
       setSelectedSessions(new Set());
       setConfirmDelete(false);
-      await Promise.all([queryClient.invalidateQueries({ queryKey: queryKeys.sessions }), queryClient.invalidateQueries({ queryKey: queryKeys.laps })]);
+      await Promise.all([queryClient.invalidateQueries({ queryKey: queryKeys.sessions }), queryClient.invalidateQueries({ queryKey: queryKeys.laps }), queryClient.invalidateQueries({ queryKey: queryKeys.userTunes })]);
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -200,6 +200,7 @@ export function SessionsPage() {
         queryClient.invalidateQueries({ queryKey: queryKeys.laps }),
         queryClient.invalidateQueries({ queryKey: queryKeys.storageSessions }),
         queryClient.invalidateQueries({ queryKey: queryKeys.cacheStatus }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.userTunes }),
       ]);
     },
     [allLaps, queryClient],
@@ -225,6 +226,7 @@ export function SessionsPage() {
           onImported={() => {
             void queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
             void queryClient.invalidateQueries({ queryKey: queryKeys.laps });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.userTunes });
           }}
         />
       )}

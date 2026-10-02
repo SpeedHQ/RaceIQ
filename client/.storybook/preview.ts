@@ -8,21 +8,6 @@ initGameAdapters({ f1Experiments: true, iracingAdapter: true });
 // Match the app shell's dark shadcn mode in the Storybook iframe.
 document.documentElement.classList.add("dark");
 
-// The app's global CSS (imported above) locks `html, body, #root` to
-// `height: 100%; overflow: hidden` so in-app scroll containers work. That
-// also prevents the Storybook Docs page from scrolling. Override on the
-// docs preview iframe only (it mounts content under `#storybook-docs`).
-const docsScrollFix = document.createElement("style");
-docsScrollFix.textContent = `
-  html:has(#storybook-docs),
-  html:has(#storybook-docs) body,
-  html:has(#storybook-docs) #root {
-    height: auto !important;
-    overflow: auto !important;
-  }
-`;
-document.head.appendChild(docsScrollFix);
-
 const preview: Preview = {
   parameters: {
     controls: {

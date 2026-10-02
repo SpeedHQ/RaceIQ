@@ -2,10 +2,41 @@
 
 ### Features
 
+- Use structured setup editing without a Paste JSON mode, and label the save action “Save Setup”.
+- Show each saved setup's best valid recorded lap from sessions using that setup, and sort setups by recorded lap time.
+- Select or clear a track when creating or editing ACC and AC Evo setups; restrict track-specific setup best laps to that circuit.
+- Use accessible toggle groups for setup sections and setup sources.
+
 ### Fixes
+
+- Warn before deleting a setup that is in use, list its linked sessions and laps, and preserve recordings when removing their setup associations.
+- Keep Analyse Data vertically scrollable; restore borderless wheel metrics, right-align wheel headings, show the combined balance signal, and label pressure units once per row.
+- Label the lap replay selector “Setup” and let users select “No setup” to unlink a saved setup from a lap.
+- Hide setup lap times and lap-time sorting until a specific track is selected.
+- Keep AC Evo setup editor actions visible while scrolling and remove excess left padding from the editor header.
+- Restore AC Evo `.carsetup` imports from Sessions and the setup-file browser, with automatic car selection for uploaded setups that identify their car.
+- Match AC Evo setup editing to the experiment setup viewer's tabs, corner cards, units, and ranges; preserve imported per-wheel details and saved edits.
+- Keep unavailable per-car adjustments read-only in imported AC Evo setups.
+- Refresh saved setup best laps and rankings when recordings or setup associations change.
+- Align AC Evo setup inputs regardless of units, use compact controls without native number spinners, fill the available editor width, and arrange wheel sections side by side on desktop and stacked on mobile.
+- Use searchable car, track, and category selectors in ACC and AC Evo setup forms.
+- Use the application background instead of gray fill for shared text and numeric inputs.
 
 ### Internal
 - Use bundled ACC track SVGs for segment generation, visualization, and runtime centerlines; remove obsolete centerline CSVs and migrate saved segment and sector positions while preserving curated turns.
+- Exclude generated JavaScript from client typechecking and emit Paraglide declarations in development so translation imports remain typed.
+- Seed and validate the compiled E2E database once per workflow, then restore isolated database and capture copies in seeded shards instead of repeating fixture imports.
+- Include LMU recordings and saved Analyse/Compare chat histories in shared Playwright seed artifacts; restore isolated chat-memory databases in each seeded shard.
+- Remove redundant development database-seed tests from CI and verify recording imports after database upgrades.
+- Prevent setup deletion from refetching usage data for a removed setup.
+- Restore query context for setup browser snapshots, fail immediately on Storybook render errors, and show per-test snapshot progress in CI.
+- Reduce snapshot memory churn by checking canvas stability inside the browser without PNG serialization and reusing screenshot dimensions during diff generation.
+- Reuse validated Paraglide output and exact-key static Storybook builds in snapshot CI, separating compilation from capture while rejecting stale or damaged caches.
+- Isolate Storybook cache Git operations from inherited hook variables so tooling tests cannot replace the caller's staging index.
+- Install Node.js 22 in the CI test job so Storybook cache tooling tests use the required runtime instead of Bun's Node compatibility shim.
+- Reuse compiled Paraglide output from the upstream build artifact in snapshot and compiled E2E jobs, with validated cache or compilation fallback.
+- Run compiled E2E gates after build and test without waiting for snapshot comparison.
+- Remove Storybook Docs generation and its addon from local previews and snapshot builds.
 
 ## v0.19.1 - 2026-10-01
 

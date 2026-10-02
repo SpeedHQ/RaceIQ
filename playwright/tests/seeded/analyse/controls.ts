@@ -95,6 +95,7 @@ export async function exercisePlaybackControls(page: Page, semanticFrames: Seman
     await expect(speedButton).toHaveAttribute("aria-pressed", "true");
   }
   await page.getByRole("button", { name: "2x", exact: true }).click();
+  await slider.press("Home");
   const beforeKeyboardStep = Number(await slider.getAttribute("aria-valuenow"));
   await slider.press("ArrowRight");
   await expect.poll(async () => Number(await slider.getAttribute("aria-valuenow"))).toBeGreaterThan(beforeKeyboardStep);

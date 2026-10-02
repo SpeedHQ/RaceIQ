@@ -152,6 +152,7 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
                 const data = await response.json();
                 console.log("[Recheck]", data);
                 await queryClient.invalidateQueries({ queryKey: queryKeys.laps });
+                await queryClient.invalidateQueries({ queryKey: queryKeys.userTunes });
                 setContextMenu(null);
               }}
             >
