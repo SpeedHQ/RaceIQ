@@ -71,11 +71,6 @@ function ensureSettingsDir(): void {
   }
 }
 
-/** Returns true if settings file doesn't exist yet (fresh install) */
-export function isFirstRun(): boolean {
-  return !existsSync(SETTINGS_PATH);
-}
-
 export function loadSettings(): AppSettings {
   ensureSettingsDir();
   if (!existsSync(SETTINGS_PATH)) {

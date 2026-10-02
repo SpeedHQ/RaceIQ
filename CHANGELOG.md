@@ -9,6 +9,7 @@
 
 ### Fixes
 
+- Stop opening a browser automatically on startup, including first-run and development launches.
 - Warn before deleting a setup that is in use, list its linked sessions and laps, and preserve recordings when removing their setup associations.
 - Keep Analyse Data vertically scrollable; restore borderless wheel metrics, right-align wheel headings, show the combined balance signal, and label pressure units once per row.
 - Label the lap replay selector “Setup” and let users select “No setup” to unlink a saved setup from a lap.
