@@ -71,10 +71,8 @@ function render({ game, lapCount }: Args) {
 
 const meta: Meta<Args> = {
   title: "Dashes/Combo/Combo Dash 2",
-  tags: ["autodocs"],
   parameters: {
     layout: "fullscreen",
-    docs: { story: { inline: true, height: "420px" } },
   },
   argTypes: {
     game: {

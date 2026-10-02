@@ -30,6 +30,7 @@
 - Isolate Storybook cache Git operations from inherited hook variables so tooling tests cannot replace the caller's staging index.
 - Reuse compiled Paraglide output from the upstream build artifact in snapshot and compiled E2E jobs, with validated cache or compilation fallback.
 - Run compiled E2E gates after build and test without waiting for snapshot comparison.
+- Remove Storybook Docs generation and its addon from local previews and snapshot builds.
 
 ## v0.19.1 - 2026-10-01
 
