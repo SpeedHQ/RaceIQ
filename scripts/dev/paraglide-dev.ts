@@ -10,8 +10,8 @@ const SETTINGS_PATH = resolve(CLIENT, "project.inlang/settings.json");
 const CACHE_DIR = resolve(CLIENT, "project.inlang/.cache");
 const CACHE_PATH = resolve(CACHE_DIR, "raceiq-paraglide-dev.json");
 const OUTDIR = resolve(CLIENT, "src/paraglide");
-const OUTPUT_MARKERS = ["messages.js", "runtime.js", "server.js", "messages/en.js", "messages/de.js"];
-const COMPILER_FINGERPRINT = "paraglide-dev-v1|locale-modules|localStorage,baseLocale|no-declarations";
+const OUTPUT_MARKERS = ["messages.js", "runtime.js", "server.js", "messages/en.js", "messages/de.js", "messages.d.ts", "runtime.d.ts", "server.d.ts", "messages/en.d.ts", "messages/de.d.ts"];
+const COMPILER_FINGERPRINT = "paraglide-dev-v2|locale-modules|localStorage,baseLocale|ts-declarations";
 
 let compilePromise: Promise<void> | null = null;
 let debounceTimer: Timer | null = null;
@@ -83,7 +83,7 @@ async function compile(hash: string): Promise<void> {
       "--strategy",
       "localStorage",
       "baseLocale",
-      "--no-emit-ts-declarations",
+      "--emit-ts-declarations",
     ], { cwd: CLIENT, stdin: "ignore", stdout: "inherit", stderr: "inherit" });
     const exitCode = await child.exited;
     if (exitCode !== 0) throw new Error(`Paraglide compile failed (${exitCode})`);

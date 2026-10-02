@@ -23,6 +23,7 @@
 - Use the application background instead of gray fill for shared text and numeric inputs.
 
 ### Internal
+- Exclude generated JavaScript from client typechecking and emit Paraglide declarations in development so translation imports remain typed.
 - Seed and validate the compiled E2E database once per workflow, then restore isolated database and capture copies in seeded shards instead of repeating fixture imports.
 - Remove redundant development database-seed tests from CI and verify recording imports after database upgrades.
 - Prevent setup deletion from refetching usage data for a removed setup.
