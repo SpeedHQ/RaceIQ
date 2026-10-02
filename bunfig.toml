@@ -1,7 +1,0 @@
-[test]
-root = "./test"
-# Isolate every `bun test` process in a temporary DATA_DIR, including bare
-# single-file runs; otherwise database wipes could hit user data or other suites.
-preload = ["./test/support/setup-data-dir.ts"]
-timeout = 40000
-maxConcurrency = 2
