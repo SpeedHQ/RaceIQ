@@ -28,6 +28,8 @@
 - Reduce snapshot memory churn by checking canvas stability inside the browser without PNG serialization and reusing screenshot dimensions during diff generation.
 - Reuse validated Paraglide output and exact-key static Storybook builds in snapshot CI, separating compilation from capture while rejecting stale or damaged caches.
 - Isolate Storybook cache Git operations from inherited hook variables so tooling tests cannot replace the caller's staging index.
+- Reuse compiled Paraglide output from the upstream build artifact in snapshot and compiled E2E jobs, with validated cache or compilation fallback.
+- Run compiled E2E gates after build and test without waiting for snapshot comparison.
 
 ## v0.19.1 - 2026-10-01
 

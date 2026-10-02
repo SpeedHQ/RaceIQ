@@ -7,6 +7,11 @@ on:
         description: "Branch or ref to test"
         required: false
         type: string
+      paraglide-artifact:
+        description: "Optional compiled Paraglide artifact from the upstream build"
+        required: false
+        type: string
+        default: ""
 
 jobs:
   playwright:
@@ -71,3 +76,4 @@ jobs:
       artifact-name: playwright-${{ matrix.name }}
       diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
       target-ref: ${{ inputs.target-ref }}
+      paraglide-artifact: ${{ inputs.paraglide-artifact }}

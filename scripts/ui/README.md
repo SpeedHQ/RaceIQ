@@ -34,6 +34,10 @@ CI restores exact keys without fallback prefixes, builds each revision explicitl
 
 Paraglide generation uses the shared translation build cache documented in `scripts/dev/README.md`. Historical base revisions keep their own Vite configuration, so their first uncached build may still run the older translation compiler. GitHub pull-request caches reuse builds within the same PR; sharing across PRs requires a matching default-branch cache.
 
+The upstream `Build RaceIQ` job uploads generated locales and their hidden manifest as `raceiq-paraglide`. The reusable snapshot and compiled E2E workflows accept `paraglide-artifact` and download it into `client` before locale validation or the local production build. Every compiled E2E matrix job receives the artifact; jobs using a prebuilt native `dist` skip the locale download. Successful snapshot artifact downloads skip the persistent locale-cache restore. Manual runs and failed transfers fall back to the persistent cache or compilation; mismatched or damaged artifacts are regenerated.
+
+Compiled E2E gates depend on the upstream build and test jobs, not snapshot comparison. E2E, responsive screenshots, and snapshot comparison can run alongside one another after those shared prerequisites succeed.
+
 Git input enumeration and test fixtures discard inherited `GIT_*` variables. In particular, pre-commit's `GIT_INDEX_FILE` must never redirect a temporary fixture's `git add` into the caller's staging index.
 
 ## Boundaries

@@ -40,6 +40,19 @@ jobs:
       - name: Build RaceIQ
         run: bun run build
 
+      - name: Upload compiled Paraglide artifact
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: raceiq-paraglide
+          path: |
+            client/src/paraglide
+            client/project.inlang/.cache/raceiq-paraglide-build.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+        continue-on-error: true
+
       - name: Upload Windows E2E dist artifact
         uses: actions/upload-artifact@v7
         with:
@@ -115,16 +128,14 @@ jobs:
           git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
           bun scripts/release/check-changelog.ts
   playwright-e2e:
-    if: >-
-      always() &&
-      github.event_name == 'pull_request' &&
-      !github.event.pull_request.draft &&
-      needs.snapshots.result == 'success'
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
     needs:
-      - snapshots
+      - build
+      - test
     uses: ./.github/workflows/playwright-e2e.yml
     with:
       target-ref: ${{ inputs.target_ref || github.ref }}
+      paraglide-artifact: raceiq-paraglide
 
   screenshots:
     if: github.event_name == 'pull_request' && !github.event.pull_request.draft
@@ -149,3 +160,4 @@ jobs:
     uses: ./.github/workflows/pr-snapshots.yml
     with:
       pr: ${{ github.event.pull_request.number }}
+      paraglide-artifact: raceiq-paraglide

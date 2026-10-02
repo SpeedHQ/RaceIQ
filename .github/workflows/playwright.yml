@@ -33,6 +33,11 @@ on:
         required: false
         type: string
         default: ""
+      paraglide-artifact:
+        description: "Optional compiled Paraglide artifact for local compiled-server builds"
+        required: false
+        type: string
+        default: ""
       artifact-name:
         description: "Trace and test-result artifact name"
         required: false
@@ -77,6 +82,13 @@ jobs:
 
       - name: Install workspace dependencies
         run: bun scripts/ci/workflow-ops.ts install-retry
+      - name: Download upstream Paraglide
+        if: inputs.server-mode == 'compiled' && inputs.dist-artifact == '' && inputs.paraglide-artifact != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.paraglide-artifact }}
+          path: client
+        continue-on-error: true
       - name: Build local compiled server
         if: inputs.server-mode == 'compiled' && inputs.dist-artifact == ''
         run: bun run build

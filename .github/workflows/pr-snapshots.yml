@@ -17,6 +17,11 @@ on:
         description: "Pull request number to render"
         required: true
         type: number
+      paraglide-artifact:
+        description: "Optional compiled Paraglide artifact from the upstream build"
+        required: false
+        type: string
+        default: ""
   # Manual dispatch remains available for any PR, including non-client changes.
   workflow_dispatch:
     inputs:
@@ -114,8 +119,17 @@ jobs:
             client/project.inlang/.cache/raceiq-storybook-build.json
           key: storybook-pr-${{ steps.cache-keys.outputs.pr }}
         continue-on-error: true
+      - name: Download upstream Paraglide
+        id: locale-artifact
+        if: inputs.paraglide-artifact != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.paraglide-artifact }}
+          path: client
+        continue-on-error: true
       - name: Restore PR Paraglide
         id: locale-cache
+        if: inputs.paraglide-artifact == '' || steps.locale-artifact.outcome != 'success'
         uses: actions/cache/restore@v4
         with:
           path: |
