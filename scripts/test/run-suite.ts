@@ -52,7 +52,7 @@ let status = 1;
 try {
   const suiteRootToml = suiteRoot.replaceAll("\\", "/");
   const configPath = resolve(suiteRoot, "bunfig.toml");
-  const preload = resolve(root, "test/support/setup-data-dir.ts").replaceAll("\\", "/");
+  const preload = resolve(root, "server/test-support/setup-data-dir.ts").replaceAll("\\", "/");
   writeFileSync(
     configPath,
     parallelSuite ? `[test]\nroot = "${suiteRootToml}"\ntimeout = 40000\n` : `[test]\nroot = "${suiteRootToml}"\npreload = ["${preload}"]\ntimeout = 40000\nmaxConcurrency = 1\n`,

@@ -1,3 +1,9 @@
+import { accRecordingSupport } from "@raceiq/game-acc/test-support/recordings";
+import { acEvoRecordingSupport } from "@raceiq/game-ac-evo/test-support/recordings";
+import { f1RecordingSupport } from "@raceiq/game-f1-2025/test-support/recordings";
+import { fmRecordingSupport } from "@raceiq/game-fm-2023/test-support/recordings";
+import { iracingRecordingSupport } from "@raceiq/game-iracing/test-support/recordings";
+import { lmuRecordingSupport } from "@raceiq/game-lmu/test-support/recordings";
 /**
  * Usage: bun scripts/telemetry/recordings/probe-recording.ts <gameId> [path]
  *
@@ -8,14 +14,23 @@
 import { initGameAdapters } from "@raceiq/shared/games/init";
 import { initServerGameAdapters } from "../../../src/games/init";
 import { developmentReleaseFeatures } from "@raceiq/tooling/release/development-release-features";
-import { parseDump } from "../../../../../test/support/recordings/parse-dump";
+import { parseDump } from "@raceiq/backend-core/test-support/recordings/parse-dump";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
+const recordingGames = {
+  "acc": accRecordingSupport,
+  "ac-evo": acEvoRecordingSupport,
+  "f1-2025": f1RecordingSupport,
+  "fm-2023": fmRecordingSupport,
+  "iracing": iracingRecordingSupport,
+  "lmu": lmuRecordingSupport,
+};
+
 const gameId = process.argv[2] as GameId;
 if (!gameId) {
-  console.error("Usage: bun apps/backend/scripts/telemetry/recordings/probe-recording.ts <gameId> [path]");
+  console.error("Usage: bun apps/backend/apps/backend/scripts/telemetry/recordings/probe-recording.ts <gameId> [path]");
   process.exit(1);
 }
 
@@ -45,5 +60,5 @@ if (!path || !existsSync(path)) {
 console.error(`Probing: ${path}`);
 initGameAdapters(developmentReleaseFeatures);
 initServerGameAdapters(developmentReleaseFeatures);
-const laps = await parseDump(gameId, path);
+const laps = await parseDump(recordingGames[gameId], path);
 console.log(JSON.stringify(laps, null, 2));

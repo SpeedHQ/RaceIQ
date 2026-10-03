@@ -22,11 +22,11 @@ const common = [
   "--max-samples=100",
 ];
 const filesToSync = [
-  "scripts/quality/process-bench.ts",
-  "test/benchmarks/process-bench-contracts.ts",
-  "test/benchmarks/process-bench-runtime.ts",
-  "test/benchmarks/process-bench-child.ts",
-  "test/benchmarks/replay-process-bench.ts",
+  "apps/backend/scripts/quality/process-bench.ts",
+  "apps/backend/test/benchmarks/process-bench-contracts.ts",
+  "apps/backend/test/benchmarks/process-bench-runtime.ts",
+  "apps/backend/test/benchmarks/process-bench-child.ts",
+  "apps/backend/test/benchmarks/replay-process-bench.ts",
 ];
 const rounds = [
   { revision: "base-1", checkout: "base", caseOrder: "forward" },
@@ -73,7 +73,7 @@ for (const round of rounds) {
   await run([
     bun,
     "run",
-    "scripts/quality/process-bench.ts",
+    "apps/backend/scripts/quality/process-bench.ts",
     "--suite=replay",
     `--revision=${round.revision}`,
     ...common,
@@ -90,7 +90,7 @@ const pairs = rounds.reduce<string[]>((paths, round, index) => {
   return paths;
 }, []);
 const comparisonPath = join(reportsDir, "comparison.md");
-const comparator = join(currentDir, "scripts/quality/bench-compare.ts");
+const comparator = join(currentDir, "apps/backend/scripts/quality/bench-compare.ts");
 const comparisonArgs = [
   bun,
   "run",

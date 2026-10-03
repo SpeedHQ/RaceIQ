@@ -26,7 +26,7 @@ initServerGameAdapters(developmentReleaseFeatures);
 
 const path = process.argv[2];
 if (!path) {
-  console.error("usage: bun apps/backend/scripts/telemetry/ac-evo/diag-status.ts <bin-path>");
+  console.error("usage: bun apps/backend/apps/backend/scripts/telemetry/ac-evo/diag-status.ts <bin-path>");
   process.exit(1);
 }
 

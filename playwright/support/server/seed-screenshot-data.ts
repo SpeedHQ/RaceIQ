@@ -21,7 +21,7 @@ export function seedScreenshotData(repoDir: string, dataDir: string): void {
     return;
   }
 
-  const result = spawnSync("bun", ["run", "apps/backend/scripts/data/seed-db.ts", `--games=${process.env.PW_SEED_GAMES ?? DEFAULT_GAMES.join(",")}`], {
+  const result = spawnSync("bun", ["run", "apps/backend/apps/backend/scripts/data/seed-db.ts", `--games=${process.env.PW_SEED_GAMES ?? DEFAULT_GAMES.join(",")}`], {
     cwd: repoDir,
     env: { ...process.env, DATA_DIR: dataDir },
     stdio: "inherit",

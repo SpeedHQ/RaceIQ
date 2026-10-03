@@ -19,7 +19,7 @@ import { assertSafeTarget, seedRowCount } from "@raceiq/tooling/data/seed-db-saf
 import { insertDemoRows, markOnboardingComplete } from "@raceiq/tooling/data/seed-db-demo";
 import { cleanDatabase, removeSeedData } from "@raceiq/tooling/data/seed-db-reset";
 import { FIXTURES, PROFILE_NAME, parseOptions, SEED_MARKER } from "@raceiq/tooling/data/seed-db-options";
-import { combineRecordingParts } from "@raceiq/tooling/lib/combine-recording-parts";
+import { combineRecordingParts } from "@raceiq/backend-core/session-capture/combine-recording-parts";
 
 async function* streamLMUSeedFrames(path: string): AsyncGenerator<Buffer> {
   const source = createReadStream(path);

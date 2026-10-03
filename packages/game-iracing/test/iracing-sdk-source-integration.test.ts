@@ -1,0 +1,422 @@
+import { registerGame } from "@raceiq/shared/games/registry";
+import { iracingServerAdapter } from "../src/index";
+import { registerServerGame } from "@raceiq/backend-core/games/registry";
+import { describe, expect, test } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+  normalizeIRacingFrame,
+} from "../src/normalizer";
+import {
+  type IRacingFrameReader,
+  IRacingTelemetrySource,
+} from "../src/source";
+import {
+  createIRacingSourceDecoderState,
+  decodeIRacingSourceFrame,
+  IRacingSourceFrameEncoder,
+  type IRacingSourceFrameV3,
+} from "@raceiq/capture-formats/iracing/source-frame";
+import { parsePacket } from "@raceiq/backend-core/games/packet-dispatch";
+import { getServerGame } from "@raceiq/backend-core/games/registry";
+import { timerResolutionRefCount } from "@raceiq/backend-core/games/shared/win-timer-resolution";
+import { IRacingRecorder } from "../src/recorder";
+import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
+import {
+  iracingAdapter,
+  rememberIRacingIdentity,
+} from "@raceiq/shared/games/iracing/index";
+
+registerGame(iracingServerAdapter);
+registerServerGame(iracingServerAdapter);
+import { sampleFrame, } from "./support/games/iracing-sdk";
+import { ReplayedIRacingFrameReader } from "./support/recordings/replayed-iracing-frame-reader";
+
+const IRACING_FIXTURE =
+  "test/artifacts/sessions/iracing-road-america-gt3.bin.gz";
+class CapturingIRacingRecorder extends IRacingRecorder {
+  readonly frames: Buffer[] = [];
+  stopped = false;
+
+  override get recording(): boolean {
+    return true;
+  }
+
+  override start(): string {
+    return "memory://iracing.bin";
+  }
+
+  override writeFrame(frame: Buffer): void {
+    this.frames.push(Buffer.from(frame));
+  }
+
+  override async stop(): Promise<void> {
+    this.stopped = true;
+  }
+}
+
+describe("iRacing source ownership integration", () => {
+  test.skipIf(process.platform !== "win32")("holds high-resolution timer while polling iRacing", async () => {
+    const initialRefCount = timerResolutionRefCount();
+    const reader: IRacingFrameReader = { start() {}, async stop() {}, readLatest: () => null };
+    const source = new IRacingTelemetrySource({ reader, pollIntervalMs: 1000 });
+    source.start();
+    try {
+      expect(timerResolutionRefCount()).toBe(initialRefCount + 1);
+    } finally {
+      await source.stop();
+    }
+    expect(timerResolutionRefCount()).toBe(initialRefCount);
+  });
+
+  test("parsing a historical frame cannot overwrite live identity", () => {
+    const carOrdinal = 901_042;
+    const trackOrdinal = 901_099;
+    rememberIRacingIdentity({
+      carId: carOrdinal,
+      carName: "Live GT3",
+      trackId: trackOrdinal,
+      trackName: "Live Raceway",
+    });
+
+    const historical = sampleFrame();
+    historical.session = {
+      ...historical.session,
+      carId: carOrdinal,
+      carName: "Old Capture GT3",
+      trackId: trackOrdinal,
+      trackName: "Old Capture Raceway",
+    };
+    normalizeIRacingFrame(historical);
+
+    expect(iracingAdapter.getCarName(carOrdinal)).toBe("Live GT3");
+    expect(iracingAdapter.getTrackName(trackOrdinal)).toBe("Live Raceway");
+  });
+
+  test("translates iRacing gear and weather into canonical dashboard fields", () => {
+    const reverse = sampleFrame();
+    reverse.values = {
+      ...reverse.values,
+      Gear: -1,
+      Precipitation: 0.42,
+      TrackWetness: 5,
+    };
+    const reversePacket = normalizeIRacingFrame(reverse);
+    expect(reversePacket.Gear).toBe(0);
+    expect(reversePacket.RainPercent).toBe(42);
+    expect(reversePacket.iracing?.trackWetness).toBe(5);
+
+    const neutral = sampleFrame();
+    neutral.values = {
+      ...neutral.values,
+      Gear: 0,
+      TrackWetness: 1,
+    };
+    const neutralPacket = normalizeIRacingFrame(neutral);
+    expect(neutralPacket.Gear).toBe(11);
+    expect(neutralPacket.RainPercent).toBe(0);
+  });
+
+  test("rejects truncated and corrupt source frames", () => {
+    const raw = new IRacingSourceFrameEncoder().encode(sampleFrame());
+    expect(decodeIRacingSourceFrame(raw.subarray(0, raw.length - 1))).toBeNull();
+    raw.writeUInt32LE(0xffffffff, 8);
+    expect(decodeIRacingSourceFrame(raw)).toBeNull();
+  });
+
+  test("source owns the SDK snapshot and emits its raw frame to the parser boundary", async () => {
+    let delivered: Buffer | null = null;
+    const frame = sampleFrame();
+    const sessionInfo = `
+WeekendInfo:
+  TrackID: 99
+  TrackLength: 6.515 km
+  TrackDisplayName: Road America
+  SessionID: 123
+  SubSessionID: 456
+SplitTimeInfo:
+  Sectors:
+  - SectorNum: 0
+    SectorStartPct: 0.000000
+  - SectorNum: 1
+    SectorStartPct: 0.340000
+  - SectorNum: 2
+    SectorStartPct: 0.670000
+DriverInfo:
+  DriverCarIdx: 7
+  DriverCarIdleRPM: 900
+  DriverCarRedLine: 8500
+  DriverCarEngCylinderCount: 8
+  DriverCarFuelMaxLtr: 105.0
+  Drivers:
+  - CarIdx: 7
+    CarID: 42
+    CarScreenName: GT3 Test Car
+    CarClassID: 8
+    CarClassShortName: GT3
+`;
+    const reader: IRacingFrameReader = {
+      start() {},
+      async stop() {},
+      readLatest() {
+        return {
+          tick: 7530,
+          sessionInfoUpdate: 1,
+          sessionInfo,
+          values: frame.values,
+        };
+      },
+    };
+    const source = new IRacingTelemetrySource({
+      reader,
+      dispatchRawFrame: async (raw) => {
+        delivered = raw;
+      },
+    });
+
+    expect(await source.pollOnce()).toBe(true);
+    expect(delivered).not.toBeNull();
+    const decoded = decodeIRacingSourceFrame(delivered!);
+    expect(decoded).toMatchObject({
+      schemaVersion: 3,
+      sessionInfo,
+      sessionInfoUpdate: 1,
+    });
+    expect((decoded as IRacingSourceFrameV3 | null)?.sessionInfo).toBe(
+      sessionInfo,
+    );
+    expect(parsePacket(delivered!)).toMatchObject({
+      gameId: "iracing",
+      FuelCapacity: 105,
+      iracing: { sectorStarts: [0, 0.34, 0.67] },
+    });
+  });
+
+  test("replays a healthy recording through the SDK source and recorder", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "iracing-source-replay-"));
+    const input = readIRacingFrames(IRACING_FIXTURE, 12);
+    const reader = new ReplayedIRacingFrameReader(
+      IRACING_FIXTURE,
+      input.length,
+    );
+    const recorder = new IRacingRecorder();
+    const source = new IRacingTelemetrySource({
+      reader,
+      recorder,
+      recordingEnabled: true,
+      recordingDir: dir,
+      pollIntervalMs: 60_000,
+      dispatchRawFrame: async () => {},
+    });
+
+    source.start();
+    try {
+      for (let index = 0; index < reader.frameCount; index++) {
+        expect(await source.pollOnce()).toBe(true);
+      }
+      await source.stop();
+
+      const output = readIRacingFrames(recorder.path!);
+      expect(output).toHaveLength(input.length);
+      const adapter = getServerGame("iracing");
+      const inputState = adapter.createParserState();
+      const outputState = adapter.createParserState();
+      for (let index = 0; index < input.length; index++) {
+        expect(adapter.tryParse(output[index]!, outputState)).toEqual(
+          adapter.tryParse(input[index]!, inputState),
+        );
+      }
+    } finally {
+      await source.stop();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("captures SDK ticks while downstream processing is busy", async () => {
+    const values = sampleFrame().values;
+    const sessionInfo = `
+WeekendInfo:
+  TrackID: 99
+  TrackLength: 6.515 km
+  TrackDisplayName: Road America
+  SessionID: 123
+  SubSessionID: 456
+DriverInfo:
+  DriverCarIdx: 7
+  Drivers:
+  - CarIdx: 7
+    CarID: 42
+    CarScreenName: GT3 Test Car
+`;
+    const snapshots = [7530, 7531, 7532].map((tick) => ({
+      tick,
+      sessionInfoUpdate: 1,
+      sessionInfo,
+      values: {
+        ...values,
+        SessionTick: tick,
+        SessionTime: tick / 60,
+      },
+    }));
+    let reads = 0;
+    const reader: IRacingFrameReader = {
+      start() {},
+      async stop() {},
+      readLatest() {
+        reads++;
+        return snapshots.shift() ?? null;
+      },
+    };
+    let releaseDispatch!: () => void;
+    const dispatchGate = new Promise<void>((resolve) => {
+      releaseDispatch = resolve;
+    });
+    let signalDispatchStarted!: () => void;
+    const dispatchStarted = new Promise<void>((resolve) => {
+      signalDispatchStarted = resolve;
+    });
+    const delivered: Buffer[] = [];
+    const capturedTimes: number[] = [];
+    const recorder = new CapturingIRacingRecorder();
+    const source = new IRacingTelemetrySource({
+      reader,
+      dispatchRawFrame: async (raw, frameTimeMs) => {
+        if (delivered.length === 0) {
+          signalDispatchStarted();
+          await dispatchGate;
+        }
+        capturedTimes.push(frameTimeMs!);
+        delivered.push(raw);
+      },
+      recordingEnabled: true,
+      recorder,
+    });
+
+    const first = source.pollOnce();
+    await dispatchStarted;
+    const second = source.pollOnce();
+    const third = source.pollOnce();
+    const stop = source.stop();
+    await Promise.resolve();
+    expect(recorder.stopped).toBe(false);
+    expect(reads).toBe(3);
+    expect(delivered).toHaveLength(0);
+    const beforeRelease = Date.now();
+    await Bun.sleep(10);
+    releaseDispatch();
+    expect(await Promise.all([first, second, third])).toEqual([
+      true,
+      true,
+      true,
+    ]);
+    await stop;
+
+    const decoder = createIRacingSourceDecoderState();
+    expect(
+      delivered.map(
+        (raw) => decodeIRacingSourceFrame(raw, decoder)?.values.SessionTick,
+      ),
+    ).toEqual([7530, 7531, 7532]);
+    expect(capturedTimes).toHaveLength(3);
+    expect(capturedTimes[1]).toBeLessThanOrEqual(beforeRelease);
+    expect(capturedTimes[2]).toBeLessThanOrEqual(beforeRelease);
+    const recordedDecoder = createIRacingSourceDecoderState();
+    expect(
+      recorder.frames.map(
+        (raw) => decodeIRacingSourceFrame(raw, recordedDecoder)?.values.SessionTick,
+      ),
+    ).toEqual([7530, 7531, 7532]);
+    expect(recorder.stopped).toBe(true);
+  });
+
+  test("reparses session YAML when raw content or revision changes", async () => {
+    const frame = sampleFrame();
+    const sessionInfo = (trackName: string) => `
+WeekendInfo:
+  TrackID: 99
+  TrackLength: 6.515 km
+  TrackDisplayName: ${trackName}
+  SessionID: 123
+  SubSessionID: 456
+DriverInfo:
+  DriverCarIdx: 7
+  Drivers:
+  - CarIdx: 7
+    CarID: 42
+    CarScreenName: GT3 Test Car
+`;
+    const snapshots = [
+      {
+        tick: 7530,
+        sessionInfoUpdate: 1,
+        sessionInfo: sessionInfo("Road America"),
+        values: frame.values,
+      },
+      {
+        tick: 7531,
+        sessionInfoUpdate: 1,
+        sessionInfo: sessionInfo("Content Only Update"),
+        values: frame.values,
+      },
+      {
+        tick: 7532,
+        sessionInfoUpdate: 2,
+        sessionInfo: sessionInfo("Spa"),
+        values: frame.values,
+      },
+      {
+        tick: 7533,
+        sessionInfoUpdate: 3,
+        sessionInfo: `${sessionInfo("Spa")}\n# Results revision`,
+        values: frame.values,
+      },
+    ];
+    const reader: IRacingFrameReader = {
+      start() {},
+      async stop() {},
+      readLatest() {
+        return snapshots.shift() ?? null;
+      },
+    };
+    const delivered: Buffer[] = [];
+    const registeredTrackNames: string[] = [];
+    const source = new IRacingTelemetrySource({
+      reader,
+      dispatchRawFrame: async (raw) => {
+        delivered.push(raw);
+      },
+      registerIdentity: async (session) => {
+        registeredTrackNames.push(session.trackName);
+      },
+    });
+
+    expect(await source.pollOnce()).toBe(true);
+    expect(await source.pollOnce()).toBe(true);
+    expect(await source.pollOnce()).toBe(true);
+    expect(await source.pollOnce()).toBe(true);
+    const decoder = createIRacingSourceDecoderState();
+    const decoded = delivered.map((raw) =>
+      decodeIRacingSourceFrame(raw, decoder),
+    ) as Array<IRacingSourceFrameV3 | null>;
+    expect(decoded.map((raw) => raw?.session.trackName)).toEqual([
+      "Road America",
+      "Content Only Update",
+      "Spa",
+      "Spa",
+    ]);
+    expect(decoded.map((raw) => raw?.sessionInfoUpdate)).toEqual([1, 1, 2, 3]);
+    expect(decoded.map((raw) => raw?.sessionInfo)).toEqual([
+      sessionInfo("Road America"),
+      sessionInfo("Content Only Update"),
+      sessionInfo("Spa"),
+      `${sessionInfo("Spa")}\n# Results revision`,
+    ]);
+    expect(registeredTrackNames).toEqual([
+      "Road America",
+      "Content Only Update",
+      "Spa",
+    ]);
+  });
+});
+

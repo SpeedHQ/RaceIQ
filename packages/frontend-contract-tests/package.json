@@ -1,0 +1,14 @@
+{
+  "name": "@raceiq/frontend-contract-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "client": "workspace:*",
+    "@raceiq/shared": "workspace:*",
+    "@raceiq/backend-core": "workspace:*",
+    "@raceiq/game-ac-evo": "workspace:*"
+  }
+}

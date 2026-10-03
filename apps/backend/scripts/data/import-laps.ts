@@ -11,7 +11,7 @@ import { resolve } from "node:path";
 
 const input = process.argv[2];
 if (!input) {
-  console.error("Usage: bun run apps/backend/scripts/data/import-laps.ts <path-to-zip>");
+  console.error("Usage: bun run apps/backend/apps/backend/scripts/data/import-laps.ts <path-to-zip>");
   process.exit(1);
 }
 

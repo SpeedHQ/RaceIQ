@@ -5,16 +5,16 @@
   "exports": {
     ".": "./src/index.ts",
     "./import-duckdb": "./src/import-duckdb.ts",
-    "./lap-policy": "./src/lap-policy.ts",
     "./normalizer": "./src/normalizer.ts",
-    "./recorder": "./src/recorder.ts",
-    "./source": "./src/source.ts"
+    "./source": "./src/source.ts",
+    "./test-support/duckdb": "./test/support/duckdb.ts",
+    "./test-support/recordings": "./test/support/recordings.ts"
   },
   "dependencies": {
+    "@duckdb/node-api": "1.5.2-r.2",
     "@raceiq/capture-formats": "workspace:*",
     "@raceiq/shared": "workspace:*",
-    "@raceiq/backend-core": "workspace:*",
-    "@duckdb/node-api": "1.5.2-r.2"
+    "@raceiq/backend-core": "workspace:*"
   },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit"

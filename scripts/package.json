@@ -3,33 +3,20 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./assets/optimize-f1-model": "./assets/optimize-f1-model.ts",
-    "./assets/optimize-gt3-model": "./assets/optimize-gt3-model.ts",
-    "./assets/optimize-peugeot-model": "./assets/optimize-peugeot-model.ts",
     "./build/copy-duckdb-runtime": "./build/copy-duckdb-runtime.ts",
-    "./build/optimize-client-images": "./build/optimize-client-images.ts",
     "./catalog/ast-discovery": "./catalog/ast-discovery.ts",
     "./catalog/generate-telemetry-catalog": "./catalog/generate-telemetry-catalog.ts",
     "./catalog/iracing-session-info-capture": "./catalog/iracing-session-info-capture.ts",
-    "./ci/release-version": "./ci/release-version.ts",
     "./data/seed-db-demo": "./data/seed-db-demo.ts",
     "./data/seed-db-iracing": "./data/seed-db-iracing.ts",
     "./data/seed-db-options": "./data/seed-db-options.ts",
     "./data/seed-db-reset": "./data/seed-db-reset.ts",
     "./data/seed-db-safety": "./data/seed-db-safety.ts",
-    "./dev/paraglide-build": "./dev/paraglide-build.ts",
-    "./dev/paraglide-cache": "./dev/paraglide-cache.ts",
-    "./lib/combine-recording-parts": "./lib/combine-recording-parts.ts",
     "./lib/compression": "./lib/compression.ts",
     "./marketing/track-wall-data": "./marketing/track-wall-data.ts",
     "./release/development-release-features": "./release/development-release-features.ts",
     "./telemetry/generate-demo-fixture": "./telemetry/generate-demo-fixture.ts",
-    "./test/check-shards": "./test/check-shards.ts",
     "./tracks/track-coverage": "./tracks/track-coverage.ts",
-    "./ui/build-storybook": "./ui/build-storybook.ts",
-    "./ui/collect-screenshot-diffs": "./ui/collect-screenshot-diffs.ts",
-    "./ui/local-ui-diff": "./ui/local-ui-diff.ts",
-    "./ui/merge-screenshot-renders": "./ui/merge-screenshot-renders.ts",
     "./ui/visual-diff-config": "./ui/visual-diff-config.ts"
   },
   "scripts": {
@@ -45,11 +32,11 @@
     "meshoptimizer": "1.2.0",
     "pixelmatch": "^7.2.0",
     "sharp": "^0.35.4",
+    "drizzle-orm": "^0.45.2",
     "@raceiq/shared": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
     "@raceiq/game-iracing": "workspace:*",
-    "@raceiq/game-acc": "workspace:*",
-    "drizzle-orm": "^0.45.2"
+    "@raceiq/game-acc": "workspace:*"
   }
 }

@@ -29,7 +29,7 @@ const gameOverride = gameFlagIdx >= 0 ? (args[gameFlagIdx + 1] as GameId) : null
 const noImport = args.includes("--no-import");
 
 if (!path) {
-  console.error("Usage: bun apps/backend/scripts/telemetry/recordings/inspect-bin.ts <path-to-bin> [--game <gameId>] [--no-import]");
+  console.error("Usage: bun apps/backend/apps/backend/scripts/telemetry/recordings/inspect-bin.ts <path-to-bin> [--game <gameId>] [--no-import]");
   process.exit(1);
 }
 
