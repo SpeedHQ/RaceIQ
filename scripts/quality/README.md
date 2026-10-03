@@ -12,6 +12,8 @@ Capture and compare quality/performance measurements and exercise update install
 
 Inputs: AI credentials and fixtures, same-machine Mitata JSON result files, two RaceIQ checkouts for counterbalanced replay runs, or local package/installer state. Outputs: baseline JSON, paired benchmark JSON/Markdown, markdown on stdout, or update-test process logs/status.
 
+Install dependencies in both checkouts before counterbalanced replay runs. The runner stages the same harness in each checkout's layout and translates imports only in a legacy base copy, so base measurements continue to execute base-local production modules. Current workspace imports remain unchanged.
+
 Boundary: measurement and local verification workflows only. Scripts do not own production builds, test fixtures, benchmark generation, or release publication.
 
 Focused verification: run benchmark comparison with representative JSON pairs and threshold/failure flags; run AI baseline only with configured credentials; run updater with Inno Setup available.

@@ -41,11 +41,7 @@ permissions:
 jobs:
   render:
     timeout-minutes: 30
-    runs-on:
-      - mars-any-4vcpu-15g
-      - mars-macos-arm64-2vcpu-10g
-      - mars-ubuntu-arm64-2vcpu-10g
-      - mars-retry-3
+    runs-on: ubuntu-latest
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
     steps:

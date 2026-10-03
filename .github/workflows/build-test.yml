@@ -22,9 +22,7 @@ jobs:
   build:
     timeout-minutes: 30
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on:
-      - mars-windows-x64-10vcpu-15g
-      - mars-retry-3
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
         with:
@@ -65,11 +63,7 @@ jobs:
   test:
     timeout-minutes: 30
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on:
-      - mars-windows-x64-10vcpu-25g
-      - mars-macos-arm64-2vcpu-10g
-      - mars-ubuntu-arm64-2vcpu-10g
-      - mars-retry-3
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
@@ -144,6 +138,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
       - name: Check changelog
         run: |
           git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"

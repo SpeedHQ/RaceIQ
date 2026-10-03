@@ -21,13 +21,14 @@ const common = [
   "--min-samples=10",
   "--max-samples=100",
 ];
-const filesToSync = [
+const harnessFiles = [
   "apps/backend/scripts/quality/process-bench.ts",
   "apps/backend/test/benchmarks/process-bench-contracts.ts",
   "apps/backend/test/benchmarks/process-bench-runtime.ts",
   "apps/backend/test/benchmarks/process-bench-child.ts",
   "apps/backend/test/benchmarks/replay-process-bench.ts",
-];
+  "apps/backend/test/benchmarks/mitata-harness.ts",
+] as const;
 const rounds = [
   { revision: "base-1", checkout: "base", caseOrder: "forward" },
   { revision: "current-1", checkout: "current", caseOrder: "forward" },
@@ -46,12 +47,36 @@ function requireOptionValue(name: string, value: string | undefined): string {
   if (!value) throw new Error(`${name} is required`);
   return value;
 }
+const legacyBase = !existsSync(join(baseDir, "apps/backend/src/games/init.ts"));
+const legacyImportRewrites: Record<string, string> = {
+  "@raceiq/backend-core/runtime/config/paths": "../../server/runtime/config/paths",
+  "@raceiq/backend-core/db/telemetry-replay-storage": "../../server/db/telemetry-replay-storage",
+  "@raceiq/backend-core/telemetry/replay": "../../server/telemetry/replay",
+  "@raceiq/backend-core/games/registry": "../../server/games/registry",
+  "@raceiq/backend-core/session-capture/framing": "../../server/session-capture/framing",
+  "@raceiq/shared/telemetry/types": "../../shared/telemetry/types",
+  "@raceiq/shared/games/init": "../../shared/games/init",
+  "@raceiq/shared/games/ids": "../../shared/games/ids",
+  "../../src/games/init": "../../server/games/init",
+};
+function harnessTarget(relativePath: typeof harnessFiles[number]): string {
+  if (!legacyBase) return join(baseDir, relativePath);
+  if (relativePath === "apps/backend/scripts/quality/process-bench.ts") return join(baseDir, "scripts/quality/process-bench.ts");
+  return join(baseDir, relativePath.replace("apps/backend/", ""));
+}
 async function syncHarness(): Promise<void> {
-  for (const relativePath of filesToSync) {
+  for (const relativePath of harnessFiles) {
     const source = join(currentDir, relativePath);
-    const target = join(baseDir, relativePath);
+    const target = harnessTarget(relativePath);
     if (!existsSync(source)) throw new Error(`Current checkout missing ${relativePath}`);
-    await Bun.write(target, Bun.file(source));
+    mkdirSync(dirname(target), { recursive: true });
+    let contents = await Bun.file(source).text();
+    if (legacyBase) {
+      for (const [specifier, replacement] of Object.entries(legacyImportRewrites)) {
+        contents = contents.replaceAll(`"${specifier}"`, `"${replacement}"`);
+      }
+    }
+    await Bun.write(target, contents);
   }
 }
 async function run(command: string[], cwd: string): Promise<void> {
@@ -69,11 +94,14 @@ await syncHarness();
 
 for (const round of rounds) {
   const checkout = round.checkout === "base" ? baseDir : currentDir;
+  const benchmarkScript = existsSync(join(checkout, "apps/backend/src/games/init.ts"))
+    ? "apps/backend/scripts/quality/process-bench.ts"
+    : "scripts/quality/process-bench.ts";
   const reportPath = join(reportsDir, `${round.revision}.json`);
   await run([
     bun,
     "run",
-    "apps/backend/scripts/quality/process-bench.ts",
+    benchmarkScript,
     "--suite=replay",
     `--revision=${round.revision}`,
     ...common,

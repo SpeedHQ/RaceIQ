@@ -35,6 +35,9 @@
 - Check workspace TypeScript projects sequentially to avoid parallel compiler depth failures without weakening the typed RPC contract.
 - Include seeded route, import, and six-game capture-conversion projects in the default and compiled browser test gates.
 - Serialize default browser test gates globally so capture migration cannot overlap other projects using the shared seeded database.
+- Install workspace dependencies before CI changelog validation while retaining package imports.
+- Stage checkout-local benchmark imports across the workspace layout migration without substituting current code for the base implementation.
+- Run pull-request build, test, browser, snapshot, and benchmark jobs on GitHub-hosted runners instead of unavailable Mars runners.
 - Use bundled ACC track SVGs for segment generation, visualization, and runtime centerlines; remove obsolete centerline CSVs and migrate saved segment and sector positions while preserving curated turns.
 - Exclude generated JavaScript from client typechecking and emit Paraglide declarations in development so translation imports remain typed.
 - Seed and validate the compiled E2E database once per workflow, then restore isolated database and capture copies in seeded shards instead of repeating fixture imports.

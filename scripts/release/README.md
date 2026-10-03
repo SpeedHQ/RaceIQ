@@ -9,6 +9,8 @@ Validate and render release metadata.
 
 Inputs: `CHANGELOG.md`, git base ref and event variables for CI validation, and release version argument for rendering. Outputs: validation status or the draft release body.
 
+Run `bun install --frozen-lockfile --ignore-scripts` before validation in a fresh checkout. The CLI uses the shared workspace's `@raceiq/shared/tooling/validation` export; TypeScript project references do not install runtime workspace links.
+
 Boundary: release-note validation/rendering only. Scripts do not publish releases, edit changelog content, or build artifacts.
 
 Focused verification: run changelog check with pull-request environment variables against a diff containing an Unreleased note; run generator with a version and inspect both output files.
