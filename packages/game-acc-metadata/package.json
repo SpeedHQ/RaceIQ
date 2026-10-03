@@ -1,0 +1,13 @@
+{
+  "name": "@raceiq/game-acc-metadata",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./index": "./src/index.ts",
+    "./racing/cars/acc": "./src/racing/cars/acc.ts",
+    "./racing/cars/acc-specs": "./src/racing/cars/acc-specs.ts",
+    "./racing/tracks/catalogs/acc": "./src/racing/tracks/catalogs/acc.ts"
+  },
+  "dependencies": { "@raceiq/shared": "workspace:*" },
+  "scripts": {"typecheck":"bunx tsc --project tsconfig.json --noEmit"}
+}

@@ -7,10 +7,10 @@ import { decodeLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
 import { normalizeLMUSourceFrame } from "../../src/normalizer";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { combineRecordingParts, type CombinedRecording } from "@raceiq/backend-core/session-capture/combine-recording-parts";
-import { lmuAdapter } from "@raceiq/shared/games/lmu/index";
+import { lmuAdapter } from "@raceiq/game-lmu-metadata/index";
 import { analyseSemanticIds } from "@raceiq/shared/games/metric-contracts";
 import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
-import { compileTelemetryResolver } from "@raceiq/shared/telemetry/resolver/compile";
+import { compileTelemetryResolver } from "@raceiq/telemetry-core/telemetry/resolver/compile";
 const FIXTURE_PARTS = [
   "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1",
   "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part2",

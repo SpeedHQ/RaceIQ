@@ -1,4 +1,4 @@
-import { SLIP_ANGLE_PEAK_RAD } from "@raceiq/shared/racing/analysis/laps/physics/vehicle";
+import { SLIP_ANGLE_PEAK_RAD } from "@raceiq/analysis-core/racing/analysis/laps/physics/vehicle";
 import { describe, test, expect } from "bun:test";
 import { buildTrackIndex, filterByDistance, filterByDistanceIndexed, makeWheelGeometries, resolveTrailLateralUtilization, visualWheelRotationSpeed, type FilteredTrackSegment } from "client/src/lib/wireframe-utils";
 import { tireStateFromUtilization } from "client/src/lib/vehicle-dynamics";

@@ -2,7 +2,7 @@ import { Database } from "bun:sqlite";
 import { copyFileSync, existsSync, mkdirSync, statSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
-import { DEFAULT_GAMES } from "@raceiq/tooling/data/seed-db-options";
+import { DEFAULT_GAMES } from "@raceiq/tooling-data/data/seed-db-options";
 
 type CaptureRow = { id: number; game_id: string; raw_file: string | null };
 

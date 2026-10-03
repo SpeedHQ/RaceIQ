@@ -5,13 +5,13 @@ import { resolve } from "node:path";
 import { carSetupToKnobValues, summarizeCarSetup } from "@raceiq/game-ac-evo/carsetup";
 import { parseCarSetup } from "@raceiq/game-ac-evo/carsetup-wire";
 import { patchCarSetup } from "@raceiq/game-ac-evo/carsetup-writer";
-import { IRACING_SETUP_INFO_FIELDS } from "@raceiq/shared/games/iracing/session-info/catalog";
+import { IRACING_SETUP_INFO_FIELDS } from "@raceiq/game-iracing-metadata/session-info/catalog";
 import { SETUP_CONCEPT_DEFINITIONS } from "@raceiq/shared/racing/setups/catalog/concepts";
 import {
   SETUP_FILE_SOURCE_DEFINITIONS,
   SETUP_FILE_SOURCE_TREE,
 } from "@raceiq/shared/racing/setups/catalog/file-source-mappings";
-import { getSetupCatalogSources } from "@raceiq/shared/racing/setups/catalog/query";
+import { getSetupCatalogSources } from "@raceiq/game-catalogs/racing/setups/catalog/query";
 import {
   getSchemaForGame,
   readSetupField,

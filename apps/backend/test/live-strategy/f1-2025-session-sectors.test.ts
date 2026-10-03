@@ -13,7 +13,7 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import {

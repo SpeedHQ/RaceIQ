@@ -11,10 +11,10 @@ import { tryGetGame } from "@raceiq/shared/games/registry";
 import { existsSync, unlinkSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
-import { getTrackLengthMeters } from "@raceiq/shared/racing/tracks/recording/outlines";
+import { getTrackLengthMeters } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
 import type { SessionIdentity } from "../telemetry/pipeline-ports";
-import { getLMUTrack } from "@raceiq/shared/games/lmu/catalog";
+import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 
 export async function insertSession(
   carOrdinal: number,

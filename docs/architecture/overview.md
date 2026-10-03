@@ -18,17 +18,19 @@ graph LR
   Query --> UI
 ```
 
-- `shared/` holds telemetry types, game metadata, and shared game adapters.
+- `shared/` holds neutral telemetry types, game identities, adapter contracts, and mutable registries, with no concrete metadata dependency.
 - `server/` (`@raceiq/backend-core`) owns neutral telemetry pipelines, authoritative session computation, persistence, and shared runtime services.
 - `packages/capture-formats/` owns persisted capture layouts and codecs without live-reader dependencies.
 - Six `packages/game-<id>/` workspaces own backend adapters, parsers, native sources, recorders, and game-local replay helpers.
+- Six `packages/game-<id>-metadata/` workspaces own browser-safe adapters, static metadata, and separate Node car/track catalog leaves.
+- `packages/game-catalogs/` owns cross-game adapter registration, name/geometry composition, and assembled setup catalogs.
 - `apps/backend/` composes adapters, API routes, boot orchestration, imports, MoTeC targets, and AI workflows.
 - `client/` owns navigation, presentation state, live telemetry rendering, and historical-data queries.
 - HTTP and WebSocket traffic uses port `3117` by default. Forza and F1 telemetry use UDP port `5301` by default.
 
 ## Current game adapters
 
-Six adapters are registered by `shared/games/init.ts` and `apps/backend/src/games/init.ts`:
+Six metadata adapters are composed by `packages/game-catalogs/src/games/init.ts`; backend adapters are registered by `apps/backend/src/games/init.ts`:
 
 | Game | Internal ID | Ingestion | Route prefix |
 |---|---|---|---|

@@ -149,7 +149,7 @@ jobs:
       - name: Check changelog
         run: |
           git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
-          bun scripts/release/check-changelog.ts
+          bun packages/tooling-release/src/release/check-changelog.ts
   playwright-e2e:
     if: github.event_name == 'pull_request' && !github.event.pull_request.draft
     needs:

@@ -1,6 +1,6 @@
 import { m } from "@/paraglide/messages";
 import type { ExperimentFocus } from "@raceiq/shared/racing/experiments/focus";
-import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@raceiq/shared/racing/laps/review-selection";
+import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@raceiq/analysis-core/racing/laps/review-selection";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { F1CarSetup } from "@raceiq/shared/telemetry/f1-2025";
 import { Trash2 } from "lucide-react";

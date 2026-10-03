@@ -12,7 +12,7 @@ import { reprocessSession } from "@raceiq/backend-core/session-capture/reprocess
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps } from "@raceiq/backend-core/db/schema";
 import { eq } from "drizzle-orm";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { countStaleSessions, getStaleSessions } from "@raceiq/backend-core/db/session-queries";
 import { sessionRoutes } from "../../src/routes/session-routes";

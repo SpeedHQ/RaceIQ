@@ -18,7 +18,7 @@ import { rmSync } from "node:fs";
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps } from "@raceiq/backend-core/db/schema";
 import { eq } from "drizzle-orm";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { iterateSessionCaptureRecords, META_FRAME_MAGIC, SEGMENT_BOUNDARY_MAGIC } from "@raceiq/backend-core/session-capture/framing";
 import { buildLapsZip, LAPS_ZIP_VERSION, type LapsZipManifest } from "../../src/laps/archive";

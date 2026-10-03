@@ -1,0 +1,43 @@
+{
+  "name": "@raceiq/analysis-core",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./racing/analysis/metric-values": "./src/racing/analysis/metric-values.ts",
+    "./racing/analysis/laps/time-loss": "./src/racing/analysis/laps/time-loss.ts",
+    "./racing/analysis/laps/driving-style": "./src/racing/analysis/laps/driving-style.ts",
+    "./racing/analysis/laps/frame-time": "./src/racing/analysis/laps/frame-time.ts",
+    "./racing/analysis/laps/insights/types": "./src/racing/analysis/laps/insights/types.ts",
+    "./racing/analysis/laps/insights/analyze": "./src/racing/analysis/laps/insights/analyze.ts",
+    "./racing/analysis/laps/insights/process": "./src/racing/analysis/laps/insights/process.ts",
+    "./racing/analysis/laps/insights/scan": "./src/racing/analysis/laps/insights/scan.ts",
+    "./racing/analysis/laps/insights/buffered-detectors": "./src/racing/analysis/laps/insights/buffered-detectors.ts",
+    "./racing/analysis/laps/insights/driving-core": "./src/racing/analysis/laps/insights/driving-core.ts",
+    "./racing/analysis/laps/insights/driving-advanced": "./src/racing/analysis/laps/insights/driving-advanced.ts",
+    "./racing/analysis/laps/insights/electronics": "./src/racing/analysis/laps/insights/electronics.ts",
+    "./racing/analysis/laps/insights/mechanical": "./src/racing/analysis/laps/insights/mechanical.ts",
+    "./racing/analysis/laps/insights/tires": "./src/racing/analysis/laps/insights/tires.ts",
+    "./racing/analysis/laps/physics/vehicle": "./src/racing/analysis/laps/physics/vehicle.ts",
+    "./racing/laps/pit-cycle": "./src/racing/laps/pit-cycle.ts",
+    "./racing/laps/review-selection": "./src/racing/laps/review-selection.ts",
+    "./racing/laps/stint-stats": "./src/racing/laps/stint-stats.ts",
+    "./racing/laps/alignment/build": "./src/racing/laps/alignment/build.ts",
+    "./racing/laps/alignment/codec": "./src/racing/laps/alignment/codec.ts",
+    "./racing/laps/alignment/types": "./src/racing/laps/alignment/types.ts",
+    "./racing/laps/trace/build": "./src/racing/laps/trace/build.ts",
+    "./racing/laps/trace/codec": "./src/racing/laps/trace/codec.ts",
+    "./racing/laps/trace/types": "./src/racing/laps/trace/types.ts"
+  },
+  "scripts": {
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/analysis-core",
+    "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/analysis-core",
+    "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/analysis-core"
+  },
+  "dependencies": { "@raceiq/shared": "workspace:*" },
+  "devDependencies": {
+    "@raceiq/game-acc-metadata": "workspace:*",
+    "@raceiq/game-ac-evo-metadata": "workspace:*",
+    "@raceiq/game-fm-2023-metadata": "workspace:*"
+  }
+}

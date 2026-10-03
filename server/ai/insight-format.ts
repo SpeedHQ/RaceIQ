@@ -1,4 +1,4 @@
-import type { LapInsight } from "@raceiq/shared/racing/analysis/laps/insights/types";
+import type { LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 /**
  * Format one lap's precomputed insights as a prompt block for the compare

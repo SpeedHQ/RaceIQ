@@ -7,12 +7,12 @@ import { homedir } from "node:os";
 import { SHARED_DIR } from "@raceiq/backend-core/runtime/config/paths";
 import { accRecorder } from "@raceiq/backend-core/games/kunos/recorder";
 import { replayRecording } from "@raceiq/game-acc/replay";
-import { getAllAccCars, getAccCarClass } from "@raceiq/shared/racing/cars/acc"
-import { getAccCarSpecs } from "@raceiq/shared/racing/cars/acc-specs"
+import { getAllAccCars, getAccCarClass } from "@raceiq/game-acc-metadata/racing/cars/acc"
+import { getAccCarSpecs } from "@raceiq/game-acc-metadata/racing/cars/acc-specs"
 import { getAccReader } from "../../runtime/live-readers";
 import { PHYSICS, GRAPHICS, STATIC } from "@raceiq/capture-formats/acc/structs";
 import { readWString } from "@raceiq/game-acc/utils";
-import { getAccSharedTrackName, getAccTracks } from "@raceiq/shared/racing/tracks/catalogs/acc"
+import { getAccSharedTrackName, getAccTracks } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc"
 
 let accReplayHandle: { stop: () => void; frameCount: number } | null = null;
 

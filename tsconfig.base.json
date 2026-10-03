@@ -14,6 +14,6 @@
     "declarationMap": true,
     "sourceMap": true,
     "noEmit": true,
-    "outDir": "./dist"
+    "outDir": "${configDir}/dist"
   }
 }

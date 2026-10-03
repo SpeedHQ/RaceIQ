@@ -1,4 +1,4 @@
-import { getLMUCar, getLMUTrack } from "@raceiq/shared/games/lmu/catalog";
+import { getLMUCar, getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import type { LapMeta, RacingIdentityFields, SessionMeta, SessionRecap } from "@raceiq/shared/racing/sessions/types";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";

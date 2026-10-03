@@ -1,5 +1,5 @@
 import { getGame } from "@raceiq/shared/games/registry"
-import type { LapDetectorCoverage, LapInsight } from "@raceiq/shared/racing/analysis/laps/insights/types"
+import type { LapDetectorCoverage, LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types"
 import type { GameId } from "@raceiq/shared/games/ids";
 import { Check, Copy, Info } from "lucide-react";
 import { useCallback, useState } from "react";

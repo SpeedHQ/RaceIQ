@@ -26,7 +26,7 @@ import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
 import {
   iracingAdapter,
   rememberIRacingIdentity,
-} from "@raceiq/shared/games/iracing/index";
+} from "@raceiq/game-iracing-metadata/index";
 
 registerGame(iracingServerAdapter);
 registerServerGame(iracingServerAdapter);

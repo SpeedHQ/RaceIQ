@@ -1,0 +1,15 @@
+{
+  "name": "@raceiq/tooling-catalog",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./catalog/ast-discovery": "./src/catalog/ast-discovery.ts",
+    "./catalog/generate-telemetry-catalog": "./src/catalog/generate-telemetry-catalog.ts",
+    "./catalog/iracing-session-info-capture": "./src/catalog/iracing-session-info-capture.ts"
+  },
+  "dependencies": {"@raceiq/shared":"workspace:*","@raceiq/game-iracing-metadata":"workspace:*","@raceiq/analysis-core":"workspace:*","@raceiq/telemetry-core":"workspace:*"},
+  "devDependencies": { "@babel/parser": "^8.0.5" },
+  "scripts": {
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit"
+  }
+}

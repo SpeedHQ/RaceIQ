@@ -4,9 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Settings2 } from "lucide-react";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import type { GameId } from "@raceiq/shared/games/ids";
-import type { AlignedLapSet, AlignedLapTrace, WheelAverages } from "@raceiq/shared/racing/laps/alignment/types";
+import type { AlignedLapSet, AlignedLapTrace, WheelAverages } from "@raceiq/analysis-core/racing/laps/alignment/types";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
-import type { LapInsight } from "@raceiq/shared/racing/analysis/laps/insights/types"
+import type { LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types"
 import type { LineSpreadTrace } from "../../../hooks/experiments";
 import { useLineSpread } from "../../../hooks/experiments";
 import type { TrackCorner } from "../../../hooks/track-queries";

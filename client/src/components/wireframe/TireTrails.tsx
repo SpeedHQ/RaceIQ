@@ -1,4 +1,4 @@
-import { resolveWheelStates } from "@raceiq/shared/racing/analysis/metric-values";
+import { resolveWheelStates } from "@raceiq/analysis-core/racing/analysis/metric-values";
 import { getGame } from "@raceiq/shared/games/registry"
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
 import * as THREE from "three/webgpu";

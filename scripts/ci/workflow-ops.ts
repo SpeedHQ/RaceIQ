@@ -1,7 +1,7 @@
 import { tmpdir } from "node:os";
 import { appendFileSync, cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { copyDuckDBRuntime } from "../build/copy-duckdb-runtime";
+import { copyDuckDBRuntime } from "@raceiq/tooling-build/build/copy-duckdb-runtime";
 
 const [operation, ...args] = Bun.argv.slice(2);
 const env = process.env;
@@ -106,8 +106,8 @@ switch (operation) {
     break;
   case "collect-screenshots": {
     const preview = join(env.GITHUB_WORKSPACE!, "pr-preview");
-    run(["bun", "scripts/ui/merge-screenshot-renders.ts", "--input", join(env.RUNNER_TEMP!, "screenshot-renders"), "--output", preview]);
-    run(["bun", "scripts/ui/collect-screenshot-diffs.ts", "--base", join(preview, "base-responsive"), "--current", join(preview, "current-responsive"), "--out", preview, "--prefix", "responsive"]);
+    run(["bun", "packages/tooling-ui/src/ui/merge-screenshot-renders.ts", "--input", join(env.RUNNER_TEMP!, "screenshot-renders"), "--output", preview]);
+    run(["bun", "packages/tooling-ui/src/ui/collect-screenshot-diffs.ts", "--base", join(preview, "base-responsive"), "--current", join(preview, "current-responsive"), "--out", preview, "--prefix", "responsive"]);
     break;
   }
   case "release-client":

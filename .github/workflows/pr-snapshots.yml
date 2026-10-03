@@ -76,7 +76,7 @@ jobs:
         env:
           BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
-        run: bun scripts/ui/prepare-pr-snapshot.ts
+        run: bun packages/tooling-ui/src/ui/prepare-pr-snapshot.ts
       - name: Install current dependencies
         run: bun install --frozen-lockfile
       - name: Install current client dependencies
@@ -97,8 +97,8 @@ jobs:
       - name: Calculate static cache keys
         id: cache-keys
         run: |
-          echo "base=$(bun scripts/ui/build-storybook.ts --client-root '${{ runner.temp }}/raceiq-base/client' --key)" >> "$GITHUB_OUTPUT"
-          echo "pr=$(bun scripts/ui/build-storybook.ts --client-root client --key)" >> "$GITHUB_OUTPUT"
+          echo "base=$(bun packages/tooling-ui/src/ui/build-storybook.ts --client-root '${{ runner.temp }}/raceiq-base/client' --key)" >> "$GITHUB_OUTPUT"
+          echo "pr=$(bun packages/tooling-ui/src/ui/build-storybook.ts --client-root client --key)" >> "$GITHUB_OUTPUT"
           echo "locale=$(bun scripts/dev/paraglide-build.ts --client-root client --key)" >> "$GITHUB_OUTPUT"
 
       - name: Restore base Storybook
@@ -154,12 +154,12 @@ jobs:
       - name: Build base Storybook
         id: base-storybook-build
         working-directory: ${{ github.workspace }}
-        run: bun scripts/ui/build-storybook.ts --client-root "${{ runner.temp }}/raceiq-base/client"
+        run: bun packages/tooling-ui/src/ui/build-storybook.ts --client-root "${{ runner.temp }}/raceiq-base/client"
         continue-on-error: true
       - name: Build PR Storybook
         id: pr-storybook-build
         working-directory: ${{ github.workspace }}
-        run: bun scripts/ui/build-storybook.ts --client-root client
+        run: bun packages/tooling-ui/src/ui/build-storybook.ts --client-root client
         continue-on-error: true
       - name: Save base Storybook
         if: steps.base-storybook-build.outcome == 'success' && steps.base-cache.outputs.cache-hit != 'true'
@@ -212,7 +212,7 @@ jobs:
           PR_SNAPSHOT_CURRENT_RENDER_DIR: ${{ runner.temp }}/pr-snapshots
           PR_SNAPSHOT_BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
           PR_SNAPSHOT_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
-        run: bun scripts/ui/prepare-pr-snapshot-preview.ts
+        run: bun packages/tooling-ui/src/ui/prepare-pr-snapshot-preview.ts
 
       - name: Upload preview artifact
         uses: actions/upload-artifact@v7
@@ -223,4 +223,4 @@ jobs:
 
       - name: Warn about incomplete Storybook renders
         if: steps.base-storybook-build.outcome == 'failure' || steps.pr-storybook-build.outcome == 'failure' || steps.base-storybook-render.outcome == 'failure' || steps.storybook-render.outcome == 'failure'
-        run: bun scripts/ui/report-snapshot-failure.ts pr-preview
+        run: bun packages/tooling-ui/src/ui/report-snapshot-failure.ts pr-preview

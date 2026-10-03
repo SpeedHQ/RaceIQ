@@ -13,13 +13,13 @@
  */
 import { describe, test, expect, beforeAll } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../../src/games/init";
 import { buildAnalystPrompt } from "@raceiq/backend-core/ai/analyst-prompt";
 import { AnalystOutputSchema } from "@raceiq/backend-core/ai/schemas";
 import { compareLapHeader } from "@raceiq/backend-core/ai/compare-engineer";
-import { resolveCarName } from "@raceiq/shared/racing/cars/resolve-name";
-import { resolveTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
+import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
+import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import {
   buildEvalLapAnalystAgent,
   buildEvalCompareEngineerAgent,

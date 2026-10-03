@@ -7,7 +7,7 @@ import {
   getTrackOutlineByOrdinal,
   getRecordedOutlineByOrdinal,
   recordLapTrace,
-} from "@raceiq/shared/racing/tracks/recording/outlines";
+} from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";
 import { loadSharedOutline } from "@raceiq/shared/racing/tracks/geometry/shared";
 import { tryGetServerGame } from "@raceiq/backend-core/games/registry";
@@ -16,8 +16,8 @@ import { GameIdSchema, type GameId } from "@raceiq/shared/games/ids";
 import { getIRacingSvgTrackMap } from "@raceiq/game-iracing/track-map";
 import { alignIRacingAutoSegmentsToTurnLabels, type IRacingMapLabel } from "@raceiq/game-iracing/track-map-svg";
 import { lapPath } from "@raceiq/shared/racing/tracks/path";
-import { getLMUTrack } from "@raceiq/shared/games/lmu/catalog";
-import { getLMUTrackOutline } from "@raceiq/shared/games/lmu/track-boundaries";
+import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
+import { getLMUTrackOutline } from "@raceiq/game-lmu-metadata/track-boundaries";
 
 // ─── Param schemas ──────────────────────────────────────────────────────────
 

@@ -2,11 +2,11 @@
 import { describe, test, expect, afterEach } from "bun:test";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { initServerGameAdapters } from "../../src/games/init";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
-import { normalizeTelemetryPacket } from "@raceiq/backend-core/telemetry/normalization";
+import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/normalization";
 import { iterateSessionFrames } from "@raceiq/backend-core/session-capture/framing";
 import { importSessionBin } from "@raceiq/backend-core/session-capture/import-capture";
 import { inArray } from "drizzle-orm";

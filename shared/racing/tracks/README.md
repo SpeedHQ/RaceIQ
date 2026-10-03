@@ -1,7 +1,7 @@
 # Tracks
 
-Track domain owns static track facts, game-specific fractions, and label-ready helpers used by maps, AI prompts, telemetry transforms, and track tooling.
-`shared/racing/tracks/` is executable TypeScript. `shared/data/tracks/` is bundled CSV/JSON data; code in this directory consumes or produces those assets.
+Track contracts and neutral geometry/storage primitives support maps, AI prompts, telemetry transforms, and tooling.
+`shared/data/tracks/` remains the bundled geometry root. Metadata owners hold per-game catalogs; `@raceiq/game-catalogs` owns cross-game identity and outline composition.
 
 ## Purpose
 - Keep track model split between **game-agnostic facts** and **per-game geometry**.
@@ -11,15 +11,14 @@ Track domain owns static track facts, game-specific fractions, and label-ready h
 ## Key modules
 - **Core contracts:** `facts.ts`, `geometry.ts`, `keys.ts`, `named-segments.ts`, `segment-label.ts`.
 - **Math/data helpers:** `coords.ts`, `projection.ts`, `path.ts`, `sectors.ts`.
-- **Track identity/catalog:** `resolve-name.ts`, `catalogs/*`.
+- **Track identity/catalog:** metadata-owner `racing/tracks/catalogs/*`; cross-game names under `@raceiq/game-catalogs/racing/tracks/resolve-name`.
 - **Persistence and cache:** `storage/files.ts`, `storage/meta.ts`, `storage/cache.ts`.
-- **Geometry sources:** `geometry/outlines.ts`, `geometry/extracted.ts`, `geometry/shared.ts`.
-- **Runtime capture:** `recording/outlines.ts`, `recording/curbs.ts`.
+- **Geometry sources:** cross-game outlines/extracted geometry under `@raceiq/game-catalogs/racing/tracks/geometry/`; neutral `geometry/shared.ts` remains shared.
+- **Runtime capture:** cross-game recording outlines under `@raceiq/game-catalogs/racing/tracks/recording/outlines`; neutral `recording/curbs.ts` remains shared.
 - **Curation pipeline:** `curation/generate.ts`, `curation/join.ts`, `curation/segment-align-detect.ts`, `curation/segment-align-match.ts`, `curation/segment-align-validate.ts`, `curation/verified.ts`, `curation/coverage.ts`.
 - **Authored guides:** `guide/data.ts`, `guide/types.ts`.
 
 ## Folder layout (nested)
-- `catalogs/`
 - `storage/`
 - `geometry/`
 - `recording/`
@@ -73,20 +72,20 @@ Map correspondence matters beyond counts: Montréal T10 is the main hairpin and 
 - `facts.ts`, `geometry.ts`, `keys.ts`, `named-segments.ts`, `segment-label.ts`, `projection.ts`, `coords.ts`, `sectors.ts`, `path.ts`, `geometry/points.ts`, `geometry/types.ts`, `curation/join.ts`, `curation/segment-align-detect.ts`, and `curation/segment-align-match.ts`.
 
 ### Node-only leaves
-- `resolve-name.ts`, `detect-hints.ts`, `storage/*`, `geometry/outlines.ts`, `geometry/extracted.ts`, `geometry/shared.ts`, `recording/*`, `catalogs/*`, `guide/data.ts`, `curation/generate.ts`, `curation/coverage.ts`, `curation/verified.ts`, and `curation/segment-align-validate.ts`.
+- Metadata-owner catalog readers and game-catalogs name/outline composition; shared `detect-hints.ts`, `storage/*`, `geometry/shared.ts`, `recording/curbs.ts`, `guide/data.ts`, `curation/generate.ts`, `curation/coverage.ts`, `curation/verified.ts`, and `curation/segment-align-validate.ts`.
 - These leaves read or write files directly, depend on runtime path resolution, or import another Node-only leaf.
 - Browser code should consume normalized values from its data boundary instead of importing these modules.
 
 ## Dependency direction
 - **Leaf contracts first:** `keys.ts`, `named-segments.ts`, `facts.ts`, `geometry.ts`, `segment-label.ts`, `projection.ts`.
 - **Join/read layer:** `curation/join.ts` + `storage/meta.ts` compose leaf contracts.
-- **Identity layer:** `catalogs/*` + `resolve-name.ts` maps catalog ordinals to shared slugs.
-- **Derived layer:** `recording/*`, `guide/*`, `curation/*` consume identity + storage to produce consumable artifacts.
+- **Identity layer:** metadata-owner catalogs plus game-catalogs name resolution map ordinals to shared slugs.
+- **Derived layer:** game-catalogs outlines and shared recording, guide, and curation leaves consume identity and storage.
 
 ## Add/extend safely
 - Add/modify facts for a layout in `shared/data/tracks/meta/<slug>.json` and keep turn numbering complete and ordered.
 - Add/refresh one-game geometry in `shared/data/tracks/<gameId>/<slug>-segments.json` via generation.
-- For new game support, add a catalog loader under `catalogs/` and map shared names only when one-to-one equivalent exists.
+- For new game support, add the catalog loader to its metadata owner and map shared names only for verified one-to-one equivalents.
 - For generated geometry, use:
   - `bun run tracks:segments --track <slug> [--game <gameId>]` for dry run.
   - `bun run tracks:segments --track <slug> --write [--allow-fuzzy]` for persistence.

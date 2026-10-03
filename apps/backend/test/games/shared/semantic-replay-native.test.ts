@@ -10,10 +10,10 @@ import { initServerGameAdapters } from "../../../src/games/init";
 import { IRacingSourceFrameEncoder, type IRacingSourceFrameV2 } from "@raceiq/capture-formats/iracing/source-frame";
 import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing";
 import { iterateIRacingNativeFramesForTest, queryLapTelemetryBySemanticId } from "@raceiq/backend-core/telemetry/replay";
-import { initGameAdapters } from "@raceiq/shared/games/init";
-import { canonicalizeTelemetryScalar } from "@raceiq/shared/telemetry/replay/canonicalize";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+import { canonicalizeTelemetryScalar } from "@raceiq/telemetry-core/telemetry/replay/canonicalize";
 
-import { packet } from "@raceiq/backend-core/test-support/telemetry/resolver";
+import { packet } from "@raceiq/telemetry-core/test-support/telemetry/resolver";
 initGameAdapters();
 initServerGameAdapters();
 

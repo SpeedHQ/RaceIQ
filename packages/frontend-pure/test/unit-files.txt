@@ -1,0 +1,3 @@
+packages/frontend-pure/test/parse-lap-time.test.ts
+packages/frontend-pure/test/speed.test.ts
+packages/frontend-pure/test/temperature.test.ts

@@ -5,15 +5,15 @@ import { fmRecordingSupport } from "@raceiq/game-fm-2023/test-support/recordings
 import { iracingRecordingSupport } from "@raceiq/game-iracing/test-support/recordings";
 import { lmuRecordingSupport } from "@raceiq/game-lmu/test-support/recordings";
 /**
- * Usage: bun scripts/telemetry/recordings/probe-recording.ts <gameId> [path]
+ * Usage: bun apps/backend/scripts/telemetry/recordings/probe-recording.ts <gameId> [path]
  *
  * If path is omitted, uses the latest recording for that game:
- *   bun scripts/telemetry/recordings/probe-recording.ts acc
- *   bun scripts/telemetry/recordings/probe-recording.ts f1-2025 test/artifacts/sessions/dump.bin
+ *   bun apps/backend/scripts/telemetry/recordings/probe-recording.ts acc
+ *   bun apps/backend/scripts/telemetry/recordings/probe-recording.ts f1-2025 test/artifacts/sessions/dump.bin
  */
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../../src/games/init";
-import { developmentReleaseFeatures } from "@raceiq/tooling/release/development-release-features";
+import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
 import { parseDump } from "@raceiq/backend-core/test-support/recordings/parse-dump";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { existsSync, readdirSync } from "node:fs";

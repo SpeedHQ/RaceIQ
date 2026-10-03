@@ -29,7 +29,7 @@ import { parsePacket } from "@raceiq/backend-core/games/packet-dispatch";
 import {
   injectDiscoveredIRacingIdentity,
   iracingAdapter,
-} from "@raceiq/shared/games/iracing/index";
+} from "@raceiq/game-iracing-metadata/index";
 
 registerGame(iracingServerAdapter);
 registerServerGame(iracingServerAdapter);

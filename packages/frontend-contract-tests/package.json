@@ -16,6 +16,10 @@
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/backend": "workspace:*",
     "@raceiq/game-ac-evo": "workspace:*",
-    "@raceiq/tooling": "workspace:*"
+    "@raceiq/tooling-ui": "workspace:*",
+    "@raceiq/game-ac-evo-metadata": "workspace:*",
+    "@raceiq/game-catalogs": "workspace:*",
+    "@raceiq/analysis-core": "workspace:*",
+    "@raceiq/telemetry-core": "workspace:*"
   }
 }

@@ -1,0 +1,17 @@
+{
+  "name": "@raceiq/game-lmu-metadata",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./index": "./src/index.ts",
+    "./catalog": "./src/catalog.ts",
+    "./track-boundaries": "./src/track-boundaries.ts",
+    "./cars.json": "./src/cars.json",
+    "./tracks.json": "./src/tracks.json",
+    "./manifest.json": "./src/manifest.json"
+  },
+  "dependencies": {
+    "@raceiq/shared": "workspace:*"
+  },
+  "scripts": {"typecheck":"bunx tsc --project tsconfig.json --noEmit"}
+}

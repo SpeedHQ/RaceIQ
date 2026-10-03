@@ -1,0 +1,12 @@
+packages/analysis-core/test/lap-analysis/advanced-insight-timing.test.ts
+packages/analysis-core/test/lap-analysis/aid-activation.test.ts
+packages/analysis-core/test/lap-analysis/aligned-telemetry-codec.test.ts
+packages/analysis-core/test/lap-analysis/aligned-telemetry.test.ts
+packages/analysis-core/test/lap-analysis/buffered-detectors.test.ts
+packages/analysis-core/test/lap-analysis/driving-core-insights.test.ts
+packages/analysis-core/test/lap-analysis/driving-style.test.ts
+packages/analysis-core/test/lap-analysis/steer-balance.test.ts
+packages/analysis-core/test/lap-analysis/stint-stats.test.ts
+packages/analysis-core/test/lap-analysis/stint-trace-codec.test.ts
+packages/analysis-core/test/lap-analysis/time-loss.test.ts
+packages/analysis-core/test/lap-analysis/wheel-calibration.test.ts

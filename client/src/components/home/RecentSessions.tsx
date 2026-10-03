@@ -1,4 +1,4 @@
-import { getLMUCar, getLMUTrack } from "@raceiq/shared/games/lmu/catalog";
+import { getLMUCar, getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import { formatLapTime } from "@/components/LiveTelemetry";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";

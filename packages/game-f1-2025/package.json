@@ -6,7 +6,10 @@
   "dependencies": {
     "@raceiq/shared": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
-    "@raceiq/backend-core": "workspace:*"
+    "@raceiq/backend-core": "workspace:*",
+    "@raceiq/game-f1-2025-metadata": "workspace:*",
+    "@raceiq/analysis-core": "workspace:*",
+    "@raceiq/telemetry-core": "workspace:*"
   },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit",

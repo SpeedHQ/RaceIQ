@@ -46,7 +46,7 @@
  */
 
 import type { Corner } from "../../lap-analysis/corners";
-import type { EvaluableLap } from "@raceiq/shared/racing/laps/review-selection";
+import type { EvaluableLap } from "@raceiq/analysis-core/racing/laps/review-selection";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 import type { PreparedArm } from "./compare";

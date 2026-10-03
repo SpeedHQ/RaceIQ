@@ -1,6 +1,6 @@
 import { bench, group } from "mitata";
 import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
-import { compileTelemetryResolver } from "@raceiq/shared/telemetry/resolver/compile";
+import { compileTelemetryResolver } from "@raceiq/telemetry-core/telemetry/resolver/compile";
 import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { runMitataBenchmarks } from "./mitata-harness";

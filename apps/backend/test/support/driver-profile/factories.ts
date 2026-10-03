@@ -1,6 +1,6 @@
 import type { ProfileScope } from "../../../src/driver-profile/fingerprint";
-import type { LapStyleSummary } from "@raceiq/shared/racing/analysis/laps/driving-style";
-import type { LapInsight } from "@raceiq/shared/racing/analysis/laps/insights/types";
+import type { LapStyleSummary } from "@raceiq/analysis-core/racing/analysis/laps/driving-style";
+import type { LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 
 export const SCOPE: ProfileScope = { kind: "car-track", gameId: "fm-2023", carOrdinal: 100, trackOrdinal: 200 };

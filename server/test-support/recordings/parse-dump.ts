@@ -7,7 +7,7 @@ import { LiveTelemetryPipeline } from "../../telemetry/live-pipeline";
 import { registerServerGame } from "../../games/registry";
 import { registerGame } from "@raceiq/shared/games/registry";
 import { readUdpDump } from "./udp";
-import { isPitCycleLap } from "@raceiq/shared/racing/laps/pit-cycle";
+import { isPitCycleLap } from "@raceiq/analysis-core/racing/laps/pit-cycle";
 
 /**
  * A {@link CapturedLap} after `parseDump` has attached its per-lap packets.

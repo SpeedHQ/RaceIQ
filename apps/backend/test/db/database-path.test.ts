@@ -44,7 +44,7 @@ async function runDbStartup(dataDir: string, importRecording = false): Promise<{
     import * as database from ${JSON.stringify(DATABASE_MODULE_URL)};
     ${importRecording ? `
     import { readFileSync } from "node:fs";
-    import { initGameAdapters } from ${JSON.stringify(pathToFileURL(join(REPO_ROOT, "shared/games/init.ts")).href)};
+    import { initGameAdapters } from ${JSON.stringify(pathToFileURL(join(REPO_ROOT, "packages/game-catalogs/src/games/init.ts")).href)};
     import { initServerGameAdapters } from ${JSON.stringify(pathToFileURL(join(REPO_ROOT, "apps/backend/src/games/init.ts")).href)};
     import { importSessionBin } from ${JSON.stringify(pathToFileURL(join(REPO_ROOT, "server/session-capture/import-capture.ts")).href)};
     ` : ""}

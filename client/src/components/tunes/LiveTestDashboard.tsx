@@ -5,7 +5,7 @@ import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import type { ExperimentGameId } from "../../hooks/experiments";
 import { useTrackBoundaries, useTrackOutline } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";
-import { convertTemp } from "../../lib/temperature";
+import { convertTemp } from "@raceiq/frontend-pure/temperature";
 import { semanticTuneSampleFromView } from "./semantic-tune";
 import { AnalyseTrackPanel } from "../analyse/AnalyseTrackPanel";
 import type { Point } from "../analyse/track-map/types";

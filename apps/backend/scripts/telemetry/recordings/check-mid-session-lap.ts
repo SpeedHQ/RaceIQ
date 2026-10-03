@@ -1,12 +1,12 @@
 /**
  * Dump per-packet lap-number transitions and detector output for the mid-session
- * AC Evo fixture. Run: `bun run scripts/telemetry/recordings/check-mid-session-lap.ts`
+ * AC Evo fixture. Run: `bun run apps/backend/scripts/telemetry/recordings/check-mid-session-lap.ts`
  */
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../../src/games/init";
-import { developmentReleaseFeatures } from "@raceiq/tooling/release/development-release-features";
+import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";

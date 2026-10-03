@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../../src/games/init";
 import { KNOWN_ANCHOR_GAPS, guideAnchors, knownTurns, loadFacts, unanchoredEntries } from "@raceiq/backend-core/test-support/tracks/track-guides";
 

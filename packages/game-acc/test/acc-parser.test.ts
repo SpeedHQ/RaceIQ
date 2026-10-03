@@ -10,8 +10,8 @@ import { PHYSICS, GRAPHICS, STATIC } from "@raceiq/capture-formats/acc/structs";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { parseRawLapFramesFromBuffer } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
-import { getAccTrackName } from "@raceiq/shared/racing/tracks/catalogs/acc"
-import { getAccCarName } from "@raceiq/shared/racing/cars/acc"
+import { getAccTrackName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc"
+import { getAccCarName } from "@raceiq/game-acc-metadata/racing/cars/acc"
 import { ACC_PACKED_MAGIC, packTriplet, unpackTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
 
 registerGame(accServerAdapter);

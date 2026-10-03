@@ -5,7 +5,7 @@ import { initServerGameAdapters } from "../../src/games/init";
 import { initMotecTargets } from "../../src/games/motec-init";
 import { transferRoutes } from "../../src/routes/laps/transfer-routes";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 
 const MOTEC_ARCHIVE = "test/artifacts/motec/acc-barcelona-porsche-992.zip";
 

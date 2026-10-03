@@ -2,7 +2,7 @@
   "name": "client",
   "private": true,
   "type": "module",
-  "exports": {"./src/components/ai-chat/resumable-chat":"./src/components/ai-chat/resumable-chat.ts","./src/components/ai-chat/token-usage-format":"./src/components/ai-chat/token-usage-format.ts","./src/components/ai/analysis-display-data":"./src/components/ai/analysis-display-data.ts","./src/components/analyse/chart-data":"./src/components/analyse/chart-data.ts","./src/components/analyse/track-map/types":"./src/components/analyse/track-map/types.ts","./src/components/connection-status-logic":"./src/components/connection-status-logic.ts","./src/components/tune/browser/buildRows":"./src/components/tune/browser/buildRows.ts","./src/components/tune/browser/parseLapTime":"./src/components/tune/browser/parseLapTime.ts","./src/components/tunes/semantic-tune":"./src/components/tunes/semantic-tune.ts","./src/components/tunes/track-focus/TrackFocusZoom":"./src/components/tunes/track-focus/TrackFocusZoom.tsx","./src/components/wireframe/classify-mesh":"./src/components/wireframe/classify-mesh.ts","./src/hooks/websocket-url":"./src/hooks/websocket-url.ts","./src/lib/aligned-telemetry-fidelity":"./src/lib/aligned-telemetry-fidelity.ts","./src/lib/comparison-utils":"./src/lib/comparison-utils.ts","./src/lib/game-routes":"./src/lib/game-routes.ts","./src/lib/is-ai-configured":"./src/lib/is-ai-configured.ts","./src/lib/live-telemetry-view":"./src/lib/live-telemetry-view.ts","./src/lib/reprocess-state":"./src/lib/reprocess-state.ts","./src/lib/rpc-error":"./src/lib/rpc-error.ts","./src/lib/speed":"./src/lib/speed.ts","./src/lib/stint-traces":"./src/lib/stint-traces.ts","./src/lib/suspension":"./src/lib/suspension.ts","./src/lib/temperature":"./src/lib/temperature.ts","./src/lib/vehicle-dynamics":"./src/lib/vehicle-dynamics.ts","./src/lib/wireframe-utils":"./src/lib/wireframe-utils.ts","./src/stores/game":"./src/stores/game.ts","./src/stories/SessionsPage.stories":"./src/stories/SessionsPage.stories.tsx","./src/stories/snapshot-cases":"./src/stories/snapshot-cases.ts","./src/stories/storybook-ready":"./src/stories/storybook-ready.ts"},
+  "exports": {"./src/components/ai-chat/resumable-chat":"./src/components/ai-chat/resumable-chat.ts","./src/components/ai-chat/token-usage-format":"./src/components/ai-chat/token-usage-format.ts","./src/components/ai/analysis-display-data":"./src/components/ai/analysis-display-data.ts","./src/components/analyse/chart-data":"./src/components/analyse/chart-data.ts","./src/components/analyse/track-map/types":"./src/components/analyse/track-map/types.ts","./src/components/connection-status-logic":"./src/components/connection-status-logic.ts","./src/components/tune/browser/buildRows":"./src/components/tune/browser/buildRows.ts","./src/components/tunes/semantic-tune":"./src/components/tunes/semantic-tune.ts","./src/components/tunes/track-focus/TrackFocusZoom":"./src/components/tunes/track-focus/TrackFocusZoom.tsx","./src/components/wireframe/classify-mesh":"./src/components/wireframe/classify-mesh.ts","./src/hooks/websocket-url":"./src/hooks/websocket-url.ts","./src/lib/aligned-telemetry-fidelity":"./src/lib/aligned-telemetry-fidelity.ts","./src/lib/comparison-utils":"./src/lib/comparison-utils.ts","./src/lib/game-routes":"./src/lib/game-routes.ts","./src/lib/is-ai-configured":"./src/lib/is-ai-configured.ts","./src/lib/live-telemetry-view":"./src/lib/live-telemetry-view.ts","./src/lib/reprocess-state":"./src/lib/reprocess-state.ts","./src/lib/rpc-error":"./src/lib/rpc-error.ts","./src/lib/stint-traces":"./src/lib/stint-traces.ts","./src/lib/suspension":"./src/lib/suspension.ts","./src/lib/vehicle-dynamics":"./src/lib/vehicle-dynamics.ts","./src/lib/wireframe-utils":"./src/lib/wireframe-utils.ts","./src/stores/game":"./src/stores/game.ts","./src/stories/SessionsPage.stories":"./src/stories/SessionsPage.stories.tsx","./src/stories/snapshot-cases":"./src/stories/snapshot-cases.ts","./src/stories/storybook-ready":"./src/stories/storybook-ready.ts"},
   "scripts": {
     "dev": "vite",
     "test": "bun run i18n:compile && bun test ./test",
@@ -15,8 +15,8 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "snapshot:test": "playwright test --update-snapshots",
-    "snapshot:compare": "bun ../scripts/ui/local-ui-diff.ts --storybook-only",
-    "snapshot:test:docker": "bun ../scripts/ui/run-snapshot-in-docker.ts"
+    "snapshot:compare": "bun ../packages/tooling-ui/src/ui/local-ui-diff.ts --storybook-only",
+    "snapshot:test:docker": "bun ../packages/tooling-ui/src/ui/run-snapshot-in-docker.ts"
   },
   "dependencies": {
     "@ai-sdk/react": "4.0.108",
@@ -57,7 +57,14 @@
     "tw-shimmer": "^0.4.13",
     "uplot": "^1.6.32",
     "zustand": "^5.0.15",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@raceiq/tooling-ui": "workspace:*",
+    "@raceiq/tooling-data": "workspace:*",
+    "@raceiq/game-lmu-metadata": "workspace:*",
+    "@raceiq/game-catalogs": "workspace:*",
+    "@raceiq/analysis-core": "workspace:*",
+    "@raceiq/telemetry-core": "workspace:*",
+    "@raceiq/frontend-pure": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",

@@ -26,7 +26,7 @@ import { createAcEvoParserCache } from "../../src/parser";
 import { LapDetectorAcEvo } from "../../src/lap-detector";
 import { generateRecordingVisualizations } from "@raceiq/backend-core/test-support/laps/visualizations";
 import { assertValidLapHasSectors } from "@raceiq/backend-core/test-support/laps/assertions";
-import { getTrackSectorsByOrdinal } from "@raceiq/shared/racing/tracks/storage/sectors";
+import { getTrackSectorsByOrdinal } from "@raceiq/game-catalogs/racing/tracks/storage/sectors";
 
 type CapturedLapWithPackets = CapturedLap & { packets: TelemetryPacket[] };
 

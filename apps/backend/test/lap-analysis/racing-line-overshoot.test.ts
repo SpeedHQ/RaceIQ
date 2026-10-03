@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { detectLateBrakingOvershoot } from "@raceiq/shared/racing/analysis/laps/insights/driving-advanced";
-import { RACING_LINE_SEMANTIC_ID, type RacingLineReference } from "@raceiq/shared/racing/analysis/laps/insights/types";
+import { detectLateBrakingOvershoot } from "@raceiq/analysis-core/racing/analysis/laps/insights/driving-advanced";
+import { RACING_LINE_SEMANTIC_ID, type RacingLineReference } from "@raceiq/analysis-core/racing/analysis/laps/insights/types";
 import { resolveRacingLineReference } from "@raceiq/backend-core/lap-analysis/insights";
 import type { LapPathPoint } from "@raceiq/shared/racing/tracks/path";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";

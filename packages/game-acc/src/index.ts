@@ -2,9 +2,9 @@ import { resolve } from "node:path";
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LapIndexPacket } from "@raceiq/backend-core/lap-detection/types";
-import { accAdapter } from "@raceiq/shared/games/acc/index";
-import { getAccCarName, getAccCarByModel } from "@raceiq/shared/racing/cars/acc"
-import { getAccTrackName, getAccSharedTrackName, getAccTrackByName, getAccTrackBySetupFolder } from "@raceiq/shared/racing/tracks/catalogs/acc"
+import { accAdapter } from "@raceiq/game-acc-metadata/index";
+import { getAccCarName, getAccCarByModel } from "@raceiq/game-acc-metadata/racing/cars/acc"
+import { getAccTrackName, getAccSharedTrackName, getAccTrackByName, getAccTrackBySetupFolder } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc"
 import { LapDetectorAcc } from "./lap-detector"
 import { parseAccBuffers } from "./parser";
 import { parseAccLapIndex } from "./lap-index";

@@ -5,7 +5,9 @@
   "exports": {".":"./src/index.ts","./parser":"./src/parser.ts","./test-support/recordings":"./test/support/recordings.ts"},
   "dependencies": {
     "@raceiq/backend-core": "workspace:*",
-    "@raceiq/shared": "workspace:*"
+    "@raceiq/shared": "workspace:*",
+    "@raceiq/game-fm-2023-metadata": "workspace:*",
+    "@raceiq/game-catalogs": "workspace:*"
   },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit",

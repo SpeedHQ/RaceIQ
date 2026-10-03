@@ -1,0 +1,16 @@
+{
+  "name": "@raceiq/game-f1-2025-metadata",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./index": "./src/index.ts",
+    "./racing/cars/f1": "./src/racing/cars/f1.ts",
+    "./racing/tracks/catalogs/f1": "./src/racing/tracks/catalogs/f1.ts"
+  },
+  "dependencies": {
+    "@raceiq/shared": "workspace:*"
+  },
+  "scripts": {
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit"
+  }
+}

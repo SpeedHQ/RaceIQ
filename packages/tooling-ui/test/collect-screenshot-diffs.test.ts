@@ -1,0 +1,284 @@
+import { afterEach, describe, expect, test } from "bun:test";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import sharp from "sharp";
+import { collectScreenshotDiffs } from "../src/ui/collect-screenshot-diffs";
+import { mergeScreenshotRenders } from "../src/ui/merge-screenshot-renders";
+
+const ROOT_DIR = resolve(import.meta.dir, "../../..");
+
+const tempDirs: string[] = [];
+
+function makeTempDir(): string {
+  const dir = mkdtempSync(join(tmpdir(), "raceiq-screenshot-diff-"));
+  tempDirs.push(dir);
+  return dir;
+}
+
+async function writePng(path: string, color: { r: number; g: number; b: number }, width = 3, height = 2): Promise<void> {
+  mkdirSync(join(path, ".."), { recursive: true });
+  await sharp({
+    create: {
+      width,
+      height,
+      channels: 4,
+      background: { ...color, alpha: 1 },
+    },
+  })
+    .png()
+    .toFile(path);
+}
+
+async function writeRawPng(path: string, pixels: Buffer, width: number, height: number): Promise<void> {
+  mkdirSync(join(path, ".."), { recursive: true });
+  await sharp(pixels, { raw: { width, height, channels: 4 } })
+    .png()
+    .toFile(path);
+}
+
+function collect(baseDir: string, currentDir: string, outDir: string) {
+  return collectScreenshotDiffs({ baseDir, currentDir, outDir, prefix: "responsive" });
+}
+
+afterEach(() => {
+  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+
+describe("collect-screenshot-diffs", () => {
+  test(
+    "lists changed, added, and removed screenshots while omitting identical ones",
+    async () => {
+      const root = makeTempDir();
+      const base = join(root, "base");
+      const current = join(root, "current");
+      const out = join(root, "out");
+
+      await writePng(join(base, "mobile", "changed.png"), { r: 255, g: 0, b: 0 });
+      await writePng(join(current, "mobile", "changed.png"), { r: 0, g: 255, b: 0 });
+      await writePng(join(base, "mobile", "same.png"), { r: 0, g: 0, b: 255 });
+      await writePng(join(current, "mobile", "same.png"), { r: 0, g: 0, b: 255 });
+      await writePng(join(current, "tablet", "new-page.png"), { r: 255, g: 255, b: 0 }, 300, 100);
+      await writePng(join(base, "desktop", "removed-page.png"), { r: 255, g: 0, b: 255 });
+      await writePng(join(current, "results", "transient.png"), { r: 0, g: 255, b: 255 });
+
+      await collect(base, current, out);
+      expect(readdirSync(out).sort()).toEqual([
+        "added--responsive--tablet--new-page-after.png",
+        "added--responsive--tablet--new-page-before.png",
+        "added--responsive--tablet--new-page-diff.png",
+        "changed--responsive--mobile--changed-after.png",
+        "changed--responsive--mobile--changed-before.png",
+        "changed--responsive--mobile--changed-diff.png",
+        "removed--responsive--desktop--removed-page-after.png",
+        "removed--responsive--desktop--removed-page-before.png",
+        "removed--responsive--desktop--removed-page-diff.png",
+      ]);
+      expect(existsSync(join(out, "responsive--mobile--same-after.png"))).toBe(false);
+
+      const blank = await sharp({
+        create: {
+          width: 300,
+          height: 100,
+          channels: 4,
+          background: { r: 17, g: 24, b: 39, alpha: 1 },
+        },
+      })
+        .png()
+        .toBuffer();
+      const expectedAddedDiff = await sharp(blank)
+        .composite([
+          {
+            input: join(out, "added--responsive--tablet--new-page-after.png"),
+            blend: "difference",
+          },
+        ])
+        .raw()
+        .toBuffer();
+      const actualAddedDiff = await sharp(join(out, "added--responsive--tablet--new-page-diff.png")).raw().toBuffer();
+      expect(actualAddedDiff.equals(expectedAddedDiff)).toBe(true);
+    },
+    { timeout: 10_000 },
+  );
+
+  test("collects material changes successfully unless CLI gating is explicitly requested", async () => {
+    const root = makeTempDir();
+    const base = join(root, "base");
+    const current = join(root, "current");
+    const out = join(root, "out");
+    await writePng(join(base, "mobile", "changed.png"), { r: 255, g: 0, b: 0 });
+    await writePng(join(current, "mobile", "changed.png"), { r: 0, g: 255, b: 0 });
+
+    const args = [
+      process.execPath,
+      resolve(ROOT_DIR, "packages/tooling-ui/src/ui/collect-screenshot-diffs.ts"),
+      "--base",
+      base,
+      "--current",
+      current,
+      "--out",
+      out,
+      "--prefix",
+      "responsive",
+    ];
+    const collected = Bun.spawnSync(args);
+    expect(collected.exitCode).toBe(0);
+    expect(collected.stdout.toString()).toContain("Collected 1 screenshot diff.");
+    expect(existsSync(join(out, "changed--responsive--mobile--changed-diff.png"))).toBe(true);
+
+    const result = Bun.spawnSync([...args, "--fail-on-change"]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr.toString()).toContain("Responsive visual baseline differs in 1 screenshot.");
+    expect(existsSync(join(out, "changed--responsive--mobile--changed-diff.png"))).toBe(true);
+  });
+
+  test("incomplete snapshot renders warn without blocking preview publication", async () => {
+    const preview = makeTempDir();
+    const args = [process.execPath, resolve(ROOT_DIR, "packages/tooling-ui/src/ui/report-snapshot-failure.ts"), preview];
+    const empty = Bun.spawnSync(args);
+    expect(empty.exitCode).toBe(0);
+    expect(empty.stderr.toString()).toContain("::warning::");
+
+    await writePng(join(preview, "changed--rendered-base-vs-pr--AnalyseDataPanelParity-diff.png"), { r: 255, g: 0, b: 0 });
+    const changed = Bun.spawnSync(args);
+    expect(changed.exitCode).toBe(0);
+    expect(changed.stderr.toString()).toContain("changed--rendered-base-vs-pr--AnalyseDataPanelParity-diff.png");
+  });
+  test("ignores sparse one-level antialiasing differences", async () => {
+    const root = makeTempDir();
+    const base = join(root, "base");
+    const current = join(root, "current");
+    const out = join(root, "out");
+    const width = 1000;
+    const height = 100;
+    const pixels = Buffer.alloc(width * height * 4, 0);
+
+    for (let offset = 0; offset < pixels.length; offset += 4) {
+      pixels[offset] = 20;
+      pixels[offset + 1] = 20;
+      pixels[offset + 2] = 20;
+      pixels[offset + 3] = 255;
+    }
+
+    const currentPixels = Buffer.from(pixels);
+    for (const offset of [0, 4, 8]) {
+      currentPixels[offset] += 1;
+      currentPixels[offset + 1] += 1;
+      currentPixels[offset + 2] += 1;
+    }
+
+    await mkdirSync(join(base, "desktop"), { recursive: true });
+    await mkdirSync(join(current, "desktop"), { recursive: true });
+    await sharp(pixels, { raw: { width, height, channels: 4 } })
+      .png()
+      .toFile(join(base, "desktop", "antialias.png"));
+    await sharp(currentPixels, { raw: { width, height, channels: 4 } })
+      .png()
+      .toFile(join(current, "desktop", "antialias.png"));
+
+    await collect(base, current, out);
+    expect(readdirSync(out)).toEqual([]);
+  });
+
+  test("ignores an isolated material-color pixel within the allowed ratio", async () => {
+    const root = makeTempDir();
+    const base = join(root, "base");
+    const current = join(root, "current");
+    const out = join(root, "out");
+    const width = 100;
+    const height = 100;
+    const pixels = Buffer.alloc(width * height * 4, 20);
+
+    for (let offset = 3; offset < pixels.length; offset += 4) pixels[offset] = 255;
+    const currentPixels = Buffer.from(pixels);
+    currentPixels[0] = 255;
+    currentPixels[1] = 255;
+    currentPixels[2] = 255;
+
+    await writeRawPng(join(base, "desktop", "isolated.png"), pixels, width, height);
+    await writeRawPng(join(current, "desktop", "isolated.png"), currentPixels, width, height);
+
+    await collect(base, current, out);
+    expect(readdirSync(out)).toEqual([]);
+  });
+
+  test("keeps reporting material changes beyond the allowed ratio", async () => {
+    const root = makeTempDir();
+    const base = join(root, "base");
+    const current = join(root, "current");
+    const out = join(root, "out");
+    const width = 100;
+    const height = 100;
+    const pixels = Buffer.alloc(width * height * 4, 0);
+
+    for (let offset = 0; offset < pixels.length; offset += 4) {
+      pixels[offset] = 20;
+      pixels[offset + 1] = 20;
+      pixels[offset + 2] = 20;
+      pixels[offset + 3] = 255;
+    }
+
+    const currentPixels = Buffer.from(pixels);
+    for (let y = 0; y < 20; y++) {
+      for (let x = 0; x < 20; x++) {
+        const offset = (y * width + x) * 4;
+        currentPixels[offset] = 255;
+        currentPixels[offset + 1] = 255;
+        currentPixels[offset + 2] = 255;
+      }
+    }
+
+    await writeRawPng(join(base, "desktop", "changed.png"), pixels, width, height);
+    await writeRawPng(join(current, "desktop", "changed.png"), currentPixels, width, height);
+
+    await collect(base, current, out);
+    expect(existsSync(join(out, "changed--responsive--desktop--changed-diff.png"))).toBe(true);
+  });
+
+  test("reports same-path dimension changes and pads both images to maximum dimensions", async () => {
+    const root = makeTempDir();
+    const base = join(root, "base");
+    const current = join(root, "current");
+    const out = join(root, "out");
+
+    await writePng(join(base, "desktop", "resized.png"), { r: 220, g: 10, b: 20 }, 100, 80);
+    await writePng(join(current, "desktop", "resized.png"), { r: 10, g: 220, b: 20 }, 80, 100);
+
+    const [change] = await collect(base, current, out);
+    expect(change).toMatchObject({ width: 100, height: 100, differingPixels: 0 });
+
+    const before = join(out, change!.beforeFile);
+    const after = join(out, change!.afterFile);
+    expect(await sharp(before).metadata()).toMatchObject({ width: 100, height: 100 });
+    expect(await sharp(after).metadata()).toMatchObject({ width: 100, height: 100 });
+    const [beforeBottom, afterRight, beforeContent, afterContent] = await Promise.all([
+      sharp(before).extract({ left: 40, top: 99, width: 1, height: 1 }).raw().toBuffer(),
+      sharp(after).extract({ left: 99, top: 40, width: 1, height: 1 }).raw().toBuffer(),
+      sharp(before).extract({ left: 40, top: 40, width: 1, height: 1 }).raw().toBuffer(),
+      sharp(after).extract({ left: 40, top: 40, width: 1, height: 1 }).raw().toBuffer(),
+    ]);
+    expect([...beforeBottom]).toEqual([17, 24, 39, 255]);
+    expect([...afterRight]).toEqual([17, 24, 39, 255]);
+    expect([...beforeContent]).toEqual([220, 10, 20, 255]);
+    expect([...afterContent]).toEqual([10, 220, 20, 255]);
+  });
+
+  test("merges shard outputs and metadata without decoding screenshots", async () => {
+    const root = makeTempDir();
+    const input = join(root, "artifacts");
+    const output = join(root, "merged");
+    mkdirSync(join(input, "pr-screenshot-render-1", "current-responsive", "desktop"), { recursive: true });
+    mkdirSync(join(input, "pr-screenshot-render-2", "base-responsive", "desktop"), { recursive: true });
+    await Bun.write(join(input, "pr-screenshot-render-1", "pr-number.txt"), "365\n");
+    await Bun.write(join(input, "pr-screenshot-render-1", "base-ref.txt"), "main\n");
+    await writePng(join(input, "pr-screenshot-render-1", "current-responsive", "desktop", "one.png"), { r: 255, g: 0, b: 0 });
+    await writePng(join(input, "pr-screenshot-render-2", "base-responsive", "desktop", "two.png"), { r: 0, g: 255, b: 0 });
+
+    mergeScreenshotRenders({ inputDir: input, outputDir: output });
+
+    expect(await Bun.file(join(output, "pr-number.txt")).text()).toBe("365\n");
+    expect(await Bun.file(join(output, "base-ref.txt")).text()).toBe("main\n");
+    expect(existsSync(join(output, "current-responsive", "desktop", "one.png"))).toBe(true);
+    expect(existsSync(join(output, "base-responsive", "desktop", "two.png"))).toBe(true);
+  });
+});

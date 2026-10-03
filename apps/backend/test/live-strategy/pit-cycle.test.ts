@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { classifyPitCycleLap, forzaPitTransitionEvidence } from "@raceiq/shared/racing/laps/pit-cycle";
+import { classifyPitCycleLap, forzaPitTransitionEvidence } from "@raceiq/analysis-core/racing/laps/pit-cycle";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 function iracing(onPitRoad: boolean): TelemetryPacket {

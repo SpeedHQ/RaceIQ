@@ -1,0 +1,23 @@
+{
+  "name": "@raceiq/tooling-build",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./build/copy-duckdb-runtime": "./src/build/copy-duckdb-runtime.ts"
+  },
+  "dependencies": {
+    "@raceiq/shared": "workspace:*",
+    "@gltf-transform/core": "4.5.0",
+    "@gltf-transform/extensions": "4.5.0",
+    "@gltf-transform/functions": "4.5.0",
+    "meshoptimizer": "1.2.0",
+    "sharp": "^0.35.4",
+    "@duckdb/node-api": "1.5.2-r.2"
+  },
+  "scripts": {
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/tooling-build",
+    "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/tooling-build",
+    "test:tooling": "bun ../../scripts/test/run-suite.ts tooling --package @raceiq/tooling-build"
+  }
+}

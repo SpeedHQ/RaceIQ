@@ -9,12 +9,12 @@ import type {
   MotecCarTrackOverride,
   MotecConversionResult,
 } from "@raceiq/backend-core/motec/types";
-import { getAcEvoCarByModel, getAcEvoCarName } from "@raceiq/shared/racing/cars/ac-evo";
+import { getAcEvoCarByModel, getAcEvoCarName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
 import {
   getAcEvoTrackByName,
   getAcEvoTrackBySetupFolder,
   getAcEvoTracks,
-} from "@raceiq/shared/racing/tracks/catalogs/ac-evo";
+} from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
 
 export function resolveAcEvoMotecCarTrack(
   log: LdLog,

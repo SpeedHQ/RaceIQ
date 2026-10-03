@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { unzipSync, zipSync } from "fflate";
 
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
 import { initServerGameAdapters } from "../../src/games/init";
 import { parseLd, findChannel } from "@raceiq/backend-core/motec/ld";
@@ -14,7 +14,7 @@ import {
   reconstructYawHeading,
   alignPathToTrack,
 } from "@raceiq/backend-core/motec/kunos-synthesis";
-import { normalizeTelemetryPacket } from "@raceiq/backend-core/telemetry/normalization";
+import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/normalization";
 import { importMotec, MOTEC_SESSION_SOURCE } from "@raceiq/backend-core/motec/import";
 import { buildLapsZip, importLapsZip } from "../../src/laps/archive";
 import { getMotecTargets, resolveMotecTarget } from "@raceiq/backend-core/motec/targets";
@@ -23,9 +23,9 @@ import { transferRoutes } from "../../src/routes/laps/transfer-routes";
 import { db } from "@raceiq/backend-core/db/index";
 import { laps as lapsTable, sessions, tunes } from "@raceiq/backend-core/db/schema";
 import { eq, isNull } from "drizzle-orm";
-import { getAcEvoTrackByName } from "@raceiq/shared/racing/tracks/catalogs/ac-evo"
+import { getAcEvoTrackByName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo"
 import { flipPoints } from "@raceiq/shared/racing/tracks/coords";
-import { getTrackOutlineByOrdinal } from "@raceiq/shared/racing/tracks/recording/outlines";
+import { getTrackOutlineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { buildLd, buildLdx, syntheticStint } from "@raceiq/backend-core/test-support/motec/ld";
 const MOTEC_ARCHIVE = "test/artifacts/motec/acc-barcelona-porsche-992.zip";
 

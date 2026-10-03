@@ -1,4 +1,4 @@
-import { isPitCycleLap } from "@raceiq/shared/racing/laps/pit-cycle"
+import { isPitCycleLap } from "@raceiq/analysis-core/racing/laps/pit-cycle"
 import { useEffect, useMemo, useRef, useState } from "react";
 import { lapPaceColor } from "@/lib/colors";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";

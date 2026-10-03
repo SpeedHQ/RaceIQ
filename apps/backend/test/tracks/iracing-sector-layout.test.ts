@@ -3,7 +3,7 @@ import { computeIRacingSectorTimeline } from "@raceiq/backend-core/lap-analysis/
 import { normalizeIRacingFrame } from "@raceiq/game-iracing/normalizer";
 import type { IRacingSourceFrameV2 } from "@raceiq/capture-formats/iracing/source-frame";
 import { SectorTracker } from "@raceiq/backend-core/live-strategy/sector-tracker";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 initGameAdapters();

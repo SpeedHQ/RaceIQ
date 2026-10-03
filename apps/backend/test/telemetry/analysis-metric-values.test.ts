@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { resolveBalance, resolveGripDemand, resolveWheelMetric, resolveWheelStates } from "@raceiq/shared/racing/analysis/metric-values";
-import { lmuAdapter } from "@raceiq/shared/games/lmu/index";
+import { resolveBalance, resolveGripDemand, resolveWheelMetric, resolveWheelStates } from "@raceiq/analysis-core/racing/analysis/metric-values";
+import { lmuAdapter } from "@raceiq/game-lmu-metadata/index";
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities";
 
 const frame = (values: Record<string, unknown>, states: Record<string, string> = {}) => ({ values, states });

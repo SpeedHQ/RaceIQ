@@ -6,13 +6,13 @@ import type { LivePitData, LiveSectorData } from "@raceiq/shared/racing/live/typ
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
-import type { LiveProjection } from "./live-projector";
+import type { LiveProjection } from "@raceiq/telemetry-core/telemetry/live-projector";
 import {
   TELEMETRY_CATALOG_HASH,
   TELEMETRY_CATALOG_SCHEMA_VERSION,
   TELEMETRY_CATALOG_VERSION,
 } from "@raceiq/shared/telemetry/catalog/data";
-import { TELEMETRY_DERIVATION_VERSION } from "@raceiq/shared/telemetry/derivations/builtins";
+import { TELEMETRY_DERIVATION_VERSION } from "@raceiq/telemetry-core/telemetry/derivations/builtins";
 import {
   TELEMETRY_PARSER_VERSIONS,
   TELEMETRY_RESOLVER_VERSION,

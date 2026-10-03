@@ -8,7 +8,7 @@ Each entry must name the missing behavior, evidence or blocker, coverage that re
 
 **Missing coverage:** Seeded browser coverage for AC Evo session review reusing base aligned telemetry across sector/view interactions and requesting higher-resolution telemetry only for a selected detail range.
 
-**Evidence and blocker:** The AC Evo seed in `scripts/data/seed-db-options.ts` uses `session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz`. Import produces four invalid laps:
+**Evidence and blocker:** The AC Evo seed in `packages/tooling-data/src/data/seed-db-options.ts` uses `session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz`. Import produces four invalid laps:
 
 - Partial-start lap: `start/end positions too far apart`.
 - Two laps: `track limits`.

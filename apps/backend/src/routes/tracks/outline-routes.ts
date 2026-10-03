@@ -6,8 +6,8 @@ import {
   deleteRecordedOutline,
   getStartYaw,
   recordLapTrace,
-} from "@raceiq/shared/racing/tracks/recording/outlines";
-import { getTrackAltitudeByOrdinal } from "@raceiq/shared/racing/tracks/geometry/extracted";
+} from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { getTrackAltitudeByOrdinal } from "@raceiq/game-catalogs/racing/tracks/geometry/extracted";
 import {
   filterLapOutliers,
   normalizeToFixedPoints,
@@ -16,7 +16,7 @@ import {
 } from "@raceiq/backend-core/lap-detection/detector";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { computeLapSectors } from "@raceiq/backend-core/lap-analysis/sectors";
-import { getLMUTrackOutline } from "@raceiq/shared/games/lmu/track-boundaries";
+import { getLMUTrackOutline } from "@raceiq/game-lmu-metadata/track-boundaries";
 import {
   decodeTrackKey,
   OrdinalKeyParamSchema,

@@ -352,7 +352,7 @@ If a track looks wrong in the app: fix that track's curated data.
 | Fallback detection + generation | `shared/racing/tracks/curation/segment-align-detect.ts`, `shared/racing/tracks/curation/generate.ts` |
 | Coverage stats | `shared/racing/tracks/curation/coverage.ts` |
 | Verification ledger | `shared/racing/tracks/curation/verified.ts` → `shared/data/tracks/verified.json` |
-| CLI | `scripts/tracks/track-coverage.ts` |
+| CLI | `packages/tooling-data/src/tracks/track-coverage.ts` |
 | Guards | `apps/backend/test/tracks/track-coverage.test.ts`, `server/test-support/tracks/known-gaps.ts` |
 
 `apps/backend/test/tracks/track-coverage.test.ts` fails if the committed table drifts from the repo, so none of this can silently rot.

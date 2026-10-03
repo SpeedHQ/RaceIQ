@@ -6,7 +6,8 @@
   "dependencies": {
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/shared": "workspace:*",
-    "@raceiq/capture-formats": "workspace:*"
+    "@raceiq/capture-formats": "workspace:*",
+    "@raceiq/game-acc-metadata": "workspace:*"
   },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit",

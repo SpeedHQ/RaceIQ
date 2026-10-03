@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { GameId } from "@raceiq/shared/games/ids";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { CurrentLapTireStrip } from "../src/components/tunes/CurrentLapTireStrip";
 import { LiveTestDashboard } from "../src/components/tunes/LiveTestDashboard";
 import { buildSectorRanges, METRICS, tuneMetricsFor } from "../src/components/tunes/SectorRangeBreakdown";

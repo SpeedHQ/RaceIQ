@@ -18,8 +18,8 @@ import { deleteSession } from "@raceiq/backend-core/db/session-queries";
 import { commitStagedIbt, stageIbtUpload } from "../../src/imports/iracing-ibt";
 import { previewIbtFile } from "@raceiq/game-iracing/ibt-preview";
 import { initServerGameAdapters } from "../../src/games/init";
-import { iracingAdapter } from "@raceiq/shared/games/iracing/index";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { iracingAdapter } from "@raceiq/game-iracing-metadata/index";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import {
   createRecording,
   drivenRows,

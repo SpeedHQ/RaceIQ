@@ -29,8 +29,8 @@ import {
   ACEVO_STARTING_GRIP_NAMES,
 } from "@raceiq/capture-formats/ac-evo/structs";
 import { readCString } from "./utils";
-import { getAcEvoCarByDisplayName } from "@raceiq/shared/racing/cars/ac-evo"
-import { getAcEvoTrackByName } from "@raceiq/shared/racing/tracks/catalogs/ac-evo"
+import { getAcEvoCarByDisplayName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo"
+import { getAcEvoTrackByName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo"
 
 export interface AcEvoParserCache {
   carOrdinal: number;

@@ -1,6 +1,6 @@
 import { bench, group, do_not_optimize } from "mitata";
 
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { getAllServerGames } from "@raceiq/backend-core/games/registry";
 import { LiveTelemetryPipeline, stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
@@ -10,8 +10,8 @@ import { parseAccBuffers } from "@raceiq/game-acc/parser";
 import { readWString } from "@raceiq/game-acc/utils";
 import { STATIC } from "@raceiq/capture-formats/acc/structs";
 import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
-import { getAccCarByModel } from "@raceiq/shared/racing/cars/acc";
-import { getAccTrackByName } from "@raceiq/shared/racing/tracks/catalogs/acc";
+import { getAccCarByModel } from "@raceiq/game-acc-metadata/racing/cars/acc";
+import { getAccTrackByName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "@raceiq/game-ac-evo/parser";
 import { runMitataBenchmarks } from "./mitata-harness";
 import { createBoundedPipelineRunner } from "./pipeline-bench-support";

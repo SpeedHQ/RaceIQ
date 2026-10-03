@@ -41,13 +41,24 @@
     "mitata": "^1.0.34",
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/shared": "workspace:*",
-    "@raceiq/tooling": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
     "@raceiq/game-ac-evo": "workspace:*",
     "@raceiq/game-acc": "workspace:*",
     "@raceiq/game-f1-2025": "workspace:*",
     "@raceiq/game-fm-2023": "workspace:*",
     "@raceiq/game-iracing": "workspace:*",
-    "@raceiq/game-lmu": "workspace:*"
+    "@raceiq/game-lmu": "workspace:*",
+    "@raceiq/tooling-release": "workspace:*",
+    "@raceiq/tooling-data": "workspace:*",
+    "@raceiq/tooling-catalog": "workspace:*",
+    "@raceiq/game-catalogs": "workspace:*",
+    "@raceiq/game-ac-evo-metadata": "workspace:*",
+    "@raceiq/game-lmu-metadata": "workspace:*",
+    "@raceiq/game-acc-metadata": "workspace:*",
+    "@raceiq/game-iracing-metadata": "workspace:*",
+    "@raceiq/game-fm-2023-metadata": "workspace:*",
+    "@raceiq/game-f1-2025-metadata": "workspace:*",
+    "@raceiq/analysis-core": "workspace:*",
+    "@raceiq/telemetry-core": "workspace:*"
   }
 }

@@ -1,0 +1,15 @@
+{
+  "name": "@raceiq/frontend-pure",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./speed": "./src/speed.ts",
+    "./temperature": "./src/temperature.ts",
+    "./parse-lap-time": "./src/parse-lap-time.ts"
+  },
+  "scripts": {
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "test": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/frontend-pure",
+    "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/frontend-pure"
+  }
+}

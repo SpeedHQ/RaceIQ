@@ -1,7 +1,7 @@
 import { getGame } from "@raceiq/shared/games/registry"
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
-import { resolveWheelMetric } from "@raceiq/shared/racing/analysis/metric-values";
-import { suspensionCompressionBias } from "@raceiq/shared/racing/analysis/laps/physics/vehicle";
+import { resolveWheelMetric } from "@raceiq/analysis-core/racing/analysis/metric-values";
+import { suspensionCompressionBias } from "@raceiq/analysis-core/racing/analysis/laps/physics/vehicle";
 import { Info } from "lucide-react";
 import { operatingRangeColor } from "../../lib/colors";
 import { m } from "../../paraglide/messages";

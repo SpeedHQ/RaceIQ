@@ -2,11 +2,11 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { Tune } from "@raceiq/shared/racing/tuning/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-analysis/report"
-import { resolveCarName } from "@raceiq/shared/racing/cars/resolve-name";
-import { fmCarSpecsCatalog } from "@raceiq/shared/racing/cars/fm";
-import { resolveTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
+import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
+import { fmCarSpecsCatalog } from "@raceiq/game-fm-2023-metadata/racing/cars/fm";
+import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import { buildCornerData } from "./corner-data";
-import type { LapInsight } from "@raceiq/shared/racing/analysis/laps/insights/types";
+import type { LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
 import { resolveTrack } from "../tracks/info";

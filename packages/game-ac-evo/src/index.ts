@@ -2,9 +2,9 @@ import { resolve } from "node:path";
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LapIndexPacket } from "@raceiq/backend-core/lap-detection/types";
-import { acEvoAdapter } from "@raceiq/shared/games/ac-evo/index";
-import { getAcEvoCarName } from "@raceiq/shared/racing/cars/ac-evo"
-import { getAcEvoTrackName, getAcEvoSharedTrackName, getAcEvoTrackByName, getAcEvoTrackBySetupFolder } from "@raceiq/shared/racing/tracks/catalogs/ac-evo"
+import { acEvoAdapter } from "@raceiq/game-ac-evo-metadata/index";
+import { getAcEvoCarName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo"
+import { getAcEvoTrackName, getAcEvoSharedTrackName, getAcEvoTrackByName, getAcEvoTrackBySetupFolder } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo"
 import { LapDetectorAcEvo } from "./lap-detector"
 import { parseAcEvoBuffers, createAcEvoParserCache } from "./parser";
 import { parseAcEvoLapIndex } from "./lap-index";

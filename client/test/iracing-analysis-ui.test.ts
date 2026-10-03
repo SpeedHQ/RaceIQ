@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsPanel";
 import { AnalyseSuspensionPanel } from "../src/components/analyse/AnalyseSuspensionPanel";
 import { AnalyseTireWheelsPanel } from "../src/components/analyse/AnalyseTireWheelsPanel";

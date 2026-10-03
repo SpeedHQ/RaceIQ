@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
 
-import { celsiusToFahrenheit } from "../src/lib/temperature";
+import { celsiusToFahrenheit } from "@raceiq/frontend-pure/temperature";
 import { renderToStaticMarkup } from "react-dom/server";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LivePitData, LiveSectorData } from "@raceiq/shared/racing/live/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";

@@ -1,11 +1,11 @@
 # shared/games
 
-Single source for game adapters, identity boundaries, and telemetry capabilities.
+Shared game identity, adapter contracts, telemetry capability contracts, and mutable registration.
 
 ## Purpose
 - Declare known game IDs and typed game contracts.
 - Expose a unified adapter registry for client and server.
-- Provide per-game adapters and static game-specific data catalog entries.
+- Keep concrete adapters and catalogs outside shared contracts.
 
 ## Key modules
 - `ids.ts`
@@ -21,37 +21,30 @@ Single source for game adapters, identity boundaries, and telemetry capabilities
   - `getGame`
   - `tryGetGame`
   - `getAllGames`
-- `init.ts`
-  - `initGameAdapters`
 - `telemetry.ts`
   - `getFuelAmount`
   - `getFuelDisplay`
   - `getTireTemperatureSourceUnit`
-- per-game adapters under `fm-2023/`, `f1-2025/`, `acc/`, `ac-evo/`, `iracing/`, `lmu/`
-  - each exports a `...Adapter`
-- `iracing/`
-  - `index.ts` identity setter bridge: `rememberIRacingIdentity`, `injectDiscoveredIRacingIdentity`
-  - `session-info/*` catalog, normalization contracts, and setup field definitions
-- `lmu/`
-  - `index.ts` deterministic string identity bridge for LMU car and track names
+- `metric-contracts.ts`: foundational capability defaults and semantic bindings
+- Concrete adapters and committed CSV/JSON catalogs live in `packages/game-<id>-metadata/src/`.
+- `packages/game-catalogs/src/games/init.ts` composes all metadata adapters with release-feature gating.
+- iRacing and LMU identity injection lives in their metadata adapter leaves.
 
 ## Browser vs Node boundary
-- Adapter objects and registry are browser-safe.
-- `shared/games` itself contains no Node core imports.
-- CSV/JSON catalogs in `shared/games/*` are static data files loaded by server-side layers such as `shared/racing/cars`, `shared/racing/tracks`, and `server/games/*`.
+- Contracts, registry, and metadata adapter `index` leaves are browser-safe.
+- Node catalog readers are separate metadata leaves; browser entry points never import them.
+- `gameCatalogDir(gameId)` resolves source metadata beside its owner and installed catalogs under `data/games/<game-id>`.
 
 ## Dependency direction
-- Direction is core: `shared/games` defines contracts and adapters consumed by:
-  - `shared/racing/cars` lookups
-  - `shared/racing/tracks` shared-name mapping
-  - `shared/racing/analysis` and UI analytics paths
-  - `server/games/*` parser and adapter bridges
-  - client and server code that resolves game IDs through the registry
+- Metadata owners depend on shared contracts, never the reverse.
+- Server game owners depend on their corresponding metadata owner.
+- Cross-game catalog and setup composition lives in `@raceiq/game-catalogs`.
+- Applications initialize adapters explicitly; closed single-game tests register only their real metadata adapter.
 - Runtime mutability is limited to adapter registration and explicit identity injection.
 
 ## Source-of-truth and regeneration
-- `ids.ts`, adapter `index.ts` modules, and `types.ts` are the runtime source-of-truth for supported game behavior.
-- Committed CSV/JSON files under each game folder are the runtime catalog source-of-truth; loaders do not fetch remote metadata at runtime.
+- `ids.ts` and `types.ts` define shared identities and contracts; metadata `index.ts` modules define concrete adapters.
+- Committed CSV/JSON files under `packages/game-<id>-metadata/src/` are runtime catalog sources; loaders never fetch remote metadata.
 Regenerate supported seed data with:
   - `bun run iracing:cars:seed`
   - `bun run iracing:tracks:seed`
@@ -60,7 +53,7 @@ Preserve CSV headers and native ordinals. Review generated diffs before committi
 ## Add/extend safely
 - Add new game:
   1. Add ID to `KNOWN_GAME_IDS` and `GameIdSchema`.
-  2. Add adapter in a dedicated folder exporting `GameAdapter`.
-  3. Register adapter in `initGameAdapters`.
+  2. Add a metadata owner exporting a browser-safe `GameAdapter` leaf and separate Node catalog leaves.
+  3. Register the adapter in `@raceiq/game-catalogs/games/init`.
   4. Wire server parser and car/track name resolvers in game-specific server layers.
 - Keep imports explicit and leaf-scoped, e.g. `import { getGame } from "@shared/games/registry"`.

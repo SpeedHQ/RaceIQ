@@ -1,7 +1,7 @@
 import { bench, do_not_optimize, group } from "mitata";
 import { parseRawLapFrames } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { initServerGameAdapters } from "../../src/games/init";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { runMitataBenchmarks } from "./mitata-harness";
 
 const FRAME_COUNT = 20_000;

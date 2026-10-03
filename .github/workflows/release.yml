@@ -75,7 +75,7 @@ jobs:
         run: bun test ./apps/backend/test/db/database-path.test.ts --timeout 120000
 
       - name: Generate release note artifact
-        run: bun scripts/release/generate-release-note.ts "${{ needs.compute-version.outputs.version }}"
+        run: bun packages/tooling-release/src/release/generate-release-note.ts "${{ needs.compute-version.outputs.version }}"
 
       - name: Build client
         run: bun scripts/ci/workflow-ops.ts release-client
@@ -87,12 +87,12 @@ jobs:
         run: bun scripts/ci/workflow-ops.ts copy-client
 
       - name: Copy shared data
-        run: bun scripts/build/copy-shared-data.ts
+        run: bun packages/tooling-build/src/build/copy-shared-data.ts
       - name: Optimize packaged images
-        run: bun scripts/build/optimize-client-images.ts
+        run: bun packages/tooling-build/src/build/optimize-client-images.ts
 
       - name: Compile server binary
-        run: bun scripts/build/compile-release.ts "${{ needs.compute-version.outputs.version }}"
+        run: bun packages/tooling-build/src/build/compile-release.ts "${{ needs.compute-version.outputs.version }}"
 
       - name: Patch PE version info (ProductName)
         run: bun scripts/ci/workflow-ops.ts patch-pe
@@ -191,7 +191,7 @@ jobs:
 
 
       - name: Roll over changelog
-        run: bun scripts/release/rollover-changelog.ts "${{ github.event.release.tag_name }}" "${{ github.event.release.published_at }}"
+        run: bun packages/tooling-release/src/release/rollover-changelog.ts "${{ github.event.release.tag_name }}" "${{ github.event.release.published_at }}"
 
       - name: Update version in package.json
         run: bun scripts/ci/update-release-version.ts "${{ github.event.release.tag_name }}"

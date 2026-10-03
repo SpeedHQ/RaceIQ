@@ -2,7 +2,7 @@ import { formatLapTime } from "@/lib/format";
 
 import { m } from "@/paraglide/messages";
 import type { CatalogTune } from "@/data/tune-catalog";
-import { parseLapTime } from "./parseLapTime";
+import { parseLapTime } from "@raceiq/frontend-pure/parse-lap-time";
 import type { TuneRow } from "./types";
 
 export interface RawUserTune {

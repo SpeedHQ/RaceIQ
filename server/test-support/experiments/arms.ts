@@ -2,7 +2,7 @@ import type { ArmInput } from "../../experiments/comparison/compare";
 import type { ArmLap } from "../../experiments/comparison/metrics";
 import type { FrameLapMeta, LapFrameLoader } from "../../experiments/comparison/stream";
 import type { Corner } from "../../lap-analysis/corners";
-import type { EvaluableLap } from "@raceiq/shared/racing/laps/review-selection";
+import type { EvaluableLap } from "@raceiq/analysis-core/racing/laps/review-selection";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 /** Deterministic synthetic corner shared by frame-based arm suites. */

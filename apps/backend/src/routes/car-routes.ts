@@ -6,23 +6,24 @@ import { resolve } from "node:path";
 
 import { gameAssetsDir } from "@raceiq/shared/platform/runtime/data-paths";
 import { OrdinalParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
-import { fmCarCatalog, getFmCarSpecs } from "@raceiq/shared/racing/cars/fm";
-import { resolveCarName } from "@raceiq/shared/racing/cars/resolve-name";
-import { getAllIRacingCars } from "@raceiq/shared/racing/cars/iracing";
-import { resolveTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
+import { fmCarCatalog, getFmCarSpecs } from "@raceiq/game-fm-2023-metadata/racing/cars/fm";
+import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
+import { getAllIRacingCars } from "@raceiq/game-iracing-metadata/racing/cars/iracing";
+import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import { GameIdSchema } from "@raceiq/shared/games/ids";
 import {
   getDiscoveredCarName,
   listDiscoveredCars,
 } from "@raceiq/backend-core/db/discovered-cars";
-import { getLMUCar, lmuCarCatalog } from "@raceiq/shared/games/lmu/catalog";
+import { getLMUCar, lmuCarCatalog } from "@raceiq/game-lmu-metadata/catalog";
 import { tryGetServerGame } from "@raceiq/backend-core/games/registry";
 
 // ─── Car model config paths ────────────────────────────────────────────────────
 
-import { GAMES_DIR, USER_DATA_DIR } from "@raceiq/backend-core/runtime/config/paths";
+import { USER_DATA_DIR } from "@raceiq/backend-core/runtime/config/paths";
+import { gameCatalogDir } from "@raceiq/shared/platform/runtime/data-paths";
 const CAR_MODEL_CONFIGS_PATH = resolve(USER_DATA_DIR, "car-model-configs.json");
-const CAR_DIMENSIONS_PATH = resolve(GAMES_DIR, "fm-2023", "car-dimensions.csv");
+const CAR_DIMENSIONS_PATH = resolve(gameCatalogDir("fm-2023"), "car-dimensions.csv");
 
 // ─── Car dimensions (loaded at module init) ─────────────────────────────────────
 

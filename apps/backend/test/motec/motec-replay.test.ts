@@ -10,7 +10,7 @@ import { initServerGameAdapters } from "../../src/games/init";
 import { encodeMotecSourceArchive } from "@raceiq/backend-core/motec/source-archive";
 import type { SessionCaptureSource } from "@raceiq/backend-core/session-capture/source-loader";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { buildLd, buildLdx, syntheticStint } from "@raceiq/backend-core/test-support/motec/ld";
 

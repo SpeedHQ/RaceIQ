@@ -135,8 +135,8 @@ Forces recomputation regardless of stored version.
 
 ## Source of truth
 
-- Dispatch and capability guards: `shared/racing/analysis/laps/insights/analyze.ts`
-- Insight schema and event timing: `shared/racing/analysis/laps/insights/types.ts`
+- Dispatch and capability guards: `packages/analysis-core/src/racing/analysis/laps/insights/analyze.ts`
+- Insight schema and event timing: `packages/analysis-core/src/racing/analysis/laps/insights/types.ts`
 - Detectors: sibling `suspension.ts`, `tires.ts`, `driving-core.ts`, `driving-advanced.ts`, `electronics.ts`, and `mechanical.ts`
 - Track-aware entry point and version: `server/lap-analysis/insights.ts`
 - Persistence, cache, backfill, and rerun: `server/lap-analysis/metrics-store.ts`

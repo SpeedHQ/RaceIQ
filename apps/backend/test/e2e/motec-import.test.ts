@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { unzipSync } from "fflate";
 
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { parseLd, findChannel } from "@raceiq/backend-core/motec/ld";
 import { parseLdxBeacons } from "@raceiq/backend-core/motec/ldx";
@@ -11,9 +11,9 @@ import { sessions } from "@raceiq/backend-core/db/schema";
 import { eq } from "drizzle-orm";
 import { importMotec } from "@raceiq/backend-core/motec/import";
 import { resolveMotecTarget } from "@raceiq/backend-core/motec/targets";
-import { normalizeTelemetryPacket } from "@raceiq/backend-core/telemetry/normalization";
+import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/normalization";
 import { MOTEC_STEER_LOCK_DEG, MOTEC_SYNTH_HZ } from "@raceiq/backend-core/motec/kunos-synthesis";
-import { getTrackOutlineByOrdinal } from "@raceiq/shared/racing/tracks/recording/outlines";
+import { getTrackOutlineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 
 const FIXTURE = "test/artifacts/motec/acc-barcelona-porsche-992.zip";
 

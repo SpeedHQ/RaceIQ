@@ -8,7 +8,7 @@ import { ROOT_DIR } from "@raceiq/backend-core/runtime/config/paths";
 import { describe, test, expect } from "bun:test";
 import { mkdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import {
   autoTrackSegments,
   findCenterlines,

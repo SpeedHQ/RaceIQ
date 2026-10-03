@@ -3,7 +3,38 @@
   "extends": ["//"],
   "tags": ["app"],
   "tasks": {
-    "test": { "dependsOn": ["transit", "client#i18n:compile"] },
+    "transit": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/*.test.ts",
+        "!**/*.test.tsx",
+        "!test/**"
+      ]
+    },
+    "test": {
+      "dependsOn": [
+        "transit",
+        "client#i18n:compile"
+      ],
+      "inputs": [
+        "$TURBO_EXTENDS$",
+        "$TURBO_ROOT$/test/artifacts/sessions/*.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/fm-2023-with-pitting.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/iracing-road-america-gt3.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/f1-2025-2026-04-22T11-42-43-029Z.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/carsetup/*.carsetup",
+        "$TURBO_ROOT$/test/artifacts/motec/acc-barcelona-porsche-992.zip",
+        "$TURBO_ROOT$/shared/data/tracks/meta/*.json",
+        "$TURBO_ROOT$/data/diagnostics/iracing-session-info/*.json",
+        "$TURBO_ROOT$/data/diagnostics/iracing-session-info/iracing-all-vars-2026-07-29T02-06-39-162Z.json",
+        "test/support/setup-app.ts",
+        "$TURBO_ROOT$/server/test-support/setup-data-dir.ts",
+        "$TURBO_ROOT$/packages/telemetry-core/test/support-resolver.ts"
+      ]
+    },
     "test:unit": {
       "dependsOn": [
         "transit",
@@ -20,8 +51,49 @@
       "dependsOn": [
         "transit",
         "client#i18n:compile"
+      ],
+      "inputs": [
+        "$TURBO_EXTENDS$",
+        "$TURBO_ROOT$/test/artifacts/sessions/*.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/iracing-road-america-gt3.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/fm-2023-with-pitting.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/f1-2025-2026-04-22T11-42-43-029Z.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/carsetup/*.carsetup",
+        "$TURBO_ROOT$/test/artifacts/motec/acc-barcelona-porsche-992.zip",
+        "$TURBO_ROOT$/shared/data/tracks/meta/*.json",
+        "$TURBO_ROOT$/data/diagnostics/iracing-session-info/*.json",
+        "$TURBO_ROOT$/data/diagnostics/iracing-session-info/iracing-all-vars-2026-07-29T02-06-39-162Z.json",
+        "test/support/setup-app.ts",
+        "$TURBO_ROOT$/server/test-support/setup-data-dir.ts",
+        "$TURBO_ROOT$/packages/telemetry-core/test/support-resolver.ts"
       ]
     },
-    "test:e2e:recordings": { "dependsOn": ["transit", "client#i18n:compile"], "cache": false, "outputs": [] }
+    "test:e2e:recordings": {
+      "dependsOn": [
+        "transit",
+        "client#i18n:compile"
+      ],
+      "cache": false,
+      "outputs": [],
+      "inputs": [
+        "$TURBO_EXTENDS$",
+        "$TURBO_ROOT$/test/artifacts/motec/acc-barcelona-porsche-992.zip",
+        "$TURBO_ROOT$/test/artifacts/sessions/fm-2023-2026-04-09T21-53-00-102Z.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/f1-2025-2026-04-09T21-34-10-190Z.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/acc-2026-04-10T02-55-22-777Z.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/ac-evo-2026-04-15T17-12-25-825Z.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/acc-2026-04-10T02-59-28-972Z.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/f1-2025-2026-04-22T11-42-43-029Z.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz",
+        "test/support/setup-app.ts",
+        "$TURBO_ROOT$/server/test-support/setup-data-dir.ts",
+        "$TURBO_ROOT$/packages/telemetry-core/test/support-resolver.ts"
+      ]
+    }
   }
 }

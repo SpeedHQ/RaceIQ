@@ -1,5 +1,4 @@
 packages/game-ac-evo/test/ac-evo-batch-decode.test.ts
-packages/game-ac-evo/test/ac-evo-car-data.test.ts
 packages/game-ac-evo/test/ac-evo-distance-integration.test.ts
 packages/game-ac-evo/test/ac-evo-parser-fallback.test.ts
 packages/game-ac-evo/test/ac-evo-session-lifecycle.test.ts

@@ -1,11 +1,11 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { getLapSummariesByTrack } from "@raceiq/backend-core/db/lap-read-queries";
-import { fmCarSpecsCatalog } from "@raceiq/shared/racing/cars/fm";
-import { resolveCarName } from "@raceiq/shared/racing/cars/resolve-name";
+import { fmCarSpecsCatalog } from "@raceiq/game-fm-2023-metadata/racing/cars/fm";
+import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { tryGetServerGame } from "@raceiq/backend-core/games/registry";
 import type { GameId } from "@raceiq/shared/games/ids";
-import { getLMUCar } from "@raceiq/shared/games/lmu/catalog";
+import { getLMUCar } from "@raceiq/game-lmu-metadata/catalog";
 import { decodeTrackKey, TrackKeyParamSchema } from "./support";
 
 export const trackLeaderboardRoutes = new Hono()

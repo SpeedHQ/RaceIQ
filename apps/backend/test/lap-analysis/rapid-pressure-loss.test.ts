@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { initGameAdapters } from "@raceiq/shared/games/init";
-import { analyzeLap } from "@raceiq/shared/racing/analysis/laps/insights/analyze";
-import { detectRapidPressureLoss, detectTirePressureImbalance } from "@raceiq/shared/racing/analysis/laps/insights/tires";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+import { analyzeLap } from "@raceiq/analysis-core/racing/analysis/laps/insights/analyze";
+import { detectRapidPressureLoss, detectTirePressureImbalance } from "@raceiq/analysis-core/racing/analysis/laps/insights/tires";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 initGameAdapters();

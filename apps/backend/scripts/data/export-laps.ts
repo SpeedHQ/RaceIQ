@@ -3,9 +3,9 @@
  * Export laps to a zip file for transfer to another machine.
  *
  * Usage:
- *   bun run scripts/data/export-laps.ts                    # export all laps → laps-export.zip
- *   bun run scripts/data/export-laps.ts -- --ids 1,2,3     # export specific laps
- *   bun run scripts/data/export-laps.ts -- -o my-laps.zip  # custom output path
+ *   bun run apps/backend/scripts/data/export-laps.ts                    # export all laps → laps-export.zip
+ *   bun run apps/backend/scripts/data/export-laps.ts -- --ids 1,2,3     # export specific laps
+ *   bun run apps/backend/scripts/data/export-laps.ts -- -o my-laps.zip  # custom output path
  */
 import { buildLapsZip } from "../../src/laps/archive";
 import { getLapsRaw } from "@raceiq/backend-core/db/lap-read-queries";

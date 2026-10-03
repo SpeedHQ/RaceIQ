@@ -4,7 +4,7 @@
  * protocol-specific detectors or shared detector state machines.
  */
 import type { DbAdapter } from "../telemetry/pipeline-ports";
-import type { PitCycleReason } from "@raceiq/shared/racing/laps/pit-cycle";
+import type { PitCycleReason } from "@raceiq/analysis-core/racing/laps/pit-cycle";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 /**
  * Minimal packet projection consumed by lap detection.  Canonical parsers may

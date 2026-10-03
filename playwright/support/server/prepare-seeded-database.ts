@@ -6,7 +6,7 @@ import { seedScreenshotData } from "./seed-screenshot-data";
 import { normalizeSeededCapturePaths } from "./seeded-database";
 import { iterateSessionCaptureRecordsFromSource } from "@raceiq/backend-core/session-capture/source-loader";
 import type { GameId } from "@raceiq/shared/games/ids";
-import { DEFAULT_GAMES } from "@raceiq/tooling/data/seed-db-options";
+import { DEFAULT_GAMES } from "@raceiq/tooling-data/data/seed-db-options";
 
 const repoDir = resolve(import.meta.dir, "../../..");
 if (!process.env.DATA_DIR) throw new Error("DATA_DIR is required for seed artifact preparation");

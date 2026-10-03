@@ -1,9 +1,9 @@
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
-import { forzaAdapter } from "@raceiq/shared/games/fm-2023/index";
+import { forzaAdapter } from "@raceiq/game-fm-2023-metadata/index";
 import { parseForzaPacket } from "./parser";
-import { fmCarCatalog } from "@raceiq/shared/racing/cars/fm";
-import { fmTrackCatalog } from "@raceiq/shared/racing/tracks/catalogs/fm";
-import { getForzaSharedOutline } from "@raceiq/shared/racing/tracks/geometry/outlines";
+import { fmCarCatalog } from "@raceiq/game-fm-2023-metadata/racing/cars/fm";
+import { fmTrackCatalog } from "@raceiq/game-fm-2023-metadata/racing/tracks/catalogs/fm";
+import { getForzaSharedOutline } from "@raceiq/game-catalogs/racing/tracks/geometry/outlines";
 import { LapDetector } from "@raceiq/backend-core/lap-detection/detector";
 import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
 

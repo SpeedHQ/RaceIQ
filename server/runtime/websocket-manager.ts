@@ -13,7 +13,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LiveSectorData, LivePitData } from "@raceiq/shared/racing/live/types";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
-import type { LiveProjection } from "../telemetry/live-projector";
+import type { LiveProjection } from "@raceiq/telemetry-core/telemetry/live-projector";
 import { IS_DEV, IS_E2E } from "./config/env";
 import {
   isDevTelemetryControlMessageV1,

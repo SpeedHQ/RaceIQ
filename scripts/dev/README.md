@@ -15,6 +15,6 @@ Startup does not open a browser automatically. Open the printed Portless URL man
 
 Translation build reuse hashes message files, project settings, dependency lockfile, installed compiler version, and generation options. Every generated file is validated before reuse; missing, modified, or obsolete output triggers staged regeneration. Failed compilation preserves the previous valid output. Development watching keeps its separate locale-module profile.
 
-Boundary: development orchestration and generated translation preparation. Release packaging remains under `scripts/build/`; scripts here do not modify application service configuration.
+Boundary: development orchestration and generated translation preparation. Release packaging remains under `packages/tooling-build/src/build/`; scripts here do not modify application service configuration.
 
 Focused verification: run each command from repository root and confirm child process startup, inherited output, and non-zero propagation on failure.

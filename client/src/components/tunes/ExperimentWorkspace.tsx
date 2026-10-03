@@ -1,6 +1,6 @@
 import { m } from "@/paraglide/messages";
 import { getGame } from "@raceiq/shared/games/registry"
-import { isPitCycleLap } from "@raceiq/shared/racing/laps/pit-cycle"
+import { isPitCycleLap } from "@raceiq/analysis-core/racing/laps/pit-cycle"
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";

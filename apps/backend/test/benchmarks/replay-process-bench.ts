@@ -5,7 +5,7 @@ import { bench, do_not_optimize, group } from "mitata";
 import { parseRawLapFramesFromBuffer, type LapReplaySource } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { resolveTelemetryReplay } from "@raceiq/backend-core/telemetry/replay";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { getAllServerGames } from "@raceiq/backend-core/games/registry";
 import type { GameId } from "@raceiq/shared/games/ids";

@@ -4,7 +4,7 @@ import { db } from "@raceiq/backend-core/db/index";
 import { laps, sessions } from "@raceiq/backend-core/db/schema";
 import * as replayStorage from "@raceiq/backend-core/db/telemetry-replay-storage";
 import type { SessionCaptureSource } from "@raceiq/backend-core/session-capture/source-loader";
-import { packet } from "@raceiq/backend-core/test-support/telemetry/resolver";
+import { packet } from "@raceiq/telemetry-core/test-support/telemetry/resolver";
 const realParseRawLapFrames = replayStorage.parseRawLapFrames;
 const realParseSessionLapsBatched = replayStorage.parseSessionLapsBatched;
 

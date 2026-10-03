@@ -32,7 +32,7 @@ const root = join(ROOT_DIR, ".");
 
 describe("track guide coverage — real-world circuits", () => {
   test("F1 2025 calendar has full guide coverage", () => {
-    const rows = parseCsv(join(root, "shared/games/f1-2025/tracks.csv"));
+    const rows = parseCsv(join(root, "packages/game-f1-2025-metadata/src/tracks.csv"));
     const names = [...new Set(rows.map((r) => r.name))];
     const { covered, missing, ratio } = coverage(names);
     console.log(`F1 2025: ${covered.length}/${names.length} covered. Missing: ${missing.join(", ")}`);
@@ -40,7 +40,7 @@ describe("track guide coverage — real-world circuits", () => {
   });
 
   test("ACC real circuits have full guide coverage", () => {
-    const rows = parseCsv(join(root, "shared/games/acc/tracks.csv"));
+    const rows = parseCsv(join(root, "packages/game-acc-metadata/src/tracks.csv"));
     const names = [...new Set(rows.map((r) => r.name))];
     const { covered, missing, ratio } = coverage(names);
     console.log(`ACC: ${covered.length}/${names.length} covered. Missing: ${missing.join(", ")}`);
@@ -48,7 +48,7 @@ describe("track guide coverage — real-world circuits", () => {
   });
 
   test("AC Evo real circuits have full guide coverage", () => {
-    const rows = parseCsv(join(root, "shared/games/ac-evo/tracks.csv"));
+    const rows = parseCsv(join(root, "packages/game-ac-evo-metadata/src/tracks.csv"));
     const names = [...new Set(rows.map((r) => r.name))];
     const { covered, missing, ratio } = coverage(names);
     console.log(`AC Evo: ${covered.length}/${names.length} covered. Missing: ${missing.join(", ")}`);
@@ -58,7 +58,7 @@ describe("track guide coverage — real-world circuits", () => {
 
 describe("track guide coverage — FM 2023 (real + fictional circuits)", () => {
   test("full track list has full guide coverage", () => {
-    const rows = parseCsv(join(root, "shared/games/fm-2023/tracks.csv"));
+    const rows = parseCsv(join(root, "packages/game-fm-2023-metadata/src/tracks.csv"));
     const names = [...new Set(rows.map((r) => r.name))];
     const { covered, missing, ratio } = coverage(names);
     console.log(

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatLapTime } from "@/lib/format";
-import { evaluationReasonLabel, selectEvaluationLaps } from "@raceiq/shared/racing/laps/review-selection";
+import { evaluationReasonLabel, selectEvaluationLaps } from "@raceiq/analysis-core/racing/laps/review-selection";
 
 type Selection = { lapIds: number[]; primaryLapId: number };
 type SortMode = "lapNumber" | "lapTime" | "status" | `sector:${number}`;

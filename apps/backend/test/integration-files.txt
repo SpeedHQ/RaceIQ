@@ -70,7 +70,6 @@ apps/backend/test/lap-analysis/lap-cache.test.ts
 apps/backend/test/lap-analysis/lap-consistency.test.ts
 apps/backend/test/lap-analysis/lap-export-zip.test.ts
 apps/backend/test/lap-analysis/persist-lap-metrics.test.ts
-apps/backend/test/lap-analysis/review-laps.test.ts
 apps/backend/test/live-strategy/pit-cycle.test.ts
 apps/backend/test/live-strategy/pit-tracker.test.ts
 apps/backend/test/live-strategy/sector-tracker.test.ts
@@ -153,14 +152,8 @@ apps/backend/test/telemetry/game-metric-contracts.test.ts
 apps/backend/test/telemetry/line-spread-cache.test.ts
 apps/backend/test/telemetry/live-contracts.test.ts
 apps/backend/test/telemetry/live-pipeline-calibration.test.ts
-apps/backend/test/telemetry/live-projector.test.ts
-apps/backend/test/telemetry/live-semantics.test.ts
 apps/backend/test/telemetry/pipeline-adapters.test.ts
 apps/backend/test/telemetry/pipeline-live-issues.test.ts
-apps/backend/test/telemetry/resolver/basic.test.ts
-apps/backend/test/telemetry/resolver/derivations.test.ts
-apps/backend/test/telemetry/resolver/derived-values.test.ts
-apps/backend/test/telemetry/resolver/native-sources.test.ts
 apps/backend/test/telemetry/telemetry-model.test.ts
 apps/backend/test/telemetry/telemetry-storage.test.ts
 apps/backend/test/tracks/acc-boundaries.test.ts

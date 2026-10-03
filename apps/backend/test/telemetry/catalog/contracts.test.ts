@@ -117,7 +117,7 @@ describe("semantic telemetry catalog contracts", () => {
     }
     expect(sectorDerivation.provenance).toEqual({
       origin: "derivation",
-      artifact: "scripts/catalog/derived-projections.ts",
+      artifact: "packages/tooling-catalog/src/catalog/derived-projections.ts",
     });
   });
 

@@ -8,15 +8,15 @@ import {
   getTrackCurbs,
   recordCurbData,
 } from "@raceiq/shared/racing/tracks/recording/curbs";
-import { getBundledOutlineByOrdinal } from "@raceiq/shared/racing/tracks/geometry/outlines";
-import { getTrackBoundariesByOrdinal } from "@raceiq/shared/racing/tracks/geometry/extracted";
+import { getBundledOutlineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/geometry/outlines";
+import { getTrackBoundariesByOrdinal } from "@raceiq/game-catalogs/racing/tracks/geometry/extracted";
 import {
   getTrackOutlineByOrdinal,
   getTrackRacelineByOrdinal,
   hasRecordedOutline as sharedHasRecordedOutline,
-} from "@raceiq/shared/racing/tracks/recording/outlines";
+} from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { loadSharedBoundary } from "@raceiq/shared/racing/tracks/geometry/shared";
-import { getLMUTrackBoundaries } from "@raceiq/shared/games/lmu/track-boundaries";
+import { getLMUTrackBoundaries } from "@raceiq/game-lmu-metadata/track-boundaries";
 import { decodeTrackKey, OrdinalKeyParamSchema } from "./support";
 import {
   calibrateFromPositions,

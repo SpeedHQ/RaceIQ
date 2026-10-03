@@ -1,6 +1,6 @@
 import { findChannel, type LdChannel, type LdLog } from "./ld";
 import { fitLapToTrack } from "../tracks/calibration";
-import { getTrackOutlineByOrdinal } from "@raceiq/shared/racing/tracks/recording/outlines";
+import { getTrackOutlineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 
 export const MOTEC_SYNTH_HZ = 60;
 export const MOTEC_STEER_LOCK_DEG = 240;

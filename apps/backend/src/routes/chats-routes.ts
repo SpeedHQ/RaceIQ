@@ -4,9 +4,9 @@ import { GameIdSchema } from "@raceiq/shared/games/ids";
 import { z } from "zod";
 import { getLapMetaById } from "@raceiq/backend-core/db/lap-read-queries";
 import { getExperiment } from "@raceiq/backend-core/db/experiment-queries";
-import { resolveCarName } from "@raceiq/shared/racing/cars/resolve-name";
-import { resolveTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
-import { getLMUCar, getLMUTrack } from "@raceiq/shared/games/lmu/catalog";
+import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
+import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
+import { getLMUCar, getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import {
   getChatMemory,
   CHAT_RESOURCE_ID,

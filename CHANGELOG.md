@@ -32,7 +32,12 @@
 - Separate backend core, capture formats, game implementations, and application composition into workspaces; colocate tests with their owners and isolate frontend contract tests from production dependency cycles.
 - Colocate game-specific car images and track SVGs with their owning game packages while preserving public URLs, offline asset delivery, and shared catalog data.
 - Run owner-scoped test processes with isolated databases and dependency-aware Turbo caches; select affected ordinary suites on pull requests with full-run fallback when SCM refs are unavailable.
-- Check workspace TypeScript projects sequentially to avoid parallel compiler depth failures without weakening the typed RPC contract.
+- Scope external test inputs to their consuming owner suites and isolate test-only manifests and application support from production transit hashes.
+- Split release, UI, build, catalog, data, and marketing utilities into responsibility-owned workspaces, preserving commands and test classifications while removing control-plane dependencies from runtime consumers.
+- Isolate six browser-safe game metadata owners from shared contracts and server parsers; move cross-game catalog composition to its own workspace while preserving offline source and compiled catalog lookup.
+- Extract browser-safe lap analysis and telemetry engines into dedicated core workspaces, preserving algorithm outputs, telemetry identities, suite classifications, and the separate Node projector boundary.
+- Give dependency-free frontend conversion and lap-time helpers their own unit-test owner without weakening retained cross-layer frontend coverage.
+- Isolate each workspace's TypeScript incremental cache and check projects sequentially without weakening the typed RPC contract.
 - Include seeded route, import, and six-game capture-conversion projects in the default and compiled browser test gates.
 - Serialize default browser test gates globally so capture migration cannot overlap other projects using the shared seeded database.
 - Install workspace dependencies before CI changelog validation while retaining package imports.

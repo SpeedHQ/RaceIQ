@@ -18,7 +18,7 @@
 
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import type { EvaluableLap } from "@raceiq/shared/racing/laps/review-selection";
+import type { EvaluableLap } from "@raceiq/analysis-core/racing/laps/review-selection";
 import type { Corner } from "@raceiq/backend-core/lap-analysis/corners";
 import { resolveLapCorners } from "../../tracks/corner-resolution";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";

@@ -9,8 +9,8 @@ import { and, eq } from "drizzle-orm";
 import { getAllIRacingTracks,
 getIRacingSharedTrackName,
 getIRacingTrackName,
-getIRacingTrackOrdinalByName, } from "@raceiq/shared/racing/tracks/catalogs/iracing"
-import { getTrackOutlineByOrdinal } from "@raceiq/shared/racing/tracks/recording/outlines";
+getIRacingTrackOrdinalByName, } from "@raceiq/game-iracing-metadata/racing/tracks/catalogs/iracing"
+import { getTrackOutlineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { registerDiscoveredTrack } from "@raceiq/backend-core/db/discovered-tracks";
 import { db } from "@raceiq/backend-core/db/index";
 import { discoveredTracks } from "@raceiq/backend-core/db/schema";

@@ -13,7 +13,7 @@ import { importSessionBin } from "@raceiq/backend-core/session-capture/import-ca
 import { encodeFrameLength, encodeMetaFrame } from "@raceiq/backend-core/session-capture/framing";
 import { readRecordedTelemetry } from "../../src/session-capture/replay-packets";
 
-import { developmentReleaseFeatures } from "@raceiq/tooling/release/development-release-features";
+import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
 const fixturePath = "test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz";
 const directories: string[] = [];
 const sessionIds: number[] = [];

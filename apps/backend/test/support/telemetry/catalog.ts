@@ -4,8 +4,8 @@ export {
   buildTelemetryCatalog,
   buildTelemetryCatalogArtifacts,
   telemetryCatalogSourceHash,
-} from "@raceiq/tooling/catalog/generate-telemetry-catalog";
-export { collectIRacingSessionInfoLeafPaths } from "@raceiq/tooling/catalog/iracing-session-info-capture";
+} from "@raceiq/tooling-catalog/catalog/generate-telemetry-catalog";
+export { collectIRacingSessionInfoLeafPaths } from "@raceiq/tooling-catalog/catalog/iracing-session-info-capture";
 export {
   TELEMETRY_CATALOG,
   TELEMETRY_CATALOG_HASH,

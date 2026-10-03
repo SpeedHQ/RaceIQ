@@ -1,11 +1,11 @@
 import { getGame } from "@raceiq/shared/games/registry"
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
-import { resolveGripDemand, resolveWheelMetric } from "@raceiq/shared/racing/analysis/metric-values";
+import { resolveGripDemand, resolveWheelMetric } from "@raceiq/analysis-core/racing/analysis/metric-values";
 import { useEffect, useRef, useState } from "react";
 import { useUnits } from "@/hooks/useUnits";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import { controlInputPercent } from "@/lib/vehicle-dynamics";
-import type { SemanticMetricFrame } from "@raceiq/shared/racing/analysis/metric-values";
+import type { SemanticMetricFrame } from "@raceiq/analysis-core/racing/analysis/metric-values";
 import { m } from "@/paraglide/messages";
 
 import { GRIP_MAX_SAMPLES } from "./GripSparkline";

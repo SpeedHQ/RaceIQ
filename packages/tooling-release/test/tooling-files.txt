@@ -1,0 +1,2 @@
+packages/tooling-release/test/changelog.test.ts
+packages/tooling-release/test/release-version.test.ts

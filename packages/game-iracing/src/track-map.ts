@@ -5,7 +5,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { getIRacingTrack } from "@raceiq/shared/racing/tracks/catalogs/iracing"
+import { getIRacingTrack } from "@raceiq/game-iracing-metadata/racing/tracks/catalogs/iracing"
 import { USER_TRACKS_DIR } from "@raceiq/shared/platform/runtime/data-paths"
 
 import {

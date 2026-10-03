@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
 import { initServerGameAdapters } from "../../src/games/init";
-import { developmentReleaseFeatures } from "@raceiq/tooling/release/development-release-features";
+import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
 import { importSessionBin } from "@raceiq/backend-core/session-capture/import-capture";
 
 initServerGameAdapters(developmentReleaseFeatures);
-import { getAcEvoTrackName } from "@raceiq/shared/racing/tracks/catalogs/ac-evo";
+import { getAcEvoTrackName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
 import { getSessions } from "@raceiq/backend-core/db/session-queries";
 
 const bytes = readFileSync("C:/Users/acoop/Downloads/ac-evo-unknown-track-session17.bin.gz");

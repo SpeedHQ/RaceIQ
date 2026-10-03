@@ -3,15 +3,15 @@
  * actual file offset where that LapNumber transition happens. Reports the
  * skew (in bytes and inferred seconds). Good laps skew by < 1 frame.
  *
- * Usage: bun run scripts/telemetry/recordings/verify-lap-alignment.ts <sessionId>
+ * Usage: bun run apps/backend/scripts/telemetry/recordings/verify-lap-alignment.ts <sessionId>
  */
 import { readFileSync } from "node:fs";
 import { db, initDb } from "@raceiq/backend-core/db/index";
 import { sessions, laps } from "@raceiq/backend-core/db/schema";
 import { eq } from "drizzle-orm";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../../src/games/init";
-import { developmentReleaseFeatures } from "@raceiq/tooling/release/development-release-features";
+import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing";
 initGameAdapters(developmentReleaseFeatures);

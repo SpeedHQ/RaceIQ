@@ -2,7 +2,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import type { ServerGameAdapter } from "../games/types";
-import { fillNormSuspension } from "../telemetry/normalization";
+import { fillNormSuspension } from "@raceiq/telemetry-core/telemetry/normalization";
 
 // Fixed column order for CSV telemetry storage
 const TELEMETRY_FIELDS: (keyof TelemetryPacket)[] = [

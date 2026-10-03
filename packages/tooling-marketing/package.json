@@ -1,0 +1,24 @@
+{
+  "name": "@raceiq/tooling-marketing",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./marketing/track-wall-data": "./src/marketing/track-wall-data.ts"
+  },
+  "scripts": {
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/tooling-marketing",
+    "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/tooling-marketing"
+  },
+  "dependencies": {
+    "@playwright/test": "1.62.1",
+    "@raceiq/shared": "workspace:*",
+    "@raceiq/tooling-ui": "workspace:*",
+    "@raceiq/game-fm-2023-metadata": "workspace:*",
+    "@raceiq/game-f1-2025-metadata": "workspace:*",
+    "@raceiq/game-acc-metadata": "workspace:*",
+    "@raceiq/game-ac-evo-metadata": "workspace:*",
+    "@raceiq/game-iracing-metadata": "workspace:*",
+    "@raceiq/game-catalogs": "workspace:*"
+  }
+}

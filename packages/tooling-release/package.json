@@ -1,0 +1,19 @@
+{
+  "name": "@raceiq/tooling-release",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./ci/release-version": "./src/ci/release-version.ts",
+    "./release/development-release-features": "./src/release/development-release-features.ts",
+    "./tooling/render": "./src/tooling/render.ts",
+    "./tooling/validation": "./src/tooling/validation.ts"
+  },
+  "scripts": {
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/tooling-release",
+    "test:tooling": "bun ../../scripts/test/run-suite.ts tooling --package @raceiq/tooling-release"
+  },
+  "dependencies": {
+    "@raceiq/shared": "workspace:*"
+  }
+}

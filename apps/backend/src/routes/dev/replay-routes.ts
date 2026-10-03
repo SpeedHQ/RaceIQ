@@ -5,13 +5,13 @@ import { getTelemetryVariable } from "@raceiq/shared/telemetry/catalog/query";
 import type { LiveTelemetryDefinitionV1 } from "@raceiq/shared/telemetry/live/contracts";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { queryLapTelemetryBySemanticId } from "@raceiq/backend-core/telemetry/replay";
-import { encodeLiveFrame, encodeLiveSchema } from "@raceiq/backend-core/telemetry/live-wire";
+import { encodeLiveFrame, encodeLiveSchema } from "@raceiq/telemetry-core/telemetry/live-wire";
 import { readRecordedTelemetry } from "../../session-capture/replay-packets";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { SectorTracker } from "@raceiq/backend-core/live-strategy/sector-tracker";
 import { PitTracker } from "@raceiq/backend-core/live-strategy/pit-tracker";
-import { LiveTelemetryProjector } from "@raceiq/backend-core/telemetry/live-projector";
-import { normalizeTelemetryPacket } from "@raceiq/backend-core/telemetry/normalization";
+import { LiveTelemetryProjector } from "@raceiq/telemetry-core/telemetry/live-projector";
+import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/normalization";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import { resolveRecordingGameId, resolveRecordingPath } from "./recording-support";
 

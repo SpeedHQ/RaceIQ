@@ -18,6 +18,8 @@
   },
   "dependencies": {
     "sharp": "^0.35.4",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@raceiq/tooling-data": "workspace:*",
+    "@raceiq/analysis-core": "workspace:*"
   }
 }

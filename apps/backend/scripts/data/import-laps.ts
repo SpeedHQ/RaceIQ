@@ -3,7 +3,7 @@
  * Import laps from a zip file exported by export-laps.
  *
  * Usage:
- *   bun run scripts/data/import-laps.ts <path-to-zip>
+ *   bun run apps/backend/scripts/data/import-laps.ts <path-to-zip>
  */
 import { importLapsZip } from "../../src/laps/archive"
 import { readFileSync } from "node:fs";

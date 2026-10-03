@@ -1,6 +1,6 @@
-import { summariseLapStyle, type LapStyleSummary } from "@raceiq/shared/racing/analysis/laps/driving-style";
+import { summariseLapStyle, type LapStyleSummary } from "@raceiq/analysis-core/racing/analysis/laps/driving-style";
 import { getCachedLapInsightsBatch, getOrComputeLapInsightsBatch } from "@raceiq/backend-core/lap-analysis/metrics-store";
-import type { LapInsight } from "@raceiq/shared/racing/analysis/laps/insights/types";
+import type { LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { getLapMetaForProfileScope, getLapsByIds } from "@raceiq/backend-core/db/lap-read-queries";

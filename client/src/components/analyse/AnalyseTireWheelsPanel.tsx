@@ -1,6 +1,6 @@
 import { getGame } from "@raceiq/shared/games/registry"
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
-import { resolveWheelMetric } from "@raceiq/shared/racing/analysis/metric-values";
+import { resolveWheelMetric } from "@raceiq/analysis-core/racing/analysis/metric-values";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { useTirePressureOptimal } from "../../hooks/catalog-queries";
 import type { useUnits } from "../../hooks/useUnits";

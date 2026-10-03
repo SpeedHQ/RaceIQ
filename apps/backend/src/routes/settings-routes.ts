@@ -14,8 +14,8 @@ import { enableLaunchOnLogin, disableLaunchOnLogin, getLaunchOnLoginExeDir } fro
 import { getLapStats } from "@raceiq/backend-core/db/lap-read-queries";
 import { setCacheMaxBytes } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { getRunningGame } from "@raceiq/backend-core/games/registry";
-import { getTrackLengthMeters } from "@raceiq/shared/racing/tracks/recording/outlines";
-import { getLMUTrack } from "@raceiq/shared/games/lmu/catalog";
+import { getTrackLengthMeters } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { withOnboardingOverride } from "@raceiq/backend-core/runtime/options";
 
 import { getGeminiModelsDetailed, getOpenAiCompatibleModelsDetailed, getOpenAiModelsDetailed, getProviders } from "@raceiq/backend-core/ai/providers";

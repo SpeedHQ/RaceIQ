@@ -5,7 +5,7 @@ import {
   unavailableAnalysisFeatures,
 } from "@raceiq/shared/games/metric-contracts";
 import { KNOWN_GAME_IDS } from "@raceiq/shared/games/ids";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { getGame } from "@raceiq/shared/games/registry";
 import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
 describe("semantic metric bindings", () => {

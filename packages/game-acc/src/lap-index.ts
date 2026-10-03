@@ -1,8 +1,8 @@
 import type { LapIndexPacket } from "@raceiq/backend-core/lap-detection/types";
 import { PHYSICS as ACC_PHYSICS, GRAPHICS as ACC_GRAPHICS, STATIC as ACC_STATIC } from "@raceiq/capture-formats/acc/structs";
 import { readWString } from "./utils";
-import { getAccCarByModel } from "@raceiq/shared/racing/cars/acc";
-import { getAccTrackByName } from "@raceiq/shared/racing/tracks/catalogs/acc";
+import { getAccCarByModel } from "@raceiq/game-acc-metadata/racing/cars/acc";
+import { getAccTrackByName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
 
 /** Direct detector projection for packed ACC frames. No TelemetryPacket allocation. */
 export function parseAccLapIndex(physics: Buffer, graphics: Buffer, stat: Buffer, carOrdinal: number, trackOrdinal: number): LapIndexPacket | null {

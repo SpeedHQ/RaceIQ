@@ -8,7 +8,7 @@ import { createExperiment, getExperiment, listExperimentFocusEvents, listExperim
 import { createExperimentVersion } from "@raceiq/backend-core/db/experiment-version-queries";
 import { getLapsForExperiment } from "@raceiq/backend-core/db/experiment-lap-queries";
 import { recordAction } from "@raceiq/backend-core/db/experiment-action-queries";
-import { getTrackLengthMeters } from "@raceiq/shared/racing/tracks/recording/outlines";
+import { getTrackLengthMeters } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { suggestLapTarget } from "@raceiq/shared/racing/experiments/stint-target";
 import { ExperimentFocusSchema } from "@raceiq/shared/racing/experiments/focus";
 

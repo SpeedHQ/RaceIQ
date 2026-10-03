@@ -162,9 +162,6 @@
     "./setups/rules/engine": "./setups/rules/engine.ts",
     "./sync/laptimes": "./sync/laptimes.ts",
     "./telemetry/live-pipeline": "./telemetry/live-pipeline.ts",
-    "./telemetry/live-projector": "./telemetry/live-projector.ts",
-    "./telemetry/live-wire": "./telemetry/live-wire.ts",
-    "./telemetry/normalization": "./telemetry/normalization.ts",
     "./telemetry/pipeline-ports": "./telemetry/pipeline-ports.ts",
     "./telemetry/replay": "./telemetry/replay.ts",
     "./test-support/db/migrations": "./test-support/db/migrations.ts",
@@ -182,7 +179,6 @@
     "./test-support/recordings/session-frames": "./test-support/recordings/session-frames.ts",
     "./test-support/recordings/udp": "./test-support/recordings/udp.ts",
     "./test-support/telemetry/catalog-e2e": "./test-support/telemetry/catalog-e2e.ts",
-    "./test-support/telemetry/resolver": "./test-support/telemetry/resolver.ts",
     "./test-support/tracks/known-gaps": "./test-support/tracks/known-gaps.ts",
     "./test-support/tracks/segment-svg": "./test-support/tracks/segment-svg.ts",
     "./test-support/tracks/track-guides": "./test-support/tracks/track-guides.ts",
@@ -204,7 +200,14 @@
     "pino": "^10.3.1",
     "hono": "4.13.8",
     "@raceiq/shared": "workspace:*",
-    "@raceiq/capture-formats": "workspace:*"
+    "@raceiq/capture-formats": "workspace:*",
+    "@raceiq/game-catalogs": "workspace:*",
+    "@raceiq/game-lmu-metadata": "workspace:*",
+    "@raceiq/game-ac-evo-metadata": "workspace:*",
+    "@raceiq/game-iracing-metadata": "workspace:*",
+    "@raceiq/game-fm-2023-metadata": "workspace:*",
+    "@raceiq/telemetry-core": "workspace:*",
+    "@raceiq/analysis-core": "workspace:*"
   },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit",

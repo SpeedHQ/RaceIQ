@@ -1,0 +1,6 @@
+packages/telemetry-core/test/telemetry/resolver/native-sources.test.ts
+packages/telemetry-core/test/telemetry/resolver/derived-values.test.ts
+packages/telemetry-core/test/telemetry/resolver/derivations.test.ts
+packages/telemetry-core/test/telemetry/resolver/basic.test.ts
+packages/telemetry-core/test/telemetry/live-semantics.test.ts
+packages/telemetry-core/test/telemetry/live-projector.test.ts

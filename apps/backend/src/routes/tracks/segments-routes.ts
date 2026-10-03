@@ -5,8 +5,8 @@ import { OrdinalParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/h
 import { formatTurnNumbers, turnNumbers } from "@raceiq/shared/racing/tracks/segment-label";
 import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
 import { getCorners, saveCorners } from "@raceiq/backend-core/db/track-queries";
-import { getTrackOutlineByOrdinal } from "@raceiq/shared/racing/tracks/recording/outlines";
-import { getTrackSectorsByOrdinal } from "@raceiq/shared/racing/tracks/storage/sectors";
+import { getTrackOutlineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { getTrackSectorsByOrdinal } from "@raceiq/game-catalogs/racing/tracks/storage/sectors";
 import {
   loadTrackFacts,
   loadTrackGeometry,
@@ -14,11 +14,11 @@ import {
   saveTrackFacts,
   saveTrackGeometry,
 } from "@raceiq/shared/racing/tracks/storage/meta";
-import { resolveTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
+import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import { getTrackGuide } from "@raceiq/backend-core/ai/track-guides";
 import type { Corner } from "@raceiq/backend-core/lap-analysis/corners";
 import { cornerNumbers } from "@raceiq/shared/racing/tracks/facts";
-import { getLMUTrack } from "@raceiq/shared/games/lmu/catalog";
+import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { splitSegments } from "@raceiq/shared/racing/tracks/curation/join";
 import { cornerKey } from "@raceiq/shared/racing/tracks/keys";
 import {

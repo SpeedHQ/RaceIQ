@@ -1,0 +1,26 @@
+{
+  "name": "@raceiq/game-catalogs",
+  "private": true,
+  "tooling": ["composition"],
+  "exports": {
+    "./games/init": "./src/games/init.ts",
+    "./racing/cars/resolve-name": "./src/racing/cars/resolve-name.ts",
+    "./racing/tracks/resolve-name": "./src/racing/tracks/resolve-name.ts",
+    "./racing/setups/catalog/data": "./src/racing/setups/catalog/data.ts",
+    "./racing/setups/catalog/query": "./src/racing/setups/catalog/query.ts",
+    "./racing/tracks/geometry/outlines": "./src/racing/tracks/geometry/outlines.ts",
+    "./racing/tracks/geometry/extracted": "./src/racing/tracks/geometry/extracted.ts",
+    "./racing/tracks/recording/outlines": "./src/racing/tracks/recording/outlines.ts",
+    "./racing/tracks/storage/sectors": "./src/racing/tracks/storage/sectors.ts"
+  },
+  "scripts": { "typecheck": "bunx tsc --project tsconfig.json --noEmit" },
+  "dependencies": {
+    "@raceiq/shared": "workspace:*",
+    "@raceiq/game-acc-metadata": "workspace:*",
+    "@raceiq/game-ac-evo-metadata": "workspace:*",
+    "@raceiq/game-f1-2025-metadata": "workspace:*",
+    "@raceiq/game-fm-2023-metadata": "workspace:*",
+    "@raceiq/game-iracing-metadata": "workspace:*",
+    "@raceiq/game-lmu-metadata": "workspace:*"
+  }
+}

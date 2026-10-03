@@ -16,7 +16,7 @@ import {
   createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,
 } from "@raceiq/capture-formats/iracing/source-frame";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import {
   generateTrackSegments,
   loadCenterline,

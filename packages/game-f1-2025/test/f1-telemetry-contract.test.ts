@@ -2,8 +2,8 @@ import { registerGame } from "@raceiq/shared/games/registry";
 import { f1ServerAdapter } from "../src/index";
 import { describe, expect, test } from "bun:test";
 import { F1StateAccumulator } from "../src/f1-state";
-import { analyzeLap } from "@raceiq/shared/racing/analysis/laps/insights/analyze";
-import { processLap } from "@raceiq/shared/racing/analysis/laps/insights/process";
+import { analyzeLap } from "@raceiq/analysis-core/racing/analysis/laps/insights/analyze";
+import { processLap } from "@raceiq/analysis-core/racing/analysis/laps/insights/process";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import {
   F1_HEADER_SIZE,

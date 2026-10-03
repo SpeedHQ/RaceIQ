@@ -14,7 +14,10 @@
     "@duckdb/node-api": "1.5.2-r.2",
     "@raceiq/capture-formats": "workspace:*",
     "@raceiq/shared": "workspace:*",
-    "@raceiq/backend-core": "workspace:*"
+    "@raceiq/backend-core": "workspace:*",
+    "@raceiq/game-lmu-metadata": "workspace:*",
+    "@raceiq/telemetry-core": "workspace:*",
+    "@raceiq/analysis-core": "workspace:*"
   },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit",

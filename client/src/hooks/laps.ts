@@ -4,8 +4,8 @@ import { useMemo } from "react";
 import type { LineSpreadTrace } from "./experiments";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { ComparisonData, AlignedTrace } from "@raceiq/shared/racing/comparison/types";
-import type { AlignedLapSet } from "@raceiq/shared/racing/laps/alignment/types";
-import type { LapDetectorCoverage, LapInsight } from "@raceiq/shared/racing/analysis/laps/insights/types"
+import type { AlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/types";
+import type { LapDetectorCoverage, LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types"
 import { useAlignedTelemetry } from "./aligned-telemetry";
 import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";

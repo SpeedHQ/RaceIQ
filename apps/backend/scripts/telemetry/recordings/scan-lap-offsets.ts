@@ -1,14 +1,14 @@
 /**
  * Scan a session bin and report LapNumber transitions with their byte offsets.
- * Usage: bun run scripts/telemetry/recordings/scan-lap-offsets.ts <sessionId>
+ * Usage: bun run apps/backend/scripts/telemetry/recordings/scan-lap-offsets.ts <sessionId>
  */
 import { readFileSync } from "node:fs";
 import { db, initDb } from "@raceiq/backend-core/db/index";
 import { sessions } from "@raceiq/backend-core/db/schema";
 import { eq } from "drizzle-orm";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../../src/games/init";
-import { developmentReleaseFeatures } from "@raceiq/tooling/release/development-release-features";
+import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing";
 

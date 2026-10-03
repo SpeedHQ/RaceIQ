@@ -12,7 +12,7 @@ import { transferRoutes } from "../../src/routes/laps/transfer-routes";
 import { sessionRoutes } from "../../src/routes/session-routes";
 import { lapRoutes } from "../../src/routes/laps/index";
 import { iterateSessionCaptureRecordsFromSource } from "@raceiq/backend-core/session-capture/source-loader";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import type { GameId } from "@raceiq/shared/games/ids";
 
 const fixtures: ReadonlyArray<{ gameId: GameId; file: string }> = [

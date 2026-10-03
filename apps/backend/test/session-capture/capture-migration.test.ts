@@ -15,7 +15,7 @@ import { sessionRoutes } from "../../src/routes/session-routes";
 import { transferRoutes } from "../../src/routes/laps/transfer-routes";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 
 const owned = new Set<number>();

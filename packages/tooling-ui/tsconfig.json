@@ -1,0 +1,6 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "composite": true },
+  "include": ["**/*.ts", "**/*.tsx", "**/*.json"],
+  "exclude": ["**/node_modules/**", "**/dist/**"]
+}

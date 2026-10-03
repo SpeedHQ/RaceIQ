@@ -2,7 +2,7 @@ import { expect } from "bun:test";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryLinkKind } from "@raceiq/shared/telemetry/catalog/contracts";
 import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
-import { compileTelemetryResolver } from "@raceiq/shared/telemetry/resolver/compile";
+import { compileTelemetryResolver } from "@raceiq/telemetry-core/telemetry/resolver/compile";
 import type { ResolvedValue, TelemetryFrameView } from "@raceiq/shared/telemetry/resolver/contracts";
 import { TELEMETRY_PARSER_VERSIONS, TELEMETRY_RESOLVER_VERSION } from "@raceiq/shared/telemetry/resolver/versions";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";

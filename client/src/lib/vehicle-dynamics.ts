@@ -2,7 +2,7 @@
  * Presentation helpers (colors, labels) for shared vehicle dynamics.
  */
 
-import { SLIP_ANGLE_PEAK_RAD, SLIP_RATIO_PEAK } from "@raceiq/shared/racing/analysis/laps/physics/vehicle";
+import { SLIP_ANGLE_PEAK_RAD, SLIP_RATIO_PEAK } from "@raceiq/analysis-core/racing/analysis/laps/physics/vehicle";
 import { operatingColor, severityColor, severityRangeColor } from "./colors";
 
 /** Convert RaceIQ's canonical 0–255 pedal input to a clamped display percentage. */

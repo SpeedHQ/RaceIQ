@@ -2,7 +2,7 @@
  * inspect-bin.ts — one-shot diagnostic for session .bin / .bin.gz files.
  *
  * Usage:
- *   bun scripts/telemetry/recordings/inspect-bin.ts <path-to-bin> [--game <gameId>] [--no-import]
+ *   bun apps/backend/scripts/telemetry/recordings/inspect-bin.ts <path-to-bin> [--game <gameId>] [--no-import]
  *
  * Stages:
  *   1. Header: gzip detection, magic bytes, hex dump of first 64 bytes
@@ -11,15 +11,15 @@
  */
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
-import { isGzip, gunzipIfNeeded } from "@raceiq/tooling/lib/compression";
+import { isGzip, gunzipIfNeeded } from "@raceiq/tooling-data/lib/compression";
 import { initServerGameAdapters } from "../../../src/games/init";
-import { developmentReleaseFeatures } from "@raceiq/tooling/release/development-release-features";
+import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
 import {
   importSessionBin,
   detectGameIdFromBuffer,
   detectGameIdFromFilename,
 } from "@raceiq/backend-core/session-capture/import-capture";
-import { getAcEvoTrackName } from "@raceiq/shared/racing/tracks/catalogs/ac-evo"
+import { getAcEvoTrackName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo"
 import type { GameId } from "@raceiq/shared/games/ids";
 
 const args = process.argv.slice(2);

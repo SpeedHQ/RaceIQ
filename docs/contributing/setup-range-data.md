@@ -7,7 +7,7 @@ Setup Engineer clamps proposed changes to known game limits in
 
 | Game | Source | Scope |
 | --- | --- | --- |
-| Assetto Corsa Evo | Curated `carsetuplimits` data in `shared/games/ac-evo/setup-ranges.json` | Per car |
+| Assetto Corsa Evo | Curated `carsetuplimits` data in `packages/game-ac-evo-metadata/src/setup-ranges.json` | Per car |
 | Assetto Corsa Competizione | Conservative `RULES.acc` click-index limits | Per game |
 | F1 2025 | Observed limits from bundled community setups | Per game |
 

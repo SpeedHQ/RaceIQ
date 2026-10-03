@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseCsvLine } from "../../../core/csv";
-import { GAMES_DIR } from "../../../platform/runtime/data-paths";
+import { gameCatalogDir } from "../../../platform/runtime/data-paths";
 
 export interface KunosTrack {
   id: number;
@@ -13,7 +13,7 @@ export interface KunosTrack {
 
 export function loadKunosTrackCatalog(gameId: "acc" | "ac-evo"): Map<number, KunosTrack> {
   const tracks = new Map<number, KunosTrack>();
-  const raw = readFileSync(resolve(GAMES_DIR, gameId, "tracks.csv"), "utf-8");
+  const raw = readFileSync(resolve(gameCatalogDir(gameId), "tracks.csv"), "utf-8");
   for (const line of raw.split(/\r?\n/).slice(1)) {
     if (!line.trim()) continue;
     const fields = parseCsvLine(line);

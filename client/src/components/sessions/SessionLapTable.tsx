@@ -1,4 +1,4 @@
-import { isPitCycleLap } from "@raceiq/shared/racing/laps/pit-cycle"
+import { isPitCycleLap } from "@raceiq/analysis-core/racing/laps/pit-cycle"
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";

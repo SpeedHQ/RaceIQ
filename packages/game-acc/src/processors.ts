@@ -1,5 +1,5 @@
-import { getAccCarByModel } from "@raceiq/shared/racing/cars/acc"
-import { getAccTrackByName } from "@raceiq/shared/racing/tracks/catalogs/acc"
+import { getAccCarByModel } from "@raceiq/game-acc-metadata/racing/cars/acc"
+import { getAccTrackByName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc"
 import { processPacket } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { ACC_PACKED_MAGIC, packTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
 import type { TripletProcessor } from "@raceiq/backend-core/games/kunos/triplet-pipeline";

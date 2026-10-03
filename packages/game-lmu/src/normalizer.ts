@@ -1,8 +1,8 @@
-import type { LMUIdentityRecord } from "@raceiq/shared/games/lmu/index";
+import type { LMUIdentityRecord } from "@raceiq/game-lmu-metadata/index";
 import {
   resolveLMUCar,
   resolveLMUTrack,
-} from "@raceiq/shared/games/lmu/catalog";
+} from "@raceiq/game-lmu-metadata/catalog";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LMUExtendedData } from "@raceiq/shared/telemetry/lmu";
 import {

@@ -2,14 +2,14 @@ import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
 import type { TrackFacts } from "@raceiq/shared/racing/tracks/facts";
 import type { TrackGeometry } from "@raceiq/shared/racing/tracks/geometry";
 import type { TrackSectors } from "@raceiq/shared/racing/tracks/sectors";
-import { getTrackSectorsByOrdinal } from "@raceiq/shared/racing/tracks/storage/sectors";
-import { getTrackLengthMeters, getTrackOutlineByOrdinal } from "@raceiq/shared/racing/tracks/recording/outlines";
+import { getTrackSectorsByOrdinal } from "@raceiq/game-catalogs/racing/tracks/storage/sectors";
+import { getTrackLengthMeters, getTrackOutlineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import {
   loadLabelledSegments,
   loadTrackFacts,
   loadTrackGeometry,
 } from "@raceiq/shared/racing/tracks/storage/meta";
-import { resolveTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
+import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import { tryGetServerGame } from "../games/registry";
 
 interface Point {

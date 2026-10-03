@@ -5,7 +5,7 @@ import {
   parseIRacingTurnLabels,
 } from "@raceiq/game-iracing/track-map-svg";
 import { getIRacingSharedTrackName,
-getIRacingTrack, } from "@raceiq/shared/racing/tracks/catalogs/iracing"
+getIRacingTrack, } from "@raceiq/game-iracing-metadata/racing/tracks/catalogs/iracing"
 import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";
 import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
 

@@ -20,7 +20,7 @@ import {
   parseVerifyTarget,
   spliceCoverage,
   spliceDetail,
-} from "@raceiq/tooling/tracks/track-coverage";
+} from "@raceiq/tooling-data/tracks/track-coverage";
 const REPO_ROOT = resolve(ROOT_DIR, ".");
 
 /** Split a ledger key back into the (kind, slug, gameId) it was built from. */

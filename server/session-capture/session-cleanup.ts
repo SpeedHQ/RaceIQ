@@ -10,8 +10,8 @@ import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { clearSessionCaptureCache } from "./source-loader";
 import { isOwnedSessionRawFile } from "../db/session-queries";
 import { tryGetGame } from "@raceiq/shared/games/registry";
-import { resolveCarName } from "@raceiq/shared/racing/cars/resolve-name";
-import { resolveTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
+import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
+import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import type { SessionCleanupGameSummary, SessionCleanupPreview, SessionCleanupRequest, SessionCleanupResult } from "@raceiq/shared/racing/sessions/cleanup";
 
 export class SessionCleanupBusyError extends Error {

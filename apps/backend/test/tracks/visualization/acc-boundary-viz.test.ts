@@ -2,13 +2,13 @@ import { ROOT_DIR } from "@raceiq/backend-core/runtime/config/paths";
 import { expect, test } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { initGameAdapters } from "@raceiq/shared/games/init";
-import { getAccTracks } from "@raceiq/shared/racing/tracks/catalogs/acc";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+import { getAccTracks } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
 import { flipPoints, needsTrackFlip } from "@raceiq/shared/racing/tracks/coords";
-import { getTrackBoundariesByOrdinal } from "@raceiq/shared/racing/tracks/geometry/extracted";
+import { getTrackBoundariesByOrdinal } from "@raceiq/game-catalogs/racing/tracks/geometry/extracted";
 import { makeTrackProjection, type Pt } from "@raceiq/shared/racing/tracks/projection";
-import { getTrackRacelineByOrdinal } from "@raceiq/shared/racing/tracks/recording/outlines";
-import { getBundledTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
+import { getTrackRacelineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { getBundledTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 
 initGameAdapters();
 

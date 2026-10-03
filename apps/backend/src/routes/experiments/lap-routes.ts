@@ -15,7 +15,7 @@ import { recordAction } from "@raceiq/backend-core/db/experiment-action-queries"
 import { resolveLapCorners } from "../../tracks/corner-resolution";
 import { computeLineSpreadTrace } from "@raceiq/backend-core/lap-analysis/consistency";
 import { selectCleanLaps } from "../../experiments/lap-evidence/selection";
-import { fastestLaps } from "@raceiq/shared/racing/laps/review-selection";
+import { fastestLaps } from "@raceiq/analysis-core/racing/laps/review-selection";
 import { deriveFuelPerLap, deriveTyreWear, type LapMetric } from "@raceiq/backend-core/lap-analysis/metrics";
 import { tuneSessionThreadId, saveChatMessages } from "@raceiq/backend-core/ai/chat-agent";
 import { nextFreeLabel } from "@raceiq/backend-core/ai/version-label";
@@ -307,7 +307,7 @@ export const experimentLapAnalysisRoutes = new Hono()
       const pool = await getLapsForExperiment(id);
       const { clean: allClean } = selectCleanLaps(pool);
       // Curate to the fastest N clean laps — bounds decode memory + compute on
-      // long tracks (see shared/racing/laps/review-selection). Matches the client's curated
+      // long tracks (see @raceiq/analysis-core/racing/laps/review-selection). Matches the client's curated
       // trace set so the consistency lane + map overlay agree.
       const clean = fastestLaps(allClean);
 

@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { computeLapMetrics } from "@raceiq/backend-core/lap-analysis/metrics";
-import { initGameAdapters } from "@raceiq/shared/games/init";
-import { analyzeLap } from "@raceiq/shared/racing/analysis/laps/insights/analyze";
-import { processLap, restoreFrameIndices } from "@raceiq/shared/racing/analysis/laps/insights/process";
-import { detectErsDepletion, detectUnusedDrs } from "@raceiq/shared/racing/analysis/laps/insights/electronics";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+import { analyzeLap } from "@raceiq/analysis-core/racing/analysis/laps/insights/analyze";
+import { processLap, restoreFrameIndices } from "@raceiq/analysis-core/racing/analysis/laps/insights/process";
+import { detectErsDepletion, detectUnusedDrs } from "@raceiq/analysis-core/racing/analysis/laps/insights/electronics";
 import type { F1ExtendedData } from "@raceiq/shared/telemetry/f1-2025";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 

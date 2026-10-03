@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
-import { liveSemanticIds } from "@raceiq/shared/telemetry/live/semantics";
+import { liveSemanticIds } from "@raceiq/telemetry-core/telemetry/live/semantics";
 import { buildLiveTelemetryView, indexTelemetrySchema, readIndexedValue } from "../src/lib/live-telemetry-view";
 
 function schema(semanticIds: string[], simulator: GameId = "acc", units: Readonly<Record<string, string | null>> = {}): LiveTelemetrySchemaMessageV1 {

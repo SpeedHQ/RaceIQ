@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { tryGetGame } from "@raceiq/shared/games/registry";
-import { convertDistance, convertSpeed, distanceLabel, speedLabel } from "../lib/speed";
-import { convertTemp } from "../lib/temperature";
+import { convertDistance, convertSpeed, distanceLabel, speedLabel } from "@raceiq/frontend-pure/speed";
+import { convertTemp } from "@raceiq/frontend-pure/temperature";
 import { useGameId } from "../stores/game";
 import { telemetryStore } from "../stores/telemetry";
 import { useSettings } from "./settings";

@@ -2,8 +2,8 @@ import type { LapIndexPacket } from "@raceiq/backend-core/lap-detection/types";
 import type { AcEvoParserCache } from "./parser";
 import { PHYSICS as EVO_PHYSICS, GRAPHICS_EVO, STATIC_EVO, ACEVO_STATUS } from "@raceiq/capture-formats/ac-evo/structs";
 import { readCString } from "./utils";
-import { getAcEvoCarByDisplayName } from "@raceiq/shared/racing/cars/ac-evo";
-import { getAcEvoTrackByName } from "@raceiq/shared/racing/tracks/catalogs/ac-evo";
+import { getAcEvoCarByDisplayName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
+import { getAcEvoTrackByName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
 import { calibratePlayerSlot } from "./player-slot";
 import { integrateDistance } from "./distance";
 export function parseAcEvoLapIndex(physics: Buffer, graphics: Buffer, stat: Buffer, cache: AcEvoParserCache): LapIndexPacket | null {

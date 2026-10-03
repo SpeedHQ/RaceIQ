@@ -6,45 +6,46 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.19.1",
-      "sourceHash": "a2b2ac8147c8f554f8c5821c7edd72a63320322866133aae5a3a59b00750a76c"
+      "sourceHash": "6b034cdac3e5ddca6252f4b16ef194f29ba1d17ec023cbff2be1ef881787fe31"
     },
     "sourceHashes": {
-      "packages/game-ac-evo/src/parser.ts": "ca3643c1f43300a85575e38b5ccf453e8d6b3b123aa09cd11378155bf9d03125",
+      "packages/game-ac-evo/src/parser.ts": "a3d22f183f9b53aa02063408c4ce569b007122b1f39900551b2c437da6ac29bf",
       "packages/game-acc/src/parser.ts": "44e7a44e5e3531068aeaa197e2127fd206532dc634707fb0d898d94d7791a89e",
-      "packages/game-f1-2025/src/f1-state.ts": "fbec5a2af00e2c80f0b13888b6b28a30a8f976ce059ee70a0afba8eead480182",
+      "packages/game-f1-2025/src/f1-state.ts": "c407d282745a3ac5cd1856f26d8467eaca6be0f4c73aa6d4f624ff7a2af1bea0",
       "packages/game-fm-2023/src/parser.ts": "dd476256f50870123ab00bf486d4ed998069f3ff1f368b7b36a368a0254f4463",
+      "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "packages/game-iracing/src/normalizer.ts": "1fbd0a0cb016c89cb8865d3caa9ddabbf8e0710a1066bfe5937b529687af3f58",
-      "packages/game-lmu/src/normalizer.ts": "331a83610954d767de3611406c91c6e71cdc01a2f4c129bbd88654d6aa17b30d",
-      "scripts/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
+      "packages/game-lmu/src/normalizer.ts": "443eb17dc93034a0a78023df8b08ce1bb12290a77b4b44f5a73e7bc18fad7dd7",
+      "packages/tooling-catalog/src/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
-      "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "11040a6a0d84ebdf7c9367303a563bb04e17891237b1a3e8d1fde58047419265"
     },
-    "contentHash": "9ee87cb02dc69be6228d142f63a84e1f0809875b6de3a2065b64fd5026183b9b"
+    "contentHash": "5164eb3d289d2ed01df4a842298cc8efee0ca259308fd1a08479be8c367c4fd8"
   },
   "generatedFrom": [
-    "scripts/catalog/ast-discovery.ts",
-    "scripts/catalog/builder.ts",
-    "scripts/catalog/cli.ts",
-    "scripts/catalog/contract-enrichment.ts",
-    "scripts/catalog/contract-inference.ts",
-    "scripts/catalog/contract-provenance.ts",
-    "scripts/catalog/derived-projections.ts",
-    "scripts/catalog/extension-field-mapping.ts",
-    "scripts/catalog/extension-mapping.ts",
-    "scripts/catalog/extension-metadata.ts",
-    "scripts/catalog/generate-telemetry-catalog.ts",
-    "scripts/catalog/iracing-mapping.ts",
-    "scripts/catalog/iracing-session-info-capture.ts",
-    "scripts/catalog/model.ts",
-    "scripts/catalog/packet-mapping.ts",
-    "scripts/catalog/rendering.ts",
-    "scripts/catalog/semantic-definitions-competitor.ts",
-    "scripts/catalog/semantic-definitions-extended.ts",
-    "scripts/catalog/semantic-definitions-live.ts",
-    "scripts/catalog/semantic-definitions.ts",
-    "scripts/catalog/semantic-metadata.ts",
-    "scripts/catalog/setup-link-mapping.ts",
+    "packages/tooling-catalog/src/root.ts",
+    "packages/tooling-catalog/src/catalog/ast-discovery.ts",
+    "packages/tooling-catalog/src/catalog/builder.ts",
+    "packages/tooling-catalog/src/catalog/cli.ts",
+    "packages/tooling-catalog/src/catalog/contract-enrichment.ts",
+    "packages/tooling-catalog/src/catalog/contract-inference.ts",
+    "packages/tooling-catalog/src/catalog/contract-provenance.ts",
+    "packages/tooling-catalog/src/catalog/derived-projections.ts",
+    "packages/tooling-catalog/src/catalog/extension-field-mapping.ts",
+    "packages/tooling-catalog/src/catalog/extension-mapping.ts",
+    "packages/tooling-catalog/src/catalog/extension-metadata.ts",
+    "packages/tooling-catalog/src/catalog/generate-telemetry-catalog.ts",
+    "packages/tooling-catalog/src/catalog/iracing-mapping.ts",
+    "packages/tooling-catalog/src/catalog/iracing-session-info-capture.ts",
+    "packages/tooling-catalog/src/catalog/model.ts",
+    "packages/tooling-catalog/src/catalog/packet-mapping.ts",
+    "packages/tooling-catalog/src/catalog/rendering.ts",
+    "packages/tooling-catalog/src/catalog/semantic-definitions-competitor.ts",
+    "packages/tooling-catalog/src/catalog/semantic-definitions-extended.ts",
+    "packages/tooling-catalog/src/catalog/semantic-definitions-live.ts",
+    "packages/tooling-catalog/src/catalog/semantic-definitions.ts",
+    "packages/tooling-catalog/src/catalog/semantic-metadata.ts",
+    "packages/tooling-catalog/src/catalog/setup-link-mapping.ts",
     "shared/telemetry/types.ts",
     "shared/telemetry/f1-2025.ts",
     "shared/telemetry/kunos.ts",
@@ -55,16 +56,16 @@
     "shared/racing/setups/catalog/concepts.ts",
     "shared/racing/setups/catalog/parser-source-mappings.ts",
     "shared/racing/setups/catalog/file-source-mappings.ts",
-    "shared/games/iracing/session-info/catalog.ts",
-    "shared/games/iracing/session-info/contracts.ts",
-    "shared/games/iracing/session-info/formatting.ts",
-    "shared/games/iracing/session-info/sections.ts",
-    "shared/games/iracing/session-info/setup-aero-drivetrain.ts",
-    "shared/games/iracing/session-info/setup-builders.ts",
-    "shared/games/iracing/session-info/setup-captured.ts",
-    "shared/games/iracing/session-info/setup-chassis.ts",
-    "shared/games/iracing/session-info/setup-in-car.ts",
-    "shared/games/iracing/session-info/setup-tires.ts",
+    "packages/game-iracing-metadata/src/session-info/catalog.ts",
+    "packages/game-iracing-metadata/src/session-info/contracts.ts",
+    "packages/game-iracing-metadata/src/session-info/formatting.ts",
+    "packages/game-iracing-metadata/src/session-info/sections.ts",
+    "packages/game-iracing-metadata/src/session-info/setup-aero-drivetrain.ts",
+    "packages/game-iracing-metadata/src/session-info/setup-builders.ts",
+    "packages/game-iracing-metadata/src/session-info/setup-captured.ts",
+    "packages/game-iracing-metadata/src/session-info/setup-chassis.ts",
+    "packages/game-iracing-metadata/src/session-info/setup-in-car.ts",
+    "packages/game-iracing-metadata/src/session-info/setup-tires.ts",
     "packages/game-fm-2023/src/parser.ts",
     "packages/game-f1-2025/src/f1-state.ts",
     "packages/game-acc/src/parser.ts",
@@ -3859,7 +3860,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -3942,7 +3943,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -4035,7 +4036,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -4117,7 +4118,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -4208,7 +4209,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -6511,7 +6512,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -6601,7 +6602,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -6692,7 +6693,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -6793,7 +6794,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -6883,7 +6884,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -6965,7 +6966,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -7056,7 +7057,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -7157,7 +7158,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -7247,7 +7248,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -7337,7 +7338,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -7428,7 +7429,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -7529,7 +7530,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -7619,7 +7620,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -7702,7 +7703,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -7795,7 +7796,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -7878,7 +7879,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -8118,7 +8119,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -8211,7 +8212,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -8578,7 +8579,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -8635,7 +8636,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -8701,7 +8702,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -9004,7 +9005,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -9141,7 +9142,7 @@
           "description": "acc maps 1 native source channel into this value.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": []
         },
@@ -9155,7 +9156,7 @@
           "description": "ac-evo maps 1 native source channel into this value.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": []
         },
@@ -9196,7 +9197,7 @@
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -9466,7 +9467,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -11086,7 +11087,7 @@
           "description": "f1-2025 maps 1 native source channel into this value.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": []
         },
@@ -11112,7 +11113,7 @@
           "description": "iracing maps 1 native source channel into this value.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -11215,7 +11216,7 @@
           "description": "iracing maps 1 native source channel into this value.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -11418,7 +11419,7 @@
           "description": "iracing maps 1 native source channel into this value.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -12758,7 +12759,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -12816,7 +12817,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -12874,7 +12875,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -12932,7 +12933,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -13381,7 +13382,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -14220,7 +14221,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -14960,7 +14961,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -15268,7 +15269,7 @@
           "description": "iracing maps 1 native source channel into this value.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -15766,7 +15767,7 @@
           "description": "iracing maps 1 native source channel into this value.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -16239,7 +16240,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -16299,7 +16300,7 @@
           "normalization": "convert count to index",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -16369,7 +16370,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -16426,7 +16427,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -16829,7 +16830,7 @@
           "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -16986,7 +16987,7 @@
           "description": "iracing maps 1 native source channel into this value.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -17056,7 +17057,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -17124,7 +17125,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -17181,7 +17182,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -17238,7 +17239,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -17295,7 +17296,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -17352,7 +17353,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -17409,7 +17410,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -17466,7 +17467,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -17523,7 +17524,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -17580,7 +17581,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -18781,7 +18782,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -18838,7 +18839,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -18895,7 +18896,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -21300,7 +21301,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -21357,7 +21358,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -21414,7 +21415,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -23703,7 +23704,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -23788,7 +23789,7 @@
           "description": "Native iRacing SDK variable linked to shared semantic value.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -23872,7 +23873,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -23956,7 +23957,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -24040,7 +24041,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -24124,7 +24125,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -24208,7 +24209,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -24296,7 +24297,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -24395,7 +24396,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -24479,7 +24480,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -24563,7 +24564,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -24647,7 +24648,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -24731,7 +24732,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -24816,7 +24817,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -24912,7 +24913,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -25013,7 +25014,7 @@
           "description": "Native iRacing SDK variable linked to shared semantic value.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -25098,7 +25099,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -25198,7 +25199,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -25298,7 +25299,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -25393,7 +25394,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -25477,7 +25478,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -25561,7 +25562,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -25645,7 +25646,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -25729,7 +25730,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -25822,7 +25823,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -25906,7 +25907,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -25990,7 +25991,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -26083,7 +26084,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -26251,7 +26252,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -26335,7 +26336,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -26419,7 +26420,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -26503,7 +26504,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -26587,7 +26588,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -26671,7 +26672,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -26756,7 +26757,7 @@
           "description": "Native iRacing SDK variable linked to shared semantic value.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -26840,7 +26841,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -26924,7 +26925,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -27008,7 +27009,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -27092,7 +27093,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -27176,7 +27177,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -27260,7 +27261,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -27904,7 +27905,7 @@
           "description": "Native iRacing SDK variable linked to shared semantic value.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -27988,7 +27989,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -28240,7 +28241,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -28324,7 +28325,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -28408,7 +28409,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -28492,7 +28493,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -28672,7 +28673,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -28765,7 +28766,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -28849,7 +28850,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -28933,7 +28934,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -29273,7 +29274,7 @@
           "description": "Native iRacing SDK variable linked to shared semantic value.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -30001,7 +30002,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -30845,7 +30846,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -30914,7 +30915,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -31923,7 +31924,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -32005,7 +32006,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -32087,7 +32088,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -32169,7 +32170,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -32251,7 +32252,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -32390,7 +32391,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -32447,7 +32448,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -32504,7 +32505,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -32561,7 +32562,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -32618,7 +32619,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -32675,7 +32676,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -32732,7 +32733,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -32789,7 +32790,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -32871,7 +32872,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -32928,7 +32929,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -32985,7 +32986,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -33042,7 +33043,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -33099,7 +33100,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -33156,7 +33157,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -33213,7 +33214,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -33270,7 +33271,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -33327,7 +33328,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -33384,7 +33385,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -33441,7 +33442,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -33498,7 +33499,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -33555,7 +33556,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -33612,7 +33613,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -33669,7 +33670,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -33726,7 +33727,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -33783,7 +33784,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -33897,7 +33898,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -34011,7 +34012,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -34196,7 +34197,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -34253,7 +34254,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -34310,7 +34311,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -34367,7 +34368,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -34481,7 +34482,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -34538,7 +34539,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -34823,7 +34824,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -34905,7 +34906,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -34987,7 +34988,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -35069,7 +35070,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -35151,7 +35152,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -35233,7 +35234,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -35315,7 +35316,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -35397,7 +35398,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -35454,7 +35455,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -35569,7 +35570,7 @@
           "description": "Native iRacing SDK variable linked to shared semantic value.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -35967,7 +35968,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -36144,7 +36145,7 @@
           "description": "iracing maps 3 native source channels into this value.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -36227,7 +36228,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -36284,7 +36285,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -36341,7 +36342,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -36483,7 +36484,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -36556,7 +36557,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -36691,7 +36692,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -36762,7 +36763,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -36890,7 +36891,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -37096,7 +37097,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -37211,7 +37212,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -37326,7 +37327,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -37471,7 +37472,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -37603,7 +37604,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -37681,7 +37682,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -37763,7 +37764,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -37910,7 +37911,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -38005,7 +38006,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -38099,7 +38100,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -38193,7 +38194,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -38282,7 +38283,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -38376,7 +38377,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -38470,7 +38471,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -38538,7 +38539,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -38596,7 +38597,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -38665,7 +38666,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -38770,7 +38771,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -38903,7 +38904,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -38973,7 +38974,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -39221,7 +39222,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -39280,7 +39281,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -39349,7 +39350,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -39425,7 +39426,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -39539,7 +39540,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -39596,7 +39597,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -39710,7 +39711,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -39786,7 +39787,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -39909,7 +39910,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -39966,7 +39967,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -40023,7 +40024,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -40080,7 +40081,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -40137,7 +40138,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -40194,7 +40195,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -40283,7 +40284,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -40417,7 +40418,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -40643,7 +40644,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -40701,7 +40702,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -40758,7 +40759,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -40817,7 +40818,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -40888,7 +40889,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -40957,7 +40958,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -41082,7 +41083,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -41140,7 +41141,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -41198,7 +41199,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -41255,7 +41256,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -41314,7 +41315,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -41385,7 +41386,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -41454,7 +41455,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -41579,7 +41580,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -41702,7 +41703,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -41792,7 +41793,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -41882,7 +41883,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -42043,7 +42044,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -42132,7 +42133,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -42269,7 +42270,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -42369,7 +42370,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -42620,7 +42621,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -42720,7 +42721,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -42839,7 +42840,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -42926,7 +42927,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -43001,7 +43002,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -44201,7 +44202,7 @@
           "description": "Native iRacing SDK variable linked to shared semantic value.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -44296,7 +44297,7 @@
           "description": "Native iRacing SDK variable linked to shared semantic value.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -44380,7 +44381,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -44465,7 +44466,7 @@
           "description": "Native iRacing SDK variable linked to shared semantic value.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -45004,7 +45005,7 @@
           "description": "Native iRacing SDK variable linked to shared semantic value.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -45088,7 +45089,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -45986,7 +45987,7 @@
           "description": "iracing maps 3 native source channels into this value.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -47935,7 +47936,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -48252,7 +48253,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -48347,7 +48348,7 @@
           "description": "fm-2023 best sectors are derived from RaceIQ persisted lap-sector arrays.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -48373,7 +48374,7 @@
           "description": "f1-2025 best sectors are derived from RaceIQ persisted lap-sector arrays.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -48399,7 +48400,7 @@
           "description": "acc best sectors are derived from RaceIQ persisted lap-sector arrays.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -48425,7 +48426,7 @@
           "description": "ac-evo best sectors are derived from RaceIQ persisted lap-sector arrays.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -48451,7 +48452,7 @@
           "description": "iracing best sectors are derived from RaceIQ persisted lap-sector arrays.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -48477,7 +48478,7 @@
           "description": "lmu best sectors are derived from RaceIQ persisted lap-sector arrays.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49018,7 +49019,7 @@
           "description": "RaceIQ derives sector index from curated track boundaries.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49074,7 +49075,7 @@
           "description": "AC Evo sector fields are placeholders, so RaceIQ uses curated track boundaries.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49173,7 +49174,7 @@
           "description": "fm-2023 fixed S1 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49213,7 +49214,7 @@
           "description": "acc fixed S1 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49239,7 +49240,7 @@
           "description": "ac-evo fixed S1 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49265,7 +49266,7 @@
           "description": "iracing fixed S1 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49291,7 +49292,7 @@
           "description": "lmu fixed S1 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49335,7 +49336,7 @@
           "description": "fm-2023 fixed S2 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49375,7 +49376,7 @@
           "description": "acc fixed S2 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49401,7 +49402,7 @@
           "description": "ac-evo fixed S2 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49427,7 +49428,7 @@
           "description": "iracing fixed S2 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49453,7 +49454,7 @@
           "description": "lmu fixed S2 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49497,7 +49498,7 @@
           "description": "fm-2023 fixed S3 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49523,7 +49524,7 @@
           "description": "f1-2025 fixed S3 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49549,7 +49550,7 @@
           "description": "acc fixed S3 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49575,7 +49576,7 @@
           "description": "ac-evo fixed S3 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49601,7 +49602,7 @@
           "description": "iracing fixed S3 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49627,7 +49628,7 @@
           "description": "lmu fixed S3 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49673,7 +49674,7 @@
           "description": "RaceIQ assembles current Forza sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49763,7 +49764,7 @@
           "description": "RaceIQ assembles current AC Evo sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49849,7 +49850,7 @@
           "description": "RaceIQ times curated sector-boundary crossings.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -49938,7 +49939,7 @@
           "description": "RaceIQ derives AC Evo sector timing from lap distance.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -50370,7 +50371,7 @@
           "description": "RaceIQ derives from curated boundary timing.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -50454,7 +50455,7 @@
           "description": "RaceIQ derives from curated boundary timing.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -50480,7 +50481,7 @@
           "description": "RaceIQ derives from native iRacing sector boundaries.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -50529,7 +50530,7 @@
           "description": "fm-2023 fixed S1 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -50569,7 +50570,7 @@
           "description": "acc fixed S1 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -50595,7 +50596,7 @@
           "description": "ac-evo fixed S1 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -50621,7 +50622,7 @@
           "description": "iracing fixed S1 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -50647,7 +50648,7 @@
           "description": "lmu fixed S1 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -50691,7 +50692,7 @@
           "description": "fm-2023 fixed S2 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -50731,7 +50732,7 @@
           "description": "acc fixed S2 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -50757,7 +50758,7 @@
           "description": "ac-evo fixed S2 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -50783,7 +50784,7 @@
           "description": "iracing fixed S2 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -50809,7 +50810,7 @@
           "description": "lmu fixed S2 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -50853,7 +50854,7 @@
           "description": "fm-2023 fixed S3 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -50893,7 +50894,7 @@
           "description": "acc fixed S3 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -50919,7 +50920,7 @@
           "description": "ac-evo fixed S3 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -50945,7 +50946,7 @@
           "description": "iracing fixed S3 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -50971,7 +50972,7 @@
           "description": "lmu fixed S3 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -51016,7 +51017,7 @@
           "description": "RaceIQ stores last completed Forza sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -51104,7 +51105,7 @@
           "description": "RaceIQ stores completed AC Evo sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -51190,7 +51191,7 @@
           "description": "fm-2023 sector indexes follow ordered sector boundary list.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -51216,7 +51217,7 @@
           "description": "f1-2025 sector indexes follow ordered sector boundary list.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -51242,7 +51243,7 @@
           "description": "acc sector indexes follow ordered sector boundary list.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -51268,7 +51269,7 @@
           "description": "ac-evo sector indexes follow ordered sector boundary list.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -51293,7 +51294,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -51308,7 +51309,7 @@
           "description": "lmu sector indexes follow ordered sector boundary list.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -51356,7 +51357,7 @@
           "description": "fm-2023 uses RaceIQ curated track-sector boundaries.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -51382,7 +51383,7 @@
           "description": "F1 packets provide authoritative times but not boundary distances; RaceIQ layout is display/derivation metadata.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -51408,7 +51409,7 @@
           "description": "acc uses RaceIQ curated track-sector boundaries.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -51434,7 +51435,7 @@
           "description": "ac-evo uses RaceIQ curated track-sector boundaries.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
+            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
           "limitations": [],
           "execution": {
@@ -51460,7 +51461,7 @@
           "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -51621,7 +51622,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -51703,7 +51704,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -51793,7 +51794,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -52474,7 +52475,7 @@
           "normalization": "select YAML entry matching current session number",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -52575,7 +52576,7 @@
           "normalization": "parse YAML value-with-unit as m",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -58361,7 +58362,7 @@
           "description": "Native iRacing SDK source; catalogued but not selected in current RaceIQ source frame.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -58480,7 +58481,7 @@
           "normalization": "parse YAML value-with-unit as °C",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -58559,7 +58560,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -58632,7 +58633,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -58704,7 +58705,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -58762,7 +58763,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -58830,7 +58831,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -58888,7 +58889,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -58957,7 +58958,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -59026,7 +59027,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -59085,7 +59086,7 @@
           "normalization": "parse YAML value-with-unit as %",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -59291,7 +59292,7 @@
           "description": "iracing maps 1 native source channel into this value.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -59387,7 +59388,7 @@
           "normalization": "parse YAML value-with-unit as %",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -59462,7 +59463,7 @@
           "description": "Native iRacing SDK source; catalogued but not selected in current RaceIQ source frame.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -59598,7 +59599,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -59760,7 +59761,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": []
         },
@@ -59890,7 +59891,7 @@
           "normalization": "parse YAML value-with-unit as °C",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -60202,7 +60203,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -60357,7 +60358,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -60435,7 +60436,7 @@
           "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
           "provenance": {
             "origin": "yaml",
-            "artifact": "shared/games/iracing/session-info/catalog.ts"
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {

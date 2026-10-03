@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, spyOn, test } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import { LiveTelemetryPipeline, stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";

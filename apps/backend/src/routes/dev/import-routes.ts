@@ -3,10 +3,10 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { Hono } from "hono";
-import { getAccCarByModel } from "@raceiq/shared/racing/cars/acc"
-import { getAccTrackByName } from "@raceiq/shared/racing/tracks/catalogs/acc"
-import { getAcEvoCarByDisplayName } from "@raceiq/shared/racing/cars/ac-evo"
-import { getAcEvoTrackByName } from "@raceiq/shared/racing/tracks/catalogs/ac-evo"
+import { getAccCarByModel } from "@raceiq/game-acc-metadata/racing/cars/acc"
+import { getAccTrackByName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc"
+import { getAcEvoCarByDisplayName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo"
+import { getAcEvoTrackByName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo"
 import { getGame } from "@raceiq/shared/games/registry";
 import { KNOWN_GAME_IDS } from "@raceiq/shared/games/ids";
 import { parseAccBuffers } from "@raceiq/game-acc/parser";

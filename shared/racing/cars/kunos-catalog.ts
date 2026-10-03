@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseCsvLine } from "../../core/csv";
-import { GAMES_DIR } from "../../platform/runtime/data-paths";
+import { gameCatalogDir } from "../../platform/runtime/data-paths";
 
 export interface KunosCar {
   id: number;
@@ -19,7 +19,7 @@ export interface KunosCarCatalog {
 export function loadKunosCarCatalog(gameId: "acc" | "ac-evo"): KunosCarCatalog {
   const byId = new Map<number, KunosCar>();
   const byModel = new Map<string, KunosCar>();
-  const raw = readFileSync(resolve(GAMES_DIR, gameId, "cars.csv"), "utf-8");
+  const raw = readFileSync(resolve(gameCatalogDir(gameId), "cars.csv"), "utf-8");
 
   for (const line of raw.split(/\r?\n/).slice(1)) {
     if (!line.trim()) continue;

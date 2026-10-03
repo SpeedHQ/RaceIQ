@@ -14,12 +14,12 @@ import { ROOT_DIR } from "@raceiq/backend-core/runtime/config/paths";
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { buildAnalystPrompt } from "@raceiq/backend-core/ai/analyst-prompt";
 import { compareLapHeader } from "@raceiq/backend-core/ai/compare-engineer";
-import { resolveCarName } from "@raceiq/shared/racing/cars/resolve-name";
-import { resolveTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
+import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
+import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import {
   buildEvalLapAnalystAgent,
   buildEvalCompareEngineerAgent,

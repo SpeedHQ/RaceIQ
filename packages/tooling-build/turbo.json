@@ -1,0 +1,23 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tags": ["tooling"],
+  "tasks": {
+    "test": {
+      "inputs": [
+        "$TURBO_EXTENDS$",
+        "$TURBO_ROOT$/assets/models/source/f1_2025_mclaren_mcl39.glb",
+        "$TURBO_ROOT$/assets/models/source/aston_martin_vantage_gt3.glb",
+        "$TURBO_ROOT$/assets/models/source/peugeot_9x8_evo_2024.glb"
+      ]
+    },
+    "test:tooling": {
+      "inputs": [
+        "$TURBO_EXTENDS$",
+        "$TURBO_ROOT$/assets/models/source/f1_2025_mclaren_mcl39.glb",
+        "$TURBO_ROOT$/assets/models/source/aston_martin_vantage_gt3.glb",
+        "$TURBO_ROOT$/assets/models/source/peugeot_9x8_evo_2024.glb"
+      ]
+    }
+  }
+}

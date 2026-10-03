@@ -108,7 +108,7 @@ export function wheelValue(sample: SemanticTuneSample, metric: TuneWheelMetric, 
   if (!values) return undefined;
   return [values.fl, values.fr, values.rl, values.rr][index];
 }
-import type { AlignedLapTrace } from "@raceiq/shared/racing/laps/alignment/types";
+import type { AlignedLapTrace } from "@raceiq/analysis-core/racing/laps/alignment/types";
 
 export function semanticTuneSamplesFromAlignedTrace(trace: AlignedLapTrace, gameId: GameId, trackOrdinal: number | undefined, distanceMeters: number): SemanticTuneSample[] {
   const fuelUnit = getGame(gameId).telemetry.fuel.packetUnit;

@@ -1,0 +1,18 @@
+{
+  "name": "@raceiq/game-ac-evo-metadata",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./index": "./src/index.ts",
+    "./racing/cars/ac-evo": "./src/racing/cars/ac-evo.ts",
+    "./racing/tracks/catalogs/ac-evo": "./src/racing/tracks/catalogs/ac-evo.ts",
+    "./setup-ranges.json": "./src/setup-ranges.json"
+  },
+  "dependencies": { "@raceiq/shared": "workspace:*" },
+
+  "scripts": {
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/game-ac-evo-metadata",
+    "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/game-ac-evo-metadata",
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit"
+  }
+}

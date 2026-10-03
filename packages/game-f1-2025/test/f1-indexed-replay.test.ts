@@ -4,7 +4,7 @@ import { registerServerGame } from "@raceiq/backend-core/games/registry";
 import { afterAll, describe, expect, test } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
-import { normalizeTelemetryPacket } from "@raceiq/backend-core/telemetry/normalization";
+import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/normalization";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { parseRawLapFramesFromBuffer } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { loadSessionCapture } from "@raceiq/backend-core/session-capture/source-loader";

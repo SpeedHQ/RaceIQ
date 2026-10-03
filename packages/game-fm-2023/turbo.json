@@ -1,5 +1,13 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "extends": ["//"],
-  "tags": ["game"]
+  "tags": ["game"],
+  "tasks": {
+    "test": {
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/test/artifacts/sessions/fm-2023-2026-04-09T21-53-00-102Z.bin.gz", "$TURBO_ROOT$/test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz", "$TURBO_ROOT$/test/artifacts/sessions/fm-2023-with-pitting.bin.gz"]
+    },
+    "test:e2e:recordings": {
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/test/artifacts/sessions/fm-2023-2026-04-09T21-53-00-102Z.bin.gz", "$TURBO_ROOT$/test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz", "$TURBO_ROOT$/test/artifacts/sessions/fm-2023-with-pitting.bin.gz"]
+    }
+  }
 }

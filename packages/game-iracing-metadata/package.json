@@ -1,0 +1,24 @@
+{
+  "name": "@raceiq/game-iracing-metadata",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./index": "./src/index.ts",
+    "./session-info/catalog": "./src/session-info/catalog.ts",
+    "./session-info/contracts": "./src/session-info/contracts.ts",
+    "./session-info/sections": "./src/session-info/sections.ts",
+    "./session-info/setup-aero-drivetrain": "./src/session-info/setup-aero-drivetrain.ts",
+    "./session-info/setup-builders": "./src/session-info/setup-builders.ts",
+    "./session-info/setup-captured": "./src/session-info/setup-captured.ts",
+    "./session-info/setup-chassis": "./src/session-info/setup-chassis.ts",
+    "./session-info/setup-in-car": "./src/session-info/setup-in-car.ts",
+    "./session-info/setup-tires": "./src/session-info/setup-tires.ts",
+    "./session-info/formatting": "./src/session-info/formatting.ts",
+    "./racing/cars/iracing": "./src/racing/cars/iracing.ts",
+    "./racing/tracks/catalogs/iracing": "./src/racing/tracks/catalogs/iracing.ts"
+  },
+  "dependencies": {
+    "@raceiq/shared": "workspace:*"
+  },
+  "scripts": {"typecheck":"bunx tsc --project tsconfig.json --noEmit"}
+}

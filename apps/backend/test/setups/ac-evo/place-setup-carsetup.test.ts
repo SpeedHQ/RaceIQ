@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { carSlugFromPresetId } from "@raceiq/game-ac-evo/carsetup";
 import { parseCarSetup } from "@raceiq/game-ac-evo/carsetup-wire";
-import { getAllAcEvoCars } from "@raceiq/shared/racing/cars/ac-evo"
+import { getAllAcEvoCars } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo"
 
 /**
  * `POST /api/tunes/place-setup` accepts a binary AC EVO `.carsetup` as base64

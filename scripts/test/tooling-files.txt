@@ -1,14 +1,5 @@
 scripts/test/tests/bench-compare.test.ts
-scripts/test/tests/changelog.test.ts
-scripts/test/tests/collect-screenshot-diffs.test.ts
-scripts/test/tests/optimize-client-images.test.ts
-scripts/test/tests/optimize-f1-model.test.ts
-scripts/test/tests/optimize-gt3-model.test.ts
-scripts/test/tests/optimize-peugeot-model.test.ts
 scripts/test/tests/paraglide-cache.test.ts
 scripts/test/tests/owner-runner.test.ts
-scripts/test/tests/release-version.test.ts
-scripts/test/tests/storybook-build.test.ts
 scripts/test/tests/test-shards.test.ts
 scripts/test/tests/theme-contract.test.ts
-scripts/test/tests/version-label.test.ts

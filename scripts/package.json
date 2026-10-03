@@ -2,31 +2,15 @@
   "name": "@raceiq/tooling",
   "private": true,
   "type": "module",
-  "exports": {"./build/copy-duckdb-runtime":"./build/copy-duckdb-runtime.ts","./catalog/ast-discovery":"./catalog/ast-discovery.ts","./catalog/generate-telemetry-catalog":"./catalog/generate-telemetry-catalog.ts","./catalog/iracing-session-info-capture":"./catalog/iracing-session-info-capture.ts","./data/seed-db-demo":"./data/seed-db-demo.ts","./data/seed-db-iracing":"./data/seed-db-iracing.ts","./data/seed-db-options":"./data/seed-db-options.ts","./data/seed-db-reset":"./data/seed-db-reset.ts","./data/seed-db-safety":"./data/seed-db-safety.ts","./lib/compression":"./lib/compression.ts","./marketing/track-wall-data":"./marketing/track-wall-data.ts","./release/development-release-features":"./release/development-release-features.ts","./telemetry/generate-demo-fixture":"./telemetry/generate-demo-fixture.ts","./tracks/track-coverage":"./tracks/track-coverage.ts","./ui/collect-screenshot-diffs":"./ui/collect-screenshot-diffs.ts","./ui/local-ui-diff":"./ui/local-ui-diff.ts","./ui/visual-diff-config":"./ui/visual-diff-config.ts"},
+  "exports": {},
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit",
     "test": "bun test/run-suite.ts all --package @raceiq/tooling",
-    "test:tooling": "bun test/run-suite.ts tooling --package @raceiq/tooling",
-    "test:integration": "bun test/run-suite.ts integration --package @raceiq/tooling"
+    "test:tooling": "bun test/run-suite.ts tooling --package @raceiq/tooling"
   },
   "dependencies": {
-    "@babel/parser": "^8.0.5",
-    "@gltf-transform/core": "4.5.0",
-    "@gltf-transform/extensions": "4.5.0",
-    "@gltf-transform/functions": "4.5.0",
-    "@playwright/test": "1.62.1",
-    "cheerio": "^1.2.0",
-    "meshoptimizer": "1.2.0",
-    "pixelmatch": "^7.2.0",
-    "sharp": "^0.35.4",
-    "drizzle-orm": "^0.45.2",
-    "@raceiq/shared": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
-    "@raceiq/capture-formats": "workspace:*",
-    "@raceiq/game-iracing": "workspace:*",
-    "@raceiq/game-acc": "workspace:*",
-    "@raceiq/game-fm-2023": "workspace:*",
-    "@raceiq/game-f1-2025": "workspace:*",
-    "@raceiq/game-lmu": "workspace:*"
+    "@raceiq/tooling-release": "workspace:*",
+    "@raceiq/tooling-build": "workspace:*"
   }
 }

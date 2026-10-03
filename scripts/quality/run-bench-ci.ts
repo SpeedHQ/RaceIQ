@@ -55,7 +55,7 @@ const legacyImportRewrites: Record<string, string> = {
   "@raceiq/backend-core/games/registry": "../../server/games/registry",
   "@raceiq/backend-core/session-capture/framing": "../../server/session-capture/framing",
   "@raceiq/shared/telemetry/types": "../../shared/telemetry/types",
-  "@raceiq/shared/games/init": "../../shared/games/init",
+  "@raceiq/game-catalogs/games/init": "../../shared/games/init",
   "@raceiq/shared/games/ids": "../../shared/games/ids",
   "../../src/games/init": "../../server/games/init",
 };

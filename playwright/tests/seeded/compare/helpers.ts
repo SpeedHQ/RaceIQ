@@ -1,8 +1,8 @@
 import { expect, type APIRequestContext, type Response } from "@playwright/test";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
-import { decodeAlignedLapSet } from "@raceiq/shared/racing/laps/alignment/codec";
-import type { EncodedAlignedLapSet } from "@raceiq/shared/racing/laps/alignment/types";
+import { decodeAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/codec";
+import type { EncodedAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/types";
 
 export interface SeededLapMeta extends LapMeta {
   trackOrdinal: number;

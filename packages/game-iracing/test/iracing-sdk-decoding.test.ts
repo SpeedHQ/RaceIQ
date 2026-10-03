@@ -15,7 +15,7 @@ import {
 } from "@raceiq/capture-formats/iracing/variable-table";
 import {
   iracingAdapter,
-} from "@raceiq/shared/games/iracing/index";
+} from "@raceiq/game-iracing-metadata/index";
 
 registerGame(iracingServerAdapter);
 registerServerGame(iracingServerAdapter);

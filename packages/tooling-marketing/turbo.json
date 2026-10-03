@@ -1,0 +1,17 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": [
+    "//"
+  ],
+  "tags": [
+    "tooling"
+  ],
+  "tasks": {
+    "transit": {
+      "inputs": [
+        "$TURBO_EXTENDS$",
+        "!test/**"
+      ]
+    }
+  }
+}

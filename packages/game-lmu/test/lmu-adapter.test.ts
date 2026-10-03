@@ -8,13 +8,13 @@ import { join } from "node:path";
 import {
   resolveLMUCar,
   resolveLMUTrack,
-} from "@raceiq/shared/games/lmu/catalog";
+} from "@raceiq/game-lmu-metadata/catalog";
 import { resolveLMUInvalidReason } from "../src/lap-policy";
 import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";
 import { lmuServerAdapter } from "../src/index";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
-import { compileTelemetryResolver } from "@raceiq/shared/telemetry/resolver/compile";
+import { compileTelemetryResolver } from "@raceiq/telemetry-core/telemetry/resolver/compile";
 
 import {
   previewLMUDuckDB,

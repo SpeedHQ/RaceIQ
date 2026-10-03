@@ -1,5 +1,16 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "extends": ["//"],
-  "tags": ["game"]
+  "tags": ["game"],
+  "tasks": {
+    "test": {
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/test/artifacts/sessions/ac-evo-2026-04-15T17-12-25-825Z.bin.gz", "$TURBO_ROOT$/test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz", "$TURBO_ROOT$/test/artifacts/sessions/session-ac-evo-menu-exit-2026-04-23T18-11-48-959Z.bin.gz", "$TURBO_ROOT$/test/artifacts/carsetup/Default-12312.carsetup", "$TURBO_ROOT$/test/artifacts/carsetup/audi-default-3.carsetup", "$TURBO_ROOT$/test/artifacts/carsetup/F1 default.carsetup", "$TURBO_ROOT$/test/artifacts/carsetup/F1 default 2.carsetup"]
+    },
+    "test:integration": {
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz", "$TURBO_ROOT$/test/artifacts/carsetup/Default-12312.carsetup", "$TURBO_ROOT$/test/artifacts/carsetup/audi-default-3.carsetup", "$TURBO_ROOT$/test/artifacts/carsetup/F1 default.carsetup", "$TURBO_ROOT$/test/artifacts/carsetup/F1 default 2.carsetup"]
+    },
+    "test:e2e:recordings": {
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/test/artifacts/sessions/ac-evo-2026-04-15T17-12-25-825Z.bin.gz", "$TURBO_ROOT$/test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz", "$TURBO_ROOT$/test/artifacts/sessions/session-ac-evo-menu-exit-2026-04-23T18-11-48-959Z.bin.gz"]
+    }
+  }
 }

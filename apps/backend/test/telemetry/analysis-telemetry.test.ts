@@ -5,9 +5,9 @@ import {
   resolveAnalysisTelemetry,
 } from "@raceiq/shared/racing/analysis/telemetry-capabilities";
 import { unavailableAnalyseFeatures } from "@raceiq/shared/games/metric-contracts";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { getGame } from "@raceiq/shared/games/registry";
-import { suspensionCompression } from "@raceiq/shared/racing/analysis/laps/physics/vehicle";
+import { suspensionCompression } from "@raceiq/analysis-core/racing/analysis/laps/physics/vehicle";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 initGameAdapters();

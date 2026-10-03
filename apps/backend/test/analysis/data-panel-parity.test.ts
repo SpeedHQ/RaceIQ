@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { getFuelDisplaySemantic } from "@raceiq/shared/games/telemetry";
-import { semanticWheelDynamics, steerBalanceFromSignals } from "@raceiq/shared/racing/analysis/laps/physics/vehicle";
+import { semanticWheelDynamics, steerBalanceFromSignals } from "@raceiq/analysis-core/racing/analysis/laps/physics/vehicle";
 
 describe("semantic Analyse panel parity", () => {
   test("formats fraction fuel as percentage", () => {

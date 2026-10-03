@@ -4,7 +4,7 @@ import {
   TELEMETRY_CATALOG_SCHEMA_VERSION,
   TELEMETRY_CATALOG_VERSION,
 } from "@raceiq/shared/telemetry/catalog/data";
-import { TELEMETRY_DERIVATION_VERSION } from "@raceiq/shared/telemetry/derivations/builtins";
+import { TELEMETRY_DERIVATION_VERSION } from "@raceiq/telemetry-core/telemetry/derivations/builtins";
 import {
   TELEMETRY_PARSER_VERSIONS,
   TELEMETRY_RESOLVER_VERSION,

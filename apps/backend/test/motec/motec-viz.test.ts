@@ -20,10 +20,10 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { loadCenterline } from "@raceiq/shared/racing/tracks/curation/generate";
-import { getAcEvoTrackByName } from "@raceiq/shared/racing/tracks/catalogs/ac-evo";
+import { getAcEvoTrackByName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
 import { parseLd } from "@raceiq/backend-core/motec/ld";
 import { resolveMotecTarget } from "@raceiq/backend-core/motec/targets";
 import { MOTEC_SYNTH_HZ } from "@raceiq/backend-core/motec/kunos-synthesis";

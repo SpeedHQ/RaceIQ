@@ -1,0 +1,26 @@
+{
+  "name": "@raceiq/telemetry-core",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./telemetry/resolver/compile": "./src/telemetry/resolver/compile.ts",
+    "./telemetry/resolver/frame-view": "./src/telemetry/resolver/frame-view.ts",
+    "./telemetry/resolver/plan": "./src/telemetry/resolver/plan.ts",
+    "./telemetry/resolver/readers": "./src/telemetry/resolver/readers.ts",
+    "./telemetry/resolver/value": "./src/telemetry/resolver/value.ts",
+    "./telemetry/derivations/builtins": "./src/telemetry/derivations/builtins.ts",
+    "./telemetry/replay/canonicalize": "./src/telemetry/replay/canonicalize.ts",
+    "./telemetry/live/history": "./src/telemetry/live/history.ts",
+    "./telemetry/live/semantics": "./src/telemetry/live/semantics.ts",
+    "./telemetry/normalization": "./src/telemetry/normalization.ts",
+    "./telemetry/live-wire": "./src/telemetry/live-wire.ts",
+    "./telemetry/live-projector": "./src/telemetry/live-projector.ts",
+    "./test-support/telemetry/resolver": "./test/support-resolver.ts"
+  },
+  "scripts": {
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/telemetry-core",
+    "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/telemetry-core"
+  },
+  "dependencies": { "@raceiq/shared": "workspace:*" }
+}

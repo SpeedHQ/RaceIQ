@@ -1,7 +1,7 @@
 import type { GameId } from "@raceiq/shared/games/ids";
 import { tryGetGame } from "@raceiq/shared/games/registry"
-import { selectEvaluationLaps } from "@raceiq/shared/racing/laps/review-selection";
-import { stintStats } from "@raceiq/shared/racing/laps/stint-stats";
+import { selectEvaluationLaps } from "@raceiq/analysis-core/racing/laps/review-selection";
+import { stintStats } from "@raceiq/analysis-core/racing/laps/stint-stats";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { useNavigate, useSearch } from "@tanstack/react-router";

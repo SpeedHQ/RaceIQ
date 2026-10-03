@@ -20,7 +20,8 @@
     "drizzle-orm": "^0.45.2",
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
-    "@raceiq/shared": "workspace:*"
+    "@raceiq/shared": "workspace:*",
+    "@raceiq/game-iracing-metadata": "workspace:*"
   },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit",

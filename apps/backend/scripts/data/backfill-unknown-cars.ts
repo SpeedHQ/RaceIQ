@@ -8,10 +8,10 @@
  * Safe to re-run: sessions that still can't be resolved (corrupt/truncated
  * raw file, or the car never sent a model string) are left at -1 and logged.
  *
- * Usage: bun run scripts/data/backfill-unknown-cars.ts
+ * Usage: bun run apps/backend/scripts/data/backfill-unknown-cars.ts
  */
 import { initServerGameAdapters } from "../../src/games/init";
-import { developmentReleaseFeatures } from "@raceiq/tooling/release/development-release-features";
+import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
 initServerGameAdapters(developmentReleaseFeatures);
 
 import { and, eq } from "drizzle-orm";
@@ -20,7 +20,7 @@ import { sessions } from "@raceiq/backend-core/db/schema";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { getOrCreateDiscoveredCar } from "@raceiq/backend-core/db/discovered-cars";
 import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing";
-import { gunzipIfNeeded } from "@raceiq/tooling/lib/compression";
+import { gunzipIfNeeded } from "@raceiq/tooling-data/lib/compression";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 const GAME_ID = "ac-evo";

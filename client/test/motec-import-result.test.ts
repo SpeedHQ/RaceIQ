@@ -1,4 +1,4 @@
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { formatMotecLapTime, hasCompleteMotecSource } from "../src/components/analyse/motec-import-utils";

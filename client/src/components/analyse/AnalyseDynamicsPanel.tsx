@@ -1,6 +1,6 @@
 import { getGame } from "@raceiq/shared/games/registry"
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
-import { resolveBalance, resolveGripDemand, resolveWheelMetric, resolveWheelStates } from "@raceiq/shared/racing/analysis/metric-values";
+import { resolveBalance, resolveGripDemand, resolveWheelMetric, resolveWheelStates } from "@raceiq/analysis-core/racing/analysis/metric-values";
 import { Info } from "lucide-react";
 import type { ReactNode } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";

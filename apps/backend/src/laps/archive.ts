@@ -27,8 +27,8 @@ import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/captur
 import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC } from "@raceiq/backend-core/games/kunos/pack-triplet";
 import { encodeKunosSparseFrame } from "@raceiq/backend-core/session-capture/kunos-sparse";
 import { encodeGenericSparseFrame, genericFrameIdentity } from "@raceiq/backend-core/session-capture/generic-sparse";
-import { resolveCarName } from "@raceiq/shared/racing/cars/resolve-name";
-import { resolveTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
+import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
+import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import { extractMotecArchive } from "@raceiq/backend-core/motec/import-staging";
 import { importMotec } from "@raceiq/backend-core/motec/import";
 import {

@@ -1,11 +1,11 @@
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LapIndexPacket } from "@raceiq/backend-core/lap-detection/types";
-import { f1Adapter } from "@raceiq/shared/games/f1-2025/index";
+import { f1Adapter } from "@raceiq/game-f1-2025-metadata/index";
 import { F1StateAccumulator } from "./f1-state";
 import { parseF1Header } from "@raceiq/capture-formats/f1-2025/f1-wire";
-import { getF1CarName } from "@raceiq/shared/racing/cars/f1"
-import { getF1TrackName, getF1TrackInfo } from "@raceiq/shared/racing/tracks/catalogs/f1"
+import { getF1CarName } from "@raceiq/game-f1-2025-metadata/racing/cars/f1"
+import { getF1TrackName, getF1TrackInfo } from "@raceiq/game-f1-2025-metadata/racing/tracks/catalogs/f1"
 import { LapDetector } from "@raceiq/backend-core/lap-detection/detector";
 import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
 

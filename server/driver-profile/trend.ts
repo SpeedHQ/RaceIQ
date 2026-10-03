@@ -1,4 +1,4 @@
-import { repeatabilityStats } from "@raceiq/shared/racing/laps/stint-stats";
+import { repeatabilityStats } from "@raceiq/analysis-core/racing/laps/stint-stats";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { median, round4 } from "./math";
 

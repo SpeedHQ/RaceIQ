@@ -10,8 +10,8 @@ import { SparseSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pip
 import { SessionRecorder } from "@raceiq/backend-core/session-capture/recorder";
 import { SparseSessionRecorder } from "@raceiq/backend-core/session-capture/sparse-recorder";
 import { parseRawLapFrames } from "@raceiq/backend-core/db/telemetry-replay-storage";
-import { runInsightScanWithCoverage } from "@raceiq/shared/racing/analysis/laps/insights/scan";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { runInsightScanWithCoverage } from "@raceiq/analysis-core/racing/analysis/laps/insights/scan";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { iterateSessionCaptureFrames } from "@raceiq/backend-core/session-capture/source-loader";
 import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";

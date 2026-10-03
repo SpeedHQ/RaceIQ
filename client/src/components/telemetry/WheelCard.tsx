@@ -1,5 +1,5 @@
 import { useId } from "react";
-import type { WheelState } from "@raceiq/shared/racing/analysis/laps/physics/vehicle";
+import type { WheelState } from "@raceiq/analysis-core/racing/analysis/laps/physics/vehicle";
 import type { TireTemperatureReading } from "../analyse/tire-temperature-profile";
 import { brakeTempColor, tireState, tireTempColor } from "@/lib/vehicle-dynamics";
 import { m } from "@/paraglide/messages";

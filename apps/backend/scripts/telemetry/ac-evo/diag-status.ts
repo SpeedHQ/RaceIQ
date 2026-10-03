@@ -1,7 +1,7 @@
 /**
  * Diagnostic: verify AC Evo session lifecycle against a recorded .bin file.
  *
- * Usage: bun scripts/telemetry/ac-evo/diag-status.ts <path>
+ * Usage: bun apps/backend/scripts/telemetry/ac-evo/diag-status.ts <path>
  *
  * Reports:
  *   - Total raw frames
@@ -11,9 +11,9 @@
  */
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../../src/games/init";
-import { developmentReleaseFeatures } from "@raceiq/tooling/release/development-release-features";
+import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing";
 import { ACEVO_STATUS, GRAPHICS_EVO } from "@raceiq/capture-formats/ac-evo/structs";
