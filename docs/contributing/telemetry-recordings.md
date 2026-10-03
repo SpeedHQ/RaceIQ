@@ -48,7 +48,7 @@ Recorders use different binary formats:
 - ACC and AC Evo: `AcRecorder` typed shared-memory frames.
 - iRacing: `IRacingRecorder` SDK source frames.
 
-Use the corresponding reader or `test/support/recordings/parse-dump.ts` helper
+Use the corresponding reader or `server/test-support/recordings/parse-dump.ts` helper
 rather than decoding recordings ad hoc.
 
 ## Commit a regression fixture
@@ -64,10 +64,11 @@ The command keeps the original `.bin` for local replay. Recording support and
 the Import Dump panel accept `.bin.gz` directly.
 
 ```ts
-import { parseDump } from "../../test/support/recordings/parse-dump";
+import { parseDump } from "@raceiq/backend-core/test-support/recordings/parse-dump";
+import { fmRecordingSupport } from "../support/recordings";
 
 const result = await parseDump(
-  "fm-2023",
+  fmRecordingSupport,
   "test/artifacts/sessions/fm-2023-<timestamp>.bin.gz",
 );
 ```

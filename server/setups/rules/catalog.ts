@@ -1,7 +1,7 @@
 /** Setup rule catalog: component grammar, paths, steps, and hard clamps. */
 import type { GameId } from "@raceiq/shared/games/ids";
 import { getAcEvoCarByDisplayName } from "@raceiq/shared/racing/cars/ac-evo"
-import acEvoRangesJson from "../../../shared/games/ac-evo/setup-ranges.json";
+import acEvoRangesJson from "@raceiq/shared/games/ac-evo/setup-ranges.json";
 import type { TuneMagnitude } from "../../ai/schemas";
 
 /** A tunable driver-facing knob and every storage path it controls. */

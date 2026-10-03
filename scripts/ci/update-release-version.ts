@@ -7,3 +7,7 @@ const path = "package.json";
 const pkg = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
 pkg.version = version;
 writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`);
+writeFileSync(
+  "shared/platform/runtime/app-version.ts",
+  `// Stamped alongside root package.json by scripts/ci/update-release-version.ts.\nexport const APP_VERSION = ${JSON.stringify(version)};\n`,
+);

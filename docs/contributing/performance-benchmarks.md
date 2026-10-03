@@ -1,6 +1,6 @@
 # Performance benchmarks
 
-RaceIQ keeps performance measurements separate from ordinary tests. `bun run bench` runs parser/pipeline benchmarks; `bun run bench:replay-io` measures end-to-end replay storage and I/O. Process-isolated benchmark tooling lives in `scripts/quality/process-bench.ts` with fixtures under `test/benchmarks/`.
+RaceIQ keeps performance measurements separate from ordinary tests. `bun run bench` runs parser/pipeline benchmarks; `bun run bench:replay-io` measures end-to-end replay storage and I/O. Process-isolated benchmark tooling lives in `apps/backend/scripts/quality/process-bench.ts` with fixtures under `test/benchmarks/`.
 
 ## Process benchmark protocol
 
@@ -20,14 +20,14 @@ The replay process suite performs adapter initialization and packet/envelope pre
 Run focused contract coverage:
 
 ```sh
-bun test test/tooling/process-bench.test.ts --timeout 60000
-bun test test/tooling/bench-compare.test.ts --timeout 60000
+bun test apps/backend/test/tooling/process-bench.test.ts --timeout 60000
+bun test scripts/test/tests/bench-compare.test.ts --timeout 60000
 ```
 
 Run a small process smoke test:
 
 ```sh
-bun run scripts/quality/process-bench.ts --processes=2 --retained-processes=7 --warmups=1 --iterations=5
+bun run apps/backend/scripts/quality/process-bench.ts --processes=2 --retained-processes=7 --warmups=1 --iterations=5
 ```
 
 Use `bun run bench` for parser/pipeline guardrails and `bun run bench:replay-io` for storage measurements. Do not fold benchmarks into ordinary test manifests; setup, inputs, and measured boundaries must stay explicit.

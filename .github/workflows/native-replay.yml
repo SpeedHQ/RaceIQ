@@ -31,16 +31,18 @@ jobs:
       - mars-ubuntu-2vcpu-10g
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4
+          bun-version: 1.4.2
 
       - name: Install workspace dependencies
-        run: bun scripts/ci/workflow-ops.ts install-retry
+        run: bun install --frozen-lockfile
 
       - name: Replay committed native recording
-        run: bun test test/telemetry/catalog/telemetry-catalog-${{ inputs.game }}-e2e.test.ts
+        run: bun scripts/test/run-turbo.ts test:e2e:recordings --filter=@raceiq/game-${{ inputs.game }} --force
 
       - name: Record capture blocker in run summary
         if: always()

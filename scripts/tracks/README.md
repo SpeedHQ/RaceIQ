@@ -13,7 +13,7 @@ Track curation, migration, and coverage commands. These scripts write committed 
 | `bun run scripts/tracks/migrate-variant-corner-names.ts [--write]` | Copy conservative parent-layout corner names to unnamed variants | Updated `shared/data/tracks/meta/*.json` with `--write` |
 | `bun run scripts/tracks/snapshot-track-guides.ts` | Capture guide API golden output | JSON on stdout |
 | `bun run scripts/tracks/import-tumftm-boundaries.ts` | Import centerline and width boundaries | `shared/data/tracks/tumftm/*.json` |
-| `bun run scripts/tracks/verify-unknown-track-fix.ts` | Inspect one local AC Evo unknown-track capture | Diagnostic stdout; reads fixed local download path |
+| `bun run apps/backend/scripts/tracks/verify-unknown-track-fix.ts` | Inspect one local AC Evo unknown-track capture | Diagnostic stdout; reads fixed local download path |
 
 ## Input/output boundaries
 

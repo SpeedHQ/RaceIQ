@@ -71,6 +71,22 @@ production paths. Unit runs have no DB preload; other suites run serially with
 neutral DB setup. Only application and frontend contract owners preload
 application assembly. Immutable fixtures and output locations remain at root.
 
+Root suite commands dispatch Turbo tasks through `scripts/test/run-turbo.ts`,
+which hashes platform, architecture, and Bun version. Ordinary suites cache
+successful results; recording/native tasks and production builds stay uncached.
+The `transit` task hashes dependency implementation and helpers, excluding only
+test-case files so dependency-only test edits do not invalidate consumers.
+
+```sh
+bun run test:integration -- --filter=@raceiq/game-acc --summarize
+bun scripts/test/run-turbo.ts test:unit test:tooling test:integration --affected
+```
+
+Affected runs require resolvable `TURBO_SCM_BASE` and `TURBO_SCM_HEAD`; otherwise
+the wrapper runs full selection. CI cache partitions include host and toolchain.
+Application, tooling, and frontend contract tasks compile client translations
+explicitly; game/core tasks do not depend on client compilation.
+
 ## Verification
 
 Use narrow proof first:

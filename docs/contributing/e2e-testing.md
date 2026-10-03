@@ -176,17 +176,17 @@ touch/user-agent emulation in Chromium; they are not physical-device tests.
 
 ### Recorded same-lap telemetry contract
 
-Use isolated test storage. POSIX:
+Owner runners allocate isolated test storage and ignore inherited production
+`DATA_DIR`. The same command works in POSIX shells and PowerShell:
 
 ```sh
-DATA_DIR="$PWD/.data-test" bun test test/e2e test/telemetry/catalog/telemetry-catalog-fm-2023-e2e.test.ts test/telemetry/catalog/telemetry-catalog-f1-2025-e2e.test.ts test/telemetry/catalog/telemetry-catalog-acc-e2e.test.ts test/telemetry/catalog/telemetry-catalog-ac-evo-e2e.test.ts test/telemetry/catalog/telemetry-catalog-iracing-e2e.test.ts
+bun run test:e2e:recordings
 ```
 
-Windows PowerShell:
+For one simulator, use its owner task without cache reuse:
 
-```powershell
-$env:DATA_DIR=(Join-Path (Get-Location) '.data-test')
-bun test test/e2e test/telemetry/catalog/telemetry-catalog-fm-2023-e2e.test.ts test/telemetry/catalog/telemetry-catalog-f1-2025-e2e.test.ts test/telemetry/catalog/telemetry-catalog-acc-e2e.test.ts test/telemetry/catalog/telemetry-catalog-ac-evo-e2e.test.ts test/telemetry/catalog/telemetry-catalog-iracing-e2e.test.ts
+```sh
+bun scripts/test/run-turbo.ts test:e2e:recordings --filter=@raceiq/game-acc --force
 ```
 
 Failures must report game, recording, selected lap segment, semantic or packet field, observed range, and required range.

@@ -17,7 +17,7 @@ import { client as dbClient, DB_PATH } from "@raceiq/backend-core/db/index";
 import { collectDiagnosticChatContext } from "@raceiq/backend-core/ai/chat-agent";
 import { formatDiagnosticRecord, log, readRecentLogText } from "@raceiq/backend-core/runtime/logger";
 import { normalizeDiagnostic } from "@raceiq/backend-core/ai/diagnostic-logging";
-import pkg from "../../../../../package.json";
+import { APP_VERSION } from "@raceiq/shared/platform/runtime/app-version";
 
 const DB_DIR = dirname(DB_PATH);
 
@@ -249,7 +249,7 @@ export const diagnosticsRoutes = new Hono()
 
     const diagnostics = {
       app: {
-        version: pkg.version,
+        version: APP_VERSION,
         compiled: IS_COMPILED,
         installDir: ROOT_DIR,
         installDriveType,

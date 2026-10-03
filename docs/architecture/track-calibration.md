@@ -22,13 +22,13 @@ Procrustes alignment estimates scale, rotation, and translation. Robust fitting 
 
 Calibration behavior is covered by:
 
-- `test/tracks/calibration.test.ts` — DB-free fit, malformed-position, sparse-progress, and partial-lap behavior.
-- `test/telemetry/live-pipeline-calibration.test.ts` — live pipeline lifecycle and reset/fallback behavior.
+- `apps/backend/test/tracks/calibration.test.ts` — DB-free fit, malformed-position, sparse-progress, and partial-lap behavior.
+- `apps/backend/test/telemetry/live-pipeline-calibration.test.ts` — live pipeline lifecycle and reset/fallback behavior.
 
 Run focused checks with:
 
 ```sh
-bun test test/tracks/calibration.test.ts test/telemetry/live-pipeline-calibration.test.ts
+bun test apps/backend/test/tracks/calibration.test.ts apps/backend/test/telemetry/live-pipeline-calibration.test.ts
 ```
 
 Do not treat a process-local fit or its visual comparison history as durable data; restart/reload behavior must tolerate an empty live history and use static fallback where available.

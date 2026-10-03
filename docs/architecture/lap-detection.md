@@ -54,7 +54,7 @@ Detector ID: `acc_lapdetector_v2`.
 
 ## AC Evo: `LapDetectorAcEvo`
 
-`server/games/ac-evo/lap-detector.ts` is a thin policy adapter over the shared
+`packages/game-ac-evo/src/lap-detector.ts` is a thin policy adapter over the shared
 Kunos timer-reset, partial-lap, pit, duplicate-emit, and persistence lifecycle:
 
 - unresolved car names receive stable discovered-car ordinals;
@@ -67,7 +67,7 @@ Detector ID: `ac_evo_lapdetector_v2`.
 ## iRacing: `LapDetectorIRacing`
 
 iRacing changes its physical lap counter before publishing authoritative
-`LastLap`. `server/games/iracing/lap-detector.ts` temporarily defers the first frames
+`LastLap`. `packages/game-iracing/src/lap-detector.ts` temporarily defers the first frames
 of the next lap. It releases them to `LapDetector` only when `LastLap` changes
 or the native SDK lap timer rolls over.
 
@@ -105,9 +105,9 @@ so a trailing partial lap is saved invalid rather than treated as complete.
 
 ## Tests
 
-- `test/lap-analysis/detection/lap-boundary-reset.test.ts` covers pure FM/F1
+- `apps/backend/test/lap-analysis/detection/lap-boundary-reset.test.ts` covers pure FM/F1
   boundary decisions.
-- `test/lap-analysis/lap-detector-ac.test.ts` covers ACC timing, partial starts,
+- `apps/backend/test/lap-analysis/lap-detector-ac.test.ts` covers ACC timing, partial starts,
   pit laps, session restarts, and duplicate protection.
-- `test/games/iracing/iracing-sdk-lap-sectors.test.ts` covers iRacing timing-gate
+- `packages/game-iracing/test/iracing-sdk-lap-sectors.test.ts` covers iRacing timing-gate
   behavior.

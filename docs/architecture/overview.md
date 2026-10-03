@@ -19,13 +19,16 @@ graph LR
 ```
 
 - `shared/` holds telemetry types, game metadata, and shared game adapters.
-- `server/` owns telemetry ingestion, parsing, authoritative session computation, persistence, API routes, and WebSocket broadcast.
+- `server/` (`@raceiq/backend-core`) owns neutral telemetry pipelines, authoritative session computation, persistence, and shared runtime services.
+- `packages/capture-formats/` owns persisted capture layouts and codecs without live-reader dependencies.
+- Six `packages/game-<id>/` workspaces own backend adapters, parsers, native sources, recorders, and game-local replay helpers.
+- `apps/backend/` composes adapters, API routes, boot orchestration, imports, MoTeC targets, and AI workflows.
 - `client/` owns navigation, presentation state, live telemetry rendering, and historical-data queries.
 - HTTP and WebSocket traffic uses port `3117` by default. Forza and F1 telemetry use UDP port `5301` by default.
 
 ## Current game adapters
 
-Six adapters are registered by `shared/games/init.ts` and `server/games/init.ts`:
+Six adapters are registered by `shared/games/init.ts` and `apps/backend/src/games/init.ts`:
 
 | Game | Internal ID | Ingestion | Route prefix |
 |---|---|---|---|
@@ -40,7 +43,7 @@ Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, c
 
 ## Telemetry data flow
 
-1. UDP sources enter through `server/runtime/udp-listener.ts`; native sources enter through their adapter-owned readers.
+1. UDP sources enter through `apps/backend/src/runtime/udp-listener.ts`; native sources enter through their adapter-owned readers.
 2. Adapter parsing produces typed `TelemetryPacket` values using each source's coordinate conventions.
 3. `server/telemetry/live-pipeline.ts` applies coordinate normalization, lap detection, sector and pit tracking, track calibration, persistence callbacks, and live broadcast.
 4. Completed sessions and laps are stored in SQLite; raw telemetry is retained through game-specific recording paths for replay and reprocessing.
@@ -49,7 +52,7 @@ Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, c
 
 ## Persistence and API
 
-`server/db/schema.ts` is the typed schema reference. Runtime migrations are embedded in `server/db/migrations.ts` and applied at startup. `server/routes/index.ts` composes feature route modules under `/api`; the client uses `client/src/lib/rpc.ts` rather than untyped fetch calls.
+`server/db/schema.ts` is the typed schema reference. Runtime migrations are embedded in `server/db/migrations.ts` and applied at startup. `apps/backend/src/routes/index.ts` composes feature route modules under `/api`; the client uses `client/src/lib/rpc.ts` rather than untyped fetch calls.
 
 ## Boundaries
 
@@ -57,6 +60,8 @@ Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, c
 - Client may own presentation state, but must not duplicate authoritative telemetry calculations. See [Frontend contribution guide](../contributing/frontend.md).
 - Game-specific behavior belongs in registered adapters. Shared consumers resolve the active game instead of falling back to `fm-2023`.
 - Pipeline dependencies are injected through `DbAdapter`, `WsAdapter`, and session-recorder adapters so focused code can use real, null, or capturing implementations.
+- Foundation workspaces (`shared`, capture formats, backend core) do not import games or application composition. Games depend on foundations, never sibling games, application, tooling, or client.
+- Tests live beside their workspace owners. `packages/frontend-contract-tests/` owns backend-era tests that consume frontend contracts without adding frontend dependencies to backend production packages.
 
 ## Related architecture
 

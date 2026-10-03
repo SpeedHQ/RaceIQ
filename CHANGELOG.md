@@ -29,6 +29,7 @@
 
 ### Internal
 - Separate backend core, capture formats, game implementations, and application composition into workspaces; colocate tests with their owners and isolate frontend contract tests from production dependency cycles.
+- Run owner-scoped test processes with isolated databases and dependency-aware Turbo caches; select affected ordinary suites on pull requests with full-run fallback when SCM refs are unavailable.
 - Use bundled ACC track SVGs for segment generation, visualization, and runtime centerlines; remove obsolete centerline CSVs and migrate saved segment and sector positions while preserving curated turns.
 - Exclude generated JavaScript from client typechecking and emit Paraglide declarations in development so translation imports remain typed.
 - Seed and validate the compiled E2E database once per workflow, then restore isolated database and capture copies in seeded shards instead of repeating fixture imports.

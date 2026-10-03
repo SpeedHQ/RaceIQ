@@ -2,14 +2,14 @@ import { writeFileSync, existsSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
-import pkg from "../../../package.json";
+import { APP_VERSION } from "@raceiq/shared/platform/runtime/app-version";
 import { wsManager } from "../websocket-manager";
 import { isNewer } from "./version";
 import { IS_WINDOWS } from "../platform/shell";
 import { ROOT_DIR } from "../config/paths";
 export { isNewer };
 
-const VERSION = pkg.version;
+const VERSION = APP_VERSION;
 const GITHUB_REPO = "SpeedHQ/RaceIQ";
 const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
 const IN_APP_UPDATE_DISABLED = process.env.RACEIQ_DISABLE_IN_APP_UPDATE === "1";

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tags": ["tooling"],
+  "tasks": {
+    "test": { "dependsOn": ["transit", "client#i18n:compile", "@raceiq/backend#transit"] },
+    "test:unit": {
+      "dependsOn": [
+        "transit",
+        "client#i18n:compile",
+        "@raceiq/backend#transit"
+      ]
+    },
+    "test:tooling": {
+      "dependsOn": [
+        "transit",
+        "client#i18n:compile",
+        "@raceiq/backend#transit"
+      ]
+    },
+    "test:integration": {
+      "dependsOn": [
+        "transit",
+        "client#i18n:compile",
+        "@raceiq/backend#transit"
+      ]
+    },
+    "test:e2e:recordings": { "dependsOn": ["transit", "client#i18n:compile", "@raceiq/backend#transit"], "cache": false, "outputs": [] }
+  }
+}

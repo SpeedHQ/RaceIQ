@@ -161,7 +161,7 @@ That trade-off does not imply higher measurement fidelity. Sample cadence, dupli
 - `server/session-capture/sparse-recorder.ts` — checkpointed encoder and production writer for all six games
 - `server/session-capture/{lmu-sparse,kunos-sparse,generic-sparse}.ts` — source-byte-preserving delta codecs
 - `server/session-capture/framing.ts` and `source-loader.ts` — bounded seeks and streaming restoration
-- `server/games/iracing/source-frame.ts` — iRacing records
+- `packages/capture-formats/src/iracing/source-frame.ts` — iRacing records
 - `server/session-capture/import-capture.ts` — capture detection and canonical import entry
 - `server/session-capture/import-pipeline.ts` — parser, detector, and persistence pipeline
 - `server/session-capture/reprocess.ts` — detector replay and index refresh

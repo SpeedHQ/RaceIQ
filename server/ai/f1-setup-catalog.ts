@@ -9,30 +9,30 @@
  * identically in the Bun server, the compiled `raceiq.exe`, and the Mastra
  * dev bundle — none of which share a working-directory layout.
  */
-import australia from "../../shared/data/tunes/f1-25/f1laps/australia/setups.json";
-import austria from "../../shared/data/tunes/f1-25/f1laps/austria/setups.json";
-import azerbaijan from "../../shared/data/tunes/f1-25/f1laps/azerbaijan/setups.json";
-import bahrain from "../../shared/data/tunes/f1-25/f1laps/bahrain/setups.json";
-import brazil from "../../shared/data/tunes/f1-25/f1laps/brazil/setups.json";
-import canada from "../../shared/data/tunes/f1-25/f1laps/canada/setups.json";
-import china from "../../shared/data/tunes/f1-25/f1laps/china/setups.json";
-import hungary from "../../shared/data/tunes/f1-25/f1laps/hungary/setups.json";
-import imola from "../../shared/data/tunes/f1-25/f1laps/imola/setups.json";
-import japan from "../../shared/data/tunes/f1-25/f1laps/japan/setups.json";
-import lasVegas from "../../shared/data/tunes/f1-25/f1laps/las_vegas/setups.json";
-import mexico from "../../shared/data/tunes/f1-25/f1laps/mexico/setups.json";
-import miami from "../../shared/data/tunes/f1-25/f1laps/miami/setups.json";
-import monaco from "../../shared/data/tunes/f1-25/f1laps/monaco/setups.json";
-import monza from "../../shared/data/tunes/f1-25/f1laps/monza/setups.json";
-import netherlands from "../../shared/data/tunes/f1-25/f1laps/netherlands/setups.json";
-import qatar from "../../shared/data/tunes/f1-25/f1laps/qatar/setups.json";
-import saudiArabia from "../../shared/data/tunes/f1-25/f1laps/saudi_arabia/setups.json";
-import silverstone from "../../shared/data/tunes/f1-25/f1laps/silverstone/setups.json";
-import singapore from "../../shared/data/tunes/f1-25/f1laps/singapore/setups.json";
-import spa from "../../shared/data/tunes/f1-25/f1laps/spa/setups.json";
-import spain from "../../shared/data/tunes/f1-25/f1laps/spain/setups.json";
-import abudhabi from "../../shared/data/tunes/f1-25/f1laps/abudhabi/setups.json";
-import usa from "../../shared/data/tunes/f1-25/f1laps/usa/setups.json";
+import australia from "@raceiq/shared/data/tunes/f1-25/f1laps/australia/setups.json";
+import austria from "@raceiq/shared/data/tunes/f1-25/f1laps/austria/setups.json";
+import azerbaijan from "@raceiq/shared/data/tunes/f1-25/f1laps/azerbaijan/setups.json";
+import bahrain from "@raceiq/shared/data/tunes/f1-25/f1laps/bahrain/setups.json";
+import brazil from "@raceiq/shared/data/tunes/f1-25/f1laps/brazil/setups.json";
+import canada from "@raceiq/shared/data/tunes/f1-25/f1laps/canada/setups.json";
+import china from "@raceiq/shared/data/tunes/f1-25/f1laps/china/setups.json";
+import hungary from "@raceiq/shared/data/tunes/f1-25/f1laps/hungary/setups.json";
+import imola from "@raceiq/shared/data/tunes/f1-25/f1laps/imola/setups.json";
+import japan from "@raceiq/shared/data/tunes/f1-25/f1laps/japan/setups.json";
+import lasVegas from "@raceiq/shared/data/tunes/f1-25/f1laps/las_vegas/setups.json";
+import mexico from "@raceiq/shared/data/tunes/f1-25/f1laps/mexico/setups.json";
+import miami from "@raceiq/shared/data/tunes/f1-25/f1laps/miami/setups.json";
+import monaco from "@raceiq/shared/data/tunes/f1-25/f1laps/monaco/setups.json";
+import monza from "@raceiq/shared/data/tunes/f1-25/f1laps/monza/setups.json";
+import netherlands from "@raceiq/shared/data/tunes/f1-25/f1laps/netherlands/setups.json";
+import qatar from "@raceiq/shared/data/tunes/f1-25/f1laps/qatar/setups.json";
+import saudiArabia from "@raceiq/shared/data/tunes/f1-25/f1laps/saudi_arabia/setups.json";
+import silverstone from "@raceiq/shared/data/tunes/f1-25/f1laps/silverstone/setups.json";
+import singapore from "@raceiq/shared/data/tunes/f1-25/f1laps/singapore/setups.json";
+import spa from "@raceiq/shared/data/tunes/f1-25/f1laps/spa/setups.json";
+import spain from "@raceiq/shared/data/tunes/f1-25/f1laps/spain/setups.json";
+import abudhabi from "@raceiq/shared/data/tunes/f1-25/f1laps/abudhabi/setups.json";
+import usa from "@raceiq/shared/data/tunes/f1-25/f1laps/usa/setups.json";
 
 export type F1Setup = Record<string, number>;
 

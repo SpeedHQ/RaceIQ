@@ -14,7 +14,7 @@ All destructive background work stops while `isSessionActive()` is true.
 
 ## Startup and schedule
 
-`server/index.ts` runs:
+`apps/backend/src/index.ts` runs:
 
 ```text
 deleteEmptySessions()
