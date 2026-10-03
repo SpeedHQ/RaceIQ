@@ -17,10 +17,10 @@
     "./test-support/recordings": "./test/support/recordings.ts"
   },
   "dependencies": {
+    "drizzle-orm": "^0.45.2",
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
-    "@raceiq/shared": "workspace:*",
-    "drizzle-orm": "^0.45.2"
+    "@raceiq/shared": "workspace:*"
   },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit"

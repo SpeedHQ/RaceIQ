@@ -9,6 +9,8 @@
     "client": "workspace:*",
     "@raceiq/shared": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
-    "@raceiq/game-ac-evo": "workspace:*"
+    "@raceiq/backend": "workspace:*",
+    "@raceiq/game-ac-evo": "workspace:*",
+    "@raceiq/tooling": "workspace:*"
   }
 }

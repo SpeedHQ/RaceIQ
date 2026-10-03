@@ -1,4 +1,4 @@
-import type { GameId } from "@raceiq/shared/games/ids";
+import type { GameId } from "../../games/ids";
 
 export type CleanupAgeDays = 7 | 30 | 90 | 180 | 365;
 

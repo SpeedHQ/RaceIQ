@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { parseCsvLine } from "@raceiq/shared/core/csv";
-import { GAMES_DIR } from "@raceiq/shared/platform/runtime/data-paths";
+import { parseCsvLine } from "../../core/csv";
+import { GAMES_DIR } from "../../platform/runtime/data-paths";
 
 export interface FmCarInfo {
   year: number;

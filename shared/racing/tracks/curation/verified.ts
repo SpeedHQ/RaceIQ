@@ -22,8 +22,8 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { SHARED_DIR } from "@raceiq/shared/platform/runtime/data-paths";
-import type { GameId } from "@raceiq/shared/games/ids";
+import { SHARED_DIR } from "../../../platform/runtime/data-paths";
+import type { GameId } from "../../../games/ids";
 
 export const VERIFIED_FILE = resolve(SHARED_DIR, "tracks", "verified.json");
 

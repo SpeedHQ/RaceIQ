@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
+import { ROOT_DIR } from "@raceiq/backend-core/runtime/config/paths";
 import { cpus, arch, platform, release } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { join } from "node:path";
 import { runChildBenchmark, type ProcessBenchmarkConfig, type ProcessBenchmarkReport, type RetainedHeapChildReport, type TimingChildReport } from "../../test/benchmarks/process-bench-contracts";
 
 const args = process.argv.slice(2);
@@ -25,7 +26,7 @@ if (!Number.isInteger(minSamples) || minSamples <= 0) throw new Error("--min-sam
 if (!Number.isInteger(maxSamples) || maxSamples < minSamples) throw new Error("--max-samples must be integer >= min-samples");
 if (caseOrder !== "forward" && caseOrder !== "reverse") throw new Error("--case-order must be forward or reverse");
 
-const root = resolve(dirname(import.meta.path), "../..");
+const root = ROOT_DIR;
 const child = join(root, "apps/backend/test/benchmarks/process-bench-child.ts");
 const fixture = join(root, "apps/backend/test/benchmarks/replay-process-bench.ts");
 const aliases = [

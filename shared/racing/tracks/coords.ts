@@ -1,5 +1,5 @@
-import { tryGetGame } from "@raceiq/shared/games/registry";
-import type { GameId } from "@raceiq/shared/games/ids";
+import { tryGetGame } from "../../games/registry";
+import type { GameId } from "../../games/ids";
 
 export interface Pt {
   x: number;

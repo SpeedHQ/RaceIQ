@@ -1,3 +1,4 @@
+import { readAcEvoPackets } from "../support/recordings";
 import { registerGame } from "@raceiq/shared/games/registry";
 import { registerServerGame } from "@raceiq/backend-core/games/registry";
 import { acEvoServerAdapter } from "../../src/index";

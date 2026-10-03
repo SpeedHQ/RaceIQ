@@ -1,3 +1,5 @@
+import { readAccPackets } from "@raceiq/game-acc/test-support/recordings";
+import { readAcEvoPackets } from "@raceiq/game-ac-evo/test-support/recordings";
 import { accServerAdapter } from "@raceiq/game-acc";
 import { f1ServerAdapter } from "@raceiq/game-f1-2025";
 import { acEvoServerAdapter } from "@raceiq/game-ac-evo";

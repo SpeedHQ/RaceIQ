@@ -4,7 +4,8 @@
   "type": "module",
   "exports": {
     "./driver-profile/fingerprint": "./src/driver-profile/fingerprint.ts",
-    "./routes/index": "./src/routes/index.ts"
+    "./routes/index": "./src/routes/index.ts",
+    "./routes/tunes/index": "./src/routes/tunes/index.ts"
   },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit"
@@ -32,6 +33,7 @@
     "@gltf-transform/extensions": "4.5.0",
     "meshoptimizer": "1.2.0",
     "@mastra/hono": "^1.7.9",
+    "mitata": "^1.0.34",
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/shared": "workspace:*",
     "@raceiq/tooling": "workspace:*",
@@ -41,7 +43,6 @@
     "@raceiq/game-f1-2025": "workspace:*",
     "@raceiq/game-fm-2023": "workspace:*",
     "@raceiq/game-iracing": "workspace:*",
-    "@raceiq/game-lmu": "workspace:*",
-    "mitata": "^1.0.34"
+    "@raceiq/game-lmu": "workspace:*"
   }
 }

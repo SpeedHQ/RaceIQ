@@ -14,7 +14,7 @@
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { SHARED_DIR } from "@raceiq/shared/platform/runtime/data-paths";
+import { SHARED_DIR } from "../../../platform/runtime/data-paths";
 import type { TrackGuideCornerFile, TrackGuideFile } from "./types";
 
 /** Base-locale guides. One file per layout slug, id === filename stem. */

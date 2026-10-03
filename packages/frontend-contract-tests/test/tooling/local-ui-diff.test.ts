@@ -3,8 +3,8 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { STORYBOOK_SNAPSHOT_CASES } from "client/src/stories/snapshot-cases";
-import type { ScreenshotDiff } from "../../ui/collect-screenshot-diffs";
-import { writeUiDiffReport } from "../../ui/local-ui-diff";
+import type { ScreenshotDiff } from "@raceiq/tooling/ui/collect-screenshot-diffs";
+import { writeUiDiffReport } from "@raceiq/tooling/ui/local-ui-diff";
 
 const tempDirs: string[] = [];
 

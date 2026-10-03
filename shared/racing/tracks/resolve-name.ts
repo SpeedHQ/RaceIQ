@@ -1,8 +1,8 @@
 import { loadAccSvgBoundaryByName } from "./geometry/acc-svg";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { tryGetGame } from "@raceiq/shared/games/registry";
-import { SHARED_DIR, USER_TRACKS_DIR } from "@raceiq/shared/platform/runtime/data-paths";
+import { tryGetGame } from "../../games/registry";
+import { SHARED_DIR, USER_TRACKS_DIR } from "../../platform/runtime/data-paths";
 import { getAccSharedTrackName } from "./catalogs/acc";
 import { getAcEvoSharedTrackName } from "./catalogs/ac-evo";
 import { getF1TrackInfo } from "./catalogs/f1";

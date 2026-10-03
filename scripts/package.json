@@ -2,23 +2,7 @@
   "name": "@raceiq/tooling",
   "private": true,
   "type": "module",
-  "exports": {
-    "./build/copy-duckdb-runtime": "./build/copy-duckdb-runtime.ts",
-    "./catalog/ast-discovery": "./catalog/ast-discovery.ts",
-    "./catalog/generate-telemetry-catalog": "./catalog/generate-telemetry-catalog.ts",
-    "./catalog/iracing-session-info-capture": "./catalog/iracing-session-info-capture.ts",
-    "./data/seed-db-demo": "./data/seed-db-demo.ts",
-    "./data/seed-db-iracing": "./data/seed-db-iracing.ts",
-    "./data/seed-db-options": "./data/seed-db-options.ts",
-    "./data/seed-db-reset": "./data/seed-db-reset.ts",
-    "./data/seed-db-safety": "./data/seed-db-safety.ts",
-    "./lib/compression": "./lib/compression.ts",
-    "./marketing/track-wall-data": "./marketing/track-wall-data.ts",
-    "./release/development-release-features": "./release/development-release-features.ts",
-    "./telemetry/generate-demo-fixture": "./telemetry/generate-demo-fixture.ts",
-    "./tracks/track-coverage": "./tracks/track-coverage.ts",
-    "./ui/visual-diff-config": "./ui/visual-diff-config.ts"
-  },
+  "exports": {"./build/copy-duckdb-runtime":"./build/copy-duckdb-runtime.ts","./catalog/ast-discovery":"./catalog/ast-discovery.ts","./catalog/generate-telemetry-catalog":"./catalog/generate-telemetry-catalog.ts","./catalog/iracing-session-info-capture":"./catalog/iracing-session-info-capture.ts","./data/seed-db-demo":"./data/seed-db-demo.ts","./data/seed-db-iracing":"./data/seed-db-iracing.ts","./data/seed-db-options":"./data/seed-db-options.ts","./data/seed-db-reset":"./data/seed-db-reset.ts","./data/seed-db-safety":"./data/seed-db-safety.ts","./lib/compression":"./lib/compression.ts","./marketing/track-wall-data":"./marketing/track-wall-data.ts","./release/development-release-features":"./release/development-release-features.ts","./telemetry/generate-demo-fixture":"./telemetry/generate-demo-fixture.ts","./tracks/track-coverage":"./tracks/track-coverage.ts","./ui/collect-screenshot-diffs":"./ui/collect-screenshot-diffs.ts","./ui/local-ui-diff":"./ui/local-ui-diff.ts","./ui/visual-diff-config":"./ui/visual-diff-config.ts"},
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit"
   },

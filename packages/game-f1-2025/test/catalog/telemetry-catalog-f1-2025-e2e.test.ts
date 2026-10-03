@@ -1,10 +1,9 @@
 import { f1RecordingSupport } from "../support/recordings";
 import { test } from "bun:test";
-import { getGame } from "@raceiq/shared/games/registry";
-import { initGameAdapters } from "@raceiq/shared/games/init";
+import { getGame, registerGame } from "@raceiq/shared/games/registry";
 import { requiredSemanticIds } from "@raceiq/shared/games/metric-contracts";
 import { assertRecordedCatalogCoverage, changingPacketFields } from "@raceiq/backend-core/test-support/telemetry/catalog-e2e";
-initGameAdapters();
+registerGame(f1RecordingSupport.adapter);
 
 const FIXTURE = "test/artifacts/sessions/f1-2025-2026-04-09T21-34-10-190Z.bin.gz";
 

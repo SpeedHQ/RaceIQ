@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { SHARED_DIR } from "@raceiq/shared/platform/runtime/data-paths";
+import { SHARED_DIR } from "../../../platform/runtime/data-paths";
 import { joinSegments } from "../curation/join";
 import type { TrackFacts } from "../facts";
 import type { TrackGeometry } from "../geometry";

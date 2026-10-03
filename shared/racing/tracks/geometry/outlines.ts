@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { GAMES_DIR, SHARED_DIR } from "@raceiq/shared/platform/runtime/data-paths";
+import { GAMES_DIR, SHARED_DIR } from "../../../platform/runtime/data-paths";
 import { filterOutlierPoints } from "./points";
 import type { Point, TrackBoundary, TrackSource } from "./types";
 import { ttlCache } from "../storage/cache";
