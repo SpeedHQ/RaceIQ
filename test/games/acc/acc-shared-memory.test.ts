@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { readWString } from "@raceiq/backend-core/games/acc/utils";
+import { readWString } from "@raceiq/game-acc/utils";
 
 // We can't test actual shared memory without ACC running,
 // but we can test the buffer reading utilities

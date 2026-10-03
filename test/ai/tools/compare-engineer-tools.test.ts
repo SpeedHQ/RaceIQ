@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { RequestContext } from "@mastra/core/request-context";
-import { compareEngineerAgent } from "@raceiq/backend/src/mastra/agents/compare-engineer";
-import { compareChatAgent } from "@raceiq/backend/src/mastra/agents/compare-chat";
-import { lapChatAgent } from "@raceiq/backend/src/mastra/agents/lap-chat";
-import { lapAnalystAgent } from "@raceiq/backend/src/mastra/agents/lap-analyst";
+import { compareEngineerAgent } from "@raceiq/backend/mastra/agents/compare-engineer";
+import { compareChatAgent } from "@raceiq/backend/mastra/agents/compare-chat";
+import { lapChatAgent } from "@raceiq/backend/mastra/agents/lap-chat";
+import { lapAnalystAgent } from "@raceiq/backend/mastra/agents/lap-analyst";
 import { createModelContext } from "@raceiq/backend-core/ai/model-provider";
 import { resolveAi } from "@raceiq/backend-core/ai/ai-runtime";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";

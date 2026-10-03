@@ -13,14 +13,14 @@ import { describe, test, expect, afterAll } from "bun:test";
 import { initGameAdapters } from "@raceiq/shared/games/init";
 import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
-import { LapDetectorAcc } from "@raceiq/backend-core/games/acc/lap-detector"
+import { LapDetectorAcc } from "@raceiq/game-acc/lap-detector"
 import { TripletPipeline } from "@raceiq/backend-core/games/kunos/triplet-pipeline";
-import { StatusCheckProcessor } from "@raceiq/backend-core/games/acc/processors";
+import { StatusCheckProcessor } from "@raceiq/game-acc/processors";
 import type { TripletProcessor } from "@raceiq/backend-core/games/kunos/triplet-pipeline";
-import { GRAPHICS, AC_STATUS } from "@raceiq/backend-core/games/acc/structs";
+import { GRAPHICS, AC_STATUS } from "@raceiq/capture-formats/acc/structs";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
 import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
-import { parseAccBuffers } from "@raceiq/backend-core/games/acc/parser";
+import { parseAccBuffers } from "@raceiq/game-acc/parser";
 
 initGameAdapters();
 initServerGameAdapters();

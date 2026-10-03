@@ -2,9 +2,7 @@
   "name": "@raceiq/game-acc",
   "private": true,
   "type": "module",
-  "exports": {
-    ".": "./src/index.ts"
-  },
+  "exports": {".":"./src/index.ts","./lap-detector":"./src/lap-detector.ts","./lap-index":"./src/lap-index.ts","./motec":"./src/motec.ts","./parser":"./src/parser.ts","./processors":"./src/processors.ts","./replay":"./src/replay.ts","./shared-memory":"./src/shared-memory.ts","./utils":"./src/utils.ts"},
   "dependencies": {
     "@raceiq/shared": "workspace:*",
     "@raceiq/backend-core": "workspace:*",

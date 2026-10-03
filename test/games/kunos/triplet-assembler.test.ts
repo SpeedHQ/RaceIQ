@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { GRAPHICS, PHYSICS as ACC_PHYSICS, STATIC } from "@raceiq/backend-core/games/acc/structs";
+import { GRAPHICS, PHYSICS as ACC_PHYSICS, STATIC } from "@raceiq/capture-formats/acc/structs";
 import {
   GRAPHICS_EVO,
   PHYSICS as AC_EVO_PHYSICS,
   STATIC_EVO,
-} from "@raceiq/backend-core/games/ac-evo/structs";
+} from "@raceiq/capture-formats/ac-evo/structs";
 import { OrderedTripletDispatcher } from "@raceiq/backend-core/games/kunos/triplet-assembler";
 import type { Triplet } from "@raceiq/backend-core/games/kunos/triplet-pipeline";
 

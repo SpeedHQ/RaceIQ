@@ -24,14 +24,14 @@ import {
   buildEvalLapAnalystAgent,
   buildEvalCompareEngineerAgent,
   resolveEvalModelId,
-} from "@raceiq/backend/src/mastra/evals/eval-agents";
+} from "@raceiq/backend/mastra/evals/eval-agents";
 import {
   listLapFixtures,
   listComparePairFixtures,
   loadLapPackets,
   type LapFixture,
   type ComparePairFixture,
-} from "@raceiq/backend/src/mastra/evals/fixtures";
+} from "@raceiq/backend/mastra/evals/fixtures";
 import {
   analystScorers,
   compareScorers,
@@ -39,7 +39,7 @@ import {
   scoreOutput,
   SCORER_THRESHOLDS,
   type ScoreResult,
-} from "@raceiq/backend/src/mastra/evals/index";
+} from "@raceiq/backend/mastra/evals/index";
 
 const HAS_API_KEY =
   Boolean(process.env.GEMINI_API_KEY) ||

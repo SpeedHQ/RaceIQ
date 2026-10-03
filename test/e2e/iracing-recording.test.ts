@@ -4,17 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
-import {
-  IRACING_DUMP_MAGIC,
-  IRACING_DUMP_VERSION,
-  IRacingRecorder,
-  readIRacingFrames,
-} from "@raceiq/backend-core/games/iracing/recorder";
-import type { IRacingSdkSnapshot } from "@raceiq/backend-core/games/iracing/sdk-reader";
+import { IRACING_DUMP_MAGIC, IRACING_DUMP_VERSION, readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
+import { IRacingRecorder } from "@raceiq/game-iracing/recorder";
+import type { IRacingSdkSnapshot } from "@raceiq/game-iracing/sdk-reader";
 import {
   type IRacingFrameReader,
   IRacingTelemetrySource,
-} from "@raceiq/backend-core/games/iracing/source";
+} from "@raceiq/game-iracing/source";
 import { initGameAdapters } from "@raceiq/shared/games/init";
 import { parseDump } from "../support/recordings/parse-dump";
 

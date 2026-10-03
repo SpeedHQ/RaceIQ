@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getCompareAnalysisToolFor } from "@raceiq/backend/src/mastra/tools/compare-analysis";
+import { getCompareAnalysisToolFor } from "@raceiq/backend/mastra/tools/compare-analysis";
 import type { InputsCompareResult } from "@raceiq/backend-core/ai/inputs-compare-prompt";
 
 type CompareResult = {

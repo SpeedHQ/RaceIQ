@@ -17,7 +17,7 @@ const devWebSocketTarget = {
   port: serverUrl.port,
 };
 
-const paraglideBuildScript = path.resolve(import.meta.dirname, "../scripts/dev/paraglide-build.ts");
+const paraglideBuildScript = path.resolve(import.meta.dirname, "@raceiq/tooling/dev/paraglide-build");
 const paraglideOutdir = path.resolve(import.meta.dirname, "src/paraglide");
 
 function paraglideBuildPlugin(): Plugin {

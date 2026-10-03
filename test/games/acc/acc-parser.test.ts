@@ -1,9 +1,9 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
-import { parseAccBuffers } from "@raceiq/backend-core/games/acc/parser";
-import { parseAccLapIndex } from "@raceiq/backend-core/games/kunos/lap-index";
-import { PHYSICS, GRAPHICS, STATIC } from "@raceiq/backend-core/games/acc/structs";
+import { parseAccBuffers } from "@raceiq/game-acc/parser";
+import { parseAccLapIndex } from "@raceiq/game-acc/lap-index";
+import { PHYSICS, GRAPHICS, STATIC } from "@raceiq/capture-formats/acc/structs";
 import { initGameAdapters } from "@raceiq/shared/games/init";
 import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 import { getServerGame } from "@raceiq/backend-core/games/registry";

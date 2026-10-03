@@ -14,13 +14,13 @@ import { resolve } from "node:path";
 import { gzipSync } from "node:zlib";
 import {
   IRacingRecorder,
-} from "@raceiq/backend-core/games/iracing/recorder";
+} from "@raceiq/game-iracing/recorder";
 import {
   IRacingSourceFrameEncoder,
   type IRacingSessionSnapshot,
   type IRacingSourceFrameV2,
   type IRacingValue,
-} from "@raceiq/backend-core/games/iracing/source-frame";
+} from "@raceiq/capture-formats/iracing/source-frame";
 
 const TRACK_LENGTH_M = 6_515;
 const OUTPUT = resolve(

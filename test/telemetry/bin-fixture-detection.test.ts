@@ -29,7 +29,7 @@ import { getAcEvoTrackName } from "@raceiq/shared/racing/tracks/catalogs/ac-evo"
 import { getAcEvoCarName } from "@raceiq/shared/racing/cars/ac-evo"
 import { readAccPackets, readAcEvoPackets, readUdpPackets } from "../support/recordings/parse-dump";
 import { readSessionPackets } from "../support/recordings/session-frames";
-import { readIRacingFrames } from "@raceiq/backend-core/games/iracing/recorder";
+import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
 
 initGameAdapters();
 initServerGameAdapters();

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { carSetupToKnobValues } from "@raceiq/backend-core/games/ac-evo/carsetup";
-import { patchCarSetup, rebuildFields, WRITABLE_CARSETUP_KNOBS, } from "@raceiq/backend-core/games/ac-evo/carsetup-writer";
-import { parseCarSetup, type WireField } from "@raceiq/backend-core/games/ac-evo/carsetup-wire";
+import { carSetupToKnobValues } from "@raceiq/game-ac-evo/carsetup";
+import { patchCarSetup, rebuildFields, WRITABLE_CARSETUP_KNOBS, } from "@raceiq/game-ac-evo/carsetup-writer";
+import { parseCarSetup, type WireField } from "@raceiq/game-ac-evo/carsetup-wire";
 
 const FIXTURE = join(import.meta.dir, "..", "..", "artifacts", "carsetup", "Default-12312.carsetup");
 const fixtureBuf = () => readFileSync(FIXTURE);

@@ -10,7 +10,7 @@ import { developmentReleaseFeatures } from "../../release/development-release-fe
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
-import { LapDetectorAcEvo } from "@raceiq/backend-core/games/ac-evo/lap-detector";
+import { LapDetectorAcEvo } from "@raceiq/game-ac-evo/lap-detector";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
 
 initGameAdapters(developmentReleaseFeatures);

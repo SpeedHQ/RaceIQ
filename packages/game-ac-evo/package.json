@@ -2,9 +2,7 @@
   "name": "@raceiq/game-ac-evo",
   "private": true,
   "type": "module",
-  "exports": {
-    ".": "./src/index.ts"
-  },
+  "exports": {".":"./src/index.ts","./carsetup-wire":"./src/carsetup-wire.ts","./carsetup-writer":"./src/carsetup-writer.ts","./carsetup":"./src/carsetup.ts","./lap-detector":"./src/lap-detector.ts","./lap-index":"./src/lap-index.ts","./motec":"./src/motec.ts","./parser":"./src/parser.ts","./shared-memory":"./src/shared-memory.ts","./utils":"./src/utils.ts"},
   "dependencies": {
     "@raceiq/shared": "workspace:*",
     "@raceiq/backend-core": "workspace:*",

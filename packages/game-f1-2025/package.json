@@ -2,9 +2,7 @@
   "name": "@raceiq/game-f1-2025",
   "private": true,
   "type": "module",
-  "exports": {
-    ".": "./src/index.ts"
-  },
+  "exports": {".":"./src/index.ts","./f1-state":"./src/f1-state.ts"},
   "dependencies": {
     "@raceiq/shared": "workspace:*",
     "@raceiq/backend-core": "workspace:*",

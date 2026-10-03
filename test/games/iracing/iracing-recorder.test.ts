@@ -13,22 +13,18 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
-import {
-  IRACING_DUMP_MAGIC,
-  IRACING_DUMP_VERSION,
-  IRacingRecorder,
-  readIRacingFrames,
-} from "@raceiq/backend-core/games/iracing/recorder";
+import { IRACING_DUMP_MAGIC, IRACING_DUMP_VERSION, readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
+import { IRacingRecorder } from "@raceiq/game-iracing/recorder";
 import {
   IRACING_MAX_SOURCE_FRAME_SIZE,
   IRacingSourceFrameEncoder,
   type IRacingSourceFrameV3,
-} from "@raceiq/backend-core/games/iracing/source-frame";
+} from "@raceiq/capture-formats/iracing/source-frame";
 import {
   DumpToBinProcessor,
   IRacingFramePipeline,
   ParsingProcessor,
-} from "@raceiq/backend-core/games/iracing/frame-pipeline";
+} from "@raceiq/game-iracing/frame-pipeline";
 import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { initGameAdapters } from "@raceiq/shared/games/init";

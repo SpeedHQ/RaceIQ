@@ -11,12 +11,12 @@ import { initGameAdapters } from "@raceiq/shared/games/init";
 import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
-import { LapDetectorAcEvo } from "@raceiq/backend-core/games/ac-evo/lap-detector"
+import { LapDetectorAcEvo } from "@raceiq/game-ac-evo/lap-detector"
 import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing"
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
 import { parseRawLapFrames, parseRawLapFramesFromBuffer, parseSessionLapsBatchedForTest } from "@raceiq/backend-core/db/telemetry-replay-storage";
-import { parseAcEvoLapIndex } from "@raceiq/backend-core/games/kunos/lap-index";
-import { createAcEvoParserCache, parseAcEvoBuffers } from "@raceiq/backend-core/games/ac-evo/parser";
+import { parseAcEvoLapIndex } from "@raceiq/game-ac-evo/lap-index";
+import { createAcEvoParserCache, parseAcEvoBuffers } from "@raceiq/game-ac-evo/parser";
 import { unpackTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
 import { loadSessionCapture, setCaptureFileFactoryForTest, clearSessionCaptureCache } from "@raceiq/backend-core/session-capture/source-loader";
 

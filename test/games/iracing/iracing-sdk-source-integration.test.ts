@@ -5,24 +5,22 @@ import { join } from "node:path";
 import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 import {
   normalizeIRacingFrame,
-} from "@raceiq/backend-core/games/iracing/normalizer";
+} from "@raceiq/game-iracing/normalizer";
 import {
   type IRacingFrameReader,
   IRacingTelemetrySource,
-} from "@raceiq/backend-core/games/iracing/source";
+} from "@raceiq/game-iracing/source";
 import {
   createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,
   IRacingSourceFrameEncoder,
   type IRacingSourceFrameV3,
-} from "@raceiq/backend-core/games/iracing/source-frame";
+} from "@raceiq/capture-formats/iracing/source-frame";
 import { parsePacket } from "@raceiq/backend-core/games/packet-dispatch";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { timerResolutionRefCount } from "@raceiq/backend-core/games/shared/win-timer-resolution";
-import {
-  IRacingRecorder,
-  readIRacingFrames,
-} from "@raceiq/backend-core/games/iracing/recorder";
+import { IRacingRecorder } from "@raceiq/game-iracing/recorder";
+import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
 import { initGameAdapters } from "@raceiq/shared/games/init";
 import {
   iracingAdapter,

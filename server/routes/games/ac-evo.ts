@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { getAllAcEvoCars, getAcEvoCarClass } from "@raceiq/shared/racing/cars/ac-evo"
-import { PHYSICS, GRAPHICS_EVO, STATIC_EVO } from "../../games/ac-evo/structs";
-import { readCString } from "../../games/ac-evo/utils";
+import { PHYSICS, GRAPHICS_EVO, STATIC_EVO } from "@raceiq/capture-formats/ac-evo/structs";
+import { readCString } from "@raceiq/game-ac-evo/utils";
 import { getAcEvoReader } from "../../runtime/live-readers";
 
 interface FieldDef {

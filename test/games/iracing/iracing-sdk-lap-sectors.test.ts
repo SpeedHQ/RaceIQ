@@ -5,8 +5,8 @@ import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 import {
   createIRacingParserState,
   normalizeIRacingFrame,
-} from "@raceiq/backend-core/games/iracing/normalizer";
-import { LapDetectorIRacing } from "@raceiq/backend-core/games/iracing/lap-detector";
+} from "@raceiq/game-iracing/normalizer";
+import { LapDetectorIRacing } from "@raceiq/game-iracing/lap-detector";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
 import { SectorTracker } from "@raceiq/backend-core/live-strategy/sector-tracker";
 import { initGameAdapters } from "@raceiq/shared/games/init";

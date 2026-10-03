@@ -13,8 +13,8 @@ import {
   LMU_SCORING_INFO_SIZE,
   LMU_TELEMETRY,
   LMU_TELEMETRY_INFO_SIZE,
-} from "@raceiq/backend-core/games/lmu/layout";
-import { encodeLMUSourcePayload } from "@raceiq/backend-core/games/lmu/source-frame";
+} from "@raceiq/capture-formats/lmu/layout";
+import { encodeLMUSourcePayload } from "@raceiq/capture-formats/lmu/source-frame";
 import { encodeFrameLength, encodeMetaFrame } from "@raceiq/backend-core/session-capture/framing";
 import { RealDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 

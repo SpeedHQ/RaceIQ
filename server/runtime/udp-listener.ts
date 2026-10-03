@@ -12,7 +12,7 @@
  */
 import { resolve } from "node:path";
 import { parsePacket } from "../games/packet-dispatch";
-import { isForzaRaceOffPacket } from "../games/fm-2023/parser";
+import { isForzaRaceOffPacket } from "@raceiq/game-fm-2023/parser";
 import { wsManager } from "./websocket-manager";
 import { processPacket, flushSessionRecorderBuffer, lapDetector } from "../telemetry/live-pipeline";
 import { getRunningGame } from "../games/registry";

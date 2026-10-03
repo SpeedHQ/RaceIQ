@@ -8,9 +8,9 @@ import {
   resolveLMUCar,
   resolveLMUTrack,
 } from "@raceiq/shared/games/lmu/catalog";
-import { resolveLMUInvalidReason } from "@raceiq/backend-core/games/lmu/lap-policy";
+import { resolveLMUInvalidReason } from "@raceiq/game-lmu/lap-policy";
 import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";
-import { lmuServerAdapter } from "@raceiq/backend-core/games/lmu/index";
+import { lmuServerAdapter } from "@raceiq/game-lmu";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
 import { compileTelemetryResolver } from "@raceiq/shared/telemetry/resolver/compile";
@@ -18,7 +18,7 @@ import { transferRoutes } from "@raceiq/backend-core/routes/laps/transfer-routes
 import {
   previewLMUDuckDB,
   readLMUDuckDBFrames,
-} from "@raceiq/backend-core/games/lmu/import-duckdb";
+} from "@raceiq/game-lmu/import-duckdb";
 import {
   LMU_GAME_VERSION_OFFSET,
   LMU_SCORING_INFO,
@@ -33,17 +33,15 @@ import {
   LMU_TELEMETRY_INFO_OFFSET,
   LMU_WHEEL,
   LMU_WHEEL_SIZE,
-} from "@raceiq/backend-core/games/lmu/layout";
-import {
-  LMURecorder,
-  readLMUFrames,
-} from "@raceiq/backend-core/games/lmu/recorder";
-import { LMUTelemetrySource } from "@raceiq/backend-core/games/lmu/source";
+} from "@raceiq/capture-formats/lmu/layout";
+import { LMURecorder } from "@raceiq/game-lmu/recorder";
+import { readLMUFrames } from "@raceiq/capture-formats/lmu/dump";
+import { LMUTelemetrySource } from "@raceiq/game-lmu/source";
 import {
   canHandleLMUSourceFrame,
   decodeLMUSourceFrame,
   encodeLMUSourceFrame,
-} from "@raceiq/backend-core/games/lmu/source-frame";
+} from "@raceiq/capture-formats/lmu/source-frame";
 
 const temporaryDirectories: string[] = [];
 

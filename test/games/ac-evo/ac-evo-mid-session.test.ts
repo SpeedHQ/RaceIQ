@@ -14,7 +14,7 @@ import { initGameAdapters } from "@raceiq/shared/games/init";
 import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
-import { LapDetectorAcEvo } from "@raceiq/backend-core/games/ac-evo/lap-detector"
+import { LapDetectorAcEvo } from "@raceiq/game-ac-evo/lap-detector"
 import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing"
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
 import { parseRawLapFramesFromBuffer } from "@raceiq/backend-core/db/telemetry-replay-storage";

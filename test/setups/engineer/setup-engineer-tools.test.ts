@@ -16,7 +16,7 @@
 import { describe, expect, test } from "bun:test";
 import { applyIntents, describeKnobs } from "@raceiq/backend-core/setups/rules/engine";
 import { knownComponents } from "@raceiq/backend-core/setups/rules/catalog";
-import { readSetupEngineerContext } from "@raceiq/backend/src/mastra/tools/setup-engineer-request-context";
+import { readSetupEngineerContext } from "@raceiq/backend/mastra/tools/setup-engineer-request-context";
 
 function baseAccSetup() {
   return {

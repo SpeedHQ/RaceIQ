@@ -1,6 +1,6 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { parseDump } from "../support/recordings/parse-dump";
-import { LapDetectorAcc } from "@raceiq/backend-core/games/acc/lap-detector"
+import { LapDetectorAcc } from "@raceiq/game-acc/lap-detector"
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
 import { initGameAdapters } from "@raceiq/shared/games/init";
 

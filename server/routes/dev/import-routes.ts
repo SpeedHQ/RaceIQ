@@ -9,16 +9,16 @@ import { getAcEvoCarByDisplayName } from "@raceiq/shared/racing/cars/ac-evo"
 import { getAcEvoTrackByName } from "@raceiq/shared/racing/tracks/catalogs/ac-evo"
 import { getGame } from "@raceiq/shared/games/registry";
 import { KNOWN_GAME_IDS } from "@raceiq/shared/games/ids";
-import { parseAccBuffers } from "../../games/acc/parser";
-import { STATIC } from "../../games/acc/structs";
-import { readWString } from "../../games/acc/utils";
-import { createAcEvoParserCache, parseAcEvoBuffers } from "../../games/ac-evo/parser";
-import { GRAPHICS_EVO, STATIC_EVO } from "../../games/ac-evo/structs";
-import { readCString } from "../../games/ac-evo/utils";
+import { parseAccBuffers } from "@raceiq/game-acc/parser";
+import { STATIC } from "@raceiq/capture-formats/acc/structs";
+import { readWString } from "@raceiq/game-acc/utils";
+import { createAcEvoParserCache, parseAcEvoBuffers } from "@raceiq/game-ac-evo/parser";
+import { GRAPHICS_EVO, STATIC_EVO } from "@raceiq/capture-formats/ac-evo/structs";
+import { readCString } from "@raceiq/game-ac-evo/utils";
 import { readKunosFrames } from "../../games/kunos/frame-reader";
-import { readLMUFrames } from "../../games/lmu/recorder";
-import { decodeLMUSourceFrame } from "../../games/lmu/source-frame";
-import { identityFromLMUSourceFrame } from "../../games/lmu/normalizer";
+import { readLMUFrames } from "@raceiq/capture-formats/lmu/dump";
+import { decodeLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
+import { identityFromLMUSourceFrame } from "@raceiq/game-lmu/normalizer";
 import { getAllServerGames } from "../../games/registry";
 import {
   ACC_PACKED_MAGIC,

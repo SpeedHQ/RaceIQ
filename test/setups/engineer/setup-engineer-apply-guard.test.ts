@@ -44,7 +44,7 @@ import * as RealConsult from "@raceiq/backend-core/ai/consult-lap-analyst";
 import * as RealCleanLap from "@raceiq/backend-core/experiments/lap-evidence/aggregate";
 import * as RealComparison from "@raceiq/backend-core/lap-analysis/comparison"
 import * as RealSettings from "@raceiq/backend-core/runtime/config/settings";
-import * as RealMastraModel from "@raceiq/backend/src/mastra/model";
+import * as RealMastraModel from "@raceiq/backend/mastra/model";
 
 let stubsActive = false;
 beforeAll(() => {
@@ -189,12 +189,12 @@ mock.module("@raceiq/backend-core/runtime/config/settings", () => ({
   ...RealSettings,
   loadSettings: gate(RealSettings.loadSettings, mock(() => ({ ai: {} }))),
 }));
-mock.module("@raceiq/backend/src/mastra/model", () => ({
+mock.module("@raceiq/backend/mastra/model", () => ({
   ...RealMastraModel,
   getMastraModelId: gate(RealMastraModel.getMastraModelId, mock(() => "fake/model")),
 }));
 
-const { setupEngineerTools } = await import("@raceiq/backend/src/mastra/tools/setup-engineer");
+const { setupEngineerTools } = await import("@raceiq/backend/mastra/tools/setup-engineer");
 
 const requestContext = { get: (k: string) => ({ gameId: "acc", sessionId: 61 } as any)[k] };
 
@@ -341,7 +341,7 @@ describe("get_lap_issues — explicit experiment-scoped worker analysis", () => 
 
 describe("SETUP_ENGINEER_INSTRUCTIONS — prompt mandates", () => {
   test("mandates consult_lap_analyst before the first recommendation and refuses on unknown setup values", async () => {
-    const { SETUP_ENGINEER_INSTRUCTIONS } = await import("@raceiq/backend/src/mastra/agents/setup-engineer");
+    const { SETUP_ENGINEER_INSTRUCTIONS } = await import("@raceiq/backend/mastra/agents/setup-engineer");
 
     // 1. First-recommendation gate on the lap analyst.
     expect(SETUP_ENGINEER_INSTRUCTIONS).toMatch(/MUST call \\?`consult_lap_analyst\\?` (?:once )?before (?:making |giving )?(?:your|the) FIRST setup recommendation/i);

@@ -20,9 +20,9 @@ import {
 	ensureInit,
 } from "../../support/recordings/parse-dump";
 import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
-import { parseAcEvoLapIndex } from "@raceiq/backend-core/games/kunos/lap-index";
-import { createAcEvoParserCache } from "@raceiq/backend-core/games/ac-evo/parser";
-import { LapDetectorAcEvo } from "@raceiq/backend-core/games/ac-evo/lap-detector";
+import { parseAcEvoLapIndex } from "@raceiq/game-ac-evo/lap-index";
+import { createAcEvoParserCache } from "@raceiq/game-ac-evo/parser";
+import { LapDetectorAcEvo } from "@raceiq/game-ac-evo/lap-detector";
 import { generateRecordingVisualizations } from "../../support/laps/visualizations";
 import { assertValidLapHasSectors } from "../../support/laps/assertions";
 import { getTrackSectorsByOrdinal } from "@raceiq/shared/racing/tracks/storage/sectors";

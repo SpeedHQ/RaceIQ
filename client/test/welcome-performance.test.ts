@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { DEFAULT_TOGGLES } from "../src/lib/wireframe-data";
-import { buildDemoFixture } from "../../scripts/telemetry/generate-demo-fixture";
+import { buildDemoFixture } from "@raceiq/tooling/telemetry/generate-demo-fixture";
 import { buildLoadTrail } from "../src/components/wireframe/CarScene";
 import { canonicalModelYawAlignment } from "../src/components/wireframe/CarBody";
 import { DEMO_CAR, F1_CAR, type CarModelEnrichment } from "../src/data/car-models";

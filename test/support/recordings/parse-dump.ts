@@ -9,12 +9,12 @@ import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 import { getAllServerGames, getServerGame } from "@raceiq/backend-core/games/registry";
 import { readUdpDump } from "./udp";
 import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
-import { readIRacingFrames } from "@raceiq/backend-core/games/iracing/recorder";
-import { readLMUFrames } from "@raceiq/backend-core/games/lmu/recorder";
-import { parseAccBuffers } from "@raceiq/backend-core/games/acc/parser";
-import { parseAcEvoBuffers, createAcEvoParserCache } from "@raceiq/backend-core/games/ac-evo/parser";
-import { readWString } from "@raceiq/backend-core/games/acc/utils";
-import { STATIC } from "@raceiq/backend-core/games/acc/structs";
+import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
+import { readLMUFrames } from "@raceiq/capture-formats/lmu/dump";
+import { parseAccBuffers } from "@raceiq/game-acc/parser";
+import { parseAcEvoBuffers, createAcEvoParserCache } from "@raceiq/game-ac-evo/parser";
+import { readWString } from "@raceiq/game-acc/utils";
+import { STATIC } from "@raceiq/capture-formats/acc/structs";
 import { getAccCarByModel } from "@raceiq/shared/racing/cars/acc"
 import { getAccTrackByName } from "@raceiq/shared/racing/tracks/catalogs/acc"
 import { readFileSync } from "node:fs";

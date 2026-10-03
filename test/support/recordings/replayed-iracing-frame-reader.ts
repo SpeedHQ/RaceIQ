@@ -1,11 +1,11 @@
-import { readIRacingFrames } from "@raceiq/backend-core/games/iracing/recorder";
-import type { IRacingFrameReader } from "@raceiq/backend-core/games/iracing/source";
+import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
+import type { IRacingFrameReader } from "@raceiq/game-iracing/source";
 import {
   createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,
   type IRacingSessionSnapshot,
-} from "@raceiq/backend-core/games/iracing/source-frame";
-import type { IRacingSdkSnapshot } from "@raceiq/backend-core/games/iracing/sdk-reader";
+} from "@raceiq/capture-formats/iracing/source-frame";
+import type { IRacingSdkSnapshot } from "@raceiq/game-iracing/sdk-reader";
 
 function reconstructSessionInfo(session: IRacingSessionSnapshot): string {
   const sectors = (session.sectorStarts ?? [0])

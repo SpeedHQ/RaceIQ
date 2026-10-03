@@ -30,10 +30,10 @@ import { reserveChatRun, buildReplayStream, finishRun } from "../ai/chat-run-reg
 import { createUIMessageStreamResponse } from "ai";
 import { sessionAgentForFocus } from "../ai/agents";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@raceiq/shared/racing/experiments/focus";
-import { buildSetupEngineerSystemPrompt } from "@raceiq/backend/src/mastra/agents/setup-engineer";
+import { buildSetupEngineerSystemPrompt } from "@raceiq/backend/mastra/agents/setup-engineer";
 import { RequestContext } from "@mastra/core/request-context";
 import { configureAiProviderEnvironment } from "../ai/openai-compatible-provider";
-import { setupEngineerTurnWorkflow } from "@raceiq/backend/src/mastra/workflows/setup-engineer-turn";
+import { setupEngineerTurnWorkflow } from "@raceiq/backend/mastra/workflows/setup-engineer-turn";
 
 
 const LiveAnalysisSchema = z.object({

@@ -5,7 +5,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 import { getServerGame } from "../games/registry";
-import { isIRacingSessionFrame } from "../games/iracing/source-frame";
+import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-frame";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import type { LapSetAlignmentIndex } from "@raceiq/shared/racing/laps/alignment/build";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";

@@ -4,9 +4,9 @@ import { resolve } from "node:path";
 import { resetTestDatabase } from "./reset-test-database";
 import { seedScreenshotData } from "./seed-screenshot-data";
 import { normalizeSeededCapturePaths } from "./seeded-database";
-import { iterateSessionCaptureRecordsFromSource } from "../../../server/session-capture/source-loader";
+import { iterateSessionCaptureRecordsFromSource } from "@raceiq/backend-core/session-capture/source-loader";
 import type { GameId } from "@raceiq/shared/games/ids";
-import { DEFAULT_GAMES } from "../../../scripts/data/seed-db-options";
+import { DEFAULT_GAMES } from "@raceiq/tooling/data/seed-db-options";
 
 const repoDir = resolve(import.meta.dir, "../../..");
 if (!process.env.DATA_DIR) throw new Error("DATA_DIR is required for seed artifact preparation");
@@ -17,7 +17,7 @@ process.env.PW_SEED_SCREENSHOTS = "1";
 process.env.PW_SEED_GAMES = DEFAULT_GAMES.join(",");
 delete process.env.PW_SEEDED_DATABASE;
 seedScreenshotData(repoDir, dataDir);
-const { chatThreadId, compareChatThreadId, getChatMemory } = await import("../../../server/ai/chat-agent");
+const { chatThreadId, compareChatThreadId, getChatMemory } = await import("@raceiq/backend-core/ai/chat-agent");
 
 const database = new Database(resolve(dataDir, "app.db"));
 try {

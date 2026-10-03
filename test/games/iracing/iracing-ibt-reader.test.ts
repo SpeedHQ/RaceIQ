@@ -7,20 +7,20 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
-import { IRacingIbtReader } from "@raceiq/backend-core/games/iracing/ibt-reader";
+import { IRacingIbtReader } from "@raceiq/game-iracing/ibt-reader";
 import { previewIbtFile } from "@raceiq/backend-core/games/iracing/import-ibt";
-import { normalizeIRacingFrame } from "@raceiq/backend-core/games/iracing/normalizer";
-import { IRacingTelemetrySource } from "@raceiq/backend-core/games/iracing/source";
+import { normalizeIRacingFrame } from "@raceiq/game-iracing/normalizer";
+import { IRacingTelemetrySource } from "@raceiq/game-iracing/source";
 import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 import { initGameAdapters } from "@raceiq/shared/games/init";
 import {
   createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,
   type IRacingSourceFrameV3,
-} from "@raceiq/backend-core/games/iracing/source-frame";
+} from "@raceiq/capture-formats/iracing/source-frame";
 import {
   IRSDK_VAR_HEADER_SIZE,
-} from "@raceiq/backend-core/games/iracing/variable-table";
+} from "@raceiq/capture-formats/iracing/variable-table";
 import {
   DEFAULT_IDENTITY,
   DISK_HEADER_SIZE,

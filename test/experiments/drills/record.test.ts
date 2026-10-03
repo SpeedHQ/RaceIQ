@@ -6,7 +6,7 @@ import {
   recordDrillOutputSchema,
   type RecordDrillInput,
   type RecordDrillResult,
-} from "@raceiq/backend/src/mastra/tools/driver-coach";
+} from "@raceiq/backend/mastra/tools/driver-coach";
 import { createExperiment, getExperiment, setSessionHead } from "@raceiq/backend-core/db/experiment-queries";
 import { createExperimentVersion, getExperimentVersion, listExperimentVersions } from "@raceiq/backend-core/db/experiment-version-queries";
 import type { DrillChange } from "@raceiq/shared/racing/experiments/types";

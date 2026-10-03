@@ -6,9 +6,9 @@ import { listDiscoveredTracks } from "../../db/discovered-tracks";
 import { db } from "../../db/index";
 import { sessions } from "../../db/schema";
 import { decompressIfGzipSync, iterateSessionFrames } from "../../session-capture/framing";
-import { identityFromLMUSourceFrame } from "./normalizer";
-import { readLMUFramesFromBuffer } from "./recorder";
-import { decodeLMUSourceFrame } from "./source-frame";
+import { identityFromLMUSourceFrame } from "@raceiq/game-lmu/normalizer";
+import { readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump";
+import { decodeLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
 
 const BATCH_SIZE = 100;
 

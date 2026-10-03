@@ -2,9 +2,7 @@
   "name": "@raceiq/game-lmu",
   "private": true,
   "type": "module",
-  "exports": {
-    ".": "./src/index.ts"
-  },
+  "exports": {".":"./src/index.ts","./import-duckdb":"./src/import-duckdb.ts","./lap-policy":"./src/lap-policy.ts","./normalizer":"./src/normalizer.ts","./recorder":"./src/recorder.ts","./source":"./src/source.ts"},
   "dependencies": {
     "@raceiq/shared": "workspace:*",
     "@raceiq/backend-core": "workspace:*",

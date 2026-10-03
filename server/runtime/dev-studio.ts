@@ -20,7 +20,7 @@
 import type { Hono } from "hono";
 import { MastraServer } from "@mastra/hono";
 import { scoreTracesWorkflow } from "@mastra/core/evals/scoreTraces";
-import { mastra } from "@raceiq/backend/src/mastra/index";
+import { mastra } from "@raceiq/backend/mastra/index";
 
 /**
  * Distinct from RaceIQ's own `/api/*` routes so Mastra's built-in endpoints

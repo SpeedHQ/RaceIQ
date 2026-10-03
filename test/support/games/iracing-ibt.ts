@@ -8,7 +8,7 @@ import { join } from "node:path";
 import {
   IRSDK_VAR_HEADER_SIZE,
   IRSDKVariableType,
-} from "@raceiq/backend-core/games/iracing/variable-table";
+} from "@raceiq/capture-formats/iracing/variable-table";
 
 export const DISK_HEADER_SIZE = 144;
 export const ROW_LENGTH = 44;

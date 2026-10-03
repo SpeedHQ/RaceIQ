@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { RequestContext } from "@mastra/core/request-context";
-import { buildDriverCoachInstructions, driverCoachAgent, DRIVER_COACH_INSTRUCTIONS } from "@raceiq/backend/src/mastra/agents/driver-coach";
-import { setupEngineerAgent } from "@raceiq/backend/src/mastra/agents/setup-engineer";
+import { buildDriverCoachInstructions, driverCoachAgent, DRIVER_COACH_INSTRUCTIONS } from "@raceiq/backend/mastra/agents/driver-coach";
+import { setupEngineerAgent } from "@raceiq/backend/mastra/agents/setup-engineer";
 import { sessionAgentForFocus } from "@raceiq/backend-core/ai/agents";
-import { buildSetupEngineerSystemPrompt } from "@raceiq/backend/src/mastra/agents/setup-engineer";
+import { buildSetupEngineerSystemPrompt } from "@raceiq/backend/mastra/agents/setup-engineer";
 import { createModelContext } from "@raceiq/backend-core/ai/model-provider";
 import { resolveAi } from "@raceiq/backend-core/ai/ai-runtime";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";

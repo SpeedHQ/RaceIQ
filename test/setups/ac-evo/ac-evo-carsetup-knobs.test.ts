@@ -3,7 +3,7 @@ import { copyFileSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import * as os from "node:os";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { readCarSetupFile, carSetupToKnobValues } from "@raceiq/backend-core/games/ac-evo/carsetup";
+import { readCarSetupFile, carSetupToKnobValues } from "@raceiq/game-ac-evo/carsetup";
 
 // `getSetupsBaseDir` derives the Setups folder from `os.homedir()`. Bun's
 // homedir() reads the OS password database on POSIX, so setting HOME/USERPROFILE

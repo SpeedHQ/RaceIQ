@@ -1,10 +1,10 @@
-import { IRacingIbtReader } from "@raceiq/backend-core/games/iracing/ibt-reader";
+import { IRacingIbtReader } from "@raceiq/game-iracing/ibt-reader";
 import {
   createIRacingParserState,
   normalizeIRacingFrame,
-} from "@raceiq/backend-core/games/iracing/normalizer";
-import { parseIRacingSessionInfo } from "@raceiq/backend-core/games/iracing/session-info";
-import type { IRacingSessionSnapshot } from "@raceiq/backend-core/games/iracing/source-frame";
+} from "@raceiq/game-iracing/normalizer";
+import { parseIRacingSessionInfo } from "@raceiq/capture-formats/iracing/session-info";
+import type { IRacingSessionSnapshot } from "@raceiq/capture-formats/iracing/source-frame";
 
 const path = process.argv[2];
 if (!path) {

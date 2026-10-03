@@ -1,6 +1,6 @@
 import { describe, expect, spyOn, test, vi } from "bun:test";
-import type { AccSharedMemoryReader } from "@raceiq/backend-core/games/acc/shared-memory";
-import type { LMUTelemetrySource } from "@raceiq/backend-core/games/lmu/source";
+import type { AccSharedMemoryReader } from "@raceiq/game-acc/shared-memory";
+import type { LMUTelemetrySource } from "@raceiq/game-lmu/source";
 import * as registry from "@raceiq/backend-core/games/registry";
 import {
   getAccReader,

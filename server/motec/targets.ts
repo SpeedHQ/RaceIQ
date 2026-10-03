@@ -40,8 +40,8 @@ import { MOTEC_IMPORT_LIMITATIONS } from "./kunos-synthesis";
 import {
   convertAccMotecToPackets,
   resolveAccMotecCarTrack,
-} from "../games/acc/motec";
-import { convertAcEvoMotecToPackets } from "../games/ac-evo/motec";
+} from "@raceiq/game-acc/motec";
+import { convertAcEvoMotecToPackets } from "@raceiq/game-ac-evo/motec";
 import { getAcEvoCarByModel, getAcEvoCarName } from "@raceiq/shared/racing/cars/ac-evo";
 import {
   getAcEvoTrackByName,

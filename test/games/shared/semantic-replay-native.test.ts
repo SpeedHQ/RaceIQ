@@ -7,7 +7,7 @@ import { deleteSession, insertSession, updateSessionRawFile } from "@raceiq/back
 import type { LapReplaySource } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { cacheDelete, cacheSet } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
-import { IRacingSourceFrameEncoder, type IRacingSourceFrameV2 } from "@raceiq/backend-core/games/iracing/source-frame";
+import { IRacingSourceFrameEncoder, type IRacingSourceFrameV2 } from "@raceiq/capture-formats/iracing/source-frame";
 import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing";
 import { iterateIRacingNativeFramesForTest, queryLapTelemetryBySemanticId } from "@raceiq/backend-core/telemetry/replay";
 import { initGameAdapters } from "@raceiq/shared/games/init";

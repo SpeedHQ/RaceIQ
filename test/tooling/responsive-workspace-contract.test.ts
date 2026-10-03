@@ -19,10 +19,10 @@ function readTree(path: string) {
 
 describe("responsive workspace contract", () => {
   test("app shell owns one shared container boundary for every route", () => {
-    const workspace = read("client/src/components/ResponsiveWorkspace.tsx");
-    const root = read("client/src/routes/__root.tsx");
-    const analyseRoute = read("client/src/routes/$gameid/sessions.analyse.tsx");
-    const compareRoute = read("client/src/routes/$gameid/compare.tsx");
+    const workspace = read("client/src/components/ResponsiveWorkspace");
+    const root = read("client/src/routes/__root");
+    const analyseRoute = read("client/src/routes/$gameid/sessions.analyse");
+    const compareRoute = read("client/src/routes/$gameid/compare");
 
     expect(workspace).toContain("@container/workspace");
     expect(workspace).toContain("overflow-x-hidden");
@@ -32,7 +32,7 @@ describe("responsive workspace contract", () => {
   });
 
   test("app features do not own viewport gates or resize listeners", () => {
-    const featureSources = [...readTree("client/src/components"), ...readTree("client/src/routes")];
+    const featureSources = [...readTree("client/src/components"), ...readTree("client/src/routes/index")];
 
     for (const source of featureSources) {
       expect(source).not.toContain("window.innerWidth");
@@ -44,9 +44,9 @@ describe("responsive workspace contract", () => {
   });
 
   test("blocking rotation and unsupported helpers stay removed", () => {
-    const root = read("client/src/routes/__root.tsx");
-    const sessions = read("client/src/components/sessions/SessionsPage.tsx");
-    const dash = read("client/src/routes/portable.index.tsx");
+    const root = read("client/src/routes/__root");
+    const sessions = read("client/src/components/sessions/SessionsPage");
+    const dash = read("client/src/routes/portable.index");
 
     expect(root).not.toContain("function MobileNotSupported");
     expect(root).not.toContain("function RotatePrompt");
@@ -56,9 +56,9 @@ describe("responsive workspace contract", () => {
   });
 
   test("dense workspaces define stacked and wide compositions", () => {
-    const analysePanels = read("client/src/components/analyse/AnalyseWorkspacePanels.tsx");
-    const compare = read("client/src/components/comparison/LapComparison.tsx");
-    const analyseTop = read("client/src/components/analyse/AnalyseTopSection.tsx");
+    const analysePanels = read("client/src/components/analyse/AnalyseWorkspacePanels");
+    const compare = read("client/src/components/comparison/LapComparison");
+    const analyseTop = read("client/src/components/analyse/AnalyseTopSection");
 
     expect(analysePanels).toContain("@5xl/workspace:flex-row");
     expect(compare).toContain("@5xl/workspace:flex-row");
@@ -66,9 +66,9 @@ describe("responsive workspace contract", () => {
   });
 
   test("analyse track sizing stays CSS-owned", () => {
-    const trackPanel = read("client/src/components/analyse/AnalyseTrackPanel.tsx");
-    const trackMap = read("client/src/components/analyse/AnalyseTrackMap.tsx");
-    const liveDashboard = read("client/src/components/tunes/LiveTestDashboard.tsx");
+    const trackPanel = read("client/src/components/analyse/AnalyseTrackPanel");
+    const trackMap = read("client/src/components/analyse/AnalyseTrackMap");
+    const liveDashboard = read("client/src/components/tunes/LiveTestDashboard");
 
     expect(trackPanel).not.toContain("containerHeight");
     expect(trackMap).not.toContain("containerHeight");
@@ -78,17 +78,17 @@ describe("responsive workspace contract", () => {
 
   test("route-level page composition uses named content-width tiers", () => {
     const pageOwners = [
-      "client/src/components/home/HomePageView.tsx",
-      "client/src/components/cars/CarsPage.tsx",
-      "client/src/components/sessions/SessionDesktopTable.tsx",
-      "client/src/components/TrackViewer.tsx",
-      "client/src/components/track/TrackDetail.tsx",
-      "client/src/components/ForzaLiveDashboard.tsx",
-      "client/src/components/f1/F1LiveDashboard.tsx",
-      "client/src/components/acc/AccLiveDashboard.tsx",
-      "client/src/components/tunes/experiment/ExperimentList.tsx",
-      "client/src/components/tunes/ExperimentWorkspace.tsx",
-      "client/src/routes/portable.index.tsx",
+      "client/src/components/home/HomePageView",
+      "client/src/components/cars/CarsPage",
+      "client/src/components/sessions/SessionDesktopTable",
+      "client/src/components/TrackViewer",
+      "client/src/components/track/TrackDetail",
+      "client/src/components/ForzaLiveDashboard",
+      "client/src/components/f1/F1LiveDashboard",
+      "client/src/components/acc/AccLiveDashboard",
+      "client/src/components/tunes/experiment/ExperimentList",
+      "client/src/components/tunes/ExperimentWorkspace",
+      "client/src/routes/portable.index",
     ];
 
     for (const path of pageOwners) {
@@ -100,13 +100,13 @@ describe("responsive workspace contract", () => {
 
   test("app shell and full-screen flows own named container contracts", () => {
     const owners = [
-      ["client/src/routes/__root.tsx", "@container/shell"],
-      ["client/src/components/settings/Settings.tsx", "@container/settings"],
-      ["client/src/components/onboarding/OnboardingModal.tsx", "@container/onboarding"],
-      ["client/src/components/analyse/DataGuideModal.tsx", "@container/data-guide"],
-      ["client/src/components/analyse/TuneViewModal.tsx", "@container/tune-view"],
-      ["client/src/components/tunes/SetupFilePicker.tsx", "@container/setup-file"],
-      ["client/src/components/ui/dialog.tsx", "@container/dialog"],
+      ["client/src/routes/__root", "@container/shell"],
+      ["client/src/components/settings/Settings", "@container/settings"],
+      ["client/src/components/onboarding/OnboardingModal", "@container/onboarding"],
+      ["client/src/components/analyse/DataGuideModal", "@container/data-guide"],
+      ["client/src/components/analyse/TuneViewModal", "@container/tune-view"],
+      ["client/src/components/tunes/SetupFilePicker", "@container/setup-file"],
+      ["client/src/components/ui/dialog", "@container/dialog"],
     ] as const;
 
     for (const [path, container] of owners) {

@@ -28,8 +28,8 @@ import {
   IRacingSourceFrameEncoder,
   isIRacingSessionFrame,
   type IRacingSourceFrameV2,
-} from "@raceiq/backend-core/games/iracing/source-frame";
-import { F1_PACKET_IDS } from "@raceiq/backend-core/games/f1-2025/f1-wire";
+} from "@raceiq/capture-formats/iracing/source-frame";
+import { F1_PACKET_IDS } from "@raceiq/capture-formats/f1-2025/f1-wire";
 import type { GameId } from "@raceiq/shared/games/ids";
 
 initGameAdapters();

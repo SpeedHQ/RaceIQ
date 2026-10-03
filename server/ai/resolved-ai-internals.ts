@@ -1,4 +1,4 @@
-import type { BoundMastraModel } from "@raceiq/backend/src/mastra/model";
+import type { BoundMastraModel } from "@raceiq/backend/mastra/model";
 import type { ResolvedAi } from "./ai-types";
 
 /** RequestContext key owned by the central model resolver. */

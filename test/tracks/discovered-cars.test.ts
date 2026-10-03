@@ -10,7 +10,7 @@ import {
   DISCOVERED_CAR_ORDINAL_BASE,
 } from "@raceiq/backend-core/db/discovered-cars";
 import { injectDiscoveredAcEvoCars, getAcEvoCarName } from "@raceiq/shared/racing/cars/ac-evo"
-import { LapDetectorAcEvo } from "@raceiq/backend-core/games/ac-evo/lap-detector";
+import { LapDetectorAcEvo } from "@raceiq/game-ac-evo/lap-detector";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 

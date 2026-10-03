@@ -15,8 +15,8 @@ import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 import { iterateSessionCaptureFrames } from "@raceiq/backend-core/session-capture/source-loader";
 import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
 import { ACC_PACKED_MAGIC, packTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
-import { readIRacingFrames } from "@raceiq/backend-core/games/iracing/recorder";
-import { readLMUFramesFromBuffer } from "@raceiq/backend-core/games/lmu/recorder";
+import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
+import { readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump";
 import type { GameId } from "@raceiq/shared/games/ids";
 
 const dirs: string[] = [];

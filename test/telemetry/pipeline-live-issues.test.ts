@@ -13,7 +13,7 @@ import { initGameAdapters } from "@raceiq/shared/games/init";
 import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
 import { LiveTelemetryPipeline, stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
-import { isForzaRaceOffPacket, parseForzaPacket } from "@raceiq/backend-core/games/fm-2023/parser";
+import { isForzaRaceOffPacket, parseForzaPacket } from "@raceiq/game-fm-2023/parser";
 import { iterateSessionFrames } from "@raceiq/backend-core/session-capture/framing";
 
 initGameAdapters();

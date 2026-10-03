@@ -10,13 +10,11 @@ import {
   readFileSync,
 } from "node:fs";
 import { resolve } from "node:path";
-import {
-  readIRacingFrames,
-} from "@raceiq/backend-core/games/iracing/recorder";
+import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
 import {
   createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,
-} from "@raceiq/backend-core/games/iracing/source-frame";
+} from "@raceiq/capture-formats/iracing/source-frame";
 import { initGameAdapters } from "@raceiq/shared/games/init";
 import {
   generateTrackSegments,

@@ -3,15 +3,15 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import { getAccCarByModel } from "@raceiq/shared/racing/cars/acc";
 import { getAccTrackByName } from "@raceiq/shared/racing/tracks/catalogs/acc";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { parseAccBuffers } from "../games/acc/parser";
-import { STATIC } from "../games/acc/structs";
-import { readWString } from "../games/acc/utils";
+import { parseAccBuffers } from "@raceiq/game-acc/parser";
+import { STATIC } from "@raceiq/capture-formats/acc/structs";
+import { readWString } from "@raceiq/game-acc/utils";
 import {
   createAcEvoParserCache,
   parseAcEvoBuffers,
-} from "../games/ac-evo/parser";
-import { readIRacingFrames } from "../games/iracing/recorder";
-import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "../games/lmu/recorder";
+} from "@raceiq/game-ac-evo/parser";
+import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
+import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump";
 import { readKunosFrames } from "../games/kunos/frame-reader";
 import { getServerGame } from "../games/registry";
 import { decompressIfGzipSync, iterateSessionCaptureRecords, iterateSessionFrames } from "./framing";

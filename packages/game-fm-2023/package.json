@@ -2,9 +2,7 @@
   "name": "@raceiq/game-fm-2023",
   "private": true,
   "type": "module",
-  "exports": {
-    ".": "./src/index.ts"
-  },
+  "exports": {".":"./src/index.ts","./parser":"./src/parser.ts"},
   "dependencies": {
     "@raceiq/shared": "workspace:*",
     "@raceiq/backend-core": "workspace:*",

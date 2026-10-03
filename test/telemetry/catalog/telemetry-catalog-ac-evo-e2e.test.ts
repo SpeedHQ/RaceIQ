@@ -4,7 +4,7 @@ import { initGameAdapters } from "@raceiq/shared/games/init";
 import { requiredSemanticIds } from "@raceiq/shared/games/metric-contracts";
 import { assertRecordedCatalogCoverage, changingPacketFields } from "../../support/telemetry/catalog-e2e";
 import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
-import { createAcEvoParserCache, parseAcEvoBuffers } from "@raceiq/backend-core/games/ac-evo/parser";
+import { createAcEvoParserCache, parseAcEvoBuffers } from "@raceiq/game-ac-evo/parser";
 import { LiveTelemetryProjector } from "@raceiq/backend-core/telemetry/live-projector";
 import { buildLiveTelemetryView } from "./client/src/lib/live-telemetry-view";
 initGameAdapters();

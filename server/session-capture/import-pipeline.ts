@@ -5,7 +5,7 @@ import type { LapMeta, SessionOwnership } from "@raceiq/shared/racing/sessions/t
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 import { deleteSession, updateSessionSource } from "../db/session-queries";
 import { getServerGame } from "../games/registry";
-import { isIRacingSessionFrame } from "../games/iracing/source-frame";
+import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-frame";
 import { SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END } from "./framing";
 import { applyFrameTime } from "./frame-time";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";

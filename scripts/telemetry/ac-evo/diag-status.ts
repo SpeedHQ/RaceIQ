@@ -16,9 +16,9 @@ import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 import { developmentReleaseFeatures } from "../../release/development-release-features";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing";
-import { ACEVO_STATUS, GRAPHICS_EVO } from "@raceiq/backend-core/games/ac-evo/structs";
+import { ACEVO_STATUS, GRAPHICS_EVO } from "@raceiq/capture-formats/ac-evo/structs";
 import { unpackTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
-import { LapDetectorAcEvo } from "@raceiq/backend-core/games/ac-evo/lap-detector";
+import { LapDetectorAcEvo } from "@raceiq/game-ac-evo/lap-detector";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 
 initGameAdapters(developmentReleaseFeatures);

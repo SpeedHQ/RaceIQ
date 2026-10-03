@@ -8,9 +8,9 @@ import { getSessionResult, getStaleRaceResultSessionIds } from "../db/session-re
 import { reprocessSession, SessionNotFoundError, SessionRawFileMissingError } from "../session-capture/reprocess";
 import { getCaptureMigrationProgress, migrateCaptures } from "../session-capture/migrate-captures";
 import { LAP_DETECTOR_ID } from "../lap-detection/detector";
-import { LAP_DETECTOR_ACC_ID } from "../games/acc/lap-detector";
-import { LAP_DETECTOR_AC_EVO_ID } from "../games/ac-evo/lap-detector";
-import { LAP_DETECTOR_IRACING_ID } from "../games/iracing/lap-detector";
+import { LAP_DETECTOR_ACC_ID } from "@raceiq/game-acc/lap-detector";
+import { LAP_DETECTOR_AC_EVO_ID } from "@raceiq/game-ac-evo/lap-detector";
+import { LAP_DETECTOR_IRACING_ID } from "@raceiq/game-iracing/lap-detector";
 import { getAllServerGames } from "../games/registry";
 import { wsManager } from "../runtime/websocket-manager";
 import { computeRecap } from "../lap-analysis/recap";

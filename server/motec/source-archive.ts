@@ -12,8 +12,8 @@ const LDX_ENTRY = "session.ldx";
 const MANIFEST_ENTRY = "manifest.json";
 export const MOTEC_SOURCE_SUFFIX = ".motec.zip";
 export type MotecOffsetEncoding = "packet-index" | "legacy-bin-byte-offset";
-import { PHYSICS as ACC_PHYSICS, GRAPHICS as ACC_GRAPHICS, STATIC as ACC_STATIC } from "../games/acc/structs";
-import { PHYSICS as EVO_PHYSICS, GRAPHICS_EVO as EVO_GRAPHICS, STATIC_EVO as EVO_STATIC } from "../games/ac-evo/structs";
+import { PHYSICS as ACC_PHYSICS, GRAPHICS as ACC_GRAPHICS, STATIC as ACC_STATIC } from "@raceiq/capture-formats/acc/structs";
+import { PHYSICS as EVO_PHYSICS, GRAPHICS_EVO as EVO_GRAPHICS, STATIC_EVO as EVO_STATIC } from "@raceiq/capture-formats/ac-evo/structs";
 export function motecLegacyRecordLength(gameId: GameId): number {
   const sizes = gameId === "acc"
     ? [ACC_PHYSICS.SIZE, ACC_GRAPHICS.SIZE, ACC_STATIC.SIZE]

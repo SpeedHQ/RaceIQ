@@ -23,15 +23,15 @@ import {
   buildEvalLapAnalystAgent,
   buildEvalCompareEngineerAgent,
   resolveEvalModelId,
-} from "@raceiq/backend/src/mastra/evals/eval-agents";
+} from "@raceiq/backend/mastra/evals/eval-agents";
 import {
   listLapFixtures,
   listComparePairFixtures,
   loadLapPackets,
   type LapFixture,
   type ComparePairFixture,
-} from "@raceiq/backend/src/mastra/evals/fixtures";
-import { analystScorers, compareScorers, scoreOutput } from "@raceiq/backend/src/mastra/evals/index";
+} from "@raceiq/backend/mastra/evals/fixtures";
+import { analystScorers, compareScorers, scoreOutput } from "@raceiq/backend/mastra/evals/index";
 
 if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
   console.error("Missing GEMINI_API_KEY / GOOGLE_GENERATIVE_AI_API_KEY");

@@ -13,8 +13,8 @@ import { loadSharedOutline } from "@raceiq/shared/racing/tracks/geometry/shared"
 import { tryGetServerGame } from "../../games/registry";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { GameIdSchema, type GameId } from "@raceiq/shared/games/ids";
-import { getIRacingSvgTrackMap } from "../../games/iracing/track-map";
-import { alignIRacingAutoSegmentsToTurnLabels, type IRacingMapLabel } from "../../games/iracing/track-map-svg";
+import { getIRacingSvgTrackMap } from "@raceiq/game-iracing/track-map";
+import { alignIRacingAutoSegmentsToTurnLabels, type IRacingMapLabel } from "@raceiq/game-iracing/track-map-svg";
 import { lapPath } from "@raceiq/shared/racing/tracks/path";
 import { getLMUTrack } from "@raceiq/shared/games/lmu/catalog";
 import { getLMUTrackOutline } from "@raceiq/shared/games/lmu/track-boundaries";

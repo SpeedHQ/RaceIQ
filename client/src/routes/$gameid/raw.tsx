@@ -62,7 +62,7 @@ function HexViewer({ bytes, prev, page }: { bytes: Uint8Array; prev: Uint8Array 
       const idx = i + j;
       if (idx >= bytes.length) break;
       const b = bytes[idx];
-      const ch = b >= 0x20 && b <= 0x7e ? String.fromCharCode(b) : ".";
+      const ch = b >= 0x20 && b <= 0x7e ? String.fromCharCode(b) : "../$gameid";
       asciiChars.push(
         <span key={j} className={b !== 0 ? "text-status-success" : "text-app-text-muted/30"}>
           {ch}

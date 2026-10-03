@@ -2,7 +2,7 @@ import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { restoreSeededDatabase } from "./seeded-database";
-import { DEFAULT_GAMES } from "../../../scripts/data/seed-db-options";
+import { DEFAULT_GAMES } from "@raceiq/tooling/data/seed-db-options";
 
 export function seedE2ESetupData(repoDir: string, dataDir: string): void {
   const setupHome = resolve(dataDir, "setup-home");

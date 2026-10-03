@@ -1,9 +1,9 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { readKunosFrames } from "../../games/kunos/frame-reader";
-import { parseAccBuffers } from "../../games/acc/parser";
-import { readWString } from "../../games/acc/utils";
-import { STATIC } from "../../games/acc/structs";
+import { parseAccBuffers } from "@raceiq/game-acc/parser";
+import { readWString } from "@raceiq/game-acc/utils";
+import { STATIC } from "@raceiq/capture-formats/acc/structs";
 import { getAccCarByModel } from "@raceiq/shared/racing/cars/acc";
 import { getAccTrackByName } from "@raceiq/shared/racing/tracks/catalogs/acc";
 import { type GameId, KNOWN_GAME_IDS } from "@raceiq/shared/games/ids";

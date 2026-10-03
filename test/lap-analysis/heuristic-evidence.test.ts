@@ -4,7 +4,7 @@ import { analyzeLap } from "@raceiq/shared/racing/analysis/laps/insights/analyze
 import { eventDurations, groupEvents, INSIGHT_ORDER, insightsAt } from "@raceiq/shared/racing/analysis/laps/insights/types";
 import { detectBufferedInsights } from "@raceiq/shared/racing/analysis/laps/insights/buffered-detectors";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { parseForzaPacket } from "@raceiq/backend-core/games/fm-2023/parser";
+import { parseForzaPacket } from "@raceiq/game-fm-2023/parser";
 import { computeStatsRange, steerScaleFor } from "@raceiq/backend-core/lap-analysis/metrics";
 
 initGameAdapters();

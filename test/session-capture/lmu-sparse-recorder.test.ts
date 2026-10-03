@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { LMU_SOURCE_FRAME_HEADER_SIZE, LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/backend-core/games/lmu/source-frame";
+import { LMU_SOURCE_FRAME_HEADER_SIZE, LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { advanceSessionFrames, iterateSessionFrameRecords, sessionFrameAt } from "@raceiq/backend-core/session-capture/framing";
 import { SparseSessionRecorder } from "@raceiq/backend-core/session-capture/sparse-recorder";
 import { iterateSessionCaptureFrames } from "@raceiq/backend-core/session-capture/source-loader";

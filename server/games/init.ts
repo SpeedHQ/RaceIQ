@@ -1,11 +1,11 @@
 import { registerServerGame } from "./registry";
 import { registerGame } from "@raceiq/shared/games/registry";
-import { forzaServerAdapter } from "./fm-2023/index";
-import { f1ServerAdapter } from "./f1-2025/index";
-import { accServerAdapter } from "./acc/index";
-import { acEvoServerAdapter } from "./ac-evo/index";
-import { iracingServerAdapter } from "./iracing/index";
-import { lmuServerAdapter } from "./lmu/index";
+import { forzaServerAdapter } from "@raceiq/game-fm-2023";
+import { f1ServerAdapter } from "@raceiq/game-f1-2025";
+import { accServerAdapter } from "@raceiq/game-acc";
+import { acEvoServerAdapter } from "@raceiq/game-ac-evo";
+import { iracingServerAdapter } from "@raceiq/game-iracing";
+import { lmuServerAdapter } from "@raceiq/game-lmu";
 import { releaseFeatureFlags, type ReleaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
 
 export function nativeTelemetryGameIds(

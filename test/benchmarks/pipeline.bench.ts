@@ -6,13 +6,13 @@ import { getAllServerGames } from "@raceiq/backend-core/games/registry";
 import { LiveTelemetryPipeline, stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { NullDbAdapter, NullWsAdapter, NullSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import { readUdpDump } from "../support/recordings/udp";
-import { parseAccBuffers } from "@raceiq/backend-core/games/acc/parser";
-import { readWString } from "@raceiq/backend-core/games/acc/utils";
-import { STATIC } from "@raceiq/backend-core/games/acc/structs";
+import { parseAccBuffers } from "@raceiq/game-acc/parser";
+import { readWString } from "@raceiq/game-acc/utils";
+import { STATIC } from "@raceiq/capture-formats/acc/structs";
 import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
 import { getAccCarByModel } from "@raceiq/shared/racing/cars/acc";
 import { getAccTrackByName } from "@raceiq/shared/racing/tracks/catalogs/acc";
-import { parseAcEvoBuffers, createAcEvoParserCache } from "@raceiq/backend-core/games/ac-evo/parser";
+import { parseAcEvoBuffers, createAcEvoParserCache } from "@raceiq/game-ac-evo/parser";
 import { runMitataBenchmarks } from "./mitata-harness";
 import { createBoundedPipelineRunner } from "./pipeline-bench-support";
 

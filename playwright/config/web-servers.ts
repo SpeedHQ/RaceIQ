@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import type { E2ERuntime, ServerPorts } from "./runtime";
-import { DEFAULT_GAMES } from "../../scripts/data/seed-db-options";
+import { DEFAULT_GAMES } from "@raceiq/tooling/data/seed-db-options";
 
 type WebServerDefinition = {
   command: string;

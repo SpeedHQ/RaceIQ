@@ -16,7 +16,7 @@ import {
   importLMUDuckDB,
   isDuckDBFile,
   previewLMUDuckDB,
-} from "../../games/lmu/import-duckdb";
+} from "@raceiq/game-lmu/import-duckdb";
 import { importMotec, resolveMotecTarget } from "../../motec/import";
 import { getMotecTargets, initMotecTargets } from "../../motec/targets";
 import { loadStagedMotec, removeStagedMotec, stageMotecArchive } from "../../motec/import-staging";

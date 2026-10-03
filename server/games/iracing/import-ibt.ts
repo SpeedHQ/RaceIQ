@@ -11,14 +11,14 @@ import { open as openFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { basename, join, resolve } from "node:path";
 import { resolveDataDir } from "../../runtime/config/data-dir";
-import { IRacingIbtReader } from "./ibt-reader";
-import { registerImportedIRacingIdentity } from "./identity";
-import { parseIRacingSessionInfo } from "./session-info";
+import { IRacingIbtReader } from "@raceiq/game-iracing/ibt-reader";
+import { registerImportedIRacingIdentity } from "@raceiq/game-iracing/identity";
+import { parseIRacingSessionInfo } from "@raceiq/capture-formats/iracing/session-info";
 import {
   IRacingSourceFrameEncoder,
   type IRacingSessionSnapshot,
   type IRacingValue,
-} from "./source-frame";
+} from "@raceiq/capture-formats/iracing/source-frame";
 import { importSessionFrames } from "../../session-capture/import-pipeline";
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 

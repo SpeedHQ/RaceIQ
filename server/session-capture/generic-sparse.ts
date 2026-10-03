@@ -1,4 +1,4 @@
-import { readSourceFrameHeader, SOURCE_FRAME_HEADER_SIZE, SOURCE_FRAME_MAGIC } from "../games/iracing/source-frame-codec";
+import { readSourceFrameHeader, SOURCE_FRAME_HEADER_SIZE, SOURCE_FRAME_MAGIC } from "@raceiq/capture-formats/iracing/source-frame-codec";
 
 // RQSD v1: [magic 4][version 1][checkpoint distance 4][source length 4]
 // [32-byte block bitmap][changed blocks]. Checkpoints are unmodified source frames.
