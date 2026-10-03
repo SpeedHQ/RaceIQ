@@ -14,7 +14,7 @@ import { getAccTracks } from "@raceiq/shared/racing/tracks/catalogs/acc";
 import { getAcEvoTracks } from "@raceiq/shared/racing/tracks/catalogs/ac-evo";
 import { getAllIRacingTracks } from "@raceiq/shared/racing/tracks/catalogs/iracing";
 import { getLMUTrack, getLMUTrackByAssetName, lmuTrackCatalog } from "@raceiq/shared/games/lmu/catalog";
-import { GAMES_DIR } from "@raceiq/backend-core/runtime/config/paths";
+import { gameAssetsDir } from "@raceiq/shared/platform/runtime/data-paths";
 import { tryGetServerGame } from "@raceiq/backend-core/games/registry";
 import { listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
 import { decodeTrackKey, OrdinalKeyParamSchema } from "./support";
@@ -24,7 +24,7 @@ export const trackCatalogInfoRoutes = new Hono()
   .get("/api/lmu-assets/tracks/:asset", (c) => {
     const track = getLMUTrackByAssetName(c.req.param("asset"));
     if (!track) return c.json({ error: "LMU track asset not found" }, 404);
-    const file = resolve(GAMES_DIR, "lmu", track.boundariesSvg);
+    const file = resolve(gameAssetsDir("lmu"), track.boundariesSvg);
     if (!existsSync(file)) return c.json({ error: "LMU track asset not found" }, 404);
     return new Response(readFileSync(file), {
       headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=31536000, immutable" },

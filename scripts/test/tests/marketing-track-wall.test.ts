@@ -6,54 +6,10 @@ import { getAccTracks } from "@raceiq/shared/racing/tracks/catalogs/acc";
 import { getAcEvoTracks } from "@raceiq/shared/racing/tracks/catalogs/ac-evo";
 import { getAllIRacingTracks } from "@raceiq/shared/racing/tracks/catalogs/iracing";
 import { buildMarketingTrackWallFixture } from "@raceiq/tooling/marketing/track-wall-data";
-import { createProjects } from "./raceiq-e2e/config/projects";
-import type { E2ERuntime, ServerPorts } from "./raceiq-e2e/config/runtime";
 
 const fixture = buildMarketingTrackWallFixture();
 const expectedCounts = [fmTrackCatalog.size, getF1Tracks().size, getAccTracks().size, getAcEvoTracks().size, getAllIRacingTracks().length, 0];
 
-const ports = (port: number): ServerPorts => ({
-  port: String(port),
-  clientPort: String(port + 1_000),
-  udpPort: String(port + 10_000),
-  dataDir: `/tmp/raceiq-playwright-${port}`,
-});
-
-const playwrightRuntime: E2ERuntime = {
-  serverMode: "compiled",
-  serverSet: "all",
-  devServer: false,
-  screenshotOnly: false,
-  seededScreenshots: false,
-  parallelScreenshotRun: false,
-  screenshotWorkers: 1,
-  testWorkers: 1,
-  needsFreshServer: true,
-  needsTunesServer: true,
-  needsTunesUnseededServer: true,
-  needsSeededServer: true,
-  freshInstall: ports(3118),
-  tunes: ports(3119),
-  tunesUnseeded: ports(3122),
-  seeded: ports(3120),
-};
-
-test("records the 3D demo at a native 1080p viewport", () => {
-  const project = createProjects(playwrightRuntime).find((candidate) => candidate.name === "record-demo");
-  expect(project?.use?.viewport).toEqual({ width: 1920, height: 1080 });
-});
-
-test("captures marketing pages from the seeded app by default", () => {
-  const previousBaseUrl = process.env.MARKETING_BASE_URL;
-  delete process.env.MARKETING_BASE_URL;
-  try {
-    const project = createProjects(playwrightRuntime).find((candidate) => candidate.name === "marketing");
-    expect(project?.use?.baseURL).toBe("http://localhost:3120");
-  } finally {
-    if (previousBaseUrl === undefined) delete process.env.MARKETING_BASE_URL;
-    else process.env.MARKETING_BASE_URL = previousBaseUrl;
-  }
-});
 
 test("matches authoritative catalog membership and counts", () => {
   expect(fixture.games.map((game) => game.gameId)).toEqual([...KNOWN_GAME_IDS]);

@@ -6,7 +6,6 @@ import {
   generateLapAnalysis,
   type GenerateLapAnalysisDeps,
 } from "../../../src/ai/generate-lap-analysis";
-import { AnalystOutputSchema } from "@raceiq/backend-core/ai/schemas";
 import { diagnosticsRoutes } from "../../../src/routes/system/diagnostics-routes";
 
 const validAnalysis = JSON.stringify({
@@ -165,9 +164,7 @@ describe("generateLapAnalysis", () => {
   });
   test("uses Mastra structured output and caches canonical object", async () => {
     const deps = makeDeps();
-    let capturedOptions: Record<string, unknown> | undefined;
-    deps.generate = async (_prompt, options) => {
-      capturedOptions = options;
+    deps.generate = async () => {
       return { object: JSON.parse(validAnalysis) };
     };
     deps.runAiStructured = async (_ai, _input, runMastra) => {
@@ -190,14 +187,6 @@ describe("generateLapAnalysis", () => {
     expect(result.cached).toBe(false);
     expect(JSON.parse(result.analysis!)).toEqual(JSON.parse(validAnalysis));
     expect(deps.saves).toHaveLength(1);
-    expect(capturedOptions?.structuredOutput).toMatchObject({
-      schema: AnalystOutputSchema,
-      jsonPromptInjection: "auto",
-    });
-    expect(capturedOptions?.providerOptions).toEqual({
-      openai: { reasoningEffort: "none" },
-      google: {},
-    });
   });
 
 

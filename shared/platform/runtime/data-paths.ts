@@ -17,6 +17,13 @@ export const GAMES_DIR = IS_COMPILED
   ? resolve(dirname(process.execPath), "data", "games")
   : resolve(sourceDir, "..", "..", "games");
 
+/** Read-only game-owned assets; catalogs retain their separate shared root. */
+export function gameAssetsDir(gameId: string): string {
+  return IS_COMPILED
+    ? resolve(dirname(process.execPath), "data", "games", gameId)
+    : resolve(sourceDir, "..", "..", "..", "packages", `game-${gameId}`, "assets");
+}
+
 /** Writable extracted/recorded/generated track root. */
 export const USER_TRACKS_DIR = IS_COMPILED
   ? join(process.env.APPDATA ?? homedir(), "RaceIQ", "userdata")

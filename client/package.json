@@ -81,6 +81,10 @@
     "@raceiq/shared": "workspace:*",
     "@raceiq/tooling": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
-    "@raceiq/backend": "workspace:*"
+    "@raceiq/backend": "workspace:*",
+    "@raceiq/game-fm-2023": "workspace:*",
+    "@raceiq/game-f1-2025": "workspace:*",
+    "@raceiq/game-acc": "workspace:*",
+    "@raceiq/game-iracing": "workspace:*"
   }
 }

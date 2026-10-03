@@ -66,9 +66,9 @@ async function run(owner: (typeof owners)[number], suite: Suite): Promise<number
     if (unit && (!/^\d+$/.test(workers) || Number(workers) < 1)) throw new Error("BUN_TEST_WORKERS must be a positive integer");
     const paths = files.map((file) => resolve(root, file));
     const bunArgs = unit
-      ? ["test", "--config", configPath, "--timeout=20000", "--parallel", workers, ...paths]
-      : ["test", "--config", configPath, "--timeout=20000", "--max-concurrency=1", ...paths];
-    const env = { ...process.env, DATA_DIR: isolatedDir, RACEIQ_TEST_DATA_DIR: isolatedDir };
+      ? ["test", `--config=${configPath}`, "--timeout=20000", `--parallel=${workers}`, ...paths]
+      : ["test", `--config=${configPath}`, "--timeout=20000", "--max-concurrency=1", ...paths];
+    const env: Record<string, string | undefined> = { ...process.env, DATA_DIR: isolatedDir, RACEIQ_TEST_DATA_DIR: isolatedDir };
     if (unit) env.RACEIQ_UNIT_TESTS = "1";
     else delete env.RACEIQ_UNIT_TESTS;
     const proc = Bun.spawn([process.execPath, ...bunArgs], { cwd: root, env, stdout: "inherit", stderr: "inherit" });

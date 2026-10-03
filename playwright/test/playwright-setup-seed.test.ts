@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { seedE2ESetupData } from "./raceiq-e2e/support/server/seed-screenshot-data";
+import { seedE2ESetupData } from "../support/server/seed-screenshot-data";
 
 let tempDir: string | undefined;
 

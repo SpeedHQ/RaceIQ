@@ -23,7 +23,7 @@ export function discoverTestOwners(root: string): TestOwner[] {
     for (const manifestPath of new Bun.Glob(`${pattern.replace(/\\/g, "/")}/package.json`).scanSync({ cwd: root, onlyFiles: true })) {
       const ownerRoot = manifestPath.slice(0, -"/package.json".length);
       const manifest = JSON.parse(readFileSync(resolve(root, manifestPath), "utf8")) as { name?: string };
-      if (!manifest.name || manifest.name === "client" || manifest.name === "raceiq-e2e") continue;
+      if (!manifest.name || manifest.name === "client") continue;
       const normalizedRoot = ownerRoot.replaceAll("\\", "/");
       if (normalizedRoot === ".." || normalizedRoot.startsWith("../") || resolve(root, normalizedRoot) !== resolve(root, manifestPath, "../")) continue;
       owners.push({ name: manifest.name, root: normalizedRoot });

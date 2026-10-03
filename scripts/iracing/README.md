@@ -7,7 +7,7 @@ Domain tooling for inspecting IBT recordings, rebuilding committed fixtures, and
 | Entrypoint | Purpose | Input/output |
 | --- | --- | --- |
 | `bun scripts/iracing/probe-ibt.ts <recording.ibt>` | Summarize IBT metadata and normalized stream health | Reads IBT; writes JSON to stdout |
-| `bun scripts/iracing/seed-cars.ts` | Seed car catalog and bundled car images | Reads JSON source; writes `shared/games/iracing/cars.csv` and `client/public/iracing-car-images/` |
+| `bun scripts/iracing/seed-cars.ts` | Seed car catalog and bundled car images | Reads JSON source; writes `shared/games/iracing/cars.csv` and `packages/game-iracing/assets/public/iracing-car-images/` |
 | `bun scripts/iracing/seed-tracks.ts` | Seed track layout catalog | Reads track and asset JSON sources; writes `shared/games/iracing/tracks.csv` |
 | `bun scripts/iracing/generate-recording-fixture.ts` | Rebuild deterministic recorder fixture | Writes `test/artifacts/sessions/iracing-road-america-gt3.bin.gz` |
 | `bun scripts/iracing/generate-seed-fixture.ts <recording.ibt>` | Build compact real-telemetry fixture | Reads IBT; writes `test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz` |

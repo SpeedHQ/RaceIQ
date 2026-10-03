@@ -3,11 +3,11 @@
  * dead-reckoning can be checked against known geometry.
  *
  * The reference `.ld` export is a driver's own telemetry and is not in the repo,
- * which leaves the reconstruction in `server/games/ac-evo/motec.ts` without
+ * which leaves the reconstruction in `server/motec/kunos-synthesis.ts` without
  * anything real to be wrong against. Synthetic circles prove the integrator
  * runs; they do not prove it produces the *right* track, and in particular they
  * cannot catch a mirrored map — the failure mode the track-segment
- * visualisations exist to catch (see `test/track-segment-viz.test.ts`).
+ * visualisations exist to catch (see `apps/backend/test/tracks/visualization/track-segment-viz.test.ts`).
  *
  * So we go the other way: take a committed centerline, differentiate it into the
  * speed and yaw-rate channels a logger would have recorded while driving it, and

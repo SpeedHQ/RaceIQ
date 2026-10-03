@@ -20,6 +20,8 @@ import { insertDemoRows, markOnboardingComplete } from "@raceiq/tooling/data/see
 import { cleanDatabase, removeSeedData } from "@raceiq/tooling/data/seed-db-reset";
 import { FIXTURES, PROFILE_NAME, parseOptions, SEED_MARKER } from "@raceiq/tooling/data/seed-db-options";
 import { combineRecordingParts } from "@raceiq/backend-core/session-capture/combine-recording-parts";
+import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
+import { notifyDriverProfileLap } from "../../src/driver-profile/runner";
 
 async function* streamLMUSeedFrames(path: string): AsyncGenerator<Buffer> {
   const source = createReadStream(path);
@@ -67,6 +69,7 @@ async function main(): Promise<void> {
   await initDb();
   initGameAdapters(developmentReleaseFeatures);
   initServerGameAdapters(developmentReleaseFeatures);
+  registerDriverProfileLapNotifier(notifyDriverProfileLap);
   if (options.clean) {
     await cleanDatabase();
   } else {

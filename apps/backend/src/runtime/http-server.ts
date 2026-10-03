@@ -1,9 +1,10 @@
 import { execSync } from "node:child_process";
-import { resolve } from "node:path";
+import { resolve, sep } from "node:path";
 import { wsManager, type WSData } from "@raceiq/backend-core/runtime/websocket-manager";
 import type { AppType } from "../routes/index";
 import { MAX_IBT_BYTES } from "../imports/iracing-ibt";
 import { IS_WINDOWS } from "@raceiq/backend-core/runtime/platform/shell";
+import { gameAssetsDir } from "@raceiq/shared/platform/runtime/data-paths";
 
 type HttpApp = Pick<AppType, "fetch">;
 
@@ -95,6 +96,24 @@ export function startHttpServer({
           if (await file.exists()) {
             return new Response(file);
           }
+        }
+      }
+      const pathname = decodeURIComponent(url.pathname);
+      const gameAsset = pathname.startsWith("/car-images/f1/")
+        ? { game: "f1-2025", relative: pathname.slice(1) }
+        : pathname.startsWith("/car-images/acc-")
+          ? { game: "acc", relative: pathname.slice(1) }
+          : pathname.startsWith("/car-images/")
+            ? { game: "fm-2023", relative: pathname.slice(1) }
+            : pathname.startsWith("/iracing-car-images/")
+              ? { game: "iracing", relative: pathname.slice(1) }
+              : null;
+      if (devPublicDir && gameAsset) {
+        const root = resolve(gameAssetsDir(gameAsset.game), "public");
+        const filePath = resolve(root, gameAsset.relative);
+        if (filePath.startsWith(`${root}${sep}`)) {
+          const file = Bun.file(filePath);
+          if (await file.exists()) return new Response(file);
         }
       }
 

@@ -87,6 +87,11 @@ the wrapper runs full selection. CI cache partitions include host and toolchain.
 Application, tooling, and frontend contract tasks compile client translations
 explicitly; game/core tasks do not depend on client compilation.
 
+Root `bun run typecheck` checks workspace packages sequentially. Parallel
+workspace checks under Bun 1.4.2 can report a locationless `TS2589` for the
+backend while the same compiler checks pass individually; serialization keeps
+every package and the typed RPC contract checked without suppressing errors.
+
 ## Verification
 
 Use narrow proof first:

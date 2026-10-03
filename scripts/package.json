@@ -6,7 +6,8 @@
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit",
     "test": "bun test/run-suite.ts all --package @raceiq/tooling",
-    "test:tooling": "bun test/run-suite.ts tooling --package @raceiq/tooling"
+    "test:tooling": "bun test/run-suite.ts tooling --package @raceiq/tooling",
+    "test:integration": "bun test/run-suite.ts integration --package @raceiq/tooling"
   },
   "dependencies": {
     "@babel/parser": "^8.0.5",
@@ -23,6 +24,9 @@
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
     "@raceiq/game-iracing": "workspace:*",
-    "@raceiq/game-acc": "workspace:*"
+    "@raceiq/game-acc": "workspace:*",
+    "@raceiq/game-fm-2023": "workspace:*",
+    "@raceiq/game-f1-2025": "workspace:*",
+    "@raceiq/game-lmu": "workspace:*"
   }
 }

@@ -44,7 +44,6 @@ apps/backend/test/driver-profile/runs.test.ts
 apps/backend/test/driver-profile/style.test.ts
 apps/backend/test/driver-profile/trend-provenance.test.ts
 apps/backend/test/experiments/arms/auto-exclude.test.ts
-apps/backend/test/experiments/arms/compare-card-background.test.ts
 apps/backend/test/experiments/arms/curation.test.ts
 apps/backend/test/experiments/arms/lap-link.test.ts
 apps/backend/test/experiments/arms/lap-metrics.test.ts
@@ -75,7 +74,6 @@ apps/backend/test/lap-analysis/review-laps.test.ts
 apps/backend/test/live-strategy/pit-cycle.test.ts
 apps/backend/test/live-strategy/pit-tracker.test.ts
 apps/backend/test/live-strategy/sector-tracker.test.ts
-apps/backend/test/marketing-track-wall.test.ts
 apps/backend/test/motec/import-staging.test.ts
 apps/backend/test/motec/motec-import.test.ts
 apps/backend/test/motec/motec-viz.test.ts

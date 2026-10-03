@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { GAMES_DIR } from "../../platform/runtime/data-paths";
+import { gameAssetsDir } from "../../platform/runtime/data-paths";
 import { lmuTrackCatalog } from "./catalog";
 import type { Point, TrackBoundary } from "../../racing/tracks/geometry/types";
 import { applyAlignment, computeAlignment } from "../../racing/tracks/geometry/points";
@@ -33,7 +33,7 @@ export function getLMUTrackBoundaries(trackId: string): (TrackBoundary & { raceL
   if (cache.has(trackId)) return cache.get(trackId)!;
   const track = tracksById.get(trackId);
   if (!track) { cache.set(trackId, null); return null; }
-  const file = resolve(GAMES_DIR, "lmu", track.boundariesSvg);
+  const file = resolve(gameAssetsDir("lmu"), track.boundariesSvg);
   if (!existsSync(file)) { cache.set(trackId, null); return null; }
   try {
     const svg = readFileSync(file, "utf8");

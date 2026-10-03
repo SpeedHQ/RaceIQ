@@ -35,7 +35,7 @@ function jsonPages(value: unknown): unknown[] {
 }
 
 export async function downloadImages(rows: CarSpecRow[], projectRoot: string): Promise<void> {
-  const imgDir = resolve(projectRoot, "client/public/car-images");
+  const imgDir = resolve(projectRoot, "packages/game-fm-2023/assets/public/car-images");
   mkdirSync(imgDir, { recursive: true });
   let downloaded = 0, skipped = 0, failed = 0;
   for (let i = 0; i < rows.length; i += 10) {

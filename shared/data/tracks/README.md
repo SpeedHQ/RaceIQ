@@ -12,10 +12,9 @@ Static track assets used by `shared/racing/tracks` loaders.
 - `verified.json` — manual verification ledger for curation.
 - `guides/<slug>.json` — authored guidance and corner callouts.
 - `tumftm/<slug>-centerline.csv`, `tumftm/<slug>-boundaries.json` — shared baseline geometry.
-- `<gameId>/<slug>-segments.json` and game-specific geometry files.
+- `<gameId>/<slug>-segments.json` and shared game-specific geometry files.
 
-Per-game dirs currently present:
-- `acc/`, `ac-evo/`, `fm-2023/`, `f1-2025/`.
+ACC source SVGs live at `packages/game-acc/assets/tracks/`; LMU catalog SVGs live at `packages/game-lmu/assets/tracks/`. Their runtime loaders resolve these package-owned assets through `gameAssetsDir`; SVG paths in LMU's catalog remain relative to the game asset root.
 
 ## File formats
 - **meta** (`slug.json`):

@@ -84,7 +84,7 @@ describe("GET /api/cars game context", () => {
     ]);
     for (const car of catalogCars) {
       expect(car.imageUrl).toBe(`/iracing-car-images/${car.ordinal}.jpg`);
-      const imagePath = resolve(ROOT_DIR, "client/public", car.imageUrl.slice(1));
+      const imagePath = resolve(ROOT_DIR, "packages/game-iracing/assets/public/iracing-car-images", `${car.ordinal}.jpg`);
       expect(existsSync(imagePath)).toBe(true);
       expect(statSync(imagePath).size).toBeGreaterThan(0);
     }

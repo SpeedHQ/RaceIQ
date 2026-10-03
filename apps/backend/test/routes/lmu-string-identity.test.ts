@@ -5,7 +5,7 @@ import { deleteSession, insertSession, updateSessionRawFile } from "@raceiq/back
 import { sessionRoutes } from "../../src/routes/session-routes";
 import { trackRoutes } from "../../src/routes/tracks/index";
 import { settingsRoutes } from "../../src/routes/settings-routes";
-import tracksJson from "../../shared/games/lmu/tracks.json";
+import tracksJson from "@raceiq/shared/games/lmu/tracks.json";
 import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";
 
 const sessionIds: number[] = [];

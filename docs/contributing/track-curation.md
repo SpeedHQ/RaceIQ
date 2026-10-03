@@ -21,7 +21,7 @@ A circuit's corner names and numbering are a property of the *circuit* — Spa's
 
 Where a corner physically *is* depends on the game's centerline, which differs per title (different digitisation, different granularity, sometimes a racing line rather than a centerline). So geometry is keyed by `gameId` + slug.
 
-ACC geometry comes only from bundled `<slug>.track.svg` files. Centerlines are derived from aligned SVG edges at runtime, not stored as CSVs. During the SVG cutover, existing segment and sector boundaries were projected onto those derived centerlines; migrated segment geometry is protected as a curated override so fallback detection cannot discard restored turns.
+ACC geometry comes only from `packages/game-acc/assets/tracks/<slug>.track.svg`. Centerlines are derived from aligned SVG edges at runtime, not stored as CSVs. During the SVG cutover, existing segment and sector boundaries were projected onto those derived centerlines; migrated segment geometry is protected as a curated override so fallback detection cannot discard restored turns.
 
 ## The fallback detector
 
@@ -42,7 +42,7 @@ These are **shrink-only**: every entry is asserted to *still* be broken, so fixi
 
 Known centerline-quality classes, already understood — don't re-litigate:
 
-- ACC centerlines derive from aligned left/right edges in bundled `<slug>.track.svg` files. No ACC centerline CSV is stored or consumed; corner detection uses the same SVG-derived geometry as boundary views.
+- ACC centerlines derive from aligned left/right edges in `packages/game-acc/assets/tracks/<slug>.track.svg` files. No ACC centerline CSV is stored or consumed; corner detection uses the same SVG-derived geometry as boundary views.
 - ac-evo centerlines that under-detect individual corners.
 - Forza's Nordschleife / Watkins Glen, digitised at a different corner granularity than the shared name list.
 

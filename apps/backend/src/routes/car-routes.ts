@@ -4,6 +4,7 @@ import { z } from "zod";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { gameAssetsDir } from "@raceiq/shared/platform/runtime/data-paths";
 import { OrdinalParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
 import { fmCarCatalog, getFmCarSpecs } from "@raceiq/shared/racing/cars/fm";
 import { resolveCarName } from "@raceiq/shared/racing/cars/resolve-name";
@@ -146,7 +147,7 @@ export const carRoutes = new Hono()
   .get("/api/lmu-assets/cars/:id", (c) => {
     const car = getLMUCar(c.req.param("id"));
     if (!car?.thumbnail) return c.json({ error: "LMU car asset not found" }, 404);
-    const file = resolve(GAMES_DIR, "lmu", car.thumbnail);
+    const file = resolve(gameAssetsDir("lmu"), car.thumbnail);
     if (!existsSync(file)) return c.json({ error: "LMU car asset not found" }, 404);
     return new Response(readFileSync(file), {
       headers: { "Content-Type": "image/webp", "Cache-Control": "public, max-age=31536000, immutable" },

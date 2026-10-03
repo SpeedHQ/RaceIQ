@@ -9,7 +9,6 @@ import {
 } from "@raceiq/capture-formats/lmu/dump";
 
 import { LMU_MAX_SOURCE_FRAME_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
-import { timestampForFilename } from "@raceiq/backend-core/session-capture/filename";
 
 function defaultRecordingDir(): string {
   return resolve(process.cwd(), "test", "artifacts", "laps");

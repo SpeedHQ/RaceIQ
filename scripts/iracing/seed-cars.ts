@@ -5,7 +5,7 @@ import { optionValue } from "../lib/cli";
 
 const DEFAULT_SOURCE = "https://raw.githubusercontent.com/jasondilworth56/iracingdataapi/main/tests/mock_return_data/get_cars.json";
 const DEFAULT_OUTPUT = resolve(import.meta.dir, "../../shared/games/iracing/cars.csv");
-const DEFAULT_IMAGES_OUTPUT = resolve(import.meta.dir, "../../client/public/iracing-car-images");
+const DEFAULT_IMAGES_OUTPUT = resolve(import.meta.dir, "../../packages/game-iracing/assets/public/iracing-car-images");
 const PUBLIC_IMAGES_PREFIX = "/iracing-car-images";
 const IMAGE_DOWNLOAD_CONCURRENCY = 8;
 

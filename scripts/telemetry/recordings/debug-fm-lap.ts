@@ -1,7 +1,8 @@
 import { parseDump as parseDumpV2 } from "@raceiq/backend-core/test-support/recordings/parse-dump";
 import { assessLapRecording } from "@raceiq/backend-core/lap-analysis/quality";
+import { fmRecordingSupport } from "@raceiq/game-fm-2023/test-support/recordings";
 
-const { laps } = await parseDumpV2("fm-2023", "test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin");
+const { laps } = await parseDumpV2(fmRecordingSupport, "test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz");
 
 console.log(`Total laps: ${laps.length}`);
 for (const lap of laps) {

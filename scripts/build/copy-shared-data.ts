@@ -49,6 +49,27 @@ for (const entry of readdirSync(sharedDir, { withFileTypes: true })) {
   );
 }
 
+// Game packages own source assets; installed builds retain catalog-relative paths.
+for (const entry of readdirSync(path.join(ROOT, "packages"), { withFileTypes: true })) {
+  if (!entry.isDirectory() || !entry.name.startsWith("game-")) continue;
+  const assets = path.join(ROOT, "packages", entry.name, "assets");
+  let assetEntries;
+  try {
+    assetEntries = readdirSync(assets, { withFileTypes: true });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+    throw error;
+  }
+  const gameDist = path.join(DIST, "games", entry.name.slice("game-".length));
+  for (const asset of assetEntries) {
+    if (asset.name === "public") continue; // Vite owns URL-addressed client assets.
+    const src = path.join(assets, asset.name);
+    const dest = path.join(gameDist, asset.name);
+    mkdirSync(path.dirname(dest), { recursive: true });
+    cpSync(src, dest, { recursive: true });
+  }
+}
+
 console.log(`Copied ${count} data files → ${DIST}`);
 
 // Credential-store PowerShell helper — must sit next to the compiled binary

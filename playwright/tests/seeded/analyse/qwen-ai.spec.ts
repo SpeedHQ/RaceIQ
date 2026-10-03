@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { AnalystOutputSchema } from "@raceiq/backend-core/ai/schemas";
 
 import { getSeededLapTarget } from "../../support/seeded/laps";
 import { getAlternateSeededLap, openAnalyseLap } from "./fixtures";
@@ -53,7 +54,8 @@ test("Analyse calls Qwen through frontend and returns structured output", async 
     expect(response.ok, `Analyse request failed (${response.status})`).toBe(true);
     const event = response.body.trim().split("\n").map((line) => JSON.parse(line)).findLast((item: { type?: string }) => item.type === "result") as { analysis?: string; cached?: boolean } | undefined;
     expect(event?.cached).toBe(false);
-    expect(Object.keys(JSON.parse(event!.analysis!))).toEqual(["verdict", "pace", "handling", "corners", "technique", "setup"]);
+    const analysis = AnalystOutputSchema.parse(JSON.parse(event!.analysis!));
+    expect(analysis.verdict.trim()).not.toBe("");
   } finally {
     await request.delete(`/api/laps/${lap.id}/analyse`);
     await request.put("/api/settings", { data: original });

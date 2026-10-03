@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { portableCapturePath } from "./raceiq-e2e/support/server/seeded-database";
+import { portableCapturePath } from "../support/server/seeded-database";
 
 describe("seeded database capture paths", () => {
   test("accepts LMU captures from Windows seed producers", () => {

@@ -6,10 +6,8 @@ scripts/test/tests/optimize-f1-model.test.ts
 scripts/test/tests/optimize-gt3-model.test.ts
 scripts/test/tests/optimize-peugeot-model.test.ts
 scripts/test/tests/paraglide-cache.test.ts
-scripts/test/tests/playwright-seeded-database.test.ts
-scripts/test/tests/playwright-setup-seed.test.ts
+scripts/test/tests/owner-runner.test.ts
 scripts/test/tests/release-version.test.ts
-scripts/test/tests/responsive-workspace-contract.test.ts
 scripts/test/tests/storybook-build.test.ts
 scripts/test/tests/test-shards.test.ts
 scripts/test/tests/theme-contract.test.ts

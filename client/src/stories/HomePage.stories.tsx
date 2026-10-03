@@ -8,7 +8,7 @@ import type { DriverProfileRun } from "@/hooks/driver-profile";
 import { DEFAULT_DISPLAY_SETTINGS } from "@/stores/telemetry";
 import type { DriverFingerprint } from "@raceiq/backend/driver-profile/fingerprint";
 import type { DriverTrend } from "@raceiq/backend-core/driver-profile/trend";
-import hakoneClubCenterlineCsv from "@raceiq/shared/data/tracks/fm-2023/hakone-s-1641-centerline.csv?raw";
+import hakoneClubCenterlineCsv from "../../../shared/data/tracks/fm-2023/hakone-s-1641-centerline.csv?raw";
 import { GameStoryScope } from "./GameStoryScope";
 
 const GAME_ID = "fm-2023" as const;

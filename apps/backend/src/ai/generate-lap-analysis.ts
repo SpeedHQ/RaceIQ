@@ -20,6 +20,7 @@ import { runAiStructured } from "./model-provider";
 import { getOpenAiCompatibleModelsDetailed } from "@raceiq/backend-core/ai/providers";
 import type { StructuredRequest, ResolvedAi } from "@raceiq/backend-core/ai/ai-types";
 import { logLlmEvent } from "@raceiq/backend-core/ai/diagnostic-logging";
+import { getResolvedAiInternals } from "./resolved-ai-internals";
 
 export interface AnalysisUsage {
   inputTokens: number;
@@ -265,7 +266,11 @@ export async function generateLapAnalysis(
       modelSettings: { maxOutputTokens: 8192, temperature: 0 },
       structuredOutput: {
         schema: AnalystOutputSchema,
-        jsonPromptInjection: "auto",
+        // LM Studio cannot combine tool and output grammars. Preserve tool
+        // analysis, then constrain a separate, tool-free structuring pass.
+        ...(ai.provider === "openai-compatible"
+          ? { model: getResolvedAiInternals(ai)?.model, jsonPromptInjection: false }
+          : { jsonPromptInjection: "auto" }),
       },
       providerOptions: {
         openai: {

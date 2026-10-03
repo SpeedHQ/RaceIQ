@@ -5,7 +5,7 @@ Network-backed seed and guide collectors. Entry points under `scripts/scrapers/`
 | Entry point | Sources | Output |
 |---|---|---|
 | `scrape-acc-setups.ts` | accsetups.com; YouTube metadata | `shared/data/tunes/acc/accsetups-com/` |
-| `scrape-car-specs.ts` | Forza Fandom Wiki API and image CDN | `shared/games/fm-2023/car-specs.csv`, `client/public/car-images/` |
+| `scrape-car-specs.ts` | Forza Fandom Wiki API and image CDN | `shared/games/fm-2023/car-specs.csv`, `packages/game-fm-2023/assets/public/car-images/` |
 | `scrape-f1-leaderboards.ts` | f1laps.com | `shared/data/tunes/f1-25/f1laps/` |
 | `scrape-f1-setups.ts` | f1laps.com, simracingsetup.com, overtake.gg | `shared/data/tunes/f1-25/{f1laps,simracingsetup,overtake}/` |
 
