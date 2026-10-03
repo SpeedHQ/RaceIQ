@@ -2,6 +2,7 @@
 
 ### Features
 
+- Start with a shorter, skippable setup flow and an optional UI walkthrough that can be replayed from navigation.
 - Use structured setup editing without a Paste JSON mode, and label the save action “Save Setup”.
 - Show each saved setup's best valid recorded lap from sessions using that setup, and sort setups by recorded lap time.
 - Select or clear a track when creating or editing ACC and AC Evo setups; restrict track-specific setup best laps to that circuit.

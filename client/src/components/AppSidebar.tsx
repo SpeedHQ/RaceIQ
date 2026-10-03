@@ -12,6 +12,7 @@ import {
   Gauge,
   GitCompareArrows,
   House,
+  HelpCircle,
   LayoutDashboard,
   type LucideIcon,
   Map as MapIcon,
@@ -41,6 +42,7 @@ export interface AppSidebarProps {
   onClose?: () => void;
   onCollapsedChange?: (collapsed: boolean) => void;
   onOpenSettings: () => void;
+  onStartWalkthrough: () => void;
   onShowUpdate: () => void;
   packetsPerSec: number;
   updateAvailable: boolean;
@@ -78,7 +80,7 @@ function SidebarLink({ collapsed, exact = false, icon: Icon, label, logoSrc, onC
 
   if (!collapsed) {
     return (
-      <Link to={to} onClick={onClick} activeOptions={{ exact }} className={className} activeProps={activeProps} inactiveProps={inactiveProps}>
+      <Link data-guide={to === "/live" ? "live" : to.endsWith("/sessions") ? "sessions" : undefined} to={to} onClick={onClick} activeOptions={{ exact }} className={className} activeProps={activeProps} inactiveProps={inactiveProps}>
         {content}
       </Link>
     );
@@ -86,7 +88,7 @@ function SidebarLink({ collapsed, exact = false, icon: Icon, label, logoSrc, onC
 
   return (
     <Tooltip>
-      <TooltipTrigger render={<Link to={to} onClick={onClick} activeOptions={{ exact }} className={className} activeProps={activeProps} inactiveProps={inactiveProps} />}>{content}</TooltipTrigger>
+      <TooltipTrigger render={<Link data-guide={to === "/live" ? "live" : to.endsWith("/sessions") ? "sessions" : undefined} to={to} onClick={onClick} activeOptions={{ exact }} className={className} activeProps={activeProps} inactiveProps={inactiveProps} />}>{content}</TooltipTrigger>
       <TooltipContent side="right" role="tooltip">
         {label}
       </TooltipContent>
@@ -99,7 +101,7 @@ function SidebarAction({ children, collapsed, label, onClick, className: customC
 
   if (!collapsed) {
     return (
-      <Button variant="app-ghost" size="app-md" onClick={onClick} aria-label={label} className={className}>
+      <Button data-guide={label === m.nav_settings() ? "settings" : undefined} variant="app-ghost" size="app-md" onClick={onClick} aria-label={label} className={className}>
         {children}
       </Button>
     );
@@ -107,7 +109,7 @@ function SidebarAction({ children, collapsed, label, onClick, className: customC
 
   return (
     <Tooltip>
-      <TooltipTrigger render={<Button variant="app-ghost" size="app-md" onClick={onClick} aria-label={label} className={className} />}>{children}</TooltipTrigger>
+      <TooltipTrigger render={<Button data-guide={label === m.nav_settings() ? "settings" : undefined} variant="app-ghost" size="app-md" onClick={onClick} aria-label={label} className={className} />}>{children}</TooltipTrigger>
       <TooltipContent side="right" role="tooltip">
         {label}
       </TooltipContent>
@@ -150,6 +152,7 @@ export function AppSidebar({
   onClose,
   onCollapsedChange,
   onOpenSettings,
+  onStartWalkthrough,
   onShowUpdate,
   packetsPerSec,
   updateAvailable,
@@ -236,7 +239,7 @@ export function AppSidebar({
           )}
         </div>
         {activeGame ? (
-          <div className="border-b border-app-border py-2">
+          <div data-guide="games" className="border-b border-app-border py-2">
             <div className={`flex px-2 ${showCollapsed ? "flex-col items-stretch gap-1" : "items-center gap-1"}`}>
               <Link
                 to="/"
@@ -302,7 +305,7 @@ export function AppSidebar({
               <SidebarLink collapsed={showCollapsed} exact icon={House} label={m.nav_home()} to="/" onClick={onClose} />
             </div>
             {isRootHome && (
-              <div className="min-h-0 flex-1 overflow-y-auto py-2" aria-label={m.label_games()}>
+              <div data-guide="games" className="min-h-0 flex-1 overflow-y-auto py-2" aria-label={m.label_games()}>
                 {visibleGames.map((game) => (
                   <SidebarLink key={game.id} collapsed={showCollapsed} icon={Gamepad2} logoSrc={GAME_LOGO_SRC[game.id]} label={game.displayName} to={`/${game.routePrefix}`} onClick={onClose} />
                 ))}
@@ -321,6 +324,10 @@ export function AppSidebar({
         )}
 
         <div className="mt-auto border-t border-app-border py-2 pr-2 pl-0">
+          <SidebarAction collapsed={showCollapsed} label={m.guide_replay()} onClick={() => { onClose?.(); onStartWalkthrough(); }}>
+            <HelpCircle className="size-4" />
+            <span className={showCollapsed ? "sr-only" : "truncate"}>{m.guide_replay()}</span>
+          </SidebarAction>
           <SidebarLink collapsed={showCollapsed} icon={Gauge} label={m.tab_live()} to="/live" onClick={onClose} />
           {import.meta.env.DEV && <SidebarLink collapsed={showCollapsed} icon={Code2} label={m.nav_dev()} to="/dev" onClick={onClose} />}
           {updateAvailable && (
@@ -334,7 +341,7 @@ export function AppSidebar({
             <span className={showCollapsed ? "sr-only" : "truncate"}>{m.nav_settings()}</span>
           </SidebarAction>
           <SidebarLink collapsed={showCollapsed} icon={LayoutDashboard} label={m.nav_portable()} to="/portable" onClick={onClose} />
-          <ConnectionStatus connected={connected} packetsPerSec={packetsPerSec} forzaReceiving={forzaReceiving} collapsed={showCollapsed} />
+          <div data-guide="connection"><ConnectionStatus connected={connected} packetsPerSec={packetsPerSec} forzaReceiving={forzaReceiving} collapsed={showCollapsed} /></div>
         </div>
       </nav>
     </TooltipProvider>
