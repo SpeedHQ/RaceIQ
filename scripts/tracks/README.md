@@ -21,7 +21,7 @@ Track curation, migration, and coverage commands. These scripts write committed 
 - Write only track curation artifacts and explicitly requested migration outputs.
 - `migrate-track-meta.ts` defaults dry-run; migration helpers split input/merge, identity, segment voting, TrackFacts layout, and file orchestration responsibilities.
 - `track-coverage.ts` keeps importable helpers (`parseVerifyTarget`, marker constants, and splice functions) separate from CLI execution.
-- Game-specific extraction remains under game domains. Shared normalization belongs in `shared/`, not ad hoc script aliases.
+Curated game data and external imports belong in game domains. Shared normalization belongs in `shared/`, not ad hoc script aliases.
 
 ## Focused verification
 

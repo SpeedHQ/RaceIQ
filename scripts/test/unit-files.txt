@@ -4,7 +4,6 @@ test/client/compare-segment-key.test.ts
 test/client/parse-lap-time.test.ts
 test/client/speed.test.ts
 test/client/temperature.test.ts
-test/games/forza/forza-lzx.test.ts
 test/games/shared/win-timer-resolution.test.ts
 test/lap-analysis/tire-temperature-insights.test.ts
 test/lap-analysis/buffered-detectors.test.ts

@@ -52,12 +52,10 @@ Single source for game adapters, identity boundaries, and telemetry capabilities
 ## Source-of-truth and regeneration
 - `ids.ts`, adapter `index.ts` modules, and `types.ts` are the runtime source-of-truth for supported game behavior.
 - Committed CSV/JSON files under each game folder are the runtime catalog source-of-truth; loaders do not fetch remote metadata at runtime.
-- Regenerate only artifacts with a dedicated command:
+Regenerate supported seed data with:
   - `bun run iracing:cars:seed`
   - `bun run iracing:tracks:seed`
-  - `bun run extract:cars:ac-evo`
-  - `bun run extract:tracks:ac-evo`
-- Forza, F1, and ACC track extraction commands generate track geometry under `shared/data/tracks`; they do not regenerate game catalog CSVs.
+Game-file extraction tools for track geometry and setup ranges have been removed.
 - Preserve CSV headers and native ordinals. Review generated diffs before committing.
 
 ## Add/extend safely

@@ -1,5 +1,9 @@
 ## Unreleased
 
+### Breaking
+
+- Remove game-file extraction tools and their settings UI.
+
 ### Features
 
 - Use structured setup editing without a Paste JSON mode, and label the save action “Save Setup”.

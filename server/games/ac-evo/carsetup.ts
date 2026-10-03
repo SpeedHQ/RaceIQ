@@ -373,7 +373,7 @@ export function summarizeCarSetup(
       if (fuelLoad != null) rows.push(withRange({ label: "Fuel load", value: `${fmt(fuelLoad)} L` }, fuelLoad, "fuel"));
       rows.push(...genericRows(fuel.fields, "", new Set(fuelLoad != null ? [1] : [])));
     }
-    // Compound index; no per-car name list exists in content.kspkg, so raw number.
+    // No per-car display-name mapping exists for the compound index.
     if (tyreCompound != null) rows.push({ label: "Tyre compound", value: fmt(tyreCompound) });
     sections.push({ title: "Fuel & strategy", rows });
   }
