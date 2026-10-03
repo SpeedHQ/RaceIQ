@@ -66,7 +66,6 @@ bun run dev:dump:acc           # dump ACC packets
 bun run mastra:studio          # Studio UI (localhost:3000) reading the running dev server's in-process Mastra API (:3117)
 
 # Utility scripts
-bun run extract:tracks         # extract track data from game files
 bun run laps:export            # export lap data
 bun run laps:import            # import lap data
 bun run lighthouse             # run Lighthouse audit on local dev server

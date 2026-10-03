@@ -2,18 +2,13 @@
 
 ## Purpose
 
-Installed-game readers and format-specific extraction tools. Each game folder owns discovery, binary parsing policy, and generated catalog or geometry outputs for that simulator.
+Installed-game extraction tools have been removed. Remaining parsers and curated game-data utilities are documented in each game folder.
 
-## Game map
+## Remaining utilities
 
 | Directory | Scope |
 | --- | --- |
-| [`ac-evo/`](ac-evo/) | KSPKG car, track, geometry, and setup-range extraction |
-| [`acc/`](acc/) | ACC track extraction and boundary-derived centerlines |
-| [`f1-2025/`](f1-2025/) | ERP inspection, AI spline parsing, track extraction, and track imports |
-| [`fm-2023/`](fm-2023/) | Forza Motorsport track and car-dimension extraction |
-
-## Boundaries
+| [`f1-2025/`](f1-2025/) | ERP readers and AI spline parsing |
 
 - Game installation discovery and archive details remain game-specific.
 - Binary parser helpers must not execute work at import time.

@@ -27,15 +27,6 @@ See [development guide](docs/contributing/development.md) for environment variab
 
 ## Track and game data
 
-`bun run extract:tracks` extracts Forza Motorsport and F1 25 track data. Game-specific commands cover other sources:
-
-```bash
-bun run extract:tracks:forza
-bun run extract:tracks:f1
-bun run extract:tracks:acc
-bun run extract:tracks:ac-evo
-bun run extract:ac-evo
-```
 
 Generated track geometry and metadata live under `shared/data/tracks/`; game registries live under `shared/games/`. Corner names, numbering, sectors, and segment geometry are hand-curated; read [track curation](docs/contributing/track-curation.md) before editing them. Curated data is authoritative and detector output is a fallback.
 
