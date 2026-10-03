@@ -1,0 +1,6 @@
+packages/game-iracing/test/iracing-ibt-reader.test.ts
+packages/game-iracing/test/iracing-recorder.test.ts
+packages/game-iracing/test/iracing-sdk-decoding.test.ts
+packages/game-iracing/test/iracing-sdk-lap-sectors.test.ts
+packages/game-iracing/test/iracing-sdk-source-frame.test.ts
+packages/game-iracing/test/iracing-sdk-source-integration.test.ts

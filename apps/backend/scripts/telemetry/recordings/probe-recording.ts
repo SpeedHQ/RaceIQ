@@ -30,7 +30,7 @@ const recordingGames = {
 
 const gameId = process.argv[2] as GameId;
 if (!gameId) {
-  console.error("Usage: bun apps/backend/apps/backend/scripts/telemetry/recordings/probe-recording.ts <gameId> [path]");
+  console.error("Usage: bun apps/backend/scripts/telemetry/recordings/probe-recording.ts <gameId> [path]");
   process.exit(1);
 }
 

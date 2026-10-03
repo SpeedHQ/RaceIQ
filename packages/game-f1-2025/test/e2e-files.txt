@@ -1,0 +1,2 @@
+packages/game-f1-2025/test/catalog/telemetry-catalog-f1-2025-e2e.test.ts
+packages/game-f1-2025/test/e2e/f1-2025-recording.test.ts

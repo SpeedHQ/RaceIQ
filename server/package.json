@@ -207,6 +207,9 @@
     "@raceiq/capture-formats": "workspace:*"
   },
   "scripts": {
-    "typecheck": "bunx tsc --project tsconfig.json --noEmit"
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "test": "bun ../scripts/test/run-suite.ts all --package @raceiq/backend-core",
+    "test:integration": "bun ../scripts/test/run-suite.ts integration --package @raceiq/backend-core",
+    "test:unit": "bun ../scripts/test/run-suite.ts unit --package @raceiq/backend-core"
   }
 }

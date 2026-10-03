@@ -3,7 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "bunx tsc --project tsconfig.json --noEmit"
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/frontend-contract-tests",
+    "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/frontend-contract-tests",
+    "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/frontend-contract-tests",
+    "test:tooling": "bun ../../scripts/test/run-suite.ts tooling --package @raceiq/frontend-contract-tests",
+    "test:e2e:recordings": "bun ../../scripts/test/run-suite.ts e2e --package @raceiq/frontend-contract-tests"
   },
   "dependencies": {
     "client": "workspace:*",

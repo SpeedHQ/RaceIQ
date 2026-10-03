@@ -4,7 +4,7 @@ import { isMastraSignalMigrationRequiredError, shouldUseMastraRuntime } from "..
 
 describe("shouldUseMastraRuntime", () => {
   test("does not enable Mastra for standalone seed commands", () => {
-    expect(shouldUseMastraRuntime("development", ["bun", "apps/backend/apps/backend/scripts/data/seed-db.ts"])).toBe(false);
+    expect(shouldUseMastraRuntime("development", ["bun", "apps/backend/scripts/data/seed-db.ts"])).toBe(false);
   });
 
   test("enables Mastra for the development server", () => {

@@ -1,0 +1,4 @@
+packages/game-acc/test/acc-parser.test.ts
+packages/game-acc/test/acc-recorder.test.ts
+packages/game-acc/test/acc-session-lifecycle.test.ts
+packages/game-acc/test/acc-shared-memory.test.ts

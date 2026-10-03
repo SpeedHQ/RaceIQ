@@ -1,0 +1,3 @@
+packages/game-ac-evo/test/ac-evo-mid-session.test.ts
+packages/game-ac-evo/test/catalog/telemetry-catalog-ac-evo-e2e.test.ts
+packages/game-ac-evo/test/e2e/ac-evo-recording.test.ts

@@ -49,6 +49,28 @@ bun run ui:diff
 
 See `package.json` for full stable command list. Direct commands and specialist flags live in domain READMEs.
 
+## Workspace test suites
+
+Ordinary backend tests live in their owning workspace's `test/` tree. Local
+`test/<suite>-files.txt` manifests contain repository-root-relative paths and
+retain unit, tooling, integration, and recording E2E classifications.
+
+```sh
+bun run test:shards
+bun scripts/test/run-suite.ts integration --package @raceiq/game-acc
+bun scripts/test/run-suite.ts all --package @raceiq/backend
+```
+
+Owners are discovered from root workspaces. Coverage rejects unassigned tests,
+cross-owner entries, duplicates, stale paths, and traversal. Omit absent suites;
+requesting an absent suite explicitly fails. `all` runs present suites in
+unit → tooling → integration → E2E order, stopping at the first failure.
+
+Every owner/suite gets a fresh temporary `DATA_DIR`, regardless of inherited
+production paths. Unit runs have no DB preload; other suites run serially with
+neutral DB setup. Only application and frontend contract owners preload
+application assembly. Immutable fixtures and output locations remain at root.
+
 ## Verification
 
 Use narrow proof first:
