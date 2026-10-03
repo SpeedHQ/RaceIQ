@@ -1,4 +1,4 @@
-import { client } from "../../server/db/index";
+import { client } from "@raceiq/backend-core/db/index";
 import { SEED_MARKER } from "./seed-db-options";
 
 export async function countRows(table: string): Promise<number> {

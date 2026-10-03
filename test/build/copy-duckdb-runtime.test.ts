@@ -8,7 +8,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { copyDuckDBRuntime } from "../../scripts/build/copy-duckdb-runtime";
+import { copyDuckDBRuntime } from "@raceiq/tooling/build/copy-duckdb-runtime";
 
 const temporaryDirectories: string[] = [];
 

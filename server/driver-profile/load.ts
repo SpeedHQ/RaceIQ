@@ -1,8 +1,8 @@
-import { summariseLapStyle, type LapStyleSummary } from "../../shared/racing/analysis/laps/driving-style";
+import { summariseLapStyle, type LapStyleSummary } from "@raceiq/shared/racing/analysis/laps/driving-style";
 import { getCachedLapInsightsBatch, getOrComputeLapInsightsBatch } from "../lap-analysis/metrics-store";
-import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
-import type { GameId } from "../../shared/games/ids";
-import type { LapMeta } from "../../shared/racing/sessions/types";
+import type { LapInsight } from "@raceiq/shared/racing/analysis/laps/insights/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { getLapMetaForProfileScope, getLapsByIds } from "../db/lap-read-queries";
 import { buildDriverFingerprint, emptyFingerprint, type DriverFingerprint, type ProfileScope } from "./fingerprint";
 import { buildDriverTrend, DRIVER_TREND_WINDOW_LAPS } from "./trend";

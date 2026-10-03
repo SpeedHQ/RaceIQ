@@ -1,22 +1,22 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { OrdinalParamSchema, GameIdQuerySchema } from "@shared/platform/http/route-schemas";
+import { OrdinalParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
 import { getLaps, getLapById } from "../../db/lap-read-queries";
 import { getTrackOutline as getDbTrackOutline } from "../../db/track-queries";
 import {
   extractCurbSegments,
   getTrackCurbs,
   recordCurbData,
-} from "../../../shared/racing/tracks/recording/curbs";
-import { getBundledOutlineByOrdinal } from "../../../shared/racing/tracks/geometry/outlines";
-import { getTrackBoundariesByOrdinal } from "../../../shared/racing/tracks/geometry/extracted";
+} from "@raceiq/shared/racing/tracks/recording/curbs";
+import { getBundledOutlineByOrdinal } from "@raceiq/shared/racing/tracks/geometry/outlines";
+import { getTrackBoundariesByOrdinal } from "@raceiq/shared/racing/tracks/geometry/extracted";
 import {
   getTrackOutlineByOrdinal,
   getTrackRacelineByOrdinal,
   hasRecordedOutline as sharedHasRecordedOutline,
-} from "../../../shared/racing/tracks/recording/outlines";
-import { loadSharedBoundary } from "../../../shared/racing/tracks/geometry/shared";
-import { getLMUTrackBoundaries } from "../../../shared/games/lmu/track-boundaries";
+} from "@raceiq/shared/racing/tracks/recording/outlines";
+import { loadSharedBoundary } from "@raceiq/shared/racing/tracks/geometry/shared";
+import { getLMUTrackBoundaries } from "@raceiq/shared/games/lmu/track-boundaries";
 import { decodeTrackKey, OrdinalKeyParamSchema } from "./support";
 import {
   calibrateFromPositions,
@@ -27,7 +27,7 @@ import {
   refineAlignmentWithCurbs,
   transformToSourceSpace,
 } from "../../tracks/calibration";
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { getSharedTrackName, requireGameId } from "./support";
 
 export const trackCalibrationRoutes = new Hono()

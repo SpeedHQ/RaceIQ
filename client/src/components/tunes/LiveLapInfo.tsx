@@ -1,5 +1,5 @@
 import { m } from "@/paraglide/messages";
-import type { LiveSectorData } from "../../../../shared/racing/live/types";
+import type { LiveSectorData } from "@raceiq/shared/racing/live/types";
 import { formatLapTime } from "../../lib/format";
 import { SectorTimes } from "../SectorTimes";
 

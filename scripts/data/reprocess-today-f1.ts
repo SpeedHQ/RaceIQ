@@ -4,8 +4,8 @@
  * rawByteOffset/rawFrameCount rows written before the session-reset fix.
  * Usage: SERVER=http://localhost:3117 bun run scripts/data/reprocess-today-f1.ts
  */
-import { db, initDb } from "../../server/db/index";
-import { sessions } from "../../server/db/schema";
+import { db, initDb } from "@raceiq/backend-core/db/index";
+import { sessions } from "@raceiq/backend-core/db/schema";
 import { and, eq, gte, sql } from "drizzle-orm";
 
 // DB setup is no longer implicit in the import — it must be awaited explicitly.

@@ -17,7 +17,7 @@ import type {
   GameLink,
   ParserOutput,
 } from "./model";
-import { SETUP_GROUP_DEFINITIONS } from "../../shared/racing/setups/catalog/groups";
+import { SETUP_GROUP_DEFINITIONS } from "@raceiq/shared/racing/setups/catalog/groups";
 const SOURCE_ROOTS: Partial<Record<GameId, Record<string, string>>> = {
   "f1-2025": {
     m: "F1.Motion",

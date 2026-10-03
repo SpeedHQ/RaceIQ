@@ -1,5 +1,5 @@
 import { createStore, useSelector, type StoreActionMap } from "@tanstack/react-store";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 export interface DevTelemetryState {
   subscriptionWanted: boolean;
   subscribed: boolean;

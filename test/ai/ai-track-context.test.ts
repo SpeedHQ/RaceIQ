@@ -1,11 +1,11 @@
 import { describe, test, expect } from "bun:test";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { GameId } from "../../shared/games/ids";
-import { initGameAdapters } from "../../shared/games/init";
-import { initServerGameAdapters } from "../../server/games/init";
-import { tryGetServerGame } from "../../server/games/registry";
-import { resolveTrack } from "../../server/tracks/info"
-import { buildAnalystPrompt } from "../../server/ai/analyst-prompt";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { tryGetServerGame } from "@raceiq/backend-core/games/registry";
+import { resolveTrack } from "@raceiq/backend-core/tracks/info"
+import { buildAnalystPrompt } from "@raceiq/backend-core/ai/analyst-prompt";
 
 initGameAdapters();
 initServerGameAdapters();

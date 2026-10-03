@@ -1,11 +1,11 @@
 import { expect } from "bun:test";
-import type { GameId } from "../../../shared/games/ids";
-import type { TelemetryLinkKind } from "../../../shared/telemetry/catalog/contracts";
-import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
-import { compileTelemetryResolver } from "../../../shared/telemetry/resolver/compile";
-import type { ResolvedValue, TelemetryFrameView } from "../../../shared/telemetry/resolver/contracts";
-import { TELEMETRY_PARSER_VERSIONS, TELEMETRY_RESOLVER_VERSION } from "../../../shared/telemetry/resolver/versions";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { TelemetryLinkKind } from "@raceiq/shared/telemetry/catalog/contracts";
+import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
+import { compileTelemetryResolver } from "@raceiq/shared/telemetry/resolver/compile";
+import type { ResolvedValue, TelemetryFrameView } from "@raceiq/shared/telemetry/resolver/contracts";
+import { TELEMETRY_PARSER_VERSIONS, TELEMETRY_RESOLVER_VERSION } from "@raceiq/shared/telemetry/resolver/versions";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { parseDump, segmentTelemetryLaps, type TelemetryLapSegment } from "../recordings/parse-dump";
 
 export interface RecordedSemanticExpectation {

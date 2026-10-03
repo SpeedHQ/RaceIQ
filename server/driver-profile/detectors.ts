@@ -1,6 +1,6 @@
-import { aggregateLapStyles, type LapStyleSummary } from "../../shared/racing/analysis/laps/driving-style";
-import { clamp } from "@shared/core/numbers";
-import type { InsightCategory, InsightSeverity, LapInsight } from "../../shared/racing/analysis/laps/insights/types";
+import { aggregateLapStyles, type LapStyleSummary } from "@raceiq/shared/racing/analysis/laps/driving-style";
+import { clamp } from "@raceiq/shared/core/numbers";
+import type { InsightCategory, InsightSeverity, LapInsight } from "@raceiq/shared/racing/analysis/laps/insights/types";
 import { median, round4 } from "./math";
 /** Per-detector rollup, normalised per lap so pool size cancels out. */
 export interface DetectorStat {

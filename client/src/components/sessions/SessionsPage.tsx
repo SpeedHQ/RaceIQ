@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { SessionCleanupRequest, SessionCleanupResult } from "@shared/racing/sessions/cleanup";
+import type { SessionCleanupRequest, SessionCleanupResult } from "@raceiq/shared/racing/sessions/cleanup"
 import { SessionCleanupDialog } from "@/components/SessionCleanupDialog";
 import { SessionRecapModal } from "@/components/SessionRecapModal";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import { SessionDesktopTable } from "./SessionDesktopTable";
 import { SessionMobileList } from "./SessionMobileList";
 import { SessionImportModal } from "./SessionImportModal";
 import { SessionToolbar } from "./SessionToolbar";
-import type { SessionMeta } from "@shared/racing/sessions/types";
+import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import type { LapSortKey, SessionSelectionEvent, SessionsTab, SortDir, SortKey } from "./types";
 
 export function SessionsPage() {

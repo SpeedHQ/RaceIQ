@@ -1,13 +1,13 @@
 import { expect, test } from "bun:test";
-import { KNOWN_GAME_IDS } from "../shared/games/ids";
-import { fmTrackCatalog } from "../shared/racing/tracks/catalogs/fm";
-import { getF1Tracks } from "../shared/racing/tracks/catalogs/f1";
-import { getAccTracks } from "../shared/racing/tracks/catalogs/acc";
-import { getAcEvoTracks } from "../shared/racing/tracks/catalogs/ac-evo";
-import { getAllIRacingTracks } from "../shared/racing/tracks/catalogs/iracing";
-import { buildMarketingTrackWallFixture } from "../scripts/marketing/track-wall-data";
-import { createProjects } from "../playwright/config/projects";
-import type { E2ERuntime, ServerPorts } from "../playwright/config/runtime";
+import { KNOWN_GAME_IDS } from "@raceiq/shared/games/ids";
+import { fmTrackCatalog } from "@raceiq/shared/racing/tracks/catalogs/fm";
+import { getF1Tracks } from "@raceiq/shared/racing/tracks/catalogs/f1";
+import { getAccTracks } from "@raceiq/shared/racing/tracks/catalogs/acc";
+import { getAcEvoTracks } from "@raceiq/shared/racing/tracks/catalogs/ac-evo";
+import { getAllIRacingTracks } from "@raceiq/shared/racing/tracks/catalogs/iracing";
+import { buildMarketingTrackWallFixture } from "@raceiq/tooling/marketing/track-wall-data";
+import { createProjects } from "./raceiq-e2e/config/projects";
+import type { E2ERuntime, ServerPorts } from "./raceiq-e2e/config/runtime";
 
 const fixture = buildMarketingTrackWallFixture();
 const expectedCounts = [fmTrackCatalog.size, getF1Tracks().size, getAccTracks().size, getAcEvoTracks().size, getAllIRacingTracks().length, 0];

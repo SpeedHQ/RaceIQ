@@ -4,7 +4,7 @@ import {
   selectEvaluationLaps,
   evaluationReasonLabel,
   REVIEW_LAP_CAP,
-} from "../../shared/racing/laps/review-selection";
+} from "@raceiq/shared/racing/laps/review-selection";
 
 describe("fastestLaps", () => {
   const laps = [

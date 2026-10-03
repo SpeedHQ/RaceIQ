@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { buildRaceResultTimeline, formatService } from "../src/components/race-results/RaceResultLedger";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { SessionMeta } from "@shared/racing/sessions/types";
+import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import { SessionResultMeta } from "../src/components/sessions/SessionResultMeta";
 const result = {
   id: 1,

@@ -1,10 +1,10 @@
 import { registerGame } from "./registry";
-import { forzaAdapter } from "./fm-2023";
-import { f1Adapter } from "./f1-2025";
-import { accAdapter } from "./acc";
-import { acEvoAdapter } from "./ac-evo";
-import { iracingAdapter } from "./iracing";
-import { lmuAdapter } from "./lmu";
+import { forzaAdapter } from "./fm-2023/index";
+import { f1Adapter } from "./f1-2025/index";
+import { accAdapter } from "./acc/index";
+import { acEvoAdapter } from "./ac-evo/index";
+import { iracingAdapter } from "./iracing/index";
+import { lmuAdapter } from "./lmu/index";
 import { releaseFeatureFlags, type ReleaseFeatureFlags } from "../platform/runtime/release-feature-flags";
 
 export function gameAdaptersForFeatures(

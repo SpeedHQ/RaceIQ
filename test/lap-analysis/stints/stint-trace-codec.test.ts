@@ -5,16 +5,16 @@
  * decodeLapTrace must reproduce the original trace bit-for-bit.
  */
 import { describe, test, expect } from "bun:test";
-import { initGameAdapters } from "../../../shared/games/init";
-import { downsampleLap } from "../../../shared/racing/laps/trace/build";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { downsampleLap } from "@raceiq/shared/racing/laps/trace/build";
 import {
   f32ToBase64,
   base64ToF32,
   encodeLapTrace,
   decodeLapTrace,
-} from "../../../shared/racing/laps/trace/codec";
-import type { LapTrace } from "../../../shared/racing/laps/trace/types";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+} from "@raceiq/shared/racing/laps/trace/codec";
+import type { LapTrace } from "@raceiq/shared/racing/laps/trace/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 initGameAdapters();
 

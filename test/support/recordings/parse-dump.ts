@@ -1,26 +1,26 @@
-import type { GameId } from "../../../shared/games/ids";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import type { CapturedLap, CapturedSession } from "../../../server/telemetry/pipeline-ports"
-import type { LapSavedNotification } from "../../../server/lap-detection/types"
-import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../../../server/telemetry/pipeline-ports"
-import { LiveTelemetryPipeline } from "../../../server/telemetry/live-pipeline"
-import { initGameAdapters } from "../../../shared/games/init";
-import { initServerGameAdapters } from "../../../server/games/init";
-import { getAllServerGames, getServerGame } from "../../../server/games/registry";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { CapturedLap, CapturedSession } from "@raceiq/backend-core/telemetry/pipeline-ports"
+import type { LapSavedNotification } from "@raceiq/backend-core/lap-detection/types"
+import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
+import { LiveTelemetryPipeline } from "@raceiq/backend-core/telemetry/live-pipeline"
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { getAllServerGames, getServerGame } from "@raceiq/backend-core/games/registry";
 import { readUdpDump } from "./udp";
-import { readKunosFrames } from "../../../server/games/kunos/frame-reader";
-import { readIRacingFrames } from "../../../server/games/iracing/recorder";
-import { readLMUFrames } from "../../../server/games/lmu/recorder";
-import { parseAccBuffers } from "../../../server/games/acc/parser";
-import { parseAcEvoBuffers, createAcEvoParserCache } from "../../../server/games/ac-evo/parser";
-import { readWString } from "../../../server/games/acc/utils";
-import { STATIC } from "../../../server/games/acc/structs";
-import { getAccCarByModel } from "../../../shared/racing/cars/acc"
-import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
+import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { readIRacingFrames } from "@raceiq/backend-core/games/iracing/recorder";
+import { readLMUFrames } from "@raceiq/backend-core/games/lmu/recorder";
+import { parseAccBuffers } from "@raceiq/backend-core/games/acc/parser";
+import { parseAcEvoBuffers, createAcEvoParserCache } from "@raceiq/backend-core/games/ac-evo/parser";
+import { readWString } from "@raceiq/backend-core/games/acc/utils";
+import { STATIC } from "@raceiq/backend-core/games/acc/structs";
+import { getAccCarByModel } from "@raceiq/shared/racing/cars/acc"
+import { getAccTrackByName } from "@raceiq/shared/racing/tracks/catalogs/acc"
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
-import { META_FRAME_MAGIC } from "../../../server/session-capture/framing"
-import { isPitCycleLap } from "../../../shared/racing/laps/pit-cycle";
+import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing"
+import { isPitCycleLap } from "@raceiq/shared/racing/laps/pit-cycle";
 
 let _initialized = false;
 export function ensureInit(): void {

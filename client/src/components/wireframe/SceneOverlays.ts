@@ -1,6 +1,6 @@
-import { resolveWheelStates } from "../../../../shared/racing/analysis/metric-values";
-import { getGame } from "@shared/games/registry";
-import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
+import { resolveWheelStates } from "@raceiq/shared/racing/analysis/metric-values";
+import { getGame } from "@raceiq/shared/games/registry"
+import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
 import * as THREE from "three/webgpu";
 import type { Line2 } from "three/addons/lines/webgpu/Line2.js";
 import { normalizeSuspensionTravel } from "../../lib/suspension";

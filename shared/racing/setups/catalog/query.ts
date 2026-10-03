@@ -1,4 +1,4 @@
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { SETUP_CATALOG, type SetupCatalogSourceVariable, type SetupCatalogVariable } from "./data";
 
 const variablesById = new Map<string, SetupCatalogVariable>(

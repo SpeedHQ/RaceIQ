@@ -1,8 +1,8 @@
-import type { GameId } from "../../shared/games/ids";
-import { RACING_LINE_SEMANTIC_ID, type RacingLineReference } from "../../shared/racing/analysis/laps/insights/types";
-import { getBundledTrackName, loadBundledPointCsvByName } from "../../shared/racing/tracks/resolve-name";
-import { loadLabelledSegments } from "../../shared/racing/tracks/storage/meta";
-import type { NamedSegment } from "../../shared/racing/tracks/named-segments";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { RACING_LINE_SEMANTIC_ID, type RacingLineReference } from "@raceiq/shared/racing/analysis/laps/insights/types";
+import { getBundledTrackName, loadBundledPointCsvByName } from "@raceiq/shared/racing/tracks/resolve-name";
+import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";
+import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
 import { tryGetServerGame } from "../games/registry";
 
 /**

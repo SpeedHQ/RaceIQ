@@ -1,5 +1,5 @@
 import { m } from "@/paraglide/messages";
-import type { ExperimentFocus } from "@shared/racing/experiments/focus";
+import type { ExperimentFocus } from "@raceiq/shared/racing/experiments/focus";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { parseUtcTimestamp } from "@/lib/utc-date";

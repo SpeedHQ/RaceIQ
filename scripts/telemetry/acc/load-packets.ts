@@ -1,10 +1,10 @@
-import { readKunosFrames } from "../../../server/games/kunos/frame-reader";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import { parseAccBuffers } from "../../../server/games/acc/parser";
-import { readWString } from "../../../server/games/acc/utils";
-import { STATIC } from "../../../server/games/acc/structs";
-import { getAccCarByModel } from "../../../shared/racing/cars/acc";
-import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc";
+import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { parseAccBuffers } from "@raceiq/backend-core/games/acc/parser";
+import { readWString } from "@raceiq/backend-core/games/acc/utils";
+import { STATIC } from "@raceiq/backend-core/games/acc/structs";
+import { getAccCarByModel } from "@raceiq/shared/racing/cars/acc";
+import { getAccTrackByName } from "@raceiq/shared/racing/tracks/catalogs/acc";
 
 export function readAccPackets(binPath: string, maxFrames = Infinity) {
   const frames = readKunosFrames(binPath);

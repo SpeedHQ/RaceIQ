@@ -1,6 +1,6 @@
 /** Representative lap and derived setup-engineer context for an experiment. */
-import type { LapMeta } from "../../shared/racing/sessions/types";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { getLapById } from "../db/lap-read-queries";
 import { resolveLapCorners } from "../tracks/corner-resolution";
 import { getLapsForExperiment } from "../db/experiment-lap-queries";

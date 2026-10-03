@@ -4,7 +4,7 @@ import {
   type Triplet,
   type TripletProcessor,
   type TripletRecorder,
-} from "../../../server/games/kunos/triplet-pipeline";
+} from "@raceiq/backend-core/games/kunos/triplet-pipeline";
 
 class CapturingRecorder implements TripletRecorder {
   readonly physics: Buffer[] = [];

@@ -4,7 +4,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { PUBLIC_DIR, IS_COMPILED } from "../runtime/config/paths";
 
-import { GameIdQuerySchema } from "@shared/platform/http/route-schemas";
+import { GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
 import { udpListener } from "../runtime/udp-listener";
 import { wsManager } from "../runtime/websocket-manager";
 import { lapDetector } from "../telemetry/live-pipeline";
@@ -14,8 +14,8 @@ import { enableLaunchOnLogin, disableLaunchOnLogin, getLaunchOnLoginExeDir } fro
 import { getLapStats } from "../db/lap-read-queries";
 import { setCacheMaxBytes } from "../db/telemetry-replay-storage";
 import { getRunningGame } from "../games/registry";
-import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outlines";
-import { getLMUTrack } from "../../shared/games/lmu/catalog";
+import { getTrackLengthMeters } from "@raceiq/shared/racing/tracks/recording/outlines";
+import { getLMUTrack } from "@raceiq/shared/games/lmu/catalog";
 import { withOnboardingOverride } from "../runtime/options";
 
 import { getGeminiModelsDetailed, getOpenAiCompatibleModelsDetailed, getOpenAiModelsDetailed, getProviders } from "../ai/providers";
@@ -301,7 +301,7 @@ export const settingsRoutes = new Hono()
     });
     return c.json(
       files.map((f) => {
-        const name = f.substring(0, f.lastIndexOf("."));
+        const name = f.substring(0, f.lastIndexOf("./index"));
         return { id: f, name, src: `/wheels/${f}` };
       }),
     );

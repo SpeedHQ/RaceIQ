@@ -1,4 +1,4 @@
-import type { SessionOwnership } from "../../../../shared/racing/sessions/types";
+import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import { m } from "../../paraglide/messages";
 
 interface OwnershipChoiceProps {

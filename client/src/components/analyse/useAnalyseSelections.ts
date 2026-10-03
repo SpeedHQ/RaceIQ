@@ -1,7 +1,7 @@
-import { getGame } from "@shared/games/registry";
+import { getGame } from "@raceiq/shared/games/registry"
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { carIdentityKey, trackIdentityKey, type LapMeta } from "../../../../shared/racing/sessions/types";
+import { carIdentityKey, trackIdentityKey, type LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { useCarName, useResolveNames } from "../../hooks/catalog-queries";
 import type { SemanticReplayFrame } from "../../hooks/laps";
 import { useLapSemanticTelemetry, useLaps as useLapsQuery } from "../../hooks/laps";

@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, test, spyOn } from "bun:test";
 import { eq } from "drizzle-orm";
-import { db } from "../../server/db";
-import { sessions, sessionResults } from "../../server/db/schema";
-import { insertSession } from "../../server/db/session-queries";
-import { upsertSessionResult, type SessionResultInput } from "../../server/db/session-result-queries";
-import { RACE_RESULT_PROCESSOR_ID } from "../../server/race-results/reconcile";
-import { LAP_DETECTOR_ID } from "../../server/lap-detection/detector";
-import { LAP_DETECTOR_ACC_ID } from "../../server/games/acc/lap-detector";
-import { LAP_DETECTOR_AC_EVO_ID } from "../../server/games/ac-evo/lap-detector";
-import { LAP_DETECTOR_IRACING_ID } from "../../server/games/iracing/lap-detector";
-import type { RaceResultEvidence, RaceResultProvenance } from "../../shared/racing/results/types";
-import { wsManager } from "../../server/runtime/websocket-manager";
-import { startSyncAndStaleSessionJobs } from "../../server/runtime/startup-jobs";
+import { db } from "@raceiq/backend-core/db/index";
+import { sessions, sessionResults } from "@raceiq/backend-core/db/schema";
+import { insertSession } from "@raceiq/backend-core/db/session-queries";
+import { upsertSessionResult, type SessionResultInput } from "@raceiq/backend-core/db/session-result-queries";
+import { RACE_RESULT_PROCESSOR_ID } from "@raceiq/backend-core/race-results/reconcile";
+import { LAP_DETECTOR_ID } from "@raceiq/backend-core/lap-detection/detector";
+import { LAP_DETECTOR_ACC_ID } from "@raceiq/backend-core/games/acc/lap-detector";
+import { LAP_DETECTOR_AC_EVO_ID } from "@raceiq/backend-core/games/ac-evo/lap-detector";
+import { LAP_DETECTOR_IRACING_ID } from "@raceiq/backend-core/games/iracing/lap-detector";
+import type { RaceResultEvidence, RaceResultProvenance } from "@raceiq/shared/racing/results/types";
+import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
+import { startSyncAndStaleSessionJobs } from "@raceiq/backend-core/runtime/startup-jobs";
 
 
 const NOOP_STARTUP_JOBS = {

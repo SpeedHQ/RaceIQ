@@ -6,8 +6,8 @@ import {
   renderReleaseBody,
   renderUnreleasedBody,
   rolloverChangelog,
-} from "@shared/tooling/render";
-import { hasUnreleasedChangelogChange } from "@shared/tooling/validation";
+} from "@raceiq/shared/tooling/render";
+import { hasUnreleasedChangelogChange } from "@raceiq/shared/tooling/validation";
 describe("changelog parser", () => {
   test("parses releases and strips Internal from rendered notes", () => {
     const entries = parseChangelog(`

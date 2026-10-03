@@ -1,8 +1,8 @@
 import { existsSync, unlinkSync } from "node:fs";
-import type { GameId } from "../../shared/games/ids";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { LapMeta, SessionOwnership } from "../../shared/racing/sessions/types";
-import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { LapMeta, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
+import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 import { deleteSession, updateSessionSource } from "../db/session-queries";
 import { getServerGame } from "../games/registry";
 import { isIRacingSessionFrame } from "../games/iracing/source-frame";

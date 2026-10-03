@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { GAMES_DIR } from "../../shared/platform/runtime/data-paths";
+import { GAMES_DIR } from "@raceiq/shared/platform/runtime/data-paths";
 
 /** Layouts folded into an existing roster before identity derivation. */
 export const MERGES: { from: string; to: string }[] = [

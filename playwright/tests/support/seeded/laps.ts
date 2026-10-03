@@ -1,7 +1,7 @@
 import { expect, type APIRequestContext } from "@playwright/test";
-import type { GameId } from "../../../../shared/games/ids";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
-import type { LapMeta } from "../../../../shared/racing/sessions/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 
 interface SeededLapListItem {
   id: number;

@@ -6,14 +6,14 @@
  * Usage: bun run scripts/telemetry/recordings/verify-lap-alignment.ts <sessionId>
  */
 import { readFileSync } from "node:fs";
-import { db, initDb } from "../../../server/db/index";
-import { sessions, laps } from "../../../server/db/schema";
+import { db, initDb } from "@raceiq/backend-core/db/index";
+import { sessions, laps } from "@raceiq/backend-core/db/schema";
 import { eq } from "drizzle-orm";
-import { initGameAdapters } from "../../../shared/games/init";
-import { initServerGameAdapters } from "../../../server/games/init";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 import { developmentReleaseFeatures } from "../../release/development-release-features";
-import { getServerGame } from "../../../server/games/registry";
-import { META_FRAME_MAGIC } from "../../../server/session-capture/framing";
+import { getServerGame } from "@raceiq/backend-core/games/registry";
+import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing";
 initGameAdapters(developmentReleaseFeatures);
 initServerGameAdapters(developmentReleaseFeatures);
 await initDb();

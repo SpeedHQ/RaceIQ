@@ -1,10 +1,10 @@
 import { describe, test, expect } from "bun:test";
-import type { LapSavedNotification } from "../../server/lap-detection/types"
+import type { LapSavedNotification } from "@raceiq/backend-core/lap-detection/types"
 import { parseDump } from "../support/recordings/parse-dump";
 import { assertLapTimesProper, assertValidLapHasSectors } from "../support/laps/assertions";
 import { generateRecordingVisualizations } from "../support/laps/visualizations";
 import { getRecordingFixture } from "../support/recordings/fixtures";
-import { parseSessionLapsBatchedForTest } from "../../server/db/telemetry-replay-storage";
+import { parseSessionLapsBatchedForTest } from "@raceiq/backend-core/db/telemetry-replay-storage";
 
 describe("F1-2025 recording", () => {
   describe("f1-2025-2026-04-09T21-34-10-190Z", () => {

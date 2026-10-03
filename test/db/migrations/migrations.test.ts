@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import { Database } from "bun:sqlite";
-import { migrations } from "../../../server/db/migrations";
-import * as schema from "../../../server/db/schema";
+import { migrations } from "@raceiq/backend-core/db/migrations";
+import * as schema from "@raceiq/backend-core/db/schema";
 
 /**
  * Validates that migrations.ts produces a DB schema matching the Drizzle schema.

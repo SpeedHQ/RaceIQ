@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
-import { db } from "../../../server/db/index";
-import { experiments, experimentVersions } from "../../../server/db/schema";
-import { createExperiment } from "../../../server/db/experiment-queries";
+import { db } from "@raceiq/backend-core/db/index";
+import { experiments, experimentVersions } from "@raceiq/backend-core/db/schema";
+import { createExperiment } from "@raceiq/backend-core/db/experiment-queries";
 import {
   createExperimentVersion,
   getExperimentVersion,
@@ -10,7 +10,7 @@ import {
   listExperimentVersions,
   nextVersion,
   setExperimentVersionNotes,
-} from "../../../server/db/experiment-version-queries";
+} from "@raceiq/backend-core/db/experiment-version-queries";
 
 /** Query layer behind the experiment-versions endpoints — the setup versions under
  *  evaluation inside a tuning session (plan §2). Tests the DB layer directly

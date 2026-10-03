@@ -5,7 +5,7 @@ import { resetTestDatabase } from "./reset-test-database";
 import { seedScreenshotData } from "./seed-screenshot-data";
 import { normalizeSeededCapturePaths } from "./seeded-database";
 import { iterateSessionCaptureRecordsFromSource } from "../../../server/session-capture/source-loader";
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { DEFAULT_GAMES } from "../../../scripts/data/seed-db-options";
 
 const repoDir = resolve(import.meta.dir, "../../..");

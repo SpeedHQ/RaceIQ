@@ -1,8 +1,8 @@
 import { eq, desc, and, inArray, ne, or, isNull } from "drizzle-orm";
 import { db } from "./index";
 import { laps, sessions, sessionResults, pitEvents } from "./schema";
-import type { GameId } from "../../shared/games/ids";
-import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance, RaceResultStatus } from "../../shared/racing/results/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance, RaceResultStatus } from "@raceiq/shared/racing/results/types";
 
 const UNAVAILABLE_RACE_RESULT_EVIDENCE: RaceResultEvidence = {
   fieldStatus: {

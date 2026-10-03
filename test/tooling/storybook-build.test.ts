@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, expect, test } from "bun:test";
-import { getStorybookBuildKey, verifyStorybookBuild } from "../../scripts/ui/build-storybook";
+import { getStorybookBuildKey, verifyStorybookBuild } from "@raceiq/tooling/ui/build-storybook";
 
 const fixtures: string[] = [];
 

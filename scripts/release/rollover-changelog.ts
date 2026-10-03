@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { formatReleaseDate, rolloverChangelog } from "@shared/tooling/render";
+import { formatReleaseDate, rolloverChangelog } from "@raceiq/shared/tooling/render";
 
 const rawVersion = process.argv[2];
 const publishedAt = process.argv[3];

@@ -1,16 +1,16 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { createReadStream } from "node:fs";
 import { createGunzip } from "node:zlib";
-import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
-import { LMU_TELEMETRY, LMU_WHEEL, LMU_WHEEL_SIZE } from "../../server/games/lmu/layout";
-import { decodeLMUSourceFrame } from "../../server/games/lmu/source-frame";
-import { normalizeLMUSourceFrame } from "../../server/games/lmu/normalizer";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { combineRecordingParts, type CombinedRecording } from "../../scripts/lib/combine-recording-parts";
-import { lmuAdapter } from "../../shared/games/lmu";
-import { analyseSemanticIds } from "../../shared/games/metric-contracts";
-import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
-import { compileTelemetryResolver } from "../../shared/telemetry/resolver/compile";
+import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
+import { LMU_TELEMETRY, LMU_WHEEL, LMU_WHEEL_SIZE } from "@raceiq/backend-core/games/lmu/layout";
+import { decodeLMUSourceFrame } from "@raceiq/backend-core/games/lmu/source-frame";
+import { normalizeLMUSourceFrame } from "@raceiq/backend-core/games/lmu/normalizer";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { combineRecordingParts, type CombinedRecording } from "@raceiq/tooling/lib/combine-recording-parts";
+import { lmuAdapter } from "@raceiq/shared/games/lmu/index";
+import { analyseSemanticIds } from "@raceiq/shared/games/metric-contracts";
+import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
+import { compileTelemetryResolver } from "@raceiq/shared/telemetry/resolver/compile";
 const FIXTURE_PARTS = [
   "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1",
   "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part2",

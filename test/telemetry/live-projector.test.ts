@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { LiveTelemetryProjector } from "../../server/telemetry/live-projector";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { LiveTelemetryProjector } from "@raceiq/backend-core/telemetry/live-projector";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 const packet = (gameId: string, speed = 12): TelemetryPacket => ({ gameId, TimestampMS: 1000, Speed: speed } as TelemetryPacket);
 

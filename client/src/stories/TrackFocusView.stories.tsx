@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { LapMeta } from "../../../shared/racing/sessions/types";
-import type { TuneIssue } from "../../../shared/racing/tuning/issues";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { TrackFocusViewInner } from "../components/tunes/track-focus/TrackFocusView";
 import { downsampleLap, stintStats } from "../lib/stint-traces";
 

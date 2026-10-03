@@ -1,4 +1,4 @@
-import type { F1CarSetup } from "../../../../shared/telemetry/f1-2025";
+import type { F1CarSetup } from "@raceiq/shared/telemetry/f1-2025";
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";

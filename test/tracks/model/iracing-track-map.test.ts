@@ -3,11 +3,11 @@ import {
   alignIRacingAutoSegmentsToTurnLabels,
   parseIRacingActiveSvg,
   parseIRacingTurnLabels,
-} from "../../../server/games/iracing/track-map-svg";
+} from "@raceiq/backend-core/games/iracing/track-map-svg";
 import { getIRacingSharedTrackName,
-getIRacingTrack, } from "../../../shared/racing/tracks/catalogs/iracing"
-import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
-import type { NamedSegment } from "../../../shared/racing/tracks/named-segments";
+getIRacingTrack, } from "@raceiq/shared/racing/tracks/catalogs/iracing"
+import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";
+import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
 
 const activeSvg = `
   <svg viewBox="0 0 100 100">

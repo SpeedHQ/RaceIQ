@@ -4,16 +4,16 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, test } from "bun:test";
 
-import { db } from "../../server/db/index";
-import { laps } from "../../server/db/schema";
-import { insertLap } from "../../server/db/lap-mutation-queries";
-import { deleteSession, insertSession, updateSessionRawFile } from "../../server/db/session-queries";
-import { cacheDelete } from "../../server/db/telemetry-replay-storage";
-import { initServerGameAdapters } from "../../server/games/init";
-import { lapRoutes } from "../../server/routes/laps";
-import { iterateSessionCaptureFrames, setCaptureFileFactoryForTest } from "../../server/session-capture/source-loader";
-import { SessionRecorder } from "../../server/session-capture/recorder";
-import { SparseSessionRecorderAdapter } from "../../server/telemetry/pipeline-ports";
+import { db } from "@raceiq/backend-core/db/index";
+import { laps } from "@raceiq/backend-core/db/schema";
+import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
+import { deleteSession, insertSession, updateSessionRawFile } from "@raceiq/backend-core/db/session-queries";
+import { cacheDelete } from "@raceiq/backend-core/db/telemetry-replay-storage";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { lapRoutes } from "@raceiq/backend-core/routes/laps/index";
+import { iterateSessionCaptureFrames, setCaptureFileFactoryForTest } from "@raceiq/backend-core/session-capture/source-loader";
+import { SessionRecorder } from "@raceiq/backend-core/session-capture/recorder";
+import { SparseSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import { getRecordingFixture } from "../support/recordings/fixtures";
 
 

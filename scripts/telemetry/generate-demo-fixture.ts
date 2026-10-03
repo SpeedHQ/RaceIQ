@@ -1,12 +1,12 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import { join } from "node:path";
-import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
-import { canonicalizeTelemetryScalar } from "../../shared/telemetry/replay/canonicalize";
-import { compileTelemetryResolver } from "../../shared/telemetry/resolver/compile";
-import type { ResolvedValue, SourceObservation } from "../../shared/telemetry/resolver/contracts";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { wheelSlipRatios } from "../../shared/racing/analysis/laps/physics/vehicle";
+import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
+import { canonicalizeTelemetryScalar } from "@raceiq/shared/telemetry/replay/canonicalize";
+import { compileTelemetryResolver } from "@raceiq/shared/telemetry/resolver/compile";
+import type { ResolvedValue, SourceObservation } from "@raceiq/shared/telemetry/resolver/contracts";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { wheelSlipRatios } from "@raceiq/shared/racing/analysis/laps/physics/vehicle";
 
 export const DEMO_SEMANTIC_IDS = [
   "identity.track-ordinal", "identity.car-ordinal", "motion.position-x", "motion.position-z", "motion.speed", "motion.yaw", "motion.pitch", "motion.roll",

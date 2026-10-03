@@ -1,11 +1,11 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { zipSync } from "fflate";
-import { initServerGameAdapters } from "../../server/games/init";
-import { initMotecTargets } from "../../server/motec/targets";
-import { transferRoutes } from "../../server/routes/laps/transfer-routes";
-import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
-import { initGameAdapters } from "../../shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initMotecTargets } from "@raceiq/backend-core/motec/targets";
+import { transferRoutes } from "@raceiq/backend-core/routes/laps/transfer-routes";
+import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
+import { initGameAdapters } from "@raceiq/shared/games/init";
 
 const MOTEC_ARCHIVE = "test/artifacts/motec/acc-barcelona-porsche-992.zip";
 

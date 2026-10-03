@@ -6,10 +6,10 @@ import {
   recordDrillOutputSchema,
   type RecordDrillInput,
   type RecordDrillResult,
-} from "../../../mastra/tools/driver-coach";
-import { createExperiment, getExperiment, setSessionHead } from "../../../server/db/experiment-queries";
-import { createExperimentVersion, getExperimentVersion, listExperimentVersions } from "../../../server/db/experiment-version-queries";
-import type { DrillChange } from "../../../shared/racing/experiments/types";
+} from "@raceiq/backend/src/mastra/tools/driver-coach";
+import { createExperiment, getExperiment, setSessionHead } from "@raceiq/backend-core/db/experiment-queries";
+import { createExperimentVersion, getExperimentVersion, listExperimentVersions } from "@raceiq/backend-core/db/experiment-version-queries";
+import type { DrillChange } from "@raceiq/shared/racing/experiments/types";
 
 /**
  * `record_drill` — the driver coach's write path, and the reason a driving

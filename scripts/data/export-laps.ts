@@ -7,8 +7,8 @@
  *   bun run scripts/data/export-laps.ts -- --ids 1,2,3     # export specific laps
  *   bun run scripts/data/export-laps.ts -- -o my-laps.zip  # custom output path
  */
-import { buildLapsZip } from "../../server/laps/archive";
-import { getLapsRaw } from "../../server/db/lap-read-queries";
+import { buildLapsZip } from "@raceiq/backend-core/laps/archive";
+import { getLapsRaw } from "@raceiq/backend-core/db/lap-read-queries";
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 

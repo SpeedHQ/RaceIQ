@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-import type { SessionCleanupPreview, SessionCleanupResult } from "../../../../shared/racing/sessions/cleanup";
+import type { SessionCleanupPreview, SessionCleanupResult } from "@raceiq/shared/racing/sessions/cleanup";
 import { runtime } from "../../../config/runtime";
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { cleanDisposable, importDisposableLap, lapsFor, sessionRows, sessionsFor, type DisposableImport } from "./helpers";

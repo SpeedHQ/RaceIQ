@@ -1,5 +1,5 @@
 import { m } from "@/paraglide/messages";
-import type { LivePitData } from "../../../../shared/racing/live/types";
+import type { LivePitData } from "@raceiq/shared/racing/live/types";
 
 interface PitWindowProps {
   pit: LivePitData | null;

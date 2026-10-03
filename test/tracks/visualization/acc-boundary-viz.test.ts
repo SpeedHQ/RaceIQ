@@ -1,13 +1,13 @@
 import { expect, test } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { initGameAdapters } from "../../../shared/games/init";
-import { getAccTracks } from "../../../shared/racing/tracks/catalogs/acc";
-import { flipPoints, needsTrackFlip } from "../../../shared/racing/tracks/coords";
-import { getTrackBoundariesByOrdinal } from "../../../shared/racing/tracks/geometry/extracted";
-import { makeTrackProjection, type Pt } from "../../../shared/racing/tracks/projection";
-import { getTrackRacelineByOrdinal } from "../../../shared/racing/tracks/recording/outlines";
-import { getBundledTrackName } from "../../../shared/racing/tracks/resolve-name";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { getAccTracks } from "@raceiq/shared/racing/tracks/catalogs/acc";
+import { flipPoints, needsTrackFlip } from "@raceiq/shared/racing/tracks/coords";
+import { getTrackBoundariesByOrdinal } from "@raceiq/shared/racing/tracks/geometry/extracted";
+import { makeTrackProjection, type Pt } from "@raceiq/shared/racing/tracks/projection";
+import { getTrackRacelineByOrdinal } from "@raceiq/shared/racing/tracks/recording/outlines";
+import { getBundledTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
 
 initGameAdapters();
 

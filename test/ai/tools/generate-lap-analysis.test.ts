@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { strFromU8, unzipSync } from "fflate";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 import {
   generateLapAnalysis,
   type GenerateLapAnalysisDeps,
-} from "../../../server/ai/generate-lap-analysis";
-import { AnalystOutputSchema } from "../../../server/ai/schemas";
-import { diagnosticsRoutes } from "../../../server/routes/system/diagnostics-routes";
+} from "@raceiq/backend-core/ai/generate-lap-analysis";
+import { AnalystOutputSchema } from "@raceiq/backend-core/ai/schemas";
+import { diagnosticsRoutes } from "@raceiq/backend-core/routes/system/diagnostics-routes";
 
 const validAnalysis = JSON.stringify({
   verdict: "Clean lap",

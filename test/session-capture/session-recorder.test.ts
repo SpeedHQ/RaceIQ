@@ -3,11 +3,11 @@ import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
-import { SessionRecorder } from "../../server/session-capture/recorder";
-import { META_FRAME_MAGIC } from "../../server/session-capture/framing";
-import { getServerGame } from "../../server/games/registry";
-import { initGameAdapters } from "../../shared/games/init";
-import { initServerGameAdapters } from "../../server/games/init";
+import { SessionRecorder } from "@raceiq/backend-core/session-capture/recorder";
+import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing";
+import { getServerGame } from "@raceiq/backend-core/games/registry";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 import { readUdpDump } from "../support/recordings/udp";
 
 initGameAdapters();

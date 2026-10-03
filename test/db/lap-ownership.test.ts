@@ -1,11 +1,11 @@
 import { afterEach, expect, test } from "bun:test";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { eq, sql } from "drizzle-orm";
-import { getLapStats, getLapMetaForProfileScope, getLaps } from "../../server/db/lap-read-queries";
-import { deleteSession, getSessions, insertSession } from "../../server/db/session-queries";
-import { insertLap } from "../../server/db/lap-mutation-queries";
-import { db } from "../../server/db";
-import { sessions } from "../../server/db/schema";
+import { getLapStats, getLapMetaForProfileScope, getLaps } from "@raceiq/backend-core/db/lap-read-queries";
+import { deleteSession, getSessions, insertSession } from "@raceiq/backend-core/db/session-queries";
+import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
+import { db } from "@raceiq/backend-core/db/index";
+import { sessions } from "@raceiq/backend-core/db/schema";
 
 const sessionIds: number[] = [];
 const testGameId = "lap-ownership-test" as GameId;

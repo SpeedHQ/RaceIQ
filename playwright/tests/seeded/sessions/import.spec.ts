@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { cleanDisposable, importDisposableLap, lapsFor, sessionsFor, sessionRows, type DisposableImport } from "./helpers";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 
 test("session lap context action rechecks disposable imported lap", async ({ page, request }) => {
   const browserErrors = collectBrowserErrors(page);

@@ -7,7 +7,7 @@
 import { describe, test, expect } from "bun:test";
 import { mkdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
-import { initGameAdapters } from "../../../shared/games/init";
+import { initGameAdapters } from "@raceiq/shared/games/init";
 import {
   autoTrackSegments,
   findCenterlines,
@@ -15,8 +15,8 @@ import {
   listAllCenterlines,
   listCuratedSlugs,
   loadCenterline,
-} from "../../../shared/racing/tracks/curation/generate";
-import { loadTrackFacts } from "../../../shared/racing/tracks/storage/meta";
+} from "@raceiq/shared/racing/tracks/curation/generate";
+import { loadTrackFacts } from "@raceiq/shared/racing/tracks/storage/meta";
 import { generateSegmentSvg } from "../../support/tracks/segment-svg";
 
 // Required before rendering: needsTrackFlip() resolves coordSystem through the

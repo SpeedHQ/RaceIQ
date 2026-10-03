@@ -1,7 +1,7 @@
-import { slipBalanceDeg } from "@shared/racing/analysis/laps/physics/vehicle";
-import { clamp } from "@shared/core/numbers";
-import { hasWorldPositions, lapPath } from "@shared/racing/tracks/path";
-import type { TelemetryPacket } from "@shared/telemetry/types";
+import { slipBalanceDeg } from "@raceiq/shared/racing/analysis/laps/physics/vehicle";
+import { clamp } from "@raceiq/shared/core/numbers";
+import { hasWorldPositions, lapPath } from "@raceiq/shared/racing/tracks/path";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { AlignedLapSet, AlignedLapTrace, WheelAverages, WheelTrace } from "./types";
 
 export interface AlignmentLapInput { lapId: number; lapNumber: number; lapTime: number; isValid: boolean; telemetry: TelemetryPacket[]; sectorTimes?: number[] | null; sectorStarts?: number[] | null; }

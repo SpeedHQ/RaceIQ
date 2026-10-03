@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { and, asc, eq, gt, isNotNull, isNull, or, sql } from "drizzle-orm";
-import { resolveLMUCar, resolveLMUTrack } from "../../../shared/games/lmu/catalog";
+import { resolveLMUCar, resolveLMUTrack } from "@raceiq/shared/games/lmu/catalog";
 import { listDiscoveredCars } from "../../db/discovered-cars";
 import { listDiscoveredTracks } from "../../db/discovered-tracks";
 import { db } from "../../db/index";

@@ -1,4 +1,4 @@
-import { rememberIRacingIdentity } from "../../../shared/games/iracing";
+import { rememberIRacingIdentity } from "@raceiq/shared/games/iracing/index";
 import {
   getDiscoveredCarName,
   registerDiscoveredCar,

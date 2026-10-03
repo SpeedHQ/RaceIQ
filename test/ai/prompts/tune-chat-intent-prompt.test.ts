@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { buildTuneChatIntentPrompt } from "../../../server/ai/tune-intent";
-import { applyIntents } from "../../../server/setups/rules/engine";
-import { knownComponents } from "../../../server/setups/rules/catalog";
-import type { TuneIntent } from "../../../server/ai/schemas";
-import type { TuneSymptoms } from "../../../server/ai/tune-symptoms";
+import { buildTuneChatIntentPrompt } from "@raceiq/backend-core/ai/tune-intent";
+import { applyIntents } from "@raceiq/backend-core/setups/rules/engine";
+import { knownComponents } from "@raceiq/backend-core/setups/rules/catalog";
+import type { TuneIntent } from "@raceiq/backend-core/ai/schemas";
+import type { TuneSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
 
 /**
  * Prompt-layer tests for the PRE-DRIVE "Generate setup from chat" path. Exercises

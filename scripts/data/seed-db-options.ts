@@ -1,4 +1,4 @@
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 
 export const SEED_MARKER = "raceiq-demo-seed-v1";
 export const PROFILE_NAME = "RaceIQ Demo Driver";

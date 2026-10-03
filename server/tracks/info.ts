@@ -1,15 +1,15 @@
-import type { NamedSegment } from "../../shared/racing/tracks/named-segments";
-import type { TrackFacts } from "../../shared/racing/tracks/facts";
-import type { TrackGeometry } from "../../shared/racing/tracks/geometry";
-import type { TrackSectors } from "../../shared/racing/tracks/sectors";
-import { getTrackSectorsByOrdinal } from "../../shared/racing/tracks/storage/sectors";
-import { getTrackLengthMeters, getTrackOutlineByOrdinal } from "../../shared/racing/tracks/recording/outlines";
+import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
+import type { TrackFacts } from "@raceiq/shared/racing/tracks/facts";
+import type { TrackGeometry } from "@raceiq/shared/racing/tracks/geometry";
+import type { TrackSectors } from "@raceiq/shared/racing/tracks/sectors";
+import { getTrackSectorsByOrdinal } from "@raceiq/shared/racing/tracks/storage/sectors";
+import { getTrackLengthMeters, getTrackOutlineByOrdinal } from "@raceiq/shared/racing/tracks/recording/outlines";
 import {
   loadLabelledSegments,
   loadTrackFacts,
   loadTrackGeometry,
-} from "../../shared/racing/tracks/storage/meta";
-import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
+} from "@raceiq/shared/racing/tracks/storage/meta";
+import { resolveTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
 import { tryGetServerGame } from "../games/registry";
 
 interface Point {

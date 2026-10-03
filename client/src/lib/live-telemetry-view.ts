@@ -1,6 +1,6 @@
-import type { GameId } from "../../../shared/games/ids";
-import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../../shared/telemetry/live/contracts";
-import type { FreshnessState, ResolutionState } from "../../../shared/telemetry/resolver/contracts";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
+import type { FreshnessState, ResolutionState } from "@raceiq/shared/telemetry/resolver/contracts";
 
 export type WheelValues<T> = Readonly<{ fl: T; fr: T; rl: T; rr: T }>;
 export type TireSurfaceBand = "representative" | "inner" | "middle" | "outer";

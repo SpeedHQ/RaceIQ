@@ -1,6 +1,6 @@
-import { isTelemetryVariableId } from "../../../../../shared/telemetry/catalog/query";
-import type { TelemetryVariableId } from "../../../../../shared/telemetry/catalog/generated/telemetry-catalog.types";
-import type { GameId } from "../../../../../shared/games/ids";
+import { isTelemetryVariableId } from "@raceiq/shared/telemetry/catalog/query";
+import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
+import type { GameId } from "@raceiq/shared/games/ids";
 
 export interface SemanticAnalysisFrame {
   values: Readonly<Record<string, unknown>>;

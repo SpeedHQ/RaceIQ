@@ -3,18 +3,18 @@
  * Includes the same telemetry context as the analysis prompt,
  * plus the original analysis as reference.
  */
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { Tune } from "../../shared/racing/tuning/types";
-import type { GameId } from "../../shared/games/ids";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { Tune } from "@raceiq/shared/racing/tuning/types";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-analysis/report"
-import { resolveCarName } from "../../shared/racing/cars/resolve-name";
-import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
+import { resolveCarName } from "@raceiq/shared/racing/cars/resolve-name";
+import { resolveTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
 import { buildCornerData } from "./corner-data";
-import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
+import type { LapInsight } from "@raceiq/shared/racing/analysis/laps/insights/types";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
-import { aiLanguageInstruction } from "../../shared/integrations/ai/language";
-import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
+import { aiLanguageInstruction } from "@raceiq/shared/integrations/ai/language";
+import { ADJUSTMENT_FORMAT_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
 interface CornerDef {
   index: number;
   label: string;

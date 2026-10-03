@@ -1,6 +1,6 @@
-import { tryGetGame } from "@shared/games/registry";
+import { tryGetGame } from "@raceiq/shared/games/registry"
 import { m } from "@/paraglide/messages";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { useCarName, useTirePressureOptimal } from "../../hooks/catalog-queries";
 import { useTrackName } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";

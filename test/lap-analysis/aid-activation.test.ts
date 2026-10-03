@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { initGameAdapters } from "@shared/games/init";
-import { analyzeLap } from "@shared/racing/analysis/laps/insights/analyze";
-import { runInsightScanWithCoverage } from "@shared/racing/analysis/laps/insights/scan";
-import { detectAbsActivation, detectTractionControlActivation } from "@shared/racing/analysis/laps/insights/electronics";
-import { calibratedWheelStates } from "@shared/racing/analysis/laps/physics/vehicle";
-import type { F1ExtendedData } from "@shared/telemetry/f1-2025";
-import type { KunosExtendedData } from "@shared/telemetry/kunos";
-import type { TelemetryPacket } from "@shared/telemetry/types";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { analyzeLap } from "@raceiq/shared/racing/analysis/laps/insights/analyze";
+import { runInsightScanWithCoverage } from "@raceiq/shared/racing/analysis/laps/insights/scan";
+import { detectAbsActivation, detectTractionControlActivation } from "@raceiq/shared/racing/analysis/laps/insights/electronics";
+import { calibratedWheelStates } from "@raceiq/shared/racing/analysis/laps/physics/vehicle";
+import type { F1ExtendedData } from "@raceiq/shared/telemetry/f1-2025";
+import type { KunosExtendedData } from "@raceiq/shared/telemetry/kunos";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 initGameAdapters();
 const inferred = { nativeChannelAvailable: false, nativeChannelExplicit: false, wheelRotationAvailable: true };

@@ -1,9 +1,9 @@
 import { getRecentSessionResults } from "../db/session-result-queries";
-import type { RaceResult } from "../../shared/racing/results/types";
+import type { RaceResult } from "@raceiq/shared/racing/results/types";
 import { and, eq, sql } from "drizzle-orm";
-import type { GameId } from "../../shared/games/ids";
-import type { RaceResultAggregate } from "../../shared/racing/results/types";
-import { db } from "../db";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { RaceResultAggregate } from "@raceiq/shared/racing/results/types";
+import { db } from "../db/index";
 import { pitEvents, sessionResults, sessions } from "../db/schema";
 
 // Results are materialized when a session completes or through explicit

@@ -1,4 +1,4 @@
-import type { CleanupAgeDays, SessionCleanupRequest, SessionCleanupResult } from "@shared/racing/sessions/cleanup";
+import type { CleanupAgeDays, SessionCleanupRequest, SessionCleanupResult } from "@raceiq/shared/racing/sessions/cleanup"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Database, HardDrive, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";

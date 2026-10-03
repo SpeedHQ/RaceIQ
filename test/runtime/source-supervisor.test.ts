@@ -1,5 +1,5 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import { superviseSource } from "../../server/runtime/source-supervisor";
+import { superviseSource } from "@raceiq/backend-core/runtime/source-supervisor";
 
 interface TestSource {
   start(): void;

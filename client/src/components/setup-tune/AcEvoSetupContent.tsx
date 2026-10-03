@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { summarizeAcEvoKnobs } from "@shared/racing/setups/ac-evo-content";
+import { summarizeAcEvoKnobs } from "@raceiq/shared/racing/setups/ac-evo-content";
 import { useInspectCarSetup } from "../../hooks/setup-queries";
 import { m } from "../../paraglide/messages";
 import { SetupSections } from "../tunes/SetupSections";

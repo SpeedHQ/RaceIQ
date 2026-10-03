@@ -2,11 +2,11 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
-import { db } from "../../server/db";
-import { sessions } from "../../server/db/schema";
-import { runSessionCaptureMaintenanceNow } from "../../server/session-capture/compressor";
-import { loadSettings, saveSettings } from "../../server/runtime/config/settings";
-import { resolveDataDir } from "../../server/runtime/config/data-dir";
+import { db } from "@raceiq/backend-core/db/index";
+import { sessions } from "@raceiq/backend-core/db/schema";
+import { runSessionCaptureMaintenanceNow } from "@raceiq/backend-core/session-capture/compressor";
+import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
+import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 
 const settingsPath = join(resolveDataDir(), "settings.json");
 const originalSettings = existsSync(settingsPath) ? readFileSync(settingsPath, "utf8") : null;

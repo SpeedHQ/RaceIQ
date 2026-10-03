@@ -2,8 +2,8 @@ import type {
   TelemetryCatalogGroup,
   TelemetrySourceVariable,
   TelemetryVariableDefinition,
-} from "../../shared/telemetry/catalog/contracts";
-import type { TelemetrySourcePath } from "../../shared/telemetry/catalog/generated/telemetry-catalog.types";
+} from "@raceiq/shared/telemetry/catalog/contracts";
+import type { TelemetrySourcePath } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
 
 // @ts-expect-error Unknown group IDs must be rejected.
 const unknownGroup: Pick<TelemetryCatalogGroup, "id"> = { id: "not-a-catalog-group" };

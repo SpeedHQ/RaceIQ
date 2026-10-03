@@ -3,22 +3,22 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DuckDBInstance, type DuckDBConnection } from "@duckdb/node-api";
-import { lmuAdapter } from "../../../shared/games/lmu";
+import { lmuAdapter } from "@raceiq/shared/games/lmu/index";
 import {
   resolveLMUCar,
   resolveLMUTrack,
-} from "../../../shared/games/lmu/catalog";
-import { resolveLMUInvalidReason } from "../../../server/games/lmu/lap-policy";
-import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
-import { lmuServerAdapter } from "../../../server/games/lmu";
-import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports";
-import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
-import { compileTelemetryResolver } from "../../../shared/telemetry/resolver/compile";
-import { transferRoutes } from "../../../server/routes/laps/transfer-routes";
+} from "@raceiq/shared/games/lmu/catalog";
+import { resolveLMUInvalidReason } from "@raceiq/backend-core/games/lmu/lap-policy";
+import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";
+import { lmuServerAdapter } from "@raceiq/backend-core/games/lmu/index";
+import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
+import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
+import { compileTelemetryResolver } from "@raceiq/shared/telemetry/resolver/compile";
+import { transferRoutes } from "@raceiq/backend-core/routes/laps/transfer-routes";
 import {
   previewLMUDuckDB,
   readLMUDuckDBFrames,
-} from "../../../server/games/lmu/import-duckdb";
+} from "@raceiq/backend-core/games/lmu/import-duckdb";
 import {
   LMU_GAME_VERSION_OFFSET,
   LMU_SCORING_INFO,
@@ -33,17 +33,17 @@ import {
   LMU_TELEMETRY_INFO_OFFSET,
   LMU_WHEEL,
   LMU_WHEEL_SIZE,
-} from "../../../server/games/lmu/layout";
+} from "@raceiq/backend-core/games/lmu/layout";
 import {
   LMURecorder,
   readLMUFrames,
-} from "../../../server/games/lmu/recorder";
-import { LMUTelemetrySource } from "../../../server/games/lmu/source";
+} from "@raceiq/backend-core/games/lmu/recorder";
+import { LMUTelemetrySource } from "@raceiq/backend-core/games/lmu/source";
 import {
   canHandleLMUSourceFrame,
   decodeLMUSourceFrame,
   encodeLMUSourceFrame,
-} from "../../../server/games/lmu/source-frame";
+} from "@raceiq/backend-core/games/lmu/source-frame";
 
 const temporaryDirectories: string[] = [];
 

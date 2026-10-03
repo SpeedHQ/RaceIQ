@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type { Corner } from "../../../server/lap-analysis/corners"
-import { formatTireTempSymptoms, tireTempSymptoms } from "../../../server/ai/tune-tire-symptoms";
-import { telemetryToSymptoms } from "../../../server/ai/tune-symptoms";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { Corner } from "@raceiq/backend-core/lap-analysis/corners"
+import { formatTireTempSymptoms, tireTempSymptoms } from "@raceiq/backend-core/ai/tune-tire-symptoms";
+import { telemetryToSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 /** Minimal packet with a distance and optional per-corner slip overrides. */
 function packet(distance: number, o: Partial<TelemetryPacket> = {}): TelemetryPacket {

@@ -3,14 +3,14 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { eq, inArray } from "drizzle-orm";
-import { db, client } from "../../server/db";
-import { laps, sessions } from "../../server/db/schema";
-import { executeSessionCleanup, previewSessionCleanup } from "../../server/session-capture/session-cleanup";
-import { reprocessSession, SessionRawFileMissingError } from "../../server/session-capture/reprocess";
-import { setSessionFavorite, setLapFavorite } from "../../server/db/session-queries";
-import { runUserCompressionNow } from "../../server/session-capture/compressor";
-import { withSessionCaptureMaintenanceLock } from "../../server/session-capture/cleanup";
-import { resolveDataDir } from "../../server/runtime/config/data-dir";
+import { db, client } from "@raceiq/backend-core/db/index";
+import { laps, sessions } from "@raceiq/backend-core/db/schema";
+import { executeSessionCleanup, previewSessionCleanup } from "@raceiq/backend-core/session-capture/session-cleanup";
+import { reprocessSession, SessionRawFileMissingError } from "@raceiq/backend-core/session-capture/reprocess";
+import { setSessionFavorite, setLapFavorite } from "@raceiq/backend-core/db/session-queries";
+import { runUserCompressionNow } from "@raceiq/backend-core/session-capture/compressor";
+import { withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
+import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 
 const OLD_DATE = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString();
 const RECENT_DATE = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();

@@ -7,8 +7,8 @@ import {
   logDriverProfileFailure,
   logDriverProfileOutput,
   notifyDriverProfileLap,
-} from "../../server/driver-profile/runner";
-import { driverRoutes } from "../../server/routes/driver-routes";
+} from "@raceiq/backend-core/driver-profile/runner";
+import { driverRoutes } from "@raceiq/backend-core/routes/driver-routes";
 
 describe("driver profile runner", () => {
   test("background lap notification accepts only game scope", () => {

@@ -4,10 +4,10 @@ import { PHYSICS as ACC_PHYSICS, GRAPHICS as ACC_GRAPHICS, STATIC as ACC_STATIC 
 import { PHYSICS as EVO_PHYSICS, GRAPHICS_EVO, STATIC_EVO, ACEVO_STATUS } from "../ac-evo/structs";
 import { readWString } from "../acc/utils";
 import { readCString } from "../ac-evo/utils";
-import { getAccCarByModel } from "../../../shared/racing/cars/acc";
-import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc";
-import { getAcEvoCarByDisplayName } from "../../../shared/racing/cars/ac-evo";
-import { getAcEvoTrackByName } from "../../../shared/racing/tracks/catalogs/ac-evo";
+import { getAccCarByModel } from "@raceiq/shared/racing/cars/acc";
+import { getAccTrackByName } from "@raceiq/shared/racing/tracks/catalogs/acc";
+import { getAcEvoCarByDisplayName } from "@raceiq/shared/racing/cars/ac-evo";
+import { getAcEvoTrackByName } from "@raceiq/shared/racing/tracks/catalogs/ac-evo";
 import { calibratePlayerSlot } from "../ac-evo/player-slot";
 import { integrateDistance } from "../ac-evo/distance";
 

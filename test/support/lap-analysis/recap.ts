@@ -1,4 +1,4 @@
-import { computeRecap, type RecapLapInput, type RecapSessionInput } from "../../../server/lap-analysis/recap";
+import { computeRecap, type RecapLapInput, type RecapSessionInput } from "@raceiq/backend-core/lap-analysis/recap";
 
 export const baseSession: RecapSessionInput = {
   id: 1,

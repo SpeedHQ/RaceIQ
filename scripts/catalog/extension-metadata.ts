@@ -1,5 +1,5 @@
 // Extension aliases, descriptive metadata, and unavailable-source records.
-import { SETUP_PARSER_SOURCE_MAPPINGS } from "../../shared/racing/setups/catalog/parser-source-mappings";
+import { SETUP_PARSER_SOURCE_MAPPINGS } from "@raceiq/shared/racing/setups/catalog/parser-source-mappings";
 import { unavailable } from "./ast-discovery";
 import type { AvailableLink, ExtensionMetadata, GameId, GameLink, UnavailableExtensionSource } from "./model";
 import { GAME_IDS } from "./model";

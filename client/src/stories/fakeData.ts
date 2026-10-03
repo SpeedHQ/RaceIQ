@@ -3,10 +3,10 @@
  * All values are plausible real-world racing data.
  */
 
-import type { LivePitData, LiveSectorData } from "../../../shared/racing/live/types";
-import type { LapMeta } from "../../../shared/racing/sessions/types";
-import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../../shared/telemetry/live/contracts";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { LivePitData, LiveSectorData } from "@raceiq/shared/racing/live/types";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { buildLiveTelemetryView } from "../lib/live-telemetry-view";
 import type { LiveTelemetryView } from "../lib/live-telemetry-view";
 

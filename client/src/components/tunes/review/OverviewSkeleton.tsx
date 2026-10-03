@@ -1,6 +1,6 @@
 import { m } from "@/paraglide/messages";
-import { headlineMetricForVersionKind, type VersionKind } from "@shared/racing/experiments/focus";
-import type { LapMeta } from "@shared/racing/sessions/types";
+import { headlineMetricForVersionKind, type VersionKind } from "@raceiq/shared/racing/experiments/focus";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";

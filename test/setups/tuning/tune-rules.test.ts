@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { applyIntents } from "../../../server/setups/rules/engine";
-import { knownComponents } from "../../../server/setups/rules/catalog";
-import type { TuneIntent } from "../../../server/ai/schemas";
+import { applyIntents } from "@raceiq/backend-core/setups/rules/engine";
+import { knownComponents } from "@raceiq/backend-core/setups/rules/catalog";
+import type { TuneIntent } from "@raceiq/backend-core/ai/schemas";
 
 function intent(component: string, direction: TuneIntent["direction"], magnitude: TuneIntent["magnitude"] = "medium"): TuneIntent {
   return { component, direction, magnitude, reason: "test" };

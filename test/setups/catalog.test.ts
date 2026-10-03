@@ -1,23 +1,23 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { carSetupToKnobValues, summarizeCarSetup } from "../../server/games/ac-evo/carsetup";
-import { parseCarSetup } from "../../server/games/ac-evo/carsetup-wire";
-import { patchCarSetup } from "../../server/games/ac-evo/carsetup-writer";
-import { IRACING_SETUP_INFO_FIELDS } from "../../shared/games/iracing/session-info/catalog";
-import { SETUP_CONCEPT_DEFINITIONS } from "../../shared/racing/setups/catalog/concepts";
+import { carSetupToKnobValues, summarizeCarSetup } from "@raceiq/backend-core/games/ac-evo/carsetup";
+import { parseCarSetup } from "@raceiq/backend-core/games/ac-evo/carsetup-wire";
+import { patchCarSetup } from "@raceiq/backend-core/games/ac-evo/carsetup-writer";
+import { IRACING_SETUP_INFO_FIELDS } from "@raceiq/shared/games/iracing/session-info/catalog";
+import { SETUP_CONCEPT_DEFINITIONS } from "@raceiq/shared/racing/setups/catalog/concepts";
 import {
   SETUP_FILE_SOURCE_DEFINITIONS,
   SETUP_FILE_SOURCE_TREE,
-} from "../../shared/racing/setups/catalog/file-source-mappings";
-import { getSetupCatalogSources } from "../../shared/racing/setups/catalog/query";
+} from "@raceiq/shared/racing/setups/catalog/file-source-mappings";
+import { getSetupCatalogSources } from "@raceiq/shared/racing/setups/catalog/query";
 import {
   getSchemaForGame,
   readSetupField,
   readSetupSection,
   writeSetupField,
-} from "../../shared/racing/setups/schema";
-import { annotateAcEvoSections, summarizeAcEvoKnobs } from "../../shared/racing/setups/ac-evo-content";
+} from "@raceiq/shared/racing/setups/schema";
+import { annotateAcEvoSections, summarizeAcEvoKnobs } from "@raceiq/shared/racing/setups/ac-evo-content";
 
 describe("setup source catalog", () => {
   test("derives typed paths, labels, semantics, and cardinality from one source tree", () => {

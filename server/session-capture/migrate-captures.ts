@@ -5,7 +5,7 @@ import { once } from "node:events";
 import { finished, pipeline } from "node:stream/promises";
 import { createGunzip, createGzip } from "node:zlib";
 import { eq, inArray } from "drizzle-orm";
-import { db } from "../db";
+import { db } from "../db/index";
 import { laps, sessions } from "../db/schema";
 import { listCaptureMigrationCandidates } from "../db/session-queries";
 import { cacheDelete } from "../db/telemetry-replay-storage";
@@ -13,7 +13,7 @@ import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame } from "./framing";
 import { clearSessionCaptureCache, iterateSessionCaptureRecordsFromSource, type SessionCaptureSource } from "./source-loader";
 import { SparseCaptureEncoder } from "./sparse-recorder";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 
 
 type Candidate = { rawFile: string; gameId: GameId; sessionIds: number[] };

@@ -22,7 +22,7 @@ import {
   listThreadGenerations,
   resolveActiveThread,
   chatMemoryOptions,
-} from "../../../server/ai/chat-agent";
+} from "@raceiq/backend-core/ai/chat-agent";
 
 function makeFakeMemory(existingThreadIds: string[]) {
   const threads = new Set(existingThreadIds);

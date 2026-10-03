@@ -1,13 +1,13 @@
 import { and, asc, eq, gt, inArray, isNull, ne, or } from "drizzle-orm";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { GameId } from "../../shared/games/ids";
-import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
-import { db } from "../db";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { LapInsight } from "@raceiq/shared/racing/analysis/laps/insights/types";
+import { db } from "../db/index";
 import { lapMetrics, laps } from "../db/schema";
 import { getLapById, getLapsByIds } from "../db/lap-read-queries";
 import { resolveLapSegments, resolveRacingLineReference, STATIC_LAP_ANALYSIS_VERSION } from "./insights";
-import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
-import { processLap, restoreFrameIndices } from "../../shared/racing/analysis/laps/insights/process";
+import { analyzeLap } from "@raceiq/shared/racing/analysis/laps/insights/analyze";
+import { processLap, restoreFrameIndices } from "@raceiq/shared/racing/analysis/laps/insights/process";
 import {
   computeLapMetrics,
   deriveFuelPerLap,

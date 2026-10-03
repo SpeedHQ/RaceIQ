@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { RequestContext } from "@mastra/core/request-context";
-import { compareEngineerAgent } from "../../../mastra/agents/compare-engineer";
-import { compareChatAgent } from "../../../mastra/agents/compare-chat";
-import { lapChatAgent } from "../../../mastra/agents/lap-chat";
-import { lapAnalystAgent } from "../../../mastra/agents/lap-analyst";
-import { createModelContext } from "../../../server/ai/model-provider";
-import { resolveAi } from "../../../server/ai/ai-runtime";
-import { loadSettings } from "../../../server/runtime/config/settings";
+import { compareEngineerAgent } from "@raceiq/backend/src/mastra/agents/compare-engineer";
+import { compareChatAgent } from "@raceiq/backend/src/mastra/agents/compare-chat";
+import { lapChatAgent } from "@raceiq/backend/src/mastra/agents/lap-chat";
+import { lapAnalystAgent } from "@raceiq/backend/src/mastra/agents/lap-analyst";
+import { createModelContext } from "@raceiq/backend-core/ai/model-provider";
+import { resolveAi } from "@raceiq/backend-core/ai/ai-runtime";
+import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 type ToolInspectionAgent = {
   getToolsForExecution(options: {
     requestContext: RequestContext;

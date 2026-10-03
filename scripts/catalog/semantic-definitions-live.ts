@@ -1,5 +1,5 @@
 
-import { SETUP_CONCEPT_DEFINITIONS } from "../../shared/racing/setups/catalog/concepts";
+import { SETUP_CONCEPT_DEFINITIONS } from "@raceiq/shared/racing/setups/catalog/concepts";
 import type { SemanticDefinition } from "./model";
 
 const SEMANTIC_DEFINITIONS_LIVE: Record<string, SemanticDefinition> = {

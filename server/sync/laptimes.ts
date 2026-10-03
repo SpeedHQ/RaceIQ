@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 
 /**
  * Community leaderboard CDN sync.

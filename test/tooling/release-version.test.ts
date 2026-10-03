@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { computeNextReleaseVersion } from "../../scripts/ci/release-version";
+import { computeNextReleaseVersion } from "@raceiq/tooling/ci/release-version";
 
 describe("computeNextReleaseVersion", () => {
   test("bumps latest release tag instead of package.json version", () => {

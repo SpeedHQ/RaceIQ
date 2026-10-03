@@ -2,7 +2,7 @@
 
 import { useAuiState } from "@assistant-ui/react";
 import { useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
-import { contextWindowFor } from "@shared/integrations/ai/context-window";
+import { contextWindowFor } from "@raceiq/shared/integrations/ai/context-window"
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { m } from "@/paraglide/messages";

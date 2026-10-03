@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useTelemetryStore } from "../stores/telemetry";
 import { gameStore } from "../stores/game";
-import { tryGetGame } from "@shared/games/registry";
+import { tryGetGame } from "@raceiq/shared/games/registry"
 import { NoDataView } from "./NoDataView";
 import { liveDashboardForGame } from "../lib/game-routes";
 import { ForzaLiveDashboard } from "./ForzaLiveDashboard";

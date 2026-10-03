@@ -1,6 +1,6 @@
-import type { GameId } from "../../shared/games/ids";
-import type { KunosExtendedData } from "../../shared/telemetry/kunos";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { KunosExtendedData } from "@raceiq/shared/telemetry/kunos";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { PreparedKunosMotecCapture } from "./kunos-synthesis";
 import { MOTEC_STEER_LOCK_DEG } from "./kunos-synthesis";
 import type { MotecCarTrack } from "./types";

@@ -3,7 +3,7 @@ import { reconcileAutoExclusions,
 reconcileAutoExclusionsForLap,
 type ExclusionScopeLap,
 type LapExclusionWriter,
-type LapExperimentScopeReader, } from "../../../server/experiments/auto-exclude"
+type LapExperimentScopeReader, } from "@raceiq/backend-core/experiments/auto-exclude"
 
 /** Auto-exclude fastest-5 curation
  *  (docs/architecture/setup-engineer.md).

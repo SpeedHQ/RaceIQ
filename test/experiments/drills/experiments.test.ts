@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { db } from "../../../server/db/index";
-import { experiments } from "../../../server/db/schema";
+import { db } from "@raceiq/backend-core/db/index";
+import { experiments } from "@raceiq/backend-core/db/schema";
 import {
   createExperiment,
   getExperiment,
   listExperiments,
   updateExperiment,
-} from "../../../server/db/experiment-queries";
+} from "@raceiq/backend-core/db/experiment-queries";
 
 /** Query layer behind the experiments endpoints — the Setup Engineer front
  *  door (plan §6a). Tests the DB layer directly (importing the composed app

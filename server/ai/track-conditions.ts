@@ -17,7 +17,7 @@
  * Returns null when no game in the stint exposes any condition data, so callers
  * simply omit the section.
  */
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 export interface TrackConditions {
   frames: number;

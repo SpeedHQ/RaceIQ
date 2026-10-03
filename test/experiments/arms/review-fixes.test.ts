@@ -6,13 +6,13 @@ import {
   holmAdjust,
   MIN_LAPS_PER_ARM,
   RECOMMENDED_LAPS_PER_ARM,
-} from "../../../server/experiments/comparison/compare";
+} from "@raceiq/backend-core/experiments/comparison/compare";
 import {
   blunderFence,
   blunderFencesForArms,
   type MetadataOutcomeMetric,
   OUTCOME_METRICS,
-} from "../../../server/experiments/comparison/metrics";
+} from "@raceiq/backend-core/experiments/comparison/metrics";
 import { metadataArm } from "../../support/experiments/arms";
 
 /**

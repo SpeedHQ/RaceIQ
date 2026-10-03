@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { parseLapTime } from "../../client/src/components/tune/browser/parseLapTime";
+import { parseLapTime } from "./client/src/components/tune/browser/parseLapTime";
 
 describe("parseLapTime", () => {
   test("parses M:SS.m and normalises", () => {

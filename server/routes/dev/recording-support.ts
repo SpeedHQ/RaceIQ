@@ -4,9 +4,9 @@ import { readKunosFrames } from "../../games/kunos/frame-reader";
 import { parseAccBuffers } from "../../games/acc/parser";
 import { readWString } from "../../games/acc/utils";
 import { STATIC } from "../../games/acc/structs";
-import { getAccCarByModel } from "../../../shared/racing/cars/acc";
-import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc";
-import { type GameId, KNOWN_GAME_IDS } from "../../../shared/games/ids";
+import { getAccCarByModel } from "@raceiq/shared/racing/cars/acc";
+import { getAccTrackByName } from "@raceiq/shared/racing/tracks/catalogs/acc";
+import { type GameId, KNOWN_GAME_IDS } from "@raceiq/shared/games/ids";
 import { readRecordedTelemetry } from "../../session-capture/replay-packets";
 
 export type E2eRecordingFile = {
@@ -53,7 +53,7 @@ const RECORDING_GAME_IDS = [...KNOWN_GAME_IDS].sort(
 export function resolveRecordingPath(recordingName: string): RecordingPathValidation {
   if (
     recordingName.length === 0 ||
-    recordingName.includes("..") ||
+    recordingName.includes("../index") ||
     recordingName.includes("/") ||
     recordingName.includes("\\")
   ) {

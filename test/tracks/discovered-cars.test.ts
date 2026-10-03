@@ -1,18 +1,18 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { and, eq } from "drizzle-orm";
-import { db } from "../../server/db/index";
-import { discoveredCars, sessions, tunes } from "../../server/db/schema";
+import { db } from "@raceiq/backend-core/db/index";
+import { discoveredCars, sessions, tunes } from "@raceiq/backend-core/db/schema";
 import {
   getOrCreateDiscoveredCar,
   getDiscoveredCarName,
   listDiscoveredCars,
   reconcileDiscoveredCars,
   DISCOVERED_CAR_ORDINAL_BASE,
-} from "../../server/db/discovered-cars";
-import { injectDiscoveredAcEvoCars, getAcEvoCarName } from "../../shared/racing/cars/ac-evo"
-import { LapDetectorAcEvo } from "../../server/games/ac-evo/lap-detector";
-import { CapturingDbAdapter } from "../../server/telemetry/pipeline-ports";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+} from "@raceiq/backend-core/db/discovered-cars";
+import { injectDiscoveredAcEvoCars, getAcEvoCarName } from "@raceiq/shared/racing/cars/ac-evo"
+import { LapDetectorAcEvo } from "@raceiq/backend-core/games/ac-evo/lap-detector";
+import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 
 // Follows DATA_DIR so this never touches the real dev database — `bun run

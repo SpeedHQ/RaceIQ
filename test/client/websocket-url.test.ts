@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildWebSocketUrl } from "../../client/src/hooks/websocket-url";
+import { buildWebSocketUrl } from "./client/src/hooks/websocket-url";
 
 describe("RaceIQ WebSocket URL", () => {
   test("uses the current origin outside development", () => {

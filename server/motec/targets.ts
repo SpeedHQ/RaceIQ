@@ -28,8 +28,8 @@
  * tell it went wrong.
  */
 
-import type { GameId } from "../../shared/games/ids";
-import { getGame } from "@shared/games/registry";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { getGame } from "@raceiq/shared/games/registry";
 import type { LdLog } from "./ld";
 import type {
   MotecCarTrack,
@@ -42,12 +42,12 @@ import {
   resolveAccMotecCarTrack,
 } from "../games/acc/motec";
 import { convertAcEvoMotecToPackets } from "../games/ac-evo/motec";
-import { getAcEvoCarByModel, getAcEvoCarName } from "../../shared/racing/cars/ac-evo";
+import { getAcEvoCarByModel, getAcEvoCarName } from "@raceiq/shared/racing/cars/ac-evo";
 import {
   getAcEvoTrackByName,
   getAcEvoTrackBySetupFolder,
   getAcEvoTracks,
-} from "../../shared/racing/tracks/catalogs/ac-evo";
+} from "@raceiq/shared/racing/tracks/catalogs/ac-evo";
 
 type MotecConverter = (
   log: LdLog,

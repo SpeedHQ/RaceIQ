@@ -1,10 +1,10 @@
 import { writeFileSync } from "node:fs";
-import type { GameId } from "../../../shared/games/ids";
-import { tryGetGame } from "../../../shared/games/registry";
-import { flipPoints, needsTrackFlip, type Pt } from "../../../shared/racing/tracks/coords";
-import type { NamedSegment } from "../../../shared/racing/tracks/named-segments";
-import { turnNumbers } from "../../../shared/racing/tracks/segment-label";
-import { makeTrackProjection } from "../../../shared/racing/tracks/projection";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { tryGetGame } from "@raceiq/shared/games/registry";
+import { flipPoints, needsTrackFlip, type Pt } from "@raceiq/shared/racing/tracks/coords";
+import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
+import { turnNumbers } from "@raceiq/shared/racing/tracks/segment-label";
+import { makeTrackProjection } from "@raceiq/shared/racing/tracks/projection";
 
 /** Distinct, high-contrast colors cycled across corner segments. */
 const CORNER_COLORS = [

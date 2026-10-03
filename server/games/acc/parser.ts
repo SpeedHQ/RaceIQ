@@ -4,9 +4,9 @@
  * Offsets match ACC v1.9 shared memory structs defined in structs.ts.
  */
 
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import type { KunosExtendedData } from "../../../shared/telemetry/kunos";
-import type { GameId } from "../../../shared/games/ids";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { KunosExtendedData } from "@raceiq/shared/telemetry/kunos";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { PHYSICS, GRAPHICS, STATIC, FLAG_STATUS } from "./structs";
 import { readWString } from "./utils";
 

@@ -12,15 +12,15 @@
  *   --verbose       print detected corner tables for failed alignments
  */
 
-import { detectCornerRegions, type CornerRegion } from "../../shared/racing/tracks/curation/segment-align-detect";
+import { detectCornerRegions, type CornerRegion } from "@raceiq/shared/racing/tracks/curation/segment-align-detect";
 import {
   findCenterlines,
   generateTrackSegments,
   listCuratedSlugs,
   loadCenterline,
   writeTrackMeta,
-} from "../../shared/racing/tracks/curation/generate";
-import { loadTrackFacts } from "../../shared/racing/tracks/storage/meta";
+} from "@raceiq/shared/racing/tracks/curation/generate";
+import { loadTrackFacts } from "@raceiq/shared/racing/tracks/storage/meta";
 
 interface Args {
   track?: string;

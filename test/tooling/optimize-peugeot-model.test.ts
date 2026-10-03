@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { NodeIO } from "@gltf-transform/core";
 import { EXTMeshoptCompression, KHRONOS_EXTENSIONS } from "@gltf-transform/extensions";
 import { MeshoptDecoder } from "meshoptimizer";
-import { optimizePeugeotModel, PEUGEOT_SOURCE_SHA256 } from "../../scripts/assets/optimize-peugeot-model";
+import { optimizePeugeotModel, PEUGEOT_SOURCE_SHA256 } from "@raceiq/tooling/assets/optimize-peugeot-model";
 
 const sourcePath = resolve("assets/models/source/peugeot_9x8_evo_2024.glb");
 

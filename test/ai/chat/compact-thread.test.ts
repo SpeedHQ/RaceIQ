@@ -1,6 +1,6 @@
 // test/ai/chat/compact-thread.test.ts
 import { describe, test, expect } from "bun:test";
-import { forkThreadWithSummary, NothingToCompactError, MIN_COMPACT_MESSAGES } from "../../../server/ai/compact-thread";
+import { forkThreadWithSummary, NothingToCompactError, MIN_COMPACT_MESSAGES } from "@raceiq/backend-core/ai/compact-thread";
 
 // Minimal fake Mastra memory: enough surface for forkThreadWithSummary.
 // Tracks threads by id (so getThreadById/createThread behave like a real

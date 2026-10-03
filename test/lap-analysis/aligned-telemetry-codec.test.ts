@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { alignLapSet } from "../../shared/racing/laps/alignment/build";
-import { decodeAlignedLapSet, encodeAlignedLapSet } from "../../shared/racing/laps/alignment/codec";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { alignLapSet } from "@raceiq/shared/racing/laps/alignment/build";
+import { decodeAlignedLapSet, encodeAlignedLapSet } from "@raceiq/shared/racing/laps/alignment/codec";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 const telemetry = [0, 1, 2].map((distance, index) => ({
   DistanceTraveled: distance,

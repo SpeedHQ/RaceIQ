@@ -1,10 +1,10 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/shared/games/init";
 import { serverReleaseFeatures } from "./config/release-features";
-import { injectDiscoveredAcEvoCars } from "../../shared/racing/cars/ac-evo";
-import { injectDiscoveredIRacingIdentity } from "../../shared/games/iracing";
-import { injectDiscoveredLMUIdentity } from "../../shared/games/lmu";
+import { injectDiscoveredAcEvoCars } from "@raceiq/shared/racing/cars/ac-evo";
+import { injectDiscoveredIRacingIdentity } from "@raceiq/shared/games/iracing/index";
+import { injectDiscoveredLMUIdentity } from "@raceiq/shared/games/lmu/index";
 import app from "../routes/index";
 import { initServerGameAdapters } from "../games/init";
 import { initDb } from "../db/index";

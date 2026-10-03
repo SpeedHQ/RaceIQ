@@ -1,5 +1,5 @@
-import { getSchemaForGame, readSetupField } from "@shared/racing/setups/schema";
-import type { GameId } from "../../../../shared/games/ids";
+import { getSchemaForGame, readSetupField } from "@raceiq/shared/racing/setups/schema";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { AcEvoSetupContent } from "./AcEvoSetupContent";
 
 /** Setup summary: AC Evo shares experiment rendering; ACC uses its catalogued JSON fields. */

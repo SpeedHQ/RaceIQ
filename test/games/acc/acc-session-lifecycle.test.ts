@@ -10,17 +10,17 @@
  * while the game process stayed alive. Mirror of the AC Evo fix.
  */
 import { describe, test, expect, afterAll } from "bun:test";
-import { initGameAdapters } from "../../../shared/games/init";
-import { initServerGameAdapters } from "../../../server/games/init";
-import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports"
-import { LapDetectorAcc } from "../../../server/games/acc/lap-detector"
-import { TripletPipeline } from "../../../server/games/kunos/triplet-pipeline";
-import { StatusCheckProcessor } from "../../../server/games/acc/processors";
-import type { TripletProcessor } from "../../../server/games/kunos/triplet-pipeline";
-import { GRAPHICS, AC_STATUS } from "../../../server/games/acc/structs";
-import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
-import { readKunosFrames } from "../../../server/games/kunos/frame-reader";
-import { parseAccBuffers } from "../../../server/games/acc/parser";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
+import { LapDetectorAcc } from "@raceiq/backend-core/games/acc/lap-detector"
+import { TripletPipeline } from "@raceiq/backend-core/games/kunos/triplet-pipeline";
+import { StatusCheckProcessor } from "@raceiq/backend-core/games/acc/processors";
+import type { TripletProcessor } from "@raceiq/backend-core/games/kunos/triplet-pipeline";
+import { GRAPHICS, AC_STATUS } from "@raceiq/backend-core/games/acc/structs";
+import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
+import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { parseAccBuffers } from "@raceiq/backend-core/games/acc/parser";
 
 initGameAdapters();
 initServerGameAdapters();

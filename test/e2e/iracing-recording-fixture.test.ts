@@ -5,7 +5,7 @@ import {
   expect,
   test,
 } from "bun:test";
-import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline"
+import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
 import type { DumpResult } from "../support/recordings/parse-dump";
 import { parseDump } from "../support/recordings/parse-dump";
 

@@ -1,4 +1,4 @@
-import type { NamedSegment } from "../../../shared/racing/tracks/named-segments";
+import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
 
 export interface IRacingMapPoint {
   x: number;

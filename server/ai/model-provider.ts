@@ -18,7 +18,7 @@ import {
   modelFromRequestContext,
   type BoundMastraModel,
   type MastraRequestContext,
-} from "../../mastra/model";
+} from "@raceiq/backend/src/mastra/model";
 
 /**
  * Resolve the Mastra model for one feature. A model already bound to this

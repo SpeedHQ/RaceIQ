@@ -1,9 +1,9 @@
-import type { GameId } from "../../shared/games/ids";
-import type { LiveSectorData } from "../../shared/racing/live/types";
-import type { TuneIssue } from "../../shared/racing/tuning/issues";
-import type { CanonicalTelemetryScalar } from "../../shared/telemetry/replay/contracts";
-import type { LiveTelemetryDefinitionV1, LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../shared/telemetry/live/contracts";
-import type { ResolvedValue } from "../../shared/telemetry/resolver/contracts";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { LiveSectorData } from "@raceiq/shared/racing/live/types";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
+import type { CanonicalTelemetryScalar } from "@raceiq/shared/telemetry/replay/contracts";
+import type { LiveTelemetryDefinitionV1, LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
+import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
 
 export function encodeCanonicalLiveValue(value: unknown, semanticId = "value"): CanonicalTelemetryScalar {
   if (value === null || typeof value === "boolean" || typeof value === "string") return value;

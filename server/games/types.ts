@@ -1,5 +1,5 @@
-import type { GameAdapter } from "../../shared/games/types";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { GameAdapter } from "@raceiq/shared/games/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LapDetectorFactory, LapIndexPacket } from "../lap-detection/types";
 /** Server-only runtime behavior owned by each game implementation. */
 export interface ServerGameRuntimePolicy {

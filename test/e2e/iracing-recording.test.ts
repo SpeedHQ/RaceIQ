@@ -3,19 +3,19 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
-import { initServerGameAdapters } from "../../server/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 import {
   IRACING_DUMP_MAGIC,
   IRACING_DUMP_VERSION,
   IRacingRecorder,
   readIRacingFrames,
-} from "../../server/games/iracing/recorder";
-import type { IRacingSdkSnapshot } from "../../server/games/iracing/sdk-reader";
+} from "@raceiq/backend-core/games/iracing/recorder";
+import type { IRacingSdkSnapshot } from "@raceiq/backend-core/games/iracing/sdk-reader";
 import {
   type IRacingFrameReader,
   IRacingTelemetrySource,
-} from "../../server/games/iracing/source";
-import { initGameAdapters } from "../../shared/games/init";
+} from "@raceiq/backend-core/games/iracing/source";
+import { initGameAdapters } from "@raceiq/shared/games/init";
 import { parseDump } from "../support/recordings/parse-dump";
 
 initGameAdapters();

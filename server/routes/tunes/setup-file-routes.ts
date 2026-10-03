@@ -4,14 +4,14 @@ import { Hono } from "hono";
 import { resolve, sep } from "node:path";
 import { z } from "zod";
 
-import { getAllAccCars } from "../../../shared/racing/cars/acc"
-import { getAccSetupFolderKeys, getAccTrackBySetupFolder } from "../../../shared/racing/tracks/catalogs/acc"
-import { getAllAcEvoCars } from "../../../shared/racing/cars/ac-evo"
-import { getAcEvoSetupFolderAliases, getAcEvoSetupFolderKeys, getAcEvoTrackBySetupFolder } from "../../../shared/racing/tracks/catalogs/ac-evo"
-import { AccSetupJsonSchema, setupFileFormat, setupFileRejectReason } from "../../../shared/racing/setups/file-formats";
+import { getAllAccCars } from "@raceiq/shared/racing/cars/acc"
+import { getAccSetupFolderKeys, getAccTrackBySetupFolder } from "@raceiq/shared/racing/tracks/catalogs/acc"
+import { getAllAcEvoCars } from "@raceiq/shared/racing/cars/ac-evo"
+import { getAcEvoSetupFolderAliases, getAcEvoSetupFolderKeys, getAcEvoTrackBySetupFolder } from "@raceiq/shared/racing/tracks/catalogs/ac-evo"
+import { AccSetupJsonSchema, setupFileFormat, setupFileRejectReason } from "@raceiq/shared/racing/setups/file-formats";
 import { getTuneById, insertTune } from "../../db/tune-queries";
 import { carSetupToKnobValues, carSlugFromPresetId, formatCarSetup, readCarSetupFile, summarizeCarSetup } from "../../games/ac-evo/carsetup";
-import { annotateAcEvoSections } from "../../../shared/racing/setups/ac-evo-content";
+import { annotateAcEvoSections } from "@raceiq/shared/racing/setups/ac-evo-content";
 import { parseCarSetup } from "../../games/ac-evo/carsetup-wire";
 import { getSetupsBaseDir, resolveGuardedSetupFile } from "../../setups/file-guard";
 import { getAcEvoCarRanges } from "../../setups/rules/catalog";
@@ -156,7 +156,7 @@ export const tuneSetupFileRoutes = new Hono()
       const SETUP_EXT = /\.(json|carsetup)$/i;
       const gameExt = setupFileFormat(body.gameId).extension;
       if (!SETUP_EXT.test(file)) file += gameExt;
-      const bad = (s: string) => !s || s === "." || s === "..";
+      const bad = (s: string) => !s || s === "./index" || s === "../index";
       if (bad(car) || bad(track) || bad(file.replace(SETUP_EXT, ""))) return c.json({ error: "Invalid car, track, or file name" }, 400);
       let bytes: Buffer | null = null;
       let json: unknown;

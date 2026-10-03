@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { extractJson } from "../../server/ai/extract-json";
+import { extractJson } from "@raceiq/backend-core/ai/extract-json";
 
 describe("extractJson", () => {
   test("returns plain JSON unchanged", () => {

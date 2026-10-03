@@ -29,7 +29,7 @@
  */
 
 import type { Corner } from "../../lap-analysis/corners";
-import type { EvaluableLap } from "../../../shared/racing/laps/review-selection";
+import type { EvaluableLap } from "@raceiq/shared/racing/laps/review-selection";
 import {
   type ArmLap,
   type CuratedPool,

@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import type { TelemetryCatalogData } from "../../../shared/telemetry/catalog/contracts";
-import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
-import { getTelemetryVariable } from "../../../shared/telemetry/catalog/query";
-import { compileTelemetryResolver } from "../../../shared/telemetry/resolver/compile";
-import type { ResolvedValue } from "../../../shared/telemetry/resolver/contracts";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { TelemetryCatalogData } from "@raceiq/shared/telemetry/catalog/contracts";
+import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
+import { getTelemetryVariable } from "@raceiq/shared/telemetry/catalog/query";
+import { compileTelemetryResolver } from "@raceiq/shared/telemetry/resolver/compile";
+import type { ResolvedValue } from "@raceiq/shared/telemetry/resolver/contracts";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { packet } from "../../support/telemetry/resolver";
 
 describe("compiled telemetry resolver derived values", () => {

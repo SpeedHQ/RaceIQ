@@ -1,9 +1,9 @@
 import { existsSync, unlinkSync } from "node:fs";
 import { eq, inArray, like } from "drizzle-orm";
-import { db, client } from "../../server/db/index";
-import { chatThreadId, compareChatThreadId, getChatMemory, listThreadGenerations, tuneSessionThreadId } from "../../server/ai/chat-agent";
-import { sessions, laps, profiles, tunes, tuneAssignments, experiments, experimentVersions, experimentFocusEvents, lapAnalyses, compareAnalyses } from "../../server/db/schema";
-import { deleteSession } from "../../server/db/session-queries";
+import { db, client } from "@raceiq/backend-core/db/index";
+import { chatThreadId, compareChatThreadId, getChatMemory, listThreadGenerations, tuneSessionThreadId } from "@raceiq/backend-core/ai/chat-agent";
+import { sessions, laps, profiles, tunes, tuneAssignments, experiments, experimentVersions, experimentFocusEvents, lapAnalyses, compareAnalyses } from "@raceiq/backend-core/db/schema";
+import { deleteSession } from "@raceiq/backend-core/db/session-queries";
 import { PROFILE_NAME, SEED_MARKER } from "./seed-db-options";
 
 export async function cleanDatabase(): Promise<void> {

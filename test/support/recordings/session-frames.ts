@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
-import type { GameId } from "../../../shared/games/ids";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import { getServerGame } from "../../../server/games/registry";
-import { META_FRAME_MAGIC } from "../../../server/session-capture/framing"
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { getServerGame } from "@raceiq/backend-core/games/registry";
+import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing"
 import { ensureInit } from "./parse-dump";
 
 /**

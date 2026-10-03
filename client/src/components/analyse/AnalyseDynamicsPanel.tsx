@@ -1,9 +1,9 @@
-import { getGame } from "@shared/games/registry";
-import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
-import { resolveBalance, resolveGripDemand, resolveWheelMetric, resolveWheelStates } from "../../../../shared/racing/analysis/metric-values";
+import { getGame } from "@raceiq/shared/games/registry"
+import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
+import { resolveBalance, resolveGripDemand, resolveWheelMetric, resolveWheelStates } from "@raceiq/shared/racing/analysis/metric-values";
 import { Info } from "lucide-react";
 import type { ReactNode } from "react";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import type { useUnits } from "../../hooks/useUnits";
 import { severityRangeColor, signedBalanceColor } from "../../lib/colors";
 import { frictionUtilColor, slipRatioColor, tireState, tireTempLabel } from "../../lib/vehicle-dynamics";

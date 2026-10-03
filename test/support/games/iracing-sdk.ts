@@ -1,4 +1,4 @@
-import type { IRacingSourceFrameV2, IRacingSourceFrameV3 } from "../../../server/games/iracing/source-frame";
+import type { IRacingSourceFrameV2, IRacingSourceFrameV3 } from "@raceiq/backend-core/games/iracing/source-frame";
 
 export function sampleFrame(): IRacingSourceFrameV2 {
   return {

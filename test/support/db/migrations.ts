@@ -1,7 +1,7 @@
 import { createClient, type Client } from "@libsql/client/sqlite3";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { migrations } from "../../../server/db/migrations";
+import { migrations } from "@raceiq/backend-core/db/migrations";
 export async function bootstrap(client: Client): Promise<void> {
   await client.execute("PRAGMA foreign_keys = ON");
   await client.execute(`

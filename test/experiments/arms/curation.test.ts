@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { compareArms } from "../../../server/experiments/comparison/compare";
-import { type CurationSpec, OUTCOME_METRICS } from "../../../server/experiments/comparison/metrics";
+import { compareArms } from "@raceiq/backend-core/experiments/comparison/compare";
+import { type CurationSpec, OUTCOME_METRICS } from "@raceiq/backend-core/experiments/comparison/metrics";
 import { metadataArm } from "../../support/experiments/arms";
 
 const FASTEST_5: CurationSpec = { mode: "fastest-n", n: 5, outlierRule: "none" };

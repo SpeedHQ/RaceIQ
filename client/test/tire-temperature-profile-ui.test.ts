@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { hasSurfaceTemperatureProfile, tireTemperatureProfile, tireTemperatureReadings } from "../src/components/analyse/tire-temperature-profile";
 import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
-import { lmuAdapter } from "../../shared/games/lmu";
-import { analyseSemanticIds } from "../../shared/games/metric-contracts";
+import { lmuAdapter } from "@raceiq/shared/games/lmu";
+import { analyseSemanticIds } from "@raceiq/shared/games/metric-contracts";
 
 const frame = (values: Record<string, unknown>): SemanticAnalysisFrame => ({ values, states: {}, freshness: {} });
 

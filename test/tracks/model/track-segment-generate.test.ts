@@ -14,11 +14,11 @@ import {
   generateTrackSegments,
   listCuratedSlugs,
   writableAlignments,
-} from "../../../shared/racing/tracks/curation/generate";
-import { loadTrackFacts, loadTrackGeometry } from "../../../shared/racing/tracks/storage/meta";
-import type { TrackGeometry } from "../../../shared/racing/tracks/geometry";
-import { officialTurnCount, validateFacts } from "../../../shared/racing/tracks/curation/segment-align-validate";
-import { loadDetectHints } from "../../../shared/racing/tracks/detect-hints";
+} from "@raceiq/shared/racing/tracks/curation/generate";
+import { loadTrackFacts, loadTrackGeometry } from "@raceiq/shared/racing/tracks/storage/meta";
+import type { TrackGeometry } from "@raceiq/shared/racing/tracks/geometry";
+import { officialTurnCount, validateFacts } from "@raceiq/shared/racing/tracks/curation/segment-align-validate";
+import { loadDetectHints } from "@raceiq/shared/racing/tracks/detect-hints";
 import { KNOWN_ALIGNMENT_GAPS, KNOWN_FUZZY_ALIGNMENTS } from "../../support/tracks/known-gaps";
 
 const slugs = listCuratedSlugs();

@@ -1,4 +1,4 @@
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { AC_EVO_SETUP_SCHEMA } from "./ac-evo-schema";
 import {
   SETUP_FILE_SECTION_DEFINITIONS,

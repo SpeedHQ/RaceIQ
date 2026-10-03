@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { releaseFeatureFlags } from "../../shared/platform/runtime/release-feature-flags";
+import { releaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
 
 const values = new Map<string, string>();
 const contents = await Bun.file(resolve(import.meta.dir, "..", "..", ".env.development")).text();

@@ -1,4 +1,4 @@
-import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
+import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
 import { getAllServerGames } from "../games/registry";
 import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "../games/lmu/recorder";
 import { IRACING_DUMP_MAGIC, readIRacingFramesFromBuffer } from "../games/iracing/recorder";

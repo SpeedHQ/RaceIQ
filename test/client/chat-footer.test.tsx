@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { formatTokens, meterLevel } from "../../client/src/components/ai-chat/token-usage-format";
+import { formatTokens, meterLevel } from "./client/src/components/ai-chat/token-usage-format";
 
 describe("meterLevel", () => {
   test("ok below 70%", () => { expect(meterLevel(10, 100)).toBe("ok"); });

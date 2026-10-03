@@ -3,8 +3,8 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import sharp from "sharp";
-import { collectScreenshotDiffs } from "../../scripts/ui/collect-screenshot-diffs";
-import { mergeScreenshotRenders } from "../../scripts/ui/merge-screenshot-renders";
+import { collectScreenshotDiffs } from "@raceiq/tooling/ui/collect-screenshot-diffs";
+import { mergeScreenshotRenders } from "@raceiq/tooling/ui/merge-screenshot-renders";
 
 const tempDirs: string[] = [];
 
@@ -109,7 +109,7 @@ describe("collect-screenshot-diffs", () => {
 
     const args = [
       process.execPath,
-      resolve(import.meta.dir, "../../scripts/ui/collect-screenshot-diffs.ts"),
+      resolve(import.meta.dir, "@raceiq/tooling/ui/collect-screenshot-diffs"),
       "--base",
       base,
       "--current",
@@ -132,7 +132,7 @@ describe("collect-screenshot-diffs", () => {
 
   test("incomplete snapshot renders warn without blocking preview publication", async () => {
     const preview = makeTempDir();
-    const args = [process.execPath, resolve(import.meta.dir, "../../scripts/ui/report-snapshot-failure.ts"), preview];
+    const args = [process.execPath, resolve(import.meta.dir, "@raceiq/tooling/ui/report-snapshot-failure"), preview];
     const empty = Bun.spawnSync(args);
     expect(empty.exitCode).toBe(0);
     expect(empty.stderr.toString()).toContain("::warning::");

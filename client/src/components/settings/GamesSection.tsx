@@ -1,4 +1,4 @@
-import { getAllGames } from "@shared/games/registry";
+import { getAllGames } from "@raceiq/shared/games/registry"
 import { m } from "@/paraglide/messages";
 import { useSaveSettings, useSettings } from "../../hooks/settings";
 import SwitchListGroup from "../shadcn-studio/switch/switch-18";

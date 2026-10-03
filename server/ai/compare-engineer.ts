@@ -12,10 +12,10 @@
  * and inputs-compare-analysis stay consistent.
  */
 import type { UnitSystem, TemperatureUnit } from "../lap-analysis/report";
-import { resolveCarName } from "../../shared/racing/cars/resolve-name";
-import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
-import { aiLanguageInstruction } from "../../shared/integrations/ai/language";
-import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
+import { resolveCarName } from "@raceiq/shared/racing/cars/resolve-name";
+import { resolveTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
+import { aiLanguageInstruction } from "@raceiq/shared/integrations/ai/language";
+import { ADJUSTMENT_FORMAT_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
 export function getPromptCarName(ordinal: number, gameId?: string): string {
   return resolveCarName(ordinal, gameId);
 }

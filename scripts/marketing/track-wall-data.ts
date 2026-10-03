@@ -1,13 +1,13 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
-import { fmTrackCatalog } from "../../shared/racing/tracks/catalogs/fm";
-import { getF1Tracks } from "../../shared/racing/tracks/catalogs/f1";
-import { getAccTracks } from "../../shared/racing/tracks/catalogs/acc";
-import { getAcEvoTracks } from "../../shared/racing/tracks/catalogs/ac-evo";
-import { getAllIRacingTracks } from "../../shared/racing/tracks/catalogs/iracing";
-import { getTrackOutlineByOrdinal } from "../../shared/racing/tracks/recording/outlines";
-import type { Point } from "../../shared/racing/tracks/geometry/types";
+import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
+import { fmTrackCatalog } from "@raceiq/shared/racing/tracks/catalogs/fm";
+import { getF1Tracks } from "@raceiq/shared/racing/tracks/catalogs/f1";
+import { getAccTracks } from "@raceiq/shared/racing/tracks/catalogs/acc";
+import { getAcEvoTracks } from "@raceiq/shared/racing/tracks/catalogs/ac-evo";
+import { getAllIRacingTracks } from "@raceiq/shared/racing/tracks/catalogs/iracing";
+import { getTrackOutlineByOrdinal } from "@raceiq/shared/racing/tracks/recording/outlines";
+import type { Point } from "@raceiq/shared/racing/tracks/geometry/types";
 
 const GAME_META: Record<GameId, { label: string; tag: string }> = {
   "fm-2023": { label: "Forza Motorsport", tag: "FM" },

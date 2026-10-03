@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { migrations } from "../../server/db/migrations";
+import { migrations } from "@raceiq/backend-core/db/migrations";
 
 const DATABASE_SUFFIXES = ["", "-wal", "-shm"] as const;
 const REPO_ROOT = process.cwd();

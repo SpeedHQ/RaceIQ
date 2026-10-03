@@ -5,7 +5,7 @@ import {
   segmentGroupLabels,
   segmentPromptLabels,
   segmentPromptNames,
-} from "../../../shared/racing/tracks/segment-label";
+} from "@raceiq/shared/racing/tracks/segment-label";
 const corner = (name: string, numbers?: number[], group?: string) => ({
   type: "corner" as const,
   name,

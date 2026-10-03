@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { unzipSync, strFromU8 } from "fflate";
-import { diagnosticsRoutes } from "../../server/routes/system/diagnostics-routes";
-import { logLlmEvent } from "../../server/ai/diagnostic-logging";
+import { diagnosticsRoutes } from "@raceiq/backend-core/routes/system/diagnostics-routes";
+import { logLlmEvent } from "@raceiq/backend-core/ai/diagnostic-logging";
 
 describe("diagnostics export", () => {
   test("includes accepted client event and chat context in logs", async () => {

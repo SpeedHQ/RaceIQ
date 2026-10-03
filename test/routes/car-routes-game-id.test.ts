@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { and, eq } from "drizzle-orm";
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
-import { registerDiscoveredCar } from "../../server/db/discovered-cars";
-import { db } from "../../server/db/index";
-import { discoveredCars } from "../../server/db/schema";
-import { CarModelConfigUpdateSchema, carRoutes } from "../../server/routes/car-routes";
+import { registerDiscoveredCar } from "@raceiq/backend-core/db/discovered-cars";
+import { db } from "@raceiq/backend-core/db/index";
+import { discoveredCars } from "@raceiq/backend-core/db/schema";
+import { CarModelConfigUpdateSchema, carRoutes } from "@raceiq/backend-core/routes/car-routes";
 
 const CAR_ID = 987_654_321;
 

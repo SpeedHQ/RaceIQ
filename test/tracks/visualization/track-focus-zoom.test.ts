@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { inputState, zoomViewport } from "../../../client/src/components/tunes/track-focus/TrackFocusZoom";
+import { inputState, zoomViewport } from "./client/src/components/tunes/track-focus/TrackFocusZoom";
 
 describe("inputState", () => {
   test("brake wins over throttle (trail-braking reads as braking)", () => {

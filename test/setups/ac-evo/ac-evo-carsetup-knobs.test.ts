@@ -3,7 +3,7 @@ import { copyFileSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import * as os from "node:os";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { readCarSetupFile, carSetupToKnobValues } from "../../../server/games/ac-evo/carsetup";
+import { readCarSetupFile, carSetupToKnobValues } from "@raceiq/backend-core/games/ac-evo/carsetup";
 
 // `getSetupsBaseDir` derives the Setups folder from `os.homedir()`. Bun's
 // homedir() reads the OS password database on POSIX, so setting HOME/USERPROFILE
@@ -61,7 +61,7 @@ describe("carSetupToKnobValues", () => {
   });
 
   it("feeds getKnobState real current values for the ac-evo knob table", async () => {
-    const { getAllKnobStates } = await import("../../../server/setups/rules/engine");
+    const { getAllKnobStates } = await import("@raceiq/backend-core/setups/rules/engine");
     const setup = await readCarSetupFile(FIXTURE);
     const knobs = carSetupToKnobValues(setup!);
     const states = getAllKnobStates("ac-evo", knobs);
@@ -76,7 +76,7 @@ describe("resolveGuardedSetupFile with .carsetup", () => {
   const fakeHome = join(tmpdir(), `raceiq-carsetup-test-${process.pid}`);
   const setupsDir = join(fakeHome, "Saved Games", "ACE", "Car Setups");
   beforeAll(async () => {
-    const { initServerGameAdapters } = await import("../../../server/games/init");
+    const { initServerGameAdapters } = await import("@raceiq/backend-core/games/init");
     initServerGameAdapters();
     mkdirSync(setupsDir, { recursive: true });
     copyFileSync(FIXTURE, join(setupsDir, "Default-12312.carsetup"));
@@ -90,7 +90,7 @@ describe("resolveGuardedSetupFile with .carsetup", () => {
   });
 
   it("decodes .carsetup into knob values and flags read-only", async () => {
-    const { resolveGuardedSetupFile } = await import("../../../server/setups/file-guard");
+    const { resolveGuardedSetupFile } = await import("@raceiq/backend-core/setups/file-guard");
     const guarded = await resolveGuardedSetupFile("ac-evo", join(setupsDir, "Default-12312.carsetup"));
     expect(guarded.ok).toBe(true);
     if (!guarded.ok) return;
@@ -101,7 +101,7 @@ describe("resolveGuardedSetupFile with .carsetup", () => {
   });
 
   it("keeps setup null (not a crash) when the .carsetup doesn't decode", async () => {
-    const { resolveGuardedSetupFile } = await import("../../../server/setups/file-guard");
+    const { resolveGuardedSetupFile } = await import("@raceiq/backend-core/setups/file-guard");
     const guarded = await resolveGuardedSetupFile("ac-evo", join(setupsDir, "corrupt.carsetup"));
     expect(guarded.ok).toBe(true);
     if (!guarded.ok) return;
@@ -114,7 +114,7 @@ describe("writeAppliedSetup .carsetup", () => {
   const fakeHome = join(tmpdir(), `raceiq-carsetup-write-test-${process.pid}`);
   const setupsDir = join(fakeHome, "Saved Games", "ACE", "Car Setups");
   beforeAll(async () => {
-    const { initServerGameAdapters } = await import("../../../server/games/init");
+    const { initServerGameAdapters } = await import("@raceiq/backend-core/games/init");
     initServerGameAdapters();
     mkdirSync(setupsDir, { recursive: true });
     copyFileSync(FIXTURE, join(setupsDir, "Default-12312.carsetup"));
@@ -127,7 +127,7 @@ describe("writeAppliedSetup .carsetup", () => {
   });
 
   it("byte-patches a real .carsetup base and writes a NEW sibling file, never overwriting the original", async () => {
-    const { writeAppliedSetup } = await import("../../../server/setups/io");
+    const { writeAppliedSetup } = await import("@raceiq/backend-core/setups/io");
     const original = await readCarSetupFile(join(setupsDir, "Default-12312.carsetup"));
     const knobs = carSetupToKnobValues(original!);
 
@@ -152,7 +152,7 @@ describe("writeAppliedSetup .carsetup", () => {
   });
 
   it("falls back to an advisory snapshot branch when the base has no realPath", async () => {
-    const { writeAppliedSetup } = await import("../../../server/setups/io");
+    const { writeAppliedSetup } = await import("@raceiq/backend-core/setups/io");
     const written = writeAppliedSetup("ac-evo", {
       baseDir: null,
       realPath: null,
@@ -165,9 +165,9 @@ describe("writeAppliedSetup .carsetup", () => {
   });
 
   it("integration: decode -> applyIntents -> write reproduces the same apply_changes pipeline the Setup Engineer tool uses on a .carsetup session", async () => {
-    const { resolveGuardedSetupFile } = await import("../../../server/setups/file-guard");
-    const { writeAppliedSetup, readActiveSetup } = await import("../../../server/setups/io");
-    const { applyIntents } = await import("../../../server/setups/rules/engine");
+    const { resolveGuardedSetupFile } = await import("@raceiq/backend-core/setups/file-guard");
+    const { writeAppliedSetup, readActiveSetup } = await import("@raceiq/backend-core/setups/io");
+    const { applyIntents } = await import("@raceiq/backend-core/setups/rules/engine");
 
     // Same read path loadActiveExperimentContext uses for an ac-evo session whose
     // base is a .carsetup file.

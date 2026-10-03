@@ -1,4 +1,4 @@
-import { LOCALES } from "@shared/platform/i18n/locales";
+import { LOCALES } from "@raceiq/shared/platform/i18n/locales";
 
 /** Human-readable language name for the AI "respond in <language>" instruction. */
 export const aiLanguageName = (code: string): string =>

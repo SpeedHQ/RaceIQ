@@ -1,4 +1,4 @@
-import type { LivePitData, LiveSectorData } from "../../../../shared/racing/live/types";
+import type { LivePitData, LiveSectorData } from "@raceiq/shared/racing/live/types";
 import { primaryTireTemperatureC, primaryTireTemperaturesC, type LiveTelemetryView } from "../../lib/live-telemetry-view";
 import { SectorTimes } from "../SectorTimes";
 import { TireGrid } from "../telemetry/TireGrid";

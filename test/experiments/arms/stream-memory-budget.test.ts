@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { compareArmSamples, describeComparison } from "../../../server/experiments/comparison/compare";
+import { compareArmSamples, describeComparison } from "@raceiq/backend-core/experiments/comparison/compare";
 import {
   FRAME_BUDGET_PER_ARM,
   selectWithinFrameBudget,
   streamArmSamples,
-} from "../../../server/experiments/comparison/stream";
-import { OUTCOME_METRICS } from "../../../server/experiments/comparison/metrics";
+} from "@raceiq/backend-core/experiments/comparison/stream";
+import { OUTCOME_METRICS } from "@raceiq/backend-core/experiments/comparison/metrics";
 import { buildStreamingArm, CORNERS, FRAMES_PER_LAP, REPEATABLE, SCATTERED, trackingLoader } from "../../support/experiments/arms";
-import type { PairwiseFramesOutcomeMetric } from "../../../server/experiments/comparison/metrics";
+import type { PairwiseFramesOutcomeMetric } from "@raceiq/backend-core/experiments/comparison/metrics";
 
 
 // ── the memory bound, measured ──────────────────────────────────────────────

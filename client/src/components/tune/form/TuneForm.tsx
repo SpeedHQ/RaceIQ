@@ -1,4 +1,4 @@
-import type { TuneCategory } from "@shared/racing/tuning/types";
+import type { TuneCategory } from "@raceiq/shared/racing/tuning/types";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { TuneSettings } from "@/data/tune-catalog";

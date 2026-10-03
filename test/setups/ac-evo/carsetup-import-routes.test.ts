@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { errorFromResponse } from "../../../client/src/lib/rpc-error";
-import { tuneCrudRoutes } from "../../../server/routes/tunes";
-import { getAllAcEvoCars } from "../../../shared/racing/cars/ac-evo";
-import { deleteTune, getTuneById } from "../../../server/db/tune-queries";
-import { parseCarSetup } from "../../../server/games/ac-evo/carsetup-wire";
-import { summarizeCarSetup } from "../../../server/games/ac-evo/carsetup";
+import { errorFromResponse } from "./client/src/lib/rpc-error";
+import { tuneCrudRoutes } from "@raceiq/backend-core/routes/tunes/index";
+import { getAllAcEvoCars } from "@raceiq/shared/racing/cars/ac-evo";
+import { deleteTune, getTuneById } from "@raceiq/backend-core/db/tune-queries";
+import { parseCarSetup } from "@raceiq/backend-core/games/ac-evo/carsetup-wire";
+import { summarizeCarSetup } from "@raceiq/backend-core/games/ac-evo/carsetup";
 /**
  * End-to-end route tests for importing a binary AC EVO `.carsetup`, driven
  * through the real Hono app with the driver's own files.

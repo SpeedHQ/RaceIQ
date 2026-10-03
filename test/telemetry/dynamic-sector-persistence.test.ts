@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { deleteSession, insertSession } from "../../server/db/session-queries";
-import { getLapById, getLaps } from "../../server/db/lap-read-queries";
-import { insertLap } from "../../server/db/lap-mutation-queries";
+import { deleteSession, insertSession } from "@raceiq/backend-core/db/session-queries";
+import { getLapById, getLaps } from "@raceiq/backend-core/db/lap-read-queries";
+import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
 
 test("ordered six-sector times round-trip without a three-sector projection", async () => {
   const sessionId = await insertSession(990_134, 991_134, "iracing");

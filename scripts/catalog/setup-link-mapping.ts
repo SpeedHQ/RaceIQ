@@ -1,5 +1,5 @@
 // Setup-file variables and derived/normalized links.
-import type { getSchemaForGame } from "../../shared/racing/setups/schema";
+import type { getSchemaForGame } from "@raceiq/shared/racing/setups/schema";
 import { SEMANTIC_DEFINITIONS } from "./semantic-definitions";
 import { addSource } from "./extension-field-mapping";
 import { unavailableGames } from "./extension-metadata";

@@ -5,12 +5,12 @@
  * layer.
  */
 import { describe, test, expect, afterEach } from "bun:test";
-import { db } from "../../server/db/index";
-import { sessions, laps } from "../../server/db/schema";
+import { db } from "@raceiq/backend-core/db/index";
+import { sessions, laps } from "@raceiq/backend-core/db/schema";
 import { eq } from "drizzle-orm";
-import { initGameAdapters } from "../../shared/games/init";
-import { initServerGameAdapters } from "../../server/games/init";
-import { tuneRoutes } from "../../server/routes/tune-routes";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { tuneRoutes } from "@raceiq/backend-core/routes/tune-routes";
 
 initGameAdapters();
 initServerGameAdapters();

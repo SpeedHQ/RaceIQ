@@ -1,6 +1,6 @@
-import { getGame, tryGetGame } from "@shared/games/registry";
-import { WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
-import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
+import { getGame, tryGetGame } from "@raceiq/shared/games/registry"
+import { WATTS_PER_HORSEPOWER } from "@raceiq/shared/games/telemetry"
+import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
 import { m } from "@/paraglide/messages";
 import { useCarName } from "../hooks/catalog-queries";
 import { useUnits } from "../hooks/useUnits";

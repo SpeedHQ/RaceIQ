@@ -7,7 +7,7 @@ import { NodeIO } from "@gltf-transform/core";
 import { EXTMeshoptCompression, KHRONOS_EXTENSIONS } from "@gltf-transform/extensions";
 import { getBounds } from "@gltf-transform/functions";
 import { MeshoptDecoder } from "meshoptimizer";
-import { GT3_SOURCE_SHA256, optimizeGt3Model, REMOVED_GT3_NODE_NAMES } from "../../scripts/assets/optimize-gt3-model";
+import { GT3_SOURCE_SHA256, optimizeGt3Model, REMOVED_GT3_NODE_NAMES } from "@raceiq/tooling/assets/optimize-gt3-model";
 
 const sourcePath = resolve("assets/models/source/aston_martin_vantage_gt3.glb");
 const retainedAssemblies = [

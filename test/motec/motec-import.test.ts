@@ -2,29 +2,29 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { unzipSync, zipSync } from "fflate";
 
-import { initGameAdapters } from "../../shared/games/init";
-import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
-import { initServerGameAdapters } from "../../server/games/init";
-import { parseLd, findChannel } from "../../server/motec/ld";
-import { parseLdxBeacons } from "../../server/motec/ldx";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { parseLd, findChannel } from "@raceiq/backend-core/motec/ld";
+import { parseLdxBeacons } from "@raceiq/backend-core/motec/ldx";
 import {
   MOTEC_SYNTH_HZ,
   lapWindows,
   deadReckonPath,
   reconstructYawHeading,
   alignPathToTrack,
-} from "../../server/motec/kunos-synthesis";
-import { normalizeTelemetryPacket } from "../../server/telemetry/normalization";
-import { importMotec, MOTEC_SESSION_SOURCE } from "../../server/motec/import";
-import { buildLapsZip, importLapsZip } from "../../server/laps/archive";
-import { getMotecTargets, initMotecTargets, resolveMotecTarget } from "../../server/motec/targets";
-import { transferRoutes } from "../../server/routes/laps/transfer-routes";
-import { db } from "../../server/db";
-import { laps as lapsTable, sessions, tunes } from "../../server/db/schema";
+} from "@raceiq/backend-core/motec/kunos-synthesis";
+import { normalizeTelemetryPacket } from "@raceiq/backend-core/telemetry/normalization";
+import { importMotec, MOTEC_SESSION_SOURCE } from "@raceiq/backend-core/motec/import";
+import { buildLapsZip, importLapsZip } from "@raceiq/backend-core/laps/archive";
+import { getMotecTargets, initMotecTargets, resolveMotecTarget } from "@raceiq/backend-core/motec/targets";
+import { transferRoutes } from "@raceiq/backend-core/routes/laps/transfer-routes";
+import { db } from "@raceiq/backend-core/db/index";
+import { laps as lapsTable, sessions, tunes } from "@raceiq/backend-core/db/schema";
 import { eq, isNull } from "drizzle-orm";
-import { getAcEvoTrackByName } from "../../shared/racing/tracks/catalogs/ac-evo"
-import { flipPoints } from "../../shared/racing/tracks/coords";
-import { getTrackOutlineByOrdinal } from "../../shared/racing/tracks/recording/outlines";
+import { getAcEvoTrackByName } from "@raceiq/shared/racing/tracks/catalogs/ac-evo"
+import { flipPoints } from "@raceiq/shared/racing/tracks/coords";
+import { getTrackOutlineByOrdinal } from "@raceiq/shared/racing/tracks/recording/outlines";
 import { buildLd, buildLdx, syntheticStint } from "../support/motec/ld";
 const MOTEC_ARCHIVE = "test/artifacts/motec/acc-barcelona-porsche-992.zip";
 

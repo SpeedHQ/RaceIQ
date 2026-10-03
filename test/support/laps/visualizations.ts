@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { generateLapSvg, generateRawSvg } from "./svg";

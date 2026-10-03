@@ -1,10 +1,10 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { parseDump } from "../support/recordings/parse-dump";
-import { LapDetectorAcc } from "../../server/games/acc/lap-detector"
-import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline"
-import { initGameAdapters } from "../../shared/games/init";
+import { LapDetectorAcc } from "@raceiq/backend-core/games/acc/lap-detector"
+import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
+import { initGameAdapters } from "@raceiq/shared/games/init";
 
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 afterAll(() => stopMaintenanceTasks());
 

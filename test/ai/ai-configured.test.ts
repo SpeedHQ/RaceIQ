@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { isAiAnalysisConfigured, isAiChatConfigured, isAiConfigured, launchAiFeature } from "../../client/src/lib/is-ai-configured";
+import { isAiAnalysisConfigured, isAiChatConfigured, isAiConfigured, launchAiFeature } from "./client/src/lib/is-ai-configured";
 
 describe("isAiConfigured", () => {
   test("treats local provider as configured without API keys", () => {

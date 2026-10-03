@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { buildGoogleProviderOptions } from "../../../server/ai/google-provider-options";
+import { buildGoogleProviderOptions } from "@raceiq/backend-core/ai/google-provider-options";
 
 describe("buildGoogleProviderOptions", () => {
   test("omits thinking config for non-thinking Gemma models", () => {

@@ -1,4 +1,4 @@
-import type { TuneSettings } from "@shared/racing/tuning/types";
+import type { TuneSettings } from "@raceiq/shared/racing/tuning/types";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { TuneForm, type TuneFormData } from "@/components/tune/form/TuneForm";

@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 /**
  * Builds the AI context text shared by Kunos adapters.

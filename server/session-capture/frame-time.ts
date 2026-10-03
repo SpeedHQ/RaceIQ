@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 /** Attach recorder UTC separately from simulator time; Kunos has no source UTC clock. */
 export function applyFrameTime(packet: Pick<TelemetryPacket, "gameId" | "TimestampMS" | "extendedRaceIQ">, frameTimeMs?: number): void {

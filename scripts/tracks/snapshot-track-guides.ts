@@ -16,7 +16,7 @@ import {
   getAvailableTrackGuides,
   getTrackGuide,
   guideCornerLabels,
-} from "../../server/ai/track-guides";
+} from "@raceiq/backend-core/ai/track-guides";
 
 /**
  * Aliases that exercise TRACK_KEYWORDS ordering rather than a direct id hit.

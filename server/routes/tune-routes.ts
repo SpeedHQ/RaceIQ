@@ -19,9 +19,9 @@
  * type flowing for Hono RPC client inference.
  */
 import { Hono } from "hono";
-import { tuneCrudRoutes } from "./tunes";
+import { tuneCrudRoutes } from "./tunes/index";
 import { tuneChatRoutes } from "./tune-chat-routes";
-import { experimentRoutes } from "./experiments";
+import { experimentRoutes } from "./experiments/index";
 import { tuneCatalogRoutes } from "./tune-catalog-routes";
 
 export const tuneRoutes = new Hono()

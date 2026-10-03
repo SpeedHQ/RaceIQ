@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
-import type { GameId } from "../../shared/games/ids";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { compileTelemetryResolver } from "../../shared/telemetry/resolver/compile";
-import type { CompiledTelemetryResolver, ResolvedValue, TelemetryFrameView } from "../../shared/telemetry/resolver/contracts";
-import { liveSemanticIds } from "../../shared/telemetry/live/semantics";
-import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../shared/telemetry/live/contracts";
-import type { LivePitData, LiveSectorData } from "../../shared/racing/live/types";
-import type { TuneIssue } from "../../shared/racing/tuning/issues";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { compileTelemetryResolver } from "@raceiq/shared/telemetry/resolver/compile";
+import type { CompiledTelemetryResolver, ResolvedValue, TelemetryFrameView } from "@raceiq/shared/telemetry/resolver/contracts";
+import { liveSemanticIds } from "@raceiq/shared/telemetry/live/semantics";
+import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
+import type { LivePitData, LiveSectorData } from "@raceiq/shared/racing/live/types";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import { encodeLiveFrame, encodeLiveSchema } from "./live-wire";
 export interface LiveProjectionInput { packet: TelemetryPacket; sessionId?: number | null; sectors?: LiveSectorData | null; pit?: LivePitData | null; liveIssues?: readonly TuneIssue[]; receivedAtMs: number; }
 export interface LiveProjection { schema?: LiveTelemetrySchemaMessageV1; frame?: LiveTelemetryFrameMessageV1; }

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { analyseSemanticIds } from "../../../../shared/games/metric-contracts";
-import { getGame } from "../../../../shared/games/registry";
-import { TELEMETRY_CATALOG } from "../../../../shared/telemetry/catalog/data";
+import { analyseSemanticIds } from "@raceiq/shared/games/metric-contracts";
+import { getGame } from "@raceiq/shared/games/registry";
+import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
 import type { SemanticAnalysisFrame } from "./track-map/types";
-import type { SessionOwnership } from "../../../../shared/racing/sessions/types";
-import type { GameId } from "../../../../shared/games/ids";
+import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { OwnershipChoice } from "../import/OwnershipChoice";
 import { useMotecTargets, useCarsFromEndpoint, useTracksForGame } from "../../hooks/catalog-queries";
 import type { MotecTargetInfo } from "../../hooks/catalog-queries";

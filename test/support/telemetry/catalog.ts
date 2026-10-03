@@ -4,14 +4,14 @@ export {
   buildTelemetryCatalog,
   buildTelemetryCatalogArtifacts,
   telemetryCatalogSourceHash,
-} from "../../../scripts/catalog/generate-telemetry-catalog";
-export { collectIRacingSessionInfoLeafPaths } from "../../../scripts/catalog/iracing-session-info-capture";
+} from "@raceiq/tooling/catalog/generate-telemetry-catalog";
+export { collectIRacingSessionInfoLeafPaths } from "@raceiq/tooling/catalog/iracing-session-info-capture";
 export {
   TELEMETRY_CATALOG,
   TELEMETRY_CATALOG_HASH,
   TELEMETRY_CATALOG_SCHEMA_VERSION,
   TELEMETRY_CATALOG_VERSION,
-} from "../../../shared/telemetry/catalog/data";
+} from "@raceiq/shared/telemetry/catalog/data";
 export {
   getSourcesWithoutSemanticDefinition,
   getTelemetryChildren,
@@ -20,6 +20,6 @@ export {
   IRACING_SESSION_INFO_SOURCE_VARIABLES,
   IRACING_TELEMETRY_SOURCE_VARIABLES,
   isTelemetryEnumValue,
-} from "../../../shared/telemetry/catalog/query";
-export { assertTelemetryCatalogComplete } from "../../../shared/telemetry/catalog/validation";
-export { KNOWN_GAME_IDS } from "../../../shared/games/ids";
+} from "@raceiq/shared/telemetry/catalog/query";
+export { assertTelemetryCatalogComplete } from "@raceiq/shared/telemetry/catalog/validation";
+export { KNOWN_GAME_IDS } from "@raceiq/shared/games/ids";

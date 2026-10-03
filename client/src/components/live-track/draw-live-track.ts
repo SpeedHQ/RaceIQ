@@ -1,5 +1,5 @@
 import { m } from "@/paraglide/messages";
-import type { TuneIssue } from "@shared/racing/tuning/issues";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { MutableRefObject, RefObject } from "react";
 import { pointForLiveTrackSample, type LiveTrackSample } from "./live-track-sample";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";

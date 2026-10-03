@@ -5,13 +5,13 @@ import { join } from "node:path";
 import {
   parseRawLapFrames,
   parseSessionLapsBatchedForTest,
-} from "../../server/db/telemetry-replay-storage";
-import { initServerGameAdapters } from "../../server/games/init";
-import { encodeMotecSourceArchive } from "../../server/motec/source-archive";
-import type { SessionCaptureSource } from "../../server/session-capture/source-loader";
-import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
-import { initGameAdapters } from "../../shared/games/init";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+} from "@raceiq/backend-core/db/telemetry-replay-storage";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { encodeMotecSourceArchive } from "@raceiq/backend-core/motec/source-archive";
+import type { SessionCaptureSource } from "@raceiq/backend-core/session-capture/source-loader";
+import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { buildLd, buildLdx, syntheticStint } from "../support/motec/ld";
 
 initGameAdapters();

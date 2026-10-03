@@ -1,7 +1,7 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
-import { IdParamSchema } from "@shared/platform/http/route-schemas";
+import { IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
 import { deleteAnalysis } from "../../db/analysis-queries";
 import { generateLapAnalysis } from "../../ai/generate-lap-analysis";
 import { toClientAiError } from "../../ai/provider-error";

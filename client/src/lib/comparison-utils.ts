@@ -1,4 +1,4 @@
-import type { AlignedTrace } from "@shared/racing/comparison/types";
+import type { AlignedTrace } from "@raceiq/shared/racing/comparison/types";
 
 export const COLOR_A = "var(--comparison-lap-a)";
 export const COLOR_B = "var(--comparison-lap-b)";

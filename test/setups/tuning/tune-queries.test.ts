@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach } from "bun:test";
 import { eq, inArray } from "drizzle-orm";
-import { db } from "../../../server/db/index";
-import { tunes, tuneAssignments, laps, sessions } from "../../../server/db/schema";
+import { db } from "@raceiq/backend-core/db/index";
+import { tunes, tuneAssignments, laps, sessions } from "@raceiq/backend-core/db/schema";
 import {
   insertTune,
   getTunes,
@@ -13,7 +13,7 @@ import {
   getTuneAssignments,
   deleteTuneAssignment,
   getTuneUsage,
-} from "../../../server/db/tune-queries";
+} from "@raceiq/backend-core/db/tune-queries";
 
 const TEST_SETTINGS = JSON.stringify({
   tires: { frontPressure: 30.5, rearPressure: 31.0 },

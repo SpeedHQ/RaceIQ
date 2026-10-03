@@ -1,11 +1,11 @@
-import { db } from "../../server/db/index";
-import { sessions } from "../../server/db/schema";
+import { db } from "@raceiq/backend-core/db/index";
+import { sessions } from "@raceiq/backend-core/db/schema";
 import { eq, inArray } from "drizzle-orm";
-import { getServerGame } from "../../server/games/registry";
-import { readIRacingFrames } from "../../server/games/iracing/recorder";
-import { registerImportedIRacingIdentity } from "../../server/games/iracing/identity";
-import { LiveTelemetryPipeline } from "../../server/telemetry/live-pipeline";
-import { NullWsAdapter, RealDbAdapter, RealSessionRecorderAdapter } from "../../server/telemetry/pipeline-ports";
+import { getServerGame } from "@raceiq/backend-core/games/registry";
+import { readIRacingFrames } from "@raceiq/backend-core/games/iracing/recorder";
+import { registerImportedIRacingIdentity } from "@raceiq/backend-core/games/iracing/identity";
+import { LiveTelemetryPipeline } from "@raceiq/backend-core/telemetry/live-pipeline";
+import { NullWsAdapter, RealDbAdapter, RealSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import { SEED_MARKER } from "./seed-db-options";
 
 export async function seedIRacingSession(fixturePath: string): Promise<void> {

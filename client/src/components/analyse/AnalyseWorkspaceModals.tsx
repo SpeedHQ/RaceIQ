@@ -1,7 +1,7 @@
-import { getGame } from "@shared/games/registry";
+import { getGame } from "@raceiq/shared/games/registry"
 import { useNavigate } from "@tanstack/react-router";
 import type { ComponentProps } from "react";
-import type { SessionOwnership } from "../../../../shared/racing/sessions/types";
+import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import { F1SetupModal } from "./F1SetupModal";
 import { IbtImportPreviewModal } from "./IbtImportPreviewModal";
 import { ImportResultModal } from "./ImportResultModal";

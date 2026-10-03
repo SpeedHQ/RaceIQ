@@ -1,6 +1,6 @@
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
-import type { LapMeta } from "../../../../shared/racing/sessions/types";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { SeededLapTarget } from "../../support/seeded/laps";
 
 export async function gameRows<T>(request: APIRequestContext, resource: "laps" | "sessions", gameId = "fm-2023"): Promise<T[]> {

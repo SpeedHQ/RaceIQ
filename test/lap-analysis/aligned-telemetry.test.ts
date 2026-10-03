@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { alignLapSet, prepareLapSetAlignmentIndex, type AlignmentLapInput } from "../../shared/racing/laps/alignment/build";
-import type { IRacingExtendedData } from "../../shared/telemetry/iracing";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { alignLapSet, prepareLapSetAlignmentIndex, type AlignmentLapInput } from "@raceiq/shared/racing/laps/alignment/build";
+import type { IRacingExtendedData } from "@raceiq/shared/telemetry/iracing";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 function telemetry(wearRR: number[] = [0, 0.1, 0.2]): TelemetryPacket[] {
   return [0, 1, 2].map((distance, index) => ({

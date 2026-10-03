@@ -1,7 +1,7 @@
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { GameId } from "../../shared/games/ids";
-import type { LivePitData } from "../../shared/racing/live/types";
-import type { LapMeta } from "../../shared/racing/sessions/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { LivePitData } from "@raceiq/shared/racing/live/types";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { getLaps, getLapById } from "../db/lap-read-queries";
 import type { ServerGameRuntimePolicy } from "../games/types";
 import { appendWithCap, interpolateGrid, lapsUntilThreshold, linearInterpolate, rollingAverage } from "./tracker-math";

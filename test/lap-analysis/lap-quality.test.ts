@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { assessLapRecording } from "../../server/lap-analysis/quality"
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { assessLapRecording } from "@raceiq/backend-core/lap-analysis/quality"
 
 /** Build a minimal packet array for testing. */
 function makePackets(

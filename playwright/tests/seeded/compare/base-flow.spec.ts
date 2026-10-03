@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { decodeAlignedLapSet } from "../../../../shared/racing/laps/alignment/codec";
-import type { EncodedAlignedLapSet } from "../../../../shared/racing/laps/alignment/types";
+import { decodeAlignedLapSet } from "@raceiq/shared/racing/laps/alignment/codec";
+import type { EncodedAlignedLapSet } from "@raceiq/shared/racing/laps/alignment/types";
 import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { alignedRequestMatches, ALIGNED_TELEMETRY_ENDPOINT, findTrackCarPairWithTwoLaps, getSeededLaps, lapOptionLabel } from "./helpers";

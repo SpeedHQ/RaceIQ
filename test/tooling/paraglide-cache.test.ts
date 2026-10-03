@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { getParaglideBuildKey } from "../../scripts/dev/paraglide-build";
-import { computeParaglideInputHash } from "../../scripts/dev/paraglide-cache";
+import { getParaglideBuildKey } from "@raceiq/tooling/dev/paraglide-build";
+import { computeParaglideInputHash } from "@raceiq/tooling/dev/paraglide-cache";
 
 describe("Paraglide dev cache", () => {
   test("changes when translation input changes", async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { generateText, type LanguageModel } from "ai";
-import { OpenAiCompatibleProviderAdapter } from "../../../server/ai/provider-adapters";
+import { OpenAiCompatibleProviderAdapter } from "@raceiq/backend-core/ai/provider-adapters";
 
 const endpoint = "http://local.test/v1";
 

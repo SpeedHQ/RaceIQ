@@ -1,4 +1,4 @@
-import type { LapMeta } from "@shared/racing/sessions/types";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchSelect } from "@/components/ui/SearchSelect";

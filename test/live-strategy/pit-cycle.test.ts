@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { classifyPitCycleLap, forzaPitTransitionEvidence } from "../../shared/racing/laps/pit-cycle";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { classifyPitCycleLap, forzaPitTransitionEvidence } from "@raceiq/shared/racing/laps/pit-cycle";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 function iracing(onPitRoad: boolean): TelemetryPacket {
   return { gameId: "iracing", iracing: { onPitRoad } } as TelemetryPacket;

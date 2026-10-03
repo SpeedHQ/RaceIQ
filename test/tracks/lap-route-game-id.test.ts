@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
-import { db } from "../../server/db/index";
-import { laps, sessions } from "../../server/db/schema";
-import { lapRoutes } from "../../server/routes/laps";
-import { initGameAdapters } from "../../shared/games/init";
-import { initServerGameAdapters } from "../../server/games/init";
+import { db } from "@raceiq/backend-core/db/index";
+import { laps, sessions } from "@raceiq/backend-core/db/schema";
+import { lapRoutes } from "@raceiq/backend-core/routes/laps/index";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 
 initGameAdapters();
 initServerGameAdapters();

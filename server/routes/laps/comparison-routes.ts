@@ -3,7 +3,7 @@ import { MessageList } from "@mastra/core/agent";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { getLapsByIds } from "../../db/lap-read-queries";
 import { deleteCompareAnalysis, getAnalysis, getCompareAnalysis, saveCompareAnalysis } from "../../db/analysis-queries";
 import { compareLaps } from "../../lap-analysis/comparison";

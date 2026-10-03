@@ -1,11 +1,11 @@
-import { getSchemaForGame, readSetupSection } from "@shared/racing/setups/schema";
+import { getSchemaForGame, readSetupSection } from "@raceiq/shared/racing/setups/schema";
 import { useEffect, useMemo, useState } from "react";
 import { AcEvoSetupContent } from "./AcEvoSetupContent";
 import { AppInput } from "@/components/ui/AppInput";
 import { SearchSelect } from "../ui/SearchSelect";
 import { useTracksForGame } from "../../hooks/catalog-queries";
 import { m } from "@/paraglide/messages";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { Button } from "../ui/button";
 import { FillForm } from "./FillForm";
 export interface SetupTuneData {

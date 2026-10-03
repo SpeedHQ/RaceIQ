@@ -1,5 +1,5 @@
-import type { SessionOwnership } from "@shared/racing/sessions/types";
-import type { GameId } from "@shared/games/ids";
+import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { useRef, useState } from "react";
 import { MotecImportModal, type MotecImportSuccess } from "../analyse/MotecImportModal";
 import { OwnershipChoice } from "../import/OwnershipChoice";

@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { GRAPHICS, PHYSICS as ACC_PHYSICS, STATIC } from "../../../server/games/acc/structs";
+import { GRAPHICS, PHYSICS as ACC_PHYSICS, STATIC } from "@raceiq/backend-core/games/acc/structs";
 import {
   GRAPHICS_EVO,
   PHYSICS as AC_EVO_PHYSICS,
   STATIC_EVO,
-} from "../../../server/games/ac-evo/structs";
-import { OrderedTripletDispatcher } from "../../../server/games/kunos/triplet-assembler";
-import type { Triplet } from "../../../server/games/kunos/triplet-pipeline";
+} from "@raceiq/backend-core/games/ac-evo/structs";
+import { OrderedTripletDispatcher } from "@raceiq/backend-core/games/kunos/triplet-assembler";
+import type { Triplet } from "@raceiq/backend-core/games/kunos/triplet-pipeline";
 
 function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void;

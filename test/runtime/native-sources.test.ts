@@ -1,7 +1,7 @@
 import { describe, expect, spyOn, test, vi } from "bun:test";
-import type { AccSharedMemoryReader } from "../../server/games/acc/shared-memory";
-import type { LMUTelemetrySource } from "../../server/games/lmu/source";
-import * as registry from "../../server/games/registry";
+import type { AccSharedMemoryReader } from "@raceiq/backend-core/games/acc/shared-memory";
+import type { LMUTelemetrySource } from "@raceiq/backend-core/games/lmu/source";
+import * as registry from "@raceiq/backend-core/games/registry";
 import {
   getAccReader,
   getAcEvoReader,
@@ -11,9 +11,9 @@ import {
   setAcEvoReader,
   setIracingSource,
   setLmuSource,
-} from "../../server/runtime/live-readers";
-import { startNativeSourceSupervisor, type NativeSourceSupervisor } from "../../server/runtime/native-sources";
-import { IS_WINDOWS } from "../../server/runtime/platform/shell";
+} from "@raceiq/backend-core/runtime/live-readers";
+import { startNativeSourceSupervisor, type NativeSourceSupervisor } from "@raceiq/backend-core/runtime/native-sources";
+import { IS_WINDOWS } from "@raceiq/backend-core/runtime/platform/shell";
 
 function deferred() {
   let resolve!: () => void;

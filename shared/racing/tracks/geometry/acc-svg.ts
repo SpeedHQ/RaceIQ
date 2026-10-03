@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { SHARED_DIR } from "@shared/platform/runtime/data-paths";
+import { SHARED_DIR } from "@raceiq/shared/platform/runtime/data-paths";
 import { readDataFile } from "../storage/files";
 import type { TrackBoundary } from "./types";
 

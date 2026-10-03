@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import type { TrackFacts } from "../../shared/racing/tracks/facts";
-import type { TrackGeometry } from "../../shared/racing/tracks/geometry";
+import type { TrackFacts } from "@raceiq/shared/racing/tracks/facts";
+import type { TrackGeometry } from "@raceiq/shared/racing/tracks/geometry";
 
 export interface BuiltLayout {
   slug: string;

@@ -10,15 +10,15 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
-import { initGameAdapters } from "../../../shared/games/init";
-import { initServerGameAdapters } from "../../../server/games/init";
-import { getServerGame } from "../../../server/games/registry";
-import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports"
-import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector"
-import { META_FRAME_MAGIC } from "../../../server/session-capture/framing"
-import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
-import { parseRawLapFramesFromBuffer } from "../../../server/db/telemetry-replay-storage";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { getServerGame } from "@raceiq/backend-core/games/registry";
+import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
+import { LapDetectorAcEvo } from "@raceiq/backend-core/games/ac-evo/lap-detector"
+import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing"
+import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
+import { parseRawLapFramesFromBuffer } from "@raceiq/backend-core/db/telemetry-replay-storage";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 initGameAdapters();
 initServerGameAdapters();

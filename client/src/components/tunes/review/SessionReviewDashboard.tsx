@@ -1,9 +1,9 @@
-import type { GameId } from "@shared/games/ids";
-import { tryGetGame } from "@shared/games/registry";
-import { selectEvaluationLaps } from "@shared/racing/laps/review-selection";
-import { stintStats } from "@shared/racing/laps/stint-stats";
-import type { TuneIssue } from "@shared/racing/tuning/issues";
-import type { LapMeta } from "@shared/racing/sessions/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { tryGetGame } from "@raceiq/shared/games/registry"
+import { selectEvaluationLaps } from "@raceiq/shared/racing/laps/review-selection";
+import { stintStats } from "@raceiq/shared/racing/laps/stint-stats";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TireGrid } from "@/components/telemetry/TireGrid";

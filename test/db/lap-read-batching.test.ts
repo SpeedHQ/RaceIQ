@@ -1,9 +1,9 @@
 import { afterEach, expect, mock, test } from "bun:test";
 import { eq } from "drizzle-orm";
-import { db } from "../../server/db";
-import { laps, sessions } from "../../server/db/schema";
-import * as replayStorage from "../../server/db/telemetry-replay-storage";
-import type { SessionCaptureSource } from "../../server/session-capture/source-loader";
+import { db } from "@raceiq/backend-core/db/index";
+import { laps, sessions } from "@raceiq/backend-core/db/schema";
+import * as replayStorage from "@raceiq/backend-core/db/telemetry-replay-storage";
+import type { SessionCaptureSource } from "@raceiq/backend-core/session-capture/source-loader";
 import { packet } from "../support/telemetry/resolver";
 const realParseRawLapFrames = replayStorage.parseRawLapFrames;
 const realParseSessionLapsBatched = replayStorage.parseSessionLapsBatched;
@@ -40,13 +40,13 @@ const parseSessionLapsBatchedGate = (
   ? parseSessionLapsBatched(source, metas)
   : realParseSessionLapsBatched(source, metas);
 
-mock.module("../../server/db/telemetry-replay-storage", () => ({
+mock.module("@raceiq/backend-core/db/telemetry-replay-storage", () => ({
   ...replayStorage,
   parseRawLapFrames: parseRawLapFramesGate,
   parseSessionLapsBatched: parseSessionLapsBatchedGate,
 }));
 
-const { getLapsByIds } = await import("../../server/db/lap-read-queries");
+const { getLapsByIds } = await import("@raceiq/backend-core/db/lap-read-queries");
 
 // Bun module mocks are process-global and cannot be restored. These wrappers
 const sessionIds: number[] = [];

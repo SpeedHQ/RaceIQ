@@ -1,16 +1,16 @@
 import { expect, test } from "bun:test";
 import { unlinkSync } from "node:fs";
 import { gzipSync } from "node:zlib";
-import { deleteSession, insertSession, updateSessionRawFile } from "../../server/db/session-queries";
-import { getSessionResult } from "../../server/db/session-result-queries";
-import { initServerGameAdapters } from "../../server/games/init";
-import { reconcileSessionResult } from "../../server/race-results/reconcile";
+import { deleteSession, insertSession, updateSessionRawFile } from "@raceiq/backend-core/db/session-queries";
+import { getSessionResult } from "@raceiq/backend-core/db/session-result-queries";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { reconcileSessionResult } from "@raceiq/backend-core/race-results/reconcile";
 import {
   hashRawCapture,
   loadRawCaptureIdentity,
   rawCaptureObjectId,
-} from "../../server/session-capture/identity";
-import { setCaptureFileFactoryForTest } from "../../server/session-capture/source-loader";
+} from "@raceiq/backend-core/session-capture/identity";
+import { setCaptureFileFactoryForTest } from "@raceiq/backend-core/session-capture/source-loader";
 
 initServerGameAdapters();
 

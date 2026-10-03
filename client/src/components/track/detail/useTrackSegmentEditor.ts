@@ -1,4 +1,4 @@
-import { numberCorner, unnumberCorner } from "@shared/racing/tracks/curation/join";
+import { numberCorner, unnumberCorner } from "@raceiq/shared/racing/tracks/curation/join";
 import { useCallback } from "react";
 import { client } from "@/lib/rpc";
 import type { TrackSectors, TrackSegment } from "../types";

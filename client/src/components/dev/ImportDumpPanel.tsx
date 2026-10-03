@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import type { SessionOwnership } from "../../../../shared/racing/sessions/types";
+import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import { OwnershipChoice } from "../import/OwnershipChoice";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";

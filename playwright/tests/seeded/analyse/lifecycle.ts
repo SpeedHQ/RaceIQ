@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 import { z } from "zod";
 
-import type { LapMeta } from "../../../../shared/racing/sessions/types";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { gameRows } from "./fixtures";
 
 export async function exportImportAndDelete(page: Page, request: APIRequestContext, selectedLap: LapMeta, selectedLapId: number, importedLapIds: number[]): Promise<void> {

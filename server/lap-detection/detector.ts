@@ -11,14 +11,14 @@
  * Each completed lap's full packet buffer is persisted to SQLite.
  * Fuel and tire wear deltas are tracked per-lap for strategy overlays.
  */
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { GameId } from "../../shared/games/ids";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { GameId } from "@raceiq/shared/games/ids";
 import type { ILapDetector, LapDetectorOptions, LapDetectorPolicy } from "./types";
-import { extractCurbSegments, recordCurbData } from "../../shared/racing/tracks/recording/curbs";
-import { recordLapTrace } from "../../shared/racing/tracks/recording/outlines";
-import { getIRacingSharedTrackName } from "../../shared/racing/tracks/catalogs/iracing"
-import { lapPath } from "../../shared/racing/tracks/path";
-import { classifyPitCycleLap, forzaPitTransitionEvidence, type PitCycleReason } from "../../shared/racing/laps/pit-cycle";
+import { extractCurbSegments, recordCurbData } from "@raceiq/shared/racing/tracks/recording/curbs";
+import { recordLapTrace } from "@raceiq/shared/racing/tracks/recording/outlines";
+import { getIRacingSharedTrackName } from "@raceiq/shared/racing/tracks/catalogs/iracing"
+import { lapPath } from "@raceiq/shared/racing/tracks/path";
+import { classifyPitCycleLap, forzaPitTransitionEvidence, type PitCycleReason } from "@raceiq/shared/racing/laps/pit-cycle";
 import { assessLapRecording } from "../lap-analysis/quality";
 import { persistLapMetrics } from "../lap-analysis/metrics-store";
 import { updateLapCarSetup } from "../db/lap-mutation-queries";

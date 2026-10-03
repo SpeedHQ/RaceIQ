@@ -1,10 +1,10 @@
-import type { LMUIdentityRecord } from "../../../shared/games/lmu";
+import type { LMUIdentityRecord } from "@raceiq/shared/games/lmu/index";
 import {
   resolveLMUCar,
   resolveLMUTrack,
-} from "../../../shared/games/lmu/catalog";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import type { LMUExtendedData } from "../../../shared/telemetry/lmu";
+} from "@raceiq/shared/games/lmu/catalog";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { LMUExtendedData } from "@raceiq/shared/telemetry/lmu";
 import {
   LMU_SCORING_INFO,
   LMU_SCORING_VEHICLE,

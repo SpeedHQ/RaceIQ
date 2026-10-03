@@ -1,4 +1,4 @@
-import { isDevTelemetryPacketMessageV1, isDevTelemetrySubscriptionMessageV1, isLiveTelemetryFrameMessageV1, isLiveTelemetrySchemaMessageV1 } from "../../../shared/telemetry/live/contracts";
+import { isDevTelemetryPacketMessageV1, isDevTelemetrySubscriptionMessageV1, isLiveTelemetryFrameMessageV1, isLiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
 import { devTelemetryStore } from "../stores/dev-telemetry";
 import { telemetryStore } from "../stores/telemetry";
 

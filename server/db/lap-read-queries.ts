@@ -3,9 +3,9 @@ import { toLapMeta } from "./lap-meta";
 import { eq, desc, and, or, sql, inArray } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, tunes } from "./schema";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { LapMeta } from "../../shared/racing/sessions/types";
-import type { GameId } from "../../shared/games/ids";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { GameId } from "@raceiq/shared/games/ids";
 const inFlightSessionDecodes = new Map<string, Promise<void>>();
 
 interface LapStats {

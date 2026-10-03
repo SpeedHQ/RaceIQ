@@ -13,7 +13,7 @@ import { udpListener } from "../../runtime/udp-listener";
 import { getRunningGame } from "../../games/registry";
 import { getCurrentDetectedGame } from "../../games/packet-dispatch";
 import { loadSettings } from "../../runtime/config/settings";
-import { client as dbClient, DB_PATH } from "../../db";
+import { client as dbClient, DB_PATH } from "../../db/index";
 import { collectDiagnosticChatContext } from "../../ai/chat-agent";
 import { formatDiagnosticRecord, log, readRecentLogText } from "../../runtime/logger";
 import { normalizeDiagnostic } from "../../ai/diagnostic-logging";

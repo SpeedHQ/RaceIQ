@@ -1,7 +1,7 @@
-import type { GameId } from "../../shared/games/ids";
-import type { NamedSegment } from "../../shared/racing/tracks/named-segments";
-import { formatTurnNumbers, turnNumbers } from "../../shared/racing/tracks/segment-label";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
+import { formatTurnNumbers, turnNumbers } from "@raceiq/shared/racing/tracks/segment-label";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { getCorners, saveCorners } from "../db/track-queries";
 import { detectCorners, type Corner } from "../lap-analysis/corners";
 import { resolveTrackSegments } from "../routes/tracks/support";

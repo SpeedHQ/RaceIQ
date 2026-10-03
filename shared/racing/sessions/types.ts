@@ -1,6 +1,6 @@
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 
-import type { TelemetryVersionIdentity } from "@shared/telemetry/version";
+import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 
 export type SessionOwnership = "mine" | "others";
 

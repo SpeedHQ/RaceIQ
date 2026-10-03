@@ -15,10 +15,10 @@
  * Kept separate from `chat-prompt.ts` (the lap-analysis chat) on purpose: that
  * prompt is telemetry+corner-analysis-scoped; this one is setup+symptom-scoped.
  */
-import type { GameId } from "../../shared/games/ids";
-import { aiLanguageInstruction } from "../../shared/integrations/ai/language";
-import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
-import { parseTestChanges } from "../../shared/racing/experiments/test-changes";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { aiLanguageInstruction } from "@raceiq/shared/integrations/ai/language";
+import { ADJUSTMENT_FORMAT_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
+import { parseTestChanges } from "@raceiq/shared/racing/experiments/test-changes";
 import type { TuneSymptoms } from "./tune-symptoms";
 import { formatTireTempSymptoms } from "./tune-tire-symptoms";
 import { formatDamperSymptoms } from "./tune-damper-symptoms";

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { sanitisePathSegment } from "../../server/routes/tune-shared";
+import { sanitisePathSegment } from "@raceiq/backend-core/routes/tune-shared";
 
 /**
  * `place-setup` writes `Setups/<car>/<track>/<file>` from names the client sends,

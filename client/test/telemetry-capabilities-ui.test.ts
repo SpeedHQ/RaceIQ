@@ -4,10 +4,10 @@ import { createElement } from "react";
 
 import { celsiusToFahrenheit } from "../src/lib/temperature";
 import { renderToStaticMarkup } from "react-dom/server";
-import { initGameAdapters } from "../../shared/games/init";
-import type { GameId } from "../../shared/games/ids";
-import type { LivePitData, LiveSectorData } from "../../shared/racing/live/types";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { LivePitData, LiveSectorData } from "@raceiq/shared/racing/live/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { ComboDash } from "../src/components/dashes/ComboDash";
 import { buildChartData } from "../src/components/analyse/chart-data";
 import { AnalyseF1ErsPanel } from "../src/components/analyse/AnalyseF1ErsPanel";

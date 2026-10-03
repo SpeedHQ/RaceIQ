@@ -10,18 +10,18 @@
  *
  * Usage: bun run scripts/data/backfill-unknown-cars.ts
  */
-import { initServerGameAdapters } from "../../server/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 import { developmentReleaseFeatures } from "../release/development-release-features";
 initServerGameAdapters(developmentReleaseFeatures);
 
 import { and, eq } from "drizzle-orm";
-import { db, initDb } from "../../server/db/index";
-import { sessions } from "../../server/db/schema";
-import { getServerGame } from "../../server/games/registry";
-import { getOrCreateDiscoveredCar } from "../../server/db/discovered-cars";
-import { META_FRAME_MAGIC } from "../../server/session-capture/framing";
+import { db, initDb } from "@raceiq/backend-core/db/index";
+import { sessions } from "@raceiq/backend-core/db/schema";
+import { getServerGame } from "@raceiq/backend-core/games/registry";
+import { getOrCreateDiscoveredCar } from "@raceiq/backend-core/db/discovered-cars";
+import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing";
 import { gunzipIfNeeded } from "../lib/compression";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 const GAME_ID = "ac-evo";
 

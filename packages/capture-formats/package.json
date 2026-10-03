@@ -1,0 +1,9 @@
+{
+  "name": "@raceiq/capture-formats",
+  "private": true,
+  "type": "module",
+  "exports": {},
+  "scripts": {
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit"
+  }
+}

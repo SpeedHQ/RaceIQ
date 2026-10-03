@@ -19,7 +19,7 @@
 import { zipSync } from "fflate";
 import { readFile } from "node:fs/promises";
 import { LAPS_ZIP_LIMITS, unzipBounded } from "../archive/bounded-unzip";
-import type { SessionOwnership } from "../../shared/racing/sessions/types";
+import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import { getLapsRaw } from "../db/lap-read-queries";
 import { loadSessionCapture } from "../session-capture/source-loader";
 import { encodeLmuSparseFrame } from "../session-capture/lmu-sparse";
@@ -27,8 +27,8 @@ import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "../games/lmu/s
 import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC } from "../games/kunos/pack-triplet";
 import { encodeKunosSparseFrame } from "../session-capture/kunos-sparse";
 import { encodeGenericSparseFrame, genericFrameIdentity } from "../session-capture/generic-sparse";
-import { resolveCarName } from "../../shared/racing/cars/resolve-name";
-import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
+import { resolveCarName } from "@raceiq/shared/racing/cars/resolve-name";
+import { resolveTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
 import { extractMotecArchive } from "../motec/import-staging";
 import { importMotec } from "../motec/import";
 import {
@@ -58,7 +58,7 @@ import {
   type IRacingSourceFrame,
 } from "../games/iracing/source-frame";
 import { parseF1Header } from "../games/f1-2025/f1-wire";
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 
 export const LAPS_ZIP_VERSION = 4;
 

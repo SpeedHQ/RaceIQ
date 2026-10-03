@@ -1,7 +1,7 @@
-import { getGame } from "@shared/games/registry";
-import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
-import { resolveWheelMetric } from "../../../../shared/racing/analysis/metric-values";
-import { suspensionCompressionBias } from "../../../../shared/racing/analysis/laps/physics/vehicle";
+import { getGame } from "@raceiq/shared/games/registry"
+import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
+import { resolveWheelMetric } from "@raceiq/shared/racing/analysis/metric-values";
+import { suspensionCompressionBias } from "@raceiq/shared/racing/analysis/laps/physics/vehicle";
 import { Info } from "lucide-react";
 import { operatingRangeColor } from "../../lib/colors";
 import { m } from "../../paraglide/messages";
@@ -10,7 +10,7 @@ import { WheelTable } from "./WheelTable";
 
 interface Props {
   frame: SemanticAnalysisFrame;
-  gameId: import("../../../../shared/games/ids").GameId;
+  gameId: import("@raceiq/shared/games/ids").GameId;
 }
 const unavailable = <span className="text-app-text-dim">—</span>;
 

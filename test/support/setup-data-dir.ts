@@ -56,7 +56,7 @@ writeFileSync(resolve(process.env.DATA_DIR, "settings.json"), "{}\n");
  * This is the one place a top-level await on DB setup is safe: it is a single
  * controlled entry point, not something every importer of `db` pays for.
  */
-const { initDb } = await import("../../server/db/index");
+const { initDb } = await import("@raceiq/backend-core/db/index");
 await initDb();
 
 /**
@@ -73,13 +73,13 @@ await initDb();
  */
 afterAll(async () => {
   try {
-    const { stopMaintenanceTasks } = await import("../../server/telemetry/live-pipeline");
+    const { stopMaintenanceTasks } = await import("@raceiq/backend-core/telemetry/live-pipeline");
     stopMaintenanceTasks();
   } catch {
     // pipeline never loaded — nothing to stop
   }
   try {
-    const { client } = await import("../../server/db/index");
+    const { client } = await import("@raceiq/backend-core/db/index");
     client.close();
   } catch {
     // db never loaded — nothing to close

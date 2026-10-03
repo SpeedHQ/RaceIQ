@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { applyAlignment, computeAlignment } from "../../shared/racing/tracks/geometry/points";
+import { applyAlignment, computeAlignment } from "@raceiq/shared/racing/tracks/geometry/points";
 
 const segment = (start: { x: number; z: number }, end: { x: number; z: number }, count: number) =>
   Array.from({ length: count }, (_, index) => ({

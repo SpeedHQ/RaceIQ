@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { renderUnreleasedBody } from "@shared/tooling/render";
+import { renderUnreleasedBody } from "@raceiq/shared/tooling/render";
 const version = process.argv[2];
 if (!version) throw new Error("Usage: bun scripts/release/generate-release-note.ts <version> [publishedAt]");
 

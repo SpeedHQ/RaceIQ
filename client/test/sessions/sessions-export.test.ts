@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
+import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import { selectionIncludesMotec } from "../../src/components/sessions/helpers";
 
 const sessions: SessionMeta[] = [

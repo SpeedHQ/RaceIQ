@@ -1,16 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import { computeIRacingSectorTimeline,
-computeLapSectors, } from "../../../server/lap-analysis/sectors"
-import { initServerGameAdapters } from "../../../server/games/init";
+computeLapSectors, } from "@raceiq/backend-core/lap-analysis/sectors"
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 import {
   createIRacingParserState,
   normalizeIRacingFrame,
-} from "../../../server/games/iracing/normalizer";
-import { LapDetectorIRacing } from "../../../server/games/iracing/lap-detector";
-import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports"
-import { SectorTracker } from "../../../server/live-strategy/sector-tracker";
-import { initGameAdapters } from "../../../shared/games/init";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+} from "@raceiq/backend-core/games/iracing/normalizer";
+import { LapDetectorIRacing } from "@raceiq/backend-core/games/iracing/lap-detector";
+import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
+import { SectorTracker } from "@raceiq/backend-core/live-strategy/sector-tracker";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 initGameAdapters();
 initServerGameAdapters();

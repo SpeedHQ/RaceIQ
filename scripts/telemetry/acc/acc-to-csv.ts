@@ -1,9 +1,9 @@
-import { readKunosFrames } from "../../../server/games/kunos/frame-reader";
-import { parseAccBuffers } from "../../../server/games/acc/parser";
-import { readWString } from "../../../server/games/acc/utils";
-import { STATIC } from "../../../server/games/acc/structs";
-import { getAccCarByModel } from "../../../shared/racing/cars/acc"
-import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
+import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { parseAccBuffers } from "@raceiq/backend-core/games/acc/parser";
+import { readWString } from "@raceiq/backend-core/games/acc/utils";
+import { STATIC } from "@raceiq/backend-core/games/acc/structs";
+import { getAccCarByModel } from "@raceiq/shared/racing/cars/acc"
+import { getAccTrackByName } from "@raceiq/shared/racing/tracks/catalogs/acc"
 import { createWriteStream } from "node:fs";
 
 const binPath = process.argv[2] || "test/artifacts/sessions/acc-2026-04-09T18-56-49-633Z.bin";

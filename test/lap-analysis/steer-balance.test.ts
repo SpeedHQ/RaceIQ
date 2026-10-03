@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
-import { steerBalance } from "../../shared/racing/analysis/laps/physics/vehicle";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { steerBalance } from "@raceiq/shared/racing/analysis/laps/physics/vehicle";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 const DEG = Math.PI / 180;
 const G = 9.81;

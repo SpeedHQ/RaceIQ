@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { compressTelemetry, decompressTelemetry } from "../../server/db/telemetry-codec";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { compressTelemetry, decompressTelemetry } from "@raceiq/backend-core/db/telemetry-codec";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 describe("detailed telemetry storage", () => {
   test("round-trips detailed tire temperatures without turning absent fields into zero", () => {

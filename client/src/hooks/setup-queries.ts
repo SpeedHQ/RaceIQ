@@ -3,7 +3,7 @@ import { client } from "../lib/rpc";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { errorFromResponse } from "../lib/rpc-error";
 import { queryKeys } from "./query-keys";
-import type { SetupContentSection } from "../../../shared/racing/setups/content";
+import type { SetupContentSection } from "@raceiq/shared/racing/setups/content";
 
 export function useSetupFiles(gameId: "acc" | "ac-evo" | null) {
   return useQuery({

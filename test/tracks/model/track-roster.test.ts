@@ -2,11 +2,11 @@
 import { describe, test, expect } from "bun:test";
 import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { cornerNumbers, type TrackFacts } from "../../../shared/racing/tracks/facts";
-import type { TrackGeometry } from "../../../shared/racing/tracks/geometry";
-import { checkKeys, joinSegments } from "../../../shared/racing/tracks/curation/join";
-import { SHARED_DIR } from "../../../shared/platform/runtime/data-paths";
-import { turnNumbers } from "../../../shared/racing/tracks/segment-label";
+import { cornerNumbers, type TrackFacts } from "@raceiq/shared/racing/tracks/facts";
+import type { TrackGeometry } from "@raceiq/shared/racing/tracks/geometry";
+import { checkKeys, joinSegments } from "@raceiq/shared/racing/tracks/curation/join";
+import { SHARED_DIR } from "@raceiq/shared/platform/runtime/data-paths";
+import { turnNumbers } from "@raceiq/shared/racing/tracks/segment-label";
 
 const META_DIR = resolve(SHARED_DIR, "tracks", "meta");
 const GAME_IDS = readdirSync(resolve(SHARED_DIR, "tracks"), { withFileTypes: true })

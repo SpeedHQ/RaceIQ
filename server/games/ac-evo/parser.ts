@@ -9,9 +9,9 @@
  *   - driver:    GRAPHICS_EVO.driver_name / driver_surname
  */
 
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import type { KunosExtendedData, AcEvoExtendedData } from "../../../shared/telemetry/kunos";
-import type { GameId } from "../../../shared/games/ids";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { KunosExtendedData, AcEvoExtendedData } from "@raceiq/shared/telemetry/kunos";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { createAcEvoDistanceState, integrateDistance, type AcEvoDistanceState } from "./distance";
 import { calibratePlayerSlot, createPlayerSlotState, type PlayerSlotState } from "./player-slot";
 import {
@@ -29,8 +29,8 @@ import {
   ACEVO_STARTING_GRIP_NAMES,
 } from "./structs";
 import { readCString } from "./utils";
-import { getAcEvoCarByDisplayName } from "../../../shared/racing/cars/ac-evo"
-import { getAcEvoTrackByName } from "../../../shared/racing/tracks/catalogs/ac-evo"
+import { getAcEvoCarByDisplayName } from "@raceiq/shared/racing/cars/ac-evo"
+import { getAcEvoTrackByName } from "@raceiq/shared/racing/tracks/catalogs/ac-evo"
 
 export interface AcEvoParserCache {
   carOrdinal: number;

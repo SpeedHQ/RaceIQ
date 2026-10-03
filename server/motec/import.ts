@@ -23,21 +23,21 @@
  * is an entry there.
  */
 
-import { MOTEC_SESSION_SOURCE } from "@shared/integrations/motec";
+import { MOTEC_SESSION_SOURCE } from "@raceiq/shared/integrations/motec";
 import { importSessionPackets, ImportSourceRecorder, type ImportedLap } from "../session-capture/import-pipeline";
 import { updateLapTune } from "../db/tune-queries";
 import { parseLd } from "./ld";
 import { parseLdxBeacons } from "./ldx";
 import type { MotecCarTrack } from "./types";
-import type { SessionOwnership } from "../../shared/racing/sessions/types";
-import type { GameId } from "../../shared/games/ids";
+import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
+import type { GameId } from "@raceiq/shared/games/ids";
 import {
   analyseSemanticIds,
   unavailableAnalysisFeatures,
   type UnavailableAnalysisFeature,
-} from "../../shared/games/metric-contracts";
-import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
-import { groupsById } from "../../shared/telemetry/catalog/query";
+} from "@raceiq/shared/games/metric-contracts";
+import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
+import { groupsById } from "@raceiq/shared/telemetry/catalog/query";
 import { resolveMotecTarget } from "./targets";
 import { persistMotecSourceArchive } from "./source-archive";
 import { resolveTelemetryReplay } from "../telemetry/replay";

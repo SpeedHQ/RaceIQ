@@ -5,7 +5,7 @@
  * Usage:
  *   bun run scripts/data/import-laps.ts <path-to-zip>
  */
-import { importLapsZip } from "../../server/laps/archive"
+import { importLapsZip } from "@raceiq/backend-core/laps/archive"
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 

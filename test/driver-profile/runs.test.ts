@@ -1,10 +1,10 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
-import { loadSettings } from "../../server/runtime/config/settings";
-import { db, client } from "../../server/db";
-import { driverProfileRuns } from "../../server/db/schema";
-import { createDriverProfileRun, updateDriverProfileRun, getDriverProfileRun, listDriverProfileRuns, findDriverProfileRunByScopePool } from "../../server/db/driver-profile-queries";
+import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
+import { db, client } from "@raceiq/backend-core/db/index";
+import { driverProfileRuns } from "@raceiq/backend-core/db/schema";
+import { createDriverProfileRun, updateDriverProfileRun, getDriverProfileRun, listDriverProfileRuns, findDriverProfileRunByScopePool } from "@raceiq/backend-core/db/driver-profile-queries";
 
 const SETTINGS_PATH = `${process.env.DATA_DIR ?? "./data"}/settings.json`;
 const scope = { gameId: "fm-2023" as const, carOrdinal: 42, trackOrdinal: 7 };

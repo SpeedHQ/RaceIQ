@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { staticAssetHeaders } from "../../server/runtime/http-server";
+import { staticAssetHeaders } from "@raceiq/backend-core/runtime/http-server";
 
 describe("static asset headers", () => {
   test("marks gzip JSON assets for transparent browser decompression", () => {

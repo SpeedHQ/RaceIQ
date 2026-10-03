@@ -1,0 +1,16 @@
+{
+  "name": "@raceiq/game-acc",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@raceiq/shared": "workspace:*",
+    "@raceiq/backend-core": "workspace:*",
+    "@raceiq/capture-formats": "workspace:*"
+  },
+  "scripts": {
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit"
+  }
+}

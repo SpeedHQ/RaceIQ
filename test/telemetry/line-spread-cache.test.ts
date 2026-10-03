@@ -5,8 +5,8 @@
  * changed lap set produces a different key (cache miss).
  */
 import { describe, test, expect, afterAll } from "bun:test";
-import { getLineSpreadCache, setLineSpreadCache, lineSpreadLapSetHash } from "../../server/db/line-spread-cache-queries";
-import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline"
+import { getLineSpreadCache, setLineSpreadCache, lineSpreadLapSetHash } from "@raceiq/backend-core/db/line-spread-cache-queries";
+import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
 
 afterAll(() => stopMaintenanceTasks());
 

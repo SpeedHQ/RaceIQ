@@ -2,18 +2,18 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { unzipSync } from "fflate";
 
-import { initGameAdapters } from "../../shared/games/init";
-import { initServerGameAdapters } from "../../server/games/init";
-import { parseLd, findChannel } from "../../server/motec/ld";
-import { parseLdxBeacons } from "../../server/motec/ldx";
-import { db } from "../../server/db";
-import { sessions } from "../../server/db/schema";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { parseLd, findChannel } from "@raceiq/backend-core/motec/ld";
+import { parseLdxBeacons } from "@raceiq/backend-core/motec/ldx";
+import { db } from "@raceiq/backend-core/db/index";
+import { sessions } from "@raceiq/backend-core/db/schema";
 import { eq } from "drizzle-orm";
-import { importMotec } from "../../server/motec/import";
-import { resolveMotecTarget } from "../../server/motec/targets";
-import { normalizeTelemetryPacket } from "../../server/telemetry/normalization";
-import { MOTEC_STEER_LOCK_DEG, MOTEC_SYNTH_HZ } from "../../server/motec/kunos-synthesis";
-import { getTrackOutlineByOrdinal } from "../../shared/racing/tracks/recording/outlines";
+import { importMotec } from "@raceiq/backend-core/motec/import";
+import { resolveMotecTarget } from "@raceiq/backend-core/motec/targets";
+import { normalizeTelemetryPacket } from "@raceiq/backend-core/telemetry/normalization";
+import { MOTEC_STEER_LOCK_DEG, MOTEC_SYNTH_HZ } from "@raceiq/backend-core/motec/kunos-synthesis";
+import { getTrackOutlineByOrdinal } from "@raceiq/shared/racing/tracks/recording/outlines";
 
 const FIXTURE = "test/artifacts/motec/acc-barcelona-porsche-992.zip";
 

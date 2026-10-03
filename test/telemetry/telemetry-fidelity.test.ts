@@ -20,8 +20,8 @@
  * See docs/research/telemetry-fidelity.md for the write-up.
  */
 import { describe, expect, test } from "bun:test";
-import { detectCorners } from "../../server/lap-analysis/corners";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { detectCorners } from "@raceiq/backend-core/lap-analysis/corners";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 import { readSessionPackets } from "../support/recordings/session-frames";
 

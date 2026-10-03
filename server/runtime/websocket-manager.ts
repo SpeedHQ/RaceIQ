@@ -9,10 +9,10 @@
  *    (every 6th packet) keeps memory bounded at 600 samples per channel.
  */
 import type { ServerWebSocket } from "bun";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { LiveSectorData, LivePitData } from "../../shared/racing/live/types";
-import type { LapMeta } from "../../shared/racing/sessions/types";
-import type { TuneIssue } from "../../shared/racing/tuning/issues";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { LiveSectorData, LivePitData } from "@raceiq/shared/racing/live/types";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { LiveProjection } from "../telemetry/live-projector";
 import { IS_DEV, IS_E2E } from "./config/env";
 import {
@@ -20,7 +20,7 @@ import {
   type DevTelemetryControlMessageV1,
   type DevTelemetryPacketMessageV1,
   type DevTelemetrySubscriptionMessageV1,
-} from "../../shared/telemetry/live/contracts";
+} from "@raceiq/shared/telemetry/live/contracts";
 
 export interface WSData {
   createdAt: number;

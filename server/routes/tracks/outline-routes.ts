@@ -1,22 +1,22 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { OrdinalParamSchema, GameIdQuerySchema } from "@shared/platform/http/route-schemas";
+import { OrdinalParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
 import { getLaps, getLapById, getLapSummariesByTrack } from "../../db/lap-read-queries";
 import {
   deleteRecordedOutline,
   getStartYaw,
   recordLapTrace,
-} from "../../../shared/racing/tracks/recording/outlines";
-import { getTrackAltitudeByOrdinal } from "../../../shared/racing/tracks/geometry/extracted";
+} from "@raceiq/shared/racing/tracks/recording/outlines";
+import { getTrackAltitudeByOrdinal } from "@raceiq/shared/racing/tracks/geometry/extracted";
 import {
   filterLapOutliers,
   normalizeToFixedPoints,
   averageOutlines,
   smoothOutline,
 } from "../../lap-detection/detector";
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { computeLapSectors } from "../../lap-analysis/sectors";
-import { getLMUTrackOutline } from "../../../shared/games/lmu/track-boundaries";
+import { getLMUTrackOutline } from "@raceiq/shared/games/lmu/track-boundaries";
 import {
   decodeTrackKey,
   OrdinalKeyParamSchema,

@@ -20,7 +20,7 @@ import {
   type IRacingValue,
 } from "./source-frame";
 import { importSessionFrames } from "../../session-capture/import-pipeline";
-import type { SessionOwnership } from "../../../shared/racing/sessions/types";
+import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 
 const STAGE_TTL_MS = 30 * 60 * 1000;
 export const MAX_IBT_BYTES = 8 * 1024 * 1024 * 1024;

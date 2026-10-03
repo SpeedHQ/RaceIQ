@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { LiveSectorData } from "../../../shared/racing/live/types";
-import { SectorTracker } from "../../../server/live-strategy/sector-tracker";
+import type { LiveSectorData } from "@raceiq/shared/racing/live/types";
+import { SectorTracker } from "@raceiq/backend-core/live-strategy/sector-tracker";
 import { parseDump } from "../../support/recordings/parse-dump";
 import { RECORDINGS_DIR } from "./shared";
 

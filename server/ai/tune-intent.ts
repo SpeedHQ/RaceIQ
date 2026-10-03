@@ -8,7 +8,7 @@
  * keystore secrets), but uses the low-level `runClaudeCli/runGemini/runOpenAi`
  * helpers directly since we want a single structured turn, not a chat agent.
  */
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { loadSettings } from "../runtime/config/settings";
 import { getAiProviderApiKey, requireAiProviderApiKey } from "./openai-compatible-provider";
 import { runGemini, runOpenAi } from "./providers";

@@ -4,17 +4,17 @@ import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm
 import { db } from "./index";
 import { sessions, laps, sessionResults, pitEvents } from "./schema";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
-import type { SessionMeta, SessionOwnership } from "../../shared/racing/sessions/types";
-import type { GameId } from "../../shared/games/ids";
-import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
-import { tryGetGame } from "../../shared/games/registry";
+import type { SessionMeta, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
+import { tryGetGame } from "@raceiq/shared/games/registry";
 import { existsSync, unlinkSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
-import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outlines";
+import { getTrackLengthMeters } from "@raceiq/shared/racing/tracks/recording/outlines";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
 import type { SessionIdentity } from "../telemetry/pipeline-ports";
-import { getLMUTrack } from "../../shared/games/lmu/catalog";
+import { getLMUTrack } from "@raceiq/shared/games/lmu/catalog";
 
 export async function insertSession(
   carOrdinal: number,
@@ -208,7 +208,7 @@ export async function markSessionCaptureFormatCurrent(sessionId: number): Promis
 export function isOwnedSessionRawFile(rawFile: string): boolean {
   const sessionsDir = resolve(resolveDataDir(), "sessions");
   const relativePath = relative(sessionsDir, resolve(rawFile));
-  return relativePath.length > 0 && relativePath !== ".." && !relativePath.startsWith(`..${sep}`);
+  return relativePath.length > 0 && relativePath !== "../index" && !relativePath.startsWith(`..${sep}`);
 }
 
 async function unlinkOwnedSessionRawFile(rawFile: string | null): Promise<void> {

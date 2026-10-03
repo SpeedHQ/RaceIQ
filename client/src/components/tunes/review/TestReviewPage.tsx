@@ -1,6 +1,6 @@
 import { m } from "@/paraglide/messages";
-import { getGame } from "@shared/games/registry";
-import { DEFAULT_EXPERIMENT_FOCUS } from "@shared/racing/experiments/focus";
+import { getGame } from "@raceiq/shared/games/registry"
+import { DEFAULT_EXPERIMENT_FOCUS } from "@raceiq/shared/racing/experiments/focus";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { TuneSetupChat } from "@/components/tunes/TuneSetupChat";

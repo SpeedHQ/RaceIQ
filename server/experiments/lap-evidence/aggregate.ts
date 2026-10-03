@@ -20,8 +20,8 @@
  * Phase 1 only strengthens the multi-lap case, it never regresses the
  * single-lap one.
  */
-import type { LapMeta } from "../../../shared/racing/sessions/types";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { getLapById } from "../../db/lap-read-queries";
 import { getLapsForExperiment, getLapMetaForExperimentVersion } from "../../db/experiment-lap-queries";
 import { resolveLapCorners } from "../../tracks/corner-resolution";

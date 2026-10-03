@@ -8,8 +8,8 @@ import {
   mean,
   sampleVariance,
   welchTTest,
-} from "../../../server/experiments/comparison/compare";
-import { OUTCOME_METRICS } from "../../../server/experiments/comparison/metrics";
+} from "@raceiq/backend-core/experiments/comparison/compare";
+import { OUTCOME_METRICS } from "@raceiq/backend-core/experiments/comparison/metrics";
 import { metadataArm, normals } from "../../support/experiments/arms";
 
 

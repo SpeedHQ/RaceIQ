@@ -1,8 +1,8 @@
 import { m } from "@/paraglide/messages";
-import type { ExperimentFocus } from "@shared/racing/experiments/focus";
-import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/racing/laps/review-selection";
-import type { LapMeta } from "@shared/racing/sessions/types";
-import type { F1CarSetup } from "@shared/telemetry/f1-2025";
+import type { ExperimentFocus } from "@raceiq/shared/racing/experiments/focus";
+import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@raceiq/shared/racing/laps/review-selection";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { F1CarSetup } from "@raceiq/shared/telemetry/f1-2025";
 import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { F1SetupModal } from "@/components/analyse/F1SetupModal";

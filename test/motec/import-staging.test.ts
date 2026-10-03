@@ -6,7 +6,7 @@ import { zipSync } from "fflate";
 import {
   cleanupExpiredStagedMotec,
   stageMotecArchive,
-} from "../../server/motec/import-staging";
+} from "@raceiq/backend-core/motec/import-staging";
 
 const MINUTE_MS = 60 * 1000;
 

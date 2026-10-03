@@ -5,11 +5,11 @@
  *   bun scripts/telemetry/recordings/probe-recording.ts acc
  *   bun scripts/telemetry/recordings/probe-recording.ts f1-2025 test/artifacts/sessions/dump.bin
  */
-import { initGameAdapters } from "../../../shared/games/init";
-import { initServerGameAdapters } from "../../../server/games/init";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 import { developmentReleaseFeatures } from "../../release/development-release-features";
 import { parseDump } from "../../../test/support/recordings/parse-dump";
-import type { GameId } from "../../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 

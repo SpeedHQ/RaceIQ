@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseLapAnalysisForDisplay } from "../../client/src/components/ai/analysis-display-data";
+import { parseLapAnalysisForDisplay } from "./client/src/components/ai/analysis-display-data";
 
 const analystJson = JSON.stringify({
   verdict: "Strong lap with time available in slow corners.",

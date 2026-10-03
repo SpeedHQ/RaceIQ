@@ -1,4 +1,4 @@
-import { segmentDisplayNames } from "@shared/racing/tracks/segment-label";
+import { segmentDisplayNames } from "@raceiq/shared/racing/tracks/segment-label";
 import { useEffect, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { Button } from "@/components/ui/button";

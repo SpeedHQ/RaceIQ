@@ -3,20 +3,20 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
-import { db } from "../../server/db";
-import { insertLap } from "../../server/db/lap-mutation-queries";
-import { deleteSession, insertSession } from "../../server/db/session-queries";
-import { sessions, laps } from "../../server/db/schema";
-import { backfillLMUSessionIdentity } from "../../server/games/lmu/session-identity-backfill";
+import { db } from "@raceiq/backend-core/db/index";
+import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
+import { deleteSession, insertSession } from "@raceiq/backend-core/db/session-queries";
+import { sessions, laps } from "@raceiq/backend-core/db/schema";
+import { backfillLMUSessionIdentity } from "@raceiq/backend-core/games/lmu/session-identity-backfill";
 import {
   LMU_SCORING_INFO,
   LMU_SCORING_INFO_SIZE,
   LMU_TELEMETRY,
   LMU_TELEMETRY_INFO_SIZE,
-} from "../../server/games/lmu/layout";
-import { encodeLMUSourcePayload } from "../../server/games/lmu/source-frame";
-import { encodeFrameLength, encodeMetaFrame } from "../../server/session-capture/framing";
-import { RealDbAdapter } from "../../server/telemetry/pipeline-ports";
+} from "@raceiq/backend-core/games/lmu/layout";
+import { encodeLMUSourcePayload } from "@raceiq/backend-core/games/lmu/source-frame";
+import { encodeFrameLength, encodeMetaFrame } from "@raceiq/backend-core/session-capture/framing";
+import { RealDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 
 const sessionIds: number[] = [];
 const directories: string[] = [];

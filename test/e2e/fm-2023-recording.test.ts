@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import type { LapSavedNotification } from "../../server/lap-detection/types"
+import type { LapSavedNotification } from "@raceiq/backend-core/lap-detection/types"
 import { parseDump } from "../support/recordings/parse-dump";
 import { assertLapTimesProper, assertValidLapHasSectors } from "../support/laps/assertions";
 import { generateRecordingVisualizations } from "../support/laps/visualizations";

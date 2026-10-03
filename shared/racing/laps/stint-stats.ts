@@ -1,4 +1,4 @@
-import { clamp } from "@shared/core/numbers";
+import { clamp } from "@raceiq/shared/core/numbers";
 import type { LapMeta } from "../sessions/types";
 
 /**

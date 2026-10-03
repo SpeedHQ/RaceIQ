@@ -1,5 +1,5 @@
-import type { F1CarSetup } from "../../shared/telemetry/f1-2025";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { F1CarSetup } from "@raceiq/shared/telemetry/f1-2025";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 /**
  * Setup-identity helpers for F1 2025 "Add laps from history" auto-sort

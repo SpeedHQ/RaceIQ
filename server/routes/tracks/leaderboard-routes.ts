@@ -1,11 +1,11 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { getLapSummariesByTrack } from "../../db/lap-read-queries";
-import { fmCarSpecsCatalog } from "../../../shared/racing/cars/fm";
-import { resolveCarName } from "../../../shared/racing/cars/resolve-name";
+import { fmCarSpecsCatalog } from "@raceiq/shared/racing/cars/fm";
+import { resolveCarName } from "@raceiq/shared/racing/cars/resolve-name";
 import { tryGetServerGame } from "../../games/registry";
-import type { GameId } from "../../../shared/games/ids";
-import { getLMUCar } from "../../../shared/games/lmu/catalog";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { getLMUCar } from "@raceiq/shared/games/lmu/catalog";
 import { decodeTrackKey, TrackKeyParamSchema } from "./support";
 
 export const trackLeaderboardRoutes = new Hono()

@@ -9,8 +9,8 @@ import {
   OUTCOME_METRIC_IDS,
   OUTCOME_METRICS,
   pickReferenceLap,
-} from "../../../server/experiments/comparison/metrics";
-import type { EvaluableLap } from "../../../shared/racing/laps/review-selection";
+} from "@raceiq/backend-core/experiments/comparison/metrics";
+import type { EvaluableLap } from "@raceiq/shared/racing/laps/review-selection";
 
 /** The policy no metric uses any more, kept explicit so its effects stay
  *  measurable. See `lapTimeSec`'s comment in server/experiments/comparison/metrics.ts. */

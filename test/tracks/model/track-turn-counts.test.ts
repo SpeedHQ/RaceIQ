@@ -12,16 +12,16 @@
  * model at all) — a detector allowance, not a fact about the circuit.
  */
 import { describe, test, expect } from "bun:test";
-import { turnNumbers } from "../../../shared/racing/tracks/segment-label";
-import { officialTurnCount, validateFacts } from "../../../shared/racing/tracks/curation/segment-align-validate";
-import { loadTrackFacts } from "../../../shared/racing/tracks/storage/meta";
-import { loadDetectHints } from "../../../shared/racing/tracks/detect-hints";
+import { turnNumbers } from "@raceiq/shared/racing/tracks/segment-label";
+import { officialTurnCount, validateFacts } from "@raceiq/shared/racing/tracks/curation/segment-align-validate";
+import { loadTrackFacts } from "@raceiq/shared/racing/tracks/storage/meta";
+import { loadDetectHints } from "@raceiq/shared/racing/tracks/detect-hints";
 import {
   findCenterlines,
   generateTrackSegments,
   listCuratedSlugs,
   listMetaSlugs,
-} from "../../../shared/racing/tracks/curation/generate";
+} from "@raceiq/shared/racing/tracks/curation/generate";
 import { KNOWN_ALIGNMENT_GAPS } from "../../support/tracks/known-gaps";
 
 const slugs = listCuratedSlugs();

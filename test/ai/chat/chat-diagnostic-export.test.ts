@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { collectDiagnosticChatContext } from "../../../server/ai/chat-agent";
+import { collectDiagnosticChatContext } from "@raceiq/backend-core/ai/chat-agent";
 
 describe("diagnostic chat snapshot", () => {
   test("enumerates every thread and preserves raw messages", async () => {

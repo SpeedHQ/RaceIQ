@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { SetupContentSection, SetupContentRow } from "../../../../shared/racing/setups/content";
+import type { SetupContentSection, SetupContentRow } from "@raceiq/shared/racing/setups/content";
 import { ToggleGroup03 } from "../shadcn-studio/toggle-group/toggle-group-03";
 import { AppInput } from "../ui/AppInput";
 

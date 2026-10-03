@@ -1,5 +1,5 @@
-import type { GameId } from "../../../shared/games/ids";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 export function packet(
   gameId: GameId,

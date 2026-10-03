@@ -1,16 +1,16 @@
 import { describe, expect, test } from "bun:test";
 
-import { initGameAdapters } from "../../shared/games/init";
-import { getGame } from "../../shared/games/registry";
-import { analyseSemanticIds } from "../../shared/games/metric-contracts";
-import { decodeAlignedLapSet } from "../../shared/racing/laps/alignment/codec";
-import type { EncodedAlignedLapSet } from "../../shared/racing/laps/alignment/types";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { getGame } from "@raceiq/shared/games/registry";
+import { analyseSemanticIds } from "@raceiq/shared/games/metric-contracts";
+import { decodeAlignedLapSet } from "@raceiq/shared/racing/laps/alignment/codec";
+import type { EncodedAlignedLapSet } from "@raceiq/shared/racing/laps/alignment/types";
 
-import { deleteSession, insertSession, updateSessionRawFile } from "../../server/db/session-queries";
-import { cacheDelete, cacheSet } from "../../server/db/telemetry-replay-storage";
-import { insertLap } from "../../server/db/lap-mutation-queries";
-import { lapRoutes } from "../../server/routes/laps";
-import { semanticReplayIds } from "../../server/routes/laps/resource-routes";
+import { deleteSession, insertSession, updateSessionRawFile } from "@raceiq/backend-core/db/session-queries";
+import { cacheDelete, cacheSet } from "@raceiq/backend-core/db/telemetry-replay-storage";
+import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
+import { lapRoutes } from "@raceiq/backend-core/routes/laps/index";
+import { semanticReplayIds } from "@raceiq/backend-core/routes/laps/resource-routes";
 import { packet } from "../support/telemetry/resolver";
 
 initGameAdapters();

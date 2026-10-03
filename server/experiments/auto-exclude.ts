@@ -1,5 +1,5 @@
-import { fastestLaps, REVIEW_LAP_CAP } from "../../shared/racing/laps/review-selection";
-import { isPitCycleLap } from "../../shared/racing/laps/pit-cycle";
+import { fastestLaps, REVIEW_LAP_CAP } from "@raceiq/shared/racing/laps/review-selection";
+import { isPitCycleLap } from "@raceiq/shared/racing/laps/pit-cycle";
 
 /**
  * Tuning auto-exclude: fastest-5 lap curation

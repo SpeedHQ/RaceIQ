@@ -2,32 +2,32 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { initServerGameAdapters } from "../../../server/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 import {
   normalizeIRacingFrame,
-} from "../../../server/games/iracing/normalizer";
+} from "@raceiq/backend-core/games/iracing/normalizer";
 import {
   type IRacingFrameReader,
   IRacingTelemetrySource,
-} from "../../../server/games/iracing/source";
+} from "@raceiq/backend-core/games/iracing/source";
 import {
   createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,
   IRacingSourceFrameEncoder,
   type IRacingSourceFrameV3,
-} from "../../../server/games/iracing/source-frame";
-import { parsePacket } from "../../../server/games/packet-dispatch";
-import { getServerGame } from "../../../server/games/registry";
-import { timerResolutionRefCount } from "../../../server/games/shared/win-timer-resolution";
+} from "@raceiq/backend-core/games/iracing/source-frame";
+import { parsePacket } from "@raceiq/backend-core/games/packet-dispatch";
+import { getServerGame } from "@raceiq/backend-core/games/registry";
+import { timerResolutionRefCount } from "@raceiq/backend-core/games/shared/win-timer-resolution";
 import {
   IRacingRecorder,
   readIRacingFrames,
-} from "../../../server/games/iracing/recorder";
-import { initGameAdapters } from "../../../shared/games/init";
+} from "@raceiq/backend-core/games/iracing/recorder";
+import { initGameAdapters } from "@raceiq/shared/games/init";
 import {
   iracingAdapter,
   rememberIRacingIdentity,
-} from "../../../shared/games/iracing";
+} from "@raceiq/shared/games/iracing/index";
 
 initGameAdapters();
 initServerGameAdapters();

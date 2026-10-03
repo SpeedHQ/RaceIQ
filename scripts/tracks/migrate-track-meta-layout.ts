@@ -1,6 +1,6 @@
-import type { NamedSegment as LegacyNamedSegment } from "../../shared/racing/tracks/named-segments";
-import type { CornerFact, StraightFact, TrackFacts } from "../../shared/racing/tracks/facts";
-import type { TrackGeometry } from "../../shared/racing/tracks/geometry";
+import type { NamedSegment as LegacyNamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
+import type { CornerFact, StraightFact, TrackFacts } from "@raceiq/shared/racing/tracks/facts";
+import type { TrackGeometry } from "@raceiq/shared/racing/tracks/geometry";
 import type { LegacyMeta } from "./migrate-track-meta-input";
 import { keySegments, vote, voteDirection, type KeyedRow } from "./migrate-track-meta-segments";
 import type { LayoutIdentity } from "./migrate-track-meta-identity";

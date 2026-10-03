@@ -1,7 +1,7 @@
 import type {
   RaceResultClaimEvidence,
   RaceResultClaimScope,
-} from "../../shared/racing/results/types";
+} from "@raceiq/shared/racing/results/types";
 import {
   arbitrateRaceResultClaim,
   RACE_RESULT_OUTCOME_POLICY,
@@ -15,7 +15,7 @@ import type {
   ResultClassification,
   ResultSessionType,
 } from "./types";
-import { isPracticeSession } from "../../shared/racing/sessions/session-type";
+import { isPracticeSession } from "@raceiq/shared/racing/sessions/session-type";
 
 const SESSION_TYPES: Record<string, ResultSessionType> = {
   practice: "practice",

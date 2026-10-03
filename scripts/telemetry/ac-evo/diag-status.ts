@@ -11,15 +11,15 @@
  */
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
-import { initGameAdapters } from "../../../shared/games/init";
-import { initServerGameAdapters } from "../../../server/games/init";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
 import { developmentReleaseFeatures } from "../../release/development-release-features";
-import { getServerGame } from "../../../server/games/registry";
-import { META_FRAME_MAGIC } from "../../../server/session-capture/framing";
-import { ACEVO_STATUS, GRAPHICS_EVO } from "../../../server/games/ac-evo/structs";
-import { unpackTriplet } from "../../../server/games/kunos/pack-triplet";
-import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector";
-import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports";
+import { getServerGame } from "@raceiq/backend-core/games/registry";
+import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing";
+import { ACEVO_STATUS, GRAPHICS_EVO } from "@raceiq/backend-core/games/ac-evo/structs";
+import { unpackTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
+import { LapDetectorAcEvo } from "@raceiq/backend-core/games/ac-evo/lap-detector";
+import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 
 initGameAdapters(developmentReleaseFeatures);
 initServerGameAdapters(developmentReleaseFeatures);

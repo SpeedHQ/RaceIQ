@@ -8,7 +8,7 @@ import {
   failReprocess,
   initialReprocessState,
   submitStaleSessionReprocess,
-} from "../../client/src/lib/reprocess-state";
+} from "./client/src/lib/reprocess-state";
 
 describe("stale-session reprocessing state", () => {
   test("moves from idle through progress to success", () => {

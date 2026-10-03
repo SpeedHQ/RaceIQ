@@ -4,7 +4,7 @@ import { createMemoryHistory, createRootRoute, createRouter, RouterContextProvid
 import { Hono } from "hono";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/shared/games/init";
 import { LMULiveDashboard } from "../src/components/lmu/LMULiveDashboard";
 import { TrackDetail } from "../src/components/track/TrackDetail";
 import { useCarName } from "../src/hooks/catalog-queries";

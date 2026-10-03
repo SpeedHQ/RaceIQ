@@ -1,6 +1,6 @@
-import { slipBalanceDeg } from "@shared/racing/analysis/laps/physics/vehicle";
-import { clamp } from "@shared/core/numbers";
-import type { TelemetryPacket } from "@shared/telemetry/types";
+import { slipBalanceDeg } from "@raceiq/shared/racing/analysis/laps/physics/vehicle";
+import { clamp } from "@raceiq/shared/core/numbers";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LapTrace, TireAverages, TireTraces } from "./types";
 
 /** u32 wraps at 2^32 ms (~49.7 days) — TimestampMS resets mid-session on long

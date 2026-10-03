@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { hasExplicitChangeConfirmation } from "../../../server/ai/chat-message-context";
+import { hasExplicitChangeConfirmation } from "@raceiq/backend-core/ai/chat-message-context";
 
 type Change = { component: string; direction: "increase" | "decrease"; magnitude: "small" | "medium" | "large" };
 

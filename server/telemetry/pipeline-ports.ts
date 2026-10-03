@@ -1,22 +1,22 @@
 import { resolve } from "node:path";
 import { mkdirSync } from "node:fs";
-import type { GameId } from "../../shared/games/ids";
-import type { LapMeta, SessionOwnership } from "../../shared/racing/sessions/types";
-import type { LivePitData, LiveSectorData } from "../../shared/racing/live/types";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
-import type { TuneIssue } from "../../shared/racing/tuning/issues";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { LapMeta, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
+import type { LivePitData, LiveSectorData } from "@raceiq/shared/racing/live/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { LiveProjection } from "./live-projector";
 import {
   TELEMETRY_CATALOG_HASH,
   TELEMETRY_CATALOG_SCHEMA_VERSION,
   TELEMETRY_CATALOG_VERSION,
-} from "../../shared/telemetry/catalog/data";
-import { TELEMETRY_DERIVATION_VERSION } from "../../shared/telemetry/derivations/builtins";
+} from "@raceiq/shared/telemetry/catalog/data";
+import { TELEMETRY_DERIVATION_VERSION } from "@raceiq/shared/telemetry/derivations/builtins";
 import {
   TELEMETRY_PARSER_VERSIONS,
   TELEMETRY_RESOLVER_VERSION,
-} from "../../shared/telemetry/resolver/versions";
+} from "@raceiq/shared/telemetry/resolver/versions";
 import { insertSession, updateSessionRawFile, updateSessionCarTrack, markSessionCaptureFormatCurrent } from "../db/session-queries";
 import { deleteLapOnly, insertLap, setLapMetrics } from "../db/lap-mutation-queries";
 import { getLaps } from "../db/lap-read-queries";

@@ -3,8 +3,8 @@ import {
   buildTuneChatSystemPrompt,
   summariseSetupJson,
   type TuneChatTest,
-} from "../../../server/ai/tune-chat-prompt";
-import type { TuneSymptoms } from "../../../server/ai/tune-symptoms";
+} from "@raceiq/backend-core/ai/tune-chat-prompt";
+import type { TuneSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
 
 /**
  * Prompt-layer tests for the experiment setup chat (plan Phase D). Exercises

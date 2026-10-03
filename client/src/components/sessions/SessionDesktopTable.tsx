@@ -1,6 +1,6 @@
 import { Fragment } from "react";
-import type { GameId } from "@shared/games/ids";
-import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import { formatLapTime } from "@/components/LiveTelemetry";
 import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";

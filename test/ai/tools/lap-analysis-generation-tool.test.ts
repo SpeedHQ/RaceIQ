@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { getGenerateLapAnalysisTool } from "../../../mastra/tools/lap-analysis";
+import { getGenerateLapAnalysisTool } from "@raceiq/backend/src/mastra/tools/lap-analysis";
 
 const validAnalysis = JSON.stringify({
   verdict: "clean",

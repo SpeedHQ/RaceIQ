@@ -14,9 +14,9 @@
  *     silently-skipped intent.
  */
 import { describe, expect, test } from "bun:test";
-import { applyIntents, describeKnobs } from "../../../server/setups/rules/engine";
-import { knownComponents } from "../../../server/setups/rules/catalog";
-import { readSetupEngineerContext } from "../../../mastra/tools/setup-engineer-request-context";
+import { applyIntents, describeKnobs } from "@raceiq/backend-core/setups/rules/engine";
+import { knownComponents } from "@raceiq/backend-core/setups/rules/catalog";
+import { readSetupEngineerContext } from "@raceiq/backend/src/mastra/tools/setup-engineer-request-context";
 
 function baseAccSetup() {
   return {

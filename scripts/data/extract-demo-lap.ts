@@ -3,7 +3,7 @@
  * Run: bun run scripts/data/extract-demo-lap.ts
  */
 import { resolve } from "node:path";
-import { getLapById } from "../../server/db/lap-read-queries";
+import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 
 const DEMO_LAP_ID = 1337;
 const lap = await getLapById(DEMO_LAP_ID);

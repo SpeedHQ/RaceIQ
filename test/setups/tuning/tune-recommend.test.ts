@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { symptomsToIntents } from "../../../server/ai/tune-recommend";
+import { symptomsToIntents } from "@raceiq/backend-core/ai/tune-recommend";
 import {
   classifySpeedBand,
   type Balance,
@@ -8,8 +8,8 @@ import {
   type PhaseSymptom,
   type SpeedBand,
   type TuneSymptoms,
-} from "../../../server/ai/tune-symptoms";
-import type { TyreDeltas } from "../../../server/ai/tune-symptoms";
+} from "@raceiq/backend-core/ai/tune-symptoms";
+import type { TyreDeltas } from "@raceiq/backend-core/ai/tune-symptoms";
 
 function phase(
   p: Phase,

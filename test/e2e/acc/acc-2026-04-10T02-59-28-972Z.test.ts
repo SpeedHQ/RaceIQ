@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { parseDump } from "../../support/recordings/parse-dump";
 import { generateRecordingVisualizations } from "../../support/laps/visualizations";
 import { assertSectorTimesMatchLapTime, assertLapTimesProper, assertValidLapHasSectors } from "../../support/laps/assertions";
-import type { LapSavedNotification } from "../../../server/lap-detection/types"
+import type { LapSavedNotification } from "@raceiq/backend-core/lap-detection/types"
 import { assertBrandHatchSectorBounds, lapSummary, RECORDINGS_DIR } from "./shared";
 
 const recordingFile = "acc-2026-04-10T02-59-28-972Z.bin.gz";

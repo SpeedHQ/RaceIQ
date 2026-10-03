@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { drawStaticTrack } from "../src/components/analyse/track-map/static-drawing";
-import { needsTrackFlip } from "../../shared/racing/tracks/coords";
-import { initGameAdapters } from "../../shared/games/init";
+import { needsTrackFlip } from "@raceiq/shared/racing/tracks/coords";
+import { initGameAdapters } from "@raceiq/shared/games/init";
 import type { Point, TrackMapBoundaries, TrackTransform } from "../src/components/analyse/track-map/types";
 import { alignTrackBoundariesToPositions, resolveTrackPositions } from "../src/components/analyse/track-map/path";
 

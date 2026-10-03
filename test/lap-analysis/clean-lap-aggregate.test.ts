@@ -4,9 +4,9 @@ import {
   computeConsistency,
   aggregateSymptoms,
   baselineFallbackNote,
-} from "../../server/experiments/lap-evidence/aggregate";
-import type { LapMeta } from "../../shared/racing/sessions/types";
-import type { TuneSymptoms } from "../../server/ai/tune-symptoms";
+} from "@raceiq/backend-core/experiments/lap-evidence/aggregate";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { TuneSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
 
 function lap(overrides: Partial<LapMeta> & { id: number }): LapMeta {
   return {

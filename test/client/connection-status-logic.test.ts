@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { deriveConnectionStatusView } from "../../client/src/components/connection-status-logic";
+import { deriveConnectionStatusView } from "./client/src/components/connection-status-logic";
 
 const F1 = { id: "f1-2025", name: "F1 25" } as const;
 const FORZA = { id: "fm-2023", name: "Forza Motorsport" } as const;

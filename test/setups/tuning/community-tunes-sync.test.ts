@@ -1,14 +1,14 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { db } from "../../../server/db/index";
-import { communityTunes } from "../../../server/db/schema";
+import { db } from "@raceiq/backend-core/db/index";
+import { communityTunes } from "@raceiq/backend-core/db/schema";
 import {
   getCommunityTunes,
   getCommunityTuneById,
   replaceCommunityTunes,
-} from "../../../server/db/community-tune-queries";
-import { setCommunityTunesSyncState } from "../../../server/runtime/config/settings";
-import { syncCommunityTunes } from "../../../server/tunes/community-sync"
+} from "@raceiq/backend-core/db/community-tune-queries";
+import { setCommunityTunesSyncState } from "@raceiq/backend-core/runtime/config/settings";
+import { syncCommunityTunes } from "@raceiq/backend-core/tunes/community-sync"
 
 // Follows DATA_DIR so this never mutates the real dev database/settings —
 // `bun run test` isolates DATA_DIR to a throwaway directory (see package.json).

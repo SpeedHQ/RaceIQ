@@ -1,17 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import { and, eq } from "drizzle-orm";
-import { getDiscoveredCarName, listDiscoveredCars } from "../../../server/db/discovered-cars";
+import { getDiscoveredCarName, listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
 import {
   getDiscoveredTrackName,
   listDiscoveredTracks,
-} from "../../../server/db/discovered-tracks";
-import { db } from "../../../server/db/index";
-import { discoveredCars, discoveredTracks } from "../../../server/db/schema";
-import { initServerGameAdapters } from "../../../server/games/init";
-import { registerLiveIRacingIdentity } from "../../../server/games/iracing/identity";
+} from "@raceiq/backend-core/db/discovered-tracks";
+import { db } from "@raceiq/backend-core/db/index";
+import { discoveredCars, discoveredTracks } from "@raceiq/backend-core/db/schema";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { registerLiveIRacingIdentity } from "@raceiq/backend-core/games/iracing/identity";
 import {
   normalizeIRacingFrame,
-} from "../../../server/games/iracing/normalizer";
+} from "@raceiq/backend-core/games/iracing/normalizer";
 import {
   canHandleIRacingSourceFrame,
   createIRacingSourceDecoderState,
@@ -22,13 +22,13 @@ import {
   IRacingSourceFrameEncoder,
   isIRacingSessionFrame,
   type IRacingSourceFrameV2,
-} from "../../../server/games/iracing/source-frame";
-import { parsePacket } from "../../../server/games/packet-dispatch";
-import { initGameAdapters } from "../../../shared/games/init";
+} from "@raceiq/backend-core/games/iracing/source-frame";
+import { parsePacket } from "@raceiq/backend-core/games/packet-dispatch";
+import { initGameAdapters } from "@raceiq/shared/games/init";
 import {
   injectDiscoveredIRacingIdentity,
   iracingAdapter,
-} from "../../../shared/games/iracing";
+} from "@raceiq/shared/games/iracing/index";
 
 initGameAdapters();
 initServerGameAdapters();

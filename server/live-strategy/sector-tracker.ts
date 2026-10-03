@@ -5,11 +5,11 @@
  * distance-fraction sector boundaries. Broadcast via WebSocket so the
  * client just renders numbers.
  */
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { GameId } from "../../shared/games/ids";
-import type { LiveSectorData } from "../../shared/racing/live/types";
-import { getGame } from "../../shared/games/registry";
-import type { GameAdapter } from "../../shared/games/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { LiveSectorData } from "@raceiq/shared/racing/live/types";
+import { getGame } from "@raceiq/shared/games/registry";
+import type { GameAdapter } from "@raceiq/shared/games/types";
 import { resolveTrack } from "../tracks/info";
 import {
   interpolateMonotonic,

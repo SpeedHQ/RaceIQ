@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import type { AlignedLapSet, EncodedAlignedLapSet } from "@shared/racing/laps/alignment/types";
-import { decodeAlignedLapSet } from "@shared/racing/laps/alignment/codec";
+import type { AlignedLapSet, EncodedAlignedLapSet } from "@raceiq/shared/racing/laps/alignment/types";
+import { decodeAlignedLapSet } from "@raceiq/shared/racing/laps/alignment/codec";
 import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
 

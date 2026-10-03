@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { releaseFeatureFlags } from "../../shared/platform/runtime/release-feature-flags";
+import { releaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
 
 function loadReleaseEnvironment(path: string) {
   const env = { ...process.env };
@@ -58,7 +58,7 @@ describe("release feature flags", () => {
   });
 
   test("loads development flags for direct Bun tools", async () => {
-    const { developmentReleaseFeatures } = await import("../../scripts/release/development-release-features");
+    const { developmentReleaseFeatures } = await import("@raceiq/tooling/release/development-release-features");
     expect(developmentReleaseFeatures).toEqual({
       f1Experiments: true,
       iracingAdapter: true,

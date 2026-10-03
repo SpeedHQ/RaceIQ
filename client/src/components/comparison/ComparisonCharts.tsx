@@ -1,4 +1,4 @@
-import type { ComparisonData } from "@shared/racing/comparison/types";
+import type { ComparisonData } from "@raceiq/shared/racing/comparison/types";
 import type { ChartRange } from "@/lib/chart-range";
 import { useMemo } from "react";
 import { TelemetryChart } from "@/components/TelemetryChart";

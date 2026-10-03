@@ -1,6 +1,6 @@
-import { getGame } from "@shared/games/registry";
-import type { LapDetectorCoverage, LapInsight } from "@shared/racing/analysis/laps/insights/types";
-import type { GameId } from "../../../../shared/games/ids";
+import { getGame } from "@raceiq/shared/games/registry"
+import type { LapDetectorCoverage, LapInsight } from "@raceiq/shared/racing/analysis/laps/insights/types"
+import type { GameId } from "@raceiq/shared/games/ids";
 import { Check, Copy, Info } from "lucide-react";
 import { useCallback, useState } from "react";
 import type { useUnits } from "../../hooks/useUnits";
@@ -15,7 +15,7 @@ import { AnalyseF1ErsPanel } from "./AnalyseF1ErsPanel";
 import { MetricsPanel } from "./AnalyseMetricsPanel";
 import { AnalyseSuspensionPanel } from "./AnalyseSuspensionPanel";
 import { AnalyseTireWheelsPanel } from "./AnalyseTireWheelsPanel";
-import { unavailableAnalyseFeatures } from "../../../../shared/games/metric-contracts";
+import { unavailableAnalyseFeatures } from "@raceiq/shared/games/metric-contracts";
 import { MotecMetricInfoModal } from "./MotecImportModal";
 
 interface WearRate {

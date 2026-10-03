@@ -3,12 +3,12 @@ import {
   hasTireHealthData,
   hasTireTemperatureData,
   resolveAnalysisTelemetry,
-} from "../../shared/racing/analysis/telemetry-capabilities";
-import { unavailableAnalyseFeatures } from "../../shared/games/metric-contracts";
-import { initGameAdapters } from "../../shared/games/init";
-import { getGame } from "../../shared/games/registry";
-import { suspensionCompression } from "../../shared/racing/analysis/laps/physics/vehicle";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+} from "@raceiq/shared/racing/analysis/telemetry-capabilities";
+import { unavailableAnalyseFeatures } from "@raceiq/shared/games/metric-contracts";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { getGame } from "@raceiq/shared/games/registry";
+import { suspensionCompression } from "@raceiq/shared/racing/analysis/laps/physics/vehicle";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 initGameAdapters();
 

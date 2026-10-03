@@ -21,7 +21,7 @@ import { getOrComputeLapInsights } from "../lap-analysis/metrics-store";
 // cycle: ./agents → setup-engineer agent → its tools → this file. The raw agent
 // has no such back-edge. We lose the dev-only observability wrapper here, which
 // the setup-engineer consult doesn't need.
-import { lapAnalystAgent } from "../../mastra/agents/lap-analyst";
+import { lapAnalystAgent } from "@raceiq/backend/src/mastra/agents/lap-analyst";
 import { loadRepresentativeLap } from "../experiments/representative-lap";
 
 interface LapAnalystConsult {

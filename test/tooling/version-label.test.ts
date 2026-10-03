@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { computeChildLabel, nextFreeLabel } from "../../server/ai/version-label";
+import { computeChildLabel, nextFreeLabel } from "@raceiq/backend-core/ai/version-label";
 
 describe("computeChildLabel", () => {
   test("every child nests under the parent in creation order", () => {

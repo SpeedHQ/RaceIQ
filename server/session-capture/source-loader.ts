@@ -1,7 +1,7 @@
 import { gunzipBuffer, META_FRAME_MAGIC, readFrameStreamStart, iterateSessionFrameRecords } from "./framing";
-import type { GameId } from "../../shared/games/ids";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { MOTEC_SESSION_SOURCE } from "@shared/integrations/motec";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { MOTEC_SESSION_SOURCE } from "@raceiq/shared/integrations/motec";
 import { decodeMotecSourceArchive, type MotecOffsetEncoding } from "../motec/source-archive";
 import { parseLd } from "../motec/ld";
 import { parseLdxBeacons } from "../motec/ldx";

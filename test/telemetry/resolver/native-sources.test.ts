@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { KNOWN_GAME_IDS } from "../../../shared/games/ids";
-import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
-import { compileTelemetryResolver } from "../../../shared/telemetry/resolver/compile";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import { KNOWN_GAME_IDS } from "@raceiq/shared/games/ids";
+import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
+import { compileTelemetryResolver } from "@raceiq/shared/telemetry/resolver/compile";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { packet } from "../../support/telemetry/resolver";
 
 describe("compiled telemetry resolver native sources", () => {

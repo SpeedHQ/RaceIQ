@@ -3,8 +3,8 @@ import { describe, expect, test } from "bun:test";
 import {
   getLapAnalysisToolFor,
   parseCachedLapAnalysis,
-} from "../../../mastra/tools/lap-analysis";
-import { buildCompareChatSystemPrompt } from "../../../server/ai/compare-chat-prompt";
+} from "@raceiq/backend/src/mastra/tools/lap-analysis";
+import { buildCompareChatSystemPrompt } from "@raceiq/backend-core/ai/compare-chat-prompt";
 
 const lap = {
   id: 1,

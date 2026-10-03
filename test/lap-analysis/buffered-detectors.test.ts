@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
-import { detectBufferedInsights } from "@shared/racing/analysis/laps/insights/buffered-detectors";
-import { eventDurations, INSIGHT_ORDER, insightAt, insightsAt } from "@shared/racing/analysis/laps/insights/types";
-import type { AllWheelStates, WheelState } from "@shared/racing/analysis/laps/physics/vehicle";
-import type { TelemetryPacket } from "@shared/telemetry/types";
+import { detectBufferedInsights } from "@raceiq/shared/racing/analysis/laps/insights/buffered-detectors";
+import { eventDurations, INSIGHT_ORDER, insightAt, insightsAt } from "@raceiq/shared/racing/analysis/laps/insights/types";
+import type { AllWheelStates, WheelState } from "@raceiq/shared/racing/analysis/laps/physics/vehicle";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 test("buffered detectors preserve event gaps, final event, and independent lap aggregates", () => {
   const telemetry = Array.from({ length: 140 }, (_, i) => ({

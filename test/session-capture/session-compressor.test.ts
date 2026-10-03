@@ -8,12 +8,12 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { gunzipSync } from "node:zlib";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { client, db } from "../../server/db/index";
-import { sessions } from "../../server/db/schema";
+import { client, db } from "@raceiq/backend-core/db/index";
+import { sessions } from "@raceiq/backend-core/db/schema";
 import { eq } from "drizzle-orm";
-import { runCompressionNow } from "../../server/session-capture/compressor";
-import { cleanupOrphanSessionFiles, withSessionCaptureMaintenanceLock } from "../../server/session-capture/cleanup";
-import { resolveDataDir } from "../../server/runtime/config/data-dir";
+import { runCompressionNow } from "@raceiq/backend-core/session-capture/compressor";
+import { cleanupOrphanSessionFiles, withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
+import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 
 // Insert a minimal session row. createdAt accepts an ISO string so we can
 // back-date it to simulate files older than 24 hours.

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { normalizeDiagnostic, withLlmDiagnostics } from "../../server/ai/diagnostic-logging";
-import { runGeminiRequest, runOpenAiCompatible } from "../../server/ai/providers";
-import { readRecentLogText } from "../../server/runtime/logger";
+import { normalizeDiagnostic, withLlmDiagnostics } from "@raceiq/backend-core/ai/diagnostic-logging";
+import { runGeminiRequest, runOpenAiCompatible } from "@raceiq/backend-core/ai/providers";
+import { readRecentLogText } from "@raceiq/backend-core/runtime/logger";
 
 describe("diagnostic normalization", () => {
   test("redacts credentials while retaining nested payloads", () => {

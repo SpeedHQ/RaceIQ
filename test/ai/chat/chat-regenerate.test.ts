@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { persistAssistantTurnToMemory, restoreOriginalUserMessage, stripThinkTags } from "../../../server/ai/agent-stream";
-import { truncateChatAfterUserMessage } from "../../../server/ai/chat-agent";
-import { chatsRoutes } from "../../../server/routes/chats-routes";
+import { persistAssistantTurnToMemory, restoreOriginalUserMessage, stripThinkTags } from "@raceiq/backend-core/ai/agent-stream";
+import { truncateChatAfterUserMessage } from "@raceiq/backend-core/ai/chat-agent";
+import { chatsRoutes } from "@raceiq/backend-core/routes/chats-routes";
 type Row = {
   id: string;
   role: "user" | "assistant";

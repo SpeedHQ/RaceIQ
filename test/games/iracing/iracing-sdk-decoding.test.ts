@@ -1,20 +1,20 @@
 import { describe, expect, test } from "bun:test";
-import { initServerGameAdapters } from "../../../server/games/init";
-import { parseIRacingSessionInfo } from "../../../server/games/iracing/session-info";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { parseIRacingSessionInfo } from "@raceiq/backend-core/games/iracing/session-info";
 import {
   IRacingSdkReader,
   isValidIRacingMappingRange,
-} from "../../../server/games/iracing/sdk-reader";
-import { LAP_DETECTOR_IRACING_ID } from "../../../server/games/iracing/lap-detector";
+} from "@raceiq/backend-core/games/iracing/sdk-reader";
+import { LAP_DETECTOR_IRACING_ID } from "@raceiq/backend-core/games/iracing/lap-detector";
 import {
   IRacingVariableTable,
   IRSDK_VAR_HEADER_SIZE,
   IRSDKVariableType,
-} from "../../../server/games/iracing/variable-table";
-import { initGameAdapters } from "../../../shared/games/init";
+} from "@raceiq/backend-core/games/iracing/variable-table";
+import { initGameAdapters } from "@raceiq/shared/games/init";
 import {
   iracingAdapter,
-} from "../../../shared/games/iracing";
+} from "@raceiq/shared/games/iracing/index";
 
 initGameAdapters();
 initServerGameAdapters();

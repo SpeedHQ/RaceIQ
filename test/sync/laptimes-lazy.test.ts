@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { tuneCatalogRoutes } from "../../server/routes/tune-catalog-routes";
+import { tuneCatalogRoutes } from "@raceiq/backend-core/routes/tune-catalog-routes";
 
 const realFetch = globalThis.fetch;
 

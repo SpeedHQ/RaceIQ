@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { inArray } from "drizzle-orm";
-import { db } from "../../../server/db/index";
-import { laps, sessions, experiments } from "../../../server/db/schema";
-import { getLapsForExperiment } from "../../../server/db/experiment-lap-queries";
-import { insertLap, setLapMetrics } from "../../../server/db/lap-mutation-queries";
-import { insertSession } from "../../../server/db/session-queries";
-import { createExperiment } from "../../../server/db/experiment-queries";
-import { getActiveExperiment, setActiveExperiment } from "../../../server/experiments/active"
-import { experimentLapAnalysisRoutes } from "../../../server/routes/experiments/lap-routes";
+import { db } from "@raceiq/backend-core/db/index";
+import { laps, sessions, experiments } from "@raceiq/backend-core/db/schema";
+import { getLapsForExperiment } from "@raceiq/backend-core/db/experiment-lap-queries";
+import { insertLap, setLapMetrics } from "@raceiq/backend-core/db/lap-mutation-queries";
+import { insertSession } from "@raceiq/backend-core/db/session-queries";
+import { createExperiment } from "@raceiq/backend-core/db/experiment-queries";
+import { getActiveExperiment, setActiveExperiment } from "@raceiq/backend-core/experiments/active"
+import { experimentLapAnalysisRoutes } from "@raceiq/backend-core/routes/experiments/lap-routes";
 
 /**
  * Explicit lap ↔ experiment link (migration v25). Tests the DB layer +

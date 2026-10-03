@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 /**
  * Apply adapter-specific runtime normalization to one packet in one pass.

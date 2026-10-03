@@ -5,13 +5,13 @@ import {
   listExperimentFocusEvents,
   setExperimentFocus,
   setSessionHead,
-} from "../../../server/db/experiment-queries";
-import { createExperimentVersion, getExperimentVersion } from "../../../server/db/experiment-version-queries";
+} from "@raceiq/backend-core/db/experiment-queries";
+import { createExperimentVersion, getExperimentVersion } from "@raceiq/backend-core/db/experiment-version-queries";
 import {
   focusForVersionKind,
   headlineMetricForVersionKind,
   versionKindForFocus,
-} from "../../../shared/racing/experiments/focus";
+} from "@raceiq/shared/racing/experiments/focus";
 
 /**
  * Focus is a MODE the driver switches mid-session ("the balance is fixed, now

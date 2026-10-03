@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { SessionMeta } from "@shared/racing/sessions/types";
+import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import { filterSessions } from "../../src/components/sessions/helpers";
 import { validateSessionsSearch } from "../../src/lib/game-routes";
 

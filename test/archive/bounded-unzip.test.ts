@@ -5,8 +5,8 @@ import {
   assertArchiveUploadSize,
   unzipBounded,
   type ZipExtractionLimits,
-} from "../../server/archive/bounded-unzip";
-import { decompressIfGzipSync } from "../../server/session-capture/framing";
+} from "@raceiq/backend-core/archive/bounded-unzip";
+import { decompressIfGzipSync } from "@raceiq/backend-core/session-capture/framing";
 
 const limits: ZipExtractionLimits = {
   maxArchiveBytes: 1024,

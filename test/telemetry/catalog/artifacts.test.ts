@@ -18,7 +18,7 @@ import {
   ast,
   interfaceFields,
   interfaceLeafFields,
-} from "../../../scripts/catalog/ast-discovery";
+} from "@raceiq/tooling/catalog/ast-discovery";
 
 describe("semantic telemetry catalog artifacts", () => {
   test("generated artifact is current and structurally complete", async () => {

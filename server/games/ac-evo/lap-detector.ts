@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { getOrCreateDiscoveredCar } from "../../db/discovered-cars";
 import type { LapDetectorOptions } from "../../lap-detection/types";
 import { KunosLapDetector } from "../kunos/lap-detector";

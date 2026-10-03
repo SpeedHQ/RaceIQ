@@ -1,9 +1,9 @@
 import { describe, test, expect } from "bun:test";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { PitTracker } from "../../server/live-strategy/pit-tracker";
-import { forzaServerAdapter } from "../../server/games/fm-2023";
-import { f1ServerAdapter } from "../../server/games/f1-2025";
-import { accServerAdapter } from "../../server/games/acc";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { PitTracker } from "@raceiq/backend-core/live-strategy/pit-tracker";
+import { forzaServerAdapter } from "@raceiq/backend-core/games/fm-2023/index";
+import { f1ServerAdapter } from "@raceiq/backend-core/games/f1-2025/index";
+import { accServerAdapter } from "@raceiq/backend-core/games/acc/index";
 
 function pkt(overrides: Partial<TelemetryPacket>): TelemetryPacket {
   return {

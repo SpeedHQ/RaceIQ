@@ -53,8 +53,8 @@
  * distinguishable, and a human writes `experiment_versions.verdict`.
  */
 
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import { type EvaluableLap, type EvaluationReason, REVIEW_LAP_CAP, selectEvaluationLaps } from "../../../shared/racing/laps/review-selection";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { type EvaluableLap, type EvaluationReason, REVIEW_LAP_CAP, selectEvaluationLaps } from "@raceiq/shared/racing/laps/review-selection";
 import type { Corner } from "../../lap-analysis/corners";
 import { computeLapConsistencyDelta, LINE_SPREAD_FULL_SCALE_M } from "../../lap-analysis/consistency";
 import { medianSorted, percentileSorted } from "../statistics";

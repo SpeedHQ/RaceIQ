@@ -1,4 +1,4 @@
-import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
+import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
 
 export type SessionsTab = "mine" | "others";
 export type LapSortKey = "lap" | "time" | "notes" | number;

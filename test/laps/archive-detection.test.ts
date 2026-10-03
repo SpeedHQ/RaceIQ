@@ -1,6 +1,6 @@
 import { zipSync } from "fflate";
 import { describe, expect, test } from "bun:test";
-import { detectLapsZip } from "../../server/laps/archive";
+import { detectLapsZip } from "@raceiq/backend-core/laps/archive";
 
 describe("detectLapsZip", () => {
   test("rejects arbitrary ZIP content as a RaceIQ archive", () => {

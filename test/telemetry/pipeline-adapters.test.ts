@@ -1,6 +1,6 @@
 import { describe, test, expect, spyOn } from "bun:test";
-import { RealDbAdapter, CapturingDbAdapter } from "../../server/telemetry/pipeline-ports"
-import * as DriverProfileRunner from "../../server/driver-profile/runner";
+import { RealDbAdapter, CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
+import * as DriverProfileRunner from "@raceiq/backend-core/driver-profile/runner";
 
 describe("CapturingDbAdapter", () => {
   test("insertSession captures data and returns incrementing IDs", async () => {

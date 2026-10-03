@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { openStory } from "../../client/src/stories/storybook-ready";
+import { openStory } from "./client/src/stories/storybook-ready";
 
 function storyPage(navigate: () => Promise<void>, renderError: string | null = null) {
   return {

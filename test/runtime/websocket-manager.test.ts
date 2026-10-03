@@ -1,8 +1,8 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import type { ServerWebSocket } from "bun";
-import { WebSocketManager, type WSData } from "../../server/runtime/websocket-manager";
-import type { LiveProjection } from "../../server/telemetry/live-projector";
-import type { LiveSectorData } from "../../shared/racing/live/types";
+import { WebSocketManager, type WSData } from "@raceiq/backend-core/runtime/websocket-manager";
+import type { LiveProjection } from "@raceiq/backend-core/telemetry/live-projector";
+import type { LiveSectorData } from "@raceiq/shared/racing/live/types";
 
 function socket(send: (value: string) => void = () => {}) {
   const sent: string[] = [];

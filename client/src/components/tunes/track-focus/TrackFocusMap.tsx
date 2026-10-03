@@ -1,6 +1,6 @@
 import { useMemo, useRef } from "react";
 import { SECTOR_COLOR_VARS, severityColor } from "@/lib/colors";
-import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { SemanticTuneSample } from "../semantic-tune";
 import type { LineSpreadTrace } from "../../../hooks/experiments";
 import type { TrackCorner } from "../../../hooks/track-queries";

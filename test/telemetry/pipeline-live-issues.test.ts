@@ -7,14 +7,14 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { LapDetectorCallbacks } from "../../server/lap-detection/types";
-import { initGameAdapters } from "../../shared/games/init";
-import { initServerGameAdapters } from "../../server/games/init";
-import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../../server/telemetry/pipeline-ports"
-import { LiveTelemetryPipeline, stopMaintenanceTasks } from "../../server/telemetry/live-pipeline"
-import { isForzaRaceOffPacket, parseForzaPacket } from "../../server/games/fm-2023/parser";
-import { iterateSessionFrames } from "../../server/session-capture/framing";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { LapDetectorCallbacks } from "@raceiq/backend-core/lap-detection/types";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
+import { LiveTelemetryPipeline, stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
+import { isForzaRaceOffPacket, parseForzaPacket } from "@raceiq/backend-core/games/fm-2023/parser";
+import { iterateSessionFrames } from "@raceiq/backend-core/session-capture/framing";
 
 initGameAdapters();
 initServerGameAdapters();

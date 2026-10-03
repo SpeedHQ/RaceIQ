@@ -1,4 +1,4 @@
-import { hasUnreleasedChangelogChange } from "@shared/tooling/validation";
+import { hasUnreleasedChangelogChange } from "@raceiq/shared/tooling/validation";
 if (process.env.GITHUB_EVENT_NAME !== "pull_request") process.exit(0);
 
 const baseRef = process.env.GITHUB_BASE_REF;

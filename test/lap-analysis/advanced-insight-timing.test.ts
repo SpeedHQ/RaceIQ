@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/shared/games/init";
 import {
   detectBrakeDrag,
   detectDownshiftOverRev,
@@ -8,12 +8,12 @@ import {
   detectSteeringSawing,
   detectThrottleMicroLifts,
   detectUndersteerScrub,
-} from "../../shared/racing/analysis/laps/insights/driving-advanced";
-import { processLap, restoreFrameIndices } from "../../shared/racing/analysis/laps/insights/process";
-import { runInsightScanWithCoverage } from "../../shared/racing/analysis/laps/insights/scan";
-import { eventDurations, type TimeLossCtx } from "../../shared/racing/analysis/laps/insights/types";
-import type { AllWheelStates } from "../../shared/racing/analysis/laps/physics/vehicle";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+} from "@raceiq/shared/racing/analysis/laps/insights/driving-advanced";
+import { processLap, restoreFrameIndices } from "@raceiq/shared/racing/analysis/laps/insights/process";
+import { runInsightScanWithCoverage } from "@raceiq/shared/racing/analysis/laps/insights/scan";
+import { eventDurations, type TimeLossCtx } from "@raceiq/shared/racing/analysis/laps/insights/types";
+import type { AllWheelStates } from "@raceiq/shared/racing/analysis/laps/physics/vehicle";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 initGameAdapters();
 

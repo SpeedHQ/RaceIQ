@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { checkTestShards } from "../../scripts/test/check-shards";
+import { checkTestShards } from "@raceiq/tooling/test/check-shards";
 
 interface ShardFixture {
   e2e: string[];

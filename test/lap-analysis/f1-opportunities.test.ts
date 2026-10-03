@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { computeLapMetrics } from "../../server/lap-analysis/metrics";
-import { initGameAdapters } from "@shared/games/init";
-import { analyzeLap } from "@shared/racing/analysis/laps/insights/analyze";
-import { processLap, restoreFrameIndices } from "@shared/racing/analysis/laps/insights/process";
-import { detectErsDepletion, detectUnusedDrs } from "@shared/racing/analysis/laps/insights/electronics";
-import type { F1ExtendedData } from "@shared/telemetry/f1-2025";
-import type { TelemetryPacket } from "@shared/telemetry/types";
+import { computeLapMetrics } from "@raceiq/backend-core/lap-analysis/metrics";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { analyzeLap } from "@raceiq/shared/racing/analysis/laps/insights/analyze";
+import { processLap, restoreFrameIndices } from "@raceiq/shared/racing/analysis/laps/insights/process";
+import { detectErsDepletion, detectUnusedDrs } from "@raceiq/shared/racing/analysis/laps/insights/electronics";
+import type { F1ExtendedData } from "@raceiq/shared/telemetry/f1-2025";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 initGameAdapters();
 

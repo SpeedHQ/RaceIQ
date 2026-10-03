@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { compareArmSamples, describeComparison, prepareArm } from "../../../server/experiments/comparison/compare";
+import { compareArmSamples, describeComparison, prepareArm } from "@raceiq/backend-core/experiments/comparison/compare";
 import {
   streamArmSamples,
-} from "../../../server/experiments/comparison/stream";
-import { OUTCOME_METRICS } from "../../../server/experiments/comparison/metrics";
-import type { FrameLapMeta } from "../../../server/experiments/comparison/stream";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+} from "@raceiq/backend-core/experiments/comparison/stream";
+import { OUTCOME_METRICS } from "@raceiq/backend-core/experiments/comparison/metrics";
+import type { FrameLapMeta } from "@raceiq/backend-core/experiments/comparison/stream";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { buildStreamingArm, CORNERS, type LapSpec, REPEATABLE, SCATTERED, trackingLoader, FRAMES_PER_LAP } from "../../support/experiments/arms";
 
 // ── degenerate inputs ───────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { resolveDataDir } from "../../server/runtime/config/data-dir";
-import { collectReleaseNotes, fetchReleases, getReleaseNotes, isNewer, mergeLatestRelease, shouldFetchReleaseArtifacts } from "../../server/runtime/update/check";
+import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
+import { collectReleaseNotes, fetchReleases, getReleaseNotes, isNewer, mergeLatestRelease, shouldFetchReleaseArtifacts } from "@raceiq/backend-core/runtime/update/check";
 describe("resolveDataDir", () => {
   let originalDataDir: string | undefined;
 

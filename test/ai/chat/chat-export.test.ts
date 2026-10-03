@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { buildChatExport, chatMemoryMessagesToUiMessages, ensureSystemPrompt, type ChatExportMemory } from "../../../server/ai/chat-agent";
+import { buildChatExport, chatMemoryMessagesToUiMessages, ensureSystemPrompt, type ChatExportMemory } from "@raceiq/backend-core/ai/chat-agent";
 
 test("ensureSystemPrompt stores prompt in thread metadata only once", async () => {
   type ThreadFixture = { id: string; title: string; metadata?: Record<string, unknown> };

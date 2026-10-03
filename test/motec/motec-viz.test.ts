@@ -19,14 +19,14 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { initGameAdapters } from "../../shared/games/init";
-import { initServerGameAdapters } from "../../server/games/init";
-import { loadCenterline } from "../../shared/racing/tracks/curation/generate";
-import { getAcEvoTrackByName } from "../../shared/racing/tracks/catalogs/ac-evo";
-import { parseLd } from "../../server/motec/ld";
-import { resolveMotecTarget } from "../../server/motec/targets";
-import { MOTEC_SYNTH_HZ } from "../../server/motec/kunos-synthesis";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { loadCenterline } from "@raceiq/shared/racing/tracks/curation/generate";
+import { getAcEvoTrackByName } from "@raceiq/shared/racing/tracks/catalogs/ac-evo";
+import { parseLd } from "@raceiq/backend-core/motec/ld";
+import { resolveMotecTarget } from "@raceiq/backend-core/motec/targets";
+import { MOTEC_SYNTH_HZ } from "@raceiq/backend-core/motec/kunos-synthesis";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { buildLd } from "../support/motec/ld";
 import {
   centerlineToStint,

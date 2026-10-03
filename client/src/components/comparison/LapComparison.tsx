@@ -1,5 +1,5 @@
-import type { ComparisonRangeData } from "@shared/racing/comparison/types";
-import type { LapMeta } from "@shared/racing/sessions/types";
+import type { ComparisonRangeData } from "@raceiq/shared/racing/comparison/types";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { useLapComparison, useLapComparisonRange, useLaps } from "@/hooks/laps";
 import { useNavigate } from "@tanstack/react-router";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";

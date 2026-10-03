@@ -1,7 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../../hooks/query-keys";
 import { useCallback, useState } from "react";
-import type { SessionOwnership } from "../../../../shared/racing/sessions/types";
+import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import { client } from "../../lib/rpc";
 import type { IbtImportPreview } from "./IbtImportPreviewModal";
 

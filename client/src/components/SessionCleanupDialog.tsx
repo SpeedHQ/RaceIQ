@@ -1,4 +1,4 @@
-import type { CleanupAgeDays, SessionCleanupGameSummary, SessionCleanupPreview, SessionCleanupRequest, SessionCleanupResult } from "@shared/racing/sessions/cleanup";
+import type { CleanupAgeDays, SessionCleanupGameSummary, SessionCleanupPreview, SessionCleanupRequest, SessionCleanupResult } from "@raceiq/shared/racing/sessions/cleanup"
 import { CalendarClock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { formatLapTime } from "@/components/LiveTelemetry";

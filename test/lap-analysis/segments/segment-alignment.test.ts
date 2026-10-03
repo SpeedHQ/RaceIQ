@@ -1,11 +1,11 @@
 import { describe, test, expect } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { detectCornerRegions, type CornerRegion } from "../../../shared/racing/tracks/curation/segment-align-detect";
-import { alignSegments } from "../../../shared/racing/tracks/curation/segment-align-match";
-import { validateFacts } from "../../../shared/racing/tracks/curation/segment-align-validate";
-import type { TrackFacts } from "../../../shared/racing/tracks/facts";
-import { loadAccSvgBoundaryByName } from "../../../shared/racing/tracks/geometry/acc-svg";
+import { detectCornerRegions, type CornerRegion } from "@raceiq/shared/racing/tracks/curation/segment-align-detect";
+import { alignSegments } from "@raceiq/shared/racing/tracks/curation/segment-align-match";
+import { validateFacts } from "@raceiq/shared/racing/tracks/curation/segment-align-validate";
+import type { TrackFacts } from "@raceiq/shared/racing/tracks/facts";
+import { loadAccSvgBoundaryByName } from "@raceiq/shared/racing/tracks/geometry/acc-svg";
 
 /** Identity fields alignment never reads — every fixture shares them. */
 const FACTS = { slug: "test", track: "test", layout: "full", layoutName: "Full", name: "Test" };

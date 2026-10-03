@@ -1,10 +1,10 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import { computeIRacingSectorTimeline } from "../../server/lap-analysis/sectors"
-import { normalizeIRacingFrame } from "../../server/games/iracing/normalizer";
-import type { IRacingSourceFrameV2 } from "../../server/games/iracing/source-frame";
-import { SectorTracker } from "../../server/live-strategy/sector-tracker";
-import { initGameAdapters } from "../../shared/games/init";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { computeIRacingSectorTimeline } from "@raceiq/backend-core/lap-analysis/sectors"
+import { normalizeIRacingFrame } from "@raceiq/backend-core/games/iracing/normalizer";
+import type { IRacingSourceFrameV2 } from "@raceiq/backend-core/games/iracing/source-frame";
+import { SectorTracker } from "@raceiq/backend-core/live-strategy/sector-tracker";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 initGameAdapters();
 

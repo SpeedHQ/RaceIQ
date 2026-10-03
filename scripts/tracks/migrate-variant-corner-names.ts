@@ -25,10 +25,10 @@
  */
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { SHARED_DIR } from "../../shared/platform/runtime/data-paths"
-import type { CornerFact, TrackFacts } from "../../shared/racing/tracks/facts";
-import { loadAccSvgBoundaryByName } from "../../shared/racing/tracks/geometry/acc-svg";
-import { TrackGeometry } from "@shared/racing/tracks/geometry";
+import { SHARED_DIR } from "@raceiq/shared/platform/runtime/data-paths"
+import type { CornerFact, TrackFacts } from "@raceiq/shared/racing/tracks/facts";
+import { loadAccSvgBoundaryByName } from "@raceiq/shared/racing/tracks/geometry/acc-svg";
+import { TrackGeometry } from "@raceiq/shared/racing/tracks/geometry";
 
 const META_DIR = resolve(SHARED_DIR, "tracks", "meta");
 const TRACKS_DIR = resolve(SHARED_DIR, "tracks");

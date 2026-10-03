@@ -23,8 +23,8 @@ import { joinSegments, splitSegments } from "./join";
 import { cornerKey } from "../keys";
 import { loadDetectHints } from "../detect-hints";
 import type { NamedSegment } from "../named-segments";
-import { SHARED_DIR } from "@shared/platform/runtime/data-paths";
-import type { GameId } from "@shared/games/ids";
+import { SHARED_DIR } from "@raceiq/shared/platform/runtime/data-paths";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { loadAccSvgBoundaryByName } from "../geometry/acc-svg";
 
 export const TRACK_META_DIR = resolve(SHARED_DIR, "tracks", "meta");

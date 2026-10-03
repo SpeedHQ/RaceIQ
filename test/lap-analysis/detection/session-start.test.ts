@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { LapDetector } from "../../../server/lap-detection/detector";
-import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import { LapDetector } from "@raceiq/backend-core/lap-detection/detector";
+import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 function packet(timestamp: number): TelemetryPacket {
   return {

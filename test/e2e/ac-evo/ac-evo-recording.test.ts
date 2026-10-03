@@ -11,21 +11,21 @@
  */
 import { describe, test, expect, beforeAll } from "bun:test";
 import { existsSync } from "node:fs";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import type { CapturedLap } from "../../../server/telemetry/pipeline-ports"
-import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { CapturedLap } from "@raceiq/backend-core/telemetry/pipeline-ports"
+import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import {
 	readAcEvoPackets,
 	parseDump,
 	ensureInit,
 } from "../../support/recordings/parse-dump";
-import { readKunosFrames } from "../../../server/games/kunos/frame-reader";
-import { parseAcEvoLapIndex } from "../../../server/games/kunos/lap-index";
-import { createAcEvoParserCache } from "../../../server/games/ac-evo/parser";
-import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector";
+import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { parseAcEvoLapIndex } from "@raceiq/backend-core/games/kunos/lap-index";
+import { createAcEvoParserCache } from "@raceiq/backend-core/games/ac-evo/parser";
+import { LapDetectorAcEvo } from "@raceiq/backend-core/games/ac-evo/lap-detector";
 import { generateRecordingVisualizations } from "../../support/laps/visualizations";
 import { assertValidLapHasSectors } from "../../support/laps/assertions";
-import { getTrackSectorsByOrdinal } from "../../../shared/racing/tracks/storage/sectors";
+import { getTrackSectorsByOrdinal } from "@raceiq/shared/racing/tracks/storage/sectors";
 
 type CapturedLapWithPackets = CapturedLap & { packets: TelemetryPacket[] };
 

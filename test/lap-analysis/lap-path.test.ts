@@ -6,8 +6,8 @@ import {
   pointAtLapFraction,
   type LapPathSemanticId,
   type LapPathSemanticReader,
-} from "../../shared/racing/tracks/path";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+} from "@raceiq/shared/racing/tracks/path";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 function packet(
   overrides: Partial<TelemetryPacket> = {},

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   resolveRecordingGameId,
   resolveRecordingPath,
-} from "../../server/routes/dev/recording-support";
+} from "@raceiq/backend-core/routes/dev/recording-support";
 
 describe("developer recording support", () => {
   test("resolves canonical committed fixture names", () => {

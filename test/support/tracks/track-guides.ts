@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { turnNumbers } from "../../../shared/racing/tracks/segment-label";
-import { listTrackGuideSlugs, loadTrackGuide } from "../../../shared/racing/tracks/guide/data";
+import { turnNumbers } from "@raceiq/shared/racing/tracks/segment-label";
+import { listTrackGuideSlugs, loadTrackGuide } from "@raceiq/shared/racing/tracks/guide/data";
 
 export const META_DIR = resolve(import.meta.dir, "../../../shared/data/tracks/meta");
 export type Corner = { number: number; covers?: number[]; name: string; direction?: string; group?: string };

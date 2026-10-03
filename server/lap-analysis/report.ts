@@ -1,6 +1,6 @@
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { tryGetGame } from "../../shared/games/registry";
-import { resolveAnalysisTelemetry } from "../../shared/racing/analysis/telemetry-capabilities";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { tryGetGame } from "@raceiq/shared/games/registry";
+import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities";
 
 export type UnitSystem = "metric" | "imperial";
 export type TemperatureUnit = "C" | "F";

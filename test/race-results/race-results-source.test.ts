@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { extractRaceSource } from "../../server/race-results/source";
-import { deriveRaceResult } from "../../server/race-results/derive";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { extractRaceSource } from "@raceiq/backend-core/race-results/source";
+import { deriveRaceResult } from "@raceiq/backend-core/race-results/derive";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 const packet = (overrides: Partial<TelemetryPacket> = {}): TelemetryPacket => ({
   gameId: "acc",

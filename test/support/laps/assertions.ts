@@ -1,8 +1,8 @@
 import { expect } from "bun:test";
-import type { CapturedLap } from "../../../server/telemetry/pipeline-ports";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { CapturedLap } from "@raceiq/backend-core/telemetry/pipeline-ports";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
-import type { LapSavedNotification } from "../../../server/lap-detection/types"
+import type { LapSavedNotification } from "@raceiq/backend-core/lap-detection/types"
 
 /**
  * Assert that a lap's sector times sum to the total lap time.

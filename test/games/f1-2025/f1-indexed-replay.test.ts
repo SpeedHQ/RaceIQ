@@ -1,13 +1,13 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import { initGameAdapters } from "../../../shared/games/init";
-import { initServerGameAdapters } from "../../../server/games/init";
-import { getServerGame } from "../../../server/games/registry";
-import { normalizeTelemetryPacket } from "../../../server/telemetry/normalization";
-import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline";
-import { parseRawLapFramesFromBuffer } from "../../../server/db/telemetry-replay-storage";
-import { loadSessionCapture } from "../../../server/session-capture/source-loader";
-import { iterateSessionFrameRecords, readFrameStreamStart } from "../../../server/session-capture/framing";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { getServerGame } from "@raceiq/backend-core/games/registry";
+import { normalizeTelemetryPacket } from "@raceiq/backend-core/telemetry/normalization";
+import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
+import { parseRawLapFramesFromBuffer } from "@raceiq/backend-core/db/telemetry-replay-storage";
+import { loadSessionCapture } from "@raceiq/backend-core/session-capture/source-loader";
+import { iterateSessionFrameRecords, readFrameStreamStart } from "@raceiq/backend-core/session-capture/framing";
 import { readSessionPackets } from "../../support/recordings/session-frames";
 import { getRecordingFixture } from "../../support/recordings/fixtures";
 

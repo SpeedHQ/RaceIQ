@@ -1,5 +1,5 @@
-import type { IRealtimeKunosMemoryReader } from "../../../server/games/kunos/memory-reader";
-import type { Triplet } from "../../../server/games/kunos/triplet-pipeline";
+import type { IRealtimeKunosMemoryReader } from "@raceiq/backend-core/games/kunos/memory-reader";
+import type { Triplet } from "@raceiq/backend-core/games/kunos/triplet-pipeline";
 
 /** Reconstructs changing Kunos shared-memory pages from recorded triplets. */
 export class ReplayedKunosMemoryReader implements IRealtimeKunosMemoryReader {

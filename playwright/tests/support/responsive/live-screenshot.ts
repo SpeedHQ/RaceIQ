@@ -1,6 +1,6 @@
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
-import type { GameId } from "../../../../shared/games/ids";
-import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../../../shared/telemetry/live/contracts";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
 import { SEEDED_GAME_CASES } from "../seeded/cases";
 
 interface SeededLap {

@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { computeCornerMetrics, type CornerDef } from "../../server/ai/corner-data";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { computeCornerMetrics, type CornerDef } from "@raceiq/backend-core/ai/corner-data";
 
 /**
  * `computeCornerMetrics` is the single source of truth for per-corner telemetry

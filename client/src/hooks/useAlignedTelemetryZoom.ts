@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AlignedLapSet } from "@shared/racing/laps/alignment/types";
+import type { AlignedLapSet } from "@raceiq/shared/racing/laps/alignment/types";
 import { cropAlignedLapSet, mergeAlignedLapRange, normalizeFidelityRange, shouldLoadHighFidelity } from "../lib/aligned-telemetry-fidelity";
 import { useAlignedTelemetry } from "./aligned-telemetry";
 

@@ -12,26 +12,26 @@
  */
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { initGameAdapters } from "../../shared/games/init";
-import { initServerGameAdapters } from "../../server/games/init";
-import { buildAnalystPrompt } from "../../server/ai/analyst-prompt";
-import { compareLapHeader } from "../../server/ai/compare-engineer";
-import { resolveCarName } from "../../shared/racing/cars/resolve-name";
-import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { buildAnalystPrompt } from "@raceiq/backend-core/ai/analyst-prompt";
+import { compareLapHeader } from "@raceiq/backend-core/ai/compare-engineer";
+import { resolveCarName } from "@raceiq/shared/racing/cars/resolve-name";
+import { resolveTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
 import {
   buildEvalLapAnalystAgent,
   buildEvalCompareEngineerAgent,
   resolveEvalModelId,
-} from "../../mastra/evals/eval-agents";
+} from "@raceiq/backend/src/mastra/evals/eval-agents";
 import {
   listLapFixtures,
   listComparePairFixtures,
   loadLapPackets,
   type LapFixture,
   type ComparePairFixture,
-} from "../../mastra/evals/fixtures";
-import { analystScorers, compareScorers, scoreOutput } from "../../mastra/evals";
+} from "@raceiq/backend/src/mastra/evals/fixtures";
+import { analystScorers, compareScorers, scoreOutput } from "@raceiq/backend/src/mastra/evals/index";
 
 if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
   console.error("Missing GEMINI_API_KEY / GOOGLE_GENERATIVE_AI_API_KEY");

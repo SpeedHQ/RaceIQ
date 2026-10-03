@@ -1,6 +1,6 @@
-import type { GameId } from "@shared/games/ids";
-import type { RaceResult } from "@shared/racing/results/types";
-import { isPracticeSession } from "@shared/racing/sessions/session-type";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { RaceResult } from "@raceiq/shared/racing/results/types";
+import { isPracticeSession } from "@raceiq/shared/racing/sessions/session-type";
 import { useSessionResult } from "@/hooks/session-queries";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";

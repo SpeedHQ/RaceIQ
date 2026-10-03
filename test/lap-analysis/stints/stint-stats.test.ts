@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { repeatabilityStats, stintStats } from "../../../shared/racing/laps/stint-stats";
-import type { LapMeta } from "../../../shared/racing/sessions/types";
+import { repeatabilityStats, stintStats } from "@raceiq/shared/racing/laps/stint-stats";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 
 describe("repeatabilityStats", () => {
   test("returns null statistics when no values qualify", () => {

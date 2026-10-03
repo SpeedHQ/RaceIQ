@@ -1,9 +1,9 @@
-import type { ArmInput } from "../../../server/experiments/comparison/compare";
-import type { ArmLap } from "../../../server/experiments/comparison/metrics";
-import type { FrameLapMeta, LapFrameLoader } from "../../../server/experiments/comparison/stream";
-import type { Corner } from "../../../server/lap-analysis/corners";
-import type { EvaluableLap } from "../../../shared/racing/laps/review-selection";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { ArmInput } from "@raceiq/backend-core/experiments/comparison/compare";
+import type { ArmLap } from "@raceiq/backend-core/experiments/comparison/metrics";
+import type { FrameLapMeta, LapFrameLoader } from "@raceiq/backend-core/experiments/comparison/stream";
+import type { Corner } from "@raceiq/backend-core/lap-analysis/corners";
+import type { EvaluableLap } from "@raceiq/shared/racing/laps/review-selection";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 /** Deterministic synthetic corner shared by frame-based arm suites. */
 export const SYNTHETIC_CORNERS: Corner[] = [{ index: 1, label: "T1", distanceStart: 200, distanceEnd: 300 }];

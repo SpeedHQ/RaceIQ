@@ -3,8 +3,8 @@
  * Committed roster contracts live in track-roster.test.ts.
  */
 import { describe, test, expect } from "bun:test";
-import type { TrackFacts } from "../../../shared/racing/tracks/facts";
-import type { TrackGeometry } from "../../../shared/racing/tracks/geometry";
+import type { TrackFacts } from "@raceiq/shared/racing/tracks/facts";
+import type { TrackGeometry } from "@raceiq/shared/racing/tracks/geometry";
 import {
   joinSegments,
   splitSegments,
@@ -13,9 +13,9 @@ import {
   checkKeys,
   numberCorner,
   unnumberCorner,
-} from "../../../shared/racing/tracks/curation/join";
-import { cornerKey, straightKey, parseCornerKey, parseStraightKey } from "../../../shared/racing/tracks/keys";
-import { segmentDisplayNames } from "../../../shared/racing/tracks/segment-label";
+} from "@raceiq/shared/racing/tracks/curation/join";
+import { cornerKey, straightKey, parseCornerKey, parseStraightKey } from "@raceiq/shared/racing/tracks/keys";
+import { segmentDisplayNames } from "@raceiq/shared/racing/tracks/segment-label";
 
 
 describe("join keys", () => {

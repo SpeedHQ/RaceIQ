@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { formatClientAiErrorMessage, toClientAiError } from "../../../server/ai/provider-error";
+import { formatClientAiErrorMessage, toClientAiError } from "@raceiq/backend-core/ai/provider-error";
 
 describe("toClientAiError", () => {
   test("surfaces upstream response body details and retryability", () => {

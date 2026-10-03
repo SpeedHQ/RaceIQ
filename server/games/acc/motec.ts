@@ -1,5 +1,5 @@
-import { getAccCarByModel, getAccCarName } from "../../../shared/racing/cars/acc";
-import { getAccTrackByName, getAccTrackBySetupFolder, getAccTracks } from "../../../shared/racing/tracks/catalogs/acc";
+import { getAccCarByModel, getAccCarName } from "@raceiq/shared/racing/cars/acc";
+import { getAccTrackByName, getAccTrackBySetupFolder, getAccTracks } from "@raceiq/shared/racing/tracks/catalogs/acc";
 import {
   convertPreparedKunosMotecPackets,
   type KunosMotecPacketProfile,

@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { KNOWN_GAME_IDS } from "../../../shared/games/ids";
-import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
-import { getTelemetryVariable } from "../../../shared/telemetry/catalog/query";
-import { TELEMETRY_DERIVATION_VERSION } from "../../../shared/telemetry/derivations/builtins";
-import { compileTelemetryResolver } from "../../../shared/telemetry/resolver/compile";
-import { TELEMETRY_PARSER_VERSIONS, TELEMETRY_RESOLVER_VERSION } from "../../../shared/telemetry/resolver/versions";
+import { KNOWN_GAME_IDS } from "@raceiq/shared/games/ids";
+import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
+import { getTelemetryVariable } from "@raceiq/shared/telemetry/catalog/query";
+import { TELEMETRY_DERIVATION_VERSION } from "@raceiq/shared/telemetry/derivations/builtins";
+import { compileTelemetryResolver } from "@raceiq/shared/telemetry/resolver/compile";
+import { TELEMETRY_PARSER_VERSIONS, TELEMETRY_RESOLVER_VERSION } from "@raceiq/shared/telemetry/resolver/versions";
 import { packet } from "../../support/telemetry/resolver";
 
 describe("compiled telemetry resolver", () => {

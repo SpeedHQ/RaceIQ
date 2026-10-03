@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { TrackCorner } from "../../../hooks/track-queries";
 import type { Pt } from "../track-map-geometry";
 import { VIEW } from "../track-map-geometry";

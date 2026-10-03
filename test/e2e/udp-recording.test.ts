@@ -10,13 +10,13 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { ReplayedUdpDataSource } from "../support/recordings/replayed-udp-data-source";
 
 import {
   decompressIfGzipSync,
   iterateSessionFrames,
-} from "../../server/session-capture/framing";
+} from "@raceiq/backend-core/session-capture/framing";
 const RECORDINGS_DIR = resolve(process.cwd(), "test", "artifacts", "sessions");
 const RECORDING_CASES: readonly {
   gameId: GameId;

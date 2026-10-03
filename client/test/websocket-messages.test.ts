@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { LiveSectorData } from "../../shared/racing/live/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { LiveSectorData } from "@raceiq/shared/racing/live/types";
 import { handleWebSocketMessage } from "../src/lib/websocket-messages";
 import { devTelemetryStore, useDevTelemetryStore } from "../src/stores/dev-telemetry";
 import { telemetryStore, useTelemetryStore } from "../src/stores/telemetry";

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { compareLaps, prepareComparisonAlignmentIndex } from "../../server/lap-analysis/comparison";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { compareLaps, prepareComparisonAlignmentIndex } from "@raceiq/backend-core/lap-analysis/comparison";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 function packet(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
   return {

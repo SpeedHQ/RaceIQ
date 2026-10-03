@@ -2,7 +2,7 @@ import {
   DuckDBInstance,
   type DuckDBConnection,
 } from "@duckdb/node-api";
-import type { SessionOwnership } from "../../../shared/racing/sessions/types";
+import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import {
   importSessionFrames,
   type ImportedLap,

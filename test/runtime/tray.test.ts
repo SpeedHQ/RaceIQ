@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { shouldStartTray } from "../../server/runtime/platform/tray";
+import { shouldStartTray } from "@raceiq/backend-core/runtime/platform/tray";
 
 describe("tray startup", () => {
   test("disables Windows tray when RACEIQ_DISABLE_TRAY is enabled", () => {

@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { fahrenheitToCelsius, celsiusToFahrenheit, convertTemp, convertTempDelta } from "../../client/src/lib/temperature";
+import { fahrenheitToCelsius, celsiusToFahrenheit, convertTemp, convertTempDelta } from "./client/src/lib/temperature";
 
 describe("temperature conversion", () => {
   test("fahrenheitToCelsius converts known values", () => {

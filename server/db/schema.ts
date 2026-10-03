@@ -9,8 +9,8 @@ import {
 	primaryKey,
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
-import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance } from "../../shared/racing/results/types";
-import type { SessionOwnership } from "../../shared/racing/sessions/types";
+import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance } from "@raceiq/shared/racing/results/types";
+import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 
 export const profiles = sqliteTable("profiles", {
 	id: integer("id").primaryKey({ autoIncrement: true }),

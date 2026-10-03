@@ -1,10 +1,10 @@
-import type { RaceResult, RaceResultAggregate, RaceResultOutcomeStatus, RaceResultStatus } from "@shared/racing/results/types";
-import { isPracticeSession } from "@shared/racing/sessions/session-type";
+import type { RaceResult, RaceResultAggregate, RaceResultOutcomeStatus, RaceResultStatus } from "@raceiq/shared/racing/results/types";
+import { isPracticeSession } from "@raceiq/shared/racing/sessions/session-type";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { m } from "@/paraglide/messages";
 import { cn } from "@/lib/utils";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { queryKeys } from "../../hooks/query-keys";
 import { client } from "../../lib/rpc";
 

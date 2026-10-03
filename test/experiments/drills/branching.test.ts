@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { createExperiment, getExperiment, setSessionHead } from "../../../server/db/experiment-queries";
-import { createExperimentVersion, resolveActiveTestId } from "../../../server/db/experiment-version-queries";
-import { setSessionHead as _setHead } from "../../../server/db/experiment-queries";
-import { loadActiveExperimentContext } from "../../../server/experiments/setup-lineage";
-import { computeChildLabel, nextFreeLabel } from "../../../server/ai/version-label";
-import { getActiveExperiment, setActiveExperiment } from "../../../server/experiments/active"
+import { createExperiment, getExperiment, setSessionHead } from "@raceiq/backend-core/db/experiment-queries";
+import { createExperimentVersion, resolveActiveTestId } from "@raceiq/backend-core/db/experiment-version-queries";
+import { setSessionHead as _setHead } from "@raceiq/backend-core/db/experiment-queries";
+import { loadActiveExperimentContext } from "@raceiq/backend-core/experiments/setup-lineage";
+import { computeChildLabel, nextFreeLabel } from "@raceiq/backend-core/ai/version-label";
+import { getActiveExperiment, setActiveExperiment } from "@raceiq/backend-core/experiments/active"
 
 describe("head + active-test resolution", () => {
   let sessionId: number;

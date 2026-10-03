@@ -9,12 +9,12 @@ import { and, eq } from "drizzle-orm";
 import { getAllIRacingTracks,
 getIRacingSharedTrackName,
 getIRacingTrackName,
-getIRacingTrackOrdinalByName, } from "../../../shared/racing/tracks/catalogs/iracing"
-import { getTrackOutlineByOrdinal } from "../../../shared/racing/tracks/recording/outlines";
-import { registerDiscoveredTrack } from "../../../server/db/discovered-tracks";
-import { db } from "../../../server/db/index";
-import { discoveredTracks } from "../../../server/db/schema";
-import { trackRoutes } from "../../../server/routes/tracks";
+getIRacingTrackOrdinalByName, } from "@raceiq/shared/racing/tracks/catalogs/iracing"
+import { getTrackOutlineByOrdinal } from "@raceiq/shared/racing/tracks/recording/outlines";
+import { registerDiscoveredTrack } from "@raceiq/backend-core/db/discovered-tracks";
+import { db } from "@raceiq/backend-core/db/index";
+import { discoveredTracks } from "@raceiq/backend-core/db/schema";
+import { trackRoutes } from "@raceiq/backend-core/routes/tracks/index";
 
 const FUTURE_TRACK_ID = 987_654_322;
 

@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { contextWindowFor } from "../../shared/integrations/ai/context-window";
+import { contextWindowFor } from "@raceiq/shared/integrations/ai/context-window";
 
 describe("contextWindowFor", () => {
   test("gemini flash is 1M", () => {

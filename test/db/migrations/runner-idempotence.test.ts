@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { migrations } from "../../../server/db/migrations";
+import { migrations } from "@raceiq/backend-core/db/migrations";
 import {
   bootstrap,
   getAppliedVersions,

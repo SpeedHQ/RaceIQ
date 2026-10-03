@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { convertSpeed, convertDistance, speedLabel, distanceLabel } from "../../client/src/lib/speed";
+import { convertSpeed, convertDistance, speedLabel, distanceLabel } from "./client/src/lib/speed";
 
 describe("speed conversion", () => {
   test("convertSpeed m/s to mph", () => {

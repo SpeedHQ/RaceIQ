@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import type { NamedSegment as LegacyNamedSegment } from "../../shared/racing/tracks/named-segments";
+import type { NamedSegment as LegacyNamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
 
 export interface LegacyGameBlock {
   sectors?: { s1End: number; s2End: number; source?: string };

@@ -1,12 +1,12 @@
 import { expect, test } from "bun:test";
-import { getGame } from "../../../shared/games/registry";
-import { initGameAdapters } from "../../../shared/games/init";
-import { requiredSemanticIds } from "../../../shared/games/metric-contracts";
+import { getGame } from "@raceiq/shared/games/registry";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { requiredSemanticIds } from "@raceiq/shared/games/metric-contracts";
 import { assertRecordedCatalogCoverage, changingPacketFields } from "../../support/telemetry/catalog-e2e";
-import { readKunosFrames } from "../../../server/games/kunos/frame-reader";
-import { createAcEvoParserCache, parseAcEvoBuffers } from "../../../server/games/ac-evo/parser";
-import { LiveTelemetryProjector } from "../../../server/telemetry/live-projector";
-import { buildLiveTelemetryView } from "../../../client/src/lib/live-telemetry-view";
+import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { createAcEvoParserCache, parseAcEvoBuffers } from "@raceiq/backend-core/games/ac-evo/parser";
+import { LiveTelemetryProjector } from "@raceiq/backend-core/telemetry/live-projector";
+import { buildLiveTelemetryView } from "./client/src/lib/live-telemetry-view";
 initGameAdapters();
 
 const RECORDING = "test/artifacts/sessions/ac-evo-2026-04-15T17-12-25-825Z.bin.gz";

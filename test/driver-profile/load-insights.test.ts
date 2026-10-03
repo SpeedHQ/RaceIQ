@@ -1,16 +1,16 @@
 import { afterEach, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
-import { deleteSession, insertSession } from "../../server/db/session-queries";
-import { insertLap } from "../../server/db/lap-mutation-queries";
-import { cacheSet } from "../../server/db/telemetry-replay-storage";
-import { db } from "../../server/db";
-import { lapMetrics } from "../../server/db/schema";
-import { loadDriverProfile } from "../../server/driver-profile/load";
-import { driverRoutes } from "../../server/routes/driver-routes";
-import { STATIC_LAP_ANALYSIS_VERSION } from "../../server/lap-analysis/insights";
-import { getOrComputeLapMetrics, getOrComputeLapMetricsBatch, getOrComputeLapInsightsBatch, recomputeLapInsights } from "../../server/lap-analysis/metrics-store";
-import { initServerGameAdapters } from "../../server/games/init";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { deleteSession, insertSession } from "@raceiq/backend-core/db/session-queries";
+import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
+import { cacheSet } from "@raceiq/backend-core/db/telemetry-replay-storage";
+import { db } from "@raceiq/backend-core/db/index";
+import { lapMetrics } from "@raceiq/backend-core/db/schema";
+import { loadDriverProfile } from "@raceiq/backend-core/driver-profile/load";
+import { driverRoutes } from "@raceiq/backend-core/routes/driver-routes";
+import { STATIC_LAP_ANALYSIS_VERSION } from "@raceiq/backend-core/lap-analysis/insights";
+import { getOrComputeLapMetrics, getOrComputeLapMetricsBatch, getOrComputeLapInsightsBatch, recomputeLapInsights } from "@raceiq/backend-core/lap-analysis/metrics-store";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 const sessions: number[] = [];
 afterEach(async () => {

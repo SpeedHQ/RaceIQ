@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import { detectSessionBoundary, type SessionSnapshot } from "../../../server/lap-detection/boundaries";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { detectSessionBoundary, type SessionSnapshot } from "@raceiq/backend-core/lap-detection/boundaries";
 
 function pkt(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
   return {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { fetchReleases } from "../../server/runtime/update/check";
+import { fetchReleases } from "@raceiq/backend-core/runtime/update/check";
 
 describe("GitHub release body integration", () => {
   test.skipIf(process.env.RUN_GITHUB_RELEASE_INTEGRATION !== "1")(

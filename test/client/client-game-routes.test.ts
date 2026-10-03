@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { initGameAdapters } from "../../shared/games/init";
+import { initGameAdapters } from "@raceiq/shared/games/init";
 import {
   gameIdForRoutePrefix,
   parseOptionalNumber,
@@ -11,8 +11,8 @@ import {
   validateSessionsSearch,
   validateTuneReviewSearch,
   validateTuneSearch,
-} from "../../client/src/lib/game-routes";
-import { releaseFeatureFlags } from "../../shared/platform/runtime/release-feature-flags";
+} from "./client/src/lib/game-routes";
+import { releaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
 
 const developmentEnv = {
   RACEIQ_FEATURE_F1_EXPERIMENTS: "true",

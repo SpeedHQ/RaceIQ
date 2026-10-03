@@ -3,7 +3,7 @@ import {
   getOnboardingOverride,
   parseOnboardingOverride,
   withOnboardingOverride,
-} from "../../server/runtime/options";
+} from "@raceiq/backend-core/runtime/options";
 
 describe("server onboarding runtime option", () => {
   test("parses spaced and inline boolean values", () => {

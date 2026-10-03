@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { carIdentityKey, trackIdentityKey, type SessionMeta } from "../../shared/racing/sessions/types";
+import { carIdentityKey, trackIdentityKey, type SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import { sessionCarName, sessionTrackName } from "../src/components/sessions/helpers";
 import { validateAnalyseSearch } from "../src/lib/game-routes";
 import { trackRoutePath } from "../src/lib/track-routes";

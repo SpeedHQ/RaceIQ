@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { routePrefixForGameId } from "../../lib/game-routes";
-import { resolveLMUCar } from "../../../../shared/games/lmu/catalog";
+import { resolveLMUCar } from "@raceiq/shared/games/lmu/catalog";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { F1CarSetup } from "../../../../shared/telemetry/f1-2025";
+import type { F1CarSetup } from "@raceiq/shared/telemetry/f1-2025";
 import type { AiPanelHandle } from "@/components/ai/AiPanel";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
-import type { LapDetectorCoverage, LapInsight } from "../../../../shared/racing/analysis/laps/insights/types";
+import type { LapDetectorCoverage, LapInsight } from "@raceiq/shared/racing/analysis/laps/insights/types";
 import { useCookieState } from "../../hooks/useCookieState";
 import { useLapPlayback } from "../../hooks/useLapPlayback";
 import { useUnits } from "../../hooks/useUnits";

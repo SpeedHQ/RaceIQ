@@ -18,6 +18,7 @@
     "snapshot:test:docker": "bun ../scripts/ui/run-snapshot-in-docker.ts"
   },
   "dependencies": {
+    "@raceiq/shared": "workspace:*",
     "@ai-sdk/react": "4.0.108",
     "@assistant-ui/core": "0.3.19",
     "@assistant-ui/react": "0.15.20",
@@ -58,6 +59,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@raceiq/backend": "workspace:*",
     "@playwright/test": "1.62.1",
     "@storybook/react": "10.6.0",
     "@storybook/react-vite": "10.6.0",

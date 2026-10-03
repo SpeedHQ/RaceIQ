@@ -1,9 +1,9 @@
 import { createStore, useSelector, type StoreActionMap } from "@tanstack/react-store";
 import { advanceReprocess, beginReprocess, completeReprocess, dismissReprocess, failReprocess, initialReprocessState, type ReprocessState } from "@/lib/reprocess-state";
-import type { LivePitData, LiveSectorData } from "../../../shared/racing/live/types";
-import type { LapMeta } from "../../../shared/racing/sessions/types";
-import type { TuneIssue } from "../../../shared/racing/tuning/issues";
-import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../../shared/telemetry/live/contracts";
+import type { LivePitData, LiveSectorData } from "@raceiq/shared/racing/live/types";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
+import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
 import type { LiveTelemetryView } from "../lib/live-telemetry-view";
 import { buildLiveTelemetryView } from "../lib/live-telemetry-view";
 export interface DisplaySettings {

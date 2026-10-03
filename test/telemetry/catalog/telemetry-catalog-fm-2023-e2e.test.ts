@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { getGame } from "../../../shared/games/registry";
-import { initGameAdapters } from "../../../shared/games/init";
-import { requiredSemanticIds } from "../../../shared/games/metric-contracts";
+import { getGame } from "@raceiq/shared/games/registry";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { requiredSemanticIds } from "@raceiq/shared/games/metric-contracts";
 import { assertRecordedCatalogCoverage, changingPacketFields } from "../../support/telemetry/catalog-e2e";
 function isFiniteNumberOrWheelArray(value: unknown): boolean {
   return isFiniteNumber(value) || (Array.isArray(value) && value.length === 4 && value.every(isFiniteNumber));
 }
-import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
+import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
 initGameAdapters();
 
 function isFiniteNumber(value: unknown): value is number {

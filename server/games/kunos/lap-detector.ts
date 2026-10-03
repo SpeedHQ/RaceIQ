@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { DbAdapter } from "../../telemetry/pipeline-ports";
 import { assessLapRecording } from "../../lap-analysis/quality";
 import { persistLapMetrics } from "../../lap-analysis/metrics-store";
@@ -11,7 +11,7 @@ import type {
   SessionState,
 } from "../../lap-detection/types";
 import { kunosFirstPacketIsMidLap } from "./lap-rules";
-import { classifyPitCycleLap } from "../../../shared/racing/laps/pit-cycle";
+import { classifyPitCycleLap } from "@raceiq/shared/racing/laps/pit-cycle";
 import { logger } from "../../runtime/logger";
 
 function traceLap(game: string, event: string, fields: Record<string, unknown>): void {

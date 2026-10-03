@@ -1,6 +1,6 @@
-import { isPitCycleLap } from "@shared/racing/laps/pit-cycle";
-import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/racing/laps/review-selection";
-import type { LapMeta } from "@shared/racing/sessions/types";
+import { isPitCycleLap } from "@raceiq/shared/racing/laps/pit-cycle"
+import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@raceiq/shared/racing/laps/review-selection";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { useMemo, useState } from "react";
 import { Table, TableBody as TBody, TableCell as TD, TableHead as TH, TableHeader as THead, TableRow as TRow } from "@/components/ui/table";
 import { SortableTableHead } from "@/components/ui/sortable-table-head";

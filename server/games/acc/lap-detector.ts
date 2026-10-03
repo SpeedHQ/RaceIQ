@@ -1,5 +1,5 @@
 import type { LapDetectorOptions } from "../../lap-detection/types";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { KunosLapDetector } from "../kunos/lap-detector";
 
 // v4: prefers source-reported validity for completed laps.

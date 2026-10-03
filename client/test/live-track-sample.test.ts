@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
+import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
 import { advanceLiveTrackPosition, type LiveTrackSample, liveTrackSampleFromView, pointForLiveTrackSample } from "../src/components/live-track/live-track-sample";
 import type { LiveTelemetryView } from "../src/lib/live-telemetry-view";
 

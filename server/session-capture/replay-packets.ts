@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
-import type { GameId } from "../../shared/games/ids";
-import { getAccCarByModel } from "../../shared/racing/cars/acc";
-import { getAccTrackByName } from "../../shared/racing/tracks/catalogs/acc";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { getAccCarByModel } from "@raceiq/shared/racing/cars/acc";
+import { getAccTrackByName } from "@raceiq/shared/racing/tracks/catalogs/acc";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { parseAccBuffers } from "../games/acc/parser";
 import { STATIC } from "../games/acc/structs";
 import { readWString } from "../games/acc/utils";

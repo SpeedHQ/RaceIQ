@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import { buildDriverFingerprint } from "../../server/driver-profile/fingerprint";
-import { buildDriverTrend, DRIVER_TREND_WINDOW_LAPS } from "../../server/driver-profile/trend";
+import { buildDriverFingerprint } from "@raceiq/backend-core/driver-profile/fingerprint";
+import { buildDriverTrend, DRIVER_TREND_WINDOW_LAPS } from "@raceiq/backend-core/driver-profile/trend";
 import { GLOBAL_SCOPE, insight, lap } from "../support/driver-profile/factories";
 
 describe("normalized driver trend", () => {

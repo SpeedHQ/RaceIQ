@@ -1,10 +1,10 @@
 import { m } from "@/paraglide/messages";
 import { useMemo, useState } from "react";
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { formatLapTime } from "@/lib/format";
 import { useUnits } from "../../hooks/useUnits";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
-import type { TuneIssue } from "../../../../shared/racing/tuning/issues";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import { IssuePill } from "./review/ReviewIssues";
 import { SectorMap } from "./SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, metricDisplayValue, type MetricDef, tuneMetricValue, tuneMetricsFor } from "./SectorRangeBreakdown";

@@ -1,26 +1,26 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { IS_DEV } from "../../runtime/config/env";
-import { OrdinalParamSchema, GameIdQuerySchema } from "@shared/platform/http/route-schemas";
-import { formatTurnNumbers, turnNumbers } from "../../../shared/racing/tracks/segment-label";
-import type { NamedSegment } from "../../../shared/racing/tracks/named-segments";
+import { OrdinalParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
+import { formatTurnNumbers, turnNumbers } from "@raceiq/shared/racing/tracks/segment-label";
+import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
 import { getCorners, saveCorners } from "../../db/track-queries";
-import { getTrackOutlineByOrdinal } from "../../../shared/racing/tracks/recording/outlines";
-import { getTrackSectorsByOrdinal } from "../../../shared/racing/tracks/storage/sectors";
+import { getTrackOutlineByOrdinal } from "@raceiq/shared/racing/tracks/recording/outlines";
+import { getTrackSectorsByOrdinal } from "@raceiq/shared/racing/tracks/storage/sectors";
 import {
   loadTrackFacts,
   loadTrackGeometry,
   loadTrackSectorsFor,
   saveTrackFacts,
   saveTrackGeometry,
-} from "../../../shared/racing/tracks/storage/meta";
-import { resolveTrackName } from "../../../shared/racing/tracks/resolve-name";
+} from "@raceiq/shared/racing/tracks/storage/meta";
+import { resolveTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
 import { getTrackGuide } from "../../ai/track-guides";
 import type { Corner } from "../../lap-analysis/corners";
-import { cornerNumbers } from "../../../shared/racing/tracks/facts";
-import { getLMUTrack } from "../../../shared/games/lmu/catalog";
-import { splitSegments } from "../../../shared/racing/tracks/curation/join";
-import { cornerKey } from "../../../shared/racing/tracks/keys";
+import { cornerNumbers } from "@raceiq/shared/racing/tracks/facts";
+import { getLMUTrack } from "@raceiq/shared/games/lmu/catalog";
+import { splitSegments } from "@raceiq/shared/racing/tracks/curation/join";
+import { cornerKey } from "@raceiq/shared/racing/tracks/keys";
 import {
   computeOutlineLength,
   decodeTrackKey,

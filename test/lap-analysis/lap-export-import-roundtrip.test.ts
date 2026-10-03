@@ -14,27 +14,27 @@ import { gzipSync, gunzipSync } from "node:zlib";
 import { rmSync, readFileSync } from "node:fs";
 import { eq, inArray } from "drizzle-orm";
 import { unzipSync, zipSync } from "fflate";
-import { db } from "../../server/db/index";
-import { sessions, laps } from "../../server/db/schema";
-import { initGameAdapters } from "../../shared/games/init";
-import { initServerGameAdapters } from "../../server/games/init";
-import { isIRacingSessionFrame } from "../../server/games/iracing/source-frame";
-import { readIRacingFrames } from "../../server/games/iracing/recorder";
-import { importSessionFrames } from "../../server/session-capture/import-pipeline";
-import { getSessionResult } from "../../server/db/session-result-queries";
-import { buildLapsZip, importLapsZip, type LapsZipManifest } from "../../server/laps/archive";
-import { importMotec } from "../../server/motec/import";
-import { parseRawLapFrames, parseSessionLapsBatched } from "../../server/db/telemetry-replay-storage";
-import { readRecordedTelemetry } from "../../server/session-capture/replay-packets";
-import { reprocessSession } from "../../server/session-capture/reprocess";
-import { setCaptureFileFactoryForTest, type SessionCaptureSource } from "../../server/session-capture/source-loader";
+import { db } from "@raceiq/backend-core/db/index";
+import { sessions, laps } from "@raceiq/backend-core/db/schema";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { isIRacingSessionFrame } from "@raceiq/backend-core/games/iracing/source-frame";
+import { readIRacingFrames } from "@raceiq/backend-core/games/iracing/recorder";
+import { importSessionFrames } from "@raceiq/backend-core/session-capture/import-pipeline";
+import { getSessionResult } from "@raceiq/backend-core/db/session-result-queries";
+import { buildLapsZip, importLapsZip, type LapsZipManifest } from "@raceiq/backend-core/laps/archive";
+import { importMotec } from "@raceiq/backend-core/motec/import";
+import { parseRawLapFrames, parseSessionLapsBatched } from "@raceiq/backend-core/db/telemetry-replay-storage";
+import { readRecordedTelemetry } from "@raceiq/backend-core/session-capture/replay-packets";
+import { reprocessSession } from "@raceiq/backend-core/session-capture/reprocess";
+import { setCaptureFileFactoryForTest, type SessionCaptureSource } from "@raceiq/backend-core/session-capture/source-loader";
 import {
   iterateSessionCaptureRecords,
   iterateSessionFrames,
   META_FRAME_BYTES,
-} from "../../server/session-capture/framing";
-import { queryLapTelemetryBySemanticId } from "../../server/telemetry/replay";
-import type { GameId } from "../../shared/games/ids";
+} from "@raceiq/backend-core/session-capture/framing";
+import { queryLapTelemetryBySemanticId } from "@raceiq/backend-core/telemetry/replay";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { buildLd, buildLdx, syntheticStint } from "../support/motec/ld";
 initGameAdapters();
 initServerGameAdapters();

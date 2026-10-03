@@ -21,7 +21,7 @@
  */
 import { readFile } from "node:fs/promises";
 import { parseCarSetup, type CarSetupFile, type WireField } from "./carsetup-wire";
-import type { SetupContentRow, SetupContentSection } from "../../../shared/racing/setups/content";
+import type { SetupContentRow, SetupContentSection } from "@raceiq/shared/racing/setups/content";
 
 /**
  * The car slug embedded in a preset id, or null.

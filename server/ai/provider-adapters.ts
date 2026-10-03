@@ -1,5 +1,5 @@
 import { AiProviderError } from "./provider-error";
-import { getMastraModelId, type BoundMastraModel } from "../../mastra/model";
+import { getMastraModelId, type BoundMastraModel } from "@raceiq/backend/src/mastra/model";
 import {
   runGeminiRequest,
   runOpenAiCompatible,

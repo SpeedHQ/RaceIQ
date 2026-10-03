@@ -1,6 +1,6 @@
 import { LiveTrackMap } from "@/components/live-track/LiveTrackMap";
 import { m } from "@/paraglide/messages";
-import type { LiveSectorData } from "../../../shared/racing/live/types";
+import type { LiveSectorData } from "@raceiq/shared/racing/live/types";
 import type { LiveTelemetryView } from "../lib/live-telemetry-view";
 import { SectorTimes } from "./SectorTimes";
 import { LapTimes } from "./telemetry/LapTimes";

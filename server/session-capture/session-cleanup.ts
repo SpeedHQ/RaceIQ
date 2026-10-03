@@ -2,17 +2,17 @@ import { randomUUID } from "node:crypto";
 import { stat, rename, unlink } from "node:fs/promises";
 import { resolve } from "node:path";
 import { eq, sql, inArray } from "drizzle-orm";
-import { db } from "../db";
+import { db } from "../db/index";
 import { laps, sessions } from "../db/schema";
 import { cacheDelete } from "../db/telemetry-replay-storage";
 import { isSessionActive } from "../telemetry/live-pipeline";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { clearSessionCaptureCache } from "./source-loader";
 import { isOwnedSessionRawFile } from "../db/session-queries";
-import { tryGetGame } from "../../shared/games/registry";
-import { resolveCarName } from "../../shared/racing/cars/resolve-name";
-import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
-import type { SessionCleanupGameSummary, SessionCleanupPreview, SessionCleanupRequest, SessionCleanupResult } from "../../shared/racing/sessions/cleanup";
+import { tryGetGame } from "@raceiq/shared/games/registry";
+import { resolveCarName } from "@raceiq/shared/racing/cars/resolve-name";
+import { resolveTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
+import type { SessionCleanupGameSummary, SessionCleanupPreview, SessionCleanupRequest, SessionCleanupResult } from "@raceiq/shared/racing/sessions/cleanup";
 
 export class SessionCleanupBusyError extends Error {
   constructor() {

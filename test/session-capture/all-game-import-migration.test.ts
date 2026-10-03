@@ -3,16 +3,16 @@ import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { eq, inArray } from "drizzle-orm";
-import { db } from "../../server/db";
-import { laps, sessions } from "../../server/db/schema";
-import { deleteSession } from "../../server/db/session-queries";
-import { initServerGameAdapters } from "../../server/games/init";
-import { transferRoutes } from "../../server/routes/laps/transfer-routes";
-import { sessionRoutes } from "../../server/routes/session-routes";
-import { lapRoutes } from "../../server/routes/laps";
-import { iterateSessionCaptureRecordsFromSource } from "../../server/session-capture/source-loader";
-import { initGameAdapters } from "../../shared/games/init";
-import type { GameId } from "../../shared/games/ids";
+import { db } from "@raceiq/backend-core/db/index";
+import { laps, sessions } from "@raceiq/backend-core/db/schema";
+import { deleteSession } from "@raceiq/backend-core/db/session-queries";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { transferRoutes } from "@raceiq/backend-core/routes/laps/transfer-routes";
+import { sessionRoutes } from "@raceiq/backend-core/routes/session-routes";
+import { lapRoutes } from "@raceiq/backend-core/routes/laps/index";
+import { iterateSessionCaptureRecordsFromSource } from "@raceiq/backend-core/session-capture/source-loader";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import type { GameId } from "@raceiq/shared/games/ids";
 
 const fixtures: ReadonlyArray<{ gameId: GameId; file: string }> = [
   { gameId: "fm-2023", file: "fm-2023-2026-04-09T21-55-03-186Z.bin.gz" },

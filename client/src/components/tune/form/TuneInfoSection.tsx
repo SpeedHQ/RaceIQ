@@ -1,4 +1,4 @@
-import type { TuneCategory } from "@shared/racing/tuning/types";
+import type { TuneCategory } from "@raceiq/shared/racing/tuning/types";
 import type { Dispatch, SetStateAction } from "react";
 import { AppInput } from "@/components/ui/AppInput";
 import { Button } from "@/components/ui/button";

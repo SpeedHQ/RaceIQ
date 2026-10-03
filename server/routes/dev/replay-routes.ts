@@ -1,9 +1,9 @@
 import { Hono } from "hono";
-import { getGame } from "../../../shared/games/registry";
-import { resolveAnalysisTelemetry } from "../../../shared/racing/analysis/telemetry-capabilities";
-import { getTelemetryVariable } from "../../../shared/telemetry/catalog/query";
-import type { LiveTelemetryDefinitionV1 } from "../../../shared/telemetry/live/contracts";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import { getGame } from "@raceiq/shared/games/registry";
+import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities";
+import { getTelemetryVariable } from "@raceiq/shared/telemetry/catalog/query";
+import type { LiveTelemetryDefinitionV1 } from "@raceiq/shared/telemetry/live/contracts";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { encodeLiveFrame, encodeLiveSchema } from "../../telemetry/live-wire";
 import { readRecordedTelemetry } from "../../session-capture/replay-packets";

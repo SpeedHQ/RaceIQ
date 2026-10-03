@@ -3,7 +3,7 @@ import { defineConfig } from "drizzle-kit";
 const DATA_DIR = process.env.DATA_DIR ?? "./data";
 
 export default defineConfig({
-  schema: "./server/db/schema.ts",
+  schema: "@raceiq/backend-core/db/schema",
   out: "./drizzle",
   dialect: "sqlite",
   dbCredentials: {

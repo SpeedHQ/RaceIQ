@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { parseCsvLine } from "@shared/core/csv";
-import { GAMES_DIR } from "@shared/platform/runtime/data-paths";
+import { parseCsvLine } from "@raceiq/shared/core/csv";
+import { GAMES_DIR } from "@raceiq/shared/platform/runtime/data-paths";
 
 export interface IRacingCatalogCar {
   ordinal: number;

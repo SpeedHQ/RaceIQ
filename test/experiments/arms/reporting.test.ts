@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { compareArms, describeComparison, serializeComparison } from "../../../server/experiments/comparison/compare";
-import { OUTCOME_METRICS } from "../../../server/experiments/comparison/metrics";
+import { compareArms, describeComparison, serializeComparison } from "@raceiq/backend-core/experiments/comparison/compare";
+import { OUTCOME_METRICS } from "@raceiq/backend-core/experiments/comparison/metrics";
 import { metadataArm, normals, telemetryArm } from "../../support/experiments/arms";
 
 // ── frame-based metrics ─────────────────────────────────────────────────────

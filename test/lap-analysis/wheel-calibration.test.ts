@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { calibratedWheelStates, type AllWheelStates } from "../../shared/racing/analysis/laps/physics/vehicle";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { calibratedWheelStates, type AllWheelStates } from "@raceiq/shared/racing/analysis/laps/physics/vehicle";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 function packet(timestamp: number, overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
   return {

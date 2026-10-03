@@ -2,13 +2,13 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { AcEvoSharedMemoryReader } from "../../../server/games/ac-evo/shared-memory";
-import { ACEVO_STATUS, GRAPHICS_EVO } from "../../../server/games/ac-evo/structs";
-import { AccSharedMemoryReader } from "../../../server/games/acc/shared-memory";
-import { AC_STATUS, GRAPHICS } from "../../../server/games/acc/structs";
-import { readKunosFrames } from "../../../server/games/kunos/frame-reader";
-import { KunosRecorder } from "../../../server/games/kunos/recorder";
-import type { Triplet, TripletProcessor } from "../../../server/games/kunos/triplet-pipeline";
+import { AcEvoSharedMemoryReader } from "@raceiq/backend-core/games/ac-evo/shared-memory";
+import { ACEVO_STATUS, GRAPHICS_EVO } from "@raceiq/backend-core/games/ac-evo/structs";
+import { AccSharedMemoryReader } from "@raceiq/backend-core/games/acc/shared-memory";
+import { AC_STATUS, GRAPHICS } from "@raceiq/backend-core/games/acc/structs";
+import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { KunosRecorder } from "@raceiq/backend-core/games/kunos/recorder";
+import type { Triplet, TripletProcessor } from "@raceiq/backend-core/games/kunos/triplet-pipeline";
 import { ReplayedKunosMemoryReader } from "../../support/recordings/replayed-kunos-memory-reader";
 
 const ACC_FIXTURE =

@@ -1,12 +1,12 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { GameIdSchema } from "../../shared/games/ids";
+import { GameIdSchema } from "@raceiq/shared/games/ids";
 import { z } from "zod";
 import { getLapMetaById } from "../db/lap-read-queries";
 import { getExperiment } from "../db/experiment-queries";
-import { resolveCarName } from "../../shared/racing/cars/resolve-name";
-import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
-import { getLMUCar, getLMUTrack } from "../../shared/games/lmu/catalog";
+import { resolveCarName } from "@raceiq/shared/racing/cars/resolve-name";
+import { resolveTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
+import { getLMUCar, getLMUTrack } from "@raceiq/shared/games/lmu/catalog";
 import {
   getChatMemory,
   CHAT_RESOURCE_ID,

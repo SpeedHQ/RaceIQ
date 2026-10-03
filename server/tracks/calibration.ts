@@ -1,4 +1,4 @@
-import type { TrackBoundary } from "../../shared/racing/tracks/geometry/types";
+import type { TrackBoundary } from "@raceiq/shared/racing/tracks/geometry/types";
 
 /**
  * Track calibration: aligns external track outlines (TUMFTM/OSM coordinates)

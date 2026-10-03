@@ -1,4 +1,4 @@
-import { type FieldDef, readSetupField, readSetupSection, type SectionDef, SETUP_FORM_TAB_ORDER, writeSetupField } from "@shared/racing/setups/schema";
+import { type FieldDef, readSetupField, readSetupSection, type SectionDef, SETUP_FORM_TAB_ORDER, writeSetupField } from "@raceiq/shared/racing/setups/schema";
 import { m } from "@/paraglide/messages";
 import { useState } from "react";
 import { AppInput } from "../ui/AppInput";

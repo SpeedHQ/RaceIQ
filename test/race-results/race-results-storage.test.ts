@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
-import { insertSession } from "../../server/db/session-queries";
-import { db } from "../../server/db";
-import { laps } from "../../server/db/schema";
-import { countStaleRaceResults, getSessionResult, getStaleRaceResultSessionIds, replacePitEvents, upsertSessionResult, type SessionResultInput } from "../../server/db/session-result-queries";
-import { getRecentRaceResults } from "../../server/race-results/aggregates";
-import { initServerGameAdapters } from "../../server/games/init";
-import { RACE_RESULT_PROCESSOR_ID, backfillRaceResults, backfillStaleRaceResults, reconcileSessionResult } from "../../server/race-results/reconcile";
-import { sessionRoutes } from "../../server/routes/session-routes";
-import type { RaceResultEvidence, RaceResultProvenance } from "../../shared/racing/results/types";
+import { insertSession } from "@raceiq/backend-core/db/session-queries";
+import { db } from "@raceiq/backend-core/db/index";
+import { laps } from "@raceiq/backend-core/db/schema";
+import { countStaleRaceResults, getSessionResult, getStaleRaceResultSessionIds, replacePitEvents, upsertSessionResult, type SessionResultInput } from "@raceiq/backend-core/db/session-result-queries";
+import { getRecentRaceResults } from "@raceiq/backend-core/race-results/aggregates";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { RACE_RESULT_PROCESSOR_ID, backfillRaceResults, backfillStaleRaceResults, reconcileSessionResult } from "@raceiq/backend-core/race-results/reconcile";
+import { sessionRoutes } from "@raceiq/backend-core/routes/session-routes";
+import type { RaceResultEvidence, RaceResultProvenance } from "@raceiq/shared/racing/results/types";
 
 const evidence: RaceResultEvidence = {
   fieldStatus: {

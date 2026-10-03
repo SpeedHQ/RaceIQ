@@ -1,5 +1,5 @@
-import type { GameId } from "@shared/games/ids";
-import type { LapMeta, SessionMeta, SessionRecap as SessionRecapDto } from "@shared/racing/sessions/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { LapMeta, SessionMeta, SessionRecap as SessionRecapDto } from "@raceiq/shared/racing/sessions/types";
 import type { TrackOutlineData, TrackSectorBounds } from "@/components/SessionRecap";
 
 export type PeriodKey = "today" | "week" | "month" | "year" | "allTime";

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import type { LapMeta } from "../../../shared/racing/sessions/types";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import { consistencyAt, downsampleLap, sampleAt, stintStats } from "../../../client/src/lib/stint-traces";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { consistencyAt, downsampleLap, sampleAt, stintStats } from "./client/src/lib/stint-traces";
 
 function pkt(overrides: Partial<TelemetryPacket>): TelemetryPacket {
   return {

@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { NodeIO } from "@gltf-transform/core";
 import { EXTMeshoptCompression, KHRONOS_EXTENSIONS } from "@gltf-transform/extensions";
-import { optimizeF1Model, F1_SOURCE_SHA256 } from "../../scripts/assets/optimize-f1-model";
+import { optimizeF1Model, F1_SOURCE_SHA256 } from "@raceiq/tooling/assets/optimize-f1-model";
 import { MeshoptDecoder } from "meshoptimizer";
 
 const sourcePath = resolve("assets/models/source/f1_2025_mclaren_mcl39.glb");

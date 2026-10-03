@@ -8,7 +8,7 @@ import { useResolveNames } from "@/hooks/catalog-queries";
 import { useCatalogTunes, useCloneCatalogTune, useDeleteTune, useDuplicateTune, useUserTunes } from "@/hooks/tunes";
 import { m } from "@/paraglide/messages";
 import { useUiStore } from "@/stores/ui";
-import type { GameId } from "../../../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { SetupSettingsPanel } from "./SetupSettingsPanel";
 import type { GameCarOption } from "./use-game-cars";
 

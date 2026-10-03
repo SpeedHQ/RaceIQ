@@ -3,12 +3,12 @@
  * Provides comparison context; cached analyses are retrieved through the
  * visible get_lap_analysis tool call instead of being embedded here.
  */
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import type { ComparisonResult } from "../lap-analysis/comparison";
 import type { UnitSystem, TemperatureUnit } from "../lap-analysis/report";
 import { getPromptCarName, getPromptTrackName, compareEngineerPersona, compareLapHeader } from "./compare-engineer";
 import { buildSegmentTimingTable, type PromptSegment } from "./inputs-compare-prompt";
-import { TRACK_GUIDE_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
+import { TRACK_GUIDE_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
 
 interface LapInfo {
   id: number;

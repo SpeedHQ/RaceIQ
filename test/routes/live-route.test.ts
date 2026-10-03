@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { initGameAdapters } from "../../shared/games/init";
-import { getAllGames } from "../../shared/games/registry";
-import { gameIdForRoutePrefix, liveDashboardForGame } from "../../client/src/lib/game-routes";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { getAllGames } from "@raceiq/shared/games/registry";
+import { gameIdForRoutePrefix, liveDashboardForGame } from "./client/src/lib/game-routes";
 
 initGameAdapters();
 

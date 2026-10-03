@@ -7,9 +7,9 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { curatedCoverage, renderCoverageTable, renderDetailTables } from "../../shared/racing/tracks/curation/coverage";
-import { fileHash, loadVerified, verifiedKey, verifyState } from "../../shared/racing/tracks/curation/verified";
-import type { GameId } from "../../shared/games/ids";
+import { curatedCoverage, renderCoverageTable, renderDetailTables } from "@raceiq/shared/racing/tracks/curation/coverage";
+import { fileHash, loadVerified, verifiedKey, verifyState } from "@raceiq/shared/racing/tracks/curation/verified";
+import type { GameId } from "@raceiq/shared/games/ids";
 import {
   COVERAGE_END,
   COVERAGE_START,
@@ -19,7 +19,7 @@ import {
   parseVerifyTarget,
   spliceCoverage,
   spliceDetail,
-} from "../../scripts/tracks/track-coverage";
+} from "@raceiq/tooling/tracks/track-coverage";
 const REPO_ROOT = resolve(import.meta.dir, "../..");
 
 /** Split a ledger key back into the (kind, slug, gameId) it was built from. */

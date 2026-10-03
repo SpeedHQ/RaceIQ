@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { insertLap } from "../../server/db/lap-mutation-queries";
-import { getLapStats, getReviewLaps } from "../../server/db/lap-read-queries";
-import { deleteSession, insertSession, updateSessionRawFile } from "../../server/db/session-queries";
-import { sessionRoutes } from "../../server/routes/session-routes";
-import { trackRoutes } from "../../server/routes/tracks";
-import { settingsRoutes } from "../../server/routes/settings-routes";
+import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
+import { getLapStats, getReviewLaps } from "@raceiq/backend-core/db/lap-read-queries";
+import { deleteSession, insertSession, updateSessionRawFile } from "@raceiq/backend-core/db/session-queries";
+import { sessionRoutes } from "@raceiq/backend-core/routes/session-routes";
+import { trackRoutes } from "@raceiq/backend-core/routes/tracks/index";
+import { settingsRoutes } from "@raceiq/backend-core/routes/settings-routes";
 import tracksJson from "../../shared/games/lmu/tracks.json";
-import { loadLabelledSegments } from "../../shared/racing/tracks/storage/meta";
+import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";
 
 const sessionIds: number[] = [];
 

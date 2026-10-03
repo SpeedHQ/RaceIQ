@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
-import { getAccTracks } from "../../shared/racing/tracks/catalogs/acc";
-import { getTrackBoundariesByOrdinal } from "../../shared/racing/tracks/geometry/extracted";
-import { getTrackRacelineByOrdinal } from "../../shared/racing/tracks/recording/outlines";
-import { findCenterlines, loadCenterline } from "../../shared/racing/tracks/curation/generate";
-import { getBundledTrackName } from "../../shared/racing/tracks/resolve-name";
+import { getAccTracks } from "@raceiq/shared/racing/tracks/catalogs/acc";
+import { getTrackBoundariesByOrdinal } from "@raceiq/shared/racing/tracks/geometry/extracted";
+import { getTrackRacelineByOrdinal } from "@raceiq/shared/racing/tracks/recording/outlines";
+import { findCenterlines, loadCenterline } from "@raceiq/shared/racing/tracks/curation/generate";
+import { getBundledTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
 
 const distance = (a: { x: number; z: number }, b: { x: number; z: number }) =>
   Math.hypot(a.x - b.x, a.z - b.z);

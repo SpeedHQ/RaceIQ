@@ -1,6 +1,6 @@
-import type { GameId } from "@shared/games/ids";
-import { flipBoundaries, flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
-import type { AlignedTrace } from "@shared/racing/comparison/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { flipBoundaries, flipPoints, needsTrackFlip } from "@raceiq/shared/racing/tracks/coords"
+import type { AlignedTrace } from "@raceiq/shared/racing/comparison/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { type BoundaryData, computeZoom, drawInputsHUD, drawTrackCanvas, findTraceIndexAtDistance, type Point } from "@/lib/comparison-utils";

@@ -1,8 +1,8 @@
-import { iracingAdapter } from "../../../shared/games/iracing";
+import { iracingAdapter } from "@raceiq/shared/games/iracing/index";
 import { getIRacingSharedTrackName,
 getIRacingTrackName,
-getIRacingTrackOrdinalByName, } from "../../../shared/racing/tracks/catalogs/iracing"
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+getIRacingTrackOrdinalByName, } from "@raceiq/shared/racing/tracks/catalogs/iracing"
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 import { LapDetectorIRacing } from "./lap-detector";
 import type { ServerGameAdapter } from "../types";

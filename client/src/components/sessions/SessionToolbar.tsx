@@ -1,4 +1,4 @@
-import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
+import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { AppInput } from "@/components/ui/AppInput";

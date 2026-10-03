@@ -1,5 +1,5 @@
-import type { NamedSegment as LegacyNamedSegment } from "../../shared/racing/tracks/named-segments";
-import { cornerKey, straightKey } from "../../shared/racing/tracks/keys";
+import type { NamedSegment as LegacyNamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
+import { cornerKey, straightKey } from "@raceiq/shared/racing/tracks/keys";
 
 /** `T1`, `T10-11`, `S3` are generated placeholders, not authored names. */
 export function isPlaceholderName(name: string): boolean {

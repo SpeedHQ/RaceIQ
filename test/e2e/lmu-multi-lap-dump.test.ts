@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
+import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { parseDump } from "../support/recordings/parse-dump";
 
 const FIXTURE = "test/artifacts/laps/lmu-2026-09-19T20-09-44-686Z.bin.gz";

@@ -1,7 +1,7 @@
 import { test } from "bun:test";
-import { getGame } from "../../../shared/games/registry";
-import { initGameAdapters } from "../../../shared/games/init";
-import { requiredSemanticIds } from "../../../shared/games/metric-contracts";
+import { getGame } from "@raceiq/shared/games/registry";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { requiredSemanticIds } from "@raceiq/shared/games/metric-contracts";
 import { assertRecordedCatalogCoverage, changingPacketFields } from "../../support/telemetry/catalog-e2e";
 initGameAdapters();
 

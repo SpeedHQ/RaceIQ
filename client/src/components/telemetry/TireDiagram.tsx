@@ -1,6 +1,6 @@
-import { getGame } from "@shared/games/registry";
-import { resolveWheelStates } from "@shared/racing/analysis/metric-values";
-import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
+import { getGame } from "@raceiq/shared/games/registry"
+import { resolveWheelStates } from "@raceiq/shared/racing/analysis/metric-values";
+import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
 import { WeightShiftRadar } from "@/components/WeightShiftRadar";
 import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
 import { hasSurfaceTemperatureProfile, tireTemperatureReadings } from "@/components/analyse/tire-temperature-profile";

@@ -4,8 +4,8 @@ import type {
   RaceResultClaimEvidence,
   RaceResultClaimScope,
   RaceResultProvenance,
-} from "../../shared/racing/results/types";
-import { arbitrateRaceResultClaim } from "../../server/race-results/authority";
+} from "@raceiq/shared/racing/results/types";
+import { arbitrateRaceResultClaim } from "@raceiq/backend-core/race-results/authority";
 
 const provenance: RaceResultProvenance = {
   catalogVersion: "catalog-1",

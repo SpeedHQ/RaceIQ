@@ -12,26 +12,26 @@
  *     contributors can opt in by exporting their own laps.
  */
 import { describe, test, expect, beforeAll } from "bun:test";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import { initGameAdapters } from "../../../shared/games/init";
-import { initServerGameAdapters } from "../../../server/games/init";
-import { buildAnalystPrompt } from "../../../server/ai/analyst-prompt";
-import { AnalystOutputSchema } from "../../../server/ai/schemas";
-import { compareLapHeader } from "../../../server/ai/compare-engineer";
-import { resolveCarName } from "../../../shared/racing/cars/resolve-name";
-import { resolveTrackName } from "../../../shared/racing/tracks/resolve-name";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { buildAnalystPrompt } from "@raceiq/backend-core/ai/analyst-prompt";
+import { AnalystOutputSchema } from "@raceiq/backend-core/ai/schemas";
+import { compareLapHeader } from "@raceiq/backend-core/ai/compare-engineer";
+import { resolveCarName } from "@raceiq/shared/racing/cars/resolve-name";
+import { resolveTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
 import {
   buildEvalLapAnalystAgent,
   buildEvalCompareEngineerAgent,
   resolveEvalModelId,
-} from "../../../mastra/evals/eval-agents";
+} from "@raceiq/backend/src/mastra/evals/eval-agents";
 import {
   listLapFixtures,
   listComparePairFixtures,
   loadLapPackets,
   type LapFixture,
   type ComparePairFixture,
-} from "../../../mastra/evals/fixtures";
+} from "@raceiq/backend/src/mastra/evals/fixtures";
 import {
   analystScorers,
   compareScorers,
@@ -39,7 +39,7 @@ import {
   scoreOutput,
   SCORER_THRESHOLDS,
   type ScoreResult,
-} from "../../../mastra/evals";
+} from "@raceiq/backend/src/mastra/evals/index";
 
 const HAS_API_KEY =
   Boolean(process.env.GEMINI_API_KEY) ||

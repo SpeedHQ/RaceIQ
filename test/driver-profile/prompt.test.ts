@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
-import { buildDriverProfilerPrompt } from "../../server/driver-profile/prompt";
-import { emptyFingerprint, type DriverFingerprint } from "../../server/driver-profile/fingerprint";
-import type { DriverTrend } from "../../server/driver-profile/trend";
-import { parseDriverProfileSummary, DriverProfileSummarySchema } from "../../server/ai/schemas";
+import { buildDriverProfilerPrompt } from "@raceiq/backend-core/driver-profile/prompt";
+import { emptyFingerprint, type DriverFingerprint } from "@raceiq/backend-core/driver-profile/fingerprint";
+import type { DriverTrend } from "@raceiq/backend-core/driver-profile/trend";
+import { parseDriverProfileSummary, DriverProfileSummarySchema } from "@raceiq/backend-core/ai/schemas";
 
 function trend(over: Partial<DriverTrend> = {}): DriverTrend {
   const window = {

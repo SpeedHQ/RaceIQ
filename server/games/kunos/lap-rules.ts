@@ -1,7 +1,7 @@
 /**
  * Kunos lap validation rules shared by ACC and AC Evo detectors.
  */
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 /**
  * Returns true if the very first packet of a Kunos (ACC / AC Evo) recording

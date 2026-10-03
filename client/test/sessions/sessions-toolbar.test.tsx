@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import { createElement, type ButtonHTMLAttributes, type ComponentProps } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
+import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import { m } from "../../src/paraglide/messages";
 
 mock.module("@tanstack/react-router", () => ({

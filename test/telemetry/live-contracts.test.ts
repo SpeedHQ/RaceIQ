@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import {
   isDevTelemetryControlMessageV1,
   isDevTelemetryPacketMessageV1,
@@ -9,7 +9,7 @@ import {
   LIVE_TELEMETRY_PROTOCOL_VERSION,
   type LiveTelemetryFrameMessageV1,
   type LiveTelemetrySchemaMessageV1,
-} from "../../shared/telemetry/live/contracts";
+} from "@raceiq/shared/telemetry/live/contracts";
 
 function roundTrip<T>(value: T): T {
   const encoded = JSON.stringify(value);

@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import type { TuneSymptoms } from "../../../server/ai/tune-symptoms";
-import { symptomsToIssues, detectLiveIssues } from "../../../server/ai/tune-issues";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { TuneSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
+import { symptomsToIssues, detectLiveIssues } from "@raceiq/backend-core/ai/tune-issues";
 
 /** Minimal symptom fixture — only the fields symptomsToIssues reads. */
 function makeSymptoms(overrides: Partial<TuneSymptoms> = {}): TuneSymptoms {

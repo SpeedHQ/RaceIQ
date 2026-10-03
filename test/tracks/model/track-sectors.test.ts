@@ -1,9 +1,9 @@
 import { describe, test, expect } from "bun:test";
-import { loadTrackSectorsFor } from "../../../shared/racing/tracks/storage/meta";
-import { computeLapSectors } from "../../../server/lap-analysis/sectors"
-import { initGameAdapters } from "../../../shared/games/init";
-import type { GameId } from "../../../shared/games/ids";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import { loadTrackSectorsFor } from "@raceiq/shared/racing/tracks/storage/meta";
+import { computeLapSectors } from "@raceiq/backend-core/lap-analysis/sectors"
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 initGameAdapters();
 

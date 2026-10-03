@@ -1,4 +1,4 @@
-import { LOCALES } from "@shared/platform/i18n/locales";
+import { LOCALES } from "@raceiq/shared/platform/i18n/locales";
 import { useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";

@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { suggestLapTarget, TARGET_GREEN_MIN, AVG_SPEED_MPS, DEFAULT_LAP_SEC } from "../../shared/racing/experiments/stint-target";
+import { suggestLapTarget, TARGET_GREEN_MIN, AVG_SPEED_MPS, DEFAULT_LAP_SEC } from "@raceiq/shared/racing/experiments/stint-target";
 
 describe("suggestLapTarget", () => {
   test("short lap (fast track) -> clamps to 4", () => {

@@ -1,4 +1,4 @@
-import type { TuneIssue } from "@shared/racing/tuning/issues";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import { Button } from "@/components/ui/button";

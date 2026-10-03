@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import { getOpenAiCompatibleModelsDetailed, runOpenAiCompatible } from "../../../server/ai/providers";
+import { getOpenAiCompatibleModelsDetailed, runOpenAiCompatible } from "@raceiq/backend-core/ai/providers";
 
 const runLocalLmStudio = process.env.LM_STUDIO_E2E === "1" && !process.env.CI;
 const endpoint = process.env.LM_STUDIO_BASE_URL || "http://localhost:1234/v1";

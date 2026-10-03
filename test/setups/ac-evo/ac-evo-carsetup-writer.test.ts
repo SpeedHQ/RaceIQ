@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { carSetupToKnobValues } from "../../../server/games/ac-evo/carsetup";
-import { patchCarSetup, rebuildFields, WRITABLE_CARSETUP_KNOBS, } from "../../../server/games/ac-evo/carsetup-writer";
-import { parseCarSetup, type WireField } from "../../../server/games/ac-evo/carsetup-wire";
+import { carSetupToKnobValues } from "@raceiq/backend-core/games/ac-evo/carsetup";
+import { patchCarSetup, rebuildFields, WRITABLE_CARSETUP_KNOBS, } from "@raceiq/backend-core/games/ac-evo/carsetup-writer";
+import { parseCarSetup, type WireField } from "@raceiq/backend-core/games/ac-evo/carsetup-wire";
 
 const FIXTURE = join(import.meta.dir, "..", "..", "artifacts", "carsetup", "Default-12312.carsetup");
 const fixtureBuf = () => readFileSync(FIXTURE);
@@ -96,7 +96,7 @@ describe("patchCarSetup — round trip on real fixtures", () => {
 
 describe("patchCarSetup — every tunable knob at min and max", () => {
   it("patches each writable knob to its catalog min and max without corrupting other knobs", async () => {
-    const { getAllKnobStates } = await import("../../../server/setups/rules/engine");
+    const { getAllKnobStates } = await import("@raceiq/backend-core/setups/rules/engine");
     const buf = wingFixtureBuf();
     const originalKnobs = carSetupToKnobValues(parseCarSetup(buf)!);
     const states = getAllKnobStates("ac-evo", originalKnobs);

@@ -1,5 +1,5 @@
-import type { SessionMeta } from "@shared/racing/sessions/types";
-import { isPracticeSession } from "@shared/racing/sessions/session-type";
+import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
+import { isPracticeSession } from "@raceiq/shared/racing/sessions/session-type";
 import { Badge } from "@/components/ui/badge";
 
 export function SessionResultMeta({ session }: { session: SessionMeta }) {

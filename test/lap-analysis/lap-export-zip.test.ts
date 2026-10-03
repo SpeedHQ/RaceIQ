@@ -15,22 +15,22 @@ import { describe, test, expect, afterEach } from "bun:test";
 import { unzipSync } from "fflate";
 import { gunzipSync } from "node:zlib";
 import { rmSync } from "node:fs";
-import { db } from "../../server/db/index";
-import { sessions, laps } from "../../server/db/schema";
+import { db } from "@raceiq/backend-core/db/index";
+import { sessions, laps } from "@raceiq/backend-core/db/schema";
 import { eq } from "drizzle-orm";
-import { initGameAdapters } from "../../shared/games/init";
-import { initServerGameAdapters } from "../../server/games/init";
-import { iterateSessionCaptureRecords, META_FRAME_MAGIC, SEGMENT_BOUNDARY_MAGIC } from "../../server/session-capture/framing";
-import { buildLapsZip, LAPS_ZIP_VERSION, type LapsZipManifest } from "../../server/laps/archive";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { iterateSessionCaptureRecords, META_FRAME_MAGIC, SEGMENT_BOUNDARY_MAGIC } from "@raceiq/backend-core/session-capture/framing";
+import { buildLapsZip, LAPS_ZIP_VERSION, type LapsZipManifest } from "@raceiq/backend-core/laps/archive";
 import {
   createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,
   IRacingSourceFrameEncoder,
   isIRacingSessionFrame,
   type IRacingSourceFrameV2,
-} from "../../server/games/iracing/source-frame";
-import { F1_PACKET_IDS } from "../../server/games/f1-2025/f1-wire";
-import type { GameId } from "../../shared/games/ids";
+} from "@raceiq/backend-core/games/iracing/source-frame";
+import { F1_PACKET_IDS } from "@raceiq/backend-core/games/f1-2025/f1-wire";
+import type { GameId } from "@raceiq/shared/games/ids";
 
 initGameAdapters();
 initServerGameAdapters();

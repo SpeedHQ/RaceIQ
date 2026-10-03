@@ -1,11 +1,11 @@
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import type {
   RaceResultClaimEvidence,
   RaceResultEvidence,
   RaceResultOutcomeStatus,
   RaceResultProvenance,
   RaceResultStatus,
-} from "../../shared/racing/results/types";
+} from "@raceiq/shared/racing/results/types";
 
 export type ResultSessionType = "practice" | "qualifying" | "race" | "other" | "unknown";
 export type ResultClassification = RaceResultStatus;

@@ -1,5 +1,5 @@
 import { m } from "@/paraglide/messages";
-import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@shared/racing/experiments/focus";
+import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@raceiq/shared/racing/experiments/focus";
 import { useEffect, useMemo, useState } from "react";
 import { AppInput } from "@/components/ui/AppInput";
 import { FocusPicker } from "@/components/tunes/FocusPicker";

@@ -1,4 +1,4 @@
-import { segmentDisplayNames } from "@shared/racing/tracks/segment-label";
+import { segmentDisplayNames } from "@raceiq/shared/racing/tracks/segment-label";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccTrackGuide, AccTrackSetups } from "@/components/acc/AccTrackSetups";

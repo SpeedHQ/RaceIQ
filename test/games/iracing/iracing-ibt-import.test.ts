@@ -9,20 +9,20 @@ import {
   readFileSync,
   rmSync,
 } from "node:fs";
-import { getDiscoveredCarName } from "../../../server/db/discovered-cars";
-import { getDiscoveredTrackName } from "../../../server/db/discovered-tracks";
-import { db } from "../../../server/db/index";
-import { discoveredCars, discoveredTracks } from "../../../server/db/schema";
-import { getLapsRaw } from "../../../server/db/lap-read-queries";
-import { deleteSession } from "../../../server/db/session-queries";
+import { getDiscoveredCarName } from "@raceiq/backend-core/db/discovered-cars";
+import { getDiscoveredTrackName } from "@raceiq/backend-core/db/discovered-tracks";
+import { db } from "@raceiq/backend-core/db/index";
+import { discoveredCars, discoveredTracks } from "@raceiq/backend-core/db/schema";
+import { getLapsRaw } from "@raceiq/backend-core/db/lap-read-queries";
+import { deleteSession } from "@raceiq/backend-core/db/session-queries";
 import {
   commitStagedIbt,
   previewIbtFile,
   stageIbtUpload,
-} from "../../../server/games/iracing/import-ibt";
-import { initServerGameAdapters } from "../../../server/games/init";
-import { iracingAdapter } from "../../../shared/games/iracing";
-import { initGameAdapters } from "../../../shared/games/init";
+} from "@raceiq/backend-core/games/iracing/import-ibt";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { iracingAdapter } from "@raceiq/shared/games/iracing/index";
+import { initGameAdapters } from "@raceiq/shared/games/init";
 import {
   createRecording,
   drivenRows,

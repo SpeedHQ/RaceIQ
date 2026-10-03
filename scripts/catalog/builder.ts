@@ -15,8 +15,8 @@ import {
 } from "./model";
 import {
   IRACING_SESSION_INFO_CATALOG_FIELDS,
-} from "../../shared/games/iracing/session-info/catalog";
-import { getSchemaForGame } from "../../shared/racing/setups/schema";
+} from "@raceiq/shared/games/iracing/session-info/catalog";
+import { getSchemaForGame } from "@raceiq/shared/racing/setups/schema";
 import {
   assertIRacingSessionInfoCaptureCoverage,
   readIRacingSessionInfoCaptures,

@@ -1,5 +1,5 @@
 import { m } from "@/paraglide/messages";
-import type { GameId } from "@shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { parseAnalyseLapIds, type AnalyseSearch } from "@/lib/game-routes";

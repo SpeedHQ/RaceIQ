@@ -8,7 +8,7 @@
  * acquire/release pair drop the resolution while a capture is still running.
  */
 import { describe, expect, test } from "bun:test";
-import { acquireHighResolutionTimer, currentPeriodMs, releaseHighResolutionTimer, timerResolutionRefCount } from "../../../server/games/shared/win-timer-resolution";
+import { acquireHighResolutionTimer, currentPeriodMs, releaseHighResolutionTimer, timerResolutionRefCount } from "@raceiq/backend-core/games/shared/win-timer-resolution";
 
 const isWindows = process.platform === "win32";
 

@@ -1,5 +1,5 @@
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import { classifyPitCycleLap, type PitCycleReason } from "../../../shared/racing/laps/pit-cycle";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { classifyPitCycleLap, type PitCycleReason } from "@raceiq/shared/racing/laps/pit-cycle";
 import type { LapDetectorPolicy } from "../../lap-detection/types";
 
 export function resolveLMULapTime(

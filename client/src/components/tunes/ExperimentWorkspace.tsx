@@ -1,7 +1,7 @@
 import { m } from "@/paraglide/messages";
-import { getGame } from "@shared/games/registry";
-import { isPitCycleLap } from "@shared/racing/laps/pit-cycle";
-import type { LapMeta } from "@shared/racing/sessions/types";
+import { getGame } from "@raceiq/shared/games/registry"
+import { isPitCycleLap } from "@raceiq/shared/racing/laps/pit-cycle"
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";

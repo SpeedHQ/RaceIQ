@@ -1,6 +1,6 @@
 import { m } from "@/paraglide/messages";
-import type { LiveSectorData } from "../../../../shared/racing/live/types";
-import type { LapMeta } from "../../../../shared/racing/sessions/types";
+import type { LiveSectorData } from "@raceiq/shared/racing/live/types";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { formatLapTime } from "../../lib/format";
 
 interface LiveLapCardsProps {

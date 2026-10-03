@@ -1,13 +1,13 @@
 import { eq, and } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps } from "./schema";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { GameId } from "../../shared/games/ids";
-import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 import { getServerGame } from "../games/registry";
 import { isIRacingSessionFrame } from "../games/iracing/source-frame";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
-import type { LapSetAlignmentIndex } from "../../shared/racing/laps/alignment/build";
+import type { LapSetAlignmentIndex } from "@raceiq/shared/racing/laps/alignment/build";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
 import { loadSessionSource, iterateSessionCaptureFrames, iterateSessionCaptureRecordsFromSource, indexCaptureFrames, clearSessionCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
 import { readFramePrefix } from "../session-capture/framing";

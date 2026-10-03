@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { extractLmStudioContextLengths, getOpenAiCompatibleModelsDetailed, getOpenAiModelsDetailed } from "../../../server/ai/providers";
+import { extractLmStudioContextLengths, getOpenAiCompatibleModelsDetailed, getOpenAiModelsDetailed } from "@raceiq/backend-core/ai/providers";
 
 describe("LM Studio context discovery", () => {
   test("uses loaded runtime context instead of model maximum", () => {

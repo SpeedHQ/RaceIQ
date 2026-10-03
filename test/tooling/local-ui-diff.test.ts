@@ -2,9 +2,9 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { STORYBOOK_SNAPSHOT_CASES } from "../../client/src/stories/snapshot-cases";
-import type { ScreenshotDiff } from "../../scripts/ui/collect-screenshot-diffs";
-import { writeUiDiffReport } from "../../scripts/ui/local-ui-diff";
+import { STORYBOOK_SNAPSHOT_CASES } from "./client/src/stories/snapshot-cases";
+import type { ScreenshotDiff } from "@raceiq/tooling/ui/collect-screenshot-diffs";
+import { writeUiDiffReport } from "@raceiq/tooling/ui/local-ui-diff";
 
 const tempDirs: string[] = [];
 

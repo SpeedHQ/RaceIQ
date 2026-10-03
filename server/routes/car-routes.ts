@@ -4,17 +4,17 @@ import { z } from "zod";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { OrdinalParamSchema, GameIdQuerySchema } from "@shared/platform/http/route-schemas";
-import { fmCarCatalog, getFmCarSpecs } from "../../shared/racing/cars/fm";
-import { resolveCarName } from "../../shared/racing/cars/resolve-name";
-import { getAllIRacingCars } from "../../shared/racing/cars/iracing";
-import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
-import { GameIdSchema } from "../../shared/games/ids";
+import { OrdinalParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
+import { fmCarCatalog, getFmCarSpecs } from "@raceiq/shared/racing/cars/fm";
+import { resolveCarName } from "@raceiq/shared/racing/cars/resolve-name";
+import { getAllIRacingCars } from "@raceiq/shared/racing/cars/iracing";
+import { resolveTrackName } from "@raceiq/shared/racing/tracks/resolve-name";
+import { GameIdSchema } from "@raceiq/shared/games/ids";
 import {
   getDiscoveredCarName,
   listDiscoveredCars,
 } from "../db/discovered-cars";
-import { getLMUCar, lmuCarCatalog } from "../../shared/games/lmu/catalog";
+import { getLMUCar, lmuCarCatalog } from "@raceiq/shared/games/lmu/catalog";
 import { tryGetServerGame } from "../games/registry";
 
 // ─── Car model config paths ────────────────────────────────────────────────────

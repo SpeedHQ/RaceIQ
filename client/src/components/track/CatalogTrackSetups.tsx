@@ -7,8 +7,8 @@ import { useResolveNames } from "@/hooks/catalog-queries";
 import { useCatalogTunes, useUserTunes } from "@/hooks/tunes";
 import { tuneMatchesTrack } from "@/lib/track-match";
 import { m } from "@/paraglide/messages";
-import type { GameId } from "../../../../shared/games/ids";
-import type { TuneSettings } from "../../../../shared/racing/tuning/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { TuneSettings } from "@raceiq/shared/racing/tuning/types";
 import { Button } from "../ui/button";
 
 // Normalised community-or-user setup row for the panel list.

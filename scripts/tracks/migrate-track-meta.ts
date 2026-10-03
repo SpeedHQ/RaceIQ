@@ -10,7 +10,7 @@
  *   bun run scripts/tracks/migrate-track-meta.ts --write
  */
 import { resolve } from "node:path";
-import { SHARED_DIR } from "../../shared/platform/runtime/data-paths";
+import { SHARED_DIR } from "@raceiq/shared/platform/runtime/data-paths";
 import { gameBlocks, loadLegacyFiles, mergeLegacyLayouts } from "./migrate-track-meta-input";
 import { MERGES, buildIdentityMap, type LayoutIdentity } from "./migrate-track-meta-identity";
 import { applyVenueNames, buildLayout, type Conflict } from "./migrate-track-meta-layout";

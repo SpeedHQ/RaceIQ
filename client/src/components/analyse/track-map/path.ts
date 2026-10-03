@@ -1,4 +1,4 @@
-import { applyAlignment, computeAlignment } from "@shared/racing/tracks/geometry/points";
+import { applyAlignment, computeAlignment } from "@raceiq/shared/racing/tracks/geometry/points";
 import { semanticNumber, type Point, type SemanticAnalysisFrame, type TrackMapBoundaries } from "./types";
 
 const worldPosition = (frame: SemanticAnalysisFrame): Point => ({

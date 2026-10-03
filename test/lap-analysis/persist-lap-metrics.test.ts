@@ -5,9 +5,9 @@
  * when no channel is usable.
  */
 import { describe, test, expect } from "bun:test";
-import { persistLapMetrics } from "../../server/lap-analysis/metrics-store";
-import { CapturingDbAdapter } from "../../server/telemetry/pipeline-ports";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { persistLapMetrics } from "@raceiq/backend-core/lap-analysis/metrics-store";
+import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 
 function mkPackets(opts: { fuelPerLap?: number; tyreWear?: number[]; fuel?: [number, number] }): TelemetryPacket[] {

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readdirSync, rmSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createDiagnosticLogStore } from "../../server/runtime/diagnostic-log-store";
+import { createDiagnosticLogStore } from "@raceiq/backend-core/runtime/diagnostic-log-store";
 
 describe("diagnostic log store", () => {
   test("preserves restart markers and oversized lines", () => {

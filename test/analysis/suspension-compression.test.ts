@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { suspensionCompressionBias } from "../../shared/racing/analysis/laps/physics/vehicle";
+import { suspensionCompressionBias } from "@raceiq/shared/racing/analysis/laps/physics/vehicle";
 
 describe("suspension compression bias", () => {
   test("reports each axis as its share of total compression", () => {

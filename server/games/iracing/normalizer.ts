@@ -1,5 +1,5 @@
 import type { LapIndexPacket } from "../../lap-detection/types";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import {
   createIRacingSourceDecoderState,
   type IRacingSourceDecoderState,

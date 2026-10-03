@@ -20,9 +20,9 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import type { TrackGuideCornerFile, TrackGuideFile } from "../../shared/racing/tracks/guide/types";
+import type { TrackGuideCornerFile, TrackGuideFile } from "@raceiq/shared/racing/tracks/guide/types";
 // @ts-expect-error — __rawGuides is a temporary export that exists only while this script runs.
-import { __rawGuides } from "../../server/ai/track-guides";
+import { __rawGuides } from "@raceiq/backend-core/ai/track-guides";
 
 interface RawCorner {
   name: string;

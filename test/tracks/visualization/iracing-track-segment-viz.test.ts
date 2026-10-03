@@ -12,17 +12,17 @@ import {
 import { resolve } from "node:path";
 import {
   readIRacingFrames,
-} from "../../../server/games/iracing/recorder";
+} from "@raceiq/backend-core/games/iracing/recorder";
 import {
   createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,
-} from "../../../server/games/iracing/source-frame";
-import { initGameAdapters } from "../../../shared/games/init";
+} from "@raceiq/backend-core/games/iracing/source-frame";
+import { initGameAdapters } from "@raceiq/shared/games/init";
 import {
   generateTrackSegments,
   loadCenterline,
-} from "../../../shared/racing/tracks/curation/generate";
-import { loadTrackFacts } from "../../../shared/racing/tracks/storage/meta";
+} from "@raceiq/shared/racing/tracks/curation/generate";
+import { loadTrackFacts } from "@raceiq/shared/racing/tracks/storage/meta";
 import { generateSegmentSvg } from "../../support/tracks/segment-svg";
 
 const FIXTURE =

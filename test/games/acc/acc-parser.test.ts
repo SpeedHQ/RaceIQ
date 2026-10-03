@@ -1,17 +1,17 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
-import { parseAccBuffers } from "../../../server/games/acc/parser";
-import { parseAccLapIndex } from "../../../server/games/kunos/lap-index";
-import { PHYSICS, GRAPHICS, STATIC } from "../../../server/games/acc/structs";
-import { initGameAdapters } from "../../../shared/games/init";
-import { initServerGameAdapters } from "../../../server/games/init";
-import { getServerGame } from "../../../server/games/registry";
-import { parseRawLapFramesFromBuffer } from "../../../server/db/telemetry-replay-storage";
-import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
-import { getAccTrackName } from "../../../shared/racing/tracks/catalogs/acc"
-import { getAccCarName } from "../../../shared/racing/cars/acc"
-import { ACC_PACKED_MAGIC, packTriplet, unpackTriplet } from "../../../server/games/kunos/pack-triplet";
+import { parseAccBuffers } from "@raceiq/backend-core/games/acc/parser";
+import { parseAccLapIndex } from "@raceiq/backend-core/games/kunos/lap-index";
+import { PHYSICS, GRAPHICS, STATIC } from "@raceiq/backend-core/games/acc/structs";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { getServerGame } from "@raceiq/backend-core/games/registry";
+import { parseRawLapFramesFromBuffer } from "@raceiq/backend-core/db/telemetry-replay-storage";
+import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
+import { getAccTrackName } from "@raceiq/shared/racing/tracks/catalogs/acc"
+import { getAccCarName } from "@raceiq/shared/racing/cars/acc"
+import { ACC_PACKED_MAGIC, packTriplet, unpackTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
 
 initGameAdapters();
 initServerGameAdapters();

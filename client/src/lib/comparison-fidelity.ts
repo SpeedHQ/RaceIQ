@@ -1,4 +1,4 @@
-import type { ComparisonData, ComparisonRangeData } from "@shared/racing/comparison/types";
+import type { ComparisonData, ComparisonRangeData } from "@raceiq/shared/racing/comparison/types";
 
 export const MAX_FIDELITY_POINTS = 100_000;
 export const HIGH_FIDELITY_STEP = 0.1 as const;

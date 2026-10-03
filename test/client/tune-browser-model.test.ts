@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { buildRows } from "../../client/src/components/tune/browser/buildRows";
+import { buildRows } from "./client/src/components/tune/browser/buildRows";
 
 const S = { tires:{}, gearing:{}, alignment:{}, antiRollBars:{}, springs:{}, damping:{}, aero:{}, differential:{}, brakes:{} } as any;
 

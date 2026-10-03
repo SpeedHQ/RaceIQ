@@ -12,7 +12,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { GameIdSchema } from "../../shared/games/ids";
+import { GameIdSchema } from "@raceiq/shared/games/ids";
 import { loadDriverProfile } from "../driver-profile/load";
 import {
   getDriverProfileRunStatus,

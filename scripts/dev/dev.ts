@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { createServer } from "node:net";
-import { parseOnboardingOverride } from "../../server/runtime/options";
+import { parseOnboardingOverride } from "@raceiq/backend-core/runtime/options";
 
 async function availableHttpPort(): Promise<number> {
   const server = createServer();

@@ -4,20 +4,20 @@ import { errorLogger } from "../runtime/logger";
 import { IS_DEV, IS_E2E } from "../runtime/config/env";
 
 import { settingsRoutes } from "./settings-routes";
-import { lapRoutes } from "./laps";
+import { lapRoutes } from "./laps/index";
 import { driverRoutes } from "./driver-routes";
 import { chatsRoutes } from "./chats-routes";
 import { chatRunRoutes } from "./chat-run-routes";
 import { sessionRoutes } from "./session-routes";
-import { trackRoutes } from "./tracks";
+import { trackRoutes } from "./tracks/index";
 import { carRoutes } from "./car-routes";
 import { tuneRoutes } from "./tune-routes";
 import { accRoutes } from "./games/acc";
 import { acEvoRoutes } from "./games/ac-evo";
 import { f125Routes } from "./games/f1-2025";
-import { miscRoutes } from "./system";
+import { miscRoutes } from "./system/index";
 import { cacheRoutes } from "./cache-routes";
-import { devRoutes } from "./dev";
+import { devRoutes } from "./dev/index";
 
 const app = new Hono()
   // In dev, Mastra Studio (localhost:3000) probes /studio-api/auth/capabilities

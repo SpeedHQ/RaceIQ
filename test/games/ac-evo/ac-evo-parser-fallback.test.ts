@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
-import { parseAcEvoBuffers, createAcEvoParserCache } from "../../../server/games/ac-evo/parser";
-import { parseAcEvoLapIndex } from "../../../server/games/kunos/lap-index";
-import { PHYSICS, GRAPHICS_EVO, STATIC_EVO, TYRE_STATE, ACEVO_STATUS } from "../../../server/games/ac-evo/structs";
+import { parseAcEvoBuffers, createAcEvoParserCache } from "@raceiq/backend-core/games/ac-evo/parser";
+import { parseAcEvoLapIndex } from "@raceiq/backend-core/games/kunos/lap-index";
+import { PHYSICS, GRAPHICS_EVO, STATIC_EVO, TYRE_STATE, ACEVO_STATUS } from "@raceiq/backend-core/games/ac-evo/structs";
 
 function emptyBuffers() {
   const graphics = Buffer.alloc(GRAPHICS_EVO.SIZE);

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { resolvedResumableThreadId } from "../../client/src/components/ai-chat/resumable-chat";
+import { resolvedResumableThreadId } from "./client/src/components/ai-chat/resumable-chat";
 
 describe("resumable chat selection", () => {
   test("does not resume cleared or finished threads", () => {

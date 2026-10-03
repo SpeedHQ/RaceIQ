@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { AllWheelStates } from "../../shared/racing/analysis/laps/physics/vehicle";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { AllWheelStates } from "@raceiq/shared/racing/analysis/laps/physics/vehicle";
 import {
   detectBinaryThrottle,
   detectCoasting,
@@ -8,7 +8,7 @@ import {
   detectEarlyBraking,
   detectEarlyThrottle,
   detectOverSlowing,
-} from "../../shared/racing/analysis/laps/insights/driving-core";
+} from "@raceiq/shared/racing/analysis/laps/insights/driving-core";
 
 function recording(hz: number, seconds: number, at: (t: number) => Partial<TelemetryPacket>): TelemetryPacket[] {
   return Array.from({ length: Math.round(hz * seconds) }, (_, i) => ({

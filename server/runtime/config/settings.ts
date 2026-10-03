@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { z } from "zod";
 import { resolveDataDir } from "./data-dir";
 import { isLaunchOnLoginEnabled } from "../platform/launch-on-login";
-import { LOCALE_CODES } from "@shared/platform/i18n/locales";
+import { LOCALE_CODES } from "@raceiq/shared/platform/i18n/locales";
 const SETTINGS_DIR = resolveDataDir();
 const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
 

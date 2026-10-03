@@ -1,23 +1,23 @@
 import { z } from "zod";
-import { autoTrackSegments } from "../../../shared/racing/tracks/curation/generate";
-import type { NamedSegment } from "../../../shared/racing/tracks/named-segments";
+import { autoTrackSegments } from "@raceiq/shared/racing/tracks/curation/generate";
+import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
 import { getLapSummariesByTrack, getLapById } from "../../db/lap-read-queries";
 import { getTrackOutline as getDbTrackOutline } from "../../db/track-queries";
 import {
   getTrackOutlineByOrdinal,
   getRecordedOutlineByOrdinal,
   recordLapTrace,
-} from "../../../shared/racing/tracks/recording/outlines";
-import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
-import { loadSharedOutline } from "../../../shared/racing/tracks/geometry/shared";
+} from "@raceiq/shared/racing/tracks/recording/outlines";
+import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";
+import { loadSharedOutline } from "@raceiq/shared/racing/tracks/geometry/shared";
 import { tryGetServerGame } from "../../games/registry";
-import { tryGetGame } from "../../../shared/games/registry";
-import { GameIdSchema, type GameId } from "../../../shared/games/ids";
+import { tryGetGame } from "@raceiq/shared/games/registry";
+import { GameIdSchema, type GameId } from "@raceiq/shared/games/ids";
 import { getIRacingSvgTrackMap } from "../../games/iracing/track-map";
 import { alignIRacingAutoSegmentsToTurnLabels, type IRacingMapLabel } from "../../games/iracing/track-map-svg";
-import { lapPath } from "../../../shared/racing/tracks/path";
-import { getLMUTrack } from "../../../shared/games/lmu/catalog";
-import { getLMUTrackOutline } from "../../../shared/games/lmu/track-boundaries";
+import { lapPath } from "@raceiq/shared/racing/tracks/path";
+import { getLMUTrack } from "@raceiq/shared/games/lmu/catalog";
+import { getLMUTrackOutline } from "@raceiq/shared/games/lmu/track-boundaries";
 
 // ─── Param schemas ──────────────────────────────────────────────────────────
 

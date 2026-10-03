@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type { LineSpreadTrace } from "@/hooks/experiments";
 import type { TrackCorner } from "@/hooks/track-queries";
 import { severityColor, severityRangeColor } from "@/lib/colors";
-import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
+import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import { consistencyAt, type LapTrace, sampleAt } from "../../../lib/stint-traces";
 import { ChartTooltip } from "./ChartTooltip";
 import { nearestCornerLabel } from "./detect-corners";

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { timestampForFilename } from "../../server/session-capture/filename";
+import { timestampForFilename } from "@raceiq/backend-core/session-capture/filename";
 
 test("capture timestamps are valid Windows filename components", () => {
   const timestamp = timestampForFilename(new Date("2026-08-30T12:34:56.789Z"));

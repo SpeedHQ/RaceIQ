@@ -1,6 +1,6 @@
 import { parentPort } from "node:worker_threads";
-import { initGameAdapters } from "../../shared/games/init";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { detectCorners } from "../lap-analysis/corners";
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
 import { symptomsToIssues } from "../ai/tune-issues";

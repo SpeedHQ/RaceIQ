@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { gzipSync } from "node:zlib";
-import { LiveTelemetryPipeline } from "../../server/telemetry/live-pipeline";
-import { NullDbAdapter, NullWsAdapter, type SessionRecorderAdapter } from "../../server/telemetry/pipeline-ports";
-import { decompressIfGzipSync, iterateSessionCaptureRecords } from "../../server/session-capture/framing";
+import { LiveTelemetryPipeline } from "@raceiq/backend-core/telemetry/live-pipeline";
+import { NullDbAdapter, NullWsAdapter, type SessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
+import { decompressIfGzipSync, iterateSessionCaptureRecords } from "@raceiq/backend-core/session-capture/framing";
 
 class RecordingRecorder implements SessionRecorderAdapter {
   readonly writes: Buffer[] = [];

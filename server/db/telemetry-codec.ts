@@ -1,6 +1,6 @@
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { GameId } from "../../shared/games/ids";
-import { tryGetGame } from "../../shared/games/registry";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { tryGetGame } from "@raceiq/shared/games/registry";
 import type { ServerGameAdapter } from "../games/types";
 import { fillNormSuspension } from "../telemetry/normalization";
 

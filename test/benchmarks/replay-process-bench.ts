@@ -2,14 +2,14 @@ import { createHash } from "node:crypto";
 import { gunzipSync } from "node:zlib";
 import { bench, do_not_optimize, group } from "mitata";
 
-import { parseRawLapFramesFromBuffer, type LapReplaySource } from "../../server/db/telemetry-replay-storage";
-import { resolveTelemetryReplay } from "../../server/telemetry/replay";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { initGameAdapters } from "../../shared/games/init";
-import { initServerGameAdapters } from "../../server/games/init";
-import { getAllServerGames } from "../../server/games/registry";
-import type { GameId } from "../../shared/games/ids";
-import { iterateSessionFrameRecords } from "../../server/session-capture/framing";
+import { parseRawLapFramesFromBuffer, type LapReplaySource } from "@raceiq/backend-core/db/telemetry-replay-storage";
+import { resolveTelemetryReplay } from "@raceiq/backend-core/telemetry/replay";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { initGameAdapters } from "@raceiq/shared/games/init";
+import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { getAllServerGames } from "@raceiq/backend-core/games/registry";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { iterateSessionFrameRecords } from "@raceiq/backend-core/session-capture/framing";
 import { runMitataBenchmarks } from "./mitata-harness";
 
 export const REPLAY_PARSE_ALIAS = "replay/parse 20,000 raw lap frames";

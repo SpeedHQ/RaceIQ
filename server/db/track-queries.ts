@@ -1,7 +1,7 @@
 import { eq, and } from "drizzle-orm";
 import { db } from "./index";
 import { trackCorners, trackOutlines } from "./schema";
-import type { GameId } from "../../shared/games/ids";
+import type { GameId } from "@raceiq/shared/games/ids";
 import type { Corner } from "../lap-analysis/corners"
 
 export async function getCorners(trackOrdinal: number, gameId: GameId): Promise<Corner[]> {

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { resolveTelemetryReplay } from "../../server/telemetry/replay";
-import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
+import { resolveTelemetryReplay } from "@raceiq/backend-core/telemetry/replay";
+import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
 import type { DumpResult } from "../support/recordings/parse-dump";
 import { parseDump } from "../support/recordings/parse-dump";
 

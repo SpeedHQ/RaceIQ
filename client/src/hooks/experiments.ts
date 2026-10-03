@@ -1,7 +1,7 @@
-import type { ExperimentFocus, VersionKind } from "@shared/racing/experiments/focus";
+import type { ExperimentFocus, VersionKind } from "@raceiq/shared/racing/experiments/focus";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { LapMeta } from "../../../shared/racing/sessions/types";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
 import { rpcJson } from "../lib/rpc-json";

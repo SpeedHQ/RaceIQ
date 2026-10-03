@@ -25,9 +25,9 @@
 
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import type { GameId } from "../../../shared/games/ids";
-import { flipPoints, needsTrackFlip, type Pt } from "../../../shared/racing/tracks/coords";
-import { makeTrackProjection } from "../../../shared/racing/tracks/projection";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { flipPoints, needsTrackFlip, type Pt } from "@raceiq/shared/racing/tracks/coords";
+import { makeTrackProjection } from "@raceiq/shared/racing/tracks/projection";
 import type { Point } from "./from-centerline";
 
 const PANEL_W = 600;

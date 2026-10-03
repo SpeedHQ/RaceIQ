@@ -1,6 +1,6 @@
 import { m } from "@/paraglide/messages";
-import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@shared/racing/experiments/focus";
-import { AccSetupJsonSchema, setupFileFormat, setupFileRejectReason } from "@shared/racing/setups/file-formats";
+import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@raceiq/shared/racing/experiments/focus";
+import { AccSetupJsonSchema, setupFileFormat, setupFileRejectReason } from "@raceiq/shared/racing/setups/file-formats";
 import { type DragEvent, useMemo, useRef, useState } from "react";
 import { FocusPicker } from "@/components/tunes/FocusPicker";
 import { SetupFilePicker } from "@/components/tunes/SetupFilePicker";

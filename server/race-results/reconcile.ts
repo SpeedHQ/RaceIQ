@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import type { GameId } from "../../shared/games/ids";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { getLapById } from "../db/lap-read-queries";
 import { getLapsForSession } from "../db/lap-reprocessing-queries";
 import { getSessions } from "../db/session-queries";
@@ -9,7 +9,7 @@ import { getSessionRawFile, iterateSessionTelemetry } from "../db/telemetry-repl
 import { deriveRaceResult, normalizeSessionType } from "./derive";
 import { RaceSourceAccumulator } from "./source";
 import type { PitEvent } from "./types";
-import type { RaceResultRawInputIdentity } from "../../shared/racing/results/types";
+import type { RaceResultRawInputIdentity } from "@raceiq/shared/racing/results/types";
 import { hashRawCapture, rawCaptureObjectId } from "../session-capture/identity";
 import { getAllServerGames } from "../games/registry";
 

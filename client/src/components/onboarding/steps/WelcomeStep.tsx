@@ -1,4 +1,4 @@
-import { LOCALES } from "@shared/platform/i18n/locales";
+import { LOCALES } from "@raceiq/shared/platform/i18n/locales";
 import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
 import type { SceneRuntime, SceneSource } from "@/components/wireframe/SceneRuntime";
 import { flushSync } from "react-dom";

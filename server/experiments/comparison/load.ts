@@ -16,9 +16,9 @@
  *   `Promise.all`) precisely to keep that bound: overlapping them would double it.
  */
 
-import type { LapMeta } from "../../../shared/racing/sessions/types";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import type { EvaluableLap } from "../../../shared/racing/laps/review-selection";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { EvaluableLap } from "@raceiq/shared/racing/laps/review-selection";
 import type { Corner } from "../../lap-analysis/corners";
 import { resolveLapCorners } from "../../tracks/corner-resolution";
 import { getLapById } from "../../db/lap-read-queries";

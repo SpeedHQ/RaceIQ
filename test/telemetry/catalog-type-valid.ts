@@ -2,12 +2,12 @@ import type {
   TelemetryCatalogGroup,
   TelemetrySourceVariable,
   TelemetryVariableDefinition,
-} from "../../shared/telemetry/catalog/contracts";
+} from "@raceiq/shared/telemetry/catalog/contracts";
 import type {
   TelemetryGroupId,
   TelemetrySourcePath,
   TelemetryVariableId,
-} from "../../shared/telemetry/catalog/generated/telemetry-catalog.types";
+} from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
 
 const groupId: TelemetryGroupId = "brakes";
 const variableId: TelemetryVariableId = "engine.current-engine-rpm";

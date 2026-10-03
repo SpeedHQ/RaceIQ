@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
-import type { GameId } from "../../shared/games/ids";
-import { tryGetGame } from "../../shared/games/registry";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { tryGetGame } from "@raceiq/shared/games/registry";
 import { loadSettings } from "../runtime/config/settings";
 import { toClientAiError, type ClientAiError } from "../ai/provider-error";
 import { configureAiProviderEnvironment } from "../ai/openai-compatible-provider";
