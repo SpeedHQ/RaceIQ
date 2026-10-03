@@ -16,6 +16,8 @@ This suite owns route-level browser tests and screenshot evidence. It is separat
 
 Config uses `tests/` as `testDir`; no specs belong at `tests/` root. Stateful projects stay ordered on one worker. Only seeded screenshot runs enable parallel screenshot workers.
 
+Root `test:e2e` (including `test:e2e:compiled`) and workspace `test`/`test:ui` force `--workers=1`, overriding `PW_WORKERS`. Root `test:e2e:all` inherits the workspace limit. Capture migration and ordinary seeded projects share one database; per-project worker limits do not prevent cross-project overlap. Keep direct multi-project invocations containing capture migration on `--workers=1`.
+
 ## Commands and server modes
 
 ```sh

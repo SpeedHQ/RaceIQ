@@ -3,8 +3,8 @@
   "private": true,
   "scripts": {
     "build": "cd .. && bun run build",
-    "test": "bun run build && playwright test",
-    "test:ui": "bun run build && playwright test --ui",
+    "test": "bun run build && playwright test --workers=1",
+    "test:ui": "bun run build && playwright test --workers=1 --ui",
     "screenshots": "playwright test --project=marketing",
     "screenshots:mobile": "bun run build && playwright test --project=mobile-screenshots",
     "typecheck": "bunx tsc --noEmit -p tsconfig.json",
