@@ -208,7 +208,7 @@ export async function markSessionCaptureFormatCurrent(sessionId: number): Promis
 export function isOwnedSessionRawFile(rawFile: string): boolean {
   const sessionsDir = resolve(resolveDataDir(), "sessions");
   const relativePath = relative(sessionsDir, resolve(rawFile));
-  return relativePath.length > 0 && relativePath !== "../index" && !relativePath.startsWith(`..${sep}`);
+  return relativePath.length > 0 && relativePath !== ".." && !relativePath.startsWith(`..${sep}`);
 }
 
 async function unlinkOwnedSessionRawFile(rawFile: string | null): Promise<void> {

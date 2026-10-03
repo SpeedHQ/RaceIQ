@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { registerDiscoveredCar } from "@raceiq/backend-core/db/discovered-cars";
 import { db } from "@raceiq/backend-core/db/index";
 import { discoveredCars } from "@raceiq/backend-core/db/schema";
-import { CarModelConfigUpdateSchema, carRoutes } from "@raceiq/backend-core/routes/car-routes";
+import { CarModelConfigUpdateSchema, carRoutes } from "@raceiq/backend/routes/car-routes";
 
 const CAR_ID = 987_654_321;
 

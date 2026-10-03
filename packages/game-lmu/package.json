@@ -2,11 +2,19 @@
   "name": "@raceiq/game-lmu",
   "private": true,
   "type": "module",
-  "exports": {".":"./src/index.ts","./import-duckdb":"./src/import-duckdb.ts","./lap-policy":"./src/lap-policy.ts","./normalizer":"./src/normalizer.ts","./recorder":"./src/recorder.ts","./source":"./src/source.ts"},
+  "exports": {
+    ".": "./src/index.ts",
+    "./import-duckdb": "./src/import-duckdb.ts",
+    "./lap-policy": "./src/lap-policy.ts",
+    "./normalizer": "./src/normalizer.ts",
+    "./recorder": "./src/recorder.ts",
+    "./source": "./src/source.ts"
+  },
   "dependencies": {
+    "@raceiq/capture-formats": "workspace:*",
     "@raceiq/shared": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
-    "@raceiq/capture-formats": "workspace:*"
+    "@duckdb/node-api": "1.5.2-r.2"
   },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit"

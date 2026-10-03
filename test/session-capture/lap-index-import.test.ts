@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { initGameAdapters } from "@raceiq/shared/games/init";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { normalizeTelemetryPacket } from "@raceiq/backend-core/telemetry/normalization";
 import { iterateSessionFrames } from "@raceiq/backend-core/session-capture/framing";

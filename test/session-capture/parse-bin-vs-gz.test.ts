@@ -10,7 +10,7 @@ import { gunzipSync } from "node:zlib";
 import { parseRawLapFramesFromBuffer } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { loadSessionCapture } from "@raceiq/backend-core/session-capture/source-loader";
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing"
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
 

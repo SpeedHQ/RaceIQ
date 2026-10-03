@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { computeIRacingSectorTimeline,
 computeLapSectors, } from "@raceiq/backend-core/lap-analysis/sectors"
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import {
   createIRacingParserState,
   normalizeIRacingFrame,

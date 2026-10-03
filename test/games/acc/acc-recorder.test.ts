@@ -6,7 +6,7 @@ import { parseAccBuffers } from "@raceiq/game-acc/parser";
 import { PHYSICS, GRAPHICS, STATIC } from "@raceiq/capture-formats/acc/structs";
 import { unpackTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import * as fsPromises from "node:fs/promises";

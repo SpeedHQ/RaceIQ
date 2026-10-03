@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
-import { settingsRoutes, shouldCheckCredentialStatus } from "@raceiq/backend-core/routes/settings-routes";
+import { settingsRoutes, shouldCheckCredentialStatus } from "@raceiq/backend/routes/settings-routes";
 
 // Follows DATA_DIR so this never mutates the real dev settings.json —
 // `bun run test` isolates DATA_DIR to a throwaway directory (see package.json).

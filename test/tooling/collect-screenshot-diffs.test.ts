@@ -109,7 +109,7 @@ describe("collect-screenshot-diffs", () => {
 
     const args = [
       process.execPath,
-      resolve(import.meta.dir, "@raceiq/tooling/ui/collect-screenshot-diffs"),
+      resolve(import.meta.dir, "../../scripts/ui/collect-screenshot-diffs.ts"),
       "--base",
       base,
       "--current",
@@ -132,7 +132,7 @@ describe("collect-screenshot-diffs", () => {
 
   test("incomplete snapshot renders warn without blocking preview publication", async () => {
     const preview = makeTempDir();
-    const args = [process.execPath, resolve(import.meta.dir, "@raceiq/tooling/ui/report-snapshot-failure"), preview];
+    const args = [process.execPath, resolve(import.meta.dir, "../../scripts/ui/report-snapshot-failure.ts"), preview];
     const empty = Bun.spawnSync(args);
     expect(empty.exitCode).toBe(0);
     expect(empty.stderr.toString()).toContain("::warning::");

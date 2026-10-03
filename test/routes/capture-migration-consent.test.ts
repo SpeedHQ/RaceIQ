@@ -7,11 +7,11 @@ import { inArray } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions } from "@raceiq/backend-core/db/schema";
 import { deleteSession, insertSession, updateSessionRawFile, getCaptureMigrationCandidates } from "@raceiq/backend-core/db/session-queries";
-import { sessionRoutes } from "@raceiq/backend-core/routes/session-routes";
+import { sessionRoutes } from "@raceiq/backend/routes/session-routes";
 import { encodeFrameLength, encodeMetaFrame } from "@raceiq/backend-core/session-capture/framing";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { WSData, wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
-import { startSyncAndStaleSessionJobs } from "@raceiq/backend-core/runtime/startup-jobs";
+import { startSyncAndStaleSessionJobs } from "@raceiq/backend/runtime/startup-jobs";
 
 function socket() {
   const sent: string[] = [];

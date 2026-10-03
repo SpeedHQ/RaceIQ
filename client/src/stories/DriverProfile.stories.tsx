@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import type { DriverProfileSummary } from "@raceiq/backend-core/ai/schemas";
 import type { RankedWeakness, StyleAxes } from "@raceiq/backend-core/driver-profile/detectors";
-import type { DriverFingerprint } from "@raceiq/backend-core/driver-profile/fingerprint";
+import type { DriverFingerprint } from "@raceiq/backend/driver-profile/fingerprint";
 import type { DriverTrend, DriverTrendLap, DriverTrendWindow } from "@raceiq/backend-core/driver-profile/trend";
 import { DriverProfileView } from "../components/driver/DriverProfileView";
 import { Button } from "../components/ui/button";

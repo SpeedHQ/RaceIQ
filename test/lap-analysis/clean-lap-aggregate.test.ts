@@ -4,7 +4,7 @@ import {
   computeConsistency,
   aggregateSymptoms,
   baselineFallbackNote,
-} from "@raceiq/backend-core/experiments/lap-evidence/aggregate";
+} from "@raceiq/backend/experiments/lap-evidence/aggregate";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { TuneSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
 

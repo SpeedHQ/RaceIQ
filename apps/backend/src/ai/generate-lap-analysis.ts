@@ -1,0 +1,349 @@
+import type { Tune } from "@raceiq/shared/racing/tuning/types";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
+import { getCorners } from "@raceiq/backend-core/db/track-queries";
+import { getAnalysis, saveAnalysis } from "@raceiq/backend-core/db/analysis-queries";
+import { getTuneById as getDbTune } from "@raceiq/backend-core/db/tune-queries";
+import { detectCorners, type Corner } from "@raceiq/backend-core/lap-analysis/corners";
+import { getOrComputeLapInsights } from "@raceiq/backend-core/lap-analysis/metrics-store";
+import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
+import { buildAnalystPrompt, type PromptSectors } from "@raceiq/backend-core/ai/analyst-prompt";
+import { resolveTrack } from "@raceiq/backend-core/tracks/info";
+import { computeNativeSectorTimeline, computeLapSectors } from "@raceiq/backend-core/lap-analysis/sectors";
+import { getGame } from "@raceiq/shared/games/registry";
+import { lapAnalystAgent } from "./agents";
+import { getAnalystJsonSchema, AnalystOutputSchema, parseAnalystOutput } from "@raceiq/backend-core/ai/schemas";
+import { buildGoogleThinkingProviderOptions } from "@raceiq/backend-core/ai/google-provider-options";
+import { formatClientAiErrorMessage, toClientAiError } from "@raceiq/backend-core/ai/provider-error";
+import { resolveAi } from "./ai-runtime";
+import { runAiStructured } from "./model-provider";
+import { getOpenAiCompatibleModelsDetailed } from "@raceiq/backend-core/ai/providers";
+import type { StructuredRequest, ResolvedAi } from "@raceiq/backend-core/ai/ai-types";
+import { logLlmEvent } from "@raceiq/backend-core/ai/diagnostic-logging";
+
+export interface AnalysisUsage {
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  durationMs: number;
+  model: string;
+}
+export interface CornerFraction {
+  label: string;
+  startFrac: number;
+  endFrac: number;
+}
+export interface LapAnalysisResult {
+  analysis: string | null;
+  cached: boolean;
+  usage?: AnalysisUsage;
+  cornerFracs: CornerFraction[];
+  hasTune: boolean;
+  error?: string;
+}
+
+type AgentGenerate = (
+  prompt: string,
+  options: Record<string, unknown>,
+) => Promise<unknown>;
+export interface GenerateLapAnalysisDeps {
+  getLapById?: typeof getLapById;
+  getCorners?: typeof getCorners;
+  getAnalysis?: typeof getAnalysis;
+  saveAnalysis?: typeof saveAnalysis;
+  getDbTune?: typeof getDbTune;
+  detectCorners?: typeof detectCorners;
+  computeLapSectors?: typeof computeLapSectors;
+  computeNativeSectorTimeline?: typeof computeNativeSectorTimeline;
+  getGame?: typeof getGame;
+  loadSettings?: typeof loadSettings;
+  buildAnalystPrompt?: typeof buildAnalystPrompt;
+  getOrComputeLapInsights?: typeof getOrComputeLapInsights;
+  resolveTrack?: typeof resolveTrack;
+  resolveAi?: typeof resolveAi;
+  getRuntimeContextLength?: (endpoint: string, model: string) => Promise<number | undefined>;
+  runAiStructured?: typeof runAiStructured;
+  generate?: AgentGenerate;
+}
+
+const invalidAnalysisError =
+  "Model produced invalid analysis structure. Not cached. Try again or switch model.";
+
+async function getRuntimeContextLength(endpoint: string, model: string): Promise<number | undefined> {
+  const result = await getOpenAiCompatibleModelsDetailed(endpoint);
+  return result.models.find((candidate) => candidate.id === model)?.contextLength;
+}
+
+export async function generateLapAnalysis(
+  lapId: number,
+  options: {
+    regenerate?: boolean;
+    cacheOnly?: boolean;
+    preflight?: boolean;
+  } = {},
+  deps: GenerateLapAnalysisDeps = {},
+): Promise<LapAnalysisResult> {
+  const findLap = deps.getLapById ?? getLapById;
+  const findCorners = deps.getCorners ?? getCorners;
+  const readAnalysis = deps.getAnalysis ?? getAnalysis;
+  const writeAnalysis = deps.saveAnalysis ?? saveAnalysis;
+  const lap = await findLap(lapId);
+  if (!lap)
+    return {
+      analysis: null,
+      cached: false,
+      cornerFracs: [],
+      hasTune: false,
+      error: "Lap not found",
+    };
+  if (lap.telemetry.length === 0)
+    return {
+      analysis: null,
+      cached: false,
+      cornerFracs: [],
+      hasTune: false,
+      error: "No telemetry data",
+    };
+
+  const trackOrdinal = lap.trackOrdinal ?? 0;
+  let corners: Corner[] =
+    trackOrdinal > 0 && lap.gameId
+      ? await findCorners(trackOrdinal, lap.gameId)
+      : [];
+  if (corners.length === 0)
+    corners = (deps.detectCorners ?? detectCorners)(lap.telemetry);
+  const totalDist =
+    lap.telemetry.length > 1
+      ? lap.telemetry[lap.telemetry.length - 1].DistanceTraveled -
+        lap.telemetry[0].DistanceTraveled
+      : 1;
+  const firstDist = lap.telemetry[0]?.DistanceTraveled ?? 0;
+  const cornerFracs = corners.map((corner) => ({
+    label: corner.label,
+    startFrac: Math.max(0, (corner.distanceStart - firstDist) / totalDist),
+    endFrac: Math.min(1, (corner.distanceEnd - firstDist) / totalDist),
+  }));
+  const hasTune = !!lap.tuneId || (lap.gameId === "f1-2025" && !!lap.carSetup);
+
+  if (!options.regenerate) {
+    const cached = await readAnalysis(lapId);
+    const cachedAnalysis = parseAnalystOutput(cached?.analysis);
+    if (cached && cachedAnalysis.success) {
+      return {
+        analysis: JSON.stringify(cachedAnalysis.data),
+        cached: true,
+        usage: {
+          inputTokens: cached.inputTokens,
+          outputTokens: cached.outputTokens,
+          costUsd: cached.costUsd,
+          durationMs: cached.durationMs,
+          model: cached.model,
+        },
+        cornerFracs,
+        hasTune,
+      };
+    }
+    if (options.cacheOnly && !options.preflight)
+      return { analysis: null, cached: false, cornerFracs, hasTune };
+  }
+
+  const settings = (deps.loadSettings ?? loadSettings)();
+  let parsedTune: Tune | undefined;
+  if (lap.tuneId) {
+    const dbTune = await (deps.getDbTune ?? getDbTune)(lap.tuneId);
+    if (dbTune) {
+      parsedTune = {
+        ...dbTune,
+        strengths: dbTune.strengths ? JSON.parse(dbTune.strengths) : [],
+        weaknesses: dbTune.weaknesses ? JSON.parse(dbTune.weaknesses) : [],
+        bestTracks: dbTune.bestTracks ? JSON.parse(dbTune.bestTracks) : [],
+        strategies: dbTune.strategies ? JSON.parse(dbTune.strategies) : [],
+        settings: JSON.parse(dbTune.settings),
+      } as Tune;
+    }
+  }
+  const track = (deps.resolveTrack ?? resolveTrack)(
+    lap.gameId,
+    lap.trackOrdinal,
+  );
+  let sectors: PromptSectors | undefined;
+  try {
+    const game = lap.gameId ? (deps.getGame ?? getGame)(lap.gameId) : undefined;
+    if (game?.nativeSectors && game.getNativeSectorLayout) {
+      const timeline = (
+        deps.computeNativeSectorTimeline ?? computeNativeSectorTimeline
+      )(lap.telemetry, lap.lapTime, game.getNativeSectorLayout);
+      if (timeline && timeline.times.length >= 2) {
+        sectors = {
+          times: timeline.times,
+          sectorStarts: timeline.sectorStarts,
+        };
+      }
+    } else if (
+      track.sectors.s1End &&
+      track.sectors.s2End &&
+      lap.gameId &&
+      lap.trackOrdinal != null
+    ) {
+      const times = await (deps.computeLapSectors ?? computeLapSectors)(
+        lap.trackOrdinal,
+        lap.gameId as GameId,
+        lap.telemetry,
+        lap.lapTime,
+      );
+      if (times && times.length >= 3) {
+        sectors = {
+          times,
+          sectorStarts: [0, track.sectors.s1End, track.sectors.s2End],
+        };
+      }
+    }
+  } catch {
+    // Sector times are optional context.
+  }
+
+  const insights = await (deps.getOrComputeLapInsights ?? getOrComputeLapInsights)(lapId) ?? [];
+
+  const prompt = (deps.buildAnalystPrompt ?? buildAnalystPrompt)(
+    lap,
+    lap.telemetry,
+    corners,
+    settings.unit,
+    settings.temperatureUnit,
+    parsedTune,
+    track.segments,
+    undefined,
+    settings.language,
+    sectors,
+    insights,
+  );
+
+  let ai: ResolvedAi;
+  try {
+    ai = await (deps.resolveAi ?? resolveAi)("analysis", settings);
+  } catch (err) {
+    const error = formatClientAiErrorMessage(toClientAiError(err));
+    logLlmEvent("llm-error", {
+      provider: settings.aiProvider || "unconfigured",
+      model: settings.aiModel || "unconfigured",
+      operation: "lap-analysis.resolve",
+      request: { lapId },
+      error: err,
+    });
+    return {
+      analysis: null,
+      cached: false,
+      cornerFracs,
+      hasTune,
+      error,
+    };
+  }
+
+  if (options.preflight) {
+    return { analysis: null, cached: false, cornerFracs, hasTune };
+  }
+  const model = ai.model;
+  const startedAt = Date.now();
+  try {
+    const schema = getAnalystJsonSchema();
+    const input: StructuredRequest<unknown> = {
+      prompt,
+      schema,
+      schemaName: "analyst_output",
+      maxOutputTokens: 8192,
+      temperature: 0,
+    };
+    const diagnostic = {
+      provider: ai.provider,
+      model,
+      operation: "lap-analysis",
+      request: { lapId, ...input },
+    };
+    logLlmEvent("llm-request", diagnostic);
+    const generationOptions: Record<string, unknown> = {
+      maxSteps: 5,
+      modelSettings: { maxOutputTokens: 8192, temperature: 0 },
+      structuredOutput: {
+        schema: AnalystOutputSchema,
+        jsonPromptInjection: "auto",
+      },
+      providerOptions: {
+        openai: {
+          reasoningEffort: ai.provider === "openai-compatible" ? "none" : "medium",
+        },
+        google: buildGoogleThinkingProviderOptions(
+          model,
+          settings.aiThinkingBudget,
+        ),
+      },
+    };
+    const generate =
+      deps.generate ??
+      ((requestPrompt, requestOptions) =>
+        lapAnalystAgent.generate(requestPrompt, requestOptions as never));
+    const runStructured = deps.runAiStructured ?? runAiStructured;
+    const result = await runStructured(ai, input, (requestContext) =>
+      generate(prompt, { ...generationOptions, requestContext }),
+    );
+    const parsed = parseAnalystOutput(result.analysis);
+    if (!parsed.success) {
+      let error = invalidAnalysisError;
+      if (ai.provider === "openai-compatible") {
+        try {
+          const contextLength = await (
+            deps.getRuntimeContextLength ?? getRuntimeContextLength
+          )(settings.localEndpoint, model);
+          if (contextLength) {
+            error += ` Runtime context: ${contextLength.toLocaleString()} tokens.`;
+          }
+        } catch {
+          // Context discovery is diagnostic only.
+        }
+      }
+      logLlmEvent("llm-error", {
+        ...diagnostic,
+        response: result,
+        error: new Error(error),
+      });
+      return {
+        analysis: null,
+        cached: false,
+        cornerFracs,
+        hasTune,
+        error,
+      };
+    }
+    const text = JSON.stringify(parsed.data);
+
+    const rawUsage = (result.usage ?? {}) as Record<string, unknown>;
+    const numberFor = (...keys: string[]) =>
+      keys
+        .map((key) => rawUsage[key])
+        .find((value): value is number => typeof value === "number") ?? 0;
+    const usage: AnalysisUsage = {
+      inputTokens: numberFor("inputTokens", "promptTokens"),
+      outputTokens: numberFor("outputTokens", "completionTokens"),
+      costUsd: numberFor("costUsd"),
+      durationMs: numberFor("durationMs") || Date.now() - startedAt,
+      model,
+    };
+    await writeAnalysis(lapId, text, usage);
+    logLlmEvent("llm-response", { ...diagnostic, response: result });
+    return { analysis: text, cached: false, usage, cornerFracs, hasTune };
+  } catch (err) {
+    logLlmEvent("llm-error", {
+      provider: ai.provider,
+      model,
+      operation: "lap-analysis",
+      request: { lapId, prompt },
+      error: err,
+    });
+    return {
+      analysis: null,
+      cached: false,
+      cornerFracs,
+      hasTune,
+      error: formatClientAiErrorMessage(toClientAiError(err)),
+    };
+  }
+}

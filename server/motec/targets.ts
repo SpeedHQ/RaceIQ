@@ -17,11 +17,10 @@
  *
  * ## Adding a game
  *
- * 1. Write `server/games/<game>/motec.ts` exporting a `synthesize`-shaped
- *    function and a limitations list, modelled on `server/games/ac-evo/motec.ts`.
- * 2. Add the target to the registry in {@link initMotecTargets}.
- * 3. Nothing else. The import route validates against the registry and the
- *    client surfaces only the selected game's matching target.
+ * 1. Write a game-owned `motec.ts` converter and resolver.
+ * 2. Register the target in application assembly via `initMotecTargets`.
+ * 3. Nothing else. The import route validates against the explicit registry
+ *    and the client surfaces only the selected game's matching target.
  *
  * Do NOT register a game whose export has not actually been inspected. An
  * unverified mapping is worse than an unsupported one, because the user cannot
@@ -29,25 +28,12 @@
  */
 
 import type { GameId } from "@raceiq/shared/games/ids";
-import { getGame } from "@raceiq/shared/games/registry";
 import type { LdLog } from "./ld";
 import type {
   MotecCarTrack,
   MotecCarTrackOverride,
   MotecConversionResult,
 } from "./types";
-import { MOTEC_IMPORT_LIMITATIONS } from "./kunos-synthesis";
-import {
-  convertAccMotecToPackets,
-  resolveAccMotecCarTrack,
-} from "@raceiq/game-acc/motec";
-import { convertAcEvoMotecToPackets } from "@raceiq/game-ac-evo/motec";
-import { getAcEvoCarByModel, getAcEvoCarName } from "@raceiq/shared/racing/cars/ac-evo";
-import {
-  getAcEvoTrackByName,
-  getAcEvoTrackBySetupFolder,
-  getAcEvoTracks,
-} from "@raceiq/shared/racing/tracks/catalogs/ac-evo";
 
 type MotecConverter = (
   log: LdLog,
@@ -80,61 +66,12 @@ export function tryGetMotecTarget(gameId: string): MotecTarget | undefined {
   return targets.get(gameId as GameId);
 }
 
-/**
- * Resolve targets only through explicit game identity at call sites.
- */
-function resolveAcEvoMotecCarTrack(
-  log: LdLog,
-  override?: MotecCarTrackOverride,
-): MotecCarTrack {
-  const car =
-    override?.carOrdinal !== undefined && override.carOrdinal >= 0
-      ? { id: override.carOrdinal, name: getAcEvoCarName(override.carOrdinal) }
-      : getAcEvoCarByModel(log.vehicleId);
-  const track =
-    override?.trackOrdinal !== undefined && override.trackOrdinal >= 0
-      ? getAcEvoTracks().get(override.trackOrdinal)
-      : getAcEvoTrackBySetupFolder(log.venue) ?? getAcEvoTrackByName(log.venue);
-  return {
-    carOrdinal: car?.id ?? -1,
-    trackOrdinal: track?.id ?? -1,
-    carModel: car?.name ?? log.vehicleId,
-    trackName: track?.commonTrackName ?? log.venue,
-  };
+export function registerMotecTarget(target: MotecTarget): void {
+  targets.set(target.gameId, target);
 }
 
 
-let initialised = false;
-export function initMotecTargets(): void {
-  if (initialised) return;
-  initialised = true;
-  const acEvo = getGame("ac-evo");
-  const acc = getGame("acc");
-
-  targets.set("acc", {
-    gameId: "acc",
-    displayName: acc.displayName,
-    routePrefix: acc.routePrefix,
-    carsEndpoint: "/api/acc/cars",
-    limitations: MOTEC_IMPORT_LIMITATIONS,
-    convert: convertAccMotecToPackets,
-    resolveCarTrack: resolveAccMotecCarTrack,
-  });
-  targets.set("ac-evo", {
-    gameId: "ac-evo",
-    displayName: acEvo.displayName,
-    routePrefix: acEvo.routePrefix,
-    carsEndpoint: "/api/ac-evo/cars",
-    limitations: MOTEC_IMPORT_LIMITATIONS,
-    convert: convertAcEvoMotecToPackets,
-    resolveCarTrack: resolveAcEvoMotecCarTrack,
-  });
-}
-/**
- * Resolve explicitly selected game transcoder.
- */
 export function resolveMotecTarget(gameId: string): MotecTarget {
-  initMotecTargets();
   const target = tryGetMotecTarget(gameId);
   if (!target) throw new Error(`No MoTeC transcoder for game '${gameId}'`);
   return target;

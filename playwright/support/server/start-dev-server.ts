@@ -23,7 +23,7 @@ const paraglide = spawnSync("bun", ["scripts/dev/paraglide-dev.ts", "--once"], {
 });
 if (paraglide.status !== 0) process.exit(paraglide.status ?? 1);
 
-const server = spawn("bun", ["run", "server/index.ts"], {
+const server = spawn("bun", ["run", "apps/backend/src/index.ts"], {
   cwd: repoDir,
   stdio: "inherit",
   env: { ...process.env, DATA_DIR: dir, SERVER_PORT: serverPort, UDP_PORT: udpPort },

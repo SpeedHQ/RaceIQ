@@ -5,7 +5,7 @@ import type { LapSavedNotification } from "@raceiq/backend-core/lap-detection/ty
 import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
 import { LiveTelemetryPipeline } from "@raceiq/backend-core/telemetry/live-pipeline"
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { getAllServerGames, getServerGame } from "@raceiq/backend-core/games/registry";
 import { readUdpDump } from "./udp";
 import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";

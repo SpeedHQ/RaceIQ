@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { gameAdaptersForFeatures } from "@raceiq/shared/games/init";
 import { releaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
-import { initServerGameAdapters, nativeTelemetryGameIds, serverGameAdaptersForFeatures } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters, nativeTelemetryGameIds, serverGameAdaptersForFeatures } from "@raceiq/backend/games/init";
 import { getAllServerGames } from "@raceiq/backend-core/games/registry";
 
 const ids = (adapters: readonly { id: string }[]) => adapters.map((adapter) => adapter.id);

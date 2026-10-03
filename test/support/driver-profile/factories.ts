@@ -1,4 +1,4 @@
-import type { ProfileScope } from "@raceiq/backend-core/driver-profile/fingerprint";
+import type { ProfileScope } from "@raceiq/backend/driver-profile/fingerprint";
 import type { LapStyleSummary } from "@raceiq/shared/racing/analysis/laps/driving-style";
 import type { LapInsight } from "@raceiq/shared/racing/analysis/laps/insights/types";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";

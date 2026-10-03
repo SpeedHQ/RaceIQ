@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { DriverProfileSummary } from "@raceiq/backend-core/ai/schemas";
-import type { DriverFingerprint } from "@raceiq/backend-core/driver-profile/fingerprint";
+import type { DriverFingerprint } from "@raceiq/backend/driver-profile/fingerprint";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { client } from "../lib/rpc";
 import { rpcJson } from "../lib/rpc-json";

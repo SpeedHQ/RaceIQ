@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { IRACING_DUMP_MAGIC, IRACING_DUMP_VERSION, readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
 import { IRacingRecorder } from "@raceiq/game-iracing/recorder";
 import type { IRacingSdkSnapshot } from "@raceiq/game-iracing/sdk-reader";

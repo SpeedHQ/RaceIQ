@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { lapCornersFromSegments } from "@raceiq/backend-core/tracks/corner-resolution";
+import { lapCornersFromSegments } from "@raceiq/backend/tracks/corner-resolution";
 
 const packet = (distance: number): TelemetryPacket => ({ DistanceTraveled: distance }) as TelemetryPacket;
 

@@ -5,9 +5,9 @@ import { db } from "@raceiq/backend-core/db/index";
 import { laps } from "@raceiq/backend-core/db/schema";
 import { countStaleRaceResults, getSessionResult, getStaleRaceResultSessionIds, replacePitEvents, upsertSessionResult, type SessionResultInput } from "@raceiq/backend-core/db/session-result-queries";
 import { getRecentRaceResults } from "@raceiq/backend-core/race-results/aggregates";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { RACE_RESULT_PROCESSOR_ID, backfillRaceResults, backfillStaleRaceResults, reconcileSessionResult } from "@raceiq/backend-core/race-results/reconcile";
-import { sessionRoutes } from "@raceiq/backend-core/routes/session-routes";
+import { sessionRoutes } from "@raceiq/backend/routes/session-routes";
 import type { RaceResultEvidence, RaceResultProvenance } from "@raceiq/shared/racing/results/types";
 
 const evidence: RaceResultEvidence = {

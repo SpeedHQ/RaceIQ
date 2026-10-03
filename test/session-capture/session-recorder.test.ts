@@ -7,7 +7,7 @@ import { SessionRecorder } from "@raceiq/backend-core/session-capture/recorder";
 import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { readUdpDump } from "../support/recordings/udp";
 
 initGameAdapters();

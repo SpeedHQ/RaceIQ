@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { RequestContext } from "@mastra/core/request-context";
 import { lapAnalystAgent } from "@raceiq/backend/mastra/agents/lap-analyst";
 import { getMastraModelId } from "@raceiq/backend/mastra/model";
-import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "@raceiq/backend-core/ai/resolved-ai-internals";
+import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "@raceiq/backend/ai/resolved-ai-internals";
 
 type ModelLookupAgent = {
   getModel(options: { requestContext: RequestContext }): Promise<unknown>;

@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, test } from "bun:test";
 import { createExperiment, getExperiment, setSessionHead } from "@raceiq/backend-core/db/experiment-queries";
 import { createExperimentVersion, resolveActiveTestId } from "@raceiq/backend-core/db/experiment-version-queries";
 import { setSessionHead as _setHead } from "@raceiq/backend-core/db/experiment-queries";
-import { loadActiveExperimentContext } from "@raceiq/backend-core/experiments/setup-lineage";
+import { loadActiveExperimentContext } from "@raceiq/backend/experiments/setup-lineage";
 import { computeChildLabel, nextFreeLabel } from "@raceiq/backend-core/ai/version-label";
 import { getActiveExperiment, setActiveExperiment } from "@raceiq/backend-core/experiments/active"
 

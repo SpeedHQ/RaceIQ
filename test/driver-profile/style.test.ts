@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { ALL_DETECTOR_IDS, computeStyleAxes } from "@raceiq/backend-core/driver-profile/detectors";
-import { buildDriverFingerprint } from "@raceiq/backend-core/driver-profile/fingerprint";
+import { buildDriverFingerprint } from "@raceiq/backend/driver-profile/fingerprint";
 import { SCOPE, habitualDriver, insight, lap, styleLap, unusableLap } from "../support/driver-profile/factories";
 
 describe("style axes", () => {

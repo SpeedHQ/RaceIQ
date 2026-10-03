@@ -2,11 +2,13 @@
   "name": "@raceiq/game-fm-2023",
   "private": true,
   "type": "module",
-  "exports": {".":"./src/index.ts","./parser":"./src/parser.ts"},
+  "exports": {
+    ".": "./src/index.ts",
+    "./parser": "./src/parser.ts"
+  },
   "dependencies": {
-    "@raceiq/shared": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
-    "@raceiq/capture-formats": "workspace:*"
+    "@raceiq/shared": "workspace:*"
   },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit"

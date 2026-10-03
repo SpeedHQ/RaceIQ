@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { unzipSync } from "fflate";
 
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { parseLd, findChannel } from "@raceiq/backend-core/motec/ld";
 import { parseLdxBeacons } from "@raceiq/backend-core/motec/ldx";
 import { db } from "@raceiq/backend-core/db/index";

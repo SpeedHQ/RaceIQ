@@ -17,7 +17,7 @@ import { describe, test, expect, afterAll } from "bun:test";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { getGame } from "@raceiq/shared/games/registry";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"

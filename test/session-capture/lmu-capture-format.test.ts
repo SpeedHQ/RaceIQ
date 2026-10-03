@@ -7,11 +7,11 @@ import { eq } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions } from "@raceiq/backend-core/db/schema";
 import { deleteSession } from "@raceiq/backend-core/db/session-queries";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump";
 import { importSessionBin } from "@raceiq/backend-core/session-capture/import-capture";
 import { encodeFrameLength, encodeMetaFrame } from "@raceiq/backend-core/session-capture/framing";
-import { readRecordedTelemetry } from "@raceiq/backend-core/session-capture/replay-packets";
+import { readRecordedTelemetry } from "@raceiq/backend/session-capture/replay-packets";
 
 import { developmentReleaseFeatures } from "@raceiq/tooling/release/development-release-features";
 const fixturePath = "test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz";

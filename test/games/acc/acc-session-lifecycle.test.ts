@@ -11,7 +11,7 @@
  */
 import { describe, test, expect, afterAll } from "bun:test";
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
 import { LapDetectorAcc } from "@raceiq/game-acc/lap-detector"
 import { TripletPipeline } from "@raceiq/backend-core/games/kunos/triplet-pipeline";

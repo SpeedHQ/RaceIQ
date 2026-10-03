@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createExperiment, getExperiment, setSessionHead } from "@raceiq/backend-core/db/experiment-queries";
 import { createExperimentVersion, listExperimentVersions } from "@raceiq/backend-core/db/experiment-version-queries";
-import { resolveSetupPathForVersion } from "@raceiq/backend-core/experiments/setup-lineage";
+import { resolveSetupPathForVersion } from "@raceiq/backend/experiments/setup-lineage";
 
 /**
  * A drill arm carries no setup: `setupPath` and `setupSnapshot` are both null by

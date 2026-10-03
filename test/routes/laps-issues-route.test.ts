@@ -9,8 +9,8 @@ import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps } from "@raceiq/backend-core/db/schema";
 import { eq } from "drizzle-orm";
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
-import { tuneRoutes } from "@raceiq/backend-core/routes/tune-routes";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
+import { tuneRoutes } from "@raceiq/backend/routes/tune-routes";
 
 initGameAdapters();
 initServerGameAdapters();

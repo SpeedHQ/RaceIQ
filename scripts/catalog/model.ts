@@ -298,12 +298,12 @@ const CATALOG_SCHEMA_VERSION = "v7";
 const DERIVATION_VERSION = `${PACKAGE_VERSION}`;
 
 const PARSER_FILES: Record<GameId, string> = {
-  "fm-2023": "server/games/fm-2023/parser.ts",
-  "f1-2025": "server/games/f1-2025/f1-state.ts",
-  acc: "server/games/acc/parser.ts",
-  "ac-evo": "server/games/ac-evo/parser.ts",
-  iracing: "server/games/iracing/normalizer.ts",
-  lmu: "server/games/lmu/normalizer.ts",
+  "fm-2023": "packages/game-fm-2023/src/parser.ts",
+  "f1-2025": "packages/game-f1-2025/src/f1-state.ts",
+  acc: "packages/game-acc/src/parser.ts",
+  "ac-evo": "packages/game-ac-evo/src/parser.ts",
+  iracing: "packages/game-iracing/src/normalizer.ts",
+  lmu: "packages/game-lmu/src/normalizer.ts",
 };
 export {
   IRACING_SESSION_INFO_SOURCE_FILES,

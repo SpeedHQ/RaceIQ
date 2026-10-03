@@ -4,7 +4,7 @@ import {
   setupFileFormat,
   setupFileRejectReason,
 } from "@raceiq/shared/racing/setups/file-formats";
-import { tuneCrudRoutes } from "@raceiq/backend-core/routes/tunes/index";
+import { tuneCrudRoutes } from "@raceiq/backend/routes/tunes/index";
 
 /**
  * Experiments accept exactly one setup format per game: ACC saves nested JSON,

@@ -59,7 +59,7 @@ const environment = {
 };
 console.log(`[Dev] Portless name: ${portlessName}; backend HTTP: ${serverPort}${udpPort ? `; worktree UDP: ${udpPort}` : ""}`);
 
-const serverCommand = ["bun", "--env-file=.env.development", "--watch", "run", "server/index.ts"];
+const serverCommand = ["bun", "--env-file=.env.development", "--watch", "run", "apps/backend/src/index.ts"];
 if (onboarding !== null) {
   serverCommand.push("--onboarding", String(onboarding));
 }

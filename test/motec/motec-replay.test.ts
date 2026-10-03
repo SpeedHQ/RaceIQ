@@ -6,7 +6,7 @@ import {
   parseRawLapFrames,
   parseSessionLapsBatchedForTest,
 } from "@raceiq/backend-core/db/telemetry-replay-storage";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { encodeMotecSourceArchive } from "@raceiq/backend-core/motec/source-archive";
 import type { SessionCaptureSource } from "@raceiq/backend-core/session-capture/source-loader";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";

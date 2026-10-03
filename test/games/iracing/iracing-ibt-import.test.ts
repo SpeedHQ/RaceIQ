@@ -15,12 +15,9 @@ import { db } from "@raceiq/backend-core/db/index";
 import { discoveredCars, discoveredTracks } from "@raceiq/backend-core/db/schema";
 import { getLapsRaw } from "@raceiq/backend-core/db/lap-read-queries";
 import { deleteSession } from "@raceiq/backend-core/db/session-queries";
-import {
-  commitStagedIbt,
-  previewIbtFile,
-  stageIbtUpload,
-} from "@raceiq/backend-core/games/iracing/import-ibt";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { commitStagedIbt, stageIbtUpload } from "@raceiq/backend/imports/iracing-ibt";
+import { previewIbtFile } from "@raceiq/game-iracing/ibt-preview";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { iracingAdapter } from "@raceiq/shared/games/iracing/index";
 import { initGameAdapters } from "@raceiq/shared/games/init";
 import {

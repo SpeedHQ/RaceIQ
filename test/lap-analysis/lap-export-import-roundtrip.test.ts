@@ -17,15 +17,15 @@ import { unzipSync, zipSync } from "fflate";
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps } from "@raceiq/backend-core/db/schema";
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-frame";
 import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
 import { importSessionFrames } from "@raceiq/backend-core/session-capture/import-pipeline";
 import { getSessionResult } from "@raceiq/backend-core/db/session-result-queries";
-import { buildLapsZip, importLapsZip, type LapsZipManifest } from "@raceiq/backend-core/laps/archive";
+import { buildLapsZip, importLapsZip, type LapsZipManifest } from "@raceiq/backend/laps/archive";
 import { importMotec } from "@raceiq/backend-core/motec/import";
 import { parseRawLapFrames, parseSessionLapsBatched } from "@raceiq/backend-core/db/telemetry-replay-storage";
-import { readRecordedTelemetry } from "@raceiq/backend-core/session-capture/replay-packets";
+import { readRecordedTelemetry } from "@raceiq/backend/session-capture/replay-packets";
 import { reprocessSession } from "@raceiq/backend-core/session-capture/reprocess";
 import { setCaptureFileFactoryForTest, type SessionCaptureSource } from "@raceiq/backend-core/session-capture/source-loader";
 import {

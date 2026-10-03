@@ -8,7 +8,7 @@ import { describe, test, expect, afterAll } from "bun:test";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
 import { LapDetectorAcEvo } from "@raceiq/game-ac-evo/lap-detector"

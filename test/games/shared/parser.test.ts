@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { parsePacket } from "@raceiq/backend-core/games/packet-dispatch";
 
 // Register game adapters before tests run

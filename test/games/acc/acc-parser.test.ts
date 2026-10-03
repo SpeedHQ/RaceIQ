@@ -5,7 +5,7 @@ import { parseAccBuffers } from "@raceiq/game-acc/parser";
 import { parseAccLapIndex } from "@raceiq/game-acc/lap-index";
 import { PHYSICS, GRAPHICS, STATIC } from "@raceiq/capture-formats/acc/structs";
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { parseRawLapFramesFromBuffer } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"

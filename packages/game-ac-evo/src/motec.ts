@@ -4,8 +4,37 @@ import {
   type KunosMotecPacketProfile,
 } from "@raceiq/backend-core/motec/kunos-packets";
 import { prepareKunosMotecCapture } from "@raceiq/backend-core/motec/kunos-synthesis";
-import type { MotecCarTrack, MotecConversionResult } from "@raceiq/backend-core/motec/types";
+import type {
+  MotecCarTrack,
+  MotecCarTrackOverride,
+  MotecConversionResult,
+} from "@raceiq/backend-core/motec/types";
+import { getAcEvoCarByModel, getAcEvoCarName } from "@raceiq/shared/racing/cars/ac-evo";
+import {
+  getAcEvoTrackByName,
+  getAcEvoTrackBySetupFolder,
+  getAcEvoTracks,
+} from "@raceiq/shared/racing/tracks/catalogs/ac-evo";
 
+export function resolveAcEvoMotecCarTrack(
+  log: LdLog,
+  override?: MotecCarTrackOverride,
+): MotecCarTrack {
+  const car =
+    override?.carOrdinal !== undefined && override.carOrdinal >= 0
+      ? { id: override.carOrdinal, name: getAcEvoCarName(override.carOrdinal) }
+      : getAcEvoCarByModel(log.vehicleId);
+  const track =
+    override?.trackOrdinal !== undefined && override.trackOrdinal >= 0
+      ? getAcEvoTracks().get(override.trackOrdinal)
+      : getAcEvoTrackBySetupFolder(log.venue) ?? getAcEvoTrackByName(log.venue);
+  return {
+    carOrdinal: car?.id ?? -1,
+    trackOrdinal: track?.id ?? -1,
+    carModel: car?.name ?? log.vehicleId,
+    trackName: track?.commonTrackName ?? log.venue,
+  };
+}
 
 const AC_EVO_MOTEC_PACKET_PROFILE = {
   gameId: "ac-evo",
@@ -19,7 +48,11 @@ const AC_EVO_MOTEC_PACKET_PROFILE = {
   includeUnknownCarModel: true,
 } satisfies KunosMotecPacketProfile;
 
-export function convertAcEvoMotecToPackets(log: LdLog, beacons: number[], carTrack: MotecCarTrack): MotecConversionResult {
+export function convertAcEvoMotecToPackets(
+  log: LdLog,
+  beacons: number[],
+  carTrack: MotecCarTrack,
+): MotecConversionResult {
   const prepared = prepareKunosMotecCapture(log, beacons, {
     gameId: "ac-evo",
     trackOrdinal: carTrack.trackOrdinal,

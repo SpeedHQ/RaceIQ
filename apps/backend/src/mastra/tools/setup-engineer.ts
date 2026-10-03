@@ -40,16 +40,16 @@ import { buildAppliedChangesMarkdown } from "@raceiq/backend-core/setups/applied
 import {
   computeSessionSymptoms,
   computeSessionTrackConditions,
-} from "@raceiq/backend-core/experiments/representative-lap";
+} from "../../experiments/representative-lap";
 import { formatTrackConditions } from "@raceiq/backend-core/ai/track-conditions";
 import {
   gameHasSetupFile,
   loadActiveExperimentContext,
-} from "@raceiq/backend-core/experiments/setup-lineage";
-import { readActiveSetup, writeAppliedSetup } from "@raceiq/backend-core/setups/io";
+} from "../../experiments/setup-lineage";
+import { readActiveSetup, writeAppliedSetup } from "../../setups/io";
 import { readSetupEngineerContext } from "./setup-engineer-request-context";
-import { consultLapAnalystForSession } from "@raceiq/backend-core/ai/consult-lap-analyst";
-import { loadCleanLapAggregate } from "@raceiq/backend-core/experiments/lap-evidence/aggregate";
+import { consultLapAnalystForSession } from "../../ai/consult-lap-analyst";
+import { loadCleanLapAggregate } from "../../experiments/lap-evidence/aggregate";
 import { setLapExperimentExcluded, getLapsForExperiment } from "@raceiq/backend-core/db/experiment-lap-queries";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { resolveTrack } from "@raceiq/backend-core/tracks/info";

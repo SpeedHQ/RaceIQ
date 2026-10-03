@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { parseIRacingSessionInfo } from "@raceiq/capture-formats/iracing/session-info";
 import {
   IRacingSdkReader,

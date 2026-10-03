@@ -14,7 +14,7 @@ import { getTrackOutlineByOrdinal } from "@raceiq/shared/racing/tracks/recording
 import { registerDiscoveredTrack } from "@raceiq/backend-core/db/discovered-tracks";
 import { db } from "@raceiq/backend-core/db/index";
 import { discoveredTracks } from "@raceiq/backend-core/db/schema";
-import { trackRoutes } from "@raceiq/backend-core/routes/tracks/index";
+import { trackRoutes } from "@raceiq/backend/routes/tracks/index";
 
 const FUTURE_TRACK_ID = 987_654_322;
 

@@ -10,8 +10,13 @@
     "typecheck": "bunx tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
-    "@raceiq/backend": "workspace:*",
-    "@raceiq/shared": "workspace:*",
-    "@playwright/test": "1.62.1"
+    "@playwright/test": "1.62.1",
+    "@raceiq/tooling": "workspace:*",
+    "@raceiq/backend-core": "workspace:*",
+    "@raceiq/shared": "workspace:*"
+  },
+  "dependencies": {
+    "sharp": "^0.35.4",
+    "zod": "^4.6.5"
   }
 }

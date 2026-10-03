@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { miscRoutes } from "@raceiq/backend-core/routes/system/index";
+import { miscRoutes } from "@raceiq/backend/routes/system/index";
 import { initGameAdapters } from "@raceiq/shared/games/init";
 import { getAllGames } from "@raceiq/shared/games/registry";
 import { existsSync } from "node:fs";

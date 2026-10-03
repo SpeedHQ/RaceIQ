@@ -10,7 +10,7 @@ import { gunzipSync } from "node:zlib";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LapDetectorCallbacks } from "@raceiq/backend-core/lap-detection/types";
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
 import { LiveTelemetryPipeline, stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
 import { isForzaRaceOffPacket, parseForzaPacket } from "@raceiq/game-fm-2023/parser";

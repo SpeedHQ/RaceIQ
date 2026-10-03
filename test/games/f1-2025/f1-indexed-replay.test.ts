@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { normalizeTelemetryPacket } from "@raceiq/backend-core/telemetry/normalization";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";

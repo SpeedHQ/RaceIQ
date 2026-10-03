@@ -8,10 +8,10 @@ import {
   writeFileSync,
 } from "node:fs";
 import { IRacingIbtReader } from "@raceiq/game-iracing/ibt-reader";
-import { previewIbtFile } from "@raceiq/backend-core/games/iracing/import-ibt";
+import { previewIbtFile } from "@raceiq/game-iracing/ibt-preview";
 import { normalizeIRacingFrame } from "@raceiq/game-iracing/normalizer";
 import { IRacingTelemetrySource } from "@raceiq/game-iracing/source";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { initGameAdapters } from "@raceiq/shared/games/init";
 import {
   createIRacingSourceDecoderState,

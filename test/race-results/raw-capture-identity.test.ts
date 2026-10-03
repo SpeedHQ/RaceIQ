@@ -3,7 +3,7 @@ import { unlinkSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import { deleteSession, insertSession, updateSessionRawFile } from "@raceiq/backend-core/db/session-queries";
 import { getSessionResult } from "@raceiq/backend-core/db/session-result-queries";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { reconcileSessionResult } from "@raceiq/backend-core/race-results/reconcile";
 import {
   hashRawCapture,

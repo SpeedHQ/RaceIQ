@@ -9,8 +9,8 @@ import type { EncodedAlignedLapSet } from "@raceiq/shared/racing/laps/alignment/
 import { deleteSession, insertSession, updateSessionRawFile } from "@raceiq/backend-core/db/session-queries";
 import { cacheDelete, cacheSet } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
-import { lapRoutes } from "@raceiq/backend-core/routes/laps/index";
-import { semanticReplayIds } from "@raceiq/backend-core/routes/laps/resource-routes";
+import { lapRoutes } from "@raceiq/backend/routes/laps/index";
+import { semanticReplayIds } from "@raceiq/backend/routes/laps/resource-routes";
 import { packet } from "../support/telemetry/resolver";
 
 initGameAdapters();

@@ -21,7 +21,7 @@ const child = Bun.spawn([
   "@duckdb/node-bindings-*",
   "--define",
   'process.env.NODE_ENV="production"',
-  "server/bootstrap.ts",
+  "apps/backend/src/bootstrap.ts",
   "server/experiments/lap-issues-worker.ts",
   "--outfile",
   "dist/raceiq.exe",

@@ -106,7 +106,7 @@ describe("UDP recording integration", () => {
       );
       server = spawn(
         "bun",
-        ["run", "server/index.ts", `--record=${recordingCase.gameId}`],
+        ["run", "apps/backend/src/index.ts", `--record=${recordingCase.gameId}`],
         {
           env: {
             ...process.env,

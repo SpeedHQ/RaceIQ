@@ -14,7 +14,7 @@
 import { describe, test, expect, beforeAll } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { buildAnalystPrompt } from "@raceiq/backend-core/ai/analyst-prompt";
 import { AnalystOutputSchema } from "@raceiq/backend-core/ai/schemas";
 import { compareLapHeader } from "@raceiq/backend-core/ai/compare-engineer";

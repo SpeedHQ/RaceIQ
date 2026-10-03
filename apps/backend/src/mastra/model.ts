@@ -26,7 +26,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import type { FetchFunction } from "@ai-sdk/provider-utils";
 import { extractReasoningMiddleware, wrapLanguageModel, type LanguageModel } from "ai";
 import type { MastraModelConfig } from "@mastra/core/llm";
-import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "@raceiq/backend-core/ai/resolved-ai-internals";
+import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "../ai/resolved-ai-internals";
 
 export type BoundMastraModel = MastraModelConfig;
 

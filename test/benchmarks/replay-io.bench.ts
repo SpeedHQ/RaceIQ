@@ -1,6 +1,6 @@
 import { bench, do_not_optimize, group } from "mitata";
 import { parseRawLapFrames } from "@raceiq/backend-core/db/telemetry-replay-storage";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { initGameAdapters } from "@raceiq/shared/games/init";
 import { runMitataBenchmarks } from "./mitata-harness";
 

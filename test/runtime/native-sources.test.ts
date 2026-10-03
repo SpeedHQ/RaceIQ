@@ -11,8 +11,8 @@ import {
   setAcEvoReader,
   setIracingSource,
   setLmuSource,
-} from "@raceiq/backend-core/runtime/live-readers";
-import { startNativeSourceSupervisor, type NativeSourceSupervisor } from "@raceiq/backend-core/runtime/native-sources";
+} from "@raceiq/backend/runtime/live-readers";
+import { startNativeSourceSupervisor, type NativeSourceSupervisor } from "@raceiq/backend/runtime/native-sources";
 import { IS_WINDOWS } from "@raceiq/backend-core/runtime/platform/shell";
 
 function deferred() {

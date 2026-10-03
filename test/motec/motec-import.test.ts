@@ -4,7 +4,7 @@ import { unzipSync, zipSync } from "fflate";
 
 import { initGameAdapters } from "@raceiq/shared/games/init";
 import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { parseLd, findChannel } from "@raceiq/backend-core/motec/ld";
 import { parseLdxBeacons } from "@raceiq/backend-core/motec/ldx";
 import {
@@ -16,9 +16,10 @@ import {
 } from "@raceiq/backend-core/motec/kunos-synthesis";
 import { normalizeTelemetryPacket } from "@raceiq/backend-core/telemetry/normalization";
 import { importMotec, MOTEC_SESSION_SOURCE } from "@raceiq/backend-core/motec/import";
-import { buildLapsZip, importLapsZip } from "@raceiq/backend-core/laps/archive";
-import { getMotecTargets, initMotecTargets, resolveMotecTarget } from "@raceiq/backend-core/motec/targets";
-import { transferRoutes } from "@raceiq/backend-core/routes/laps/transfer-routes";
+import { buildLapsZip, importLapsZip } from "@raceiq/backend/laps/archive";
+import { getMotecTargets, resolveMotecTarget } from "@raceiq/backend-core/motec/targets";
+import { initMotecTargets } from "@raceiq/backend/games/motec-init";
+import { transferRoutes } from "@raceiq/backend/routes/laps/transfer-routes";
 import { db } from "@raceiq/backend-core/db/index";
 import { laps as lapsTable, sessions, tunes } from "@raceiq/backend-core/db/schema";
 import { eq, isNull } from "drizzle-orm";

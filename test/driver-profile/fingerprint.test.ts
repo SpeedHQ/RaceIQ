@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { rankWeaknesses, rollUpDetectors, MIN_LAPS_FOR_STYLE } from "@raceiq/backend-core/driver-profile/detectors";
-import { buildDriverFingerprint } from "@raceiq/backend-core/driver-profile/fingerprint";
+import { buildDriverFingerprint } from "@raceiq/backend/driver-profile/fingerprint";
 import { GLOBAL_SCOPE, SCOPE, habitualDriver, insight, lap } from "../support/driver-profile/factories";
 
 describe("rollUpDetectors — per-lap normalisation", () => {

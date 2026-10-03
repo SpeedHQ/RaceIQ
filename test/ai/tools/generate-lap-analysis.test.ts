@@ -5,9 +5,9 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import {
   generateLapAnalysis,
   type GenerateLapAnalysisDeps,
-} from "@raceiq/backend-core/ai/generate-lap-analysis";
+} from "@raceiq/backend/ai/generate-lap-analysis";
 import { AnalystOutputSchema } from "@raceiq/backend-core/ai/schemas";
-import { diagnosticsRoutes } from "@raceiq/backend-core/routes/system/diagnostics-routes";
+import { diagnosticsRoutes } from "@raceiq/backend/routes/system/diagnostics-routes";
 
 const validAnalysis = JSON.stringify({
   verdict: "Clean lap",

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { errorFromResponse } from "./client/src/lib/rpc-error";
-import { tuneCrudRoutes } from "@raceiq/backend-core/routes/tunes/index";
+import { tuneCrudRoutes } from "@raceiq/backend/routes/tunes/index";
 import { getAllAcEvoCars } from "@raceiq/shared/racing/cars/ac-evo";
 import { deleteTune, getTuneById } from "@raceiq/backend-core/db/tune-queries";
 import { parseCarSetup } from "@raceiq/game-ac-evo/carsetup-wire";

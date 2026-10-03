@@ -2,11 +2,24 @@
   "name": "@raceiq/game-iracing",
   "private": true,
   "type": "module",
-  "exports": {".":"./src/index.ts","./frame-pipeline":"./src/frame-pipeline.ts","./ibt-reader":"./src/ibt-reader.ts","./identity":"./src/identity.ts","./lap-detector":"./src/lap-detector.ts","./normalizer":"./src/normalizer.ts","./recorder":"./src/recorder.ts","./sdk-reader":"./src/sdk-reader.ts","./source":"./src/source.ts","./track-map-svg":"./src/track-map-svg.ts","./track-map":"./src/track-map.ts"},
+  "exports": {
+    ".": "./src/index.ts",
+    "./frame-pipeline": "./src/frame-pipeline.ts",
+    "./ibt-preview": "./src/ibt-preview.ts",
+    "./ibt-reader": "./src/ibt-reader.ts",
+    "./identity": "./src/identity.ts",
+    "./lap-detector": "./src/lap-detector.ts",
+    "./normalizer": "./src/normalizer.ts",
+    "./recorder": "./src/recorder.ts",
+    "./sdk-reader": "./src/sdk-reader.ts",
+    "./source": "./src/source.ts",
+    "./track-map-svg": "./src/track-map-svg.ts",
+    "./track-map": "./src/track-map.ts"
+  },
   "dependencies": {
-    "@raceiq/shared": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
-    "@raceiq/capture-formats": "workspace:*"
+    "@raceiq/capture-formats": "workspace:*",
+    "@raceiq/shared": "workspace:*"
   },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit"

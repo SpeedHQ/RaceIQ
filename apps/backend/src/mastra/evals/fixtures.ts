@@ -1,3 +1,4 @@
+import { ROOT_DIR } from "@raceiq/backend-core/runtime/config/paths";
 /**
  * Fixture loader for AI quality evals.
  *
@@ -19,7 +20,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { decompressTelemetry } from "@raceiq/backend-core/db/telemetry-codec";
 
-const FIXTURES_ROOT = resolve(import.meta.dir, "../../test/ai-fixtures");
+const FIXTURES_ROOT = resolve(ROOT_DIR, "test/ai-fixtures");
 
 export interface LapFixture {
   id: string;

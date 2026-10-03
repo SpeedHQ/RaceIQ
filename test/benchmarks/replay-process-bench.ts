@@ -6,7 +6,7 @@ import { parseRawLapFramesFromBuffer, type LapReplaySource } from "@raceiq/backe
 import { resolveTelemetryReplay } from "@raceiq/backend-core/telemetry/replay";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { getAllServerGames } from "@raceiq/backend-core/games/registry";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { iterateSessionFrameRecords } from "@raceiq/backend-core/session-capture/framing";

@@ -2,11 +2,6 @@ import {
   DuckDBInstance,
   type DuckDBConnection,
 } from "@duckdb/node-api";
-import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
-import {
-  importSessionFrames,
-  type ImportedLap,
-} from "@raceiq/backend-core/session-capture/import-pipeline";
 import {
   LMU_SCORING_INFO,
   LMU_SCORING_INFO_SIZE,
@@ -815,25 +810,3 @@ export async function* readLMUDuckDBFrames(path: string): AsyncGenerator<Buffer>
   }
 }
 
-export async function importLMUDuckDB(
-  path: string,
-  ownership: SessionOwnership,
-): Promise<{
-  packetCount: number;
-  laps: ImportedLap[];
-}> {
-  const loaded = await loadLMUDuckDB(path);
-  const epochMs = recordingEpochMs(loaded.metadata.recordingTime);
-  const packetCount = syntheticFrameCount(loaded.duration);
-  async function* frames(): AsyncGenerator<Buffer> {
-    for (let index = 0; index < packetCount; index++) {
-      const time = loaded.startTime + index / IMPORT_FRAME_RATE;
-      yield buildSyntheticFrame(loaded, time, epochMs);
-    }
-  }
-  const result = await importSessionFrames(frames(), "lmu", {
-    requireLaps: true,
-    ownership,
-  });
-  return { packetCount: result.packetCount, laps: result.laps };
-}

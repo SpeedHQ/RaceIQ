@@ -20,7 +20,7 @@ import { mkdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { loadCenterline } from "@raceiq/shared/racing/tracks/curation/generate";
 import { getAcEvoTrackByName } from "@raceiq/shared/racing/tracks/catalogs/ac-evo";
 import { parseLd } from "@raceiq/backend-core/motec/ld";

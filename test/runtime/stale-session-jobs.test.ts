@@ -11,7 +11,7 @@ import { LAP_DETECTOR_AC_EVO_ID } from "@raceiq/game-ac-evo/lap-detector";
 import { LAP_DETECTOR_IRACING_ID } from "@raceiq/game-iracing/lap-detector";
 import type { RaceResultEvidence, RaceResultProvenance } from "@raceiq/shared/racing/results/types";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
-import { startSyncAndStaleSessionJobs } from "@raceiq/backend-core/runtime/startup-jobs";
+import { startSyncAndStaleSessionJobs } from "@raceiq/backend/runtime/startup-jobs";
 
 
 const NOOP_STARTUP_JOBS = {

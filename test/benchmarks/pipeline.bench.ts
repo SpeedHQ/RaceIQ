@@ -1,7 +1,7 @@
 import { bench, group, do_not_optimize } from "mitata";
 
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { getAllServerGames } from "@raceiq/backend-core/games/registry";
 import { LiveTelemetryPipeline, stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { NullDbAdapter, NullWsAdapter, NullSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";

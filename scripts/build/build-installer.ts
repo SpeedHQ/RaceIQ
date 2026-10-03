@@ -72,7 +72,7 @@ runArgs(
     'process.env.RACEIQ_FEATURE_F1_EXPERIMENTS="false"',
     "--define",
     'process.env.RACEIQ_FEATURE_IRACING_ADAPTER="false"',
-    "server/bootstrap.ts",
+    "apps/backend/src/bootstrap.ts",
     "server/experiments/lap-issues-worker.ts",
     "--outfile",
     "dist/raceiq.exe",

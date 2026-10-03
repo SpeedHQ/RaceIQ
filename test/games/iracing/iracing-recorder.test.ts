@@ -25,7 +25,7 @@ import {
   IRacingFramePipeline,
   ParsingProcessor,
 } from "@raceiq/game-iracing/frame-pipeline";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { initGameAdapters } from "@raceiq/shared/games/init";
 

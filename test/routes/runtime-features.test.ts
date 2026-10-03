@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createRuntimeFeaturesRoutes } from "@raceiq/backend-core/routes/system/runtime-features";
+import { createRuntimeFeaturesRoutes } from "@raceiq/backend/routes/system/runtime-features";
 
 describe("runtime feature route", () => {
   test("returns resolved feature booleans exactly", async () => {

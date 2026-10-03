@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { modelRoutes } from "@raceiq/backend-core/routes/dev/model-routes";
+import { modelRoutes } from "@raceiq/backend/routes/dev/model-routes";
 
 describe("development GT3 model routes", () => {
   test("reports both model sizes and vertex counts", async () => {

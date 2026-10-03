@@ -6,7 +6,7 @@ import { parseAnalystOutput } from "@raceiq/backend-core/ai/schemas";
 import type {
   AnalysisUsage,
   LapAnalysisResult,
-} from "@raceiq/backend-core/ai/generate-lap-analysis";
+} from "../../ai/generate-lap-analysis";
 
 export type ParsedLapAnalysis =
   { analysis: unknown; readable: string } | { error: string; readable: string };
@@ -140,7 +140,7 @@ async function defaultGenerateLapAnalysis(
 ): Promise<LapAnalysisResult> {
   // Keep service loading lazy to avoid the Mastra agent/tool import cycle.
   const { generateLapAnalysis } =
-    await import("@raceiq/backend-core/ai/generate-lap-analysis");
+    await import("../../ai/generate-lap-analysis");
   return generateLapAnalysis(lapId, options);
 }
 

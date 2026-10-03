@@ -11,7 +11,7 @@ import { SparseSessionRecorder } from "@raceiq/backend-core/session-capture/spar
 import { parseRawLapFrames } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { runInsightScanWithCoverage } from "@raceiq/shared/racing/analysis/laps/insights/scan";
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { iterateSessionCaptureFrames } from "@raceiq/backend-core/session-capture/source-loader";
 import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
 import { ACC_PACKED_MAGIC, packTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";

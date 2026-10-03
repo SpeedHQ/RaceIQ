@@ -2,7 +2,7 @@ import { describe, test, expect, afterEach } from "bun:test";
 import { eq } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
 import { laps, sessions, tuneAssignments, tunes } from "@raceiq/backend-core/db/schema";
-import { tuneResourceRoutes } from "@raceiq/backend-core/routes/tunes/resource-routes";
+import { tuneResourceRoutes } from "@raceiq/backend/routes/tunes/resource-routes";
 
 const tuneIds: number[] = [];
 const sessionIds: number[] = [];

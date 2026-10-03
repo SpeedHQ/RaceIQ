@@ -10,12 +10,12 @@ import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeS
 import { iterateSessionCaptureRecordsFromSource } from "@raceiq/backend-core/session-capture/source-loader";
 import { encodeGenericSparseFrame, isGenericSparseFrame } from "@raceiq/backend-core/session-capture/generic-sparse";
 import { migrateCaptures } from "@raceiq/backend-core/session-capture/migrate-captures";
-import { sessionRoutes } from "@raceiq/backend-core/routes/session-routes";
-import { transferRoutes } from "@raceiq/backend-core/routes/laps/transfer-routes";
+import { sessionRoutes } from "@raceiq/backend/routes/session-routes";
+import { transferRoutes } from "@raceiq/backend/routes/laps/transfer-routes";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 
 const owned = new Set<number>();
 const imported = new Set<number>();

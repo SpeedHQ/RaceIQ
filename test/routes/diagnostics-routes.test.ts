@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { unzipSync, strFromU8 } from "fflate";
-import { diagnosticsRoutes } from "@raceiq/backend-core/routes/system/diagnostics-routes";
+import { diagnosticsRoutes } from "@raceiq/backend/routes/system/diagnostics-routes";
 import { logLlmEvent } from "@raceiq/backend-core/ai/diagnostic-logging";
 
 describe("diagnostics export", () => {

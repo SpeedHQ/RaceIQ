@@ -14,7 +14,7 @@ import { lmuServerAdapter } from "@raceiq/game-lmu";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import { TELEMETRY_CATALOG } from "@raceiq/shared/telemetry/catalog/data";
 import { compileTelemetryResolver } from "@raceiq/shared/telemetry/resolver/compile";
-import { transferRoutes } from "@raceiq/backend-core/routes/laps/transfer-routes";
+import { transferRoutes } from "@raceiq/backend/routes/laps/transfer-routes";
 import {
   previewLMUDuckDB,
   readLMUDuckDBFrames,

@@ -7,7 +7,7 @@ import { db } from "@raceiq/backend-core/db/index";
 import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
 import { deleteSession, insertSession } from "@raceiq/backend-core/db/session-queries";
 import { sessions, laps } from "@raceiq/backend-core/db/schema";
-import { backfillLMUSessionIdentity } from "@raceiq/backend-core/games/lmu/session-identity-backfill";
+import { backfillLMUSessionIdentity } from "@raceiq/backend/imports/lmu-session-identity-backfill";
 import {
   LMU_SCORING_INFO,
   LMU_SCORING_INFO_SIZE,

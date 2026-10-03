@@ -7,7 +7,7 @@ import { insertLap, setLapMetrics } from "@raceiq/backend-core/db/lap-mutation-q
 import { insertSession } from "@raceiq/backend-core/db/session-queries";
 import { createExperiment } from "@raceiq/backend-core/db/experiment-queries";
 import { getActiveExperiment, setActiveExperiment } from "@raceiq/backend-core/experiments/active"
-import { experimentLapAnalysisRoutes } from "@raceiq/backend-core/routes/experiments/lap-routes";
+import { experimentLapAnalysisRoutes } from "@raceiq/backend/routes/experiments/lap-routes";
 
 /**
  * Explicit lap ↔ experiment link (migration v25). Tests the DB layer +

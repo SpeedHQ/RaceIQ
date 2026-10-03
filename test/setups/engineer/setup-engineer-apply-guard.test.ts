@@ -28,20 +28,20 @@ import { RequestContext } from "@mastra/core/request-context";
 // unless `stubsActive` is set, and only this file's tests set it. Real
 // namespaces are captured by static import, which evaluates before any
 // `mock.module` call below.
-import * as RealSetupIo from "@raceiq/backend-core/setups/io";
+import * as RealSetupIo from "@raceiq/backend/setups/io";
 import * as RealTestQueries from "@raceiq/backend-core/db/experiment-version-queries";
 import * as RealSessionQueries from "@raceiq/backend-core/db/experiment-queries";
 import * as RealChatAgent from "@raceiq/backend-core/ai/chat-agent";
 import * as RealAppliedMarkdown from "@raceiq/backend-core/setups/applied-change-markdown";
-import * as RealRepresentativeLap from "@raceiq/backend-core/experiments/representative-lap";
+import * as RealRepresentativeLap from "@raceiq/backend/experiments/representative-lap";
 import * as RealTrackConditions from "@raceiq/backend-core/ai/track-conditions";
-import * as RealSetupLineage from "@raceiq/backend-core/experiments/setup-lineage";
+import * as RealSetupLineage from "@raceiq/backend/experiments/setup-lineage";
 import * as RealLapReadQueries from "@raceiq/backend-core/db/lap-read-queries";
 import * as RealExperimentLapQueries from "@raceiq/backend-core/db/experiment-lap-queries";
 import * as RealActionQueries from "@raceiq/backend-core/db/experiment-action-queries";
 import * as RealUndo from "@raceiq/backend-core/experiments/undo"
-import * as RealConsult from "@raceiq/backend-core/ai/consult-lap-analyst";
-import * as RealCleanLap from "@raceiq/backend-core/experiments/lap-evidence/aggregate";
+import * as RealConsult from "@raceiq/backend/ai/consult-lap-analyst";
+import * as RealCleanLap from "@raceiq/backend/experiments/lap-evidence/aggregate";
 import * as RealComparison from "@raceiq/backend-core/lap-analysis/comparison"
 import * as RealSettings from "@raceiq/backend-core/runtime/config/settings";
 import * as RealMastraModel from "@raceiq/backend/mastra/model";
@@ -115,7 +115,7 @@ const fakeCtx = {
   setup: baseAccSetup(),
 };
 
-mock.module("@raceiq/backend-core/setups/io", () => ({
+mock.module("@raceiq/backend/setups/io", () => ({
   ...RealSetupIo,
   readActiveSetup: gate(RealSetupIo.readActiveSetup, readActiveSetup),
   writeAppliedSetup: gate(RealSetupIo.writeAppliedSetup, writeAppliedSetup),
@@ -143,7 +143,7 @@ mock.module("@raceiq/backend-core/setups/applied-change-markdown", () => ({
   ...RealAppliedMarkdown,
   buildAppliedChangesMarkdown: gate(RealAppliedMarkdown.buildAppliedChangesMarkdown, mock(() => "")),
 }));
-mock.module("@raceiq/backend-core/experiments/representative-lap", () => ({
+mock.module("@raceiq/backend/experiments/representative-lap", () => ({
   ...RealRepresentativeLap,
   computeSessionSymptoms: gate(RealRepresentativeLap.computeSessionSymptoms, mock(async () => [])),
   computeSessionTrackConditions: gate(RealRepresentativeLap.computeSessionTrackConditions, mock(async () => null)),
@@ -152,7 +152,7 @@ mock.module("@raceiq/backend-core/ai/track-conditions", () => ({
   ...RealTrackConditions,
   formatTrackConditions: gate(RealTrackConditions.formatTrackConditions, mock(() => "")),
 }));
-mock.module("@raceiq/backend-core/experiments/setup-lineage", () => ({
+mock.module("@raceiq/backend/experiments/setup-lineage", () => ({
   ...RealSetupLineage,
   loadActiveExperimentContext: gate(RealSetupLineage.loadActiveExperimentContext, mock(async () => fakeCtx)),
 }));
@@ -173,11 +173,11 @@ mock.module("@raceiq/backend-core/experiments/undo", () => ({
   ...RealUndo,
   undoLastAction: gate(RealUndo.undoLastAction, mock(async () => ({ ok: true }))),
 }));
-mock.module("@raceiq/backend-core/ai/consult-lap-analyst", () => ({
+mock.module("@raceiq/backend/ai/consult-lap-analyst", () => ({
   ...RealConsult,
   consultLapAnalystForSession: gate(RealConsult.consultLapAnalystForSession, mock(async () => ({ ok: true, text: "" }))),
 }));
-mock.module("@raceiq/backend-core/experiments/lap-evidence/aggregate", () => ({
+mock.module("@raceiq/backend/experiments/lap-evidence/aggregate", () => ({
   ...RealCleanLap,
   loadCleanLapAggregate: gate(RealCleanLap.loadCleanLapAggregate, mock(async () => null)),
 }));

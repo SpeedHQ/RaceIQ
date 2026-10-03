@@ -5,11 +5,11 @@ import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
 import { cacheSet } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { db } from "@raceiq/backend-core/db/index";
 import { lapMetrics } from "@raceiq/backend-core/db/schema";
-import { loadDriverProfile } from "@raceiq/backend-core/driver-profile/load";
-import { driverRoutes } from "@raceiq/backend-core/routes/driver-routes";
+import { loadDriverProfile } from "@raceiq/backend/driver-profile/load";
+import { driverRoutes } from "@raceiq/backend/routes/driver-routes";
 import { STATIC_LAP_ANALYSIS_VERSION } from "@raceiq/backend-core/lap-analysis/insights";
 import { getOrComputeLapMetrics, getOrComputeLapMetricsBatch, getOrComputeLapInsightsBatch, recomputeLapInsights } from "@raceiq/backend-core/lap-analysis/metrics-store";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 const sessions: number[] = [];

@@ -1,14 +1,14 @@
 import { describe, test, expect } from "bun:test";
 import { liveAnalystScorers, liveCoachScorers, scorerRegistry } from "@raceiq/backend/mastra/evals/index";
-import { isMastraSignalMigrationRequiredError, shouldUseMastraRuntime } from "@raceiq/backend-core/ai/agents";
+import { isMastraSignalMigrationRequiredError, shouldUseMastraRuntime } from "@raceiq/backend/ai/agents";
 
 describe("shouldUseMastraRuntime", () => {
   test("does not enable Mastra for standalone seed commands", () => {
-    expect(shouldUseMastraRuntime("development", ["bun", "scripts/data/seed-db.ts"])).toBe(false);
+    expect(shouldUseMastraRuntime("development", ["bun", "apps/backend/scripts/data/seed-db.ts"])).toBe(false);
   });
 
   test("enables Mastra for the development server", () => {
-    expect(shouldUseMastraRuntime("development", ["bun", "server/index.ts"])).toBe(true);
+    expect(shouldUseMastraRuntime("development", ["bun", "apps/backend/src/index.ts"])).toBe(true);
   });
 });
 

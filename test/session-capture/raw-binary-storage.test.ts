@@ -13,9 +13,9 @@ import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps } from "@raceiq/backend-core/db/schema";
 import { eq } from "drizzle-orm";
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { countStaleSessions, getStaleSessions } from "@raceiq/backend-core/db/session-queries";
-import { sessionRoutes } from "@raceiq/backend-core/routes/session-routes";
+import { sessionRoutes } from "@raceiq/backend/routes/session-routes";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { executeSessionCleanup } from "@raceiq/backend-core/session-capture/session-cleanup";
 

@@ -2,11 +2,14 @@
   "name": "@raceiq/game-f1-2025",
   "private": true,
   "type": "module",
-  "exports": {".":"./src/index.ts","./f1-state":"./src/f1-state.ts"},
+  "exports": {
+    ".": "./src/index.ts",
+    "./f1-state": "./src/f1-state.ts"
+  },
   "dependencies": {
     "@raceiq/shared": "workspace:*",
-    "@raceiq/backend-core": "workspace:*",
-    "@raceiq/capture-formats": "workspace:*"
+    "@raceiq/capture-formats": "workspace:*",
+    "@raceiq/backend-core": "workspace:*"
   },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit"

@@ -30,11 +30,11 @@ import { z } from "zod";
 import { describeKnobs } from "@raceiq/backend-core/setups/rules/engine";
 import { formatSymptoms } from "@raceiq/backend-core/ai/tune-chat-prompt";
 import { formatTrackConditions } from "@raceiq/backend-core/ai/track-conditions";
-import { loadActiveExperimentContext } from "@raceiq/backend-core/experiments/setup-lineage";
+import { loadActiveExperimentContext } from "../../experiments/setup-lineage";
 import {
   loadCleanLapAggregate,
   baselineFallbackNote,
-} from "@raceiq/backend-core/experiments/lap-evidence/aggregate";
+} from "../../experiments/lap-evidence/aggregate";
 import { formatLapObservations } from "@raceiq/backend-core/ai/lap-observations";
 import { getOrComputeLapMetricsBatch } from "@raceiq/backend-core/lap-analysis/metrics-store";
 import { listExperimentVersions } from "@raceiq/backend-core/db/experiment-version-queries";

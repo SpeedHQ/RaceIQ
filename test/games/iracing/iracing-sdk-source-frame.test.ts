@@ -7,7 +7,7 @@ import {
 } from "@raceiq/backend-core/db/discovered-tracks";
 import { db } from "@raceiq/backend-core/db/index";
 import { discoveredCars, discoveredTracks } from "@raceiq/backend-core/db/schema";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { registerLiveIRacingIdentity } from "@raceiq/game-iracing/identity";
 import {
   normalizeIRacingFrame,

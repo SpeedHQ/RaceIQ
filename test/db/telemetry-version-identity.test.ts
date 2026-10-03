@@ -11,7 +11,7 @@ import {
 } from "@raceiq/shared/telemetry/resolver/versions";
 import { deleteSession, getSessions, } from "@raceiq/backend-core/db/session-queries";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { RealDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 initServerGameAdapters();

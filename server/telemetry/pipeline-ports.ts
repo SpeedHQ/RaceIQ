@@ -21,7 +21,7 @@ import { insertSession, updateSessionRawFile, updateSessionCarTrack, markSession
 import { deleteLapOnly, insertLap, setLapMetrics } from "../db/lap-mutation-queries";
 import { getLaps } from "../db/lap-read-queries";
 import { getLapsForExclusionScope, setLapAutoExclusion, getLapExperimentScope } from "../db/experiment-lap-queries";
-import { notifyDriverProfileLap } from "../driver-profile/runner";
+import { notifyDriverProfileLap } from "../driver-profile/lap-notifier";
 import type { ExclusionScopeLap } from "../experiments/auto-exclude";
 import { getTuneAssignment } from "../db/tune-queries";
 import { SessionRecorder } from "../session-capture/recorder";

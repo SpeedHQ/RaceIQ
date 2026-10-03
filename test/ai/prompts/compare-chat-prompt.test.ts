@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { initGameAdapters } from "@raceiq/shared/games/init";
-import { initServerGameAdapters } from "@raceiq/backend-core/games/init";
+import { initServerGameAdapters } from "@raceiq/backend/games/init";
 import { buildCompareChatContext, buildCompareChatSystemPrompt } from "@raceiq/backend-core/ai/compare-chat-prompt";
 
 initGameAdapters();

@@ -7,7 +7,7 @@
  */
 import { Agent } from "@mastra/core/agent";
 import { compareEngineerPersona } from "@raceiq/backend-core/ai/compare-engineer";
-import { getModel } from "@raceiq/backend-core/ai/model-provider";
+import { getModel } from "../../ai/model-provider";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";

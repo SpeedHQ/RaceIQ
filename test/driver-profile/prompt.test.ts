@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import { buildDriverProfilerPrompt } from "@raceiq/backend-core/driver-profile/prompt";
-import { emptyFingerprint, type DriverFingerprint } from "@raceiq/backend-core/driver-profile/fingerprint";
+import { buildDriverProfilerPrompt } from "@raceiq/backend/driver-profile/prompt";
+import { emptyFingerprint, type DriverFingerprint } from "@raceiq/backend/driver-profile/fingerprint";
 import type { DriverTrend } from "@raceiq/backend-core/driver-profile/trend";
 import { parseDriverProfileSummary, DriverProfileSummarySchema } from "@raceiq/backend-core/ai/schemas";
 
