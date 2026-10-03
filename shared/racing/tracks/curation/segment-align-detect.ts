@@ -1,7 +1,7 @@
 /**
  * Alignment of curvature-detected corners against a track's shared facts.
  *
- * The geometry (extracted from game files) is authoritative for WHERE corners
+ * The committed game-specific geometry is authoritative for WHERE corners
  * are; the facts file (from official circuit maps) is authoritative for WHAT
  * they are called. This module matches the two ordered sequences and produces
  * named segments, refusing to guess when they disagree.

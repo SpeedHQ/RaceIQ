@@ -7,7 +7,7 @@ Setup Engineer clamps proposed changes to known game limits in
 
 | Game | Source | Scope |
 | --- | --- | --- |
-| Assetto Corsa Evo | Extracted `carsetuplimits` data in `shared/games/ac-evo/setup-ranges.json` | Per car |
+| Assetto Corsa Evo | Curated `carsetuplimits` data in `shared/games/ac-evo/setup-ranges.json` | Per car |
 | Assetto Corsa Competizione | Conservative `RULES.acc` click-index limits | Per game |
 | F1 2025 | Observed limits from bundled community setups | Per game |
 
@@ -33,6 +33,5 @@ RaceIQ has seen, not guaranteed simulator limits.
 See [per-car setup range status](../project-status/per-car-setup-ranges.md) for
 unresolved data-source work.
 
-Game-file extraction tools have been removed. Update this committed catalog only
-from verified source data, with reviewed diffs.
+Update this committed catalog only from verified source data, with reviewed diffs.
 

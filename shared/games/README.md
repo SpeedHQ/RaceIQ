@@ -55,8 +55,7 @@ Single source for game adapters, identity boundaries, and telemetry capabilities
 Regenerate supported seed data with:
   - `bun run iracing:cars:seed`
   - `bun run iracing:tracks:seed`
-Game-file extraction tools for track geometry and setup ranges have been removed.
-- Preserve CSV headers and native ordinals. Review generated diffs before committing.
+Preserve CSV headers and native ordinals. Review generated diffs before committing.
 
 ## Add/extend safely
 - Add new game:

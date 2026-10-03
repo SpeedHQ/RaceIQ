@@ -1,5 +1,5 @@
 /**
- * Core of the track segment generator: turns extracted game centerlines +
+ * Core of the track segment generator: turns committed game centerlines +
  * curated track facts into a track's shared facts plus one geometry file
  * per game. Used by scripts/tracks/generate-track-segments.ts (CLI) and by tests, so
  * the exact code path that produces committed meta is what the test suite

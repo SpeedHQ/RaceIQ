@@ -45,7 +45,7 @@ Canonical sources:
 
 ### Assetto Corsa Evo
 
-- Native setup inspection depends on evidence extracted from an installed game. The UI reports it unavailable when that evidence is absent.
+- Native setup inspection is unavailable.
 - Some centerlines still under-detect individual corners; accepted cases remain in the shrink-only track gap register.
 - Click-to-real-value setup mappings remain unverified for clamping and control availability. See [per-car setup ranges](../project-status/per-car-setup-ranges.md).
 

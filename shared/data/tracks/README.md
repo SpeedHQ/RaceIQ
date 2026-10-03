@@ -12,7 +12,7 @@ Static track assets used by `shared/racing/tracks` loaders.
 - `verified.json` — manual verification ledger for curation.
 - `guides/<slug>.json` — authored guidance and corner callouts.
 - `tumftm/<slug>-centerline.csv`, `tumftm/<slug>-boundaries.json` — shared baseline geometry.
-- `<gameId>/<slug>-segments.json` and extracted files for game-specific geometry.
+- `<gameId>/<slug>-segments.json` and game-specific geometry files.
 
 Per-game dirs currently present:
 - `acc/`, `ac-evo/`, `fm-2023/`, `f1-2025/`.
@@ -37,7 +37,7 @@ Per-game dirs currently present:
 
 ## Sources of truth
 - `meta/<slug>.json` is authoritative for physical track identity, corner numbering/names, groups, and named straights. Its `source` field must cite the real-world claim.
-- Game track geometry is committed catalog data; installed-game extraction tools have been removed.
+- Game-specific geometry is committed catalog data.
 - `tumftm/*` is imported baseline geometry from TUMFTM/racetrack-database; retain its source identity when refreshing it.
 - `guides/*` and `detect-hints.json` are reviewed, hand-curated inputs. Hints describe detector behavior only and must not carry physical track facts.
 - `verified.json` records human review of exact file hashes. Generation must never stamp verification automatically.

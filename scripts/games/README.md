@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Installed-game file extraction and readers have been removed. Remaining utilities operate on bundled or externally sourced data.
+Remaining utilities operate on bundled or externally sourced data.
 
 ## Remaining utilities
 
