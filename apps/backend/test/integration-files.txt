@@ -127,6 +127,7 @@ apps/backend/test/setups/ac-evo/place-setup-carsetup.test.ts
 apps/backend/test/setups/ac-evo/setup-file-formats.test.ts
 apps/backend/test/setups/catalog.test.ts
 apps/backend/test/setups/engineer/setup-engineer-apply-guard.test.ts
+apps/backend/test/setups/lmu/lmu-setup-files.test.ts
 apps/backend/test/setups/engineer/setup-engineer-confirmation.test.ts
 apps/backend/test/setups/engineer/setup-engineer-tools.test.ts
 apps/backend/test/setups/tuning/community-tunes-sync.test.ts

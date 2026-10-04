@@ -2,6 +2,9 @@
 
 ### Features
 
+- Browse LMU game-folder or uploaded `.svm` setups, inspect the six in-game setup pages, and compare changed, added, and removed settings.
+- Make explicit LMU click edits with capability-aware controls, linked corners, independent third elements, and an original-to-proposed preview. Save a new game-folder file or download without overwriting originals; stale sources and filename collisions retain pending edits.
+- Consult attributed LMU community parameter, symptom, and driver-request advice without automatically applying it. Saving or exporting requires acknowledgement that click ranges and physical values are unverified.
 - See each saved setup's best valid lap and sort setups by lap time.
 - Choose a track for ACC and AC Evo setups to see best laps recorded on that circuit.
 - Search cars, tracks, and categories in ACC and AC Evo setup forms.

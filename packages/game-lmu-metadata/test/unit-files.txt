@@ -1,0 +1,3 @@
+packages/game-lmu-metadata/test/setups/svm.test.ts
+packages/game-lmu-metadata/test/setups/capabilities.test.ts
+packages/game-lmu-metadata/test/setups/knowledge.test.ts

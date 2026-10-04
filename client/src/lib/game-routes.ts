@@ -53,7 +53,7 @@ const ROUTE_FEATURES: Record<GameRouteFeature, readonly string[]> = {
   driver: ["fm23", "f125", "acc", "ac-evo"],
   experiments: ["f125", "acc", "ac-evo"],
   raw: ["fm23", "f125", "acc", "ac-evo", "iracing", "lmu"],
-  setups: ["fm23", "f125", "acc", "ac-evo"],
+  setups: ["fm23", "f125", "acc", "ac-evo", "lmu"],
 };
 
 export function gameIdForRoutePrefix(prefix: string): GameId | undefined {

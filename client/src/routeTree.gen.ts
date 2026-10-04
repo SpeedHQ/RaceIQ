@@ -59,6 +59,7 @@ import { Route as Fm23CarsCarOrdinalRouteImport } from './routes/fm23/cars_.$car
 import { Route as Fm23SetupsIndexRouteImport } from './routes/fm23/setups/index'
 import { Route as Fm23SetupsCatalogRouteImport } from './routes/fm23/setups/catalog'
 import { Route as Fm23SetupsNewRouteImport } from './routes/fm23/setups/new'
+import { Route as LmuSetupsIndexRouteImport } from './routes/lmu/setups/index'
 import { Route as GameidExperimentsExperimentIdReviewRouteImport } from './routes/$gameid/experiments.$experimentId_.review'
 import { Route as GameidSessionsSessionIdAnalyseRouteImport } from './routes/$gameid/sessions/$sessionId/analyse'
 import { Route as GameidTracksTrackOrdinalIndexRouteImport } from './routes/$gameid/tracks.$trackOrdinal.index'
@@ -319,6 +320,11 @@ const Fm23SetupsNewRoute = Fm23SetupsNewRouteImport.update({
   path: '/new',
   getParentRoute: () => Fm23SetupsRoute,
 } as any)
+const LmuSetupsIndexRoute = LmuSetupsIndexRouteImport.update({
+  id: '/setups/',
+  path: '/setups/',
+  getParentRoute: () => LmuRoute,
+} as any)
 const GameidExperimentsExperimentIdReviewRoute =
   GameidExperimentsExperimentIdReviewRouteImport.update({
     id: '/$experimentId_/review',
@@ -416,6 +422,7 @@ export interface FileRoutesByFullPath {
   '/f125/setups/': typeof F125SetupsIndexRoute
   '/f125/tunes/': typeof F125TunesIndexRoute
   '/fm23/setups/': typeof Fm23SetupsIndexRoute
+  '/lmu/setups/': typeof LmuSetupsIndexRoute
   '/$gameid/experiments/$experimentId/review': typeof GameidExperimentsExperimentIdReviewRoute
   '/$gameid/sessions/$sessionId/analyse': typeof GameidSessionsSessionIdAnalyseRoute
   '/$gameid/tracks/$trackOrdinal/$tab': typeof GameidTracksTrackOrdinalTabRoute
@@ -462,6 +469,7 @@ export interface FileRoutesByTo {
   '/f125/setups': typeof F125SetupsIndexRoute
   '/f125/tunes': typeof F125TunesIndexRoute
   '/fm23/setups': typeof Fm23SetupsIndexRoute
+  '/lmu/setups': typeof LmuSetupsIndexRoute
   '/$gameid/experiments/$experimentId/review': typeof GameidExperimentsExperimentIdReviewRoute
   '/$gameid/sessions/$sessionId/analyse': typeof GameidSessionsSessionIdAnalyseRoute
   '/$gameid/tracks/$trackOrdinal/$tab': typeof GameidTracksTrackOrdinalTabRoute
@@ -523,6 +531,7 @@ export interface FileRoutesById {
   '/f125/setups/': typeof F125SetupsIndexRoute
   '/f125/tunes/': typeof F125TunesIndexRoute
   '/fm23/setups/': typeof Fm23SetupsIndexRoute
+  '/lmu/setups/': typeof LmuSetupsIndexRoute
   '/$gameid/experiments/$experimentId_/review': typeof GameidExperimentsExperimentIdReviewRoute
   '/$gameid/sessions/$sessionId/analyse': typeof GameidSessionsSessionIdAnalyseRoute
   '/$gameid/tracks/$trackOrdinal/$tab': typeof GameidTracksTrackOrdinalTabRoute
@@ -585,6 +594,7 @@ export interface FileRouteTypes {
     | '/f125/setups/'
     | '/f125/tunes/'
     | '/fm23/setups/'
+    | '/lmu/setups/'
     | '/$gameid/experiments/$experimentId/review'
     | '/$gameid/sessions/$sessionId/analyse'
     | '/$gameid/tracks/$trackOrdinal/$tab'
@@ -631,6 +641,7 @@ export interface FileRouteTypes {
     | '/f125/setups'
     | '/f125/tunes'
     | '/fm23/setups'
+    | '/lmu/setups'
     | '/$gameid/experiments/$experimentId/review'
     | '/$gameid/sessions/$sessionId/analyse'
     | '/$gameid/tracks/$trackOrdinal/$tab'
@@ -691,6 +702,7 @@ export interface FileRouteTypes {
     | '/f125/setups/'
     | '/f125/tunes/'
     | '/fm23/setups/'
+    | '/lmu/setups/'
     | '/$gameid/experiments/$experimentId_/review'
     | '/$gameid/sessions/$sessionId/analyse'
     | '/$gameid/tracks/$trackOrdinal/$tab'
@@ -1069,6 +1081,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Fm23SetupsNewRouteImport
       parentRoute: typeof Fm23SetupsRoute
     }
+    '/lmu/setups/': {
+      id: '/lmu/setups/'
+      path: '/setups'
+      fullPath: '/lmu/setups/'
+      preLoaderRoute: typeof LmuSetupsIndexRouteImport
+      parentRoute: typeof LmuRoute
+    }
     '/$gameid/experiments/$experimentId_/review': {
       id: '/$gameid/experiments/$experimentId_/review'
       path: '/$experimentId/review'
@@ -1357,10 +1376,12 @@ const LiveRouteWithChildren = LiveRoute._addFileChildren(LiveRouteChildren)
 
 interface LmuRouteChildren {
   LmuIndexRoute: typeof LmuIndexRoute
+  LmuSetupsIndexRoute: typeof LmuSetupsIndexRoute
 }
 
 const LmuRouteChildren: LmuRouteChildren = {
   LmuIndexRoute: LmuIndexRoute,
+  LmuSetupsIndexRoute: LmuSetupsIndexRoute,
 }
 
 const LmuRouteWithChildren = LmuRoute._addFileChildren(LmuRouteChildren)

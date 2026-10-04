@@ -5,6 +5,10 @@
   "exports": {
     "./index": "./src/index.ts",
     "./catalog": "./src/catalog.ts",
+    "./setups/svm": "./src/setups/svm.ts",
+    "./setups/fields": "./src/setups/fields.ts",
+    "./setups/capabilities": "./src/setups/capabilities.ts",
+    "./setups/knowledge": "./src/setups/knowledge.ts",
     "./track-boundaries": "./src/track-boundaries.ts",
     "./cars.json": "./src/cars.json",
     "./tracks.json": "./src/tracks.json",
@@ -13,5 +17,9 @@
   "dependencies": {
     "@raceiq/shared": "workspace:*"
   },
-  "scripts": {"typecheck":"bunx tsc --project tsconfig.json --noEmit"}
+  "scripts": {
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/game-lmu-metadata",
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/game-lmu-metadata"
+  }
 }

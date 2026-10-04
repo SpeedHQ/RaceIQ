@@ -14,6 +14,7 @@ import { carRoutes } from "./car-routes";
 import { tuneRoutes } from "./tune-routes";
 import { accRoutes } from "./games/acc";
 import { acEvoRoutes } from "./games/ac-evo";
+import { lmuSetupRoutes } from "./games/lmu-setups";
 import { f125Routes } from "./games/f1-2025";
 import { miscRoutes } from "./system/index";
 import { cacheRoutes } from "./cache-routes";
@@ -40,6 +41,7 @@ const app = new Hono()
       : cors(),
   )
   .use("/*", errorLogger())
+  .route("/", lmuSetupRoutes)
   .route("/", settingsRoutes)
   .route("/", lapRoutes)
   .route("/", driverRoutes)
