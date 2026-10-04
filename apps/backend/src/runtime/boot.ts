@@ -14,12 +14,12 @@ import { backfillLMUSessionIdentity } from "../imports/lmu-session-identity-back
 import { listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
 import { deleteEmptySessions } from "@raceiq/backend-core/db/session-queries";
 import { setCacheMaxBytes } from "@raceiq/backend-core/db/telemetry-replay-storage";
-import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
+import { isFirstRun, loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { wsManager, type WSData } from "@raceiq/backend-core/runtime/websocket-manager";
 import { udpListener } from "./udp-listener";
 import { PUBLIC_DIR, IS_COMPILED } from "@raceiq/backend-core/runtime/config/paths";
 import { getOnboardingOverride } from "@raceiq/backend-core/runtime/options";
-import { preventMacSleep } from "@raceiq/backend-core/runtime/desktop";
+import { openFirstRunDashboard, preventMacSleep } from "@raceiq/backend-core/runtime/desktop";
 import { clearHttpPort, startHttpServer } from "./http-server";
 import { startNativeSourceSupervisor, type NativeSourceSupervisor } from "./native-sources";
 import { installShutdown } from "./shutdown";
@@ -90,6 +90,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   ]);
   injectDiscoveredLMUIdentity(lmuCars, lmuTracks);
 
+  const firstRun = IS_COMPILED && isFirstRun();
   const settings = loadSettings();
   if (settings.wsRefreshRate) {
     wsManager.setRefreshRate(settings.wsRefreshRate);
@@ -150,6 +151,10 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
 
   nativeSources = startNativeSourceSupervisor(recordingGameId);
   startTray(httpPort);
+
+  if (firstRun) {
+    openFirstRunDashboard(httpPort);
+  }
 
   startMaintenanceJobs();
 

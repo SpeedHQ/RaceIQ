@@ -1,19 +1,16 @@
 ## Unreleased
 
-### Breaking
-
-- Remove game-file extraction tools and their settings UI.
-
 ### Features
 
-- Use structured setup editing without a Paste JSON mode, and label the save action “Save Setup”.
-- Show each saved setup's best valid recorded lap from sessions using that setup, and sort setups by recorded lap time.
-- Select or clear a track when creating or editing ACC and AC Evo setups; restrict track-specific setup best laps to that circuit.
-- Use accessible toggle groups for setup sections and setup sources.
+- See each saved setup's best valid lap and sort setups by lap time.
+- Choose a track for ACC and AC Evo setups to see best laps recorded on that circuit.
+- Search cars, tracks, and categories in ACC and AC Evo setup forms.
+- Use keyboard-accessible controls to switch setup sections and sources.
+- Edit setups through structured fields instead of Paste JSON, with a clearly labelled “Save Setup” action.
 
 ### Fixes
 
-- Stop opening a browser automatically on startup, including first-run and development launches.
+- Stop opening a browser automatically during development launches; preserve first-run browser opening in installed builds.
 - Warn before deleting a setup that is in use, list its linked sessions and laps, and preserve recordings when removing their setup associations.
 - Keep Analyse Data vertically scrollable; restore borderless wheel metrics, right-align wheel headings, show the combined balance signal, and label pressure units once per row.
 - Label the lap replay selector “Setup” and let users select “No setup” to unlink a saved setup from a lap.
@@ -43,6 +40,7 @@
 - Install workspace dependencies before CI changelog validation while retaining package imports.
 - Stage checkout-local benchmark imports across the workspace layout migration without substituting current code for the base implementation.
 - Retain Mars runner routing for pull-request build, test, browser, snapshot, and benchmark jobs.
+- Remove game-file extraction tools and their settings UI.
 - Use bundled ACC track SVGs for segment generation, visualization, and runtime centerlines; remove obsolete centerline CSVs and migrate saved segment and sector positions while preserving curated turns.
 - Exclude generated JavaScript from client typechecking and emit Paraglide declarations in development so translation imports remain typed.
 - Seed and validate the compiled E2E database once per workflow, then restore isolated database and capture copies in seeded shards instead of repeating fixture imports.
