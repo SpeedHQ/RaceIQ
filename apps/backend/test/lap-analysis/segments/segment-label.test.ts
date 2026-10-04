@@ -5,6 +5,7 @@ import {
   segmentGroupLabels,
   segmentPromptLabels,
   segmentPromptNames,
+  lapWrappedSegmentGroup,
 } from "@raceiq/shared/racing/tracks/segment-label";
 const corner = (name: string, numbers?: number[], group?: string) => ({
   type: "corner" as const,
@@ -142,5 +143,27 @@ describe("prompt labels", () => {
     const segs = [straight("", "Wheatcroft Straight"), straight("Wheatcroft Straight", "Wheatcroft Straight")];
     expect(segmentGroupLabels(segs)).toEqual(["Wheatcroft Straight", ""]);
     expect(segmentPromptLabels(segs)).toEqual(["Wheatcroft Straight", ""]);
+  });
+});
+
+describe("lapWrappedSegmentGroup", () => {
+  test("joins matching edge segments into one logical group", () => {
+    expect(lapWrappedSegmentGroup([
+      { type: "straight", group: "start-finish" },
+      { type: "corner", group: "T1" },
+      { type: "straight", group: "start-finish" },
+    ])).toEqual({ group: "start-finish", firstIndex: 0, lastIndex: 2 });
+  });
+
+  test("does not join edge segments with different groups or types", () => {
+    expect(lapWrappedSegmentGroup([
+      { type: "straight", group: "start-finish" },
+      { type: "corner", group: "T1" },
+      { type: "straight", group: "back-straight" },
+    ])).toBeNull();
+    expect(lapWrappedSegmentGroup([
+      { type: "straight", group: "start-finish" },
+      { type: "corner", group: "start-finish" },
+    ])).toBeNull();
   });
 });

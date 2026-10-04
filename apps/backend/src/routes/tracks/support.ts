@@ -14,6 +14,8 @@ import { tryGetServerGame } from "@raceiq/backend-core/games/registry";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { GameIdSchema, type GameId } from "@raceiq/shared/games/ids";
 import { getIRacingSvgTrackMap } from "@raceiq/game-iracing/track-map";
+import { applyAlignment, computeAlignment } from "@raceiq/shared/racing/tracks/geometry/points";
+import type { IRacingPitLine } from "@raceiq/game-iracing/track-map-svg";
 import { alignIRacingAutoSegmentsToTurnLabels, type IRacingMapLabel } from "@raceiq/game-iracing/track-map-svg";
 import { lapPath } from "@raceiq/shared/racing/tracks/path";
 import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
@@ -85,6 +87,7 @@ export interface ResolvedTrackOutline {
   labels: IRacingMapLabel[];
   recorded: boolean;
   source: "shared" | "official-svg" | "generated" | "bundled" | "recorded";
+  pitLines: IRacingPitLine[];
 }
 
 /**
@@ -96,6 +99,7 @@ export async function resolveTrackOutline(
   ordinal: number,
   gameId: string,
 ): Promise<ResolvedTrackOutline | null> {
+  const official = gameId === "iracing" ? await getIRacingSvgTrackMap(ordinal) : null;
   const sharedName = getSharedTrackName(ordinal, gameId);
 
   if (gameId === "iracing") {
@@ -103,16 +107,21 @@ export async function resolveTrackOutline(
       const shared = loadSharedOutline(sharedName);
       const labelledSegments = loadLabelledSegments(sharedName, "iracing");
       if (shared && labelledSegments.length > 0) {
+        const alignment = official ? computeAlignment(official.points, shared) : null;
         return {
           points: shared,
           labels: [],
+          pitLines: official && alignment
+            ? (official.pitLines ?? []).map((line) => ({
+                ...line,
+                points: line.points.map((point) => applyAlignment(point, alignment)),
+              }))
+            : [],
           recorded: false,
           source: "shared",
         };
       }
     }
-
-    const official = await getIRacingSvgTrackMap(ordinal);
     if (official) {
       return {
         ...official,
@@ -126,6 +135,7 @@ export async function resolveTrackOutline(
       return {
         points: generated,
         labels: [],
+        pitLines: [],
         recorded: true,
         source: "generated",
       };
@@ -136,6 +146,7 @@ export async function resolveTrackOutline(
       return {
         points: outline,
         labels: [],
+        pitLines: [],
         recorded: true,
         source: "bundled",
       };
@@ -147,6 +158,7 @@ export async function resolveTrackOutline(
     return {
       points: dbOutline,
       labels: [],
+      pitLines: [],
       recorded: true,
       source: "recorded",
     };
@@ -178,6 +190,7 @@ export async function resolveTrackOutline(
         return {
           points: generated,
           labels: [],
+          pitLines: [],
           recorded: true,
           source: "generated",
         };

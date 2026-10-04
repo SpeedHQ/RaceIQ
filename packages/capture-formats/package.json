@@ -3,6 +3,9 @@
   "private": true,
   "type": "module",
   "exports": {"./ac-evo/structs":"./src/ac-evo/structs.ts","./acc/structs":"./src/acc/structs.ts","./f1-2025/f1-wire":"./src/f1-2025/f1-wire.ts","./iracing/dump":"./src/iracing/dump.ts","./iracing/session-info":"./src/iracing/session-info.ts","./iracing/source-frame-codec":"./src/iracing/source-frame-codec.ts","./iracing/source-frame":"./src/iracing/source-frame.ts","./iracing/variable-table":"./src/iracing/variable-table.ts","./lmu/dump":"./src/lmu/dump.ts","./lmu/layout":"./src/lmu/layout.ts","./lmu/source-frame":"./src/lmu/source-frame.ts"},
+  "dependencies": {
+    "@raceiq/game-iracing-metadata": "workspace:*"
+  },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit"
   }

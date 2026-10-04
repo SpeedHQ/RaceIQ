@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { GameId } from "@raceiq/shared/games/ids";
+import type { PitLine } from "../lib/canvas/draw-track";
 import { client } from "../lib/rpc";
 import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
@@ -49,7 +50,7 @@ export function useTrackOutline(ord: number | string | undefined, gameIdOverride
     queryKey: [...queryKeys.trackOutline(ord!), gameId ?? null],
     queryFn: async () => {
       const res = await client.api["track-outline"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ord!)) }, query: { gameId: gameId! } });
-      return rpcJson<{ points?: { x: number; z: number }[]; labels?: { text: string; x: number; z: number }[]; flipX?: boolean; recorded?: boolean; source?: string } | { x: number; z: number }[]>(
+      return rpcJson<{ points?: { x: number; z: number }[]; labels?: { text: string; x: number; z: number }[]; flipX?: boolean; recorded?: boolean; source?: string; pitLines?: PitLine[] } | { x: number; z: number }[]>(
         res,
       );
     },

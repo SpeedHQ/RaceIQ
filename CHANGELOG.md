@@ -2,6 +2,8 @@
 
 ### Features
 
+- Browse enriched iRacing car, car-class, and track catalogs with official car images, offline pit-road maps, and grouped lap sections.
+
 ### Fixes
 
 ### Internal

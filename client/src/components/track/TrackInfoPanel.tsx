@@ -1,5 +1,6 @@
 import type { ResolvedTrackGuide } from "@raceiq/shared/racing/tracks/guide/types";
-import { segmentDisplayNames, turnNumbers } from "@raceiq/shared/racing/tracks/segment-label";
+import { lapWrappedSegmentGroup, segmentDisplayNames, turnNumbers } from "@raceiq/shared/racing/tracks/segment-label";
+import { useUnits } from "@/hooks/useUnits";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -70,14 +71,25 @@ export function TrackInfoPanel({
     staleTime: 5 * 60 * 1000,
   });
 
+  const units = useUnits(gameId ?? undefined);
   const segments = sectors?.segments ?? [];
   const labels = useMemo(() => segmentDisplayNames(segments), [segments]);
+  const lapWrap = useMemo(() => lapWrappedSegmentGroup(segments), [segments]);
+  const displayedSegments = useMemo(
+    () =>
+      segments.flatMap((segment, index) => {
+        if (lapWrap?.lastIndex === index) return [];
+        return [{ segment, index, name: lapWrap?.firstIndex === index ? lapWrap.group : labels[index] }];
+      }),
+    [segments, labels, lapWrap],
+  );
 
-  const corners = segments.filter((s) => s.type === "corner");
-  const straights = segments.filter((s) => s.type === "straight");
-  // Turn count is the highest official number the curation covers, not the
-  // corner-segment count: a chicane is one segment spanning several turns.
-  const turnCount = corners.reduce((max, s) => Math.max(max, ...turnNumbers(s), 0), 0);
+  const corners = segments.filter((segment) => segment.type === "corner");
+  const straights = segments.filter((segment) => segment.type === "straight");
+  const turnCount = corners.reduce((max, segment) => Math.max(max, ...turnNumbers(segment), 0), 0);
+  const displayedTurnCount = turnCount || track.cornersPerLap || 0;
+  const displayedCornerSections = corners.length - (lapWrap && segments[lapWrap.firstIndex]?.type === "corner" ? 1 : 0);
+  const displayedStraights = straights.length - (lapWrap && segments[lapWrap.firstIndex]?.type === "straight" ? 1 : 0);
 
   /** Which sector a segment falls in, by its midpoint. */
   const sectorOf = (startFrac: number, endFrac: number): 1 | 2 | 3 => {
@@ -88,16 +100,34 @@ export function TrackInfoPanel({
     return 3;
   };
 
-  const cornersInSector = (n: 1 | 2 | 3) => corners.filter((s) => sectorOf(s.startFrac, s.endFrac) === n);
+  const cornersInSector = (n: 1 | 2 | 3) => displayedSegments.filter(({ segment }) => segment.type === "corner" && sectorOf(segment.startFrac, segment.endFrac) === n);
 
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-2 @3xl/workspace:grid-cols-3">
         <Stat label={m.trackinfo_length()} value={track.lengthKm > 0 ? `${track.lengthKm} km` : "—"} />
-        <Stat label={m.trackinfo_turns()} value={turnCount > 0 ? String(turnCount) : "—"} hint={corners.length > 0 ? m.trackinfo_sections({ n: String(corners.length) }) : undefined} />
-        <Stat label={m.trackinfo_straights()} value={straights.length > 0 ? String(straights.length) : "—"} />
+        <Stat
+          label={m.trackinfo_turns()}
+          value={displayedTurnCount > 0 ? String(displayedTurnCount) : "—"}
+          hint={corners.length > 0 ? m.trackinfo_sections({ n: String(displayedCornerSections) }) : displayedTurnCount > 0 ? m.trackinfo_official_layout_data() : undefined}
+        />
+        {gameId === "iracing" && track.pitRoadSpeedLimitMph != null && (
+          <Stat label={m.trackinfo_pit_speed()} value={`${Math.round(units.fromMph(track.pitRoadSpeedLimitMph))} ${units.speedLabel}`} />
+        )}
+        {gameId === "iracing" && track.maxCars != null && track.maxCars > 0 && (
+          <Stat label={m.trackinfo_max_cars()} value={String(track.maxCars)} />
+        )}
+        <Stat label={m.trackinfo_straights()} value={displayedStraights > 0 ? String(displayedStraights) : "—"} />
       </div>
+      {gameId === "iracing" &&
+        (track.rainEnabled || track.nightLighting || (track.numberPitStalls != null && track.numberPitStalls > 0)) && (
+          <div className="flex flex-wrap gap-1">
+            {track.rainEnabled && <span className="rounded border border-app-border bg-app-surface-alt px-1.5 py-0.5 text-app-caption text-app-text-muted">{m.trackinfo_rain_racing()}</span>}
+            {track.nightLighting && <span className="rounded border border-app-border bg-app-surface-alt px-1.5 py-0.5 text-app-caption text-app-text-muted">{m.trackinfo_night_racing()}</span>}
+            {track.numberPitStalls != null && track.numberPitStalls > 0 && <span className="rounded border border-app-border bg-app-surface-alt px-1.5 py-0.5 text-app-caption text-app-text-muted">{m.trackinfo_pit_stalls({ n: String(track.numberPitStalls) })}</span>}
+          </div>
+        )}
       {/* Sectors */}
       <div>
         <div className="flex items-center gap-2 mb-1.5">
@@ -127,8 +157,8 @@ export function TrackInfoPanel({
                   </div>
                   {within.length > 0 ? (
                     <ul className="mt-1 list-disc space-y-0.5 pl-4 text-app-label text-app-text-dim">
-                      {within.map((s) => (
-                        <li key={`${s.startFrac}-${s.endFrac}`}>{labels[segments.indexOf(s)]}</li>
+                      {within.map(({ segment, index, name }) => (
+                        <li key={`${segment.startFrac}-${segment.endFrac}-${index}`}>{name}</li>
                       ))}
                     </ul>
                   ) : (
@@ -206,31 +236,36 @@ export function TrackInfoPanel({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {segments.map((s, i) => (
-                <TableRow
-                  key={`${s.name}-${s.startFrac}-${s.endFrac}`}
-                  tabIndex={onSegmentHover ? 0 : undefined}
-                  onMouseEnter={() => onSegmentHover?.([i])}
-                  onMouseLeave={() => onSegmentHover?.(null)}
-                  onFocus={() => onSegmentHover?.([i])}
-                  onBlur={() => onSegmentHover?.(null)}
-                  className="focus-visible:outline focus-visible:outline-app-accent focus-visible:-outline-offset-2"
-                >
-                  <TableCell>
-                    <span className={s.type === "corner" ? "text-app-text" : "text-app-text-muted"}>
-                      {s.type === "corner" ? "🔶" : "🔷"} {labels[i]}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-app-text-muted">{s.type === "corner" ? m.trackinfo_type_corner() : m.trackinfo_type_straight()}</TableCell>
-                  <TableCell className="text-app-text-muted">{s.direction === "left" ? m.trackinfo_dir_left() : s.direction === "right" ? m.trackinfo_dir_right() : "—"}</TableCell>
-                  <TableCell className="text-right font-mono tabular-nums text-app-text-muted">
-                    {sectorBounds ? `S${sectorOf(s.startFrac, s.endFrac)}` : "—"}
-                  </TableCell>
-                  <TableCell className="text-right font-mono tabular-nums text-app-text-muted">
-                    {(s.startFrac * 100).toFixed(1)}% – {(s.endFrac * 100).toFixed(1)}%
-                  </TableCell>
-                </TableRow>
-              ))}
+              {displayedSegments.map(({ segment: s, index: i, name }) => {
+                const wrapped = lapWrap?.firstIndex === i ? segments[lapWrap.lastIndex] : undefined;
+                const segmentSectors = sectorBounds
+                  ? [...new Set([...(wrapped ? [wrapped] : []), s].map((member) => `S${sectorOf(member.startFrac, member.endFrac)}`))].join("/")
+                  : "—";
+                const lapPosition = wrapped
+                  ? `${(wrapped.startFrac * 100).toFixed(1)}% – 100.0% + 0.0% – ${(s.endFrac * 100).toFixed(1)}%`
+                  : `${(s.startFrac * 100).toFixed(1)}% – ${(s.endFrac * 100).toFixed(1)}%`;
+                return (
+                  <TableRow
+                    key={`${s.type}-${s.group ?? s.name}-${s.startFrac}`}
+                    tabIndex={onSegmentHover ? 0 : undefined}
+                    onMouseEnter={() => onSegmentHover?.([i, ...(wrapped ? [lapWrap!.lastIndex] : [])])}
+                    onMouseLeave={() => onSegmentHover?.(null)}
+                    onFocus={() => onSegmentHover?.([i, ...(wrapped ? [lapWrap!.lastIndex] : [])])}
+                    onBlur={() => onSegmentHover?.(null)}
+                    className="focus-visible:outline focus-visible:outline-app-accent focus-visible:-outline-offset-2"
+                  >
+                    <TableCell>
+                      <span className={s.type === "corner" ? "text-app-text" : "text-app-text-muted"}>
+                        {s.type === "corner" ? "🔶" : "🔷"} {name}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-app-text-muted">{s.type === "corner" ? m.trackinfo_type_corner() : m.trackinfo_type_straight()}</TableCell>
+                    <TableCell className="text-app-text-muted">{s.direction === "left" ? m.trackinfo_dir_left() : s.direction === "right" ? m.trackinfo_dir_right() : "—"}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums text-app-text-muted">{segmentSectors}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums text-app-text-muted">{lapPosition}</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         ) : (

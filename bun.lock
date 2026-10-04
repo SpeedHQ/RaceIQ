@@ -195,6 +195,9 @@
     },
     "packages/capture-formats": {
       "name": "@raceiq/capture-formats",
+      "dependencies": {
+        "@raceiq/game-iracing-metadata": "workspace:*",
+      },
     },
     "packages/frontend-contract-tests": {
       "name": "@raceiq/frontend-contract-tests",
@@ -363,6 +366,7 @@
         "@raceiq/game-acc-metadata": "workspace:*",
         "@raceiq/game-fm-2023": "workspace:*",
         "@raceiq/game-iracing": "workspace:*",
+        "@raceiq/game-iracing-metadata": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
         "cheerio": "^1.2.0",
