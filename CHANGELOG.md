@@ -2,6 +2,14 @@
 
 ### Features
 
+### Fixes
+
+### Internal
+
+## v0.19.2 - 2026-10-04
+
+### Features
+
 - See each saved setup's best valid lap and sort setups by lap time.
 - Choose a track for ACC and AC Evo setups to see best laps recorded on that circuit.
 - Search cars, tracks, and categories in ACC and AC Evo setup forms.
