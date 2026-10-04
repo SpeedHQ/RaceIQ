@@ -6,6 +6,8 @@
 
 ### Fixes
 
+- Load LMU track boundaries without long stalls on detailed SVG maps.
+
 ### Internal
 - Skip build, test, browser, snapshot, and benchmark PR jobs for automated release version bump branches.
 
