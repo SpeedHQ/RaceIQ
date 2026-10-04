@@ -78,9 +78,9 @@ function resolveIdentity(header: string, vehicleComment: string): { carName: str
   for (const alias of aliases) { car = resolveLMUCar(alias); if (car) break; }
   if (!car && parsed.vehicleClass) car = resolveLMUCar(parsed.vehicleClass.replace(/\s+\d{4}$/, "").trim());
   const classToken = parsed.className;
-  const catalogClass = car?.class.toLowerCase();
-  const conflicting = Boolean(car && classToken && catalogClass !== classToken.toLowerCase() && !(classToken === "Hypercar" && catalogClass === "hypercar"));
-  return { carName: parsed.vehicleClass || header.trim(), carId: conflicting ? null : car?.id ?? null, className: conflicting ? null : classToken ?? (car?.class as SvmDocument["className"] | undefined) ?? null, warning: conflicting ? `Header class conflicts with catalog class ${car!.class}` : null };
+  const canonicalClass = car ? CLASS_BY_TOKEN[car.class.toLowerCase()] ?? null : null;
+  const conflicting = Boolean(car && classToken && canonicalClass !== classToken);
+  return { carName: parsed.vehicleClass || header.trim(), carId: conflicting ? null : car?.id ?? null, className: conflicting ? null : classToken ?? canonicalClass, warning: conflicting ? `Header class conflicts with catalog class ${car!.class}` : null };
 }
 export function parseSVM(input: Uint8Array): SvmParseResult {
   const bytes = input.slice();

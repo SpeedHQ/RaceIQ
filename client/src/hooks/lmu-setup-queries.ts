@@ -20,19 +20,12 @@ export function useLmuSetupFiles() {
   });
 }
 
-export function useLmuSetupContent(path: string | null) {
-  return useQuery({
-    queryKey: ["lmu-setup-content", path],
-    queryFn: async () => {
-      const response = await client.api.lmu["setup-content"].$get({ query: { path: path! } });
-      if (!response.ok) throw await errorFromResponse(response);
-      const content = await response.json();
-      if ("error" in content) throw new Error(typeof content.error === "string" ? content.error : response.statusText);
-      return content;
-    },
-    enabled: path !== null,
-    staleTime: 30_000,
-  });
+export async function fetchLmuSetupContent(path: string): Promise<LmuSetupContent> {
+  const response = await client.api.lmu["setup-content"].$get({ query: { path } });
+  if (!response.ok) throw await errorFromResponse(response);
+  const content = await response.json();
+  if ("error" in content) throw new Error(typeof content.error === "string" ? content.error : response.statusText);
+  return content;
 }
 
 export function useSaveLmuSetup() {

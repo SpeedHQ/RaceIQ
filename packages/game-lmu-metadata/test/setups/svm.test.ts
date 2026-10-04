@@ -128,6 +128,10 @@ describe("SVM codec", () => {
     const newSetting = parsed(output).settings.get(cp.id)!;
     expect([...output.slice(newSetting.displayStart!, newSetting.displayEnd!)]).toEqual([...originalBase]);
   });
+  test("catalog class is canonical when known header omits class token", () => {
+    const content = '//VEH=Installed\\Vehicles\\BMW_M_Hybrid_V8_2023\\BMW_M_Hybrid_V8_2023.VEH\nVehicleClassSetting="BMW_M_Hybrid_V8_2023"\n[REARWING]\nRWSetting=1//wing';
+    expect(parsed(new TextEncoder().encode(content))).toMatchObject({ carId: "bmw_m_hybrid_v8_2023", className: "Hypercar" });
+  });
   test("identity comment folder aliases outrank unresolved header, conflicts remain unknown", () => {
     const content = '//VEH=Installed\\Vehicles\\BMW_M_Hybrid_V8_2023\\unrecognized.VEH\nVehicleClassSetting="WEC2025 Hypercar Unknown"\n[REARWING]\nRWSetting=1//wing';
     expect(parsed(new TextEncoder().encode(content)).carId).toBe("bmw_m_hybrid_v8_2023");

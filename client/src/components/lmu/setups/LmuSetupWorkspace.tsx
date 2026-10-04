@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ChangeEvent } from "react";
 import { getSvmCapabilities, getSvmFieldAccess } from "@raceiq/game-lmu-metadata/setups/capabilities";
 import { parseSVM, writeSVM } from "@raceiq/game-lmu-metadata/setups/svm";
 import type { SvmDocument, SvmEdit } from "@raceiq/game-lmu-metadata/setups/svm";
-import { useLmuSetupContent, useLmuSetupFiles, useSaveLmuSetup } from "@/hooks/lmu-setup-queries";
+import { useLmuSetupFiles, useSaveLmuSetup, fetchLmuSetupContent } from "@/hooks/lmu-setup-queries";
 import type { LmuSetupContent } from "@/hooks/lmu-setup-queries";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,9 +20,9 @@ import { LmuSetupAdvice } from "./LmuSetupAdvice";
 
 type Source = { kind: "file"; path: string; sha256: string } | { kind: "upload" };
 interface Loaded { id: string; document: SvmDocument; source: Source; fileName: string }
-interface LoadRequest { path: string; slot: "active" | "a" | "b"; sequence: number }
+type Slot = "active" | "a" | "b";
 const ROOT_FOLDER = "__settings_root__";
-
+const SLOTS: readonly Slot[] = ["active", "a", "b"];
 function decodeBase64(value: string): Uint8Array {
   return Uint8Array.from(atob(value), (character) => character.charCodeAt(0));
 }
@@ -44,16 +45,16 @@ function validFilename(name: string): boolean {
 
 export function LmuSetupWorkspace() {
   const listing = useLmuSetupFiles();
+  const queryClient = useQueryClient();
   const save = useSaveLmuSetup();
   const uploadRef = useRef<HTMLInputElement>(null);
-  const sequence = useRef(0);
-  const processedRequest = useRef(0);
+  const requests = useRef<Record<Slot, number>>({ active: 0, a: 0, b: 0 });
+  const [activeLoading, setActiveLoading] = useState(false);
+  const [compareLoading, setCompareLoading] = useState(0);
   const [active, setActive] = useState<Loaded | null>(null);
   const [compareA, setCompareA] = useState<Loaded | null>(null);
   const [compareB, setCompareB] = useState<Loaded | null>(null);
   const [loaded, setLoaded] = useState<ReadonlyMap<string, Loaded>>(new Map());
-  const [loadRequest, setLoadRequest] = useState<LoadRequest | null>(null);
-  const content = useLmuSetupContent(loadRequest?.path ?? null);
   const [pending, setPending] = useState<ReadonlyMap<string, number>>(new Map());
   const [candidate, setCandidate] = useState<Loaded | null>(null);
   const [tab, setTab] = useState("edit");
@@ -71,6 +72,8 @@ export function LmuSetupWorkspace() {
   const tracks = listing.data?.tracks ?? [];
   const rootExists = Boolean(listing.data?.baseDir);
   const dirty = pending.size > 0;
+  const selectionState = useRef({ active, dirty });
+  selectionState.current = { active, dirty };
   const nameValid = validFilename(filename);
   const activeFilePath = active?.source.kind === "file" ? active.source.path : null;
   const sourceValid = active?.source.kind === "upload" || (activeFilePath !== null && files.some((file) => file.path === activeFilePath && !file.error));
@@ -85,6 +88,9 @@ export function LmuSetupWorkspace() {
   const preview = active ? [...pending].map(([id, delta]) => ({ id, before: active.document.settings.get(id)!.index, after: active.document.settings.get(id)!.index + delta, delta })) : [];
 
   function activate(next: Loaded) {
+    requests.current.active++;
+    requests.current.a++;
+    setActiveLoading(false);
     setActive(next);
     setPending(new Map());
     setCompareA(next);
@@ -92,42 +98,47 @@ export function LmuSetupWorkspace() {
     setSavedPath(null);
   }
   function requestActivation(next: Loaded) {
-    if (active?.document === next.document) return;
-    if (active && dirty && active.document !== next.document) setCandidate(next);
+    const current = selectionState.current;
+    if (current.active?.document === next.document) return;
+    if (current.active && current.dirty) setCandidate(next);
     else activate(next);
   }
-  function choose(id: string, slot: LoadRequest["slot"]) {
+  async function choose(id: string, slot: Slot) {
     if (!id || save.isPending) return;
+    const request = ++requests.current[slot];
+    if (slot === "active") setCandidate(null);
     const cached = loaded.get(id);
     if (cached) {
-      if (slot === "active") requestActivation(cached);
-      else if (slot === "a") setCompareA(cached);
+      if (slot === "active") {
+        setActiveLoading(false);
+        setCandidate(null);
+        requestActivation(cached);
+      } else if (slot === "a") setCompareA(cached);
       else setCompareB(cached);
       return;
     }
-    setLoadRequest({ path: id, slot, sequence: ++sequence.current });
+    if (slot === "active") setActiveLoading(true);
+    else setCompareLoading((count) => count + 1);
     setError(null);
-  }
-  useEffect(() => {
-    if (!loadRequest || processedRequest.current === loadRequest.sequence || content.isFetching) return;
-    if (content.error) {
-      processedRequest.current = loadRequest.sequence;
-      setError(content.error.message);
-      return;
-    }
-    if (!content.data || content.data.path !== loadRequest.path) return;
-    processedRequest.current = loadRequest.sequence;
     try {
-      const next = contentLoaded(content.data);
+      const content = await queryClient.fetchQuery({
+        queryKey: ["lmu-setup-content", id],
+        queryFn: () => fetchLmuSetupContent(id),
+        staleTime: 30_000,
+      });
+      if (requests.current[slot] !== request) return;
+      const next = contentLoaded(content);
       setLoaded((previous) => new Map(previous).set(next.id, next));
-      if (loadRequest.slot === "active") requestActivation(next);
-      else if (loadRequest.slot === "a") setCompareA(next);
+      if (slot === "active") requestActivation(next);
+      else if (slot === "a") setCompareA(next);
       else setCompareB(next);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : m.lmu_setup_ws_upload_invalid());
+      if (requests.current[slot] === request) setError(reason instanceof Error ? reason.message : m.lmu_setup_ws_upload_invalid());
+    } finally {
+      if (slot === "active" && requests.current[slot] === request) setActiveLoading(false);
+      if (slot !== "active") setCompareLoading((count) => Math.max(0, count - 1));
     }
-  }, [loadRequest, content.data, content.error, content.isFetching]);
-
+  }
   function changeDelta(ids: readonly string[], direction: 1 | -1) {
     if (!active || save.isPending) return;
     const changes: SvmEdit[] = [];
@@ -147,14 +158,20 @@ export function LmuSetupWorkspace() {
     const file = event.currentTarget.files?.[0];
     event.currentTarget.value = "";
     if (!file || save.isPending) return;
+    const request = ++requests.current.active;
+    setActiveLoading(false);
+    setCandidate(null);
     if (!/\.svm$/i.test(file.name) || file.size > 1024 * 1024) { setError(m.lmu_setup_ws_upload_invalid()); return; }
     try {
       const parsed = parseSVM(new Uint8Array(await file.arrayBuffer()));
+      if (requests.current.active !== request) return;
       if (!parsed.ok) { setError(m.lmu_setup_ws_invalid_svm({ message: parsed.error, line: parsed.line === null ? "—" : String(parsed.line) })); return; }
-      const next: Loaded = { id: `upload:${++sequence.current}`, document: parsed.document, source: { kind: "upload" }, fileName: file.name };
+      const next: Loaded = { id: `upload:${request}`, document: parsed.document, source: { kind: "upload" }, fileName: file.name };
       setLoaded((previous) => new Map(previous).set(next.id, next));
       requestActivation(next);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : m.lmu_setup_ws_upload_invalid()); }
+    } catch (reason) {
+      if (requests.current.active === request) setError(reason instanceof Error ? reason.message : m.lmu_setup_ws_upload_invalid());
+    }
   }
   function download() {
     if (!active || !acknowledged || !nameValid || !dirty || save.isPending) return;
@@ -194,12 +211,53 @@ export function LmuSetupWorkspace() {
     setDialogOpen(true);
   }
 
+  async function refresh() {
+    if (save.isPending) return;
+    const selections = { active, a: compareA, b: compareB };
+    const versions = {
+      active: ++requests.current.active,
+      a: ++requests.current.a,
+      b: ++requests.current.b,
+    };
+    setCandidate(null);
+    setLoaded((previous) => new Map([...previous].filter(([, setup]) => setup.source.kind === "upload")));
+    setActiveLoading(false);
+    try {
+      await queryClient.cancelQueries({ queryKey: ["lmu-setup-content"] });
+      await queryClient.invalidateQueries({ queryKey: ["lmu-setup-content"], refetchType: "none" });
+      await listing.refetch();
+      await Promise.all(SLOTS.map(async (slot) => {
+        const current = selections[slot];
+        if (current?.source.kind !== "file" || requests.current[slot] !== versions[slot]) return;
+        const path = current.source.path;
+        try {
+          const content = await queryClient.fetchQuery({
+            queryKey: ["lmu-setup-content", path],
+            queryFn: () => fetchLmuSetupContent(path),
+            staleTime: 30_000,
+          });
+          if (requests.current[slot] !== versions[slot]) return;
+          const next = contentLoaded(content);
+          setLoaded((previous) => new Map(previous).set(next.id, next));
+          if (slot === "active") {
+            if (current.source.sha256 !== content.sha256) requestActivation(next);
+          } else if (slot === "a") setCompareA(next);
+          else setCompareB(next);
+        } catch (reason) {
+          if (requests.current[slot] === versions[slot]) setError(reason instanceof Error ? reason.message : m.lmu_setup_ws_upload_invalid());
+        }
+      }));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : m.lmu_setup_ws_upload_invalid());
+    }
+  }
+
   return (
     <main className="flex min-w-0 flex-col gap-4 p-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div><h1 className="text-app-title">{m.lmu_setup_ws_title()}</h1><p>{m.lmu_setup_ws_description()}</p></div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="app-outline" onClick={() => void listing.refetch()} disabled={save.isPending}>{m.lmu_setup_ws_refresh()}</Button>
+          <Button variant="app-outline" onClick={() => void refresh()} disabled={save.isPending}>{m.lmu_setup_ws_refresh()}</Button>
           <Button variant="app-primary" onClick={() => uploadRef.current?.click()} disabled={save.isPending}>{m.lmu_setup_ws_upload()}</Button>
           <input ref={uploadRef} className="hidden" aria-label={m.lmu_setup_ws_upload()} type="file" accept=".svm" onChange={(event) => void upload(event)} />
         </div>
@@ -220,7 +278,7 @@ export function LmuSetupWorkspace() {
           <TableCell>{file.carName ?? "—"}</TableCell><TableCell>{file.className ?? "—"}</TableCell><TableCell>{file.trackName || m.lmu_setup_ws_root_folder()}</TableCell>
         </TableRow>)}</TableBody>
       </Table>}
-      {content.isFetching && <p role="status">{m.common_loading()}</p>}
+      {(activeLoading || compareLoading > 0) && <p role="status">{m.common_loading()}</p>}
       {active && <>
         <section className="flex flex-wrap items-center gap-2" aria-label={m.lmu_setup_ws_active_setup()}>
           <strong>{active.fileName}</strong><Badge>{active.document.carName}</Badge>

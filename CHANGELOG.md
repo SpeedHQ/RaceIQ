@@ -13,6 +13,8 @@
 
 ### Fixes
 
+- Reload changed LMU setup files on refresh while preserving pending edits until confirmed; keep simultaneous comparison loads and newer setup selections independent.
+- Recognize LMU hybrid capabilities when setup headers omit class tokens, restrict rear-regeneration advice to LMDh cars, and mark impossible preset clicks unavailable.
 - Stop opening a browser automatically during development launches; preserve first-run browser opening in installed builds.
 - Warn before deleting a setup that is in use, list its linked sessions and laps, and preserve recordings when removing their setup associations.
 - Keep Analyse Data vertically scrollable; restore borderless wheel metrics, right-align wheel headings, show the combined balance signal, and label pressure units once per row.

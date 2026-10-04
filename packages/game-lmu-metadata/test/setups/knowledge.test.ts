@@ -8,6 +8,11 @@ function document(header: string): SvmDocument {
   if (!result.ok) throw new Error(result.error);
   return result.document;
 }
+function documentWithSetting(header: string, section: string, key: string, index: number): SvmDocument {
+  const result = parseSVM(new TextEncoder().encode(`VehicleClassSetting="${header}"\n[GENERAL]\nVirtualEnergySetting=1//Energy\n[CONTROLS]\nBrakePressureSetting=5//Pedal force\n[ENGINE]\nRegenerationMapSetting=1//Regen\nElectricMotorMapSetting=1//Deploy\n[DRIVELINE]\nFrontDiffPowerSetting=1//Front diff\n[${section}]\n${key}=${index}//setting`));
+  if (!result.ok) throw new Error(result.error);
+  return result.document;
+}
 
 describe("LMU setup knowledge", () => {
   test("retains full parameter, symptom and preset coverage with linked explanations", () => {
@@ -31,6 +36,9 @@ describe("LMU setup knowledge", () => {
     expect(lmdh.find(({ item }) => item.id === "frontDiffEntry")?.availability.available).toBe(false);
     const frontHybrid = getParameterAdvice(document("Ferrari_499P Hypercar"));
     expect(frontHybrid.find(({ item }) => item.id === "frontDiff")?.availability.available).toBe(true);
+    expect(frontHybrid.find(({ item }) => item.id === "regen")?.availability.available).toBe(true);
+    const frontRegen = getSymptomAdvice(document("Ferrari_499P Hypercar")).find(({ item }) => item.id === "entrySnap")?.item.causes.find(({ id }) => id === "regen")?.availability;
+    expect(frontRegen?.available).toBe(false);
     const nonHybrid = getParameterAdvice(document("Aston_Martin_Valkyrie Hypercar"));
     expect(nonHybrid.find(({ item }) => item.id === "regen")?.availability.available).toBe(false);
   });
@@ -46,5 +54,16 @@ describe("LMU setup knowledge", () => {
     const brakeLock = getPresetAdvice(document("Unknown Prototype Hypercar")).find(({ item }) => item.id === "brake_lock");
     expect(brakeLock?.availability.available).toBe(true);
     expect(brakeLock?.item.targets[0]).toMatchObject({ delta: null, availability: { available: true, reason: null } });
+  });
+  test("preset availability rejects unsafe or negative click results", () => {
+    const zeroDoc = documentWithSetting("Unknown Prototype Hypercar", "REARWING", "RWSetting", 0);
+    const negative = getPresetAdvice(zeroDoc).find(({ item }) => item.id === "top_speed")?.item.targets[0];
+    expect(negative?.availability.available).toBe(false);
+    const unsafeDoc = documentWithSetting("Unknown Prototype Hypercar", "REARWING", "RWSetting", Number.MAX_SAFE_INTEGER);
+    const unsafe = getPresetAdvice(unsafeDoc).find(({ item }) => item.id === "fast_over")?.item.targets[0];
+    expect(unsafe?.availability.available).toBe(false);
+    const safeDoc = documentWithSetting("Unknown Prototype Hypercar", "REARWING", "RWSetting", Number.MAX_SAFE_INTEGER - 1);
+    const safe = getPresetAdvice(safeDoc).find(({ item }) => item.id === "fast_over")?.item.targets[0];
+    expect(safe?.availability.available).toBe(true);
   });
 });
