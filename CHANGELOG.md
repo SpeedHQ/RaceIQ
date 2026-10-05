@@ -8,6 +8,8 @@
 
 ### Internal
 - Skip build, test, browser, snapshot, and benchmark PR jobs for automated release version bump branches.
+- Benchmark import mode preloads one canonical fixture for each of six games, runs one warmup and 20 measured trials, and keeps inputs and results in memory without per-trial backend startup, database writes, or capture files; trials use the persistent Rust benchmark worker.
+- CPU and RSS estimates differ by engine and are not directly comparable.
 
 ## v0.19.2 - 2026-10-04
 

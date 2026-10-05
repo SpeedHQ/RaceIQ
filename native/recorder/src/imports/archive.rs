@@ -138,6 +138,19 @@ pub(super) fn capture_bytes(operation:&str,bytes:&[u8],name:&str,options:&Value,
     if records.is_empty(){return Err("Unsupported or empty capture format".into())}
     super::capture::process_records(operation,records,name,options,out,config)
 }
+/// In-memory import path for benchmarks and tests. Does not create capture artifacts.
+pub(super) fn benchmark_bytes(bytes:&[u8],game_id:&str)->Result<Value,String>{
+    let records=decode_import_bytes(bytes)?;
+    if records.is_empty(){return Err("Unsupported or empty capture format".into())}
+    super::capture::process_records(
+        "benchmark",
+        records,
+        "memory-benchmark",
+        &serde_json::json!({"gameId":game_id}),
+        Path::new(""),
+        &Value::Null,
+    )
+}
 
 fn legacy_dump_records(bytes:&[u8])->Result<Option<Vec<crate::formats::SourceRecord>>,String>{
     let (version,game)=if bytes.starts_with(b"IRIQDMP\0"){(2,"iracing")}

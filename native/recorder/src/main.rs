@@ -1,4 +1,11 @@
 fn main() {
+    if std::env::args().nth(1).as_deref() == Some("--benchmark-stdio") {
+        if let Err(error) = raceiq_recorder::imports::benchmark_stdio() {
+            eprintln!("recorder benchmark failed: {error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if let Err(error) = raceiq_recorder::logger::init() {
         raceiq_recorder::logger::mark_degraded();
         eprintln!("recorder logger startup failed: {error}");

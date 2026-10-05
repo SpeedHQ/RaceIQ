@@ -17,24 +17,43 @@ impl OrdinalDetector{
   let boundary=self.session.as_ref().and_then(|s|{let suid=strv(s,"sessionUID");if !uid.is_empty()&&!suid.is_empty()&&uid!=suid{Some("session-uid-changed")}else if self.lap_number>1&&lap==1{Some("lap-number-reset")}else if suid.is_empty()&&last_dist.is_some_and(|d|d>1000.&&dist<500.){Some("distance-reset")}else if self.game=="lmu"&&p.get("lmu").is_some_and(|v|!v.is_null())&&field(&p,"lmu","carId")!=field(s,"lmu","carId"){Some("car-changed")}else if self.game=="lmu"&&p.get("lmu").is_some_and(|v|!v.is_null())&&field(&p,"lmu","trackId")!=field(s,"lmu","trackId"){Some("track-changed")}else if self.game!="lmu"&&number(&p,"CarOrdinal")!=number(s,"CarOrdinal"){Some("car-changed")}else if self.game!="lmu"&&number(&p,"TrackOrdinal")!=0.&&number(&p,"TrackOrdinal")!=number(s,"TrackOrdinal"){Some("track-changed")}else if self.game!="fm-2023"&&suid.is_empty()&&self.last_host_ms>0&&host.saturating_sub(self.last_host_ms)>300_000{Some("silence-timeout")}else{None}});
   if let Some(reason)=boundary {self.finish_session(reason,out);}
   if self.session.is_none(){self.start_session(&p,out);}
-  let prev=self.lap.last().map(|s|s.packet.clone());
+  let previous=self.lap.last().map(|s|(number(&s.packet,"CurrentLap"),number(&s.packet,"DistanceTraveled")));
   let race_off_observed=self.race_off;
+  let pit_transition=!boundary.is_some()&&self.game=="fm-2023"&&self.lap.last().is_some_and(|s|forza_pit(&s.packet,&p,race_off_observed));
   if self.provisional&&truth(&p,"IsRaceOn"){out.push(json!({"kind":"LAP_RETRACTED","data":{"lapKey":self.lap_number.to_string()}}));self.provisional=false;self.race_off=false;self.race_off_since=None;}
-  if !boundary.is_some()&&self.game=="fm-2023"{if let Some(before)=prev.as_ref(){if forza_pit(before,&p,race_off_observed){self.current_pit=merge_pit(self.current_pit,Some("inlap"));self.next_pit=merge_pit(self.next_pit,Some("outlap"));}}}
-  if self.lap_number>=0&&lap==self.lap_number&&self.lap.len()>30{if prev.as_ref().is_some_and(|q|(number(q,"CurrentLap")>5.&&number(&p,"CurrentLap")==0.)||number(q,"DistanceTraveled")-dist>500.){if number(&p,"LastLap")>0.&&self.last_last_lap>0.&&number(&p,"LastLap")!=self.last_last_lap{self.complete_lap(&p,off,None,out);}else{self.lap.clear();self.valid=true;self.invalid=None;self.peak_current=0.;}}}
+  if pit_transition{self.current_pit=merge_pit(self.current_pit,Some("inlap"));self.next_pit=merge_pit(self.next_pit,Some("outlap"));}
+  if self.lap_number>=0&&lap==self.lap_number&&self.lap.len()>30&&previous.is_some_and(|(current,distance)|(current>5.&&number(&p,"CurrentLap")==0.)||distance-dist>500.){if number(&p,"LastLap")>0.&&self.last_last_lap>0.&&number(&p,"LastLap")!=self.last_last_lap{self.complete_lap(&p,off,None,out);}else{self.lap.clear();self.valid=true;self.invalid=None;self.peak_current=0.;}}
   let timestamp=number(&p,"TimestampMS");if self.last_timestamp>0.&&timestamp<self.last_timestamp&&lap==self.lap_number{self.invalidate("rewind");}
   if self.lap_number>=0&&lap!=self.lap_number{if lap<self.lap_number{self.lap.clear();self.lap_number=lap;self.valid=true;self.invalid=None;self.peak_current=0.;}else if lap>self.lap_number+1{self.invalidate(&format!("lap skip ({} → {})",self.lap_number,lap));self.complete_lap(&p,off,None,out);}else{self.complete_lap(&p,off,None,out);}}
-  self.last_last_lap=number(&p,"LastLap");if self.lap_number<0{self.lap_number=lap;}self.lap.push(Sample{packet:p.clone(),offset:off});self.pending_overrides.clear();self.peak_current=self.peak_current.max(number(&p,"CurrentLap"));self.last_timestamp=timestamp;
-  if self.game=="fm-2023"&&!truth(&p,"IsRaceOn"){if !self.race_off{self.race_off_since=Some(host);}self.race_off=true;}else{self.race_off=false;self.race_off_since=None;}self.last_host_ms=host;
+  self.last_last_lap=number(&p,"LastLap");if self.lap_number<0{self.lap_number=lap;}self.pending_overrides.clear();self.peak_current=self.peak_current.max(number(&p,"CurrentLap"));self.last_timestamp=timestamp;
+  if self.game=="fm-2023"&&!truth(&p,"IsRaceOn"){if !self.race_off{self.race_off_since=Some(host);}self.race_off=true;}else{self.race_off=false;self.race_off_since=None;}self.last_host_ms=host;self.lap.push(Sample{packet:p,offset:off});
  }
- fn complete_lap(&mut self,boundary:&Value,_off:u64,force:Option<&str>,out:&mut Vec<Value>){if self.lap.is_empty(){self.lap_number=number(boundary,"LapNumber") as i64;return;}let raw_samples=self.samples();let t=if self.game=="lmu"{lmu_lap_time(&raw_samples,boundary)}else if number(boundary,"LastLap")>0.{number(boundary,"LastLap")}else{0.};self.trim_running_start();let samples=self.samples();if t>=10.{let policy=if self.game=="lmu"{lmu_invalid_reason(&samples)}else{None};let pit=if self.game=="lmu"{lmu_pit_reason(&samples,self.completed)}else{merge_pit(self.current_pit,pit_reason(&samples))};let q=quality(&samples,t);let invalid=self.invalid.take();let reason=force.or(invalid.as_deref()).or(policy).or(pit).or(q).or_else(||(self.game=="lmu"&&track_limit(&samples)).then_some("track limits"));self.emit_lap(t,reason,false,out);self.completed+=1;}self.lap.clear();self.lap_number=number(boundary,"LapNumber") as i64;self.valid=true;self.invalid=None;self.peak_current=0.;self.current_pit=self.next_pit.take();}
+ fn complete_lap(&mut self,boundary:&Value,_off:u64,force:Option<&str>,out:&mut Vec<Value>){
+  if self.lap.is_empty(){self.lap_number=number(boundary,"LapNumber") as i64;return;}
+  let raw_samples=Self::samples(&self.lap);
+  let t=if self.game=="lmu"{lmu_lap_time(&raw_samples,boundary)}else if number(boundary,"LastLap")>0.{number(boundary,"LastLap")}else{0.};
+  self.trim_running_start();
+  let samples=Self::samples(&self.lap);
+  if t>=10.{
+   let policy=if self.game=="lmu"{lmu_invalid_reason(&samples)}else{None};
+   let pit=if self.game=="lmu"{lmu_pit_reason(&samples,self.completed)}else{merge_pit(self.current_pit,pit_reason(&samples))};
+   let q=quality(&samples,t);
+   let track_limited=self.game=="lmu"&&track_limit(&samples);
+   drop(samples);
+   let invalid=self.invalid.take();
+   let reason=force.or(invalid.as_deref()).or(policy).or(pit).or(q).or(track_limited.then_some("track limits"));
+   self.emit_lap(t,reason,false,out);
+   self.completed+=1;
+  }
+  self.lap.clear();self.lap_number=number(boundary,"LapNumber") as i64;self.valid=true;self.invalid=None;self.peak_current=0.;self.current_pit=self.next_pit.take();
+ }
  fn flush_stale(&mut self,out:&mut Vec<Value>){self.trim_running_start();if self.lap.len()<30{return;}let last=self.lap.last().unwrap().packet.clone();let fresh=number(&last,"LastLap")>0.&&number(&last,"LastLap")!=self.last_last_lap;let t=if fresh{number(&last,"LastLap")}else{number(&last,"CurrentLap")};if t>=10.{let invalid=self.invalid.take();self.emit_lap(t,if fresh{invalid.as_deref()}else{Some("incomplete")},false,out);self.invalid=invalid;}self.lap.clear();self.lap_number=-1;self.last_host_ms=0;}
  fn emit_provisional(&mut self,out:&mut Vec<Value>){if self.lap.is_empty(){return;}let t=number(&self.lap.last().unwrap().packet,"CurrentLap");if t>=10.{self.emit_lap(t,self.current_pit.or(Some("incomplete")),true,out);self.provisional=true;}}
  fn emit_lap(&mut self,time:f64,forced:Option<&str>,provisional:bool,out:&mut Vec<Value>){if self.lap.is_empty(){return;}let reason=forced.map(str::to_owned);let valid=!provisional&&reason.is_none()&&time>=10.;if valid{self.best=if self.best==0.{time}else{self.best.min(time)};}let ranges=self.lap.iter().map(|s|json!({"offset":s.offset.to_string(),"count":1})).collect::<Vec<_>>();let offset=self.lap.first().map(|s|s.offset.to_string());out.push(json!({"kind":"LAP_RECORDED","data":{"lapKey":self.lap_number.to_string(),"lapNumber":self.lap_number,"lapTime":time,"isValid":valid,"invalidReason":reason,"provisional":provisional,"rawByteOffset":offset,"rawFrameCount":self.lap.len(),"sessionBestLapTime":self.best,"analysisRecipe":{"ranges":ranges,"contextOffset":null,"appendPackets":[],"overrides":self.pending_overrides}}}));}
  fn start_session(&mut self,p:&Value,out:&mut Vec<Value>){self.session=Some(p.clone());self.lap.clear();self.lap_number=-1;self.valid=true;self.invalid=None;self.best=0.;self.completed=0;self.provisional=false;self.race_off=false;self.race_off_since=None;self.current_pit=None;self.next_pit=None;let session_type=p.get("f1").and_then(|v|v.get("sessionType")).or_else(||p.get("lmu").and_then(|v|v.get("sessionType"))).cloned().unwrap_or(Value::Null);out.push(json!({"kind":"SESSION_STARTED","data":{"gameId":self.game,"carOrdinal":number(p,"CarOrdinal"),"trackOrdinal":number(p,"TrackOrdinal"),"carPerformanceIndex":number(p,"CarPerformanceIndex"),"carClass":p.get("CarClass").cloned().unwrap_or(Value::Null),"carId":field(p,"lmu","carId"),"trackId":field(p,"lmu","trackId"),"sessionUID":p.get("sessionUID").cloned().unwrap_or(Value::Null),"sessionType":session_type,"detectorVersion":"rust-recorder_v1"}}));}
  fn finish_session(&mut self,reason:&str,out:&mut Vec<Value>){if self.session.is_none(){return;}if !(self.game=="fm-2023"&&self.provisional)&&!self.lap.is_empty(){let t=number(&self.lap.last().unwrap().packet,"CurrentLap");if t>=10.{self.emit_lap(t,self.current_pit.or(Some("incomplete")),false,out);}}out.push(json!({"kind":"RECORDING_COMPLETED","data":{"reason":reason}}));self.session=None;self.lap.clear();self.lap_number=-1;self.last_host_ms=0;self.provisional=false;self.race_off=false;self.race_off_since=None;self.current_pit=None;self.next_pit=None;}
  fn trim_running_start(&mut self){if self.lap.len()<=1{return;}let mut reset=0;for i in 1..self.lap.len(){if number(&self.lap[i-1].packet,"CurrentLap")>5.&&number(&self.lap[i].packet,"CurrentLap")<1.{reset=i;}}if reset>0&&(reset as f64)<self.lap.len() as f64/2.{self.lap.drain(0..reset);}}
- fn samples(&self)->Vec<Value>{self.lap.iter().map(|s|s.packet.clone()).collect()}
+ fn samples(lap:&[Sample])->Vec<&Value>{lap.iter().map(|s|&s.packet).collect()}
  fn invalidate(&mut self,r:&str){self.valid=false;self.invalid=Some(r.into());}
 }
 fn strv(p:&Value,k:&str)->String{p.get(k).and_then(Value::as_str).unwrap_or("").to_owned()}

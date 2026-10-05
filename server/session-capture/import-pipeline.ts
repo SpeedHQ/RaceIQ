@@ -39,7 +39,8 @@ export interface ImportSessionResult {
  * deep links into the analyse page.
  */
 export class ImportCaptureAdapter implements DbAdapter {
-  private readonly _inner: RealDbAdapter;
+  private readonly _inner: DbAdapter;
+  private readonly _usesPersistentDb: boolean;
   readonly laps: ImportedLap[] = [];
   readonly sessionIds = new Set<number>();
   readonly rawFiles = new Set<string>();
@@ -52,14 +53,15 @@ export class ImportCaptureAdapter implements DbAdapter {
   private _continueSession = false;
   private readonly _sessionSource?: string;
 
-
   constructor(options: {
     notifyDriverProfile?: boolean;
     ownership?: SessionOwnership;
     sessionSource?: string;
     rollbackFiles?: Iterable<string>;
+    dbAdapter?: DbAdapter;
   } = {}) {
-    this._inner = new RealDbAdapter(options);
+    this._inner = options.dbAdapter ?? new RealDbAdapter(options);
+    this._usesPersistentDb = options.dbAdapter === undefined;
     this._sessionSource = options.sessionSource;
     for (const path of options.rollbackFiles ?? []) this.rawFiles.add(path);
   }
@@ -99,11 +101,10 @@ export class ImportCaptureAdapter implements DbAdapter {
       ownership,
       identity,
     );
+    if (this._sessionSource && this._usesPersistentDb) await updateSessionSource(id, this._sessionSource);
     this.sessionIds.add(id);
     this._sessionMeta.set(id, { carOrdinal, trackOrdinal, gameId, identity });
-    if (this._sessionSource) await updateSessionSource(id, this._sessionSource);
     return id;
-
   }
 
   continueSessionOnNextInsert(): void {
@@ -160,6 +161,9 @@ export class ImportCaptureAdapter implements DbAdapter {
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
     return this._inner.setLapMetrics(lapId, fuelPerLap, tyreWear);
   }
+  updateLapCarSetup(lapId: number, carSetup: object | null): Promise<void> {
+    return this._inner.updateLapCarSetup(lapId, carSetup);
+  }
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]> {
     return this._inner.getLaps(gameId, limit);
   }
@@ -197,8 +201,10 @@ export class ImportCaptureAdapter implements DbAdapter {
    * stopped before this runs so no process still owns the canonical capture.
    */
   async rollback(): Promise<void> {
-    for (const sessionId of this.sessionIds) {
-      await deleteSession(sessionId);
+    if (this._usesPersistentDb) {
+      for (const sessionId of this.sessionIds) await deleteSession(sessionId);
+    } else {
+      for (const lap of this.laps) await this._inner.deleteLap(lap.lapId);
     }
     for (const rawFile of this.rawFiles) {
       if (existsSync(rawFile)) unlinkSync(rawFile);
@@ -264,6 +270,8 @@ export interface ImportSessionOptions {
   rollbackFiles?: Iterable<string>;
   /** Source-specific metadata persisted transactionally before reconciliation. */
   onImportedLaps?: (laps: readonly ImportedLap[]) => Promise<void>;
+  /** Optional isolated adapter for in-memory imports and tests. */
+  dbAdapter?: DbAdapter;
 }
 
 
@@ -287,9 +295,11 @@ async function importTelemetrySource<T>(
     ownership: options.ownership,
     sessionSource: options.sessionSource,
     rollbackFiles: options.rollbackFiles,
+    dbAdapter: options.dbAdapter,
   });
   const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
     bypassPacketRateFilter: true,
+    skipHistorySeeding: options.dbAdapter !== undefined,
     recorder: options.recorder,
   });
 
@@ -321,8 +331,8 @@ async function importTelemetrySource<T>(
 
   try {
     await options.onImportedLaps?.(db.laps);
-    for (const sessionId of db.sessionIds) {
-      await reconcileSessionResult(sessionId, gameId);
+    if (!options.dbAdapter) {
+      for (const sessionId of db.sessionIds) await reconcileSessionResult(sessionId, gameId);
     }
   } catch (error) {
     return rollbackImport(db, error);

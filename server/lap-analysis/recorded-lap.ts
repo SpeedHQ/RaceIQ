@@ -6,7 +6,6 @@ import { getIRacingSharedTrackName } from "@raceiq/game-iracing-metadata/racing/
 import { lapPath } from "@raceiq/shared/racing/tracks/path";
 import { computeLapSectors } from "./sectors";
 import { persistLapMetrics } from "./metrics-store";
-import { updateLapCarSetup } from "../db/lap-mutation-queries";
 import { reconcileAutoExclusionsForLap } from "../experiments/auto-exclude";
 import type { DbAdapter } from "../telemetry/pipeline-ports";
 
@@ -38,7 +37,7 @@ export async function deriveRecordedLap(input: {
 
 export async function persistRecordedLapFollowups(db: DbAdapter, lapId: number, packets: TelemetryPacket[]): Promise<void> {
   const setup = packets.find((packet) => packet.f1?.setup)?.f1?.setup;
-  if (setup) await updateLapCarSetup(lapId, setup);
+  if (setup) await db.updateLapCarSetup(lapId, setup);
   await persistLapMetrics(db, lapId, packets);
   await reconcileAutoExclusionsForLap(db, lapId);
 }

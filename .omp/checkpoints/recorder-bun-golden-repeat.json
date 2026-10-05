@@ -1,0 +1,2795 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "NORMALIZED",
+  "normalization": {
+    "fixtureFilePaths": "relative manifest paths",
+    "captureFilePaths": "omitted",
+    "generatedDataDir": "omitted",
+    "generatedDatabaseTimes": "createdAt omitted",
+    "packetWallClock": "Kunos synthesized TimestampMS and host timestamp omitted only from packet signatures",
+    "nativeTiming": "preserved",
+    "detectorDatabaseIds": "deterministic CapturingDbAdapter sequence"
+  },
+  "games": [
+    {
+      "gameId": "fm-2023",
+      "scenario": null,
+      "fixture": "test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz",
+      "fixtureSha256": "3af439d9d3761bc406a883cb6e4ae59b3d1722b70c442c366ff7a18e57c80bf7",
+      "compressedBytes": 2488509,
+      "sourceRecordCount": 11912,
+      "sourceFrameCount": 11912,
+      "rejectedSourceFrames": 379,
+      "processedPacketWindow": {
+        "first": 0,
+        "count": 11533,
+        "last": 11532
+      },
+      "identity": {
+        "carOrdinal": 3631,
+        "trackOrdinal": 5,
+        "carModel": "2022 Aston Martin Valkyrie AMR Pro",
+        "trackName": "Road America - East Route"
+      },
+      "orderedEvents": [
+        {
+          "sequence": 0,
+          "kind": "SESSION_STARTED",
+          "data": {
+            "carOrdinal": 3631,
+            "gameId": "fm-2023",
+            "identity": null,
+            "sessionId": 1,
+            "sessionType": null,
+            "trackOrdinal": 5
+          }
+        },
+        {
+          "sequence": 1,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 2,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 2,
+            "analysisPacketSignatureHash": "58b1382ba4daf226dea3b9c494c84e2fc11d7a6d15cf329c0f13ae7cb760aa65",
+            "analysisSource": "parseDump helper segment match",
+            "invalidReason": "incomplete",
+            "isValid": false,
+            "lapId": 1,
+            "lapNumber": 0,
+            "lapTime": 13207.646484375,
+            "rawByteOffset": 12,
+            "rawFrameCount": 2,
+            "sessionId": 1,
+            "sourceWindow": {
+              "count": 2,
+              "first": {
+                "sourceOffset": 78729,
+                "outputOffset": 12
+              },
+              "last": {
+                "sourceOffset": 79064,
+                "outputOffset": 347
+              },
+              "sha256": "9a59699e1461801b443f91ef9df91eb6b43160b0003e3db78b317f5b4ed47a2b"
+            }
+          }
+        },
+        {
+          "sequence": 3,
+          "kind": "SESSION_STARTED",
+          "data": {
+            "carOrdinal": 3631,
+            "gameId": "fm-2023",
+            "identity": null,
+            "sessionId": 2,
+            "sessionType": null,
+            "trackOrdinal": 5
+          }
+        },
+        {
+          "sequence": 4,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 5,
+          "kind": "LAP_ANALYSIS_CAPTURED",
+          "data": {
+            "analysisPacketSignatureHash": "71834e8e99e3192dee2a9d009909494e6737feb710aceeb6748ab3889b286f7c",
+            "isValid": true,
+            "lapDistStart": 0.6083469390869141,
+            "lapTime": 53.954795837402344,
+            "packetCount": 3237,
+            "sessionId": 2
+          }
+        },
+        {
+          "sequence": 6,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 3237,
+            "analysisPacketSignatureHash": "71834e8e99e3192dee2a9d009909494e6737feb710aceeb6748ab3889b286f7c",
+            "analysisSource": "detector callback",
+            "invalidReason": null,
+            "isValid": true,
+            "lapId": 2,
+            "lapNumber": 0,
+            "lapTime": 53.954795837402344,
+            "rawByteOffset": 984056,
+            "rawFrameCount": 4704,
+            "sessionId": 2,
+            "sourceWindow": {
+              "count": 4704,
+              "first": {
+                "sourceOffset": 1116559,
+                "outputOffset": 984056
+              },
+              "last": {
+                "sourceOffset": 2692064,
+                "outputOffset": 2480490
+              },
+              "sha256": "9620e5a125828d4bf40ca8bd359b05b0f03071b27e929a952ff93521406450a6"
+            }
+          }
+        },
+        {
+          "sequence": 7,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 53.954795837402344,
+            "isValid": true,
+            "lapId": 2,
+            "lapNumber": 0,
+            "lapTime": 53.954795837402344,
+            "sectors": [
+              19.766666679177433,
+              14.63333511352539,
+              19.55479404469952
+            ],
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 8,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": 3631,
+                "gameId": "fm-2023",
+                "id": 2,
+                "isValid": true,
+                "lapNumber": 0,
+                "lapTime": 53.954795837402344,
+                "sectorTimes": [
+                  19.766666679177433,
+                  14.63333511352539,
+                  19.55479404469952
+                ],
+                "sessionId": 2,
+                "trackOrdinal": 5
+              }
+            ],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 9,
+          "kind": "LAP_ANALYSIS_CAPTURED",
+          "data": {
+            "analysisPacketSignatureHash": "e756bc55febfbd06ff9ddc7a4c460bac6b4c80ca6e09f30ca271b43d17dd735a",
+            "isValid": true,
+            "lapDistStart": 3520.2021484375,
+            "lapTime": 51.28666687011719,
+            "packetCount": 3077,
+            "sessionId": 2
+          }
+        },
+        {
+          "sequence": 10,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 3077,
+            "analysisPacketSignatureHash": "e756bc55febfbd06ff9ddc7a4c460bac6b4c80ca6e09f30ca271b43d17dd735a",
+            "analysisSource": "detector callback",
+            "invalidReason": null,
+            "isValid": true,
+            "lapId": 3,
+            "lapNumber": 1,
+            "lapTime": 51.28666687011719,
+            "rawByteOffset": 2480808,
+            "rawFrameCount": 3077,
+            "sessionId": 2,
+            "sourceWindow": {
+              "count": 3077,
+              "first": {
+                "sourceOffset": 2692399,
+                "outputOffset": 2480808
+              },
+              "last": {
+                "sourceOffset": 3722859,
+                "outputOffset": 3459690
+              },
+              "sha256": "c5c7f06e92d5d77beb01ca9a00fa8b8edb3c3bf7f24a0c7b902ce2002b79ce39"
+            }
+          }
+        },
+        {
+          "sequence": 11,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 51.28666687011719,
+            "isValid": true,
+            "lapId": 3,
+            "lapNumber": 1,
+            "lapTime": 51.28666687011719,
+            "sectors": [
+              17.702778314473107,
+              14.266668319702148,
+              19.31722023594193
+            ],
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 12,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": 3631,
+                "gameId": "fm-2023",
+                "id": 2,
+                "isValid": true,
+                "lapNumber": 0,
+                "lapTime": 53.954795837402344,
+                "sectorTimes": [
+                  19.766666679177433,
+                  14.63333511352539,
+                  19.55479404469952
+                ],
+                "sessionId": 2,
+                "trackOrdinal": 5
+              },
+              {
+                "carOrdinal": 3631,
+                "gameId": "fm-2023",
+                "id": 3,
+                "isValid": true,
+                "lapNumber": 1,
+                "lapTime": 51.28666687011719,
+                "sectorTimes": [
+                  17.702778314473107,
+                  14.266668319702148,
+                  19.31722023594193
+                ],
+                "sessionId": 2,
+                "trackOrdinal": 5
+              }
+            ],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 13,
+          "kind": "LAP_PROVISIONAL_ANALYSIS_CAPTURED",
+          "data": {
+            "analysisPacketSignatureHash": "460df0ddb2da951050803ef90ffe8aa35ef660c8666795e3d03d6ae652203b46",
+            "packetCount": 654,
+            "sessionId": 2
+          }
+        },
+        {
+          "sequence": 14,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 654,
+            "analysisPacketSignatureHash": "460df0ddb2da951050803ef90ffe8aa35ef660c8666795e3d03d6ae652203b46",
+            "analysisSource": "detector provisional buffer",
+            "invalidReason": "incomplete",
+            "isValid": false,
+            "lapId": 4,
+            "lapNumber": 2,
+            "lapTime": 10.968429565429688,
+            "rawByteOffset": 3460008,
+            "rawFrameCount": 654,
+            "sessionId": 2,
+            "sourceWindow": {
+              "count": 654,
+              "first": {
+                "sourceOffset": 3723194,
+                "outputOffset": 3460008
+              },
+              "last": {
+                "sourceOffset": 3941949,
+                "outputOffset": 3667917
+              },
+              "sha256": "2bcbdbbcde1a642f8bc65b691a50ce8416208f66588e0e46032d00f5971a6a26"
+            }
+          }
+        }
+      ],
+      "packetSignatureHash": "4239d69f1e3396d961131e62d2179af9bd4a3abcc447f9d0e4d070ee5163e070",
+      "sparseCaptureFiles": [
+        {
+          "byteLength": 983,
+          "sparseBytesSha256": "6336ccb0e2f753d0497e1754e0c02421d5f38399051e94c686b5f41c7e79ae02",
+          "headerFrameCount": 3,
+          "headerCountMatches": true,
+          "decodedFrameCount": 3,
+          "timestampedFrameCount": 0,
+          "frameTimeMsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "decodedFramesSha256": "be01e1afae1d96d7643257f0f8a7f3373c8660a0de052b10e764ffa03bf20efa"
+        },
+        {
+          "byteLength": 3668235,
+          "sparseBytesSha256": "8a3f8a896809e5a453563616bc10d6f84396050757241c3ed0a078d558ff729e",
+          "headerFrameCount": 11531,
+          "headerCountMatches": true,
+          "decodedFrameCount": 11531,
+          "timestampedFrameCount": 0,
+          "frameTimeMsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "decodedFramesSha256": "223e4d6d20c4287b4c208d8b32d5fff3e5d0f69492d5cc34ead901659914c189"
+        }
+      ],
+      "unsupportedScenarios": []
+    },
+    {
+      "gameId": "f1-2025",
+      "scenario": null,
+      "fixture": "test/artifacts/sessions/f1-2025-2026-04-22T11-42-43-029Z.bin.gz",
+      "fixtureSha256": "82b636b5d19a0cdeffa93f0e7425405731859351194aa596d02521e5e37a3ce1",
+      "compressedBytes": 14181278,
+      "sourceRecordCount": 137403,
+      "sourceFrameCount": 137403,
+      "rejectedSourceFrames": 149,
+      "processedPacketWindow": {
+        "first": 0,
+        "count": 137254,
+        "last": 137253
+      },
+      "identity": {
+        "carOrdinal": 41,
+        "trackOrdinal": 19,
+        "carModel": "F1 World",
+        "trackName": "Autodromo Hermanos Rodriguez"
+      },
+      "orderedEvents": [
+        {
+          "sequence": 0,
+          "kind": "SESSION_STARTED",
+          "data": {
+            "carOrdinal": 0,
+            "gameId": "f1-2025",
+            "identity": null,
+            "sessionId": 1,
+            "sessionType": "unknown",
+            "trackOrdinal": 19
+          }
+        },
+        {
+          "sequence": 1,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 2,
+          "kind": "SESSION_STARTED",
+          "data": {
+            "carOrdinal": 41,
+            "gameId": "f1-2025",
+            "identity": null,
+            "sessionId": 2,
+            "sessionType": "unknown",
+            "trackOrdinal": 19
+          }
+        },
+        {
+          "sequence": 3,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 4,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 0,
+            "analysisPacketSignatureHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "analysisSource": "unavailable",
+            "invalidReason": "start/end positions too far apart",
+            "isValid": false,
+            "lapId": 1,
+            "lapNumber": 1,
+            "lapTime": 81.535,
+            "rawByteOffset": 12,
+            "rawFrameCount": 27312,
+            "sessionId": 2,
+            "sourceWindow": {
+              "count": 27312,
+              "first": {
+                "sourceOffset": 1833094,
+                "outputOffset": 12
+              },
+              "last": {
+                "sourceOffset": 32466810,
+                "outputOffset": 30633728
+              },
+              "sha256": "f85c933222530b820e8968ed3314989bd56d2c75f03a3b56fde6619ea6f4ab4f"
+            }
+          }
+        },
+        {
+          "sequence": 5,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 0,
+            "isValid": false,
+            "lapId": 1,
+            "lapNumber": 1,
+            "lapTime": 81.535,
+            "sectors": [
+              32.099,
+              29.003,
+              20.433
+            ],
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 6,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": 41,
+                "gameId": "f1-2025",
+                "id": 1,
+                "isValid": false,
+                "lapNumber": 1,
+                "lapTime": 81.535,
+                "sectorTimes": [
+                  32.099,
+                  29.003,
+                  20.433
+                ],
+                "sessionId": 2,
+                "trackOrdinal": 19
+              }
+            ],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 7,
+          "kind": "LAP_ANALYSIS_CAPTURED",
+          "data": {
+            "analysisPacketSignatureHash": "0afa17e62d0819e0e86b2d3e64fc4c0deaffeaa7def6cb8b6b7c07adf46565f8",
+            "isValid": true,
+            "lapDistStart": 2.4052734375,
+            "lapTime": 79.328,
+            "packetCount": 26508,
+            "sessionId": 2
+          }
+        },
+        {
+          "sequence": 8,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 26508,
+            "analysisPacketSignatureHash": "0afa17e62d0819e0e86b2d3e64fc4c0deaffeaa7def6cb8b6b7c07adf46565f8",
+            "analysisSource": "detector callback",
+            "invalidReason": null,
+            "isValid": true,
+            "lapId": 2,
+            "lapNumber": 2,
+            "lapTime": 79.328,
+            "rawByteOffset": 30634971,
+            "rawFrameCount": 26508,
+            "sessionId": 2,
+            "sourceWindow": {
+              "count": 26508,
+              "first": {
+                "sourceOffset": 32468053,
+                "outputOffset": 30634971
+              },
+              "last": {
+                "sourceOffset": 62199315,
+                "outputOffset": 60366233
+              },
+              "sha256": "c5faa87cdf812d12a5b161e5fae685f665e893d1dc010cc80ed248dacf3cf3ac"
+            }
+          }
+        },
+        {
+          "sequence": 9,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 79.328,
+            "isValid": true,
+            "lapId": 2,
+            "lapNumber": 2,
+            "lapTime": 79.328,
+            "sectors": [
+              29.751,
+              29.382,
+              20.194999999999997
+            ],
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 10,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": 41,
+                "gameId": "f1-2025",
+                "id": 1,
+                "isValid": false,
+                "lapNumber": 1,
+                "lapTime": 81.535,
+                "sectorTimes": [
+                  32.099,
+                  29.003,
+                  20.433
+                ],
+                "sessionId": 2,
+                "trackOrdinal": 19
+              },
+              {
+                "carOrdinal": 41,
+                "gameId": "f1-2025",
+                "id": 2,
+                "isValid": true,
+                "lapNumber": 2,
+                "lapTime": 79.328,
+                "sectorTimes": [
+                  29.751,
+                  29.382,
+                  20.194999999999997
+                ],
+                "sessionId": 2,
+                "trackOrdinal": 19
+              }
+            ],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 11,
+          "kind": "LAP_ANALYSIS_CAPTURED",
+          "data": {
+            "analysisPacketSignatureHash": "f2ed2ffd9458acbbadf232a0e78d418c5142f9d3e0b192d1fd5149f2f6947cab",
+            "isValid": true,
+            "lapDistStart": 0.3212890625,
+            "lapTime": 79.997,
+            "packetCount": 26736,
+            "sessionId": 2
+          }
+        },
+        {
+          "sequence": 12,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 26736,
+            "analysisPacketSignatureHash": "f2ed2ffd9458acbbadf232a0e78d418c5142f9d3e0b192d1fd5149f2f6947cab",
+            "analysisSource": "detector callback",
+            "invalidReason": null,
+            "isValid": true,
+            "lapId": 3,
+            "lapNumber": 3,
+            "lapTime": 79.997,
+            "rawByteOffset": 60367476,
+            "rawFrameCount": 26736,
+            "sessionId": 2,
+            "sourceWindow": {
+              "count": 26736,
+              "first": {
+                "sourceOffset": 62200558,
+                "outputOffset": 60367476
+              },
+              "last": {
+                "sourceOffset": 92187763,
+                "outputOffset": 90354681
+              },
+              "sha256": "8f6bc7d7d7f6b57b84f4c187ac1d445e655963c360acbd960ef0cdb3cc845a32"
+            }
+          }
+        },
+        {
+          "sequence": 13,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 79.328,
+            "isValid": true,
+            "lapId": 3,
+            "lapNumber": 3,
+            "lapTime": 79.997,
+            "sectors": [
+              29.836,
+              29.784,
+              20.377000000000002
+            ],
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 14,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": 41,
+                "gameId": "f1-2025",
+                "id": 1,
+                "isValid": false,
+                "lapNumber": 1,
+                "lapTime": 81.535,
+                "sectorTimes": [
+                  32.099,
+                  29.003,
+                  20.433
+                ],
+                "sessionId": 2,
+                "trackOrdinal": 19
+              },
+              {
+                "carOrdinal": 41,
+                "gameId": "f1-2025",
+                "id": 2,
+                "isValid": true,
+                "lapNumber": 2,
+                "lapTime": 79.328,
+                "sectorTimes": [
+                  29.751,
+                  29.382,
+                  20.194999999999997
+                ],
+                "sessionId": 2,
+                "trackOrdinal": 19
+              },
+              {
+                "carOrdinal": 41,
+                "gameId": "f1-2025",
+                "id": 3,
+                "isValid": true,
+                "lapNumber": 3,
+                "lapTime": 79.997,
+                "sectorTimes": [
+                  29.836,
+                  29.784,
+                  20.377000000000002
+                ],
+                "sessionId": 2,
+                "trackOrdinal": 19
+              }
+            ],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 15,
+          "kind": "LAP_ANALYSIS_CAPTURED",
+          "data": {
+            "analysisPacketSignatureHash": "3e930943d47fbce653e2da8ef4223749a6a168b9aea477d3b7b09a178901d554",
+            "isValid": true,
+            "lapDistStart": 0.4736328125,
+            "lapTime": 80.914,
+            "packetCount": 27036,
+            "sessionId": 2
+          }
+        },
+        {
+          "sequence": 16,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 27036,
+            "analysisPacketSignatureHash": "3e930943d47fbce653e2da8ef4223749a6a168b9aea477d3b7b09a178901d554",
+            "analysisSource": "detector callback",
+            "invalidReason": null,
+            "isValid": true,
+            "lapId": 4,
+            "lapNumber": 4,
+            "lapTime": 80.914,
+            "rawByteOffset": 90355924,
+            "rawFrameCount": 27036,
+            "sessionId": 2,
+            "sourceWindow": {
+              "count": 27036,
+              "first": {
+                "sourceOffset": 92189006,
+                "outputOffset": 90355924
+              },
+              "last": {
+                "sourceOffset": 122513077,
+                "outputOffset": 120679995
+              },
+              "sha256": "11dc0a933e809b1dbabe5ac13aff477b95c2d653779418e0a530d8a9e6d1c8e3"
+            }
+          }
+        },
+        {
+          "sequence": 17,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 79.328,
+            "isValid": true,
+            "lapId": 4,
+            "lapNumber": 4,
+            "lapTime": 80.914,
+            "sectors": [
+              30.438,
+              29.601,
+              20.875
+            ],
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 18,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": 41,
+                "gameId": "f1-2025",
+                "id": 1,
+                "isValid": false,
+                "lapNumber": 1,
+                "lapTime": 81.535,
+                "sectorTimes": [
+                  32.099,
+                  29.003,
+                  20.433
+                ],
+                "sessionId": 2,
+                "trackOrdinal": 19
+              },
+              {
+                "carOrdinal": 41,
+                "gameId": "f1-2025",
+                "id": 2,
+                "isValid": true,
+                "lapNumber": 2,
+                "lapTime": 79.328,
+                "sectorTimes": [
+                  29.751,
+                  29.382,
+                  20.194999999999997
+                ],
+                "sessionId": 2,
+                "trackOrdinal": 19
+              },
+              {
+                "carOrdinal": 41,
+                "gameId": "f1-2025",
+                "id": 3,
+                "isValid": true,
+                "lapNumber": 3,
+                "lapTime": 79.997,
+                "sectorTimes": [
+                  29.836,
+                  29.784,
+                  20.377000000000002
+                ],
+                "sessionId": 2,
+                "trackOrdinal": 19
+              },
+              {
+                "carOrdinal": 41,
+                "gameId": "f1-2025",
+                "id": 4,
+                "isValid": true,
+                "lapNumber": 4,
+                "lapTime": 80.914,
+                "sectorTimes": [
+                  30.438,
+                  29.601,
+                  20.875
+                ],
+                "sessionId": 2,
+                "trackOrdinal": 19
+              }
+            ],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 19,
+          "kind": "LAP_ANALYSIS_CAPTURED",
+          "data": {
+            "analysisPacketSignatureHash": "ada1c44435dbc56cba6be0f663b38099697bf36753bfd8ca9828de285d778467",
+            "isValid": true,
+            "lapDistStart": 0.279296875,
+            "lapTime": 81,
+            "packetCount": 27075,
+            "sessionId": 2
+          }
+        },
+        {
+          "sequence": 20,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 27075,
+            "analysisPacketSignatureHash": "ada1c44435dbc56cba6be0f663b38099697bf36753bfd8ca9828de285d778467",
+            "analysisSource": "detector callback",
+            "invalidReason": null,
+            "isValid": true,
+            "lapId": 5,
+            "lapNumber": 5,
+            "lapTime": 81,
+            "rawByteOffset": 120681459,
+            "rawFrameCount": 27075,
+            "sessionId": 2,
+            "sourceWindow": {
+              "count": 27075,
+              "first": {
+                "sourceOffset": 122514541,
+                "outputOffset": 120681459
+              },
+              "last": {
+                "sourceOffset": 152881641,
+                "outputOffset": 151048559
+              },
+              "sha256": "5ef3a6cf8a28562335d9e5105109de6a79892b705c3fd05dc06a1720d9887b80"
+            }
+          }
+        },
+        {
+          "sequence": 21,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 79.328,
+            "isValid": true,
+            "lapId": 5,
+            "lapNumber": 5,
+            "lapTime": 81,
+            "sectors": [
+              30.166,
+              29.944,
+              20.890000000000004
+            ],
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 22,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": 41,
+                "gameId": "f1-2025",
+                "id": 1,
+                "isValid": false,
+                "lapNumber": 1,
+                "lapTime": 81.535,
+                "sectorTimes": [
+                  32.099,
+                  29.003,
+                  20.433
+                ],
+                "sessionId": 2,
+                "trackOrdinal": 19
+              },
+              {
+                "carOrdinal": 41,
+                "gameId": "f1-2025",
+                "id": 2,
+                "isValid": true,
+                "lapNumber": 2,
+                "lapTime": 79.328,
+                "sectorTimes": [
+                  29.751,
+                  29.382,
+                  20.194999999999997
+                ],
+                "sessionId": 2,
+                "trackOrdinal": 19
+              },
+              {
+                "carOrdinal": 41,
+                "gameId": "f1-2025",
+                "id": 3,
+                "isValid": true,
+                "lapNumber": 3,
+                "lapTime": 79.997,
+                "sectorTimes": [
+                  29.836,
+                  29.784,
+                  20.377000000000002
+                ],
+                "sessionId": 2,
+                "trackOrdinal": 19
+              },
+              {
+                "carOrdinal": 41,
+                "gameId": "f1-2025",
+                "id": 4,
+                "isValid": true,
+                "lapNumber": 4,
+                "lapTime": 80.914,
+                "sectorTimes": [
+                  30.438,
+                  29.601,
+                  20.875
+                ],
+                "sessionId": 2,
+                "trackOrdinal": 19
+              },
+              {
+                "carOrdinal": 41,
+                "gameId": "f1-2025",
+                "id": 5,
+                "isValid": true,
+                "lapNumber": 5,
+                "lapTime": 81,
+                "sectorTimes": [
+                  30.166,
+                  29.944,
+                  20.890000000000004
+                ],
+                "sessionId": 2,
+                "trackOrdinal": 19
+              }
+            ],
+            "type": "session-laps"
+          }
+        }
+      ],
+      "packetSignatureHash": "33e73f59801821d94e17d70fba5db576144efea1deae69f7805a6a61415f11e3",
+      "sparseCaptureFiles": [
+        {
+          "byteLength": 1670180,
+          "sparseBytesSha256": "f0df9ded80a10b3b9471a70217e79debe2e1955079ac3f96c6c708021affb3be",
+          "headerFrameCount": 1493,
+          "headerCountMatches": true,
+          "decodedFrameCount": 1493,
+          "timestampedFrameCount": 0,
+          "frameTimeMsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "decodedFramesSha256": "9ff0bb23b2fad99b942934a907c3d2c72223ea5e4f6d2ddcaffb718428556260"
+        },
+        {
+          "byteLength": 152278341,
+          "sparseBytesSha256": "cbc72b2e5d548f009a864699ae5e05a662b37de6b6859864b815d7c456e85a4b",
+          "headerFrameCount": 135762,
+          "headerCountMatches": true,
+          "decodedFrameCount": 135762,
+          "timestampedFrameCount": 0,
+          "frameTimeMsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "decodedFramesSha256": "2de5c8d099c6c207599bcf3e2e315bf0f98dd0b8f99ce7afc1fc17511a47e948"
+        }
+      ],
+      "unsupportedScenarios": []
+    },
+    {
+      "gameId": "acc",
+      "scenario": null,
+      "fixture": "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz",
+      "fixtureSha256": "fdf91435213d1e5ecdf3cc90fe0227da88da866e76e3166e435cfc9a78a57205",
+      "compressedBytes": 9031688,
+      "sourceRecordCount": 21587,
+      "sourceFrameCount": 21587,
+      "rejectedSourceFrames": 0,
+      "processedPacketWindow": {
+        "first": 0,
+        "count": 21587,
+        "last": 21586
+      },
+      "identity": {
+        "carOrdinal": 34,
+        "trackOrdinal": 2,
+        "carModel": "McLaren 720S GT3 Evo 2023",
+        "trackName": "Brands Hatch - GP"
+      },
+      "orderedEvents": [
+        {
+          "sequence": 0,
+          "kind": "SESSION_STARTED",
+          "data": {
+            "carOrdinal": 34,
+            "gameId": "acc",
+            "identity": null,
+            "sessionId": 1,
+            "sessionType": "practice",
+            "trackOrdinal": 2
+          }
+        },
+        {
+          "sequence": 1,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 2,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 7339,
+            "analysisPacketSignatureHash": "a49c016811f5f827deb485d940c819857b8c7892d5e121fda81d72e6bae65b00",
+            "analysisSource": "parseDump helper segment match",
+            "invalidReason": null,
+            "isValid": true,
+            "lapId": 1,
+            "lapNumber": 1,
+            "lapTime": 132.177,
+            "rawByteOffset": 12,
+            "rawFrameCount": 7340,
+            "sessionId": 1,
+            "sourceWindow": {
+              "count": 7340,
+              "first": {
+                "sourceOffset": 12,
+                "outputOffset": 12
+              },
+              "last": {
+                "sourceOffset": 22780268,
+                "outputOffset": 8416435
+              },
+              "sha256": "71888f44d306f3f626a4fd0948c6f9eebcf8e73a7bec908c7c853d6aacf9f700"
+            }
+          }
+        },
+        {
+          "sequence": 3,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 132.177,
+            "isValid": true,
+            "lapId": 1,
+            "lapNumber": 1,
+            "lapTime": 132.177,
+            "sectors": [
+              55.5,
+              23.33,
+              53.346999999999994
+            ],
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 4,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": 34,
+                "gameId": "acc",
+                "id": 1,
+                "isValid": true,
+                "lapNumber": 1,
+                "lapTime": 132.177,
+                "sectorTimes": [
+                  55.5,
+                  23.33,
+                  53.346999999999994
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 2
+              }
+            ],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 5,
+          "kind": "LAP_ANALYSIS_CAPTURED",
+          "data": {
+            "analysisPacketSignatureHash": "7db3d7654e9bdd00f4511dea1c16d962c5347436ba6e594afdaf75f1d60d3fab",
+            "isValid": true,
+            "lapDistStart": 351.73602294921875,
+            "lapTime": 132.177,
+            "packetCount": 7340,
+            "sessionId": 1
+          }
+        },
+        {
+          "sequence": 6,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 5768,
+            "analysisPacketSignatureHash": "e620c0ff4a6a58bd1a2a43612684591c548cd6afddc1eab93295c11b2ca352ca",
+            "analysisSource": "parseDump helper segment match",
+            "invalidReason": null,
+            "isValid": true,
+            "lapId": 2,
+            "lapNumber": 2,
+            "lapTime": 90.572,
+            "rawByteOffset": 8416435,
+            "rawFrameCount": 5770,
+            "sessionId": 1,
+            "sourceWindow": {
+              "count": 5770,
+              "first": {
+                "sourceOffset": 22780268,
+                "outputOffset": 8416435
+              },
+              "last": {
+                "sourceOffset": 40687244,
+                "outputOffset": 15057111
+              },
+              "sha256": "d8fb076f94a213a87e91a109f981a1387008e49bddbe595caea2dd5961ca1f07"
+            }
+          }
+        },
+        {
+          "sequence": 7,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 90.572,
+            "isValid": true,
+            "lapId": 2,
+            "lapNumber": 2,
+            "lapTime": 90.572,
+            "sectors": [
+              29.415,
+              23.002000000000002,
+              38.155
+            ],
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 8,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": 34,
+                "gameId": "acc",
+                "id": 1,
+                "isValid": true,
+                "lapNumber": 1,
+                "lapTime": 132.177,
+                "sectorTimes": [
+                  55.5,
+                  23.33,
+                  53.346999999999994
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 2
+              },
+              {
+                "carOrdinal": 34,
+                "gameId": "acc",
+                "id": 2,
+                "isValid": true,
+                "lapNumber": 2,
+                "lapTime": 90.572,
+                "sectorTimes": [
+                  29.415,
+                  23.002000000000002,
+                  38.155
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 2
+              }
+            ],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 9,
+          "kind": "LAP_ANALYSIS_CAPTURED",
+          "data": {
+            "analysisPacketSignatureHash": "7ee6a1503b2389900efbb7c158b164e08908961b21780a857caa299c59e01a39",
+            "isValid": true,
+            "lapDistStart": 3902.230712890625,
+            "lapTime": 90.572,
+            "packetCount": 5770,
+            "sessionId": 1
+          }
+        },
+        {
+          "sequence": 10,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 7500,
+            "analysisPacketSignatureHash": "a9645ad4d1c82dab1ddeba2ddff1dca62926e5e38afd1a03b24a69003d07060d",
+            "analysisSource": "parseDump helper segment match",
+            "invalidReason": "game reported invalid",
+            "isValid": false,
+            "lapId": 3,
+            "lapNumber": 3,
+            "lapTime": 118.377,
+            "rawByteOffset": 15057111,
+            "rawFrameCount": 7501,
+            "sessionId": 1,
+            "sourceWindow": {
+              "count": 7501,
+              "first": {
+                "sourceOffset": 40687244,
+                "outputOffset": 15057111
+              },
+              "last": {
+                "sourceOffset": 63967244,
+                "outputOffset": 23663541
+              },
+              "sha256": "93d5c603a5a863c6253d4cb382dfd36d8862f9c27d59c80e7eaa33cb82cd8667"
+            }
+          }
+        },
+        {
+          "sequence": 11,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 90.572,
+            "isValid": false,
+            "lapId": 3,
+            "lapNumber": 3,
+            "lapTime": 118.377,
+            "sectors": [
+              43.405,
+              37.050000000000004,
+              37.92199999999999
+            ],
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 12,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": 34,
+                "gameId": "acc",
+                "id": 1,
+                "isValid": true,
+                "lapNumber": 1,
+                "lapTime": 132.177,
+                "sectorTimes": [
+                  55.5,
+                  23.33,
+                  53.346999999999994
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 2
+              },
+              {
+                "carOrdinal": 34,
+                "gameId": "acc",
+                "id": 2,
+                "isValid": true,
+                "lapNumber": 2,
+                "lapTime": 90.572,
+                "sectorTimes": [
+                  29.415,
+                  23.002000000000002,
+                  38.155
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 2
+              },
+              {
+                "carOrdinal": 34,
+                "gameId": "acc",
+                "id": 3,
+                "isValid": false,
+                "lapNumber": 3,
+                "lapTime": 118.377,
+                "sectorTimes": [
+                  43.405,
+                  37.050000000000004,
+                  37.92199999999999
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 2
+              }
+            ],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 13,
+          "kind": "LAP_ANALYSIS_CAPTURED",
+          "data": {
+            "analysisPacketSignatureHash": "c0b33948c749e4ecc7bb9edc636b30c8a2112c0a10d1daa507b566e08709acbe",
+            "isValid": false,
+            "lapDistStart": 7791.3603515625,
+            "lapTime": 118.377,
+            "packetCount": 7501,
+            "sessionId": 1
+          }
+        },
+        {
+          "sequence": 14,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 281,
+            "analysisPacketSignatureHash": "3307c1e9331662dacb12ba1181f1bfc026fce7eb34df6791622bbf8cfb8dbb58",
+            "analysisSource": "parseDump helper segment match",
+            "invalidReason": "incomplete",
+            "isValid": false,
+            "lapId": 4,
+            "lapNumber": 4,
+            "lapTime": 15.482,
+            "rawByteOffset": 24466785,
+            "rawFrameCount": 281,
+            "sessionId": 1,
+            "sourceWindow": {
+              "count": 281,
+              "first": {
+                "sourceOffset": 66133836,
+                "outputOffset": 24466785
+              },
+              "last": {
+                "sourceOffset": 67002956,
+                "outputOffset": 24587291
+              },
+              "sha256": "85c50ec293d4dc36f1aad30468859a0415e5fe2a5a2b0dd7d37c441a6f0bc0a0"
+            }
+          }
+        }
+      ],
+      "packetSignatureHash": "feff6d2d1e391af1108344eb6a51d69dfa10cdb00822adcdbf9b8f1532102047",
+      "sparseCaptureFiles": [
+        {
+          "byteLength": 24587826,
+          "sparseBytesSha256": "dd158b8511d60f3bfe23d162c35b80d4afd6ef5f6cd17e0244b90361d44daf2c",
+          "headerFrameCount": 21587,
+          "headerCountMatches": true,
+          "decodedFrameCount": 21587,
+          "timestampedFrameCount": 0,
+          "frameTimeMsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "decodedFramesSha256": "b97eba890f7d1c946769bf2f6e23550e5232d0c11fe6707f12e012cfceac220f"
+        }
+      ],
+      "unsupportedScenarios": []
+    },
+    {
+      "gameId": "ac-evo",
+      "scenario": null,
+      "fixture": "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz",
+      "fixtureSha256": "c144347a547ec1260ba28cb23fd50c11f29c364ea0144342860c68ca52a8a7cd",
+      "compressedBytes": 12917263,
+      "sourceRecordCount": 21697,
+      "sourceFrameCount": 21697,
+      "rejectedSourceFrames": 1589,
+      "processedPacketWindow": {
+        "first": 0,
+        "count": 20108,
+        "last": 20107
+      },
+      "identity": {
+        "carOrdinal": 59,
+        "trackOrdinal": 2,
+        "carModel": "Porsche 992 GT3 R Rennsport",
+        "trackName": "Brands Hatch - GP"
+      },
+      "orderedEvents": [
+        {
+          "sequence": 0,
+          "kind": "SESSION_STARTED",
+          "data": {
+            "carOrdinal": 59,
+            "gameId": "ac-evo",
+            "identity": null,
+            "sessionId": 1,
+            "sessionType": "time_attack",
+            "trackOrdinal": 2
+          }
+        },
+        {
+          "sequence": 1,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 2,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 0,
+            "analysisPacketSignatureHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "analysisSource": "unavailable",
+            "invalidReason": "start/end positions too far apart",
+            "isValid": false,
+            "lapId": 1,
+            "lapNumber": 1,
+            "lapTime": 97.932,
+            "rawByteOffset": 12,
+            "rawFrameCount": 4403,
+            "sessionId": 1,
+            "sourceWindow": {
+              "count": 4403,
+              "first": {
+                "sourceOffset": 12,
+                "outputOffset": 12
+              },
+              "last": {
+                "sourceOffset": 22133268,
+                "outputOffset": 6895870
+              },
+              "sha256": "6e1eeada240868cc30db97168ac018dd9db3d46d67d98a3e676f5cc5f5d07846"
+            }
+          }
+        },
+        {
+          "sequence": 3,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 0,
+            "isValid": false,
+            "lapId": 1,
+            "lapNumber": 1,
+            "lapTime": 97.932,
+            "sectors": null,
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 4,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": 59,
+                "gameId": "ac-evo",
+                "id": 1,
+                "isValid": false,
+                "lapNumber": 1,
+                "lapTime": 97.932,
+                "sectorTimes": null,
+                "sessionId": 1,
+                "trackOrdinal": 2
+              }
+            ],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 5,
+          "kind": "LAP_ANALYSIS_CAPTURED",
+          "data": {
+            "analysisPacketSignatureHash": "a08e8b883d141b305706984c057db877d7bf46e29aef40e4113cc11879662639",
+            "isValid": false,
+            "lapDistStart": 913.3480787277222,
+            "lapTime": 97.932,
+            "packetCount": 4403,
+            "sessionId": 1
+          }
+        },
+        {
+          "sequence": 6,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 0,
+            "analysisPacketSignatureHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "analysisSource": "unavailable",
+            "invalidReason": "track limits",
+            "isValid": false,
+            "lapId": 2,
+            "lapNumber": 2,
+            "lapTime": 98.706,
+            "rawByteOffset": 6895870,
+            "rawFrameCount": 6266,
+            "sessionId": 1,
+            "sourceWindow": {
+              "count": 6266,
+              "first": {
+                "sourceOffset": 22133268,
+                "outputOffset": 6895870
+              },
+              "last": {
+                "sourceOffset": 53633688,
+                "outputOffset": 16732786
+              },
+              "sha256": "11e331baa7963b2dd68c20afdfff7462eab175219d980e10b4fff7740e8af5c5"
+            }
+          }
+        },
+        {
+          "sequence": 7,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 0,
+            "isValid": false,
+            "lapId": 2,
+            "lapNumber": 2,
+            "lapTime": 98.706,
+            "sectors": [
+              39.412,
+              25.301000000000002,
+              33.993
+            ],
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 8,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": 59,
+                "gameId": "ac-evo",
+                "id": 1,
+                "isValid": false,
+                "lapNumber": 1,
+                "lapTime": 97.932,
+                "sectorTimes": null,
+                "sessionId": 1,
+                "trackOrdinal": 2
+              },
+              {
+                "carOrdinal": 59,
+                "gameId": "ac-evo",
+                "id": 2,
+                "isValid": false,
+                "lapNumber": 2,
+                "lapTime": 98.706,
+                "sectorTimes": [
+                  39.412,
+                  25.301000000000002,
+                  33.993
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 2
+              }
+            ],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 9,
+          "kind": "LAP_ANALYSIS_CAPTURED",
+          "data": {
+            "analysisPacketSignatureHash": "bf5b047b7b9a9d11ac3aff669a0c2b68d4e06c685e901854370d51dc1c62b026",
+            "isValid": false,
+            "lapDistStart": 3882.9418336406693,
+            "lapTime": 98.706,
+            "packetCount": 6266,
+            "sessionId": 1
+          }
+        },
+        {
+          "sequence": 10,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 0,
+            "analysisPacketSignatureHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "analysisSource": "unavailable",
+            "invalidReason": "track limits",
+            "isValid": false,
+            "lapId": 3,
+            "lapNumber": 3,
+            "lapTime": 105.477,
+            "rawByteOffset": 16732786,
+            "rawFrameCount": 6698,
+            "sessionId": 1,
+            "sourceWindow": {
+              "count": 6698,
+              "first": {
+                "sourceOffset": 53633688,
+                "outputOffset": 16732786
+              },
+              "last": {
+                "sourceOffset": 87306204,
+                "outputOffset": 27285348
+              },
+              "sha256": "531049cdbd506711205fdbd5756e4ac780f80da520dbfcd77cba587db4045319"
+            }
+          }
+        },
+        {
+          "sequence": 11,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 0,
+            "isValid": false,
+            "lapId": 3,
+            "lapNumber": 3,
+            "lapTime": 105.477,
+            "sectors": [
+              39.84,
+              26.075999999999993,
+              39.56100000000001
+            ],
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 12,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": 59,
+                "gameId": "ac-evo",
+                "id": 1,
+                "isValid": false,
+                "lapNumber": 1,
+                "lapTime": 97.932,
+                "sectorTimes": null,
+                "sessionId": 1,
+                "trackOrdinal": 2
+              },
+              {
+                "carOrdinal": 59,
+                "gameId": "ac-evo",
+                "id": 2,
+                "isValid": false,
+                "lapNumber": 2,
+                "lapTime": 98.706,
+                "sectorTimes": [
+                  39.412,
+                  25.301000000000002,
+                  33.993
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 2
+              },
+              {
+                "carOrdinal": 59,
+                "gameId": "ac-evo",
+                "id": 3,
+                "isValid": false,
+                "lapNumber": 3,
+                "lapTime": 105.477,
+                "sectorTimes": [
+                  39.84,
+                  26.075999999999993,
+                  39.56100000000001
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 2
+              }
+            ],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 13,
+          "kind": "LAP_ANALYSIS_CAPTURED",
+          "data": {
+            "analysisPacketSignatureHash": "d2440e2eff0673e393dfce7cbcb37c2d97552ee43e689308c3b686b115d32ba9",
+            "isValid": false,
+            "lapDistStart": 7791.269677073001,
+            "lapTime": 105.477,
+            "packetCount": 6698,
+            "sessionId": 1
+          }
+        },
+        {
+          "sequence": 14,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 0,
+            "analysisPacketSignatureHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "analysisSource": "unavailable",
+            "invalidReason": "incomplete",
+            "isValid": false,
+            "lapId": 4,
+            "lapNumber": 4,
+            "lapTime": 40.833,
+            "rawByteOffset": 27285348,
+            "rawFrameCount": 2744,
+            "sessionId": 1,
+            "sourceWindow": {
+              "count": 2744,
+              "first": {
+                "sourceOffset": 87306204,
+                "outputOffset": 27285348
+              },
+              "last": {
+                "sourceOffset": 101098008,
+                "outputOffset": 30860054
+              },
+              "sha256": "efa8ceb3628ab05aaf2112eecbf5302a34afe2738b1199f792e7b914f7f60b8c"
+            }
+          }
+        }
+      ],
+      "packetSignatureHash": "16b84d162c28df57b91143703b3707db178bac65e94a5f17fb18813c82a173cd",
+      "sparseCaptureFiles": [
+        {
+          "byteLength": 30860080,
+          "sparseBytesSha256": "e6cabfd78eb5b9fee5a5adf7583d1b034025945d26d67d27c3b7807f8816cd2b",
+          "headerFrameCount": 20108,
+          "headerCountMatches": true,
+          "decodedFrameCount": 20108,
+          "timestampedFrameCount": 0,
+          "frameTimeMsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "decodedFramesSha256": "8f76a90cfd826d64c9d3c52d10eb3b2706f3df5cb87e9b2bcd38e869a4f4228c"
+        }
+      ],
+      "unsupportedScenarios": []
+    },
+    {
+      "gameId": "iracing",
+      "scenario": null,
+      "fixture": "test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz",
+      "fixtureSha256": "a174ed2665dff583d1a08d1d2771c950f63e542b1438c929c0f827b7a6e9c9b2",
+      "compressedBytes": 2736686,
+      "sourceRecordCount": 6357,
+      "sourceFrameCount": 6357,
+      "rejectedSourceFrames": 0,
+      "processedPacketWindow": {
+        "first": 0,
+        "count": 6357,
+        "last": 6356
+      },
+      "identity": {
+        "carOrdinal": 206,
+        "trackOrdinal": 192,
+        "carModel": "Aston Martin Vantage GT3 EVO",
+        "trackName": "Daytona International Speedway"
+      },
+      "orderedEvents": [
+        {
+          "sequence": 0,
+          "kind": "SESSION_STARTED",
+          "data": {
+            "carOrdinal": 206,
+            "gameId": "iracing",
+            "identity": null,
+            "sessionId": 1,
+            "sessionType": null,
+            "trackOrdinal": 192
+          }
+        },
+        {
+          "sequence": 1,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 2,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 1153,
+            "analysisPacketSignatureHash": "b6424fb51364e81409fff78d5d6fef1f5e2b346d12e00d56130fd2dd2b430b41",
+            "analysisSource": "parseDump helper segment match",
+            "invalidReason": "inlap",
+            "isValid": false,
+            "lapId": 1,
+            "lapNumber": 414,
+            "lapTime": 115.03479766845703,
+            "rawByteOffset": 1060604,
+            "rawFrameCount": 1153,
+            "sessionId": 1,
+            "sourceWindow": {
+              "count": 1153,
+              "first": {
+                "sourceOffset": 1061682,
+                "outputOffset": 1060604
+              },
+              "last": {
+                "sourceOffset": 2191375,
+                "outputOffset": 2189145
+              },
+              "sha256": "366035c0eb2b04ae3e16eebf7c6e21eff42c7422955b707e6018a1e9b864c516"
+            }
+          }
+        },
+        {
+          "sequence": 3,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 0,
+            "isValid": false,
+            "lapId": 1,
+            "lapNumber": 414,
+            "lapTime": 115.03479766845703,
+            "sectors": [
+              15.716666669868573,
+              17.90000000364671,
+              11.900000002424349,
+              27.800000005663605,
+              41.718130986853794
+            ],
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 4,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": 206,
+                "gameId": "iracing",
+                "id": 1,
+                "isValid": false,
+                "lapNumber": 414,
+                "lapTime": 115.03479766845703,
+                "sectorTimes": [
+                  15.716666669868573,
+                  17.90000000364671,
+                  11.900000002424349,
+                  27.800000005663605,
+                  41.718130986853794
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 192
+              }
+            ],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 5,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 1944,
+            "analysisPacketSignatureHash": "52cfa921122aa2ae9e16da3688c8cb241095d5a4b3ea61361adcaaebba18cbaf",
+            "analysisSource": "parseDump helper segment match",
+            "invalidReason": "outlap",
+            "isValid": false,
+            "lapId": 2,
+            "lapNumber": 415,
+            "lapTime": 194.29049682617188,
+            "rawByteOffset": 2189995,
+            "rawFrameCount": 1944,
+            "sessionId": 1,
+            "sourceWindow": {
+              "count": 1944,
+              "first": {
+                "sourceOffset": 2192226,
+                "outputOffset": 2189995
+              },
+              "last": {
+                "sourceOffset": 3923428,
+                "outputOffset": 3919254
+              },
+              "sha256": "cea4f9022b7598051f77678dc775062157c17bd9a2bd2d72bb71286f44d4dbb0"
+            }
+          }
+        },
+        {
+          "sequence": 6,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 0,
+            "isValid": false,
+            "lapId": 2,
+            "lapNumber": 415,
+            "lapTime": 194.29049682617188,
+            "sectors": [
+              99.38333335358038,
+              19.500000003972673,
+              12.900000002628076,
+              28.500000005806214,
+              34.00716346018453
+            ],
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 7,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": 206,
+                "gameId": "iracing",
+                "id": 1,
+                "isValid": false,
+                "lapNumber": 414,
+                "lapTime": 115.03479766845703,
+                "sectorTimes": [
+                  15.716666669868573,
+                  17.90000000364671,
+                  11.900000002424349,
+                  27.800000005663605,
+                  41.718130986853794
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 192
+              },
+              {
+                "carOrdinal": 206,
+                "gameId": "iracing",
+                "id": 2,
+                "isValid": false,
+                "lapNumber": 415,
+                "lapTime": 194.29049682617188,
+                "sectorTimes": [
+                  99.38333335358038,
+                  19.500000003972673,
+                  12.900000002628076,
+                  28.500000005806214,
+                  34.00716346018453
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 192
+              }
+            ],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 8,
+          "kind": "LAP_ANALYSIS_CAPTURED",
+          "data": {
+            "analysisPacketSignatureHash": "6e4a9b65f739154288e26e36c39db9e755c1d8de8d1f6e01bc483f5c8a43f31c",
+            "isValid": true,
+            "lapDistStart": 2365916.974716249,
+            "lapTime": 107.2864990234375,
+            "packetCount": 1073,
+            "sessionId": 1
+          }
+        },
+        {
+          "sequence": 9,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 1073,
+            "analysisPacketSignatureHash": "6e4a9b65f739154288e26e36c39db9e755c1d8de8d1f6e01bc483f5c8a43f31c",
+            "analysisSource": "detector callback",
+            "invalidReason": null,
+            "isValid": true,
+            "lapId": 3,
+            "lapNumber": 416,
+            "lapTime": 107.2864990234375,
+            "rawByteOffset": 3920244,
+            "rawFrameCount": 1073,
+            "sessionId": 1,
+            "sourceWindow": {
+              "count": 1073,
+              "first": {
+                "sourceOffset": 3924419,
+                "outputOffset": 3920244
+              },
+              "last": {
+                "sourceOffset": 4991201,
+                "outputOffset": 4985954
+              },
+              "sha256": "8b0bc431a9fb5d1826dc625611d5d672a82e7a6268205dc3e10aa5befefe0a67"
+            }
+          }
+        },
+        {
+          "sequence": 10,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 107.2864990234375,
+            "isValid": true,
+            "lapId": 3,
+            "lapNumber": 416,
+            "lapTime": 107.2864990234375,
+            "sectors": [
+              15.800000003218884,
+              18.000000003667083,
+              12.200000002485467,
+              28.100000005724723,
+              33.18649900834134
+            ],
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 11,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": 206,
+                "gameId": "iracing",
+                "id": 1,
+                "isValid": false,
+                "lapNumber": 414,
+                "lapTime": 115.03479766845703,
+                "sectorTimes": [
+                  15.716666669868573,
+                  17.90000000364671,
+                  11.900000002424349,
+                  27.800000005663605,
+                  41.718130986853794
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 192
+              },
+              {
+                "carOrdinal": 206,
+                "gameId": "iracing",
+                "id": 2,
+                "isValid": false,
+                "lapNumber": 415,
+                "lapTime": 194.29049682617188,
+                "sectorTimes": [
+                  99.38333335358038,
+                  19.500000003972673,
+                  12.900000002628076,
+                  28.500000005806214,
+                  34.00716346018453
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 192
+              },
+              {
+                "carOrdinal": 206,
+                "gameId": "iracing",
+                "id": 3,
+                "isValid": true,
+                "lapNumber": 416,
+                "lapTime": 107.2864990234375,
+                "sectorTimes": [
+                  15.800000003218884,
+                  18.000000003667083,
+                  12.200000002485467,
+                  28.100000005724723,
+                  33.18649900834134
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 192
+              }
+            ],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 12,
+          "kind": "LAP_ANALYSIS_CAPTURED",
+          "data": {
+            "analysisPacketSignatureHash": "ae151393806f8ea7287db29cc8581a487b5aed793747863830db487f3add0496",
+            "isValid": true,
+            "lapDistStart": 2371605.4238496777,
+            "lapTime": 106.66819763183594,
+            "packetCount": 1067,
+            "sessionId": 1
+          }
+        },
+        {
+          "sequence": 13,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 1067,
+            "analysisPacketSignatureHash": "ae151393806f8ea7287db29cc8581a487b5aed793747863830db487f3add0496",
+            "analysisSource": "detector callback",
+            "invalidReason": null,
+            "isValid": true,
+            "lapId": 4,
+            "lapNumber": 417,
+            "lapTime": 106.66819763183594,
+            "rawByteOffset": 4986964,
+            "rawFrameCount": 1067,
+            "sessionId": 1,
+            "sourceWindow": {
+              "count": 1067,
+              "first": {
+                "sourceOffset": 4992212,
+                "outputOffset": 4986964
+              },
+              "last": {
+                "sourceOffset": 6067176,
+                "outputOffset": 6060862
+              },
+              "sha256": "128847fbe58ad405cd013e489e4bfb6958c86fd216d8bd4f749e735a42ccf932"
+            }
+          }
+        },
+        {
+          "sequence": 14,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 106.66819763183594,
+            "isValid": true,
+            "lapId": 4,
+            "lapNumber": 417,
+            "lapTime": 106.66819763183594,
+            "sectors": [
+              15.700000003162131,
+              17.766666670278937,
+              12.016666669107508,
+              27.90000000566215,
+              33.28486428362521
+            ],
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 15,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": 206,
+                "gameId": "iracing",
+                "id": 1,
+                "isValid": false,
+                "lapNumber": 414,
+                "lapTime": 115.03479766845703,
+                "sectorTimes": [
+                  15.716666669868573,
+                  17.90000000364671,
+                  11.900000002424349,
+                  27.800000005663605,
+                  41.718130986853794
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 192
+              },
+              {
+                "carOrdinal": 206,
+                "gameId": "iracing",
+                "id": 2,
+                "isValid": false,
+                "lapNumber": 415,
+                "lapTime": 194.29049682617188,
+                "sectorTimes": [
+                  99.38333335358038,
+                  19.500000003972673,
+                  12.900000002628076,
+                  28.500000005806214,
+                  34.00716346018453
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 192
+              },
+              {
+                "carOrdinal": 206,
+                "gameId": "iracing",
+                "id": 3,
+                "isValid": true,
+                "lapNumber": 416,
+                "lapTime": 107.2864990234375,
+                "sectorTimes": [
+                  15.800000003218884,
+                  18.000000003667083,
+                  12.200000002485467,
+                  28.100000005724723,
+                  33.18649900834134
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 192
+              },
+              {
+                "carOrdinal": 206,
+                "gameId": "iracing",
+                "id": 4,
+                "isValid": true,
+                "lapNumber": 417,
+                "lapTime": 106.66819763183594,
+                "sectorTimes": [
+                  15.700000003162131,
+                  17.766666670278937,
+                  12.016666669107508,
+                  27.90000000566215,
+                  33.28486428362521
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 192
+              }
+            ],
+            "type": "session-laps"
+          }
+        }
+      ],
+      "packetSignatureHash": "5bf6607263d4b359aa1c7f05608399600620e12350dd076496d35963c3f0ec3b",
+      "sparseCaptureFiles": [
+        {
+          "byteLength": 6113618,
+          "sparseBytesSha256": "ea7fa9e3e715e3a227613e1764ec52e09ee89a5d34710d9a2e3f665e223c9a83",
+          "headerFrameCount": 6357,
+          "headerCountMatches": true,
+          "decodedFrameCount": 6357,
+          "timestampedFrameCount": 0,
+          "frameTimeMsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "decodedFramesSha256": "e92bcad0bcb4dcad04b8ad4f3656b390c35481792d3374ffd1b0ea4a1bd04d8c"
+        }
+      ],
+      "unsupportedScenarios": []
+    },
+    {
+      "gameId": "lmu",
+      "scenario": null,
+      "fixture": "test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz",
+      "fixtureSha256": "41aafed9872afbb5adbe58dc1a318c0f05bcfd631aa7e37575f420166878546d",
+      "compressedBytes": 1393533,
+      "sourceRecordCount": 4309,
+      "sourceFrameCount": 4309,
+      "rejectedSourceFrames": 0,
+      "processedPacketWindow": {
+        "first": 0,
+        "count": 4309,
+        "last": 4308
+      },
+      "identity": {
+        "carOrdinal": -1,
+        "trackOrdinal": -1,
+        "carModel": "LMU car #-1",
+        "trackName": "LMU track #-1"
+      },
+      "orderedEvents": [
+        {
+          "sequence": 0,
+          "kind": "SESSION_STARTED",
+          "data": {
+            "carOrdinal": -1,
+            "gameId": "lmu",
+            "identity": {
+              "carId": "porsche_911rsr-19_2023",
+              "trackId": "Circuit de Spa-Francorchamps"
+            },
+            "sessionId": 1,
+            "sessionType": "race",
+            "trackOrdinal": -1
+          }
+        },
+        {
+          "sequence": 1,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 2,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 1414,
+            "analysisPacketSignatureHash": "79e54d820c12afe982c4ea0b51f62399c4a7bb2226cef1e812ce1781e60f9055",
+            "analysisSource": "parseDump helper segment match",
+            "invalidReason": "outlap",
+            "isValid": false,
+            "lapId": 1,
+            "lapNumber": 6,
+            "lapTime": 141.47467041015625,
+            "rawByteOffset": 12,
+            "rawFrameCount": 1415,
+            "sessionId": 1,
+            "sourceWindow": {
+              "count": 1415,
+              "first": {
+                "sourceOffset": 21,
+                "outputOffset": 12
+              },
+              "last": {
+                "sourceOffset": 4316963,
+                "outputOffset": 4315540
+              },
+              "sha256": "e90c96812f404c2e8d42d93e0feae58aa94f9e1baf43dc744248ce77340d360b"
+            }
+          }
+        },
+        {
+          "sequence": 3,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 0,
+            "isValid": false,
+            "lapId": 1,
+            "lapNumber": 6,
+            "lapTime": 141.47467041015625,
+            "sectors": null,
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 4,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": -1,
+                "gameId": "lmu",
+                "id": 1,
+                "isValid": false,
+                "lapNumber": 6,
+                "lapTime": 141.47467041015625,
+                "sectorTimes": null,
+                "sessionId": 1,
+                "trackOrdinal": -1
+              }
+            ],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 5,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 1419,
+            "analysisPacketSignatureHash": "290cf469a6c425dcfd2a9f165f9e157e459e1baf1cec998f36f85a53294c5494",
+            "analysisSource": "parseDump helper segment match",
+            "invalidReason": "telemetry distance too short",
+            "isValid": false,
+            "lapId": 2,
+            "lapNumber": 7,
+            "lapTime": 141.98638916015625,
+            "rawByteOffset": 4318592,
+            "rawFrameCount": 1421,
+            "sessionId": 1,
+            "sourceWindow": {
+              "count": 1421,
+              "first": {
+                "sourceOffset": 4320016,
+                "outputOffset": 4318592
+              },
+              "last": {
+                "sourceOffset": 8655276,
+                "outputOffset": 8652432
+              },
+              "sha256": "1a5ce9a337a5bf51d291ac527ea4389fff9d70b0cbdef2b86aae8a75aa8e4710"
+            }
+          }
+        },
+        {
+          "sequence": 6,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 0,
+            "isValid": false,
+            "lapId": 2,
+            "lapNumber": 7,
+            "lapTime": 141.98638916015625,
+            "sectors": null,
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 7,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": -1,
+                "gameId": "lmu",
+                "id": 1,
+                "isValid": false,
+                "lapNumber": 6,
+                "lapTime": 141.47467041015625,
+                "sectorTimes": null,
+                "sessionId": 1,
+                "trackOrdinal": -1
+              },
+              {
+                "carOrdinal": -1,
+                "gameId": "lmu",
+                "id": 2,
+                "isValid": false,
+                "lapNumber": 7,
+                "lapTime": 141.98638916015625,
+                "sectorTimes": null,
+                "sessionId": 1,
+                "trackOrdinal": -1
+              }
+            ],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 8,
+          "kind": "LAP_ANALYSIS_CAPTURED",
+          "data": {
+            "analysisPacketSignatureHash": "1d28079ae0cba6c16e1c5eb4379038eac7d59fe6a885c9f4f1119429496d60dd",
+            "isValid": true,
+            "lapDistStart": 48856.896484375,
+            "lapTime": 142.2401123046875,
+            "packetCount": 1423,
+            "sessionId": 1
+          }
+        },
+        {
+          "sequence": 9,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 1423,
+            "analysisPacketSignatureHash": "1d28079ae0cba6c16e1c5eb4379038eac7d59fe6a885c9f4f1119429496d60dd",
+            "analysisSource": "detector callback",
+            "invalidReason": null,
+            "isValid": true,
+            "lapId": 3,
+            "lapNumber": 8,
+            "lapTime": 142.2401123046875,
+            "rawByteOffset": 8655484,
+            "rawFrameCount": 1423,
+            "sessionId": 1,
+            "sourceWindow": {
+              "count": 1423,
+              "first": {
+                "sourceOffset": 8658329,
+                "outputOffset": 8655484
+              },
+              "last": {
+                "sourceOffset": 12999695,
+                "outputOffset": 12995428
+              },
+              "sha256": "08506509cbcd20f859dd819a7484877a508a9e9bd2faaa49a5cbcadd781aa8b1"
+            }
+          }
+        },
+        {
+          "sequence": 10,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 142.2401123046875,
+            "isValid": true,
+            "lapId": 3,
+            "lapNumber": 8,
+            "lapTime": 142.2401123046875,
+            "sectors": [
+              42.039999999999964,
+              53,
+              47.200112304687536
+            ],
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 11,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": -1,
+                "gameId": "lmu",
+                "id": 1,
+                "isValid": false,
+                "lapNumber": 6,
+                "lapTime": 141.47467041015625,
+                "sectorTimes": null,
+                "sessionId": 1,
+                "trackOrdinal": -1
+              },
+              {
+                "carOrdinal": -1,
+                "gameId": "lmu",
+                "id": 2,
+                "isValid": false,
+                "lapNumber": 7,
+                "lapTime": 141.98638916015625,
+                "sectorTimes": null,
+                "sessionId": 1,
+                "trackOrdinal": -1
+              },
+              {
+                "carOrdinal": -1,
+                "gameId": "lmu",
+                "id": 3,
+                "isValid": true,
+                "lapNumber": 8,
+                "lapTime": 142.2401123046875,
+                "sectorTimes": [
+                  42.039999999999964,
+                  53,
+                  47.200112304687536
+                ],
+                "sessionId": 1,
+                "trackOrdinal": -1
+              }
+            ],
+            "type": "session-laps"
+          }
+        }
+      ],
+      "packetSignatureHash": "2739c650b5885a6c9fa2810087ae37a4ceb385f4e0f9c8bc08942c7945e681c5",
+      "sparseCaptureFiles": [
+        {
+          "byteLength": 13151080,
+          "sparseBytesSha256": "102a9d909241f5967232c30f7ddaadfed6063d61c90d07cf85331dcbd04d99ca",
+          "headerFrameCount": 4309,
+          "headerCountMatches": true,
+          "decodedFrameCount": 4309,
+          "timestampedFrameCount": 0,
+          "frameTimeMsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "decodedFramesSha256": "538d9540a81bb55a3c2d41f65b9a53cb9d3a970c63701a0a914e8029dc350754"
+        }
+      ],
+      "unsupportedScenarios": []
+    },
+    {
+      "gameId": "fm-2023",
+      "scenario": "Forza provisional snapshot and retraction",
+      "fixture": "test/artifacts/sessions/fm-2023-with-pitting.bin.gz",
+      "fixtureSha256": "f6a70909a384d571afdc4aebee5ac646a28139d307ae752c8a84de2312fc0e72",
+      "compressedBytes": 3262937,
+      "sourceRecordCount": 21078,
+      "sourceFrameCount": 21078,
+      "rejectedSourceFrames": 6179,
+      "processedPacketWindow": {
+        "first": 0,
+        "count": 14899,
+        "last": 14898
+      },
+      "identity": {
+        "carOrdinal": 3631,
+        "trackOrdinal": 860,
+        "carModel": "2022 Aston Martin Valkyrie AMR Pro",
+        "trackName": "Brand Hatch - Tor Grand Prix"
+      },
+      "orderedEvents": [
+        {
+          "sequence": 0,
+          "kind": "SESSION_STARTED",
+          "data": {
+            "carOrdinal": 3631,
+            "gameId": "fm-2023",
+            "identity": null,
+            "sessionId": 1,
+            "sessionType": null,
+            "trackOrdinal": 860
+          }
+        },
+        {
+          "sequence": 1,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 2,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 6104,
+            "analysisPacketSignatureHash": "1ae712db4a7e9a06d5feb28bbd9205d281c4bdf8058e811ef272794853830ee6",
+            "analysisSource": "parseDump helper segment match",
+            "invalidReason": "start/end positions too far apart",
+            "isValid": false,
+            "lapId": 1,
+            "lapNumber": 0,
+            "lapTime": 82.2239990234375,
+            "rawByteOffset": 12,
+            "rawFrameCount": 6104,
+            "sessionId": 1,
+            "sourceWindow": {
+              "count": 6104,
+              "first": {
+                "sourceOffset": 677709,
+                "outputOffset": 12
+              },
+              "last": {
+                "sourceOffset": 2722214,
+                "outputOffset": 1943214
+              },
+              "sha256": "7d0d729f836dde271d6a261b8d698fb9fc31e6bd6bb9fbada2072a7f7c3801f0"
+            }
+          }
+        },
+        {
+          "sequence": 3,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 0,
+            "isValid": false,
+            "lapId": 1,
+            "lapNumber": 0,
+            "lapTime": 82.2239990234375,
+            "sectors": [
+              0.01666666753590107,
+              29.49989484064281,
+              52.70743751525879
+            ],
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 4,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": 3631,
+                "gameId": "fm-2023",
+                "id": 1,
+                "isValid": false,
+                "lapNumber": 0,
+                "lapTime": 82.2239990234375,
+                "sectorTimes": [
+                  0.01666666753590107,
+                  29.49989484064281,
+                  52.70743751525879
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 860
+              }
+            ],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 5,
+          "kind": "LAP_PROVISIONAL_ANALYSIS_CAPTURED",
+          "data": {
+            "analysisPacketSignatureHash": "d14c372c8ddc36dc207afd28138fddf0cebf76f10ef99db2e9222bf2c71c1d02",
+            "packetCount": 4222,
+            "sessionId": 1
+          }
+        },
+        {
+          "sequence": 6,
+          "kind": "LAP_PROVISIONAL",
+          "data": {
+            "analysisPacketCount": 4222,
+            "analysisPacketSignatureHash": "d14c372c8ddc36dc207afd28138fddf0cebf76f10ef99db2e9222bf2c71c1d02",
+            "analysisSource": "detector provisional buffer",
+            "invalidReason": "incomplete",
+            "isValid": false,
+            "lapId": 2,
+            "lapNumber": 1,
+            "lapTime": 70.36201477050781,
+            "rawByteOffset": 1943532,
+            "rawFrameCount": 4222,
+            "sessionId": 1,
+            "sourceWindow": {
+              "count": 4222,
+              "first": {
+                "sourceOffset": 2722549,
+                "outputOffset": 1943532
+              },
+              "last": {
+                "sourceOffset": 4136584,
+                "outputOffset": 3287000
+              },
+              "sha256": "453e02212a8f17d1778df17c56581350983e47fec045e6e3a1505a82220052b7"
+            },
+            "provisional": true
+          }
+        },
+        {
+          "sequence": 7,
+          "kind": "LAP_RETRACTED",
+          "data": {
+            "lapId": 2
+          }
+        },
+        {
+          "sequence": 8,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 4222,
+            "analysisPacketSignatureHash": "d14c372c8ddc36dc207afd28138fddf0cebf76f10ef99db2e9222bf2c71c1d02",
+            "analysisSource": "parseDump helper segment match",
+            "invalidReason": "inlap",
+            "isValid": false,
+            "lapId": 3,
+            "lapNumber": 1,
+            "lapTime": 98.95498657226562,
+            "rawByteOffset": 1943532,
+            "rawFrameCount": 4222,
+            "sessionId": 1,
+            "sourceWindow": {
+              "count": 4222,
+              "first": {
+                "sourceOffset": 2722549,
+                "outputOffset": 1943532
+              },
+              "last": {
+                "sourceOffset": 4136584,
+                "outputOffset": 3287000
+              },
+              "sha256": "453e02212a8f17d1778df17c56581350983e47fec045e6e3a1505a82220052b7"
+            }
+          }
+        },
+        {
+          "sequence": 9,
+          "kind": "NOTIFICATION",
+          "data": {
+            "estimatedBestLapTime": 0,
+            "isValid": false,
+            "lapId": 3,
+            "lapNumber": 1,
+            "lapTime": 98.95498657226562,
+            "sectors": [
+              28.316668993793428,
+              19.316667556762695,
+              51.3216500217095
+            ],
+            "type": "lap-saved"
+          }
+        },
+        {
+          "sequence": 10,
+          "kind": "NOTIFICATION",
+          "data": {
+            "laps": [
+              {
+                "carOrdinal": 3631,
+                "gameId": "fm-2023",
+                "id": 1,
+                "isValid": false,
+                "lapNumber": 0,
+                "lapTime": 82.2239990234375,
+                "sectorTimes": [
+                  0.01666666753590107,
+                  29.49989484064281,
+                  52.70743751525879
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 860
+              },
+              {
+                "carOrdinal": 3631,
+                "gameId": "fm-2023",
+                "id": 3,
+                "isValid": false,
+                "lapNumber": 1,
+                "lapTime": 98.95498657226562,
+                "sectorTimes": [
+                  28.316668993793428,
+                  19.316667556762695,
+                  51.3216500217095
+                ],
+                "sessionId": 1,
+                "trackOrdinal": 860
+              }
+            ],
+            "type": "session-laps"
+          }
+        },
+        {
+          "sequence": 11,
+          "kind": "LAP_PROVISIONAL_ANALYSIS_CAPTURED",
+          "data": {
+            "analysisPacketSignatureHash": "651c750ec36b956912f639d18e0f2d24be03add2937c975ae39f0b4a5595aa22",
+            "packetCount": 4573,
+            "sessionId": 1
+          }
+        },
+        {
+          "sequence": 12,
+          "kind": "LAP_RECORDED",
+          "data": {
+            "analysisPacketCount": 4573,
+            "analysisPacketSignatureHash": "651c750ec36b956912f639d18e0f2d24be03add2937c975ae39f0b4a5595aa22",
+            "analysisSource": "detector provisional buffer",
+            "invalidReason": "outlap",
+            "isValid": false,
+            "lapId": 4,
+            "lapNumber": 2,
+            "lapTime": 82.2959213256836,
+            "rawByteOffset": 3287318,
+            "rawFrameCount": 4573,
+            "sessionId": 1,
+            "sourceWindow": {
+              "count": 4573,
+              "first": {
+                "sourceOffset": 4833719,
+                "outputOffset": 3287318
+              },
+              "last": {
+                "sourceOffset": 6365339,
+                "outputOffset": 4743169
+              },
+              "sha256": "f71a8894a55fac160ec7dd3a04bb1ab44155eb0083b0553bdfc0bcd0d5e887f3"
+            }
+          }
+        }
+      ],
+      "packetSignatureHash": "a887f8ebf25638bc1565faf439f2a1eae20e4aa3dd27058a52533f1b5843adb2",
+      "sparseCaptureFiles": [
+        {
+          "byteLength": 4743487,
+          "sparseBytesSha256": "b78ff65c38afbcb666a94cbaa2539bfd6129925c0740295b9affbdc580a0be0e",
+          "headerFrameCount": 14899,
+          "headerCountMatches": true,
+          "decodedFrameCount": 14899,
+          "timestampedFrameCount": 0,
+          "frameTimeMsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "decodedFramesSha256": "8516e03a79fdfe5d2fa26fb8db3b3109bcbe655f516ca25103f3143008ef202d"
+        }
+      ],
+      "unsupportedScenarios": []
+    }
+  ]
+}

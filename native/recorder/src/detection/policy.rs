@@ -6,7 +6,7 @@ pub fn number(packet: &Value, key: &str) -> f64 {
 pub fn nested<'a>(packet: &'a Value, object: &str, key: &str) -> Option<&'a Value> {
     packet.get(object).and_then(|v| v.get(key))
 }
-pub fn quality(samples: &[Value], lap_time: f64) -> Option<&'static str> {
+pub fn quality(samples: &[&Value], lap_time: f64) -> Option<&'static str> {
     if samples.len() < 30 { return Some("too few telemetry packets"); }
     let first = &samples[0];
     let last = &samples[samples.len()-1];
@@ -29,8 +29,8 @@ fn pit_state(p: &Value) -> Option<bool> {
         _ => None,
     }
 }
-pub fn pit_reason(samples: &[Value]) -> Option<&'static str> {
-    let first=samples.first()?; let last=samples.last()?;
+pub fn pit_reason(samples: &[&Value]) -> Option<&'static str> {
+    let first=*samples.first()?; let last=*samples.last()?;
     let start=pit_state(first); let end=pit_state(last);
     let any=samples.iter().any(|p|pit_state(p)==Some(true));
     if start.is_none() && end.is_none() && !samples.iter().any(|p|pit_state(p).is_some()) { return None; }
@@ -39,20 +39,20 @@ pub fn pit_reason(samples: &[Value]) -> Option<&'static str> {
     else if any { Some("outlap") }
     else { None }
 }
-pub fn lmu_lap_time(samples: &[Value], boundary: &Value) -> f64 {
+pub fn lmu_lap_time(samples: &[&Value], boundary: &Value) -> f64 {
     let last=number(boundary,"LastLap");
     if last>0. { return last; }
     if samples.len()<=30 { return 0.; }
     samples.iter().map(|p|number(p,"CurrentLap")).fold(0.0,f64::max)
 }
-pub fn lmu_invalid_reason(samples: &[Value]) -> Option<&'static str> {
+pub fn lmu_invalid_reason(samples: &[&Value]) -> Option<&'static str> {
     samples.iter().any(|p|nested(p,"lmu","lapInvalidated").and_then(Value::as_bool)==Some(true)).then_some("game-invalidated")
 }
-pub fn lmu_pit_reason(samples: &[Value], completed: u32) -> Option<&'static str> {
+pub fn lmu_pit_reason(samples: &[&Value], completed: u32) -> Option<&'static str> {
     pit_reason(samples).or_else(||(completed==0).then_some("outlap"))
 }
-pub fn track_limit(samples: &[Value]) -> bool {
-    if samples.is_empty() || nested(&samples[0],"acc","isValidLap").and_then(Value::as_bool)==Some(false) { return false; }
+pub fn track_limit(samples: &[&Value]) -> bool {
+    if samples.is_empty() || nested(samples[0],"acc","isValidLap").and_then(Value::as_bool)==Some(false) { return false; }
     let mut consecutive=0;
     for p in samples {
         if nested(p,"acc","isValidLap").and_then(Value::as_bool)==Some(false) { consecutive+=1; if consecutive>=2{return true;} }

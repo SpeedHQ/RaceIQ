@@ -18,7 +18,7 @@ import {
   TELEMETRY_RESOLVER_VERSION,
 } from "@raceiq/shared/telemetry/resolver/versions";
 import { insertSession, updateSessionRawFile, updateSessionCarTrack, markSessionCaptureFormatCurrent } from "../db/session-queries";
-import { deleteLapOnly, insertLap, setLapMetrics } from "../db/lap-mutation-queries";
+import { deleteLapOnly, insertLap, setLapMetrics, updateLapCarSetup as updateLapCarSetupQuery } from "../db/lap-mutation-queries";
 import { getLaps } from "../db/lap-read-queries";
 import { getLapsForExclusionScope, setLapAutoExclusion, getLapExperimentScope } from "../db/experiment-lap-queries";
 import { notifyDriverProfileLap } from "../driver-profile/lap-notifier";
@@ -99,6 +99,7 @@ export interface DbAdapter {
    *  Called right after insertLap so /lap-metrics is a pure column read and
    *  never has to decode telemetry on first open. */
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void>;
+  updateLapCarSetup(lapId: number, carSetup: object | null): Promise<void>;
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]>;
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string, sparseCapture?: boolean): Promise<void>;
   updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number, identity?: SessionIdentity): Promise<void>;
@@ -189,6 +190,9 @@ export class RealDbAdapter implements DbAdapter {
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
     return setLapMetrics(lapId, fuelPerLap, tyreWear);
   }
+  updateLapCarSetup(lapId: number, carSetup: object | null): Promise<void> {
+    return updateLapCarSetupQuery(lapId, carSetup);
+  }
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]> {
     return getLaps(gameId, limit);
   }
@@ -238,6 +242,9 @@ export class CapturingDbAdapter implements DbAdapter {
   readonly lapMetrics: { lapId: number; fuelPerLap: number | null; tyreWear: number | null }[] = [];
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
     this.lapMetrics.push({ lapId, fuelPerLap, tyreWear });
+    return Promise.resolve();
+  }
+  updateLapCarSetup(_lapId: number, _carSetup: object | null): Promise<void> {
     return Promise.resolve();
   }
   deleteLap(lapId: number): Promise<void> {
@@ -304,6 +311,9 @@ export class NullDbAdapter implements DbAdapter {
     return Promise.resolve(1);
   }
   setLapMetrics(_lapId: number, _fuelPerLap: number | null, _tyreWear: number | null): Promise<void> {
+    return Promise.resolve();
+  }
+  updateLapCarSetup(_lapId: number, _carSetup: object | null): Promise<void> {
     return Promise.resolve();
   }
   deleteLap(_lapId: number): Promise<void> {

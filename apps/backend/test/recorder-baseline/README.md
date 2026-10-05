@@ -16,8 +16,15 @@ Shared oracles listed in `fixtures.json`: sparse recorder tests `apps/backend/te
 
 ## End-to-end performance baseline
 
-Run `bun run bench:recorder --engine=bun --mode=both --output=.omp/checkpoints/recorder-bun-baseline.json` without other build/test workloads. Every supported case uses one warmup and five measured trials in isolated data directories; reports retain individual trials and fixture hashes.
+Build optimized Rust release recorder once with `cargo build --release --locked --manifest-path native/recorder/Cargo.toml`, then run each engine without other build/test workloads:
 
-Imports use actual HTTP routes and persisted SQLite rows/files. Live trials use FM/F1 UDP at native game-clock cadence proxies (1×/2×/4×), seed an analysis session before timing, concurrently import the same fixture, and exercise scoped review plus semantic-telemetry analysis HTTP routes. Seed and concurrent imports use `others` ownership; live recordings use `mine`. Finalized live capture/lap counts select persisted `mine` sessions, including sessions without laps, so imported empty sessions cannot inflate live counts. Legacy iRacing/LMU source counts use their original dump readers rather than canonical-only framing.
+```sh
+bun run bench:recorder --engine=bun --mode=imports --output=.omp/checkpoints/recorder-bun-imports.json
+bun run bench:recorder --engine=rust --mode=imports --output=.omp/checkpoints/recorder-rust-imports.json --baseline=.omp/checkpoints/recorder-bun-imports.json
+```
 
-Missing original IBT, DuckDB/WAL, and RaceIQ ZIP fixtures remain explicit benchmark blockers; generated test fixtures are contract evidence only. Windows acquisition, acquisition-to-write/dashboard latency, receive/drop counters, and durability are not proved by this host replay. Sampled process-tree CPU/RSS and HTTP latency must not be relabeled as exact resource totals or dashboard latency.
+Import mode preloads each canonical fixture into memory once and runs one warmup plus 20 measured trials per game. Bun uses production import parsing/detection with an in-memory DB adapter and null recorder; Rust uses the optimized release binary’s production decoder, parser, and detector through a persistent benchmark worker. Per-trial import results remain in memory; import timing excludes fixture file reads, backend startup, database writes, capture writes, and cleanup. Reports include input hashes, elapsed processing time, packet/lap outcomes, and engine-specific CPU/RSS estimates; those resource estimates are not directly comparable.
+
+Import mode does not use HTTP routes, persisted SQLite rows, or capture files. Live mode retains FM/F1 UDP at native game-clock cadence proxies (1×/2×/4×), seeds an analysis session before timing, concurrently imports the same fixture, and exercises scoped review plus semantic-telemetry analysis HTTP routes. Seed and concurrent imports use `others` ownership; live recordings use `mine`. Finalized live capture/lap counts select persisted `mine` sessions, including sessions without laps. Legacy iRacing/LMU source counts use their original dump readers rather than canonical-only framing.
+
+MoTeC, IBT, DuckDB/WAL, and ZIP archive import paths are intentionally excluded; this benchmark compares one canonical capture import per game, not every import format. Generated test fixtures are not substituted for unavailable real captures. Windows acquisition, acquisition-to-write/dashboard latency, receive/drop counters, and durability are not proved by this host replay. Sampled process-tree CPU/RSS and HTTP latency are estimates, not exact totals or dashboard latency.
