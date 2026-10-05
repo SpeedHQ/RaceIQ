@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { getLMUSetupContent, listLMUSetups, saveLMUSetup } from "../../setups/lmu";
 import type { SaveLMUSetupInput } from "../../setups/lmu";
+import { getLMUSetupContent, listLMUSetups, saveLMUSetup } from "../../setups/lmu";
 
 const SaveSchema: z.ZodType<SaveLMUSetupInput> = z.object({
   source: z.discriminatedUnion("kind", [

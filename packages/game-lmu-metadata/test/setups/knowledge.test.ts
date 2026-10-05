@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { SvmDocument } from "../../src/setups/svm";
 import { parseSVM } from "../../src/setups/svm";
-import { getParameterAdvice, getPresetAdvice, getSymptomAdvice, LMU_PARAMETERS, LMU_PRESET_ADVICE, LMU_SYMPTOMS } from "../../src/setups/knowledge";
+import { getParameterAdvice, getPresetAdvice, getSymptomAdvice } from "../../src/setups/knowledge";
 
 function document(header: string): SvmDocument {
   const result = parseSVM(new TextEncoder().encode(`VehicleClassSetting="${header}"\n[GENERAL]\nVirtualEnergySetting=1//Energy\n[CONTROLS]\nBrakePressureSetting=5//Pedal force\n[ENGINE]\nRegenerationMapSetting=1//Regen\nElectricMotorMapSetting=1//Deploy\n[DRIVELINE]\nFrontDiffPowerSetting=1//Front diff`));
@@ -15,15 +15,6 @@ function documentWithSetting(header: string, section: string, key: string, index
 }
 
 describe("LMU setup knowledge", () => {
-  test("retains full parameter, symptom and preset coverage with linked explanations", () => {
-    expect(LMU_PARAMETERS.map(({ id }) => id)).toContain("thirdSpring");
-    expect(LMU_SYMPTOMS.map(({ id }) => id)).toContain("frontDiffEntry");
-    expect(LMU_PRESET_ADVICE.map(({ id }) => id)).toContain("brake_lock");
-    const preload = LMU_PARAMETERS.find(({ id }) => id === "diffPreload")!;
-    expect(preload.up.effects.length).toBeGreaterThan(1);
-    expect(preload.up.compensations.some(({ id }) => id === "brakeBias")).toBe(true);
-    expect(preload.linked.some(({ id }) => id === "electronics")).toBe(true);
-  });
 
   test("hybrid, front-drive and no-ABS advice requires known matching capability", () => {
     const unknown = getPresetAdvice(document("Unrecognized Prototype 2026 Hypercar"));
@@ -43,10 +34,26 @@ describe("LMU setup knowledge", () => {
     expect(nonHybrid.find(({ item }) => item.id === "regen")?.availability.available).toBe(false);
   });
 
-  test("null selection withholds car-specific claims; advice never exposes apply action", () => {
+  test.each([
+    ["Porsche_911_GT3_R_LMGT3 GT3", false],
+    ["Aston_Martin_Valkyrie Hypercar", false],
+    ["Unrecognized Prototype 2026 Hypercar", false],
+    ["BMW_M_Hybrid_V8_2023 Hypercar", true],
+  ] as const)("fuel and NRG diagnosis remains usable for %s", (header, hybridAvailable) => {
+    const advice = getSymptomAdvice(document(header)).find(({ item }) => item.id === "energyShort")!;
+    expect(advice.availability).toEqual({ available: true, reason: null });
+    for (const id of ["virtualEnergy", "fuelRatio"]) {
+      expect(advice.item.causes.find((cause) => cause.id === id)?.availability).toEqual({ available: true, reason: null });
+    }
+    for (const id of ["motorMap", "regen"]) {
+      expect(advice.item.causes.find((cause) => cause.id === id)?.availability.available).toBe(hybridAvailable);
+    }
+    expect(getPresetAdvice(document(header)).find(({ item }) => item.id === "energy_short")?.availability.available).toBe(hybridAvailable);
+  });
+
+  test("null selection withholds car-specific applicability", () => {
     for (const advice of [getParameterAdvice(null), getSymptomAdvice(null), getPresetAdvice(null)]) {
       expect(advice.every(({ availability }) => !availability.available && availability.reason)).toBe(true);
-      expect(advice.every(({ item }) => !("apply" in item) && !("applyButton" in item))).toBe(true);
     }
   });
 

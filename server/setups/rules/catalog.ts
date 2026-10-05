@@ -99,6 +99,7 @@ const RULES: Record<string, Record<string, FieldDef>> = {
     "Rear Left Tyre Pressure": { paths: ["rearLeftTyrePressure"], step: { small: 0.1, medium: 0.3, large: 0.5 }, min: 20.5, max: 26.5, integer: false },
     "Rear Right Tyre Pressure": { paths: ["rearRightTyrePressure"], step: { small: 0.1, medium: 0.3, large: 0.5 }, min: 20.5, max: 26.5, integer: false },
   },
+  lmu: {},
 };
 
 interface CarRange {

@@ -4,7 +4,7 @@ import { RESPONSIVE_DEVICE_CASES } from "../support/responsive/cases";
 
 // Device projects exercise Playwright's real Chromium emulation (touch,
 // mobile user agent, and descriptor viewport). CSS-only layout evidence stays
-// mobile-screenshots.spec.ts so this gate remains semantic and compact.
+// desktop-screenshots.spec.ts so this gate remains semantic and compact.
 for (const deviceCase of RESPONSIVE_DEVICE_CASES) {
   test(deviceCase.name, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== deviceCase.project, `owned by ${deviceCase.project}`);

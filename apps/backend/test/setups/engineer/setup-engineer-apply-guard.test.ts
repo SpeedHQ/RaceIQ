@@ -75,7 +75,7 @@ function baseAccSetup() {
 }
 
 // --- observable fakes for the write path ------------------------------------
-const writeAppliedSetup = mock(() => ({ setupPath: "fake/path.json", setupSnapshot: null, fileName: "fake.json" }));
+const writeAppliedSetup = mock(async () => ({ setupPath: "fake/path.json", setupSnapshot: null, fileName: "fake.json" }));
 const readActiveSetup = mock(async () => ({ ok: true, setup: baseAccSetup(), realPath: "fake/base.json", baseDir: "fake" }));
 const createExperimentVersion = mock(async () => 999);
 const setSessionHead = mock(async () => {});

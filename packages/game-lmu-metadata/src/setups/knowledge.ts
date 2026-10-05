@@ -23,6 +23,7 @@
  */
 import type { SvmDocument } from "./svm";
 import { getSvmCapabilities, getSvmFieldAccess } from "./capabilities";
+import { LMU_OFFICIAL_MOTOR_MAP } from "./official-knowledge";
 
 export interface AdviceAvailability { readonly available: boolean; readonly reason: string | null }
 export interface AdviceItem<T> { readonly item: T; readonly availability: AdviceAvailability }
@@ -816,7 +817,7 @@ export const LMU_PARAMETERS: readonly ParameterAdvice[] = [
       "compensations": [
         {
           "id": "electronics",
-          "text": "A click less ABS can recover some front bite if lockups aren't the issue"
+          "text": "On LMGT3, select an ABS map suited to the car before tuning bias; map numbers are not a universal intervention scale"
         },
         {
           "id": "arbF",
@@ -837,7 +838,7 @@ export const LMU_PARAMETERS: readonly ParameterAdvice[] = [
         },
         {
           "id": "electronics",
-          "text": "A click more ABS adds a safety net while you adapt"
+          "text": "On LMGT3, evaluate the chosen ABS map and rearward bias separately; increasing the map number is not a universal safety net"
         }
       ]
     },
@@ -848,7 +849,7 @@ export const LMU_PARAMETERS: readonly ParameterAdvice[] = [
       },
       {
         "id": "electronics",
-        "reason": "ABS decides how forgiving each bias setting is"
+        "reason": "The selected ABS map and brake bias interact; changing both together can cause instability"
       },
       {
         "id": "diffPreload",
@@ -1136,15 +1137,15 @@ export const LMU_PARAMETERS: readonly ParameterAdvice[] = [
     "id": "electronics",
     "group": "Drivetrain & electronics",
     "name": "TC & ABS",
-    "upLabel": "More assist",
-    "downLabel": "Less assist",
-    "does": "Traction control limits wheelspin; ABS limits lockup. Crucial honesty check: they mask balance problems rather than fix them. If you need lots of TC, the setup (or your right foot) has an exit problem.",
+    "upLabel": "More TC intervention",
+    "downLabel": "Less TC intervention",
+    "does": "Traction control manages wheelspin through slip threshold, power cut and lateral slip-angle settings. Native ABS is limited to LMGT3; its maps tune particular behaviours, not a universal more/less intervention scale. Car electronics and optional driving assists are distinct.",
     "up": {
       "effects": [
-        "Safer, more repeatable exits and braking zones; less tyre wear over a stint",
-        "Over-set TC cuts power and costs real exit speed",
-        "Over-set ABS lengthens braking distances slightly",
-        "Hides what the chassis is actually doing, bad for learning"
+        "Earlier or stronger TC intervention can make exits more repeatable",
+        "Excessive TC power cut can cost exit speed",
+        "Slip threshold, power cut and lateral slip target change different aspects of intervention",
+        "Check the actual car's response rather than assuming all settings increase intervention in the same direction"
       ],
       "compensations": [
         {
@@ -1155,9 +1156,9 @@ export const LMU_PARAMETERS: readonly ParameterAdvice[] = [
     },
     "down": {
       "effects": [
-        "Faster exits and shorter stops *if* the chassis and your inputs are clean",
-        "Wheelspin and lockup punish mistakes immediately",
-        "More tyre wear when you get it wrong"
+        "Less TC intervention exposes more of the car's traction behaviour",
+        "Wheelspin can punish abrupt throttle inputs",
+        "Sliding can increase tyre wear; assess telemetry and representative laps"
       ],
       "compensations": [
         {
@@ -1177,14 +1178,14 @@ export const LMU_PARAMETERS: readonly ParameterAdvice[] = [
       },
       {
         "id": "brakeBias",
-        "reason": "ABS level changes how aggressive a bias setting you can run"
+        "reason": "Choose a suitable LMGT3 ABS map before tuning brake bias; no universal numeric map direction is established"
       },
       {
         "id": "pressure",
-        "reason": "Less assist = more sliding = more tyre temperature"
+        "reason": "Wheelspin and sliding can increase tyre temperature; TC settings alter when and how power is cut"
       }
     ],
-    "note": "When learning setups, run TC one click lower than comfortable for a session. You'll *feel* what every change does instead of having it filtered."
+    "note": "Evaluate TC slip threshold, power cut and slip angle separately. For LMGT3 ABS, use the official map diagram and in-game behaviour instead of treating a higher map number as more assistance."
   },
   {
     "id": "virtualEnergy",
@@ -1195,22 +1196,22 @@ export const LMU_PARAMETERS: readonly ParameterAdvice[] = [
     "does": "Virtual Energy is an allocation control where present. Its presence does not prove a car is hybrid; plan using the game display and measured consumption.",
     "up": {
       "effects": [
-        "More laps before you must refuel/recharge. Fewer stops over a race",
-        "More weight on board early in the stint: slightly slower, more tyre load",
-        "Gives you margin if a safety car or mistake changes the fuel maths"
+        "Larger permitted energy use per stint, provided the fuel load covers the plan",
+        "The chosen NRG allocation affects pit-stop duration; it is not battery charge",
+        "Fuel carried and energy allowance must both cover measured consumption"
       ],
       "compensations": [
         {
           "id": "fuelRatio",
-          "text": "Trim Fuel Ratio if the extra energy makes the car heavier than the stint needs"
+          "text": "Plan fuel carried against the chosen NRG allowance; extra fuel adds weight without increasing that allowance"
         }
       ]
     },
     "down": {
       "effects": [
-        "Lighter car, quicker lap. Good for qualifying or a short sprint",
-        "Less margin: run the number too low and you won't reach the flag or the next stop",
-        "Forces more lift-and-coast or a higher deployment map to stretch it"
+        "Smaller permitted energy use per stint; fuel weight depends on fuel carried, not NRG alone",
+        "Less margin before exhausting the allowance and incurring a penalty",
+        "Use measured consumption, lift-and-coast and short shifting to conserve energy"
       ],
       "compensations": [
         {
@@ -1226,7 +1227,7 @@ export const LMU_PARAMETERS: readonly ParameterAdvice[] = [
       },
       {
         "id": "regen",
-        "reason": "How aggressively you harvest changes how far a given energy load lasts"
+        "reason": "Harvest restores hybrid battery charge, not the Virtual Energy stint allowance"
       }
     ],
     "note": "Virtual Energy may be present outside hybrid cars; do not infer hybrid capability from its presence."
@@ -1278,10 +1279,10 @@ export const LMU_PARAMETERS: readonly ParameterAdvice[] = [
     "name": "Regen level",
     "upLabel": "More harvest",
     "downLabel": "Less harvest",
-    "does": "Where hybrid regeneration exists, it replenishes energy and adds braking at the driven axle. Axle and scale are car-specific; assess in-game response rather than assuming common values.",
+    "does": "On a confirmed hybrid, regeneration converts braking energy into battery charge. Battery charge is separate from the Virtual Energy stint allowance. Axle and scale are car-specific; assess in-game response rather than assuming common values.",
     "up": {
       "effects": [
-        "Refills hybrid energy faster. Supports a more aggressive deploy map or a longer stint",
+        "Refills the battery faster, supporting continued deployment; it does not refill the NRG allowance",
         "Adds engine/MGU braking at the harvest axle: can tug the balance under braking",
         "On front-axle-harvest cars, strong regen can nudge the nose into the corner",
         "Heat and wear into the harvest-axle tyres rise slightly"
@@ -1300,13 +1301,13 @@ export const LMU_PARAMETERS: readonly ParameterAdvice[] = [
     "down": {
       "effects": [
         "Cleaner, more neutral braking feel. Fewer hybrid effects on entry",
-        "Less energy recovered: you must lift-and-coast more or deploy less to reach the flag",
+        "Less battery charge recovered; balance deployment and harvest while monitoring fuel and NRG separately",
         "Easier to drive consistently if the harvest braking was unsettling you"
       ],
       "compensations": [
         {
           "id": "virtualEnergy",
-          "text": "If you harvest less, you may need to carry more energy to cover the stint"
+          "text": "Monitor the NRG allowance independently; carrying more NRG does not restore battery charge"
         }
       ]
     },
@@ -1321,7 +1322,7 @@ export const LMU_PARAMETERS: readonly ParameterAdvice[] = [
       },
       {
         "id": "virtualEnergy",
-        "reason": "Harvest rate decides how far a given energy allocation stretches"
+        "reason": "Regeneration replenishes battery charge, while NRG tracks the permitted combined energy use per stint"
       }
     ],
     "note": "Step sizes for regen vary by car (the scale is car-specific). Use the displayed in-game value; do not assume a shared scale."
@@ -1332,13 +1333,13 @@ export const LMU_PARAMETERS: readonly ParameterAdvice[] = [
     "name": "Electric motor map",
     "upLabel": "More deploy",
     "downLabel": "Less deploy",
-    "does": "Hybrid Hypercars only. The non-hybrid LMH cars have no deploy. Chooses how much electric power the hybrid deploys. The spending side of the energy budget that Regen fills. On an LMDh the deploy goes through the rear axle; on a front-hybrid LMH it goes through the front, which is why those cars can feel four-wheel-drive out of slow corners. More deploy means stronger acceleration where the car is allowed to use it, at the cost of draining energy faster.",
+    "does": LMU_OFFICIAL_MOTOR_MAP.summary,
     "up": {
       "effects": [
-        "Stronger acceleration / corner exit where deployment is allowed",
-        "Drains hybrid energy faster. Needs more harvest or more allocation to last",
-        "On front-axle-deploy cars, power deployment can add corner-exit stability or push",
-        "More demand on rear traction at exit if the deploy goes to the rear"
+        "More battery deployment replaces a larger share of ICE torque; it does not increase combined power",
+        "Battery charge is spent faster; balance deployment with harvest and monitor the state of charge",
+        "Fuel consumption can fall as electric torque replaces combustion-engine torque",
+        "Axle torque distribution and handling depend on the car and permitted deployment speed"
       ],
       "compensations": [
         {
@@ -1347,20 +1348,20 @@ export const LMU_PARAMETERS: readonly ParameterAdvice[] = [
         },
         {
           "id": "electronics",
-          "text": "A click more TC if the extra deploy lights up the rear on exit"
+          "text": "Reassess traction-control behaviour on the actual car when deployment changes axle torque distribution"
         }
       ]
     },
     "down": {
       "effects": [
-        "Gentler power delivery. Energy lasts longer, easier on rear traction",
-        "Slower out of corners where you could have used the boost",
-        "Simpler to drive while you learn the car"
+        "Less battery deployment leaves more of the required output to the combustion engine",
+        "Battery charge is spent more slowly; reduced deployment is not a universal slower-exit rule",
+        "Less electric contribution can increase fuel consumption; check fuel and battery separately"
       ],
       "compensations": [
         {
           "id": "regen",
-          "text": "You can harvest a little less too, keeping the energy balance even"
+          "text": "Balance harvest with deployment while leaving battery capacity available for regeneration"
         }
       ]
     },
@@ -1371,10 +1372,10 @@ export const LMU_PARAMETERS: readonly ParameterAdvice[] = [
       },
       {
         "id": "virtualEnergy",
-        "reason": "A hotter deploy map empties your allocation sooner"
+        "reason": "NRG limits combined energy use per stint; battery charge is a separate budget, not an extra NRG allocation"
       }
     ],
-    "note": "Step sizes vary per car here too (the scale is car-specific). Read the displayed value rather than assuming."
+    "note": "Official LMU guidance describes deployment as fuel-efficiency management, not an extra-power boost. Read the car's displayed map and battery charge; no universal SVM click scale is established."
   },
   {
     "id": "frontDiff",
@@ -1791,8 +1792,8 @@ export const LMU_SYMPTOMS: readonly SymptomAdvice[] = [
       },
       {
         "id": "electronics",
-        "label": "ABS too low",
-        "fix": "One click up usually costs very little, where the car has ABS"
+        "label": "Unsuitable ABS map on an LMGT3 car",
+        "fix": "Use the official car-map guidance and choose a suitable map before adjusting brake bias; one click up is not a universal increase in intervention"
       },
       {
         "id": "brakeDucts",
@@ -1936,7 +1937,7 @@ export const LMU_SYMPTOMS: readonly SymptomAdvice[] = [
     "group": "Tyres over a stint",
     "name": "Running out of energy / fuel before the stop",
     "description": "You don't reach the planned lap or the next stop. The energy or fuel allocation is short for how you're driving.",
-    "quick": "Plan from a real consumption figure (in-game MFD or a test stint), not a guess. Then decide between carrying more or deploying less.",
+    "quick": "Identify which quantity is short: fuel, Virtual Energy allowance, or hybrid battery charge. Plan fuel and NRG from measured consumption; use lift-and-coast or short shifting to save energy.",
     "causes": [
       {
         "id": "virtualEnergy",
@@ -1950,13 +1951,13 @@ export const LMU_SYMPTOMS: readonly SymptomAdvice[] = [
       },
       {
         "id": "motorMap",
-        "label": "Deploy map too hungry",
-        "fix": "A gentler electric motor map makes the energy last"
+        "label": "Battery deployment exceeds available charge",
+        "fix": "Balance deployment with harvest to preserve battery charge. Less deployment can increase fuel use; it does not automatically extend the NRG allowance."
       },
       {
         "id": "regen",
-        "label": "Not harvesting enough",
-        "fix": "More regen refills the system. At some cost to braking feel"
+        "label": "Too little battery charge recovered",
+        "fix": "Balance regen with deployment and leave battery capacity available to accept harvest. Regen refills the battery, not the NRG allowance."
       }
     ]
   },
@@ -2214,20 +2215,20 @@ export const LMU_PRESET_ADVICE: readonly PresetAdvice[] = [
   {
     "id": "energy_short",
     "group": "hybrid",
-    "name": "Running out of energy",
-    "description": "Not reaching the next stop on the current plan.",
+    "name": "Managing hybrid battery charge",
+    "description": "Balance deployment and harvest when battery charge is short. Fuel and NRG stint planning are separate; less deployment is not a universal fuel-saving fix.",
     "noAbs": false,
     "targets": [
       {
         "section": "ENGINE",
         "key": "ElectricMotorMapSetting",
-        "label": "Gentler deploy map makes the energy last",
+        "label": "Less deployment spends battery charge more slowly; check the effect on fuel consumption",
         "delta": -1
       },
       {
         "section": "ENGINE",
         "key": "RegenerationMapSetting",
-        "label": "More harvest refills the system",
+        "label": "More harvest refills the battery, provided it is not already full; it does not refill NRG",
         "delta": 1
       }
     ]
@@ -2236,7 +2237,7 @@ export const LMU_PRESET_ADVICE: readonly PresetAdvice[] = [
 function gate(id:string, document:SvmDocument|null):AdviceAvailability {
   if (!document) return {available:false,reason:"Select a setup for car-specific applicability."};
   const caps=getSvmCapabilities(document);
-  if (["regen","motorMap","hybridBrake","energyShort","hybrid_brake","energy_short","frontRegen"].includes(id) && caps.hybrid!==true) return {available:false,reason:caps.hybrid===false?"This car is not hybrid.":"Hybrid capability is unknown for this car."};
+  if (["regen","motorMap","hybridBrake","hybrid_brake","energy_short","frontRegen"].includes(id) && caps.hybrid!==true) return {available:false,reason:caps.hybrid===false?"This car is not hybrid.":"Hybrid capability is unknown for this car."};
   if (["frontDiff","frontDiffEntry","frontRegen"].includes(id) && caps.frontDrive!==true) return {available:false,reason:caps.frontDrive===false?"This car does not have front drive.":"Front-drive capability is unknown for this car."};
   if (id==="brake_lock" && caps.abs!==false) return {available:false,reason:caps.abs===true?"This advice is only for cars without ABS.":"ABS capability is unknown for this car."};
   if (id==="entrySnapRegen" && caps.architecture!=="lmdh") return {available:false,reason:caps.architecture==="unknown"?"Hybrid architecture is unknown for this car.":"Regen advice applies only to LMDh cars."};

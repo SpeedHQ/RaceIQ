@@ -1,14 +1,14 @@
 import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ChangeEvent } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { getSvmCapabilities, getSvmFieldAccess } from "@raceiq/game-lmu-metadata/setups/capabilities";
 import { parseSVM, writeSVM } from "@raceiq/game-lmu-metadata/setups/svm";
-import type { SvmDocument, SvmEdit } from "@raceiq/game-lmu-metadata/setups/svm";
+import type { SvmEdit } from "@raceiq/game-lmu-metadata/setups/svm";
 import { useLmuSetupFiles, useSaveLmuSetup, fetchLmuSetupContent } from "@/hooks/lmu-setup-queries";
 import type { LmuSetupContent } from "@/hooks/lmu-setup-queries";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SessionImportModal } from "@/components/sessions/SessionImportModal";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import { AppInput } from "@/components/ui/AppInput";
@@ -16,13 +16,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { m } from "@/paraglide/messages";
 import { LmuSetupPages } from "./LmuSetupPages";
 import { LmuSetupCompare } from "./LmuSetupCompare";
-import { LmuSetupAdvice } from "./LmuSetupAdvice";
-
-type Source = { kind: "file"; path: string; sha256: string } | { kind: "upload" };
-interface Loaded { id: string; document: SvmDocument; source: Source; fileName: string }
+import { useLmuSetupSession, type LoadedLmuSetup as Loaded } from "@/stores/lmu-setups";
 type Slot = "active" | "a" | "b";
 const ROOT_FOLDER = "__settings_root__";
 const SLOTS: readonly Slot[] = ["active", "a", "b"];
+const PAGE_SIZE = 10;
 function decodeBase64(value: string): Uint8Array {
   return Uint8Array.from(atob(value), (character) => character.charCodeAt(0));
 }
@@ -44,30 +42,29 @@ function validFilename(name: string): boolean {
 }
 
 export function LmuSetupWorkspace() {
+  const navigate = useNavigate();
   const listing = useLmuSetupFiles();
   const queryClient = useQueryClient();
   const save = useSaveLmuSetup();
-  const uploadRef = useRef<HTMLInputElement>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importTrackFolder, setImportTrackFolder] = useState<string | null>(null);
+  const [importFilename, setImportFilename] = useState("");
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [compareOpen, setCompareOpen] = useState(false);
   const requests = useRef<Record<Slot, number>>({ active: 0, a: 0, b: 0 });
   const [activeLoading, setActiveLoading] = useState(false);
   const [compareLoading, setCompareLoading] = useState(0);
-  const [active, setActive] = useState<Loaded | null>(null);
-  const [compareA, setCompareA] = useState<Loaded | null>(null);
-  const [compareB, setCompareB] = useState<Loaded | null>(null);
-  const [loaded, setLoaded] = useState<ReadonlyMap<string, Loaded>>(new Map());
-  const [pending, setPending] = useState<ReadonlyMap<string, number>>(new Map());
+  const { active, setActive, compareA, setCompareA, compareB, setCompareB, loaded, setLoaded, pending, setPending } = useLmuSetupSession();
   const [candidate, setCandidate] = useState<Loaded | null>(null);
-  const [tab, setTab] = useState("edit");
   const [filterCar, setFilterCar] = useState("");
   const [filterClass, setFilterClass] = useState("");
   const [filterTrack, setFilterTrack] = useState("");
+  const [page, setPage] = useState(0);
   const [filename, setFilename] = useState("");
-  const [trackFolder, setTrackFolder] = useState("");
   const [acknowledged, setAcknowledged] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedPath, setSavedPath] = useState<string | null>(null);
-  const [targetParameter, setTargetParameter] = useState<string | null>(null);
   const files = listing.data?.files ?? [];
   const tracks = listing.data?.tracks ?? [];
   const rootExists = Boolean(listing.data?.baseDir);
@@ -75,16 +72,18 @@ export function LmuSetupWorkspace() {
   const selectionState = useRef({ active, dirty });
   selectionState.current = { active, dirty };
   const nameValid = validFilename(filename);
-  const activeFilePath = active?.source.kind === "file" ? active.source.path : null;
-  const sourceValid = active?.source.kind === "upload" || (activeFilePath !== null && files.some((file) => file.path === activeFilePath && !file.error));
-  const destinationValid = active?.source.kind === "file" || trackFolder === "" || tracks.some((track) => track.folder === trackFolder);
-  const gameSaveEnabled = Boolean(active && sourceValid && rootExists && destinationValid && nameValid && dirty && !save.isPending);
+  const sourceValid = Boolean(active && files.some((file) => file.path === active.source.path && !file.error));
+  const gameSaveEnabled = Boolean(active && sourceValid && rootExists && nameValid && dirty && !save.isPending);
   const capabilities = active ? getSvmCapabilities(active.document) : null;
   const filteredFiles = files.filter((file) => (!filterCar || file.carName === filterCar) && (!filterClass || file.className === filterClass) && (!filterTrack || file.trackFolder === (filterTrack === ROOT_FOLDER ? "" : filterTrack)));
+  const totalPages = Math.max(1, Math.ceil(filteredFiles.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageFiles = filteredFiles.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
   const carOptions = [{ value: "", label: m.lmu_setup_ws_all() }, ...[...new Set(files.flatMap((file) => file.carName ? [file.carName] : []))].map((value) => ({ value, label: value }))];
   const classOptions = [{ value: "", label: m.lmu_setup_ws_all() }, ...[...new Set(files.flatMap((file) => file.className ? [file.className] : []))].map((value) => ({ value, label: value }))];
   const trackOptions = [{ value: "", label: m.lmu_setup_ws_all() }, ...[...new Set(files.map((file) => file.trackFolder))].map((value) => ({ value: value || ROOT_FOLDER, label: value || m.lmu_setup_ws_root_folder() }))];
-  const comparisonOptions = [...files.map((file) => ({ value: file.path, label: `${file.fileName} — ${file.trackFolder || m.lmu_setup_ws_root_folder()}`, disabled: Boolean(file.error) })), ...[...loaded.values()].filter((setup) => setup.source.kind === "upload").map((setup) => ({ value: setup.id, label: setup.fileName }))];
+  const selectableIds = files.filter((file) => !file.error).map((file) => file.path);
+  const selectedIds = selectableIds.filter((id) => selected.has(id));
   const preview = active ? [...pending].map(([id, delta]) => ({ id, before: active.document.settings.get(id)!.index, after: active.document.settings.get(id)!.index + delta, delta })) : [];
 
   function activate(next: Loaded) {
@@ -154,24 +153,40 @@ export function LmuSetupWorkspace() {
     setPending(next);
     setError(null);
   }
-  async function upload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.currentTarget.files?.[0];
-    event.currentTarget.value = "";
-    if (!file || save.isPending) return;
-    const request = ++requests.current.active;
+  async function upload(file: File) {
+    if (save.isPending || !rootExists || importTrackFolder === null) return;
+    if (!/\.svm$/i.test(file.name) || file.size > 1024 * 1024) throw new Error(m.lmu_setup_ws_upload_invalid());
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const parsed = parseSVM(bytes);
+    if (!parsed.ok) throw new Error(m.lmu_setup_ws_invalid_svm({ message: parsed.error, line: parsed.line === null ? "—" : String(parsed.line) }));
+    const saved = await save.mutateAsync({
+      source: { kind: "upload", contentBase64: encodeBase64(bytes), trackFolder: importTrackFolder },
+      fileName: importFilename || file.name,
+      edits: [],
+    });
+    const next = contentLoaded(saved);
+    requests.current.active++;
     setActiveLoading(false);
     setCandidate(null);
-    if (!/\.svm$/i.test(file.name) || file.size > 1024 * 1024) { setError(m.lmu_setup_ws_upload_invalid()); return; }
-    try {
-      const parsed = parseSVM(new Uint8Array(await file.arrayBuffer()));
-      if (requests.current.active !== request) return;
-      if (!parsed.ok) { setError(m.lmu_setup_ws_invalid_svm({ message: parsed.error, line: parsed.line === null ? "—" : String(parsed.line) })); return; }
-      const next: Loaded = { id: `upload:${request}`, document: parsed.document, source: { kind: "upload" }, fileName: file.name };
-      setLoaded((previous) => new Map(previous).set(next.id, next));
-      requestActivation(next);
-    } catch (reason) {
-      if (requests.current.active === request) setError(reason instanceof Error ? reason.message : m.lmu_setup_ws_upload_invalid());
-    }
+    setLoaded((previous) => new Map(previous).set(next.id, next));
+    requestActivation(next);
+    setSavedPath(saved.path);
+  }
+  function toggleSelection(id: string) {
+    setSelected((previous) => {
+      const next = new Set(previous);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    setCompareOpen(false);
+  }
+  async function compareSelected() {
+    if (selectedIds.length !== 2 || save.isPending) return;
+    setCompareA(null);
+    setCompareB(null);
+    setCompareOpen(true);
+    await Promise.all([choose(selectedIds[0]!, "a"), choose(selectedIds[1]!, "b")]);
   }
   function download() {
     if (!active || !acknowledged || !nameValid || !dirty || save.isPending) return;
@@ -193,8 +208,7 @@ export function LmuSetupWorkspace() {
   async function saveGame() {
     if (!active || !acknowledged || !gameSaveEnabled) return;
     try {
-      const source = active.source.kind === "file" ? active.source : { kind: "upload" as const, contentBase64: encodeBase64(active.document.originalBytes), trackFolder };
-      const saved = await save.mutateAsync({ source, fileName: filename, edits: [...pending].map(([id, delta]) => ({ id, delta })) });
+      const saved = await save.mutateAsync({ source: active.source, fileName: filename, edits: [...pending].map(([id, delta]) => ({ id, delta })) });
       const next = contentLoaded(saved);
       setLoaded((previous) => new Map(previous).set(next.id, next));
       activate(next);
@@ -205,7 +219,6 @@ export function LmuSetupWorkspace() {
   function openSaveDialog() {
     if (!active) return;
     setFilename(`${active.fileName.replace(/\.svm$/i, "")}-raceiq.svm`);
-    setTrackFolder("");
     setAcknowledged(false);
     setError(null);
     setDialogOpen(true);
@@ -220,7 +233,7 @@ export function LmuSetupWorkspace() {
       b: ++requests.current.b,
     };
     setCandidate(null);
-    setLoaded((previous) => new Map([...previous].filter(([, setup]) => setup.source.kind === "upload")));
+    setLoaded(new Map());
     setActiveLoading(false);
     try {
       await queryClient.cancelQueries({ queryKey: ["lmu-setup-content"] });
@@ -228,7 +241,7 @@ export function LmuSetupWorkspace() {
       await listing.refetch();
       await Promise.all(SLOTS.map(async (slot) => {
         const current = selections[slot];
-        if (current?.source.kind !== "file" || requests.current[slot] !== versions[slot]) return;
+        if (!current || requests.current[slot] !== versions[slot]) return;
         const path = current.source.path;
         try {
           const content = await queryClient.fetchQuery({
@@ -253,40 +266,74 @@ export function LmuSetupWorkspace() {
   }
 
   return (
-    <main className="flex min-w-0 flex-col gap-4 p-4">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div><h1 className="text-app-title">{m.lmu_setup_ws_title()}</h1><p>{m.lmu_setup_ws_description()}</p></div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="app-outline" onClick={() => void refresh()} disabled={save.isPending}>{m.lmu_setup_ws_refresh()}</Button>
-          <Button variant="app-primary" onClick={() => uploadRef.current?.click()} disabled={save.isPending}>{m.lmu_setup_ws_upload()}</Button>
-          <input ref={uploadRef} className="hidden" aria-label={m.lmu_setup_ws_upload()} type="file" accept=".svm" onChange={(event) => void upload(event)} />
-        </div>
-      </header>
+    <main className="min-w-0 p-4">
+      <div className="flex flex-wrap items-center gap-2 pb-4">
+        <Button
+          type="button"
+          className="text-app-caption uppercase tracking-wide text-app-text-muted hover:text-app-text-secondary disabled:opacity-50 rounded"
+          onClick={() => void refresh()}
+          disabled={listing.isFetching || save.isPending}
+        >
+          {listing.isFetching ? m.setup_refreshing() : m.setup_refresh_button()}
+        </Button>
+        <Button type="button" variant="app-outline" size="app-md" onClick={() => { setImportTrackFolder(filterTrack ? (filterTrack === ROOT_FOLDER ? "" : filterTrack) : null); setImportFilename(""); setImportOpen(true); }} disabled={save.isPending}>
+          {m.setup_import_button()}
+        </Button>
+        <Button type="button" variant="app-outline" onClick={() => void navigate({ to: "/lmu/setups/guides" })} disabled={save.isPending}>
+          {m.lmu_guide_title()}
+        </Button>
+        {selectedIds.length === 2 && <Button type="button" variant="app-outline" size="app-md" onClick={() => void compareSelected()} disabled={save.isPending || compareLoading > 0}>
+          {m.lmu_setup_ws_compare()}
+        </Button>}
+        <section className="ml-auto flex w-full flex-wrap items-center gap-2 @3xl/workspace:w-auto" aria-label={m.lmu_setup_ws_filters()}>
+          <SearchSelect className="w-full @3xl/workspace:w-48" value={filterTrack} onChange={(value) => { setFilterTrack(value); setPage(0); }} options={trackOptions} ariaLabel={m.lmu_setup_ws_filter_track()} placeholder={m.setup_any_track()} />
+          <SearchSelect className="w-full @3xl/workspace:w-48" value={filterCar} onChange={(value) => { setFilterCar(value); setPage(0); }} options={carOptions} ariaLabel={m.lmu_setup_ws_filter_car()} placeholder={m.setup_any_car()} />
+          <SearchSelect className="w-full @3xl/workspace:w-48" value={filterClass} onChange={(value) => { setFilterClass(value); setPage(0); }} options={classOptions} ariaLabel={m.lmu_setup_ws_filter_class()} placeholder={m.lmu_setup_ws_filter_class()} />
+        </section>
+      </div>
       {listing.isLoading && <p role="status">{m.common_loading()}</p>}
       {(!rootExists || files.length === 0) && !listing.isLoading && <p role="status">{rootExists ? m.lmu_setup_ws_empty_root() : m.lmu_setup_ws_missing_root()} {m.lmu_setup_ws_upload_hint()}</p>}
       {listing.isError && <p role="alert">{m.lmu_setup_ws_error({ message: listing.error.message })}</p>}
       {listing.data?.error && rootExists && <p role="alert">{m.lmu_setup_ws_error({ message: listing.data.error })}</p>}
-      <section className="flex flex-wrap gap-3" aria-label={m.lmu_setup_ws_filters()}>
-        <SearchSelect value={filterCar} onChange={setFilterCar} options={carOptions} ariaLabel={m.lmu_setup_ws_filter_car()} placeholder={m.lmu_setup_ws_filter_car()} />
-        <SearchSelect value={filterClass} onChange={setFilterClass} options={classOptions} ariaLabel={m.lmu_setup_ws_filter_class()} placeholder={m.lmu_setup_ws_filter_class()} />
-        <SearchSelect value={filterTrack} onChange={setFilterTrack} options={trackOptions} ariaLabel={m.lmu_setup_ws_filter_track()} placeholder={m.lmu_setup_ws_filter_track()} />
-      </section>
-      {files.length > 0 && <Table>
-        <TableHeader><TableRow><TableHead>{m.lmu_setup_ws_active_setup()}</TableHead><TableHead>{m.lmu_setup_ws_filter_car()}</TableHead><TableHead>{m.lmu_setup_ws_filter_class()}</TableHead><TableHead>{m.lmu_setup_ws_filter_track()}</TableHead></TableRow></TableHeader>
-        <TableBody>{filteredFiles.map((file) => <TableRow key={file.path}>
-          <TableCell><Button variant="link" onClick={() => choose(file.path, "active")} disabled={Boolean(file.error) || save.isPending}>{file.fileName}</Button>{file.error && <p role="alert">{m.lmu_setup_ws_error({ message: file.error })}</p>}</TableCell>
-          <TableCell>{file.carName ?? "—"}</TableCell><TableCell>{file.className ?? "—"}</TableCell><TableCell>{file.trackName || m.lmu_setup_ws_root_folder()}</TableCell>
-        </TableRow>)}</TableBody>
-      </Table>}
+      <Table className="table-fixed">
+        <TableHeader><TableRow>
+          <TableHead className="w-11 text-center"><input type="checkbox" className="size-4 accent-app-accent" aria-label={m.tunes_select_all()} checked={pageFiles.some((file) => !file.error) && pageFiles.filter((file) => !file.error).every((file) => selected.has(file.path))} disabled={save.isPending || !pageFiles.some((file) => !file.error)} onChange={(event) => { const checked = event.target.checked; setSelected((previous) => { const next = new Set(previous); for (const file of pageFiles) if (!file.error) { if (checked) next.add(file.path); else next.delete(file.path); } return next; }); setCompareOpen(false); }} /></TableHead>
+          <TableHead>{m.setup_table_rank()}</TableHead><TableHead>{m.setup_table_tune()}</TableHead>
+          <TableHead className="hidden @3xl/workspace:table-cell">{m.label_car()}</TableHead>
+          <TableHead className="hidden @3xl/workspace:table-cell">{m.label_track()}</TableHead>
+          <TableHead className="hidden @3xl/workspace:table-cell">{m.label_category()}</TableHead>
+        </TableRow></TableHeader>
+        <TableBody>{pageFiles.map((file, index) => <TableRow key={file.path} className={`transition-colors hover:bg-app-surface-hover/50 ${active?.id === file.path ? "bg-app-surface-hover/50" : ""}`}>
+          <TableCell className="text-center"><input type="checkbox" className="size-4 accent-app-accent" aria-label={file.fileName} checked={selected.has(file.path)} disabled={Boolean(file.error) || save.isPending} onChange={() => toggleSelection(file.path)} /></TableCell>
+          <TableCell className="px-3 py-2 text-center font-mono text-app-text-muted tabular-nums"><span className="text-sm font-bold">{safePage * PAGE_SIZE + index + 1}</span></TableCell>
+          <TableCell className="px-3 py-2 text-app-text">
+            <button type="button" className="block w-full min-w-0 text-left disabled:opacity-50" aria-pressed={active?.id === file.path} onClick={() => void choose(file.path, "active")} disabled={Boolean(file.error) || save.isPending}>
+              <span className="block truncate text-app-body font-semibold">{file.fileName}</span>
+              <span className="mt-1 block truncate text-app-caption text-app-text-muted">{file.trackName || m.lmu_setup_ws_root_folder()}</span>
+            </button>
+            {file.error && <p role="alert" className="mt-1 text-app-caption text-app-text-muted">{m.lmu_setup_ws_error({ message: file.error })}</p>}
+          </TableCell>
+          <TableCell className="hidden @3xl/workspace:table-cell truncate px-3 py-2 text-app-text-secondary">{file.carName ?? "—"}</TableCell>
+          <TableCell className="hidden @3xl/workspace:table-cell truncate px-3 py-2 text-app-text-secondary">{file.trackName || m.lmu_setup_ws_root_folder()}</TableCell>
+          <TableCell className="hidden @3xl/workspace:table-cell px-3 py-2 text-app-text-secondary">{file.className && <Badge variant="neutral">{file.className}</Badge>}</TableCell>
+        </TableRow>)}
+          {filteredFiles.length === 0 && <TableRow><TableCell className="text-center" colSpan={6}><div className="py-10 text-app-text-muted">{m.setup_no_matches()}</div></TableCell></TableRow>}
+        </TableBody>
+      </Table>
+      {filteredFiles.length > 0 && <div className="mt-3.5 flex items-center justify-center gap-3.5">
+        <Button type="button" className="font-mono text-app-compact uppercase tracking-wide bg-app-surface border border-app-border rounded-md px-3.5 py-2 hover:border-app-accent hover:text-app-accent disabled:opacity-40 disabled:cursor-not-allowed" onClick={() => setPage(safePage - 1)} disabled={safePage === 0}>{m.setup_prev_button()}</Button>
+        <span className="font-mono text-app-compact text-app-text-muted tabular-nums">{safePage * PAGE_SIZE + 1}–{Math.min(filteredFiles.length, (safePage + 1) * PAGE_SIZE)} of {filteredFiles.length} · page {safePage + 1}/{totalPages}</span>
+        <Button type="button" className="font-mono text-app-compact uppercase tracking-wide bg-app-surface border border-app-border rounded-md px-3.5 py-2 hover:border-app-accent hover:text-app-accent disabled:opacity-40 disabled:cursor-not-allowed" onClick={() => setPage(safePage + 1)} disabled={safePage >= totalPages - 1}>{m.setup_next_button()}</Button>
+      </div>}
       {(activeLoading || compareLoading > 0) && <p role="status">{m.common_loading()}</p>}
       {active && <>
-        <section className="flex flex-wrap items-center gap-2" aria-label={m.lmu_setup_ws_active_setup()}>
+        <section className="mt-4 flex flex-wrap items-center gap-2 border-t border-app-border pt-4" aria-label={m.lmu_setup_ws_active_setup()}>
           <strong>{active.fileName}</strong><Badge>{active.document.carName}</Badge>
           <Badge variant="neutral">{active.document.className ?? m.lmu_setup_ws_unknown()}</Badge>
           <Badge variant="info">{capabilities?.architecture ?? m.lmu_setup_ws_unknown()}</Badge>
           {active.document.identityWarning && <p role="alert">{m.lmu_setup_ws_error({ message: active.document.identityWarning })}</p>}
         </section>
-        <p role="status">{m.lmu_setup_ws_warning()}</p>
+        <p className="my-3 text-app-caption text-app-text-muted" role="status">{m.lmu_setup_ws_warning()}</p>
         {preview.length > 0 && <section aria-label={m.lmu_setup_ws_preview()}>
           <h2>{m.lmu_setup_ws_preview()}</h2>
           <Table><TableHeader><TableRow><TableHead>{m.lmu_setup_ws_field()}</TableHead><TableHead>{m.lmu_setup_ws_original()}</TableHead><TableHead>{m.lmu_setup_ws_proposed()}</TableHead><TableHead>{m.lmu_setup_ws_clicks()}</TableHead></TableRow></TableHeader>
@@ -296,19 +343,41 @@ export function LmuSetupWorkspace() {
       </>}
       {error && !dialogOpen && <p role="alert">{m.lmu_setup_ws_error({ message: error })}</p>}
       {savedPath && <p role="status">{m.lmu_setup_ws_saved_path({ path: savedPath })}</p>}
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList><TabsTrigger value="edit">{m.lmu_setup_ws_view_edit()}</TabsTrigger><TabsTrigger value="compare">{m.lmu_setup_ws_compare()}</TabsTrigger><TabsTrigger value="advice">{m.lmu_setup_ws_advice()}</TabsTrigger></TabsList>
-        <TabsContent value="edit">{active ? <LmuSetupPages key={active.id + (active.source.kind === "file" ? active.source.sha256 : "")} document={active.document} pending={pending} onStep={changeDelta} /> : <p>{m.lmu_setup_ws_choose_or_upload()}</p>}</TabsContent>
-        <TabsContent value="compare">
-          <div className="flex flex-wrap gap-3 py-3">
-            <SearchSelect value={compareA?.id ?? ""} onChange={(id) => choose(id, "a")} options={comparisonOptions} ariaLabel={m.lmu_setup_ws_compare_a()} placeholder={m.lmu_setup_ws_compare_a()} disabled={save.isPending} />
-            <SearchSelect value={compareB?.id ?? ""} onChange={(id) => choose(id, "b")} options={comparisonOptions} ariaLabel={m.lmu_setup_ws_compare_b()} placeholder={m.lmu_setup_ws_compare_b()} disabled={save.isPending} />
+      {active && <div className="mt-4"><LmuSetupPages key={active.id + active.source.sha256} document={active.document} pending={pending} onStep={changeDelta} /></div>}
+      <Dialog open={compareOpen && selectedIds.length === 2} onOpenChange={setCompareOpen}>
+        <DialogContent size="lg" layout="scrollable">
+          <DialogHeader><DialogTitle>{m.lmu_setup_ws_compare()}</DialogTitle><DialogDescription>{m.lmu_setup_ws_compare_originals()}</DialogDescription></DialogHeader>
+          <div className="flex flex-wrap gap-3"><strong>{compareA?.fileName}</strong><strong>{compareB?.fileName}</strong></div>
+          {compareLoading > 0 ? <p role="status">{m.common_loading()}</p> : <LmuSetupCompare a={compareA?.document ?? null} b={compareB?.document ?? null} onExplain={(parameter) => { setCompareOpen(false); void navigate({ to: "/lmu/setups/guides", search: { parameter } }); }} />}
+          {error && <p role="alert">{m.lmu_setup_ws_error({ message: error })}</p>}
+        </DialogContent>
+      </Dialog>
+      {importOpen && <SessionImportModal gameId="lmu" onClose={() => setImportOpen(false)} setupImport={{
+        accept: ".svm",
+        hint: m.lmu_setup_ws_upload_hint(),
+        onInspect: async (file) => {
+          setImportTrackFolder(null);
+          setImportFilename(file.name);
+          if (!/\.svm$/i.test(file.name) || file.size > 1024 * 1024) throw new Error(m.lmu_setup_ws_upload_invalid());
+          const parsed = parseSVM(new Uint8Array(await file.arrayBuffer()));
+          if (!parsed.ok) throw new Error(m.lmu_setup_ws_invalid_svm({ message: parsed.error, line: parsed.line === null ? "—" : String(parsed.line) }));
+          return <div className="text-app-text space-y-1">
+            <p className="font-semibold">{parsed.document.carName}</p>
+            <p className="text-app-text-muted">Le Mans Ultimate · {parsed.document.className}</p>
+          </div>;
+        },
+        onImport: upload,
+        disabled: !rootExists || importTrackFolder === null || (importFilename !== "" && !validFilename(importFilename)) || save.isPending,
+        fields: <>
+          <SearchSelect value={importTrackFolder === null ? "" : importTrackFolder || ROOT_FOLDER} onChange={(value) => setImportTrackFolder(value === ROOT_FOLDER ? "" : value || null)} options={[{ value: ROOT_FOLDER, label: m.lmu_setup_ws_root_folder() }, ...tracks.map((track) => ({ value: track.folder, label: track.trackName }))]} ariaLabel={m.lmu_setup_ws_track_folder()} placeholder={m.lmu_setup_ws_track_folder()} disabled={!rootExists || save.isPending} />
+          <div className="space-y-1">
+            <label className="block" htmlFor="lmu-import-filename">{m.lmu_setup_ws_filename()}</label>
+            <AppInput id="lmu-import-filename" value={importFilename} onChange={(event) => setImportFilename(event.target.value)} placeholder={m.lmu_setup_ws_import_filename_hint()} disabled={save.isPending} />
+            {importFilename !== "" && !validFilename(importFilename) && <p role="alert">{m.lmu_setup_ws_invalid_filename()}</p>}
           </div>
-          <p>{m.lmu_setup_ws_compare_originals()}</p>
-          <LmuSetupCompare a={compareA?.document ?? null} b={compareB?.document ?? null} onExplain={(id) => { setTargetParameter(id); setTab("advice"); }} />
-        </TabsContent>
-        <TabsContent value="advice"><LmuSetupAdvice document={active?.document ?? null} parameterId={targetParameter} onParameterChange={setTargetParameter} /></TabsContent>
-      </Tabs>
+          {!rootExists && <p role="alert">{m.lmu_setup_ws_missing_root()}</p>}
+        </>,
+      }} />}
       <Dialog open={candidate !== null} onOpenChange={(open) => { if (!open) setCandidate(null); }}>
         <DialogContent><DialogHeader><DialogTitle>{m.lmu_setup_ws_discard_title()}</DialogTitle><DialogDescription>{m.lmu_setup_ws_discard_description()}</DialogDescription></DialogHeader>
           <DialogFooter><Button variant="app-outline" onClick={() => setCandidate(null)}>{m.lmu_setup_ws_keep_edits()}</Button><Button variant="app-primary" onClick={() => { if (candidate) activate(candidate); setCandidate(null); }}>{m.lmu_setup_ws_discard_switch()}</Button></DialogFooter>
@@ -319,7 +388,6 @@ export function LmuSetupWorkspace() {
           <label htmlFor="lmu-new-filename">{m.lmu_setup_ws_filename()}</label>
           <AppInput id="lmu-new-filename" value={filename} onChange={(event) => setFilename(event.target.value)} aria-invalid={!nameValid} disabled={save.isPending} />
           {!nameValid && <p role="alert">{m.lmu_setup_ws_invalid_filename()}</p>}
-          {active?.source.kind === "upload" && <SearchSelect value={trackFolder || ROOT_FOLDER} onChange={(value) => setTrackFolder(value === ROOT_FOLDER ? "" : value)} options={[{ value: ROOT_FOLDER, label: m.lmu_setup_ws_root_folder() }, ...tracks.map((track) => ({ value: track.folder, label: track.trackName }))]} ariaLabel={m.lmu_setup_ws_track_folder()} disabled={!rootExists || save.isPending} />}
           {!rootExists && <p>{m.lmu_setup_ws_save_requires_root()}</p>}
           <label className="flex items-start gap-2"><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} disabled={save.isPending} />{m.lmu_setup_ws_acknowledge()}</label>
           {error && <p role="alert">{m.lmu_setup_ws_error({ message: error })}</p>}

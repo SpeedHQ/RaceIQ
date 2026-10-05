@@ -8,9 +8,9 @@ import { resolveGuardedSetupFile, type AccGameId } from "../setups/file-guard";
 
 export type ExperimentGameId = AccGameId | "f1-2025";
 
-/** Only ACC/AC-EVO write a real setup file the user loads from the setup menu. */
+/** ACC, AC-EVO, and LMU write setup files loaded by the game. */
 export function gameHasSetupFile(gameId: ExperimentGameId): boolean {
-  return gameId === "acc" || gameId === "ac-evo";
+  return gameId === "acc" || gameId === "ac-evo" || gameId === "lmu";
 }
 
 /**
@@ -70,10 +70,9 @@ export type ActiveExperimentContext =
 export async function loadActiveExperimentContext(sessionId: number): Promise<ActiveExperimentContext> {
   const session = await getExperiment(sessionId);
   if (!session) return { ok: false, status: 404, error: "Tuning session not found" };
-
   const gameId = session.gameId as GameId;
-  if (gameId !== "acc" && gameId !== "ac-evo" && gameId !== "f1-2025") {
-    return { ok: false, status: 400, error: "The setup engineer only supports ACC, AC-EVO and F1 2025" };
+  if (gameId !== "acc" && gameId !== "ac-evo" && gameId !== "lmu" && gameId !== "f1-2025") {
+    return { ok: false, status: 400, error: "The setup engineer only supports ACC, AC-EVO, LMU and F1 2025" };
   }
 
   const tests = await listExperimentVersions(sessionId);

@@ -48,6 +48,60 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: var(--app-accent);
 
+  /* LMU guide illustration palette; retained as theme tokens to preserve diagram materials. */
+  --guide-illustration-housing-side: #172739;
+  --guide-illustration-shadow: #000;
+  --guide-illustration-rubber-side: #0d1520;
+  --guide-illustration-tyre-edge: #7b8b9c;
+  --guide-illustration-tread: #0c131d;
+  --guide-illustration-coil-back: #087b93;
+  --guide-illustration-coil-light: #c1f9ff;
+  --guide-illustration-disc-edge: #243547;
+  --guide-illustration-disc-heat: #e88950;
+  --guide-illustration-disc-track: #edf4fa;
+  --guide-illustration-disc-slot: #283b4d;
+  --guide-illustration-caliper-detail: #aaf5ff;
+  --guide-illustration-gauge-well: #152334;
+  --guide-illustration-gauge-needle: #e7f2ff;
+  --guide-illustration-gauge-text: #dbe8f4;
+  --guide-illustration-battery-symbol: #e1fbff;
+  --guide-illustration-fuel-symbol: #ffe7b9;
+  --guide-illustration-aero-highlight: #bbf7ff;
+  --guide-illustration-aero-blade: #889ba9;
+  --guide-illustration-aero-stay: #a4b6c4;
+  --guide-illustration-thermal-transfer: #f4a261;
+  --guide-illustration-damper-window: #16273a;
+  --guide-illustration-fluid-flow: #a2f3ff;
+  --guide-illustration-snow: #9edbff;
+  --guide-illustration-skid: #f4a261;
+  --guide-illustration-marker: #ccfaff;
+  --guide-illustration-steering-tyre: #8da4b7;
+  --guide-illustration-steering-tread: #71879a;
+  --guide-illustration-rubber-1: #151d28;
+  --guide-illustration-rubber-2: #414d5c;
+  --guide-illustration-rubber-3: #27323f;
+  --guide-illustration-rubber-4: #101823;
+  --guide-illustration-metal-1: #64748b;
+  --guide-illustration-metal-2: #dce5ef;
+  --guide-illustration-metal-3: #8c9cac;
+  --guide-illustration-metal-4: #eef3f8;
+  --guide-illustration-metal-5: #5d6c7c;
+  --guide-illustration-housing-1: #7d8da3;
+  --guide-illustration-housing-2: #45576d;
+  --guide-illustration-housing-3: #253348;
+  --guide-illustration-accent-end: #087b93;
+  --guide-illustration-warm-1: #ffdc8a;
+  --guide-illustration-warm-2: #f4a261;
+  --guide-illustration-warm-3: #d66035;
+  --guide-illustration-disc-1: #e6edf4;
+  --guide-illustration-disc-2: #a9b7c5;
+  --guide-illustration-disc-3: #748798;
+  --guide-illustration-disc-4: #43576a;
+  --guide-illustration-carbon-1: #61717d;
+  --guide-illustration-carbon-2: #2b3944;
+  --guide-illustration-carbon-3: #131e27;
+  --guide-illustration-carbon-4: #080f16;
+
   /* Morph app chrome */
   --app-bg: #000000;
   --app-surface: #0d0d0d;
@@ -382,6 +436,10 @@
   --text-app-instrument-value: 2.5rem;
   --text-app-instrument-secondary: clamp(2.5rem, 13vh, 7rem);
   --text-app-instrument-primary: clamp(3rem, 14vh, 8rem);
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
 
   --tracking-app-label: 0.15em;
 }

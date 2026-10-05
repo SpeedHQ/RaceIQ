@@ -65,7 +65,7 @@ const gatherPrereqs = createStep({
       const missing = knobs.filter((k) => k.current == null);
       sections.push(
         `--- CURRENT SETUP (v${ctx.activeTest?.version ?? 0}) — the ONLY knobs you may move ---\n` +
-          tunable.map((k) => `${k.component}: ${k.current} [${k.min}..${k.max}]`).join("\n") +
+          tunable.map((k) => `${k.component}: ${k.current}${k.min == null || k.max == null ? " (click index; no range metadata)" : ` [${k.min}..${k.max}]`}`).join("\n") +
           (missing.length
             ? `\n--- NOT TUNABLE ON THIS CAR (value: None — never suggest or apply changes to these) ---\n` +
               missing.map((k) => `${k.component}: None`).join("\n")

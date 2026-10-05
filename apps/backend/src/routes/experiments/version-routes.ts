@@ -91,12 +91,18 @@ export const experimentVersionRoutes = new Hono()
       if (!session) return c.json({ error: "Tuning session not found" }, 404);
 
       const body = c.req.valid("json");
+      let setupPath = body.setupPath ?? null;
+      if (setupPath && session.gameId !== "f1-2025") {
+        const guarded = await resolveGuardedSetupFile(session.gameId as AccGameId, setupPath);
+        if (!guarded.ok) return c.json({ error: guarded.error }, guarded.status);
+        setupPath = guarded.relativePath ?? guarded.realPath;
+      }
       const version = await nextVersion(id);
       const versionId = await createExperimentVersion({
         experimentId: id,
         version,
         label: body.label,
-        setupPath: body.setupPath ?? null,
+        setupPath,
         parentVersionId: body.parentVersionId ?? null,
         appliedChanges: body.appliedChanges ? JSON.stringify(body.appliedChanges) : null,
         driverComment: body.driverComment ?? null,
@@ -268,6 +274,8 @@ export const experimentVersionRoutes = new Hono()
         setupPath: guarded.realPath,
         parentVersionId: null,
         engine: null,
+        // A saved file is a setup arm even while the experiment varies driving.
+        kind: "setup",
       });
 
       const prevHeadTestId = session.headVersionId ?? null;

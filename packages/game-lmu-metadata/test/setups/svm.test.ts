@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { diffSVM, parseSVM, svmField, writeSVM } from "../../src/setups/svm";
+import { getSvmCapabilities, getSvmFieldAccess } from "../../src/setups/capabilities";
+
+const realSetup = new URL("../fixtures/SECTORFLOW_DRY_LMP3DKR_FUJ_0904_V2_Q.svm", import.meta.url);
 
 const header = 'VehicleClassSetting="BMW M Hybrid V8 2023 Hypercar"';
 function fixture(extra = "", finalNewline = true): Uint8Array {
@@ -19,6 +22,137 @@ function parsed(bytes = fixture()) {
   return result.document;
 }
 describe("SVM codec", () => {
+  test("reads the supplied Ginetta LMP3 game export without changing source bytes", async () => {
+    const bytes = new Uint8Array(await Bun.file(realSetup).arrayBuffer());
+    const doc = parsed(bytes);
+    expect(doc).toMatchObject({
+      carId: "ginetta_g61evo_2025",
+      carName: "Ginetta G61LTP3 Evo",
+      className: "LMP3",
+      identityWarning: null,
+      symmetric: 1,
+    });
+    expect(svmField(doc, "REARWING", "RWSetting")).toMatchObject({ index: 7, display: "8.5 deg" });
+    expect(svmField(doc, "FRONTLEFT", "PressureSetting")).toMatchObject({ index: 3, display: "150 kPa" });
+    expect(writeSVM(doc, [])).toEqual(bytes);
+  });
+  test("edits and reverses the real game export without disturbing unrelated bytes or labels", async () => {
+    const bytes = new Uint8Array(await Bun.file(realSetup).arrayBuffer());
+    const doc = parsed(bytes);
+    const edits = [
+      { id: "REARWING.RWSetting", delta: 1 },
+      { id: "FRONTLEFT.PressureSetting", delta: 1 },
+      { id: "FRONTRIGHT.PressureSetting", delta: 1 },
+    ];
+    const output = writeSVM(doc, edits);
+    const expected = new TextDecoder().decode(bytes)
+      .replace("RWSetting=7//8.5 deg", "RWSetting=8//8.5 deg (edited, 1 click up)")
+      .replaceAll("PressureSetting=3//150 kPa", "PressureSetting=4//150 kPa (edited, 1 click up)");
+    expect(output).toEqual(new TextEncoder().encode(expected));
+    const updated = parsed(output);
+    expect(diffSVM(doc, updated)).toEqual([
+      { id: "REARWING.RWSetting", kind: "changed", before: { index: 7, display: "8.5 deg" }, after: { index: 8, display: "8.5 deg" } },
+      { id: "FRONTLEFT.PressureSetting", kind: "changed", before: { index: 3, display: "150 kPa" }, after: { index: 4, display: "150 kPa" } },
+      { id: "FRONTRIGHT.PressureSetting", kind: "changed", before: { index: 3, display: "150 kPa" }, after: { index: 4, display: "150 kPa" } },
+    ]);
+    expect(writeSVM(updated, edits.map(({ id, delta }) => ({ id, delta: -delta })))).toEqual(bytes);
+  });
+  test("real LMP3 placeholder settings do not enable unavailable controls", async () => {
+    const doc = parsed(new Uint8Array(await Bun.file(realSetup).arrayBuffer()));
+    for (const id of [
+      "FRONTWING.FWSetting",
+      "ENGINE.RegenerationMapSetting",
+      "ENGINE.ElectricMotorMapSetting",
+      "DRIVELINE.FrontDiffPowerSetting",
+      "SUSPENSION.Front3rdSpringSetting",
+      "CONTROLS.AntilockBrakeSystemMapSetting",
+    ]) {
+      expect(getSvmFieldAccess(doc, id).editable).toBe(false);
+      expect(() => writeSVM(doc, [{ id, delta: 1 }])).toThrow();
+    }
+  });
+  // Synthetic inputs exercise class contracts; only the LMP3 fixture is a real game export.
+  test.each([
+    {
+      className: "Hypercar",
+      vehicleClass: "Ferrari 499P 2023 Hypercar",
+      carId: "ferrari_499p_2023",
+      abs: false,
+      editable: ["REARWING.RWSetting", "ENGINE.RegenerationMapSetting", "ENGINE.ElectricMotorMapSetting", "DRIVELINE.FrontDiffPowerSetting"],
+      locked: ["CONTROLS.AntilockBrakeSystemMapSetting"],
+    },
+    {
+      className: "LMP2",
+      vehicleClass: "Oreca 07 LM 2023 LMP2",
+      carId: "oreca_07_lm_2023",
+      abs: false,
+      editable: ["GENERAL.FuelSetting", "REARWING.RWSetting"],
+      locked: ["ENGINE.RegenerationMapSetting", "ENGINE.ElectricMotorMapSetting", "DRIVELINE.FrontDiffPowerSetting", "CONTROLS.AntilockBrakeSystemMapSetting"],
+    },
+    {
+      className: "GT3",
+      vehicleClass: "BMW M4 LMGT3 2023 GT3",
+      carId: "bmw_m4_lmgt3_2023",
+      abs: true,
+      editable: ["GENERAL.VirtualEnergySetting", "REARWING.RWSetting", "CONTROLS.AntilockBrakeSystemMapSetting"],
+      locked: ["ENGINE.RegenerationMapSetting", "ENGINE.ElectricMotorMapSetting", "DRIVELINE.FrontDiffPowerSetting"],
+    },
+    {
+      className: "GTE",
+      vehicleClass: "Porsche 911RSR-19 2023 GTE",
+      carId: "porsche_911rsr-19_2023",
+      abs: false,
+      editable: ["GENERAL.FuelSetting", "REARWING.RWSetting"],
+      locked: ["ENGINE.RegenerationMapSetting", "ENGINE.ElectricMotorMapSetting", "DRIVELINE.FrontDiffPowerSetting", "CONTROLS.AntilockBrakeSystemMapSetting"],
+    },
+  ])("$className synthetic setup resolves identity, enforces control gates and reverses edits", (scenario) => {
+    const source = [
+      `VehicleClassSetting="${scenario.vehicleClass}"`,
+      "UpgradeSetting=(25600,0,0,0)",
+      `//VEH=Installed\\Vehicles\\${scenario.carId}\\synthetic.VEH`,
+      "[GENERAL]",
+      'Notes="Synthetic class regression, not a game export"',
+      "FuelSetting=2//2",
+      "VirtualEnergySetting=2//2",
+      "[REARWING]",
+      "RWSetting=2//2",
+      "[ENGINE]",
+      "RegenerationMapSetting=2//2",
+      "ElectricMotorMapSetting=2//2",
+      "[DRIVELINE]",
+      "FrontDiffPowerSetting=2//2",
+      "[CONTROLS]",
+      `AntilockBrakeSystemMapSetting=2//${scenario.abs ? "2" : "N/A"}`,
+      "[BASIC]",
+      "Custom=1",
+      "",
+    ].join("\r\n");
+    const bytes = new TextEncoder().encode(source);
+    const doc = parsed(bytes);
+    expect(doc).toMatchObject({ carId: scenario.carId, className: scenario.className, identityWarning: null });
+    expect(getSvmCapabilities(doc).abs).toBe(scenario.abs);
+    const edits = scenario.editable.map((id) => ({ id, delta: 1 }));
+    let expected = source;
+    for (const id of scenario.editable) {
+      const key = id.split(".")[1]!;
+      expected = expected.replace(`${key}=2//2`, `${key}=3//2 (edited, 1 click up)`);
+    }
+    const output = writeSVM(doc, edits);
+    expect(output).toEqual(new TextEncoder().encode(expected));
+    const updated = parsed(output);
+    expect(diffSVM(doc, updated)).toEqual(scenario.editable.map((id) => ({
+      id,
+      kind: "changed",
+      before: { index: 2, display: "2" },
+      after: { index: 3, display: "2" },
+    })));
+    expect(writeSVM(updated, edits.map(({ id }) => ({ id, delta: -1 })))).toEqual(bytes);
+    for (const id of scenario.locked) {
+      expect(getSvmFieldAccess(doc, id).editable).toBe(false);
+      expect(() => writeSVM(doc, [...edits, { id, delta: 1 }])).toThrow();
+    }
+    expect(writeSVM(doc, [])).toEqual(bytes);
+  });
   test("parses identity, integer indices, labels and preserves original bytes on empty write", () => {
     const bytes = fixture();
     const doc = parsed(bytes);

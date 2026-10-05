@@ -9,6 +9,7 @@
     "./setups/fields": "./src/setups/fields.ts",
     "./setups/capabilities": "./src/setups/capabilities.ts",
     "./setups/knowledge": "./src/setups/knowledge.ts",
+    "./setups/official-knowledge": "./src/setups/official-knowledge.ts",
     "./track-boundaries": "./src/track-boundaries.ts",
     "./cars.json": "./src/cars.json",
     "./tracks.json": "./src/tracks.json",

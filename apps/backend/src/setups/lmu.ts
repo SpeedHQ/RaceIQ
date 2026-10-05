@@ -190,7 +190,7 @@ export async function saveLMUSetup(input: SaveLMUSetupInput): Promise<Result<{ f
   if (!root) return fail(404, "LMU Settings folder not found");
   const fileName = checkedFileName(input.fileName);
   if (!fileName) return fail(400, "Choose a valid .svm filename (maximum 160 characters)");
-  if (!Array.isArray(input.edits) || input.edits.length === 0) return fail(400, "At least one nonzero setup edit is required");
+  if (!Array.isArray(input.edits) || (input.source.kind === "file" && input.edits.length === 0)) return fail(400, "At least one nonzero setup edit is required");
   let document: SvmDocument;
   if (input.source.kind === "file") {
     const file = await readValidFile(root, input.source.path);

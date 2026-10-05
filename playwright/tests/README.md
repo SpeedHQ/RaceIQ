@@ -6,7 +6,7 @@
 
 - `fresh-install/`: onboarding and first-run behavior.
 - `marketing/`: public marketing routes and visual checks.
-- `responsive/`: responsive workspaces, mobile screenshot registry, and Chromium device behavior.
+- `responsive/`: responsive functional workspaces, desktop screenshots (including LMU setup and guide states), mobile live-dashboard screenshots only, and Chromium device behavior. No other phone/tablet captures.
 - `tunes/`: compiled/dev tune workflows that use dedicated tune data.
 - `recording/`: hardware-oriented demo capture.
 - `seeded/<domain>/`: functional workflows against committed seeded rows, grouped by product surface (`analyse`, `catalog`, `chats`, `compare`, `dash`, `dev-tools`, `driver`, `experiments`, `landing`, `live`, `raw`, `routes`, `sessions`, `settings`, and `setups`).

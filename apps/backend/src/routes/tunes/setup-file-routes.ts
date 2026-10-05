@@ -44,6 +44,7 @@ const ImportFileSchema = z.object({
   gameId: z.enum(["acc", "ac-evo"]), filePath: z.string().min(1).optional(), name: z.string().optional(),
   fileName: z.string().min(1).optional(), contentBase64: z.string().min(1).optional(),
   author: z.string().optional(), carOrdinal: z.number().int(), category: z.string().optional().default("circuit"),
+  trackOrdinal: z.number().int().nullable().optional(),
 }).superRefine((body, ctx) => {
   if ((body.filePath != null) === (body.contentBase64 != null)) {
     ctx.addIssue({ code: "custom", message: "Provide exactly one of filePath or contentBase64" });
@@ -227,7 +228,7 @@ export const tuneSetupFileRoutes = new Hono()
         if (!AccSetupJsonSchema.safeParse(parsed).success) return c.json({ error: "That JSON isn't a saved setup — it needs a carName and basicSetup" }, 400);
       }
       const name = body.name ?? fileName.replace(/\.(json|carsetup)$/i, "");
-      const id = await insertTune({ gameId: body.gameId, name, author: body.author ?? "Imported", carOrdinal: body.carOrdinal, category: body.category, description: `Imported from ${fileName}`, settings: JSON.stringify(parsed), unitSystem: "metric", source: "imported-file" });
+      const id = await insertTune({ gameId: body.gameId, name, author: body.author ?? "Imported", carOrdinal: body.carOrdinal, trackOrdinal: body.trackOrdinal, category: body.category, description: `Imported from ${fileName}`, settings: JSON.stringify(parsed), unitSystem: "metric", source: "imported-file" });
       const created = await getTuneById(id);
       return c.json(parseTuneRow(created), 201);
     });
