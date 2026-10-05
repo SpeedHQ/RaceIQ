@@ -2,6 +2,8 @@
 
 ### Features
 
+- Track clean-lap rate, compare latest-session pace with your previous best on the same car and track, and see seven days of practice activity on the dashboard.
+
 ### Fixes
 
 ### Internal

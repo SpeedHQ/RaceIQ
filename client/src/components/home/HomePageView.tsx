@@ -4,6 +4,7 @@ import { SessionRecapView } from "@/components/SessionRecap";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
 import { GameBrandCards, GameBrandHeader } from "./Brand";
+import { DashboardInsights } from "./DashboardInsights";
 import { RecentSessionsTable } from "./RecentSessions";
 import { PeriodStatsPanel } from "./Stats";
 import type { HomePageViewProps } from "./types";
@@ -73,6 +74,8 @@ export function HomePageView({
                 <PeriodStatsPanel periodTab={periodTab} periodStats={periodStats} onPeriodTabChange={onPeriodTabChange} />
               </section>
 
+              <DashboardInsights laps={allLaps} gameId={gameId} carNames={carNames} trackNames={trackNames} />
+
               <section>
                 <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90">{m.home_recent_sessions()}</h2>
                 <RecentSessionsTable sessions={recentSessions} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseSession={onAnalyseSession} loading={sessionsLoading} error={sessionsError} />
@@ -118,6 +121,8 @@ export function HomePageView({
               <div>
                 <PeriodStatsPanel periodTab={periodTab} periodStats={periodStats} onPeriodTabChange={onPeriodTabChange} />
               </div>
+
+              <DashboardInsights laps={allLaps} gameId={gameId} carNames={carNames} trackNames={trackNames} />
 
               <div>
                 <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90">{m.home_recent_sessions()}</h2>
