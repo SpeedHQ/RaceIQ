@@ -21,6 +21,7 @@
 
 ### Fixes
 
+- Preserve unknown car capabilities in LMU AI knowledge lookups, including parameter and symptom-cause guidance, instead of reporting unsupported advice.
 - Use consistent, readable font sizes across LMU setup guide navigation, explanations, links, and diagram captions on desktop and mobile.
 - Read LMU setup guides with divider-led sections and clearly marked official facts; spring guidance uses front and rear cards below one softer/stiffer illustration pair.
 - Compare isolated rear-wing and splitter mechanisms with downward load and setting-dependent airflow; distinguish toe, camber, caster, ride-height clearance, and braking-force diagrams.

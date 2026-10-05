@@ -48,6 +48,8 @@ Official facts and source links are returned before separately labelled communit
 
 In experiments, applicability is checked against the guarded setup in the current version's lineage. Without a readable setup, general reference remains available but car-specific applicability is unknown. Hybrid-only advice is not applicable to non-hybrid setups; fuel and Virtual Energy guidance remain usable. Knowledge lookup does not edit files or create versions, and does not grant the driver coach setup-edit authority or bypass confirmation.
 
+Unknown hybrid, front-drive, ABS, or hybrid-architecture capabilities remain `unknown` even when a setup is readable. Parameter details and symptom causes use the same three-state applicability: `available`, `unavailable`, or `unknown`. Unknown applicability keeps car-specific controls withheld; it does not establish that advice is unsupported. Known LMP2, LMP3, GTE, and GT3 classes remain non-hybrid.
+
 
 
 ## Updating the corpus

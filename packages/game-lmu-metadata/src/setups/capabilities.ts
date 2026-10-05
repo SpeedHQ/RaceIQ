@@ -79,8 +79,9 @@ function inferArchitecture(document: SvmDocument): SvmArchitecture {
 
 export function getSvmCapabilities(document: SvmDocument): SvmCapabilities {
   const architecture = inferArchitecture(document);
-  const hybrid = architecture === "unknown" ? null : architecture !== "lmh-non-hybrid";
-  const frontDrive = architecture === "unknown" ? null : architecture === "lmh-front-hybrid";
+  const nonHybridClass = ["LMP2", "LMP3", "GTE", "GT3"].includes(document.className ?? "");
+  const hybrid = nonHybridClass ? false : architecture === "unknown" ? null : architecture !== "lmh-non-hybrid";
+  const frontDrive = nonHybridClass ? false : architecture === "unknown" ? null : architecture === "lmh-front-hybrid";
   let abs: boolean | null = null;
   if (["LMP2", "LMP3", "GTE", "Hypercar"].includes(document.className ?? "")) abs = false;
   else if (document.className === "GT3") abs = true;

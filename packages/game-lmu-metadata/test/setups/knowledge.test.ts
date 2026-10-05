@@ -34,6 +34,31 @@ describe("LMU setup knowledge", () => {
     expect(nonHybrid.find(({ item }) => item.id === "regen")?.availability.available).toBe(false);
   });
 
+  test("unknown capabilities withhold advice without declaring it unsupported", () => {
+    const setup = document("Unrecognized Prototype 2026 Hypercar");
+    const parameters = getParameterAdvice(setup);
+    for (const id of ["regen", "motorMap", "frontDiff"]) {
+      expect(parameters.find((advice) => advice.item.id === id)?.availability).toMatchObject({ available: false, unknown: true });
+    }
+    const symptoms = getSymptomAdvice(setup);
+    expect(symptoms.find((advice) => advice.item.id === "hybridBrake")?.availability).toMatchObject({ available: false, unknown: true });
+    expect(symptoms.find((advice) => advice.item.id === "entrySnap")?.item.causes.find((cause) => cause.id === "regen")?.availability).toMatchObject({ available: false, unknown: true });
+    expect(getPresetAdvice(document("Unrecognized Prototype")).find((advice) => advice.item.id === "brake_lock")?.availability).toMatchObject({ available: false, unknown: true });
+  });
+
+  test.each(["LMP2", "LMP3", "GTE", "GT3"])("known non-hybrid %s advice is unsupported, not unknown", (className) => {
+    const setup = document(`Unrecognized Model ${className}`);
+    const parameters = getParameterAdvice(setup);
+    for (const id of ["regen", "frontDiff"]) {
+      const availability = parameters.find((advice) => advice.item.id === id)!.availability;
+      expect(availability.available).toBe(false);
+      expect(availability.unknown).toBeUndefined();
+    }
+    const regen = getSymptomAdvice(setup).find((advice) => advice.item.id === "entrySnap")!.item.causes.find((cause) => cause.id === "regen")!;
+    expect(regen.availability.available).toBe(false);
+    expect(regen.availability.unknown).toBeUndefined();
+  });
+
   test.each([
     ["Porsche_911_GT3_R_LMGT3 GT3", false],
     ["Aston_Martin_Valkyrie Hypercar", false],
@@ -53,7 +78,7 @@ describe("LMU setup knowledge", () => {
 
   test("null selection withholds car-specific applicability", () => {
     for (const advice of [getParameterAdvice(null), getSymptomAdvice(null), getPresetAdvice(null)]) {
-      expect(advice.every(({ availability }) => !availability.available && availability.reason)).toBe(true);
+      expect(advice.every(({ availability }) => !availability.available && availability.unknown && availability.reason)).toBe(true);
     }
   });
 

@@ -25,7 +25,12 @@ import type { SvmDocument } from "./svm";
 import { getSvmCapabilities, getSvmFieldAccess } from "./capabilities";
 import { LMU_OFFICIAL_MOTOR_MAP } from "./official-knowledge";
 
-export interface AdviceAvailability { readonly available: boolean; readonly reason: string | null }
+export interface AdviceAvailability {
+  readonly available: boolean;
+  readonly reason: string | null;
+  /** Fail closed when applicability cannot be established, not when unsupported. */
+  readonly unknown?: true;
+}
 export interface AdviceItem<T> { readonly item: T; readonly availability: AdviceAvailability }
 export interface Compensation { readonly id: string; readonly text: string }
 export interface ParameterAdvice { readonly id:string; readonly group:string; readonly name:string; readonly upLabel:string; readonly downLabel:string; readonly does:string; readonly up:{readonly effects:readonly string[];readonly compensations:readonly Compensation[]}; readonly down:{readonly effects:readonly string[];readonly compensations:readonly Compensation[]}; readonly linked:readonly {readonly id:string;readonly reason:string}[]; readonly note:string }
@@ -2234,13 +2239,16 @@ export const LMU_PRESET_ADVICE: readonly PresetAdvice[] = [
     ]
   }
 ];
+function withheldAdvice(reason: string, unknown: boolean): AdviceAvailability {
+  return unknown ? { available: false, reason, unknown: true } : { available: false, reason };
+}
 function gate(id:string, document:SvmDocument|null):AdviceAvailability {
-  if (!document) return {available:false,reason:"Select a setup for car-specific applicability."};
+  if (!document) return withheldAdvice("Select a setup for car-specific applicability.", true);
   const caps=getSvmCapabilities(document);
-  if (["regen","motorMap","hybridBrake","hybrid_brake","energy_short","frontRegen"].includes(id) && caps.hybrid!==true) return {available:false,reason:caps.hybrid===false?"This car is not hybrid.":"Hybrid capability is unknown for this car."};
-  if (["frontDiff","frontDiffEntry","frontRegen"].includes(id) && caps.frontDrive!==true) return {available:false,reason:caps.frontDrive===false?"This car does not have front drive.":"Front-drive capability is unknown for this car."};
-  if (id==="brake_lock" && caps.abs!==false) return {available:false,reason:caps.abs===true?"This advice is only for cars without ABS.":"ABS capability is unknown for this car."};
-  if (id==="entrySnapRegen" && caps.architecture!=="lmdh") return {available:false,reason:caps.architecture==="unknown"?"Hybrid architecture is unknown for this car.":"Regen advice applies only to LMDh cars."};
+  if (["regen","motorMap","hybridBrake","hybrid_brake","energy_short","frontRegen"].includes(id) && caps.hybrid!==true) return withheldAdvice(caps.hybrid===false?"This car is not hybrid.":"Hybrid capability is unknown for this car.", caps.hybrid===null);
+  if (["frontDiff","frontDiffEntry","frontRegen"].includes(id) && caps.frontDrive!==true) return withheldAdvice(caps.frontDrive===false?"This car does not have front drive.":"Front-drive capability is unknown for this car.", caps.frontDrive===null);
+  if (id==="brake_lock" && caps.abs!==false) return withheldAdvice(caps.abs===true?"This advice is only for cars without ABS.":"ABS capability is unknown for this car.", caps.abs===null);
+  if (id==="entrySnapRegen" && caps.architecture!=="lmdh") return withheldAdvice(caps.architecture==="unknown"?"Hybrid architecture is unknown for this car.":"Regen advice applies only to LMDh cars.", caps.architecture==="unknown" && caps.hybrid!==false);
   return {available:true,reason:null};
 }
 export function getParameterAdvice(document:SvmDocument|null):AdviceItem<ParameterAdvice>[] { return LMU_PARAMETERS.map(item=>({item,availability:gate(item.id,document)})); }

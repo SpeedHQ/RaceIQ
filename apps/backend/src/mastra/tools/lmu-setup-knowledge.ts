@@ -5,6 +5,7 @@ import {
   LMU_SYMPTOMS,
   getParameterAdvice,
   getSymptomAdvice,
+  type AdviceAvailability,
 } from "@raceiq/game-lmu-metadata/setups/knowledge";
 import { getOfficialLmuSetupKnowledge } from "@raceiq/game-lmu-metadata/setups/official-knowledge";
 import type { SvmDocument } from "@raceiq/game-lmu-metadata/setups/svm";
@@ -45,6 +46,10 @@ function formatOfficial(parameterId: string): string {
       ...topic.sources.map((source) => `Source: ${source.title} — ${source.url} (reviewed ${source.reviewedAt})`),
     ].join("\n"))
     .join("\n\n");
+}
+
+function getApplicability(availability: AdviceAvailability): z.infer<typeof OutputSchema>["applicability"] {
+  return availability.unknown ? "unknown" : availability.available ? "available" : "unavailable";
 }
 
 export const getLmuSetupKnowledgeTool = createTool({
@@ -113,9 +118,15 @@ export const getLmuSetupKnowledgeTool = createTool({
       ...(symptom ? symptom.causes.map((cause) => cause.id) : []),
     ])];
     const official = officialIds.map(formatOfficial).filter(Boolean).join("\n\n");
-    const parameterDetails = targetParameters.map((advice) => JSON.stringify(advice, null, 2));
+    const parameterDetails = targetParameters.map((advice) => JSON.stringify({
+      item: advice.item,
+      availability: {
+        applicability: getApplicability(advice.availability),
+        reason: advice.availability.reason,
+      },
+    }, null, 2));
     const symptomDetails = matchedSymptom
-      ? `${matchedSymptom.item.group} — ${matchedSymptom.item.name}\n${matchedSymptom.item.description}\nInitial check: ${matchedSymptom.item.quick}\nCauses:\n${matchedSymptom.item.causes.map((cause) => `- ${cause.label}: ${cause.fix} — ${cause.availability.available ? "available" : `unavailable (${cause.availability.reason})`}`).join("\n")}`
+      ? `${matchedSymptom.item.group} — ${matchedSymptom.item.name}\n${matchedSymptom.item.description}\nInitial check: ${matchedSymptom.item.quick}\nCauses:\n${matchedSymptom.item.causes.map((cause) => `- ${cause.label}: ${cause.fix} — ${getApplicability(cause.availability)}${cause.availability.reason ? ` (${cause.availability.reason})` : ""}`).join("\n")}`
       : "";
     const community = [
       "Community tuning advice (qualitative, unverified; not official game documentation):",
@@ -123,11 +134,9 @@ export const getLmuSetupKnowledgeTool = createTool({
       ...parameterDetails,
       "Click scales and setting bounds are not established by this advice; verify actual in-game controls and setup.",
     ].filter(Boolean).join("\n\n");
-    const applicability = !document
-      ? "unknown"
-      : parameter
-        ? targetParameters[0]?.availability.available ? "available" : "unavailable"
-        : matchedSymptom!.availability.available ? "available" : "unavailable";
+    const applicability = getApplicability(parameter
+      ? targetParameters[0]!.availability
+      : matchedSymptom!.availability);
     return {
       available: true,
       topicId,

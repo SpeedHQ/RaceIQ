@@ -26,6 +26,10 @@ beforeEach(async () => {
     "//VEH=Installed\\Vehicles\\bmw_m_hybrid_v8_2023\\bmw_m_hybrid_v8_2023.veh",
     "[ENGINE]", "RegenerationMapSetting=1//test index", "ElectricMotorMapSetting=1//test index",
   ].join("\r\n"));
+  await writeFile(join(folder, "Fuji", "unknown.svm"), [
+    'VehicleClassSetting="Unknown Prototype Hypercar"',
+    "[ENGINE]", "RegenerationMapSetting=1//test index",
+  ].join("\r\n"));
 });
 
 afterEach(async () => {
@@ -71,6 +75,33 @@ describe("LMU knowledge applicability", () => {
     const result = await lookup("regen");
     expect(result.available).toBe(true);
     expect(result.applicability).toBe("unknown");
+  });
+
+  test("preserves unknown capability in topic and nested parameter advice", async () => {
+    const result = await lookup("regen", await contextFor("Fuji/unknown.svm"));
+    expect(result.applicability).toBe("unknown");
+    const parameters = result.knowledge.split("\n\n").filter((block) => block.startsWith("{")).map((block) => JSON.parse(block));
+    expect(parameters.find((advice) => advice.item.id === "regen").availability.applicability).toBe("unknown");
+  });
+
+  test("preserves unknown symptom causes without a setup", async () => {
+    const result = await lookup("energyShort");
+    expect(result.applicability).toBe("unknown");
+    const causes = result.knowledge.split("\n").filter((line) => line.startsWith("- ") && line.includes(" — "));
+    expect(causes.every((line) => line.includes(" — unknown ("))).toBe(true);
+    const parameters = result.knowledge.split("\n\n").filter((block) => block.startsWith("{")).map((block) => JSON.parse(block));
+    expect(parameters.every((advice) => advice.availability.applicability === "unknown")).toBe(true);
+  });
+
+  test("distinguishes unknown and known capabilities within a symptom", async () => {
+    const result = await lookup("energyShort", await contextFor("Fuji/unknown.svm"));
+    expect(result.applicability).toBe("available");
+    const parameters = result.knowledge.split("\n\n").filter((block) => block.startsWith("{")).map((block) => JSON.parse(block));
+    const byId = new Map(parameters.map((advice) => [advice.item.id, advice.availability.applicability]));
+    expect(byId.get("regen")).toBe("unknown");
+    expect(byId.get("motorMap")).toBe("unknown");
+    expect(byId.get("virtualEnergy")).toBe("available");
+    expect(byId.get("fuelRatio")).toBe("available");
   });
 
   test("keeps general knowledge usable when an experiment has no setup or a missing source", async () => {
