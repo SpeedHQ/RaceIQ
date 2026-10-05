@@ -7,6 +7,7 @@
 - Make explicit LMU click edits with capability-aware controls, linked corners, independent third elements, and an original-to-proposed preview. Save a new game-folder file or download without overwriting originals; stale sources and filename collisions retain pending edits.
 - Consult attributed LMU community parameter and symptom guides. Saving or exporting setups requires acknowledgement that click ranges and physical values are unverified.
 - Read offline, source-linked official LMU facts about hybrid power, battery charge, Virtual Energy, fuel planning, ABS maps, and traction control alongside separately labelled community setup advice.
+- Ground LMU Analyse chat and experiment explanations in the bundled official and community setup knowledge through a read-only AI tool, with current-setup applicability and unchanged edit-confirmation rules.
 - Read standalone, illustrated LMU setup guides at `/lmu/setups/guides` from the sidebar or Setups toolbar, with topic navigation and direct parameter links from comparisons. Guides do not depend on an active setup, and pending setup edits remain intact.
 - Read front and rear ride height, springs, and anti-roll bar guidance together in one illustrated guide per topic instead of separate axle pages.
 - Explore dimensional LMU guide animations with shaded components, moving airflow and racing paths, and side-by-side setting comparisons with matching explanations. No car drawings; pause motion or use reduced-motion diagrams.

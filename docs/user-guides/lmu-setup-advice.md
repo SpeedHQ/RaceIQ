@@ -1,6 +1,6 @@
 # LMU setup advice and official knowledge
 
-Open **LMU → Setups → Advice → Parameters**. Parameters with reviewed official coverage show a separate **Official LMU documentation** panel containing facts, source links and review dates. These summaries are bundled with RaceIQ and can be read offline; opening the original articles requires internet access.
+Open **LMU → Guide**, or **Setups → Guide**, at `/lmu/setups/guides`. Parameters with reviewed official coverage show a separate **Official LMU documentation** panel containing facts, source links and review dates. These summaries are bundled with RaceIQ and can be read offline; opening the original articles requires internet access.
 
 ## Coverage
 
@@ -40,6 +40,15 @@ With an AI provider configured, the engineer can inspect editable settings, prev
 
 LMU exports do not establish upper click bounds or physical unit conversions. The engineer reports unknown bounds rather than inventing them; inspect proposed clicks and load the saved setup in LMU to confirm validity. Original files and unknown bytes are preserved, and a changed source file is refused instead of silently overwriting a newer setup.
 
+## AI knowledge lookup
+
+With an AI provider configured, Analyse chat, the lap analyst, and both experiment specialists can call `get_lmu_setup_knowledge` for the same bundled parameter and symptom reference. The tool lists topic IDs when called without a topic and retrieves an exact topic when `topicId` is supplied.
+
+Official facts and source links are returned before separately labelled community tuning advice. Symptom lookups include related parameter guidance. Neither source is lap telemetry, and neither establishes physical click scales or bounds.
+
+In experiments, applicability is checked against the guarded setup in the current version's lineage. Without a readable setup, general reference remains available but car-specific applicability is unknown. Hybrid-only advice is not applicable to non-hybrid setups; fuel and Virtual Energy guidance remain usable. Knowledge lookup does not edit files or create versions, and does not grant the driver coach setup-edit authority or bypass confirmation.
+
+
 
 ## Updating the corpus
 
@@ -49,7 +58,7 @@ LMU exports do not establish upper click bounds or physical unit conversions. Th
 4. Correct conflicting advice in `knowledge.ts`. Reuse official summaries for authoritative explanations where appropriate; do not let a community recommendation silently become an official rule.
 5. Exercise the affected advice through setup upload and the rendered official panel. Run metadata setup tests, locale-key validation and affected TypeScript checks. Add behavior regressions for applicability changes, not tests pinning wording.
 
-No live crawler, remote retrieval, embeddings or AI-chat tool is involved. Expanding coverage requires reviewing and bundling additional official topics through this same process.
+No live crawler, remote retrieval, or embeddings are involved. AI agents read the same bundled corpus through the knowledge tool. Expanding coverage requires reviewing and bundling additional official topics through this same process.
 
 ## Real setup test fixture
 

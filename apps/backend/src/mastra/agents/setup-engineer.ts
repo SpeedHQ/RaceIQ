@@ -20,6 +20,7 @@ import { getMastraModelId } from "../model";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { setupEngineerTools } from "../tools/setup-engineer";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@raceiq/shared/racing/experiments/focus";
+import { getLmuSetupKnowledgeTool, LMU_SETUP_KNOWLEDGE_PROMPT } from "../tools/lmu-setup-knowledge";
 
 export interface SetupEngineerSessionContext {
   sessionId: number;
@@ -95,7 +96,7 @@ LAP DATA — a focused lap review may already be provided inline in this turn's 
 export const setupEngineerAgent = new Agent({
   id: "setup-engineer",
   name: "Setup Engineer",
-  instructions: ({ requestContext }) => `${SETUP_ENGINEER_INSTRUCTIONS}${TRACK_GUIDE_PROMPT}${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(loadSettings().language)}\n\n${getChatTurnContext(requestContext)}`,
+  instructions: ({ requestContext }) => `${SETUP_ENGINEER_INSTRUCTIONS}${TRACK_GUIDE_PROMPT}${ADJUSTMENT_FORMAT_PROMPT}${LMU_SETUP_KNOWLEDGE_PROMPT}${aiLanguageInstruction(loadSettings().language)}\n\n${getChatTurnContext(requestContext)}`,
   model: () => {
     const s = loadSettings();
     return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
@@ -121,6 +122,7 @@ export const setupEngineerAgent = new Agent({
     get_lap_detail: setupEngineerTools.getLapDetailTool,
     get_lap_issues: setupEngineerTools.getLapIssuesTool,
     compare_laps: setupEngineerTools.compareLapsTool,
+    get_lmu_setup_knowledge: getLmuSetupKnowledgeTool,
   },
   memory: getChatMemory(),
 });
