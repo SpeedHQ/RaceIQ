@@ -140,7 +140,7 @@ export const replayRoutes = new Hono()
 
     const packetLimit = boundedInteger(c.req.query("packets"), DEFAULT_PACKET_LIMIT, 2, 600);
     const intervalMs = boundedInteger(c.req.query("intervalMs"), DEFAULT_INTERVAL_MS, 0, 100);
-    const recorded = readRecordedTelemetry(gameId, recordingPath.path);
+    const recorded = await readRecordedTelemetry(gameId, recordingPath.path);
     if (recorded.packets.length === 0) {
       return c.json({ error: "No telemetry packets found in recording" }, 400);
     }

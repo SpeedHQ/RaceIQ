@@ -147,8 +147,8 @@ export function parseAccRecordingPoints(frames: KunosRecordingFrame[]): Point2D[
   return packets;
 }
 
-export function parseUdpRecordingPoints(gameId: GameId, binPath: string): Point2D[] {
-  return readRecordedTelemetry(gameId, binPath).packets.map((packet) => ({
+export async function parseUdpRecordingPoints(gameId: GameId, binPath: string): Promise<Point2D[]> {
+  return (await readRecordedTelemetry(gameId, binPath)).packets.map((packet) => ({
     x: packet.PositionX,
     y: packet.PositionZ,
   }));
@@ -185,11 +185,11 @@ export function parseAccRecordingPacketsWithSpeed(frames: KunosRecordingFrame[])
   return packets;
 }
 
-export function parseUdpRecordingPacketsWithSpeed(
+export async function parseUdpRecordingPacketsWithSpeed(
   gameId: GameId,
   binPath: string,
-): Point3D[] {
-  return readRecordedTelemetry(gameId, binPath).packets.map((packet) => ({
+): Promise<Point3D[]> {
+  return (await readRecordedTelemetry(gameId, binPath)).packets.map((packet) => ({
     x: packet.PositionX,
     y: packet.PositionZ,
     speed: packet.Speed,
@@ -272,10 +272,10 @@ export function parseAccRecordingLaps(frames: KunosRecordingFrame[]): E2eLapResu
   };
 }
 
-export function parseUdpRecordingLaps(
+export async function parseUdpRecordingLaps(
   gameId: GameId,
   binPath: string,
-): E2eLapResult {
+): Promise<E2eLapResult> {
   const lapRanges = new Map<
     number,
     { start: number; end: number; lapTime: number; maxCurrentLap: number }
@@ -283,8 +283,7 @@ export function parseUdpRecordingLaps(
   let packetIndex = 0;
   let currentLap = -1;
 
-  for (const packet of readRecordedTelemetry(gameId, binPath).packets) {
-    if (packet.LapNumber !== undefined) {
+  for (const packet of (await readRecordedTelemetry(gameId, binPath)).packets) {
       if (packet.LapNumber !== currentLap) {
         if (currentLap !== -1) {
           const prevLapRange = lapRanges.get(currentLap);
@@ -321,7 +320,6 @@ export function parseUdpRecordingLaps(
           );
         }
       }
-    }
 
     packetIndex++;
   }

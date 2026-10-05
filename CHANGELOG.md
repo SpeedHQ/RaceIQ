@@ -2,6 +2,8 @@
 
 ### Features
 
+- Choose the bundled Rust recording engine in Connection settings and switch between Rust and Bun without restarting the backend or reconnecting the dashboard.
+
 ### Fixes
 
 ### Internal

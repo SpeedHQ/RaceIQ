@@ -14,6 +14,8 @@ import { readFramePrefix } from "../session-capture/framing";
 import { applyFrameTime } from "../session-capture/frame-time";
 import { legacyMotecOffsetToPacketIndex } from "../motec/source-archive";
 import { countFullPacketMaterialized, countParserStatePrime, countSourceFrameScanned } from "../session-capture/test-instrumentation";
+import { getRecordingEngineKind } from "../runtime/recorder-engine";
+import { readCapturePacketsWithRust, readRustLapWindow } from "../session-capture/import-results";
 
 // Rough per-packet byte estimate. TelemetryPacket has ~50–80 numeric fields
 // plus optional game-specific extensions (f1/acc/setup). Sniffing the first
@@ -262,8 +264,8 @@ export class LapParseError extends Error {
 export function clearRawFileCacheForTest(): void { clearSessionCaptureCache(); }
 
 type ReplayGame = ReturnType<typeof getServerGame>;
-function packetIndexForOffset(gameId: GameId, offset: number, encoding: "packet-index" | "legacy-bin-byte-offset"): number {
-  return encoding === "legacy-bin-byte-offset" ? legacyMotecOffsetToPacketIndex(gameId, offset) : offset;
+function packetIndexForOffset(gameId: GameId, offset: number, encoding: "packet-index" | "legacy-bin-byte-offset" | "byte"): number {
+  return encoding === "packet-index" ? offset : legacyMotecOffsetToPacketIndex(gameId, offset);
 }
 
 function freshReplayPacket(packet: TelemetryPacket): TelemetryPacket {
@@ -335,6 +337,16 @@ export async function* iterateSessionTelemetry(sessionId: number, gameId: GameId
     rawFile: session.rawFile, source: session.source, gameId: session.gameId as GameId,
     carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal,
   };
+  if (getRecordingEngineKind() === "rust") {
+    const decoded = await readCapturePacketsWithRust(source);
+    const serverGame = getServerGame(gameId);
+    for (const original of decoded.packets) {
+      const packet = freshReplayPacket(original.packet);
+      normalizeReplayPacket(packet, serverGame);
+      yield packet;
+    }
+    return;
+  }
   if (session.rawFile.endsWith(".motec.zip")) {
     const loaded = await loadSessionSource(source);
     if (loaded.kind !== "packets") throw new Error("Expected canonical packet source");
@@ -450,9 +462,16 @@ async function parseRawLapFramesFromSource(
 }
 
 export async function parseRawLapFrames(source: SessionCaptureSource, rawByteOffset: number, rawFrameCount: number): Promise<TelemetryPacket[]> {
-  if (!source.rawFile.endsWith(".motec.zip")) {
-    return parseRawLapFramesFromSource(source, rawByteOffset, rawFrameCount);
+  if (getRecordingEngineKind() === "rust") {
+    const packets = await readRustLapWindow(source.rawFile, source.gameId, source.carOrdinal, source.trackOrdinal, rawByteOffset, rawFrameCount);
+    if (packets.length === 0 && rawFrameCount > 0) throw new Error(`Rust parsed 0 telemetry packets for ${rawFrameCount} source frames`);
+    return packets.map((packet) => {
+      const copy = freshReplayPacket(packet);
+      normalizeReplayPacket(copy, getServerGame(source.gameId));
+      return copy;
+    });
   }
+  if (!source.rawFile.endsWith(".motec.zip")) return parseRawLapFramesFromSource(source, rawByteOffset, rawFrameCount);
   const loaded = await loadSessionSource(source);
   if (loaded.kind !== "packets") throw new Error("Expected canonical packet source");
   const start = packetIndexForOffset(source.gameId, rawByteOffset, loaded.offsetEncoding);
@@ -643,17 +662,23 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
   if (lapMetas.length === 0) return out;
   const serverGame = getServerGame(source.gameId);
 
+  if (getRecordingEngineKind() === "rust") {
+    for (const meta of lapMetas) {
+      const packets = await readRustLapWindow(source.rawFile, source.gameId, source.carOrdinal, source.trackOrdinal, meta.rawByteOffset, meta.rawFrameCount);
+      if (packets.length > 0) out.set(meta.id, packets.map((packet) => {
+        const copy = freshReplayPacket(packet);
+        normalizeReplayPacket(copy, serverGame);
+        return copy;
+      }));
+    }
+    return out;
+  }
   if (source.rawFile.endsWith(".motec.zip")) {
     const loaded = await loadSessionSource(source);
-    if (loaded.kind !== "packets") throw new Error("Expected canonical packet source");
+    if (loaded.kind !== "packets" || loaded.offsetEncoding === "byte") throw new Error("Expected canonical packet source");
     for (const meta of lapMetas) {
       const start = packetIndexForOffset(source.gameId, meta.rawByteOffset, loaded.offsetEncoding);
-      const packets = replayCanonicalLap(
-        loaded.packets,
-        start,
-        meta.rawFrameCount,
-        serverGame,
-      );
+      const packets = replayCanonicalLap(loaded.packets, start, meta.rawFrameCount, serverGame);
       if (packets.length > 0) out.set(meta.id, packets);
     }
     return out;

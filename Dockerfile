@@ -1,13 +1,17 @@
+FROM rust:1.90.0-bookworm AS recorder-builder
+WORKDIR /app/native/recorder
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake pkg-config && rm -rf /var/lib/apt/lists/*
+COPY native/recorder/ ./
+RUN cargo build --locked --release
+
 FROM oven/bun:1.4.2 AS builder
-
 WORKDIR /app
-
 COPY . .
+COPY --from=recorder-builder /app/native/recorder/target/release/raceiq-recorder /recorder-build/raceiq-recorder
 RUN bun install --frozen-lockfile --ignore-scripts
 ARG RELEASE_VERSION
 RUN if [ -n "$RELEASE_VERSION" ]; then bun scripts/ci/update-release-version.ts "$RELEASE_VERSION"; fi
-RUN RACEIQ_DOCKER_BUILD=1 bun run build
-
+RUN RACEIQ_DOCKER_BUILD=1 RACEIQ_RECORDER_PREBUILT_PATH=/recorder-build/raceiq-recorder bun run build
 FROM oven/bun:1.4.2 AS runtime
 LABEL org.opencontainers.image.title="RaceIQ" \
       org.opencontainers.image.description="RaceIQ Linux container for telemetry dashboards, lap analysis, catalogue, imports, and UDP telemetry." \

@@ -16,6 +16,7 @@ const AppSettingsSchema = z.object({
   onboardingComplete: z.boolean().default(false),
   driverName: z.string().default(""),
   udpPort: z.number().int().min(1024).max(65535).default(5301),
+  recordingEngine: z.enum(["bun", "rust"]).default("bun"),
   unit: z.enum(["metric", "imperial"]).default("metric"),
   temperatureUnit: z.enum(["C", "F"]).default("C"),
   // UI + AI output language (ISO code). Drives Paraglide client locale and the

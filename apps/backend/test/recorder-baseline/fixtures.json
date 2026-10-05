@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "fixtures": [
+    { "gameId": "fm-2023", "file": "fm-2023-2026-04-09T21-55-03-186Z.bin.gz", "support": "packages/game-fm-2023/test/support/recordings.ts", "oracle": "packages/game-fm-2023/test/e2e/fm-2023-recording.test.ts" },
+    { "gameId": "f1-2025", "file": "f1-2025-2026-04-22T11-42-43-029Z.bin.gz", "support": "packages/game-f1-2025/test/support/recordings.ts", "oracle": "packages/game-f1-2025/test/e2e/f1-2025-recording.test.ts" },
+    { "gameId": "acc", "file": "acc-2026-04-23T16-42-16-158Z.bin.gz", "support": "packages/game-acc/test/support/recordings.ts", "oracle": "packages/game-acc/test/e2e/acc-2026-04-12T21-44-38-899Z.test.ts" },
+    { "gameId": "ac-evo", "file": "session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz", "support": "packages/game-ac-evo/test/support/recordings.ts", "oracle": "packages/game-ac-evo/test/e2e/ac-evo-recording.test.ts" },
+    { "gameId": "iracing", "file": "iracing-daytona-am-vantage-gt3-pit.bin.gz", "support": "packages/game-iracing/test/support/recordings.ts", "oracle": "packages/game-iracing/test/e2e/iracing-recording-fixture.test.ts" },
+    { "gameId": "lmu", "file": "lmu-spa-iron-lynx-gte.bin.gz", "support": "packages/game-lmu/test/support/recordings.ts", "oracle": "packages/game-lmu/test/e2e/lmu-recording-fixture.test.ts" },
+    { "gameId": "fm-2023", "scenario": "provisional snapshot/retraction", "file": "fm-2023-with-pitting.bin.gz", "oracle": "apps/backend/test/telemetry/pipeline-live-issues.test.ts: keeps one FM session and replaces pit snapshot before saving final lap" }
+  ],
+  "detectorOracles": [
+    "apps/backend/test/lap-analysis/detection/game-compat.test.ts",
+    "apps/backend/test/lap-analysis/detection/lap-boundary-reset.test.ts",
+    "apps/backend/test/lap-analysis/detection/session-boundary.test.ts",
+    "apps/backend/test/lap-analysis/detection/session-start.test.ts",
+    "apps/backend/test/lap-analysis/lap-detector-ac.test.ts",
+    "packages/game-acc/test/acc-lap-estimation.test.ts",
+    "packages/game-acc/test/acc-session-lifecycle.test.ts",
+    "packages/game-ac-evo/test/ac-evo-session-lifecycle.test.ts",
+    "packages/game-iracing/test/iracing-recorder.test.ts",
+    "packages/game-iracing/test/e2e/iracing-recording-fixture.test.ts",
+    "apps/backend/test/telemetry/pipeline-live-issues.test.ts"
+  ],
+  "recorderOracles": [
+    "apps/backend/test/session-capture/generic-sparse-recorder.test.ts",
+    "apps/backend/test/session-capture/kunos-sparse-recorder.test.ts",
+    "apps/backend/test/session-capture/lmu-sparse-recorder.test.ts",
+    "packages/game-acc/test/acc-recorder.test.ts"
+  ],
+  "ports": {
+    "livePipeline": "server/telemetry/live-pipeline.ts",
+    "injectedRecorderAndDbContracts": "server/telemetry/pipeline-ports.ts",
+    "detectorFactoryRegistry": "server/games/registry.ts",
+    "boundaryEventContracts": "server/lap-detection/types.ts",
+    "sharedOrdinalDetector": "server/lap-detection/detector.ts",
+    "kunosDetectorBase": "server/games/kunos/lap-detector.ts",
+    "gameDetectorAdapters": {
+      "fm-2023": "packages/game-fm-2023/src/index.ts",
+      "f1-2025": "packages/game-f1-2025/src/index.ts",
+      "acc": "packages/game-acc/src/lap-detector.ts",
+      "ac-evo": "packages/game-ac-evo/src/lap-detector.ts",
+      "iracing": "packages/game-iracing/src/lap-detector.ts",
+      "lmu": "packages/game-lmu/src/lap-policy.ts"
+    }
+  }
+}

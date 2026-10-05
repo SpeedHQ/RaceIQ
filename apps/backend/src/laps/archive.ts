@@ -17,6 +17,9 @@
  *   <gameId>-<track>-session<id>.motec.zip     — one complete MoTeC source archive per session
  */
 import { zipSync } from "fflate";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { realpathSync } from "node:fs";
+import { basename, join, relative, resolve, isAbsolute } from "node:path";
 import { readFile } from "node:fs/promises";
 import { LAPS_ZIP_LIMITS, unzipBounded } from "@raceiq/backend-core/archive/bounded-unzip";
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
@@ -29,6 +32,7 @@ import { encodeKunosSparseFrame } from "@raceiq/backend-core/session-capture/kun
 import { encodeGenericSparseFrame, genericFrameIdentity } from "@raceiq/backend-core/session-capture/generic-sparse";
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
+import { getTrackOutlineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { extractMotecArchive } from "@raceiq/backend-core/motec/import-staging";
 import { importMotec } from "@raceiq/backend-core/motec/import";
 import {
@@ -37,6 +41,11 @@ import {
   importSessionBin,
 } from "@raceiq/backend-core/session-capture/import-capture";
 import type { ImportedLap } from "@raceiq/backend-core/session-capture/import-pipeline";
+import { getRecorderEngine, getRecordingEngineKind, runRecordingJob } from "@raceiq/backend-core/runtime/recorder-engine";
+import { importStagedWithRust } from "@raceiq/backend-core/session-capture/import-results";
+import { stageRustJobFiles } from "../imports/rust-staging";
+import type { RustJobStage } from "../imports/rust-staging";
+import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import {
   advanceSessionFrames,
   encodeFrameLength,
@@ -309,6 +318,58 @@ function sparseLapRecords(buf: Buffer, start: number, end: number, gameId: GameI
   }
   return parts;
 }
+type RustSliceWindow = { start: string; frameCount: number };
+
+async function encodeLapSlicesWithRust(
+  sourcePath: string,
+  gameId: GameId,
+  windows: RustSliceWindow[],
+): Promise<Buffer> {
+  const engine = getRecorderEngine();
+  if (!engine) throw new Error("Rust recorder is not registered");
+  const root = resolve(resolveDataDir(), "recorder-jobs");
+  await mkdir(root, { recursive: true, mode: 0o700 });
+  const outputRoot = await mkdtemp(join(root, "lap-export-"));
+  const jobId = `lap-export-${basename(outputRoot)}`;
+  try {
+    const response = await engine.request("encode-lap-slices", {
+      jobId, gameId, sourcePath: resolve(sourcePath), outputRoot,
+      windows, policy: "archive-lap-slices",
+    }) as Record<string, unknown>;
+    if (response.jobId !== jobId || typeof response.resultPath !== "string") throw new Error("Invalid Rust lap-slice response");
+    const manifestPath = archiveJobPath(outputRoot, response.resultPath, "manifest");
+    const manifest = await Bun.file(manifestPath).json() as Record<string, unknown>;
+    const frameCount = manifest.frameCount;
+    if (manifest.version !== 1 || manifest.jobId !== jobId || manifest.operation !== "encode-lap-slices" ||
+        typeof frameCount !== "number" || !Number.isSafeInteger(frameCount) || frameCount < 0) throw new Error("Invalid Rust lap-slice manifest");
+    const artifactPath = archiveJobPath(outputRoot, manifest.artifactPath, "artifact");
+    const bytes = Buffer.from(await Bun.file(artifactPath).arrayBuffer());
+    if (bytes.length < 12 || bytes.readUInt32LE(0) !== 0xffff_ffff || bytes.readUInt32LE(4) !== 4 ||
+        bytes.readUInt32LE(8) !== frameCount) throw new Error("Invalid Rust lap-slice capture artifact");
+    return bytes;
+  } finally {
+    await rm(outputRoot, { recursive: true, force: true });
+  }
+}
+
+function archiveJobPath(root: string, value: unknown, label: string): string {
+  if (typeof value !== "string" || !isAbsolute(value)) throw new Error(`Invalid Rust lap-slice ${label} path`);
+  const full = realpathSync(value);
+  const rel = relative(realpathSync(root), full);
+  if (!rel || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) || isAbsolute(rel)) {
+    throw new Error(`Rust lap-slice ${label} path escapes job root`);
+  }
+  return full;
+}
+
+function rustSliceWindows(rows: RawLapRow[]): RustSliceWindow[] {
+  return rows.flatMap((row) => {
+    const start = row.rawByteOffset;
+    const frameCount = row.rawFrameCount ?? 0;
+    if (start == null || start < 0 || frameCount <= 0) return [];
+    return [{ start: String(start), frameCount }];
+  });
+}
 function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
@@ -320,6 +381,7 @@ function slugify(s: string): string {
 export async function buildLapsZip(
   lapIds: number[],
 ): Promise<{ bytes: Uint8Array; manifest: LapsZipManifest }> {
+  return runRecordingJob(async () => {
   const wanted = new Set(lapIds);
   const allRows = await getLapsRaw();
   const sessions = selectedLapsBySession(allRows, wanted);
@@ -364,40 +426,40 @@ export async function buildLapsZip(
     );
     if (usable.length === 0) continue;
     const first = usable[0]!;
-    const buf = await readCapture(first);
-    if (!buf) continue;
-    const segments: Buffer[] = [];
-    for (const row of usable) {
-      const start = row.rawByteOffset as number;
-      const frameCount = row.rawFrameCount as number;
-      if (start >= buf.length) continue;
-      const prefix =
-        first.gameId === "iracing"
-          ? buildIRacingContextRecord(buf, start)
-          : null;
-      const context = first.gameId === "f1-2025"
-        ? buildF1ContextRecords(buf, start)
-        : first.gameId === "ac-evo"
-          ? buildParserContextRecords(buf, start)
-          : [];
-      const end = first.gameId === "iracing"
-        ? iracingSegmentEnd(buf, start, frameCount, prefix)
-        : advanceSessionFrames(buf, start, frameCount + 1);
-      segments.push(Buffer.concat([
-        encodeSegmentBoundaryFrame(),
-        ...(context.length > 0
-          ? [encodeSegmentContextFrame(), ...context, encodeSegmentContextEndFrame()]
-          : []),
-        ...(prefix ? [prefix] : []),
-        ...(first.gameId === "lmu" || first.gameId === "acc" || first.gameId === "ac-evo" ||
-          first.gameId === "fm-2023" || first.gameId === "f1-2025" || first.gameId === "iracing"
-          ? sparseLapRecords(buf, start, end, first.gameId)
-          : [buf.subarray(start, end)]),
-      ]));
+    let slice: Buffer;
+    if (getRecordingEngineKind() === "rust") {
+      const windows = rustSliceWindows(usable);
+      if (!first.rawFile || windows.length === 0) continue;
+      slice = await encodeLapSlicesWithRust(first.rawFile, first.gameId as GameId, windows);
+    } else {
+      const buf = await readCapture(first);
+      if (!buf) continue;
+      const segments: Buffer[] = [];
+      for (const row of usable) {
+        const start = row.rawByteOffset as number;
+        const frameCount = row.rawFrameCount as number;
+        if (start >= buf.length) continue;
+        const prefix = first.gameId === "iracing" ? buildIRacingContextRecord(buf, start) : null;
+        const context = first.gameId === "f1-2025"
+          ? buildF1ContextRecords(buf, start)
+          : first.gameId === "ac-evo" ? buildParserContextRecords(buf, start) : [];
+        const end = first.gameId === "iracing"
+          ? iracingSegmentEnd(buf, start, frameCount, prefix)
+          : advanceSessionFrames(buf, start, frameCount + 1);
+        segments.push(Buffer.concat([
+          encodeSegmentBoundaryFrame(),
+          ...(context.length > 0 ? [encodeSegmentContextFrame(), ...context, encodeSegmentContextEndFrame()] : []),
+          ...(prefix ? [prefix] : []),
+          ...(first.gameId === "lmu" || first.gameId === "acc" || first.gameId === "ac-evo" ||
+            first.gameId === "fm-2023" || first.gameId === "f1-2025" || first.gameId === "iracing"
+            ? sparseLapRecords(buf, start, end, first.gameId)
+            : [buf.subarray(start, end)]),
+        ]));
+      }
+      if (segments.length === 0) continue;
+      slice = Buffer.concat([encodeMetaFrame(), ...segments]);
     }
-    if (segments.length === 0) continue;
     const gameId = first.gameId as GameId;
-    const slice = Buffer.concat([encodeMetaFrame(), ...segments]);
     const trackName = resolveTrackName(first.trackOrdinal ?? -1, gameId);
     const carName = resolveCarName(first.carOrdinal ?? -1, gameId);
     const fileName = `${gameId}-${slugify(trackName) || `track${first.trackOrdinal ?? 0}`}-session${sessionId}.bin.gz`;
@@ -418,6 +480,7 @@ export async function buildLapsZip(
   files[MANIFEST_FILE_NAME] = encodeManifestFile(manifest);
   const bytes = zipSync(files, { level: 6 });
   return { bytes, manifest };
+  });
 }
 
 /** `raceiq-<track>-<n>laps-<date>.zip`, or a generic name for a mixed export. */
@@ -446,15 +509,12 @@ export interface ImportZipResult {
 export async function importLapsZip(zipData: Uint8Array, options: { ownership?: SessionOwnership } = {}): Promise<ImportZipResult> {
   const files = unzipBounded(zipData, LAPS_ZIP_LIMITS);
   const manifest = parseManifestFile(files);
-
   const manifestEntries = new Map<string, ManifestEntry>();
   for (const entry of manifest?.entries ?? []) manifestEntries.set(entry.file, entry);
   const laps: ImportedLap[] = [];
   const errors: string[] = [];
   let skipped = 0;
-
   const names = fileNamesForZip(files);
-
   if (names.length === 0) {
     throw new Error(
       "Zip contains no session captures (.bin/.bin.gz/.motec.zip). Exports from an older RaceIQ version can't be imported."
@@ -462,25 +522,55 @@ export async function importLapsZip(zipData: Uint8Array, options: { ownership?: 
   }
 
   for (const name of names) {
-    const memberBytes = files[name];
-    const bytes = Buffer.from(
-      memberBytes.buffer,
-      memberBytes.byteOffset,
-      memberBytes.byteLength,
-    );
+    const memberBytes = files[name]!;
+    const bytes = Buffer.from(memberBytes.buffer, memberBytes.byteOffset, memberBytes.byteLength);
     const entry = manifestEntries.get(name);
-    if (name.endsWith(".motec.zip")) {
-      if (!entry) {
+    if (name.endsWith(".motec.zip") && !entry) {
+      skipped++;
+      errors.push(`${name}: missing MoTeC manifest metadata`);
+      continue;
+    }
+    if (getRecordingEngineKind() === "rust") {
+      let stage: RustJobStage | undefined;
+      try {
+        stage = await stageRustJobFiles([{ name, bytes }]);
+        const isMotec = name.endsWith(".motec.zip");
+        const result = await importStagedWithRust({
+          path: stage.inputPath,
+          originalName: name,
+          outputRoot: stage.outputRoot,
+          jobId: stage.jobId,
+          ...(isMotec
+            ? {
+                format: "motec",
+                gameId: entry!.gameId,
+                options: {
+                  gameId: entry!.gameId,
+                  carOrdinal: entry!.carOrdinal,
+                  trackOrdinal: entry!.trackOrdinal,
+                  trackOutline: getTrackOutlineByOrdinal(entry!.trackOrdinal, entry!.gameId),
+                },
+              }
+            : entry ? { gameId: entry.gameId } : {}),
+          ownership: options.ownership,
+          ...(isMotec ? { requireLaps: true, sessionSource: "motec" } : {}),
+        });
+        laps.push(...result.laps);
+      } catch (err) {
         skipped++;
-        errors.push(`${name}: missing MoTeC manifest metadata`);
-        continue;
+        errors.push(`${name}: ${err instanceof Error ? err.message : String(err)}`);
+      } finally {
+        await stage?.cleanup();
       }
+      continue;
+    }
+    if (name.endsWith(".motec.zip")) {
       try {
         const extracted = extractMotecArchive(bytes);
         const result = await importMotec(extracted.ldBytes, extracted.ldxBytes, {
-          gameId: entry.gameId,
-          carOrdinal: entry.carOrdinal,
-          trackOrdinal: entry.trackOrdinal,
+          gameId: entry!.gameId,
+          carOrdinal: entry!.carOrdinal,
+          trackOrdinal: entry!.trackOrdinal,
           ownership: options.ownership,
         });
         laps.push(...result.laps);
@@ -490,9 +580,7 @@ export async function importLapsZip(zipData: Uint8Array, options: { ownership?: 
       }
       continue;
     }
-    const gameId = parseCaptureGameId(name, bytes, new Map(
-      entry ? [[name, entry.gameId]] : [],
-    ));
+    const gameId = parseCaptureGameId(name, bytes, new Map(entry ? [[name, entry.gameId]] : []));
     if (!gameId) {
       skipped++;
       errors.push(`${name}: could not determine which game this capture came from`);
@@ -506,6 +594,5 @@ export async function importLapsZip(zipData: Uint8Array, options: { ownership?: 
       errors.push(`${name}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
-
   return { imported: laps.length, skipped, laps, errors };
 }

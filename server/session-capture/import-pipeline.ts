@@ -11,6 +11,7 @@ import { applyFrameTime } from "./frame-time";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
 import { NullWsAdapter, RealDbAdapter, type DbAdapter, type SessionIdentity, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
+import { getRecordingEngineKind } from "../runtime/recorder-engine";
 
 import { countIndexSampleMaterialized, countSourceFrameScanned } from "./test-instrumentation";
 
@@ -280,6 +281,7 @@ async function importTelemetrySource<T>(
   options: ImportSessionOptions,
   processItem: ImportItemHandler<T>,
 ): Promise<ImportSessionResult> {
+  if (getRecordingEngineKind() === "rust") throw new Error("Packet-based imports are disabled while Rust recorder is selected; stage original input");
   const db = new ImportCaptureAdapter({
     notifyDriverProfile: options.notifyDriverProfile,
     ownership: options.ownership,
@@ -343,6 +345,7 @@ export function importSessionFrames(
   gameId: GameId,
   options: ImportSessionOptions = {},
 ): Promise<ImportSessionResult> {
+  if (getRecordingEngineKind() === "rust") throw new Error("Frame-based imports are disabled while Rust recorder is selected; stage original input");
   const serverGame = getServerGame(gameId);
   let state = serverGame.createParserState?.() ?? null;
   let expectsSessionContext = gameId === "iracing";
@@ -404,6 +407,7 @@ export function importSessionPackets(
   gameId: GameId,
   options: ImportSessionOptions = {},
 ): Promise<ImportSessionResult> {
+  if (getRecordingEngineKind() === "rust") throw new Error("Packet-based imports are disabled while Rust recorder is selected; stage original input");
   return importTelemetrySource(
     packets,
     gameId,

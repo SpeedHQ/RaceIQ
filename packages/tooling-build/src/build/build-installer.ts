@@ -8,6 +8,8 @@
 import { execSync, spawnSync } from "node:child_process";
 import { readFileSync, rmSync, mkdirSync, cpSync } from "node:fs";
 import { copyDuckDBRuntime } from "./copy-duckdb-runtime";
+import { buildRecorder } from "./build-recorder";
+
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const version = process.argv[2] ?? pkg.version;
@@ -38,6 +40,11 @@ function runArgs(
 console.log(`\nBuilding RaceIQ v${version} installer...\n`);
 rmSync("dist", { recursive: true, force: true });
 mkdirSync("dist", { recursive: true });
+await buildRecorder({
+  release: true,
+  target: "x86_64-pc-windows-msvc",
+  destinationDir: "dist",
+});
 
 // 2. Build client
 run("cd client && bun run build", "Building client");

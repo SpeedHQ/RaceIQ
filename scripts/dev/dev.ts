@@ -41,6 +41,7 @@ async function run(command: string[]): Promise<void> {
 
 const onboarding = parseOnboardingOverride(process.argv.slice(2));
 
+await run(["bun", "run", "build:recorder"]);
 await run(["bun", "run", "dev:proxy"]);
 const serverPort = process.env.SERVER_PORT ?? String(await availableHttpPort());
 const linkedWorktree = isLinkedWorktree();

@@ -1,6 +1,6 @@
-import { createReadStream, createWriteStream } from "node:fs";
-import { open, rename, rm, unlink } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
+import { createReadStream, createWriteStream, realpathSync } from "node:fs";
+import { mkdir, open, rename, rm, unlink } from "node:fs/promises";
+import { basename, dirname, join, resolve, relative, isAbsolute } from "node:path";
 import { once } from "node:events";
 import { finished, pipeline } from "node:stream/promises";
 import { createGunzip, createGzip } from "node:zlib";
@@ -13,6 +13,8 @@ import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame } from "./framing";
 import { clearSessionCaptureCache, iterateSessionCaptureRecordsFromSource, type SessionCaptureSource } from "./source-loader";
 import { SparseCaptureEncoder } from "./sparse-recorder";
+import { getRecorderEngine, getRecordingEngineKind, runRecordingJob } from "../runtime/recorder-engine";
+import { resolveDataDir } from "../runtime/config/data-dir";
 import type { GameId } from "@raceiq/shared/games/ids";
 
 
@@ -46,7 +48,7 @@ export function getCaptureMigrationProgress(): CaptureMigrationProgress {
 }
 
 export async function migrateCaptures(onProgress?: (done: number, total: number, result: Result) => void): Promise<CaptureMigrationResult> {
-  return withSessionCaptureMaintenanceLock(async () => {
+  return runRecordingJob(() => withSessionCaptureMaintenanceLock(async () => {
     // Only closed legacy raw captures qualify; live sparse captures are excluded by format version.
     const candidates = await listCaptureMigrationCandidates();
     const results: Result[] = [];
@@ -84,7 +86,7 @@ export async function migrateCaptures(onProgress?: (done: number, total: number,
       failed,
     };
     return { migrated, failed, results };
-  });
+  }));
 }
 
 type LapOffset = { id: number; rawByteOffset: number | null; rawFrameCount: number | null };
@@ -132,6 +134,12 @@ function source(rawFile: string, gameId: GameId): SessionCaptureSource {
 }
 
 async function writeVerifiedStage(candidate: Candidate, stage: string, lapRows: LapOffset[]): Promise<Map<number, number>> {
+  return getRecordingEngineKind() === "rust"
+    ? writeRustStage(candidate, stage, lapRows)
+    : writeBunStage(candidate, stage, lapRows);
+}
+
+async function writeBunStage(candidate: Candidate, stage: string, lapRows: LapOffset[]): Promise<Map<number, number>> {
   const frameCount = await readCanonicalHeader(candidate.rawFile);
   const writer = createWriteStream(stage, { flags: "wx" });
   const gzip = stage.endsWith(".gz") ? createGzip() : null;
@@ -174,6 +182,69 @@ async function writeVerifiedStage(candidate: Candidate, stage: string, lapRows: 
     throw error;
   }
   return mapped;
+}
+
+async function writeRustStage(candidate: Candidate, stage: string, lapRows: LapOffset[]): Promise<Map<number, number>> {
+  const engine = getRecorderEngine();
+  if (!engine) throw new Error("Rust recorder is not registered");
+  const outputRoot = resolve(resolveDataDir(), "recorder-jobs", `migration-${crypto.randomUUID()}`);
+  await mkdir(outputRoot, { recursive: true, mode: 0o700 });
+  const jobId = `migrate-${crypto.randomUUID()}`;
+  const oldOffsets = [...new Set(lapRows.flatMap((lap) => lap.rawByteOffset === null ? [] : [lap.rawByteOffset]))];
+  try {
+    const response = await engine.request("encode-capture", {
+      jobId, gameId: candidate.gameId, sourcePath: resolve(candidate.rawFile), outputRoot,
+      oldOffsets: oldOffsets.map(String),
+    }) as Record<string, unknown>;
+    if (response.jobId !== jobId || typeof response.resultPath !== "string") throw new Error("Invalid Rust capture-encode response");
+    const resultPath = containedJobPath(outputRoot, response.resultPath, "manifest");
+    const manifest = await Bun.file(resultPath).json() as Record<string, unknown>;
+    if (manifest.version !== 1 || manifest.jobId !== jobId || manifest.operation !== "encode-capture" ||
+        !Number.isSafeInteger(manifest.frameCount) || !Array.isArray(manifest.offsets)) throw new Error("Invalid Rust capture-encode manifest");
+    const artifact = containedJobPath(outputRoot, manifest.artifactPath, "capture artifact");
+    const mappings = new Map<number, number>();
+    for (const value of manifest.offsets) {
+      if (!value || typeof value !== "object") throw new Error("Invalid Rust capture offset mapping");
+      const mapping = value as Record<string, unknown>;
+      const from = migrationOffset(mapping.oldOffset);
+      const to = migrationOffset(mapping.newOffset);
+      if (mappings.has(from)) throw new Error("Duplicate Rust capture offset mapping");
+      mappings.set(from, to);
+    }
+    if (mappings.size !== oldOffsets.length || oldOffsets.some((offset) => !mappings.has(offset))) throw new Error("Rust capture offset mappings are incomplete");
+    if (stage.endsWith(".gz")) await pipeline(createReadStream(artifact), createGzip(), createWriteStream(stage, { flags: "wx" }));
+    else await pipeline(createReadStream(artifact), createWriteStream(stage, { flags: "wx" }));
+    const handle = await open(stage, "r+");
+    try { await handle.sync(); } finally { await handle.close(); }
+    if (manifest.frameCount !== await countSourceFrames(stage, candidate.gameId)) throw new Error("Rust capture frame-count mismatch");
+    return mappings;
+  } finally {
+    await rm(outputRoot, { recursive: true, force: true });
+  }
+}
+
+async function countSourceFrames(path: string, gameId: GameId): Promise<number> {
+  let count = 0;
+  for await (const record of iterateSessionCaptureRecordsFromSource(source(path, gameId), { strict: true })) {
+    if (record.kind === "frame") count++;
+  }
+  return count;
+}
+function migrationOffset(value: unknown): number {
+  if (typeof value !== "string" || !/^(0|[1-9]\d*)$/.test(value)) throw new Error("Invalid Rust capture offset");
+  const parsed = BigInt(value);
+  if (parsed > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("Rust capture offset exceeds safe integer range");
+  return Number(parsed);
+}
+
+function containedJobPath(root: string, value: unknown, label: string): string {
+  if (typeof value !== "string" || !isAbsolute(value)) throw new Error(`Invalid Rust ${label} path`);
+  const full = realpathSync(value);
+  const rel = relative(realpathSync(root), full);
+  if (!rel || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) || isAbsolute(rel)) {
+    throw new Error(`Rust ${label} path escapes job root`);
+  }
+  return full;
 }
 
 /** Compare *every* restored frame and marker, not compressed bytes or hashes. */

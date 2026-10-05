@@ -25,8 +25,11 @@ export function useSaveSettings() {
   return useMutation({
     mutationFn: async (settings: any) => {
       const res = await client.api.settings.$put({ json: settings });
-      if (!res.ok) throw new Error(res.statusText);
-      return settings;
+      if (!res.ok) {
+        const failure = await res.json().catch(() => null);
+        throw new Error(failure && "error" in failure ? String(failure.error) : res.statusText);
+      }
+      return res.json();
     },
     onSuccess: (savedSettings) => {
       qc.setQueryData(queryKeys.settings, (current: DisplaySettings | undefined) => ({ ...current, ...savedSettings }));

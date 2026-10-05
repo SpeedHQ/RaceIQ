@@ -42,6 +42,10 @@ import { resolveMotecTarget } from "./targets";
 import { persistMotecSourceArchive } from "./source-archive";
 import { resolveTelemetryReplay } from "../telemetry/replay";
 import { getServerGame } from "../games/registry";
+import { getRecordingEngineKind } from "../runtime/recorder-engine";
+import { importStagedWithRust } from "../session-capture/import-results";
+import { getTrackOutlineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { removeStagedMotecOriginal, stageMotecOriginalPair } from "./import-staging";
 
 export { MOTEC_SESSION_SOURCE };
 export { resolveMotecTarget };
@@ -99,6 +103,59 @@ export async function importMotec(
   options: MotecImportOptions,
 ): Promise<MotecImportResult> {
   if (!ldxBytes) throw new Error("MoTeC .ldx signal file is required");
+  if (getRecordingEngineKind() === "rust") {
+    const staged = await stageMotecOriginalPair(ldBytes, ldxBytes, "session.ld", "session.ldx");
+    try {
+      const result = await importStagedWithRust({
+        path: staged.path,
+        sidecarPath: staged.sidecarPath,
+        originalName: staged.originalName,
+        outputRoot: staged.outputRoot,
+        jobId: staged.token,
+        gameId: options.gameId,
+        format: "motec",
+        options: {
+          gameId: options.gameId,
+          carOrdinal: options.carOrdinal,
+          trackOrdinal: options.trackOrdinal,
+          tuneId: options.tuneId,
+          ...(options.trackOrdinal === undefined ? {} : { trackOutline: getTrackOutlineByOrdinal(options.trackOrdinal, options.gameId) }),
+        },
+        ownership: options.ownership,
+        sessionSource: MOTEC_SESSION_SOURCE,
+        requireLaps: true,
+        ...(options.tuneId === undefined ? {} : {
+          onImportedLaps: async (laps) => {
+            for (const lap of laps) await updateLapTune(lap.lapId, options.tuneId!);
+          },
+        }),
+      });
+      const manifest = result.manifest;
+      const carTrack = manifest.carTrack as MotecCarTrack | undefined;
+      const meta = manifest.meta as MotecImportResult["meta"] | undefined;
+      const capabilities = manifest.capabilities as MotecImportResult["capabilities"] | undefined;
+      const unavailableFeatures = manifest.unavailableFeatures as UnavailableAnalysisFeature[] | undefined;
+      const sampleRates = manifest.sampleRates as MotecImportResult["sampleRates"] | undefined;
+      if (!carTrack || !meta || !capabilities || !sampleRates || typeof manifest.yawFromLateralG !== "boolean") {
+        throw new Error("Rust MoTeC result is missing conversion metadata");
+      }
+      return {
+        gameId: options.gameId,
+        laps: result.laps,
+        packetCount: result.packetCount,
+        lapCount: typeof manifest.lapCount === "number" ? manifest.lapCount : result.laps.length,
+        carTrack,
+        meta,
+        capabilities,
+        unavailableFeatures: unavailableFeatures ?? [],
+        sampleRates,
+        yawFromLateralG: manifest.yawFromLateralG,
+        limitations: Array.isArray(manifest.limitations) ? manifest.limitations as string[] : resolveMotecTarget(options.gameId).limitations,
+      };
+    } finally {
+      await removeStagedMotecOriginal(staged.token);
+    }
+  }
   const target = resolveMotecTarget(options.gameId);
   const log = parseLd(ldBytes);
   const beacons = parseLdxBeacons(ldxBytes.toString("utf8"));

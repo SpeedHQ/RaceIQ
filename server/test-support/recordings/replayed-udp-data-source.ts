@@ -9,7 +9,7 @@ export class ReplayedUdpDataSource {
     this.packets = readUdpDump(path, limit);
   }
 
-  async replay(port: number, hostname = "127.0.0.1"): Promise<void> {
+  async replay(port: number, hostname = "127.0.0.1", options: { intervalMs?: number } = {}): Promise<void> {
     const socket = dgram.createSocket("udp4");
     try {
       for (const packet of this.packets) {
@@ -19,6 +19,11 @@ export class ReplayedUdpDataSource {
           else sent.resolve();
         });
         await sent.promise;
+        if (options.intervalMs) {
+          const delay = Promise.withResolvers<void>();
+          setTimeout(delay.resolve, options.intervalMs);
+          await delay.promise;
+        }
       }
     } finally {
       socket.close();

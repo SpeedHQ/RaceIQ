@@ -10,6 +10,12 @@ import {
   SESSION_SEGMENT_CONTEXT,
   SESSION_SEGMENT_CONTEXT_END,
 } from "./framing";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { join, resolve } from "node:path";
+import { resolveDataDir } from "../runtime/config/data-dir";
+import { getRecordingEngineKind } from "../runtime/recorder-engine";
+import { importStagedWithRust } from "./import-results";
 import { importSessionFrames, type ImportedLap, type ImportSessionOptions } from "./import-pipeline";
 
 const GAME_IDS_BY_FILENAME_PRECEDENCE = [...KNOWN_GAME_IDS].sort(
@@ -26,6 +32,7 @@ export function detectGameIdFromFilename(name: string): GameId | null {
 
 /** Detect a gameId from actual capture frame content. */
 export function detectGameIdFromBuffer(bytes: Buffer): GameId | null {
+  if (getRecordingEngineKind() === "rust") throw new Error("Game detection from decoded Bun frames is disabled while Rust recorder is selected");
   const buf = decompressIfGzipSync(bytes);
   const games = getAllServerGames();
   let checked = 0;
@@ -57,6 +64,33 @@ export async function importSessionBin(
   gameId: GameId,
   options: ImportSessionOptions = {},
 ): Promise<{ packetCount: number; laps: ImportedLap[] }> {
+  if (getRecordingEngineKind() === "rust") {
+    const stagingRoot = resolve(resolveDataDir(), "recorder-jobs");
+    await mkdir(stagingRoot, { recursive: true });
+    const jobRoot = await mkdtemp(join(stagingRoot, "legacy-import-"));
+    const inputPath = join(jobRoot, `${randomUUID()}.bin`);
+    const outputRoot = join(jobRoot, "output");
+    await mkdir(outputRoot);
+    await writeFile(inputPath, bytes);
+    try {
+      const result = await importStagedWithRust({
+        path: inputPath,
+        originalName: `${gameId}.bin`,
+        outputRoot,
+        jobId: randomUUID(),
+        gameId,
+        ownership: options.ownership,
+        sessionSource: options.sessionSource,
+        requireLaps: options.requireLaps,
+        notifyDriverProfile: options.notifyDriverProfile,
+        captureStorage: options.recorder ? "raw" : "sparse",
+        onImportedLaps: options.onImportedLaps,
+      });
+      return { packetCount: result.packetCount, laps: result.laps };
+    } finally {
+      await rm(jobRoot, { recursive: true, force: true }).catch(() => undefined);
+    }
+  }
   const buf = decompressIfGzipSync(bytes);
   const frames = gameId === "lmu" && hasLMUDumpMagic(buf)
     ? readLMUFramesFromBuffer(buf)

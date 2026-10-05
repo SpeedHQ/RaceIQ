@@ -262,7 +262,7 @@ describe("lap export → import round-trip (real capture)", () => {
     expect([...iterateSessionCaptureRecords(raw)].filter((r) => r.kind === "segment-boundary")).toHaveLength(1);
     const sourceSession = await db.select().from(sessions).where(eq(sessions.id, sid)).get();
     expect(raw.length).toBeLessThan(readFileSync(sourceSession!.rawFile!).length);
-    expect(readRecordedTelemetry("fm-2023", rawFile).packets.length).toBeGreaterThan(0);
+    expect((await readRecordedTelemetry("fm-2023", rawFile)).packets.length).toBeGreaterThan(0);
     const metas = importedRows.map((l) => ({ id: l.id, rawByteOffset: l.rawByteOffset!, rawFrameCount: l.rawFrameCount! }));
     const batch = await parseSessionLapsBatched(captureSource(importedSession!), metas);
     for (const meta of metas) {

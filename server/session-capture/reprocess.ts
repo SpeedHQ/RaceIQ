@@ -2,6 +2,7 @@
  * Session reprocessing: replay raw .bin frames through the current lap detector
  * to update lap boundaries after a lap detection algorithm change.
  */
+import { realpathSync } from "node:fs";
 import { getServerGame } from "../games/registry";
 import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -14,6 +15,10 @@ import { sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { applyFrameTime } from "./frame-time";
+import { getRecordingEngineKind, runRecordingJob } from "../runtime/recorder-engine";
+import { requestRustReprocess, materializeRecordedLapRecipe, type RustManifestLap } from "./import-results";
+import { deriveRecordedLap, persistRecordedLapFollowups } from "../lap-analysis/recorded-lap";
+import { RealDbAdapter } from "../telemetry/pipeline-ports";
 interface ReprocessResult {
   sessionId: number;
   lapsDetected: number;
@@ -43,6 +48,93 @@ export class SessionNotFoundError extends Error {
  * Replay a session's raw .bin file through the current lap detector.
  * Updates lap frame indexes and metadata in the DB.
  */
+function rustOffset(value: string): number {
+  const offset = BigInt(value);
+  if (offset > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("Rust lap offset exceeds safe integer range");
+  return Number(offset);
+}
+
+async function reprocessWithRust(sessionId: number, session: { rawFile: string; source: string | null; gameId: string; carOrdinal: number; trackOrdinal: number }): Promise<ReprocessResult> {
+  const gameId = session.gameId as GameId;
+  return runRecordingJob(async () => {
+    const manifest = await requestRustReprocess({
+      rawFile: session.rawFile,
+      gameId,
+      sessionId,
+      carOrdinal: session.carOrdinal,
+      trackOrdinal: session.trackOrdinal,
+    });
+    const rawFile = realpathSync(session.rawFile);
+    const rustSession = manifest.sessions.find((item) => item.gameId === gameId && typeof item.rawFile === "string" && realpathSync(item.rawFile) === rawFile);
+    if (!rustSession || manifest.sessions.length !== 1) throw new Error("Rust reprocess manifest session identity mismatch");
+    const versionIdentity = currentTelemetryVersionIdentity(gameId);
+    const dbAdapter = new RealDbAdapter({ notifyDriverProfile: false });
+    const detected = await Promise.all(rustSession.laps.filter((lap) => !lap.provisional).map(async (lap: RustManifestLap) => {
+      if (lap.analysisRecipe === undefined) throw new Error(`Rust lap ${lap.lapKey} has no analysis recipe`);
+      const packets = await materializeRecordedLapRecipe(`reprocess-${sessionId}`, gameId, session.rawFile, lap.analysisRecipe, { carOrdinal: rustSession.carOrdinal, trackOrdinal: rustSession.trackOrdinal });
+      const analysis = await deriveRecordedLap({
+        db: dbAdapter,
+        gameId,
+        trackOrdinal: rustSession.trackOrdinal,
+        packets,
+        lapTime: lap.lapTime,
+        isValid: lap.isValid,
+        sectors: lap.sectors ?? undefined,
+      });
+      return {
+        lapNumber: lap.lapNumber,
+        lapTime: lap.lapTime,
+        isValid: lap.isValid,
+        invalidReason: lap.invalidReason ?? null,
+        rawByteOffset: rustOffset(lap.rawByteOffset),
+        rawFrameCount: lap.rawFrameCount,
+        sectors: analysis.sectors,
+        packets,
+      };
+    }));
+    const existingLaps = await getLapsForSession(sessionId);
+    const matched = new Set<number>();
+    const inPlaceMatches = detected.map((lap) => {
+      const existing = existingLaps.find((entry) => entry.lapNumber === lap.lapNumber && entry.rawByteOffset === lap.rawByteOffset && !matched.has(entry.id))
+        ?? existingLaps.find((entry) => entry.lapNumber === lap.lapNumber && !matched.has(entry.id));
+      if (existing) matched.add(existing.id);
+      return existing;
+    });
+    let strategy: ReprocessResult["strategy"];
+    let lapsUpdated = 0;
+    if (detected.length === existingLaps.length && inPlaceMatches.every(Boolean)) {
+      strategy = "in-place";
+      for (let index = 0; index < detected.length; index++) {
+        const lap = detected[index]!;
+        const existing = inPlaceMatches[index]!;
+        await updateLapRawIndex(existing.id, lap.rawByteOffset, lap.rawFrameCount, lap.lapTime, lap.isValid, lap.invalidReason, lap.sectors, versionIdentity);
+        await persistRecordedLapFollowups(dbAdapter, existing.id, lap.packets);
+        lapsUpdated++;
+      }
+    } else {
+      strategy = "replace";
+      const available = [...existingLaps];
+      const replacements = detected.map((lap) => {
+        const exact = available.findIndex((entry) => entry.rawByteOffset === lap.rawByteOffset);
+        const index = exact >= 0 ? exact : available.findIndex((entry) => entry.lapNumber === lap.lapNumber);
+        return { lap, preserved: index >= 0 ? available.splice(index, 1)[0] : undefined };
+      });
+      await deleteLapsForSession(sessionId);
+      for (const { lap, preserved } of replacements) {
+        const id = await insertReprocessedLap(
+          sessionId, lap.lapNumber, lap.lapTime, lap.isValid,
+          preserved?.isFavorite ?? false, lap.rawByteOffset, lap.rawFrameCount,
+          preserved?.tuneId ?? null, preserved?.notes ?? null,
+          lap.invalidReason, lap.sectors, versionIdentity,
+        );
+        await persistRecordedLapFollowups(dbAdapter, id, lap.packets);
+        lapsUpdated++;
+      }
+    }
+    await updateSessionRawFile(sessionId, session.rawFile, "rust-recorder_v1", versionIdentity);
+    return { sessionId, lapsDetected: detected.length, lapsUpdated, strategy };
+  });
+}
 export async function reprocessSession(sessionId: number): Promise<ReprocessResult> {
   return withSessionCaptureMaintenanceLock(() => reprocessSessionUnlocked(sessionId));
 }
@@ -57,22 +149,25 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
   if (!session) {
     throw new SessionNotFoundError(sessionId);
   }
-  if (!session.rawFile) {
+  const rawFile = session.rawFile;
+  if (!rawFile) {
     throw new SessionRawFileMissingError(sessionId);
   }
-  if (!(await Bun.file(session.rawFile).exists())) {
-    throw new SessionRawFileMissingError(sessionId, session.rawFile);
+  if (!(await Bun.file(rawFile).exists())) {
+    throw new SessionRawFileMissingError(sessionId, rawFile);
   }
+  const validatedSession = { ...session, rawFile };
+  if (getRecordingEngineKind() === "rust") return reprocessWithRust(sessionId, validatedSession);
 
   const gameId = session.gameId as GameId;
   const serverGame = getServerGame(gameId);
   const versionIdentity = currentTelemetryVersionIdentity(gameId);
 
   const source = {
-    rawFile: session.rawFile, source: session.source, gameId,
+    rawFile, source: session.source, gameId,
     carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal,
   };
-  const loaded = session.rawFile.endsWith(".motec.zip") ? await loadSessionSource(source) : null;
+  const loaded = rawFile.endsWith(".motec.zip") ? await loadSessionSource(source) : null;
   const existingLaps = await getLapsForSession(sessionId);
 
   const capturingDb = new CapturingDbAdapter();
@@ -189,7 +284,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
   // Update session lap detector version
   await updateSessionRawFile(
     sessionId,
-    session.rawFile,
+    rawFile,
     detector.detectorId,
     versionIdentity,
   );

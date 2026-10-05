@@ -16,12 +16,11 @@ import { deleteEmptySessions } from "@raceiq/backend-core/db/session-queries";
 import { setCacheMaxBytes } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { isFirstRun, loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { wsManager, type WSData } from "@raceiq/backend-core/runtime/websocket-manager";
-import { udpListener } from "./udp-listener";
 import { PUBLIC_DIR, IS_COMPILED } from "@raceiq/backend-core/runtime/config/paths";
 import { getOnboardingOverride } from "@raceiq/backend-core/runtime/options";
 import { openFirstRunDashboard, preventMacSleep } from "@raceiq/backend-core/runtime/desktop";
 import { clearHttpPort, startHttpServer } from "./http-server";
-import { startNativeSourceSupervisor, type NativeSourceSupervisor } from "./native-sources";
+import { recordingRuntime } from "./recording-runtime";
 import { installShutdown } from "./shutdown";
 import { startMaintenanceJobs, startSyncAndStaleSessionJobs } from "./startup-jobs";
 import { startTray } from "@raceiq/backend-core/runtime/platform/tray";
@@ -133,23 +132,26 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
       console.error("[LMU] Session identity backfill failed:", error);
     });
 
-
-  if (recordingGameId === "fm-2023" || recordingGameId === "f1-2025") {
-    udpListener.setRecordingGameId(recordingGameId);
-  }
-
-  let nativeSources: NativeSourceSupervisor | null = null;
-  installShutdown({
-    getNativeSources: () => nativeSources,
-  });
+  const onRecorderFailure = installShutdown({ httpServer });
 
   const udpPort = options.udpPort
     ?? (Number(process.env.RACEIQ_DEV_UDP_PORT) || settings.udpPort || Number(process.env.UDP_PORT) || 5301);
-  void udpListener.start(udpPort);
+  try {
+    await recordingRuntime.start({
+      engine: settings.recordingEngine,
+      udpPort,
+      recordingGameId,
+      onFailure: onRecorderFailure,
+    });
+  } catch (error) {
+    console.error("[Boot] Recording startup failed:", error);
+    try { await recordingRuntime.shutdown("startup-failure"); }
+    finally { await httpServer.stop(true); }
+    throw error;
+  }
 
   startSyncAndStaleSessionJobs();
 
-  nativeSources = startNativeSourceSupervisor(recordingGameId);
   startTray(httpPort);
 
   if (firstRun) {

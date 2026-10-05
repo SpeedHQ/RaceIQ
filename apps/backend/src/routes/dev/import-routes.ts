@@ -30,6 +30,10 @@ import { NullWsAdapter, NullSessionRecorderAdapter } from "@raceiq/backend-core/
 import { detectGameIdFromFilename } from "@raceiq/backend-core/session-capture/import-capture";
 import { ImportCaptureAdapter } from "@raceiq/backend-core/session-capture/import-pipeline";
 import { OwnershipSchema } from "../laps/support";
+import { getRecordingEngineKind } from "@raceiq/backend-core/runtime/recorder-engine";
+import { importStagedWithRust } from "@raceiq/backend-core/session-capture/import-results";
+import { stageRustJobFiles } from "../../imports/rust-staging";
+import type { RustJobStage } from "../../imports/rust-staging";
 
 export const importRoutes = new Hono();
 
@@ -61,6 +65,52 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
         },
         400
       );
+    }
+    if (getRecordingEngineKind() === "rust") {
+      const start = Date.now();
+      let staged: RustJobStage | undefined;
+      try {
+        staged = await stageRustJobFiles([{ name: uploadName, bytes: new Uint8Array(await file.arrayBuffer()) }]);
+        const result = await importStagedWithRust({
+          path: staged.inputPath,
+          originalName: uploadName,
+          outputRoot: staged.outputRoot,
+          jobId: staged.jobId,
+          gameId,
+          ownership: ownership.data,
+        });
+        if (result.packetCount === 0) return c.json({ error: "No packets found in dump" }, 400);
+        const metadata = result.manifest;
+        const carTrack = metadata.carTrack && typeof metadata.carTrack === "object"
+          ? metadata.carTrack as Record<string, unknown>
+          : {};
+        const preview = metadata.preview && typeof metadata.preview === "object"
+          ? metadata.preview as Record<string, unknown>
+          : {};
+        const carModel = typeof carTrack.carModel === "string"
+          ? carTrack.carModel
+          : typeof preview.carModel === "string" ? preview.carModel : null;
+        const trackName = typeof carTrack.trackName === "string"
+          ? carTrack.trackName
+          : typeof preview.trackName === "string" ? preview.trackName : null;
+        const errors = Array.isArray(metadata.errors) ? metadata.errors : [];
+        return c.json({
+          ok: true,
+          filename: uploadName,
+          gameId,
+          gameName: getGame(gameId).displayName,
+          routePrefix: getGame(gameId).routePrefix,
+          carModel,
+          trackName,
+          packetCount: result.packetCount,
+          lapCount: result.laps.length,
+          laps: result.laps,
+          elapsedMs: Date.now() - start,
+          errors,
+        });
+      } finally {
+        await staged?.cleanup();
+      }
     }
 
     tmpPath = resolve(

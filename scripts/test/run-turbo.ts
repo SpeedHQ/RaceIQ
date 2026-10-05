@@ -26,6 +26,19 @@ if (args.includes("--affected")) {
     delete env.TURBO_SCM_HEAD;
   }
 }
+if (args.some((arg) => arg.includes("test:integration") || arg.includes("test:e2e"))) {
+  const recorderBuild = Bun.spawnSync(["bun", "run", "build:recorder"], {
+    cwd: root,
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  if (recorderBuild.exitCode !== 0) {
+    console.error("Recorder build failed before backend tests.");
+    process.exit(recorderBuild.exitCode ?? 1);
+  }
+}
+
+
 
 const proc = Bun.spawn(
   [process.execPath, resolve(root, "node_modules/turbo/bin/turbo"), "run", ...args],

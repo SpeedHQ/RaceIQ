@@ -34,6 +34,10 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.90.0
+          targets: x86_64-pc-windows-msvc
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -86,6 +90,10 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.90.0
+          targets: x86_64-pc-windows-msvc
 
       - name: Restore Turbo task cache
         uses: actions/cache/restore@v4

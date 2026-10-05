@@ -32,8 +32,8 @@ function canonicalCapture(frames: Buffer[]): Buffer {
   ]);
 }
 
-function packetEvidence(path: string) {
-  return readRecordedTelemetry("lmu", path).packets.map((packet) => ({
+async function packetEvidence(path: string) {
+  return (await readRecordedTelemetry("lmu", path)).packets.map((packet) => ({
     lap: packet.LapNumber,
     distance: packet.DistanceTraveled,
     carId: packet.lmu?.carId,
@@ -63,11 +63,11 @@ describe("LMU capture containers", () => {
     writeFileSync(paths.canonical, canonical);
     writeFileSync(paths.canonicalGzip, gzipSync(canonical));
 
-    const expected = packetEvidence(paths.dump);
+    const expected = await packetEvidence(paths.dump);
     expect(expected.length).toBe(frames.length);
-    expect(packetEvidence(paths.dumpGzip)).toEqual(expected);
-    expect(packetEvidence(paths.canonical)).toEqual(expected);
-    expect(packetEvidence(paths.canonicalGzip)).toEqual(expected);
+    expect(await packetEvidence(paths.dumpGzip)).toEqual(expected);
+    expect(await packetEvidence(paths.canonical)).toEqual(expected);
+    expect(await packetEvidence(paths.canonicalGzip)).toEqual(expected);
     expect(expected[0]).toMatchObject({
       carId: expect.any(String),
       trackId: expect.any(String),

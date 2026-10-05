@@ -1,6 +1,8 @@
 import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { releaseFeatureFlags } from "@raceiq/shared/platform/runtime/release-feature-flags";
+import { buildRecorder } from "./build-recorder";
+
 
 const root = process.cwd();
 const distDir = join(root, "dist");
@@ -88,7 +90,13 @@ async function main() {
     RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
   });
   rmSync(distDir, { recursive: true, force: true });
-  mkdirSync(distDir, { recursive: true });
+  await buildRecorder({
+    release: true,
+    destinationDir: distDir,
+    ...(process.env.RACEIQ_RECORDER_PREBUILT_PATH
+      ? { prebuiltPath: process.env.RACEIQ_RECORDER_PREBUILT_PATH }
+      : {}),
+  });
   await run(["bun", "packages/tooling-build/src/build/copy-shared-data.ts"]);
   await run(["bun", "packages/tooling-build/src/build/copy-client-dist.ts"]);
 

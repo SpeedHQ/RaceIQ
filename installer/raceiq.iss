@@ -79,13 +79,33 @@ begin
   Log(Msg);
 end;
 
+function StopInstalledRecorder(): Boolean;
+var
+  ResultCode: Integer;
+  Command: String;
+begin
+  Command := '$p=''' + ExpandConstant('{app}\raceiq-recorder.exe') + ''';' +
+    '$ps=Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and [IO.Path]::GetFullPath($_.ExecutablePath) -ieq [IO.Path]::GetFullPath($p) };' +
+    '$ps | ForEach-Object { & taskkill.exe /F /T /PID $_.ProcessId | Out-Null };' +
+    '$until=(Get-Date).AddSeconds(10); do { Start-Sleep -Milliseconds 250; $left=Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and [IO.Path]::GetFullPath($_.ExecutablePath) -ieq [IO.Path]::GetFullPath($p) } } while ($left -and (Get-Date) -lt $until);' +
+    'if ($left) { exit 2 }; if (Test-Path -LiteralPath $p) { try { $f=[IO.File]::Open($p,''Open'',''ReadWrite'',''None''); $f.Close() } catch { exit 3 } }';
+  Result := Exec('powershell.exe', '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' +
+    Command + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and
+    (ResultCode = 0);
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ResultCode: Integer;
 begin
   UpdatePrepareStatus('Closing RaceIQ...');
-  Exec('taskkill', '/F /IM raceiq.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  Exec('powershell.exe', '-NoProfile -Command "Get-NetTCPConnection -LocalPort 3117 -State Listen -EA 0 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -EA 0 }"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill', '/F /T /IM raceiq.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('powershell.exe', '-NoProfile -Command "Get-NetTCPConnection -LocalPort 3117 -State Listen -EA 0 | ForEach-Object { & taskkill.exe /F /T /PID $_.OwningProcess }"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  if not StopInstalledRecorder() then
+  begin
+    Result := 'Could not stop installed RaceIQ recorder or release its executable.';
+    Exit;
+  end;
 
   if GetOldUninstallString() <> '' then
   begin
@@ -95,9 +115,16 @@ begin
 
   Result := '';
 end;
+function InitializeUninstall(): Boolean;
+begin
+  Result := StopInstalledRecorder();
+  if not Result then
+    MsgBox('Could not stop installed RaceIQ recorder or release its executable. Uninstall aborted.', mbError, MB_OK);
+end;
+
 
 [Files]
-Source: "..\dist\raceiq.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\raceiq-recorder.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\dist\public\*"; DestDir: "{app}\public"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\dist\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\dist\node_modules\@libsql\win32-x64-msvc\*"; DestDir: "{app}\node_modules\@libsql\win32-x64-msvc"; Flags: ignoreversion
@@ -125,7 +152,7 @@ Filename: "wscript.exe"; Parameters: """{app}\raceiq-launcher.vbs"""; WorkingDir
 Filename: "wscript.exe"; Parameters: """{app}\raceiq-launcher.vbs"""; WorkingDir: "{app}"; Flags: nowait skipifnotsilent runasoriginaluser
 
 [UninstallRun]
-Filename: "taskkill"; Parameters: "/F /IM raceiq.exe"; Flags: runhidden; RunOnceId: "KillRaceIQ"
-Filename: "powershell.exe"; Parameters: "-NoProfile -Command ""Get-NetTCPConnection -LocalPort 3117 -State Listen -EA 0 | ForEach-Object {{ Stop-Process -Id $_.OwningProcess -Force -EA 0 }}"""; Flags: runhidden; RunOnceId: "KillPort3117"
+Filename: "taskkill"; Parameters: "/F /T /IM raceiq.exe"; Flags: runhidden; RunOnceId: "KillRaceIQ"
+Filename: "powershell.exe"; Parameters: "-NoProfile -Command ""Get-NetTCPConnection -LocalPort 3117 -State Listen -EA 0 | ForEach-Object {{ & taskkill.exe /F /T /PID $_.OwningProcess }}"""; Flags: runhidden; RunOnceId: "KillPort3117"
 Filename: "cmdkey"; Parameters: "/delete:RaceIQ:gemini-api-key"; Flags: runhidden; RunOnceId: "DeleteApiKey"
 Filename: "powershell.exe"; Parameters: "-NoProfile -Command ""Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'RaceIQ' -ErrorAction SilentlyContinue; Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run' -Name 'RaceIQ' -ErrorAction SilentlyContinue"""; Flags: runhidden; RunOnceId: "RemoveStartup"

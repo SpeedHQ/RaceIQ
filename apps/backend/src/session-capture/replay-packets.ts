@@ -16,6 +16,10 @@ import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { decompressIfGzipSync, iterateSessionCaptureRecords, iterateSessionFrames } from "@raceiq/backend-core/session-capture/framing";
 import { applyFrameTime } from "@raceiq/backend-core/session-capture/frame-time";
+import { copyFile, mkdir, mkdtemp, rm, stat } from "node:fs/promises";
+import { basename, join, relative, resolve } from "node:path";
+import { getRecorderEngine, getRecordingEngineKind, runRecordingJob } from "@raceiq/backend-core/runtime/recorder-engine";
+import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 
 export interface RecordedTelemetry {
   readonly packets: TelemetryPacket[];
@@ -176,17 +180,71 @@ function readLMUPackets(recordingPath: string): RecordedTelemetry {
   return { packets, carModel, trackName };
 }
 
-export function readRecordedTelemetry(
-  gameId: GameId,
-  recordingPath: string,
-): RecordedTelemetry {
+async function readRecordedTelemetryBun(gameId: GameId, recordingPath: string): Promise<RecordedTelemetry> {
   if (gameId === "acc") return readAccPackets(recordingPath);
   if (gameId === "ac-evo") return readAcEvoPackets(recordingPath);
   if (gameId === "iracing") return readIRacingPackets(recordingPath);
   if (gameId === "lmu") return readLMUPackets(recordingPath);
-  return {
-    packets: readFramedPackets(gameId, recordingPath),
-    carModel: null,
-    trackName: null,
-  };
+  return { packets: readFramedPackets(gameId, recordingPath), carModel: null, trackName: null };
+}
+
+export async function readRecordedTelemetry(gameId: GameId, recordingPath: string): Promise<RecordedTelemetry> {
+  return runRecordingJob(async () => {
+    if (getRecordingEngineKind() !== "rust") return readRecordedTelemetryBun(gameId, recordingPath);
+    const engine = getRecorderEngine();
+    if (!engine) throw new Error("Rust recorder is not registered");
+    const root = resolve(resolveDataDir(), "recorder-jobs");
+    await mkdir(root, { recursive: true, mode: 0o700 });
+    const outputRoot = await mkdtemp(join(root, "replay-"));
+    const jobId = `replay-${basename(outputRoot)}`;
+    try {
+      const sourcePath = join(outputRoot, recordingPath.toLowerCase().endsWith(".gz") ? "source.capture.gz" : "source.capture");
+      const sourceInfo = await stat(recordingPath);
+      if (sourceInfo.size > 1024 * 1024 * 1024) throw new Error("Replay capture exceeds 1 GiB input limit");
+      await copyFile(recordingPath, sourcePath);
+      const response = await engine.request("read-capture", {
+        jobId, gameId, input: { path: sourcePath }, outputRoot,
+      }) as Record<string, unknown>;
+      if (response.jobId !== jobId || typeof response.resultPath !== "string") throw new Error("Invalid Rust replay response");
+      const resultPath = containedReplayPath(outputRoot, response.resultPath);
+      const manifest = await Bun.file(resultPath).json() as Record<string, unknown>;
+      if (manifest.version !== 1 || manifest.jobId !== jobId || manifest.operation !== "read-capture" ||
+          manifest.gameId !== gameId || !Array.isArray(manifest.packets)) throw new Error("Invalid Rust replay manifest");
+      if (!Number.isSafeInteger(manifest.packetCount) || manifest.packetCount !== manifest.packets.length) {
+        throw new Error("Rust replay packet count mismatch");
+      }
+      const packets = manifest.packets.map((value) => {
+        if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid Rust replay packet");
+        const entry = value as Record<string, unknown>;
+        replaySafeOffset(entry.offset, "packet offset");
+        if (entry.frameTimeMs !== null) replaySafeOffset(entry.frameTimeMs, "frame time");
+        const packet = entry.packet;
+        if (!packet || typeof packet !== "object" || Array.isArray(packet)) throw new Error("Invalid Rust telemetry packet");
+        return packet as TelemetryPacket;
+      });
+      return {
+        packets,
+        carModel: typeof manifest.carModel === "string" ? manifest.carModel : null,
+        trackName: typeof manifest.trackName === "string" ? manifest.trackName : null,
+      };
+    } finally {
+      await rm(outputRoot, { recursive: true, force: true });
+    }
+  });
+}
+function replaySafeOffset(value: unknown, label: string): number {
+  if (typeof value !== "string" || !/^(0|[1-9]\d*)$/.test(value)) throw new Error(`Invalid Rust replay ${label}`);
+  const parsed = BigInt(value);
+  if (parsed > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error(`Rust replay ${label} exceeds safe integer range`);
+  return Number(parsed);
+}
+
+function containedReplayPath(root: string, value: unknown): string {
+  if (typeof value !== "string") throw new Error("Invalid Rust replay manifest path");
+  const full = resolve(value);
+  const rel = relative(resolve(root), full);
+  if (!rel || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
+    throw new Error("Rust replay manifest path escapes job root");
+  }
+  return full;
 }

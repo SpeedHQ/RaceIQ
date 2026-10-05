@@ -1,16 +1,20 @@
 import {
+  createReadStream,
   existsSync,
   mkdirSync,
   readFileSync,
   readdirSync,
+  rmSync,
   statSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { open as openFile } from "node:fs/promises";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { join, resolve } from "node:path";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
+import { getRecordingEngineKind } from "@raceiq/backend-core/runtime/recorder-engine";
+import { importStagedWithRust, previewStagedWithRust } from "@raceiq/backend-core/session-capture/import-results";
 import {
   IbtImportError,
   ibtFrames,
@@ -29,23 +33,25 @@ const TOKEN_PATTERN =
 interface StagedIbtManifest {
   version: 1;
   createdAt: number;
+  sha256: string;
   preview: IbtImportPreview;
 }
 
 function stageDir(): string {
-  const path = resolve(resolveDataDir(), "imports", "ibt");
-  mkdirSync(path, { recursive: true });
+  const path = resolve(resolveDataDir(), "recorder-jobs", "ibt-staging");
+  mkdirSync(path, { recursive: true, mode: 0o700 });
   return path;
 }
 
-function stagePaths(token: string): { ibt: string; manifest: string } {
-  if (!TOKEN_PATTERN.test(token)) {
-    throw new IbtImportError("Invalid staged IBT token");
-  }
-  const root = stageDir();
+function stagePaths(token: string): { directory: string; outputRoot: string; ibt: string; manifest: string } {
+  if (!TOKEN_PATTERN.test(token)) throw new IbtImportError("Invalid staged IBT token");
+  const directory = join(stageDir(), token);
+  const outputRoot = join(resolve(resolveDataDir(), "recorder-jobs", "ibt-jobs"), token);
   return {
-    ibt: join(root, `${token}.ibt`),
-    manifest: join(root, `${token}.json`),
+    directory,
+    outputRoot,
+    ibt: join(directory, "session.ibt"),
+    manifest: join(directory, "manifest.json"),
   };
 }
 
@@ -55,25 +61,18 @@ function removeIfPresent(path: string): void {
 
 function removeStage(token: string): void {
   const paths = stagePaths(token);
-  removeIfPresent(paths.ibt);
-  removeIfPresent(paths.manifest);
+  rmSync(paths.directory, { recursive: true, force: true });
 }
 
 function cleanupExpiredStages(): void {
   const root = stageDir();
   const cutoff = Date.now() - STAGE_TTL_MS;
-  for (const name of readdirSync(root)) {
-    const suffix = name.endsWith(".json")
-      ? ".json"
-      : name.endsWith(".ibt")
-        ? ".ibt"
-        : null;
-    if (!suffix) continue;
-    const token = name.slice(0, -suffix.length);
+  for (const token of readdirSync(root)) {
     if (!TOKEN_PATTERN.test(token)) continue;
-    const stagedPath = join(root, name);
+    const paths = stagePaths(token);
     try {
-      if (statSync(stagedPath).mtimeMs < cutoff) removeStage(token);
+      const manifest = JSON.parse(readFileSync(paths.manifest, "utf8")) as StagedIbtManifest;
+      if (manifest.createdAt < cutoff || statSync(paths.directory).mtimeMs < cutoff) removeStage(token);
     } catch {
       removeStage(token);
     }
@@ -101,14 +100,17 @@ export async function stageIbtUpload(
 
   const token = randomUUID();
   const paths = stagePaths(token);
-  const file = await openFile(paths.ibt, "wx");
+  mkdirSync(paths.directory, { recursive: false, mode: 0o700 });
+  const file = await openFile(paths.ibt, "wx", 0o600);
   const reader = body.getReader();
+  const sha256 = createHash("sha256");
   let bytesWritten = 0;
   let uploadFailure: unknown;
   try {
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
+      sha256.update(value);
       bytesWritten += value.byteLength;
       if (bytesWritten > MAX_IBT_BYTES) {
         throw new IbtImportError(
@@ -148,7 +150,28 @@ export async function stageIbtUpload(
   }
 
   try {
-    const preview = await previewIbtFile(paths.ibt, fileName);
+    let preview: IbtImportPreview;
+    const contentHash = sha256.digest("hex");
+    if (getRecordingEngineKind() === "rust") {
+      mkdirSync(paths.outputRoot, { recursive: true, mode: 0o700 });
+      try {
+        const result = await previewStagedWithRust({
+          path: paths.ibt,
+          originalName: fileName,
+          outputRoot: paths.outputRoot,
+          jobId: token,
+          operation: "preview",
+          format: "ibt",
+          gameId: "iracing",
+        });
+        if (!result.preview || typeof result.preview !== "object") throw new IbtImportError("Rust recorder returned invalid IBT preview");
+        preview = result.preview as IbtImportPreview;
+      } finally {
+        rmSync(paths.outputRoot, { recursive: true, force: true });
+      }
+    } else {
+      preview = await previewIbtFile(paths.ibt, fileName);
+    }
     if (!preview.canImport) {
       removeIfPresent(paths.ibt);
       return { token: null, preview };
@@ -156,6 +179,7 @@ export async function stageIbtUpload(
     const manifest: StagedIbtManifest = {
       version: 1,
       createdAt: Date.now(),
+      sha256: contentHash,
       preview,
     };
     writeFileSync(paths.manifest, JSON.stringify(manifest));
@@ -167,10 +191,16 @@ export async function stageIbtUpload(
   }
 }
 
-function loadManifest(token: string): {
-  paths: { ibt: string; manifest: string };
+async function fileSha256(path: string): Promise<string> {
+  const hash = createHash("sha256");
+  for await (const chunk of createReadStream(path)) hash.update(chunk);
+  return hash.digest("hex");
+}
+
+async function loadManifest(token: string): Promise<{
+  paths: ReturnType<typeof stagePaths>;
   manifest: StagedIbtManifest;
-} {
+}> {
   cleanupExpiredStages();
   const paths = stagePaths(token);
   if (!existsSync(paths.ibt) || !existsSync(paths.manifest)) {
@@ -195,7 +225,7 @@ function loadManifest(token: string): {
     removeStage(token);
     throw new IbtImportError("This IBT preview has expired", 410);
   }
-  if (statSync(paths.ibt).size !== manifest.preview.fileSize) {
+  if (statSync(paths.ibt).size !== manifest.preview.fileSize || await fileSha256(paths.ibt) !== manifest.sha256) {
     removeStage(token);
     throw new IbtImportError("The staged IBT file changed after preview", 410);
   }
@@ -210,10 +240,24 @@ export async function commitStagedIbt(
   laps: ImportSessionResult["laps"];
   preview: IbtImportPreview;
 }> {
-  const { paths, manifest } = loadManifest(token);
+  const { paths, manifest } = await loadManifest(token);
   try {
     try {
       await registerImportedIRacingIdentity(manifest.preview);
+      if (getRecordingEngineKind() === "rust") {
+        mkdirSync(paths.outputRoot, { recursive: true, mode: 0o700 });
+        const result = await importStagedWithRust({
+          path: paths.ibt,
+          originalName: manifest.preview.fileName ?? "session.ibt",
+          outputRoot: paths.outputRoot,
+          jobId: token,
+          gameId: "iracing",
+          format: "ibt",
+          ownership,
+          requireLaps: true,
+        });
+        return { packetCount: result.packetCount, laps: result.laps, preview: manifest.preview };
+      }
       const result = await importSessionFrames(
         ibtFrames(paths.ibt, manifest.preview),
         "iracing",
@@ -225,10 +269,7 @@ export async function commitStagedIbt(
         preview: manifest.preview,
       };
     } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message === "No complete, importable laps were found"
-      ) {
+      if (error instanceof Error && error.message === "No complete, importable laps were found") {
         throw new IbtImportError(error.message);
       }
       throw error;

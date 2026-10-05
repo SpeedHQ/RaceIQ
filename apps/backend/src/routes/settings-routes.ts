@@ -6,6 +6,7 @@ import { PUBLIC_DIR, IS_COMPILED } from "@raceiq/backend-core/runtime/config/pat
 
 import { GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
 import { udpListener } from "../runtime/udp-listener";
+import { recordingRuntime } from "../runtime/recording-runtime";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import { lapDetector } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { loadSettings, saveSettings, PartialSettingsSchema } from "@raceiq/backend-core/runtime/config/settings";
@@ -43,6 +44,10 @@ export function shouldCheckCredentialStatus(env: NodeJS.ProcessEnv = process.env
 }
 
 
+// Serialize merge/persist with engine handoffs so concurrent settings requests
+// cannot overwrite a successfully selected engine with an older snapshot.
+let settingsMutations = Promise.resolve();
+
 export const settingsRoutes = new Hono()
   // GET /api/status
   .get("/api/status", (c) => {
@@ -54,6 +59,8 @@ export const settingsRoutes = new Hono()
       connectedClients: wsManager.connectedClients,
       droppedPackets: udpListener.droppedPackets,
       udpPort: udpListener.port,
+      recordingEngine: recordingRuntime.status,
+      recorder: recordingRuntime.recorderHealth,
       detectedGame: runningGame
         ? { id: runningGame.id, name: runningGame.shortName }
         : null,
@@ -245,44 +252,54 @@ export const settingsRoutes = new Hono()
   .put("/api/settings", async (c) => {
     const body = await c.req.json();
     const parseResult = PartialSettingsSchema.parse(body);
-    const current = loadSettings();
-    // Only merge keys explicitly sent in the request body (Zod partial applies defaults for missing fields)
-    const provided: Record<string, unknown> = {};
-    for (const key of Object.keys(body)) {
-      if (key in parseResult) provided[key] = (parseResult as Record<string, unknown>)[key];
-    }
-    const merged = { ...current, ...provided };
-    const startedAt = performance.now();
+    const mutation = settingsMutations.then(async () => {
+      const current = loadSettings();
+      // Only merge keys explicitly sent in the request body (Zod partial applies defaults for missing fields).
+      const provided: Record<string, unknown> = {};
+      for (const key of Object.keys(body)) {
+        if (key in parseResult) provided[key] = (parseResult as Record<string, unknown>)[key];
+      }
+      const merged = { ...current, ...provided };
+      const startedAt = performance.now();
 
-    try {
-      if (merged.udpPort !== udpListener.port) {
-        await udpListener.restart(merged.udpPort);
-      }
-      if (merged.wsRefreshRate) {
-        wsManager.setRefreshRate(merged.wsRefreshRate);
-      }
-      if (typeof merged.cacheMaxMB === "number") {
-        setCacheMaxBytes(merged.cacheMaxMB * 1024 * 1024);
-      }
-      if ("launchOnLogin" in provided) {
-        if (merged.launchOnLogin) {
-          enableLaunchOnLogin(getLaunchOnLoginExeDir());
-        } else {
-          disableLaunchOnLogin();
+      try {
+        // Unrelated settings must not implicitly restart a failed authority.
+        if ("recordingEngine" in provided || "udpPort" in provided) {
+          await recordingRuntime.configure(merged.recordingEngine, merged.udpPort);
         }
+        if (merged.wsRefreshRate) {
+          wsManager.setRefreshRate(merged.wsRefreshRate);
+        }
+        if (typeof merged.cacheMaxMB === "number") {
+          setCacheMaxBytes(merged.cacheMaxMB * 1024 * 1024);
+        }
+        if ("launchOnLogin" in provided) {
+          if (merged.launchOnLogin) {
+            enableLaunchOnLogin(getLaunchOnLoginExeDir());
+          } else {
+            disableLaunchOnLogin();
+          }
+        }
+        saveSettings(merged);
+        if (provided.onboardingComplete) {
+          wsManager.broadcastNotification({ type: "onboarding_complete" });
+        }
+        const durationMs = Math.round(performance.now() - startedAt);
+        console.info(`[Settings] PUT /api/settings saved in ${durationMs}ms`);
+        return c.json(merged);
+      } catch (err) {
+        const durationMs = Math.round(performance.now() - startedAt);
+        console.error(`[Settings] PUT /api/settings failed in ${durationMs}ms`, err instanceof Error ? err.message : String(err));
+        const engineChanged = merged.recordingEngine !== current.recordingEngine;
+        return c.json({
+          error: engineChanged
+            ? `Failed to switch recording engine: ${err instanceof Error ? err.message : String(err)}`
+            : `Failed to bind to port ${merged.udpPort}`,
+        }, 500);
       }
-      saveSettings(merged);
-      if (provided.onboardingComplete) {
-        wsManager.broadcastNotification({ type: "onboarding_complete" });
-      }
-      const durationMs = Math.round(performance.now() - startedAt);
-      console.info(`[Settings] PUT /api/settings saved in ${durationMs}ms`);
-      return c.json(merged);
-    } catch (err) {
-      const durationMs = Math.round(performance.now() - startedAt);
-      console.error(`[Settings] PUT /api/settings failed in ${durationMs}ms`, err instanceof Error ? err.message : String(err));
-      return c.json({ error: `Failed to bind to port ${merged.udpPort}` }, 500);
-    }
+    });
+    settingsMutations = mutation.then(() => {}, () => {});
+    return mutation;
   })
 
   // GET /api/wheels

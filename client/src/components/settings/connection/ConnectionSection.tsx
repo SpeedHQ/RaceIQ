@@ -14,6 +14,8 @@ export function ConnectionSection() {
   const [savedPort, setSavedPort] = useState<number | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [engineStatus, setEngineStatus] = useState<"idle" | "switching" | "saved" | "error">("idle");
+  const [engineError, setEngineError] = useState("");
 
   useEffect(() => {
     if (displaySettings.udpPort != null && savedPort === null) {
@@ -79,6 +81,39 @@ export function ConnectionSection() {
           {m.settings_listening_on()} 0.0.0.0:{savedPort}
         </p>
       )}
+      <div className="mt-4 max-w-sm">
+        <Label htmlFor="recording-engine" className="text-app-text-secondary">
+          {m.settings_recording_engine()}
+        </Label>
+        <select
+          id="recording-engine"
+          value={displaySettings.recordingEngine ?? "bun"}
+          disabled={saveSettings.isPending}
+          aria-describedby="recording-engine-description recording-engine-status"
+          onChange={async (event) => {
+            const recordingEngine = event.target.value as "bun" | "rust";
+            setEngineStatus("switching");
+            setEngineError("");
+            try {
+              await saveSettings.mutateAsync({ recordingEngine });
+              setEngineStatus("saved");
+            } catch (error) {
+              setEngineStatus("error");
+              setEngineError(error instanceof Error ? error.message : m.label_failed_to_save());
+            }
+          }}
+          className="mt-1.5 w-full bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text disabled:opacity-50"
+        >
+          <option value="bun">Bun</option>
+          <option value="rust">Rust</option>
+        </select>
+        <p id="recording-engine-description" className="text-app-text-muted text-xs mt-1">
+          {m.settings_recording_engine_desc()}
+        </p>
+        <p id="recording-engine-status" role={engineStatus === "error" ? "alert" : "status"} className={`text-sm mt-2 ${engineStatus === "error" ? "text-status-danger" : "text-app-text-secondary"}`}>
+          {engineStatus === "switching" ? m.settings_recording_engine_switching() : engineStatus === "saved" ? m.common_saved() : engineError}
+        </p>
+      </div>
       <div className="mt-4 max-w-xs">
         <Label htmlFor="ws-refresh-rate" className="text-app-text-secondary">
           {m.settings_live_refresh_rate()}

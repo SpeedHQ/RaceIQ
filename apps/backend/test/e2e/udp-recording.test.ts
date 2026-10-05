@@ -17,7 +17,8 @@ import {
   decompressIfGzipSync,
   iterateSessionFrames,
 } from "@raceiq/backend-core/session-capture/framing";
-const RECORDINGS_DIR = resolve(process.cwd(), "test", "artifacts", "sessions");
+const REPO_ROOT = resolve(import.meta.dir, "../../../..");
+const RECORDINGS_DIR = resolve(REPO_ROOT, "test", "artifacts", "sessions");
 const RECORDING_CASES: readonly {
   gameId: GameId;
   fixture: string;

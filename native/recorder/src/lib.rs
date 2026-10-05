@@ -1,0 +1,10 @@
+#![recursion_limit = "512"]
+pub mod detection;
+pub mod engine;
+pub mod formats;
+pub mod games;
+pub mod imports;
+pub mod logger;
+pub mod protocol;
+pub mod windows;
+pub mod writer;

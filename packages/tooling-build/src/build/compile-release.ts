@@ -1,9 +1,15 @@
-export {};
+
+import { buildRecorder } from "./build-recorder";
 
 const version = process.argv[2] ?? "";
 if (!/^\d+\.\d+\.\d+$/.test(version)) {
   throw new Error(`Release version must match MAJOR.MINOR.PATCH: ${version || "<missing>"}`);
 }
+await buildRecorder({
+  release: true,
+  target: "x86_64-pc-windows-msvc",
+  destinationDir: "dist",
+});
 
 const child = Bun.spawn([
   "bun",

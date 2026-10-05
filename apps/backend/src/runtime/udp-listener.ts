@@ -19,6 +19,7 @@ import { getRunningGame } from "@raceiq/backend-core/games/registry";
 import { SessionRecorder } from "@raceiq/backend-core/session-capture/recorder";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { timestampForFilename } from "@raceiq/backend-core/session-capture/filename";
+import { getRecordingEngineKind } from "@raceiq/backend-core/runtime/recorder-engine";
 
 const MIN_PACKET_LENGTH = 29; // Minimum: F1 header size
 const PACKETS_PER_SEC_WINDOW = 1000; // 1-second sliding window for rate display
@@ -29,7 +30,8 @@ class UdpListener {
   private _receiving = false;
   private _packetsInWindow = 0;
   private _packetsPerSec = 0;
-  private _socket: { stop(): void } | null = null;
+  private _socket: { stop(): Promise<void> } | null = null;
+  private _pendingPackets = new Set<Promise<void>>();
   private _port = 5301;
   private _hostname = "0.0.0.0";
   private _recorder: SessionRecorder | null = null;
@@ -40,21 +42,26 @@ class UdpListener {
   private _forzaRaceActive = false;
   private _lastStatusAt = performance.now();
   private _statusTimer: ReturnType<typeof setInterval> | null = null;
+  private _rustStatus = { receiving: false, packetsPerSec: 0, droppedPackets: 0, port: 5301 };
+
+  setRustStatus(status: typeof this._rustStatus): void {
+    this._rustStatus = status;
+  }
 
   get droppedPackets(): number {
-    return this._droppedPackets;
+    return getRecordingEngineKind() === "rust" ? this._rustStatus.droppedPackets : this._droppedPackets;
   }
 
   get packetsPerSec(): number {
-    return this._packetsPerSec;
+    return getRecordingEngineKind() === "rust" ? this._rustStatus.packetsPerSec : this._packetsPerSec;
   }
 
   get receiving(): boolean {
-    return this._receiving;
+    return getRecordingEngineKind() === "rust" ? this._rustStatus.receiving : this._receiving;
   }
 
   get port(): number {
-    return this._port;
+    return getRecordingEngineKind() === "rust" ? this._rustStatus.port : this._port;
   }
 
   /**
@@ -84,21 +91,40 @@ class UdpListener {
     // Use dgram for socket buffer tuning — Bun.udpSocket doesn't expose setsockopt
     const dgram = require("node:dgram");
     const sock = dgram.createSocket("udp4");
-    sock.on("message", (sourceFrame: Buffer) => this.handlePacket(sourceFrame));
-    await new Promise<void>((resolve, reject) => {
-      sock.bind(port, hostname, () => {
-        try {
-          // F1 sends ~10 packet types per frame in bursts. The default 8KB OS buffer
-          // overflows during bursts causing consistent packet loss (~20% drops).
-          // 64MB ensures the OS can queue packets while the event loop processes them.
-          sock.setRecvBufferSize(64 * 1024 * 1024);
-          console.log(`[UDP] Receive buffer set to 64MB`);
-        } catch {}
-        resolve();
-      });
-      sock.on("error", reject);
+    sock.on("message", (sourceFrame: Buffer) => {
+      const pending = this.handlePacket(sourceFrame);
+      this._pendingPackets.add(pending);
+      void pending.then(
+        () => this._pendingPackets.delete(pending),
+        (error) => {
+          this._pendingPackets.delete(pending);
+          console.error("[UDP] Packet processing failed:", error);
+        },
+      );
     });
-    this._socket = { stop: () => sock.close() };
+    try {
+      await new Promise<void>((resolveBind, rejectBind) => {
+        sock.once("error", rejectBind);
+        sock.bind(port, hostname, () => {
+          sock.removeListener("error", rejectBind);
+          try {
+            // Burst-heavy F1 packets need more than the default receive buffer.
+            sock.setRecvBufferSize(64 * 1024 * 1024);
+            console.log("[UDP] Receive buffer set to 64MB");
+          } catch {}
+          resolveBind();
+        });
+      });
+    } catch (error) {
+      sock.close();
+      await this._recorder?.stop();
+      this._recorder = null;
+      throw error;
+    }
+    sock.on("error", (error: Error) => console.error("[UDP] Socket failed:", error));
+    this._socket = {
+      stop: () => new Promise<void>((resolveClose) => sock.close(resolveClose)),
+    };
 
     console.log(`[UDP] Listening on ${hostname}:${port}`);
 
@@ -225,10 +251,12 @@ class UdpListener {
       this._statusTimer = null;
     }
     if (this._socket) {
-      this._socket.stop();
+      await this._socket.stop();
       this._socket = null;
       console.log("[UDP] Listener stopped");
     }
+    await Promise.all(this._pendingPackets);
+    this._receiving = false;
     if (this._recorder) {
       // Await the flush on a clean shutdown. The format is append-only, so
       // even a hard kill only risks the last packet being truncated — but

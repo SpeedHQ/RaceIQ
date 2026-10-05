@@ -28,6 +28,7 @@ export interface DisplaySettings {
   sessionCleanupAgeDays: 30 | 90 | 180 | 365;
   /** Server-injected: current UDP port */
   udpPort?: number;
+  recordingEngine?: "bun" | "rust";
   /** Server-injected: whether a Gemini API key is stored */
   geminiApiKeySet?: boolean;
   /** Server-injected: whether an OpenAI API key is stored */
@@ -63,6 +64,7 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   autoTuneModel: "",
   localEndpoint: "http://localhost:1234/v1",
   wsRefreshRate: "60",
+  recordingEngine: "bun",
   renderFpsCap: 60,
   cacheMaxMB: 256,
   sessionCleanupEnabled: false,

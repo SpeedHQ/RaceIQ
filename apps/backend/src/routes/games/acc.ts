@@ -9,7 +9,7 @@ import { accRecorder } from "@raceiq/backend-core/games/kunos/recorder";
 import { replayRecording } from "@raceiq/game-acc/replay";
 import { getAllAccCars, getAccCarClass } from "@raceiq/game-acc-metadata/racing/cars/acc"
 import { getAccCarSpecs } from "@raceiq/game-acc-metadata/racing/cars/acc-specs"
-import { getAccReader } from "../../runtime/live-readers";
+import { readKunosDebugBuffers } from "../../runtime/native-debug";
 import { PHYSICS, GRAPHICS, STATIC } from "@raceiq/capture-formats/acc/structs";
 import { readWString } from "@raceiq/game-acc/utils";
 import { getAccSharedTrackName, getAccTracks } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc"
@@ -332,8 +332,8 @@ export const accRoutes = new Hono()
 
   // ── Debug ─────────────────────────────────────────────────────────────────
 
-  .get("/api/acc/debug/raw", (c) => {
-    const bufs = getAccReader()?.getDebugBuffers?.();
+  .get("/api/acc/debug/raw", async (c) => {
+    const bufs = await readKunosDebugBuffers("acc");
     if (!bufs) {
       return c.json({ error: "ACC not connected or getDebugBuffers not available" }, 503);
     }

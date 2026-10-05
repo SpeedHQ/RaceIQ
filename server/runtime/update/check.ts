@@ -7,6 +7,7 @@ import { wsManager } from "../websocket-manager";
 import { isNewer } from "./version";
 import { IS_WINDOWS } from "../platform/shell";
 import { ROOT_DIR } from "../config/paths";
+import { shutdownRecordingRuntime } from "../recorder-engine";
 export { isNewer };
 
 const VERSION = APP_VERSION;
@@ -297,6 +298,15 @@ export async function applyUpdate(): Promise<void> {
 
     console.log(`[Update] Downloaded to ${installerPath}`);
   }
+  // Keep acquisition running during download, then close captures and drain DB
+  // work before the installer can terminate or replace either executable.
+  try {
+    await shutdownRecordingRuntime("update");
+  } catch (error) {
+    console.error("[Update] Recorder shutdown failed; installer not started:", error);
+    throw new Error("Recorder could not be stopped; update aborted", { cause: error });
+  }
+
 
   wsManager.broadcastNotification({ type: "update-progress", stage: "installing", percent: 100 });
 
@@ -306,12 +316,25 @@ export async function applyUpdate(): Promise<void> {
   // - Updating Windows registry (Apps & Features version)
   // - Relaunching the app (postinstall Run section)
   console.log(`[Update] Spawning installer: ${installerPath}`);
-  spawn(installerPath, ["/SILENT", "/NORESTART"], {
-    stdio: "ignore",
-    detached: true,
-  }).unref();
+  try {
+    await new Promise<void>((resolveSpawn, rejectSpawn) => {
+      const installer = spawn(installerPath, ["/SILENT", "/NORESTART"], {
+        stdio: "ignore",
+        detached: true,
+      });
+      installer.once("error", rejectSpawn);
+      installer.once("spawn", () => {
+        installer.unref();
+        resolveSpawn();
+      });
+    });
+  } catch (error) {
+    console.error("[Update] Installer failed after recorder stopped:", error);
+    setTimeout(() => process.exit(1), 500);
+    throw error;
+  }
 
-  console.log(`[Update] Installer spawned. Process will be killed by Inno Setup.`);
-  // Small delay so the HTTP response can be sent before Inno kills us
+  console.log("[Update] Recorder exited; installer spawned.");
+  // Allow the HTTP response to drain; recording cleanup has already completed.
   setTimeout(() => process.exit(0), 500);
 }

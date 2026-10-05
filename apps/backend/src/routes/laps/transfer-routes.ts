@@ -7,6 +7,7 @@ import { Hono } from "hono";
 import { KNOWN_GAME_IDS } from "@raceiq/shared/games/ids";
 import { getGame } from "@raceiq/shared/games/registry";
 import { getLapsForSession } from "@raceiq/backend-core/db/lap-reprocessing-queries";
+import { updateLapTune } from "@raceiq/backend-core/db/tune-queries";
 import { getTuneById as getDbTune } from "@raceiq/backend-core/db/tune-queries";
 import { buildLapsZip, lapsZipFilename, importLapsZip, detectLapsZip } from "../../laps/archive";
 import { importSessionBin, detectGameIdFromBuffer } from "@raceiq/backend-core/session-capture/import-capture";
@@ -16,9 +17,13 @@ import { IbtImportError } from "@raceiq/game-iracing/ibt-preview";
 import { importLMUDuckDB } from "../../imports/lmu-duckdb";
 import { isDuckDBFile, previewLMUDuckDB } from "@raceiq/game-lmu/import-duckdb";
 import { importMotec, resolveMotecTarget } from "@raceiq/backend-core/motec/import";
-import { getMotecTargets } from "@raceiq/backend-core/motec/targets";
+import { getMotecTargets, type MotecTarget } from "@raceiq/backend-core/motec/targets";
 import { initMotecTargets } from "../../games/motec-init";
-import { loadStagedMotec, removeStagedMotec, stageMotecArchive } from "@raceiq/backend-core/motec/import-staging";
+import { loadStagedMotec, removeStagedMotec, stageMotecArchive, loadStagedMotecOriginal, removeStagedMotecOriginal, stageMotecOriginal, stageMotecOriginalPair } from "@raceiq/backend-core/motec/import-staging";
+import { getRecordingEngineKind } from "@raceiq/backend-core/runtime/recorder-engine";
+import { importStagedWithRust, previewStagedWithRust } from "@raceiq/backend-core/session-capture/import-results";
+import { getTrackOutlineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { stageRustJobFiles, type RustJobStage } from "../../imports/rust-staging";
 import { ExportZipQuerySchema, IbtCommitSchema, IbtImportTokenSchema, OwnershipSchema } from "./support";
 
 function temporaryDuckDBPath(): string {
@@ -107,6 +112,56 @@ export const transferRoutes = new Hono()
     if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
     const bytes = new Uint8Array(await file.arrayBuffer());
     const lower = file.name.toLowerCase();
+    if (getRecordingEngineKind() === "rust") {
+      let staged: RustJobStage | undefined;
+      try {
+        const uploadFiles: Array<{ name: string; bytes: Uint8Array }> = [{ name: file.name, bytes }];
+        if (lower.endsWith(".duckdb")) {
+          const walUpload = duckDBWalUpload(form, file.name);
+          if (walUpload.error) return c.json({ error: walUpload.error }, 400);
+          if (walUpload.wal) uploadFiles.push({ name: walUpload.wal.name, bytes: new Uint8Array(await walUpload.wal.arrayBuffer()) });
+        }
+        if (lower.endsWith(".ld")) {
+          const sidecar = form?.get("ldx");
+          if (!(sidecar instanceof File)) return c.json({ format: "motec" as const, supported: true, gameIds: [], captureCount: 1, message: null });
+          uploadFiles.push({ name: sidecar.name, bytes: new Uint8Array(await sidecar.arrayBuffer()) });
+        }
+        staged = await stageRustJobFiles(uploadFiles);
+        const format = lower.endsWith(".duckdb") ? "duckdb" : lower.endsWith(".zip") ? "zip" : lower.endsWith(".ibt") ? "ibt" : lower.endsWith(".ld") ? "motec" : undefined;
+        const result = await previewStagedWithRust({
+          path: staged.inputPath,
+          originalName: file.name,
+          outputRoot: staged.outputRoot,
+          jobId: staged.jobId,
+          operation: "preview",
+          ...(format ? { format } : {}),
+          ...(staged.sidecarPath ? { sidecarPath: staged.sidecarPath } : {}),
+        });
+        const gameIds = [...new Set(result.sessions.map((session) => session.gameId))];
+        const preview = result.preview as Record<string, unknown> | undefined;
+        if (lower.endsWith(".bin") || lower.endsWith(".bin.gz")) {
+          const gameId = gameIds[0] ?? null;
+          return c.json({ format: "bin" as const, supported: gameId !== null, gameIds: gameId ? [gameId] : [], captureCount: 1, message: gameId ? null : "Could not detect a supported game from this capture." });
+        }
+        if (lower.endsWith(".duckdb")) {
+          const supported = Number(preview?.completedLapCount ?? result.sessions.flatMap((s) => s.laps).length) > 0;
+          return c.json({ format: "duckdb" as const, supported, gameIds: supported ? ["lmu"] : [], captureCount: 1, message: supported ? null : "Recording contains no complete laps to import.", preview });
+        }
+        return c.json({
+          format: (format ?? "unknown") as "zip" | "ibt" | "motec" | "unknown",
+          supported: Boolean(preview?.canImport ?? result.sessions.length > 0),
+          gameIds,
+          captureCount: result.sessions.length,
+          message: null,
+          preview,
+        });
+      } catch (error) {
+        return c.json({ format: "unknown" as const, supported: false, gameIds: [], captureCount: 0, message: error instanceof Error ? error.message : String(error) });
+      } finally {
+        await staged?.cleanup();
+        await staged?.cleanupOutput();
+      }
+    }
     if (lower.endsWith(".zip")) {
       try {
         const staged = await stageMotecArchive(bytes);
@@ -237,13 +292,37 @@ export const transferRoutes = new Hono()
     }
     const bytes = Buffer.from(await file.arrayBuffer());
     if (lower.endsWith(".duckdb")) {
-      if (!isDuckDBFile(bytes)) {
-        return c.json({ error: "File is not a readable DuckDB database" }, 400);
-      }
       const walUpload = duckDBWalUpload(form, file.name);
-      if (walUpload.error) {
-        return c.json({ error: walUpload.error }, 400);
+      if (walUpload.error) return c.json({ error: walUpload.error }, 400);
+      if (getRecordingEngineKind() === "rust") {
+        let staged: RustJobStage | undefined;
+        try {
+          const files: Array<{ name: string; bytes: Uint8Array }> = [{ name: file.name, bytes }];
+          if (walUpload.wal) files.push({ name: walUpload.wal.name, bytes: new Uint8Array(await walUpload.wal.arrayBuffer()) });
+          staged = await stageRustJobFiles(files);
+          const result = await importLMUDuckDB(staged.inputPath, ownership.data, {
+            jobId: staged.jobId,
+            outputRoot: staged.outputRoot,
+            originalName: file.name,
+            sidecarPath: staged.sidecarPath,
+          });
+          return c.json({
+            ok: true,
+            gameId: "lmu" as const,
+            routePrefix: getGame("lmu").routePrefix,
+            packetCount: result.packetCount,
+            imported: result.laps.length,
+            laps: result.laps,
+          });
+        } catch (error) {
+          const details = duckDBErrorMessage(error, file.name, walUpload.wal !== null);
+          console.error("[LMU Import] Failed:", details);
+          return c.json({ error: "Failed to import LMU telemetry database", details }, 400);
+        } finally {
+          await staged?.cleanup();
+        }
       }
+      if (!isDuckDBFile(bytes)) return c.json({ error: "File is not a readable DuckDB database" }, 400);
       const path = temporaryDuckDBPath();
       try {
         await stageTemporaryDuckDB(path, bytes, walUpload.wal);
@@ -257,28 +336,53 @@ export const transferRoutes = new Hono()
           laps: result.laps,
         });
       } catch (error) {
-        const details = duckDBErrorMessage(
-          error,
-          file.name,
-          walUpload.wal !== null,
-        );
+        const details = duckDBErrorMessage(error, file.name, walUpload.wal !== null);
         console.error("[LMU Import] Failed:", details);
-        return c.json(
-          {
-            error: "Failed to import LMU telemetry database",
-            details,
-          },
-          400,
-        );
+        return c.json({ error: "Failed to import LMU telemetry database", details }, 400);
       } finally {
         cleanupTemporaryDuckDB(path);
       }
     }
-    let gameId: ReturnType<typeof detectGameIdFromBuffer> = null;
+    if (getRecordingEngineKind() === "rust") {
+      let staged: RustJobStage | undefined;
+      try {
+        staged = await stageRustJobFiles([{ name: uploadName, bytes }]);
+        const result = await importStagedWithRust({
+          path: staged.inputPath,
+          originalName: uploadName,
+          outputRoot: staged.outputRoot,
+          jobId: staged.jobId,
+          ownership: ownership.data,
+          captureStorage: captureStorage === "raw" ? "raw" : "sparse",
+        });
+        const gameId = result.manifest.sessions[0]?.gameId;
+        if (!gameId || result.packetCount === 0) return c.json({ error: "No telemetry packets found in file" }, 400);
+        return c.json({
+          ok: true,
+          gameId,
+          routePrefix: getGame(gameId).routePrefix,
+          packetCount: result.packetCount,
+          imported: result.laps.length,
+          laps: result.laps,
+        });
+      } catch (error) {
+        console.error("[Import] Failed:", error instanceof Error ? error.message : error);
+        return c.json({
+          error: "Failed to import file",
+          details: error instanceof Error ? error.message : String(error),
+        }, 500);
+      } finally {
+        await staged?.cleanup();
+      }
+    }
+    let gameId: ReturnType<typeof detectGameIdFromBuffer>;
     try {
       gameId = detectGameIdFromBuffer(bytes);
-    } catch {
-      return c.json({ error: "Failed to read session capture" }, 400);
+    } catch (error) {
+      return c.json({
+        error: "Failed to read session capture",
+        details: error instanceof Error ? error.message : String(error),
+      }, 400);
     }
     if (!gameId) {
       return c.json(
@@ -287,7 +391,6 @@ export const transferRoutes = new Hono()
       );
     }
     try {
-
       const { packetCount, laps } = await importSessionBin(bytes, gameId, {
         ownership: ownership.data,
         ...(captureStorage === "raw" ? { recorder: new RealSessionRecorderAdapter() } : {}),
@@ -302,10 +405,7 @@ export const transferRoutes = new Hono()
         laps,
       });
     } catch (error) {
-      console.error(
-        "[Import] Failed:",
-        error instanceof Error ? error.message : error,
-      );
+      console.error("[Import] Failed:", error instanceof Error ? error.message : error);
       return c.json({
         error: "Failed to import file",
         details: error instanceof Error ? error.message : String(error),
@@ -330,7 +430,32 @@ export const transferRoutes = new Hono()
     const file = form?.get("file");
     if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
     try {
-      return c.json(await stageMotecArchive(new Uint8Array(await file.arrayBuffer())));
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      if (getRecordingEngineKind() === "rust") {
+        const isLd = file.name.toLowerCase().endsWith(".ld");
+        const sidecar = isLd ? form?.get("ldx") : null;
+        if (isLd && !(sidecar instanceof File)) return c.json({ error: "MoTeC .ldx signal sidecar is required" }, 400);
+        const staged = isLd
+          ? await stageMotecOriginalPair(bytes, new Uint8Array(await (sidecar as File).arrayBuffer()), file.name, (sidecar as File).name)
+          : await stageMotecOriginal(bytes, file.name);
+        try {
+          const manifest = await previewStagedWithRust({
+            path: staged.path,
+            ...(staged.sidecarPath ? { sidecarPath: staged.sidecarPath } : {}),
+            originalName: staged.originalName,
+            outputRoot: staged.outputRoot,
+            jobId: staged.token,
+            operation: "preview",
+            format: "motec",
+          });
+          const meta = manifest.meta && typeof manifest.meta === "object" ? manifest.meta as Record<string, unknown> : {};
+          return c.json({ token: staged.token, ldName: typeof meta.ldName === "string" ? meta.ldName : file.name, ldxName: typeof meta.ldxName === "string" ? meta.ldxName : sidecar instanceof File ? sidecar.name : "", preview: manifest.preview, meta: manifest.meta });
+        } catch (error) {
+          await removeStagedMotecOriginal(staged.token);
+          throw error;
+        }
+      }
+      return c.json(await stageMotecArchive(bytes));
     } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
     }
@@ -341,6 +466,97 @@ export const transferRoutes = new Hono()
     const file = form?.get("file");
     if (!(file instanceof File) && typeof stagedToken !== "string") {
       return c.json({ error: "Missing MoTeC file or staging token" }, 400);
+    }
+    if (getRecordingEngineKind() === "rust") {
+      const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
+      if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
+      const num = (key: string): number | undefined => {
+        const raw = form?.get(key);
+        if (typeof raw !== "string" || raw.trim() === "") return undefined;
+        const parsed = Number(raw);
+        return Number.isFinite(parsed) ? parsed : undefined;
+      };
+      const carOrdinal = num("carOrdinal");
+      const trackOrdinal = num("trackOrdinal");
+      if (carOrdinal === undefined || trackOrdinal === undefined) return c.json({ error: "carOrdinal and trackOrdinal are required" }, 400);
+      let target: MotecTarget;
+      try {
+        target = resolveMotecTarget(typeof form?.get("gameId") === "string" ? String(form.get("gameId")) : "");
+      } catch (err: unknown) {
+        return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
+      }
+      const tuneId = num("tuneId");
+      if (tuneId !== undefined && !(await getDbTune(tuneId))) return c.json({ error: `No setup with id ${tuneId}` }, 400);
+      let path: string;
+      let outputRoot: string;
+      let jobId: string;
+      let originalName: string;
+      let sidecarPath: string | undefined;
+      let cleanup: (() => Promise<void>) | undefined;
+      let cleanupStageToken: string | undefined;
+      if (typeof stagedToken === "string") {
+        try {
+          const staged = await loadStagedMotecOriginal(stagedToken);
+          ({ path, outputRoot, originalName, sidecarPath } = staged);
+          jobId = staged.token;
+        } catch (err: unknown) {
+          return c.json({ error: err instanceof Error ? err.message : String(err) }, 410);
+        }
+      } else if (file instanceof File && file.name.toLowerCase().endsWith(".zip")) {
+        try {
+          const staged = await stageMotecOriginal(new Uint8Array(await file.arrayBuffer()), file.name);
+          ({ path, outputRoot, originalName } = staged);
+          jobId = staged.token;
+          cleanupStageToken = staged.token;
+        } catch (err: unknown) {
+          return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
+        }
+      } else {
+        if (!(file instanceof File) || !file.name.toLowerCase().endsWith(".ld")) return c.json({ error: "Expected a MoTeC .ld file" }, 400);
+        const sidecar = form?.get("ldx");
+        if (!(sidecar instanceof File)) return c.json({ error: "MoTeC .ldx signal sidecar is required" }, 400);
+        const staged = await stageRustJobFiles([
+          { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) },
+          { name: sidecar.name, bytes: new Uint8Array(await sidecar.arrayBuffer()) },
+        ]);
+        ({ inputPath: path, outputRoot, jobId, cleanup } = staged);
+        sidecarPath = staged.sidecarPath;
+        originalName = file.name;
+      }
+      try {
+        const result = await importStagedWithRust({
+          path,
+          originalName,
+          outputRoot,
+          jobId,
+          ...(sidecarPath ? { sidecarPath } : {}),
+          gameId: target.gameId,
+          format: "motec",
+          options: {
+            gameId: target.gameId,
+            carOrdinal,
+            trackOrdinal,
+            tuneId,
+            trackOutline: getTrackOutlineByOrdinal(trackOrdinal, target.gameId),
+          },
+          ownership: ownership.data,
+          sessionSource: "motec",
+          onImportedLaps: async (laps) => {
+            if (tuneId !== undefined) {
+              for (const lap of laps) await updateLapTune(lap.lapId, tuneId);
+            }
+          },
+        });
+        const metadata = result.manifest;
+        if (result.laps.length === 0) return c.json({ error: "No laps could be detected in this log", meta: metadata.meta, limitations: metadata.limitations }, 400);
+        if (cleanupStageToken) await removeStagedMotecOriginal(cleanupStageToken);
+        return c.json({ ...metadata, ok: true, gameId: target.gameId, imported: result.laps.length, laps: result.laps });
+      } catch (err: unknown) {
+        console.error("[MoTeC Import] Failed:", err instanceof Error ? err.stack : err);
+        return c.json({ error: "Failed to import MoTeC log", details: String(err) }, 500);
+      } finally {
+        await cleanup?.();
+      }
     }
     let fileBytes = file instanceof File ? Buffer.from(await file.arrayBuffer()) : undefined;
     let stagedBytes: { ldBytes: Buffer; ldxBytes: Buffer } | undefined;

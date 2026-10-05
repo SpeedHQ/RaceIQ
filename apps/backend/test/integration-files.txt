@@ -96,6 +96,8 @@ apps/backend/test/routes/storage-routes.test.ts
 apps/backend/test/routes/tune-deletion-guard.test.ts
 apps/backend/test/runtime/http-server.test.ts
 apps/backend/test/runtime/native-sources.test.ts
+apps/backend/test/runtime/recorder-client.test.ts
+apps/backend/test/runtime/recorder-parity.test.ts
 apps/backend/test/runtime/release-feature-flags.test.ts
 apps/backend/test/runtime/runtime-options.test.ts
 apps/backend/test/runtime/settings.test.ts
@@ -118,6 +120,7 @@ apps/backend/test/session-capture/lmu-sparse-recorder.test.ts
 apps/backend/test/session-capture/parse-bin-vs-gz.test.ts
 apps/backend/test/session-capture/parse-dump.test.ts
 apps/backend/test/session-capture/raw-binary-storage.test.ts
+apps/backend/test/session-capture/rust-import-manifest.test.ts
 apps/backend/test/session-capture/session-cleanup.test.ts
 apps/backend/test/session-capture/session-compressor.test.ts
 apps/backend/test/session-capture/session-recorder.test.ts

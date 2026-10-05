@@ -11,6 +11,8 @@ import { SEGMENT_BOUNDARY_MAGIC, SEGMENT_BOUNDARY_VERSION, SEGMENT_CONTEXT_MAGIC
 import { decodeLmuSparseFrame, isLmuSparseFrame } from "./lmu-sparse";
 import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "./kunos-sparse";
+import { getRecordingEngineKind } from "../runtime/recorder-engine";
+import { readCapturePacketsWithRust } from "./import-results";
 import { decodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } from "./generic-sparse";
 
 export interface SessionCaptureFrameRecord { readonly offset: number; readonly length: number; readonly frameIndex: number; }
@@ -21,7 +23,7 @@ export interface SessionCaptureFrameIndex {
 export interface SessionCaptureSource { rawFile: string; source: string | null; gameId: GameId; carOrdinal: number; trackOrdinal: number; }
 export type LoadedSessionSource =
   | { kind: "capture"; buffer: Buffer; frameIndex: SessionCaptureFrameIndex }
-  | { kind: "packets"; packets: TelemetryPacket[]; offsetEncoding: MotecOffsetEncoding };
+  | { kind: "packets"; packets: TelemetryPacket[]; offsetEncoding: MotecOffsetEncoding | "byte" };
 interface CacheEntry { size: number; mtimeMs: number; loaded: LoadedSessionSource }
 export interface SessionCaptureFile {
   readonly size: number;
@@ -77,6 +79,7 @@ export async function* iterateSessionCaptureRecordsFromSource(
   source: SessionCaptureSource,
   options: { strict?: boolean } = {},
 ): AsyncGenerator<SessionCaptureRecord> {
+  if (getRecordingEngineKind() === "rust") throw new Error("Bun capture decoder is disabled while Rust recorder is selected");
   if (source.rawFile.endsWith(".motec.zip")) {
     throw new Error("Motec source archives expose canonical packets, not BIN frames");
   }
@@ -227,17 +230,27 @@ export async function loadSessionSource(source: SessionCaptureSource): Promise<L
   const file = captureFileFactory(source.rawFile); const size = file.size; const mtimeMs = file.lastModified; const cacheKey = key(source);
   const hit = cache.get(cacheKey); if (hit && hit.size === size && hit.mtimeMs === mtimeMs) return hit.loaded;
   let loaded: LoadedSessionSource;
-  const bytes = Buffer.from(await file.arrayBuffer());
-  if (source.rawFile.endsWith(".motec.zip")) {
-    if (source.source !== MOTEC_SESSION_SOURCE) throw new Error("Session source archive requires source 'motec'");
-    const archive = decodeMotecSourceArchive(bytes); const log = parseLd(archive.ldBytes);
-    const beacons = archive.ldxBytes ? parseLdxBeacons(archive.ldxBytes.toString("utf8")) : [];
-    const target = resolveMotecTarget(source.gameId);
-    const carTrack = target.resolveCarTrack(log, { carOrdinal: source.carOrdinal, trackOrdinal: source.trackOrdinal });
-    loaded = { kind: "packets", packets: target.convert(log, beacons, carTrack).packets, offsetEncoding: archive.offsetEncoding };
+  if (getRecordingEngineKind() === "rust") {
+    const decoded = await readCapturePacketsWithRust(source);
+    loaded = {
+      kind: "packets",
+      packets: decoded.packets.map((entry) => entry.packet),
+      offsetEncoding: decoded.offsetEncoding,
+    };
   } else {
-    const buffer = bytes[0] === 0x1f && bytes[1] === 0x8b ? await gunzipBuffer(bytes) : bytes;
-    loaded = { kind: "capture", buffer, frameIndex: indexCaptureFrames(buffer) };
+    const bytes = Buffer.from(await file.arrayBuffer());
+    if (source.rawFile.endsWith(".motec.zip")) {
+      if (source.source !== MOTEC_SESSION_SOURCE) throw new Error("Session source archive requires source 'motec'");
+      const archive = decodeMotecSourceArchive(bytes);
+      const log = parseLd(archive.ldBytes);
+      const beacons = archive.ldxBytes ? parseLdxBeacons(archive.ldxBytes.toString("utf8")) : [];
+      const target = resolveMotecTarget(source.gameId);
+      const carTrack = target.resolveCarTrack(log, { carOrdinal: source.carOrdinal, trackOrdinal: source.trackOrdinal });
+      loaded = { kind: "packets", packets: target.convert(log, beacons, carTrack).packets, offsetEncoding: archive.offsetEncoding };
+    } else {
+      const buffer = bytes[0] === 0x1f && bytes[1] === 0x8b ? await gunzipBuffer(bytes) : bytes;
+      loaded = { kind: "capture", buffer, frameIndex: indexCaptureFrames(buffer) };
+    }
   }
   cache.set(cacheKey, { size, mtimeMs, loaded }); while (cache.size > MAX_ENTRIES) { const oldest = cache.keys().next().value; if (oldest) cache.delete(oldest); }
   return loaded;

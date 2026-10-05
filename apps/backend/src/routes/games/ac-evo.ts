@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { getAllAcEvoCars, getAcEvoCarClass } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo"
 import { PHYSICS, GRAPHICS_EVO, STATIC_EVO } from "@raceiq/capture-formats/ac-evo/structs";
 import { readCString } from "@raceiq/game-ac-evo/utils";
-import { getAcEvoReader } from "../../runtime/live-readers";
+import { readKunosDebugBuffers } from "../../runtime/native-debug";
 
 interface FieldDef {
   offset: number;
@@ -64,8 +64,8 @@ export const acEvoRoutes = new Hono()
   })
 
   /** Parsed field values from each shared memory page using v0.6 struct offsets. */
-  .get("/api/ac-evo/debug/raw", (c) => {
-    const bufs = getAcEvoReader()?.getDebugBuffers?.();
+  .get("/api/ac-evo/debug/raw", async (c) => {
+    const bufs = await readKunosDebugBuffers("ac-evo");
     if (!bufs) {
       return c.json({ error: "AC Evo not connected or getDebugBuffers not available" }, 503);
     }
@@ -109,8 +109,8 @@ export const acEvoRoutes = new Hono()
    * Raw byte dumps (base64) of each page — lets the UI render a live hex view
    * with byte-change highlighting for diagnosing unknown struct layouts.
    */
-  .get("/api/ac-evo/debug/hex", (c) => {
-    const bufs = getAcEvoReader()?.getDebugBuffers?.();
+  .get("/api/ac-evo/debug/hex", async (c) => {
+    const bufs = await readKunosDebugBuffers("ac-evo");
     if (!bufs) {
       return c.json({ error: "AC Evo not connected" }, 503);
     }
@@ -126,8 +126,8 @@ export const acEvoRoutes = new Hono()
    * Side-by-side view: for every field in each struct, show offset + raw hex
    * bytes + our interpretation. Lets you visually confirm we're not masking 0s.
    */
-  .get("/api/ac-evo/debug/verify", (c) => {
-    const bufs = getAcEvoReader()?.getDebugBuffers?.();
+  .get("/api/ac-evo/debug/verify", async (c) => {
+    const bufs = await readKunosDebugBuffers("ac-evo");
     if (!bufs) return c.json({ error: "AC Evo not connected" }, 503);
 
     function byteLen(type: string, size?: number): number {

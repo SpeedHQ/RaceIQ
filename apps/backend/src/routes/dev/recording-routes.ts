@@ -15,6 +15,7 @@ import {
   resolveRecordingGameId,
   resolveRecordingPath,
 } from "./recording-support";
+import { getRecordingEngineKind, runRecordingJob } from "@raceiq/backend-core/runtime/recorder-engine";
 
 export const recordingRoutes = new Hono();
 
@@ -29,7 +30,7 @@ recordingRoutes.get("/api/dev/e2e-files", (c) => {
   }
 });
 
-recordingRoutes.get("/api/dev/e2e-svg/:recordingName", (c) => {
+recordingRoutes.get("/api/dev/e2e-svg/:recordingName", async (c) => runRecordingJob(async () => {
   try {
     const recordingName = c.req.param("recordingName");
     const recordingPath = resolveRecordingPath(recordingName);
@@ -45,7 +46,7 @@ recordingRoutes.get("/api/dev/e2e-svg/:recordingName", (c) => {
       }
       let packets: Point2D[];
 
-      if (gameId === "acc") {
+      if (gameId === "acc" && getRecordingEngineKind() !== "rust") {
         let frames: KunosRecordingFrame[];
         try {
           frames = readAccRecordingFrames(recordingPath.path);
@@ -58,7 +59,7 @@ recordingRoutes.get("/api/dev/e2e-svg/:recordingName", (c) => {
         }
         packets = parseAccRecordingPoints(frames);
       } else {
-        packets = parseUdpRecordingPoints(gameId, recordingPath.path);
+        packets = await parseUdpRecordingPoints(gameId, recordingPath.path);
       }
 
       if (packets.length === 0) {
@@ -82,9 +83,9 @@ recordingRoutes.get("/api/dev/e2e-svg/:recordingName", (c) => {
       404
     );
   }
-});
+}));
 
-recordingRoutes.get("/api/dev/e2e-laps/:recordingName", async (c) => {
+recordingRoutes.get("/api/dev/e2e-laps/:recordingName", async (c) => runRecordingJob(async () => {
   try {
     const recordingName = c.req.param("recordingName");
     const recordingPath = resolveRecordingPath(recordingName);
@@ -99,7 +100,7 @@ recordingRoutes.get("/api/dev/e2e-laps/:recordingName", async (c) => {
         return c.json({ error: "Could not determine recording game" }, 400);
       }
 
-      if (gameId === "acc") {
+      if (gameId === "acc" && getRecordingEngineKind() !== "rust") {
         let frames: KunosRecordingFrame[];
         try {
           frames = readAccRecordingFrames(recordingPath.path);
@@ -113,7 +114,7 @@ recordingRoutes.get("/api/dev/e2e-laps/:recordingName", async (c) => {
         return c.json(parseAccRecordingLaps(frames));
       }
 
-      return c.json(parseUdpRecordingLaps(gameId, recordingPath.path));
+      return c.json(await parseUdpRecordingLaps(gameId, recordingPath.path));
     } catch (e) {
       console.error("Failed to detect laps:", e);
       return c.json(
@@ -127,11 +128,11 @@ recordingRoutes.get("/api/dev/e2e-laps/:recordingName", async (c) => {
       404
     );
   }
-});
+}));
 
 export const recordingPacketRoutes = new Hono();
 
-recordingPacketRoutes.get("/api/dev/e2e-packets/:recordingName", (c) => {
+recordingPacketRoutes.get("/api/dev/e2e-packets/:recordingName", async (c) => runRecordingJob(async () => {
   try {
     const recordingName = c.req.param("recordingName");
     const recordingPath = resolveRecordingPath(recordingName);
@@ -147,7 +148,7 @@ recordingPacketRoutes.get("/api/dev/e2e-packets/:recordingName", (c) => {
       }
       let packets: Point3D[];
 
-      if (gameId === "acc") {
+      if (gameId === "acc" && getRecordingEngineKind() !== "rust") {
         let frames: KunosRecordingFrame[];
         try {
           frames = readAccRecordingFrames(recordingPath.path);
@@ -161,7 +162,7 @@ recordingPacketRoutes.get("/api/dev/e2e-packets/:recordingName", (c) => {
         }
         packets = parseAccRecordingPacketsWithSpeed(frames);
       } else {
-        packets = parseUdpRecordingPacketsWithSpeed(gameId, recordingPath.path);
+        packets = await parseUdpRecordingPacketsWithSpeed(gameId, recordingPath.path);
       }
 
       return c.json({
@@ -181,4 +182,4 @@ recordingPacketRoutes.get("/api/dev/e2e-packets/:recordingName", (c) => {
       404
     );
   }
-});
+}));

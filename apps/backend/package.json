@@ -38,6 +38,7 @@
     "@gltf-transform/extensions": "4.5.0",
     "meshoptimizer": "1.2.0",
     "@mastra/hono": "^1.7.9",
+    "msgpackr": "^1.11.5",
     "mitata": "^1.0.34",
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/shared": "workspace:*",
