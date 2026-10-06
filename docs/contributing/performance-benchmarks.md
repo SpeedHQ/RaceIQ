@@ -45,6 +45,13 @@ The runner also reports Bun/native full-packet differences separately. Existing 
 Native presentation maps use dense insertion-ordered storage with capacity reservations; F1 numeric state uses fixed arrays where layouts are fixed and reuses owned history sector maps. JSON object key order is not a wire contract. Measure the unchanged full-presentation stage rather than substituting the compact import path.
 
 
+### Recording reconciliation
+
+Race reconciliation streams normalized packets into its accumulator without serializing or hashing every decoded packet. Persisted provenance retains raw capture identity and processing versions; it no longer includes a decoded-stream fingerprint. Remaining `JSON.stringify` comparisons operate on derived result metadata and events, not the telemetry stream. Native JSON encoding and host JSON decoding remain separate replay costs.
+
+Evaluate consumer-only improvements with identical native output and compare complete race-source observations and derived results before/after. Include actual native replay, raw capture hashing and SQLite persistence in a separate reconciliation smoke; do not label a consumer-only speedup as end-to-end recording finalization.
+
+
 ## Process benchmark protocol
 
 A child process loads one selected fixture, runs optional `setup()` once, performs unmeasured warmups, then executes exactly the requested measured iterations using `Bun.nanoseconds()`. It emits exactly one JSON report line on stdout. Fixture logs, diagnostics, and errors go to stderr so report parsing remains deterministic. Setup and fixture loading occur before measured work.

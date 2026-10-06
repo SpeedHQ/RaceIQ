@@ -6,6 +6,7 @@
 
 ### Fixes
 - Reduce import delays for F1 2025, ACC, AC Evo, iRacing, and LMU recordings when using the Rust recording engine.
+- Reduce recording finalization delays while preserving capture identity and race results.
 
 ### Internal
 - Skip build, test, browser, snapshot, and benchmark PR jobs for automated release version bump branches.
