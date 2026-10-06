@@ -1,0 +1,52 @@
+{
+  "status": "passed",
+  "native": {
+    "command": "cargo test --locked --manifest-path native/recorder/Cargo.toml",
+    "passed": 34,
+    "ignored": 1,
+    "evidence": "native-correction-gate.log"
+  },
+  "builds": {
+    "profiles": [
+      "debug",
+      "release"
+    ],
+    "locked": true,
+    "evidence": "native-correction-gate.log"
+  },
+  "f1Canonical": {
+    "command": "cargo test --release --locked --manifest-path native/recorder/Cargo.toml canonical_f1_fixture_typed_full_equivalence -- --ignored",
+    "acceptedPackets": 184333,
+    "status": "passed",
+    "evidence": "build-and-f1-equivalence.log"
+  },
+  "productionContracts": {
+    "initialPassed": 33,
+    "correctedKunosPassed": 2,
+    "evidence": [
+      "production-contracts.log",
+      "production-correction-and-timing.log"
+    ]
+  },
+  "releaseImports": {
+    "status": "passed",
+    "warmupsPerFixture": 1,
+    "measuredTrialsPerFixture": 20,
+    "fixtures": 6,
+    "normalization": "Sort object keys, preserve arrays, remove engineSessionId only",
+    "baseline": "baseline.json",
+    "optimized": "optimized.json",
+    "evidence": "production-correction-and-timing.log",
+    "temporaryHarness": "Removed after verification; timing reproducible with repository bench:recorder imports mode"
+  },
+  "changelog": {
+    "command": "bun test test/changelog.test.ts --timeout 60000",
+    "passed": 11,
+    "evidence": "changelog-tests.log"
+  },
+  "limits": [
+    "Windows native acquisition not exercised",
+    "Bun timing baseline retained from user report; not rerun",
+    "FM no improvement; non-F1 fixtures still slower than reported Bun medians"
+  ]
+}

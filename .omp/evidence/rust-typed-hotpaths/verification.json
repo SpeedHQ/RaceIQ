@@ -1,0 +1,14 @@
+{
+  "status": "passed",
+  "nativeSuite": {"passed": 65, "ignored": 3, "log": "native-suite.log"},
+  "releaseBuild": {"status": "passed", "log": "release-build.log"},
+  "debugBuild": {"status": "passed", "log": "debug-build.log"},
+  "canonicalTypedFullEquivalence": {"passed": 3, "games": ["f1-2025", "acc", "ac-evo", "iracing"], "log": "canonical-equivalence.log"},
+  "completeSixFixtureParity": {"status": "passed", "normalization": "Sort object keys, preserve arrays, remove only engineSessionId", "report": "verify.json", "log": "six-fixture-parity.log"},
+  "productionImportReplayContracts": {"passed": 9, "assertions": 830, "coverage": "Six games, ordinary MoTeC ZIP and import manifest confinement", "log": "production-contracts.log"},
+  "timingAndMemory": {"status": "passed", "reports": ["bun.json", "rust.json", "summary.json", "before.json", "after.json"], "throughputTrials": 20, "warmups": 1, "memory": "Separate fresh-process own-PID sampled RSS, 100ms plus initial/final snapshots"},
+  "changelog": {"passed": 11, "log": "changelog.log"},
+  "planAdrLinks": "Reciprocal relative links resolve",
+  "integrationCorrections": ["Removed incidental fixture/default assertions rather than repinning them", "Canonical iRacing checker now reads both legacy dump and canonical envelopes, preserving production payload offsets"],
+  "limits": ["Windows acquisition not exercised", "RSS is sampled whole-process footprint, not allocator peak; short peaks can be missed", "Rust and Bun output schemas differ", "FM and LMU showed no meaningful improvement in matched Rust-only series"]
+}
