@@ -45,7 +45,7 @@ switch (operation) {
     run(["git", "worktree", "add", "--detach", join(env.RUNNER_TEMP!, "raceiq-base"), env.BASE_SHA!]);
     break;
   case "screenshot-current": {
-    const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--project=mobile-screenshots", `--shard=${env.SHARD}/2`], {
+    const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--project=mobile-screenshots", `--shard=${env.SHARD}/4`], {
       cwd: "playwright",
       env: { ...env, E2E_SERVER_MODE: "dev", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1" },
       stdout: "inherit",
@@ -70,7 +70,7 @@ switch (operation) {
     const output = join(env.GITHUB_WORKSPACE!, "playwright/screenshots/mobile");
     rmSync(output, { recursive: true, force: true });
     mkdirSync(output, { recursive: true });
-    const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--project=mobile-screenshots", `--shard=${env.SHARD}/2`], {
+    const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--project=mobile-screenshots", `--shard=${env.SHARD}/4`], {
       cwd: join(base, "playwright"),
       env: { ...env, RACEIQ_SCREENSHOT_DIR: output, E2E_SERVER_MODE: "dev", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1" },
       stdout: "inherit",

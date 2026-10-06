@@ -12,6 +12,7 @@
 
 ### Internal
 - Remove unused compiled artifact downloads and base production builds from dev-mode dashboard screenshot CI.
+- Split current and base dashboard screenshot renders into four CI shards while retaining the complete screenshot inventory.
 - Avoid per-packet serialization and hashing during race-result reconciliation while retaining raw capture identity and processing provenance.
 - Add Bun-only parser/pipeline, retained-heap, import, and recording benchmarks with isolated workloads and explicit measurement scopes.
 - Correct Linux benchmark CPU/RSS sampling and run iRacing parser/import benchmarks independently of production release flags.

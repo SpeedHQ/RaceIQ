@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4]
     runs-on:
       - mars-windows-x64-4vcpu-15g
       - mars-retry-3
