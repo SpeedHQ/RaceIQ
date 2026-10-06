@@ -5,6 +5,8 @@
 ### Fixes
 
 ### Internal
+- Avoid per-packet serialization and hashing during race-result reconciliation while retaining raw capture identity and processing provenance.
+- Add Bun-only parser/pipeline, retained-heap, import, and recording benchmarks with isolated workloads and explicit measurement scopes.
 - Skip build, test, browser, snapshot, and benchmark PR jobs for automated release version bump branches.
 
 ## v0.19.2 - 2026-10-04
