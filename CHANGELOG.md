@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 
 - Browse enriched iRacing car, car-class, and track catalogs with official car images, offline pit-road maps, and grouped lap sections.
 
@@ -9,6 +10,9 @@
 - Load LMU track boundaries without long stalls on detailed SVG maps.
 
 ### Internal
+- Avoid per-packet serialization and hashing during race-result reconciliation while retaining raw capture identity and processing provenance.
+- Add Bun-only parser/pipeline, retained-heap, import, and recording benchmarks with isolated workloads and explicit measurement scopes.
+- Correct Linux benchmark CPU/RSS sampling and run iRacing parser/import benchmarks independently of production release flags.
 - Skip build, test, browser, snapshot, and benchmark PR jobs for automated release version bump branches.
 
 ## v0.19.2 - 2026-10-04

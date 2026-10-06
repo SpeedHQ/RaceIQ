@@ -13,7 +13,6 @@ const provenance: RaceResultProvenance = {
   derivationVersion: "3",
   derivationCodeHash: "sha256:test",
   rawInput: null,
-  canonicalInput: null,
   authorityPolicyId: "race-result-outcome-authority",
   authorityPolicyVersion: "1",
 };

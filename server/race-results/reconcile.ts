@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { getLapById } from "../db/lap-read-queries";
@@ -68,12 +67,9 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
 
   const readReasons: string[] = [];
   let accumulator = new RaceSourceAccumulator(gameId);
-  let canonicalHash = createHash("sha256");
   let packetCount = 0;
   const addPacket = (packet: TelemetryPacket): void => {
     accumulator.add(packet);
-    canonicalHash.update(JSON.stringify(packet));
-    canonicalHash.update("\n");
     packetCount++;
   };
   try {
@@ -81,7 +77,6 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
   } catch {
     readReasons.push("session-raw-parse-error");
     accumulator = new RaceSourceAccumulator(gameId);
-    canonicalHash = createHash("sha256");
     packetCount = 0;
   }
   if (packetCount === 0) {
@@ -112,10 +107,6 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
   derived.provenance = {
     ...derived.provenance,
     rawInput: await rawInputIdentity(sessionId, await getSessionRawFile(sessionId, gameId)),
-    canonicalInput: packetCount === 0 ? null : {
-      sessionId: String(sessionId), firstSequence: 0, lastSequence: packetCount - 1,
-      contentHash: `sha256:${canonicalHash.digest("hex")}`,
-    },
   };
   const existing = await getSessionResult(sessionId, gameId);
   const unchanged = existing != null &&
