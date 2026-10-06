@@ -21,7 +21,7 @@ concurrency:
 jobs:
   build:
     timeout-minutes: 30
-    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    if: (github.event_name != 'pull_request' || (!github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')))
     runs-on:
       - mars-windows-x64-10vcpu-15g
       - mars-retry-3
@@ -64,7 +64,7 @@ jobs:
 
   test:
     timeout-minutes: 30
-    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    if: (github.event_name != 'pull_request' || (!github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')))
     runs-on:
       - mars-windows-x64-10vcpu-25g
       - mars-macos-arm64-2vcpu-10g
@@ -135,7 +135,7 @@ jobs:
 
   changelog:
     timeout-minutes: 30
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release/v')
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@v7
@@ -151,7 +151,7 @@ jobs:
           git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
           bun packages/tooling-release/src/release/check-changelog.ts
   playwright-e2e:
-    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')
     needs:
       - build
       - test
@@ -161,7 +161,7 @@ jobs:
       paraglide-artifact: raceiq-paraglide
 
   screenshots:
-    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')
     needs:
       - build
       - test
@@ -173,7 +173,7 @@ jobs:
       pr: ${{ github.event.pull_request.number }}
   snapshots:
     name: snapshots/compare
-    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')
     needs:
       - build
       - test

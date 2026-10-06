@@ -2,7 +2,7 @@
   "name": "raceiq",
   "private": true,
   "packageManager": "bun@1.4.2",
-  "version": "0.19.1",
+  "version": "0.19.2",
   "type": "module",
   "workspaces": [
     "client",
@@ -48,6 +48,8 @@
     "test:ai": "bun test ./apps/backend/test/ai/evals/ai-quality.ai-eval.ts --timeout 120000",
     "ai:baseline": "bun apps/backend/scripts/quality/ai-baseline.ts",
     "bench": "bun apps/backend/test/benchmarks/pipeline.bench.ts",
+    "bench:pipeline-stages": "bun apps/backend/test/benchmarks/pipeline-stages.bench.ts",
+    "bench:recorder": "bun apps/backend/test/benchmarks/recorder.bench.ts",
     "tracks:segments": "bun packages/tooling-data/src/tracks/generate-track-segments.ts",
     "tracks:coverage": "bun packages/tooling-data/src/tracks/track-coverage.ts",
     "laps:export": "bun apps/backend/scripts/data/export-laps.ts",

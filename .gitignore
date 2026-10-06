@@ -69,3 +69,7 @@ raceiq-home.png
 
 /.superpowers/
 test/e2e/output/
+
+# Local agent checkpoints and verification evidence
+/.omp/checkpoints/
+/.omp/evidence/

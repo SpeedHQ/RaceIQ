@@ -216,7 +216,8 @@ jobs:
         with:
           branch: release/v${{ steps.release-version.outputs.version }}
           delete-branch: true
-          title: "chore: bump version to ${{ steps.release-version.outputs.version }}"
+          title: "chore: bump version to v${{ steps.release-version.outputs.version }}"
+          update-title: true
           commit-message: "chore: bump version to ${{ steps.release-version.outputs.version }}"
           body: |
             Automated release finalization for v${{ steps.release-version.outputs.version }}.

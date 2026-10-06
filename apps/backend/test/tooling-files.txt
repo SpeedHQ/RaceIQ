@@ -1,4 +1,5 @@
 apps/backend/test/tooling/dev-model-routes.test.ts
 apps/backend/test/tooling/pipeline-bench-support.test.ts
 apps/backend/test/tooling/process-bench.test.ts
+apps/backend/test/tooling/recorder-bench-process.test.ts
 apps/backend/test/ai/version-label.test.ts
