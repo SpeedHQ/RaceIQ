@@ -59,7 +59,7 @@ export function formatTurnNumbers(numbers: number[]): string {
   return contiguous ? `${nums[0]}-${nums[nums.length - 1]}` : nums.join(",");
 }
 
-export const AUTO_TURN_TOKEN = /^T\d+$/;
+export const AUTO_TURN_TOKEN = /^T\d+(?:[-,/]\d+)*$/;
 const AUTO_STRAIGHT_NAME = /^S[\d?]*$/;
 /** A corner with no name yet: blank, or the editor's "T"/"T?" placeholder.
  *  "T6" is NOT one — that token carries an official turn number. */

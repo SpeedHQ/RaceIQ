@@ -8,6 +8,7 @@
 ### Fixes
 
 - Load LMU track boundaries without long stalls on detailed SVG maps.
+- Show unnamed multi-turn sections once in Analyse and track-detail labels.
 
 ### Internal
 - Avoid per-packet serialization and hashing during race-result reconciliation while retaining raw capture identity and processing provenance.

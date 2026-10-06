@@ -94,6 +94,30 @@ describe("numbered corner with no name", () => {
   });
 });
 
+describe("synthesized multi-turn names", () => {
+  test("renders ranges and lists once in map and prompt labels", () => {
+    const segments = [
+      corner("T1-2", [1, 2]),
+      corner("T3-4", [3, 4]),
+      corner("T2-3-4", [2, 3, 4]),
+      corner("T2-4", [2, 4]),
+      corner("T2,4", [2, 4]),
+      corner("T2/4", [2, 4]),
+    ];
+    const expected = ["T1-2", "T3-4", "T2-4", "T2,4", "T2,4", "T2,4"];
+    expect(segmentDisplayNames(segments)).toEqual(expected);
+    expect(segmentGroupLabels(segments)).toEqual(expected);
+    expect(segmentPromptNames(segments)).toEqual(expected);
+    expect(segmentPromptLabels(segments)).toEqual(expected);
+  });
+
+  test("preserves real names that start with a turn range", () => {
+    const segments = [corner("T1-2 Complex", [1, 2]), corner("Turn Two", [2])];
+    expect(segmentDisplayNames(segments)).toEqual(["T1-2 T1-2 Complex", "T2 Turn Two"]);
+    expect(segmentPromptNames(segments)).toEqual(["T1-2 Complex (1-2)", "Turn Two (2)"]);
+  });
+});
+
 describe("prompt labels", () => {
   test("names first, numbering in parentheses", () => {
     expect(segmentPromptNames([corner("Piscine", [14, 15])])).toEqual(["Piscine (14-15)"]);
