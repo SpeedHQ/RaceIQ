@@ -145,7 +145,7 @@ try {
   ]);
 
   catalog.initGameAdapters();
-  games.initServerGameAdapters();
+  games.initServerGameAdapters({ f1Experiments: false, iracingAdapter: true });
   stopMaintenanceTasks = pipelineModule.stopMaintenanceTasks;
   stopMaintenanceTasks();
   console.log = () => {};

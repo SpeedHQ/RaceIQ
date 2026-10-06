@@ -47,6 +47,8 @@ bun run bench:pipeline-stages --game=f1-2025 --trials=1 --frames=10000 --memory=
 
 The `imports` workload runs the production lap-index parser and detector through an isolated `LiveTelemetryPipeline` with captured in-memory session/lap outcomes. It includes decompression, framing, parser construction, and processing. Fixture reads and module initialization are outside the timer. Database and capture persistence, history seeding, developer-state updates, reconciliation, and acquisition are excluded; this is not the persistent `importSessionBin` API. Separate fresh-process memory trials measure whole-process resources, not parser allocations.
 
+Stage benchmarks and in-memory imports explicitly register iRacing, including their memory children, independently of `RACEIQ_FEATURE_IRACING_ADAPTER`. Production adapter feature gating is unchanged. Recorder resource sampling requires `ps` and accepts macOS `minutes:seconds` and Linux `[days-]hours:minutes:seconds` CPU times; an unavailable initial root-process sample fails instead of producing zero resource measurements.
+
 Use `disk-imports` for the real file-import API, storage writes, and outcome validation. `live` exercises UDP acquisition and replay; `recording` also measures recording completion and validates readable persisted captures. Live UDP workloads support FM 2023 and F1 2025. Keep replay pacing, acquisition, import, and finalization timings separate rather than interpreting replay wall time as parser throughput.
 
 Focused recorder scenarios:

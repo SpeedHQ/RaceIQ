@@ -12,6 +12,8 @@ Keep Mitata as the parser/pipeline throughput benchmark engine. Custom subproces
    In-memory import trials use the production lap-index parser/detector with captured outcomes; persistent file-import trials exercise the actual import API. Keep persistence, reconciliation and history seeding excluded from the in-memory scope rather than adding production-only injection APIs for benchmarking.
    Run stage throughput through the existing Mitata harness with prepared-state/computed-argument setup outside measured operations; preserve full snapshots, bounded processing, accepted/source counts and distinct memory windows.
 3. Document commands and limitations; update Unreleased notes. Exercise actual stage/memory/import/recording paths and affected reconciliation tests. Verify types and provenance, then commit, push and open PR against main.
+4. Correct recorder resource sampling for macOS `minutes:seconds` and Linux `[days-]hours:minutes:seconds`; fail initial sampling when the root process is unavailable instead of reporting zero resources. Register benchmark adapters explicitly in recorder imports and stage benchmarks so iRacing coverage does not depend on release flags.
 
 ## Acceptance
 No Rust dependencies or migration behavior in PR. Bun benchmarks run on main fixtures and expose raw timing/resource data with explicit scopes. Reconciliation retains raw source identity and result/fallback semantics without decoded fingerprint. Verification and PR describe measured consumer-only improvement without claiming end-to-end speedup.
+Resource sampling preserves CPU seconds and RSS across supported `ps` time formats. Recorder and stage iRacing workloads succeed with the release flag disabled; production feature gating remains unchanged.

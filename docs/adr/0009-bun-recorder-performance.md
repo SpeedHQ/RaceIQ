@@ -9,6 +9,8 @@ Extract decoded-packet fingerprint removal and adapt stage, memory, import and r
 
 Use the existing Mitata harness for parser/pipeline throughput rather than introducing a second hand-timed microbenchmark convention. Keep isolated memory sampling and paced end-to-end import/recording measurements separate because their lifetimes and timing boundaries differ.
 
+Benchmark adapter registration explicitly enables iRacing independently of production release flags. Process resource sampling accepts macOS and Linux CPU-time formats and requires an initial root-process sample; unsupported or missing samples must not masquerade as zero-resource workloads.
+
 Do not include native transport/range/allocator changes or speculative grid caching. Existing consumer-only measurements do not establish an end-to-end Bun recording speedup.
 
 Plan: [Extraction requirements and verification](../plans/bun-recorder-performance.md).
