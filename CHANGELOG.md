@@ -11,6 +11,7 @@
 - Show unnamed multi-turn sections once in Analyse and track-detail labels.
 
 ### Internal
+- Remove unused compiled artifact downloads and base production builds from dev-mode dashboard screenshot CI.
 - Avoid per-packet serialization and hashing during race-result reconciliation while retaining raw capture identity and processing provenance.
 - Add Bun-only parser/pipeline, retained-heap, import, and recording benchmarks with isolated workloads and explicit measurement scopes.
 - Correct Linux benchmark CPU/RSS sampling and run iRacing parser/import benchmarks independently of production release flags.
