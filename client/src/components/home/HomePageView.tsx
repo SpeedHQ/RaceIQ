@@ -1,7 +1,5 @@
-import { Settings2 } from "lucide-react";
 import { ActivityHeatmap } from "@/components/ActivityHeatmap";
 import { SessionRecapView } from "@/components/SessionRecap";
-import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
 import { GameBrandCards, GameBrandHeader } from "./Brand";
 import { DashboardInsights } from "./DashboardInsights";
@@ -12,8 +10,8 @@ import type { HomePageViewProps } from "./types";
 export function HomePageView({
   gameId,
   gameDisplayName,
-  displaySettings,
   allLaps,
+  sessions,
   recentSessions,
   carNames,
   trackNames,
@@ -34,37 +32,20 @@ export function HomePageView({
   periodTab,
   periodStats,
   onPeriodTabChange,
-  onOpenSettings,
 }: HomePageViewProps) {
   return (
-    <div className="min-h-full bg-app-bg">
+    <div className="min-h-full bg-app-bg text-app-detail">
       <div className="mx-auto max-w-[1400px] space-y-6 p-4 @3xl/workspace:p-6">
         {/* Header */}
-        {gameId ? (
-          <GameBrandHeader gameId={gameId} gameDisplayName={gameDisplayName} />
-        ) : (
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-app-text/90">{displaySettings.driverName ? `${m.home_hello()}, ${displaySettings.driverName}` : "RaceIQ"}</h1>
-              <p className="text-sm text-app-text/90 mt-0.5">{m.home_dashboard_overview()}</p>
-            </div>
-            <Button
-              variant="app-ghost"
-              size="icon-sm"
-              onClick={onOpenSettings}
-              className="!h-auto !w-auto p-1.5 text-app-text-muted hover:text-app-text hover:bg-app-surface-hover"
-              title={m.home_manage_games()}
-            >
-              <Settings2 className="size-4" />
-            </Button>
-          </div>
-        )}
+        {gameId && <GameBrandHeader gameId={gameId} gameDisplayName={gameDisplayName} />}
 
         {/* Game cards — only on global homepage */}
         {!gameId && <GameBrandCards gameStats={gameStats} hiddenGames={hiddenGames} />}
 
+        {!gameId && <DashboardInsights laps={allLaps} sessions={sessions} gameId={gameId} sessionsLoading={sessionsLoading} sessionsError={sessionsError} />}
+
         {gameId ? (
-          <div className="grid grid-cols-1 items-start gap-6 @5xl/workspace:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="space-y-6">
             <main className="min-w-0 space-y-6">
               <section>
                 <ActivityHeatmap laps={allLaps.filter((l) => l.gameId === gameId)} />
@@ -74,19 +55,14 @@ export function HomePageView({
                 <PeriodStatsPanel periodTab={periodTab} periodStats={periodStats} onPeriodTabChange={onPeriodTabChange} />
               </section>
 
-              <DashboardInsights laps={allLaps} gameId={gameId} carNames={carNames} trackNames={trackNames} />
-
-              <section>
-                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90">{m.home_recent_sessions()}</h2>
-                <RecentSessionsTable sessions={recentSessions} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseSession={onAnalyseSession} loading={sessionsLoading} error={sessionsError} />
-              </section>
+              <DashboardInsights laps={allLaps} sessions={sessions} gameId={gameId} sessionsLoading={sessionsLoading} sessionsError={sessionsError} />
             </main>
 
-            <aside className="@5xl/workspace:sticky @5xl/workspace:top-6">
+            <aside>
               {latestSession ? (
                 <div className="relative overflow-hidden rounded-xl border border-app-border bg-app-bg p-4">
                   <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-app-accent opacity-15 blur-3xl" />
-                  <div className="relative mb-3 flex items-center gap-2 text-app-caption font-semibold uppercase tracking-app-label text-app-accent">
+                  <div className="relative mb-3 flex items-center gap-2 text-app-label font-semibold uppercase tracking-app-label text-app-accent">
                     <span className="inline-block h-1.5 w-1.5 rounded-full bg-app-accent shadow-[var(--app-glow-accent)]" />
                     {m.recap_latest_session()}
                   </div>
@@ -99,6 +75,8 @@ export function HomePageView({
                       recap={latestRecap}
                       gameId={latestRecap.gameId}
                       linkToAnalyse
+                      compact
+                      showTrackMap={false}
                       finishPosition={latestSession.finishingPosition}
                       copied={recapCopied}
                       onCopy={onCopyRecap}
@@ -112,29 +90,26 @@ export function HomePageView({
                 <div className="rounded-xl border border-dashed border-app-border bg-app-surface p-6 text-center text-xs text-app-text-muted">{m.recap_latest_session()}</div>
               )}
             </aside>
+            <section>
+              <h2 className="mb-2 text-app-subtext font-semibold text-app-text/90">{m.home_recent_sessions()}</h2>
+              <RecentSessionsTable sessions={recentSessions} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseSession={onAnalyseSession} loading={sessionsLoading} error={sessionsError} />
+            </section>
           </div>
         ) : (
-          <div className="grid grid-cols-1 items-start gap-6 @5xl/workspace:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="space-y-6">
             <main className="min-w-0 space-y-6">
               <ActivityHeatmap laps={allLaps} />
 
               <div>
                 <PeriodStatsPanel periodTab={periodTab} periodStats={periodStats} onPeriodTabChange={onPeriodTabChange} />
               </div>
-
-              <DashboardInsights laps={allLaps} gameId={gameId} carNames={carNames} trackNames={trackNames} />
-
-              <div>
-                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90">{m.home_recent_sessions()}</h2>
-                <RecentSessionsTable sessions={recentSessions} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseSession={onAnalyseSession} loading={sessionsLoading} error={sessionsError} />
-              </div>
             </main>
 
-            <aside className="@5xl/workspace:sticky @5xl/workspace:top-6">
+            <aside>
               {latestSession ? (
                 <div className="relative overflow-hidden rounded-xl border border-app-border bg-app-bg p-4">
                   <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-app-accent opacity-15 blur-3xl" />
-                  <div className="relative mb-3 flex items-center gap-2 text-app-caption font-semibold uppercase tracking-app-label text-app-accent">
+                  <div className="relative mb-3 flex items-center gap-2 text-app-label font-semibold uppercase tracking-app-label text-app-accent">
                     <span className="inline-block h-1.5 w-1.5 rounded-full bg-app-accent shadow-[var(--app-glow-accent)]" />
                     {m.recap_latest_session()}
                   </div>
@@ -147,6 +122,8 @@ export function HomePageView({
                       recap={latestRecap}
                       gameId={latestRecap.gameId}
                       linkToAnalyse
+                      compact
+                      showTrackMap={false}
                       finishPosition={latestSession.finishingPosition}
                       copied={recapCopied}
                       onCopy={onCopyRecap}
@@ -160,6 +137,10 @@ export function HomePageView({
                 <div className="rounded-xl border border-dashed border-app-border bg-app-surface p-6 text-center text-xs text-app-text-muted">{m.recap_latest_session()}</div>
               )}
             </aside>
+            <section>
+              <h2 className="mb-2 text-app-subtext font-semibold text-app-text/90">{m.home_recent_sessions()}</h2>
+              <RecentSessionsTable sessions={recentSessions} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseSession={onAnalyseSession} loading={sessionsLoading} error={sessionsError} />
+            </section>
           </div>
         )}
       </div>

@@ -12,7 +12,6 @@ import { queryKeys } from "@/hooks/query-keys";
 import { client } from "@/lib/rpc";
 import { getGameRoute, useGameId } from "@/stores/game";
 import { parseUtcTimestamp } from "@/lib/utc-date";
-import { uiStore } from "@/stores/ui";
 import { HomePageView } from "./HomePageView";
 import type { GameStats, PeriodKey, PeriodStats } from "./types";
 
@@ -23,7 +22,6 @@ export function HomePageContainer() {
   const { data: allLaps = [] } = useLaps();
   const { data: sessions = [], isLoading: sessionsLoading, isError: sessionsError } = useSessions();
   const { displaySettings } = useSettings();
-  const { openSettings } = uiStore.actions;
   const hiddenGames: string[] = displaySettings.hiddenGames ?? [];
 
   const recentSessions = useMemo(() => [...sessions].sort((a, b) => parseUtcTimestamp(b.createdAt).getTime() - parseUtcTimestamp(a.createdAt).getTime()).slice(0, 10), [sessions]);
@@ -47,9 +45,9 @@ export function HomePageContainer() {
   const gameStats: GameStats = useMemo(() => {
     const fmtTime = (sec: number) => {
       if (sec <= 0) return "—";
-      const h = Math.floor(sec / 3600);
-      const m = Math.floor((sec % 3600) / 60);
-      return h > 0 ? `${h}h ${m}m` : `${m}m`;
+      if (sec >= 86400) return `${Math.floor(sec / 86400)}d`;
+      if (sec >= 3600) return `${Math.floor(sec / 3600)}h`;
+      return `${Math.floor(sec / 60)}m`;
     };
     const pick = (i: number) => {
       const d = gameQueries[i].data;
@@ -151,8 +149,8 @@ export function HomePageContainer() {
     <HomePageView
       gameId={gameId}
       gameDisplayName={gameAdapter?.displayName ?? null}
-      displaySettings={displaySettings}
       allLaps={allLaps}
+      sessions={sessions}
       recentSessions={recentSessions}
       carNames={carNames}
       trackNames={trackNames}
@@ -174,7 +172,6 @@ export function HomePageContainer() {
       periodTab={periodTab}
       periodStats={periodStats}
       onPeriodTabChange={setPeriodTab}
-      onOpenSettings={() => openSettings("games")}
       sessionsLoading={sessionsLoading}
       sessionsError={sessionsError}
     />

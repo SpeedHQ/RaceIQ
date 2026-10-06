@@ -5,17 +5,17 @@ import type { PeriodKey, PeriodStats } from "./types";
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
     <div className="bg-app-surface-alt/30 rounded-lg p-4">
-      <div className="text-app-caption text-app-text/90 uppercase tracking-wider mb-1">{label}</div>
-      <div className={`text-3xl font-mono font-black tabular-nums leading-none ${color ?? "text-app-text/90"}`}>{value}</div>
-      {sub && <div className="text-xs text-app-text/90 mt-1">{sub}</div>}
+      <div className="mb-1 text-app-label uppercase tracking-app-label text-app-text-muted">{label}</div>
+      <div className={`text-app-heading font-mono font-semibold tabular-nums leading-snug ${color ?? "text-app-text/90"}`}>{value}</div>
+      {sub && <div className="mt-1 text-app-detail text-app-text/90">{sub}</div>}
     </div>
   );
 }
 
 export function formatDrivenTime(seconds: number) {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+  if (seconds >= 86400) return `${Math.floor(seconds / 86400)}d`;
+  if (seconds >= 3600) return `${Math.floor(seconds / 3600)}h`;
+  return `${Math.floor(seconds / 60)}m`;
 }
 
 export function PeriodStatsPanel({ periodTab, periodStats, onPeriodTabChange }: { periodTab: PeriodKey; periodStats: PeriodStats; onPeriodTabChange: (period: PeriodKey) => void }) {
@@ -37,7 +37,7 @@ export function PeriodStatsPanel({ periodTab, periodStats, onPeriodTabChange }: 
             size="app-sm"
             key={key}
             onClick={() => onPeriodTabChange(key)}
-            className={`!px-3 !py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90 hover:text-app-text"}`}
+            className={`!px-3 !py-1.5 text-app-detail font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90 hover:text-app-text"}`}
           >
             {label}
           </Button>

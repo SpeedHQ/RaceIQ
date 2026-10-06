@@ -114,9 +114,9 @@ function SectorTrackMap({
 
 function Tile({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
-    <div className="min-w-0 overflow-hidden rounded-lg bg-app-surface-alt/30 p-3">
-      <div className="mb-1 min-h-7 break-normal text-app-caption uppercase leading-tight tracking-wider text-app-text-muted">{label}</div>
-      <div className={`min-w-0 whitespace-nowrap text-xl font-mono font-black tabular-nums leading-none ${color ? "" : "text-app-text/90"}`} style={color ? { color } : undefined}>
+    <div className="min-w-0 overflow-hidden rounded-lg bg-app-surface-alt/30 p-3 group-data-[compact=true]/recap:p-2">
+      <div className="mb-1 min-h-7 break-normal text-app-caption uppercase leading-tight tracking-wider text-app-text-muted group-data-[compact=true]/recap:min-h-0 group-data-[compact=true]/recap:text-app-label">{label}</div>
+      <div className={`min-w-0 whitespace-nowrap text-xl font-mono font-black tabular-nums leading-none group-data-[compact=true]/recap:text-app-heading group-data-[compact=true]/recap:font-semibold group-data-[compact=true]/recap:leading-snug ${color ? "" : "text-app-text/90"}`} style={color ? { color } : undefined}>
         {value}
       </div>
       {sub && <div className="mt-1 text-app-compact leading-tight text-app-text-dim">{sub}</div>}
@@ -173,20 +173,21 @@ export interface SessionRecapViewProps {
   linkToAnalyse?: boolean;
   finishPosition?: number | null;
   showTrackMap?: boolean;
+  compact?: boolean;
   copied?: boolean;
   onCopy: () => void;
   onAnalyse?: () => void;
   outlineData?: TrackOutlineData;
   bounds?: TrackSectorBounds;
 }
-export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishPosition, showTrackMap = true, copied = false, onCopy, onAnalyse, outlineData, bounds }: SessionRecapViewProps) {
+export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishPosition, showTrackMap = true, compact = false, copied = false, onCopy, onAnalyse, outlineData, bounds }: SessionRecapViewProps) {
   const canAnalyse = linkToAnalyse && gameId === recap.gameId && recap.bestLapId != null && onAnalyse != null;
 
   return (
-    <div className="@container flex min-w-0 flex-col gap-4">
+    <div data-compact={compact} className="group/recap @container flex min-w-0 flex-col gap-4">
       <div className="flex flex-col gap-3 @sm:flex-row @sm:items-start @sm:justify-between">
         <div className="min-w-0">
-          <div className="break-words text-base font-bold text-app-text/90">
+          <div className="break-words text-base font-bold text-app-text/90 group-data-[compact=true]/recap:text-app-subtext group-data-[compact=true]/recap:font-semibold">
             {recap.carName} · {recap.trackName}
           </div>
           <div className="mt-0.5 text-xs text-app-text-muted">{parseUtcTimestamp(recap.createdAt).toLocaleString(getLocale())}</div>
@@ -207,7 +208,7 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishP
         <div className="p-6 text-center text-app-text-dim">{m.recap_no_laps()}</div>
       ) : (
         <div className="flex min-w-0 flex-col gap-4">
-          <div className="grid min-w-0 grid-cols-2 gap-2 @lg:grid-cols-4">
+          <div className="grid min-w-0 grid-cols-2 gap-2 @lg:grid-cols-4 group-data-[compact=true]/recap:@3xl:grid-cols-6">
             <Tile label={m.recap_laps()} value={`${recap.lapsValid}/${recap.lapsTotal}`} />
             {finishPosition != null && <Tile label="Finish" value={`P${finishPosition}`} />}
             {recap.bestLapSec != null && (
@@ -234,7 +235,7 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishP
           </div>
           {showTrackMap && recap.sectors != null && <SectorTrackMap sectors={recap.sectors} sourceStarts={recap.sectorStarts} outlineData={outlineData} bounds={bounds} />}
 
-          {recap.sparkline.length >= 2 && (
+          {!compact && recap.sparkline.length >= 2 && (
             <div>
               <div className="mb-1 text-app-caption uppercase tracking-wider text-app-text-muted">{m.recap_pace()}</div>
               <Sparkline laps={recap.sparkline} />

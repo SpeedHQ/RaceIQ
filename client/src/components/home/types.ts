@@ -25,8 +25,8 @@ export type GameStats = Record<"fm" | "f1" | "acc" | "acEvo" | "iracing" | "lmu"
 export interface HomePageViewProps {
   gameId: GameId | null;
   gameDisplayName: string | null;
-  displaySettings: { driverName?: string | null; hiddenGames?: string[] };
   allLaps: LapMeta[];
+  sessions: SessionMeta[];
   recentSessions: SessionMeta[];
   carNames: Record<string, string>;
   trackNames: Record<string, string>;
@@ -47,5 +47,4 @@ export interface HomePageViewProps {
   periodTab: PeriodKey;
   periodStats: PeriodStats;
   onPeriodTabChange: (period: PeriodKey) => void;
-  onOpenSettings: () => void;
 }

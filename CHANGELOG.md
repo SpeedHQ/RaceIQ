@@ -2,9 +2,15 @@
 
 ### Features
 
-- Track clean-lap rate, compare latest-session pace with your previous best on the same car and track, and see seven days of practice activity on the dashboard.
+- Show Clean laps and confirmed race podium counts with first-, second-, and third-place totals on the overview, replacing Pace progress and Practice rhythm.
+- Show session type, such as Practice or Race, in the overview's Recent Sessions table.
 
 ### Fixes
+
+- Keep dashboard game cards compact and readable across phone, tablet, and desktop layouts.
+- Compact dashboard insight widgets, shorten visible copy, and place them directly below game cards.
+- Use compact 13px lap/time values in game cards and 16px metrics elsewhere on Overview, reduce heavy text weights, and keep latest-session recap text consistent without changing standalone recaps.
+- Give Recent Sessions the full overview width and replace the latest-session sidebar with a shorter summary above the table.
 
 ### Internal
 - Skip build, test, browser, snapshot, and benchmark PR jobs for automated release version bump branches.

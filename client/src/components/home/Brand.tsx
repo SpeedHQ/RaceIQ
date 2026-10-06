@@ -43,7 +43,7 @@ export function GameBrandHeader({ gameId, gameDisplayName }: { gameId: string; g
           <div className="game-brand-icon w-9 h-9 rounded-md border flex items-center justify-center shrink-0">
             <GameBrandLogo gameId={gameId} className="w-6 h-6" />
           </div>
-          <div className="text-base font-bold text-app-text/90">{gameDisplayName ?? gameId}</div>
+          <div className="text-app-title font-bold text-app-text/90">{gameDisplayName ?? gameId}</div>
         </div>
       </div>
     </div>
@@ -73,7 +73,7 @@ function GameBrandCard({ game, stats }: { game: (typeof BRAND_CARDS)[number]; st
     <Link
       to={game.route}
       data-game-brand={game.gameId}
-      className="game-brand-panel game-brand-card group relative overflow-hidden rounded-lg border p-5 transition-all duration-250 ease-out hover:scale-[1.02] @3xl/workspace:flex-1"
+      className="game-brand-panel game-brand-card group relative flex min-w-0 flex-col overflow-hidden rounded-lg border p-2.5 transition-[border-color,box-shadow] duration-250 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent motion-reduce:transition-none"
     >
       <div className="game-brand-glow absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20" />
       <div className="game-brand-bar absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100" />
@@ -82,20 +82,20 @@ function GameBrandCard({ game, stats }: { game: (typeof BRAND_CARDS)[number]; st
         <div className={`game-brand-speed-line game-brand-line-50 absolute ${lineTwo} -left-[10%] w-[120%] h-px -rotate-[3deg]`} />
         <div className={`game-brand-speed-line game-brand-line-60 absolute ${lineThree} -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]`} />
       </div>
-      <div className="relative flex items-center gap-2.5 mb-3.5">
-        <div className="game-brand-icon w-8 h-8 rounded-md border flex items-center justify-center shrink-0">
-          <GameBrandLogo gameId={game.gameId} />
+      <div className="relative mb-2 flex items-center gap-2">
+        <div className="game-brand-icon w-6 h-6 rounded-md border flex items-center justify-center shrink-0">
+          <GameBrandLogo gameId={game.gameId} className="w-4 h-4" />
         </div>
-        <span className="text-sm font-bold text-app-text/90">{game.name}</span>
+        <span className="min-w-0 text-app-detail font-semibold leading-4 text-app-text/90 wrap-break-word">{game.name}</span>
       </div>
-      <div className="relative flex gap-5">
-        <div>
-          <div className="text-app-micro uppercase tracking-app-label text-app-text/60 mb-0.5">{m.label_laps()}</div>
-          <div className="game-brand-accent text-lg font-extrabold font-mono leading-none">{stats.laps}</div>
+      <div className="relative mt-auto flex flex-wrap gap-x-3 gap-y-1">
+        <div className="flex min-w-0 items-baseline gap-1.5">
+          <div className="text-app-label uppercase tracking-app-label text-app-text/60">{m.label_laps()}</div>
+          <div className="game-brand-accent wrap-anywhere text-app-detail font-semibold font-mono leading-snug tabular-nums">{stats.laps}</div>
         </div>
-        <div>
-          <div className="text-app-micro uppercase tracking-app-label text-app-text/60 mb-0.5">{m.label_time()}</div>
-          <div className="text-lg font-extrabold font-mono leading-none text-app-text/70">{stats.time}</div>
+        <div className="flex min-w-0 items-baseline gap-1.5">
+          <div className="text-app-label uppercase tracking-app-label text-app-text/60">{m.label_time()}</div>
+          <div className="wrap-anywhere text-app-detail font-semibold font-mono leading-snug tabular-nums text-app-text/70">{stats.time}</div>
         </div>
       </div>
     </Link>
@@ -104,7 +104,7 @@ function GameBrandCard({ game, stats }: { game: (typeof BRAND_CARDS)[number]; st
 
 export function GameBrandCards({ gameStats, hiddenGames }: { gameStats: GameStats; hiddenGames: string[] }) {
   return (
-    <div className="grid grid-cols-2 gap-3 @3xl/workspace:flex">
+    <div className="grid grid-cols-1 gap-2 @sm/workspace:grid-cols-2 @3xl/workspace:grid-cols-3 @5xl/workspace:grid-cols-6">
       {BRAND_CARDS.map((game) => (hiddenGames.includes(game.gameId) ? null : <GameBrandCard key={game.gameId} game={game} stats={gameStats[game.key]} />))}
     </div>
   );

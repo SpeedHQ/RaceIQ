@@ -1,3 +1,5 @@
+import type { RaceResultOutcomeStatus } from "../results/types";
+
 import type { GameId } from "../../games/ids";
 
 import type { TelemetryVersionIdentity } from "../../telemetry/version";
@@ -80,6 +82,7 @@ export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
   sessionType?: string;
   resultClassification?: string | null;
   finishingPosition?: number | null;
+  resultOutcomeStatus?: RaceResultOutcomeStatus | null;
   qualifyingPosition?: number | null;
   isPodium?: boolean | null;
   isFastestLap?: boolean | null;

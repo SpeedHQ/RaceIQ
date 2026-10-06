@@ -56,6 +56,7 @@ const laps: LapMeta[] = [
   makeLap(921, 28, 12, 97.632, false),
 ];
 
+
 const sessions: SessionMeta[] = [
   {
     id: SESSION_ID,
@@ -77,6 +78,7 @@ const sessions: SessionMeta[] = [
     sessionType: "Practice",
     gameId: GAME_ID,
   },
+  { id: 9100, carOrdinal: 201, trackOrdinal: TRACK_ORDINAL, createdAt: "2026-07-27T18:45:00.000Z", sessionType: "Race", resultClassification: "finished", resultOutcomeStatus: "confirmed", finishingPosition: 1, gameId: GAME_ID },
 ];
 
 const recap: SessionRecap = {
@@ -261,6 +263,9 @@ const meta = {
 
 export default meta;
 type Story = StoryObj<typeof meta>;
+
+/** Global dashboard with confirmed race-result insight. */
+export const OverviewWithResults: Story = {};
 
 /** Per-game home surface with deterministic profile, activity, stats, sessions, and recap fixtures. */
 export const PerGame: Story = {};
