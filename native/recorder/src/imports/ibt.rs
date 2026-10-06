@@ -128,14 +128,21 @@ pub(super) fn run(operation:&str,input:Value,config:&Value)->Result<Value,String
     });
     let mut capture=super::capture::process_record_results("import",records,original,&options,&out,config)?;
     let packet_count=capture["packetCount"].as_u64().unwrap_or(0);
-    let mut sessions=capture["sessions"].as_array().cloned().unwrap_or_default();
+    let mut sessions=match capture.get_mut("sessions").map(Value::take){Some(Value::Array(value))=>value,_=>Vec::new()};
     for session in &mut sessions{if let Some(m)=session.as_object_mut(){
         m.insert("carOrdinal".into(),source_identity.get("carId").cloned().unwrap_or(json!(-1)));
         m.insert("trackOrdinal".into(),source_identity.get("trackId").cloned().unwrap_or(json!(-1)));
     }}
     let artifacts=capture["artifacts"].as_array().into_iter().flatten().filter_map(|a|a.get("path").cloned()).collect::<Vec<_>>();
     p.as_object_mut().unwrap().remove("_identity");
-    let manifest=json!({"version":1,"jobId":job,"operation":"import","kind":"capture","gameId":"iracing","packetCount":packet_count,"sessions":sessions,"preview":p,"artifacts":artifacts,"sourceIdentity":source_identity,"events":capture["events"],"completion":capture["completion"]});
+    let mut manifest=json!({"version":1,"jobId":job,"operation":"import","kind":"capture","gameId":"iracing","packetCount":packet_count});
+    let fields=manifest.as_object_mut().unwrap();
+    fields.insert("sessions".into(),Value::Array(sessions));
+    fields.insert("preview".into(),p);
+    fields.insert("artifacts".into(),Value::Array(artifacts));
+    fields.insert("sourceIdentity".into(),source_identity);
+    fields.insert("events".into(),capture["events"].take());
+    fields.insert("completion".into(),capture["completion"].take());
     let dest=out.join("result.json");
     std::fs::write(&dest,serde_json::to_vec(&manifest).map_err(|e|e.to_string())?).map_err(|e|format!("Write IBT result: {e}"))?;
     Ok(super::response(&job,&dest))

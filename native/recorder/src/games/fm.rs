@@ -8,7 +8,7 @@ impl ForzaParser {
         if b.len() < 324 { return Ok(None); }
         let race_on = i32le(b, layout::FM_PACKET_IS_RACE_ON)?;
         if race_on == 0 { return Ok(None); }
-        let mut p = Map::new();
+        let mut p = Map::with_capacity(96);
         p.insert("gameId".into(), Value::String("fm-2023".into()));
         put_i(&mut p, "IsRaceOn", race_on as i64);
         put_i(&mut p, "TimestampMS", u32le(b, layout::FM_PACKET_TIMESTAMP_MS)? as i64);

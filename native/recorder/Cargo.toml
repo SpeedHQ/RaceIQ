@@ -12,10 +12,23 @@ path = "src/lib.rs"
 name = "raceiq-recorder"
 path = "src/main.rs"
 
+[[bin]]
+name = "raceiq-pipeline-memory"
+path = "src/pipeline_memory_main.rs"
+required-features = ["benchmark-memory"]
+
+[[example]]
+name = "pipeline-memory-smoke"
+path = "examples/pipeline-memory-smoke.rs"
+required-features = ["benchmark-memory"]
+
+[features]
+benchmark-memory = []
+
 [dependencies]
 base64 = "0.22"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", features = ["preserve_order"] }
 rmp-serde = "1"
 uuid = { version = "1", features = ["v4"] }
 socket2 = "0.6"

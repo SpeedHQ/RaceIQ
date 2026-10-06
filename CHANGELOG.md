@@ -5,11 +5,19 @@
 - Choose the bundled Rust recording engine in Connection settings and switch between Rust and Bun without restarting the backend or reconnecting the dashboard.
 
 ### Fixes
+- Reduce import delays for F1 2025, ACC, AC Evo, iRacing, and LMU recordings when using the Rust recording engine.
 
 ### Internal
 - Skip build, test, browser, snapshot, and benchmark PR jobs for automated release version bump branches.
 - Benchmark import mode preloads one canonical fixture for each of six games, runs one warmup and 20 measured trials, and keeps inputs and results in memory without per-trial backend startup, database writes, or capture files; trials use the persistent Rust benchmark worker.
-- CPU and RSS estimates differ by engine and are not directly comparable.
+- Preserve engine-specific throughput-trial CPU/RSS estimates; report separate isolated-process sampled RSS with absolute MiB and percentage differences, and mark incompatible legacy memory baselines explicitly.
+- Add a production disk-recording benchmark for Bun/Rust FM/F1 UDP capture, including database/capture writes, graceful shutdown/finalisation timings, persisted-output validation, and selectable storage filesystem.
+- Add separate Bun/release-Rust full-presentation parsing and pre-parsed processing benchmarks using shared canonical inputs, untimed setup/IPC, bounded processing state, and explicit packet-count and architectural-scope differences; compare state-only retained memory excluding fixture inputs, and label Rust allocation peaks separately from Bun sampled post-GC maxima.
+- Keep processing benchmarks clean between trials and release finished chunk state instead of accumulating lap buffers; measure only final chunk retained state and version the changed memory lifecycle.
+- Use compact typed detector samples, indexed and cached LMU identity resolution, generated LMU layout offsets, and borrowed capture checkpoints to reduce Rust import allocations and packet copying.
+- Cache ACC car/track catalog resolution and replace per-packet iRacing tire-field string formatting with static names while preserving complete import results.
+- Remove per-packet presentation JSON from Kunos and iRacing import detection, retain typed deferred samples, and stream borrowed capture records through a shared decoder while preserving complete telemetry and lap recipes.
+- Reduce production Rust presentation allocations while preserving complete fixture packets, detector events, and import output contracts; add full-packet/event differential fixture verification.
 
 ## v0.19.2 - 2026-10-04
 

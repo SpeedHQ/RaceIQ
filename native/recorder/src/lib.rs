@@ -1,9 +1,12 @@
 #![recursion_limit = "512"]
+ #[cfg(feature = "benchmark-memory")]
+ pub mod memory_accounting;
 pub mod detection;
 pub mod engine;
 pub mod formats;
 pub mod games;
 pub mod imports;
+pub mod pipeline_benchmark;
 pub mod logger;
 pub mod protocol;
 pub mod windows;

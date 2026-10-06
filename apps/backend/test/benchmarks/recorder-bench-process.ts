@@ -29,54 +29,44 @@ function descendants(rows: Map<number, ProcessRow>, rootPid: number): number[] {
 }
 
 export class ProcessTreeSampler {
-  #proc: ChildProcess;
+  #proc: ChildProcess | number;
+  #ownPidOnly: boolean;
   #initialCpu = new Map<number, number>();
   #maxCpu = new Map<number, number>();
   #peakRssBytes = 0;
   #timer: ReturnType<typeof setTimeout> | null = null;
   #stopped = false;
 
-  constructor(proc: ChildProcess) { this.#proc = proc; }
+  constructor(proc: ChildProcess | number, ownPidOnly = false) { this.#proc = proc; this.#ownPidOnly = ownPidOnly; }
+  #rootPid(): number { return typeof this.#proc === "number" ? this.#proc : this.#proc.pid!; }
+  #pids(rows: Map<number, ProcessRow>): number[] { return this.#ownPidOnly ? [this.#rootPid()] : descendants(rows, this.#rootPid()); }
 
-  async start(): Promise<void> {
-    await this.mark();
-    await this.#sample();
-  }
-
+  async start(): Promise<void> { await this.mark(); await this.#sample(); }
   async mark(): Promise<void> {
     const rows = await processTable();
-    this.#initialCpu.clear();
-    this.#maxCpu.clear();
-    this.#peakRssBytes = 0;
-    for (const pid of descendants(rows, this.#proc.pid!)) {
-      const row = rows.get(pid);
-      if (row) this.#initialCpu.set(pid, row.cpuSeconds);
-    }
+    this.#initialCpu.clear(); this.#maxCpu.clear(); this.#peakRssBytes = 0;
+    for (const pid of this.#pids(rows)) { const row = rows.get(pid); if (row) this.#initialCpu.set(pid, row.cpuSeconds); }
   }
-
   async #sample(): Promise<void> {
     if (this.#stopped) return;
-    const rows = await processTable();
-    const pids = descendants(rows, this.#proc.pid!);
-    let rssBytes = 0;
-    for (const pid of pids) {
-      const row = rows.get(pid);
-      if (!row) continue;
+    const rows = await processTable(); let rss = 0;
+    for (const pid of this.#pids(rows)) {
+      const row = rows.get(pid); if (!row) continue;
       if (!this.#initialCpu.has(pid)) this.#initialCpu.set(pid, row.cpuSeconds);
-      rssBytes += row.rssBytes;
-      this.#maxCpu.set(pid, Math.max(this.#maxCpu.get(pid) ?? 0, row.cpuSeconds));
+      rss += row.rssBytes; this.#maxCpu.set(pid, Math.max(this.#maxCpu.get(pid) ?? 0, row.cpuSeconds));
     }
-    this.#peakRssBytes = Math.max(this.#peakRssBytes, rssBytes);
+    this.#peakRssBytes = Math.max(this.#peakRssBytes, rss);
     if (!this.#stopped) this.#timer = setTimeout(() => { void this.#sample(); }, 100);
   }
-
   async stop(): Promise<{ cpuSeconds: number; peakRssBytes: number }> {
-    this.#stopped = true;
-    clearTimeout(this.#timer ?? undefined);
-    const rows = await processTable();
-    for (const [pid, row] of rows) {
+    this.#stopped = true; clearTimeout(this.#timer ?? undefined);
+    const rows = await processTable(); let rss = 0;
+    for (const pid of this.#pids(rows)) {
+      const row = rows.get(pid); if (!row) continue;
+      rss += row.rssBytes;
       if (this.#initialCpu.has(pid)) this.#maxCpu.set(pid, Math.max(this.#maxCpu.get(pid) ?? 0, row.cpuSeconds));
     }
+    this.#peakRssBytes = Math.max(this.#peakRssBytes, rss);
     let cpuSeconds = 0;
     for (const [pid, initial] of this.#initialCpu) cpuSeconds += Math.max(0, (this.#maxCpu.get(pid) ?? initial) - initial);
     return { cpuSeconds, peakRssBytes: this.#peakRssBytes };

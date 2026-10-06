@@ -30,6 +30,42 @@ impl Detector {
         }
     }
 
+    pub fn feed_for_detection(&mut self, packet: crate::games::DetectionPacket<'_>, offset: u64) -> Result<Vec<Value>, String> {
+        match packet {
+            crate::games::DetectionPacket::Full(packet)=>self.feed(packet,offset),
+            crate::games::DetectionPacket::Ordinal(packet)=>match self {
+                Self::Ordinal(detector)=>Ok(detector.feed_f1(packet,offset)),
+                _=>Err("typed ordinal packet requires an ordinal detector".into()),
+            },
+            crate::games::DetectionPacket::Kunos(input)=>match self {
+                Self::Kunos(detector)=>detector.feed_typed(input.snapshot,offset,0,||input.materialize()),
+                _=>Err("typed Kunos packet requires a Kunos detector".into()),
+            },
+            crate::games::DetectionPacket::IRacing(input)=>match self {
+                Self::IRacing(detector)=>Ok(detector.feed_typed(input,offset)),
+                _=>Err("typed iRacing packet requires an iRacing detector".into()),
+            },
+        }
+    }
+
+    /// Live publishers retain presentation packets. Detectors retain compact
+    /// samples; only actual Kunos boundary append packets require a full copy.
+    pub fn feed_ref(&mut self, packet: &Value, offset: u64) -> Result<Vec<Value>, String> {
+        match self {
+            Self::Ordinal(detector)=>Ok(detector.feed_ref(packet,offset)),
+            Self::Kunos(detector)=>detector.feed_ref_at(packet,offset,0),
+            Self::IRacing(detector)=>Ok(detector.feed_ref_at(packet,offset,0)),
+        }
+    }
+
+    pub fn feed_ref_at(&mut self, packet: &Value, offset: u64, host_time_ms: u64) -> Result<Vec<Value>, String> {
+        match self {
+            Self::Ordinal(detector)=>Ok(detector.feed_ref_at(packet,offset,host_time_ms)),
+            Self::Kunos(detector)=>detector.feed_ref_at(packet,offset,host_time_ms),
+            Self::IRacing(detector)=>Ok(detector.feed_ref_at(packet,offset,host_time_ms)),
+        }
+    }
+
     pub fn feed_at(&mut self, packet: Value, offset: u64, host_time_ms: u64) -> Result<Vec<Value>, String> {
         match self {
             Self::Ordinal(detector) => Ok(detector.feed_at(packet, offset, host_time_ms)),

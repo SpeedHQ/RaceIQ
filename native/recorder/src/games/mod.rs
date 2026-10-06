@@ -3,7 +3,7 @@ mod f1;
 mod fm;
 pub(crate) mod iracing;
 pub(crate) mod lmu;
-mod kunos;
+pub(crate) mod kunos;
 pub(crate) mod generated {
     pub(crate) mod layouts {
         include!("generated/layouts.rs");
@@ -11,6 +11,13 @@ pub(crate) mod generated {
 }
 
 use serde_json::Value;
+
+pub enum DetectionPacket<'a> {
+    Ordinal(crate::detection::ordinal::F1Snapshot),
+    Kunos(kunos::DetectionInput<'a>),
+    IRacing(crate::detection::iracing::IRacingInput),
+    Full(Value),
+}
 
 /// Stateful canonical source parser. Each source owns one parser instance.
 pub struct GameParser {
@@ -41,6 +48,18 @@ impl GameParser {
             "iracing" => self.iracing.feed(frame, time_ms),
             "lmu" => self.lmu.feed(frame, time_ms),
             _ => Err(format!("unsupported game id: {}", self.game_id)),
+        }
+    }
+
+    /// Imports need detector state, not the complete presentation telemetry tree.
+    pub fn feed_for_detection<'a>(&'a mut self, frame: &'a [u8], time_ms: u64) -> Result<Option<DetectionPacket<'a>>, String> {
+        match self.game_id.as_str() {
+            "f1-2025" => self.f1.feed_for_detection(frame),
+            "acc" | "ac-evo" => self.kunos.as_mut().unwrap().feed_for_detection(frame, time_ms)
+                .map(|packet| packet.map(DetectionPacket::Kunos)),
+            "iracing" => self.iracing.feed_typed(frame, time_ms)
+                .map(|packet| packet.map(DetectionPacket::IRacing)),
+            _ => self.feed(frame, time_ms).map(|packet| packet.map(DetectionPacket::Full)),
         }
     }
 

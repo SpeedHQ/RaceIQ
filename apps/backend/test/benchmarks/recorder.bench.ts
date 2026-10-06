@@ -170,6 +170,65 @@ async function loadFixtureBytes(fixture: string): Promise<Buffer> {
   }
   return bytes;
 }
+type MemorySample = { peakRssBytes: number; idleRssBytes: number; elapsedSeconds: number; method?: string; status?: string };
+
+async function measureIsolatedMemory(testCase: typeof GAMES[number], engine: Args["engine"]): Promise<MemorySample> {
+  const child = engine === "bun"
+    ? spawn(process.execPath, ["run", resolve(import.meta.dir, "recorder-bench-memory-child.ts"), testCase.gameId, resolve(ROOT, `test/artifacts/sessions/${testCase.fixture}`)], { stdio: ["pipe", "pipe", "pipe"] })
+    : spawn(RUST_BENCHMARK_EXECUTABLE, ["--benchmark-stdio"], { stdio: ["pipe", "pipe", "pipe"] });
+  child.stderr?.resume();
+  const exited = Promise.withResolvers<number>();
+  child.once("error", (error) => exited.reject(error));
+  child.once("exit", (code) => exited.resolve(code ?? -1));
+  const lines = createInterface({ input: child.stdout! });
+  const lineIterator = lines[Symbol.asyncIterator]();
+  const nextBunEvent = async (): Promise<{ event: string }> => {
+    while (true) {
+      const line = await lineIterator.next();
+      if (line.done) throw new Error("Bun memory child exited without completing its protocol");
+      if (line.value.startsWith("@recorder-memory ")) return JSON.parse(line.value.slice("@recorder-memory ".length));
+    }
+  };
+  let sampler: ProcessTreeSampler | null = null;
+  try {
+    let idleRssBytes = 0;
+    if (engine === "bun") {
+      const ready = await nextBunEvent();
+      if (ready.event !== "ready") throw new Error("Bun memory child failed before ready");
+    }
+    sampler = new ProcessTreeSampler(child.pid!, true);
+    await sampler.start();
+    idleRssBytes = (await sampler.stop()).peakRssBytes;
+    sampler = new ProcessTreeSampler(child.pid!, true);
+    await sampler.start();
+    const started = Date.now();
+    if (engine === "bun") child.stdin?.write("go\n");
+    else {
+      const bytes = await loadFixtureBytes(`test/artifacts/sessions/${testCase.fixture}`);
+      child.stdin?.write(`${JSON.stringify({ gameId: testCase.gameId, bytesBase64: bytes.toString("base64") })}\n`);
+    }
+    if (engine === "bun") {
+      const done = await nextBunEvent();
+      if (done.event !== "done") throw new Error("Bun memory child failed during import");
+    } else {
+      const reply = await lineIterator.next();
+      if (reply.done) throw new Error("Rust memory child exited without an import result");
+      const response = JSON.parse(reply.value) as RustBenchReply & { error?: string };
+      if (response.error) throw new Error(`Rust memory import failed: ${response.error}`);
+    }
+    const { peakRssBytes } = await sampler.stop();
+    if (engine === "bun") child.stdin?.write("release\n");
+    else child.stdin?.end();
+    const code = await exited.promise;
+    if (code !== 0) throw new Error(`Memory child exited ${code}`);
+    return { peakRssBytes, idleRssBytes, elapsedSeconds: (Date.now() - started) / 1000 };
+  } finally {
+    lines.close();
+    if (sampler) await sampler.stop();
+    if (child.exitCode === null) child.kill("SIGKILL");
+    if (child.exitCode === null) await exited.promise;
+  }
+}
 
 function startRustBenchProcess(): void {
   if (rustBenchChild) return;
@@ -236,7 +295,16 @@ const GAMES = [
   { gameId: "iracing", fixture: "iracing-daytona-am-vantage-gt3-pit.bin.gz", port: 15333 },
   { gameId: "lmu", fixture: "lmu-spa-iron-lynx-gte.bin.gz", port: 15334 },
 ] as const;
-type Args = { engine: "bun" | "rust"; mode: "imports" | "live" | "both"; output: string; baseline?: string };
+type Args = {
+  engine: "bun" | "rust";
+  mode: "imports" | "live" | "both" | "recording";
+  output: string;
+  baseline?: string;
+  recordingTrials: number;
+  recordingSpeed: number;
+  recordingGame?: "fm-2023" | "f1-2025";
+  storageRoot: string;
+};
 const IMPORT_MEASURED_TRIALS = 20;
 const LIVE_MEASURED_TRIALS = 5;
 function median(values: number[]) { return [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)] ?? null; }
@@ -244,13 +312,26 @@ function parseArgs(argv: string[]): Args {
   const values = Object.fromEntries(argv.filter((value) => value.startsWith("--")).map((value) => { const [key, ...rest] = value.slice(2).split("="); return [key, rest.join("=")]; }));
   const engine = values.engine ?? "bun", mode = values.mode ?? "imports";
   if (engine !== "bun" && engine !== "rust") throw Error("--engine must be bun|rust");
-  if (!["imports", "live", "both"].includes(mode)) throw Error("--mode must be imports|live|both");
+  if (!["imports", "live", "both", "recording"].includes(mode)) throw Error("--mode must be imports|live|both|recording");
   if (!values.output) throw Error("--output=<path> is required");
-  return { engine, mode: mode as Args["mode"], output: resolve(values.output), ...(values.baseline ? { baseline: resolve(values.baseline) } : {}) };
+  const recordingOptions = ["trials", "speed", "game", "storage-root"];
+  if (mode !== "recording" && recordingOptions.some((key) => key in values)) throw Error("--trials, --speed, --game and --storage-root require --mode=recording");
+  const recordingTrials = Number(values.trials ?? LIVE_MEASURED_TRIALS);
+  const recordingSpeed = Number(values.speed ?? 1);
+  if (!Number.isSafeInteger(recordingTrials) || recordingTrials < 1) throw Error("--trials must be a positive integer");
+  if (!Number.isFinite(recordingSpeed) || recordingSpeed <= 0) throw Error("--speed must be positive and finite");
+  if (values.game !== undefined && values.game !== "fm-2023" && values.game !== "f1-2025") throw Error("--game must be fm-2023|f1-2025");
+  return {
+    engine, mode: mode as Args["mode"], output: resolve(values.output),
+    ...(values.baseline ? { baseline: resolve(values.baseline) } : {}),
+    recordingTrials, recordingSpeed,
+    ...(values.game ? { recordingGame: values.game as Args["recordingGame"] } : {}),
+    storageRoot: resolve(values["storage-root"] ?? tmpdir()),
+  };
 }
 const delay = (ms: number) => Bun.sleep(ms);
 async function stop(proc: ChildProcess): Promise<void> {
-  if (proc.exitCode !== null) return;
+  if (proc.exitCode !== null || proc.signalCode !== null) return;
   const exited = Promise.withResolvers<void>();
   proc.once("exit", exited.resolve);
   proc.kill("SIGINT");
@@ -291,7 +372,7 @@ async function launchBackend(dataDir: string, serverPort: number, udpPort: numbe
       await delay(25);
     }
     await configureBackendEngine(serverPort, udpPort, engine);
-    return { proc, sampler, serverPort, engine };
+    return { proc, sampler, serverPort, engine, diagnosticOutput: () => output };
   } catch (error) {
     if (proc.exitCode === null) await stop(proc);
     await sampler.stop();
@@ -404,22 +485,79 @@ async function runLive(testCase: typeof GAMES[number], speed: number, trial: num
     await rm(dataDir, { recursive: true, force: true });
   }
 }
+async function runRecording(testCase: typeof GAMES[number], config: Args) {
+  if (testCase.gameId !== "fm-2023" && testCase.gameId !== "f1-2025") throw Error(`Recording UDP replay unsupported for ${testCase.gameId}`);
+  const path = join(FIXTURE_ROOT, testCase.fixture);
+  const bytes = await loadFixtureBytes(path);
+  await mkdir(config.storageRoot, { recursive: true });
+  const dataDir = await mkdtemp(join(config.storageRoot, "raceiq-recording-bench-"));
+  const backend = await launchIsolatedBackend(dataDir, 35010, testCase.port, config.engine);
+  const abort = new AbortController();
+  const onExit = () => abort.abort(new Error(`Recording backend exited during replay: exit=${backend.proc.exitCode}, signal=${backend.proc.signalCode}`));
+  backend.proc.once("exit", onExit);
+  if (backend.proc.exitCode !== null || backend.proc.signalCode !== null) onExit();
+  try {
+    await backend.sampler.mark();
+    const start = process.hrtime.bigint();
+    const sourceDatagramsSent = await replayWithNativeClock(path, testCase.gameId, testCase.port, config.recordingSpeed, abort.signal);
+    const replayEnd = process.hrtime.bigint();
+    // Sender completion is not a receiver ACK. Match the live harness's drain allowance.
+    await delay(400);
+    abort.signal.throwIfAborted();
+    backend.proc.removeListener("exit", onExit);
+    const shutdownStart = process.hrtime.bigint();
+    await stop(backend.proc);
+    const end = process.hrtime.bigint();
+    if (backend.proc.exitCode !== 0 || backend.proc.signalCode !== null) {
+      throw Error(`Recording did not finalize cleanly: exit=${backend.proc.exitCode}, signal=${backend.proc.signalCode}`);
+    }
+    const processMetrics = await resources(backend.sampler);
+    const sessions = persistedSessions(dataDir).filter((session) => session.gameId === testCase.gameId && session.ownership === "mine");
+    if (!sessions.length || sessions.some((session) => !session.rawFile)) throw Error("Recording produced no finalized capture for one or more persisted sessions");
+    const capture = await finalizedLiveCapture(dataDir, testCase.gameId);
+    if (capture.liveRecords === 0 || capture.liveCaptureBytes === 0) throw Error("Finalized recording contains no readable capture records");
+    return {
+      engine: config.engine, fixture: testCase.fixture,
+      fixtureSha256: createHash("sha256").update(bytes).digest("hex"),
+      inputCaptureBytes: bytes.byteLength, sourceDatagramsSent,
+      elapsedSeconds: Number(end - start) / 1e9,
+      replayWriteSeconds: Number(replayEnd - start) / 1e9,
+      receiveDrainSeconds: Number(shutdownStart - replayEnd) / 1e9,
+      finalizationSeconds: Number(end - shutdownStart) / 1e9,
+      speedMultiplier: config.recordingSpeed, storageRoot: config.storageRoot,
+      persistedSessionCount: sessions.length, ...capture, ...processMetrics,
+    };
+  } catch (error) {
+    const reason = abort.signal.aborted ? abort.signal.reason : error;
+    throw Error(`${reason instanceof Error ? reason.message : String(reason)}\n${backend.diagnosticOutput()}`);
+  } finally {
+    backend.proc.removeListener("exit", onExit);
+    abort.abort();
+    await stop(backend.proc);
+    await resources(backend.sampler);
+    await rm(dataDir, { recursive: true, force: true });
+  }
+}
+
 async function main() {
   const config = parseArgs(Bun.argv.slice(2));
   await mkdir(dirname(config.output), { recursive: true });
   const trials: Record<string, unknown> = {};
   const limitations = {
     inMemoryImports: "Import cases preload each canonical fixture once, run Bun or Rust parsing/detection in memory, use a no-op DB and recorder, and retain outcomes in memory. No per-trial backend startup or disk writes.",
+    diskRecording: "Recording mode uses production database/capture writes without concurrent import or analysis. Timing includes source replay file decoding, paced replay/writes, a 400ms receive-drain allowance and graceful backend shutdown/finalisation; excludes startup, output validation reads and cleanup. OS cache remains enabled: capture bytes are logical output sizes, not disk-device I/O counters or fsync durability proof. UDP delivery/accepted-record counts are not exposed.",
     importCoverage: "One canonical .bin.gz fixture per supported game; MoTeC, IBT, DuckDB, and ZIP archive import paths are excluded.",
+    recordingBinary: "Live/recording launch the source backend. Its production runtime selects native/recorder/target/debug/raceiq-recorder for Rust; the release binary is used only by memory-import mode. Do not treat these recording timings as optimized packaged-release performance.",
     windowsCapture: "Windows shared-memory acquisition requires Windows; live UDP replay covers FM/F1 only.",
     cadence: "UDP .bin.gz fixtures lack host receive timestamps; FM TimestampMS/F1 sessionTime replay is nominal game-clock cadence, not captured acquisition cadence. 2x/4x replay supported.",
     dashboard: "Live mode measures review HTTP API latency during capture; browser dashboard latency is unavailable without a browser consumer.",
-    processResources: "Bun process CPU delta and before/after RSS differ from Rust child process-tree CPU lower-bound and sampled peak RSS; resource values are estimates, not directly equivalent.",
+    processResources: "Throughput-trial resources retain historical engine-specific methods; isolated memory results below are separate and comparable only when method metadata matches.",
   };
-  const report = { schemaVersion: 1, engine: config.engine, mode: config.mode, createdAt: new Date().toISOString(), trials, limitations, baseline: config.baseline ?? null, comparison: null as unknown };
+  const memoryMethod = "isolated-engine-pid-ps-rss-100ms-v1";
+  const report = { schemaVersion: 1, engine: config.engine, mode: config.mode, createdAt: new Date().toISOString(), trials, limitations, baseline: config.baseline ?? null, memoryMethod, memoryMethodDescription: "One fresh process per fixture; own engine PID sampled by ps every 100ms. Includes runtime, input and parser state, not allocator-only memory; Rust footprint includes stdin/base64 IPC request handling. Brief peaks may be missed; idle RSS contextual only, not subtracted as allocation.", comparison: null as unknown };
   const save = async () => writeFile(config.output, JSON.stringify(report, null, 2));
   const runSeries = async <T extends { elapsedSeconds: number }>(key: string, run: () => Promise<T>) => {
-    const measuredTrials = key.startsWith("live:") ? LIVE_MEASURED_TRIALS : IMPORT_MEASURED_TRIALS;
+    const measuredTrials = key.startsWith("recording:") ? config.recordingTrials : key.startsWith("live:") ? LIVE_MEASURED_TRIALS : IMPORT_MEASURED_TRIALS;
     const samples: T[] = [];
     const summarize = () => {
       const metric = (name: string) => {
@@ -442,6 +580,12 @@ async function main() {
         medianLiveRecords: metric("liveRecords"),
         medianLiveLapRowsAfterShutdown: metric("liveLapRowsAfterShutdown"),
         medianLiveCaptureBytes: metric("liveCaptureBytes"),
+        medianReplayWriteSeconds: metric("replayWriteSeconds"),
+        medianReceiveDrainSeconds: metric("receiveDrainSeconds"),
+        medianFinalizationSeconds: metric("finalizationSeconds"),
+        medianPersistedSessionCount: metric("persistedSessionCount"),
+        medianSampledProcessTreeCpuSecondsLowerBound: metric("sampledProcessTreeCpuSecondsLowerBound"),
+        medianPeakProcessTreeRssBytes: metric("peakProcessTreeRssBytes"),
       };
     };
     try {
@@ -462,7 +606,7 @@ async function main() {
     trials[key] = { status: "blocked", reason };
     await save();
   };
-  if (config.mode !== "live") {
+  if (config.mode === "imports" || config.mode === "both") {
     if (config.engine === "bun") initServerGameAdapters();
     else startRustBenchProcess();
     for (const testCase of GAMES) {
@@ -472,10 +616,18 @@ async function main() {
         continue;
       }
       await runSeries(`import:${testCase.gameId}:${testCase.fixture}`, () => runMemoryImport(testCase, config.engine));
+      try {
+        const memory = await measureIsolatedMemory(testCase, config.engine);
+        const current = trials[`import:${testCase.gameId}:${testCase.fixture}`] as Record<string, unknown> | undefined;
+        if (current) current.memory = { ...memory, method: memoryMethod };
+      } catch (error) {
+        const current = trials[`import:${testCase.gameId}:${testCase.fixture}`] as Record<string, unknown> | undefined;
+        if (current) current.memory = { status: "failed", error: error instanceof Error ? error.message : String(error) };
+      }
     }
     if (config.engine === "rust") await stopRustBenchProcess();
   }
-  if (config.mode !== "imports") {
+  if (config.mode === "live" || config.mode === "both") {
     for (const testCase of GAMES.slice(0, 2)) {
       const path = join(FIXTURE_ROOT, testCase.fixture);
       if (!(await Bun.file(path).exists())) {
@@ -485,25 +637,64 @@ async function main() {
       for (const speed of [1, 2, 4]) await runSeries(`live:${testCase.gameId}:${speed}x`, () => runLive(testCase, speed, speed === 1 ? 0 : speed, config.engine));
     }
   }
+  if (config.mode === "recording") {
+    for (const testCase of GAMES.slice(0, 2)) {
+      if (config.recordingGame && testCase.gameId !== config.recordingGame) continue;
+      if (!(await Bun.file(join(FIXTURE_ROOT, testCase.fixture)).exists())) {
+        await recordBlocker(`recording:${testCase.gameId}`, `Missing original UDP capture fixture: ${testCase.fixture}`);
+        continue;
+      }
+      await runSeries(`recording:${testCase.gameId}:${config.recordingSpeed}x`, () => runRecording(testCase, config));
+    }
+  }
   if (config.baseline) {
-    const reference = JSON.parse(await readFile(config.baseline, "utf8")) as { engine?: unknown; trials?: Record<string, Record<string, unknown>> };
+    const reference = JSON.parse(await readFile(config.baseline, "utf8")) as { engine?: unknown; memoryMethod?: unknown; trials?: Record<string, Record<string, unknown>> };
     const referenceTrials = reference.trials ?? {};
-    const metrics = ["medianElapsedSeconds", "medianProcessCpuSeconds", "medianPeakRssBytes", "medianLiveRecords", "medianLiveCaptureBytes", "medianImportedLaps"];
-    const observations: Record<string, Record<string, { baseline: number; current: number; relativeChangePercent: number | null }>> = {};
-    for (const [key, value] of Object.entries(trials)) {
-      const current = value as Record<string, unknown>;
+    const metrics = ["medianElapsedSeconds", "medianProcessCpuSeconds", "medianPeakRssBytes", "medianLiveRecords", "medianLiveCaptureBytes", "medianImportedLaps", "medianReplayWriteSeconds", "medianReceiveDrainSeconds", "medianFinalizationSeconds", "medianSampledProcessTreeCpuSecondsLowerBound", "medianPeakProcessTreeRssBytes"];
+    const observations: Record<string, unknown> = {};
+    const legacy = reference.memoryMethod !== memoryMethod;
+    const numericChanges: Record<string, Record<string, { baseline: number; current: number; relativeChangePercent: number | null }>> = {};
+    for (const [key, raw] of Object.entries(trials)) {
+      const current = raw as Record<string, unknown>;
       const prior = referenceTrials[key];
       if (!prior) continue;
       const matched: Record<string, { baseline: number; current: number; relativeChangePercent: number | null }> = {};
       for (const metric of metrics) {
-        if (typeof prior[metric] !== "number" || typeof current[metric] !== "number") continue;
-        matched[metric] = { baseline: prior[metric], current: current[metric], relativeChangePercent: prior[metric] === 0 ? null : ((current[metric] - prior[metric]) / prior[metric]) * 100 };
+        const before = prior[metric];
+        const after = current[metric];
+        if (typeof before !== "number" || typeof after !== "number") continue;
+        matched[metric] = { baseline: before, current: after, relativeChangePercent: before === 0 ? null : ((after - before) / before) * 100 };
       }
-      if (Object.keys(matched).length) observations[key] = matched;
+      if (Object.keys(matched).length) numericChanges[key] = matched;
+      const baseMemory = prior.memory as MemorySample | undefined;
+      const currentMemory = current.memory as MemorySample | undefined;
+      const elapsed = typeof prior.medianElapsedSeconds === "number" && typeof current.medianElapsedSeconds === "number"
+        ? { baseline: prior.medianElapsedSeconds, current: current.medianElapsedSeconds } : null;
+      const validBase = baseMemory?.method === memoryMethod && baseMemory.status === undefined && Number.isFinite(baseMemory.peakRssBytes) && baseMemory.peakRssBytes > 0;
+      const validCurrent = currentMemory?.method === memoryMethod && currentMemory.status === undefined && Number.isFinite(currentMemory.peakRssBytes) && currentMemory.peakRssBytes > 0;
+      const memory = !legacy && baseMemory && currentMemory && validBase && validCurrent ? {
+        baselineMiB: baseMemory.peakRssBytes / 1048576,
+        currentMiB: currentMemory.peakRssBytes / 1048576,
+        deltaMiB: (currentMemory.peakRssBytes - baseMemory.peakRssBytes) / 1048576,
+        deltaPercent: baseMemory.peakRssBytes === 0 ? null : ((currentMemory.peakRssBytes - baseMemory.peakRssBytes) / baseMemory.peakRssBytes) * 100,
+      } : { status: "incomparable", reason: "Baseline lacks successful matching isolated-PID sampled RSS result" };
+      observations[key] = { elapsed, memory };
     }
-    report.comparison = { referenceEngine: reference.engine ?? null, matchedTrials: Object.keys(observations).length, metricChangesOnly: observations, interpretation: "Relative measurements only; not labelled as speedup." };
+    report.comparison = { referenceEngine: reference.engine ?? null, matchedTrials: Object.keys(observations).length, metricChangesOnly: numericChanges, observations, memoryMethod: legacy ? "legacy baseline; memory incomparable" : memoryMethod };
   }
+  const rows = Object.entries(trials).filter(([key]) => key.startsWith("import:")).map(([key, raw]) => {
+    const current = raw as Record<string, unknown>;
+    const memory = current.memory as MemorySample | undefined;
+    const comparison = report.comparison as { observations?: Record<string, { memory?: { baselineMiB?: number; currentMiB?: number; deltaMiB?: number; deltaPercent?: number | null; status?: string } }> } | null;
+    const delta = comparison?.observations?.[key]?.memory;
+    const currentMiB = memory && memory.status === undefined && Number.isFinite(memory.peakRssBytes) && memory.peakRssBytes > 0 ? memory.peakRssBytes / 1048576 : null;
+    const baselineMiB = delta?.baselineMiB;
+    return `${key} | ${typeof current.medianElapsedSeconds === "number" ? current.medianElapsedSeconds.toFixed(3) : "n/a"} | ${baselineMiB?.toFixed(1) ?? "n/a"} | ${currentMiB?.toFixed(1) ?? "n/a"} | ${delta?.deltaMiB !== undefined ? `${delta.deltaMiB.toFixed(1)} MiB (${delta.deltaPercent?.toFixed(1) ?? "n/a"}%)` : delta?.status === "incomparable" ? "N/A (incomparable)" : "n/a"}`;
+  });
+  console.log("Fixture | elapsed s | baseline RSS MiB | current RSS MiB | absolute/relative delta");
+  for (const row of rows) console.log(row);
   await save();
   console.log(JSON.stringify(report, null, 2));
+  if (config.mode === "recording" && Object.values(trials).some((trial) => !trial || typeof trial !== "object" || !("status" in trial) || trial.status !== "measured")) process.exitCode = 1;
 }
 await main();

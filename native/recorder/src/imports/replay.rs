@@ -37,11 +37,12 @@ pub(super) fn run(operation: &str, input: Value, config: &Value) -> Result<Value
         }
     } else {
         let bytes = fs::read(&allowed).map_err(|e|format!("Read capture: {e}"))?;
-        let records = super::archive::decode_import_bytes(&bytes)?;
+        let plain = super::archive::prepare_import_bytes(&bytes)?;
+        let mut records = super::archive::ImportDecoder::new(&plain)?;
         let mut parser = crate::games::GameParser::new(&game)?;
         let packet_index = offset_encoding == "packet-index";
         let mut frame_index=0u64;
-        for record in records {
+        while let Some(record) = records.next()? {
             if record.kind==crate::formats::RecordKind::Segment {
                 parser.reset();
                 let marker_offset=if offset_encoding=="packet-index"{frame_index}else{record.offset};
@@ -52,7 +53,7 @@ pub(super) fn run(operation: &str, input: Value, config: &Value) -> Result<Value
             let source_frame=if record.kind==crate::formats::RecordKind::Frame {
                 let index=frame_index;frame_index+=1;frame_offsets.push((logical_offset,index));Some(index)
             }else{None};
-            let parsed=parser.feed(&record.payload,record.time_ms.unwrap_or(0))?;
+            let parsed=parser.feed(record.payload,record.time_ms.unwrap_or(0))?;
             if record.kind==crate::formats::RecordKind::Context {
                 markers.push(json!({"offset":logical_offset.to_string(),"kind":"context","packet":parsed}));
             } else if let (Some(packet),Some(source_frame))=(parsed,source_frame) {
@@ -90,7 +91,8 @@ pub(super) fn run(operation: &str, input: Value, config: &Value) -> Result<Value
 }
 fn stream_capture_replay(path:&std::path::Path, game:&str, offset_encoding:String, context_offset:Option<u64>, job_id:&str, out:&std::path::Path)->Result<Value,String>{
     let bytes=fs::read(path).map_err(|e|format!("Read capture: {e}"))?;
-    let records=super::archive::decode_import_bytes(&bytes)?;
+    let plain=super::archive::prepare_import_bytes(&bytes)?;
+    let mut records=super::archive::ImportDecoder::new(&plain)?;
     let packets_path=out.join("replay-packets.tmp");
     let result_path=out.join("result.json");
     let mut packet_writer=BufWriter::new(fs::File::create(&packets_path).map_err(|e|format!("Create replay output: {e}"))?);
@@ -100,7 +102,7 @@ fn stream_capture_replay(path:&std::path::Path, game:&str, offset_encoding:Strin
     let mut frame_index=0u64;
     let mut packet_count=0usize;
     packet_writer.write_all(b"[").map_err(|e|e.to_string())?;
-    for record in records {
+    while let Some(record)=records.next()? {
         if record.kind==crate::formats::RecordKind::Segment {
             parser.reset();
             let marker_offset=if packet_index{frame_index}else{record.offset};
@@ -109,7 +111,7 @@ fn stream_capture_replay(path:&std::path::Path, game:&str, offset_encoding:Strin
         }
         let logical_offset=if packet_index{frame_index}else{record.offset};
         if record.kind==crate::formats::RecordKind::Frame {frame_index+=1;}
-        let parsed=parser.feed(&record.payload,record.time_ms.unwrap_or(0))?;
+        let parsed=parser.feed(record.payload,record.time_ms.unwrap_or(0))?;
         if record.kind==crate::formats::RecordKind::Context {
             markers.push(json!({"offset":logical_offset.to_string(),"kind":"context","packet":parsed}));
         } else if let Some(packet)=parsed {

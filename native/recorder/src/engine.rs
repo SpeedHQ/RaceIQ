@@ -520,7 +520,7 @@ fn process_source(source: SourceMessage, out: &Outbox, parsers: &mut HashMap<Str
     if !detectors.contains_key(&game_id) { detectors.insert(game_id.clone(), Detector::new(&game_id)?); }
     let offset = if let Some(capture) = captures.get_mut(&game_id) { capture.writer.write(&bytes, Some(time_ms))? } else { 12 };
     if let Some(object) = packet.as_object_mut() { object.insert("_rawByteOffset".into(), json!(offset)); }
-    let events = detectors.get_mut(&game_id).ok_or("game detector missing")?.feed_at(packet.clone(), offset, time_ms)?;
+    let events = detectors.get_mut(&game_id).ok_or("game detector missing")?.feed_ref_at(&packet, offset, time_ms)?;
     apply_events(events, &game_id, out, captures, event_sequence, config, Some((&bytes, time_ms)))?;
     *live_sequence = live_sequence.checked_add(1).ok_or("live sequence overflow")?;
     let capture_id = captures.get(&game_id).map(|capture| capture.id.as_str()).unwrap_or("");

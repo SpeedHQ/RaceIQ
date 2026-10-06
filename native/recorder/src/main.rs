@@ -6,6 +6,13 @@ fn main() {
         }
         return;
     }
+    if std::env::args().nth(1).as_deref() == Some("--pipeline-benchmark-stdio") {
+        if let Err(error) = raceiq_recorder::pipeline_benchmark::stdio() {
+            eprintln!("recorder pipeline benchmark failed: {error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if let Err(error) = raceiq_recorder::logger::init() {
         raceiq_recorder::logger::mark_degraded();
         eprintln!("recorder logger startup failed: {error}");
