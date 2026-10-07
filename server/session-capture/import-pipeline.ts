@@ -159,6 +159,9 @@ export class ImportCaptureAdapter implements DbAdapter {
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
     return this._inner.setLapMetrics(lapId, fuelPerLap, tyreWear);
   }
+  updateLapCarSetup(lapId: number, carSetup: object | null): Promise<void> {
+    return this._inner.updateLapCarSetup(lapId, carSetup);
+  }
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]> {
     return this._inner.getLaps(gameId, limit);
   }

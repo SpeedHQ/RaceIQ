@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 
 - Show Clean laps and confirmed race podium counts with first-, second-, and third-place totals on the overview, replacing Pace progress and Practice rhythm.
 - Show session type, such as Practice or Race, in the overview's Recent Sessions table.
@@ -13,6 +14,9 @@
 - Give Recent Sessions the full overview width and replace the latest-session sidebar with a shorter summary above the table.
 
 ### Internal
+- Avoid per-packet serialization and hashing during race-result reconciliation while retaining raw capture identity and processing provenance.
+- Add Bun-only parser/pipeline, retained-heap, import, and recording benchmarks with isolated workloads and explicit measurement scopes.
+- Correct Linux benchmark CPU/RSS sampling and run iRacing parser/import benchmarks independently of production release flags.
 - Skip build, test, browser, snapshot, and benchmark PR jobs for automated release version bump branches.
 
 ## v0.19.2 - 2026-10-04
