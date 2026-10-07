@@ -38,6 +38,13 @@ function AppShell() {
   useWebSocket();
   const { displaySettings, settingsLoaded } = useSettings();
 
+  // Scale rem-based type and controls together, including portal dialogs.
+  useEffect(() => {
+    const previous = document.documentElement.style.fontSize;
+    document.documentElement.style.fontSize = `${displaySettings.uiScale ?? 100}%`;
+    return () => { document.documentElement.style.fontSize = previous; };
+  }, [displaySettings.uiScale]);
+
   // Bootstrap the Paraglide UI locale from the server-persisted `language`
   // setting (the source of truth — the AI needs it server-side anyway). No
   // reload here: this only runs when the stored language differs from the

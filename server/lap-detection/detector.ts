@@ -391,7 +391,7 @@ export class LapDetector implements ILapDetector {
   private async startNewSession(packet: TelemetryPacket): Promise<void> {
     const trackOrd = packet.TrackOrdinal ?? 0;
     const gameId = packet.gameId;
-    const sessionType = packet.f1?.sessionType ?? packet.lmu?.sessionType;
+    const sessionType = packet.f1?.sessionType ?? packet.lmu?.sessionType ?? packet.ams2?.sessionType;
     const identity: SessionIdentity | undefined = packet.lmu
       ? {
           carId: packet.lmu.carId,

@@ -2374,5 +2374,14 @@
 "experiment_focus_car_agent_label": "Kilpailuinsinööri",
   "experiment_focus_driver_agent_label": "Ajo-opettaja",
   "ob_community_body": "RaceIQ on avoimen lähdekoodin projekti, joka tarvitsee yhteisön tukea. Voit auttaa levittämällä tietoa, lähettämällä ominaisuuspyyntöjä tai virheraportteja tai osallistumalla lähdekoodin kehittämiseen.",
-  "settings_port_range_error": "Portin on oltava välillä 1024–65535"
+  "settings_port_range_error": "Portin on oltava välillä 1024–65535",
+  "settings_ui_scale": "Käyttöliittymän skaalaus",
+  "settings_ui_scale_desc": "Suurenna tekstiä ja säätimiä. Kokeile suurella näytöllä 125% tai 150%.",
+  "sessions_show_laps": "Näytä kierrokset",
+  "sessions_hide_laps": "Piilota kierrokset",
+  "dash_lan_address": "Paikallisverkon osoite",
+  "setupguide_ams2_same_pc": "Käynnistä Automobilista 2 ja RaceIQ samalla Windows-tietokoneella.",
+  "setupguide_ams2_shared_memory": "Avaa AMS2:ssa Asetukset → Järjestelmä ja valitse jaetun muistin asetukseksi Project CARS 2.",
+  "setupguide_ams2_driving": "Aloita harjoitus tai kilpailu, siirry autoon ja aja, jotta telemetrian vastaanotto alkaa.",
+  "setupguide_ams2_direct_note": "RaceIQ lukee AMS2:n tietoja suoraan. SimHub-yhteyttä tai erillistä telemetriatyökalua ei tarvita."
 }

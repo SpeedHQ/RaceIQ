@@ -1,0 +1,24 @@
+{
+  "name": "@raceiq/game-ams2",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./source": "./src/source.ts",
+    "./frame": "./src/frame.ts"
+  },
+  "dependencies": {
+    "@raceiq/shared": "workspace:*",
+    "@raceiq/backend-core": "workspace:*",
+    "@raceiq/game-ams2-metadata": "workspace:*",
+    "@raceiq/analysis-core": "workspace:*"
+  },
+  "scripts": {
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/game-ams2",
+    "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/game-ams2"
+  },
+  "devDependencies": {
+    "@raceiq/telemetry-core": "workspace:*"
+  }
+}

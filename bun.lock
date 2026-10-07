@@ -80,6 +80,8 @@
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-acc": "workspace:*",
         "@raceiq/game-acc-metadata": "workspace:*",
+        "@raceiq/game-ams2": "workspace:*",
+        "@raceiq/game-ams2-metadata": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/game-f1-2025": "workspace:*",
         "@raceiq/game-f1-2025-metadata": "workspace:*",
@@ -245,11 +247,30 @@
         "@raceiq/shared": "workspace:*",
       },
     },
+    "packages/game-ams2": {
+      "name": "@raceiq/game-ams2",
+      "dependencies": {
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/game-ams2-metadata": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+      },
+      "devDependencies": {
+        "@raceiq/telemetry-core": "workspace:*",
+      },
+    },
+    "packages/game-ams2-metadata": {
+      "name": "@raceiq/game-ams2-metadata",
+      "dependencies": {
+        "@raceiq/shared": "workspace:*",
+      },
+    },
     "packages/game-catalogs": {
       "name": "@raceiq/game-catalogs",
       "dependencies": {
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-acc-metadata": "workspace:*",
+        "@raceiq/game-ams2-metadata": "workspace:*",
         "@raceiq/game-f1-2025-metadata": "workspace:*",
         "@raceiq/game-fm-2023-metadata": "workspace:*",
         "@raceiq/game-iracing-metadata": "workspace:*",
@@ -1118,6 +1139,10 @@
     "@raceiq/game-acc": ["@raceiq/game-acc@workspace:packages/game-acc"],
 
     "@raceiq/game-acc-metadata": ["@raceiq/game-acc-metadata@workspace:packages/game-acc-metadata"],
+
+    "@raceiq/game-ams2": ["@raceiq/game-ams2@workspace:packages/game-ams2"],
+
+    "@raceiq/game-ams2-metadata": ["@raceiq/game-ams2-metadata@workspace:packages/game-ams2-metadata"],
 
     "@raceiq/game-catalogs": ["@raceiq/game-catalogs@workspace:packages/game-catalogs"],
 

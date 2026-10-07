@@ -76,7 +76,7 @@ export function RecentSessionsTable({
               {!gameId && (
                 <TableCell>
                   <Badge variant="game-brand" size="compact" data-game-brand={session.gameId ?? "fm-2023"}>
-                    {session.gameId === "f1-2025" ? "F1" : session.gameId === "acc" ? "ACC" : session.gameId === "ac-evo" ? "ACE" : session.gameId === "iracing" ? "iR" : session.gameId === "lmu" ? "LMU" : "FM"}
+                    {session.gameId === "f1-2025" ? "F1" : session.gameId === "acc" ? "ACC" : session.gameId === "ac-evo" ? "ACE" : session.gameId === "iracing" ? "iR" : session.gameId === "lmu" ? "LMU" : session.gameId === "ams2" ? "AMS2" : session.gameId === "fm-2023" ? "FM" : "—"}
                   </Badge>
                 </TableCell>
               )}

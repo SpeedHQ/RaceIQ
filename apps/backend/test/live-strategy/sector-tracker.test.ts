@@ -1,3 +1,4 @@
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { describe, test, expect } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { SectorTracker } from "@raceiq/backend-core/live-strategy/sector-tracker";
@@ -251,5 +252,53 @@ describe("SectorTracker sector detection", () => {
     // CurrentLap reset (time trial mode — LapNumber stays same)
     const r = tracker.feed(pkt({ DistanceTraveled: 3000, CurrentLap: 0, LapNumber: 1, LastLap: 85 }));
     expect(r!.currentSector).toBe(0);
+  });
+});
+
+describe("AMS2 authoritative live distance", () => {
+  test("a track with no outline advances through all sectors on consecutive laps", async () => {
+    initGameAdapters();
+    const tracker = new SectorTracker();
+    await tracker.reset(-1, "ams2");
+    const ams = (distance: number, time: number, lap = 1) => pkt({
+      gameId: "ams2", DistanceTraveled: (lap - 1) * 3000 + distance, CurrentLap: time, LapNumber: lap,
+      LastLap: lap > 1 ? 90 : 0,
+      ams2: { trackLengthM: 3000, lapDistanceM: distance } as TelemetryPacket["ams2"],
+    });
+    expect(tracker.feed(ams(0, 0))?.currentSector).toBe(0);
+    expect(tracker.getTrackLength()).toBe(3000);
+    expect(tracker.feed(ams(1050, 31.5))?.currentSector).toBe(1);
+    expect(tracker.feed(ams(2100, 63))?.currentSector).toBe(2);
+    expect(tracker.feed(ams(30, 0.9, 2))?.currentSector).toBe(0);
+    expect(tracker.feed(ams(1050, 31.5, 2))?.currentSector).toBe(1);
+    expect(tracker.feed(ams(2100, 63, 2))?.currentSector).toBe(2);
+  });
+  test("reference delta aligns lap position and survives the finish-line position wrap", async () => {
+    initGameAdapters();
+    const tracker = new SectorTracker();
+    await tracker.reset(-1, "ams2");
+    const frame = (total: number, position: number, time: number, lap: number) => pkt({
+      gameId: "ams2", DistanceTraveled: total, CurrentLap: time, LapNumber: lap,
+      ams2: { trackLengthM: 3000, lapDistanceM: position } as TelemetryPacket["ams2"],
+    });
+    tracker.updateRefLap([frame(3150, 150, 4.5, 2), frame(4500, 1500, 45, 2), frame(6000, 0, 90, 3)], 90, [30, 30, 30]);
+    const live = tracker.feed(frame(7500, 1500, 45, 3));
+    expect(live?.estimatedLap).toBeCloseTo(90);
+    expect(live?.deltaToBest).toBeCloseTo(0);
+    const late = tracker.feed(frame(8700, 2700, 81, 3));
+    expect(late?.estimatedLap).toBeCloseTo(90);
+    expect(late?.deltaToBest).toBeCloseTo(0);
+  });
+  test("joining a session midway through a lap uses the game's lap position", async () => {
+    initGameAdapters();
+    const tracker = new SectorTracker();
+    await tracker.reset(-1, "ams2");
+    const data = tracker.feed(pkt({ gameId: "ams2", DistanceTraveled: 7500, CurrentLap: 45, LapNumber: 3,
+      ams2: { trackLengthM: 3000, lapDistanceM: 1500 } as TelemetryPacket["ams2"],
+    }));
+    expect(data?.currentSector).toBe(1);
+    expect(data?.currentTimes).toEqual([0, 0, 0]);
+    expect(data?.currentSectorTime).toBe(0);
+    expect(tracker.getLapDistStart()).toBe(6000);
   });
 });

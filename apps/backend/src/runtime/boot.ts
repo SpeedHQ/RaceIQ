@@ -4,6 +4,7 @@ import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { serverReleaseFeatures } from "@raceiq/backend-core/runtime/config/release-features";
 import { injectDiscoveredAcEvoCars } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
 import { injectDiscoveredIRacingIdentity } from "@raceiq/game-iracing-metadata/index";
+import { injectDiscoveredAMS2Identity } from "@raceiq/game-ams2-metadata/index";
 import { injectDiscoveredLMUIdentity } from "@raceiq/game-lmu-metadata/index";
 import app from "../routes/index";
 import { initServerGameAdapters } from "../games/init";
@@ -89,6 +90,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     listDiscoveredTracks("lmu"),
   ]);
   injectDiscoveredLMUIdentity(lmuCars, lmuTracks);
+  injectDiscoveredAMS2Identity(await listDiscoveredCars("ams2"), await listDiscoveredTracks("ams2"));
 
   const firstRun = IS_COMPILED && isFirstRun();
   const settings = loadSettings();

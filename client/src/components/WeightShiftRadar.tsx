@@ -1,31 +1,28 @@
 import { useEffect, useRef } from "react";
 import { severityRangeColor } from "@/lib/colors";
-import { normalizeSuspensionTravel } from "@/lib/suspension";
+import {suspensionTravelBias} from "@/lib/suspension";
+import {getGame} from "@raceiq/shared/games/registry";
+import {resolveAnalysisTelemetry} from "@raceiq/shared/racing/analysis/telemetry-capabilities";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { m } from "@/paraglide/messages";
 import type { SemanticAnalysisFrame } from "./analyse/track-map/types";
-/**
- * WeightShiftRadar — Canvas-drawn weight transfer visualization.
- * Uses the 4 normalized suspension travel values (0-1) to compute
- * where weight is concentrated. More compression = more load on that corner.
- * Dot position is the weighted centroid of the four corners.
+/** Suspension-compression centroid, from supported normalized compression or explicitly displayed raw AMS2 travel.
+ * This is a compression display, not a measurement of tire forces or weight transfer.
  */
-export function WeightShiftRadar({ frame }: { frame: SemanticAnalysisFrame }) {
+export function WeightShiftRadar({ frame,gameId }: { frame: SemanticAnalysisFrame; gameId: Parameters<typeof getGame>[0] }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const size = 85;
 
   const suspension = frame.values["suspension.norm-suspension-travel"];
-  const normalizedMeters = frame.values["suspension.suspension-travel-m"];
-  const semanticLoads =
-    Array.isArray(suspension) && suspension.length >= 4 && suspension.slice(0, 4).every((value) => typeof value === "number" && Number.isFinite(value))
-      ? (suspension.slice(0, 4) as number[])
-      : Array.isArray(normalizedMeters)
-        ? normalizeSuspensionTravel(normalizedMeters)
-        : null;
+  const supported = resolveAnalysisTelemetry(getGame(gameId)).suspensionCompressionBias.source !== "unavailable";
+  const rawTravelBalance = gameId === "ams2";
+  const travelBias = rawTravelBalance ? suspensionTravelBias(frame.values["suspension.suspension-travel-m"] as unknown[] | undefined) : null;
+  const semanticLoads = supported && Array.isArray(suspension) && suspension.length >= 4 && suspension.slice(0,4).every(value => typeof value === "number" && Number.isFinite(value))
+    ? suspension.slice(0,4) as number[] : null;
 
   useEffect(() => {
-    if (!semanticLoads || semanticLoads.length < 4) return;
+    if (rawTravelBalance ? travelBias === null : !semanticLoads || semanticLoads.length < 4) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = getSemanticCanvasContext(canvas);
@@ -72,8 +69,8 @@ export function WeightShiftRadar({ frame }: { frame: SemanticAnalysisFrame }) {
     ctx.lineTo(cx, cy + r * 0.6);
     ctx.strokeStyle = "color-mix(in srgb, var(--app-text-dim) 10%, transparent)";
     ctx.stroke();
-    const loads = semanticLoads;
-    // Suspension loads (0-1 normalized, higher = more compressed = more load)
+    const loads = semanticLoads ?? [0,0,0,0];
+    // Source-supported normalized shock compression; not measured tire forces.
 
     const totalLoad = loads[0] + loads[1] + loads[2] + loads[3];
 
@@ -98,6 +95,11 @@ export function WeightShiftRadar({ frame }: { frame: SemanticAnalysisFrame }) {
       dotY = Math.max(carY + 6, Math.min(carY + carH - 6, dotY));
     }
 
+    if (rawTravelBalance && travelBias !== null) {
+      dotX = Math.max(carX+4,Math.min(carX+carW-4,cx+travelBias.lateral*(carW/2-4)*sensitivity));
+      dotY = Math.max(carY+6,Math.min(carY+carH-6,cy+travelBias.longitudinal*(carH/2-6)*sensitivity));
+    }
+
     // Magnitude: how far from center (0 = even, 1 = fully loaded on one corner)
     const dx = dotX - cx;
     const dy = dotY - cy;
@@ -118,16 +120,16 @@ export function WeightShiftRadar({ frame }: { frame: SemanticAnalysisFrame }) {
     ctx.fillStyle = dotColor;
     ctx.fill();
     ctx.globalAlpha = 1;
-  }, [semanticLoads]);
+  }, [semanticLoads,rawTravelBalance,travelBias]);
 
-  if (!semanticLoads || semanticLoads.length < 4) return null;
+  if (rawTravelBalance ? travelBias === null : !semanticLoads || semanticLoads.length < 4) {
+    return null;
+  }
   return (
-    <div className="relative flex flex-col items-center">
+    <div className="flex w-[85px] flex-col items-center gap-1" title={m.analyse_suspension_compression_tooltip()}>
       <canvas ref={canvasRef} style={{ width: size, height: size }} className="rounded" />
-      <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-app-micro font-mono text-app-text-muted text-center leading-tight">
-        {m.label_load()}
-        <br />
-        {m.label_distribution()}
+      <span className="w-full text-app-micro font-mono text-app-text-muted text-center leading-tight">
+        {m.analyse_suspension_compression_bias()}
       </span>
     </div>
   );

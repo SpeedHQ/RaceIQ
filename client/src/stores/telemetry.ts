@@ -7,6 +7,7 @@ import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "
 import type { LiveTelemetryView } from "../lib/live-telemetry-view";
 import { buildLiveTelemetryView } from "../lib/live-telemetry-view";
 export interface DisplaySettings {
+  uiScale: number;
   unit: "metric" | "imperial";
   temperatureUnit: "C" | "F";
   aiProvider: "gemini" | "openai" | "openai-compatible";
@@ -51,6 +52,7 @@ export interface DisplaySettings {
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
+  uiScale: 100,
   unit: "metric",
   temperatureUnit: "C",
   aiProvider: "gemini",
@@ -209,7 +211,7 @@ export interface TelemetryActions extends StoreActionMap {
   setSectors: (sectors: LiveSectorData) => void;
   setPit: (pit: LivePitData) => void;
   setLiveIssues: (issues: TuneIssue[]) => void;
-  clearTelemetry: () => void;
+  clearTelemetry: (preserveSchema?: boolean) => void;
   setPacketsPerSec: (pps: number) => void;
   setServerStatus: (status: ServerStatus | null) => void;
   setSessionLaps: (laps: LapMeta[]) => void;
@@ -257,7 +259,7 @@ export const telemetryStore = createStore(initialTelemetryState, (store): Teleme
       pit: telemetryFrame.context.pit ?? null,
       liveIssues: [...(telemetryFrame.context.liveIssues ?? [])],
     })),
-  clearTelemetry: () => store.setState((prev) => ({ ...prev, telemetryFrame: null, telemetryView: null, telemetrySchema: null, sectors: null, pit: null, liveIssues: [] })),
+  clearTelemetry: (preserveSchema = false) => store.setState((prev) => ({ ...prev, telemetryFrame: null, telemetryView: null, telemetrySchema: preserveSchema ? prev.telemetrySchema : null, sectors: null, pit: null, liveIssues: [] })),
   setPacketsPerSec: (packetsPerSec) => store.setState((prev) => ({ ...prev, packetsPerSec })),
   setServerStatus: (status) =>
     store.setState((prev) =>

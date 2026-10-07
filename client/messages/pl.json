@@ -2374,5 +2374,14 @@
   "experiment_focus_car_agent_label": "Inżynier wyścigowy",
   "experiment_focus_driver_agent_label": "Trener kierowcy",
   "ob_community_body": "RaceIQ to projekt open source, który rozwija się dzięki społeczności. Każdy może pomóc — rozpowszechniając informacje, zgłaszając pomysły i błędy lub współtworząc kod.",
-  "settings_port_range_error": "Port musi mieścić się w zakresie 1024–65535"
+  "settings_port_range_error": "Port musi mieścić się w zakresie 1024–65535",
+  "settings_ui_scale": "Skala interfejsu",
+  "settings_ui_scale_desc": "Powiększ tekst i elementy sterujące. Na dużym monitorze wypróbuj 125% lub 150%.",
+  "sessions_show_laps": "Pokaż okrążenia",
+  "sessions_hide_laps": "Ukryj okrążenia",
+  "dash_lan_address": "Adres sieci lokalnej",
+  "setupguide_ams2_same_pc": "Uruchom Automobilista 2 i RaceIQ na tym samym komputerze z systemem Windows.",
+  "setupguide_ams2_shared_memory": "W AMS2 otwórz Opcje → System i ustaw pamięć współdzieloną na Project CARS 2.",
+  "setupguide_ams2_driving": "Rozpocznij trening lub wyścig, wsiądź do samochodu i jedź, aby odbierać telemetrię.",
+  "setupguide_ams2_direct_note": "RaceIQ odczytuje dane AMS2 bezpośrednio. Połączenie z SimHub ani osobne narzędzie telemetryczne nie jest wymagane."
 }

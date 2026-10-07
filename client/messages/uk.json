@@ -2374,5 +2374,14 @@
   "experiment_new_button": "+ Новий експеримент",
   "dash_waiting_track": "Очікування траси…",
   "experiment_focus_car_agent_label": "Гоночний інженер",
-  "experiment_focus_driver_agent_label": "Тренер пілота"
+  "experiment_focus_driver_agent_label": "Тренер пілота",
+  "settings_ui_scale": "Масштаб інтерфейсу",
+  "settings_ui_scale_desc": "Збільште текст і елементи керування. На великому моніторі спробуйте 125% або 150%.",
+  "sessions_show_laps": "Показати кола",
+  "sessions_hide_laps": "Приховати кола",
+  "dash_lan_address": "Адреса локальної мережі",
+  "setupguide_ams2_same_pc": "Запустіть Automobilista 2 і RaceIQ на одному комп’ютері з Windows.",
+  "setupguide_ams2_shared_memory": "В AMS2 відкрийте Налаштування → Система та виберіть для спільної пам’яті Project CARS 2.",
+  "setupguide_ams2_driving": "Почніть тренування або гонку, сядьте в автомобіль і рушайте, щоб отримувати телеметрію.",
+  "setupguide_ams2_direct_note": "RaceIQ зчитує дані AMS2 безпосередньо. Підключення до SimHub чи окрема програма телеметрії не потрібні."
 }

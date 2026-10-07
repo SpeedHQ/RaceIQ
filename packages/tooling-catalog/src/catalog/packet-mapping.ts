@@ -18,6 +18,7 @@ import type {
   ParserOutput,
 } from "./model";
 import { SETUP_GROUP_DEFINITIONS } from "@raceiq/shared/racing/setups/catalog/groups";
+import ams2Sources from "../../../game-ams2/src/packet-sources.json";
 const SOURCE_ROOTS: Partial<Record<GameId, Record<string, string>>> = {
   "f1-2025": {
     m: "F1.Motion",
@@ -53,9 +54,17 @@ const SOURCE_ROOTS: Partial<Record<GameId, Record<string, string>>> = {
   },
 };
 
+const AMS2_PACKET_SOURCES: Record<string, string[]> = {
+  ...Object.fromEntries(Object.entries(ams2Sources).map(([field, source]) => [field, [source]])),
+  Fuel: ["AMS2.mFuelLevel", "AMS2.mFuelCapacity"],
+  DistanceTraveled: ["AMS2.mParticipantInfo.mCurrentLapDistance", "AMS2.mParticipantInfo.mLapsCompleted", "AMS2.mTrackLength"],
+  TrackOrdinal: ["AMS2.mTrackLocation", "AMS2.mTrackVariation"],
+  sessionUID: ["AMS2.SharedMemory.connectionEpoch", "AMS2.mSessionState", "AMS2.mCarName", "AMS2.mTrackLocation", "AMS2.mTrackVariation"],
+};
 const PACKET_SOURCE_OVERRIDES: Partial<
   Record<GameId, Record<string, string[]>>
 > = {
+  ams2: AMS2_PACKET_SOURCES,
   "f1-2025": {
     CarOrdinal: ["F1.Participants.player.teamId"],
     NumCylinders: ["RaceIQ.ParserConstant.NumCylinders"],
@@ -470,6 +479,15 @@ function packetNativeMetadata(
   key: string,
   canonicalUnit: string,
 ): { nativeUnit: string; normalization?: string } {
+  if (gameId === "ams2") {
+    if (key === "TirePressure") return { nativeUnit: "kPa", normalization: "kilopascals / 6.894757" };
+    if (["Accel", "Brake", "Clutch", "Steer"].includes(key)) return {
+      nativeUnit: "ratio",
+      normalization: key === "Steer" ? "clamp to -1..1, multiply by 127 and round" : "clamp to 0..1, multiply by 255 and round",
+    };
+    if (key === "Fuel") return { nativeUnit: "fraction and L", normalization: "native fuel fraction * capacity litres" };
+    if (key === "CarOrdinal" || key === "TrackOrdinal") return { nativeUnit: "text", normalization: "stable ordinal hash of native car or circuit name" };
+  }
   if (gameId === "fm-2023" && key.startsWith("TireTemp")) {
     return {
       nativeUnit: "°F",

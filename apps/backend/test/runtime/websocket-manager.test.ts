@@ -1,6 +1,7 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import type { ServerWebSocket } from "bun";
 import { WebSocketManager, type WSData } from "@raceiq/backend-core/runtime/websocket-manager";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LiveProjection } from "@raceiq/telemetry-core/telemetry/live-projector";
 import type { LiveSectorData } from "@raceiq/shared/racing/live/types";
 
@@ -205,4 +206,54 @@ describe("WebSocketManager controls", () => {
       manager.removeClient(reconnected);
     }
   });
+});
+
+
+test("Raw telemetry is opt-in and releases demand after closing the page", () => {
+  const manager = new WebSocketManager();
+  const ordinary = socket(); const raw = socket();
+  try {
+    manager.addClient(ordinary); manager.addClient(raw);
+    expect(manager.wantsDevTelemetry).toBe(false);
+    manager.handleMessage(raw, JSON.stringify({ type: "subscribe", channel: "dev-telemetry" }));
+    expect(manager.wantsDevTelemetry).toBe(true);
+    manager.stageDevTelemetry({ gameId: "ams2", ams2: { carName: "Ginetta" } } as TelemetryPacket);
+    manager.flushLatest();
+    expect(raw.sent.map(value => JSON.parse(value)).find(value => value.type === "dev-telemetry").packet.gameId).toBe("ams2");
+    expect(ordinary.sent.some(value => JSON.parse(value).type === "dev-telemetry")).toBe(false);
+    manager.handleMessage(raw, JSON.stringify({ type: "unsubscribe", channel: "dev-telemetry" }));
+    expect(manager.wantsDevTelemetry).toBe(false);
+  } finally {
+    manager.removeClient(ordinary); manager.removeClient(raw);
+  }
+});
+
+
+test("AMS2 idle frames expire for existing and reconnecting clients and resume with the same schema", () => {
+  const clock = spyOn(Date, "now");
+  const manager = new WebSocketManager();
+  const existing = socket(); const reconnecting = socket();
+  try {
+    clock.mockReturnValue(10000);
+    const ams2Schema = { ...schema, simulator: "ams2" as const };
+    manager.setSessionLapsProvider(() => [{ id: 42 }] as unknown as import("@raceiq/shared/racing/sessions/types").LapMeta[]);
+    manager.publishTelemetry({ schema: ams2Schema, frame });
+    manager.addClient(existing);
+    existing.sent.length = 0;
+    clock.mockReturnValue(14999);
+    manager.flushLatest();
+    expect(JSON.parse(existing.sent.at(-1)!).type).toBe("telemetry-frame");
+    existing.sent.length = 0;
+    clock.mockReturnValue(15000);
+    manager.flushLatest();
+    expect(existing.sent.map(value => JSON.parse(value).type)).toEqual(["telemetry-idle"]);
+    manager.addClient(reconnecting);
+    expect(reconnecting.sent.map(value => JSON.parse(value).type)).toEqual(["telemetry-schema", "session-laps"]);
+    manager.publishTelemetry({ frame: { ...frame, sequence: 2 } });
+    manager.flushLatest();
+    expect(JSON.parse(existing.sent.at(-1)!).sequence).toBe(2);
+    expect(JSON.parse(reconnecting.sent.at(-1)!).sequence).toBe(2);
+  } finally {
+    clock.mockRestore(); manager.removeClient(existing); manager.removeClient(reconnecting);
+  }
 });

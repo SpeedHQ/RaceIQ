@@ -7,8 +7,8 @@
 - Catalog version: `0.19.2`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.19.2`
-- Generator source SHA-256: `6b034cdac3e5ddca6252f4b16ef194f29ba1d17ec023cbff2be1ef881787fe31`
-- Content SHA-256: `f5538257b92596b71672ce7a1413574156b7042f255fe39fdab9deac27e1ea02`
+- Generator source SHA-256: `5969e97a9afcda0de717493711517d38c6e9d677fa26583839127dc98cbab289`
+- Content SHA-256: `8aec24d5df6a73d68ae0e9e93221934019521617ec04a7e15b190171a427c1ff`
 
 ## Coverage
 
@@ -20,6 +20,7 @@
 | ac-evo | 254 | 224 | 124 | 100 | 0 | 0 | 30 |
 | iracing | 952 | 702 | 115 | 18 | 324 | 495 | 0 |
 | lmu | 172 | 172 | 126 | 46 | 0 | 0 | 0 |
+| ams2 | 112 | 112 | 108 | 4 | 0 | 0 | 0 |
 
 ## Semantic variables
 

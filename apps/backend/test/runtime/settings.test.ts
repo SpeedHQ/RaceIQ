@@ -139,6 +139,18 @@ describe("driver profile output budget", () => {
     expect(loadSettings().driverProfileMaxOutputTokens).toBe(5_000);
   });
 
+  test("interface scale defaults safely and persists valid values", async () => {
+    writeFileSync(SETTINGS_PATH, JSON.stringify({}));
+    expect(loadSettings().uiScale).toBe(100);
+    const response = await settingsRoutes.request("/api/settings", {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uiScale: 150 }),
+    });
+    expect(response.status).toBe(200);
+    expect(loadSettings().uiScale).toBe(150);
+    writeFileSync(SETTINGS_PATH, JSON.stringify({ uiScale: 500 }));
+    expect(loadSettings().uiScale).toBe(100);
+  });
+
   test("rejects budgets outside supported bounds", () => {
     writeFileSync(SETTINGS_PATH, JSON.stringify({ driverProfileMaxOutputTokens: 511 }));
     expect(loadSettings().driverProfileMaxOutputTokens).toBe(5_000);

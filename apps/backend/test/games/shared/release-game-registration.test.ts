@@ -45,7 +45,7 @@ describe("release game registration", () => {
   });
 
   test("lists native telemetry game ids by release environment", () => {
-    expect(nativeTelemetryGameIds(releaseFeatureFlags(developmentEnv))).toEqual(["acc", "ac-evo", "iracing", "lmu"]);
-    expect(nativeTelemetryGameIds(releaseFeatureFlags(productionEnv))).toEqual(["acc", "ac-evo", "lmu"]);
+    expect(nativeTelemetryGameIds(releaseFeatureFlags(developmentEnv))).toEqual(["acc", "ac-evo", "iracing", "lmu", "ams2"]);
+    expect(nativeTelemetryGameIds(releaseFeatureFlags(productionEnv))).toEqual(["acc", "ac-evo", "lmu", "ams2"]);
   });
 });

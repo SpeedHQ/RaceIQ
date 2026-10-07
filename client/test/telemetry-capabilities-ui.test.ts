@@ -1,3 +1,7 @@
+import { analyseSemanticIds } from "@raceiq/shared/games/metric-contracts";
+import { getGame } from "@raceiq/shared/games/registry";
+import { GForceCircle } from "../src/components/telemetry/GForceCircle";
+import {suspensionTravelBias} from "../src/lib/suspension";
 import { describe, expect, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
@@ -338,6 +342,16 @@ describe("telemetry capability UI", () => {
     expect(used).toContain("background-color:");
   });
 
+  test("forwards available AMS2 pressures into the live tire grid", () => {
+    const markup = renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() },
+      createElement(LiveTelemetry, { mode: "driver", view: liveView("ams2", {
+        tires: { pressurePsi: { fl: 25.32, fr: 26.04, rl: 25.7, rr: 25.9 } },
+      }) })));
+    expect(markup).toContain("25.3");
+    expect(markup).toContain("26.0");
+    expect(markup).toContain("psi");
+  });
+
   test("scales pit crew semantic pedal inputs from 0–255 to percentages", () => {
     const markup = renderToStaticMarkup(
       createElement(
@@ -614,7 +628,8 @@ describe("telemetry capability UI", () => {
     expect(markup).toContain("100.0");
     expect(markup).toContain("90.0%");
     expect(markup).toContain("500°C");
-    expect(markup).toContain("24.0 psi");
+    expect(markup).toContain(">24.0</span>");
+    expect(markup).toContain("psi");
     expect(markup).toContain("20mm");
     expect(markup.match(/>—</g) ?? []).toHaveLength(2);
   });
@@ -645,7 +660,8 @@ describe("telemetry capability UI", () => {
       expect(markup, gameId).toContain("Rotation /s");
       if (gameId === "ac-evo") expect(markup, gameId).toContain("Wear /s");
       expect(markup, gameId).toContain("500°C");
-      expect(markup, gameId).toContain("24.0 psi");
+      expect(markup, gameId).toContain(">24.0</span>");
+      expect(markup, gameId).toContain("psi");
       expect(markup, gameId).not.toContain("Unavailable in Analyse");
       expect(markup, gameId).toContain("aria-label=\"Unavailable features in Analyse\"");
       expect(markup.match(/>—</g) ?? [], gameId).toHaveLength(gameId === "acc" ? 12 : 0);
@@ -771,3 +787,35 @@ describe("telemetry capability UI", () => {
     expect(available).toContain("-0.523");
   });
 });
+
+test("AMS2 keeps suspension travel visible without claiming a load distribution",()=>{
+  const view=liveView("ams2",{tires:{suspensionTravelM:{fl:.017,fr:.028,rl:.026,rr:.036}}});
+  const markup=renderToStaticMarkup(createElement(QueryClientProvider,{client:new QueryClient()},createElement(TireDiagram,{view})));
+  expect(markup).toContain("17mm");expect(markup).toContain("36mm");
+  expect(markup).toContain("<canvas");expect(markup).toContain("Compression bias");
+  expect(markup).not.toContain("Load</span>");
+});
+
+
+test("AMS2 suspension display balances both axes without implying wheel load", () => {
+  expect(suspensionTravelBias([.017, .017, .036, .036])?.longitudinal).toBeGreaterThan(0);
+  expect(suspensionTravelBias([.050, .050, .010, .010])?.longitudinal).toBeLessThan(0);
+  expect(suspensionTravelBias([.020, .040, .020, .040])?.lateral).toBeGreaterThan(0);
+  expect(suspensionTravelBias([.040, .020, .040, .020])?.lateral).toBeLessThan(0);
+  expect(suspensionTravelBias([.02, .02, .02, .02])).toEqual({ lateral: 0, longitudinal: 0 });
+  expect(suspensionTravelBias([.01, undefined, .01, .01])).toBeNull();
+});
+
+for (const adapter of [getGame("ams2")]) {
+  test(`${adapter.id} Analyse requests and resolves both G-force axes`, () => {
+    const ids = analyseSemanticIds(adapter);
+    expect(ids).toContain("motion.acceleration-x");
+    expect(ids).toContain("motion.acceleration-z");
+    const values = Object.fromEntries(ids.map(id => [id,
+      id === "motion.acceleration-x" ? 4.905 : id === "motion.acceleration-z" ? -9.81 : null]));
+    const markup = renderToStaticMarkup(createElement(GForceCircle, { frame: semanticFrame(values) }));
+    expect(markup).toContain("-0.5");
+    expect(markup).toContain("1.0");
+    expect(markup).not.toContain("—");
+  });
+}

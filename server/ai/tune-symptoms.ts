@@ -7,6 +7,7 @@
  * deltas. This is the *evidence* the tune-intent LLM reasons over — no
  * setup knowledge lives here, only physics-derived observations.
  */
+import { tryGetGame } from "@raceiq/shared/games/registry";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { Corner } from "../lap-analysis/corners";
 import { tireTempSymptoms } from "./tune-tire-symptoms";
@@ -123,6 +124,14 @@ function classifyBalance(frontSlip: number, rearSlip: number): {
   return { balance: "neutral", magnitude };
 }
 
+/** Native displacement alone cannot establish the fraction of available stroke. */
+export function supportsBottoming(packet: TelemetryPacket): boolean {
+  const suspension = tryGetGame(packet.gameId)?.telemetry.analysis?.suspensionTravel;
+  return suspension?.source === "direct" && suspension.freshness === "continuous"
+    && suspension.binding?.kind === "value"
+    && suspension.binding.semanticId === "suspension.norm-suspension-travel";
+}
+
 function summarisePhase(phase: Phase, frames: TelemetryPacket[]): PhaseSymptom {
   const frontSlip = mean(
     frames.map((p) => (Math.abs(p.TireSlipAngleFL) + Math.abs(p.TireSlipAngleFR)) / 2),
@@ -143,10 +152,10 @@ function summarisePhase(phase: Phase, frames: TelemetryPacket[]): PhaseSymptom {
 
   const bottoming = frames.some(
     (p) =>
-      p.NormSuspensionTravelFL > BOTTOM_TRAVEL ||
+      supportsBottoming(p) && (p.NormSuspensionTravelFL > BOTTOM_TRAVEL ||
       p.NormSuspensionTravelFR > BOTTOM_TRAVEL ||
       p.NormSuspensionTravelRL > BOTTOM_TRAVEL ||
-      p.NormSuspensionTravelRR > BOTTOM_TRAVEL,
+      p.NormSuspensionTravelRR > BOTTOM_TRAVEL),
   );
 
   return { phase, balance, balanceMagnitude: magnitude, brakeLockup, bottoming };
@@ -229,7 +238,7 @@ export function telemetryToSymptoms(
       bottomingCorners,
       tyrePressure: tyrePressureDeltas(packets),
       tyreTemp: tireTempSymptoms(packets),
-      damper: damperSymptoms(packets),
+      damper: packets.length > 0 && packets.every(supportsBottoming) ? damperSymptoms(packets) : null,
       weightTransfer: weightTransferSymptoms(packets),
     },
   };

@@ -82,14 +82,15 @@ export function extractEdges(bounds: any): { left: Pt[]; right: Pt[] } | null {
  * Downsamples the driven line to ~TARGET_POINTS while keeping each point's
  * original telemetry index so hover/lookup can find the real frame.
  */
-export function buildGeometry(telemetry: SemanticTuneSample[], sectorTimes: SectorTimesLite | null, edges: { left: Pt[]; right: Pt[] } | null): Geometry | null {
+export function buildGeometry(telemetry: SemanticTuneSample[], sectorTimes: SectorTimesLite | null, edges: { left: Pt[]; right: Pt[] } | null, boundsSource: "line" | "line-and-edges" = "line-and-edges"): Geometry | null {
   const positioned = telemetry.flatMap((sample, index) => (sample.positionM ? [{ point: sample.positionM, index }] : []));
   if (positioned.length < 10) return null;
 
   const step = Math.max(1, Math.floor(positioned.length / TARGET_POINTS));
   const line = positioned.filter((_, index) => index % step === 0).map(({ point, index }) => ({ p: point, idx: index }));
   const boundsPoints: Pt[] = line.map((entry) => entry.p);
-  if (edges) {
+  // Only displayed geometry should determine the extent. SectorMap hides edges.
+  if (edges && boundsSource === "line-and-edges") {
     boundsPoints.push(...edges.left, ...edges.right);
   }
   const projection = makeTrackProjection(boundsPoints, { width: VIEW, height: VIEW, padPx: PAD });

@@ -21,7 +21,7 @@ let _recordedScanned = false;
 export function scanRecordedFiles(): void {
   _recordedScanned = true;
   recordedOrdinals.clear();
-  for (const gid of ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu"]) {
+  for (const gid of ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu", "ams2"]) {
     const dir = resolve(userDir, gid);
     if (!existsSync(dir)) continue;
     for (const filePath of listDataFiles(dir, (f) => f.endsWith("-computed-average.csv"))) {

@@ -2374,5 +2374,14 @@
   "experiment_new_button": "+ Nieuw experiment",
   "dash_waiting_track": "Wachten op circuit…",
   "experiment_focus_car_agent_label": "Race-engineer",
-  "experiment_focus_driver_agent_label": "Rijcoach"
+  "experiment_focus_driver_agent_label": "Rijcoach",
+  "settings_ui_scale": "Interfaceschaal",
+  "settings_ui_scale_desc": "Vergroot tekst en bedieningselementen. Probeer 125% of 150% op een groot scherm.",
+  "sessions_show_laps": "Ronden tonen",
+  "sessions_hide_laps": "Ronden verbergen",
+  "dash_lan_address": "Lokaal netwerkadres",
+  "setupguide_ams2_same_pc": "Start Automobilista 2 en RaceIQ op dezelfde Windows-pc.",
+  "setupguide_ams2_shared_memory": "Open in AMS2 Opties → Systeem en stel gedeeld geheugen in op Project CARS 2.",
+  "setupguide_ams2_driving": "Start een training of race, stap in de auto en rijd om telemetrie te ontvangen.",
+  "setupguide_ams2_direct_note": "RaceIQ leest AMS2 rechtstreeks uit. Een SimHub-verbinding of afzonderlijk telemetrieprogramma is niet nodig."
 }

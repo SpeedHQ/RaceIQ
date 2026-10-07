@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { m } from "@/paraglide/messages";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
-import { storedLapsSectorCount } from "../lib/lap-sectors";
+import { storedLapsSectorCount, validLapBests } from "../lib/lap-sectors";
 import { useGameRoute } from "../stores/game";
 import { Button } from "./ui/button";
 
@@ -30,13 +30,7 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
   const sectorLabels = Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`);
   const gridTemplateColumns = sectorCount > 0 ? `auto repeat(${sectorCount}, minmax(0,1fr)) minmax(0,1fr) auto auto` : "auto minmax(0,1fr) auto auto";
 
-  const allTimes = filteredLaps.map((l) => l.lapTime);
-  const best = allTimes.length > 0 ? Math.min(...allTimes) : 0;
-
-  const bestSectors = Array.from({ length: sectorCount }, (_, index) => {
-    const times = filteredLaps.map((lap) => lap.sectorTimes?.[index] ?? 0).filter((time) => time > 0);
-    return times.length > 0 ? Math.min(...times) : 0;
-  });
+  const { lapTime: best, sectors: bestSectors } = validLapBests(filteredLaps, sectorCount);
 
   const sectorColor = (time: number, bestTime: number) => {
     if (time <= 0) return "text-app-text-dim";
@@ -69,8 +63,8 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
           <div className="divide-y divide-app-border/30">
             {sorted.map((l) => {
               const delta = l.lapTime - best;
-              const isBest = delta === 0;
-              const timeColor = isBest ? "text-(--lap-pace-best)" : delta < 0.5 ? "text-(--lap-pace-on-target)" : delta < 1.5 ? "text-app-text" : "text-(--lap-pace-off-target)";
+              const isBest = l.isValid && best > 0 && delta === 0;
+              const timeColor = !l.isValid || best === 0 ? "text-app-text-dim" : isBest ? "text-(--lap-pace-best)" : delta < 0.5 ? "text-(--lap-pace-on-target)" : delta < 1.5 ? "text-app-text" : "text-(--lap-pace-off-target)";
               return (
                 <div key={l.id} className="grid gap-x-2 px-3 py-1.5 items-center" style={{ gridTemplateColumns }}>
                   <span
@@ -83,13 +77,13 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
                   {sectorLabels.map((label, index) => {
                     const time = l.sectorTimes?.[index] ?? 0;
                     return (
-                      <span key={label} className={`text-sm font-mono tabular-nums text-right ${sectorColor(time, bestSectors[index])}`}>
+                      <span key={label} className={`text-sm font-mono tabular-nums text-right ${l.isValid ? sectorColor(time, bestSectors[index]) : "text-app-text-dim"}`}>
                         {time > 0 ? time.toFixed(3) : "—"}
                       </span>
                     );
                   })}
                   <span className={`text-base font-mono font-bold tabular-nums text-right ${timeColor}`}>{formatLapTime(l.lapTime)}</span>
-                  <span className="text-xs text-app-text-dim font-mono tabular-nums text-right w-14">{isBest ? "PB" : `+${delta.toFixed(3)}`}</span>
+                  <span className="text-xs text-app-text-dim font-mono tabular-nums text-right w-14">{!l.isValid || best === 0 ? "—" : isBest ? "PB" : `+${delta.toFixed(3)}`}</span>
                   <div className="flex items-center w-16 justify-end">
                     <Button
                       disabled={l.sessionId == null}

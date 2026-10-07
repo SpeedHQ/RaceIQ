@@ -14,6 +14,7 @@ export interface TelemetryPacket {
   acc?: KunosExtendedData;
   iracing?: IRacingExtendedData;
   lmu?: LMUExtendedData;
+  ams2?: {carName: string; trackName: string; trackLengthM: number; lapDistanceM: number; sessionType: string; lapInvalidated: boolean; inPits: boolean};
   extendedRaceIQ?: RaceIQExtendedData;
 
   // Game session UID (used for reliable session boundary detection)

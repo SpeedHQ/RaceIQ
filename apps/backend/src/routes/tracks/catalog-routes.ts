@@ -1,3 +1,4 @@
+import { getAMS2TrackLength } from "@raceiq/game-ams2-metadata/index";
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { existsSync, readFileSync } from "node:fs";
@@ -198,6 +199,18 @@ export const trackCatalogRoutes = new Hono()
         return c.json([...tracks, ...discovered].sort((left, right) => left.name.localeCompare(right.name)));
       }
 
+      if (gameId === "ams2") {
+        const counts = await getLapCountsByTrack("ams2");
+        const tracks = (await listDiscoveredTracks("ams2")).map(track => {
+          const hasOutline = sharedHasRecordedOutline(track.ordinal, "ams2");
+          return {ordinal: track.ordinal, name: track.name, location: "", country: "", variant: "",
+            lengthKm: (getAMS2TrackLength(track.ordinal) ?? getTrackLengthMeters(track.ordinal, "ams2") ?? 0) / 1000,
+            category: "", hasOutline, hasMap: hasOutline, mapUrl: null,
+            outlineSource: hasOutline ? "generated" : null, commonTrackName: null,
+            createdAt: track.createdAt, lapCount: counts.get(track.ordinal) ?? 0};
+        });
+        return c.json(tracks.sort((a, b) => a.name.localeCompare(b.name)));
+      }
       if (gameId === "iracing") {
         const lapCounts = await getLapCountsByTrack("iracing");
         const catalogTracks = getAllIRacingTracks();

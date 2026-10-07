@@ -2,6 +2,7 @@ import { AccSharedMemoryReader } from "@raceiq/game-acc/shared-memory";
 import { AcEvoSharedMemoryReader } from "@raceiq/game-ac-evo/shared-memory";
 import { IRacingTelemetrySource } from "@raceiq/game-iracing/source";
 import { registerLiveIRacingIdentity } from "@raceiq/game-iracing/identity";
+import { AMS2TelemetrySource } from "@raceiq/game-ams2/source";
 import { LMUTelemetrySource } from "@raceiq/game-lmu/source";
 import { isGameRunning } from "@raceiq/backend-core/games/registry";
 import {
@@ -9,6 +10,8 @@ import {
   getAcEvoReader,
   getIracingSource,
   getLmuSource,
+  getAms2Source,
+  setAms2Source,
   setAccReader,
   setAcEvoReader,
   setIracingSource,
@@ -40,7 +43,7 @@ export function startNativeSourceSupervisor(
     );
   };
 
-  console.log("[Supervisor] Watching for native telemetry games (acc, ac-evo, iracing, lmu) — 2s poll");
+  console.log("[Supervisor] Watching for native telemetry games (acc, ac-evo, iracing, lmu, ams2) — 2s poll");
   const pollTimer = setInterval(() => {
     trackStop(superviseSource(
       isGameRunning("acc"),
@@ -66,6 +69,7 @@ export function startNativeSourceSupervisor(
       getIracingSource,
       setIracingSource,
     ));
+    trackStop(superviseSource(isGameRunning("ams2"), "AMS2", () => new AMS2TelemetrySource(), getAms2Source, setAms2Source));
     trackStop(superviseSource(
       isGameRunning("lmu") || recordingGameId === "lmu",
       recordingGameId === "lmu" && !isGameRunning("lmu") ? "LMU recording" : "LMU",
@@ -85,11 +89,13 @@ export function startNativeSourceSupervisor(
         getAcEvoReader(),
         getIracingSource(),
         getLmuSource(),
+        getAms2Source(),
       ];
       setAccReader(null);
       setAcEvoReader(null);
       setIracingSource(null);
       setLmuSource(null);
+      setAms2Source(null);
       for (const reader of readers) {
         if (reader) trackStop(reader.stop());
       }

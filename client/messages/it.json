@@ -2374,5 +2374,14 @@
   "experiment_search_aria": "Cerca esperimenti",
   "experiment_guide": "Guida",
   "experiment_new_button": "+ Nuovo esperimento",
-  "dash_waiting_track": "In attesa del tracciato…"
+  "dash_waiting_track": "In attesa del tracciato…",
+  "settings_ui_scale": "Scala dell’interfaccia",
+  "settings_ui_scale_desc": "Ingrandisci testo e controlli. Prova 125% o 150% su un monitor grande.",
+  "sessions_show_laps": "Mostra giri",
+  "sessions_hide_laps": "Nascondi giri",
+  "dash_lan_address": "Indirizzo di rete locale",
+  "setupguide_ams2_same_pc": "Avvia Automobilista 2 e RaceIQ sullo stesso PC Windows.",
+  "setupguide_ams2_shared_memory": "In AMS2, apri Opzioni → Sistema e imposta la memoria condivisa su Project CARS 2.",
+  "setupguide_ams2_driving": "Entra in una sessione di prove o gara, sali in auto e guida per iniziare a ricevere la telemetria.",
+  "setupguide_ams2_direct_note": "RaceIQ legge direttamente i dati di AMS2. Non serve una connessione a SimHub né un altro strumento di telemetria."
 }

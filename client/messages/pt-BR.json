@@ -2374,5 +2374,14 @@
   "experiment_focus_car_agent_label": "Engenheiro de corrida",
   "experiment_focus_driver_agent_label": "Treinador de pilotagem",
   "analyse_ai_analysis": "Análise de IA",
-  "insight_category_suspension": "Suspensão"
+  "insight_category_suspension": "Suspensão",
+  "settings_ui_scale": "Escala da interface",
+  "settings_ui_scale_desc": "Amplie o texto e os controles. Experimente 125% ou 150% em um monitor grande.",
+  "sessions_show_laps": "Mostrar voltas",
+  "sessions_hide_laps": "Ocultar voltas",
+  "dash_lan_address": "Endereço de rede local",
+  "setupguide_ams2_same_pc": "Execute Automobilista 2 e RaceIQ no mesmo PC com Windows.",
+  "setupguide_ams2_shared_memory": "No AMS2, abra Opções → Sistema e defina a memória compartilhada como Project CARS 2.",
+  "setupguide_ams2_driving": "Entre em uma sessão de treino ou corrida, entre no carro e dirija para começar a receber telemetria.",
+  "setupguide_ams2_direct_note": "O RaceIQ lê os dados do AMS2 diretamente. Não é necessária uma conexão com o SimHub nem outra ferramenta de telemetria."
 }

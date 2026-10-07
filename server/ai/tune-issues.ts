@@ -16,6 +16,7 @@ import {
   BRAKE_ON,
   ACC_PRESSURE_TARGET,
   brakeFrac,
+  supportsBottoming,
 } from "./tune-symptoms";
 
 // psi delta from the target window mid before we call it a live issue.
@@ -124,10 +125,10 @@ export function detectLiveIssues(packet: TelemetryPacket, trackLength?: number):
 
   // Suspension bottoming.
   if (
-    packet.NormSuspensionTravelFL > BOTTOM_TRAVEL ||
+    supportsBottoming(packet) && (packet.NormSuspensionTravelFL > BOTTOM_TRAVEL ||
     packet.NormSuspensionTravelFR > BOTTOM_TRAVEL ||
     packet.NormSuspensionTravelRL > BOTTOM_TRAVEL ||
-    packet.NormSuspensionTravelRR > BOTTOM_TRAVEL
+    packet.NormSuspensionTravelRR > BOTTOM_TRAVEL)
   ) {
     issues.push({
       kind: "bottoming",

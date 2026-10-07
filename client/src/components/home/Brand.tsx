@@ -24,7 +24,7 @@ export function GameBrandLogo({ gameId, className = "w-5 h-5" }: { gameId: strin
       />
     );
   }
-  const label = gameId === "iracing" ? "iR" : "ACE";
+  const label = gameId === "iracing" ? "iR" : gameId === "ams2" ? "AMS2" : gameId.toUpperCase();
   return <span className="game-brand-accent text-xs font-black">{label}</span>;
 }
 
@@ -55,7 +55,7 @@ type GameKey = keyof GameStats;
 const BRAND_CARDS: ReadonlyArray<{
   key: GameKey;
   gameId: string;
-  route: "/fm23" | "/f125" | "/acc" | "/ac-evo" | "/iracing" | "/lmu";
+  route: "/fm23" | "/f125" | "/acc" | "/ac-evo" | "/iracing" | "/lmu" | "/ams2";
   name: string;
   linePositions: [string, string, string];
 }> = [
@@ -65,6 +65,7 @@ const BRAND_CARDS: ReadonlyArray<{
   { key: "acEvo", gameId: "ac-evo", route: "/ac-evo", name: "Assetto Corsa Evo", linePositions: ["top-[20%]", "top-[50%]", "top-[75%]"] },
   { key: "iracing", gameId: "iracing", route: "/iracing", name: "iRacing", linePositions: ["top-[20%]", "top-[50%]", "top-[75%]"] },
   { key: "lmu", gameId: "lmu", route: "/lmu", name: "Le Mans Ultimate", linePositions: ["top-[20%]", "top-[50%]", "top-[75%]"] },
+  { key: "ams2", gameId: "ams2", route: "/ams2", name: "Automobilista 2", linePositions: ["top-[20%]", "top-[50%]", "top-[75%]"] },
 ];
 
 function GameBrandCard({ game, stats }: { game: (typeof BRAND_CARDS)[number]; stats: GameStats[GameKey] }) {

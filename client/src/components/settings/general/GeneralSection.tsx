@@ -44,6 +44,19 @@ export function GeneralSection() {
           </p>
         )}
       </div>
+      <div className="max-w-xs mb-6">
+        <Label htmlFor="settings-ui-scale" className="text-app-text-secondary">{m.settings_ui_scale()}</Label>
+        <select
+          id="settings-ui-scale"
+          className="mt-1.5 w-full rounded-md border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+          value={displaySettings.uiScale ?? 100}
+          onChange={(event) => saveSettings.mutate({ uiScale: Number(event.target.value) })}
+        >
+          {[100, 115, 125, 150, 175, 200].map(scale => <option key={scale} value={scale}>{scale}%</option>)}
+        </select>
+        <p className="text-app-text-muted text-xs mt-1">{m.settings_ui_scale_desc()}</p>
+        {saveSettings.isError && <p className="text-status-danger text-xs mt-1" role="alert">{m.label_failed_to_save()}</p>}
+      </div>
       <div className="max-w-xs">
         <Label htmlFor="launch-on-login" className={`${displaySettings.isCompiled ? "text-app-text-secondary" : "text-app-text-muted"}`}>
           {m.label_launch_on_login()}

@@ -3,9 +3,27 @@
 ### Features
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 
+- Add native Windows AMS2 telemetry capture through Project CARS 2 shared memory, with game-specific car and track identity.
+- Add UI scaling and separate Driver profiles for AMS2 and iRacing.
+
 ### Fixes
 
+- Keep session Overview maps complete when an unfinished lap follows completed invalid laps.
+- Keep session Overview maps compact on wide screens and fit the driven lap line without hidden track edges shrinking it.
+- Correct the reversed AMS2 track direction arrow.
+- Restore the Analyse G-force dot and center the AMS2 suspension indicator, labelled as compression balance rather than measured wheel load.
+
+- Return AMS2 Live to connection instructions after telemetry stops, and clear live readings when the server disconnects.
+
+- Show AMS2 connection instructions when waiting for telemetry, including the required shared-memory setting and driving-session steps.
+
+- Make date controls visibly interactive and restore Live child-page routing, production Raw Data updates and AMS2 game navigation.
+- Restore AMS2 live sector progression using telemetry track length and lap position; show available live tire pressures, use percentages in replay pedal charts, and exclude invalid laps from recorded PBs.
+- Build remote HUD QR links from usable LAN addresses, allow choosing between adapters, and keep game links visible on Live pages.
+
 ### Internal
+- Run AMS2 capture tests through the isolated integration test runner.
+- Complete AMS2 telemetry catalog provenance, native units, extension coverage and supported fuel projections.
 - Avoid per-packet serialization and hashing during race-result reconciliation while retaining raw capture identity and processing provenance.
 - Add Bun-only parser/pipeline, retained-heap, import, and recording benchmarks with isolated workloads and explicit measurement scopes.
 - Correct Linux benchmark CPU/RSS sampling and run iRacing parser/import benchmarks independently of production release flags.

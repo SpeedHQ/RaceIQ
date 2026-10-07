@@ -118,3 +118,23 @@ describe("aligned telemetry", () => {
     expect(() => alignLapSet([], { gridStepMeters: 1 })).toThrow("At least one lap required");
   });
 });
+
+test("completed invalid laps define the map instead of an unfinished session tail", () => {
+  const base = input(1).telemetry[0]!;
+  const packets = Array.from({ length: 101 }, (_, i) => ({ ...base,
+    DistanceTraveled: i * 20, CurrentLap: i * 0.7, TimestampMS: i * 700,
+    PositionX: 300 * Math.cos(i / 100 * 2 * Math.PI),
+    PositionZ: 200 * Math.sin(i / 100 * 2 * Math.PI),
+  }));
+  const completed = { ...input(1), isValid: false, telemetry: packets };
+  const unfinished = { ...input(4), lapTime: 0, isValid: false, telemetry: packets.slice(0, 4) };
+  for (const laps of [[completed, unfinished], [unfinished, completed]]) {
+    const set = alignLapSet(laps, { gridStepMeters: 1 });
+    expect(set.referenceLapId).toBe(completed.lapId);
+    expect(set.nominalSpanMeters).toBe(2000);
+    const trace = set.laps.find(lap => lap.lapId === completed.lapId)!;
+    expect(Math.max(...trace.positionX) - Math.min(...trace.positionX)).toBeGreaterThan(590);
+    expect(Math.max(...trace.positionZ) - Math.min(...trace.positionZ)).toBeGreaterThan(390);
+    expect(set.laps.map(lap => lap.lapId)).toEqual(laps.map(lap => lap.lapId));
+  }
+});

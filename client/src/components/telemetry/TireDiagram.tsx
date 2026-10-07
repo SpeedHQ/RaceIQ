@@ -3,7 +3,7 @@ import { resolveWheelStates } from "@raceiq/analysis-core/racing/analysis/metric
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
 import { WeightShiftRadar } from "@/components/WeightShiftRadar";
 import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
-import { hasSurfaceTemperatureProfile, tireTemperatureReadings } from "@/components/analyse/tire-temperature-profile";
+import { tireTemperatureReadings } from "@/components/analyse/tire-temperature-profile";
 import { useUnits } from "@/hooks/useUnits";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import { m } from "@/paraglide/messages";
@@ -83,9 +83,9 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
     );
   };
   return (
-    <div className={`relative flex w-full ${hasSurfaceTemperatureProfile(frame) ? "max-w-88" : "max-w-xs"} flex-col gap-3 mx-auto`}>
+    <div className="relative mx-auto flex w-full max-w-[30rem] flex-col gap-3">
       <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-        <WeightShiftRadar frame={frame} />
+        <WeightShiftRadar frame={frame} gameId={gameId} />
       </div>
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-1">

@@ -9,4 +9,5 @@ export const TELEMETRY_PARSER_VERSIONS: Readonly<Record<GameId, string>> = {
   "ac-evo": "ac-evo-shared-memory@0.6",
   iracing: "iracing-source-frame@3",
   lmu: "lmu-source-frame@1",
+  ams2: "ams2-shared-memory@1",
 };

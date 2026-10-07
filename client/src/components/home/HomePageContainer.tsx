@@ -34,7 +34,7 @@ export function HomePageContainer() {
   const [recapCopied, setRecapCopied] = useState(false);
 
   const gameQueries = useQueries({
-    queries: (["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu"] as const).map((g) => ({
+    queries: (["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu", "ams2"] as const).map((g) => ({
       queryKey: ["stats", g],
       queryFn: async () => {
         const res = await client.api.stats.$get({ query: { gameId: g } });
@@ -55,7 +55,7 @@ export function HomePageContainer() {
       const d = gameQueries[i].data;
       return { laps: d?.totalLaps ?? 0, time: fmtTime(d?.totalTimeSec ?? 0) };
     };
-    return { fm: pick(0), f1: pick(1), acc: pick(2), acEvo: pick(3), iracing: pick(4), lmu: pick(5) };
+    return { fm: pick(0), f1: pick(1), acc: pick(2), acEvo: pick(3), iracing: pick(4), lmu: pick(5), ams2: pick(6) };
   }, [gameQueries]);
 
   const [periodTab, setPeriodTab] = useState<PeriodKey>("allTime");

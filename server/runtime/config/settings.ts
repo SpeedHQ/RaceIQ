@@ -18,6 +18,7 @@ const AppSettingsSchema = z.object({
   udpPort: z.number().int().min(1024).max(65535).default(5301),
   unit: z.enum(["metric", "imperial"]).default("metric"),
   temperatureUnit: z.enum(["C", "F"]).default("C"),
+  uiScale: z.union([z.literal(100), z.literal(115), z.literal(125), z.literal(150), z.literal(175), z.literal(200)]).default(100),
   // UI + AI output language (ISO code). Drives Paraglide client locale and the
   // AI "respond in <language>" instruction. Keep in sync with shared/platform/i18n/locales.ts
   // and client/project.inlang/settings.json.

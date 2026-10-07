@@ -2375,5 +2375,14 @@
   "dash_waiting_track": "コースを待機中…",
   "experiment_focus_car_agent_label": "レースエンジニア",
   "experiment_focus_driver_agent_label": "ドライビングコーチ",
-  "experiment_focus_driver_hint": "運転技術の向上に集中しましょう。"
+  "experiment_focus_driver_hint": "運転技術の向上に集中しましょう。",
+  "settings_ui_scale": "インターフェースの拡大率",
+  "settings_ui_scale_desc": "文字と操作部を拡大します。大きなモニターでは125%または150%をお試しください。",
+  "sessions_show_laps": "ラップを表示",
+  "sessions_hide_laps": "ラップを非表示",
+  "dash_lan_address": "ローカルネットワークアドレス",
+  "setupguide_ams2_same_pc": "同じWindows PCでAutomobilista 2とRaceIQを起動してください。",
+  "setupguide_ams2_shared_memory": "AMS2で「オプション → システム」を開き、共有メモリを「Project CARS 2」に設定してください。",
+  "setupguide_ams2_driving": "練習またはレースセッションに入り、車に乗って走行するとテレメトリの受信が始まります。",
+  "setupguide_ams2_direct_note": "RaceIQはAMS2のデータを直接読み取ります。SimHubへの接続や別のテレメトリツールは不要です。"
 }

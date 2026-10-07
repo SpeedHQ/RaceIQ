@@ -31,9 +31,9 @@ export class SparseCaptureEncoder {
     const kunosMagic = this.gameId === "acc" ? ACC_PACKED_MAGIC : ACEVO_PACKED_MAGIC;
     const isKunos = (this.gameId === "acc" || this.gameId === "ac-evo") &&
       frame.length >= 20 && frame.readUInt32LE(0) === kunosMagic;
-    const generic = this.gameId === "fm-2023" || this.gameId === "f1-2025" || this.gameId === "iracing"
+    const generic = this.gameId === "fm-2023" || this.gameId === "f1-2025" || this.gameId === "iracing" || this.gameId === "ams2"
       ? genericFrameIdentity(frame) : null;
-    const validGeneric = generic !== null && generic.startsWith(`${this.gameId === "fm-2023" ? "fm" : this.gameId === "f1-2025" ? "f1" : "iracing"}:`);
+    const validGeneric = generic !== null && generic.startsWith(`${this.gameId === "fm-2023" ? "fm" : this.gameId === "f1-2025" ? "f1" : this.gameId === "ams2" ? "ams2" : "iracing"}:`);
     if (!isLmuV2 && !isKunos && !validGeneric) {
       this.reset();
       return frame;

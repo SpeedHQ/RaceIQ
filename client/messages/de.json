@@ -2398,5 +2398,14 @@
   "experiment_new_button": "+ Neues Experiment",
   "dash_waiting_track": "Warte auf Strecke…",
   "experiment_focus_car_agent_label": "Renningenieur",
-  "experiment_focus_driver_agent_label": "Fahrercoach"
+  "experiment_focus_driver_agent_label": "Fahrercoach",
+  "settings_ui_scale": "Oberflächenskalierung",
+  "settings_ui_scale_desc": "Text und Bedienelemente vergrößern. Auf einem großen Monitor 125% oder 150% ausprobieren.",
+  "sessions_show_laps": "Runden anzeigen",
+  "sessions_hide_laps": "Runden ausblenden",
+  "dash_lan_address": "Lokale Netzwerkadresse",
+  "setupguide_ams2_same_pc": "Starte Automobilista 2 und RaceIQ auf demselben Windows-PC.",
+  "setupguide_ams2_shared_memory": "Öffne in AMS2 Optionen → System und stelle Shared Memory auf Project CARS 2.",
+  "setupguide_ams2_driving": "Starte ein Training oder Rennen, steige ins Auto und fahre los, um Telemetrie zu empfangen.",
+  "setupguide_ams2_direct_note": "RaceIQ liest AMS2 direkt aus. Eine SimHub-Verbindung oder ein separates Telemetrieprogramm ist nicht erforderlich."
 }

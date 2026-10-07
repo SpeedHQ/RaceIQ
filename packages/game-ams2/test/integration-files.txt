@@ -1,0 +1,1 @@
+packages/game-ams2/test/ams2.test.ts

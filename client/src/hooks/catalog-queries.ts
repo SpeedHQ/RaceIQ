@@ -12,7 +12,8 @@ export function useTracksForGame(gameId: GameId | null) {
     queryKey: ["tracks", gameId ?? null],
     queryFn: async () => rpcJson<{ ordinal: number; name: string; variant?: string }[]>(await client.api.tracks.$get({ query: { gameId: gameId! } })),
     enabled: !!gameId,
-    staleTime: Number.POSITIVE_INFINITY,
+    staleTime: gameId === "ams2" ? 15_000 : Number.POSITIVE_INFINITY,
+    refetchInterval: gameId === "ams2" ? 30_000 : false,
   });
 }
 
@@ -61,6 +62,7 @@ export function useTracks() {
     queryKey: ["tracks", gameId ?? null],
     queryFn: async () => rpcJson(await client.api.tracks.$get({ query: { gameId: gameId! } })),
     enabled: !!gameId,
+    refetchInterval: gameId === "ams2" ? 30_000 : false,
   });
 }
 export function useResolveNames(trackOrdinals: number[], carOrdinals: number[]) {

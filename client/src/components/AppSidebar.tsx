@@ -160,7 +160,7 @@ export function AppSidebar({
   const [gameSelectOpen, setGameSelectOpen] = useState(false);
   const closeTimer = useRef<number | null>(null);
   const activeGame = getAllGames().find((game) => isGameContextPath(location.pathname, [game.routePrefix]));
-  const isRootHome = location.pathname === "/";
+  const showGameLinks = location.pathname === "/" || location.pathname === "/live" || location.pathname.startsWith("/live/");
   const visibleGames = getAllGames().filter((game) => !hiddenGames.includes(game.id) || game.id === activeGame?.id);
   const selectItems = useMemo(() => visibleGames.map((game) => ({ value: game.id, label: game.displayName })), [visibleGames]);
   const visibleFeatures = activeGame ? FEATURE_LINKS.filter((feature) => !feature.feature || supportsGameFeature(activeGame.routePrefix, feature.feature)) : [];
@@ -301,7 +301,7 @@ export function AppSidebar({
             <div className="border-b border-app-border py-2">
               <SidebarLink collapsed={showCollapsed} exact icon={House} label={m.nav_home()} to="/" onClick={onClose} />
             </div>
-            {isRootHome && (
+            {showGameLinks && (
               <div className="min-h-0 flex-1 overflow-y-auto py-2" aria-label={m.label_games()}>
                 {visibleGames.map((game) => (
                   <SidebarLink key={game.id} collapsed={showCollapsed} icon={Gamepad2} logoSrc={GAME_LOGO_SRC[game.id]} label={game.displayName} to={`/${game.routePrefix}`} onClick={onClose} />

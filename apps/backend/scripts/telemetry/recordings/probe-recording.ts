@@ -15,11 +15,12 @@ import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../../src/games/init";
 import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
 import { parseDump } from "@raceiq/backend-core/test-support/recordings/parse-dump";
+import type { RecordingGameSupport } from "@raceiq/backend-core/test-support/recordings/parse-dump";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
-const recordingGames = {
+const recordingGames: Partial<Record<GameId, RecordingGameSupport>> = {
   "acc": accRecordingSupport,
   "ac-evo": acEvoRecordingSupport,
   "f1-2025": f1RecordingSupport,
@@ -60,5 +61,7 @@ if (!path || !existsSync(path)) {
 console.error(`Probing: ${path}`);
 initGameAdapters(developmentReleaseFeatures);
 initServerGameAdapters(developmentReleaseFeatures);
-const laps = await parseDump(recordingGames[gameId], path);
+const support = recordingGames[gameId];
+if (!support) throw new Error(`No probe fixture support for ${gameId}; use native session replay.`);
+const laps = await parseDump(support, path);
 console.log(JSON.stringify(laps, null, 2));
