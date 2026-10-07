@@ -1,0 +1,33 @@
+# Reusable lap processor package ownership
+
+ADR: [Decision record](../adr/0010-reusable-lap-processor.md)
+
+## Context and decision
+
+Move existing BIN reader, capture writer, and parser dependencies into reusable package ownership. Prepare for later standalone recorder process without implementing that process or changing server launch behavior. Relocate existing capture modules to `@raceiq/capture-formats`; expose existing game-owned parsers through direct package subpath exports. Runtime implementation bodies, signatures, parser state, binary formats, and processing paths remain unchanged. This is pure relocation/import/export work, with no added runtime abstraction or overhead.
+
+Hosted service, reduced-channel uploads, and new lap-time evaluation remain deferred. No dispatcher, parser objects, aggregate package, stream delegation, callbacks, validation policy, allocation, copying, or IPC. Do not alter adapter execution, server registry, native acquisition, backend startup, or launch behavior.
+
+## Steps
+
+1. Capture baseline behavior for six committed fixtures using existing game adapters directly, without server boot. Serialize packets immediately (accumulators may reuse objects) and save ordered SHA-256 digests of packets, frame bytes, offsets, and timestamps. Preserve segment/context handling and parser-state lifetime. Use existing decoders: `readKunosFrames` for legacy Kunos, existing capture-formats dump readers for iRacing/LMU, and existing framing iterators for canonical captures. Legacy Kunos adapter replay uses existing `packTriplet`, game magic, ordinal zero; parser resolves static identity. This adaptation is verification-only.
+2. Move unchanged implementations: `server/session-capture/{framing,generic-sparse,kunos-sparse,lmu-sparse,recorder,sparse-recorder}.ts` to `packages/capture-formats/src/session/`; move `server/games/kunos/pack-triplet.ts` to `packages/capture-formats/src/kunos/pack-triplet.ts`; move `frame-reader.ts` to `packages/capture-formats/src/kunos/dump.ts`. Export each via its direct subpath. Add capture-formats dependency on shared for existing `GameId` type.
+3. Move `MAX_DECOMPRESSED_CAPTURE_BYTES` unchanged (`1024 * 1024 * 1024`) into `session/limits.ts` and export direct subpath. Replace framing and archive consumer imports; other archive limits and ZIP logic stay backend-owned.
+4. Search and migrate every old path and relevant symbol consumer across applications, games, scripts, tests. Update workspace dependencies. Remove old files, no shims. Keep `source-loader.ts` streaming body, file factory, MoTeC handling, instrumentation, cache, indexing, and behavior unchanged; only change imports. Preserve source offsets, gzip limits, metadata, timestamps, sparse checkpoints, truncated-tail tolerance, strict errors, record counts, lazy file creation, logging, flush, and stop semantics. No lifecycle repairs or performance rewrites.
+5. Retain existing ACC/AC Evo/FM `./parser` exports and iRacing/LMU `./normalizer` exports. Add game-f1-2025 direct `./f1-state` export. Reuse existing capture-formats decoding exports; no wrapper or alias. Move unchanged `LapIndexPacket` Pick type from backend detector types into `shared/telemetry/lap-index.ts`, export `./telemetry/lap-index`, migrate all imports including ACC/Evo lap-index and iRacing normalizer. Keep detector contracts in backend with no compatibility re-export.
+6. Parser and capture subpath imports must not load backend startup, DB, HTTP, AI, live pipeline, detectors, or Windows acquisition. If required parser dependency is backend-only, relocate its existing pure implementation into its existing owning package and update imports only. No facade or duplicate logic.
+
+## Non-goals and invariants
+
+No `GameFrameParser`, parser objects, `getGameFrameParser`, or `@raceiq/telemetry-processor`. Adapter roots may retain backend dependencies. Preserve `this` binding, state caches, accumulator priming, identity lookup, full/compact projection, and explicit existing parser signatures. Preserve awkward lifecycle/error behavior. Do not authenticate user-editable captures or claim leaderboard trustworthiness. Bun only; no standalone launcher.
+
+## Verification / acceptance
+
+- With Bun workspace dependencies, run `bun run --sequential --filter '@raceiq/*' typecheck`, `bun run test:unit`, `bun run test:integration`, and `bun run test:e2e:recordings`; require fixture presence, because skip-on-missing tests are insufficient.
+- Before and after, replay and compare ordered packet/frame/offset/timestamp digests for: `test/artifacts/sessions/acc-2026-04-10T02-59-28-972Z.bin.gz`, `ac-evo-2026-04-15T17-12-25-825Z.bin.gz`, `fm-2023-2026-04-09T21-55-03-186Z.bin.gz`, `f1-2025-2026-04-22T11-42-43-029Z.bin.gz`, `iracing-road-america-gt3.bin.gz`, `lmu-spa-iron-lynx-gte.bin.gz`. Use temporary `bun` consumer and existing helpers; do not invent generic format detection.
+- Build and execute temporary independent consumer with `Bun.build({target:'bun'})`, direct capture-format and parser subpaths, existing parser/state APIs, native recording decoding, and onLoad guard rejecting runtime modules under repository `server/` or `apps/backend/`. Compare packets with baseline; no DB/HTTP initialization.
+- Writer smoke: instantiate moved `SessionRecorder` and `SparseSessionRecorder`, write deterministic native fixture frames/timestamps in isolated temp paths, stop, decode via moved buffer reader, assert exact frame bytes, original offsets, timestamps, final metadata count. Start and reserve metadata with no records must leave no file. Existing source-loader stream suite covers chunk splitting and strict behavior.
+- Preserve ACC fixture result: five laps, three valid, times approximately 90.375/88.120/89.277 seconds, first outlap, final incomplete tail. Preserve exact UDP datagrams in existing recording subprocess coverage. Native acquisition remains Windows-only; macOS fixture proof does not verify it.
+- Zero-added-overhead acceptance is structural: runtime bodies and hot-path call graph unchanged; only locations/imports/exports and type ownership change. Reject delegation, object composition, registries, buffering, allocations, copies, async boundaries. Do not claim measured zero cost; add no benchmark subsystem.
+
+If any named fixture disappears, report exact missing prerequisite and do not skip that game's proof. No runtime checks occurred during planning.

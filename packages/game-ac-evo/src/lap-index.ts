@@ -1,4 +1,4 @@
-import type { LapIndexPacket } from "@raceiq/backend-core/lap-detection/types";
+import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 import type { AcEvoParserCache } from "./parser";
 import { PHYSICS as EVO_PHYSICS, GRAPHICS_EVO, STATIC_EVO, ACEVO_STATUS } from "@raceiq/capture-formats/ac-evo/structs";
 import { readCString } from "./utils";

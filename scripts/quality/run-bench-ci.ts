@@ -53,7 +53,7 @@ const legacyImportRewrites: Record<string, string> = {
   "@raceiq/backend-core/db/telemetry-replay-storage": "../../server/db/telemetry-replay-storage",
   "@raceiq/backend-core/telemetry/replay": "../../server/telemetry/replay",
   "@raceiq/backend-core/games/registry": "../../server/games/registry",
-  "@raceiq/backend-core/session-capture/framing": "../../server/session-capture/framing",
+  "@raceiq/capture-formats/session/framing": "../../packages/capture-formats/src/session/framing",
   "@raceiq/shared/telemetry/types": "../../shared/telemetry/types",
   "@raceiq/game-catalogs/games/init": "../../shared/games/init",
   "@raceiq/shared/games/ids": "../../shared/games/ids",

@@ -14,13 +14,13 @@
       "packages/game-f1-2025/src/f1-state.ts": "c407d282745a3ac5cd1856f26d8467eaca6be0f4c73aa6d4f624ff7a2af1bea0",
       "packages/game-fm-2023/src/parser.ts": "dd476256f50870123ab00bf486d4ed998069f3ff1f368b7b36a368a0254f4463",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
-      "packages/game-iracing/src/normalizer.ts": "1fbd0a0cb016c89cb8865d3caa9ddabbf8e0710a1066bfe5937b529687af3f58",
+      "packages/game-iracing/src/normalizer.ts": "6c2607cb65cf5aa1ac0798f2d0678fda2fbae3579c7c436b72074f732919d70c",
       "packages/game-lmu/src/normalizer.ts": "443eb17dc93034a0a78023df8b08ce1bb12290a77b4b44f5a73e7bc18fad7dd7",
       "packages/tooling-catalog/src/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "11040a6a0d84ebdf7c9367303a563bb04e17891237b1a3e8d1fde58047419265"
     },
-    "contentHash": "f5538257b92596b71672ce7a1413574156b7042f255fe39fdab9deac27e1ea02"
+    "contentHash": "8c50acb404e63244787de34f13fa046ca8b69b6ebd49e4f2ebaf6cb75f8650f1"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",

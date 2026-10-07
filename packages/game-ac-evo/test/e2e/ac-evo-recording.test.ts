@@ -20,7 +20,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { CapturedLap } from "@raceiq/backend-core/telemetry/pipeline-ports"
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import { parseDump } from "@raceiq/backend-core/test-support/recordings/parse-dump";
-import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { parseAcEvoLapIndex } from "../../src/lap-index";
 import { createAcEvoParserCache } from "../../src/parser";
 import { LapDetectorAcEvo } from "../../src/lap-detector";

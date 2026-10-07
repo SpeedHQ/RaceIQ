@@ -1,4 +1,4 @@
-import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC } from "../games/kunos/pack-triplet";
+import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC } from "../kunos/pack-triplet";
 
 // KNSD v1: [magic(4)][checkpoint back-distance(4)][frame length(4)]
 // [changed 64-byte block bitmap][changed blocks]. A full packed triplet is checkpoint.

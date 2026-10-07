@@ -5,7 +5,8 @@ import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities";
 import { type DbAdapter, type WsAdapter, type SessionRecorderAdapter, RealDbAdapter, SparseSessionRecorderAdapter } from "./pipeline-ports";
 import { LiveTelemetryProjector } from "@raceiq/telemetry-core/telemetry/live-projector";
-import type { ILapDetector, LapDetectorCallbacks, LapIndexPacket } from "../lap-detection/types";
+import type { ILapDetector, LapDetectorCallbacks } from "../lap-detection/types";
+import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 import { SectorTracker } from "../live-strategy/sector-tracker";
 import { PitTracker } from "../live-strategy/pit-tracker";
 import { feedCalibrationPosition, resetLiveCalibration } from "../tracks/calibration";
@@ -17,7 +18,7 @@ import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/norma
 import { LAP_DETECTOR_ID } from "../lap-detection/detector";
 import { detectLiveIssues } from "../ai/tune-issues";
 import { reconcileSessionResult } from "../race-results/reconcile";
-import { encodeFrameLength, encodeSegmentContextEndFrame, encodeSegmentContextFrame } from "../session-capture/framing";
+import { encodeFrameLength, encodeSegmentContextEndFrame, encodeSegmentContextFrame } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "../session-capture/frame-time";
 import { wsManager } from "../runtime/websocket-manager";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";

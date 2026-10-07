@@ -10,7 +10,7 @@ import { deleteSession } from "@raceiq/backend-core/db/session-queries";
 import { initServerGameAdapters } from "../../src/games/init";
 import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump";
 import { importSessionBin } from "@raceiq/backend-core/session-capture/import-capture";
-import { encodeFrameLength, encodeMetaFrame } from "@raceiq/backend-core/session-capture/framing";
+import { encodeFrameLength, encodeMetaFrame } from "@raceiq/capture-formats/session/framing";
 import { readRecordedTelemetry } from "../../src/session-capture/replay-packets";
 
 import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";

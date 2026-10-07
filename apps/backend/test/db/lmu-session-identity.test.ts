@@ -15,7 +15,7 @@ import {
   LMU_TELEMETRY_INFO_SIZE,
 } from "@raceiq/capture-formats/lmu/layout";
 import { encodeLMUSourcePayload } from "@raceiq/capture-formats/lmu/source-frame";
-import { encodeFrameLength, encodeMetaFrame } from "@raceiq/backend-core/session-capture/framing";
+import { encodeFrameLength, encodeMetaFrame } from "@raceiq/capture-formats/session/framing";
 import { RealDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 
 const sessionIds: number[] = [];

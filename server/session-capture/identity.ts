@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { createGunzip } from "node:zlib";
-import { gunzipBuffer, isGzip } from "./framing";
+import { gunzipBuffer, isGzip } from "@raceiq/capture-formats/session/framing";
 
 export interface RawCaptureIdentity {
   bytes: Buffer;

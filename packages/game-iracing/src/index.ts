@@ -6,7 +6,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
 import { LapDetectorIRacing } from "./lap-detector";
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
-import type { LapIndexPacket } from "@raceiq/backend-core/lap-detection/types";
+import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 import {
   createIRacingParserState,
   type IRacingParserState,

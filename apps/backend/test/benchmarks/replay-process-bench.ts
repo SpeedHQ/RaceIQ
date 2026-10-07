@@ -9,7 +9,7 @@ import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { getAllServerGames } from "@raceiq/backend-core/games/registry";
 import type { GameId } from "@raceiq/shared/games/ids";
-import { iterateSessionFrameRecords } from "@raceiq/backend-core/session-capture/framing";
+import { iterateSessionFrameRecords } from "@raceiq/capture-formats/session/framing";
 import { runMitataBenchmarks } from "./mitata-harness";
 
 export const REPLAY_PARSE_ALIAS = "replay/parse 20,000 raw lap frames";

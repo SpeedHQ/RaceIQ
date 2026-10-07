@@ -1,7 +1,7 @@
 import { getAccCarByModel } from "@raceiq/game-acc-metadata/racing/cars/acc"
 import { getAccTrackByName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc"
 import { processPacket } from "@raceiq/backend-core/telemetry/live-pipeline";
-import { ACC_PACKED_MAGIC, packTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
+import { ACC_PACKED_MAGIC, packTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 import type { TripletProcessor } from "@raceiq/backend-core/games/kunos/triplet-pipeline";
 import { parseAccBuffers } from "./parser";
 import { AC_STATUS, GRAPHICS, STATIC } from "@raceiq/capture-formats/acc/structs";

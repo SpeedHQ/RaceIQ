@@ -2,7 +2,7 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import {
   decompressIfGzipSync,
   iterateSessionCaptureRecords,
-} from "@raceiq/backend-core/session-capture/framing";
+} from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "@raceiq/backend-core/session-capture/frame-time";
 import { IRACING_DUMP_MAGIC, readIRacingFramesFromBuffer } from "@raceiq/capture-formats/iracing/dump";
 import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-frame";

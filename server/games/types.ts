@@ -1,6 +1,7 @@
 import type { GameAdapter } from "@raceiq/shared/games/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import type { LapDetectorFactory, LapIndexPacket } from "../lap-detection/types";
+import type { LapDetectorFactory } from "../lap-detection/types";
+import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 /** Server-only runtime behavior owned by each game implementation. */
 export interface ServerGameRuntimePolicy {
   /** Pit strategy behavior and history seeding strategy. */

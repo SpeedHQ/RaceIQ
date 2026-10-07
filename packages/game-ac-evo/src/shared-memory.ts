@@ -12,7 +12,7 @@
 import { processPacket } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { BufferedKunosMemoryReader } from "@raceiq/backend-core/games/kunos/buffered-memory-reader";
 import type { IRealtimeKunosMemoryReader } from "@raceiq/backend-core/games/kunos/memory-reader";
-import { ACEVO_PACKED_MAGIC, packTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
+import { ACEVO_PACKED_MAGIC, packTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { TripletAssembler } from "@raceiq/backend-core/games/kunos/triplet-assembler";
 import {
   createKunosTripletPipeline,

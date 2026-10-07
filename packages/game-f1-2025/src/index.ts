@@ -1,6 +1,6 @@
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import type { LapIndexPacket } from "@raceiq/backend-core/lap-detection/types";
+import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 import { f1Adapter } from "@raceiq/game-f1-2025-metadata/index";
 import { F1StateAccumulator } from "./f1-state";
 import { parseF1Header } from "@raceiq/capture-formats/f1-2025/f1-wire";

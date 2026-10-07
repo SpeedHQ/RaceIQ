@@ -136,7 +136,7 @@ try {
     import("@raceiq/game-catalogs/games/init"),
     import("../../src/games/init"),
     import("@raceiq/backend-core/games/registry"),
-    import("@raceiq/backend-core/session-capture/framing"),
+    import("@raceiq/capture-formats/session/framing"),
     import("@raceiq/backend-core/test-support/recordings/udp"),
     import("@raceiq/backend-core/telemetry/pipeline-ports"),
     import("@raceiq/backend-core/telemetry/live-pipeline"),

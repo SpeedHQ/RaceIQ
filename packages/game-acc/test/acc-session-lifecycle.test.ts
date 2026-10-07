@@ -20,7 +20,7 @@ import { StatusCheckProcessor } from "../src/processors";
 import type { TripletProcessor } from "@raceiq/backend-core/games/kunos/triplet-pipeline";
 import { GRAPHICS, AC_STATUS } from "@raceiq/capture-formats/acc/structs";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
-import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { parseAccBuffers } from "../src/parser";
 
 registerGame(accServerAdapter);

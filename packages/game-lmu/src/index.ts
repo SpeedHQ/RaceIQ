@@ -1,6 +1,6 @@
 import { lmuAdapter } from "@raceiq/game-lmu-metadata/index";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import type { LapIndexPacket } from "@raceiq/backend-core/lap-detection/types";
+import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
 import { LapDetector } from "@raceiq/backend-core/lap-detection/detector";
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";

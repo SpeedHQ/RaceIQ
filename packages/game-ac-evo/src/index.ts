@@ -1,14 +1,14 @@
 import { resolve } from "node:path";
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import type { LapIndexPacket } from "@raceiq/backend-core/lap-detection/types";
+import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 import { acEvoAdapter } from "@raceiq/game-ac-evo-metadata/index";
 import { getAcEvoCarName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo"
 import { getAcEvoTrackName, getAcEvoSharedTrackName, getAcEvoTrackByName, getAcEvoTrackBySetupFolder } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo"
 import { LapDetectorAcEvo } from "./lap-detector"
 import { parseAcEvoBuffers, createAcEvoParserCache } from "./parser";
 import { parseAcEvoLapIndex } from "./lap-index";
-import { ACEVO_PACKED_MAGIC, unpackTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
+import { ACEVO_PACKED_MAGIC, unpackTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
 import { buildKunosAiContext } from "@raceiq/backend-core/games/kunos/ai-context";
 

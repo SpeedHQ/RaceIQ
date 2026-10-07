@@ -195,13 +195,16 @@
     },
     "packages/capture-formats": {
       "name": "@raceiq/capture-formats",
+      "dependencies": {
+        "@raceiq/shared": "workspace:*",
+      },
     },
     "packages/frontend-contract-tests": {
       "name": "@raceiq/frontend-contract-tests",
       "dependencies": {
         "@raceiq/analysis-core": "workspace:*",
         "@raceiq/backend": "workspace:*",
-        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
         "@raceiq/game-ac-evo": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
@@ -277,7 +280,7 @@
     "packages/game-fm-2023": {
       "name": "@raceiq/game-fm-2023",
       "dependencies": {
-        "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/game-fm-2023-metadata": "workspace:*",
         "@raceiq/shared": "workspace:*",

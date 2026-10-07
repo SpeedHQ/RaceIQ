@@ -13,7 +13,7 @@
   "dependencies": {
     "client": "workspace:*",
     "@raceiq/shared": "workspace:*",
-    "@raceiq/backend-core": "workspace:*",
+    "@raceiq/capture-formats": "workspace:*",
     "@raceiq/backend": "workspace:*",
     "@raceiq/game-ac-evo": "workspace:*",
     "@raceiq/tooling-ui": "workspace:*",

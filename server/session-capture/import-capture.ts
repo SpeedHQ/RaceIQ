@@ -9,7 +9,7 @@ import {
   SESSION_SEGMENT_BOUNDARY,
   SESSION_SEGMENT_CONTEXT,
   SESSION_SEGMENT_CONTEXT_END,
-} from "./framing";
+} from "@raceiq/capture-formats/session/framing";
 import { importSessionFrames, type ImportedLap, type ImportSessionOptions } from "./import-pipeline";
 
 const GAME_IDS_BY_FILENAME_PRECEDENCE = [...KNOWN_GAME_IDS].sort(

@@ -1,7 +1,7 @@
 import type { RecordingGameSupport, ParsedFrames } from "@raceiq/backend-core/test-support/recordings/parse-dump";
 import { acEvoServerAdapter } from "../../src/index";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../src/parser";
-import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 export function readAcEvoPackets(dumpPath: string): ParsedFrames {

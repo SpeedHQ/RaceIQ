@@ -27,7 +27,7 @@ import { initServerGameAdapters } from "../../src/games/init";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { getGame } from "@raceiq/shared/games/registry";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
-import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing"
+import { META_FRAME_MAGIC } from "@raceiq/capture-formats/session/framing"
 import { detectGameIdFromBuffer } from "@raceiq/backend-core/session-capture/import-capture"
 import { getAccTrackName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc"
 import { getAccCarName } from "@raceiq/game-acc-metadata/racing/cars/acc"

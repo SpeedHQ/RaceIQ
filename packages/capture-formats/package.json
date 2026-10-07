@@ -2,7 +2,8 @@
   "name": "@raceiq/capture-formats",
   "private": true,
   "type": "module",
-  "exports": {"./ac-evo/structs":"./src/ac-evo/structs.ts","./acc/structs":"./src/acc/structs.ts","./f1-2025/f1-wire":"./src/f1-2025/f1-wire.ts","./iracing/dump":"./src/iracing/dump.ts","./iracing/session-info":"./src/iracing/session-info.ts","./iracing/source-frame-codec":"./src/iracing/source-frame-codec.ts","./iracing/source-frame":"./src/iracing/source-frame.ts","./iracing/variable-table":"./src/iracing/variable-table.ts","./lmu/dump":"./src/lmu/dump.ts","./lmu/layout":"./src/lmu/layout.ts","./lmu/source-frame":"./src/lmu/source-frame.ts"},
+  "dependencies": { "@raceiq/shared": "workspace:*" },
+  "exports": {"./ac-evo/structs":"./src/ac-evo/structs.ts","./acc/structs":"./src/acc/structs.ts","./f1-2025/f1-wire":"./src/f1-2025/f1-wire.ts","./iracing/dump":"./src/iracing/dump.ts","./iracing/session-info":"./src/iracing/session-info.ts","./iracing/source-frame-codec":"./src/iracing/source-frame-codec.ts","./iracing/source-frame":"./src/iracing/source-frame.ts","./iracing/variable-table":"./src/iracing/variable-table.ts","./kunos/dump":"./src/kunos/dump.ts","./kunos/pack-triplet":"./src/kunos/pack-triplet.ts","./lmu/dump":"./src/lmu/dump.ts","./lmu/layout":"./src/lmu/layout.ts","./lmu/source-frame":"./src/lmu/source-frame.ts","./session/framing":"./src/session/framing.ts","./session/generic-sparse":"./src/session/generic-sparse.ts","./session/kunos-sparse":"./src/session/kunos-sparse.ts","./session/lmu-sparse":"./src/session/lmu-sparse.ts","./session/limits":"./src/session/limits.ts","./session/recorder":"./src/session/recorder.ts","./session/sparse-recorder":"./src/session/sparse-recorder.ts"},
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit"
   }

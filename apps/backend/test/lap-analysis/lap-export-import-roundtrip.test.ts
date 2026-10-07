@@ -32,7 +32,7 @@ import {
   iterateSessionCaptureRecords,
   iterateSessionFrames,
   META_FRAME_BYTES,
-} from "@raceiq/backend-core/session-capture/framing";
+} from "@raceiq/capture-formats/session/framing";
 import { queryLapTelemetryBySemanticId } from "@raceiq/backend-core/telemetry/replay";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { buildLd, buildLdx, syntheticStint } from "@raceiq/backend-core/test-support/motec/ld";

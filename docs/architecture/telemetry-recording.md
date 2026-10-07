@@ -23,7 +23,7 @@ UDP adapters preserve original source datagrams. ACC and AC Evo pack three share
 
 ## Canonical session file
 
-`server/session-capture/recorder.ts` writes one append-only file per session:
+`packages/capture-formats/src/session/recorder.ts` writes one append-only file per session:
 
 ```text
 [optional 0xFFFFFFFF u32][payload length = 4 u32][total frames u32]
@@ -155,12 +155,12 @@ That trade-off does not imply higher measurement fidelity. Sample cadence, dupli
 
 ## Implementation map
 
-- `server/session-capture/recorder.ts` — canonical append-only writer
+- `packages/capture-formats/src/session/recorder.ts` — canonical append-only writer
 - `server/telemetry/live-pipeline.ts` — raw write ordering and lap offsets
-- `server/games/kunos/pack-triplet.ts` — ACC and AC Evo records
-- `server/session-capture/sparse-recorder.ts` — checkpointed encoder and production writer for all six games
-- `server/session-capture/{lmu-sparse,kunos-sparse,generic-sparse}.ts` — source-byte-preserving delta codecs
-- `server/session-capture/framing.ts` and `source-loader.ts` — bounded seeks and streaming restoration
+- `packages/capture-formats/src/kunos/pack-triplet.ts` — ACC and AC Evo records
+- `packages/capture-formats/src/session/sparse-recorder.ts` — checkpointed encoder and production writer for all six games
+- `packages/capture-formats/src/session/{lmu-sparse,kunos-sparse,generic-sparse}.ts` — source-byte-preserving delta codecs
+- `packages/capture-formats/src/session/framing.ts` and `server/session-capture/source-loader.ts` — bounded seeks and streaming restoration
 - `packages/capture-formats/src/iracing/source-frame.ts` — iRacing records
 - `server/session-capture/import-capture.ts` — capture detection and canonical import entry
 - `server/session-capture/import-pipeline.ts` — parser, detector, and persistence pipeline

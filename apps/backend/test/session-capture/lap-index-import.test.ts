@@ -7,7 +7,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { initServerGameAdapters } from "../../src/games/init";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/normalization";
-import { iterateSessionFrames } from "@raceiq/backend-core/session-capture/framing";
+import { iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
 import { importSessionBin } from "@raceiq/backend-core/session-capture/import-capture";
 import { inArray } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";

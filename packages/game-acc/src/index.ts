@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import type { LapIndexPacket } from "@raceiq/backend-core/lap-detection/types";
+import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 import { accAdapter } from "@raceiq/game-acc-metadata/index";
 import { getAccCarName, getAccCarByModel } from "@raceiq/game-acc-metadata/racing/cars/acc"
 import { getAccTrackName, getAccSharedTrackName, getAccTrackByName, getAccTrackBySetupFolder } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc"
@@ -10,7 +10,7 @@ import { parseAccBuffers } from "./parser";
 import { parseAccLapIndex } from "./lap-index";
 import { STATIC } from "@raceiq/capture-formats/acc/structs";
 import { readWString } from "./utils";
-import { ACC_PACKED_MAGIC, unpackTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
+import { ACC_PACKED_MAGIC, unpackTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
 import { buildKunosAiContext } from "@raceiq/backend-core/games/kunos/ai-context";
 

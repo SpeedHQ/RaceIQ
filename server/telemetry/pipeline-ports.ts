@@ -24,8 +24,8 @@ import { getLapsForExclusionScope, setLapAutoExclusion, getLapExperimentScope } 
 import { notifyDriverProfileLap } from "../driver-profile/lap-notifier";
 import type { ExclusionScopeLap } from "../experiments/auto-exclude";
 import { getTuneAssignment } from "../db/tune-queries";
-import { SessionRecorder } from "../session-capture/recorder";
-import { SparseSessionRecorder } from "../session-capture/sparse-recorder";
+import { SessionRecorder } from "@raceiq/capture-formats/session/recorder";
+import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { timestampForFilename } from "../session-capture/filename";
 

@@ -10,7 +10,7 @@ import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/norma
 import type { LapSetAlignmentIndex } from "@raceiq/analysis-core/racing/laps/alignment/build";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
 import { loadSessionSource, iterateSessionCaptureFrames, iterateSessionCaptureRecordsFromSource, indexCaptureFrames, clearSessionCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
-import { readFramePrefix } from "../session-capture/framing";
+import { readFramePrefix } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "../session-capture/frame-time";
 import { legacyMotecOffsetToPacketIndex } from "../motec/source-archive";
 import { countFullPacketMaterialized, countParserStatePrime, countSourceFrameScanned } from "../session-capture/test-instrumentation";

@@ -2,7 +2,7 @@
   "name": "@raceiq/game-f1-2025",
   "private": true,
   "type": "module",
-  "exports": {".":"./src/index.ts","./test-support/recordings":"./test/support/recordings.ts"},
+  "exports": {".":"./src/index.ts","./f1-state":"./src/f1-state.ts","./test-support/recordings":"./test/support/recordings.ts"},
   "dependencies": {
     "@raceiq/shared": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",

@@ -1,4 +1,4 @@
-import type { LapIndexPacket } from "@raceiq/backend-core/lap-detection/types";
+import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 import { PHYSICS as ACC_PHYSICS, GRAPHICS as ACC_GRAPHICS, STATIC as ACC_STATIC } from "@raceiq/capture-formats/acc/structs";
 import { readWString } from "./utils";
 import { getAccCarByModel } from "@raceiq/game-acc-metadata/racing/cars/acc";
