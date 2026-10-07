@@ -30,7 +30,7 @@ graph LR
 
 ## Current game adapters
 
-Six metadata adapters are composed by `packages/game-catalogs/src/games/init.ts`; backend adapters are registered by `apps/backend/src/games/init.ts`:
+Six metadata and backend adapters are available. Metadata adapters are composed by `packages/game-catalogs/src/games/init.ts`; backend adapters are registered by `apps/backend/src/games/init.ts`. Both registration lists include iRacing only when the `iracingAdapter` release feature is enabled; the other five adapters are registered unconditionally:
 
 | Game | Internal ID | Ingestion | Route prefix |
 |---|---|---|---|
@@ -41,7 +41,7 @@ Six metadata adapters are composed by `packages/game-catalogs/src/games/init.ts`
 | iRacing | `iracing` | Windows SDK/shared-memory source | `/iracing` |
 | Le Mans Ultimate | `lmu` | Windows `LMU_Data` shared-memory source | `/lmu` |
 
-Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, coordinate conventions, and car/track resolution. Each server `ServerGameAdapter` adds the ingestion source, parsing state, lap detector, and analysis context.
+Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, coordinate conventions, and car/track resolution. Each server `ServerGameAdapter` adds parsing and parser-state contracts, runtime policy, a lap-detector factory, and analysis context. Source lifecycle is composed separately: `apps/backend/src/runtime/native-sources.ts` supervises native readers, `live-readers.ts` holds their active instances, and `udp-listener.ts` receives UDP frames.
 
 ## Telemetry data flow
 
@@ -62,7 +62,7 @@ Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, c
 - Client may own presentation state, but must not duplicate authoritative telemetry calculations. See [Frontend contribution guide](../contributing/frontend.md).
 - Game-specific behavior belongs in registered adapters. Shared consumers resolve the active game instead of falling back to `fm-2023`.
 - Pipeline dependencies are injected through `DbAdapter`, `WsAdapter`, and session-recorder adapters so focused code can use real, null, or capturing implementations.
-- Foundation workspaces (`shared`, capture formats, backend core) do not import games or application composition. Games depend on foundations, never sibling games, application, tooling, or client.
+- Intended dependency direction: foundation workspaces (`shared`, capture formats, backend core) remain independent of games and application composition; game packages should depend on foundations rather than sibling games, application, tooling, or client. Current game adapters also import assembled geometry/catalog helpers from `packages/game-catalogs/` (for example, `packages/game-fm-2023/src/index.ts`); this is an existing composition exception, not a requirement for new adapters.
 - Tests live beside their workspace owners. `packages/frontend-contract-tests/` owns backend-era tests that consume frontend contracts without adding frontend dependencies to backend production packages.
 
 ## Related architecture

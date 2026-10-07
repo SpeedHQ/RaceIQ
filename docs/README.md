@@ -19,6 +19,7 @@ Documentation is organized by audience. Start with a user guide; use contributor
 - [Performance benchmarks](contributing/performance-benchmarks.md) — run parser, replay, and process-isolated performance measurements.
 - [Track curation](contributing/track-curation.md) — curate and verify track metadata and geometry.
 - [Telemetry recordings](contributing/telemetry-recordings.md) — capture, import, and preserve development telemetry.
+- [Adding new game support](contributing/adding-new-game-support.md) — implementation locations, human capture steps, sparse recording, fixture preparation, and correctness verification.
 - [Test troubleshooting](contributing/test-troubleshooting.md) — diagnose test processes that do not exit.
 - [End-to-end testing](contributing/e2e-testing.md) — audit route surfaces, seeded five-game coverage, telemetry semantics, and visual evidence.
 - [Setup range data](contributing/setup-range-data.md) — maintain game setup limits and provenance.

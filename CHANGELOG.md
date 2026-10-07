@@ -7,6 +7,7 @@
 - Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
 
 ### Internal
+- Document new-game integration, lossless sparse recording, lap correctness checks, and gzip fixture splitting without Git LFS; align capture and architecture guides with current implementation.
 - Avoid per-packet serialization and hashing during race-result reconciliation while retaining raw capture identity and processing provenance.
 - Add Bun-only parser/pipeline, retained-heap, import, and recording benchmarks with isolated workloads and explicit measurement scopes.
 - Move capture formats and parser contracts into reusable packages; place portable lap engines, policies, and sectors in telemetry-core, with batch orchestration and explicit parser routing in telemetry-processor.
