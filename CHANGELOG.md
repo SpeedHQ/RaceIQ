@@ -15,6 +15,7 @@
 - Preserve lap-quality rejection assertions and caller feature flags in relocated tests; keep portable detector constructors compatible with erasable TypeScript and remove unused host-detector remnants.
 - Correct Linux benchmark CPU/RSS sampling and run iRacing parser/import benchmarks independently of production release flags.
 - Skip build, test, browser, snapshot, and benchmark PR jobs for automated release version bump branches.
+- Declare the frontend contract tests' backend-core dependency so clean CI installs resolve setup-import test modules.
 
 ## v0.19.2 - 2026-10-04
 

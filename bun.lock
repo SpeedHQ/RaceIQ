@@ -204,6 +204,7 @@
       "dependencies": {
         "@raceiq/analysis-core": "workspace:*",
         "@raceiq/backend": "workspace:*",
+        "@raceiq/backend-core": "workspace:*",
         "@raceiq/capture-formats": "workspace:*",
         "@raceiq/game-ac-evo": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
@@ -332,8 +333,8 @@
     "packages/telemetry-core": {
       "name": "@raceiq/telemetry-core",
       "dependencies": {
-        "@raceiq/shared": "workspace:*",
         "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/shared": "workspace:*",
       },
     },
     "packages/telemetry-processor": {

@@ -15,6 +15,7 @@
     "@raceiq/shared": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
     "@raceiq/backend": "workspace:*",
+    "@raceiq/backend-core": "workspace:*",
     "@raceiq/game-ac-evo": "workspace:*",
     "@raceiq/tooling-ui": "workspace:*",
     "@raceiq/game-ac-evo-metadata": "workspace:*",
