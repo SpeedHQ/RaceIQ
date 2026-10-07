@@ -9,7 +9,7 @@ import { getOrComputeLapInsights } from "@raceiq/backend-core/lap-analysis/metri
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { buildAnalystPrompt, type PromptSectors } from "@raceiq/backend-core/ai/analyst-prompt";
 import { resolveTrack } from "@raceiq/backend-core/tracks/info";
-import { computeNativeSectorTimeline, computeLapSectors } from "@raceiq/backend-core/lap-analysis/sectors";
+import { computeNativeSectorTimeline, computeLapSectors } from "@raceiq/telemetry-core/processor/sectors";
 import { getGame } from "@raceiq/shared/games/registry";
 import { lapAnalystAgent } from "./agents";
 import { getAnalystJsonSchema, AnalystOutputSchema, parseAnalystOutput } from "@raceiq/backend-core/ai/schemas";
@@ -191,6 +191,7 @@ export async function generateLapAnalysis(
         lap.gameId as GameId,
         lap.telemetry,
         lap.lapTime,
+        { sectors: track.sectors },
       );
       if (times && times.length >= 3) {
         sectors = {

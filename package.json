@@ -52,6 +52,8 @@
     "bench:recorder": "bun apps/backend/test/benchmarks/recorder.bench.ts",
     "tracks:segments": "bun packages/tooling-data/src/tracks/generate-track-segments.ts",
     "tracks:coverage": "bun packages/tooling-data/src/tracks/track-coverage.ts",
+    "telemetry:sector-ordinal-map": "bun packages/telemetry-core/scripts/generate-sector-ordinal-map.ts",
+    "telemetry:sector-ordinal-map:check": "bun packages/telemetry-core/scripts/generate-sector-ordinal-map.ts --check",
     "laps:export": "bun apps/backend/scripts/data/export-laps.ts",
     "laps:import": "bun apps/backend/scripts/data/import-laps.ts",
     "ibt:probe": "bun packages/tooling-data/src/iracing/probe-ibt.ts",

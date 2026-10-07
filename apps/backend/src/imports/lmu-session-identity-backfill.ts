@@ -7,7 +7,7 @@ import { db } from "@raceiq/backend-core/db/index";
 import { sessions } from "@raceiq/backend-core/db/schema";
 import { decompressIfGzipSync, iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
 import { identityFromLMUSourceFrame } from "@raceiq/game-lmu/normalizer";
-import { readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump";
+import { readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump-decoder";
 import { decodeLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
 
 const BATCH_SIZE = 100;

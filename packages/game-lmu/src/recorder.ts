@@ -6,7 +6,7 @@ import {
   LMU_DUMP_MAGIC,
   LMU_DUMP_SOURCE_FRAME_TYPE as SOURCE_FRAME_TYPE,
   LMU_DUMP_VERSION,
-} from "@raceiq/capture-formats/lmu/dump";
+} from "@raceiq/capture-formats/lmu/dump-decoder";
 
 import { LMU_MAX_SOURCE_FRAME_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 

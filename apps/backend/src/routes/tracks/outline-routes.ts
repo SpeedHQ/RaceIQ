@@ -15,7 +15,8 @@ import {
   smoothOutline,
 } from "@raceiq/backend-core/lap-detection/detector";
 import type { GameId } from "@raceiq/shared/games/ids";
-import { computeLapSectors } from "@raceiq/backend-core/lap-analysis/sectors";
+import { computeLapSectors } from "@raceiq/telemetry-core/processor/sectors";
+import { resolveTrack } from "@raceiq/backend-core/tracks/info";
 import { getLMUTrackOutline } from "@raceiq/game-lmu-metadata/track-boundaries";
 import {
   decodeTrackKey,
@@ -173,6 +174,7 @@ export const trackLapSectorRoutes = new Hono()
           lapGameId,
           lapData.telemetry,
           lapMeta.lapTime,
+          { sectors: resolveTrack(lapGameId, ordinal).sectors },
         );
         if (times) result[lapMeta.id] = times;
       }

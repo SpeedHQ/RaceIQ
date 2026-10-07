@@ -2,7 +2,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { getOrCreateDiscoveredCar } from "@raceiq/backend-core/db/discovered-cars";
 import type { LapDetectorOptions } from "@raceiq/backend-core/lap-detection/types";
 import { KunosLapDetector } from "@raceiq/backend-core/games/kunos/lap-detector";
-import { classifyKunosTrackLimits } from "@raceiq/backend-core/games/kunos/lap-rules";
+import { classifyKunosTrackLimits } from "@raceiq/telemetry-core/processor/kunos-policy";
 
 // v4: compact replays preserve validity transitions for track-limits classification.
 export const LAP_DETECTOR_AC_EVO_ID = "ac_evo_lapdetector_v4";

@@ -1,14 +1,12 @@
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 import { f1Adapter } from "@raceiq/game-f1-2025-metadata/index";
-import { F1StateAccumulator } from "./f1-state";
-import { parseF1Header } from "@raceiq/capture-formats/f1-2025/f1-wire";
 import { getF1CarName } from "@raceiq/game-f1-2025-metadata/racing/cars/f1"
 import { getF1TrackName, getF1TrackInfo } from "@raceiq/game-f1-2025-metadata/racing/tracks/catalogs/f1"
 import { LapDetector } from "@raceiq/backend-core/lap-detection/detector";
 import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
 
+import { f1Parser } from "./game-parser";
 const F1_SYSTEM_PROMPT = `You are an expert Formula 1 racing engineer and driving coach. Analyse the telemetry data provided and give specific, actionable feedback.
 
 Your response MUST be valid JSON matching this exact schema. Output ONLY the JSON object, no markdown fences, no extra text.
@@ -74,28 +72,17 @@ export const f1ServerAdapter: ServerGameAdapter = {
     return getF1TrackInfo(ordinal)?.commonTrackName || undefined;
   },
 
-  canHandle(buf) {
-    return buf.length >= 29 && buf.readUInt16LE(0) === 2025;
-  },
-
+  canHandle: f1Parser.canHandle,
   tryParse(buf, state) {
-    const accumulator = state as F1StateAccumulator;
-    const header = parseF1Header(buf);
-    return accumulator.feed(header, buf);
+    return f1Parser.tryParse(buf, state as never);
   },
-  tryParseLapIndex(buf, state): LapIndexPacket | null {
-    return this.tryParse(buf, state) as unknown as LapIndexPacket;
+  tryParseLapIndex(buf, state) {
+    return f1Parser.tryParseLapIndex.call(this, buf, state as never);
   },
-
-  primeParserState(buf, state): void {
-    const accumulator = state as F1StateAccumulator;
-    const header = parseF1Header(buf);
-    accumulator.primeParserState(header, buf);
+  primeParserState(buf, state) {
+    f1Parser.primeParserState(buf, state as never);
   },
-
-  createParserState() {
-    return new F1StateAccumulator();
-  },
+  createParserState: f1Parser.createParserState,
 
   aiSystemPrompt: F1_SYSTEM_PROMPT,
 

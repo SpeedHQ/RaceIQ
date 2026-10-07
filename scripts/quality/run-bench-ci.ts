@@ -48,12 +48,16 @@ function requireOptionValue(name: string, value: string | undefined): string {
   return value;
 }
 const legacyBase = !existsSync(join(baseDir, "apps/backend/src/games/init.ts"));
+const framingImport = existsSync(join(baseDir, "packages/capture-formats/src/session/framing.ts"))
+  ? "@raceiq/capture-formats/session/framing"
+  : legacyBase
+    ? "../../server/session-capture/framing"
+    : "@raceiq/backend-core/session-capture/framing";
 const legacyImportRewrites: Record<string, string> = {
   "@raceiq/backend-core/runtime/config/paths": "../../server/runtime/config/paths",
   "@raceiq/backend-core/db/telemetry-replay-storage": "../../server/db/telemetry-replay-storage",
   "@raceiq/backend-core/telemetry/replay": "../../server/telemetry/replay",
   "@raceiq/backend-core/games/registry": "../../server/games/registry",
-  "@raceiq/capture-formats/session/framing": "../../packages/capture-formats/src/session/framing",
   "@raceiq/shared/telemetry/types": "../../shared/telemetry/types",
   "@raceiq/game-catalogs/games/init": "../../shared/games/init",
   "@raceiq/shared/games/ids": "../../shared/games/ids",
@@ -76,6 +80,10 @@ async function syncHarness(): Promise<void> {
         contents = contents.replaceAll(`"${specifier}"`, `"${replacement}"`);
       }
     }
+    contents = contents.replaceAll(
+      '"@raceiq/capture-formats/session/framing"',
+      `"${framingImport}"`,
+    );
     await Bun.write(target, contents);
   }
 }

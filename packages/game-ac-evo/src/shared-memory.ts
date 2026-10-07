@@ -55,7 +55,7 @@ class AcEvoParsingProcessor implements TripletProcessor {
 
   async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer; frameTimeMs?: number }): Promise<undefined> {
     try {
-      const packet = parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, this.cache);
+      const packet = parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, this.cache, triplet.frameTimeMs ?? Date.now());
       if (packet) {
         // -1 sentinel = unresolved. Never default to 0: ordinal 0 is a real
         // car/track (Ferrari SF90 Stradale / Monza GP).

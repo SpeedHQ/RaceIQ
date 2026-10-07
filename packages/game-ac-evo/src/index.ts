@@ -1,16 +1,13 @@
 import { resolve } from "node:path";
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 import { acEvoAdapter } from "@raceiq/game-ac-evo-metadata/index";
 import { getAcEvoCarName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo"
 import { getAcEvoTrackName, getAcEvoSharedTrackName, getAcEvoTrackByName, getAcEvoTrackBySetupFolder } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo"
 import { LapDetectorAcEvo } from "./lap-detector"
-import { parseAcEvoBuffers, createAcEvoParserCache } from "./parser";
-import { parseAcEvoLapIndex } from "./lap-index";
-import { ACEVO_PACKED_MAGIC, unpackTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
 import { buildKunosAiContext } from "@raceiq/backend-core/games/kunos/ai-context";
+import { acEvoParser } from "./game-parser";
 
 const AC_EVO_SYSTEM_PROMPT = `You are an expert motorsport engineer and data analyst specializing in Assetto Corsa Evo.
 
@@ -81,31 +78,17 @@ export const acEvoServerAdapter: ServerGameAdapter = {
     return getAcEvoTrackBySetupFolder(name)?.id ?? getAcEvoTrackByName(name)?.id;
   },
 
-  canHandle(buf: Buffer): boolean {
-    return buf.length > 4 && buf.readUInt32LE(0) === ACEVO_PACKED_MAGIC;
+  canHandle: acEvoParser.canHandle,
+  tryParse(buf, state, timestampMs) {
+    return acEvoParser.tryParse(buf, state as never, timestampMs ?? Date.now());
   },
-
-  tryParse(buf: Buffer, state: unknown): TelemetryPacket | null {
-    const triplet = unpackTriplet(buf);
-    if (!triplet) return null;
-    const cache = (state as ReturnType<typeof createAcEvoParserCache>) ?? createAcEvoParserCache();
-    return parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, cache);
+  tryParseLapIndex(buf, state, timestampMs) {
+    return acEvoParser.tryParseLapIndex(buf, state as never, timestampMs ?? Date.now());
   },
-  tryParseLapIndex(buf, state): LapIndexPacket | null {
-    const triplet = unpackTriplet(buf);
-    const cache = (state as ReturnType<typeof createAcEvoParserCache>) ?? createAcEvoParserCache();
-    return triplet ? parseAcEvoLapIndex(triplet.physics, triplet.graphics, triplet.staticData, cache) : null;
+  primeParserState(buf, state) {
+    acEvoParser.primeParserState(buf, state as never);
   },
-  primeParserState(buf, state): void {
-    const triplet = unpackTriplet(buf);
-    if (!triplet) return;
-    const cache = (state as ReturnType<typeof createAcEvoParserCache>) ?? createAcEvoParserCache();
-    parseAcEvoLapIndex(triplet.physics, triplet.graphics, triplet.staticData, cache);
-  },
-
-  createParserState(): ReturnType<typeof createAcEvoParserCache> {
-    return createAcEvoParserCache();
-  },
+  createParserState: acEvoParser.createParserState,
 
   createLapDetector: (opts) => new LapDetectorAcEvo(opts),
 

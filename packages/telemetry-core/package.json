@@ -15,12 +15,25 @@
     "./telemetry/normalization": "./src/telemetry/normalization.ts",
     "./telemetry/live-wire": "./src/telemetry/live-wire.ts",
     "./telemetry/live-projector": "./src/telemetry/live-projector.ts",
+    "./processor/boundaries": "./src/processor/boundaries.ts",
+    "./processor/ordinal-engine": "./src/processor/ordinal-engine.ts",
+    "./processor/kunos-engine": "./src/processor/kunos-engine.ts",
+    "./processor/iracing-engine": "./src/processor/iracing-engine.ts",
+    "./processor/kunos-policy": "./src/processor/kunos-policy.ts",
+    "./processor/lap-policy": "./src/processor/lap-policy.ts",
+    "./processor/sectors": "./src/processor/sectors.ts",
+    "./processor/generated-sector-ordinal-map": "./src/processor/generated-sector-ordinal-map.ts",
     "./test-support/telemetry/resolver": "./test/support-resolver.ts"
   },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/telemetry-core",
-    "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/telemetry-core"
+    "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/telemetry-core",
+    "generate:sector-ordinal-map": "bun scripts/generate-sector-ordinal-map.ts",
+    "check:sector-ordinal-map": "bun scripts/generate-sector-ordinal-map.ts --check"
   },
-  "dependencies": { "@raceiq/shared": "workspace:*" }
+  "dependencies": {
+    "@raceiq/shared": "workspace:*",
+    "@raceiq/analysis-core": "workspace:*"
+  }
 }

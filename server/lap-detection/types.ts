@@ -4,8 +4,8 @@
  * protocol-specific detectors or shared detector state machines.
  */
 import type { DbAdapter } from "../telemetry/pipeline-ports";
-import type { PitCycleReason } from "@raceiq/analysis-core/racing/laps/pit-cycle";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { LapDetectorPolicy } from "@raceiq/telemetry-core/processor/lap-policy";
 
 // Re-export all event/state types so callers only need one import point
 export type {
@@ -42,17 +42,6 @@ export interface LapDetectorOptions {
   policy?: LapDetectorPolicy;
 }
 
-export interface LapDetectorPolicy {
-  resolveLapTime(
-    packets: readonly TelemetryPacket[],
-    newLapFirstPacket: TelemetryPacket,
-  ): number;
-  classifyPitCycle(
-    packets: readonly TelemetryPacket[],
-    completedLapCount: number,
-  ): PitCycleReason | null;
-  invalidReason?(packets: readonly TelemetryPacket[]): string | null;
-}
 
 /** Common interface implemented by all lap detector variants. */
 export interface ILapDetector {

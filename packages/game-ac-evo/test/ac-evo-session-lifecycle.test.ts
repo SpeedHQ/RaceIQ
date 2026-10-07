@@ -156,19 +156,24 @@ describe("AC Evo lap detector — session lifecycle", () => {
 
     const db = new CapturingDbAdapter();
     const detector = new LapDetectorAcEvo({ db });
+    const originalNow = Date.now, start = originalNow();
+    try {
+      Date.now = () => start;
+      await detector.feed(packet!);
+      expect(detector.session).not.toBeNull();
 
-    await detector.feed(packet!);
-    expect(detector.session).not.toBeNull();
+      // Under 10s → session must still be alive
+      Date.now = () => start + 5_000;
+      await detector.flushStaleLap();
+      expect(detector.session).not.toBeNull();
 
-    // Under 10s → session must still be alive
-    (detector as any)._lastActivePacketTime = Date.now() - 5_000;
-    await detector.flushStaleLap();
-    expect(detector.session).not.toBeNull();
-
-    // Over 10s → finalised
-    (detector as any)._lastActivePacketTime = Date.now() - 11_000;
-    await detector.flushStaleLap();
-    expect(detector.session).toBeNull();
+      // Over 10s → finalised
+      Date.now = () => start + 11_000;
+      await detector.flushStaleLap();
+      expect(detector.session).toBeNull();
+    } finally {
+      Date.now = originalNow;
+    }
 
     // Re-feeding after finalise starts a fresh session (new sessionId)
     const firstId = 1;
@@ -292,8 +297,13 @@ describe("AC Evo menu-exit recording — e2e", () => {
     expect(detector.session).not.toBeNull();
 
     // Simulate 11s of silence after menu exit — stale timer finalises session
-    (detector as any)._lastActivePacketTime = Date.now() - 11_000;
-    await detector.flushStaleLap();
+    const originalNow = Date.now, start = originalNow();
+    try {
+      Date.now = () => start + 11_000;
+      await detector.flushStaleLap();
+    } finally {
+      Date.now = originalNow;
+    }
     expect(detector.session).toBeNull();
     expect(db.sessions.length).toBeGreaterThanOrEqual(1);
   }, { timeout: 60_000 });

@@ -2,8 +2,7 @@ import { registerGame } from "@raceiq/shared/games/registry";
 import { iracingServerAdapter } from "../src/index";
 import { registerServerGame } from "@raceiq/backend-core/games/registry";
 import { describe, expect, test } from "bun:test";
-import { computeIRacingSectorTimeline,
-computeLapSectors, } from "@raceiq/backend-core/lap-analysis/sectors"
+import { computeIRacingSectorTimeline, computeLapSectors } from "@raceiq/telemetry-core/processor/sectors";
 import {
   createIRacingParserState,
   normalizeIRacingFrame,

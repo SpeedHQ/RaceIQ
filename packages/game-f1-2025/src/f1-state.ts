@@ -1,6 +1,5 @@
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { F1ExtendedData, F1GridEntry } from "@raceiq/shared/telemetry/f1-2025";
-import { getF1CompoundName } from "@raceiq/game-f1-2025-metadata/racing/cars/f1"
 import {
   F1_HEADER_SIZE,
   F1_PACKET_IDS,
@@ -33,6 +32,8 @@ import {
   type F1SessionData,
   type F1SessionHistoryData,
 } from "./f1-packet-decoders";
+import { getF1CompoundName } from "@raceiq/game-f1-2025-metadata/racing/compounds";
+
 
 /**
  * Stateful accumulator for F1 2025 UDP telemetry.

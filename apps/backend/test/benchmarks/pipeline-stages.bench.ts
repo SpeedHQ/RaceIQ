@@ -140,8 +140,8 @@ try {
     import("@raceiq/backend-core/test-support/recordings/udp"),
     import("@raceiq/backend-core/telemetry/pipeline-ports"),
     import("@raceiq/backend-core/telemetry/live-pipeline"),
-    import("@raceiq/capture-formats/iracing/dump"),
-    import("@raceiq/capture-formats/lmu/dump"),
+    import("@raceiq/capture-formats/iracing/dump-decoder"),
+    import("@raceiq/capture-formats/lmu/dump-decoder"),
   ]);
 
   catalog.initGameAdapters();

@@ -163,7 +163,14 @@ describe("lap export → import round-trip (real capture)", () => {
         capture, gameId, minimumLaps: 1,
         frameTimeStartMs: gameId === "fm-2023" ? 1_745_000_000_000 : undefined,
       });
-      const exported = rows.at(-1)!;
+      // Committed iRacing captures do not produce complete persisted sector times.
+      // Keep their timing/telemetry coverage; other games require actual sector values.
+      const exported = gameId === "iracing" ? rows.at(-1) : rows.findLast((lap) =>
+        lap.sectorTimes !== null && lap.sectorTimes.length >= 2 &&
+        lap.sectorTimes.every((time) => time > 0),
+      );
+      expect(exported).toBeDefined();
+      if (!exported) throw new Error(`${label} fixture has no lap with complete sector times`);
       const sourceSession = await db.select().from(sessions).where(eq(sessions.id, sid)).get();
       expect(sourceSession?.captureFormatVersion).toBe(1);
       const sourcePackets = await parseRawLapFrames(
@@ -193,6 +200,8 @@ describe("lap export → import round-trip (real capture)", () => {
 
       expect(imported.lapNumber).toBe(exported.lapNumber);
       expect(imported.lapTime).toBe(exported.lapTime);
+      expect(importedRow!.lapTime).toBe(exported.lapTime);
+      expect(importedRow!.sectorTimes).toEqual(exported.sectorTimes);
       expect(importedPackets.length).toBe(sourcePackets.length);
       expect(importedPackets.map(({ TimestampMS: _timestamp, ...packet }) => packet))
         .toEqual(sourcePackets.map(({ TimestampMS: _timestamp, ...packet }) => packet));
