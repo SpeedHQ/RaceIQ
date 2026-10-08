@@ -215,20 +215,8 @@ describe("buildDashboardInsights", () => {
       { kind: "race", seconds: 170, share: 170 / 380 },
     ]);
     expect(result.trackAnalytics?.sessionTypeTotalSeconds).toBe(380);
-    expect(result.trackAnalytics?.trend).toEqual([
-      { lapTime: 70, createdAt: "2026-10-05T11:59:59Z" },
-      { lapTime: 90, createdAt: "2026-10-05T12:00:00Z" },
-      { lapTime: 80, createdAt: "2026-10-05T12:00:00Z" },
-    ]);
   });
 
-  test("keeps valid-lap trend when session type is unknown", () => {
-    const laps = [lap({ id: 1, sessionId: 1, lapTime: 91 }), lap({ id: 2, sessionId: 2, lapTime: 90 })];
-    const sessions = [session({ id: 1, sessionType: "unknown" }), session({ id: 2, sessionType: "unknown" })];
-    const analytics = buildDashboardInsights(laps, sessions, "fm-2023", now).trackAnalytics!;
-    expect(analytics.sessionTypeTotalSeconds).toBe(0);
-    expect(analytics.trend.map(({ lapTime }) => lapTime)).toEqual([91, 90]);
-  });
 
   test("retains recorded-time bars for a track with only invalid laps", () => {
     const laps = [lap({ isValid: false, sessionId: 1, lapTime: 90 })];
@@ -236,7 +224,6 @@ describe("buildDashboardInsights", () => {
     const result = buildDashboardInsights(laps, sessions, "fm-2023", now);
     expect(result.trackContext?.trackIdentity).toBe("track:string:track-a");
     expect(result.trackAnalytics?.sessionTypeTotalSeconds).toBe(90);
-    expect(result.trackAnalytics?.trend).toEqual([]);
   });
   
 

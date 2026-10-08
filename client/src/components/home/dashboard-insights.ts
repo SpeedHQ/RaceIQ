@@ -27,7 +27,6 @@ export interface DashboardInsights {
   };
   trackContext: DashboardTrackContext | null;
   trackAnalytics: {
-    trend: { lapTime: number; createdAt: string }[];
     sessionTypes: { kind: SessionTypeKind; seconds: number; share: number }[];
     sessionTypeTotalSeconds: number;
   } | null;
@@ -232,9 +231,6 @@ export function buildDashboardInsights(
   const trackAnalyticsLaps = trackContext
     ? uniqueLaps.filter((lap) => positiveFinite(lap.lapTime) && lap.gameId === trackContext.gameId && lapTrackIdentity(lap) === trackContext.trackIdentity)
     : [];
-  const trendLaps = trackContext
-    ? uniqueLaps.filter((lap) => lap.isValid && positiveFinite(lap.lapTime) && lap.gameId === trackContext.gameId && lapTrackIdentity(lap) === trackContext.trackIdentity && (lapCarIdentity(lap) ?? "car:unknown") === trackContext.carIdentity)
-    : [];
   const sessionTypeSeconds = new Map<SessionTypeKind, number>([["practice", 0], ["qualifying", 0], ["race", 0]]);
   for (const lap of trackAnalyticsLaps) {
     const session = sessionMap.get(lap.sessionId);
@@ -275,7 +271,6 @@ export function buildDashboardInsights(
     },
     trackContext,
     trackAnalytics: trackContext ? {
-      trend: trendLaps.map((lap) => ({ lapTime: lap.lapTime, createdAt: lap.createdAt })),
       sessionTypes,
       sessionTypeTotalSeconds,
     } : null,

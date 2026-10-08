@@ -36,12 +36,14 @@ export function PeriodSelector({ periodTab, onPeriodTabChange }: { periodTab: Pe
 export function PeriodStatsPanel({ periodTab, periodStats }: { periodTab: PeriodKey; periodStats: PeriodStats }) {
   const data = periodStats[periodTab];
   return (
-    <div className="grid grid-cols-2 gap-3 @3xl/workspace:grid-cols-5">
-      <StatCard label={m.label_sessions()} value={`${data.sessions}`} />
-      <StatCard label={m.label_laps()} value={`${data.laps}`} />
-      <StatCard label={m.label_tracks()} value={`${data.tracks}`} />
-      <StatCard label={m.label_cars()} value={`${data.cars}`} />
-      {data.totalTime > 0 && <StatCard label={m.home_stat_time_driven()} value={formatDrivenTime(data.totalTime)} color="text-app-accent" />}
+    <div className="@container/stats min-w-0">
+      <div className="grid grid-cols-2 gap-3 @min-[640px]/stats:grid-cols-5">
+        <StatCard label={m.label_sessions()} value={`${data.sessions}`} />
+        <StatCard label={m.label_laps()} value={`${data.laps}`} />
+        <StatCard label={m.label_tracks()} value={`${data.tracks}`} />
+        <StatCard label={m.label_cars()} value={`${data.cars}`} />
+        {data.totalTime > 0 && <StatCard label={m.home_stat_time_driven()} value={formatDrivenTime(data.totalTime)} color="text-app-accent" />}
+      </div>
     </div>
   );
 }

@@ -8,7 +8,7 @@ Latest Session sidebar takes width from Recent Sessions. User requests reduced r
 
 ## Decision
 
-Use a single-column Overview with a compact latest-session summary above Recent Sessions. Omit the track map on Overview through the existing recap option, retaining standalone detail and recap actions. Reuse existing session type formatting.
+Use a full-width Overview with a compact latest-session summary immediately below global game cards. Group activity and summary statistics in a responsive row, tighten spacing and desktop insight height, and remove the dashboard lap-time trend while retaining session-type bars. Keep the per-game section order. Omit the track map on Overview through the existing recap option, retaining standalone detail and recap actions. Reuse existing session type formatting.
 
 ## Rationale
 

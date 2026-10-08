@@ -21,11 +21,14 @@
 - Center smaller logo-only Overview cards, right-align values before Laps and Driving labels, and match their gradient styling to Latest Session.
 - Render Overview game cards with official logo images and original brand colours instead of recoloured masks and filters.
 - Enlarge Overview game logos proportionally to 90% of their inset card area and fade them toward the right-hand metrics so branding is easier to recognise without obscuring values.
-- Compact dashboard insight widgets, shorten visible copy, and place them directly below game cards.
+- Keep overview insights compact with shorter desktop panels.
 - Use compact 13px lap/time values in game cards and 16px metrics elsewhere on Overview, reduce heavy text weights, and keep latest-session recap text consistent without changing standalone recaps.
 - Give Recent Sessions the full overview width and replace the latest-session sidebar with a shorter summary above the table.
 - Match dashboard period controls to Sessions and use the same bordered, outlined-active treatment for default tabs.
 - Stack Consistency beneath Clean laps and align overview insights into compact, equal-height desktop groups without empty grid slots.
+- Find Latest Session directly below the main dashboard's game cards.
+- View activity beside summary statistics on wide main dashboards with tighter section spacing.
+- Remove the lap-time trend graph from dashboard Track stats.
 
 ### Internal
 - Skip build, test, browser, snapshot, and benchmark PR jobs for automated release version bump branches.

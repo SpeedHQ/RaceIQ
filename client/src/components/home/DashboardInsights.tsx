@@ -5,8 +5,6 @@ import { Info, Trophy } from "lucide-react";
 import { useMemo } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { m } from "@/paraglide/messages";
-import { getLocale } from "@/paraglide/runtime";
-import { parseUtcTimestamp } from "../../lib/utc-date";
 import { buildDashboardInsights, CONSISTENCY_DEVIATION_BOUNDS, type DashboardInsights, type DashboardTrackContext, type SessionTypeKind } from "./dashboard-insights";
 import { resolveTrackDisplayName } from "@/lib/track-display-name";
 
@@ -38,7 +36,7 @@ function InsightInfo({ label, content }: { label: string; content: string }) {
 }
 
 const HISTOGRAM_LABELS = ["0", ...CONSISTENCY_DEVIATION_BOUNDS.map((bound) => bound.toFixed(1))];
-const INSIGHT_PANEL_CLASS = "min-w-0 rounded-lg bg-app-surface-alt/30 p-3 @min-[640px]/workspace:h-84 @min-[640px]/workspace:overflow-y-auto";
+const INSIGHT_PANEL_CLASS = "min-w-0 rounded-lg bg-app-surface-alt/30 p-3 @min-[640px]/workspace:h-64 @min-[640px]/workspace:overflow-y-auto";
 
 const SESSION_LABELS: Record<SessionTypeKind, () => string> = {
   practice: () => m.home_insights_session_practice(),
@@ -55,11 +53,6 @@ function formatDuration(seconds: number): string {
     : `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
 }
 
-function formatLapTime(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const remaining = (seconds % 60).toFixed(3).padStart(6, "0");
-  return `${minutes}:${remaining}`;
-}
 
 function contextLabel(context: DashboardTrackContext, trackNames: Record<string, string>, carNames: Record<string, string>): string {
   const track = resolveTrackDisplayName(context.gameId, {
@@ -191,23 +184,6 @@ function TrackStats({ insights, trackContext, trackNames, carNames, loading, err
 }) {
   const analytics = insights.trackAnalytics;
   const status = loading ? m.home_insights_analytics_loading() : error ? m.home_insights_analytics_error() : null;
-  const points = analytics?.trend ?? [];
-  let minLap = Infinity;
-  let maxLap = -Infinity;
-  for (const point of points) {
-    if (point.lapTime < minLap) minLap = point.lapTime;
-    if (point.lapTime > maxLap) maxLap = point.lapTime;
-  }
-  const range = maxLap - minLap || 1;
-  const startTime = points.length > 0 ? parseUtcTimestamp(points[0].createdAt).getTime() : 0;
-  const endTime = points.length > 0 ? parseUtcTimestamp(points[points.length - 1].createdAt).getTime() : 0;
-  const timeRange = endTime - startTime;
-  const coordinates = points.map((point) => {
-    const pointTime = parseUtcTimestamp(point.createdAt).getTime();
-    const x = timeRange <= 0 ? 160 : 8 + ((pointTime - startTime) / timeRange) * 304;
-    const y = 94 - ((point.lapTime - minLap) / range) * 82;
-    return `${x},${y}`;
-  });
   const contextDescription = trackContext ? contextLabel(trackContext, trackNames, carNames) : "";
 
   return (
@@ -238,31 +214,6 @@ function TrackStats({ insights, trackContext, trackNames, carNames, loading, err
             </>
           ) : (
             <p className="mt-3 text-app-detail text-app-text-muted">{m.home_insights_session_time_empty()}</p>
-          )}
-          <p className="mt-3 text-app-label font-semibold text-app-text">{m.home_insights_lap_trend()}</p>
-          {points.length === 0 ? (
-            <p className="mt-1 text-app-detail text-app-text-muted">{m.home_insights_lap_trend_empty()}</p>
-          ) : (
-            <figure className="mt-1" role="img" aria-label={m.home_insights_lap_trend_description({ count: points.length })}>
-              <div className="flex items-center justify-between font-mono text-app-caption tabular-nums text-app-text-muted">
-                <span>{formatLapTime(maxLap)}</span><span>{formatLapTime(minLap)}</span>
-              </div>
-              <svg viewBox="0 0 320 104" className="mt-1 h-20 w-full" aria-hidden="true" preserveAspectRatio="none">
-                {[20, 60, 100].map((y) => <line key={y} x1="0" y1={y} x2="320" y2={y} stroke="var(--app-border)" strokeWidth="1" />)}
-                {coordinates.length > 1 && <polyline points={coordinates.join(" ")} fill="none" stroke="var(--app-accent)" strokeWidth="2" vectorEffect="non-scaling-stroke" />}
-                {coordinates.map((coordinate, index) => {
-                  const [cx, cy] = coordinate.split(",");
-                  return <circle key={`${points[index].createdAt}-${index}`} cx={cx} cy={cy} r="2.3" fill="var(--app-accent)" />;
-                })}
-              </svg>
-              <figcaption className="flex justify-between text-app-caption text-app-text-muted">
-                <span>{parseUtcTimestamp(points[0].createdAt).toLocaleDateString(getLocale(), { month: "short" })}</span>
-                <span>{parseUtcTimestamp(points[points.length - 1].createdAt).toLocaleDateString(getLocale(), { month: "short" })} · {formatLapTime(points[points.length - 1].lapTime)}</span>
-              </figcaption>
-              <ul className="sr-only">
-                {points.map((point, index) => <li key={`${point.createdAt}-${index}`}>{parseUtcTimestamp(point.createdAt).toLocaleDateString(getLocale())}: {formatLapTime(point.lapTime)}</li>)}
-              </ul>
-            </figure>
           )}
         </>
       )}
