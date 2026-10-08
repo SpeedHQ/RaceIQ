@@ -2,7 +2,7 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import type { LapMeta, SessionMeta, SessionRecap as SessionRecapDto } from "@raceiq/shared/racing/sessions/types";
 import type { TrackOutlineData, TrackSectorBounds } from "@/components/SessionRecap";
 
-export type PeriodKey = "today" | "week" | "month" | "year" | "allTime";
+export type PeriodKey = "today" | "week" | "month" | "year";
 
 export type PeriodStats = Record<
   PeriodKey,
@@ -26,6 +26,7 @@ export interface HomePageViewProps {
   gameId: GameId | null;
   gameDisplayName: string | null;
   allLaps: LapMeta[];
+  calendarLaps: LapMeta[];
   sessions: SessionMeta[];
   recentSessions: SessionMeta[];
   carNames: Record<string, string>;
@@ -41,6 +42,8 @@ export interface HomePageViewProps {
   recapCopied: boolean;
   onCopyRecap: () => void;
   onAnalyseSession: (session: SessionMeta) => void;
+  lapsLoading?: boolean;
+  lapsError?: boolean;
   sessionsLoading?: boolean;
   sessionsError?: boolean;
   onAnalyseRecap: () => void;

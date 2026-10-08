@@ -227,6 +227,7 @@ Tactile and confident: interactive elements shift color decisively on hover/acti
 - **Background:** `app-surface`, stepping to `app-surface-alt` for nested or inset panels; interactive cards use `app-surface-hover` only while hovered.
 - **Shadow Strategy:** None — see Elevation. Separation comes from the structural surface step and the hairline `app-border`.
 - **Border:** 1px `app-border`; inputs use `app-border-input`, while neutral interactive feedback uses `app-border-hover`.
+- **Gradient variant:** Overview game cards and Latest Session use shared `Card variant="gradient"`: `app-bg` with a subtle 12% `app-accent` radial gradient at the top right, hairline border, and no blur or shadow. This user-requested treatment is an explicit exception to default flat card surfaces; it does not change other Card variants.
 
 ### Inputs / Fields
 
@@ -236,6 +237,7 @@ Tactile and confident: interactive elements shift color decisively on hover/acti
 ### Navigation
 
 - **Style:** Dark chrome matching `app-surface`, active/current item marked with the cyan accent (text or underline), not a background fill — keeps the One Signal Rule intact even in nav.
+- **Default tabs and scope selectors:** Use Sessions' compact bordered segmented treatment: `app-bg`, shared outer border, contiguous 30px controls, and accent text plus an accent outline for the selected item, not an accent fill. Dashboard periods reuse Sessions' `ToggleGroup03`; content tabs retain tab semantics. Explicit pills and underline variants remain available.
 
 ## 6. Do's and Don'ts
 

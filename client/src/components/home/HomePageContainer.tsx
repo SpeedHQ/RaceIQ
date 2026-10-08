@@ -1,4 +1,4 @@
-import { tryGetGame } from "@raceiq/shared/games/registry"
+import { tryGetGame } from "@raceiq/shared/games/registry";
 import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import { useQueries } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -19,7 +19,7 @@ export function HomePageContainer() {
   const gameId = useGameId();
   const navigate = useNavigate();
   const gameAdapter = gameId ? tryGetGame(gameId) : null;
-  const { data: allLaps = [] } = useLaps();
+  const { data: allLaps = [], isLoading: lapsLoading, isError: lapsError } = useLaps();
   const { data: sessions = [], isLoading: sessionsLoading, isError: sessionsError } = useSessions();
   const { displaySettings } = useSettings();
   const hiddenGames: string[] = displaySettings.hiddenGames ?? [];
@@ -31,32 +31,7 @@ export function HomePageContainer() {
   const { data: latestRecapBounds } = useTrackSectorBoundaries(latestRecap?.trackId, latestRecap?.gameId ?? latestSession?.gameId ?? null);
   const [recapCopied, setRecapCopied] = useState(false);
 
-  const gameQueries = useQueries({
-    queries: (["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu"] as const).map((g) => ({
-      queryKey: ["stats", g],
-      queryFn: async () => {
-        const res = await client.api.stats.$get({ query: { gameId: g } });
-        if (!res.ok) throw new Error(res.statusText);
-        return res.json() as Promise<{ totalLaps: number; totalTimeSec: number }>;
-      },
-    })),
-  });
-
-  const gameStats: GameStats = useMemo(() => {
-    const fmtTime = (sec: number) => {
-      if (sec <= 0) return "—";
-      if (sec >= 86400) return `${Math.floor(sec / 86400)}d`;
-      if (sec >= 3600) return `${Math.floor(sec / 3600)}h`;
-      return `${Math.floor(sec / 60)}m`;
-    };
-    const pick = (i: number) => {
-      const d = gameQueries[i].data;
-      return { laps: d?.totalLaps ?? 0, time: fmtTime(d?.totalTimeSec ?? 0) };
-    };
-    return { fm: pick(0), f1: pick(1), acc: pick(2), acEvo: pick(3), iracing: pick(4), lmu: pick(5) };
-  }, [gameQueries]);
-
-  const [periodTab, setPeriodTab] = useState<PeriodKey>("allTime");
+  const [periodTab, setPeriodTab] = useState<PeriodKey>("year");
   const [{ todayStart, weekAgo, monthAgo, yearAgo }] = useState(() => {
     const now = Date.now();
     return {
@@ -66,6 +41,27 @@ export function HomePageContainer() {
       yearAgo: now - 365 * 24 * 60 * 60 * 1000,
     };
   });
+
+  const periodStart = { today: todayStart, week: weekAgo, month: monthAgo, year: yearAgo }[periodTab];
+  const dashboardLaps = useMemo(() => allLaps.filter((lap) => parseUtcTimestamp(lap.createdAt).getTime() >= periodStart), [allLaps, periodStart]);
+  const dashboardSessions = useMemo(() => sessions.filter((session) => parseUtcTimestamp(session.createdAt).getTime() >= periodStart), [sessions, periodStart]);
+  const gameStats: GameStats = useMemo(() => {
+    const totals = new Map<string, { laps: number; seconds: number }>();
+    for (const lap of dashboardLaps) {
+      if (!lap.gameId) continue;
+      const total = totals.get(lap.gameId) ?? { laps: 0, seconds: 0 };
+      total.laps += 1;
+      total.seconds += lap.lapTime > 0 ? lap.lapTime : 0;
+      totals.set(lap.gameId, total);
+    }
+    const pick = (id: string) => {
+      const total = totals.get(id);
+      const seconds = total?.seconds ?? 0;
+      const time = seconds <= 0 ? "—" : seconds >= 86400 ? `${Math.floor(seconds / 86400)}d` : seconds >= 3600 ? `${Math.floor(seconds / 3600)}h` : `${Math.floor(seconds / 60)}m`;
+      return { laps: total?.laps ?? 0, time };
+    };
+    return { fm: pick("fm-2023"), f1: pick("f1-2025"), acc: pick("acc"), acEvo: pick("ac-evo"), iracing: pick("iracing"), lmu: pick("lmu") };
+  }, [dashboardLaps]);
 
   const periodStats: PeriodStats = useMemo(() => {
     function computePeriod(laps: LapMeta[]) {
@@ -97,20 +93,27 @@ export function HomePageContainer() {
       week: computePeriod(gameLaps.filter((l) => parseUtcTimestamp(l.createdAt).getTime() >= weekAgo)),
       month: computePeriod(gameLaps.filter((l) => parseUtcTimestamp(l.createdAt).getTime() >= monthAgo)),
       year: computePeriod(gameLaps.filter((l) => parseUtcTimestamp(l.createdAt).getTime() >= yearAgo)),
-      allTime: computePeriod(gameLaps),
     };
   }, [allLaps, gameId, todayStart, weekAgo, monthAgo, yearAgo]);
 
   const nameTargets = useMemo(() => {
     const cars = new Map<string, { ordinal: number; gameId: NonNullable<SessionMeta["gameId"]> }>();
     const tracks = new Map<string, { ordinal: number; gameId: NonNullable<SessionMeta["gameId"]> }>();
-    for (const session of recentSessions) {
+    for (const session of [...dashboardSessions, ...recentSessions]) {
       if (!session.gameId) continue;
-      if (session.carOrdinal != null) cars.set(`${session.gameId}:${session.carOrdinal}`, { ordinal: session.carOrdinal, gameId: session.gameId });
-      if (session.trackOrdinal != null) tracks.set(`${session.gameId}:${session.trackOrdinal}`, { ordinal: session.trackOrdinal, gameId: session.gameId });
+      if (session.carOrdinal != null && session.carOrdinal !== -1) cars.set(`${session.gameId}:${session.carOrdinal}`, { ordinal: session.carOrdinal, gameId: session.gameId });
+      if (session.trackOrdinal != null && session.trackOrdinal !== -1) tracks.set(`${session.gameId}:${session.trackOrdinal}`, { ordinal: session.trackOrdinal, gameId: session.gameId });
     }
-    return { cars: [...cars.values()].sort((a, b) => String(a.gameId).localeCompare(String(b.gameId)) || a.ordinal - b.ordinal), tracks: [...tracks.values()].sort((a, b) => String(a.gameId).localeCompare(String(b.gameId)) || a.ordinal - b.ordinal) };
-  }, [recentSessions]);
+    for (const lap of dashboardLaps) {
+      if (!lap.gameId) continue;
+      if (lap.carOrdinal != null && lap.carOrdinal !== -1) cars.set(`${lap.gameId}:${lap.carOrdinal}`, { ordinal: lap.carOrdinal, gameId: lap.gameId });
+      if (lap.trackOrdinal != null && lap.trackOrdinal !== -1) tracks.set(`${lap.gameId}:${lap.trackOrdinal}`, { ordinal: lap.trackOrdinal, gameId: lap.gameId });
+    }
+    return {
+      cars: [...cars.values()].sort((a, b) => String(a.gameId).localeCompare(String(b.gameId)) || a.ordinal - b.ordinal),
+      tracks: [...tracks.values()].sort((a, b) => String(a.gameId).localeCompare(String(b.gameId)) || a.ordinal - b.ordinal),
+    };
+  }, [dashboardLaps, dashboardSessions, recentSessions]);
   const carNameQueries = useQueries({
     queries: nameTargets.cars.map((target) => ({
       queryKey: [...queryKeys.carName(target.ordinal), target.gameId],
@@ -129,8 +132,14 @@ export function HomePageContainer() {
       },
     })),
   });
-  const carNames = useMemo(() => Object.fromEntries(nameTargets.cars.map((target, index) => [`${target.gameId}:${target.ordinal}`, carNameQueries[index]?.data ?? ""])), [carNameQueries, nameTargets.cars]);
-  const trackNames = useMemo(() => Object.fromEntries(nameTargets.tracks.map((target, index) => [`${target.gameId}:${target.ordinal}`, trackNameQueries[index]?.data ?? ""])), [nameTargets.tracks, trackNameQueries]);
+  const carNames = useMemo(
+    () => Object.fromEntries(nameTargets.cars.map((target, index) => [`${target.gameId}:${target.ordinal}`, carNameQueries[index]?.data ?? ""])),
+    [carNameQueries, nameTargets.cars],
+  );
+  const trackNames = useMemo(
+    () => Object.fromEntries(nameTargets.tracks.map((target, index) => [`${target.gameId}:${target.ordinal}`, trackNameQueries[index]?.data ?? ""])),
+    [nameTargets.tracks, trackNameQueries],
+  );
   const copyRecap = () => {
     if (!latestRecap) return;
     navigator.clipboard.writeText(buildRecapText(latestRecap)).then(() => {
@@ -149,8 +158,9 @@ export function HomePageContainer() {
     <HomePageView
       gameId={gameId}
       gameDisplayName={gameAdapter?.displayName ?? null}
-      allLaps={allLaps}
-      sessions={sessions}
+      allLaps={dashboardLaps}
+      calendarLaps={allLaps}
+      sessions={dashboardSessions}
       recentSessions={recentSessions}
       carNames={carNames}
       trackNames={trackNames}
@@ -172,6 +182,8 @@ export function HomePageContainer() {
       periodTab={periodTab}
       periodStats={periodStats}
       onPeriodTabChange={setPeriodTab}
+      lapsLoading={lapsLoading}
+      lapsError={lapsError}
       sessionsLoading={sessionsLoading}
       sessionsError={sessionsError}
     />

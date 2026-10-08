@@ -69,3 +69,6 @@ raceiq-home.png
 
 /.superpowers/
 test/e2e/output/
+.omp/evidence/
+.omp/checkpoint/
+.omp/checkpoints/

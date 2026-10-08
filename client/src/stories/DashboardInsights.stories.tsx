@@ -22,13 +22,7 @@ function lap(id: number, dayOffset: number, sessionId: number, lapTime: number, 
   };
 }
 
-const laps: LapMeta[] = [
-  lap(1, 5, 100, 102.432), lap(2, 5, 100, 101.907),
-  lap(3, 3, 101, 101.225), lap(4, 3, 101, 102.1, gameId, false),
-  lap(5, 1, 102, 100.882), lap(6, 1, 102, 101.4),
-  lap(7, 2, 103, 104.12, otherGameId),
-];
-function session(id: number, game: GameId, position: number): SessionMeta {
+function session(id: number, game: GameId, position: number, type = "Race"): SessionMeta {
   return {
     id,
     carOrdinal: 201,
@@ -36,14 +30,25 @@ function session(id: number, game: GameId, position: number): SessionMeta {
     carId: 201,
     trackId: 1641,
     createdAt: "2026-09-29T12:00:00Z",
-    sessionType: "Race",
+    sessionType: type,
     resultClassification: "finished",
     resultOutcomeStatus: "confirmed",
     finishingPosition: position,
     gameId: game,
   };
 }
-const sessions = [session(1, gameId, 1), session(2, gameId, 2), session(3, gameId, 3), session(4, gameId, 7), session(5, otherGameId, 1)];
+const sessions = [
+  session(100, gameId, 1), session(101, gameId, 2), session(102, gameId, 3),
+  session(103, gameId, 4), session(104, gameId, 4), session(105, gameId, 7),
+  session(106, gameId, 12), session(107, gameId, 1, "Practice"),
+  session(108, gameId, 1, "Qualifying"), session(109, otherGameId, 1),
+];
+const mixedLaps: LapMeta[] = [
+  lap(1, 5, 100, 102.432), lap(2, 5, 100, 101.907),
+  lap(3, 4, 103, 99.2), lap(4, 4, 104, 100.1),
+  lap(5, 3, 105, 105.3), lap(6, 3, 107, 110),
+  lap(7, 2, 108, 111), lap(8, 1, 109, 95, otherGameId),
+];
 const meta = {
   title: "Dashboards/Dashboard Insights",
   component: DashboardInsights,
@@ -54,10 +59,13 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Populated: Story = { args: { laps, sessions, gameId: null } };
+export const Populated: Story = { args: { laps: mixedLaps, sessions, gameId } };
 export const Empty: Story = { args: { laps: [], sessions: [], gameId: null } };
-export const Unavailable: Story = { args: { laps, sessions: [], gameId: null } };
-export const KnownZero: Story = { args: { laps, sessions: [session(6, gameId, 8)], gameId } };
-export const GameFiltered: Story = { args: { laps, sessions, gameId } };
-export const Loading: Story = { args: { laps, sessions: [], gameId: null, sessionsLoading: true } };
-export const Error: Story = { args: { laps, sessions: [], gameId: null, sessionsError: true } };
+export const Unavailable: Story = { args: { laps: mixedLaps, sessions: [], gameId: null } };
+export const KnownZero: Story = { args: { laps: mixedLaps, sessions: [session(110, gameId, 8)], gameId } };
+export const GameFiltered: Story = { args: { laps: mixedLaps, sessions, gameId } };
+export const PracticeOnly: Story = { args: { laps: [lap(11, 1, 111, 98)], sessions: [session(111, gameId, 1, "Practice")], gameId } };
+export const RaceOnly: Story = { args: { laps: [lap(12, 1, 112, 99)], sessions: [session(112, gameId, 1)], gameId } };
+export const EmptyOtherFinishes: Story = { args: { laps: [], sessions: [session(113, gameId, 1)], gameId } };
+export const Loading: Story = { args: { laps: mixedLaps, sessions: [], gameId: null, sessionsLoading: true } };
+export const Error: Story = { args: { laps: mixedLaps, sessions: [], gameId: null, sessionsError: true } };

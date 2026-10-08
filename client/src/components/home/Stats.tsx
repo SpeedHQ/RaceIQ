@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { ToggleGroup03 } from "@/components/shadcn-studio/toggle-group/toggle-group-03";
 import { m } from "@/paraglide/messages";
 import type { PeriodKey, PeriodStats } from "./types";
 
@@ -18,38 +18,30 @@ export function formatDrivenTime(seconds: number) {
   return `${Math.floor(seconds / 60)}m`;
 }
 
-export function PeriodStatsPanel({ periodTab, periodStats, onPeriodTabChange }: { periodTab: PeriodKey; periodStats: PeriodStats; onPeriodTabChange: (period: PeriodKey) => void }) {
-  const data = periodStats[periodTab];
+export function PeriodSelector({ periodTab, onPeriodTabChange }: { periodTab: PeriodKey; onPeriodTabChange: (period: PeriodKey) => void }) {
   const periodLabels: ReadonlyArray<readonly [PeriodKey, string]> = [
     ["today", m.home_period_today()],
     ["week", m.home_period_week()],
     ["month", m.home_period_month()],
     ["year", m.home_period_year()],
-    ["allTime", m.home_period_all_time()],
   ];
 
   return (
-    <>
-      <div className="mb-3 flex flex-wrap items-center gap-1">
-        {periodLabels.map(([key, label]) => (
-          <Button
-            variant="app-ghost"
-            size="app-sm"
-            key={key}
-            onClick={() => onPeriodTabChange(key)}
-            className={`!px-3 !py-1.5 text-app-detail font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90 hover:text-app-text"}`}
-          >
-            {label}
-          </Button>
-        ))}
-      </div>
-      <div className="grid grid-cols-2 gap-3 @3xl/workspace:grid-cols-5">
-        <StatCard label={m.label_sessions()} value={`${data.sessions}`} />
-        <StatCard label={m.label_laps()} value={`${data.laps}`} />
-        <StatCard label={m.label_tracks()} value={`${data.tracks}`} />
-        <StatCard label={m.label_cars()} value={`${data.cars}`} />
-        {data.totalTime > 0 && <StatCard label={m.home_stat_time_driven()} value={formatDrivenTime(data.totalTime)} color="text-app-accent" />}
-      </div>
-    </>
+    <div className="max-w-full overflow-x-auto">
+      <ToggleGroup03 ariaLabel={m.label_time()} value={periodTab} onValueChange={(value) => onPeriodTabChange(value as PeriodKey)} options={periodLabels.map(([value, label]) => ({ value, label }))} />
+    </div>
+  );
+}
+
+export function PeriodStatsPanel({ periodTab, periodStats }: { periodTab: PeriodKey; periodStats: PeriodStats }) {
+  const data = periodStats[periodTab];
+  return (
+    <div className="grid grid-cols-2 gap-3 @3xl/workspace:grid-cols-5">
+      <StatCard label={m.label_sessions()} value={`${data.sessions}`} />
+      <StatCard label={m.label_laps()} value={`${data.laps}`} />
+      <StatCard label={m.label_tracks()} value={`${data.tracks}`} />
+      <StatCard label={m.label_cars()} value={`${data.cars}`} />
+      {data.totalTime > 0 && <StatCard label={m.home_stat_time_driven()} value={formatDrivenTime(data.totalTime)} color="text-app-accent" />}
+    </div>
   );
 }

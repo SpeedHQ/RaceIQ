@@ -216,15 +216,6 @@ function createQueryClient() {
     runs: [PROFILE_RUN],
   });
 
-  for (const [gameId, totalLaps, totalTimeSec] of [
-    ["fm-2023", 128, 12_480],
-    ["f1-2025", 74, 7_215],
-    ["acc", 52, 5_086],
-    ["ac-evo", 31, 3_042],
-    ["iracing", 18, 1_764],
-    ["lmu", 0, 0],
-  ] as const)
-    queryClient.setQueryData(["stats", gameId], { totalLaps, totalTimeSec });
   queryClient.setQueryData(["car-name", 201, GAME_ID], "2023 Cadillac V-Series.R");
   queryClient.setQueryData(["track-name", TRACK_ORDINAL, GAME_ID], "Hakone Club");
   queryClient.setQueryData(["track-outline", TRACK_ORDINAL, GAME_ID], { points: HAKONE_CLUB_OUTLINE, source: "storybook", startYaw: null, flipX: false });

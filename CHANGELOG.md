@@ -4,13 +4,28 @@
 
 - Show Clean laps and confirmed race podium counts with first-, second-, and third-place totals on the overview, replacing Pace progress and Practice rhythm.
 - Show session type, such as Practice or Race, in the overview's Recent Sessions table.
+- Filter dashboard game totals, insights, and summary statistics from shared period tabs at the top-left, while keeping Latest Session and Recent Sessions unchanged.
+- See a finishing-position distribution for fourth place onward in the overview's Podiums widget, counting confirmed finished races only.
+- See recorded lap time across tracks, compare consistency across ten recent sessions, and review session-type trends for the latest track and car without a context picker.
+- Use catalog track names for LMU overview insight charts and Recent Sessions, preserving layout-specific labels.
+- Keep first-, second-, and third-place trophies visible in the overview's Podiums widget, including zero counts and unavailable-result states.
+- Show the total confirmed finished races beside the overview's Podiums title.
+- Read overview widget explanations from info-icon tooltips instead of long inline notes.
+- See a daily rolling two-month activity heatmap with Monday–Sunday rows, cyan intensity cells, full-date hover tooltips, and a Less–More legend, without a card background or printed day numbers and independently of dashboard period filters.
+- Use Today, This Week, This Month, and This Year overview periods, defaulting to This Year instead of All Time.
+- See finer 0.1-second intervals across ten bars in the overview's Consistency chart.
 
 ### Fixes
 
 - Keep dashboard game cards compact and readable across phone, tablet, and desktop layouts.
+- Center smaller logo-only Overview cards, right-align values before Laps and Driving labels, and match their gradient styling to Latest Session.
+- Render Overview game cards with official logo images and original brand colours instead of recoloured masks and filters.
+- Enlarge Overview game logos proportionally to 90% of their inset card area and fade them toward the right-hand metrics so branding is easier to recognise without obscuring values.
 - Compact dashboard insight widgets, shorten visible copy, and place them directly below game cards.
 - Use compact 13px lap/time values in game cards and 16px metrics elsewhere on Overview, reduce heavy text weights, and keep latest-session recap text consistent without changing standalone recaps.
 - Give Recent Sessions the full overview width and replace the latest-session sidebar with a shorter summary above the table.
+- Match dashboard period controls to Sessions and use the same bordered, outlined-active treatment for default tabs.
+- Stack Consistency beneath Clean laps and align overview insights into compact, equal-height desktop groups without empty grid slots.
 
 ### Internal
 - Skip build, test, browser, snapshot, and benchmark PR jobs for automated release version bump branches.

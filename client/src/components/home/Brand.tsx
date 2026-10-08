@@ -1,3 +1,4 @@
+import { Card } from "@/components/ui/card";
 import { Link } from "@tanstack/react-router";
 import { m } from "@/paraglide/messages";
 import type { GameStats } from "./types";
@@ -57,54 +58,43 @@ const BRAND_CARDS: ReadonlyArray<{
   gameId: string;
   route: "/fm23" | "/f125" | "/acc" | "/ac-evo" | "/iracing" | "/lmu";
   name: string;
-  linePositions: [string, string, string];
+  logoSrc: string;
 }> = [
-  { key: "fm", gameId: "fm-2023", route: "/fm23", name: "Forza Motorsport", linePositions: ["top-[18%]", "top-[45%]", "top-[72%]"] },
-  { key: "f1", gameId: "f1-2025", route: "/f125", name: "F1 2025", linePositions: ["top-[20%]", "top-[50%]", "top-[75%]"] },
-  { key: "acc", gameId: "acc", route: "/acc", name: "Assetto Corsa Competizione", linePositions: ["top-[20%]", "top-[50%]", "top-[75%]"] },
-  { key: "acEvo", gameId: "ac-evo", route: "/ac-evo", name: "Assetto Corsa Evo", linePositions: ["top-[20%]", "top-[50%]", "top-[75%]"] },
-  { key: "iracing", gameId: "iracing", route: "/iracing", name: "iRacing", linePositions: ["top-[20%]", "top-[50%]", "top-[75%]"] },
-  { key: "lmu", gameId: "lmu", route: "/lmu", name: "Le Mans Ultimate", linePositions: ["top-[20%]", "top-[50%]", "top-[75%]"] },
+  { key: "fm", gameId: "fm-2023", route: "/fm23", name: "Forza Motorsport", logoSrc: "/forza-logo.svg" },
+  { key: "f1", gameId: "f1-2025", route: "/f125", name: "F1 2025", logoSrc: "/f1-logo.svg" },
+  { key: "acc", gameId: "acc", route: "/acc", name: "Assetto Corsa Competizione", logoSrc: "/acc-logo.svg" },
+  { key: "acEvo", gameId: "ac-evo", route: "/ac-evo", name: "Assetto Corsa Evo", logoSrc: "/acevo-logo.svg" },
+  { key: "iracing", gameId: "iracing", route: "/iracing", name: "iRacing", logoSrc: "/iracing-logo.svg" },
+  { key: "lmu", gameId: "lmu", route: "/lmu", name: "Le Mans Ultimate", logoSrc: "/lmu-logo.svg" },
 ];
 
 function GameBrandCard({ game, stats }: { game: (typeof BRAND_CARDS)[number]; stats: GameStats[GameKey] }) {
-  const [lineOne, lineTwo, lineThree] = game.linePositions;
   return (
     <Link
       to={game.route}
       data-game-brand={game.gameId}
-      className="game-brand-panel game-brand-card group relative flex min-w-0 flex-col overflow-hidden rounded-lg border p-2.5 transition-[border-color,box-shadow] duration-250 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent motion-reduce:transition-none"
+      className="game-brand-card group block w-fit min-w-42 max-w-full rounded-lg active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent"
     >
-      <div className="game-brand-glow absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20" />
-      <div className="game-brand-bar absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100" />
-      <div className="absolute inset-0 overflow-hidden opacity-[0.06] pointer-events-none">
-        <div className={`game-brand-speed-line game-brand-line-30 absolute ${lineOne} -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]`} />
-        <div className={`game-brand-speed-line game-brand-line-50 absolute ${lineTwo} -left-[10%] w-[120%] h-px -rotate-[3deg]`} />
-        <div className={`game-brand-speed-line game-brand-line-60 absolute ${lineThree} -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]`} />
-      </div>
-      <div className="relative mb-2 flex items-center gap-2">
-        <div className="game-brand-icon w-6 h-6 rounded-md border flex items-center justify-center shrink-0">
-          <GameBrandLogo gameId={game.gameId} className="w-4 h-4" />
+      <Card variant="gradient" className="relative h-full min-w-0 flex-row items-center gap-1.5 overflow-hidden rounded-lg p-2 font-normal transition-colors duration-150 group-hover:border-app-border-hover motion-reduce:transition-none">
+        <span className="sr-only">{game.name}</span>
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-2 inset-y-1 flex items-center [mask-image:linear-gradient(to_right,black_20%,transparent_62%)]">
+          <img src={game.logoSrc} alt="" className="h-[90%] w-[90%] object-contain object-left" />
         </div>
-        <span className="min-w-0 text-app-detail font-semibold leading-4 text-app-text/90 wrap-break-word">{game.name}</span>
-      </div>
-      <div className="relative mt-auto flex flex-wrap gap-x-3 gap-y-1">
-        <div className="flex min-w-0 items-baseline gap-1.5">
-          <div className="text-app-label uppercase tracking-app-label text-app-text/60">{m.label_laps()}</div>
-          <div className="game-brand-accent wrap-anywhere text-app-detail font-semibold font-mono leading-snug tabular-nums">{stats.laps}</div>
-        </div>
-        <div className="flex min-w-0 items-baseline gap-1.5">
-          <div className="text-app-label uppercase tracking-app-label text-app-text/60">{m.label_time()}</div>
-          <div className="wrap-anywhere text-app-detail font-semibold font-mono leading-snug tabular-nums text-app-text/70">{stats.time}</div>
-        </div>
-      </div>
+        <div aria-hidden="true" className="h-14 w-18 shrink-0" />
+        <dl className="relative z-10 grid min-w-0 flex-1 grid-cols-[minmax(max-content,1fr)_max-content] items-baseline gap-x-1 gap-y-1 text-right">
+          <dt className="col-start-2 row-start-1 whitespace-nowrap text-app-compact font-normal text-app-text-muted">{m.label_laps()}</dt>
+          <dd className="col-start-1 row-start-1 wrap-anywhere text-app-detail font-normal font-mono leading-snug tabular-nums text-app-text">{stats.laps}</dd>
+          <dt className="col-start-2 row-start-2 whitespace-nowrap text-app-compact font-normal text-app-text-muted">{m.home_card_driven()}</dt>
+          <dd className="col-start-1 row-start-2 wrap-anywhere text-app-detail font-normal font-mono leading-snug tabular-nums text-app-text">{stats.time}</dd>
+        </dl>
+      </Card>
     </Link>
   );
 }
 
 export function GameBrandCards({ gameStats, hiddenGames }: { gameStats: GameStats; hiddenGames: string[] }) {
   return (
-    <div className="grid grid-cols-1 gap-2 @sm/workspace:grid-cols-2 @3xl/workspace:grid-cols-3 @5xl/workspace:grid-cols-6">
+    <div className="flex flex-wrap justify-center gap-2">
       {BRAND_CARDS.map((game) => (hiddenGames.includes(game.gameId) ? null : <GameBrandCard key={game.gameId} game={game} stats={gameStats[game.key]} />))}
     </div>
   );

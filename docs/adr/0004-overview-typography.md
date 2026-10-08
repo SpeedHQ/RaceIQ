@@ -8,7 +8,7 @@ Overview mixes oversized period statistics, insight values, and recap values wit
 
 ## Decision
 
-Reuse existing shared app typography roles rather than changing global tokens: 13px game-card lap/time values, 16px other semibold metrics, 14px section headings, 12px labels, and 18px page title. Smaller game-card values follow user feedback and keep game identity primary. Preserve sans interface text and monospace measurements. Opt Overview into compact recap presentation without changing standalone recaps.
+Reuse existing shared app typography roles rather than changing global tokens: 13px normal-weight game-card lap/time values, 16px other semibold metrics, 14px section headings, 12px labels, and 18px page title. Smaller, lighter game-card values follow updated user feedback and keep logo identity primary. Preserve sans interface text and monospace measurements. Opt Overview into compact recap presentation without changing standalone recaps.
 
 ## Rationale
 
