@@ -37,10 +37,11 @@ export function HomePageView({
   periodStats,
   onPeriodTabChange,
 }: HomePageViewProps) {
-  const latestSessionPanel = latestSession ? (
+  const latestSessionPanel = (
     <aside className="min-w-0">
-      <Link className="latest-session-link block h-full" to={latestRecap ? `${getGameRoute(latestRecap.gameId)}/sessions/${latestRecap.sessionId}/analyse` as never : "/"} disabled={!latestRecap} aria-label={`${m.sessions_analyse_session()}: ${latestRecap?.trackName ?? ""}`}>
-                <Card variant="transparent-panel" className="latest-session-card relative h-full overflow-hidden p-4">
+      {latestSession ? (
+        <Link className="latest-session-link block h-full" to={latestRecap ? `${getGameRoute(latestRecap.gameId)}/sessions/${latestRecap.sessionId}/analyse` as never : "/"} disabled={!latestRecap} aria-label={`${m.sessions_analyse_session()}: ${latestRecap?.trackName ?? ""}`}>
+          <Card variant="transparent-panel" className="latest-session-card relative h-full overflow-hidden p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div className="recap-card-title">{m.recap_latest_session()}</div>
                     {latestRecap?.personalBest?.isNew && latestRecap.bestLapSec != null && <span className="recap-pb shrink-0 px-2 py-0.5 text-app-label font-semibold">{m.recap_new_pb()}</span>}
@@ -63,10 +64,13 @@ export function HomePageView({
                       carImageUrl={latestRecapCarImageUrl}
                     />
                   )}
-                </Card>
-                </Link>
+          </Card>
+        </Link>
+      ) : (
+        <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-app-border p-6 text-center text-xs text-app-text-muted">{m.recap_latest_session()}</div>
+      )}
     </aside>
-  ) : null;
+  );
   return (
     <div className="min-h-full bg-app-bg text-app-detail">
       <div className="mx-auto max-w-[1400px] space-y-4 p-4 @3xl/workspace:p-6">
