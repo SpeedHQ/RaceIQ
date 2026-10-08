@@ -28,7 +28,6 @@ const LEGACY_RACE_RESULT_PROVENANCE: RaceResultProvenance = {
   derivationVersion: "unavailable",
   derivationCodeHash: "unavailable",
   rawInput: null,
-  canonicalInput: null,
   authorityPolicyId: "legacy-outcome-status",
   authorityPolicyVersion: "unavailable",
 };

@@ -109,12 +109,6 @@ export interface RaceResultRawInputIdentity {
   byteLength?: number;
 }
 
-export interface RaceResultCanonicalInputIdentity {
-  sessionId: string;
-  firstSequence: number;
-  lastSequence: number;
-  contentHash: string;
-}
 
 export interface RaceResultProvenance {
   catalogVersion: string;
@@ -126,7 +120,6 @@ export interface RaceResultProvenance {
   derivationVersion: string;
   derivationCodeHash: string;
   rawInput: RaceResultRawInputIdentity | null;
-  canonicalInput: RaceResultCanonicalInputIdentity | null;
   authorityPolicyId: string;
   authorityPolicyVersion: string;
   extractor?: {

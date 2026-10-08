@@ -29,7 +29,6 @@ export function createRaceResultProvenance(
     derivationVersion: RACE_RESULT_DERIVATION_VERSION,
     derivationCodeHash: RACE_RESULT_DERIVATION_CODE_HASH,
     rawInput: null,
-    canonicalInput: null,
     authorityPolicyId: RACE_RESULT_OUTCOME_POLICY.id,
     authorityPolicyVersion: RACE_RESULT_OUTCOME_POLICY.version,
     ...overrides,

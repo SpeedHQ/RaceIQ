@@ -35,3 +35,13 @@ unresolved data-source work.
 
 Update this committed catalog only from verified source data, with reviewed diffs.
 
+## Bounds and AI validation checklist
+
+These are acceptance requirements for [adding game setup support](adding-game-setup-support.md), not a claim that all existing adapters meet them. Existing fallback and observed-range behavior above must not be mistaken for verified simulator limits.
+
+- [ ] **Bounds for every changeable value:** provide verified minimum, maximum, step/increment, units, and allowed discrete values where applicable. Scope limits to the correct game, car, and setup format/version; document the source and any parameter dependencies. Distinguish file click indices from displayed physical values and validate conversions.
+- [ ] **Unknown or fixed values:** fields without verified limits, or fields that are not tunable for the selected car, must not be editable or changeable by experiments AI. Preserve them on export; do not invent bounds or apply another game's/car's limits. A game-wide range is acceptable only when verified for the selected car.
+- [ ] **Experiments AI constraints:** expose the same applicable bounds and allowed values to Setup Engineer that the editor and file generator use. Enforce them server-side when applying AI changes and before saving a setup version or generating a file; prompt instructions alone are insufficient. Validate the resulting complete setup, including dependent-field constraints, after any clamping or step quantization.
+- [ ] **Invalid changes:** handle out-of-range, off-step, non-finite, unsupported-enum, and incompatible dependent-field values explicitly through existing setup-rule behavior. Never save or export an invalid generated setup; report rejected or adjusted AI changes rather than silently presenting the original proposal as applied.
+- [ ] **Bounds regression coverage:** verify valid endpoints and steps, just-outside limits, invalid discrete values, unknown/non-tunable fields, car-specific limits, and dependent-field constraints. Exercise AI change application through server validation and file generation; confirm invalid proposals cannot produce invalid saved versions or exported files, and valid generated files round-trip with the intended values.
+

@@ -34,7 +34,6 @@ const provenance: RaceResultProvenance = {
   derivationVersion: "3",
   derivationCodeHash: "sha256:derivation",
   rawInput: { objectId: "session.bin", contentHash: "sha256:raw", byteOffset: 64, byteLength: 128 },
-  canonicalInput: { sessionId: "session-1", firstSequence: 0, lastSequence: 10, contentHash: "sha256:canonical" },
   authorityPolicyId: "race-result-outcome-authority",
   authorityPolicyVersion: "1",
 };

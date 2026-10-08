@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 
 - Add Favourite track and Favourite car dashboard widgets stacked vertically in the right-hand half beside Latest Session, with a compact, height-matched desktop row and full-width mobile stacking. Include matching cinematic styling, real track outlines, car artwork, driving time, estimated distance in km or miles, session and lap counts, and confirmed race podiums. Favourites use completed-lap driving time in the selected period and game; distance estimates use known track lengths and disclose partial coverage, while unavailable statistics remain dashes.
 - Merge overview totals into small inline metrics beside the Clean laps, Track time distribution, and Session time widget titles instead of separate stat cards.
@@ -51,6 +52,10 @@
 - Show collective elapsed time across all tracks and cars in Session stats, including pits, idle time, and incomplete laps, with unavailable recording durations clearly identified.
 
 ### Internal
+- Document new-game integration, lossless sparse recording, lap correctness checks, and gzip fixture splitting without Git LFS; align capture and architecture guides with current implementation.
+- Avoid per-packet serialization and hashing during race-result reconciliation while retaining raw capture identity and processing provenance.
+- Add Bun-only parser/pipeline, retained-heap, import, and recording benchmarks with isolated workloads and explicit measurement scopes.
+- Correct Linux benchmark CPU/RSS sampling and run iRacing parser/import benchmarks independently of production release flags.
 - Skip build, test, browser, snapshot, and benchmark PR jobs for automated release version bump branches.
 
 ## v0.19.2 - 2026-10-04
