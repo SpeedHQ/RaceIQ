@@ -2374,5 +2374,6 @@
 "experiment_focus_car_agent_label": "Kilpailuinsinööri",
   "experiment_focus_driver_agent_label": "Ajo-opettaja",
   "ob_community_body": "RaceIQ on avoimen lähdekoodin projekti, joka tarvitsee yhteisön tukea. Voit auttaa levittämällä tietoa, lähettämällä ominaisuuspyyntöjä tai virheraportteja tai osallistumalla lähdekoodin kehittämiseen.",
-  "settings_port_range_error": "Portin on oltava välillä 1024–65535"
+  "settings_port_range_error": "Portin on oltava välillä 1024–65535",
+  "dash_lan_address": "Paikallisverkon osoite"
 }

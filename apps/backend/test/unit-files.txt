@@ -27,3 +27,4 @@ apps/backend/test/lap-analysis/segments/segment-label.test.ts
 apps/backend/test/lap-analysis/tire-temperature-insights.test.ts
 apps/backend/test/laps/archive-detection.test.ts
 apps/backend/test/runtime/diagnostic-log-store.test.ts
+apps/backend/test/runtime/network-routes.test.ts

@@ -2374,5 +2374,6 @@
   "experiment_new_button": "+ Новий експеримент",
   "dash_waiting_track": "Очікування траси…",
   "experiment_focus_car_agent_label": "Гоночний інженер",
-  "experiment_focus_driver_agent_label": "Тренер пілота"
+  "experiment_focus_driver_agent_label": "Тренер пілота",
+  "dash_lan_address": "Адреса локальної мережі"
 }

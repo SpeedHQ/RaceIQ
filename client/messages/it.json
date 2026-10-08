@@ -2374,5 +2374,6 @@
   "experiment_search_aria": "Cerca esperimenti",
   "experiment_guide": "Guida",
   "experiment_new_button": "+ Nuovo esperimento",
-  "dash_waiting_track": "In attesa del tracciato…"
+  "dash_waiting_track": "In attesa del tracciato…",
+  "dash_lan_address": "Indirizzo di rete locale"
 }

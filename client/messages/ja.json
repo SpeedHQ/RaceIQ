@@ -2375,5 +2375,6 @@
   "dash_waiting_track": "コースを待機中…",
   "experiment_focus_car_agent_label": "レースエンジニア",
   "experiment_focus_driver_agent_label": "ドライビングコーチ",
-  "experiment_focus_driver_hint": "運転技術の向上に集中しましょう。"
+  "experiment_focus_driver_hint": "運転技術の向上に集中しましょう。",
+  "dash_lan_address": "ローカルネットワークアドレス"
 }

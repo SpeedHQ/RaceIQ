@@ -2374,5 +2374,6 @@
   "experiment_new_button": "+ Nouvelle expérience",
   "dash_waiting_track": "En attente du circuit…",
   "experiment_focus_car_agent_label": "Ingénieur de course",
-  "experiment_focus_driver_agent_label": "Coach de pilotage"
+  "experiment_focus_driver_agent_label": "Coach de pilotage",
+  "dash_lan_address": "Adresse du réseau local"
 }

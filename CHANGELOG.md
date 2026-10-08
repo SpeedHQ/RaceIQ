@@ -4,6 +4,7 @@
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 
 ### Fixes
+- Use suitable local network addresses for remote HUD links and let users choose an address when multiple adapters are available.
 
 ### Internal
 - Document new-game integration, lossless sparse recording, lap correctness checks, and gzip fixture splitting without Git LFS; align capture and architecture guides with current implementation.

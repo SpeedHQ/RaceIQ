@@ -2374,5 +2374,6 @@
   "experiment_new_button": "+ Nieuw experiment",
   "dash_waiting_track": "Wachten op circuit…",
   "experiment_focus_car_agent_label": "Race-engineer",
-  "experiment_focus_driver_agent_label": "Rijcoach"
+  "experiment_focus_driver_agent_label": "Rijcoach",
+  "dash_lan_address": "Lokaal netwerkadres"
 }

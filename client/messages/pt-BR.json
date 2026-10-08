@@ -2374,5 +2374,6 @@
   "experiment_focus_car_agent_label": "Engenheiro de corrida",
   "experiment_focus_driver_agent_label": "Treinador de pilotagem",
   "analyse_ai_analysis": "Análise de IA",
-  "insight_category_suspension": "Suspensão"
+  "insight_category_suspension": "Suspensão",
+  "dash_lan_address": "Endereço de rede local"
 }
