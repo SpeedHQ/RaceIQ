@@ -1,3 +1,4 @@
+import { getRecordedElapsedSeconds } from "../session-capture/elapsed-duration";
 import { deleteLap } from "./lap-mutation-queries";
 import { getLapById } from "./lap-read-queries";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
@@ -292,6 +293,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       ownership: sessions.ownership,
       isFavorite: sessions.isFavorite,
       telemetryAvailable: sql<number>`${sessions.rawFile} IS NOT NULL`,
+      capturePath: sessions.rawFile,
       notes: sessions.notes,
       source: sessions.source,
       sessionType: sessions.sessionType,
@@ -309,6 +311,28 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
     ? await query.where(eq(sessions.gameId, gameId)).all()
     : await query.all();
 
+  // Shared paths lack per-session interval metadata; never count one full file twice.
+  const capturePaths = [...new Set(rows.flatMap((session) => session.capturePath ? [session.capturePath] : []))];
+  const sharedCaptureRows = capturePaths.length
+    ? await db.select({ rawFile: sessions.rawFile }).from(sessions).where(inArray(sessions.rawFile, capturePaths)).all()
+    : [];
+  const sessionsByFile = new Map<string, number>();
+  for (const session of sharedCaptureRows) {
+    if (session.rawFile) sessionsByFile.set(session.rawFile, (sessionsByFile.get(session.rawFile) ?? 0) + 1);
+  }
+  const elapsedBySession = new Map<number, number | null>();
+  for (const session of rows) {
+    const elapsedSeconds = session.capturePath && sessionsByFile.get(session.capturePath) === 1
+      ? await getRecordedElapsedSeconds({
+        rawFile: session.capturePath,
+        source: session.source ?? null,
+        gameId: session.gameId as GameId,
+        carOrdinal: session.carOrdinal,
+        trackOrdinal: session.trackOrdinal,
+      })
+      : null;
+    elapsedBySession.set(session.id, elapsedSeconds);
+  }
   // Get lap counts and best lap per session
   const result: SessionMeta[] = [];
   for (const session of rows) {
@@ -320,8 +344,9 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
 
     const validLaps = lapRows.filter((l) => l.isValid && l.lapTime > 0);
     const bestLapTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : undefined;
+    const { capturePath: _capturePath, ...sessionMetadata } = session;
     const normalizedSession = {
-      ...session,
+      ...sessionMetadata,
       carId: session.carId ?? session.carOrdinal,
       trackId: session.trackId ?? session.trackOrdinal,
       sessionType: session.sessionType ?? undefined,
@@ -351,6 +376,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       : null;
     result.push({
       ...normalizedSession,
+      elapsedSeconds: elapsedBySession.get(session.id) ?? null,
       lapCount: lapRows.length,
       bestLapTime,
       resultClassification: resultRow?.classification ?? null,

@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import { FavoriteToggleButton } from "../FavoriteToggleButton";
 import { Button } from "@/components/ui/button";
-import { formatSessionType, sessionCarName, sessionTrackName } from "./helpers";
+import { sessionCarName, sessionTrackName } from "./helpers";
+import { SessionTypeBadge } from "./SessionTypeBadge";
 import { NoteCell } from "./NoteCell";
 import { MotecBadge } from "./MotecBadge";
 import { SessionLapTable } from "./SessionLapTable";
@@ -180,7 +181,7 @@ export function SessionDesktopTable({
                     <TableCell className="text-app-label">
                       <SessionResultMeta session={session} />
                     </TableCell>
-                    {showSessionType && <TableCell className="text-app-label">{formatSessionType(session.sessionType) || "—"}</TableCell>}
+                    {showSessionType && <TableCell className="text-app-label"><SessionTypeBadge type={session.sessionType} /></TableCell>}
                     <TableCell>
                       <NoteCell value={session.notes ?? undefined} onSave={(notes) => saveSessionNotes(session.id, notes)} />
                     </TableCell>

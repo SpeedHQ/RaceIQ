@@ -2,6 +2,8 @@
 
 Status: proposed
 
+Scope revised by [Dashboard-wide period filtering](0006-dashboard-period-control.md): activity now uses the shared selected period rather than an independent two-month range.
+
 ## Context
 The overview activity calendar previously showed a full year with year navigation. The updated request specifies a compact, unframed two-month rolling heatmap advancing by day, without printed day numbers and with date tooltips.
 

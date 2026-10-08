@@ -142,6 +142,7 @@
     "./session-capture/combine-recording-parts": "./session-capture/combine-recording-parts.ts",
     "./session-capture/compressor": "./session-capture/compressor.ts",
     "./session-capture/filename": "./session-capture/filename.ts",
+    "./session-capture/elapsed-duration": "./session-capture/elapsed-duration.ts",
     "./session-capture/frame-time": "./session-capture/frame-time.ts",
     "./session-capture/framing": "./session-capture/framing.ts",
     "./session-capture/generic-sparse": "./session-capture/generic-sparse.ts",

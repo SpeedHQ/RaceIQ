@@ -4,7 +4,8 @@ import { formatLapTime } from "@/components/LiveTelemetry";
 import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";
 import { FavoriteToggleButton } from "../FavoriteToggleButton";
 import { Button } from "@/components/ui/button";
-import { formatSessionType, sessionCarName, sessionTrackName } from "./helpers";
+import { sessionCarName, sessionTrackName } from "./helpers";
+import { SessionTypeBadge } from "./SessionTypeBadge";
 import { MotecBadge } from "./MotecBadge";
 import { NoteCell } from "./NoteCell";
 import { SessionLapTable } from "./SessionLapTable";
@@ -134,7 +135,7 @@ export function SessionMobileList({
                   </div>
                   <div className="text-xs text-app-text/90 truncate mt-0.5">
                     {sessionCarName(session, { trackNames, carNames })}
-                    {showSessionType && session.sessionType && session.sessionType !== "unknown" && <> · {formatSessionType(session.sessionType)}</>}
+                    {showSessionType && session.sessionType && session.sessionType !== "unknown" && <span className="ml-2 inline-flex align-middle"><SessionTypeBadge type={session.sessionType} /></span>}
                   </div>
                   <div className="mt-2">
                     <SessionResultMeta session={session} />

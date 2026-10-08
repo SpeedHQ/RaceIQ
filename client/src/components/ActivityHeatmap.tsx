@@ -31,7 +31,7 @@ function fmtDuration(sec: number): string {
   return `${s}s`;
 }
 
-export function ActivityHeatmap({ laps, showTitle = true }: { laps: LapMeta[]; showTitle?: boolean }) {
+export function ActivityHeatmap({ laps, periodStart, showTitle = true }: { laps: LapMeta[]; periodStart: number; showTitle?: boolean }) {
   const [now, setNow] = useState(() => new Date());
   const [hover, setHover] = useState<{ date: string; duration: string; x: number; y: number } | null>(null);
   const year = now.getFullYear();
@@ -51,8 +51,8 @@ export function ActivityHeatmap({ laps, showTitle = true }: { laps: LapMeta[]; s
 
   const { cells, max } = useMemo(() => {
     const today = new Date(`${todayKey}T00:00:00`);
-    const startMonthDays = new Date(year, month - 1, 0).getDate();
-    const firstDay = new Date(year, month - 2, Math.min(today.getDate(), startMonthDays));
+    const firstDay = new Date(periodStart);
+    firstDay.setHours(0, 0, 0, 0);
     const end = new Date(year, month, today.getDate() + 1);
     const secondsByDay = new Map<string, number>();
     for (const lap of laps) {
@@ -77,7 +77,7 @@ export function ActivityHeatmap({ laps, showTitle = true }: { laps: LapMeta[]; s
       maxSeconds = Math.max(maxSeconds, seconds);
     }
     return { cells: { days: grid, weeks }, max: maxSeconds };
-  }, [laps, year, month, todayKey]);
+  }, [laps, year, month, todayKey, periodStart]);
 
   const monthFormatter = new Intl.DateTimeFormat(locale, { month: "short" });
   const rangeFormatter = new Intl.DateTimeFormat(locale, { month: "long", day: "numeric", year: "numeric" });
@@ -87,9 +87,10 @@ export function ActivityHeatmap({ laps, showTitle = true }: { laps: LapMeta[]; s
   const height = DAYS * (CELL + GAP) - GAP;
 
   return (
-    <section className="w-full max-w-[406px] p-4" aria-label={`${m.heatmap_title()} — ${monthDescription}`}>
+    <section className="w-full max-w-[406px] rounded-lg border border-app-border p-4" aria-label={`${m.heatmap_title()} — ${monthDescription}`}>
       {showTitle && <h2 className="mb-4 text-app-detail font-semibold text-app-text">{m.heatmap_title()}</h2>}
-      <div className="mx-auto" style={{ width, maxWidth: "100%" }}>
+      <div className="overflow-x-auto">
+      <div style={{ width }}>
         <div className="relative mb-2 h-4 text-app-compact text-app-text-secondary">
           {cells.days
             .filter(({ date }, index) => index === 0 || date.getDate() === 1)
@@ -99,7 +100,7 @@ export function ActivityHeatmap({ laps, showTitle = true }: { laps: LapMeta[]; s
               </span>
             ))}
         </div>
-        <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} className="block max-w-full" role="img" aria-label={`${m.heatmap_title()} — ${monthDescription}`}>
+        <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} className="block max-w-none" role="img" aria-label={`${m.heatmap_title()} — ${monthDescription}`}>
           {dayLabels.map((label, weekday) => (
             <text key={label} x={0} y={weekday * (CELL + GAP) + CELL / 2} dominantBaseline="middle" className="fill-app-text-secondary text-app-caption">
               {label}
@@ -139,6 +140,7 @@ export function ActivityHeatmap({ laps, showTitle = true }: { laps: LapMeta[]; s
             );
           })}
         </svg>
+      </div>
       </div>
       <div className="mt-3 flex items-center justify-end gap-1.5 text-app-caption text-app-text-secondary" aria-hidden="true">
         <span>{m.heatmap_less()}</span>

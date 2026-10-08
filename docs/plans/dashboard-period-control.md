@@ -2,16 +2,16 @@
 
 ADR: [Dashboard-wide period filtering](../adr/0006-dashboard-period-control.md)
 
-Subsequent scope revision: [Calendar year selection](overview-calendar-years.md) removes All time and makes calendar activity independent of the overview period.
+Current scope revision: every dashboard widget follows the shared Today, This Week, This Month, and This Year tabs, including activity, Latest Session, and Recent Sessions.
 
 ## Requirements
 
-Move the existing time period selector to the top-left of the overview and game dashboards. Today, week, month, year, and all-time must control all dashboard data, including game-card lap/time totals, Clean laps, Podiums, activity, and summary statistics. Latest Session and Recent Sessions remain independent of the selected period. Preserve game scope, localization, responsive wrapping, and the all-time default.
+The top-left period tabs control all overview and game-dashboard widgets: game-card totals, summary statistics, Clean laps, Podiums, consistency, track/session time distribution, activity, Latest Session, and Recent Sessions. Preserve existing local-today and rolling 7/30/365-day boundaries, game scope, localization, responsive behavior, and the year default. Activity displays the selected date range, not an independent two-month window.
 
 ## Implementation
 
-Use Sessions' `ToggleGroup03` component for period selection, separate from the summary panel. Make its bordered, outlined-active visual treatment the shared Tabs default; keep explicit pills and underline variants unchanged. Contain the five-option period selector in a horizontal scroller on narrow screens. Filter dashboard laps and sessions centrally using the existing local-today and rolling 7/30/365-day boundaries. Derive game-card totals from the same selected laps rather than independent all-time stats requests. Continue deriving latest/recent sessions from unfiltered session history.
+Use the existing shared period selector and central filtered laps/sessions. Derive recent/latest sessions from the selected period and game before fetching the latest recap. Pass the selected period start to activity and remove its separate unfiltered lap prop. Activity retains readable daily cells through horizontal scrolling for longer periods. Keep loading/error states on both overview and game dashboards.
 
 ## Acceptance and verification
 
-Exercise period switching on populated overview and game dashboards; observe matching metric changes and unchanged latest/recent sessions, including an empty period. Inspect desktop and narrow layouts, keyboard selection, and selected-button state. Run frontend typecheck and focused insight tests. Record user-visible behavior in the changelog.
+Exercise all four period tabs on populated overview and game dashboards; verify game totals, summary, clean trend, podiums, consistency, distributions, calendar range/activity, recent sessions, and latest recap change together, including empty periods. Inspect desktop/mobile charts and calendar scrolling. Run frontend typecheck and focused insight regressions. Record changed scope in the changelog.

@@ -75,7 +75,8 @@ export function F125SetupBrowser() {
           lapTimeSec: parseLap(s.lapTime),
           lapTimeRaw: s.lapTime || null,
           lapTimeTrack: t.trackName,
-          description: [s.sessionType, s.inputDevice, s.provider].filter(Boolean).join(" · "),
+          description: [s.inputDevice, s.provider].filter(Boolean).join(" · "),
+          sessionType: s.sessionType,
           settings: s.setup,
         });
       });

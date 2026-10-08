@@ -2,7 +2,7 @@
 
 Status: proposed
 
-Calendar scope and available periods are revised by [Overview calendar year scope](0007-overview-calendar-years.md).
+This proposed decision now applies shared period scope to every dashboard widget, replacing the independent calendar/latest/recent scope.
 
 ## Context
 
@@ -10,13 +10,13 @@ The period selector currently sits inside summary statistics while other dashboa
 
 ## Decision
 
-Place one period selector at the top-left of both dashboard variants. Apply its existing date boundaries to dashboard laps and sessions centrally, deriving game-card totals from the same lap set. Keep latest and recent session history outside period filtering.
+Place one period selector at the top-left of both dashboard variants. Apply its existing date boundaries to dashboard laps and sessions centrally, deriving game-card totals from the same lap set. Derive latest/recent sessions from the selected period and game; fetch the corresponding latest recap. Render activity over the same selected period with horizontal scrolling for long date ranges.
 
 Reuse Sessions' `ToggleGroup03` for the period filter because both select a data scope rather than a content panel. Align default shared Tabs styling with its bordered segmented treatment while retaining tab semantics and explicit alternative variants.
 
 ## Rationale
 
-One selected range gives aggregate widgets a consistent scope without adding backend queries or changing session navigation. Retaining unfiltered session history preserves access to the newest driving activity even when an older or empty range is selected.
+One selected range gives every widget a consistent scope without adding backend queries. Empty periods must not retain historical calendar activity or unrelated latest/recent sessions. Keep the existing year default and local-today/rolling-week/month/year date boundaries.
 
 ## Plan
 

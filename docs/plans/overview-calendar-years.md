@@ -2,6 +2,8 @@
 
 ADR: [Rolling activity scope](../adr/0007-overview-calendar-years.md)
 
+Current scope: [Dashboard-wide period control](dashboard-period-control.md) replaces the independent two-month range with the selected dashboard period. Daily cell styling and hover behavior remain applicable.
+
 ## Requirements
 - Show a rolling two-calendar-month range, inclusive from the same local day two months ago through today; clamp the start day for shorter months. Advance daily, including while the dashboard remains open.
 - Preserve game scope and independence from overview period filters.

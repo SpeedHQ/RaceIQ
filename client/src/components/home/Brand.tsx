@@ -73,7 +73,7 @@ function GameBrandCard({ game, stats }: { game: (typeof BRAND_CARDS)[number]; st
     <Link
       to={game.route}
       data-game-brand={game.gameId}
-      className="game-brand-card group block w-fit min-w-42 max-w-full rounded-lg active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent"
+      className="game-brand-card group block w-52 min-w-42 max-w-full flex-none rounded-lg active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent"
     >
       <Card variant="gradient" className="relative h-full min-w-0 flex-row items-center gap-1.5 overflow-hidden rounded-lg p-2 font-normal transition-colors duration-150 group-hover:border-app-border-hover motion-reduce:transition-none">
         <span className="sr-only">{game.name}</span>
@@ -94,7 +94,7 @@ function GameBrandCard({ game, stats }: { game: (typeof BRAND_CARDS)[number]; st
 
 export function GameBrandCards({ gameStats, hiddenGames }: { gameStats: GameStats; hiddenGames: string[] }) {
   return (
-    <div className="flex flex-wrap justify-center gap-2">
+    <div className="grid grid-cols-2 justify-items-center gap-2 md:grid-cols-3 xl:grid-cols-6">
       {BRAND_CARDS.map((game) => (hiddenGames.includes(game.gameId) ? null : <GameBrandCard key={game.gameId} game={game} stats={gameStats[game.key]} />))}
     </div>
   );

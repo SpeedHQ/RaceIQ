@@ -1,0 +1,82 @@
+/* The latest-session card deliberately follows the supplied visual reference,
+   not the app's flat panel treatment. All selectors stay inside this surface. */
+.latest-session-card {
+  gap: 0;
+  border: 1px solid var(--recap-border);
+  border-radius: 12px;
+  background:
+    radial-gradient(ellipse at top right, color-mix(in srgb, var(--app-accent) 12%, transparent), transparent 70%),
+    var(--recap-background);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--recap-background) 50%, transparent);
+}
+
+.recap-card-title {
+  margin-bottom: 8px;
+  color: var(--recap-label);
+  font-family: var(--font-mono);
+  font-size: var(--text-app-label);
+  font-weight: var(--font-weight-normal);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.recap-cinematic .text-app-text-secondary,
+.recap-cinematic .text-app-text-muted {
+  color: var(--recap-label);
+}
+
+.recap-best-lap,
+.recap-sector,
+.recap-footer {
+  border: 1px solid var(--recap-border);
+  border-radius: 8px;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--recap-panel) 85%, transparent), color-mix(in srgb, var(--recap-background) 94%, transparent));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--recap-label) 5%, transparent);
+}
+
+.recap-best-lap {
+  border-color: color-mix(in srgb, var(--app-accent) 65%, var(--recap-border));
+  box-shadow:
+    0 4px 18px color-mix(in srgb, var(--app-accent) 15%, transparent),
+    inset 0 0 18px color-mix(in srgb, var(--app-accent) 7%, transparent);
+}
+
+.recap-label {
+  color: var(--recap-label);
+  font-family: var(--font-mono);
+  font-size: var(--text-app-label);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.recap-best-time {
+  color: var(--recap-timing);
+  font-size: clamp(1.5rem, 4.8cqw, 2rem);
+  letter-spacing: -0.035em;
+  text-shadow: 0 2px 14px color-mix(in srgb, var(--recap-timing) 30%, transparent);
+}
+
+.recap-pb {
+  border-radius: 6px;
+  color: var(--app-on-filled);
+  background: var(--app-accent);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--app-accent) 28%, transparent);
+}
+
+.recap-footer > div:first-child .text-app-label {
+  color: var(--recap-label);
+  font-family: var(--font-mono);
+  font-size: var(--text-app-compact);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+
+.latest-session-link:focus-visible {
+  outline: 2px solid var(--app-accent-hover);
+  outline-offset: 3px;
+}
+
+.latest-session-link:hover .latest-session-card {
+  border-color: var(--app-accent-hover);
+}

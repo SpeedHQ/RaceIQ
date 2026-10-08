@@ -1,14 +1,14 @@
 import { tryGetGame } from "@raceiq/shared/games/registry";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
-import { useQueries } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { buildRecapText } from "@/components/sessions/helpers";
 import { useLaps } from "@/hooks/laps";
 import { useSessionRecap, useSessions } from "@/hooks/session-queries";
 import { useSettings } from "@/hooks/settings";
 import { useTrackOutline, useTrackSectorBoundaries } from "@/hooks/track-queries";
 import { queryKeys } from "@/hooks/query-keys";
+import { errorFromResponse } from "@/lib/rpc-error";
 import { client } from "@/lib/rpc";
 import { getGameRoute, useGameId } from "@/stores/game";
 import { parseUtcTimestamp } from "@/lib/utc-date";
@@ -24,13 +24,6 @@ export function HomePageContainer() {
   const { displaySettings } = useSettings();
   const hiddenGames: string[] = displaySettings.hiddenGames ?? [];
 
-  const recentSessions = useMemo(() => [...sessions].sort((a, b) => parseUtcTimestamp(b.createdAt).getTime() - parseUtcTimestamp(a.createdAt).getTime()).slice(0, 10), [sessions]);
-  const latestSession = recentSessions[0] ?? null;
-  const { data: latestRecap, isLoading: latestRecapLoading, isError: latestRecapError } = useSessionRecap(latestSession?.id, latestSession?.gameId ?? null);
-  const { data: latestRecapOutline } = useTrackOutline(latestRecap?.trackId, latestRecap?.gameId ?? latestSession?.gameId ?? null);
-  const { data: latestRecapBounds } = useTrackSectorBoundaries(latestRecap?.trackId, latestRecap?.gameId ?? latestSession?.gameId ?? null);
-  const [recapCopied, setRecapCopied] = useState(false);
-
   const [periodTab, setPeriodTab] = useState<PeriodKey>("year");
   const [{ todayStart, weekAgo, monthAgo, yearAgo }] = useState(() => {
     const now = Date.now();
@@ -45,6 +38,35 @@ export function HomePageContainer() {
   const periodStart = { today: todayStart, week: weekAgo, month: monthAgo, year: yearAgo }[periodTab];
   const dashboardLaps = useMemo(() => allLaps.filter((lap) => parseUtcTimestamp(lap.createdAt).getTime() >= periodStart), [allLaps, periodStart]);
   const dashboardSessions = useMemo(() => sessions.filter((session) => parseUtcTimestamp(session.createdAt).getTime() >= periodStart), [sessions, periodStart]);
+  const recentSessions = useMemo(() => dashboardSessions
+    .filter((session) => gameId === null || session.gameId === gameId)
+    .sort((a, b) => parseUtcTimestamp(b.createdAt).getTime() - parseUtcTimestamp(a.createdAt).getTime() || b.id - a.id)
+    .slice(0, 10), [dashboardSessions, gameId]);
+  const latestSession = recentSessions[0] ?? null;
+  const { data: latestRecap, isLoading: latestRecapLoading, isError: latestRecapError } = useSessionRecap(latestSession?.id, latestSession?.gameId ?? null);
+  const recapGameId = latestRecap?.gameId ?? null;
+  const recapCarId = latestRecap?.carId;
+  const { data: recapCars } = useQuery<{ id?: string | number | null; ordinal?: number | null; imageUrl?: string | null; specs?: { imageUrl?: string | null } | null }[]>({
+    queryKey: ["cars", recapGameId],
+    queryFn: async () => {
+      if (recapGameId === "acc") {
+        const response = await client.api.acc.cars.$get();
+        if (!response.ok) throw await errorFromResponse(response);
+        const cars = await response.json() as { id: number }[];
+        return cars.map((car) => ({ id: car.id, imageUrl: `/car-images/acc-${car.id}.jpg` }));
+      }
+      if (!recapGameId) return [];
+      const response = await client.api.cars.$get({}, { headers: { "X-Game-Id": recapGameId } });
+      if (!response.ok) throw await errorFromResponse(response);
+      return response.json();
+    },
+    enabled: !!recapGameId && recapCarId != null,
+    staleTime: Infinity,
+  });
+  const matchedRecapCar = recapCars?.find((car) => String(car.id) === String(recapCarId) || (typeof recapCarId === "number" && car.ordinal === recapCarId));
+  const latestRecapCarImageUrl = matchedRecapCar?.imageUrl || matchedRecapCar?.specs?.imageUrl || undefined;
+  const { data: latestRecapOutline } = useTrackOutline(latestRecap?.trackId, latestRecap?.gameId ?? latestSession?.gameId ?? null);
+  const { data: latestRecapBounds } = useTrackSectorBoundaries(latestRecap?.trackId, latestRecap?.gameId ?? latestSession?.gameId ?? null);
   const gameStats: GameStats = useMemo(() => {
     const totals = new Map<string, { laps: number; seconds: number }>();
     for (const lap of dashboardLaps) {
@@ -140,26 +162,13 @@ export function HomePageContainer() {
     () => Object.fromEntries(nameTargets.tracks.map((target, index) => [`${target.gameId}:${target.ordinal}`, trackNameQueries[index]?.data ?? ""])),
     [nameTargets.tracks, trackNameQueries],
   );
-  const copyRecap = () => {
-    if (!latestRecap) return;
-    navigator.clipboard.writeText(buildRecapText(latestRecap)).then(() => {
-      setRecapCopied(true);
-      setTimeout(() => setRecapCopied(false), 1500);
-    });
-  };
-  const analyseRecap = () => {
-    if (!latestRecap || latestRecap.bestLapId == null) return;
-    void navigate({
-      to: `${getGameRoute(latestRecap.gameId)}/sessions/${latestRecap.sessionId}/replay/${latestRecap.bestLapId}` as never,
-    });
-  };
 
   return (
     <HomePageView
       gameId={gameId}
       gameDisplayName={gameAdapter?.displayName ?? null}
       allLaps={dashboardLaps}
-      calendarLaps={allLaps}
+      periodStart={periodStart}
       sessions={dashboardSessions}
       recentSessions={recentSessions}
       carNames={carNames}
@@ -172,9 +181,7 @@ export function HomePageContainer() {
       latestRecapError={latestRecapError}
       latestRecapOutline={latestRecapOutline}
       latestRecapBounds={latestRecapBounds}
-      recapCopied={recapCopied}
-      onCopyRecap={copyRecap}
-      onAnalyseRecap={analyseRecap}
+      latestRecapCarImageUrl={latestRecapCarImageUrl}
       onAnalyseSession={(session) => {
         if (!session.gameId) return;
         void navigate({ to: `${getGameRoute(session.gameId)}/sessions/${session.id}/analyse` as never });

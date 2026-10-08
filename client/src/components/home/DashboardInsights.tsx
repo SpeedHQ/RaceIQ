@@ -1,23 +1,134 @@
-import { tryGetGame } from "@raceiq/shared/games/registry";
 import type { GameId } from "@raceiq/shared/games/ids";
+import { tryGetGame } from "@raceiq/shared/games/registry";
+import { getLMUCar } from "@raceiq/game-lmu-metadata/catalog";
+import { useSettings } from "@/hooks/settings";
 import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import { Info, Trophy } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { client } from "@/lib/rpc";
+import { rpcJson } from "@/lib/rpc-json";
+import { useTrackOutline } from "@/hooks/track-queries";
+import { getLocale } from "@/paraglide/runtime";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { m } from "@/paraglide/messages";
-import { buildDashboardInsights, CONSISTENCY_DEVIATION_BOUNDS, type DashboardInsights, type DashboardTrackContext, type SessionTypeKind } from "./dashboard-insights";
+import { buildDashboardInsights, CONSISTENCY_DEVIATION_BOUNDS, type DashboardInsights, type SessionTypeKind, type TrackLengthLookup } from "./dashboard-insights";
 import { resolveTrackDisplayName } from "@/lib/track-display-name";
+import type { FavouriteInsight } from "./dashboard-insights";
+import { formatDrivenTime } from "./Stats";
+import type { PeriodStats } from "./types";
+
+type PeriodSummary = Pick<PeriodStats["year"], "laps" | "tracks" | "cars" | "sessions" | "totalTime">;
 
 export interface DashboardInsightsProps {
   laps: LapMeta[];
   sessions: SessionMeta[];
   gameId: GameId | null;
   trackNames?: Record<string, string>;
-  carNames?: Record<string, string>;
+  periodSummary?: PeriodSummary;
   lapsLoading?: boolean;
   lapsError?: boolean;
   sessionsLoading?: boolean;
   sessionsError?: boolean;
+  carNames?: Record<string, string>;
+  latestSession?: ReactNode;
+}
+
+function FavouritePanel({ title, insight, kind, trackNames, carNames, gameId, loading, error, sessionsLoading, sessionsError, imperial }: {
+  title: string;
+  insight: FavouriteInsight | null;
+  kind: "track" | "car";
+  trackNames: Record<string, string>;
+  carNames: Record<string, string>;
+  gameId: GameId | null;
+  loading: boolean;
+  error: boolean;
+  sessionsLoading: boolean;
+  sessionsError: boolean;
+  imperial: boolean;
+}) {
+  const contextGameId = insight?.gameId ?? gameId;
+  const game = contextGameId ? tryGetGame(contextGameId) : null;
+  const identity = insight?.identity;
+  const suppliedCarName = !insight || kind !== "car" ? undefined
+    : (carNames[`${insight.gameId}:${identity}`] ?? (insight.ordinal != null ? carNames[`${insight.gameId}:${insight.ordinal}`] : undefined))?.trim();
+  const carOrdinal = !insight || kind !== "car" ? null : typeof identity === "number" ? identity : insight.ordinal ?? null;
+  const carName = suppliedCarName || (insight && carOrdinal != null && carOrdinal >= 0 ? game?.getCarName(carOrdinal) : undefined)
+    || (insight?.gameId === "lmu" && typeof identity === "string" ? getLMUCar(identity)?.name : undefined);
+  const name = !insight ? null : kind === "track"
+    ? resolveTrackDisplayName(insight.gameId, { trackId: identity, trackOrdinal: insight.ordinal }, trackNames)
+    : carName;
+  const masked = loading || error;
+  const trackIdentity = kind === "track" && !masked ? insight?.ordinal ?? identity : undefined;
+  const { data: outlineData } = useTrackOutline(trackIdentity, contextGameId);
+  const track = useMemo(() => {
+    const points = (Array.isArray(outlineData) ? outlineData : outlineData?.points ?? [])
+      .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.z));
+    if (points.length < 3) return null;
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (const point of points) {
+      minX = Math.min(minX, point.x);
+      maxX = Math.max(maxX, point.x);
+      minZ = Math.min(minZ, point.z);
+      maxZ = Math.max(maxZ, point.z);
+    }
+    if (maxX <= minX || maxZ <= minZ) return null;
+    const padding = Math.max(maxX - minX, maxZ - minZ) * 0.06;
+    return {
+      points: points.map((point) => `${point.x},${point.z}`).join(" "),
+      viewBox: `${minX - padding} ${minZ - padding} ${maxX - minX + padding * 2} ${maxZ - minZ + padding * 2}`,
+      transform: !Array.isArray(outlineData) && outlineData?.flipX ? `translate(${minX + maxX},0) scale(-1,1)` : undefined,
+    };
+  }, [outlineData]);
+  const { data: cars } = useQuery<{ id?: string | number | null; ordinal?: number | null; imageUrl?: string | null; specs?: { imageUrl?: string | null } | null }[]>({
+    queryKey: ["cars", contextGameId],
+    queryFn: async () => {
+      if (contextGameId === "acc") {
+        const catalog = await rpcJson<{ id: number }[]>(await client.api.acc.cars.$get());
+        return catalog.map((car) => ({ id: car.id, imageUrl: `/car-images/acc-${car.id}.jpg` }));
+      }
+      if (!contextGameId) return [];
+      return rpcJson(await client.api.cars.$get({}, { headers: { "X-Game-Id": contextGameId } }));
+    },
+    enabled: kind === "car" && !!insight && !masked,
+    staleTime: Infinity,
+  });
+  const car = kind === "car" && insight
+    ? cars?.find((candidate) => String(candidate.id) === String(identity) || (insight.ordinal != null && candidate.ordinal === insight.ordinal))
+    : undefined;
+  const carImageUrl = car?.imageUrl || car?.specs?.imageUrl || undefined;
+  const unknown = kind === "track" ? m.home_insights_unknown_track() : m.home_insights_unknown_car();
+  const distance = insight?.distanceMeters == null ? "—" : imperial
+    ? `${(insight.distanceMeters / 1609.344).toFixed(1)} mi`
+    : `${(insight.distanceMeters / 1000).toFixed(1)} km`;
+  return <section aria-labelledby={`insights-favourite-${kind}-title`} className="@container/favourite relative isolate min-w-0 overflow-hidden rounded-xl border p-3" style={{ borderColor: "var(--recap-border)", background: "radial-gradient(ellipse at top right, color-mix(in srgb, var(--app-accent) 12%, transparent), transparent 70%), var(--recap-background)", boxShadow: "0 8px 28px color-mix(in srgb, var(--recap-background) 50%, transparent)" }}>
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+      <div className="flex items-center gap-1"><h2 id={`insights-favourite-${kind}-title`} className="text-app-subtext font-semibold text-app-text">{title}</h2><InsightInfo label={title} content={m.home_insights_favourite_note()} /></div>
+      {contextGameId && <span className="text-app-caption text-app-text-muted">{game?.displayName ?? contextGameId}</span>}
+    </div>
+    {masked ? <p className={`mt-3 text-app-detail ${error ? "text-status-danger" : "text-app-text-muted"}`} role={error ? "alert" : "status"}>{error ? m.home_insights_analytics_error() : m.home_insights_analytics_loading()}</p>
+      : !insight ? <p className="mt-3 text-app-detail text-app-text-muted">{m.home_insights_favourite_empty()}</p>
+      : <><div className="relative">
+        {kind === "track" && track && <svg viewBox={track.viewBox} aria-hidden="true" className="pointer-events-none absolute right-0 top-0 h-20 w-28 text-app-text @min-[440px]/favourite:h-full @min-[440px]/favourite:w-[28%]"><polyline points={track.points} transform={track.transform} fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" /></svg>}
+        <div className="relative mt-1 flex min-h-20 items-center @min-[440px]/favourite:min-h-9">
+          {kind === "car" && carImageUrl && <img key={carImageUrl} src={carImageUrl} alt="" aria-hidden="true" onError={(event) => { event.currentTarget.style.display = "none"; }} className="pointer-events-none absolute -right-3 -top-3 h-28 w-2/3 object-contain object-right opacity-70 [mask-image:linear-gradient(to_right,transparent,black_35%)] @min-[360px]/favourite:opacity-100 @min-[440px]/favourite:-top-6 @min-[440px]/favourite:h-20 @min-[440px]/favourite:w-1/2" />}
+          <p className={`relative min-w-0 break-words text-base font-semibold leading-tight text-app-text ${kind === "track" && track ? "max-w-[65%] @min-[440px]/favourite:max-w-[70%]" : carImageUrl ? "max-w-[65%]" : ""}`} title={name ?? unknown}>{name ?? unknown}</p>
+        </div>
+        <dl className={`mt-2 grid grid-cols-2 gap-2 rounded-lg border p-2 text-app-detail [&>div]:grid [&>div]:min-w-0 [&>div]:grid-rows-[1fr_auto] [&>div]:content-start [&>div]:gap-0.5 [&>div]:whitespace-normal [&_dt]:min-w-0 [&_dt]:text-app-caption [&_dt>button]:size-4 ${kind === "track" && track ? "@min-[440px]/favourite:flex @min-[440px]/favourite:flex-wrap @min-[440px]/favourite:w-[70%] @min-[440px]/favourite:gap-y-1.5 @min-[440px]/favourite:[&>div]:flex @min-[440px]/favourite:[&>div]:flex-row @min-[440px]/favourite:[&>div]:items-baseline @min-[440px]/favourite:[&>div]:gap-1.5" : "@min-[440px]/favourite:grid-cols-5"}`} style={{ borderColor: "var(--recap-border)", background: "color-mix(in srgb, var(--recap-panel) 65%, transparent)" }}>
+          <SummaryMetric label={m.home_stat_time_driven()} value={formatDrivenTime(insight.seconds)} accent />
+          <div className="flex min-w-0 items-baseline gap-1.5" title={m.home_insights_favourite_distance_note({ covered: insight.distanceLaps, laps: insight.laps })}>
+            <dt className="inline-flex items-center gap-1 text-app-text-muted">{m.home_insights_estimated_distance()}<InsightInfo label={m.home_insights_estimated_distance()} content={m.home_insights_favourite_distance_note({ covered: insight.distanceLaps, laps: insight.laps })} /></dt>
+            <dd className="font-mono tabular-nums text-app-text">{distance}</dd>
+          </div>
+          <SummaryMetric label={m.label_sessions()} value={sessionsLoading || sessionsError ? "—" : insight.sessions} />
+          <SummaryMetric label={m.label_laps()} value={insight.laps} />
+          <SummaryMetric label={m.home_insights_podiums_title()} value={sessionsLoading || sessionsError || insight.podiums == null ? "—" : insight.podiums} />
+        </dl>
+        </div>
+        {sessionsLoading ? <p className="mt-2 text-app-caption text-app-text-muted" role="status">{m.home_insights_podiums_loading()}</p>
+          : sessionsError ? <p className="mt-2 text-app-caption text-status-danger" role="alert">{m.home_insights_podiums_error()}</p> : null}
+      </>}
+  </section>;
 }
 
 function InsightInfo({ label, content }: { label: string; content: string }) {
@@ -36,7 +147,7 @@ function InsightInfo({ label, content }: { label: string; content: string }) {
 }
 
 const HISTOGRAM_LABELS = ["0", ...CONSISTENCY_DEVIATION_BOUNDS.map((bound) => bound.toFixed(1))];
-const INSIGHT_PANEL_CLASS = "min-w-0 rounded-lg bg-app-surface-alt/30 p-3 @min-[640px]/workspace:h-64 @min-[640px]/workspace:overflow-y-auto";
+const INSIGHT_PANEL_CLASS = "min-w-0 flex-1 rounded-lg border border-app-border bg-app-surface-alt/30 p-3";
 
 const SESSION_LABELS: Record<SessionTypeKind, () => string> = {
   practice: () => m.home_insights_session_practice(),
@@ -52,22 +163,18 @@ function formatDuration(seconds: number): string {
     ? `${hours}:${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`
     : `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
 }
-
-
-function contextLabel(context: DashboardTrackContext, trackNames: Record<string, string>, carNames: Record<string, string>): string {
-  const track = resolveTrackDisplayName(context.gameId, {
-    trackIdentity: context.trackIdentity,
-    trackOrdinal: context.trackOrdinal,
-  }, trackNames) ?? m.home_insights_unknown_track();
-  const car = context.carIdentity === "car:unknown"
-    ? m.home_insights_unknown_car()
-    : context.carOrdinal != null
-      ? carNames[`${context.gameId}:${context.carOrdinal}`]?.trim() || m.review_car_fallback({ ordinal: context.carOrdinal })
-      : context.carIdentity.replace(/^car:(number|string):/, "");
-  return `${track} · ${car}`;
+function SummaryMetric({ label, value, accent = false }: { label: string; value: string | number; accent?: boolean }) {
+  return (
+    <div className="flex items-baseline gap-1.5 whitespace-nowrap text-app-detail">
+      <dt className="text-app-text-muted">{label}</dt>
+      <dd className={`font-mono tabular-nums ${accent ? "text-app-accent" : "text-app-text"}`}>{value}</dd>
+    </div>
+  );
 }
 
-function TrackDistribution({ insights, trackNames }: { insights: DashboardInsights; trackNames: Record<string, string> }) {
+
+
+function TrackDistribution({ insights, trackNames, periodSummary }: { insights: DashboardInsights; trackNames: Record<string, string>; periodSummary?: PeriodSummary }) {
   const { totalSeconds, tracks, othersSeconds, othersShare, othersCount } = insights.trackDistribution;
   const slices = [
     ...tracks.map((track) => ({ key: track.key, seconds: track.seconds, share: track.share, track })),
@@ -78,15 +185,23 @@ function TrackDistribution({ insights, trackNames }: { insights: DashboardInsigh
   const segmentColors = ["var(--app-accent)", "var(--app-text-muted)", "var(--app-text-dim)", "var(--app-border-hover)", "var(--app-border)", "var(--app-progress-track)"];
 
   return (
-    <section aria-labelledby="insights-track-distribution-title" className={INSIGHT_PANEL_CLASS}>
-      <div className="flex items-center gap-1">
-        <h2 id="insights-track-distribution-title" className="text-app-subtext font-semibold text-app-text">{m.home_insights_track_distribution_title()}</h2>
-        <InsightInfo label={m.home_insights_track_distribution_title()} content={m.home_insights_track_distribution_note()} />
+    <section aria-labelledby="insights-track-distribution-title" className={`${INSIGHT_PANEL_CLASS} flex flex-col`}>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <div className="flex items-center gap-1">
+          <h2 id="insights-track-distribution-title" className="text-app-subtext font-semibold text-app-text">{m.home_insights_track_distribution_title()}</h2>
+          <InsightInfo label={m.home_insights_track_distribution_title()} content={m.home_insights_track_distribution_note()} />
+        </div>
+        {periodSummary && (
+          <dl className="flex flex-wrap gap-x-3 gap-y-1">
+            <SummaryMetric label={m.label_tracks()} value={periodSummary.tracks} />
+            <SummaryMetric label={m.label_cars()} value={periodSummary.cars} />
+          </dl>
+        )}
       </div>
       {totalSeconds <= 0 ? (
         <p className="mt-3 text-app-detail text-app-text-muted">{m.home_insights_track_distribution_empty()}</p>
       ) : (
-        <div className="mt-3 grid grid-cols-[7rem_minmax(0,1fr)] items-center gap-3">
+        <div className="mt-3 grid flex-1 grid-cols-[7rem_minmax(0,1fr)] items-center gap-3">
           <div className="relative mx-auto size-28" role="img" aria-label={m.home_insights_total_hours({ hours: (totalSeconds / 3600).toFixed(1) })}>
             <svg viewBox="0 0 100 100" className="size-full -rotate-90" aria-hidden="true">
               <circle cx="50" cy="50" r="38" fill="none" stroke="var(--app-progress-track)" strokeWidth="12" />
@@ -125,6 +240,83 @@ function TrackDistribution({ insights, trackNames }: { insights: DashboardInsigh
   );
 }
 
+function PercentageTrendChart({ trend, label }: {
+  trend: readonly { timestamp: number; rate: number; total: number }[];
+  label: string;
+}) {
+  const first = trend[0];
+  const last = trend[trend.length - 1];
+  const span = first && last ? last.timestamp - first.timestamp : 0;
+  const x = (time: number) => span === 0 ? 174 : 38 + (time - first!.timestamp) / span * 272;
+  const y = (rate: number) => 88 - rate * 76;
+  const dates = new Intl.DateTimeFormat(getLocale(), { month: "short", day: "numeric" });
+  const times = new Intl.DateTimeFormat(getLocale(), { dateStyle: "medium", timeStyle: "short" });
+  return (
+    <svg viewBox="0 0 320 112" preserveAspectRatio="none" className="mt-2 block h-28 w-full" role="group" aria-label={label}>
+      <title>{label}</title>
+      {[0, 0.5, 1].map((rate) => (
+        <text key={rate} x="30" y={y(rate) + 3} textAnchor="end" fill="var(--app-text-muted)" className="font-mono text-app-caption">{rate * 100}%</text>
+      ))}
+      {trend.length > 0 && <polyline points={trend.map((point) => `${x(point.timestamp)},${y(point.rate)}`).join(" ")} fill="none" stroke="var(--app-accent)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />}
+      {trend.map((point, index) => {
+        const pointLabel = `${times.format(point.timestamp)} · ${Math.round(point.rate * 100)}% · ${Math.round(point.rate * point.total)}/${point.total}`;
+        return (
+          <circle key={index} cx={x(point.timestamp)} cy={y(point.rate)} r={trend.length === 1 ? 3 : 2} fill="var(--app-accent)" role="img" aria-label={pointLabel} tabIndex={0} className="focus-visible:outline-2 focus-visible:outline-app-accent">
+            <title>{pointLabel}</title>
+          </circle>
+        );
+      })}
+      {first && <text x={span === 0 ? 174 : 38} y="106" textAnchor={span === 0 ? "middle" : "start"} fill="var(--app-text-muted)" className="font-mono text-app-caption">{dates.format(first.timestamp)}</text>}
+      {span > 0 && last && <text x="310" y="106" textAnchor="end" fill="var(--app-text-muted)" className="font-mono text-app-caption">{dates.format(last.timestamp)}</text>}
+    </svg>
+  );
+}
+
+const PODIUM_COLORS = ["var(--app-podium-gold)", "var(--app-podium-silver)", "var(--app-podium-bronze)"] as const;
+const PODIUM_STACK_ORDER = [2, 1, 0] as const;
+
+function PodiumTrendChart({ trend }: { trend: DashboardInsights["podiums"]["trend"] }) {
+  const first = trend[0];
+  const last = trend[trend.length - 1];
+  const width = Math.max(320, trend.length * 8 + 48);
+  const step = (width - 48) / Math.max(trend.length, 1);
+  const maxCount = Math.max(2, Math.ceil((last?.podiums ?? 0) / 2) * 2);
+  const dates = new Intl.DateTimeFormat(getLocale(), { month: "short", day: "numeric" });
+  const times = new Intl.DateTimeFormat(getLocale(), { dateStyle: "medium", timeStyle: "short" });
+  const labels = [m.home_insights_podiums_first(), m.home_insights_podiums_second(), m.home_insights_podiums_third()];
+  return (
+    <div className="mt-2 overflow-x-auto">
+      <svg viewBox={`0 0 ${width} 112`} preserveAspectRatio="none" className="block h-28 w-full" style={{ minWidth: width > 320 ? width : undefined }} role="group" aria-label={m.home_insights_podiums_description()}>
+        <title>{m.home_insights_podiums_description()}</title>
+        {[0, maxCount / 2, maxCount].map((count) => (
+          <text key={count} x="30" y={91 - count / maxCount * 76} textAnchor="end" fill="var(--app-text-muted)" className="font-mono text-app-caption">{count}</text>
+        ))}
+        {trend.map((point, index) => {
+          const counts = [point.first, point.second, point.third] as const;
+          const label = `${times.format(point.timestamp)} · ${m.home_insights_podiums_total({ total: point.podiums })} · ${counts.map((count, place) => `${labels[place]}: ${count}`).join(" · ")}`;
+          const barWidth = Math.min(step * 0.8, 16);
+          const x = 38 + index * step + (step - barWidth) / 2;
+          let bottom = 88;
+          return (
+            <g key={point.sessionId} role="img" aria-label={label} tabIndex={0} className="focus-visible:outline-2 focus-visible:outline-app-accent">
+              <title>{label}</title>
+              <rect x={x} y="12" width={barWidth} height="76" fill="var(--app-progress-track)" />
+              {PODIUM_STACK_ORDER.map((place) => {
+                const count = counts[place];
+                const height = count / maxCount * 76;
+                bottom -= height;
+                return count > 0 ? <rect key={place} x={x} y={bottom} width={barWidth} height={height} fill={PODIUM_COLORS[place]} /> : null;
+              })}
+            </g>
+          );
+        })}
+        {first && <text x="38" y="106" fill="var(--app-text-muted)" className="font-mono text-app-caption">{dates.format(first.timestamp)}</text>}
+        {last && trend.length > 1 && <text x={width - 10} y="106" textAnchor="end" fill="var(--app-text-muted)" className="font-mono text-app-caption">{dates.format(last.timestamp)}</text>}
+      </svg>
+    </div>
+  );
+}
+
 function ConsistencyChart({ insights, loading, error }: {
   insights: DashboardInsights;
   loading: boolean;
@@ -132,97 +324,160 @@ function ConsistencyChart({ insights, loading, error }: {
 }) {
   const { sessions, averageStandardDeviation, deviations } = insights.consistency;
   const labels = HISTOGRAM_LABELS;
-  const maxCount = Math.max(0, ...deviations);
+  const maxCount = Math.max(2, Math.ceil(Math.max(0, ...deviations) / 2) * 2);
   const status = loading ? m.home_insights_analytics_loading() : error ? m.home_insights_analytics_error() : null;
 
   return (
-    <section aria-labelledby="insights-consistency-title" className="min-w-0 shrink-0 border-t border-app-border pt-3">
-      <div className="flex items-center gap-1">
-        <h2 id="insights-consistency-title" className="text-app-subtext font-semibold text-app-text">{m.home_insights_consistency_title()}</h2>
-        <InsightInfo label={m.home_insights_consistency_title()} content={m.home_insights_consistency_note()} />
+    <section aria-labelledby="insights-consistency-title" className={INSIGHT_PANEL_CLASS}>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <div className="flex items-center gap-1">
+          <h2 id="insights-consistency-title" className="text-app-subtext font-semibold text-app-text">{m.home_insights_consistency_title()}</h2>
+          <InsightInfo label={m.home_insights_consistency_title()} content={m.home_insights_consistency_note()} />
+        </div>
+        {!status && (
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <p className={`whitespace-nowrap font-mono text-app-heading font-semibold tabular-nums ${averageStandardDeviation == null ? "text-app-text-muted" : "text-app-text"}`}>{averageStandardDeviation == null ? "—" : `±${averageStandardDeviation.toFixed(2)} s`}</p>
+            {averageStandardDeviation != null && <p className="whitespace-nowrap text-app-caption tabular-nums text-app-text-muted">{m.home_insights_sample_count({ count: sessions })}</p>}
+          </div>
+        )}
       </div>
       {status ? (
         <p className={`mt-3 text-app-detail ${error ? "text-status-danger" : "text-app-text-muted"}`} role={error ? "alert" : "status"}>{status}</p>
       ) : averageStandardDeviation == null ? (
-        <div className="mt-3">
-          <p className="font-mono text-app-heading text-app-text-muted">—</p>
-          <p className="mt-1 text-app-detail text-app-text-muted">{m.home_insights_consistency_insufficient()}</p>
-        </div>
+        <p className="mt-3 text-app-detail text-app-text-muted">{m.home_insights_consistency_insufficient()}</p>
       ) : (
-        <>
-          <div className="mt-3 flex items-baseline justify-between gap-2">
-            <p className="font-mono text-app-heading font-semibold tabular-nums text-app-text">±{averageStandardDeviation.toFixed(2)} s</p>
-            <p className="text-app-caption tabular-nums text-app-text-muted">{m.home_insights_sample_count({ count: sessions })}</p>
-          </div>
-          <figure className="mt-3" aria-label={m.home_insights_deviation_bins_label()}>
-            <div className="grid h-20 grid-cols-10 items-end gap-1 border-b border-app-border" aria-hidden="true">
-              {deviations.map((count, index) => (
-                <div key={labels[index]} className="flex h-full items-end">
-                  <div className={`w-full rounded-t-sm ${index === 0 ? "bg-app-accent" : "bg-app-text-muted"}`} style={{ height: `${count === 0 ? 0 : Math.max(2, (count / maxCount) * 100)}%` }} />
-                </div>
-              ))}
-            </div>
-            <ul className="mt-1 grid grid-cols-10 gap-1 text-center text-app-micro leading-tight text-app-text-muted">
-              {deviations.map((count, index) => {
-                const interval = index === labels.length - 1 ? `≥${labels[index]} s` : `${labels[index]}–<${labels[index + 1]} s`;
-                return <li key={labels[index]} title={interval}><span className="sr-only">{interval}: </span><span className="block" aria-hidden="true">{index === labels.length - 1 ? `≥${labels[index]}` : labels[index]}</span><span className="font-mono tabular-nums text-app-text-secondary">{count}</span></li>;
-              })}
-            </ul>
-          </figure>
-        </>
+        <svg viewBox="0 0 320 112" preserveAspectRatio="none" className="mt-3 block h-28 w-full" role="group" aria-label={m.home_insights_deviation_bins_label()}>
+          <title>{m.home_insights_deviation_bins_label()}</title>
+          {[0, maxCount / 2, maxCount].map((count) => (
+            <text key={count} x="30" y={75 - count / maxCount * 60} textAnchor="end" fill="var(--app-text-muted)" className="font-mono text-app-caption">{count}</text>
+          ))}
+          {deviations.map((count, index) => {
+            const interval = index === labels.length - 1 ? `≥${labels[index]} s` : `${labels[index]}–<${labels[index + 1]} s`;
+            const x = 38 + index * 27.2;
+            const height = count / maxCount * 60;
+            return (
+              <g key={labels[index]} role="img" aria-label={`${interval}: ${count}`} tabIndex={0} className="focus-visible:outline-2 focus-visible:outline-app-accent">
+                <title>{interval}: {count}</title>
+                <rect x={x} y={72 - height} width="23.2" height={height} rx="2" fill={index === 0 ? "var(--app-accent)" : "var(--app-text-muted)"} />
+                <text x={x + 11.6} y="90" textAnchor="middle" fill="var(--app-text-muted)" className="font-mono text-app-caption">{index === labels.length - 1 ? `≥${labels[index]}` : labels[index]}</text>
+                <text x={x + 11.6} y="106" textAnchor="middle" fill="var(--app-text-secondary)" className="font-mono text-app-caption">{count}</text>
+              </g>
+            );
+          })}
+        </svg>
       )}
     </section>
   );
 }
-function TrackStats({ insights, trackContext, trackNames, carNames, loading, error }: {
+function SessionStats({ insights, loading, error, periodSummary }: {
   insights: DashboardInsights;
-  trackContext: DashboardTrackContext | null;
-  trackNames: Record<string, string>;
-  carNames: Record<string, string>;
   loading: boolean;
   error: boolean;
+  periodSummary?: PeriodSummary;
 }) {
-  const analytics = insights.trackAnalytics;
+  const stats = insights.sessionStats;
   const status = loading ? m.home_insights_analytics_loading() : error ? m.home_insights_analytics_error() : null;
-  const contextDescription = trackContext ? contextLabel(trackContext, trackNames, carNames) : "";
-
+  const colors: Record<SessionTypeKind, string> = {
+    practice: "var(--app-accent)",
+    qualifying: "var(--app-text-muted)",
+    race: "var(--app-text-dim)",
+  };
+  const slices = [
+    ...stats.sessionTypes.filter(({ seconds }) => seconds > 0).map(({ kind, seconds, share }) => ({
+      key: kind, label: SESSION_LABELS[kind](), seconds, share, color: colors[kind],
+    })),
+    ...(stats.unclassifiedSeconds > 0 ? [{
+      key: "other", label: m.home_insights_session_unclassified(), seconds: stats.unclassifiedSeconds,
+      share: stats.unclassifiedShare, color: "var(--app-border-hover)",
+    }] : []),
+  ];
+  const circumference = 2 * Math.PI * 38;
+  let offset = 0;
   return (
-    <section aria-labelledby="insights-track-stats-title" className={INSIGHT_PANEL_CLASS}>
-      <div className="flex items-center gap-1">
-        <h2 id="insights-track-stats-title" className="text-app-subtext font-semibold text-app-text">{m.home_insights_track_stats_title()}</h2>
-        <InsightInfo label={m.home_insights_track_stats_title()} content={m.home_insights_session_time_note()} />
+    <section aria-labelledby="insights-session-stats-title" className={`${INSIGHT_PANEL_CLASS} flex flex-col`}>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <div className="flex items-center gap-1">
+          <h2 id="insights-session-stats-title" className="text-app-subtext font-semibold text-app-text">{m.home_insights_session_stats_title()}</h2>
+          <InsightInfo label={m.home_insights_session_stats_title()} content={m.home_insights_session_time_note()} />
+        </div>
+        {periodSummary && (
+          <dl className="flex flex-wrap gap-x-3 gap-y-1">
+            <SummaryMetric label={m.label_sessions()} value={periodSummary.sessions} />
+            {periodSummary.totalTime > 0 && <SummaryMetric label={m.home_stat_time_driven()} value={formatDrivenTime(periodSummary.totalTime)} accent />}
+          </dl>
+        )}
       </div>
-      {trackContext && <p className="mt-2 truncate text-app-caption text-app-text-muted" title={contextDescription}>{contextDescription}</p>}
       {status ? (
         <p className={`mt-3 text-app-detail ${error ? "text-status-danger" : "text-app-text-muted"}`} role={error ? "alert" : "status"}>{status}</p>
-      ) : (
+      ) : stats.sessionTypeTotalSeconds > 0 ? (
         <>
-          {analytics && analytics.sessionTypeTotalSeconds > 0 ? (
-            <>
-              <ul className="mt-3 space-y-2" aria-label={m.home_insights_session_time_note()}>
-                {analytics.sessionTypes.map(({ kind, seconds, share }) => (
-                  <li key={kind} className="grid grid-cols-[4.5rem_minmax(0,1fr)_2.25rem] items-center gap-2 text-app-detail">
-                    <span className="truncate text-app-text-secondary">{SESSION_LABELS[kind]()}</span>
-                    <span className="h-1.5 overflow-hidden rounded-full bg-app-progress-track" role="progressbar" aria-label={SESSION_LABELS[kind]()} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(share * 100)} aria-valuetext={`${Math.round(share * 100)}% · ${formatDuration(seconds)}`}>
-                      <span className="block h-full bg-app-accent" style={{ width: `${share * 100}%` }} />
-                    </span>
-                    <span className="text-right font-mono tabular-nums text-app-text">{Math.round(share * 100)}%</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-2 text-app-caption text-app-text-muted">{m.home_insights_session_time_total({ duration: formatDuration(analytics.sessionTypeTotalSeconds) })}</p>
-            </>
-          ) : (
-            <p className="mt-3 text-app-detail text-app-text-muted">{m.home_insights_session_time_empty()}</p>
-          )}
+          <div className="mt-3 grid flex-1 grid-cols-[7rem_minmax(0,1fr)] items-center gap-3">
+            <div className="relative mx-auto size-28" role="img" aria-label={m.home_insights_session_time_total({ duration: formatDuration(stats.sessionTypeTotalSeconds) })}>
+              <svg viewBox="0 0 100 100" className="size-full -rotate-90" aria-hidden="true">
+                <circle cx="50" cy="50" r="38" fill="none" stroke="var(--app-progress-track)" strokeWidth="12" />
+                {slices.map((slice) => {
+                  const length = slice.share * circumference;
+                  const circle = <circle key={slice.key} cx="50" cy="50" r="38" fill="none" stroke={slice.color} strokeWidth="12" strokeDasharray={`${length} ${circumference - length}`} strokeDashoffset={-offset} />;
+                  offset += length;
+                  return circle;
+                })}
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                <span className="font-mono text-app-heading font-semibold tabular-nums text-app-text">{(stats.sessionTypeTotalSeconds / 3600).toFixed(1)} h</span>
+                <span className="text-app-caption text-app-text-muted">{m.home_insights_total()}</span>
+              </div>
+            </div>
+            <ul className="min-w-0 space-y-1.5" aria-label={m.home_insights_session_time_note()}>
+              {slices.map((slice) => (
+                <li key={slice.key} className="grid min-w-0 grid-cols-[0.5rem_minmax(0,1fr)_auto] items-center gap-1.5 text-app-detail">
+                  <span className="size-2 rounded-full" style={{ backgroundColor: slice.color }} aria-hidden="true" />
+                  <span className="truncate text-app-text-secondary" title={slice.label}>{slice.label}</span>
+                  <span className="text-right font-mono tabular-nums text-app-text" title={m.home_insights_session_time_total({ duration: formatDuration(slice.seconds) })}>{formatDuration(slice.seconds)} · {Math.round(slice.share * 100)}%</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </>
+      ) : (
+        <div className="mt-3">
+          <p className="text-app-detail text-app-text-muted">{m.home_insights_session_time_empty()}</p>
+        </div>
       )}
     </section>
   );
 }
 
-export function DashboardInsights({ laps, sessions, gameId, trackNames = {}, carNames = {}, lapsLoading = false, lapsError = false, sessionsLoading = false, sessionsError = false }: DashboardInsightsProps) {
-  const insights = useMemo(() => buildDashboardInsights(laps, sessions, gameId), [laps, sessions, gameId]);
+export function DashboardInsights({ laps, sessions, gameId, trackNames = {}, carNames = {}, latestSession, periodSummary, lapsLoading = false, lapsError = false, sessionsLoading = false, sessionsError = false }: DashboardInsightsProps) {
+  const { displaySettings } = useSettings();
+  const imperial = displaySettings.unit === "imperial";
+  const catalogGameIds = useMemo(() => {
+    const games = new Set<GameId>();
+    for (const lap of laps) if (lap.ownership !== "others" && lap.gameId && (gameId === null || lap.gameId === gameId)) games.add(lap.gameId);
+    for (const session of sessions) if (session.ownership !== "others" && session.gameId && (gameId === null || session.gameId === gameId)) games.add(session.gameId);
+    return [...games].sort();
+  }, [laps, sessions, gameId]);
+  const trackQueries = useQueries({
+    queries: catalogGameIds.map((catalogGameId) => ({
+      queryKey: ["tracks", catalogGameId],
+      queryFn: async () => rpcJson<{ id?: string | null; ordinal: number | null; lengthKm?: number | null }[]>(
+        await client.api.tracks.$get({ query: { gameId: catalogGameId } }),
+      ),
+      staleTime: Number.POSITIVE_INFINITY,
+    })),
+  });
+  const trackLengths = useMemo(() => {
+    const lengths: Record<string, number> = {};
+    catalogGameIds.forEach((catalogGameId, index) => {
+      for (const track of trackQueries[index]?.data ?? []) {
+        if (!Number.isFinite(track.lengthKm) || track.lengthKm! <= 0) continue;
+        const key = track.ordinal !== null ? `${catalogGameId}:${track.ordinal}`
+          : track.id ? `${catalogGameId}:${track.id}` : null;
+        if (key) lengths[key] = track.lengthKm!;
+      }
+    });
+    return lengths as TrackLengthLookup;
+  }, [catalogGameIds, trackQueries]);
+  const insights = useMemo(() => buildDashboardInsights(laps, sessions, gameId, new Date(), trackLengths), [laps, sessions, gameId, trackLengths]);
   const placements = [
     { label: m.home_insights_podiums_first(), count: insights.podiums.first },
     { label: m.home_insights_podiums_second(), count: insights.podiums.second },
@@ -230,56 +485,78 @@ export function DashboardInsights({ laps, sessions, gameId, trackNames = {}, car
   ];
   const maxOtherPositionCount = Math.max(0, ...insights.podiums.otherPositions.map(({ count }) => count));
   const totalRaces = insights.podiums.total + insights.podiums.otherPositions.reduce((total, { count }) => total + count, 0);
+  const favouritesRow = (
+    <div className="grid min-w-0 grid-cols-1 items-stretch gap-3 @3xl/workspace:grid-cols-2">
+      {latestSession}
+      <div className="grid min-w-0 grid-cols-1 gap-3 @3xl/workspace:grid-rows-2">
+        <FavouritePanel title={m.home_insights_favourite_track_title()} insight={insights.favouriteTrack} kind="track" trackNames={trackNames} carNames={carNames} gameId={gameId} loading={lapsLoading} error={lapsError} sessionsLoading={sessionsLoading} sessionsError={sessionsError} imperial={imperial} />
+        <FavouritePanel title={m.home_insights_favourite_car_title()} insight={insights.favouriteCar} kind="car" trackNames={trackNames} carNames={carNames} gameId={gameId} loading={lapsLoading} error={lapsError} sessionsLoading={sessionsLoading} sessionsError={sessionsError} imperial={imperial} />
+      </div>
+    </div>
+  );
 
   return (
-    <div className="grid grid-cols-1 gap-3 @min-[640px]/workspace:grid-cols-2 @min-[960px]/workspace:grid-cols-4">
-      <div className={`${INSIGHT_PANEL_CLASS} flex flex-col gap-3`}>
-        <section aria-labelledby="insights-clean-title" className="min-w-0 shrink-0">
-          <div className="flex items-center gap-1">
-            <h2 id="insights-clean-title" className="text-app-subtext font-semibold text-app-text">{m.home_insights_clean_title()}</h2>
-            <InsightInfo label={m.home_insights_clean_title()} content={insights.clean.rate == null ? m.home_insights_clean_empty() : m.home_insights_clean_rate()} />
+    <div className="@container/insights min-w-0 space-y-4">
+    {!gameId && favouritesRow}
+    <div className="grid grid-cols-1 items-stretch gap-3 @min-[560px]/insights:grid-cols-2 @min-[800px]/insights:grid-cols-3">
+        <section aria-labelledby="insights-clean-title" className={INSIGHT_PANEL_CLASS}>
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <div className="flex items-center gap-1">
+              <h2 id="insights-clean-title" className="text-app-subtext font-semibold text-app-text">{m.home_insights_clean_title()}</h2>
+              <InsightInfo label={m.home_insights_clean_title()} content={insights.clean.rate == null ? m.home_insights_clean_empty() : m.home_insights_clean_rate()} />
+            </div>
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              {!lapsLoading && !lapsError && (
+                <>
+                  <p className={`font-mono text-app-heading font-semibold tabular-nums ${insights.clean.rate == null ? "text-app-text-muted" : "text-app-text"}`} title={m.home_insights_clean_rate()}>{insights.clean.rate == null ? "—" : `${Math.round(insights.clean.rate * 100)}%`}</p>
+                  {insights.clean.rate != null && <p className="font-mono text-app-detail tabular-nums text-app-text-muted" title={m.home_insights_clean_rate()}><span className="sr-only">{m.home_insights_clean_rate()}: </span>{insights.clean.valid}/{insights.clean.total}</p>}
+                </>
+              )}
+              {periodSummary && <dl><SummaryMetric label={m.label_laps()} value={periodSummary.laps} /></dl>}
+            </div>
           </div>
-          {insights.clean.rate == null ? (
-            <p className="mt-2 font-mono text-app-heading text-app-text-muted" title={m.home_insights_clean_empty()} aria-label={m.home_insights_clean_empty()}>—</p>
+          {lapsLoading || lapsError ? (
+            <p className={`mt-3 text-app-detail ${lapsError ? "text-status-danger" : "text-app-text-muted"}`} role={lapsError ? "alert" : "status"}>{lapsError ? m.home_insights_analytics_error() : m.home_insights_analytics_loading()}</p>
           ) : (
             <div className="mt-2">
-              <div className="flex items-baseline justify-between gap-2">
-                <p className="font-mono text-app-heading font-semibold tabular-nums text-app-text">{Math.round(insights.clean.rate * 100)}%</p>
-                <p className="font-mono text-app-detail tabular-nums text-app-text-muted" title={m.home_insights_clean_rate()}><span className="sr-only">{m.home_insights_clean_rate()}: </span>{insights.clean.valid}/{insights.clean.total}</p>
-              </div>
-              <progress className="mt-2 block h-1 w-full accent-app-accent" value={insights.clean.rate * 100} max={100} aria-label={m.home_insights_clean_rate()} />
+              <PercentageTrendChart trend={insights.clean.trend} label={m.home_insights_clean_rate()} />
             </div>
           )}
         </section>
+      <div className="flex min-w-0 @min-[560px]/insights:col-span-2 @min-[560px]/insights:row-start-2 @min-[800px]/insights:col-span-1 @min-[800px]/insights:col-start-2 @min-[800px]/insights:row-start-1">
         <ConsistencyChart insights={insights} loading={lapsLoading} error={lapsError} />
       </div>
 
       <section aria-labelledby="insights-podiums-title" className={INSIGHT_PANEL_CLASS}>
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <div className="flex items-center gap-1">
             <h2 id="insights-podiums-title" className="text-app-subtext font-semibold text-app-text">{m.home_insights_podiums_title()}</h2>
             <InsightInfo label={m.home_insights_podiums_title()} content={!insights.podiums.available ? m.home_insights_podiums_unavailable() : insights.podiums.otherPositions.length === 0 ? `${m.home_insights_podiums_description()} ${m.home_insights_other_positions_empty()}` : m.home_insights_podiums_description()} />
           </div>
-          <span className="text-app-detail tabular-nums text-app-text-muted">{m.home_insights_podiums_races({ total: !sessionsLoading && !sessionsError && insights.podiums.available ? totalRaces : "—" })}</span>
+          <ul className="flex items-center gap-3" aria-label={m.home_insights_podiums_description()}>
+            {placements.map(({ label, count }, index) => (
+              <li key={label} className="flex items-center gap-1">
+                <span className="sr-only">{label}</span>
+                <Trophy className="size-4 shrink-0" style={{ color: PODIUM_COLORS[index] }} aria-hidden="true" />
+                <span className="font-mono text-app-subtext font-semibold tabular-nums text-app-text">{!sessionsLoading && !sessionsError && insights.podiums.available ? count : "—"}</span>
+              </li>
+            ))}
+          </ul>
+          <span className="ml-auto text-app-detail tabular-nums text-app-text-muted">{m.home_insights_podiums_races({ total: !sessionsLoading && !sessionsError && insights.podiums.available ? totalRaces : "—" })}</span>
         </div>
-        <ul className="mt-2 grid grid-cols-3 gap-2" aria-label={m.home_insights_podiums_description()}>
-          {placements.map(({ label, count }) => (
-            <li key={label} className="min-w-0">
-              <span className="block text-app-label text-app-text-muted">{label}</span>
-              <span className="mt-1 flex items-center gap-2">
-                <Trophy className="size-4 shrink-0 text-app-text-secondary" aria-hidden="true" />
-                <span className="font-mono text-app-heading font-semibold tabular-nums text-app-text">{!sessionsLoading && !sessionsError && insights.podiums.available ? count : "—"}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
         {sessionsLoading ? (
           <p className="mt-2 text-app-detail text-app-text-muted" role="status">{m.home_insights_podiums_loading()}</p>
         ) : sessionsError ? (
           <p className="mt-2 text-app-detail text-status-danger" role="alert">{m.home_insights_podiums_error()}</p>
-        ) : !insights.podiums.available ? null : (
+        ) : !insights.podiums.available ? (
+          <div className="mt-3">
+            <PodiumTrendChart trend={insights.podiums.trend} />
+          </div>
+        ) : (
           <div className="mt-2">
-            <p className="font-mono text-app-detail tabular-nums text-app-text-muted">{m.home_insights_podiums_total({ total: insights.podiums.total })}</p>
+            <div className="mt-3">
+              <PodiumTrendChart trend={insights.podiums.trend} />
+            </div>
             <figure className="mt-3" aria-label={m.home_insights_other_positions_label()}>
               {insights.podiums.otherPositions.length === 0 ? (
                 <figcaption className="sr-only">{m.home_insights_other_positions_empty()}</figcaption>
@@ -302,8 +579,16 @@ export function DashboardInsights({ laps, sessions, gameId, trackNames = {}, car
         )}
       </section>
 
-      <TrackDistribution insights={insights} trackNames={trackNames} />
-      <TrackStats insights={insights} trackContext={insights.trackContext} trackNames={trackNames} carNames={carNames} loading={lapsLoading} error={lapsError} />
+      <div className="grid min-w-0 grid-cols-1 items-stretch gap-3 @min-[560px]/insights:col-span-2 @min-[560px]/insights:grid-cols-2 @min-[800px]/insights:col-span-3">
+      <div className="flex min-w-0">
+        <TrackDistribution insights={insights} trackNames={trackNames} periodSummary={periodSummary} />
+      </div>
+      <div className="flex min-w-0">
+        <SessionStats insights={insights} loading={sessionsLoading} error={sessionsError} periodSummary={periodSummary} />
+      </div>
+      </div>
+    </div>
+    {gameId && favouritesRow}
     </div>
   );
 }

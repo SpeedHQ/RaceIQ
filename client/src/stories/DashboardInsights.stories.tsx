@@ -25,12 +25,13 @@ function lap(id: number, dayOffset: number, sessionId: number, lapTime: number, 
 function session(id: number, game: GameId, position: number, type = "Race"): SessionMeta {
   return {
     id,
-    carOrdinal: 201,
-    trackOrdinal: 1641,
-    carId: 201,
-    trackId: 1641,
+    carOrdinal: 200 + id,
+    trackOrdinal: 1600 + id,
+    carId: 200 + id,
+    trackId: 1600 + id,
     createdAt: "2026-09-29T12:00:00Z",
     sessionType: type,
+    elapsedSeconds: id === 106 ? null : 1800 + id * 60,
     resultClassification: "finished",
     resultOutcomeStatus: "confirmed",
     finishingPosition: position,
@@ -69,3 +70,24 @@ export const RaceOnly: Story = { args: { laps: [lap(12, 1, 112, 99)], sessions: 
 export const EmptyOtherFinishes: Story = { args: { laps: [], sessions: [session(113, gameId, 1)], gameId } };
 export const Loading: Story = { args: { laps: mixedLaps, sessions: [], gameId: null, sessionsLoading: true } };
 export const Error: Story = { args: { laps: mixedLaps, sessions: [], gameId: null, sessionsError: true } };
+export const PartialTiming: Story = { args: { laps: [], sessions: [session(120, gameId, 1, "Practice"), session(106, gameId, 1, "Race")], gameId } };
+export const UnknownSessionType: Story = { args: { laps: [], sessions: [session(121, gameId, 1, "test-day")], gameId } };
+export const CleanLapTrend: Story = {
+  args: {
+    laps: Array.from({ length: 30 }, (_, index) => lap(200 + index, 30 - index, 100, 90, gameId, index >= 12 || index % 3 === 0)),
+    sessions,
+    gameId,
+  },
+};
+export const CleanLapsLoading: Story = { args: { laps: mixedLaps, sessions, gameId, lapsLoading: true } };
+export const CleanLapsError: Story = { args: { laps: mixedLaps, sessions, gameId, lapsError: true } };
+export const PodiumTrend: Story = {
+  args: {
+    laps: mixedLaps,
+    sessions: Array.from({ length: 30 }, (_, index) => ({
+      ...session(300 + index, gameId, index < 12 && index % 3 !== 0 ? 5 : index % 3 + 1),
+      createdAt: new Date(Date.now() - (30 - index) * 86_400_000).toISOString(),
+    })),
+    gameId,
+  },
+};

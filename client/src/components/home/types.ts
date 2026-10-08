@@ -26,7 +26,7 @@ export interface HomePageViewProps {
   gameId: GameId | null;
   gameDisplayName: string | null;
   allLaps: LapMeta[];
-  calendarLaps: LapMeta[];
+  periodStart: number;
   sessions: SessionMeta[];
   recentSessions: SessionMeta[];
   carNames: Record<string, string>;
@@ -39,14 +39,12 @@ export interface HomePageViewProps {
   latestRecapError: boolean;
   latestRecapOutline?: TrackOutlineData;
   latestRecapBounds?: TrackSectorBounds;
-  recapCopied: boolean;
-  onCopyRecap: () => void;
+  latestRecapCarImageUrl?: string;
   onAnalyseSession: (session: SessionMeta) => void;
   lapsLoading?: boolean;
   lapsError?: boolean;
   sessionsLoading?: boolean;
   sessionsError?: boolean;
-  onAnalyseRecap: () => void;
   periodTab: PeriodKey;
   periodStats: PeriodStats;
   onPeriodTabChange: (period: PeriodKey) => void;

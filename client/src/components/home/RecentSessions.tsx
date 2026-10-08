@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
 import { parseUtcTimestamp } from "@/lib/utc-date";
-import { formatSessionType } from "@/components/sessions/helpers";
+import { SessionTypeBadge } from "@/components/sessions/SessionTypeBadge";
 
 function formatTimeAgo(date: Date): string {
   const sec = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -97,7 +97,7 @@ export function RecentSessionsTable({
                 </button>
               </TableCell>
               <TableCell className="text-app-text" title={car}>{car || "—"}</TableCell>
-              <TableCell className="text-app-text">{formatSessionType(session.sessionType) || "—"}</TableCell>
+              <TableCell className="text-app-text"><SessionTypeBadge type={session.sessionType} /></TableCell>
               <TableCell className="text-right tabular-nums text-app-text">{session.lapCount ?? 0}</TableCell>
               <TableCell className="text-right tabular-nums font-medium text-app-text">{session.bestLapTime ? formatLapTime(session.bestLapTime) : "—"}</TableCell>
               <TableCell className="text-right tabular-nums text-app-text">{formatTimeAgo(parseUtcTimestamp(session.createdAt))}</TableCell>

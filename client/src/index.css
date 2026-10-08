@@ -5,6 +5,7 @@
 @import "tw-shimmer";
 @import "./styles/theme.css";
 @import "./styles/branding.css";
+@import "./components/SessionRecap.css";
 @plugin "@tailwindcss/typography";
 
 @keyframes drawLine {
