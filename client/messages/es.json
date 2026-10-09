@@ -283,7 +283,7 @@
   "home_insights_consistency_note": "Desviación estándar poblacional media por sesión propia en el período seleccionado. Cada sesión necesita al menos dos vueltas válidas del mismo juego, circuito y coche. Las barras cuentan sesiones por desviación.",
   "home_insights_consistency_insufficient": "No hay ninguna sesión comparable con al menos dos vueltas válidas en el período seleccionado.",
   "home_insights_sample_count": "{count} sesiones",
-  "home_insights_deviation_bins_label": "Desviación absoluta del tiempo de vuelta respecto a la media, en segundos",
+  "home_insights_deviation_bins_label": "Sesiones por desviación estándar del tiempo de vuelta, en segundos",
   "home_insights_track_distribution_title": "Distribución del tiempo por circuito",
   "home_insights_track_distribution_note": "Tiempo positivo de vueltas registradas, incluidas las vueltas completadas no válidas. Muestra los cinco circuitos más usados y el resto.",
   "home_insights_track_distribution_empty": "No hay tiempo de vueltas completadas.",

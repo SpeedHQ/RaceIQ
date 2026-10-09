@@ -6,6 +6,8 @@
 - Show clean-rate and podium trends as bounded daily aggregates.
 
 ### Fixes
+- Reduce server startup delays with saved recording histories by avoiding unnecessary rescans of recordings whose race results are already current.
+- Process saved-recording backfills in the background so server startup and requests remain responsive while recording history is updated.
 - Remove delta rows and excess height from latest-session lap tiles; preserve favourite-card bottom padding and use compact game badges.
 - Show the favourite car's catalog class or Forza performance class when available, and stretch the latest-session card to match its dashboard row.
 - Match dashboard latest-session headings, labels, and lap times to the shared typography used across cards.
@@ -26,9 +28,11 @@
 - Render latest-session and favourite widgets only once on each game dashboard.
 - Search and aggregate dashboard periods in UTC, independent of browser time zone, while keeping displayed timestamps local.
 - Keep dashboard totals available while recording-history details are still processing.
+- Show session lap-time standard deviation in seconds, from >5 s on the left to <0.1 s on the right.
 - Prevent dashboard reads from repeatedly retaining native database allocations.
 
 ### Internal
+- Bound HTTP request/response adapter typing to avoid expanding the full RPC router schema during backend typechecking, preserving existing RPC contracts.
 - Document new-game integration, lossless sparse recording, lap correctness checks, and gzip fixture splitting without Git LFS; align capture and architecture guides with current implementation.
 - Avoid per-packet serialization and hashing during race-result reconciliation while retaining raw capture identity and processing provenance.
 - Add Bun-only parser/pipeline, retained-heap, import, and recording benchmarks with isolated workloads and explicit measurement scopes.

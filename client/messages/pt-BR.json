@@ -283,7 +283,7 @@
   "home_insights_consistency_note": "Desvio-padrão populacional médio por sessão própria no período selecionado. Cada sessão precisa de pelo menos duas voltas válidas no mesmo jogo, pista e carro. As barras contam sessões por desvio.",
   "home_insights_consistency_insufficient": "Não há sessão comparável com pelo menos duas voltas válidas no período selecionado.",
   "home_insights_sample_count": "{count} sessões",
-  "home_insights_deviation_bins_label": "Desvio absoluto do tempo da volta em relação à média, em segundos",
+  "home_insights_deviation_bins_label": "Sessões por desvio-padrão do tempo da volta, em segundos",
   "home_insights_track_distribution_title": "Distribuição do tempo por pista",
   "home_insights_track_distribution_note": "Soma dos tempos positivos de voltas registradas, incluindo voltas concluídas inválidas. Mostra as cinco pistas mais usadas e as demais.",
   "home_insights_track_distribution_empty": "Nenhum tempo de volta concluída disponível.",

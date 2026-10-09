@@ -283,7 +283,7 @@
   "home_insights_consistency_note": "Gemiddelde populatiestandaardafwijking per eigen sessie in de geselecteerde periode. Elke sessie vereist minstens twee geldige ronden voor dezelfde game, baan en auto. Balken tellen sessies per afwijking.",
   "home_insights_consistency_insufficient": "Geen vergelijkbare sessie met minstens twee geldige ronden in de geselecteerde periode.",
   "home_insights_sample_count": "{count} sessies",
-  "home_insights_deviation_bins_label": "Absolute afwijking van rondetijd ten opzichte van gemiddelde, in seconden",
+  "home_insights_deviation_bins_label": "Sessies per standaardafwijking van rondetijd, in seconden",
   "home_insights_track_distribution_title": "Rijtijd per baan",
   "home_insights_track_distribution_note": "Som van positieve vastgelegde rondetijden, inclusief ongeldige voltooide ronden. Toont de vijf meest gereden banen en overige banen.",
   "home_insights_track_distribution_empty": "Geen voltooide rondetijden beschikbaar.",

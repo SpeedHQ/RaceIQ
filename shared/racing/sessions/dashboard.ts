@@ -68,7 +68,7 @@ export interface DashboardFavourite {
 export interface DashboardConsistency {
   sessions: number;
   averageStandardDeviation: number | null;
-  /** Ten bins: <0.1 through <0.9, then >=0.9 seconds. */
+  /** Seven ascending bins: <0.1, 0.1–<0.2, 0.2–<0.5, 0.5–<1, 1–<2, 2–5 (inclusive), >5 seconds. */
   deviations: number[];
 }
 export type DashboardSessionType = "practice" | "qualifying" | "race" | "unknown";
@@ -131,7 +131,7 @@ export interface DashboardRecapHistory {
 export interface DashboardUpdatedMessage { type: "dashboard_updated" }
 
 const DAY_MS = 86_400_000;
-const CONSISTENCY_BOUNDS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9] as const;
+const CONSISTENCY_BOUNDS = [0.1, 0.2, 0.5, 1, 2, 5] as const;
 
 /** SQLite's legacy timezone-naive datetime text means UTC, on every host. */
 export function dashboardInstant(value: string): number {
@@ -499,7 +499,8 @@ export function reduceDashboard(
   let deviationSum = 0;
   for (const deviation of deviations) {
     deviationSum += deviation;
-    const bucket = CONSISTENCY_BOUNDS.findIndex((bound) => deviation < bound);
+    const bucket = CONSISTENCY_BOUNDS.findIndex((bound, index) =>
+      index === CONSISTENCY_BOUNDS.length - 1 ? deviation <= bound : deviation < bound);
     deviationBins[bucket < 0 ? CONSISTENCY_BOUNDS.length : bucket]!++;
   }
 

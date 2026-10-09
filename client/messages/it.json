@@ -283,7 +283,7 @@
   "home_insights_consistency_note": "Deviazione standard della popolazione media per sessione personale nel periodo selezionato. Ogni sessione richiede almeno due giri validi nello stesso gioco, pista e auto. Le barre contano le sessioni per deviazione.",
   "home_insights_consistency_insufficient": "Nessuna sessione confrontabile con almeno due giri validi nel periodo selezionato.",
   "home_insights_sample_count": "{count} sessioni",
-  "home_insights_deviation_bins_label": "Deviazione assoluta del tempo sul giro dalla media, in secondi",
+  "home_insights_deviation_bins_label": "Sessioni per deviazione standard del tempo sul giro, in secondi",
   "home_insights_track_distribution_title": "Distribuzione del tempo per pista",
   "home_insights_track_distribution_note": "Somma dei tempi positivi registrati, inclusi i giri completati non validi. Mostra le cinque piste più frequentate e le altre.",
   "home_insights_track_distribution_empty": "Nessun tempo di giro completato disponibile.",

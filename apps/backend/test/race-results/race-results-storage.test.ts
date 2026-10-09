@@ -1,6 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { eq } from "drizzle-orm";
-import { insertSession } from "@raceiq/backend-core/db/session-queries";
+import { insertSession, updateSessionRawFile } from "@raceiq/backend-core/db/session-queries";
 import { db } from "@raceiq/backend-core/db/index";
 import { laps } from "@raceiq/backend-core/db/schema";
 import { countStaleRaceResults, getSessionResult, getStaleRaceResultSessionIds, replacePitEvents, upsertSessionResult, type SessionResultInput } from "@raceiq/backend-core/db/session-result-queries";
@@ -9,6 +9,7 @@ import { initServerGameAdapters } from "../../src/games/init";
 import { RACE_RESULT_PROCESSOR_ID, backfillRaceResults, backfillStaleRaceResults, reconcileSessionResult } from "@raceiq/backend-core/race-results/reconcile";
 import { sessionRoutes } from "../../src/routes/session-routes";
 import type { RaceResultEvidence, RaceResultProvenance } from "@raceiq/shared/racing/results/types";
+import * as elapsedDuration from "@raceiq/backend-core/session-capture/elapsed-duration";
 
 const evidence: RaceResultEvidence = {
   fieldStatus: {
@@ -188,6 +189,7 @@ describe("persisted race result metadata", () => {
 
   test("startup backfill skips results from the current processor", async () => {
     const sessionId = await insertSession(1, 1, "fm-2023", "race");
+    await updateSessionRawFile(sessionId, "current-result-recording.bin", "current");
     await upsertSessionResult({
       sessionId,
       processorVersion: RACE_RESULT_PROCESSOR_ID,
@@ -206,14 +208,20 @@ describe("persisted race result metadata", () => {
       reasons: [],
     });
 
-    const report = await backfillStaleRaceResults({
-      gameId: "fm-2023",
-      limit: 1,
-      afterSessionId: sessionId - 1,
-    });
+    const durationScan = spyOn(elapsedDuration, "getRecordedElapsedSeconds").mockResolvedValue(null);
+    try {
+      const report = await backfillStaleRaceResults({
+        gameId: "fm-2023",
+        limit: 1,
+        afterSessionId: sessionId - 1,
+      });
 
-    expect(report.processed).toBe(0);
-    expect(report.results).toEqual([]);
+      expect(report.processed).toBe(0);
+      expect(report.results).toEqual([]);
+      expect(durationScan).not.toHaveBeenCalled();
+    } finally {
+      durationScan.mockRestore();
+    }
   });
 
 

@@ -2,7 +2,9 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { getLapById } from "../db/lap-read-queries";
 import { getLapsForSession } from "../db/lap-reprocessing-queries";
-import { getSessions } from "../db/session-queries";
+import { and, eq, gt } from "drizzle-orm";
+import { db } from "../db/index";
+import { sessions } from "../db/schema";
 import { getSessionResult, getStaleRaceResultSessionIds, upsertSessionResult } from "../db/session-result-queries";
 import { getSessionRawFile, iterateSessionTelemetry } from "../db/telemetry-replay-storage";
 import { deriveRaceResult, normalizeSessionType } from "./derive";
@@ -61,8 +63,11 @@ export interface BackfillReport {
 }
 
 export async function reconcileSessionResult(sessionId: number, gameId: GameId): Promise<ReconcileSessionReport> {
-  const sessions = await getSessions(gameId);
-  const session = sessions.find((candidate) => candidate.id === sessionId);
+  const session = await db
+    .select({ sessionType: sessions.sessionType })
+    .from(sessions)
+    .where(and(eq(sessions.id, sessionId), eq(sessions.gameId, gameId)))
+    .get();
   if (!session) return { sessionId, status: "skipped", eventCount: 0, reasons: ["session-not-found"] };
 
   const readReasons: string[] = [];
@@ -182,13 +187,21 @@ export async function backfillRaceResults(options: {
   eligibleSessionIds?: ReadonlySet<number>;
 }): Promise<BackfillReport> {
   const limit = Math.max(1, Math.min(100, Math.trunc(options.limit)));
-  const sessions = (await getSessions(options.gameId))
+  // Select metadata only: listing sessions also scans recordings for duration.
+  const candidates = await db
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(and(
+      eq(sessions.gameId, options.gameId),
+      options.afterSessionId == null ? undefined : gt(sessions.id, options.afterSessionId),
+    ))
+    .orderBy(sessions.id)
+    .all();
+  const selectedSessions = candidates
     .filter((session) => options.eligibleSessionIds?.has(session.id) ?? true)
-    .filter((session) => options.afterSessionId == null || session.id > options.afterSessionId)
-    .sort((a, b) => a.id - b.id)
     .slice(0, limit);
   const results: ReconcileSessionReport[] = [];
-  for (const session of sessions) {
+  for (const session of selectedSessions) {
     try {
       results.push(await reconcileSessionResult(session.id, options.gameId));
     } catch (error) {

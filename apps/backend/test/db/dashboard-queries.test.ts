@@ -516,7 +516,7 @@ test("getDashboard includes over 128 clean published boundary sessions without l
     expect(response.calendar).toHaveLength(1);
     expect(response.calendar[0]).toMatchObject({ day: "2026-10-09", validLaps: 300, positiveLaps: 300, cleanRate: 1, drivenSeconds: 27300 });
     expect(response.consistency).toMatchObject({ sessions: 150, averageStandardDeviation: 1 });
-    expect(response.consistency.deviations[9]).toBe(150);
+    expect(response.consistency.deviations).toEqual([0, 0, 0, 0, 150, 0, 0]);
     expect(response.favouriteTrack).toMatchObject({ nativeId: 8, laps: 300, sessions: 150 });
     expect(response.sessionTypes).toMatchObject({ totalSeconds: 3600, sessionsWithDuration: 1, sessionsWithoutDuration: 149 });
   } finally {
@@ -663,6 +663,37 @@ test("dashboard preserves ordinal zero, groups by UTC day, and retains tiny devi
   expect(actual.calendar.find((bucket) => bucket.day === "2026-01-01")?.validLaps).toBe(0);
   expect(actual.calendar.find((bucket) => bucket.day === "2026-01-02")?.validLaps).toBe(3);
   expect(actual.consistency.averageStandardDeviation).toBeCloseTo(1e-8, 10);
+});
+
+test("consistency histogram buckets exact deviation boundaries before and after publication", async () => {
+  const period = { from: "2026-06-02T00:00:00.000Z", to: "2026-06-03T00:00:00.000Z" };
+  const deviations = [
+    0, 0.125, 0.25, 0.75, 1.5, 5, 6,
+    0.5, 1, 2, 5,
+    0.09375, 0.109375, 0.1875, 0.203125,
+  ];
+  const ids: number[] = [];
+  for (const [index, deviation] of deviations.entries()) {
+    const sessionId = await addSession("acc" as GameId, `2026-06-02T${String(Math.floor(index / 60)).padStart(2, "0")}:${String(index % 60).padStart(2, "0")}:00.000Z`);
+    ids.push(sessionId);
+    await addLap(sessionId, 1, 16 - deviation, true, "2026-06-02T12:00:00.000Z");
+    await addLap(sessionId, 2, 16 + deviation, true, "2026-06-02T12:01:00.000Z");
+  }
+  const expected = [2, 3, 2, 2, 2, 3, 1];
+  const fallback = await getDashboard(period);
+  expect(fallback.consistency.deviations).toEqual(expected);
+  expect(fallback.consistency.sessions).toBe(deviations.length);
+  expect(fallback.consistency.averageStandardDeviation).toBeCloseTo(deviations.reduce((sum, value) => sum + value, 0) / deviations.length, 12);
+  for (const id of ids) {
+    const candidate = await prepareDashboardPublicationCandidate(id);
+    if (!candidate || !(await publishDashboardSession(candidate))) throw new Error(`Failed to publish consistency fixture ${id}`);
+  }
+  const published = await getDashboard(period);
+  expect(published.consistency.deviations).toEqual(expected);
+  expect(published.consistency.sessions).toBe(deviations.length);
+  expect(published.consistency.averageStandardDeviation).toBeCloseTo(fallback.consistency.averageStandardDeviation!, 12);
+  expect((await getDashboard({ from: "2026-06-03T00:00:00.000Z", to: "2026-06-04T00:00:00.000Z" })).consistency)
+    .toEqual({ sessions: 0, averageStandardDeviation: null, deviations: Array(7).fill(0) });
 });
 
 test("getDashboard treats clean previous-version publications as stale and uses source fallback", async () => {

@@ -283,7 +283,7 @@
   "home_insights_consistency_note": "Mittlere Populationsstandardabweichung je eigener Sitzung im ausgewählten Zeitraum. Jede Sitzung benötigt mindestens zwei gültige Runden desselben Spiels, derselben Strecke und desselben Autos. Balken zeigen die Anzahl der Sitzungen nach Abweichung.",
   "home_insights_consistency_insufficient": "Im ausgewählten Zeitraum gibt es keine vergleichbare Sitzung mit mindestens zwei gültigen Runden.",
   "home_insights_sample_count": "{count} Sitzungen",
-  "home_insights_deviation_bins_label": "Absolute Abweichung der Rundenzeit vom Mittelwert in Sekunden",
+  "home_insights_deviation_bins_label": "Sitzungen nach Rundenzeit-Standardabweichung in Sekunden",
   "home_insights_track_distribution_title": "Rundenzeit nach Strecke",
   "home_insights_track_distribution_note": "Positive aufgezeichnete Rundenzeit, einschließlich ungültiger abgeschlossener Runden. Zeigt die fünf meistbefahrenen Strecken und übrige Strecken.",
   "home_insights_track_distribution_empty": "Keine abgeschlossene Rundenzeit verfügbar.",

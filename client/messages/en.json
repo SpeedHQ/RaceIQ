@@ -284,7 +284,7 @@
 "home_insights_consistency_note": "Mean per-session population standard deviation across owned sessions in the selected period. Each session needs at least two valid laps from the same game, track, and car. Bars count sessions by deviation.",
 "home_insights_consistency_insufficient": "No comparable session with at least two valid laps in the selected period.",
 "home_insights_sample_count": "{count} sessions",
-"home_insights_deviation_bins_label": "Absolute lap-time deviation from the mean, in seconds",
+"home_insights_deviation_bins_label": "Sessions by lap-time standard deviation, in seconds",
 "home_insights_track_distribution_title": "Track time distribution",
 "home_insights_track_distribution_note": "Positive recorded lap time, including invalid completed laps. Shows five most-driven tracks and remaining tracks.",
 "home_insights_track_distribution_empty": "No completed lap time available.",

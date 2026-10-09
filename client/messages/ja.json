@@ -283,7 +283,7 @@
   "home_insights_consistency_note": "選択した期間の自分のセッションにおける、セッションごとの母標準偏差の平均です。各セッションには同じゲーム、コース、車で有効ラップが2周以上必要です。棒は偏差別のセッション数です。",
   "home_insights_consistency_insufficient": "選択した期間に、有効ラップが2周以上ある比較可能なセッションがありません。",
   "home_insights_sample_count": "{count} セッション",
-  "home_insights_deviation_bins_label": "平均からのラップタイム絶対偏差（秒）",
+  "home_insights_deviation_bins_label": "ラップタイムの標準偏差別セッション数（秒）",
   "home_insights_track_distribution_title": "コース別走行時間",
   "home_insights_track_distribution_note": "無効な完了ラップを含む、正の記録済みラップタイムの合計です。走行時間上位5コースとその他を表示します。",
   "home_insights_track_distribution_empty": "完了ラップタイムはありません。",

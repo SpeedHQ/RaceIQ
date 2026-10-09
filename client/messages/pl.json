@@ -281,7 +281,7 @@
   "home_insights_consistency_note": "Średnie odchylenie standardowe populacji na własną sesję w wybranym okresie. Każda sesja wymaga co najmniej dwóch prawidłowych okrążeń na tej samej grze, trasie i samochodzie. Słupki pokazują liczbę sesji według odchylenia.",
   "home_insights_consistency_insufficient": "W wybranym okresie brak porównywalnej sesji z co najmniej dwoma prawidłowymi okrążeniami.",
   "home_insights_sample_count": "{count} sesji",
-  "home_insights_deviation_bins_label": "Bezwzględne odchylenie czasu okrążenia od średniej w sekundach",
+  "home_insights_deviation_bins_label": "Sesje według odchylenia standardowego czasu okrążenia w sekundach",
   "home_insights_track_distribution_title": "Czas jazdy według toru",
   "home_insights_track_distribution_note": "Suma dodatnich zapisanych czasów okrążeń, także nieprawidłowych ukończonych okrążeń. Pokazuje pięć najczęściej używanych torów i pozostałe.",
   "home_insights_track_distribution_empty": "Brak dostępnych ukończonych czasów okrążeń.",

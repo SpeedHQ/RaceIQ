@@ -15,7 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { m } from "@/paraglide/messages";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyStateOverlay } from "@/components/ui/empty-state-overlay";
-import { dashboardInsights, CONSISTENCY_DEVIATION_BOUNDS, type DashboardInsights as DashboardInsightsData, type SessionTypeKind } from "./dashboard-insights";
+import { dashboardInsights, type DashboardInsights as DashboardInsightsData, type SessionTypeKind } from "./dashboard-insights";
 import { resolveTrackDisplayName } from "@/lib/track-display-name";
 import type { FavouriteInsight } from "./dashboard-insights";
 import { formatDrivenTime } from "./Stats";
@@ -171,7 +171,15 @@ function InsightInfo({ label, content }: { label: string; content: string }) {
   );
 }
 
-const HISTOGRAM_LABELS = ["0", ...CONSISTENCY_DEVIATION_BOUNDS.map((bound) => bound.toFixed(1))];
+const HISTOGRAM_BINS = [
+  { label: "<0.1", interval: "<0.1 s" },
+  { label: "0.1–0.2", interval: "0.1–<0.2 s" },
+  { label: "0.2–0.5", interval: "0.2–<0.5 s" },
+  { label: "0.5–1", interval: "0.5–<1 s" },
+  { label: "1–2", interval: "1–<2 s" },
+  { label: "2–5", interval: "2–5 s (inclusive)" },
+  { label: ">5", interval: ">5 s" },
+] as const;
 const INSIGHT_PANEL_BASE_CLASS = "flex min-w-0 flex-1 flex-col rounded-lg border border-app-border bg-app-surface-alt/30";
 const INSIGHT_PANEL_CLASS = `${INSIGHT_PANEL_BASE_CLASS} h-[216px] p-3`;
 const SPARKLINE_PANEL_CLASS = `${INSIGHT_PANEL_BASE_CLASS} h-[160px] p-2`;
@@ -329,7 +337,7 @@ function ConsistencyChart({ insights, loading, error }: {
   error: boolean;
 }) {
   const { sessions, averageStandardDeviation, deviations } = insights.consistency;
-  const labels = HISTOGRAM_LABELS;
+  const step = (320 - 16) / HISTOGRAM_BINS.length;
   const maxCount = Math.max(2, Math.ceil(Math.max(0, ...deviations) / 2) * 2);
   const status = loading ? m.home_insights_analytics_loading() : error ? m.home_insights_analytics_error() : null;
 
@@ -349,22 +357,34 @@ function ConsistencyChart({ insights, loading, error }: {
         {averageStandardDeviation == null || status ? (
           <>
             <svg viewBox="0 0 320 112" preserveAspectRatio="none" className="absolute inset-0 block h-full w-full" aria-hidden="true">
-              {labels.map((value, index) => <text key={value} x={21.2 + index * 30.4} y="106" textAnchor="middle" fill="var(--app-text-muted)" className="font-mono text-app-caption">{index === labels.length - 1 ? `≥${value}` : value}</text>)}
+              {HISTOGRAM_BINS.map((_, visualIndex) => {
+                const bin = HISTOGRAM_BINS[HISTOGRAM_BINS.length - 1 - visualIndex]!;
+                const x = 8 + visualIndex * step;
+                const width = step - 4;
+                return <g key={bin.label}>
+                  <text x={x + width / 2} y="100" textAnchor="middle" fill="var(--app-text-muted)" className="font-mono text-app-caption">{bin.label}</text>
+                  <text x={x + width / 2} y="111" textAnchor="middle" fill="var(--app-text-muted)" className="font-mono text-app-caption">s</text>
+                </g>;
+              })}
             </svg>
             {error && <p className="sr-only text-status-danger">{m.home_insights_analytics_error()}</p>}
           </>
         ) : (
           <svg viewBox="0 0 320 112" preserveAspectRatio="none" className="block h-full w-full" role="group" aria-label={m.home_insights_deviation_bins_label()}>
             <title>{m.home_insights_deviation_bins_label()}</title>
-            {deviations.map((count, index) => {
-              const interval = index === labels.length - 1 ? `≥${labels[index]} s` : `${labels[index]}–<${labels[index + 1]} s`;
-              const x = 8 + index * 30.4;
+            {HISTOGRAM_BINS.map((_, visualIndex) => {
+              const index = HISTOGRAM_BINS.length - 1 - visualIndex;
+              const bin = HISTOGRAM_BINS[index]!;
+              const count = deviations[index] ?? 0;
+              const x = 8 + visualIndex * step;
+              const width = step - 4;
               const height = count / maxCount * 76;
               return (
-                <g key={labels[index]} role="img" aria-label={`${interval}: ${count}`} tabIndex={0} className="focus-visible:outline-2 focus-visible:outline-app-accent">
-                  <title>{interval}: {count}</title>
-                  <rect x={x} y={88 - height} width="26.4" height={height} rx="2" fill={index === 0 ? "var(--app-accent)" : "var(--app-text-muted)"} />
-                  <text x={x + 13.2} y="106" textAnchor="middle" fill="var(--app-text-muted)" className="font-mono text-app-caption">{index === labels.length - 1 ? `≥${labels[index]}` : labels[index]}</text>
+                <g key={bin.label} role="img" aria-label={`${bin.interval}: ${count}`} tabIndex={0} className="focus-visible:outline-2 focus-visible:outline-app-accent">
+                  <title>{bin.interval}: {count}</title>
+                  <rect x={x} y={88 - height} width={width} height={height} rx="2" fill={index === 0 ? "var(--app-accent)" : "var(--app-text-muted)"} />
+                  <text x={x + width / 2} y="100" textAnchor="middle" fill="var(--app-text-muted)" className="font-mono text-app-caption">{bin.label}</text>
+                  <text x={x + width / 2} y="111" textAnchor="middle" fill="var(--app-text-muted)" className="font-mono text-app-caption">s</text>
                 </g>
               );
             })}

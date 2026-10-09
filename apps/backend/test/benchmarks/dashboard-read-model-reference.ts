@@ -132,11 +132,10 @@ export async function sourceDashboardReference(request: DashboardRequest): Promi
       GROUP BY s.id HAVING COUNT(*)>=2
     ), deviations AS (SELECT sqrt(MAX(variance,0)) sd FROM per_session)
     SELECT COUNT(*) sessions,AVG(sd) average_sd,
-      SUM(sd<0.1) b0,SUM(sd>=0.1 AND sd<0.2) b1,SUM(sd>=0.2 AND sd<0.3) b2,
-      SUM(sd>=0.3 AND sd<0.4) b3,SUM(sd>=0.4 AND sd<0.5) b4,SUM(sd>=0.5 AND sd<0.6) b5,
-      SUM(sd>=0.6 AND sd<0.7) b6,SUM(sd>=0.7 AND sd<0.8) b7,SUM(sd>=0.8 AND sd<0.9) b8,SUM(sd>=0.9) b9 FROM deviations`, args: bind }))[0] ?? {};
+      SUM(sd<0.1) b0,SUM(sd>=0.1 AND sd<0.2) b1,SUM(sd>=0.2 AND sd<0.5) b2,
+      SUM(sd>=0.5 AND sd<1) b3,SUM(sd>=1 AND sd<2) b4,SUM(sd>=2 AND sd<=5) b5,SUM(sd>5) b6 FROM deviations`, args: bind }))[0] ?? {};
   const consistency: DashboardResponse["consistency"] = { sessions: n(consistencyRow.sessions), averageStandardDeviation: nullable(consistencyRow.average_sd),
-    deviations: Array.from({ length: 10 }, (_, i) => n(consistencyRow[`b${i}`])) };
+    deviations: Array.from({ length: 7 }, (_, i) => n(consistencyRow[`b${i}`])) };
   const recent = sqlRows(await client.execute({ sql: `SELECT s.id,s.game_id,s.created_at,s.session_type,s.car_id,s.car_ordinal,s.track_id,s.track_ordinal,
       COUNT(l.id) lap_count,MIN(CASE WHEN l.is_valid=1 AND l.lap_time>0 THEN l.lap_time END) best_lap_seconds
     FROM sessions s JOIN dashboard_session_index si ON si.session_id=s.id LEFT JOIN laps l ON l.session_id=s.id

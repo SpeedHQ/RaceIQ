@@ -74,7 +74,7 @@ function emptyDashboard(request: DashboardRequest, coverage: DashboardReadCovera
     cards, totals, calendar,
     trackDistribution: { totalSeconds: 0, topFive: [], othersSeconds: 0, othersShare: 0, othersCount: 0 },
     favouriteTrack: null, favouriteCar: null,
-    consistency: { sessions: 0, averageStandardDeviation: null, deviations: Array(10).fill(0) },
+    consistency: { sessions: 0, averageStandardDeviation: null, deviations: Array(7).fill(0) },
     sessionTypes: { shares: (["practice", "qualifying", "race", "unknown"] as DashboardSessionType[]).map((kind) => ({ kind, seconds: 0, share: 0 })),
       totalSeconds: 0, unknownSeconds: 0, unknownShare: 0, sessionsWithDuration: 0, sessionsWithoutDuration: 0 },
     podiums: { total: 0, first: 0, second: 0, third: 0, available: false },
@@ -585,11 +585,13 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
         SELECT sqrt(MAX(variance,0)) sd FROM eligible
       )
       SELECT COUNT(*) sessions,AVG(sd) average_sd,
-        SUM(CASE WHEN sd<0.1 THEN 1 ELSE 0 END) b0,SUM(CASE WHEN sd>=0.1 AND sd<0.2 THEN 1 ELSE 0 END) b1,
-        SUM(CASE WHEN sd>=0.2 AND sd<0.3 THEN 1 ELSE 0 END) b2,SUM(CASE WHEN sd>=0.3 AND sd<0.4 THEN 1 ELSE 0 END) b3,
-        SUM(CASE WHEN sd>=0.4 AND sd<0.5 THEN 1 ELSE 0 END) b4,SUM(CASE WHEN sd>=0.5 AND sd<0.6 THEN 1 ELSE 0 END) b5,
-        SUM(CASE WHEN sd>=0.6 AND sd<0.7 THEN 1 ELSE 0 END) b6,SUM(CASE WHEN sd>=0.7 AND sd<0.8 THEN 1 ELSE 0 END) b7,
-        SUM(CASE WHEN sd>=0.8 AND sd<0.9 THEN 1 ELSE 0 END) b8,SUM(CASE WHEN sd>=0.9 THEN 1 ELSE 0 END) b9
+        SUM(CASE WHEN sd<0.1 THEN 1 ELSE 0 END) b0,
+        SUM(CASE WHEN sd>=0.1 AND sd<0.2 THEN 1 ELSE 0 END) b1,
+        SUM(CASE WHEN sd>=0.2 AND sd<0.5 THEN 1 ELSE 0 END) b2,
+        SUM(CASE WHEN sd>=0.5 AND sd<1 THEN 1 ELSE 0 END) b3,
+        SUM(CASE WHEN sd>=1 AND sd<2 THEN 1 ELSE 0 END) b4,
+        SUM(CASE WHEN sd>=2 AND sd<=5 THEN 1 ELSE 0 END) b5,
+        SUM(CASE WHEN sd>5 THEN 1 ELSE 0 END) b6
       FROM deviations`,
       args: [
         bounds.from, bounds.to, bounds.from, bounds.to, ...(request.gameId ? [request.gameId] : []),
@@ -600,7 +602,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     const consistency = consistencyResult.rows[0] as Row | undefined;
     response.consistency = {
       sessions: n(consistency?.sessions), averageStandardDeviation: nullableNumber(consistency?.average_sd),
-      deviations: Array.from({ length: 10 }, (_, index) => n(consistency?.[`b${index}`])),
+      deviations: Array.from({ length: 7 }, (_, index) => n(consistency?.[`b${index}`])),
     };
     const recentResult = tx.execute({
       sql: `SELECT si.session_id,si.game_id,si.created_at_ms,si.session_type,si.car_id,si.car_ordinal,si.track_id,si.track_ordinal,

@@ -25,7 +25,7 @@
   "home_insights_consistency_note": "Écart-type de population moyen par session personnelle sur la période sélectionnée. Chaque session doit contenir au moins deux tours valides sur le même jeu, circuit et voiture. Les barres comptent les sessions par écart.",
   "home_insights_consistency_insufficient": "Aucune session comparable avec au moins deux tours valides sur la période sélectionnée.",
   "home_insights_sample_count": "{count} sessions",
-  "home_insights_deviation_bins_label": "Écart absolu du temps au tour à la moyenne, en secondes",
+  "home_insights_deviation_bins_label": "Sessions par écart-type du temps au tour, en secondes",
   "home_insights_track_distribution_title": "Répartition du temps par circuit",
   "home_insights_track_distribution_note": "Somme des temps positifs enregistrés, y compris les tours terminés invalides. Affiche les cinq circuits les plus fréquentés et les autres.",
   "home_insights_track_distribution_empty": "Aucun temps de tour terminé disponible.",

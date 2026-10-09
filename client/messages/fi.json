@@ -281,7 +281,7 @@
   "home_insights_consistency_note": "Keskimääräinen istuntokohtainen populaatiokeskihajonta omista istunnoista valitulla ajanjaksolla. Istunnossa on oltava vähintään kaksi kelvollista kierrosta samalla pelillä, radalla ja autolla. Pylväät laskevat istunnot poikkeaman mukaan.",
   "home_insights_consistency_insufficient": "Valitulla ajanjaksolla ei ole vertailukelpoista istuntoa, jossa olisi vähintään kaksi kelvollista kierrosta.",
   "home_insights_sample_count": "{count} istuntoa",
-  "home_insights_deviation_bins_label": "Kierrosajan absoluuttinen poikkeama keskiarvosta sekunteina",
+  "home_insights_deviation_bins_label": "Istunnot kierrosajan keskihajonnan mukaan sekunteina",
   "home_insights_track_distribution_title": "Ajoaika radoittain",
   "home_insights_track_distribution_note": "Positiivisten tallennettujen kierrosaikojen summa, myös virheellisiltä päättyneiltä kierroksilta. Näyttää viisi ajetuinta rataa ja muut.",
   "home_insights_track_distribution_empty": "Päättyneitä kierrosaikoja ei ole saatavilla.",
