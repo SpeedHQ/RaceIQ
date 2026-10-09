@@ -26,7 +26,7 @@ graph LR
 - `packages/game-catalogs/` owns cross-game adapter registration, name/geometry composition, and assembled setup catalogs.
 - `apps/backend/` composes adapters, API routes, boot orchestration, imports, MoTeC targets, and AI workflows.
 - `client/` owns navigation, presentation state, live telemetry rendering, and historical-data queries.
-- HTTP and WebSocket traffic uses port `80` by default in installed Windows builds, and port `3117` in development and other builds. Forza and F1 telemetry use UDP port `5301` by default.
+- HTTP and WebSocket traffic uses port `3117` by default. Forza and F1 telemetry use UDP port `5301` by default.
 
 ## Current game adapters
 

@@ -85,6 +85,7 @@ var
 begin
   UpdatePrepareStatus('Closing RaceIQ...');
   Exec('taskkill', '/F /IM raceiq.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('powershell.exe', '-NoProfile -Command "Get-NetTCPConnection -LocalPort 3117 -State Listen -EA 0 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -EA 0 }"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 
   if GetOldUninstallString() <> '' then
   begin
@@ -125,5 +126,6 @@ Filename: "wscript.exe"; Parameters: """{app}\raceiq-launcher.vbs"""; WorkingDir
 
 [UninstallRun]
 Filename: "taskkill"; Parameters: "/F /IM raceiq.exe"; Flags: runhidden; RunOnceId: "KillRaceIQ"
+Filename: "powershell.exe"; Parameters: "-NoProfile -Command ""Get-NetTCPConnection -LocalPort 3117 -State Listen -EA 0 | ForEach-Object {{ Stop-Process -Id $_.OwningProcess -Force -EA 0 }}"""; Flags: runhidden; RunOnceId: "KillPort3117"
 Filename: "cmdkey"; Parameters: "/delete:RaceIQ:gemini-api-key"; Flags: runhidden; RunOnceId: "DeleteApiKey"
 Filename: "powershell.exe"; Parameters: "-NoProfile -Command ""Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'RaceIQ' -ErrorAction SilentlyContinue; Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run' -Name 'RaceIQ' -ErrorAction SilentlyContinue"""; Flags: runhidden; RunOnceId: "RemoveStartup"
