@@ -13,6 +13,21 @@ Canonical session and lap DTOs shared by ingest, storage, and UI.
   - `SessionMeta`
   - `SessionRecap`
 
+
+## Dashboard read contract
+- `dashboard.ts` defines a browser-safe request/response DTO and a bounded in-memory reference reducer for dashboard SQL parity tests.
+- Request `from`/`to` are half-open UTC instants; `timeZone` controls local-calendar bucket boundaries only. SQLite timezone-naive datetimes are interpreted as UTC, not host-local time.
+- Dashboard session and lap aggregates require exact `ownership === "mine"`; null, unknown, or future values are excluded. Cross-game card totals include every known game, while selected-game metrics are scoped by `gameId`.
+- Native numeric IDs and numeric-string IDs canonicalize to the same numeric identity. Native string IDs remain strings; blank and numeric `-1` values are unknown and fall back to ordinal when available; ordinal `0` is valid. Identity keys include game ID.
+- Recorded laps count even at zero/invalid time. Positive lap time contributes driven totals; only valid positive laps contribute best/average/valid totals. Incomplete laps are excluded from favourite-entity totals, not historical track distribution.
+- Session-duration shares include finite nonnegative durations, including confirmed zero; missing/invalid duration contributes no seconds and is separately counted. Unknown session kinds remain distinct from known zero duration.
+- Calendar days use request timezone's actual midnight instants and naturally span 23/25 hours at DST transitions. Every eligible interval of at most 367 local days returns all its buckets, including zero-data days. Buckets expose raw valid/positive counts; clean rate is valid-positive divided by all-positive, and driven seconds retain heatmap tooltip meaning.
+- Favourite candidates rank by finite positive driven time, then lap count, then game and native identity for deterministic ties; incomplete laps do not contribute. Distinct session membership unions eligible lap sessions with in-period sessions having the same game-scoped entity. Distance is null without known track-length evidence.
+- Podiums require exact-mine, confirmed, finished race results with finite integer position >0; position 1–3 counts as podium. Availability distinguishes no evidence (`null` per favourite) from confirmed zero.
+- Consistency is population standard deviation for each session with at least two valid positive laps and one stable game/car/track context; session values are averaged unweighted and bucketed at 0.1-0.9 seconds. Only roundoff-sized negative variance is clamped; significant negative or non-finite results are rejected. Sessions must also fall in the requested interval.
+
+Update this contract and its independent SQL/reference regressions together when metric eligibility or identity semantics change.
+
 ## Browser vs Node boundary
 - Plain TypeScript contracts, browser-safe.
 - No runtime side effects.
