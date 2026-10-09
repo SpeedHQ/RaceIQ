@@ -11,6 +11,7 @@ import { useLocalStorage } from "../../hooks/useLocalStorage";
 import type { AnalyseSearch } from "../../lib/game-routes";
 import { mergeNameCache } from "../../lib/name-cache";
 import { routePrefixForGameId } from "../../lib/game-routes";
+import { isPitLine } from "@/lib/canvas/draw-track";
 import {
   DEFAULT_TRACK_OVERLAYS,
   semanticValues,
@@ -86,6 +87,12 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     if (typeof outlineRaw !== "object") return null;
     const d = outlineRaw as { points?: unknown };
     return Array.isArray(d.points) ? (d.points as Point[]) : null;
+  }, [outlineRaw]);
+  const pitLines = useMemo(() => {
+    if (!outlineRaw || Array.isArray(outlineRaw) || typeof outlineRaw !== "object") return null;
+    if (!("pitLines" in outlineRaw)) return null;
+    const lines = outlineRaw.pitLines;
+    return Array.isArray(lines) ? lines.filter(isPitLine) : null;
   }, [outlineRaw]);
   const mapLabels = useMemo(() => {
     if (!outlineRaw || Array.isArray(outlineRaw) || typeof outlineRaw !== "object") return null;
@@ -235,6 +242,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     outline,
     mapLabels,
     boundaries,
+    pitLines,
     sectorData,
     sectors,
     segments,

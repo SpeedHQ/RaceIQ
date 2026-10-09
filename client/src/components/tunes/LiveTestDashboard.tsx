@@ -9,6 +9,7 @@ import { convertTemp } from "@raceiq/frontend-pure/temperature";
 import { semanticTuneSampleFromView } from "./semantic-tune";
 import { AnalyseTrackPanel } from "../analyse/AnalyseTrackPanel";
 import type { Point } from "../analyse/track-map/types";
+import { isPitLine, type PitLine } from "@/lib/canvas/draw-track";
 import { CurrentLapTireStrip } from "./CurrentLapTireStrip";
 import { LiveLapCards } from "./LiveLapCards";
 import { LiveLapInfo } from "./LiveLapInfo";
@@ -139,6 +140,10 @@ export function LiveTestDashboard({
     if (Array.isArray(d)) return d as Point[];
     return null;
   }, [outlineRaw]);
+  const pitLines = useMemo<PitLine[] | null>(() => {
+    if (!outlineRaw || Array.isArray(outlineRaw) || typeof outlineRaw !== "object" || !("pitLines" in outlineRaw)) return null;
+    return Array.isArray(outlineRaw.pitLines) ? outlineRaw.pitLines.filter(isPitLine) : null;
+  }, [outlineRaw]);
   const { data: boundariesRaw } = useTrackBoundaries(trackOrd ?? undefined, gameId);
   const boundaries = (boundariesRaw as TrackMapBoundaries | null) ?? null;
 
@@ -154,6 +159,7 @@ export function LiveTestDashboard({
               telemetry={semanticTrace}
               cursorIdx={semanticTrace.length - 1}
               outline={outline}
+              pitLines={pitLines}
               boundaries={boundaries}
               sectors={null}
               segments={null}

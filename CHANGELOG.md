@@ -5,6 +5,8 @@
 - Return to the all-games dashboard by clicking the selected game card.
 - Show clean-rate and podium trends as bounded daily aggregates.
 
+- Browse enriched iRacing car, car-class, and track catalogs with official car images, offline pit-road maps, and grouped lap sections.
+
 ### Fixes
 - Reduce server startup delays with saved recording histories by avoiding unnecessary rescans of recordings whose race results are already current.
 - Process saved-recording backfills in the background so server startup and requests remain responsive while recording history is updated.
@@ -31,8 +33,13 @@
 - Show session lap-time standard deviation in seconds, from >5 s on the left to <0.1 s on the right.
 - Prevent dashboard reads from repeatedly retaining native database allocations.
 
+- Load LMU track boundaries without long stalls on detailed SVG maps.
+- Show unnamed multi-turn sections once in Analyse and track-detail labels.
+
 ### Internal
 - Bound HTTP request/response adapter typing to avoid expanding the full RPC router schema during backend typechecking, preserving existing RPC contracts.
+- Remove unused compiled artifact downloads and base production builds from dev-mode dashboard screenshot CI.
+- Split current and base dashboard screenshot renders into four CI shards while retaining the complete screenshot inventory.
 - Document new-game integration, lossless sparse recording, lap correctness checks, and gzip fixture splitting without Git LFS; align capture and architecture guides with current implementation.
 - Avoid per-packet serialization and hashing during race-result reconciliation while retaining raw capture identity and processing provenance.
 - Add Bun-only parser/pipeline, retained-heap, import, and recording benchmarks with isolated workloads and explicit measurement scopes.

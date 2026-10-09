@@ -6,7 +6,7 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import type { SessionRecap as SessionRecapDto } from "@raceiq/shared/racing/sessions/types";
 import { useSessionRecap } from "../hooks/session-queries";
 import { useTrackOutline, useTrackSectorBoundaries } from "../hooks/track-queries";
-import { drawTrack } from "../lib/canvas/draw-track";
+import { drawTrack, type PitLine } from "../lib/canvas/draw-track";
 import { formatLapTime } from "../lib/format";
 import { getGameRoute, useGameId } from "../stores/game";
 import { Button } from "./ui/button";
@@ -21,6 +21,7 @@ export type TrackOutlineData =
       flipX?: boolean;
       recorded?: boolean;
       source?: string;
+      pitLines?: PitLine[];
     }
   | { x: number; z: number }[];
 export type TrackSectorBounds = { s1End: number; s2End: number } | null;
@@ -59,7 +60,8 @@ function SectorTrackMap({
   bounds?: TrackSectorBounds;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const points = Array.isArray(outlineData) ? outlineData : (outlineData?.points ?? null);
+  const points = Array.isArray(outlineData) ? outlineData : outlineData?.points ?? null;
+  const pitLines = Array.isArray(outlineData) ? null : (outlineData?.pitLines ?? null);
   const flipX = Array.isArray(outlineData) ? undefined : outlineData?.flipX;
   const sectorColors = useMemo<string[]>(() => {
     const byIndex = new Map(sectors.map((s) => [s.index, s]));
@@ -84,13 +86,13 @@ function SectorTrackMap({
         requestAnimationFrame(tryDraw);
         return;
       }
-      drawTrack(canvas, points, false, null, 1, { x: 0, z: 0 }, { starts: sectorStarts }, flipX, sectorColors);
+      drawTrack(canvas, points, false, null, 1, { x: 0, z: 0 }, { starts: sectorStarts }, flipX, sectorColors, undefined, undefined, undefined, pitLines);
     };
     tryDraw();
     return () => {
       cancelled = true;
     };
-  }, [canDraw, points, sectorStarts, flipX, sectorColors]);
+  }, [canDraw, points, pitLines, sectorStarts, flipX, sectorColors]);
   return (
     <div className="@container">
       <div className="mb-1 text-app-caption uppercase tracking-wider text-app-text-muted">{m.recap_sectors()}</div>

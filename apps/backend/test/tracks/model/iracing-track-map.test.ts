@@ -1,11 +1,15 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { getIRacingSvgTrackMap, IRACING_MAP_CACHE_VERSION, orientIRacingOvalMap } from "@raceiq/game-iracing/track-map";
 import {
   alignIRacingAutoSegmentsToTurnLabels,
   parseIRacingActiveSvg,
+  parseIRacingPitRoadSvg,
   parseIRacingTurnLabels,
 } from "@raceiq/game-iracing/track-map-svg";
-import { getIRacingSharedTrackName,
-getIRacingTrack, } from "@raceiq/game-iracing-metadata/racing/tracks/catalogs/iracing"
+import { getAllIRacingTracks, getIRacingSharedTrackName, getIRacingTrack } from "@raceiq/game-iracing-metadata/racing/tracks/catalogs/iracing";
+import { gameCatalogDir } from "@raceiq/shared/platform/runtime/data-paths";
 import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";
 import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
 
@@ -29,6 +33,13 @@ const turnsSvg = `
     <text transform="matrix(1 0 0 1 92 10)">1</text>
     <text transform="matrix(1 0 0 1 92 90)">2</text>
     <text transform="matrix(1 0 0 1 50 106)">Main Straight</text>
+  </svg>
+`;
+
+const pitRoadSvg = `
+  <svg viewBox="0 0 100 100">
+    <path d="M10,20 L20,20 L20,25 L10,25 z"/>
+    <path d="M30,40 L40,40 L40,45 L30,45 z"/>
   </svg>
 `;
 
@@ -130,5 +141,45 @@ describe("iRacing official SVG track maps", () => {
     expect(
       roadAmerica.some((segment) => segment.name === "Canada Corner"),
     ).toBe(true);
+  });
+
+  test("reconstructs centerline from dashed pit-road markers", () => {
+    expect(parseIRacingPitRoadSvg(pitRoadSvg)).toEqual([{
+      kind: "pit-road",
+      points: [{ x: -15, z: 22.5 }, { x: -35, z: 42.5 }],
+    }]);
+    expect(parseIRacingActiveSvg(activeSvg, startFinishSvg, turnsSvg, pitRoadSvg)?.pitLines)
+      .toEqual(parseIRacingPitRoadSvg(pitRoadSvg));
+  });
+
+  test("bundles valid offline maps and returns pit lines from bundle", async () => {
+    const tracks = getAllIRacingTracks();
+    for (const track of tracks) {
+      const path = resolve(gameCatalogDir("iracing"), "track-maps", `${track.ordinal}.json`);
+      const cached = JSON.parse(readFileSync(path, "utf8"));
+      expect(cached.version).toBe(IRACING_MAP_CACHE_VERSION);
+      expect(cached.mapUrl).toBe(track.mapUrl);
+      expect(cached.points.length).toBeGreaterThanOrEqual(20);
+      expect(Array.isArray(cached.labels)).toBe(true);
+      expect(Array.isArray(cached.pitLines)).toBe(true);
+    }
+    const bundledPath = resolve(gameCatalogDir("iracing"), "track-maps", "238.json");
+    const bundled = JSON.parse(readFileSync(bundledPath, "utf8"));
+    await expect(getIRacingSvgTrackMap(238)).resolves.toEqual({
+      points: bundled.points,
+      labels: bundled.labels,
+      pitLines: bundled.pitLines,
+    });
+  });
+
+  test("normalizes oval orientation without changing pit lines", () => {
+    const map = {
+      points: [{ x: 0, z: 0 }, { x: 1, z: 0 }, { x: 1, z: 1 }, { x: 0, z: 1 }],
+      labels: [],
+      pitLines: [{ kind: "pit-road" as const, points: [{ x: 2, z: 2 }, { x: 3, z: 2 }] }],
+    };
+    expect(orientIRacingOvalMap(map, "left").points).toEqual(map.points);
+    expect(orientIRacingOvalMap(map, "right").points).toEqual([map.points[0], map.points[3], map.points[2], map.points[1]]);
+    expect(orientIRacingOvalMap(map, "right").pitLines).toEqual(map.pitLines);
   });
 });

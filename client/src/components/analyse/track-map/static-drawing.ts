@@ -1,3 +1,4 @@
+import { drawPitLines, type PitLine } from "@/lib/canvas/draw-track";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
@@ -31,6 +32,7 @@ export interface StaticTrackOptions {
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
   boundaries: TrackMapBoundaries | null;
+  pitLines?: PitLine[] | null;
   sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   highlights?: TrackHighlight[] | null;
@@ -50,6 +52,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     outline,
     mapLabels,
     boundaries,
+    pitLines,
     sectors,
     segments,
     highlights,
@@ -156,6 +159,8 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   for (let i = 1; i < displayOutline.length; i++) ctx.lineTo(...toCanvas(displayOutline[i].x, displayOutline[i].z));
   if (drawingReferenceOutline) ctx.lineTo(sx, sy);
   ctx.stroke();
+  const displayPitLines = flip && pitLines ? pitLines.map((line) => ({ ...line, points: flipPoints(line.points) })) : pitLines;
+  drawPitLines(ctx, displayPitLines, toCanvas);
 
   if (raceLine) {
     ctx.beginPath();

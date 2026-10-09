@@ -21,6 +21,7 @@
     "@raceiq/game-acc": "workspace:*",
     "@raceiq/game-fm-2023": "workspace:*",
     "@raceiq/game-iracing": "workspace:*",
+    "@raceiq/game-iracing-metadata": "workspace:*",
     "@raceiq/shared": "workspace:*",
     "cheerio": "^1.2.0",
     "drizzle-orm": "^0.45.2",

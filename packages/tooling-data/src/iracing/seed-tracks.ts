@@ -19,7 +19,6 @@ const MILES_TO_KM = 1.609344;
 const COMMON_TRACK_NAMES = new Map<number, string>([
   [18, "road-america"],
   [26, "daytona"],
-  [47, "laguna-seca"],
   [95, "sebring"],
   [126, "road-atlanta-s"],
   [127, "road-atlanta"],
@@ -62,6 +61,7 @@ const COMMON_TRACK_NAMES = new Map<number, string>([
   [498, "mugello"],
   [501, "misano"],
   [523, "spa"],
+  [586, "laguna-seca"],
 ]);
 
 interface IRacingDataApiTrack {
@@ -74,6 +74,15 @@ interface IRacingDataApiTrack {
   category?: unknown;
   retired?: unknown;
   has_svg_map?: unknown;
+  corners_per_lap?: unknown;
+  pit_road_speed_limit?: unknown;
+  number_pitstalls?: unknown;
+  max_cars?: unknown;
+  night_lighting?: unknown;
+  rain_enabled?: unknown;
+  latitude?: unknown;
+  longitude?: unknown;
+  time_zone?: unknown;
 }
 
 interface IRacingDataApiTrackAsset {
@@ -81,6 +90,9 @@ interface IRacingDataApiTrackAsset {
   track_map?: unknown;
   track_map_layers?: {
     active?: unknown;
+    pitroad?: unknown;
+    "start-finish"?: unknown;
+    turns?: unknown;
   };
 }
 
@@ -95,8 +107,22 @@ interface SeedTrack {
   category: string;
   path: string;
   mapUrl: string;
+  pitMapUrl: string;
+  startFinishMapUrl: string;
+  turnsMapUrl: string;
+  cornersPerLap: number;
+  pitRoadSpeedLimitMph: number | null;
+  numberPitStalls: number;
+  maxCars: number;
+  nightLighting: boolean;
+  rainEnabled: boolean;
+  latitude: number;
+  longitude: number;
+  timeZone: string;
   retired: boolean;
 }
+
+
 
 async function readSource(source: string): Promise<unknown> {
   if (/^https?:\/\//i.test(source)) {
@@ -158,10 +184,26 @@ function parseTracks(
       !row.track_dirpath.trim() ||
       typeof row.category !== "string" ||
       typeof row.retired !== "boolean" ||
-      typeof row.has_svg_map !== "boolean"
+      typeof row.has_svg_map !== "boolean" ||
+      typeof row.corners_per_lap !== "number" ||
+      !Number.isFinite(row.corners_per_lap) ||
+      (row.pit_road_speed_limit != null &&
+        (typeof row.pit_road_speed_limit !== "number" ||
+          !Number.isFinite(row.pit_road_speed_limit))) ||
+      typeof row.number_pitstalls !== "number" ||
+      !Number.isFinite(row.number_pitstalls) ||
+      typeof row.max_cars !== "number" ||
+      !Number.isFinite(row.max_cars) ||
+      typeof row.night_lighting !== "boolean" ||
+      typeof row.rain_enabled !== "boolean" ||
+      typeof row.latitude !== "number" ||
+      !Number.isFinite(row.latitude) ||
+      typeof row.longitude !== "number" ||
+      !Number.isFinite(row.longitude) ||
+      typeof row.time_zone !== "string"
     ) {
       throw new Error(
-        `Invalid /data/track/get row at index ${index}: expected native track identity, layout, length, path, category, retired, and SVG fields`,
+        `Invalid /data/track/get row at index ${index}: expected native identity, layout, specifications, capabilities, location, retired, and SVG fields`,
       );
     }
 
@@ -174,6 +216,18 @@ function parseTracks(
     const activeLayer =
       typeof asset?.track_map_layers?.active === "string"
         ? asset.track_map_layers.active
+        : "";
+    const pitLayer =
+      typeof asset?.track_map_layers?.pitroad === "string"
+        ? asset.track_map_layers.pitroad
+        : "";
+    const startFinishLayer =
+      typeof asset?.track_map_layers?.["start-finish"] === "string"
+        ? asset.track_map_layers["start-finish"]
+        : "";
+    const turnsLayer =
+      typeof asset?.track_map_layers?.turns === "string"
+        ? asset.track_map_layers.turns
         : "";
     const locationParts = row.location
       .trim()
@@ -191,6 +245,24 @@ function parseTracks(
       category: row.category.trim(),
       path: `tracks\\${row.track_dirpath.replaceAll("/", "\\")}`,
       mapUrl: mapRoot && activeLayer ? new URL(activeLayer, mapRoot).href : "",
+      pitMapUrl: mapRoot && pitLayer ? new URL(pitLayer, mapRoot).href : "",
+      startFinishMapUrl:
+        mapRoot && startFinishLayer
+          ? new URL(startFinishLayer, mapRoot).href
+          : "",
+      turnsMapUrl: mapRoot && turnsLayer ? new URL(turnsLayer, mapRoot).href : "",
+      cornersPerLap: row.corners_per_lap,
+      pitRoadSpeedLimitMph:
+        typeof row.pit_road_speed_limit === "number"
+          ? row.pit_road_speed_limit
+          : null,
+      numberPitStalls: row.number_pitstalls,
+      maxCars: row.max_cars,
+      nightLighting: row.night_lighting,
+      rainEnabled: row.rain_enabled,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      timeZone: row.time_zone.trim(),
       retired: row.retired,
     };
   });
@@ -217,7 +289,7 @@ function parseTracks(
 
 function writeCatalog(output: string, tracks: SeedTrack[]): void {
   const lines = [
-    "ordinal,name,location,country,variant,lengthKm,commonTrackName,category,path,mapUrl",
+    "ordinal,name,location,country,variant,lengthKm,commonTrackName,category,path,mapUrl,pitMapUrl,startFinishMapUrl,turnsMapUrl,cornersPerLap,pitRoadSpeedLimitMph,numberPitStalls,maxCars,nightLighting,rainEnabled,latitude,longitude,timeZone",
     ...tracks.map((track) =>
       [
         track.ordinal,
@@ -230,6 +302,18 @@ function writeCatalog(output: string, tracks: SeedTrack[]): void {
         track.category,
         track.path,
         track.mapUrl,
+        track.pitMapUrl,
+        track.startFinishMapUrl,
+        track.turnsMapUrl,
+        track.cornersPerLap,
+        track.pitRoadSpeedLimitMph ?? "",
+        track.numberPitStalls,
+        track.maxCars,
+        track.nightLighting,
+        track.rainEnabled,
+        track.latitude,
+        track.longitude,
+        track.timeZone,
       ]
         .map(csvCell)
         .join(","),
