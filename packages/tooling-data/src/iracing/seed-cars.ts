@@ -7,6 +7,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, extname, resolve } from "node:path";
+import { csvCell } from "../lib/csv";
+import { optionValue } from "../lib/cli";
 
 const DEFAULT_SOURCE = "https://raw.githubusercontent.com/jasondilworth56/iracingdataapi/main/tests/mock_return_data/get_cars.json";
 const DEFAULT_OUTPUT = resolve(ROOT_DIR, "packages/game-iracing-metadata/src/cars.csv");
@@ -46,16 +48,6 @@ interface SeedCar {
   hasMultipleDryTireTypes: boolean;
   searchTerms: string;
   retired: boolean;
-}
-
-function optionValue(name: string): string | undefined {
-  const index = process.argv.indexOf(name);
-  return index >= 0 ? process.argv[index + 1] : undefined;
-}
-
-function csvCell(value: string | number | boolean): string {
-  const text = String(value);
-  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
 function sourceImageUrl(folder: string, image: string): string {
