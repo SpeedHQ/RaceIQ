@@ -1722,5 +1722,15 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `INSERT OR IGNORE INTO dashboard_backfill_cursor(id, last_session_id) VALUES (1, 0)`,
     ],
   },
+  {
+    version: 66,
+    name: "repair missing dashboard processor retry columns",
+    sql: [
+      `ALTER TABLE dashboard_summary_state ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE dashboard_summary_state ADD COLUMN next_retry_at TEXT`,
+      `ALTER TABLE dashboard_summary_state ADD COLUMN last_success_at TEXT`,
+      `CREATE INDEX IF NOT EXISTS dashboard_state_retry_idx ON dashboard_summary_state(next_retry_at, session_id)`,
+    ],
+  },
 ];
 

@@ -12,6 +12,7 @@
 - Calculate exact mine-only dashboard totals and recaps across the full selected period, independent of lap-list limits, and refresh them after session changes.
 - Keep available dashboard data visible while clearly distinguishing pending or unavailable coverage from request failures.
 - Restore dashboard startup for existing databases missing the backfill cursor table.
+- Repair missing dashboard processor retry columns in already-migrated databases without resetting session data or existing retry history.
 - Preserve favourite car and track podium totals for partial-day periods, distinguishing missing results from confirmed zero podiums.
 
 ### Internal

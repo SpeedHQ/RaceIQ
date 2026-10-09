@@ -129,6 +129,54 @@ describe("dashboard embedded migrations", () => {
     });
   });
 
+  test("repairs retry columns skipped by an already-applied dashboard migration without changing source or queue state", async () => {
+    await withClient(async (client) => {
+      const historicalMigrations = migrations.map((migration) => migration.version === 63
+        ? {
+          ...migration,
+          sql: migration.sql.filter((statement) =>
+            !statement.startsWith("ALTER TABLE dashboard_summary_state ADD COLUMN")
+            && !statement.startsWith("CREATE INDEX dashboard_state_retry_idx")),
+        }
+        : migration);
+      await runMigrations(client, 65, historicalMigrations);
+      await insertSession(client, 703);
+      await client.execute(`INSERT INTO laps (id, session_id, lap_number, lap_time, is_valid, created_at, notes)
+        VALUES (1703, 703, 1, 91.25, 1, '2026-08-01T12:35:00.123Z', 'preserve source')`);
+      await client.execute(`UPDATE dashboard_summary_state SET source_revision=11,published_revision=7,
+        processor_version=5,last_error_code='capture_unavailable' WHERE session_id=703`);
+      const sourceBefore = await client.execute("SELECT * FROM sessions WHERE id=703");
+      const lapsBefore = await client.execute("SELECT * FROM laps WHERE session_id=703");
+      const stateBefore = await client.execute("SELECT * FROM dashboard_summary_state WHERE session_id=703");
+
+      expect(await runMigrations(client)).toBe(1);
+
+      expect((await client.execute("SELECT * FROM sessions WHERE id=703")).rows).toEqual(sourceBefore.rows);
+      expect((await client.execute("SELECT * FROM laps WHERE session_id=703")).rows).toEqual(lapsBefore.rows);
+      const state = (await client.execute("SELECT * FROM dashboard_summary_state WHERE session_id=703")).rows[0];
+      expect(state).toMatchObject({ ...stateBefore.rows[0], retry_count: 0, next_retry_at: null, last_success_at: null });
+      const queued = await client.execute(`SELECT session_id FROM dashboard_summary_state
+        WHERE metadata_dirty=1 AND (next_retry_at IS NULL OR next_retry_at<=datetime('now'))`);
+      expect(queued.rows.map((row) => Number(row.session_id))).toEqual([703]);
+      expect(await runMigrations(client)).toBe(0);
+    });
+  });
+
+  test("retry repair preserves existing retry deadlines and successful processing history", async () => {
+    await withClient(async (client) => {
+      await runMigrations(client, 65);
+      await insertSession(client, 704);
+      await client.execute(`UPDATE dashboard_summary_state SET retry_count=7,
+        next_retry_at='2030-01-01 00:00:00',last_success_at='2026-08-01 12:00:00' WHERE session_id=704`);
+      const stateBefore = await client.execute("SELECT * FROM dashboard_summary_state WHERE session_id=704");
+
+      expect(await runMigrations(client)).toBe(1);
+
+      expect((await client.execute("SELECT * FROM dashboard_summary_state WHERE session_id=704")).rows).toEqual(stateBefore.rows);
+      expect(await runMigrations(client)).toBe(0);
+    });
+  });
+
   test("v62 upgrade preserves source rows and timestamps, queues only owned sessions", async () => {
     await withClient(async (client) => {
       await runMigrations(client, 62);
