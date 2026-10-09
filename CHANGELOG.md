@@ -37,6 +37,7 @@
 - Show unnamed multi-turn sections once in Analyse and track-detail labels.
 
 ### Internal
+- Report Paraglide development and production compilation stages, a 10-second elapsed-time heartbeat, and total build duration; preserve validated cache reuse.
 - Bound HTTP request/response adapter typing to avoid expanding the full RPC router schema during backend typechecking, preserving existing RPC contracts.
 - Remove unused compiled artifact downloads and base production builds from dev-mode dashboard screenshot CI.
 - Split current and base dashboard screenshot renders into four CI shards while retaining the complete screenshot inventory.

@@ -173,11 +173,11 @@ function InsightInfo({ label, content }: { label: string; content: string }) {
 
 const HISTOGRAM_BINS = [
   { label: "<0.1", interval: "<0.1 s" },
-  { label: "0.1–0.2", interval: "0.1–<0.2 s" },
-  { label: "0.2–0.5", interval: "0.2–<0.5 s" },
-  { label: "0.5–1", interval: "0.5–<1 s" },
-  { label: "1–2", interval: "1–<2 s" },
-  { label: "2–5", interval: "2–5 s (inclusive)" },
+  { label: "≥0.1", interval: "0.1–<0.2 s" },
+  { label: "≥0.2", interval: "0.2–<0.5 s" },
+  { label: "≥0.5", interval: "0.5–<1 s" },
+  { label: "≥1", interval: "1–<2 s" },
+  { label: "≥2", interval: "2–5 s (inclusive)" },
   { label: ">5", interval: ">5 s" },
 ] as const;
 const INSIGHT_PANEL_BASE_CLASS = "flex min-w-0 flex-1 flex-col rounded-lg border border-app-border bg-app-surface-alt/30";
