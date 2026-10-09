@@ -26,6 +26,12 @@ Canonical session and lap DTOs shared by ingest, storage, and UI.
 - Podiums require exact-mine, confirmed, finished race results with finite integer position >0; position 1–3 counts as podium. Availability distinguishes no evidence (`null` per favourite) from confirmed zero.
 - Consistency is population standard deviation for each session with at least two valid positive laps and one stable game/car/track context; session values are averaged unweighted and bucketed at 0.1-0.9 seconds. Only roundoff-sized negative variance is clamped; significant negative or non-finite results are rejected. Sessions must also fall in the requested interval.
 
+### SQLite read-model implementation
+- Migration v63 adds indexed UTC session/lap projections and versioned per-session, day, and time-bucket contributions; source session rows remain unchanged.
+- Publication computes a revision-bound candidate and replaces contributions only when source revision still matches. Reads require exact `ownership === "mine"` and reconcile stale contributions for dirty, revoked, or deleted sessions in the same snapshot.
+- `getDashboard` in `server/db/dashboard-queries.ts` returns all dashboard widgets from one read transaction. Dirty or missing facts use bounded source fallback; work beyond the cap is reported as pending, not as complete data. Capture-derived values preserve available, unavailable, and pending evidence states.
+- This phase adds the database query module only; it does not add GET route access to recordings. Dashboard route cutover remains pending.
+
 Update this contract and its independent SQL/reference regressions together when metric eligibility or identity semantics change.
 
 ## Browser vs Node boundary

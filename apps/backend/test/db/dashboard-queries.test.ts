@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { GameIdSchema, type GameId } from "@raceiq/shared/games/ids";
 import {
   dashboardCarIdentity,
@@ -19,6 +19,8 @@ import { laps, sessions } from "@raceiq/backend-core/db/schema";
 import { db } from "@raceiq/backend-core/db/index";
 import { deleteSession } from "@raceiq/backend-core/db/session-queries";
 import type { LapMeta, SessionMeta, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
+import { prepareDashboardPublicationCandidate, publishDashboardSession } from "@raceiq/backend-core/db/dashboard-summary-queries";
+import { getDashboard } from "@raceiq/backend-core/db/dashboard-queries";
 
 const ownedSessionIds: number[] = [];
 const request: DashboardRequest = {
@@ -233,7 +235,91 @@ function referenceDashboardFacts(
   };
 }
 
-test("SQL oracle and shared reducer include all target-game laps beyond generic 200 cap", async () => {
+test("published period bests and session counts are game-scoped and dirty minima fall through", async () => {
+  const accWinner = await addSession("acc" as GameId, "2026-01-01T01:00:00.000Z");
+  const accOther = await addSession("acc" as GameId, "2026-01-01T02:00:00.000Z");
+  const iracingWinner = await addSession("iracing" as GameId, "2026-01-01T03:00:00.000Z");
+  await addLap(accWinner, 1, 90, true, "2026-01-01T10:00:00.000Z");
+  await addLap(accWinner, 2, 92, true, "2026-01-01T10:01:00.000Z");
+  await addLap(accOther, 1, 94, true, "2026-01-01T11:00:00.000Z");
+  await addLap(iracingWinner, 1, 85, true, "2026-01-01T12:00:00.000Z");
+  for (const sessionId of [accWinner, accOther, iracingWinner]) {
+    const candidate = await prepareDashboardPublicationCandidate(sessionId);
+    if (!candidate || !(await publishDashboardSession(candidate))) throw new Error(`Failed to publish dashboard facts for ${sessionId}`);
+  }
+  const period = { from: "2026-01-01T00:00:00.000Z", to: "2026-01-02T00:00:00.000Z", timeZone: "UTC" };
+  const allGames = await getDashboard(period);
+  expect(allGames.totals).toMatchObject({ laps: 4, bestLapSeconds: 85, sessions: 3 });
+  const acc = await getDashboard({ ...period, gameId: "acc" as GameId });
+  expect(acc.totals).toMatchObject({ laps: 3, bestLapSeconds: 90, sessions: 2 });
+  const iracing = await getDashboard({ ...period, gameId: "iracing" as GameId });
+  expect(iracing.totals).toMatchObject({ laps: 1, bestLapSeconds: 85, sessions: 1 });
+
+  await db.update(laps).set({ lapTime: 95 }).where(and(eq(laps.sessionId, accWinner), eq(laps.lapNumber, 1))).run();
+  const dirtyAcc = await getDashboard({ ...period, gameId: "acc" as GameId });
+  expect(dirtyAcc.totals).toMatchObject({ laps: 3, bestLapSeconds: 92, sessions: 2 });
+});
+
+test("dashboard preserves ordinal zero, groups UTC rollover by local day, and retains tiny deviations", async () => {
+  const inserted = await db.insert(sessions).values({
+    gameId: "acc", carId: null, carOrdinal: 0, trackId: null, trackOrdinal: 0,
+    ownership: "mine", createdAt: "2026-01-01T03:00:00.000Z",
+  }).returning({ id: sessions.id }).get();
+  ownedSessionIds.push(inserted.id);
+  await addLap(inserted.id, 1, 1, true, "2026-01-02T02:00:00.000Z");
+  await addLap(inserted.id, 2, 1.00000002, true, "2026-01-02T02:01:00.000Z");
+  const malformed = await db.insert(sessions).values({
+    gameId: "acc", carId: null, carOrdinal: -1, trackId: null, trackOrdinal: -1,
+    ownership: "mine", createdAt: "2026-01-01T04:00:00.000Z",
+  }).returning({ id: sessions.id }).get();
+  ownedSessionIds.push(malformed.id);
+  await addLap(malformed.id, 1, 2, true, "2026-01-02T02:02:00.000Z");
+  const actual = await getDashboard({
+    from: "2026-01-01T00:00:00.000Z", to: "2026-01-03T00:00:00.000Z",
+    timeZone: "America/Los_Angeles",
+  });
+  expect(actual.totals).toMatchObject({ tracks: 1, cars: 1 });
+  expect(actual.favouriteTrack?.identity).toBe('["acc","n:0"]');
+  expect(actual.favouriteCar?.identity).toBe('["acc","n:0"]');
+  expect(actual.calendar.find((bucket) => bucket.day === "2026-01-01")?.validLaps).toBe(3);
+  expect(actual.calendar.find((bucket) => bucket.day === "2026-01-02")?.validLaps).toBe(0);
+  expect(actual.consistency.averageStandardDeviation).toBeCloseTo(1e-8, 10);
+});
+
+test("getDashboard matches the independent reducer for bounded source fallback", async () => {
+  const sessionIds = [
+    await addSession("acc" as GameId, "2026-06-01T10:00:00.000Z"),
+    await addSession("acc" as GameId, "2026-06-02T10:00:00.000Z"),
+    await addSession("iracing" as GameId, "2026-06-03T10:00:00.000Z"),
+    await addSession("acc" as GameId, "2026-06-04T10:00:00.000Z", "others"),
+  ];
+  await addLap(sessionIds[0]!, 1, 90, true, "2026-06-01T10:01:00.000Z");
+  await addLap(sessionIds[0]!, 2, 92, false, "2026-06-01T10:02:00.000Z");
+  await addLap(sessionIds[1]!, 1, 88, true, "2026-06-02T10:01:00.000Z");
+  await addLap(sessionIds[2]!, 1, 101, true, "2026-06-03T10:01:00.000Z");
+  await addLap(sessionIds[3]!, 1, 70, true, "2026-06-04T10:01:00.000Z");
+  const rows = await db.select({
+    id: laps.id, sessionId: laps.sessionId, lapNumber: laps.lapNumber, lapTime: laps.lapTime,
+    isValid: laps.isValid, createdAt: laps.createdAt, gameId: sessions.gameId,
+    ownership: sessions.ownership, carId: sessions.carId, trackId: sessions.trackId,
+    carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal,
+  }).from(laps).innerJoin(sessions, eq(laps.sessionId, sessions.id)).where(inArray(laps.sessionId, sessionIds)).all();
+  const sourceLaps = rows.map((row) => asLap(row!));
+  const sourceSessions = (await db.select().from(sessions).where(inArray(sessions.id, sessionIds)).all()) as unknown as SessionMeta[];
+  const oracle = reduceDashboard(sourceLaps, sourceSessions, request);
+  const actual = await getDashboard(request);
+  expect(actual.coverage.status).toBe("pending");
+  expect(actual.totals).toMatchObject({
+    laps: oracle.totals.laps, positiveLaps: oracle.totals.positiveLaps, validLaps: oracle.totals.validLaps,
+    drivenSeconds: oracle.totals.drivenSeconds, validSeconds: oracle.totals.validSeconds,
+    bestLapSeconds: oracle.totals.bestLapSeconds, averageLapSeconds: oracle.totals.averageLapSeconds,
+    sessions: oracle.totals.sessions, tracks: oracle.totals.tracks, cars: oracle.totals.cars,
+  });
+  expect(actual.cards.acc).toMatchObject(oracle.cards.acc);
+  expect(actual.cards.iracing).toMatchObject(oracle.cards.iracing);
+});
+
+test("source oracle includes target-game laps beyond cap; dashboard reports oversized fallback pending", async () => {
   for (let index = 0; index < 205; index++) {
     const createdAt = `2026-02-${String(index % 27 + 1).padStart(2, "0")}T12:00:00.000Z`;
     const sessionId = await addSession("acc" as GameId, createdAt);
@@ -273,8 +359,11 @@ test("SQL oracle and shared reducer include all target-game laps beyond generic 
     bestLapSeconds: oracle!.bestLapSeconds, averageLapSeconds: oracle!.validSeconds / oracle!.validLaps,
     sessions: oracle!.sessions, tracks: oracle!.tracks, cars: oracle!.cars,
   });
+  const actual = await getDashboard({ ...request, from, to, gameId: "acc" as GameId });
+  expect(actual.coverage.status).toBe("pending");
+  expect(actual.coverage.pendingSessions).toBe(205);
+  expect(actual.totals.laps).toBe(0);
 });
-
 test("SQL ownership transitions change eligible source rows exactly", async () => {
   const sessionId = await addSession("acc" as GameId, request.from, "others");
   await addLap(sessionId, 1, 90);

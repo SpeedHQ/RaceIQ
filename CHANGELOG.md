@@ -20,6 +20,7 @@
 - Correct Linux benchmark CPU/RSS sampling and run iRacing parser/import benchmarks independently of production release flags.
 - Skip build, test, browser, snapshot, and benchmark PR jobs for automated release version bump branches.
 - Declare the frontend contract tests' backend-core dependency so clean CI installs resolve setup-import test modules.
+- Add revision-checked SQLite dashboard summaries and indexed UTC projections; expose a bounded, snapshot-consistent backend read module with explicit pending coverage. Dashboard route cutover remains pending.
 
 ## v0.19.2 - 2026-10-04
 

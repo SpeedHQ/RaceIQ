@@ -30,9 +30,11 @@ apps/backend/test/analysis/data-panel-parity.test.ts
 apps/backend/test/analysis/suspension-compression.test.ts
 apps/backend/test/db/database-path.test.ts
 apps/backend/test/db/dashboard-queries.test.ts
+apps/backend/test/db/dashboard-summaries.test.ts
 apps/backend/test/db/lap-ownership.test.ts
 apps/backend/test/db/lap-read-batching.test.ts
 apps/backend/test/db/lmu-session-identity.test.ts
+apps/backend/test/db/migrations/dashboard-migration.test.ts
 apps/backend/test/db/migrations/migration-regression.test.ts
 apps/backend/test/db/migrations/migrations.test.ts
 apps/backend/test/db/migrations/runner-idempotence.test.ts

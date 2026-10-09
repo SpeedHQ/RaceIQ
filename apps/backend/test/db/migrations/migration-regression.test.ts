@@ -211,6 +211,88 @@ describe("migration regressions", () => {
     });
     client.close();
   });
+  test("v63 creates and maintains dashboard projections across direct source writes and cascades", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 62);
+    await client.execute(
+      `INSERT INTO sessions (id, game_id, ownership, created_at, car_id, track_id, car_ordinal, track_ordinal)
+       VALUES (777, 'iracing', 'mine', '2026-08-01T12:34:56.789Z', 'car-x', 'track-y', 0, 0),
+              (778, 'iracing', 'mine', '2026-08-02T12:34:56.789Z', 'car-x', 'track-y', 0, 0)`,
+    );
+    await client.execute(
+      `INSERT INTO laps (id, session_id, lap_number, lap_time, is_valid, created_at)
+       VALUES (888, 777, 1, 91.25, 1, '2026-08-01T12:35:00.123Z')`,
+    );
+
+    await runMigrations(client, 63);
+    const projection = await client.execute(
+      "SELECT session_id, created_at_ms, lap_time FROM dashboard_lap_index WHERE lap_id = 888",
+    );
+    expect(projection.rows).toHaveLength(1);
+    expect(projection.rows[0]).toMatchObject({
+      session_id: 777,
+      created_at_ms: Date.parse("2026-08-01T12:35:00.123Z"),
+      lap_time: 91.25,
+    });
+    await runMigrations(client);
+    await runMigrations(client);
+    expect((await client.execute("PRAGMA foreign_keys")).rows[0]?.foreign_keys).toBe(1);
+    const versions = await client.execute("SELECT version FROM schema_migrations ORDER BY version");
+    expect(versions.rows.map((row) => Number(row.version)).at(-1)).toBe(63);
+    expect(versions.rows.map((row) => Number(row.version)).filter((version) => version > 62)).toEqual([63]);
+    const stateColumns = await client.execute("PRAGMA table_info(dashboard_summary_state)");
+    const dayColumns = await client.execute("PRAGMA table_info(dashboard_session_days)");
+    expect(stateColumns.rows.map((row) => String(row.name))).toContain("retry_count");
+    expect(stateColumns.rows.map((row) => String(row.name))).toContain("last_success_at");
+    expect(dayColumns.rows.map((row) => String(row.name))).toContain("favourite_seconds");
+    expect(dayColumns.rows.map((row) => String(row.name))).toContain("distance_meters");
+
+    const bucketColumns = await client.execute("PRAGMA table_info(dashboard_session_time_buckets)");
+    const summaryColumns = await client.execute("PRAGMA table_info(dashboard_session_summaries)");
+    expect(bucketColumns.rows.map((row) => String(row.name))).toContain("valid_seconds");
+    expect(summaryColumns.rows.map((row) => String(row.name))).toContain("capture_revision");
+    expect(summaryColumns.rows.map((row) => String(row.name))).toContain("podium_position");
+    expect(summaryColumns.rows.map((row) => String(row.name))).toContain("track_length_meters");
+    expect(summaryColumns.rows.map((row) => String(row.name))).toContain("podium_status");
+    const state = async (sessionId: number) => (await client.execute(
+      "SELECT source_revision, metadata_dirty, capture_dirty, deleted FROM dashboard_summary_state WHERE session_id = ?",
+      [sessionId],
+    )).rows[0];
+    const initial = await state(777);
+    expect(initial).toMatchObject({ source_revision: 1, metadata_dirty: 1 });
+
+    await client.execute("UPDATE sessions SET ownership = 'others' WHERE id = 777");
+    expect(await state(777)).toMatchObject({ source_revision: 2, metadata_dirty: 1 });
+    await client.execute("UPDATE laps SET lap_time = 91.25 WHERE id = 888");
+    expect(await state(777)).toMatchObject({ source_revision: 2, metadata_dirty: 1 });
+    await client.execute("UPDATE laps SET session_id = 778, lap_time = 90 WHERE id = 888");
+    expect(await state(777)).toMatchObject({ source_revision: 3, metadata_dirty: 1 });
+    expect(await state(778)).toMatchObject({ source_revision: 2, metadata_dirty: 1 });
+    expect((await client.execute("SELECT session_id, lap_time FROM dashboard_lap_index WHERE lap_id = 888")).rows[0])
+      .toMatchObject({ session_id: 778, lap_time: 90 });
+
+    await client.execute(
+      `INSERT INTO session_results (id, session_id, outcome_status, classification, finishing_position)
+       VALUES (999, 777, 'confirmed', 'finished', 1)`,
+    );
+    expect(await state(777)).toMatchObject({ source_revision: 4, metadata_dirty: 1 });
+    await client.execute("UPDATE session_results SET session_id = 778 WHERE id = 999");
+    expect(await state(777)).toMatchObject({ source_revision: 5, metadata_dirty: 1 });
+    expect(await state(778)).toMatchObject({ source_revision: 3, metadata_dirty: 1 });
+    await client.execute("INSERT INTO pit_events (id, result_id, sequence, duration_seconds) VALUES (1000, 999, 1, 20)");
+    expect(await state(778)).toMatchObject({ source_revision: 4, metadata_dirty: 1 });
+    await client.execute("UPDATE pit_events SET duration_seconds = 22 WHERE id = 1000");
+    expect(await state(778)).toMatchObject({ source_revision: 5, metadata_dirty: 1 });
+
+    await client.execute("DELETE FROM sessions WHERE id = 778");
+    expect(await state(778)).toMatchObject({ deleted: 1, metadata_dirty: 1 });
+    expect((await client.execute("SELECT COUNT(*) AS count FROM laps WHERE session_id = 778")).rows[0]?.count).toBe(0);
+    expect((await client.execute("SELECT COUNT(*) AS count FROM session_results WHERE session_id = 778")).rows[0]?.count).toBe(0);
+    expect((await client.execute("SELECT COUNT(*) AS count FROM pit_events WHERE id = 1000")).rows[0]?.count).toBe(0);
+    expect((await client.execute("SELECT COUNT(*) AS count FROM dashboard_lap_index WHERE lap_id = 888")).rows[0]?.count).toBe(0);
+    await client.close();
+  });
 
 
 

@@ -42,6 +42,8 @@
     "./archive/bounded-unzip": "./archive/bounded-unzip.ts",
     "./db/analysis-queries": "./db/analysis-queries.ts",
     "./db/community-tune-queries": "./db/community-tune-queries.ts",
+    "./db/dashboard-queries": "./db/dashboard-queries.ts",
+    "./db/dashboard-summary-queries": "./db/dashboard-summary-queries.ts",
     "./db/discovered-cars": "./db/discovered-cars.ts",
     "./db/discovered-tracks": "./db/discovered-tracks.ts",
     "./db/driver-profile-queries": "./db/driver-profile-queries.ts",
