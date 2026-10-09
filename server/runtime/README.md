@@ -17,7 +17,7 @@
 ## Boundaries and invariants
 
 - Boot ordering is intentional: adapters and database state initialize before listeners; HTTP starts before UDP and background jobs; native sources and desktop integration start before maintenance jobs; the ready message is last.
-- HTTP port precedence is explicit option, then `SERVER_PORT`, then `3117`. UDP port precedence is explicit option, persisted setting, then `UDP_PORT`, then `5301`. `DATA_DIR` overrides the derived user-data path, while tests refuse an implicit real user-data path.
+- HTTP port precedence is explicit option, then `SERVER_PORT`, then `80` for compiled Windows builds or `3117` otherwise. Startup never clears port 80 by terminating its current owner. UDP port precedence is explicit option, persisted setting, then `UDP_PORT`, then `5301`. `DATA_DIR` overrides the derived user-data path, while tests refuse an implicit real user-data path.
 - HTTP paths remain partitioned: `/ws` is the WebSocket upgrade, `/api` and `/studio-api` dispatch to Hono, production serves bundled assets with SPA fallback, and development may serve public files.
 - UDP binds IPv4 on `0.0.0.0` by default, preserves raw recording frames before parsing, and owns its one-second status/flush interval across restarts.
 - Native process detection is Windows-only and polls every two seconds. Reader references are cleared before asynchronous stops so one source instance has clear ownership.

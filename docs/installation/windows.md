@@ -5,10 +5,14 @@ Windows is recommended for full RaceIQ support, including live shared-memory tel
 ## Install and run
 
 1. Download latest `RaceIQ-Setup` installer from the [releases page](https://github.com/SpeedHQ/RaceIQ/releases/latest).
-2. Run installer and follow setup wizard.
-3. Start RaceIQ from installed shortcut or Start menu.
+2. Run installer and follow setup wizard. Select **Create a desktop icon** to add an optional desktop shortcut.
+3. Double-click the desktop shortcut or start RaceIQ from the Start menu. The shortcut starts the server if it is not already running, waits for the dashboard to respond, then opens it in your default browser.
 
-Open dashboard by clicking RaceIQ tray icon, or visit <http://localhost:3117> in browser. Reopen it anytime through tray icon.
+Open <http://raceiq.localhost> in a modern browser while RaceIQ is running. Installed Windows builds use port 80, so no port suffix is needed (`http://raceiq.localhost:80` is equivalent). No DNS registration or administrator access is needed: browsers resolve `.localhost` names to this computer. If your browser does not support `.localhost` names, use <http://localhost> instead.
+
+You can also reopen the dashboard anytime by clicking the RaceIQ tray icon.
+
+Port 80 must be available. If another application already uses it, RaceIQ will not stop that application; free the port before starting RaceIQ. Development builds continue to use port 3117.
 
 ## Telemetry
 

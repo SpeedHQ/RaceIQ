@@ -21,6 +21,9 @@ import { homedir } from "node:os";
 const _raw = dirname(fileURLToPath(import.meta.url));
 export const IS_COMPILED = _raw.startsWith("/$bunfs") || _raw.includes("~BUN");
 
+/** Installed Windows builds use HTTP's default port; development stays on 3117. */
+export const DEFAULT_HTTP_PORT = IS_COMPILED && process.platform === "win32" ? 80 : 3117;
+
 /** Root of the project (dev) or directory containing the exe (compiled). */
 export const ROOT_DIR = IS_COMPILED
   ? dirname(process.execPath)

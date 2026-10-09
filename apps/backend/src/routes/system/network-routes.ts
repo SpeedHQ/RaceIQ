@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { networkInterfaces } from "node:os";
+import { DEFAULT_HTTP_PORT } from "@raceiq/backend-core/runtime/config/paths";
 
 export const networkRoutes = new Hono()
   // GET /api/network/info — local LAN IPv4 addresses + server port so clients
@@ -13,6 +14,6 @@ export const networkRoutes = new Hono()
         if (i.family === "IPv4" && !i.internal) lanIps.push(i.address);
       }
     }
-    const port = Number(process.env.SERVER_PORT) || 3117;
+    const port = Number(process.env.SERVER_PORT) || DEFAULT_HTTP_PORT;
     return c.json({ lanIps, port });
   });

@@ -1,9 +1,13 @@
 ## Unreleased
 
+### Breaking
+- Installed Windows builds now use port 80 instead of 3117. Update saved dashboard links to `http://raceiq.localhost` and ensure port 80 is available.
+
 ### Features
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 
 ### Fixes
+- Open the dashboard in your default browser when launching RaceIQ from the optional desktop shortcut or Start menu, even when the server was stopped.
 - Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
 
 ### Internal

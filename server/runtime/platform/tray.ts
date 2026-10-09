@@ -27,7 +27,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 $port = ${port}
-$url = "http://localhost:$port"
+$url = "http://raceiq.localhost:$port"
 $cmdFile = '${commandFilePs}'
 
 # Extract icon from the running exe
@@ -62,7 +62,7 @@ $updateItem = New-Object System.Windows.Forms.ToolStripMenuItem
 $updateItem.Text = "Install Update"
 $updateItem.Visible = $false
 $updateItem.add_Click({
-  Start-Process "http://localhost:${port}?update=1"
+  Start-Process "http://raceiq.localhost:${port}?update=1"
 })
 $menu.Items.Add($updateItem) | Out-Null
 
@@ -107,7 +107,7 @@ $timer.Start()
 $script:updateVersion = $null
 $tray.add_BalloonTipClicked({
   if ($script:updateVersion) {
-    Start-Process "http://localhost:${port}?update=1"
+    Start-Process "http://raceiq.localhost:${port}?update=1"
   }
 })
 

@@ -17,7 +17,7 @@ import { setCacheMaxBytes } from "@raceiq/backend-core/db/telemetry-replay-stora
 import { isFirstRun, loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { wsManager, type WSData } from "@raceiq/backend-core/runtime/websocket-manager";
 import { udpListener } from "./udp-listener";
-import { PUBLIC_DIR, IS_COMPILED } from "@raceiq/backend-core/runtime/config/paths";
+import { PUBLIC_DIR, IS_COMPILED, DEFAULT_HTTP_PORT } from "@raceiq/backend-core/runtime/config/paths";
 import { getOnboardingOverride } from "@raceiq/backend-core/runtime/options";
 import { openFirstRunDashboard, preventMacSleep } from "@raceiq/backend-core/runtime/desktop";
 import { clearHttpPort, startHttpServer } from "./http-server";
@@ -62,7 +62,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
 
   preventMacSleep();
 
-  const httpPort = options.httpPort ?? (Number(process.env.SERVER_PORT) || 3117);
+  const httpPort = options.httpPort ?? (Number(process.env.SERVER_PORT) || DEFAULT_HTTP_PORT);
   const onboardingOverride = getOnboardingOverride();
   if (onboardingOverride !== null) {
     console.log(`[Server] Development onboarding override: ${onboardingOverride ? "show" : "skip"}`);
@@ -103,8 +103,11 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   }
 
   console.log("[Server] Starting RaceIQ Server...");
-  clearHttpPort(httpPort);
-  console.log("[Boot] Port cleared");
+  // Port 80 may belong to an unrelated web server. Let binding fail rather than killing it.
+  if (httpPort !== 80) {
+    clearHttpPort(httpPort);
+    console.log("[Boot] Port cleared");
+  }
 
   // Dynamic import is required here: dev-studio pulls @mastra/hono and the
   // DuckDB-backed Mastra instance, which must stay out of the production bundle.
