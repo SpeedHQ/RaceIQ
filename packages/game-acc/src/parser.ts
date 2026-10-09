@@ -59,7 +59,7 @@ export function parseAccBuffers(
   physicsBuf: Buffer,
   graphicsBuf: Buffer,
   staticBuf: Buffer,
-  overrides?: { carOrdinal?: number; trackOrdinal?: number; gameId?: GameId; playerSlot?: number }
+  overrides?: { carOrdinal?: number; trackOrdinal?: number; gameId?: GameId; playerSlot?: number; timestampMs?: number }
 ): TelemetryPacket | null {
   if (
     physicsBuf.length < PHYSICS.SIZE ||
@@ -386,7 +386,7 @@ export function parseAccBuffers(
     gameId: overrides?.gameId ?? "acc",
     acc,
     IsRaceOn: isRaceOn,
-    TimestampMS: Date.now(),
+    TimestampMS: overrides?.timestampMs ?? 0,
 
     EngineMaxRpm: currentMaxRpm || maxRpm,
     EngineIdleRpm: 0,

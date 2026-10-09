@@ -2,14 +2,14 @@ import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import type { ServerGameAdapter } from "../../games/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { META_FRAME_MAGIC } from "../../session-capture/framing"
+import { META_FRAME_MAGIC } from "@raceiq/capture-formats/session/framing"
 
 /**
  * Read every packet out of a recorded session `.bin` / `.bin.gz` artifact.
  *
  * `test/support/recordings/parse-dump.ts` handles the older per-game dump formats; this
  * reads the length-prefixed session-bin container (with `META_FRAME_MAGIC`
- * sidecar frames interleaved) that `server/session-capture/recorder.ts` writes today.
+ * sidecar frames interleaved) that `packages/capture-formats/src/session/recorder.ts` writes today.
  */
 export function readSessionPackets(filePath: string, adapter: ServerGameAdapter): TelemetryPacket[] {
   const raw = readFileSync(filePath);

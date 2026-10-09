@@ -2,9 +2,9 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC, packTriplet, unpackTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
-import { iterateSessionFrames, sessionFrameAt } from "@raceiq/backend-core/session-capture/framing";
-import { SparseSessionRecorder } from "@raceiq/backend-core/session-capture/sparse-recorder";
+import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC, packTriplet, unpackTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
+import { iterateSessionFrames, sessionFrameAt } from "@raceiq/capture-formats/session/framing";
+import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
 import { iterateSessionCaptureFrames } from "@raceiq/backend-core/session-capture/source-loader";
 
 const directories: string[] = [];

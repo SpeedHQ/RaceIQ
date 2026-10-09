@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { loadTrackSectorsFor } from "@raceiq/shared/racing/tracks/storage/meta";
-import { computeLapSectors } from "@raceiq/backend-core/lap-analysis/sectors"
+import { computeLapSectors } from "@raceiq/telemetry-core/processor/sectors";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";

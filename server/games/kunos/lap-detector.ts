@@ -1,16 +1,18 @@
+import { KunosDetectorEngine, type KunosLapCapture } from "@raceiq/telemetry-core/processor/kunos-engine";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { DbAdapter } from "../../telemetry/pipeline-ports";
-import { assessLapRecording } from "../../lap-analysis/quality";
+import { assessLapRecording } from "@raceiq/telemetry-core/processor/lap-policy";
 import { persistLapMetrics } from "../../lap-analysis/metrics-store";
 import { reconcileAutoExclusionsForLap } from "../../experiments/auto-exclude";
-import { computeLapSectors } from "../../lap-analysis/sectors";
+import { computeLapSectors } from "@raceiq/telemetry-core/processor/sectors";
+import { resolveTrack } from "../../tracks/info";
 import type {
   ILapDetector,
   LapDetectorCallbacks,
   LapDetectorOptions,
   SessionState,
 } from "../../lap-detection/types";
-import { kunosFirstPacketIsMidLap } from "./lap-rules";
+import { resolveAccRecordedLapValidity } from "@raceiq/telemetry-core/processor/kunos-policy";
 import { classifyPitCycleLap } from "@raceiq/analysis-core/racing/laps/pit-cycle";
 import { logger } from "../../runtime/logger";
 
@@ -19,386 +21,95 @@ function traceLap(game: string, event: string, fields: Record<string, unknown>):
 }
 
 /** Shared Kunos (ACC / AC Evo) lap detector state machine. */
-export abstract class KunosLapDetector implements ILapDetector {
-  protected recordedLapValidity(_packets: readonly TelemetryPacket[], _trigger?: TelemetryPacket): boolean | null {
-    return null;
-  }
+export class KunosLapDetector implements ILapDetector {
   readonly detectorId: string;
   private readonly loggerLabel: string;
-
   protected readonly db: DbAdapter;
   private readonly onLapSaved?: LapDetectorCallbacks["onLapSaved"];
   private readonly onSessionStart?: LapDetectorCallbacks["onSessionStart"];
   private readonly onLapComplete_?: LapDetectorCallbacks["onLapComplete"];
-
   private currentSession: SessionState | null = null;
-  private lapBuffer: TelemetryPacket[] = [];
-  private currentLapNumber = -1;
+  private readonly engine: KunosDetectorEngine;
 
-  // Running peak of CurrentLap within the current lap — the thing we actually trust
-  private peakCurrentLap = 0;
-
-  // Flag: if true, discard the next reset (recording started mid-lap)
-  private firstLapIsPartial = false;
-
-  // Duplicate-emit guard for repeated boundary frames from live or imported
-  // sources. Ordered live ingress prevents callback overlap, but the detector
-  // still owns idempotence at its semantic boundary.
-  private _lastEmittedLapNumber = -1;
-  private _lapByteOffset: number | null = null;
-  private _lapFrameCount = 0;
-  private _currentRawByteOffset: number | null = null;
-  private _lastActivePacketTime = 0;
-  protected constructor(
-    opts: LapDetectorOptions,
-    detectorId: string,
-    loggerLabel: string,
-  ) {
+  protected constructor(opts: LapDetectorOptions, detectorId: string, loggerLabel: string) {
     this.db = opts.db;
     this.onLapSaved = opts.callbacks?.onLapSaved;
     this.onSessionStart = opts.callbacks?.onSessionStart;
     this.onLapComplete_ = opts.callbacks?.onLapComplete;
     this.detectorId = detectorId;
     this.loggerLabel = loggerLabel;
+    this.engine = new KunosDetectorEngine({
+      createSession: async packet => {
+        const carOrdinalResult = this.resolveCarOrdinal(packet);
+        const carOrdinal = typeof carOrdinalResult === "number" ? carOrdinalResult : await carOrdinalResult;
+        const sessionId = await this.db.insertSession(carOrdinal, packet.TrackOrdinal ?? 0, packet.gameId, packet.acc?.acEvo?.sessionType ?? packet.acc?.sessionType);
+        this.currentSession = { sessionId, carOrdinal, trackOrdinal: packet.TrackOrdinal ?? 0, carPI: packet.CarPerformanceIndex, gameId: packet.gameId, sessionUID: packet.sessionUID, bestLapTime: 0 };
+      },
+      onSessionStarted: async () => { await this.onSessionStart?.(this.currentSession!); },
+      backfillSessionIdentifiers: packet => this.backfillSessionIdentifiers(packet),
+      isPitOnly: packets => classifyPitCycleLap(packets) === "pit lap",
+      emitLap: capture => this.emitLap(capture),
+    });
   }
-
-  get session(): SessionState | null {
-    return this.currentSession;
-  }
-
-  /** Used by the pipeline to patch lap 1's byte offset when the session
-   * recorder was created mid-feed for the very first packet. */
-  setCurrentLapByteOffset(offset: number): void {
-    this._lapByteOffset = offset;
-    this._currentRawByteOffset = offset;
-    this._lapFrameCount = 1;
-  }
-
-  async feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void> {
-    this._lastActivePacketTime = Date.now();
-    if (rawByteOffset !== undefined) {
-      if (this._currentRawByteOffset === null) {
-        this._lapByteOffset = rawByteOffset;
-      }
-      this._currentRawByteOffset = rawByteOffset;
-      this._lapFrameCount++;
-    }
-    if (!this.currentSession) {
-      const carOrdinalResult = this.resolveCarOrdinal(packet);
-      const resolvedCarOrdinal =
-        typeof carOrdinalResult === "number" ? carOrdinalResult : await carOrdinalResult;
-      const sessionId = await this.db.insertSession(
-        resolvedCarOrdinal,
-        packet.TrackOrdinal ?? 0,
-        packet.gameId,
-        packet.acc?.acEvo?.sessionType ?? packet.acc?.sessionType,
-      );
-      this.currentSession = {
-        sessionId,
-        carOrdinal: resolvedCarOrdinal,
-        trackOrdinal: packet.TrackOrdinal ?? 0,
-        carPI: packet.CarPerformanceIndex,
-        gameId: packet.gameId,
-        sessionUID: packet.sessionUID,
-        bestLapTime: 0,
-      };
-      // LapNumber is 1-indexed in production parser counters.
-      this.currentLapNumber = (packet.LapNumber ?? 0) > 0 ? packet.LapNumber! : 1;
-      this.firstLapIsPartial = kunosFirstPacketIsMidLap(packet);
-      this._lapByteOffset = this._currentRawByteOffset;
-      this._lapFrameCount = 0;
-      await this.onSessionStart?.(this.currentSession);
-    }
-
-    const backfill = this.backfillSessionIdentifiers(packet);
-    if (backfill) await backfill;
-
-    const prev = this.lapBuffer[this.lapBuffer.length - 1];
-
-    // Session restart detection: distance went backward by >100m
-    if (prev && packet.DistanceTraveled < prev.DistanceTraveled - 100) {
-      this.lapBuffer = [];
-      this.peakCurrentLap = 0;
-      this.firstLapIsPartial = false;
-      this._lapByteOffset = this._currentRawByteOffset;
-      this._lapFrameCount = rawByteOffset === undefined ? 0 : 1;
-      this.lapBuffer.push(packet);
-      if (packet.CurrentLap > this.peakCurrentLap) this.peakCurrentLap = packet.CurrentLap;
-      return;
-    }
-
-    const timerReset = Boolean(
-      prev && prev.CurrentLap >= 5 && packet.CurrentLap <= 2,
-    );
-    const reportedLapAdvanced =
-      (packet.LapNumber ?? this.currentLapNumber) > this.currentLapNumber;
-    const previousLastLap = prev?.LastLap ?? 0;
-    const reportedLastLap = packet.LastLap ?? 0;
-    const reportedLastLapFresh =
-      reportedLastLap > 0 && reportedLastLap !== previousLastLap;
-
-    // ACC starts its pit-lane timer before the first timed lap. Crossing the
-    // timing line can reset that short timer without advancing CompletedLaps
-    // or publishing LastLap. Drop this pre-lap prefix instead of joining it to
-    // the following lap capture.
-    if (
-      timerReset &&
-      prev!.CurrentLap < 30 &&
-      !reportedLapAdvanced &&
-      !reportedLastLapFresh
-    ) {
-      this.lapBuffer = [packet];
-      this.peakCurrentLap = packet.CurrentLap;
-      this.firstLapIsPartial = false;
-      this._lapByteOffset = this._currentRawByteOffset;
-      this._lapFrameCount = rawByteOffset === undefined ? 0 : 1;
-      return;
-    }
-
-    const isReset =
-      timerReset &&
-      (prev!.CurrentLap >= 30 ||
-        reportedLapAdvanced ||
-        reportedLastLapFresh);
-
-    if (isReset) {
-      if (this.firstLapIsPartial) {
-        const bufStart = this.lapBuffer[0]?.DistanceTraveled ?? 0;
-        const bufEnd = this.lapBuffer[this.lapBuffer.length - 1]?.DistanceTraveled ?? 0;
-        const bufDist = bufEnd - bufStart;
-        const isPitOnly = classifyPitCycleLap(this.lapBuffer) === "pit lap";
-        if (bufDist < 100 || isPitOnly) {
-          this.lapBuffer = [];
-          this.peakCurrentLap = 0;
-          this.firstLapIsPartial = false;
-          this._lapByteOffset = this._currentRawByteOffset;
-          this._lapFrameCount = rawByteOffset === undefined ? 0 : 1;
-          this.lapBuffer.push(packet);
-          if (packet.CurrentLap > this.peakCurrentLap) this.peakCurrentLap = packet.CurrentLap;
-          return;
-        }
-        this.firstLapIsPartial = false;
-      }
-
-      await this.emitLap(null, { trigger: packet });
-    }
-
-    this.lapBuffer.push(packet);
-    if (packet.CurrentLap > this.peakCurrentLap) this.peakCurrentLap = packet.CurrentLap;
-  }
-
-  async flushIncompleteLap(): Promise<void> {
-    if (!this.currentSession || this.lapBuffer.length < 10) return;
-    await this.emitLap("incomplete", { silent: true });
-    this.lapBuffer = [];
-    this.peakCurrentLap = 0;
-  }
-
+  get session(): SessionState | null { return this.currentSession; }
+  setCurrentLapByteOffset(offset: number): void { this.engine.setCurrentLapByteOffset(offset); }
+  async feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void> { await this.engine.feed(packet, rawByteOffset); }
+  async flushIncompleteLap(): Promise<void> { await this.engine.flushIncompleteLap(); }
   async flushStaleLap(): Promise<void> {
-    if (
-      !this.currentSession ||
-      this._lastActivePacketTime === 0 ||
-      Date.now() - this._lastActivePacketTime < 10_000
-    ) return;
-    // Packets stopped arriving for 10s — end the session so next race start
-    // creates a fresh session.
-    await this.finalizeCurrentSession();
+    if (await this.engine.flushStaleLap()) {
+      const sid = this.currentSession?.sessionId;
+      console.log(`${this.loggerLabel} Finalized session ${sid}`);
+      this.currentSession = null;
+    }
   }
-
   async finalizeCurrentSession(): Promise<void> {
     if (!this.currentSession) return;
     const sid = this.currentSession.sessionId;
-    if (this.lapBuffer.length >= 10) {
-      await this.emitLap("incomplete", { silent: true });
-    }
+    await this.engine.finalize();
     console.log(`${this.loggerLabel} Finalized session ${sid}`);
     this.currentSession = null;
-    this.lapBuffer = [];
-    this.peakCurrentLap = 0;
-    this.firstLapIsPartial = false;
-    this._lapByteOffset = null;
-    this._currentRawByteOffset = null;
-    this._lapFrameCount = 0;
-    this._lastActivePacketTime = 0;
-    this._lastEmittedLapNumber = -1;
-    this.currentLapNumber = -1;
   }
-
-  private async emitLap(
-    forcedInvalidReason: string | null,
-    opts?: { silent?: boolean; trigger?: TelemetryPacket },
-  ): Promise<void> {
-    // Kunos publishes LastLap around the timer reset. Use it only when the
-    // trigger's value is fresh relative to the last buffered frame.
-    const lastBufferedLastLap = this.lapBuffer[this.lapBuffer.length - 1]?.LastLap ?? 0;
-    const gameLastLap = opts?.trigger?.LastLap ?? 0;
-    const gameLastLapFresh = gameLastLap > 0 && gameLastLap !== lastBufferedLastLap;
-    const lapTime = gameLastLapFresh ? gameLastLap : this.peakCurrentLap;
-    const lapNum = this.currentLapNumber;
-
-    if (lapNum === this._lastEmittedLapNumber) return;
-    this._lastEmittedLapNumber = lapNum;
-
-    const packets = this.lapBuffer;
-    if (opts?.trigger) packets.push(opts.trigger);
-    const lapByteOffset = this._lapByteOffset;
-    const lapFrameCount = this._lapFrameCount;
-    this.lapBuffer = [];
-    this.peakCurrentLap = 0;
-    this.currentLapNumber = lapNum + 1;
-    this._lapByteOffset = this._currentRawByteOffset;
-    this._lapFrameCount = opts?.trigger && this._currentRawByteOffset !== null
-      ? 1
-      : 0;
-    const traceGameId = this.currentSession!.gameId;
-    const traceSessionId = this.currentSession!.sessionId;
+  private async emitLap(capture: KunosLapCapture): Promise<void> {
+    const { packets, lapNumber: lapNum, lapTime, byteOffset: lapByteOffset, frameCount: lapFrameCount } = capture;
+    const session = this.currentSession!;
+    const traceGameId = session.gameId, traceSessionId = session.sessionId;
     const traceStartedAt = performance.now();
     let traceStageAt = traceStartedAt;
-    traceLap(traceGameId, "lap-boundary-start", {
-      sessionId: traceSessionId,
-      lapNumber: lapNum,
-      lapTimeMs: Math.round(lapTime * 1_000),
-      frames: packets.length,
-    });
-
-    let isValid: boolean;
-    let invalidReason: string | null;
-    if (forcedInvalidReason) {
-      isValid = false;
-      invalidReason = forcedInvalidReason;
-    } else {
-      const recordedValidity = this.recordedLapValidity(packets, opts?.trigger);
-      if (recordedValidity !== null) {
-        isValid = recordedValidity;
-        invalidReason = recordedValidity ? null : "game reported invalid";
-      } else {
-        const quality = assessLapRecording(packets, lapTime);
-        const pitReason = classifyPitCycleLap(packets);
-        isValid = !pitReason && quality.valid;
-        invalidReason = pitReason ?? quality.reason;
-        if (isValid) {
-          const cutReason = this.classifyTrackLimits(packets);
-          if (cutReason) {
-            isValid = false;
-            invalidReason = cutReason;
-          }
-        }
+    traceLap(traceGameId, "lap-boundary-start", { sessionId: traceSessionId, lapNumber: lapNum, lapTimeMs: Math.round(lapTime * 1_000), frames: packets.length });
+    let isValid: boolean, invalidReason: string | null;
+    if (capture.silent) { isValid = false; invalidReason = "incomplete"; }
+    else {
+      const recordedValidity = session.gameId === "acc" ? resolveAccRecordedLapValidity(packets, capture.trigger !== undefined) : null;
+      if (recordedValidity !== null) { isValid = recordedValidity; invalidReason = recordedValidity ? null : "game reported invalid"; }
+      else {
+        const quality = assessLapRecording(packets, lapTime), pitReason = classifyPitCycleLap(packets);
+        isValid = !pitReason && quality.valid; invalidReason = pitReason ?? quality.reason;
+        if (isValid) { const cutReason = this.classifyTrackLimits(packets); if (cutReason) { isValid = false; invalidReason = cutReason; } }
       }
     }
-    traceLap(traceGameId, "lap-boundary-stage", {
-      sessionId: traceSessionId,
-      lapNumber: lapNum,
-      stage: "quality",
-      durationMs: performance.now() - traceStageAt,
-      valid: isValid,
-      reason: invalidReason,
-    });
+    traceLap(traceGameId, "lap-boundary-stage", { sessionId: traceSessionId, lapNumber: lapNum, stage: "quality", durationMs: performance.now() - traceStageAt, valid: isValid, reason: invalidReason });
     traceStageAt = performance.now();
-
-    const sectors = await computeLapSectors(
-      this.currentSession!.trackOrdinal,
-      this.currentSession!.gameId,
-      packets,
-      lapTime,
-      undefined,
-    );
-    traceLap(traceGameId, "lap-boundary-stage", {
-      sessionId: traceSessionId,
-      lapNumber: lapNum,
-      stage: "sectors",
-      durationMs: performance.now() - traceStageAt,
-    });
+    const sectors = await computeLapSectors(session.trackOrdinal, session.gameId, packets, lapTime, { sectors: resolveTrack(session.gameId, session.trackOrdinal).sectors });
+    traceLap(traceGameId, "lap-boundary-stage", { sessionId: traceSessionId, lapNumber: lapNum, stage: "sectors", durationMs: performance.now() - traceStageAt });
     traceStageAt = performance.now();
-
-    if (isValid && (this.currentSession!.bestLapTime === 0 || lapTime < this.currentSession!.bestLapTime)) {
-      this.currentSession!.bestLapTime = lapTime;
-    }
-
-    const lapId = await this.db.insertLap(
-      this.currentSession!.sessionId,
-      lapNum,
-      lapTime,
-      isValid,
-      lapByteOffset,
-      lapFrameCount,
-      null,
-      null,
-      invalidReason,
-      sectors,
-    );
-    traceLap(traceGameId, "lap-boundary-stage", {
-      sessionId: traceSessionId,
-      lapNumber: lapNum,
-      lapId,
-      stage: "insert",
-      durationMs: performance.now() - traceStageAt,
-    });
+    if (isValid && (session.bestLapTime === 0 || lapTime < session.bestLapTime)) session.bestLapTime = lapTime;
+    const lapId = await this.db.insertLap(session.sessionId, lapNum, lapTime, isValid, lapByteOffset, lapFrameCount, null, null, invalidReason, sectors);
+    traceLap(traceGameId, "lap-boundary-stage", { sessionId: traceSessionId, lapNumber: lapNum, lapId, stage: "insert", durationMs: performance.now() - traceStageAt });
     traceStageAt = performance.now();
-    // Precompute fuel/tyre metrics now (frames already in memory) so
-    // /lap-metrics never decodes on first open.
     await persistLapMetrics(this.db, lapId, packets);
-    traceLap(traceGameId, "lap-boundary-stage", {
-      sessionId: traceSessionId,
-      lapNumber: lapNum,
-      lapId,
-      stage: "metrics",
-      durationMs: performance.now() - traceStageAt,
-    });
+    traceLap(traceGameId, "lap-boundary-stage", { sessionId: traceSessionId, lapNumber: lapNum, lapId, stage: "metrics", durationMs: performance.now() - traceStageAt });
     traceStageAt = performance.now();
-    // Reconcile the fastest-5 auto-exclude curation for this lap's tuning
-    // scope.
     await reconcileAutoExclusionsForLap(this.db, lapId);
-    traceLap(traceGameId, "lap-boundary-stage", {
-      sessionId: traceSessionId,
-      lapNumber: lapNum,
-      lapId,
-      stage: "auto-exclusion",
-      durationMs: performance.now() - traceStageAt,
-    });
+    traceLap(traceGameId, "lap-boundary-stage", { sessionId: traceSessionId, lapNumber: lapNum, lapId, stage: "auto-exclusion", durationMs: performance.now() - traceStageAt });
     traceStageAt = performance.now();
-    if (!opts?.silent) {
-      this.onLapSaved?.({
-        type: "lap-saved",
-        lapId,
-        lapNumber: lapNum,
-        lapTime,
-        isValid,
-        sectors,
-        estimatedBestLapTime: this.currentSession!.bestLapTime,
-      });
-      this.onLapComplete_?.({
-        packets,
-        lapDistStart: packets[0]?.DistanceTraveled ?? 0,
-        lapTime,
-        isValid,
-        sectors,
-      });
+    if (!capture.silent) {
+      this.onLapSaved?.({ type: "lap-saved", lapId, lapNumber: lapNum, lapTime, isValid, sectors, estimatedBestLapTime: session.bestLapTime });
+      this.onLapComplete_?.({ packets, lapDistStart: packets[0]?.DistanceTraveled ?? 0, lapTime, isValid, sectors });
     }
-    traceLap(traceGameId, "lap-boundary-stage", {
-      sessionId: traceSessionId,
-      lapNumber: lapNum,
-      lapId,
-      stage: "callbacks",
-      durationMs: performance.now() - traceStageAt,
-    });
-    traceLap(traceGameId, "lap-boundary-end", {
-      sessionId: traceSessionId,
-      lapNumber: lapNum,
-      lapId,
-      totalMs: performance.now() - traceStartedAt,
-    });
+    traceLap(traceGameId, "lap-boundary-stage", { sessionId: traceSessionId, lapNumber: lapNum, stage: "callbacks", durationMs: performance.now() - traceStageAt });
+    traceLap(traceGameId, "lap-boundary-end", { sessionId: traceSessionId, lapNumber: lapNum, totalMs: performance.now() - traceStartedAt });
   }
-
-  /** ACC uses the parser-provided ordinal; AC Evo overrides this hook. */
-  protected resolveCarOrdinal(packet: TelemetryPacket): number | Promise<number> {
-    return packet.CarOrdinal;
-  }
-
-  /** ACC keeps no per-packet identifier backfill; AC Evo overrides this hook. */
+  protected resolveCarOrdinal(packet: TelemetryPacket): number | Promise<number> { return packet.CarOrdinal; }
   protected backfillSessionIdentifiers(_packet: TelemetryPacket): void | Promise<void> {}
-
-  /** ACC does not invalidate laps from Kunos track-limit flags. */
-  protected classifyTrackLimits(_packets: TelemetryPacket[]): "track limits" | null {
-    return null;
-  }
+  protected classifyTrackLimits(_packets: TelemetryPacket[]): "track limits" | null { return null; }
 }

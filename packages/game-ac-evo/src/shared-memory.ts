@@ -12,7 +12,7 @@
 import { processPacket } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { BufferedKunosMemoryReader } from "@raceiq/backend-core/games/kunos/buffered-memory-reader";
 import type { IRealtimeKunosMemoryReader } from "@raceiq/backend-core/games/kunos/memory-reader";
-import { ACEVO_PACKED_MAGIC, packTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
+import { ACEVO_PACKED_MAGIC, packTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { TripletAssembler } from "@raceiq/backend-core/games/kunos/triplet-assembler";
 import {
   createKunosTripletPipeline,
@@ -55,7 +55,7 @@ class AcEvoParsingProcessor implements TripletProcessor {
 
   async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer; frameTimeMs?: number }): Promise<undefined> {
     try {
-      const packet = parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, this.cache);
+      const packet = parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, this.cache, triplet.frameTimeMs ?? Date.now());
       if (packet) {
         // -1 sentinel = unresolved. Never default to 0: ordinal 0 is a real
         // car/track (Ferrari SF90 Stradale / Monza GP).

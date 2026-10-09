@@ -12,7 +12,7 @@ import { cacheDelete } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { initServerGameAdapters } from "../../src/games/init";
 import { lapRoutes } from "../../src/routes/laps/index";
 import { iterateSessionCaptureFrames, setCaptureFileFactoryForTest } from "@raceiq/backend-core/session-capture/source-loader";
-import { SessionRecorder } from "@raceiq/backend-core/session-capture/recorder";
+import { SessionRecorder } from "@raceiq/capture-formats/session/recorder";
 import { SparseSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import { getRecordingFixture } from "@raceiq/backend-core/test-support/recordings/fixtures";
 

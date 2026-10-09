@@ -9,7 +9,7 @@ import { readUdpDump } from "@raceiq/backend-core/test-support/recordings/udp";
 import { parseAccBuffers } from "@raceiq/game-acc/parser";
 import { readWString } from "@raceiq/game-acc/utils";
 import { STATIC } from "@raceiq/capture-formats/acc/structs";
-import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { getAccCarByModel } from "@raceiq/game-acc-metadata/racing/cars/acc";
 import { getAccTrackByName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "@raceiq/game-ac-evo/parser";

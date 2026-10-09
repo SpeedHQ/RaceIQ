@@ -13,7 +13,6 @@ apps/backend/test/lap-analysis/f1-opportunities.test.ts
 apps/backend/test/lap-analysis/heuristic-evidence.test.ts
 apps/backend/test/lap-analysis/lap-insight-time-loss.test.ts
 apps/backend/test/lap-analysis/lap-path.test.ts
-apps/backend/test/lap-analysis/lap-quality.test.ts
 apps/backend/test/lap-analysis/lap-target.test.ts
 apps/backend/test/lap-analysis/racing-line-overshoot.test.ts
 apps/backend/test/lap-analysis/rapid-pressure-loss.test.ts

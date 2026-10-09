@@ -3,7 +3,6 @@ import { unzipSync, type Unzipped } from "fflate";
 const MIB = 1024 * 1024;
 
 export const MAX_ARCHIVE_UPLOAD_BYTES = 512 * MIB;
-export const MAX_DECOMPRESSED_CAPTURE_BYTES = 1024 * MIB;
 
 export interface ZipExtractionLimits {
   maxArchiveBytes: number;

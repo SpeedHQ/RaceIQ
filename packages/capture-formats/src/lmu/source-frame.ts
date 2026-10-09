@@ -118,7 +118,7 @@ function findPlayerScoringOffset(
  */
 export function encodeLMUSourceFrame(
   sharedMemory: Buffer,
-  captureTimestampMs = Date.now(),
+  captureTimestampMs: number,
 ): Buffer | null {
   if (sharedMemory.length < LMU_SHARED_MEMORY_SIZE) return null;
 

@@ -1,19 +1,14 @@
 import { resolve } from "node:path";
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import type { LapIndexPacket } from "@raceiq/backend-core/lap-detection/types";
 import { accAdapter } from "@raceiq/game-acc-metadata/index";
-import { getAccCarName, getAccCarByModel } from "@raceiq/game-acc-metadata/racing/cars/acc"
+import { getAccCarName } from "@raceiq/game-acc-metadata/racing/cars/acc"
 import { getAccTrackName, getAccSharedTrackName, getAccTrackByName, getAccTrackBySetupFolder } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc"
 import { LapDetectorAcc } from "./lap-detector"
-import { parseAccBuffers } from "./parser";
-import { parseAccLapIndex } from "./lap-index";
-import { STATIC } from "@raceiq/capture-formats/acc/structs";
-import { readWString } from "./utils";
-import { ACC_PACKED_MAGIC, unpackTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
 import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
 import { buildKunosAiContext } from "@raceiq/backend-core/games/kunos/ai-context";
 
+import { accParser } from "./game-parser";
 const ACC_SYSTEM_PROMPT = `You are an expert GT racing engineer and data analyst specializing in Assetto Corsa Competizione.
 
 You are analyzing telemetry data from a lap in ACC. Your role is to provide specific, actionable advice to improve lap time.
@@ -85,52 +80,17 @@ export const accServerAdapter: ServerGameAdapter = {
     return getAccTrackBySetupFolder(name)?.id ?? getAccTrackByName(name)?.id;
   },
 
-  // ACC uses shared memory, not UDP — canHandle returns false since
-  // ACC data doesn't go through the UDP parser dispatch.
-  canHandle(buf: Buffer): boolean {
-    return buf.length > 4 && buf.readUInt32LE(0) === ACC_PACKED_MAGIC;
+  canHandle: accParser.canHandle,
+  tryParse(buf, state, timestampMs) {
+    return accParser.tryParse(buf, state as never, timestampMs ?? Date.now());
   },
-
-  tryParse(buf: Buffer, _state: unknown): TelemetryPacket | null {
-    const triplet = unpackTriplet(buf);
-    if (!triplet) return null;
-
-    // Prefer re-resolving from the embedded static struct over the packed
-    // header — the header is a cache of whatever ParsingProcessor had
-    // resolved *at capture time*, which older recordings baked in as 0
-    // (Monza/car #0) whenever resolution hadn't happened yet. The static
-    // struct is the ground truth and is stored in full on every frame, so
-    // re-deriving here repairs already-recorded .bin files on import too.
-    let carOrdinal = triplet.carOrdinal;
-    let trackOrdinal = triplet.trackOrdinal;
-    if (triplet.staticData.length >= STATIC.SIZE) {
-      const cm = readWString(triplet.staticData, STATIC.carModel.offset, STATIC.carModel.size);
-      const resolvedCar = cm ? getAccCarByModel(cm)?.id : undefined;
-      if (resolvedCar != null) carOrdinal = resolvedCar;
-
-      const tn = readWString(triplet.staticData, STATIC.track.offset, STATIC.track.size);
-      const resolvedTrack = tn ? getAccTrackByName(tn)?.id : undefined;
-      if (resolvedTrack != null) trackOrdinal = resolvedTrack;
-    }
-
-    return parseAccBuffers(triplet.physics, triplet.graphics, triplet.staticData, {
-      carOrdinal,
-      trackOrdinal,
-    });
+  tryParseLapIndex(buf, state, timestampMs) {
+    return accParser.tryParseLapIndex(buf, state as never, timestampMs ?? Date.now());
   },
-  tryParseLapIndex(buf, _state): LapIndexPacket | null {
-    const triplet = unpackTriplet(buf);
-    return triplet ? parseAccLapIndex(triplet.physics, triplet.graphics, triplet.staticData, triplet.carOrdinal, triplet.trackOrdinal) : null;
+  primeParserState(buf, state) {
+    accParser.primeParserState(buf, state as never);
   },
-
-  primeParserState(_buf, _state): void {
-    // ACC frames are self-contained; no cross-frame decoder state exists.
-  },
-
-  createParserState(): null {
-    return null;
-  },
-
+  createParserState: accParser.createParserState,
   createLapDetector: (opts) => new LapDetectorAcc(opts),
 
   aiSystemPrompt: ACC_SYSTEM_PROMPT,

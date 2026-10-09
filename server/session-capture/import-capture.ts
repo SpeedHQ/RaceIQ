@@ -1,7 +1,7 @@
 import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
 import { getAllServerGames } from "../games/registry";
-import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump";
-import { IRACING_DUMP_MAGIC, readIRacingFramesFromBuffer } from "@raceiq/capture-formats/iracing/dump";
+import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump-decoder";
+import { IRACING_DUMP_MAGIC, readIRacingFramesFromBuffer } from "@raceiq/capture-formats/iracing/dump-decoder";
 import {
   decompressIfGzipSync,
   iterateSessionFrames,
@@ -9,7 +9,7 @@ import {
   SESSION_SEGMENT_BOUNDARY,
   SESSION_SEGMENT_CONTEXT,
   SESSION_SEGMENT_CONTEXT_END,
-} from "./framing";
+} from "@raceiq/capture-formats/session/framing";
 import { importSessionFrames, type ImportedLap, type ImportSessionOptions } from "./import-pipeline";
 
 const GAME_IDS_BY_FILENAME_PRECEDENCE = [...KNOWN_GAME_IDS].sort(

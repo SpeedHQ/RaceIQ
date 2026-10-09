@@ -6,7 +6,7 @@ import {
   unzipBounded,
   type ZipExtractionLimits,
 } from "@raceiq/backend-core/archive/bounded-unzip";
-import { decompressIfGzipSync } from "@raceiq/backend-core/session-capture/framing";
+import { decompressIfGzipSync } from "@raceiq/capture-formats/session/framing";
 
 const limits: ZipExtractionLimits = {
   maxArchiveBytes: 1024,

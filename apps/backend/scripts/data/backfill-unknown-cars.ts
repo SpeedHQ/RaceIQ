@@ -19,7 +19,7 @@ import { db, initDb } from "@raceiq/backend-core/db/index";
 import { sessions } from "@raceiq/backend-core/db/schema";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { getOrCreateDiscoveredCar } from "@raceiq/backend-core/db/discovered-cars";
-import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing";
+import { META_FRAME_MAGIC } from "@raceiq/capture-formats/session/framing";
 import { gunzipIfNeeded } from "@raceiq/tooling-data/lib/compression";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 

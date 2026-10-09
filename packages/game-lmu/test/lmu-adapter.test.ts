@@ -9,7 +9,7 @@ import {
   resolveLMUCar,
   resolveLMUTrack,
 } from "@raceiq/game-lmu-metadata/catalog";
-import { resolveLMUInvalidReason } from "../src/lap-policy";
+import { resolveLMUInvalidReason } from "@raceiq/telemetry-core/processor/kunos-policy";
 import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";
 import { lmuServerAdapter } from "../src/index";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";

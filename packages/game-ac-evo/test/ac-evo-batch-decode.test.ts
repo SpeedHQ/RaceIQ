@@ -13,12 +13,12 @@ import { gunzipSync } from "node:zlib";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
 import { LapDetectorAcEvo } from "../src/lap-detector"
-import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing"
+import { META_FRAME_MAGIC } from "@raceiq/capture-formats/session/framing"
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
 import { parseRawLapFrames, parseRawLapFramesFromBuffer, parseSessionLapsBatchedForTest } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { parseAcEvoLapIndex } from "../src/lap-index";
 import { createAcEvoParserCache, parseAcEvoBuffers } from "../src/parser";
-import { unpackTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
+import { unpackTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { loadSessionCapture, setCaptureFileFactoryForTest, clearSessionCaptureCache } from "@raceiq/backend-core/session-capture/source-loader";
 
 registerGame(acEvoServerAdapter);

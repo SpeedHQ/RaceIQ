@@ -6,17 +6,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
 import { LapDetectorIRacing } from "./lap-detector";
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
-import type { LapIndexPacket } from "@raceiq/backend-core/lap-detection/types";
-import {
-  createIRacingParserState,
-  type IRacingParserState,
-  normalizeIRacingFrame,
-  projectIRacingLapIndex,
-} from "./normalizer";
-import {
-  canHandleIRacingSourceFrame,
-  decodeIRacingSourceFrame,
-} from "@raceiq/capture-formats/iracing/source-frame";
+import { iracingParser } from "./game-parser";
 
 const IRACING_SYSTEM_PROMPT = `You are an expert iRacing driver coach and race engineer.
 
@@ -61,31 +51,17 @@ export const iracingServerAdapter: ServerGameAdapter = {
     return getIRacingTrackOrdinalByName(name);
   },
 
-  canHandle(buf: Buffer): boolean {
-    return canHandleIRacingSourceFrame(buf);
+  canHandle: iracingParser.canHandle,
+  tryParse(buf, state) {
+    return iracingParser.tryParse(buf, state as never);
   },
-
-  tryParse(buf: Buffer, state: unknown): TelemetryPacket | null {
-    const parserState = state as IRacingParserState | null;
-    const frame = decodeIRacingSourceFrame(buf, parserState?.source);
-    return frame
-      ? normalizeIRacingFrame(frame, parserState)
-      : null;
+  tryParseLapIndex(buf, state) {
+    return iracingParser.tryParseLapIndex(buf, state as never);
   },
-  tryParseLapIndex(buf, state): LapIndexPacket | null {
-    const parserState = state as IRacingParserState | null;
-    const frame = decodeIRacingSourceFrame(buf, parserState?.source);
-    return frame ? projectIRacingLapIndex(frame, parserState) : null;
+  primeParserState(buf, state) {
+    iracingParser.primeParserState(buf, state as never);
   },
-
-  primeParserState(buf, state): void {
-    const parserState = state as IRacingParserState | null;
-    decodeIRacingSourceFrame(buf, parserState?.source);
-  },
-
-  createParserState(): IRacingParserState {
-    return createIRacingParserState();
-  },
+  createParserState: iracingParser.createParserState,
 
   createLapDetector: (opts) => new LapDetectorIRacing(opts),
   aiSystemPrompt: IRACING_SYSTEM_PROMPT,

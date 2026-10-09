@@ -22,8 +22,8 @@ import {
   NullSessionRecorderAdapter,
 } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import { LiveTelemetryPipeline, stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
-import { computeLapSectors } from "@raceiq/backend-core/lap-analysis/sectors";
-import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing";
+import { computeLapSectors } from "@raceiq/telemetry-core/processor/sectors";
+import { META_FRAME_MAGIC } from "@raceiq/capture-formats/session/framing";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 

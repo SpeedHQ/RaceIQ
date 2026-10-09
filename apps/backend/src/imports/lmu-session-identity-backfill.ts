@@ -5,9 +5,9 @@ import { listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
 import { listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions } from "@raceiq/backend-core/db/schema";
-import { decompressIfGzipSync, iterateSessionFrames } from "@raceiq/backend-core/session-capture/framing";
+import { decompressIfGzipSync, iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
 import { identityFromLMUSourceFrame } from "@raceiq/game-lmu/normalizer";
-import { readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump";
+import { readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump-decoder";
 import { decodeLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
 
 const BATCH_SIZE = 100;

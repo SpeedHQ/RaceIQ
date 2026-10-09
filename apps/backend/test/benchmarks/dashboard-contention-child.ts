@@ -15,7 +15,7 @@ import { notifyDriverProfileLap } from "../../src/driver-profile/runner";
 import { initServerGameAdapters } from "../../src/games/init";
 import { initMotecTargets } from "../../src/games/motec-init";
 import app from "../../src/routes/index";
-import { iterateSessionFrames } from "@raceiq/backend-core/session-capture/framing";
+import { iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
 import { udpListener } from "../../src/runtime/udp-listener";
 import { createDashboardFinalizationFixture, createDashboardFixture } from "./dashboard-read-model-fixture";
 import type { DashboardRequest } from "@raceiq/shared/racing/sessions/dashboard";

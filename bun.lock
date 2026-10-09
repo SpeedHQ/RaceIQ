@@ -195,6 +195,9 @@
     },
     "packages/capture-formats": {
       "name": "@raceiq/capture-formats",
+      "dependencies": {
+        "@raceiq/shared": "workspace:*",
+      },
     },
     "packages/frontend-contract-tests": {
       "name": "@raceiq/frontend-contract-tests",
@@ -202,6 +205,7 @@
         "@raceiq/analysis-core": "workspace:*",
         "@raceiq/backend": "workspace:*",
         "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
         "@raceiq/game-ac-evo": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
@@ -222,6 +226,7 @@
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
       },
     },
     "packages/game-ac-evo-metadata": {
@@ -278,6 +283,7 @@
       "name": "@raceiq/game-fm-2023",
       "dependencies": {
         "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/game-fm-2023-metadata": "workspace:*",
         "@raceiq/shared": "workspace:*",
@@ -296,6 +302,7 @@
         "@raceiq/capture-formats": "workspace:*",
         "@raceiq/game-iracing-metadata": "workspace:*",
         "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
         "drizzle-orm": "^0.45.2",
       },
     },
@@ -326,7 +333,25 @@
     "packages/telemetry-core": {
       "name": "@raceiq/telemetry-core",
       "dependencies": {
+        "@raceiq/analysis-core": "workspace:*",
         "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/telemetry-processor": {
+      "name": "@raceiq/telemetry-processor",
+      "dependencies": {
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/game-ac-evo": "workspace:*",
+        "@raceiq/game-acc": "workspace:*",
+        "@raceiq/game-f1-2025": "workspace:*",
+        "@raceiq/game-fm-2023": "workspace:*",
+        "@raceiq/game-iracing": "workspace:*",
+        "@raceiq/game-lmu": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+      },
+      "devDependencies": {
+        "@raceiq/capture-formats": "workspace:*",
       },
     },
     "packages/tooling-build": {
@@ -1140,6 +1165,8 @@
     "@raceiq/shared": ["@raceiq/shared@workspace:shared"],
 
     "@raceiq/telemetry-core": ["@raceiq/telemetry-core@workspace:packages/telemetry-core"],
+
+    "@raceiq/telemetry-processor": ["@raceiq/telemetry-processor@workspace:packages/telemetry-processor"],
 
     "@raceiq/tooling": ["@raceiq/tooling@workspace:scripts"],
 

@@ -5,7 +5,7 @@ import {
   detectLapBoundary,
   detectLapReset,
   type SessionSnapshot,
-} from "@raceiq/backend-core/lap-detection/boundaries";
+} from "@raceiq/telemetry-core/processor/boundaries";
 import { assertSectorTimesMatchLapTime } from "@raceiq/backend-core/test-support/laps/assertions";
 
 function pkt(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {

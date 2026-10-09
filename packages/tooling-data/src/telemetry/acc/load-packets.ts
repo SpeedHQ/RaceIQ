@@ -1,4 +1,4 @@
-import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { parseAccBuffers } from "@raceiq/game-acc/parser";
 import { readWString } from "@raceiq/game-acc/utils";

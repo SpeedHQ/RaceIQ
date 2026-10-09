@@ -1,16 +1,11 @@
 import { lmuAdapter } from "@raceiq/game-lmu-metadata/index";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import type { LapIndexPacket } from "@raceiq/backend-core/lap-detection/types";
 import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
 import { LapDetector } from "@raceiq/backend-core/lap-detection/detector";
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
-import { normalizeLMUSourceFrame } from "./normalizer";
-import { lmuLapPolicy } from "./lap-policy";
-import {
-  canHandleLMUSourceFrame,
-  decodeLMUSourceFrame,
-} from "@raceiq/capture-formats/lmu/source-frame";
 
+import { lmuParser } from "./game-parser";
+import { LMU_LAP_DETECTOR_POLICY } from "@raceiq/telemetry-core/processor/lap-policy";
 const LMU_SYSTEM_PROMPT = `You are an expert Le Mans Ultimate driver coach and endurance race engineer.
 
 Analyze supplied lap telemetry and give specific, data-grounded advice. Account for
@@ -38,30 +33,24 @@ export const lmuServerAdapter: ServerGameAdapter = {
   },
   processNames: ["Le Mans Ultimate.exe", "Le Mans Ultimate"],
 
-  canHandle(buffer: Buffer): boolean {
-    return canHandleLMUSourceFrame(buffer);
+  canHandle: lmuParser.canHandle,
+  tryParse(buffer, state) {
+    return lmuParser.tryParse(buffer, state as never);
   },
-
-  tryParse(buffer: Buffer): TelemetryPacket | null {
-    const frame = decodeLMUSourceFrame(buffer);
-    return frame ? normalizeLMUSourceFrame(frame) : null;
+  tryParseLapIndex(buf, state) {
+    return lmuParser.tryParseLapIndex.call(this, buf, state as never);
   },
-
-  tryParseLapIndex(buf: Buffer, state: unknown): LapIndexPacket | null {
-    return this.tryParse(buf, state) as LapIndexPacket | null;
+  primeParserState(buf, state) {
+    lmuParser.primeParserState(buf, state as never);
   },
-
-  primeParserState(_buf: Buffer, _state: unknown): void {},
-  createParserState(): null {
-    return null;
-  },
+  createParserState: lmuParser.createParserState,
 
   // LMU frames are already gated by IsRaceOn. Consistent shared-memory reads
   createLapDetector: (options) =>
     new LapDetector({
       ...options,
       bypassPacketRateFilter: true,
-      policy: lmuLapPolicy,
+      policy: LMU_LAP_DETECTOR_POLICY,
     }),
   aiSystemPrompt: LMU_SYSTEM_PROMPT,
 
