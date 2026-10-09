@@ -8,7 +8,8 @@
     "./normalizer": "./src/normalizer.ts",
     "./source": "./src/source.ts",
     "./test-support/duckdb": "./test/support/duckdb.ts",
-    "./test-support/recordings": "./test/support/recordings.ts"
+    "./test-support/recordings": "./test/support/recordings.ts",
+    "./game-parser": "./src/game-parser.ts"
   },
   "dependencies": {
     "@duckdb/node-api": "1.5.2-r.2",
@@ -16,8 +17,8 @@
     "@raceiq/shared": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/game-lmu-metadata": "workspace:*",
-    "@raceiq/telemetry-core": "workspace:*",
-    "@raceiq/analysis-core": "workspace:*"
+    "@raceiq/analysis-core": "workspace:*",
+    "@raceiq/telemetry-core": "workspace:*"
   },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit",

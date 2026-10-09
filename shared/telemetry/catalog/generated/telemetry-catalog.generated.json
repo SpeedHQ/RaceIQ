@@ -9,18 +9,18 @@
       "sourceHash": "6b034cdac3e5ddca6252f4b16ef194f29ba1d17ec023cbff2be1ef881787fe31"
     },
     "sourceHashes": {
-      "packages/game-ac-evo/src/parser.ts": "a3d22f183f9b53aa02063408c4ce569b007122b1f39900551b2c437da6ac29bf",
-      "packages/game-acc/src/parser.ts": "44e7a44e5e3531068aeaa197e2127fd206532dc634707fb0d898d94d7791a89e",
-      "packages/game-f1-2025/src/f1-state.ts": "c407d282745a3ac5cd1856f26d8467eaca6be0f4c73aa6d4f624ff7a2af1bea0",
+      "packages/game-ac-evo/src/parser.ts": "5cd69dfb1fecf8732f31d30cf56143f1a258f7a7d2d1e02a1336c64be5ef83f4",
+      "packages/game-acc/src/parser.ts": "87788f824d3c5f1bd8f975bb2ca1d20a491f9fc6ad605b035929990962dcc302",
+      "packages/game-f1-2025/src/f1-state.ts": "8d20acdecb7413aacc36738e5ebfb0407f93a84f851629d16539e7a6bdeb93a3",
       "packages/game-fm-2023/src/parser.ts": "dd476256f50870123ab00bf486d4ed998069f3ff1f368b7b36a368a0254f4463",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
-      "packages/game-iracing/src/normalizer.ts": "1fbd0a0cb016c89cb8865d3caa9ddabbf8e0710a1066bfe5937b529687af3f58",
+      "packages/game-iracing/src/normalizer.ts": "6c2607cb65cf5aa1ac0798f2d0678fda2fbae3579c7c436b72074f732919d70c",
       "packages/game-lmu/src/normalizer.ts": "443eb17dc93034a0a78023df8b08ce1bb12290a77b4b44f5a73e7bc18fad7dd7",
       "packages/tooling-catalog/src/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "11040a6a0d84ebdf7c9367303a563bb04e17891237b1a3e8d1fde58047419265"
     },
-    "contentHash": "f5538257b92596b71672ce7a1413574156b7042f255fe39fdab9deac27e1ea02"
+    "contentHash": "c79a9091f13ccd4cdba1329693642f4262a46d38a76eab89e9d0216ebdc1fc36"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -9133,18 +9133,30 @@
           }
         },
         "acc": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "ms",
           "sources": [
             "RaceIQ.SystemClock"
           ],
           "freshness": "continuous",
+          "normalization": "overrides?.timestampMs ?? 0",
           "description": "acc maps 1 native source channel into this value.",
           "provenance": {
             "origin": "derivation",
             "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "acc:diagnostics.timestamp-ms:normalized",
+            "version": "0.19.2",
+            "deterministic": true,
+            "declaredInputs": [
+              "RaceIQ.SystemClock"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "e4c783431145a5d4ac20380e410e0b27cb0ef75777671bc2931f73fd8ca78b99"
+          }
         },
         "ac-evo": {
           "kind": "direct",

@@ -29,8 +29,8 @@ import {
   ACEVO_STARTING_GRIP_NAMES,
 } from "@raceiq/capture-formats/ac-evo/structs";
 import { readCString } from "./utils";
-import { getAcEvoCarByDisplayName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo"
-import { getAcEvoTrackByName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo"
+import { getAcEvoParserCarByDisplayName, getAcEvoParserTrackByName } from "@raceiq/game-ac-evo-metadata/parser-data-resolver";
+
 
 export interface AcEvoParserCache {
   carOrdinal: number;
@@ -60,6 +60,7 @@ export function parseAcEvoBuffers(
   graphicsBuf: Buffer,
   staticBuf: Buffer,
   cache: AcEvoParserCache,
+  timestampMs = 0,
 ): TelemetryPacket | null {
   if (
     physicsBuf.length < PHYSICS.SIZE ||
@@ -77,7 +78,7 @@ export function parseAcEvoBuffers(
 
   if (carModelStr && carModelStr !== cache.lastCarModel) {
     cache.lastCarModel = carModelStr;
-    const car = getAcEvoCarByDisplayName(carModelStr);
+    const car = getAcEvoParserCarByDisplayName(carModelStr);
     if (car) {
       cache.carOrdinal = car.id;
       console.log(`[AC Evo Parser] Resolved car: "${carModelStr}" → ordinal ${car.id}`);
@@ -92,7 +93,7 @@ export function parseAcEvoBuffers(
   const trackKey = `${trackStr}|${trackCfgStr}`;
   if (trackStr && trackKey !== cache.lastTrack) {
     cache.lastTrack = trackKey;
-    const track = getAcEvoTrackByName(trackStr, trackCfgStr);
+    const track = getAcEvoParserTrackByName(trackStr, trackCfgStr);
     if (track) {
       cache.trackOrdinal = track.id;
       console.log(`[AC Evo Parser] Resolved track: "${trackStr}" (config "${trackCfgStr}") → ordinal ${track.id} (${track.name} - ${track.variant})`);
@@ -473,7 +474,7 @@ export function parseAcEvoBuffers(
     gameId: "ac-evo" as GameId,
     acc,
     IsRaceOn: isRaceOn,
-    TimestampMS: Date.now(),
+    TimestampMS: timestampMs,
 
     EngineMaxRpm: currentMaxRpm || 0,
     EngineIdleRpm: 0,

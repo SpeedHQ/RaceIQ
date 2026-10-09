@@ -6,6 +6,7 @@
 - Browse enriched iRacing car, car-class, and track catalogs with official car images, offline pit-road maps, and grouped lap sections.
 
 ### Fixes
+- Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
 
 - Load LMU track boundaries without long stalls on detailed SVG maps.
 - Show unnamed multi-turn sections once in Analyse and track-detail labels.
@@ -13,10 +14,16 @@
 ### Internal
 - Remove unused compiled artifact downloads and base production builds from dev-mode dashboard screenshot CI.
 - Split current and base dashboard screenshot renders into four CI shards while retaining the complete screenshot inventory.
+- Document new-game integration, lossless sparse recording, lap correctness checks, and gzip fixture splitting without Git LFS; align capture and architecture guides with current implementation.
 - Avoid per-packet serialization and hashing during race-result reconciliation while retaining raw capture identity and processing provenance.
 - Add Bun-only parser/pipeline, retained-heap, import, and recording benchmarks with isolated workloads and explicit measurement scopes.
+- Move capture formats and parser contracts into reusable packages; place portable lap engines, policies, and sectors in telemetry-core, with batch orchestration and explicit parser routing in telemetry-processor.
+- Expose a complete-payload Bun batch API with caller-supplied capture bytes and explicit segment context/boundary markers.
+- Preserve copied benchmark harness compatibility with pre-extraction base checkouts and retain Forza's required backend dependency.
+- Preserve lap-quality rejection assertions and caller feature flags in relocated tests; keep portable detector constructors compatible with erasable TypeScript and remove unused host-detector remnants.
 - Correct Linux benchmark CPU/RSS sampling and run iRacing parser/import benchmarks independently of production release flags.
 - Skip build, test, browser, snapshot, and benchmark PR jobs for automated release version bump branches.
+- Declare the frontend contract tests' backend-core dependency so clean CI installs resolve setup-import test modules.
 
 ## v0.19.2 - 2026-10-04
 

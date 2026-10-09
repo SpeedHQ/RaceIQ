@@ -24,8 +24,8 @@ import { deleteLap, updateLapNotes, updateLapValidity } from "@raceiq/backend-co
 import { setLapFavorite } from "@raceiq/backend-core/db/session-queries";
 import { setLapExperimentExcluded } from "@raceiq/backend-core/db/experiment-lap-queries";
 import { recordAction } from "@raceiq/backend-core/db/experiment-action-queries";
-import { assessLapRecording } from "@raceiq/backend-core/lap-analysis/quality";
-import { computeNativeSectorTimeline, computeLapSectors } from "@raceiq/backend-core/lap-analysis/sectors";
+import { assessLapRecording } from "@raceiq/telemetry-core/processor/lap-policy";
+import { computeNativeSectorTimeline, computeLapSectors } from "@raceiq/telemetry-core/processor/sectors";
 import { generateExport } from "@raceiq/backend-core/lap-analysis/report";
 import { resolveTrack } from "@raceiq/backend-core/tracks/info";
 import { computeLineSpreadTrace } from "@raceiq/backend-core/lap-analysis/consistency";
@@ -362,6 +362,7 @@ export const resourceRoutes = new Hono()
         lap.gameId as GameId,
         packets,
         lap.lapTime,
+        { sectors: resolveTrack(lap.gameId, lap.trackOrdinal).sectors },
       );
     }
 

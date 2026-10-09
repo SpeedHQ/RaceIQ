@@ -4,7 +4,7 @@ import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/captur
 import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "./kunos-sparse";
 import { gzip, gzipSync, gunzip, gunzipSync } from "node:zlib";
 import { promisify } from "node:util";
-import { MAX_DECOMPRESSED_CAPTURE_BYTES } from "../archive/bounded-unzip";
+import { MAX_DECOMPRESSED_CAPTURE_BYTES } from "./limits";
 
 function isLmuSourceFrame(frame: Buffer): boolean {
   return frame.length === LMU_SOURCE_FRAME_V2_SIZE && frame.subarray(0, LMU_SOURCE_FRAME_MAGIC.length).equals(LMU_SOURCE_FRAME_MAGIC);

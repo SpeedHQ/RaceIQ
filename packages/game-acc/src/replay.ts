@@ -1,4 +1,4 @@
-import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { STATIC } from "@raceiq/capture-formats/acc/structs";
 import { parseAccBuffers } from "./parser";
 import { readWString } from "./utils";

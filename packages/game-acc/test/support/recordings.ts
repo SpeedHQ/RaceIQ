@@ -2,12 +2,12 @@ import type { RecordingGameSupport, ParsedFrames } from "@raceiq/backend-core/te
 import { accServerAdapter } from "../../src/index";
 import { parseAccBuffers } from "../../src/parser";
 import { readWString } from "../../src/utils";
-import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { STATIC } from "@raceiq/capture-formats/acc/structs";
 import { getAccCarByModel } from "@raceiq/game-acc-metadata/racing/cars/acc";
 import { getAccTrackByName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing";
+import { META_FRAME_MAGIC } from "@raceiq/capture-formats/session/framing";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 

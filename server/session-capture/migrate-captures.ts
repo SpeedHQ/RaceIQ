@@ -10,9 +10,9 @@ import { laps, sessions } from "../db/schema";
 import { listCaptureMigrationCandidates } from "../db/session-queries";
 import { cacheDelete } from "../db/telemetry-replay-storage";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
-import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame } from "./framing";
+import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame } from "@raceiq/capture-formats/session/framing";
 import { clearSessionCaptureCache, iterateSessionCaptureRecordsFromSource, type SessionCaptureSource } from "./source-loader";
-import { SparseCaptureEncoder } from "./sparse-recorder";
+import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
 import type { GameId } from "@raceiq/shared/games/ids";
 
 

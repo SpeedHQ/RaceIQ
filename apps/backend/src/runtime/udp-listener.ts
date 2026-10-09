@@ -16,7 +16,7 @@ import { isForzaRaceOffPacket } from "@raceiq/game-fm-2023/parser";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import { processPacket, flushSessionRecorderBuffer, lapDetector } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { getRunningGame } from "@raceiq/backend-core/games/registry";
-import { SessionRecorder } from "@raceiq/backend-core/session-capture/recorder";
+import { SessionRecorder } from "@raceiq/capture-formats/session/recorder";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { timestampForFilename } from "@raceiq/backend-core/session-capture/filename";
 

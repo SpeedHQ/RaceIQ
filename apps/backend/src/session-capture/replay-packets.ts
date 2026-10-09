@@ -11,10 +11,10 @@ import {
   parseAcEvoBuffers,
 } from "@raceiq/game-ac-evo/parser";
 import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
-import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump";
-import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump-decoder";
+import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
-import { decompressIfGzipSync, iterateSessionCaptureRecords, iterateSessionFrames } from "@raceiq/backend-core/session-capture/framing";
+import { decompressIfGzipSync, iterateSessionCaptureRecords, iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "@raceiq/backend-core/session-capture/frame-time";
 
 export interface RecordedTelemetry {

@@ -13,39 +13,26 @@
  */
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { GameId } from "@raceiq/shared/games/ids";
-import type { ILapDetector, LapDetectorOptions, LapDetectorPolicy } from "./types";
+import type { ILapDetector, LapDetectorOptions } from "./types";
+import { DEFAULT_LAP_DETECTOR_POLICY, assessLapRecording, mergePitCycleReason, type LapDetectorPolicy } from "@raceiq/telemetry-core/processor/lap-policy";
 import { extractCurbSegments, recordCurbData } from "@raceiq/shared/racing/tracks/recording/curbs";
 import { recordLapTrace } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { getIRacingSharedTrackName } from "@raceiq/game-iracing-metadata/racing/tracks/catalogs/iracing"
 import { lapPath } from "@raceiq/shared/racing/tracks/path";
-import { classifyPitCycleLap, forzaPitTransitionEvidence, type PitCycleReason } from "@raceiq/analysis-core/racing/laps/pit-cycle";
-import { assessLapRecording } from "../lap-analysis/quality";
+import { forzaPitTransitionEvidence, type PitCycleReason } from "@raceiq/analysis-core/racing/laps/pit-cycle";
 import { persistLapMetrics } from "../lap-analysis/metrics-store";
 import { reconcileAutoExclusionsForLap } from "../experiments/auto-exclude";
-import { computeLapSectors as computeLapSectorsHelper } from "../lap-analysis/sectors";
-import { detectSessionBoundary, detectLapBoundary, detectLapReset } from "./boundaries";
+import { computeLapSectors as computeLapSectorsHelper } from "@raceiq/telemetry-core/processor/sectors";
+import { resolveTrack } from "../tracks/info";
+import {
+  OrdinalDetectorEngine,
+  type OrdinalEngineState,
+} from "@raceiq/telemetry-core/processor/ordinal-engine";
 import { logger } from "../runtime/logger";
 import type { SessionIdentity } from "../telemetry/pipeline-ports";
 
 function traceCapture(game: string, event: string, fields: Record<string, unknown>): void {
   logger.trace({ component: "capture", event, game, ...fields }, "Lap capture trace");
-}
-const DEFAULT_LAP_POLICY: LapDetectorPolicy = {
-  resolveLapTime(_packets, newLapFirstPacket) {
-    return newLapFirstPacket.LastLap > 0 ? newLapFirstPacket.LastLap : 0;
-  },
-  classifyPitCycle(packets) {
-    return classifyPitCycleLap(packets);
-  },
-};
-
-function mergePitCycleReason(
-  current: PitCycleReason | null,
-  next: PitCycleReason | null,
-): PitCycleReason | null {
-  if (!current) return next;
-  if (!next || current === next) return current;
-  return "pit lap";
 }
 
 
@@ -103,292 +90,175 @@ export class LapDetector implements ILapDetector {
   private readonly db: LapDetectorOptions["db"];
   private readonly bypassPacketRateFilter: boolean;
   private readonly lapPolicy: LapDetectorPolicy;
+  private readonly engine: OrdinalDetectorEngine;
+  private currentSession: SessionState | null = null;
   onSessionStart?: (session: SessionState) => void | Promise<void>;
   onLapComplete_?: (event: LapCompleteEvent) => void;
   onLapSaved?: (event: LapSavedEvent) => void;
+  private _loggedFeedOnce = false;
+  private pendingIncompleteLapId: number | null = null;
+  private pendingIncompleteLapWrite: Promise<void> | null = null;
+
+  private get state(): OrdinalEngineState { return this.engine.state; }
+  private get currentLapNumber() { return this.state.lapNumber; }
+  private set currentLapNumber(v: number) { this.state.lapNumber = v; }
+  private get lapBuffer() { return this.state.lapBuffer; }
+  private set lapBuffer(v: TelemetryPacket[]) { this.state.lapBuffer = v; }
+  private get lapIsValid() { return this.state.lapIsValid; }
+  private set lapIsValid(v: boolean) { this.state.lapIsValid = v; }
+  private get invalidReason() { return this.state.invalidReason; }
+  private set invalidReason(v: string | null) { this.state.invalidReason = v; }
+  private get lastLastLap() { return this.state.lastLastLap; }
+  private set lastLastLap(v: number) { this.state.lastLastLap = v; }
+  private get completedLapCount() { return this.state.completedLapCount; }
+  private set completedLapCount(v: number) { this.state.completedLapCount = v; }
+  private get lastTimestampMS() { return this.state.lastTimestampMS; }
+  private set lastTimestampMS(v: number) { this.state.lastTimestampMS = v; }
+  private get lastPacketTime() { return this.state.lastPacketTime; }
+  private set lastPacketTime(v: number) { this.state.lastPacketTime = v; }
+  private get recentPacketCount() { return this.state.recentPacketCount; }
+  private set recentPacketCount(v: number) { this.state.recentPacketCount = v; }
+  private get lastRateCheck() { return this.state.lastRateCheck; }
+  private set lastRateCheck(v: number) { this.state.lastRateCheck = v; }
+  private get packetRate() { return this.state.packetRate; }
+  private set packetRate(v: number) { this.state.packetRate = v; }
+  private get _distanceAtLapStart() { return this.state.distanceAtLapStart; }
+  private set _distanceAtLapStart(v: number) { this.state.distanceAtLapStart = v; }
+  private get fuelAtLapStart() { return this.state.fuelAtLapStart; }
+  private set fuelAtLapStart(v: number) { this.state.fuelAtLapStart = v; }
+  private get _fuelHistory() { return this.state.fuelHistory as LapFuelData[]; }
+  private get tireWearAtLapStart() { return this.state.tireWearAtLapStart; }
+  private set tireWearAtLapStart(v: {fl:number;fr:number;rl:number;rr:number}) { this.state.tireWearAtLapStart = v; }
+  private get _tireWearHistory() { return this.state.tireWearHistory as LapTireWearData[]; }
+  private get _lapByteOffset() { return this.state.lapByteOffset; }
+  private set _lapByteOffset(v: number | null) { this.state.lapByteOffset = v; }
+  private get _lapFrameCount() { return this.state.lapFrameCount; }
+  private set _lapFrameCount(v: number) { this.state.lapFrameCount = v; }
+  private get currentPitCycleReason() { return this.state.currentPitCycleReason as PitCycleReason | null; }
+  private set currentPitCycleReason(v: PitCycleReason | null) { this.state.currentPitCycleReason = v; }
+  private get nextPitCycleReason() { return this.state.nextPitCycleReason as PitCycleReason | null; }
+  private set nextPitCycleReason(v: PitCycleReason | null) { this.state.nextPitCycleReason = v; }
+  private get forzaRaceOffObserved() { return this.state.forzaRaceOffObserved; }
+  private set forzaRaceOffObserved(v: boolean) { this.state.forzaRaceOffObserved = v; }
 
   constructor(opts: LapDetectorOptions) {
     this.db = opts.db;
     this.bypassPacketRateFilter = opts.bypassPacketRateFilter ?? false;
-    this.lapPolicy = opts.policy ?? DEFAULT_LAP_POLICY;
+    this.lapPolicy = opts.policy ?? DEFAULT_LAP_DETECTOR_POLICY;
     this.onSessionStart = opts.callbacks?.onSessionStart;
     this.onLapComplete_ = opts.callbacks?.onLapComplete;
     this.onLapSaved = opts.callbacks?.onLapSaved;
+    this.engine = new OrdinalDetectorEngine({
+      now: () => Date.now(),
+      log: (message) => console.log(message),
+      createSession: async (packet) => {
+        const created = await this.startNewSession(packet);
+        if (!created) return null;
+        return {
+          carOrdinal: created.carOrdinal, trackOrdinal: created.trackOrdinal,
+          gameId: created.gameId, sessionUID: created.sessionUID,
+          carId: created.carId, trackId: created.trackId,
+        };
+      },
+      onSessionStarted: async () => { if (this.currentSession) await this.onSessionStart?.(this.currentSession); },
+      onProvisionalLapResume: async (startsNewSession) => {
+        if (this.pendingIncompleteLapWrite) await this.pendingIncompleteLapWrite;
+        if (this.pendingIncompleteLapId === null) return;
+        if (startsNewSession) {
+          this.pendingIncompleteLapId = null;
+          return "discard";
+        }
+        const id = this.pendingIncompleteLapId;
+        this.pendingIncompleteLapId = null;
+        await this.db.deleteLap(id);
+        return "retain";
+      },
+      pitTransition: (previous, next, raceOffObserved) => {
+        const evidence = forzaPitTransitionEvidence(previous, next, raceOffObserved);
+        if (evidence.detected) {
+          this.currentPitCycleReason = mergePitCycleReason(this.currentPitCycleReason, "inlap");
+          this.nextPitCycleReason = mergePitCycleReason(this.nextPitCycleReason, "outlap");
+          console.log(`[Lap] FM pit transition: raceOff=${evidence.raceOffObserved} timingGap=${evidence.timingGap} fuel=${evidence.fuelIncreased} tires=${evidence.tireWearRefreshed}`);
+        }
+        return evidence.detected;
+      },
+      finalizeLap: (packet) => this.onLapComplete(packet),
+      finalizeIncompleteLap: () => this.finalizeLapIfNeeded(),
+      finalizeStaleLap: async (lapTime, isComplete, silenceMs, state) => {
+        const session = this.currentSession;
+        if (!session) return;
+        const tuneAssignment = await this.db.getTuneAssignment(session.gameId, session.carOrdinal, session.trackOrdinal);
+        const lapNum = state.lapNumber;
+        const packetCount = state.lapBuffer.length;
+        const lapPackets = state.lapBuffer;
+        this.db.insertLap(
+          session.sessionId,
+          lapNum,
+          lapTime,
+          isComplete && state.lapIsValid,
+          state.lapByteOffset,
+          state.lapFrameCount,
+          null,
+          tuneAssignment?.tuneId ?? null,
+          isComplete ? state.invalidReason : "incomplete",
+          null,
+        ).then(async (lapId) => {
+          await this.persistLapFollowups(lapId, lapPackets);
+          console.log(
+            `[Lap] Flushed stale lap ${lapNum} | Time: ${formatLapTime(lapTime)} | ${isComplete ? "Complete" : "Incomplete"} | Packets: ${packetCount} | DB ID: ${lapId} (${(silenceMs / 1000).toFixed(0)}s silence)`
+          );
+        }).catch((err) => {
+          console.error("[Lap] Failed to flush stale lap:", err);
+        });
+      },
+      finalizeSession: async () => { this.currentSession = null; },
+    }, { bypassPacketRateFilter: this.bypassPacketRateFilter });
   }
 
-  private currentSession: SessionState | null = null;
-  private currentLapNumber: number = -1; // -1 = no lap yet (awaiting first packet)
-  private lapBuffer: TelemetryPacket[] = []; // all packets for the in-progress lap
-  private lapIsValid: boolean = true; // false if rewind detected mid-lap
-  private invalidReason: string | null = null;
-  private _loggedFeedOnce: boolean = false; // debug flag to log feed start once
-  private lastLastLap: number = 0; // track LastLap changes for final-lap detection
-  private completedLapCount = 0;
-  private lastTimestampMS: number = 0; // in-game timestamp for rewind detection
-  private lastPacketTime: number = 0; // wall clock for silence timeout detection
-  private recentPacketCount: number = 0; // packets in the last second
-  private lastRateCheck: number = 0; // wall clock of last rate measurement
-  private packetRate: number = 0; // estimated packets per second
-  private _distanceAtLapStart: number = 0;
-  private fuelAtLapStart: number = -1; // -1 = not yet initialized
-  private _fuelHistory: LapFuelData[] = []; // rolling window (last 50 laps)
-  private tireWearAtLapStart = { fl: -1, fr: -1, rl: -1, rr: -1 };
-  private _tireWearHistory: LapTireWearData[] = []; // rolling window (last 50 laps)
-  private _lapByteOffset: number | null = null;
-  private _lapFrameCount: number = 0;
-  private _currentRawByteOffset: number | null = null;
-  private pendingIncompleteLapId: number | null = null;
-  private pendingIncompleteLapWrite: Promise<void> | null = null;
-  private currentPitCycleReason: PitCycleReason | null = null;
-  private nextPitCycleReason: PitCycleReason | null = null;
-  private forzaRaceOffObserved = false;
-
-  get session(): SessionState | null {
-    return this.currentSession;
-  }
-
-  get fuelHistory(): LapFuelData[] {
-    return this._fuelHistory;
-  }
-
-  get tireWearHistory(): LapTireWearData[] {
-    return this._tireWearHistory;
-  }
-
-  /**
-   * Overwrite the current lap's byte offset. Used by the pipeline when the
-   * session recorder is created mid-feed and the first packet is written
-   * retroactively — the detector itself never saw a valid offset for that
-   * packet, so lap 1 would otherwise start at null.
-   */
-  setCurrentLapByteOffset(offset: number): void {
-    this._lapByteOffset = offset;
-    this._currentRawByteOffset = offset;
-  }
-
-  /**
-   * Persist the current FM lap without consuming its detector state. FM emits
-   * indistinguishable race-off packets during pit service and after a finish.
-   * Resumed telemetry deletes this provisional row; a real session boundary
-   * or game disconnect keeps it as the final lap.
-   */
+  get session(): SessionState | null { return this.currentSession; }
+  get fuelHistory(): LapFuelData[] { return this._fuelHistory; }
+  get tireWearHistory(): LapTireWearData[] { return this._tireWearHistory; }
+  setCurrentLapByteOffset(offset: number): void { this.engine.setCurrentLapByteOffset(offset); }
   async snapshotIncompleteLap(): Promise<void> {
-    if (this.currentSession?.gameId === "fm-2023") this.forzaRaceOffObserved = true;
+    if (this.currentSession?.gameId === "fm-2023") this.engine.markProvisionalSnapshot();
     if (this.pendingIncompleteLapId !== null) return;
     if (this.pendingIncompleteLapWrite) return this.pendingIncompleteLapWrite;
-    if (!this.currentSession || this.currentLapNumber < 0 || this.lapBuffer.length === 0) return;
-
-    const session = this.currentSession;
-    const lapNumber = this.currentLapNumber;
-    const lapTime = this.lapBuffer[this.lapBuffer.length - 1].CurrentLap;
-    const rawByteOffset = this._lapByteOffset;
-    const rawFrameCount = this._lapFrameCount;
+    if (!this.currentSession || this.currentLapNumber < 0 || !this.lapBuffer.length) return;
+    const session = this.currentSession, lapNumber = this.currentLapNumber;
+    const lapTime = this.lapBuffer.at(-1)!.CurrentLap;
     if (lapTime < 10) return;
-
     this.pendingIncompleteLapWrite = (async () => {
-      const tuneAssignment = await this.db.getTuneAssignment(
-        session.gameId,
-        session.carOrdinal,
-        session.trackOrdinal,
-      );
-      this.pendingIncompleteLapId = await this.db.insertLap(
-        session.sessionId,
-        lapNumber,
-        lapTime,
-        false,
-        rawByteOffset,
-        rawFrameCount,
-        null,
-        tuneAssignment?.tuneId ?? null,
-        this.currentPitCycleReason ?? "incomplete",
-        null,
-      );
+      const tune = await this.db.getTuneAssignment(session.gameId, session.carOrdinal, session.trackOrdinal);
+      this.pendingIncompleteLapId = await this.db.insertLap(session.sessionId, lapNumber, lapTime, false, this._lapByteOffset, this._lapFrameCount, null, tune?.tuneId ?? null, this.currentPitCycleReason ?? "incomplete", null);
       console.log(`[Lap] Saved provisional incomplete lap ${lapNumber}`);
     })();
-    try {
-      await this.pendingIncompleteLapWrite;
-    } finally {
-      this.pendingIncompleteLapWrite = null;
-    }
+    try { await this.pendingIncompleteLapWrite; } finally { this.pendingIncompleteLapWrite = null; }
   }
-
-  /**
-   * Save any buffered lap before closing the session. Games such as Forza do
-   * not always publish a final LapNumber/LastLap rollover before telemetry ends.
-   */
   async finalizeCurrentSession(): Promise<void> {
     if (!this.currentSession) return;
     const sessionId = this.currentSession.sessionId;
     await this.pendingIncompleteLapWrite;
     await this.flushIncompleteLap();
     console.log(`[Lap Detector] Finalizing session ${sessionId} due to game disconnect`);
-    this.currentSession = null;
+    await this.engine.finalizeCurrentSession();
   }
-
   async flushIncompleteLap(): Promise<void> {
     await this.pendingIncompleteLapWrite;
-    if (this.pendingIncompleteLapId === null) await this.finalizeLapIfNeeded();
+    if (this.pendingIncompleteLapId === null) await this.engine.flushIncompleteLap();
+    else this.engine.discardIncompleteLap();
     this.pendingIncompleteLapId = null;
-    this.lapBuffer = [];
-    this.currentLapNumber = -1;
-    this.lastPacketTime = 0;
   }
-
-  /**
-   * Feed a parsed telemetry packet into the detector.
-   * Handles session creation, lap boundary detection, and rewind detection.
-   */
   async feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void> {
-    this._currentRawByteOffset = rawByteOffset ?? null;
-    // Debug: log if lap detector receives any packets
     if (!this._loggedFeedOnce) {
       console.log("[Lap Detector] Started receiving packets from pipeline");
       this._loggedFeedOnce = true;
     }
-
-    const now = Date.now();
-
-    // Track packet rate to distinguish active driving from post-race trickle
-    this.recentPacketCount++;
-    if (now - this.lastRateCheck >= 1000) {
-      this.packetRate = this.recentPacketCount;
-      this.recentPacketCount = 0;
-      this.lastRateCheck = now;
-    }
-
-    // Ignore trickle packets (< 30 pps) — post-race/menu screens send
-    // sporadic packets that cause ghost sessions and bad data
-    if (!this.bypassPacketRateFilter && this.currentSession && this.packetRate > 0 && this.packetRate < 30) {
-      this.lastPacketTime = now;
-      return;
-    }
-    await this.pendingIncompleteLapWrite;
-    const startsNewSession = this.shouldStartNewSession(packet, now);
-    const previousPacket = this.lapBuffer[this.lapBuffer.length - 1];
-    if (
-      !startsNewSession &&
-      previousPacket &&
-      this.currentSession?.gameId === "fm-2023"
-    ) {
-      const pitEvidence = forzaPitTransitionEvidence(
-        previousPacket,
-        packet,
-        this.forzaRaceOffObserved,
-      );
-      if (pitEvidence.detected) {
-        this.currentPitCycleReason = mergePitCycleReason(this.currentPitCycleReason, "inlap");
-        this.nextPitCycleReason = mergePitCycleReason(this.nextPitCycleReason, "outlap");
-        console.log(
-          `[Lap] FM pit transition: raceOff=${pitEvidence.raceOffObserved} timingGap=${pitEvidence.timingGap} fuel=${pitEvidence.fuelIncreased} tires=${pitEvidence.tireWearRefreshed}`,
-        );
-      }
-    }
-    this.forzaRaceOffObserved = false;
-    if (this.pendingIncompleteLapId !== null) {
-      if (startsNewSession) {
-        // Snapshot already represents the old session's last lap.
-        this.pendingIncompleteLapId = null;
-        this.lapBuffer = [];
-        this.currentLapNumber = -1;
-      } else {
-        // Pit service ended: remove provisional row, then complete the same
-        // buffered lap normally from resumed LapNumber/LastLap telemetry.
-        const lapId = this.pendingIncompleteLapId;
-        this.pendingIncompleteLapId = null;
-        await this.db.deleteLap(lapId);
-      }
-    }
-
-    if (startsNewSession) {
-      await this.finalizeLapIfNeeded();
-      await this.startNewSession(packet);
-    }
-
-    // Race restart / final lap detection
-    if (
-      this.currentLapNumber >= 0 &&
-      this.lapBuffer.length > 30 &&
-      packet.LapNumber === this.currentLapNumber
-    ) {
-      const resetResult = detectLapReset(
-        this.lapBuffer[this.lapBuffer.length - 1],
-        this.lastLastLap,
-        packet
-      );
-      if (resetResult.action === "complete-final-lap") {
-        console.log(`[Lap] Final lap completed: LastLap ${this.lastLastLap.toFixed(3)} -> ${packet.LastLap.toFixed(3)}`);
-        await this.onLapComplete(packet);
-      } else if (resetResult.action === "reset-restart") {
-        console.log(`[Lap] Race restart detected — discarding buffer`);
-        this.resetLapState(packet);
-      }
-    }
-
-    // Rewind detection: TimestampMS decreased (within same lap)
-    if (
-      this.lastTimestampMS > 0 &&
-      packet.TimestampMS < this.lastTimestampMS &&
-      packet.LapNumber === this.currentLapNumber
-    ) {
-      if (this.lapIsValid) {
-        console.log(`[Lap] Rewind: timestamp ${this.lastTimestampMS} -> ${packet.TimestampMS}. Marking lap invalid.`);
-      }
-      this.invalidateLap("rewind");
-    }
-
-    // Lap boundary detection
-    if (this.currentLapNumber >= 0 && packet.LapNumber !== this.currentLapNumber) {
-      const lapResult = detectLapBoundary(this.currentLapNumber, packet);
-      if (lapResult.action === "reset-rewind") {
-        console.log(`[Lap] Rewind across lap boundary: ${this.currentLapNumber} -> ${packet.LapNumber}. Discarding buffer.`);
-        this.resetLapState(packet);
-      } else if (lapResult.action === "complete-skip") {
-        console.log(`[Lap] Lap skip: ${this.currentLapNumber} -> ${packet.LapNumber}. Marking invalid.`);
-        this.invalidateLap(lapResult.invalidReason);
-        await this.onLapComplete(packet);
-      } else {
-        await this.onLapComplete(packet);
-      }
-    }
-
-    this.lastLastLap = packet.LastLap;
-
-    // Initialize lap tracking on first packet
-    if (this.currentLapNumber < 0) {
-      this.currentLapNumber = packet.LapNumber;
-      this._distanceAtLapStart = packet.DistanceTraveled;
-      // Seed byte offset from the current packet so lap 1 points to where
-      // it actually starts in the current session's .bin file (not the
-      // previous session's stale offset).
-      this._lapByteOffset = this._currentRawByteOffset;
-      this._lapFrameCount = 0;
-    }
-
-    // Buffer the packet for the current lap
-    this.lapBuffer.push(packet);
-    this._lapFrameCount++;
-    this.lastTimestampMS = packet.TimestampMS;
-    this.lastPacketTime = now;
+    await this.engine.feed(packet, rawByteOffset);
   }
 
-  private shouldStartNewSession(packet: TelemetryPacket, now: number): boolean {
-    const lastDist = this.lapBuffer.length > 0
-      ? this.lapBuffer[this.lapBuffer.length - 1].DistanceTraveled
-      : null;
-    const reason = detectSessionBoundary(
-      this.currentSession,
-      this.currentLapNumber,
-      lastDist,
-      this.lastPacketTime,
-      packet,
-      now
-    );
-    if (reason === "silence-timeout" && packet.gameId === "fm-2023") return false;
-    if (reason) console.log(`[Session] New session: ${reason}`);
-    return reason !== null;
-  }
 
-  private async startNewSession(packet: TelemetryPacket): Promise<void> {
+
+  private async startNewSession(packet: TelemetryPacket): Promise<SessionState | null> {
     const trackOrd = packet.TrackOrdinal ?? 0;
     const gameId = packet.gameId;
     const sessionType = packet.f1?.sessionType ?? packet.lmu?.sessionType;
@@ -411,7 +281,7 @@ export class LapDetector implements ILapDetector {
       );
     } catch (err) {
       console.error(`[LapDetector] Failed to insert session:`, (err as Error).message);
-      return;
+      return null;
     }
     this.currentSession = {
       sessionId,
@@ -423,68 +293,19 @@ export class LapDetector implements ILapDetector {
       ...identity,
       bestLapTime: 0,
     };
-    this.currentLapNumber = -1;
-    this.lapBuffer = [];
-    this.lapIsValid = true;
-    this.invalidReason = null;
-    this.completedLapCount = 0;
-    this.lastTimestampMS = 0;
-    this._distanceAtLapStart = packet.DistanceTraveled;
-    // Reset raw-file bookkeeping so lap 1 of this session doesn't inherit
-    // byte offsets/frame counts from the previous session's .bin file.
-    this._lapByteOffset = null;
-    this._lapFrameCount = 0;
-    this.pendingIncompleteLapId = null;
-    this.currentPitCycleReason = null;
-    this.nextPitCycleReason = null;
-    this.forzaRaceOffObserved = false;
-
     console.log(
       `[Session] New session #${sessionId} | Car: ${packet.CarOrdinal} | Class: ${packet.CarClass} | PI: ${packet.CarPerformanceIndex}${sessionType ? ` | Type: ${sessionType}` : ""}`
     );
-
-    await this.onSessionStart?.(this.currentSession!);
+    return this.currentSession;
   }
 
-  private async onLapComplete(newLapFirstPacket: TelemetryPacket): Promise<void> {
-    if (!this.currentSession || this.lapBuffer.length === 0) {
-      this.resetLapState(newLapFirstPacket);
-      return;
-    }
+  private async onLapComplete(newLapFirstPacket: TelemetryPacket): Promise<boolean> {
+
+    if (!this.currentSession || this.lapBuffer.length === 0) return false;
     const traceStartedAt = performance.now();
 
 
-    // Record fuel usage
-    const fuelEnd = this.lapBuffer[this.lapBuffer.length - 1].Fuel;
-    if (this.fuelAtLapStart >= 0) {
-      this._fuelHistory.push({
-        lap: this.currentLapNumber,
-        fuelStart: this.fuelAtLapStart,
-        fuelEnd,
-        fuelUsed: this.fuelAtLapStart - fuelEnd,
-      });
-      // Keep last 50 laps
-      if (this._fuelHistory.length > 50) this._fuelHistory.shift();
-    }
 
-    // Record tire wear
-    const lastPacket = this.lapBuffer[this.lapBuffer.length - 1];
-    if (this.tireWearAtLapStart.fl >= 0) {
-      const end = { fl: lastPacket.TireWearFL, fr: lastPacket.TireWearFR, rl: lastPacket.TireWearRL, rr: lastPacket.TireWearRR };
-      const start = this.tireWearAtLapStart;
-      this._tireWearHistory.push({
-        lap: this.currentLapNumber,
-        start: { ...start },
-        end,
-        worn: {
-          fl: start.fl - end.fl,
-          fr: start.fr - end.fr,
-          rl: start.rl - end.rl,
-          rr: start.rr - end.rr,
-        },
-      });
-      if (this._tireWearHistory.length > 50) this._tireWearHistory.shift();
-    }
 
     const lapTime = this.lapPolicy.resolveLapTime(
       this.lapBuffer,
@@ -500,7 +321,7 @@ export class LapDetector implements ILapDetector {
 
 
     // Running-start trim: strip pre-start-line packets
-    this.trimRunningStartPackets();
+    this.engine.trimRunningStartPackets();
 
     // Skip saving if lap time is too short (first lap, warmup, ghost fragments)
     if (lapTime < 10) {
@@ -513,8 +334,8 @@ export class LapDetector implements ILapDetector {
         status: "skipped",
         totalMs: performance.now() - traceStartedAt,
       });
-      this.resetLapState(newLapFirstPacket);
-      return;
+
+      return false;
     }
 
     {
@@ -620,8 +441,8 @@ export class LapDetector implements ILapDetector {
       });
       traceStageAt = performance.now();
 
-      // Capture the frame buffer before resetLapState reassigns it — the insert
-      // below is fire-and-forget, so persistLapMetrics runs after the reset.
+      // Capture the frame buffer before the engine resets its state; the insert below
+      // is fire-and-forget, so persistLapMetrics runs after reset.
       const lapPackets = this.lapBuffer;
       const insertStartedAt = performance.now();
       this.db.insertLap(
@@ -658,7 +479,7 @@ export class LapDetector implements ILapDetector {
       }).catch((err) => {
         console.error(`[Lap] Failed to save lap ${lapNum}:`, err);
       });
-      this.completedLapCount++;
+
     }
 
 
@@ -682,47 +503,35 @@ export class LapDetector implements ILapDetector {
       totalMs: performance.now() - traceStartedAt,
     });
 
-    this.resetLapState(newLapFirstPacket);
+    return true;
   }
 
-  /** Best-effort save of an incomplete lap when the session ends mid-lap. */
+  /** Persist an incomplete lap selected by the ordinal engine's finalization policy. */
   private async finalizeLapIfNeeded(): Promise<void> {
-    // Try to save current in-progress lap when session changes
-    if (
-      this.currentSession &&
-      this.lapBuffer.length > 0 &&
-      this.currentLapNumber >= 0
-    ) {
-      this.trimRunningStartPackets();
-      // Use the last known CurrentLap as time estimate (not ideal but best we have)
-      const lastPacket = this.lapBuffer[this.lapBuffer.length - 1];
-      const lapTime = lastPacket.CurrentLap;
-      if (lapTime >= 10) {
-          const tuneAssignment = await this.db.getTuneAssignment(
-            this.currentSession.gameId,
-            this.currentSession.carOrdinal,
-            this.currentSession.trackOrdinal
-          );
-          const lapPackets = this.lapBuffer;
-          this.db.insertLap(
-            this.currentSession.sessionId,
-            this.currentLapNumber,
-            lapTime,
-            false,
-            this._lapByteOffset,
-            this._lapFrameCount,
-            null,
-            tuneAssignment?.tuneId ?? null,
-            this.currentPitCycleReason ?? "incomplete",
-            null
-          ).then(async (lapId) => {
-            await this.persistLapFollowups(lapId, lapPackets);
-            console.log(`[Lap] Saved incomplete lap (session ended)`);
-          }).catch((err) => {
-            console.error("[Lap] Failed to save incomplete lap:", err);
-          });
-      }
-    }
+    if (!this.currentSession || !this.lapBuffer.length || this.currentLapNumber < 0) return;
+    const tuneAssignment = await this.db.getTuneAssignment(
+      this.currentSession.gameId,
+      this.currentSession.carOrdinal,
+      this.currentSession.trackOrdinal
+    );
+    const lapPackets = this.lapBuffer;
+    this.db.insertLap(
+      this.currentSession.sessionId,
+      this.currentLapNumber,
+      lapPackets[lapPackets.length - 1].CurrentLap,
+      false,
+      this._lapByteOffset,
+      this._lapFrameCount,
+      null,
+      tuneAssignment?.tuneId ?? null,
+      this.currentPitCycleReason ?? "incomplete",
+      null
+    ).then(async (lapId) => {
+      await this.persistLapFollowups(lapId, lapPackets);
+      console.log(`[Lap] Saved incomplete lap (session ended)`);
+    }).catch((err) => {
+      console.error("[Lap] Failed to save incomplete lap:", err);
+    });
   }
 
   /**
@@ -731,89 +540,9 @@ export class LapDetector implements ILapDetector {
    * provisional snapshot or process exit owns finalization.
    */
   async flushStaleLap(): Promise<void> {
-    if (
-      !this.currentSession ||
-      this.lapBuffer.length < 30 ||
-      this.currentLapNumber < 0 ||
-      this.lastPacketTime === 0
-    ) return;
-    if (this.currentSession.gameId === "fm-2023") return;
-
-    const silenceMs = Date.now() - this.lastPacketTime;
-    if (silenceMs < 10_000) return;
-
-    this.trimRunningStartPackets();
-    if (this.lapBuffer.length < 30) return;
-
-    const lastPacket = this.lapBuffer[this.lapBuffer.length - 1];
-    const lapTime = lastPacket.LastLap > 0 && lastPacket.LastLap !== this.lastLastLap
-      ? lastPacket.LastLap   // game reported a final lap time
-      : lastPacket.CurrentLap; // use elapsed time as best estimate
-
-    if (lapTime < 10) return; // ignore trivial fragments (e.g. post-race trickle packets)
-
-    // Use LastLap if it was updated (authoritative), otherwise mark as incomplete
-    const isComplete = lastPacket.LastLap > 0 && lastPacket.LastLap !== this.lastLastLap;
-
-    {
-      const tuneAssignment = await this.db.getTuneAssignment(
-        this.currentSession.gameId,
-        this.currentSession.carOrdinal,
-        this.currentSession.trackOrdinal
-      );
-      const lapNum = this.currentLapNumber;
-      const packetCount = this.lapBuffer.length;
-      const lapPackets = this.lapBuffer;
-      this.db.insertLap(
-        this.currentSession.sessionId,
-        lapNum,
-        lapTime,
-        isComplete && this.lapIsValid,
-        this._lapByteOffset,
-        this._lapFrameCount,
-        null,
-        tuneAssignment?.tuneId ?? null,
-        isComplete ? this.invalidReason : "incomplete",
-        null
-      ).then(async (lapId) => {
-        await this.persistLapFollowups(lapId, lapPackets);
-        console.log(
-          `[Lap] Flushed stale lap ${lapNum} | Time: ${formatLapTime(lapTime)} | ${isComplete ? "Complete" : "Incomplete"} | Packets: ${packetCount} | DB ID: ${lapId} (${(silenceMs / 1000).toFixed(0)}s silence)`
-        );
-      }).catch((err) => {
-        console.error("[Lap] Failed to flush stale lap:", err);
-      });
-    }
-
-    // Reset state so we don't flush again
-    this.lapBuffer = [];
-    this.currentLapNumber = -1;
-    this.lastPacketTime = 0;
+    await this.engine.flushStaleLap();
   }
 
-  /**
-   * Strip leading packets from before a CurrentLap reset (running start).
-   * In practice/meetup sessions the buffer may start mid-previous-lap;
-   * find the last large CurrentLap drop and discard everything before it.
-   */
-  private trimRunningStartPackets(): void {
-    if (this.lapBuffer.length <= 1) return;
-    let resetIdx = 0;
-    for (let i = 1; i < this.lapBuffer.length; i++) {
-      if (this.lapBuffer[i - 1].CurrentLap > 5 && this.lapBuffer[i].CurrentLap < 1) {
-        resetIdx = i;
-      }
-    }
-    // Only trim if the reset is in the first half of the buffer.
-    // A true running-start reset happens early (mid-previous-lap data at the front).
-    // A lap-end reset happens at the very end and must not be treated as a running start.
-    if (resetIdx > 0 && resetIdx < this.lapBuffer.length / 2) {
-      console.log(
-        `[Lap] Trimmed ${resetIdx} pre-start packets (running start), ${this.lapBuffer.length - resetIdx} remain`
-      );
-      this.lapBuffer = this.lapBuffer.slice(resetIdx);
-    }
-  }
 
   /** Compute s1/s2/s3 sector times from a lap's telemetry buffer. */
   private async computeLapSectors(
@@ -822,7 +551,7 @@ export class LapDetector implements ILapDetector {
   ): Promise<number[] | null> {
     if (!this.currentSession) return null;
     const { trackOrdinal, gameId } = this.currentSession;
-    return computeLapSectorsHelper(trackOrdinal, gameId, packets, lapTime);
+    return computeLapSectorsHelper(trackOrdinal, gameId, packets, lapTime, { sectors: resolveTrack(gameId, trackOrdinal).sectors });
   }
 
   private async persistLapFollowups(
@@ -877,30 +606,7 @@ export class LapDetector implements ILapDetector {
     });
   }
 
-  private invalidateLap(reason: string): void {
-    this.lapIsValid = false;
-    this.invalidReason = reason;
-  }
 
-  private resetLapState(newLapFirstPacket: TelemetryPacket): void {
-    this.currentLapNumber = newLapFirstPacket.LapNumber;
-    this.lapBuffer = [];
-    this.lapIsValid = true;
-    this.invalidReason = null;
-    this.currentPitCycleReason = this.nextPitCycleReason;
-    this.nextPitCycleReason = null;
-    this.lastLastLap = newLapFirstPacket.LastLap;
-    this._distanceAtLapStart = newLapFirstPacket.DistanceTraveled;
-    this._lapByteOffset = this._currentRawByteOffset;
-    this._lapFrameCount = 0;
-    this.fuelAtLapStart = newLapFirstPacket.Fuel;
-    this.tireWearAtLapStart = {
-      fl: newLapFirstPacket.TireWearFL,
-      fr: newLapFirstPacket.TireWearFR,
-      rl: newLapFirstPacket.TireWearRL,
-      rr: newLapFirstPacket.TireWearRR,
-    };
-  }
 
   getDebugState(): Record<string, unknown> {
     return {

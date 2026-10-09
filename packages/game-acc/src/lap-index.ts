@@ -1,16 +1,15 @@
-import type { LapIndexPacket } from "@raceiq/backend-core/lap-detection/types";
+import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 import { PHYSICS as ACC_PHYSICS, GRAPHICS as ACC_GRAPHICS, STATIC as ACC_STATIC } from "@raceiq/capture-formats/acc/structs";
 import { readWString } from "./utils";
-import { getAccCarByModel } from "@raceiq/game-acc-metadata/racing/cars/acc";
-import { getAccTrackByName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
+import { getAccParserCarByModel, getAccParserTrackByName } from "@raceiq/game-acc-metadata/parser-data-resolver";
 
 /** Direct detector projection for packed ACC frames. No TelemetryPacket allocation. */
-export function parseAccLapIndex(physics: Buffer, graphics: Buffer, stat: Buffer, carOrdinal: number, trackOrdinal: number): LapIndexPacket | null {
+export function parseAccLapIndex(physics: Buffer, graphics: Buffer, stat: Buffer, carOrdinal: number, trackOrdinal: number, timestampMs = 0): LapIndexPacket | null {
   if (physics.length < ACC_PHYSICS.SIZE || graphics.length < ACC_GRAPHICS.MIN_SIZE || stat.length < ACC_STATIC.SIZE) return null;
   const cm = readWString(stat, ACC_STATIC.carModel.offset, ACC_STATIC.carModel.size);
   const tn = readWString(stat, ACC_STATIC.track.offset, ACC_STATIC.track.size);
-  carOrdinal = getAccCarByModel(cm)?.id ?? carOrdinal;
-  trackOrdinal = getAccTrackByName(tn)?.id ?? trackOrdinal;
+  carOrdinal = getAccParserCarByModel(cm)?.id ?? carOrdinal;
+  trackOrdinal = getAccParserTrackByName(tn)?.id ?? trackOrdinal;
   const i = (o: number) => graphics.readInt32LE(o);
   const f = (o: number) => physics.readFloatLE(o);
   const playerCarId = i(ACC_GRAPHICS.playerCarID.offset);
@@ -25,7 +24,7 @@ export function parseAccLapIndex(physics: Buffer, graphics: Buffer, stat: Buffer
   const best = i(ACC_GRAPHICS.iBestTime.offset);
   const coord = ACC_GRAPHICS.carCoordinatesBase.offset + slot * 12;
   const packet: LapIndexPacket = {
-    gameId: "acc", IsRaceOn: i(ACC_GRAPHICS.status.offset) === 2 ? 1 : 0, TimestampMS: Date.now(),
+    gameId: "acc", IsRaceOn: i(ACC_GRAPHICS.status.offset) === 2 ? 1 : 0, TimestampMS: timestampMs,
     CarOrdinal: carOrdinal, TrackOrdinal: trackOrdinal, CarPerformanceIndex: 0, CarClass: 0, LapNumber: i(ACC_GRAPHICS.completedLaps.offset) + 1,
     CurrentLap: current > 0 && current !== 0x7fffffff ? current / 1000 : 0,
     LastLap: last > 0 && last !== 0x7fffffff ? last / 1000 : 0, BestLap: best > 0 && best !== 0x7fffffff ? best / 1000 : 0,

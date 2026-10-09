@@ -22,11 +22,11 @@ import { LAPS_ZIP_LIMITS, unzipBounded } from "@raceiq/backend-core/archive/boun
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import { getLapsRaw } from "@raceiq/backend-core/db/lap-read-queries";
 import { loadSessionCapture } from "@raceiq/backend-core/session-capture/source-loader";
-import { encodeLmuSparseFrame } from "@raceiq/backend-core/session-capture/lmu-sparse";
+import { encodeLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
 import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
-import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC } from "@raceiq/backend-core/games/kunos/pack-triplet";
-import { encodeKunosSparseFrame } from "@raceiq/backend-core/session-capture/kunos-sparse";
-import { encodeGenericSparseFrame, genericFrameIdentity } from "@raceiq/backend-core/session-capture/generic-sparse";
+import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC } from "@raceiq/capture-formats/kunos/pack-triplet";
+import { encodeKunosSparseFrame } from "@raceiq/capture-formats/session/kunos-sparse";
+import { encodeGenericSparseFrame, genericFrameIdentity } from "@raceiq/capture-formats/session/generic-sparse";
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import { extractMotecArchive } from "@raceiq/backend-core/motec/import-staging";
@@ -50,7 +50,7 @@ import {
   readFramePrefix,
   type SessionCaptureRecord,
   sessionFrameAt,
-} from "@raceiq/backend-core/session-capture/framing";
+} from "@raceiq/capture-formats/session/framing";
 import {
   createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,

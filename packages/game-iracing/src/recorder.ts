@@ -21,7 +21,7 @@ import {
   IRACING_DUMP_MAGIC,
   IRACING_DUMP_SOURCE_FRAME_TYPE as SOURCE_FRAME_TYPE,
   IRACING_DUMP_VERSION,
-} from "@raceiq/capture-formats/iracing/dump";
+} from "@raceiq/capture-formats/iracing/dump-decoder";
 import { IRACING_MAX_SOURCE_FRAME_SIZE } from "@raceiq/capture-formats/iracing/source-frame";
 import { timestampForFilename } from "@raceiq/backend-core/session-capture/filename";
 

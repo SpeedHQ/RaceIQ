@@ -3,12 +3,12 @@ import { gzipSync } from "node:zlib";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame, iterateSessionCaptureRecords } from "@raceiq/backend-core/session-capture/framing";
+import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame, iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
 import { iterateSessionCaptureFrames, iterateSessionCaptureRecordsFromSource, setCaptureFileFactoryForTest } from "@raceiq/backend-core/session-capture/source-loader";
-import { encodeKunosSparseFrame } from "@raceiq/backend-core/session-capture/kunos-sparse";
-import { packTriplet, ACC_PACKED_MAGIC } from "@raceiq/backend-core/games/kunos/pack-triplet";
+import { encodeKunosSparseFrame } from "@raceiq/capture-formats/session/kunos-sparse";
+import { packTriplet, ACC_PACKED_MAGIC } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
-import { encodeLmuSparseFrame } from "@raceiq/backend-core/session-capture/lmu-sparse";
+import { encodeLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
 
 const directories: string[] = [];
 

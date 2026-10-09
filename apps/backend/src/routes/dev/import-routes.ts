@@ -15,7 +15,7 @@ import { readWString } from "@raceiq/game-acc/utils";
 import { createAcEvoParserCache, parseAcEvoBuffers } from "@raceiq/game-ac-evo/parser";
 import { GRAPHICS_EVO, STATIC_EVO } from "@raceiq/capture-formats/ac-evo/structs";
 import { readCString } from "@raceiq/game-ac-evo/utils";
-import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { readLMUFrames } from "@raceiq/capture-formats/lmu/dump";
 import { decodeLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
 import { identityFromLMUSourceFrame } from "@raceiq/game-lmu/normalizer";
@@ -24,7 +24,7 @@ import {
   ACC_PACKED_MAGIC,
   ACEVO_PACKED_MAGIC,
   packTriplet,
-} from "@raceiq/backend-core/games/kunos/pack-triplet";
+} from "@raceiq/capture-formats/kunos/pack-triplet";
 import { LiveTelemetryPipeline } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { NullWsAdapter, NullSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import { detectGameIdFromFilename } from "@raceiq/backend-core/session-capture/import-capture";

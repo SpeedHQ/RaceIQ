@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 import { parseCsvLine } from "@raceiq/shared/core/csv";
 import { gameCatalogDir } from "@raceiq/shared/platform/runtime/data-paths";
 
+export { getF1CompoundName } from "../compounds";
+
 const teams = new Map<number, string>();
 const raw = readFileSync(resolve(gameCatalogDir("f1-2025"), "teams.csv"), "utf-8");
 for (const line of raw.split(/\r?\n/)) {
@@ -18,16 +20,4 @@ export function getF1TeamName(teamId: number): string {
 
 export function getF1CarName(ordinal: number): string {
   return getF1TeamName(ordinal);
-}
-
-const COMPOUND_BY_ID: Record<number, string> = {
-  16: "soft",
-  17: "medium",
-  18: "hard",
-  7: "inter",
-  8: "wet",
-};
-
-export function getF1CompoundName(visualCompound: number): string {
-  return COMPOUND_BY_ID[visualCompound] ?? "unknown";
 }

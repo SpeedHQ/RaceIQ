@@ -5,7 +5,8 @@
   "exports": {
     "./index": "./src/index.ts",
     "./racing/cars/f1": "./src/racing/cars/f1.ts",
-    "./racing/tracks/catalogs/f1": "./src/racing/tracks/catalogs/f1.ts"
+    "./racing/tracks/catalogs/f1": "./src/racing/tracks/catalogs/f1.ts",
+    "./racing/compounds": "./src/racing/compounds.ts"
   },
   "dependencies": {
     "@raceiq/shared": "workspace:*"

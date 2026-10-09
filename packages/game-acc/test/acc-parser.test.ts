@@ -12,7 +12,7 @@ import { parseRawLapFramesFromBuffer } from "@raceiq/backend-core/db/telemetry-r
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
 import { getAccTrackName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc"
 import { getAccCarName } from "@raceiq/game-acc-metadata/racing/cars/acc"
-import { ACC_PACKED_MAGIC, packTriplet, unpackTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
+import { ACC_PACKED_MAGIC, packTriplet, unpackTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 
 registerGame(accServerAdapter);
 registerServerGame(accServerAdapter);
