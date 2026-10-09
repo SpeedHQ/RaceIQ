@@ -15,11 +15,11 @@ import {
   type DashboardRequest,
   type DashboardSessionType,
 } from "@raceiq/shared/racing/sessions/dashboard";
-import { laps, sessions } from "@raceiq/backend-core/db/schema";
+import { dashboardSummaryState, dashboardSessionSummaries, laps, sessions } from "@raceiq/backend-core/db/schema";
 import { db } from "@raceiq/backend-core/db/index";
 import { deleteSession } from "@raceiq/backend-core/db/session-queries";
 import type { LapMeta, SessionMeta, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
-import { prepareDashboardPublicationCandidate, publishDashboardSession } from "@raceiq/backend-core/db/dashboard-summary-queries";
+import { DASHBOARD_PROCESSOR_VERSION, prepareDashboardPublicationCandidate, publishDashboardSession } from "@raceiq/backend-core/db/dashboard-summary-queries";
 import { getDashboard } from "@raceiq/backend-core/db/dashboard-queries";
 
 const ownedSessionIds: number[] = [];
@@ -284,6 +284,44 @@ test("dashboard preserves ordinal zero, groups UTC rollover by local day, and re
   expect(actual.calendar.find((bucket) => bucket.day === "2026-01-01")?.validLaps).toBe(3);
   expect(actual.calendar.find((bucket) => bucket.day === "2026-01-02")?.validLaps).toBe(0);
   expect(actual.consistency.averageStandardDeviation).toBeCloseTo(1e-8, 10);
+});
+
+test("getDashboard treats clean previous-version publications as stale and uses source fallback", async () => {
+  const sessionId = await addSession("acc" as GameId, "2026-06-01T10:00:00.000Z");
+  await addLap(sessionId, 1, 90, true, "2026-06-01T10:01:00.000Z");
+  const candidate = await prepareDashboardPublicationCandidate(sessionId);
+  expect(candidate).not.toBeNull();
+  expect(await publishDashboardSession(candidate!, {
+    sourceRevision: candidate!.sourceRevision,
+    captureRevision: "capture-v1",
+    duration: { status: "available", elapsedSeconds: 3600 },
+    sectorLayout: null,
+    weather: { status: "unavailable", revision: null, conditions: null },
+    trackLengthMeters: null,
+    sourceSectorStarts: null,
+  })).toBe(true);
+  const source = await db.select({ sourceRevision: dashboardSummaryState.sourceRevision })
+    .from(dashboardSummaryState).where(eq(dashboardSummaryState.sessionId, sessionId)).get();
+  expect(source).toBeDefined();
+  await db.update(dashboardSummaryState).set({
+    processorVersion: DASHBOARD_PROCESSOR_VERSION - 1,
+    metadataDirty: 0,
+    captureDirty: 0,
+    publishedRevision: source!.sourceRevision,
+  }).where(eq(dashboardSummaryState.sessionId, sessionId)).run();
+  await db.update(dashboardSessionSummaries).set({
+    processorVersion: DASHBOARD_PROCESSOR_VERSION - 1,
+  }).where(eq(dashboardSessionSummaries.sessionId, sessionId)).run();
+
+  const response = await getDashboard(request);
+  expect(response.coverage).toMatchObject({
+    status: "pending",
+    mineSessions: 1,
+    readySessions: 0,
+    pendingSessions: 1,
+  });
+  expect(response.totals).toMatchObject({ laps: 1, bestLapSeconds: 90, sessions: 1 });
+  expect(response.sessionTypes.sessionsWithDuration).toBe(0);
 });
 
 test("getDashboard matches the independent reducer for bounded source fallback", async () => {

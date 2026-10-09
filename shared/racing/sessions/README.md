@@ -29,8 +29,12 @@ Canonical session and lap DTOs shared by ingest, storage, and UI.
 ### SQLite read-model implementation
 - Migration v63 adds indexed UTC session/lap projections and versioned per-session, day, and time-bucket contributions; source session rows remain unchanged.
 - Publication computes a revision-bound candidate and replaces contributions only when source revision still matches. Reads require exact `ownership === "mine"` and reconcile stale contributions for dirty, revoked, or deleted sessions in the same snapshot.
-- `getDashboard` in `server/db/dashboard-queries.ts` returns all dashboard widgets from one read transaction. Dirty or missing facts use bounded source fallback; work beyond the cap is reported as pending, not as complete data. Capture-derived values preserve available, unavailable, and pending evidence states.
-- This phase adds the database query module only; it does not add GET route access to recordings. Dashboard route cutover remains pending.
+- `getDashboard` in `server/db/dashboard-queries.ts` returns dashboard widgets from one read transaction. Dirty or missing facts use bounded source fallback; work beyond the cap is reported as pending, not complete. Capture-derived values preserve available, unavailable, and pending evidence states.
+- Migration v64 persists capture-ready state, source-sector starts, and weather conditions. Dashboard capture publication uses processor version 5 and accepts evidence only for the candidate's current source revision.
+- The startup-owned SQLite processor publishes metadata first, streams captures through the game parser for derived duration, sector-layout, and weather facts, and resumes versioned backfill from a persisted keyset cursor. It yields every 25 sessions and stores retry timing and error state. Live and import pipelines contribute facts during their existing packet pass; they do not run a second lap detector.
+- Capture fingerprints cover parsed record kinds, frame bytes, and frame timestamps rather than file size or modification time. Lossless compression can preserve capture identity; other file lifecycle changes explicitly invalidate evidence.
+- `getDashboardSessionRecap()` is a separate capture-free query over persisted session facts and historical session/lap evidence. It is not an HTTP route; generic analysis recap remains unchanged.
+- This backend phase does not implement the client dashboard cutover (Phase 4). Phase 5 browser/resource acceptance has not been run.
 
 Update this contract and its independent SQL/reference regressions together when metric eligibility or identity semantics change.
 

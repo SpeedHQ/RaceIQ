@@ -30,6 +30,7 @@ apps/backend/test/analysis/data-panel-parity.test.ts
 apps/backend/test/analysis/suspension-compression.test.ts
 apps/backend/test/db/database-path.test.ts
 apps/backend/test/db/dashboard-queries.test.ts
+apps/backend/test/db/dashboard-mutations.test.ts
 apps/backend/test/db/dashboard-summaries.test.ts
 apps/backend/test/db/lap-ownership.test.ts
 apps/backend/test/db/lap-read-batching.test.ts
@@ -73,6 +74,7 @@ apps/backend/test/lap-analysis/lap-cache.test.ts
 apps/backend/test/lap-analysis/lap-consistency.test.ts
 apps/backend/test/lap-analysis/lap-export-zip.test.ts
 apps/backend/test/lap-analysis/persist-lap-metrics.test.ts
+apps/backend/test/lap-analysis/recap/dashboard-read.test.ts
 apps/backend/test/live-strategy/pit-cycle.test.ts
 apps/backend/test/live-strategy/pit-tracker.test.ts
 apps/backend/test/live-strategy/sector-tracker.test.ts
@@ -112,6 +114,7 @@ apps/backend/test/session-capture/all-game-import-migration.test.ts
 apps/backend/test/session-capture/automatic-cleanup.test.ts
 apps/backend/test/session-capture/capture-migration.test.ts
 apps/backend/test/session-capture/context-markers.test.ts
+apps/backend/test/session-capture/dashboard-processing.test.ts
 apps/backend/test/session-capture/elapsed-duration.test.ts
 apps/backend/test/session-capture/filename.test.ts
 apps/backend/test/session-capture/generic-sparse-recorder.test.ts

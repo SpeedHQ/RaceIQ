@@ -28,7 +28,7 @@ async function read(sql: string, args: unknown[] = []) {
 async function publish(sessionId: number, facts?: {
   captureRevision: string;
   elapsedSeconds: number | null;
-  sectorLayout: { key: string; sectorCount: number } | null;
+  sectorLayout: { key: string; sectorCount: number; starts: readonly number[] } | null;
   weatherRevision: string | null;
 }) {
   const candidate = await prepareDashboardPublicationCandidate(sessionId);
@@ -38,8 +38,16 @@ async function publish(sessionId: number, facts?: {
     captureRevision: facts.captureRevision,
     duration: { status: facts.elapsedSeconds === null ? "unavailable" as const : "available" as const, elapsedSeconds: facts.elapsedSeconds },
     sectorLayout: facts.sectorLayout ? { status: "available" as const, ...facts.sectorLayout } : null,
-    weather: { status: facts.weatherRevision === null ? "unavailable" as const : "available" as const, revision: facts.weatherRevision },
+    weather: {
+      status: facts.weatherRevision === null ? "unavailable" as const : "available" as const,
+      revision: facts.weatherRevision,
+      conditions: facts.weatherRevision === null ? null : {
+        frames: 1, airTempC: null, roadTempC: null, rainIntensity: 0, wet: false,
+        trackGripStatus: "unknown", windSpeedKmh: 0, windDirectionDeg: 0, startingGrip: null, staticWeather: null,
+      },
+    },
     trackLengthMeters: null,
+    sourceSectorStarts: facts.sectorLayout?.starts ?? null,
   } : undefined;
   return publishDashboardSession(candidate, evidence);
 }
@@ -54,7 +62,7 @@ test("dashboard publication reduces sectors only with explicit layout evidence",
   const evidence = {
     captureRevision: "capture-v1",
     elapsedSeconds: 3600,
-    sectorLayout: { key: "track-8/layout-v1", sectorCount: 3 },
+    sectorLayout: { key: "track-8/layout-v1", sectorCount: 3, starts: [0, 1 / 3, 2 / 3] },
     weatherRevision: "weather-v1",
   } as const;
 
@@ -97,7 +105,7 @@ test("equal sector counts with different authoritative layout keys do not match"
   ]).run();
   const facts = (key: string) => ({
     captureRevision: "capture-v1", elapsedSeconds: null,
-    sectorLayout: { key, sectorCount: 3 }, weatherRevision: null,
+    sectorLayout: { key, sectorCount: 3, starts: [0, 1 / 3, 2 / 3] }, weatherRevision: null,
   });
   expect(await publish(first, facts("track-8/layout-a"))).toBe(true);
   expect(await publish(second, facts("track-8/layout-b"))).toBe(true);

@@ -1,3 +1,4 @@
+import { DASHBOARD_PROCESSOR_VERSION } from "./dashboard-summary-queries";
 import { client } from "./index";
 import { dashboardCarIdentity, dashboardTrackIdentity, validateDashboardRequest } from "@raceiq/shared/racing/sessions/dashboard";
 import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
@@ -99,7 +100,8 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     const coverageResult = await tx.execute({
       sql: `SELECT COUNT(*) AS mine_sessions,MAX(st.source_revision) AS revision,
         SUM(CASE WHEN st.session_id IS NOT NULL AND st.metadata_dirty=0 AND st.capture_dirty=0
-          AND st.deleted=0 AND st.processor_version=p.processor_version
+          AND st.deleted=0 AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION}
+          AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
           AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision THEN 1 ELSE 0 END) AS ready_sessions
         FROM dashboard_session_index si LEFT JOIN dashboard_summary_state st ON st.session_id=si.session_id
         LEFT JOIN dashboard_session_summaries p ON p.session_id=si.session_id
@@ -114,7 +116,9 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
           LEFT JOIN dashboard_session_summaries p ON p.session_id=st.session_id
           LEFT JOIN dashboard_session_index si ON si.session_id=st.session_id
           WHERE (st.metadata_dirty!=0 OR st.capture_dirty!=0 OR st.deleted!=0
-            OR st.processor_version!=COALESCE(p.processor_version,-1) OR st.published_revision!=st.source_revision)
+            OR COALESCE(st.processor_version,-1)!=${DASHBOARD_PROCESSOR_VERSION}
+            OR COALESCE(p.processor_version,-1)!=${DASHBOARD_PROCESSOR_VERSION}
+            OR st.published_revision!=st.source_revision)
             AND ((si.created_at_ms>=? AND si.created_at_ms<?${request.gameId ? " AND si.game_id=?" : ""})
               OR EXISTS(SELECT 1 FROM dashboard_session_days old WHERE old.session_id=st.session_id AND old.utc_day>=? AND old.utc_day<?)
               OR EXISTS(SELECT 1 FROM dashboard_lap_index l WHERE l.session_id=st.session_id AND l.created_at_ms>=? AND l.created_at_ms<?))
@@ -182,11 +186,19 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
             SUM(CASE WHEN l.is_valid=1 AND l.lap_time>0 THEN l.lap_time ELSE 0 END) valid_seconds,
             SUM(l.lap_time>0 AND COALESCE(l.invalid_reason,'')!='incomplete') favourite_laps,
             SUM(CASE WHEN l.lap_time>0 AND COALESCE(l.invalid_reason,'')!='incomplete' THEN l.lap_time ELSE 0 END) favourite_seconds,
-            SUM(l.lap_time>0 AND COALESCE(l.invalid_reason,'')!='incomplete' AND p.track_length_meters>0) distance_laps,
-            SUM(CASE WHEN l.lap_time>0 AND COALESCE(l.invalid_reason,'')!='incomplete' THEN COALESCE(p.track_length_meters,0) ELSE 0 END) distance_meters,
+            SUM(l.lap_time>0 AND COALESCE(l.invalid_reason,'')!='incomplete' AND p.track_length_meters>0
+              AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
+              AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
+              AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision) distance_laps,
+            SUM(CASE WHEN l.lap_time>0 AND COALESCE(l.invalid_reason,'')!='incomplete'
+              AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
+              AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
+              AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision
+              THEN COALESCE(p.track_length_meters,0) ELSE 0 END) distance_meters,
             0 podium_first,0 podium_second,0 podium_third
           FROM dashboard_lap_index l JOIN dashboard_session_index si ON si.session_id=l.session_id
           LEFT JOIN dashboard_session_summaries p ON p.session_id=si.session_id
+          LEFT JOIN dashboard_summary_state st ON st.session_id=si.session_id
           WHERE si.ownership='mine' AND l.created_at_ms>=? AND l.created_at_ms<?
             AND (l.created_at_ms<? OR l.created_at_ms>=? OR l.session_id IN (${dirtyIn}))
           GROUP BY utc_day,si.game_id,track_key,car_key
@@ -277,8 +289,13 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
       card.drivenSeconds += n(row.driven_seconds);
     }
     const periodFacts = await tx.execute({
-      sql: `WITH dirty(session_id) AS (SELECT session_id FROM dashboard_summary_state
-          WHERE metadata_dirty!=0 OR capture_dirty!=0 OR deleted!=0 OR published_revision!=source_revision),
+      sql: `WITH dirty(session_id) AS (
+          SELECT st.session_id FROM dashboard_summary_state st
+          LEFT JOIN dashboard_session_summaries p ON p.session_id=st.session_id
+          WHERE st.metadata_dirty!=0 OR st.capture_dirty!=0 OR st.deleted!=0
+            OR COALESCE(st.processor_version,-1)!=${DASHBOARD_PROCESSOR_VERSION}
+            OR COALESCE(p.processor_version,-1)!=${DASHBOARD_PROCESSOR_VERSION}
+            OR st.published_revision!=st.source_revision),
         sessions_in_period AS (
           SELECT DISTINCT d.session_id FROM dashboard_session_days d
           WHERE d.utc_day>=? AND d.utc_day<?${request.gameId ? " AND d.game_id=?" : ""}
@@ -294,8 +311,8 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
           WHERE si.ownership='mine' AND p.best_lap_seconds>0 AND p.valid_laps>0
             AND p.first_lap_at_ms>=? AND p.last_lap_at_ms<?
             AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
-            AND st.processor_version=p.processor_version AND st.published_revision=st.source_revision
-            AND p.source_revision=st.source_revision${request.gameId ? " AND si.game_id=?" : ""}
+            AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
+            AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision${request.gameId ? " AND si.game_id=?" : ""}
           UNION ALL
           SELECT MIN(l.lap_time) FROM dashboard_lap_index l
           JOIN dashboard_session_index si ON si.session_id=l.session_id
@@ -303,6 +320,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
           WHERE si.ownership='mine' AND l.created_at_ms>=? AND l.created_at_ms<?
             AND l.is_valid=1 AND l.lap_time>0
             AND (l.session_id IN (${dirtyIn}) OR p.session_id IS NULL
+              OR COALESCE(p.processor_version,-1)!=${DASHBOARD_PROCESSOR_VERSION}
               OR p.first_lap_at_ms<? OR p.last_lap_at_ms>=?)${request.gameId ? " AND si.game_id=?" : ""}
           GROUP BY l.session_id
         )
@@ -369,14 +387,15 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
         UNION
         SELECT 'track',p.game_id,p.track_key,p.session_id FROM dashboard_session_summaries p
         JOIN dashboard_session_index si ON si.session_id=p.session_id JOIN dashboard_summary_state st ON st.session_id=p.session_id
-        WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<? AND p.track_key!=''
-          AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0 AND st.processor_version=p.processor_version
+          AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
+          AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
           AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision
         UNION
         SELECT 'car',p.game_id,p.car_key,p.session_id FROM dashboard_session_summaries p
         JOIN dashboard_session_index si ON si.session_id=p.session_id JOIN dashboard_summary_state st ON st.session_id=p.session_id
         WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<? AND p.car_key!=''
-          AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0 AND st.processor_version=p.processor_version
+          AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
+          AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
           AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision
         UNION
         SELECT 'track',si.game_id,COALESCE(NULLIF(si.track_id,''),'#ord:'||si.track_ordinal),si.session_id
@@ -487,8 +506,8 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
           AND p.valid_laps>=2 AND p.valid_mean_seconds IS NOT NULL AND p.valid_m2_seconds IS NOT NULL
           AND p.car_key IS NOT NULL AND p.car_key!='' AND p.track_key IS NOT NULL AND p.track_key!=''
           AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
-          AND st.processor_version=p.processor_version AND st.published_revision=st.source_revision
-          AND p.source_revision=st.source_revision${request.gameId ? " AND si.game_id=?" : ""}
+          AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
+          AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision${request.gameId ? " AND si.game_id=?" : ""}
         UNION ALL
         SELECT l.session_id,COUNT(*),AVG(l.lap_time),SUM((l.lap_time-avg_time.mean)*(l.lap_time-avg_time.mean))
         FROM dashboard_lap_index l JOIN dashboard_session_index si ON si.session_id=l.session_id
@@ -525,12 +544,12 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     const recentResult = await tx.execute({
       sql: `SELECT si.session_id,si.game_id,si.created_at_ms,si.session_type,si.car_id,si.car_ordinal,si.track_id,si.track_ordinal,
         CASE WHEN st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
-          AND st.processor_version=p.processor_version AND st.published_revision=st.source_revision
-          AND p.source_revision=st.source_revision THEN p.lap_count
+          AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
+          AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision THEN p.lap_count
           ELSE (SELECT COUNT(*) FROM dashboard_lap_index l WHERE l.session_id=si.session_id) END lap_count,
         CASE WHEN st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
-          AND st.processor_version=p.processor_version AND st.published_revision=st.source_revision
-          AND p.source_revision=st.source_revision THEN p.best_lap_seconds
+          AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
+          AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision THEN p.best_lap_seconds
           ELSE (SELECT MIN(l.lap_time) FROM dashboard_lap_index l WHERE l.session_id=si.session_id
             AND l.is_valid=1 AND l.lap_time>0) END best_lap_seconds
         FROM dashboard_session_index si
@@ -565,8 +584,8 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
         JOIN dashboard_summary_state st ON st.session_id=p.session_id
         WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<?
           AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
-          AND st.processor_version=p.processor_version AND st.published_revision=st.source_revision
-          AND p.source_revision=st.source_revision${request.gameId ? " AND si.game_id=?" : ""}`,
+          AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
+          AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision${request.gameId ? " AND si.game_id=?" : ""}`,
       args: [bounds.from, bounds.to, ...(request.gameId ? [request.gameId] : [])],
     });
     const stats = sessionStats.rows[0] as Row | undefined;
@@ -582,8 +601,8 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
         JOIN dashboard_summary_state st ON st.session_id=p.session_id
         WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<? AND p.duration_status='available' AND p.elapsed_seconds>=0
           AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
-          AND st.processor_version=p.processor_version AND st.published_revision=st.source_revision
-          AND p.source_revision=st.source_revision${request.gameId ? " AND si.game_id=?" : ""}
+          AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
+          AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision${request.gameId ? " AND si.game_id=?" : ""}
         GROUP BY kind`,
       args: [bounds.from, bounds.to, ...(request.gameId ? [request.gameId] : [])],
     });

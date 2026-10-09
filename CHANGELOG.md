@@ -21,6 +21,7 @@
 - Skip build, test, browser, snapshot, and benchmark PR jobs for automated release version bump branches.
 - Declare the frontend contract tests' backend-core dependency so clean CI installs resolve setup-import test modules.
 - Add revision-checked SQLite dashboard summaries and indexed UTC projections; expose a bounded, snapshot-consistent backend read module with explicit pending coverage. Dashboard route cutover remains pending.
+- Add the version-5 SQLite dashboard processor with durable capture readiness, revision-checked publication, resumable backfill, retry state, and ingest-pass capture facts; keep recap separate from generic analysis and leave route/UI cutover pending.
 
 ## v0.19.2 - 2026-10-04
 

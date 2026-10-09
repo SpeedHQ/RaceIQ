@@ -22,6 +22,9 @@ import { applyFrameTime } from "../session-capture/frame-time";
 import { wsManager } from "../runtime/websocket-manager";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 
+import { DashboardCaptureObservation } from "../session-capture/dashboard-observation";
+import { markDashboardCaptureCheckpoint, publishObservedDashboardCaptureFacts } from "../session-capture/dashboard-processor";
+type CaptureObservationEntry = { observation: DashboardCaptureObservation; rawFile: string | null };
 const CURRENT_SESSION_LAP_SNAPSHOT_LIMIT = 500;
 
 export class LiveTelemetryPipeline {
@@ -42,6 +45,7 @@ export class LiveTelemetryPipeline {
    *  Off by default — client opts in via `POST /api/live-analysis`. */
   private _liveIssuesEnabled = false;
   private _recordingSession: { sessionId: number; gameId: GameId } | null = null;
+  private _dashboardCaptureObservations = new Map<number, CaptureObservationEntry>();
   private _continuingSegment = false;
   private _pendingSessionContextFrames: Buffer[] = [];
   private _expectCompleteLapStart = false;
@@ -137,21 +141,84 @@ export class LiveTelemetryPipeline {
 
   private async _finishRecordedSession(session = this._recordingSession): Promise<void> {
     await withSessionCaptureMaintenanceLock(async () => {
-      if (session && this._recordingSession?.sessionId === session.sessionId) {
-        this._recordingSession = null;
-      }
+      if (session && this._recordingSession?.sessionId === session.sessionId) this._recordingSession = null;
       await this.recorder.stop();
     });
-    // Reconciliation parses and hashes complete capture. Run only after recorder
-    // closes; doing this after every lap blocks shared-memory polling and corrupts
-    // following lap's opening frames.
-    if (session) await this._reconcileRecordedSession(session);
+    if (session) {
+      await this.finalizeDashboardCaptureFacts([session.sessionId]);
+      await this._reconcileRecordedSession(session);
+    }
+  }
+
+  private _observeDashboardPacket(
+    sessionId: number | undefined,
+    packet: TelemetryPacket,
+    source: PacketSourceReference | undefined,
+    frameTimeMs?: number,
+  ): void {
+    if (sessionId === undefined) return;
+    const entry = this._dashboardCaptureObservations.get(sessionId);
+    if (entry) entry.observation.observe(packet, source, frameTimeMs);
+  }
+
+  /** Persist packet-pass facts only after raw capture is closed and source revision checkpointed. */
+  async finalizeDashboardCaptureFacts(sessionIds?: readonly number[]): Promise<void> {
+    const requested = new Set(sessionIds ?? this._dashboardCaptureObservations.keys());
+    const selected = new Set<number>();
+    for (const id of requested) {
+      const entry = this._dashboardCaptureObservations.get(id);
+      if (!entry) {
+        selected.add(id);
+        continue;
+      }
+      for (const [otherId, other] of this._dashboardCaptureObservations) {
+        if (entry.rawFile !== null && other.rawFile === entry.rawFile) selected.add(otherId);
+      }
+      selected.add(id);
+    }
+
+    const groups = new Map<string, number[]>();
+    for (const id of selected) {
+      const entry = this._dashboardCaptureObservations.get(id);
+      const key = entry?.rawFile ? `file:${entry.rawFile}` : `session:${id}`;
+      const group = groups.get(key);
+      if (group) group.push(id);
+      else groups.set(key, [id]);
+    }
+
+    for (const ids of groups.values()) {
+      const checkpointId = ids[0]!;
+      await markDashboardCaptureCheckpoint(checkpointId, false);
+      let complete = true;
+      for (const id of ids) {
+        const entry = this._dashboardCaptureObservations.get(id);
+        if (!entry) {
+          complete = false;
+          continue;
+        }
+        try {
+          const published = await publishObservedDashboardCaptureFacts(id, entry.observation.toFacts());
+          complete = complete && published;
+        } catch (error) {
+          complete = false;
+          console.error(`[DashboardProcessor] Packet-pass publication failed for session ${id}:`, error);
+        }
+      }
+      if (!complete) await markDashboardCaptureCheckpoint(checkpointId, true);
+      for (const id of ids) this._dashboardCaptureObservations.delete(id);
+    }
   }
 
   private _buildCallbacks(): LapDetectorCallbacks {
     return {
       onSessionStart: async (session) => {
         const previousSession = this._recordingSession;
+        const previousCapture = previousSession
+          ? this._dashboardCaptureObservations.get(previousSession.sessionId) ?? null
+          : null;
+        if (previousSession && previousSession.sessionId !== session.sessionId) {
+          previousCapture?.observation.finishSegment();
+        }
         const continuing = this._continuingSegment && previousSession?.sessionId === session.sessionId && previousSession.gameId === session.gameId;
         this._continuingSegment = false;
         if (!continuing) {
@@ -160,18 +227,24 @@ export class LiveTelemetryPipeline {
             await this.recorder.stop();
             this.recorder.start(session.gameId);
             this.recorder.writeMetaFrame();
-            this._recordingSession = {
-              sessionId: session.sessionId,
-              gameId: session.gameId,
-            };
-            if (this.recorder.path) {
+            this._recordingSession = { sessionId: session.sessionId, gameId: session.gameId };
+            const rawFile = this.recorder.path;
+            this._dashboardCaptureObservations.set(session.sessionId, {
+              observation: new DashboardCaptureObservation(session.gameId, session.trackOrdinal, session.trackId ?? null),
+              rawFile,
+            });
+            if (rawFile) {
               await this.db.updateSessionRawFile(
-                session.sessionId, this.recorder.path, this._lapDetector?.detectorId ?? LAP_DETECTOR_ID,
+                session.sessionId, rawFile, this._lapDetector?.detectorId ?? LAP_DETECTOR_ID,
                 this.recorder instanceof SparseSessionRecorderAdapter,
               );
+              await markDashboardCaptureCheckpoint(session.sessionId, false);
             }
           });
           if (previousSession) {
+            if (previousCapture && previousCapture.rawFile !== this.recorder.path) {
+              await this.finalizeDashboardCaptureFacts([previousSession.sessionId]);
+            }
             void this._reconcileRecordedSession(previousSession).catch((error) => {
               console.error(`[Race Results] Failed to reconcile session ${previousSession.sessionId}:`, error);
             });
@@ -361,6 +434,7 @@ export class LiveTelemetryPipeline {
       }
     }
 
+    this._observeDashboardPacket(detector.session?.sessionId, packet, source, frameTimeMs);
     const sectors = this.sectorTracker.feed(packet);
 
     // Prefer detector state when the adapter marks native best-lap data weak.
@@ -446,6 +520,7 @@ export class LiveTelemetryPipeline {
         detector.setCurrentLapByteOffset?.(source.rawOffset);
       }
     }
+    this._observeDashboardPacket(detector.session?.sessionId, telemetryPacket, source, frameTimeMs);
   }
 
   async flushSessionRecorder(): Promise<void> {
@@ -478,6 +553,7 @@ export class LiveTelemetryPipeline {
       this._lapDetector = null;
       this._lapDetectorGameId = null;
       this._recordingSession = null;
+      for (const sessionId of sessionIds) this._dashboardCaptureObservations.delete(sessionId);
       this._continuingSegment = false;
       this._pendingSessionContextFrames = [];
       this._sessionLaps = [];
@@ -492,6 +568,7 @@ export class LiveTelemetryPipeline {
     if (!this.recorder.active || !this._recordingSession) {
       throw new Error("Cannot begin import segment before a session has started");
     }
+    this._dashboardCaptureObservations.get(this._recordingSession.sessionId)?.observation.finishSegment();
     this.recorder.writeSegmentBoundary();
     this._lapDetector = null;
     this._lapDetectorGameId = null;
@@ -501,6 +578,12 @@ export class LiveTelemetryPipeline {
   /** Flush buffered writes to disk without closing. */
   flushSessionRecorderBuffer(): void {
     this.recorder.flush();
+    const sessionId = this._recordingSession?.sessionId;
+    if (sessionId !== undefined) {
+      void markDashboardCaptureCheckpoint(sessionId, false).catch((error) => {
+        console.error(`[DashboardProcessor] Capture checkpoint failed for session ${sessionId}:`, error);
+      });
+    }
   }
 }
 

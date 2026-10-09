@@ -235,11 +235,10 @@ describe("migration regressions", () => {
       created_at_ms: Date.parse("2026-08-01T12:35:00.123Z"),
       lap_time: 91.25,
     });
-    await runMigrations(client);
-    await runMigrations(client);
+    await runMigrations(client, 63);
+    await runMigrations(client, 63);
     expect((await client.execute("PRAGMA foreign_keys")).rows[0]?.foreign_keys).toBe(1);
     const versions = await client.execute("SELECT version FROM schema_migrations ORDER BY version");
-    expect(versions.rows.map((row) => Number(row.version)).at(-1)).toBe(63);
     expect(versions.rows.map((row) => Number(row.version)).filter((version) => version > 62)).toEqual([63]);
     const stateColumns = await client.execute("PRAGMA table_info(dashboard_summary_state)");
     const dayColumns = await client.execute("PRAGMA table_info(dashboard_session_days)");

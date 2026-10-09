@@ -56,6 +56,16 @@ Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, c
 
 `server/db/schema.ts` is the typed schema reference. Runtime migrations are embedded in `server/db/migrations.ts` and applied at startup. `apps/backend/src/routes/index.ts` composes feature route modules under `/api`; the client uses `client/src/lib/rpc.ts` rather than untyped fetch calls.
 
+## SQLite dashboard read model
+
+SQLite migration v64 persists capture-derived dashboard evidence and a `capture_ready` gate. The revision-checked publication model is implemented by `server/db/dashboard-summary-queries.ts`; `DASHBOARD_PROCESSOR_VERSION` is 5. Source mutations mark durable per-session work state, while publication replaces derived contributions only when the source revision observed by the candidate is still current.
+
+The backend starts `startDashboardProcessor()` during runtime boot and awaits its stop during graceful shutdown. Its resumable keyset backfill cursor, capture readiness, dirty flags, and retry schedule live in SQLite. The worker publishes metadata before expensive capture facts, streams one session capture through the game parser without constructing another lap detector, yields after each batch of 25 sessions, and persists retry timing/error codes after failures. Pending evidence remains distinct from unavailable evidence; incomplete capture work is not published as complete.
+
+Live recording and import pipelines publish observed facts from their existing packet-processing pass. A completed-capture checkpoint makes those facts eligible for publication; file lifecycle changes explicitly invalidate or safely preserve them. Capture fingerprints describe parsed record content, independent of file size or modification time, so lossless compression does not change content identity.
+
+`getDashboardSessionRecap()` is a capture-free query over persisted session facts and historical lap/session evidence. It is a separate recap function, not a route; the dashboard route cutover remains pending. Generic analysis recap behavior is unchanged.
+
 ## Boundaries
 
 - Server is authoritative for telemetry-domain state such as lap boundaries, sector timing, pit estimates, and persisted session results.

@@ -1,8 +1,9 @@
 import { client } from "./index";
 import { dashboardCarIdentity, dashboardTrackIdentity } from "@raceiq/shared/racing/sessions/dashboard";
+import type { TrackConditions } from "../ai/track-conditions";
 import type { GameId } from "@raceiq/shared/games/ids";
 
-export const DASHBOARD_PROCESSOR_VERSION = 4;
+export const DASHBOARD_PROCESSOR_VERSION = 5;
 const LAP_PAGE_SIZE = 256;
 const TIME_BUCKET_MS = 15 * 60 * 1000;
 
@@ -11,16 +12,20 @@ export interface DashboardCaptureFacts {
   sourceRevision: number;
   captureRevision: string;
   duration: { status: EvidenceStatus; elapsedSeconds: number | null };
-  sectorLayout: { status: EvidenceStatus; key: string; sectorCount: number } | null;
-  weather: { status: EvidenceStatus; revision: string | null };
+  sectorLayout: { status: EvidenceStatus; key: string; sectorCount: number; starts: readonly number[] } | null;
+  weather: { status: EvidenceStatus; revision: string | null; conditions: TrackConditions | null };
   trackLengthMeters: number | null;
+  sourceSectorStarts: readonly number[] | null;
 }
 type DbRow = Record<string, unknown>;
 export interface DashboardPublicationCandidate {
   readonly sessionId: number;
   readonly sourceRevision: number;
   readonly deleted: boolean;
+  readonly publishedRevision: number;
+  readonly metadataDirty: boolean;
   readonly captureDirty: boolean;
+  readonly captureReady: boolean;
   readonly session: Readonly<DbRow> | null;
 }
 interface DashboardTransaction {
@@ -121,7 +126,7 @@ async function adjustTimeBucket(tx: DashboardTransaction, row: TimeContribution,
 /** Snapshot candidate before expensive work. Evidence must carry this exact revision. */
 export async function prepareDashboardPublicationCandidate(sessionId: number): Promise<DashboardPublicationCandidate | null> {
   const result = await client.execute({
-    sql: `SELECT st.source_revision, st.deleted, st.capture_dirty, s.id, s.game_id, s.ownership, s.created_at,
+    sql: `SELECT st.source_revision, st.published_revision, st.metadata_dirty, st.deleted, st.capture_dirty, st.capture_ready, s.id, s.game_id, s.ownership, s.created_at,
         s.car_id, s.track_id, s.car_ordinal, s.track_ordinal, s.session_type, s.raw_file, s.source,
         s.capture_format_version, r.outcome_status, r.classification, r.finishing_position
       FROM dashboard_summary_state st LEFT JOIN sessions s ON s.id=st.session_id
@@ -134,21 +139,29 @@ export async function prepareDashboardPublicationCandidate(sessionId: number): P
   return Object.freeze({
     sessionId,
     sourceRevision: number(row.source_revision),
+    publishedRevision: number(row.published_revision),
+    metadataDirty: number(row.metadata_dirty) !== 0,
     deleted: number(row.deleted) !== 0,
     captureDirty: number(row.capture_dirty) !== 0,
+    captureReady: number(row.capture_ready) !== 0,
     session,
   });
 }
 
 /** Build exact session/day/time contributions, then atomically replace them iff candidate revision remains current. */
-export async function publishDashboardSession(candidate: DashboardPublicationCandidate, evidence?: DashboardCaptureFacts): Promise<boolean> {
+export async function publishDashboardSession(candidate: DashboardPublicationCandidate, evidence?: DashboardCaptureFacts, options: { metadataOnly?: boolean } = {}): Promise<boolean> {
   const { sessionId, sourceRevision: revision, session } = candidate;
   if (evidence && (evidence.sourceRevision !== revision || !evidence.captureRevision.trim()
     || !["available", "unavailable", "pending"].includes(evidence.duration.status)
     || (evidence.duration.status === "available" && (!Number.isFinite(evidence.duration.elapsedSeconds) || evidence.duration.elapsedSeconds! < 0))
     || (evidence.sectorLayout?.status === "available" && (!evidence.sectorLayout.key.trim()
-      || !Number.isInteger(evidence.sectorLayout.sectorCount) || evidence.sectorLayout.sectorCount < 1 || evidence.sectorLayout.sectorCount > 16))
+      || !Number.isInteger(evidence.sectorLayout.sectorCount) || evidence.sectorLayout.sectorCount < 1 || evidence.sectorLayout.sectorCount > 16
+      || evidence.sectorLayout.starts.length !== evidence.sectorLayout.sectorCount
+      || evidence.sectorLayout.starts.some((start) => !Number.isFinite(start) || start < 0 || start >= 1)))
+    || (evidence.sourceSectorStarts !== null && (evidence.sourceSectorStarts.length < 2
+      || evidence.sourceSectorStarts.some((start) => !Number.isFinite(start) || start < 0 || start >= 1)))
     || !["available", "unavailable", "pending"].includes(evidence.weather.status)
+    || (evidence.weather.status === "available" && evidence.weather.conditions === null)
     || (evidence.trackLengthMeters !== null && (!Number.isFinite(evidence.trackLengthMeters) || evidence.trackLengthMeters <= 0)))) {
     throw new RangeError("Invalid or stale dashboard capture evidence");
   }
@@ -172,6 +185,14 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
   const captureRevision = evidence?.captureRevision ?? (preserveCapture ? stringOrNull(prior?.capture_revision) : null);
   const evidenceVersion = evidence ? DASHBOARD_PROCESSOR_VERSION : preserveCapture ? number(prior?.evidence_version) : 0;
   const trackLengthMeters = evidence?.trackLengthMeters ?? (preserveCapture ? nullableNumber(prior?.track_length_meters) : null);
+  const sourceSectorStarts = evidence ? evidence.sourceSectorStarts : preserveCapture ? (() => {
+    try { return prior?.source_sector_starts_json ? JSON.parse(String(prior.source_sector_starts_json)) as number[] : null; }
+    catch { return null; }
+  })() : null;
+  const weatherConditions = evidence ? evidence.weather.conditions : preserveCapture ? (() => {
+    try { return prior?.weather_conditions_json ? JSON.parse(String(prior.weather_conditions_json)) as TrackConditions : null; }
+    catch { return null; }
+  })() : null;
   const sectors = sectorLayoutKey && sectorCount ? Array<number | null>(sectorCount).fill(null) : [];
   const entityMap = new Map<string, LapAggregate>();
   const bucketMap = new Map<number, TimeContribution>();
@@ -281,17 +302,18 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
     }
     if (!excluded && session) {
       await tx.execute({
-        sql: `INSERT INTO dashboard_session_summaries(session_id,source_revision,processor_version,game_id,created_at_ms,car_key,track_key,car_id,track_id,car_ordinal,track_ordinal,session_type,lap_count,positive_laps,valid_laps,driven_seconds,valid_seconds,valid_mean_seconds,valid_m2_seconds,best_lap_seconds,first_lap_at_ms,last_lap_at_ms,favourite_laps,favourite_seconds,distance_laps,distance_meters,track_length_meters,elapsed_seconds,duration_status,sector_layout_key,sector_count,sector_status,podium_position,podium_status,capture_revision,weather_revision,weather_status,evidence_version)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        sql: `INSERT INTO dashboard_session_summaries(session_id,source_revision,processor_version,game_id,created_at_ms,car_key,track_key,car_id,track_id,car_ordinal,track_ordinal,session_type,lap_count,positive_laps,valid_laps,driven_seconds,valid_seconds,valid_mean_seconds,valid_m2_seconds,best_lap_seconds,first_lap_at_ms,last_lap_at_ms,favourite_laps,favourite_seconds,distance_laps,distance_meters,track_length_meters,elapsed_seconds,duration_status,sector_layout_key,sector_count,source_sector_starts_json,sector_status,podium_position,podium_status,capture_revision,weather_revision,weather_status,weather_conditions_json,evidence_version)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         args: [sessionId,revision,DASHBOARD_PROCESSOR_VERSION,gameId,createdAtMs,
           dashboardCarIdentity(gameId as GameId,session.car_id as string|number|null,nullableNumber(session.car_ordinal)),
           dashboardTrackIdentity(gameId as GameId,session.track_id as string|number|null,nullableNumber(session.track_ordinal)),
           stringOrNull(session.car_id),stringOrNull(session.track_id),nullableNumber(session.car_ordinal),nullableNumber(session.track_ordinal),stringOrNull(session.session_type),
           lapCount,positiveLaps,validLaps,drivenSeconds,validSeconds,validLaps ? validMean : null,validLaps ? validM2 : null,bestLap,firstLapAt,lastLapAt,
           favouriteLaps,favouriteSeconds,distanceLaps,distanceLaps ? distanceMeters : null,trackLengthMeters,elapsedSeconds,durationStatus,sectorLayoutKey,sectorCount,
+          sourceSectorStarts ? JSON.stringify(sourceSectorStarts) : null,
           evidence ? (evidence.sectorLayout?.status ?? "unavailable") : (sectorLayoutKey ? "available" : preserveCapture ? String(prior?.sector_status ?? "pending") : "pending"),
           podium,session.outcome_status === "confirmed" ? "confirmed" : "unavailable",
-          captureRevision,weatherRevision,weatherStatus,evidenceVersion],
+          captureRevision,weatherRevision,weatherStatus,weatherConditions ? JSON.stringify(weatherConditions) : null,evidenceVersion],
       });
       for (const row of entityMap.values()) {
         await tx.execute({ sql: `INSERT INTO dashboard_session_days(session_id,utc_day,game_id,car_key,track_key,lap_count,positive_laps,valid_laps,driven_seconds,valid_seconds,best_lap_seconds,mean_lap_seconds,m2_lap_seconds,favourite_laps,favourite_seconds,distance_laps,distance_meters,podium_first,podium_second,podium_third)
@@ -310,13 +332,14 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
         for (let i = 0; i < sectorCount; i++) await tx.execute({ sql: "INSERT INTO dashboard_session_sectors(session_id,layout_key,sector_index,best_seconds) VALUES (?,?,?,?)", args: [sessionId,sectorLayoutKey,i,sectors[i]] });
       }
     }
-    const evidenceReady = !candidate.captureDirty || (!!evidence && evidence.duration.status !== "pending"
+    const evidenceReady = candidate.deleted || !candidate.captureDirty || (!!evidence && evidence.duration.status !== "pending"
       && evidence.weather.status !== "pending" && evidence.sectorLayout?.status !== "pending");
     await tx.execute({
       sql: `UPDATE dashboard_summary_state SET published_revision=?,processor_version=?,metadata_dirty=0,
-        capture_dirty=CASE WHEN ? THEN 0 ELSE capture_dirty END,deleted=?,last_success_at=CASE WHEN ? THEN datetime('now') ELSE last_success_at END,
+        capture_dirty=CASE WHEN ? THEN 0 ELSE capture_dirty END,capture_ready=CASE WHEN ? THEN 1 ELSE capture_ready END,
+        deleted=?,last_success_at=CASE WHEN ? THEN datetime('now') ELSE last_success_at END,
         retry_count=0,next_retry_at=NULL,last_error_code=NULL,updated_at=datetime('now') WHERE session_id=? AND source_revision=?`,
-      args: [revision,DASHBOARD_PROCESSOR_VERSION,evidenceReady ? 1 : 0,candidate.deleted ? 1 : 0,evidenceReady ? 1 : 0,sessionId,revision],
+      args: [revision,DASHBOARD_PROCESSOR_VERSION,evidenceReady && !options.metadataOnly ? 1 : 0,evidenceReady && !options.metadataOnly ? 1 : 0,candidate.deleted ? 1 : 0,evidenceReady ? 1 : 0,sessionId,revision],
     });
     await tx.commit();
     return true;

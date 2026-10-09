@@ -1701,5 +1701,15 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       END`,
     ],
   },
+  {
+    version: 64,
+    name: "persist dashboard recap capture facts and readiness",
+    sql: [
+      `ALTER TABLE dashboard_session_summaries ADD COLUMN source_sector_starts_json TEXT`,
+      `ALTER TABLE dashboard_session_summaries ADD COLUMN weather_conditions_json TEXT`,
+      `ALTER TABLE dashboard_summary_state ADD COLUMN capture_ready INTEGER NOT NULL DEFAULT 1`,
+      `UPDATE dashboard_summary_state SET capture_dirty=1, capture_ready=1, metadata_dirty=1, processor_version=0`,
+    ],
+  },
 ];
 

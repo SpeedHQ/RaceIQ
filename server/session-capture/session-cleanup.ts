@@ -1,22 +1,23 @@
 import { randomUUID } from "node:crypto";
-import { stat, rename, unlink } from "node:fs/promises";
+import { rename, stat, unlink } from "node:fs/promises";
 import { resolve } from "node:path";
-import { eq, sql, inArray } from "drizzle-orm";
-import { db } from "../db/index";
-import { laps, sessions } from "../db/schema";
-import { cacheDelete } from "../db/telemetry-replay-storage";
-import { isSessionActive } from "../telemetry/live-pipeline";
-import { withSessionCaptureMaintenanceLock } from "./cleanup";
-import { clearSessionCaptureCache } from "./source-loader";
-import { isOwnedSessionRawFile } from "../db/session-queries";
+import { eq, inArray, sql } from "drizzle-orm";
+import type { SessionCleanupGameSummary, SessionCleanupPreview, SessionCleanupRequest, SessionCleanupResult } from "@raceiq/shared/racing/sessions/cleanup";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
-import type { SessionCleanupGameSummary, SessionCleanupPreview, SessionCleanupRequest, SessionCleanupResult } from "@raceiq/shared/racing/sessions/cleanup";
+import { db } from "../db/index";
+import { dashboardSummaryState, laps, sessions } from "../db/schema";
+import { cacheDelete } from "../db/telemetry-replay-storage";
+import { isOwnedSessionRawFile } from "../db/session-queries";
+import { isSessionActive } from "../telemetry/live-pipeline";
+import { clearSessionCaptureCache } from "./source-loader";
+import { withSessionCaptureMaintenanceLock } from "./cleanup";
+import { releaseDashboardCaptureCheckpoint, republishPersistedDashboardCaptureFacts } from "./dashboard-processor";
 
 export class SessionCleanupBusyError extends Error {
   constructor() {
-    super("Session capture cleanup cannot run while recording is active");
+    super("Cannot clean session captures while a session is active");
     this.name = "SessionCleanupBusyError";
   }
 }
@@ -215,7 +216,12 @@ async function setRawFiles(values: { id: number; rawFile: string | null }[]): Pr
     for (const value of values) {
       await tx.update(sessions).set({ rawFile: value.rawFile }).where(eq(sessions.id, value.id)).run();
     }
+    await tx.update(dashboardSummaryState).set({ captureReady: 0 }).where(inArray(dashboardSummaryState.sessionId, values.map(({ id }) => id))).run();
   });
+  const ids = values.map(({ id }) => id);
+  if (ids.length && !await republishPersistedDashboardCaptureFacts(ids)) {
+    for (const sessionId of ids) await releaseDashboardCaptureCheckpoint(sessionId);
+  }
 }
 
 async function restoreGroup(group: CleanupGroup): Promise<void> {

@@ -24,6 +24,7 @@ import { clearHttpPort, startHttpServer } from "./http-server";
 import { startNativeSourceSupervisor, type NativeSourceSupervisor } from "./native-sources";
 import { installShutdown } from "./shutdown";
 import { startMaintenanceJobs, startSyncAndStaleSessionJobs } from "./startup-jobs";
+import { startDashboardProcessor, type DashboardProcessorHandle } from "@raceiq/backend-core/session-capture/dashboard-processor";
 import { startTray } from "@raceiq/backend-core/runtime/platform/tray";
 import { initMotecTargets } from "../games/motec-init";
 import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
@@ -139,9 +140,12 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   }
 
   let nativeSources: NativeSourceSupervisor | null = null;
+  let dashboardProcessor: DashboardProcessorHandle | null = null;
   installShutdown({
     getNativeSources: () => nativeSources,
+    getDashboardProcessor: () => dashboardProcessor,
   });
+  dashboardProcessor = startDashboardProcessor();
 
   const udpPort = options.udpPort
     ?? (Number(process.env.RACEIQ_DEV_UDP_PORT) || settings.udpPort || Number(process.env.UDP_PORT) || 5301);
