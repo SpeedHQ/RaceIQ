@@ -1,13 +1,10 @@
-/* The latest-session card deliberately follows the supplied visual reference,
-   not the app's flat panel treatment. All selectors stay inside this surface. */
+/* Latest-session layout and timing accents stay scoped to this surface.
+   Card backgrounds follow the dashboard's flat panel treatment. */
 .latest-session-card {
   gap: 0;
-  border: 1px solid var(--recap-border);
+  border: 1px solid var(--app-border);
   border-radius: 12px;
-  background:
-    radial-gradient(ellipse at top right, color-mix(in srgb, var(--app-accent) 12%, transparent), transparent 70%),
-    var(--recap-background);
-  box-shadow: 0 8px 28px color-mix(in srgb, var(--recap-background) 50%, transparent);
+  background: color-mix(in srgb, var(--app-surface-alt) 30%, transparent);
 }
 
 .recap-card-title {
@@ -30,15 +27,12 @@
 .recap-footer {
   border: 1px solid var(--recap-border);
   border-radius: 8px;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--recap-panel) 85%, transparent), color-mix(in srgb, var(--recap-background) 94%, transparent));
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--recap-label) 5%, transparent);
+  background: var(--app-surface);
 }
 
 .recap-best-lap {
   border-color: color-mix(in srgb, var(--app-accent) 65%, var(--recap-border));
-  box-shadow:
-    0 4px 18px color-mix(in srgb, var(--app-accent) 15%, transparent),
-    inset 0 0 18px color-mix(in srgb, var(--app-accent) 7%, transparent);
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--app-accent) 15%, transparent);
 }
 
 .recap-label {
@@ -51,7 +45,7 @@
 
 .recap-best-time {
   color: var(--recap-timing);
-  font-size: clamp(1.5rem, 4.8cqw, 2rem);
+  font-size: clamp(1.25rem, 4cqw, 1.5rem);
   letter-spacing: -0.035em;
   text-shadow: 0 2px 14px color-mix(in srgb, var(--recap-timing) 30%, transparent);
 }

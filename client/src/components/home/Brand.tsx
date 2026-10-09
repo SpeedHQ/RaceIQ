@@ -1,3 +1,4 @@
+import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import { Link } from "@tanstack/react-router";
 import { m } from "@/paraglide/messages";
@@ -68,14 +69,16 @@ const BRAND_CARDS: ReadonlyArray<{
   { key: "lmu", gameId: "lmu", route: "/lmu", name: "Le Mans Ultimate", logoSrc: "/lmu-logo.svg" },
 ];
 
-function GameBrandCard({ game, stats }: { game: (typeof BRAND_CARDS)[number]; stats: GameStats[GameKey] }) {
+function GameBrandCard({ game, stats, loading, selected }: { game: (typeof BRAND_CARDS)[number]; stats: GameStats[GameKey]; loading: boolean; selected: boolean }) {
   return (
     <Link
       to={game.route}
       data-game-brand={game.gameId}
+      aria-busy={loading}
+      aria-current={selected ? "page" : undefined}
       className="game-brand-card group block w-52 min-w-42 max-w-full flex-none rounded-lg active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent"
     >
-      <Card variant="gradient" className="relative h-full min-w-0 flex-row items-center gap-1.5 overflow-hidden rounded-lg p-2 font-normal transition-colors duration-150 group-hover:border-app-border-hover motion-reduce:transition-none">
+      <Card variant="gradient" className={`relative h-full min-w-0 flex-row items-center gap-1.5 overflow-hidden rounded-lg p-2 font-normal transition-colors duration-150 group-hover:border-app-border-hover motion-reduce:transition-none ${selected ? "border-app-accent" : ""}`}>
         <span className="sr-only">{game.name}</span>
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-2 inset-y-1 flex items-center [mask-image:linear-gradient(to_right,black_20%,transparent_62%)]">
           <img src={game.logoSrc} alt="" className="h-[90%] w-[90%] object-contain object-left" />
@@ -83,19 +86,19 @@ function GameBrandCard({ game, stats }: { game: (typeof BRAND_CARDS)[number]; st
         <div aria-hidden="true" className="h-14 w-18 shrink-0" />
         <dl className="relative z-10 grid min-w-0 flex-1 grid-cols-[minmax(max-content,1fr)_max-content] items-baseline gap-x-1 gap-y-1 text-right">
           <dt className="col-start-2 row-start-1 whitespace-nowrap text-app-compact font-normal text-app-text-muted">{m.label_laps()}</dt>
-          <dd className="col-start-1 row-start-1 wrap-anywhere text-app-detail font-normal font-mono leading-snug tabular-nums text-app-text">{stats.laps}</dd>
+          <dd className="col-start-1 row-start-1 wrap-anywhere text-app-detail font-normal font-mono leading-snug tabular-nums text-app-text"><Skeleton loading={loading}>{stats.laps > 0 ? stats.laps : "—"}</Skeleton></dd>
           <dt className="col-start-2 row-start-2 whitespace-nowrap text-app-compact font-normal text-app-text-muted">{m.home_card_driven()}</dt>
-          <dd className="col-start-1 row-start-2 wrap-anywhere text-app-detail font-normal font-mono leading-snug tabular-nums text-app-text">{stats.time}</dd>
+          <dd className="col-start-1 row-start-2 wrap-anywhere text-app-detail font-normal font-mono leading-snug tabular-nums text-app-text"><Skeleton loading={loading}>{stats.laps > 0 ? stats.time : "—"}</Skeleton></dd>
         </dl>
       </Card>
     </Link>
   );
 }
 
-export function GameBrandCards({ gameStats, hiddenGames }: { gameStats: GameStats; hiddenGames: string[] }) {
+export function GameBrandCards({ gameStats, hiddenGames, loading = false, selectedGameId = null }: { gameStats: GameStats; hiddenGames: string[]; loading?: boolean; selectedGameId?: string | null }) {
   return (
-    <div className="grid grid-cols-2 justify-items-center gap-2 md:grid-cols-3 xl:grid-cols-6">
-      {BRAND_CARDS.map((game) => (hiddenGames.includes(game.gameId) ? null : <GameBrandCard key={game.gameId} game={game} stats={gameStats[game.key]} />))}
+    <div className="grid grid-cols-2 justify-items-center gap-2 md:grid-cols-3 xl:grid-cols-6" aria-busy={loading}>
+      {BRAND_CARDS.map((game) => (hiddenGames.includes(game.gameId) && selectedGameId !== game.gameId ? null : <GameBrandCard key={game.gameId} game={game} stats={gameStats[game.key]} loading={loading} selected={selectedGameId === game.gameId} />))}
     </div>
   );
 }

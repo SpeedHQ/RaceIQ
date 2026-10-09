@@ -2,6 +2,7 @@
 
 ### Features
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
+- Keep the game selector at the top of game dashboards for quick switching, and match each game's insights, recent sessions, and activity layout to the main dashboard.
 
 - Add Favourite track and Favourite car dashboard widgets stacked vertically in the right-hand half beside Latest Session, with a compact, height-matched desktop row and full-width mobile stacking. Include matching cinematic styling, real track outlines, car artwork, driving time, estimated distance in km or miles, session and lap counts, and confirmed race podiums. Favourites use completed-lap driving time in the selected period and game; distance estimates use known track lengths and disclose partial coverage, while unavailable statistics remain dashes.
 - Merge overview totals into small inline metrics beside the Clean laps, Track time distribution, and Session time widget titles instead of separate stat cards.
@@ -30,11 +31,24 @@
 
 ### Fixes
 
+- Keep an empty stacked-bar chart visible in the Podiums widget with neutral bar tracks, a baseline, and selected-period date labels, without inventing race results. Let the chart fill the remaining card height and omit the finishing-position section when no other finishes are recorded.
+- Plot Clean laps as daily rates for ranges up to 90 days and monthly rates for longer ranges, instead of connecting every lap.
+
+- Make dashboard widget headings and favourite statistics labels easier to read, and keep Latest Session text sizes consistent while loading or unavailable.
+- Keep gradients only on dashboard game cards; give Latest Session and Favourite track/car flat backgrounds and remove their inner panel fills while retaining timing and personal-best accents.
+- Reduce oversized track names, best-lap times, and sector times in Latest Session without shrinking labels or changing standalone session recaps.
+
+- Use the selected dashboard period through the current time for the Clean laps chart axis instead of stretching the first and last recorded laps across the chart. Show times for same-day ranges and years for ranges crossing a year boundary; retain period labels when no laps are available.
+- Keep main dashboard widgets at stable, content-fitting heights across populated, empty, loading, and error states. Preserve labels and dash-valued placeholders behind faded “No data” overlays, except on game cards, which retain unobscured logos and dash values. Show animated loading skeletons that respect reduced-motion preferences.
+- Match Latest Session card padding to Favourite cards, remove unused fixed card height so the card ends with its content, and link the Favourite track name to its track detail page.
+- Match the combined Favourite track and Favourite car column to Latest Session's actual desktop height instead of independent fixed heights, with compact spacing and artwork that stays above the statistics; retain full-height mobile stacking.
+- Wrap Recent sessions in a card and remove the table's inner border and shaded header.
+- Show zero podium counts when laps are recorded but no podium results are available.
 - Place first-, second-, and third-place trophies and counts inline beside the Podiums heading, retaining accessible placement labels, and remove the redundant total-and-title row above the chart.
 - Keep Consistency, Clean laps, and Podiums chart regions at the same fixed height across card widths.
 - Align Session time and Track time distribution doughnut centers and legend midlines within their shared row.
 - Align labels and values across Favourite track and Favourite car statistics, including wrapped labels.
-- Narrow Favourite track statistics into compact inline metrics on wide cards, giving the track outline a larger dedicated area without increasing the row height; retain full-width statistics on small screens.
+- Narrow Favourite track and Favourite car statistics into compact inline metrics on wide cards, reserving the right-hand area for the track outline or car artwork without increasing the row height; retain full-width statistics on small screens.
 - Keep dashboard game cards compact and readable across phone, tablet, and desktop layouts.
 - Center smaller logo-only Overview cards, right-align values before Laps and Driving labels, and match their gradient styling to Latest Session.
 - Render Overview game cards with official logo images and original brand colours instead of recoloured masks and filters.

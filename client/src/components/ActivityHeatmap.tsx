@@ -1,3 +1,5 @@
+import { EmptyStateOverlay } from "@/components/ui/empty-state-overlay";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
@@ -31,7 +33,7 @@ function fmtDuration(sec: number): string {
   return `${s}s`;
 }
 
-export function ActivityHeatmap({ laps, periodStart, showTitle = true }: { laps: LapMeta[]; periodStart: number; showTitle?: boolean }) {
+export function ActivityHeatmap({ laps, periodStart, showTitle = true, loading = false }: { laps: LapMeta[]; periodStart: number; showTitle?: boolean; loading?: boolean }) {
   const [now, setNow] = useState(() => new Date());
   const [hover, setHover] = useState<{ date: string; duration: string; x: number; y: number } | null>(null);
   const year = now.getFullYear();
@@ -87,8 +89,9 @@ export function ActivityHeatmap({ laps, periodStart, showTitle = true }: { laps:
   const height = DAYS * (CELL + GAP) - GAP;
 
   return (
-    <section className="w-full max-w-[406px] rounded-lg border border-app-border p-4" aria-label={`${m.heatmap_title()} — ${monthDescription}`}>
-      {showTitle && <h2 className="mb-4 text-app-detail font-semibold text-app-text">{m.heatmap_title()}</h2>}
+    <section className="w-full max-w-[406px] rounded-lg border border-app-border p-4" aria-label={`${m.heatmap_title()} — ${monthDescription}`} aria-busy={loading}>
+      {showTitle && <h2 className="mb-4 text-app-heading font-semibold text-app-text">{m.heatmap_title()}</h2>}
+      <div className="relative">
       <div className="overflow-x-auto">
       <div style={{ width }}>
         <div className="relative mb-2 h-4 text-app-compact text-app-text-secondary">
@@ -100,6 +103,8 @@ export function ActivityHeatmap({ laps, periodStart, showTitle = true }: { laps:
               </span>
             ))}
         </div>
+        <div className="relative">
+        <Skeleton loading={loading} shape="chart" className="h-[128px] w-full">
         <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} className="block max-w-none" role="img" aria-label={`${m.heatmap_title()} — ${monthDescription}`}>
           {dayLabels.map((label, weekday) => (
             <text key={label} x={0} y={weekday * (CELL + GAP) + CELL / 2} dominantBaseline="middle" className="fill-app-text-secondary text-app-caption">
@@ -140,7 +145,12 @@ export function ActivityHeatmap({ laps, periodStart, showTitle = true }: { laps:
             );
           })}
         </svg>
+        </Skeleton>
+        </div>
       </div>
+
+      </div>
+      {max <= 0 && !loading && <EmptyStateOverlay className="top-6" />}
       </div>
       <div className="mt-3 flex items-center justify-end gap-1.5 text-app-caption text-app-text-secondary" aria-hidden="true">
         <span>{m.heatmap_less()}</span>

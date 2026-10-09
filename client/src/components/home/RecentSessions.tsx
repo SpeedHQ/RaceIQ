@@ -1,3 +1,6 @@
+import { Card } from "@/components/ui/card";
+import { EmptyStateOverlay } from "@/components/ui/empty-state-overlay";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getLMUCar } from "@raceiq/game-lmu-metadata/catalog";
 import { resolveTrackDisplayName } from "@/lib/track-display-name";
 import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
@@ -35,39 +38,26 @@ export function RecentSessionsTable({
   loading?: boolean;
   error?: boolean;
 }) {
-  if (loading) {
-    return (
-      <div role="status" className="p-6 text-center text-app-text/90">
-        {m.common_loading()}
-      </div>
-    );
-  }
-  if (error) {
-    return (
-      <div role="alert" className="p-6 text-center text-status-danger">
-        {m.common_error()}
-      </div>
-    );
-  }
-  if (sessions.length === 0) {
-    return <div className="p-6 text-center text-app-text/90">{m.home_no_sessions()}</div>;
-  }
-
+  const stateMessage = error ? m.common_error() : loading ? m.common_loading() : sessions.length === 0 ? m.home_no_sessions() : null;
+  const placeholderRows = stateMessage ? Array.from({ length: 8 }, (_, index) => index) : [];
   return (
-    <Table>
+    <Card className="relative flex h-[440px] min-h-0 flex-col gap-2 overflow-hidden p-3" aria-busy={loading}>
+      <h2 className="shrink-0 text-app-heading font-semibold text-app-text/90">{m.home_recent_sessions()}</h2>
+      <div className="relative min-h-0 flex-1 overflow-auto">
+    <Table containerClassName="rounded-none border-0">
       <TableHeader>
         <TableRow>
-          {!gameId && <TableHead>{m.home_col_game()}</TableHead>}
-          <TableHead>{m.label_track()}</TableHead>
-          <TableHead>{m.label_car()}</TableHead>
-          <TableHead>{m.label_type()}</TableHead>
-          <TableHead>{m.label_laps()}</TableHead>
-          <TableHead>{m.sessions_col_best_lap()}</TableHead>
-          <TableHead className="text-right">{m.home_col_when()}</TableHead>
+          {!gameId && <TableHead className="bg-transparent">{m.home_col_game()}</TableHead>}
+          <TableHead className="bg-transparent">{m.label_track()}</TableHead>
+          <TableHead className="bg-transparent">{m.label_car()}</TableHead>
+          <TableHead className="bg-transparent">{m.label_type()}</TableHead>
+          <TableHead className="bg-transparent">{m.label_laps()}</TableHead>
+          <TableHead className="bg-transparent">{m.sessions_col_best_lap()}</TableHead>
+          <TableHead className="bg-transparent text-right">{m.home_col_when()}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {sessions.map((session) => {
+        {stateMessage ? placeholderRows.map((row) => <TableRow key={row} aria-hidden="true">{Array.from({ length: gameId ? 6 : 7 }, (_, column) => <TableCell key={column} className="text-app-text-muted">{row === 0 && column === 0 ? <span className="sr-only" role={error ? "alert" : loading ? "status" : undefined}>{stateMessage}</span> : <Skeleton loading={loading}>—</Skeleton>}</TableCell>)}</TableRow>) : sessions.map((session) => {
           const track = session.gameId === "lmu" && typeof session.trackId === "string"
             ? resolveTrackDisplayName("lmu", { trackId: session.trackId }) ?? session.trackId
             : trackNames[`${session.gameId}:${session.trackOrdinal}`] ?? "";
@@ -105,6 +95,9 @@ export function RecentSessionsTable({
           );
         })}
       </TableBody>
-    </Table>
+      </Table>
+      {!loading && !error && sessions.length === 0 && <EmptyStateOverlay />}
+      </div>
+    </Card>
   );
 }

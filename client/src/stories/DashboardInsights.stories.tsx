@@ -53,6 +53,7 @@ const mixedLaps: LapMeta[] = [
 const meta = {
   title: "Dashboards/Dashboard Insights",
   component: DashboardInsights,
+  args: { periodStart: Date.now() - 365 * 86_400_000 },
   parameters: { layout: "padded" },
   decorators: [(Story) => <div className="@container/workspace mx-auto max-w-[1000px]"><Story /></div>],
 } satisfies Meta<typeof DashboardInsights>;

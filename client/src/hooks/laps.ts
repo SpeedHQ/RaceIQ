@@ -13,15 +13,17 @@ import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
 import { queryKeys } from "./query-keys";
 
-export function useLaps(options?: { refetchInterval?: number | false }) {
+export function useLaps(options?: { refetchInterval?: number | false; allGames?: boolean }) {
   const gameId = useGameId();
+  const { allGames = false, ...queryOptions } = options ?? {};
+  const queryGameId = allGames ? null : gameId;
   return useQuery({
-    queryKey: ["laps", gameId ?? null],
+    queryKey: ["laps", queryGameId],
     queryFn: async () => {
-      const res = await client.api.laps.$get({ query: { gameId: gameId ?? undefined } });
+      const res = await client.api.laps.$get({ query: { gameId: queryGameId ?? undefined } });
       return rpcJson<LapMeta[]>(res);
     },
-    ...options,
+    ...queryOptions,
   });
 }
 

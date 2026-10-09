@@ -19,7 +19,7 @@ export function HomePageContainer() {
   const gameId = useGameId();
   const navigate = useNavigate();
   const gameAdapter = gameId ? tryGetGame(gameId) : null;
-  const { data: allLaps = [], isLoading: lapsLoading, isError: lapsError } = useLaps();
+  const { data: allLaps = [], isLoading: lapsLoading, isError: lapsError } = useLaps({ allGames: true });
   const { data: sessions = [], isLoading: sessionsLoading, isError: sessionsError } = useSessions();
   const { displaySettings } = useSettings();
   const hiddenGames: string[] = displaySettings.hiddenGames ?? [];

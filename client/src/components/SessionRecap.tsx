@@ -222,7 +222,7 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishP
           {compact ? <>
             <div className="flex items-center gap-3">
               {track && <svg aria-hidden="true" viewBox={track.viewBox} preserveAspectRatio="xMidYMid meet" className="h-12 w-16 shrink-0 overflow-visible text-app-text">{flipX ? <g transform={`translate(${Number(track.viewBox.split(" ")[0]) * 2 + Number(track.viewBox.split(" ")[2])},0) scale(-1,1)`}><polyline points={track.points.map((point) => `${point.x},${point.z}`).join(" ")} fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" /></g> : <polyline points={track.points.map((point) => `${point.x},${point.z}`).join(" ")} fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" />}</svg>}
-              <div className="min-w-0 break-words text-xl font-semibold leading-tight text-app-text">{recap.trackName}</div>
+              <div className="min-w-0 break-words text-app-heading font-semibold leading-tight text-app-text">{recap.trackName}</div>
             </div>
             <div className="mt-2 flex items-start gap-2 text-app-subtext text-app-text-secondary">
               <span className="shrink-0 rounded border border-app-accent/30 bg-app-accent/10 px-2 py-0.5 text-app-label font-semibold uppercase text-app-accent">{gameId}</span>
@@ -251,24 +251,23 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishP
       {compact ? (
         <div className="relative flex min-w-0 flex-col gap-3">
           <div className="grid min-w-0 gap-2 @md:grid-cols-[1.65fr_3fr]">
-            <div className="recap-best-lap min-w-0 p-2.5">
+            <div className="recap-best-lap min-h-24 min-w-0 p-2.5">
               <div className="recap-label">{m.recap_best_lap()}</div>
               <div className="recap-best-time mt-2 whitespace-nowrap font-mono font-semibold tabular-nums leading-none">{recap.bestLapSec != null ? formatLapTime(recap.bestLapSec) : "—"}</div>
               {recap.personalBest?.isNew && recap.bestLapSec != null && recap.personalBest.previousBestSec != null && <div className="mt-2 font-mono text-app-subtext tabular-nums text-status-success">{formatDelta(recap.personalBest.previousBestSec - recap.bestLapSec)}</div>}
             </div>
-            {recap.sectors?.length ? (
-              <div className="grid min-w-0 grid-cols-3 gap-2">
-                {recap.sectors.map((sector) => {
-                  const fastest = sector.sessionBestSec != null && Math.abs(sector.bestLapSec - sector.sessionBestSec) <= 0.0005;
-                  const delta = sector.allTimeBestSec != null ? sector.bestLapSec - sector.allTimeBestSec : null;
-                  return <div key={sector.index} className="recap-sector min-w-0 p-2">
-                    <div className="recap-label">S{sector.index}</div>
-                    <div className={`mt-2 font-mono text-app-heading font-semibold tabular-nums @2xl:text-xl ${fastest ? "text-[var(--lap-record)]" : "text-app-text"}`}>{sector.bestLapSec != null ? sector.bestLapSec.toFixed(3) : "—"}</div>
-                    {delta != null && <div title={m.recap_sector_previous_best()} className={`mt-3 font-mono text-app-label tabular-nums ${delta < 0 ? "text-status-success" : delta > 0 ? "text-status-warning" : "text-app-text-muted"}`}>{delta > 0 ? "+" : ""}{delta.toFixed(3)}</div>}
-                  </div>;
-                })}
-              </div>
-            ) : <div className="recap-sector flex items-center p-4 text-app-label text-app-text-muted">{m.recap_sectors()} · —</div>}
+            <div className="grid min-w-0 grid-cols-3 gap-2">
+              {Array.from({ length: 3 }, (_, index) => {
+                const sector = recap.sectors?.find((candidate) => candidate.index === index + 1);
+                const fastest = sector?.bestLapSec != null && sector.sessionBestSec != null && Math.abs(sector.bestLapSec - sector.sessionBestSec) <= 0.0005;
+                const delta = sector?.bestLapSec != null && sector.allTimeBestSec != null ? sector.bestLapSec - sector.allTimeBestSec : null;
+                return <div key={index} className="recap-sector min-h-24 min-w-0 p-2">
+                  <div className="recap-label">S{index + 1}</div>
+                  <div className={`mt-2 font-mono text-app-subtext font-semibold tabular-nums @2xl:text-app-heading ${fastest ? "text-[var(--lap-record)]" : "text-app-text"}`}>{sector?.bestLapSec != null ? sector.bestLapSec.toFixed(3) : "—"}</div>
+                  <div title={m.recap_sector_previous_best()} className={`mt-3 font-mono text-app-label tabular-nums ${delta != null && delta < 0 ? "text-status-success" : delta != null && delta > 0 ? "text-status-warning" : "text-app-text-muted"}`}>{delta == null ? "—" : `${delta > 0 ? "+" : ""}${delta.toFixed(3)}`}</div>
+                </div>;
+              })}
+            </div>
           </div>
           <div className="recap-footer flex min-w-0 flex-col gap-3 p-2.5 @lg:flex-row @lg:items-center">
             <div className={`grid min-w-0 flex-1 grid-cols-2 gap-x-3 gap-y-3 ${isRace ? "@md:grid-cols-4" : "@md:grid-cols-3"}`}>
