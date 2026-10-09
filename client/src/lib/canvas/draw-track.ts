@@ -3,6 +3,38 @@ import type { Point, TrackSectors } from "@/components/track/types";
 import { SECTOR_COLOR_VARS, TRACK_CORNER_COLOR_VARS, TRACK_STRAIGHT_COLOR_VARS } from "@/lib/colors";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 
+export interface PitLine {
+  kind: "pit-road" | "merge-line";
+  points: Point[];
+}
+export function isPitLine(value: unknown): value is PitLine {
+  if (!value || typeof value !== "object" || !("kind" in value) || !("points" in value)) return false;
+  if (value.kind !== "pit-road" && value.kind !== "merge-line") return false;
+  return Array.isArray(value.points) && value.points.every((point: unknown) => {
+    if (!point || typeof point !== "object" || !("x" in point) || !("z" in point)) return false;
+    return typeof point.x === "number" && Number.isFinite(point.x) && typeof point.z === "number" && Number.isFinite(point.z);
+  });
+}
+
+export function drawPitLines(ctx: CanvasRenderingContext2D, lines: readonly PitLine[] | null | undefined, toCanvas: (x: number, z: number) => [number, number]): void {
+  if (!lines) return;
+  for (const line of lines) {
+    if (line.points.length < 2) continue;
+    ctx.beginPath();
+    ctx.strokeStyle = line.kind === "pit-road" ? "var(--track-pit-road)" : "var(--track-pit-exit)";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([]);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    const [startX, startY] = toCanvas(line.points[0].x, line.points[0].z);
+    ctx.moveTo(startX, startY);
+    for (let index = 1; index < line.points.length; index++) {
+      const [x, y] = toCanvas(line.points[index].x, line.points[index].z);
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+}
 interface LabelCandidate {
   text: string;
   color: string;
@@ -115,7 +147,8 @@ export function drawTrack(
   highlightedSegments?: readonly number[] | null,
   /** Zero-based sector preview, using the source-defined boundaries. */
   highlightedSector?: number | null,
-) {
+  pitLines?: readonly PitLine[] | null,
+ ) {
   const ctx = getSemanticCanvasContext(canvas);
   if (!ctx || outline.length < 2) return;
 
@@ -165,6 +198,7 @@ export function drawTrack(
   }
   ctx.lineTo(sx, sy);
   ctx.stroke();
+  drawPitLines(ctx, pitLines, toCanvas);
 
   // Sector override mode: draw source-defined sector bands, suppressing segment coloring.
   if (sectorOverride) {

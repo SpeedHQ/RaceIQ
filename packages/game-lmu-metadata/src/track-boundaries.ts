@@ -11,9 +11,25 @@ const tracksById = new Map(lmuTrackCatalog.map((track) => [track.id, track]));
 const outlineCache = new Map<string, Point[] | null>();
 
 function parsePath(svg: string, id: string): Point[] | null {
-  const match = svg.match(new RegExp(`<path\\b[^>]*(?:id=["']${id}["'][^>]*|class=["'][^"']*\\b${id}\\b[^"']*["'][^>]*)[^>]*\\sd=["']([^"']+)["']`, "i"));
-  if (!match) return null;
-  const tokens = match[1].match(/[MLZ]|[-+]?(?:\d*\.)?\d+/gi) ?? [];
+  let data: string | undefined;
+  for (const path of svg.matchAll(/<path\b([^>]*)>/gi)) {
+    let matches = false;
+    let pathData: string | undefined;
+    // Match attributes independently: overlapping wildcards backtrack on long paths.
+    for (const attribute of path[1].matchAll(/\s(id|class|d)\s*=\s*(["'])(.*?)\2/gi)) {
+      const name = attribute[1].toLowerCase();
+      const value = attribute[3];
+      if (name === "id" && value.toLowerCase() === id) matches = true;
+      if (name === "class" && value.toLowerCase().split(/\s+/).includes(id)) matches = true;
+      if (name === "d") pathData = value;
+    }
+    if (matches && pathData) {
+      data = pathData;
+      break;
+    }
+  }
+  if (!data) return null;
+  const tokens = data.match(/[MLZ]|[-+]?(?:\d*\.)?\d+/gi) ?? [];
   const points: Point[] = [];
   let index = 0;
   let command = "";
