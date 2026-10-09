@@ -8,13 +8,17 @@ import { deleteSession } from "@raceiq/backend-core/db/session-queries";
 const ids: number[] = [];
 
 afterEach(async () => {
-  for (const id of ids.splice(0)) await deleteSession(id);
+  for (const id of ids.splice(0)) {
+    await deleteSession(id);
+    const tombstone = await prepareDashboardPublicationCandidate(id);
+    if (tombstone) await publishDashboardSession(tombstone);
+  }
 });
 
-async function seedSession() {
+async function seedSession(createdAt = "2026-06-01T12:00:00.000Z") {
   const row = await db.insert(sessions).values({
     gameId: "acc", carId: "7", trackId: "8", carOrdinal: 7, trackOrdinal: 8,
-    ownership: "mine", createdAt: "2026-06-01T12:00:00.000Z", sessionType: "race",
+    ownership: "mine", createdAt, sessionType: "race",
   }).returning({ id: sessions.id }).get();
   ids.push(row.id);
   return row.id;
@@ -216,6 +220,7 @@ test("session deletion retains contributions until tombstone publication subtrac
     [sessionId, sessionId, sessionId, Date.parse("2099-01-03T12:00:00.000Z"), Date.parse("2099-01-03T12:15:00.000Z")],
   );
   expect(retained[0]).toMatchObject({ summaries: 1, days: 1, buckets: 1, global_laps: 1, global_bucket_laps: 1 });
+  expect((await read("SELECT SUM(lap_count) AS laps FROM dashboard_month_entities WHERE utc_month='2099-01' AND game_id='acc'"))[0]?.laps).toBe(1);
 
   const tombstone = await prepareDashboardPublicationCandidate(sessionId);
   expect(tombstone).toMatchObject({ deleted: true, session: null });
@@ -230,6 +235,61 @@ test("session deletion retains contributions until tombstone publication subtrac
     [sessionId, sessionId, sessionId, Date.parse("2099-01-03T12:00:00.000Z"), Date.parse("2099-01-03T12:15:00.000Z")],
   );
   expect(removed[0]).toMatchObject({ summaries: 0, days: 0, buckets: 0, global_laps: 0, global_bucket_laps: 0 });
+  expect((await read("SELECT COUNT(*) AS count FROM dashboard_month_entities WHERE utc_month='2099-01' AND game_id='acc'")).map((row) => Number(row.count))).toEqual([0]);
+});
+
+test("monthly entity publication subtracts dirty revisions and removes ownership transitions", async () => {
+  const sessionId = await seedSession("2098-02-01T12:00:00.000Z");
+  await db.insert(laps).values([
+    { sessionId, lapNumber: 1, lapTime: 90, isValid: true, createdAt: "2098-02-01T12:01:00.000Z" },
+    { sessionId, lapNumber: 2, lapTime: 91, isValid: true, createdAt: "2098-02-02T12:01:00.000Z" },
+    { sessionId, lapNumber: 3, lapTime: 92, isValid: true, createdAt: "2098-02-28T12:01:00.000Z" },
+  ]).run();
+  const monthly = async () => read(`SELECT COALESCE(SUM(lap_count),0) AS laps,
+    COALESCE(SUM(valid_laps),0) AS valid_laps,COALESCE(SUM(valid_seconds),0) AS seconds,
+    COALESCE(SUM(podium_first+podium_second+podium_third),0) AS podiums
+    FROM dashboard_month_entities WHERE utc_month='2098-02' AND game_id='acc'`);
+
+  expect(await publish(sessionId)).toBe(true);
+  const moments = async () => read("SELECT valid_mean_seconds,valid_m2_seconds FROM dashboard_month_entities WHERE utc_month='2098-02' AND game_id='acc'");
+  expect((await monthly())[0]).toMatchObject({ laps: 3, valid_laps: 3, seconds: 273, podiums: 0 });
+  expect((await moments())[0]).toMatchObject({ valid_mean_seconds: 91, valid_m2_seconds: 2 });
+
+  await client.execute({ sql: "UPDATE laps SET lap_time=80 WHERE session_id=? AND lap_number=2", args: [sessionId] });
+  expect((await read("SELECT metadata_dirty FROM dashboard_summary_state WHERE session_id=?", [sessionId]))[0]?.metadata_dirty).toBe(1);
+  expect((await monthly())[0]).toMatchObject({ laps: 3, valid_laps: 3, seconds: 273 });
+  expect(await publish(sessionId)).toBe(true);
+  const corrected = (await monthly())[0];
+  expect(corrected).toMatchObject({ laps: 3, valid_laps: 3, seconds: 262 });
+  expect(Math.abs(Number((await moments())[0]?.valid_mean_seconds) - (262 / 3))).toBeLessThan(1e-6);
+  expect(Math.abs(Number((await moments())[0]?.valid_m2_seconds) - (80 + 24 / 9))).toBeLessThan(1e-6);
+  expect(await publish(sessionId)).toBe(true);
+  expect((await monthly())[0]).toEqual(corrected);
+
+  await db.update(sessions).set({ ownership: "others" }).where(eq(sessions.id, sessionId)).run();
+  expect(await publish(sessionId)).toBe(true);
+  expect((await monthly())[0]).toMatchObject({ laps: 0, valid_laps: 0, seconds: 0, podiums: 0 });
+  expect((await read("SELECT COUNT(*) AS count FROM dashboard_month_entities WHERE utc_month='2098-02' AND game_id='acc'")).map((row) => Number(row.count))).toEqual([0]);
+  expect(await moments()).toHaveLength(0);
+});
+
+test("monthly publication moves time and identity contributions without stale entity leakage", async () => {
+  const sessionId = await seedSession("2097-01-15T12:00:00.000Z");
+  await db.insert(laps).values({ sessionId, lapNumber: 1, lapTime: 90, isValid: true, createdAt: "2097-01-15T12:01:00.000Z" }).run();
+  expect(await publish(sessionId)).toBe(true);
+  const prior = await read("SELECT car_key,track_key,lap_count FROM dashboard_month_entities WHERE utc_month='2097-01' AND game_id='acc'");
+  expect(prior).toHaveLength(1);
+  expect(prior[0]?.lap_count).toBe(1);
+
+  await client.execute({ sql: "UPDATE laps SET created_at='2097-02-02T12:01:00.000Z' WHERE session_id=?", args: [sessionId] });
+  await db.update(sessions).set({ carId: "9", trackId: "10", carOrdinal: 9, trackOrdinal: 10 }).where(eq(sessions.id, sessionId)).run();
+  expect(await publish(sessionId)).toBe(true);
+  expect((await read("SELECT lap_count FROM dashboard_month_entities WHERE utc_month='2097-01' AND game_id='acc'")).map((row) => Number(row.lap_count))).toEqual([]);
+  const moved = await read("SELECT car_key,track_key,lap_count,valid_seconds FROM dashboard_month_entities WHERE utc_month='2097-02' AND game_id='acc'");
+  expect(moved).toHaveLength(1);
+  expect(moved[0]).toMatchObject({ lap_count: 1, valid_seconds: 90 });
+  expect(moved[0]?.car_key).not.toBe(prior[0]?.car_key);
+  expect(moved[0]?.track_key).not.toBe(prior[0]?.track_key);
 });
 
 test("dashboard trigger revisions and lap projections roll back with source writes", async () => {

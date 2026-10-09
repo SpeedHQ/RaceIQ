@@ -80,7 +80,6 @@
   /* Reference-led latest-session card; intentionally independent of flat app surfaces. */
   --recap-background: var(--app-bg);
   --recap-panel: #031016;
-  --recap-border: #173642;
   --recap-label: #a3bac8;
   --recap-timing: #c49cff;
 

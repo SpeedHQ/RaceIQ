@@ -21,6 +21,7 @@ import type { FavouriteInsight } from "./dashboard-insights";
 import { formatDrivenTime } from "./Stats";
 import type { PeriodStats } from "./types";
 import { trackRoutePath } from "@/lib/track-routes";
+import { piClass } from "@/components/forza/PiBadge";
 
 
 type PeriodSummary = Pick<PeriodStats["year"], "laps" | "tracks" | "cars" | "sessions" | "totalTime">;
@@ -92,12 +93,15 @@ function FavouritePanel({ title, insight, kind, trackNames, carNames, gameId, lo
       transform: !Array.isArray(outlineData) && outlineData?.flipX ? `translate(${minX + maxX},0) scale(-1,1)` : undefined,
     };
   }, [outlineData]);
-  const { data: cars } = useQuery<{ id?: string | number | null; ordinal?: number | null; imageUrl?: string | null; specs?: { imageUrl?: string | null } | null }[]>({
+  const { data: cars } = useQuery<{ id?: string | number | null; ordinal?: number | null; class?: string; imageUrl?: string | null; specs?: { imageUrl?: string | null; pi?: number } | null }[]>({
     queryKey: ["cars", contextGameId],
     queryFn: async () => {
       if (contextGameId === "acc") {
-        const catalog = await rpcJson<{ id: number }[]>(await client.api.acc.cars.$get());
-        return catalog.map((car) => ({ id: car.id, imageUrl: `/car-images/acc-${car.id}.jpg` }));
+        const catalog = await rpcJson<{ id: number; class: string }[]>(await client.api.acc.cars.$get());
+        return catalog.map((car) => ({ id: car.id, class: car.class, imageUrl: `/car-images/acc-${car.id}.jpg` }));
+      }
+      if (contextGameId === "ac-evo") {
+        return rpcJson<{ ordinal: number; class: string }[]>(await client.api["ac-evo"].cars.$get());
       }
       if (!contextGameId) return [];
       return rpcJson(await client.api.cars.$get({}, { headers: { "X-Game-Id": contextGameId } }));
@@ -109,6 +113,7 @@ function FavouritePanel({ title, insight, kind, trackNames, carNames, gameId, lo
     ? cars?.find((candidate) => String(candidate.id) === String(identity) || (insight.ordinal != null && candidate.ordinal === insight.ordinal))
     : undefined;
   const carImageUrl = car?.imageUrl || car?.specs?.imageUrl || undefined;
+  const carClass = car?.class?.trim() || (contextGameId === "fm-2023" && car?.specs?.pi != null && car.specs.pi > 0 ? piClass(car.specs.pi) : undefined);
   const unknown = kind === "track" ? m.home_insights_unknown_track() : m.home_insights_unknown_car();
   const distance = insight?.distanceMeters == null ? "—" : imperial
     ? `${(insight.distanceMeters / 1609.344).toFixed(1)} mi`
@@ -119,10 +124,10 @@ function FavouritePanel({ title, insight, kind, trackNames, carNames, gameId, lo
   const trackHref = kind === "track" && !unavailable && insight && trackKey != null
     ? trackRoutePath(insight.gameId, trackKey)
     : null;
-  return <section aria-busy={loading || sessionsLoading} aria-labelledby={`insights-favourite-${kind}-title`} onClick={trackHref ? (event) => { if ((event.target as HTMLElement).closest("button,a")) return; void navigate({ to: trackHref as never }); } : undefined} onKeyDown={trackHref ? (event) => { if (event.target !== event.currentTarget) return; if (event.key === "Enter" || event.key === " ") { event.preventDefault(); void navigate({ to: trackHref as never }); } } : undefined} role={trackHref ? "link" : undefined} tabIndex={trackHref ? 0 : undefined} className={`@container/favourite relative isolate flex h-[320px] min-w-0 flex-col rounded-xl border border-app-border bg-app-surface-alt/30 p-4 @3xl/workspace:h-auto @3xl/workspace:min-h-0 @3xl/workspace:p-3 transition-colors duration-150 motion-reduce:transition-none ${trackHref ? "cursor-pointer hover:border-app-border-hover" : ""} ${trackHref ? "focus-visible:outline-2 focus-visible:outline-app-accent" : ""}`}>
+  return <section aria-busy={loading || sessionsLoading} aria-labelledby={`insights-favourite-${kind}-title`} onClick={trackHref ? (event) => { if ((event.target as HTMLElement).closest("button,a")) return; void navigate({ to: trackHref as never }); } : undefined} onKeyDown={trackHref ? (event) => { if (event.target !== event.currentTarget) return; if (event.key === "Enter" || event.key === " ") { event.preventDefault(); void navigate({ to: trackHref as never }); } } : undefined} role={trackHref ? "link" : undefined} tabIndex={trackHref ? 0 : undefined} className={`dashboard-hover-panel favourite-panel @container/favourite relative isolate flex h-[320px] min-w-0 flex-col rounded-xl border border-app-border bg-app-surface-alt/30 p-4 @3xl/workspace:h-auto @3xl/workspace:min-h-0 @3xl/workspace:p-3 ${trackHref ? "cursor-pointer" : ""} ${trackHref ? "focus-visible:outline-2 focus-visible:outline-app-accent" : ""}`}>
     <div className="flex min-h-6 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
       <div className="flex items-center gap-1"><h2 id={`insights-favourite-${kind}-title`} className="text-app-heading font-semibold text-app-text">{title}</h2><InsightInfo label={title} content={m.home_insights_favourite_note()} /></div>
-      <Skeleton loading={masked}>{unavailable ? "—" : contextGameId ? game?.displayName ?? contextGameId : "—"}</Skeleton>
+      <span title={contextGameId ? game?.displayName ?? contextGameId : undefined} className="shrink-0 rounded border border-app-accent/30 bg-app-accent/10 px-2 py-0.5 text-app-label font-semibold uppercase text-app-accent"><Skeleton loading={masked}>{unavailable ? "—" : contextGameId ?? "—"}</Skeleton></span>
     </div>
     <div className="mt-3 min-h-0 flex-1 @3xl/workspace:mt-2">
       <div className="relative">
@@ -133,7 +138,7 @@ function FavouritePanel({ title, insight, kind, trackNames, carNames, gameId, lo
             ? <Link to={trackHref as never} className="relative min-w-0 max-w-[65%] break-words text-app-heading font-semibold leading-tight text-app-text focus-visible:outline-2 focus-visible:outline-app-accent">{name ?? unknown}</Link>
             : <Skeleton loading={masked} className="relative min-w-0 max-w-[65%] break-words text-app-heading font-semibold leading-tight text-app-text">{unavailable ? "—" : name ?? (insight ? unknown : "—")}</Skeleton>}
         </div>
-        <dl className="mt-2 grid min-h-14 shrink-0 grid-cols-2 gap-2 rounded-lg border p-2 text-app-detail [&>div]:grid [&>div]:min-w-0 [&>div]:grid-rows-[1fr_auto] [&>div]:content-start [&>div]:gap-0.5 [&>div]:whitespace-normal [&_dt]:min-w-0 [&_dt]:text-app-label [&_dt>button]:size-4 @min-[440px]/favourite:flex @min-[440px]/favourite:flex-wrap @min-[440px]/favourite:w-[70%] @min-[440px]/favourite:gap-y-1.5 @min-[440px]/favourite:[&>div]:flex @min-[440px]/favourite:[&>div]:flex-row @min-[440px]/favourite:[&>div]:items-baseline @min-[440px]/favourite:[&>div]:gap-1.5" style={{ borderColor: "var(--recap-border)" }}>
+        <dl className="mt-2 grid min-h-14 shrink-0 grid-cols-2 gap-2 rounded-lg border border-app-border p-2 text-app-detail [&>div]:grid [&>div]:min-w-0 [&>div]:grid-rows-[1fr_auto] [&>div]:content-start [&>div]:gap-0.5 [&>div]:whitespace-normal [&_dt]:min-w-0 [&_dt]:text-app-label [&_dt>button]:size-4 @min-[440px]/favourite:flex @min-[440px]/favourite:flex-wrap @min-[440px]/favourite:w-[70%] @min-[440px]/favourite:gap-y-1.5 @min-[440px]/favourite:[&>div]:flex @min-[440px]/favourite:[&>div]:flex-row @min-[440px]/favourite:[&>div]:items-baseline @min-[440px]/favourite:[&>div]:gap-1.5">
           <SummaryMetric label={m.home_stat_time_driven()} value={unavailable || !insight ? "—" : formatDrivenTime(insight.seconds)} accent loading={masked} />
           <div className="flex min-w-0 items-baseline gap-1.5">
             <dt className="inline-flex items-center gap-1 text-app-text-muted">{m.home_insights_estimated_distance()}<InsightInfo label={m.home_insights_estimated_distance()} content={insight ? m.home_insights_favourite_distance_note({ covered: insight.distanceLaps, laps: insight.laps }) : m.home_insights_favourite_note()} /></dt>
@@ -142,6 +147,7 @@ function FavouritePanel({ title, insight, kind, trackNames, carNames, gameId, lo
           <SummaryMetric label={m.label_sessions()} value={unavailable || !insight || sessionsLoading || sessionsError ? "—" : insight.sessions} loading={sessionsLoading && !sessionsError} />
           <SummaryMetric label={m.label_laps()} value={unavailable || !insight ? "—" : insight.laps} loading={masked} />
           <SummaryMetric label={m.home_insights_podiums_title()} value={unavailable || !insight || sessionsLoading || sessionsError || insight.podiums == null ? "—" : insight.podiums} loading={sessionsLoading && !sessionsError} />
+          {kind === "car" && <SummaryMetric label={m.track_detail_class()} value={unavailable ? "—" : carClass ?? "—"} loading={masked} />}
         </dl>
       </div>
       {(loading || error || !insight || sessionsLoading || sessionsError) && <p className="sr-only" role={error || sessionsError ? "alert" : "status"}>{error || sessionsError ? m.home_insights_analytics_error() : loading || sessionsLoading ? m.home_insights_analytics_loading() : m.home_insights_favourite_empty()}</p>}
@@ -455,7 +461,7 @@ export function DashboardInsights({ response, gameId, periodStart, trackNames = 
   const favouritesRow = (
     <div className="grid min-w-0 grid-cols-1 items-stretch gap-3 @3xl/workspace:grid-cols-2">
       {latestSession}
-      <div className="grid min-w-0 grid-cols-1 gap-3 @3xl/workspace:grid-rows-[repeat(2,minmax(0,1fr))] @3xl/workspace:[contain:size]">
+      <div className="grid min-w-0 grid-cols-1 gap-3 @3xl/workspace:grid-rows-[repeat(2,minmax(min-content,1fr))]">
         <FavouritePanel title={m.home_insights_favourite_track_title()} insight={insights.favouriteTrack} kind="track" trackNames={trackNames} carNames={carNames} gameId={gameId} loading={lapsLoading} error={lapsError} sessionsLoading={sessionsLoading} sessionsError={sessionsError} imperial={imperial} />
         <FavouritePanel title={m.home_insights_favourite_car_title()} insight={insights.favouriteCar} kind="car" trackNames={trackNames} carNames={carNames} gameId={gameId} loading={lapsLoading} error={lapsError} sessionsLoading={sessionsLoading} sessionsError={sessionsError} imperial={imperial} />
       </div>
@@ -538,7 +544,6 @@ export function DashboardInsights({ response, gameId, periodStart, trackNames = 
       </div>
       </div>
     </div>
-    {gameId && favouritesRow}
     </div>
   );
 }

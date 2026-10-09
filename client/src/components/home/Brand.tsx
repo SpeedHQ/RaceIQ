@@ -78,7 +78,7 @@ function GameBrandCard({ game, stats, loading, error, selected }: { game: (typeo
       aria-current={selected ? "page" : undefined}
       className="game-brand-card group block w-52 min-w-42 max-w-full flex-none rounded-lg active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent"
     >
-      <Card variant="gradient" className={`relative h-full min-w-0 flex-row items-center gap-1.5 overflow-hidden rounded-lg p-2 font-normal transition-colors duration-150 group-hover:border-app-border-hover motion-reduce:transition-none ${selected ? "border-app-accent" : ""}`}>
+      <Card variant="gradient" className={`relative h-full min-w-0 flex-row items-center gap-1.5 overflow-hidden rounded-lg p-2 font-normal transition-colors duration-150 motion-reduce:transition-none ${selected ? "border-app-accent" : "group-hover:border-app-border-hover"}`}>
         <span className="sr-only">{game.name}</span>
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-2 inset-y-1 flex items-center [mask-image:linear-gradient(to_right,black_20%,transparent_62%)]">
           <img src={game.logoSrc} alt="" className="h-[90%] w-[90%] object-contain object-left" />

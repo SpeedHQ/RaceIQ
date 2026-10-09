@@ -1,9 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import type { DashboardResponse } from "@raceiq/shared/racing/sessions/dashboard";
 import { dashboardInsights } from "../src/components/home/dashboard-insights";
+import { dashboardPeriodStart } from "../src/hooks/dashboard";
+
+test("dashboard periods use UTC boundaries independent of DST dates", () => {
+  const now = new Date("2026-11-01T07:30:00.000Z");
+  expect(dashboardPeriodStart(now, "today").toISOString()).toBe("2026-11-01T00:00:00.000Z");
+  expect(dashboardPeriodStart(now, "week").toISOString()).toBe("2026-10-25T07:30:00.000Z");
+  expect(dashboardPeriodStart(now, "month").toISOString()).toBe("2026-10-02T07:30:00.000Z");
+  expect(dashboardPeriodStart(now, "year").toISOString()).toBe("2025-11-01T07:30:00.000Z");
+});
 
 const response = {
-  request: { from: "2026-10-01T12:00:00.000Z", to: "2026-10-03T12:00:00.000Z", timeZone: "UTC" },
+  request: { from: "2026-10-01T12:00:00.000Z", to: "2026-10-03T12:00:00.000Z" },
   revision: 1,
   coverage: { status: "complete", metadataComplete: true, mineSessions: 2, readySessions: 2, pendingSessions: 0 },
   cards: {

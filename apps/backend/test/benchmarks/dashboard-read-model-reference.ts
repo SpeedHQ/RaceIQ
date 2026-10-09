@@ -1,6 +1,9 @@
 import { client } from "@raceiq/backend-core/db/index";
 import { dashboardCarIdentity, dashboardTrackIdentity, type DashboardRequest, type DashboardResponse, type DashboardEntityTotal, type DashboardFavourite, type DashboardSessionType } from "@raceiq/shared/racing/sessions/dashboard";
 import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
+import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
+import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
+import { resolveLMUCar, resolveLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 
 type Row = Record<string, unknown>;
 const n = (v: unknown): number => Number(v ?? 0);
@@ -8,6 +11,19 @@ const nullable = (v: unknown): number | null => v == null ? null : Number(v);
 const sqlRows = (result: { rows: unknown[] }) => result.rows as Row[];
 const entityIdentity = (gameId: GameId, raw: string | null, kind: "car" | "track", ordinal: number) => kind === "car"
   ? dashboardCarIdentity(gameId, raw, ordinal) ?? "" : dashboardTrackIdentity(gameId, raw, ordinal) ?? "";
+
+function sourceEntityName(row: Row, gameId: GameId, kind: "car" | "track"): string | null {
+  const nativeId = row[kind === "car" ? "car_id" : "track_id"];
+  const ordinal = nullable(row[kind === "car" ? "car_ordinal" : "track_ordinal"]);
+  const id = typeof nativeId === "string" ? nativeId.trim() : nativeId;
+  if (gameId === "lmu" && typeof id === "string" && id !== "" && !Number.isFinite(Number(id))) {
+    return (kind === "car" ? resolveLMUCar(id)?.name : resolveLMUTrack(id)?.name) ?? id;
+  }
+  const numericId = id != null && id !== "" ? Number(id) : null;
+  const resolvedOrdinal = numericId != null && Number.isInteger(numericId) && numericId >= 0 ? numericId : ordinal;
+  if (resolvedOrdinal == null || !Number.isInteger(resolvedOrdinal) || resolvedOrdinal < 0) return null;
+  return kind === "car" ? resolveCarName(resolvedOrdinal, gameId) : resolveTrackName(resolvedOrdinal, gameId);
+}
 type PodiumFacts = { count: number; evidence: number };
 function rank(rows: Row[], kind: "car" | "track", favourite: boolean, podiums: ReadonlyMap<string, PodiumFacts>): Array<DashboardFavourite & { laps: number }> {
   const byIdentity = new Map<string, DashboardFavourite & { laps: number }>();
@@ -129,8 +145,8 @@ export async function sourceDashboardReference(request: DashboardRequest): Promi
   const recentSessions: DashboardResponse["recentSessions"] = recent.map((row) => ({
     id: n(row.id), gameId: String(row.game_id) as GameId, createdAt: new Date(String(row.created_at).replace(" ", "T") + (String(row.created_at).endsWith("Z") ? "" : "Z")).toISOString(),
     sessionType: row.session_type == null ? null : String(row.session_type),
-    car: { id: row.car_id == null ? null : String(row.car_id), ordinal: nullable(row.car_ordinal), name: null },
-    track: { id: row.track_id == null ? null : String(row.track_id), ordinal: nullable(row.track_ordinal), name: null },
+    car: { id: row.car_id == null ? null : String(row.car_id), ordinal: nullable(row.car_ordinal), name: sourceEntityName(row, String(row.game_id) as GameId, "car") },
+    track: { id: row.track_id == null ? null : String(row.track_id), ordinal: nullable(row.track_ordinal), name: sourceEntityName(row, String(row.game_id) as GameId, "track") },
     lapCount: n(row.lap_count), bestLapSeconds: nullable(row.best_lap_seconds),
   }));
   const calendarRows = sqlRows(await client.execute({ sql: `SELECT date(li.created_at_ms/1000,'unixepoch') day,

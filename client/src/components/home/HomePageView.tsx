@@ -6,7 +6,7 @@ import { ActivityHeatmap } from "@/components/ActivityHeatmap";
 import { SessionRecapView } from "@/components/SessionRecap";
 import { Card } from "@/components/ui/card";
 import { m } from "@/paraglide/messages";
-import { GameBrandCards, GameBrandHeader } from "./Brand";
+import { GameBrandCards } from "./Brand";
 import { DashboardInsights } from "./DashboardInsights";
 import { RecentSessionsTable } from "./RecentSessions";
 import { PeriodSelector } from "./Stats";
@@ -16,7 +16,6 @@ import { getGameRoute } from "@/stores/game";
 
 export function HomePageView({
   gameId,
-  gameDisplayName,
   response,
   periodStart,
   sessions,
@@ -46,9 +45,9 @@ export function HomePageView({
   const latestSessionLoading = latestRecapLoading || sessionsLoading;
   const showFinishPlaceholder = !latestSession || /^(race|sprint)/i.test(latestSession.sessionType?.trim() ?? "");
   const latestSessionCard = (
-    <Card variant="transparent-panel" className="latest-session-card relative h-fit p-4" aria-busy={latestSessionLoading}>
+    <Card variant="transparent-panel" className="dashboard-hover-panel latest-session-card relative h-full p-4" aria-busy={latestSessionLoading}>
       <div className="flex items-start justify-between gap-2">
-        <div className="recap-card-title">{m.recap_latest_session()}</div>
+        <h2 className="mb-2 text-app-heading font-semibold text-app-text">{m.recap_latest_session()}</h2>
         {latestRecap?.personalBest?.isNew && latestRecap.bestLapSec != null && <span className="recap-pb shrink-0 px-2 py-0.5 text-app-label font-semibold">{m.recap_new_pb()}</span>}
       </div>
       {latestRecap && latestSession && !latestRecapLoading && !latestRecapError ? (
@@ -81,9 +80,9 @@ export function HomePageView({
           </div>
               <div className="relative flex min-w-0 flex-col gap-3">
                 <div className="grid min-w-0 gap-2 @md:grid-cols-[1.65fr_3fr]">
-                  <div className="recap-best-lap min-h-24 min-w-0 p-2.5"><div className="recap-label">{m.recap_best_lap()}</div><div className="recap-best-time mt-2 whitespace-nowrap font-mono font-semibold tabular-nums leading-none"><Skeleton loading={latestSessionLoading}>—</Skeleton></div></div>
+                  <div className="recap-best-lap min-w-0 p-2.5"><div className="recap-label">{m.recap_best_lap()}</div><div className="recap-best-time mt-2 whitespace-nowrap font-mono font-semibold tabular-nums leading-none"><Skeleton loading={latestSessionLoading}>—</Skeleton></div></div>
                   <div className="grid min-w-0 grid-cols-3 gap-2">
-                    {[1, 2, 3].map((sector) => <div key={sector} className="recap-sector min-h-24 min-w-0 p-2"><div className="recap-label">S{sector}</div><div className="mt-2 font-mono text-app-subtext font-semibold tabular-nums @2xl:text-app-heading text-app-text"><Skeleton loading={latestSessionLoading}>—</Skeleton></div><div className="mt-3 font-mono text-app-label tabular-nums text-app-text-muted"><Skeleton loading={latestSessionLoading}>—</Skeleton></div></div>)}
+                    {[1, 2, 3].map((sector) => <div key={sector} className="recap-sector min-w-0 p-2"><div className="recap-label">S{sector}</div><div className="mt-2 font-mono text-app-subtext font-semibold tabular-nums @2xl:text-app-heading text-app-text"><Skeleton loading={latestSessionLoading}>—</Skeleton></div></div>)}
                   </div>
                 </div>
                 <div className="recap-footer flex min-w-0 flex-col gap-3 p-2.5 @lg:flex-row @lg:items-center">
@@ -113,7 +112,7 @@ export function HomePageView({
       <div className="mx-auto max-w-[1400px] space-y-4 p-4 @3xl/workspace:p-6">
         <PeriodSelector periodTab={periodTab} onPeriodTabChange={onPeriodTabChange} />
         <GameBrandCards gameStats={gameStats} hiddenGames={hiddenGames} loading={lapsLoading || sessionsLoading} error={lapsError || sessionsError} selectedGameId={gameId} />
-        {gameId && <GameBrandHeader gameId={gameId} gameDisplayName={gameDisplayName} />}
+
 
         <div className="space-y-4">
           <main className="min-w-0">

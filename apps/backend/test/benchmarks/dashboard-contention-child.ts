@@ -32,7 +32,7 @@ const gameId = "fm-2023" as const;
 
 function liveVisibilityRequest(): DashboardRequest {
   const to = Date.now();
-  return { from: new Date(to - 365 * 86_400_000).toISOString(), to: new Date(to).toISOString(), timeZone: "UTC", gameId };
+  return { from: new Date(to - 365 * 86_400_000).toISOString(), to: new Date(to).toISOString(), gameId };
 }
 const fixture = args.fixture ?? "test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz";
 const dataDir = process.env.DATA_DIR;
@@ -48,7 +48,7 @@ function percentile(values: number[], p: number): number | null {
 
 let metadataCompleteResponses = 0;
 async function dashboardRequest(scope: DashboardRequest): Promise<{ elapsedMs: number; payloadBytes: number; totalLaps: number; latestRecapSessionId: number | null; recentSessionIds: number[] }> {
-  const query = new URLSearchParams({ from: scope.from, to: scope.to, timeZone: scope.timeZone });
+  const query = new URLSearchParams({ from: scope.from, to: scope.to });
   const started = performance.now();
   const response = await fetch(`http://127.0.0.1:${httpPort}/api/dashboard?${query}`, {
     headers: scope.gameId ? { "X-Game-Id": scope.gameId } : undefined,
@@ -108,7 +108,7 @@ async function measuredRequestBatch(scopes: DashboardRequest[], count: number): 
   }
   const byScope = scopes.map((scope, index) => {
     const sorted = [...scopeLatencies[index]!].sort((left, right) => left - right);
-    return { scopeKey: `${scope.gameId ?? "all"}|${scope.from}|${scope.timeZone}`, count: sorted.length, p95Ms: percentile(sorted, 0.95) };
+    return { scopeKey: `${scope.gameId ?? "all"}|${scope.from}`, count: sorted.length, p95Ms: percentile(sorted, 0.95) };
   });
   return { latenciesMs, payloadBytes, idleRssBytes, peakRssBytes, baselineTotalLaps, byScope };
 }
@@ -152,6 +152,7 @@ const fixtureOptions = {
   seed: Number(args.seed),
   distribution: "standard" as const,
   publish: mode === "finalization",
+  profile: process.env.DASHBOARD_WORKLOAD_PROFILE === "archive-stress" ? "archive-stress" as const : "active-user" as const,
 };
 if (!Number.isSafeInteger(fixtureOptions.lapCount) || !Number.isSafeInteger(fixtureOptions.sessionCount) || !Number.isSafeInteger(fixtureOptions.seed)) {
   throw new Error("lapCount/sessionCount/seed must be safe integers");
@@ -183,8 +184,11 @@ if (mode !== "finalization") {
       metadataOnlyPublished++;
     }
   }
-  if (metadataOnlyPublished !== fixtureOptions.sessionCount) {
-    throw new Error(`Metadata-only seed publication covered ${metadataOnlyPublished}/${fixtureOptions.sessionCount} sessions`);
+  const ownedSeedSessions = Number(db.query<{ count: number }, [number]>(
+    "SELECT COUNT(*) AS count FROM sessions WHERE id<=? AND ownership='mine'",
+  ).get(beforeSessionId)?.count ?? 0);
+  if (metadataOnlyPublished !== ownedSeedSessions) {
+    throw new Error(`Metadata-only seed publication covered ${metadataOnlyPublished}/${ownedSeedSessions} owned sessions`);
   }
 }
 const seedCaptureDirtyRowsBeforeWorkload = Number(db.query<{ count: number }, [number]>(
@@ -419,7 +423,7 @@ workloadPeakRssBytes = Math.max(workloadPeakRssBytes, process.memoryUsage().rss)
 const concurrentSorted = [...concurrentLatencies].sort((left, right) => left - right);
 const concurrentByScope = fixtureRequests.map((scope, index) => {
   const sorted = [...concurrentScopeLatencies[index]!].sort((left, right) => left - right);
-  return { scopeKey: `${scope.gameId ?? "all"}|${scope.from}|${scope.timeZone}`, count: sorted.length, p95Ms: percentile(sorted, 0.95) };
+  return { scopeKey: `${scope.gameId ?? "all"}|${scope.from}`, count: sorted.length, p95Ms: percentile(sorted, 0.95) };
 });
 const concurrentRequests = { count: concurrentLatencies.length, p50Ms: percentile(concurrentSorted, 0.5), p95Ms: percentile(concurrentSorted, 0.95), maxPayloadBytes: Math.max(...concurrentPayloadBytes), idleRssBytes: workloadIdleRssBytes, peakRssBytes: workloadPeakRssBytes, incrementalRssBytes: Math.max(0, workloadPeakRssBytes - workloadIdleRssBytes), byScope: concurrentByScope };
 const rssPhases = [0.25, 0.5, 0.75, 0.95, 1].map((targetFraction) => {

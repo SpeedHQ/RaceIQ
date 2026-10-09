@@ -1,6 +1,6 @@
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import type { DashboardRecentSession } from "@raceiq/shared/racing/sessions/dashboard";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useDashboard, useDashboardRecap } from "@/hooks/dashboard";
@@ -9,6 +9,7 @@ import { useTrackOutline, useTrackSectorBoundaries } from "@/hooks/track-queries
 import { errorFromResponse } from "@/lib/rpc-error";
 import { client } from "@/lib/rpc";
 import { getGameRoute, useGameId } from "@/stores/game";
+import { rpcJson } from "@/lib/rpc-json";
 import { HomePageView } from "./HomePageView";
 import type { GameStats, PeriodKey } from "./types";
 
@@ -52,6 +53,25 @@ export function HomePageContainer() {
   const latestRecapCarImageUrl = matchedRecapCar?.imageUrl || matchedRecapCar?.specs?.imageUrl || undefined;
   const { data: latestRecapOutline } = useTrackOutline(latestRecap?.trackId, latestRecap?.gameId ?? recapGameId);
   const { data: latestRecapBounds } = useTrackSectorBoundaries(latestRecap?.trackId, latestRecap?.gameId ?? recapGameId);
+  const trackNameRequests = useMemo(() => {
+    const ordinalsByGame = new Map<string, Set<number>>();
+    const identities = [...(response?.trackDistribution.topFive ?? []), ...(response?.favouriteTrack ? [response.favouriteTrack] : [])];
+    for (const track of identities) {
+      if (track.ordinal == null || track.ordinal < 0) continue;
+      const ordinals = ordinalsByGame.get(track.gameId) ?? new Set<number>();
+      ordinals.add(track.ordinal);
+      ordinalsByGame.set(track.gameId, ordinals);
+    }
+    return [...ordinalsByGame].map(([gameId, ordinals]) => ({ gameId, tracks: [...ordinals].sort((a, b) => a - b).join(",") }));
+  }, [response]);
+  const resolvedTrackNames = useQueries({
+    queries: trackNameRequests.map(({ gameId, tracks }) => ({
+      queryKey: ["resolve-names", gameId, tracks, ""],
+      queryFn: async () => rpcJson<{ trackNames: Record<string, string>; carNames: Record<string, string> }>(
+        await client.api["resolve-names"].$get({ query: { gameId, tracks } }),
+      ),
+    })),
+  });
   const names = useMemo(() => {
     const cars: Record<string, string> = {};
     const tracks: Record<string, string> = {};
@@ -62,8 +82,14 @@ export function HomePageContainer() {
       const trackKey = `${session.gameId}:${session.track.ordinal ?? session.track.id}`;
       if (session.track.name) tracks[trackKey] = session.track.name;
     }
+    for (let index = 0; index < trackNameRequests.length; index++) {
+      const gameId = trackNameRequests[index].gameId;
+      for (const [ordinal, name] of Object.entries(resolvedTrackNames[index].data?.trackNames ?? {})) {
+        if (name) tracks[`${gameId}:${ordinal}`] = name;
+      }
+    }
     return { cars, tracks };
-  }, [recentSessions]);
+  }, [recentSessions, trackNameRequests, resolvedTrackNames]);
   const totals = response?.totals;
   const periodStats = useMemo(() => {
     const current = {

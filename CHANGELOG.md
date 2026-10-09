@@ -6,6 +6,13 @@
 - Show clean-rate and podium trends as bounded daily aggregates.
 
 ### Fixes
+- Remove delta rows and excess height from latest-session lap tiles; preserve favourite-card bottom padding and use compact game badges.
+- Show the favourite car's catalog class or Forza performance class when available, and stretch the latest-session card to match its dashboard row.
+- Match dashboard latest-session headings, labels, and lap times to the shared typography used across cards.
+- Unify interactive latest-session and favourite-panel hover highlights with a foreground top-right radial sheen matching game cards, minimal movement, keyboard-focus feedback, and a static reduced-motion alternative; non-interactive cards remain unchanged on hover.
+- Use neutral gray borders for latest-session internal cards and explicitly center the weather icon alongside its text.
+- Resolve track names across games in the dashboard’s time distribution instead of showing numeric placeholders or serialized identities.
+- Restore track and car names in recent dashboard sessions across games, including Le Mans Ultimate native identities.
 - Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
 - Open the favourite track’s game-specific detail page from the all-games dashboard, including Le Mans Ultimate tracks without stored ordinals.
 - Reduce loading interruptions when switching between game dashboards while keeping each game’s statistics separate.
@@ -13,7 +20,13 @@
 - Keep available dashboard data visible while clearly distinguishing pending or unavailable coverage from request failures.
 - Restore dashboard startup for existing databases missing the backfill cursor table.
 - Repair missing dashboard processor retry columns in already-migrated databases without resetting session data or existing retry history.
+- Restore incomplete historical dashboard projection schemas before monthly upgrades, rebuilding only derived data while preserving sessions, laps, results, recordings, and processor retry history.
 - Preserve favourite car and track podium totals for partial-day periods, distinguishing missing results from confirmed zero podiums.
+- Count favourite car and track sessions correctly during pending corrections without duplicating sessions across partial-day and full-day boundaries.
+- Render latest-session and favourite widgets only once on each game dashboard.
+- Search and aggregate dashboard periods in UTC, independent of browser time zone, while keeping displayed timestamps local.
+- Keep dashboard totals available while recording-history details are still processing.
+- Prevent dashboard reads from repeatedly retaining native database allocations.
 
 ### Internal
 - Document new-game integration, lossless sparse recording, lap correctness checks, and gzip fixture splitting without Git LFS; align capture and architecture guides with current implementation.
@@ -30,6 +43,9 @@
 - Add the version-5 SQLite dashboard processor with durable capture readiness, revision-checked publication, resumable backfill, retry state, and ingest-pass capture facts; keep dashboard recap separate from generic analysis.
 - Add isolated Bun/SQLite dashboard scale assertion, timing, and recording/backfill contention runners.
 - Read timestamped recorder dumps correctly in contention checks, preserve failed-scenario evidence, fix duplicate-lap SQL, and close child input after the final command.
+- Maintain revision-safe monthly dashboard entity rollups for older complete months, preserving recent daily detail and exact boundaries; backfill existing summaries without changing source data.
+- Separate realistic active-user dashboard benchmarks from archive stress, report actual period membership and SQL Promise timings, and preserve incomplete/failed-scope measurements without weakening budgets.
+- Reuse a read-only SQLite connection and cached statements for synchronous dashboard snapshots; measure those queries directly and apply the active-user recorder fixture profile.
 
 ## v0.19.2 - 2026-10-04
 

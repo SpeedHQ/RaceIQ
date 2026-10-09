@@ -1,18 +1,18 @@
 import { expect, test } from "bun:test";
 import { dashboardRoutes } from "../../src/routes/dashboard-routes";
 
-test("dashboard rejects malformed interval, timezone, and game scope before reads", async () => {
+test("dashboard rejects malformed intervals, removed timezone parameter, and game scope before reads", async () => {
   for (const query of [
-    "from=bad&to=2026-01-02T00%3A00%3A00Z&timeZone=UTC",
-    "from=2026-01-02T00%3A00%3A00Z&to=2026-01-01T00%3A00%3A00Z&timeZone=UTC",
-    "from=2025-01-01T00%3A00%3A00Z&to=2026-01-03T00%3A00%3A00Z&timeZone=UTC",
+    "from=bad&to=2026-01-02T00%3A00%3A00Z",
+    "from=2026-01-02T00%3A00%3A00Z&to=2026-01-01T00%3A00%3A00Z",
+    "from=2025-01-01T00%3A00%3A00Z&to=2026-01-03T00%3A00%3A00Z",
     "from=2026-01-01T00%3A00%3A00Z&to=2026-01-02T00%3A00%3A00Z&timeZone=Not%2FAZone",
   ]) {
     const response = await dashboardRoutes.request(`http://localhost/api/dashboard?${query}`);
     expect(response.status).toBe(400);
   }
   const invalidGame = await dashboardRoutes.request(
-    "http://localhost/api/dashboard?from=2026-01-01T00%3A00%3A00Z&to=2026-01-02T00%3A00%3A00Z&timeZone=UTC",
+    "http://localhost/api/dashboard?from=2026-01-01T00%3A00%3A00Z&to=2026-01-02T00%3A00%3A00Z",
     { headers: { "X-Game-Id": "unsupported" } },
   );
   expect(invalidGame.status).toBe(400);

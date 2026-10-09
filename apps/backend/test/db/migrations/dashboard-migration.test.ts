@@ -11,12 +11,13 @@ const requiredTables = [
   "dashboard_summary_state",
   "dashboard_session_summaries",
   "dashboard_session_days",
-  "dashboard_day_entities",
+  "dashboard_month_entities",
   "dashboard_session_sectors",
   "dashboard_session_time_buckets",
   "dashboard_time_buckets",
   "dashboard_backfill_cursor",
   "dashboard_lap_index",
+  "dashboard_session_index",
 ] as const;
 
 const requiredTriggers = [
@@ -32,6 +33,9 @@ const requiredTriggers = [
   "dashboard_pit_insert",
   "dashboard_pit_update",
   "dashboard_pit_delete",
+  "dashboard_session_index_insert",
+  "dashboard_session_index_update",
+  "dashboard_session_index_delete",
 ] as const;
 
 type SqlExecutor = Pick<Client, "execute">;
@@ -106,7 +110,203 @@ describe("dashboard embedded migrations", () => {
       expect(cursor.rows.map((row) => [Number(row.id), Number(row.last_session_id)])).toEqual([[1, 0]]);
     });
   });
+  test("v66 upgrade backfills monthly totals and stable moments from retained day entities", async () => {
+    await withClient(async (client) => {
+      await runMigrations(client, 66);
+      const days = [
+        ["2024-02-01", 2, 0.0002, 90.0001, 1, 1, 12, 3],
+        ["2024-02-02", 1, 0, 90.0002, 0, 0, 8, 2],
+        ["2024-02-29", 3, 0.0003, 90.0003, 0, 1, 24, 6],
+      ] as const;
+      for (const [day, validLaps, m2, mean, first, third, favouriteLaps, distanceLaps] of days) {
+        await client.execute({
+          sql: `INSERT INTO dashboard_day_entities
+            (utc_day,game_id,car_key,track_key,lap_count,positive_laps,valid_laps,driven_seconds,valid_seconds,
+             valid_mean_seconds,valid_m2_seconds,favourite_laps,favourite_seconds,distance_laps,distance_meters,
+             podium_first,podium_second,podium_third)
+            VALUES (?, 'acc','["acc","n:7"]','["acc","n:8"]',?,?,?, ?,?,?, ?,?,?, ?,25,?,0,?)`,
+          args: [day, validLaps + 1, validLaps + 1, validLaps, validLaps * mean, validLaps * mean, mean, m2,
+            favouriteLaps, favouriteLaps * mean, distanceLaps, first, third],
+        });
+      }
+      const sourceBefore = await client.execute("SELECT * FROM dashboard_day_entities ORDER BY utc_day");
+      const expectedMean = (2 * 90.0001 + 90.0002 + 3 * 90.0003) / 6;
+      const expectedM2 = days.reduce((sum, [, count, m2, mean]) =>
+        sum + m2 + count * (mean - expectedMean) ** 2, 0);
 
+      await runMigrations(client);
+      const month = await client.execute(`SELECT * FROM dashboard_month_entities
+        WHERE utc_month='2024-02' AND game_id='acc' AND car_key='["acc","n:7"]' AND track_key='["acc","n:8"]'`);
+      expect(month.rows).toHaveLength(1);
+      expect(month.rows[0]).toMatchObject({
+        lap_count: 9, positive_laps: 9, valid_laps: 6,
+        favourite_laps: 44, distance_laps: 11, podium_first: 1, podium_second: 0, podium_third: 2,
+      });
+      for (const [field, expected] of [
+        ["driven_seconds", 540.0013], ["valid_seconds", 540.0013], ["favourite_seconds", 3960.01],
+        ["distance_meters", 75], ["valid_mean_seconds", expectedMean], ["valid_m2_seconds", expectedM2],
+      ] as const) {
+        expect(Math.abs(Number(month.rows[0]?.[field]) - expected)).toBeLessThan(1e-6);
+      }
+      expect((await client.execute("SELECT * FROM dashboard_day_entities ORDER BY utc_day")).rows).toEqual(sourceBefore.rows);
+      expect(await runMigrations(client)).toBe(0);
+      expect((await client.execute(`SELECT * FROM dashboard_month_entities
+        WHERE utc_month='2024-02' AND game_id='acc' AND car_key='["acc","n:7"]' AND track_key='["acc","n:8"]'`)).rows).toEqual(month.rows);
+    });
+  });
+
+  test("v69 recovers missing evolved v63 projections while preserving source and retry history", async () => {
+    await withClient(async (client) => {
+      const historicalMigrations = migrations.map((migration) => migration.version === 63
+        ? {
+          ...migration,
+          sql: migration.sql.filter((statement) =>
+            !statement.startsWith("ALTER TABLE dashboard_session_summaries ADD COLUMN valid_mean_seconds")),
+        }
+        : migration);
+      await runMigrations(client, 66, historicalMigrations);
+      await insertSession(client, 705);
+      await client.execute(`INSERT INTO laps
+        (id,session_id,lap_number,lap_time,is_valid,created_at,notes)
+        VALUES (1705,705,1,91.25,1,'2026-08-01T12:35:00.123Z','preserve source')`);
+      await client.execute(`INSERT INTO session_results
+        (id,session_id,outcome_status,classification,finishing_position)
+        VALUES (1705,705,'confirmed','finished',2)`);
+      await client.execute("INSERT INTO pit_events(id,result_id,sequence,duration_seconds) VALUES (1705,1705,1,18)");
+      await client.execute(`UPDATE dashboard_summary_state SET source_revision=11,
+        published_revision=11,processor_version=5,last_error_code='capture_unavailable',
+        metadata_dirty=0,capture_dirty=0,retry_count=7,
+        next_retry_at='2030-01-01 00:00:00',last_success_at='2026-08-01 12:00:00'
+        WHERE session_id=705`);
+      await client.execute(`INSERT INTO dashboard_session_summaries
+        (session_id,source_revision,processor_version,game_id,created_at_ms,lap_count,positive_laps,
+         valid_laps,driven_seconds,valid_seconds)
+        VALUES (705,11,5,'iracing',1785587696789,1,1,1,91.25,91.25)`);
+      await client.execute(`INSERT INTO dashboard_session_days
+        (session_id,utc_day,game_id,lap_count,positive_laps,valid_laps,driven_seconds,valid_seconds)
+        VALUES (705,'2026-08-01','iracing',1,1,1,91.25,91.25)`);
+      await client.execute(`INSERT INTO dashboard_session_time_buckets
+        (session_id,bucket_start_ms,game_id,valid_laps,positive_laps,driven_seconds)
+        VALUES (705,1785587400000,'iracing',1,1,91.25)`);
+      await client.execute("DROP TABLE dashboard_day_entities");
+      await client.execute("DROP TABLE dashboard_time_buckets");
+      const sourceBefore = await client.execute("SELECT * FROM sessions WHERE id=705");
+      const lapsBefore = await client.execute("SELECT * FROM laps WHERE session_id=705");
+      const resultsBefore = await client.execute("SELECT * FROM session_results WHERE session_id=705");
+      const pitEventsBefore = await client.execute("SELECT * FROM pit_events WHERE result_id=1705");
+      const stateBefore = (await client.execute(
+        "SELECT session_id,source_revision,published_revision,processor_version,last_error_code,retry_count,next_retry_at,last_success_at FROM dashboard_summary_state WHERE session_id=705",
+      )).rows[0];
+
+      await runMigrations(client);
+      await assertSchemaAndTriggers(client);
+      const summaryColumns = await client.execute("PRAGMA table_info(dashboard_session_summaries)");
+      for (const name of ["podium_position", "valid_mean_seconds", "valid_m2_seconds"]) {
+        expect(summaryColumns.rows.map((row) => String(row.name))).toContain(name);
+      }
+      const dayColumns = await client.execute("PRAGMA table_info(dashboard_day_entities)");
+      for (const name of ["valid_seconds", "valid_mean_seconds", "valid_m2_seconds", "favourite_laps", "distance_meters"]) {
+        expect(dayColumns.rows.map((row) => String(row.name))).toContain(name);
+      }
+      const stateColumns = await client.execute("PRAGMA table_info(dashboard_summary_state)");
+      for (const name of ["retry_count", "next_retry_at", "last_success_at"]) {
+        expect(stateColumns.rows.map((row) => String(row.name))).toContain(name);
+      }
+      expect((await client.execute("SELECT * FROM sessions WHERE id=705")).rows).toEqual(sourceBefore.rows);
+      expect((await client.execute("SELECT * FROM laps WHERE session_id=705")).rows).toEqual(lapsBefore.rows);
+      expect((await client.execute("SELECT * FROM session_results WHERE session_id=705")).rows).toEqual(resultsBefore.rows);
+      expect((await client.execute("SELECT * FROM pit_events WHERE result_id=1705")).rows).toEqual(pitEventsBefore.rows);
+      const state = (await client.execute("SELECT * FROM dashboard_summary_state WHERE session_id=705")).rows[0];
+      expect(state).toMatchObject({
+        ...stateBefore,
+        published_revision: 0,
+        processor_version: 0,
+        metadata_dirty: 1,
+        capture_dirty: 1,
+      });
+      expect(Number(state?.source_revision)).toBe(Number(stateBefore?.source_revision));
+      expect((await client.execute("SELECT * FROM dashboard_session_summaries WHERE session_id=705")).rows).toHaveLength(0);
+      expect((await client.execute("SELECT * FROM dashboard_session_days WHERE session_id=705")).rows).toHaveLength(0);
+      expect((await client.execute("SELECT * FROM dashboard_session_time_buckets WHERE session_id=705")).rows).toHaveLength(0);
+      expect(await runMigrations(client)).toBe(0);
+      expect((await client.execute("SELECT * FROM sessions WHERE id=705")).rows).toEqual(sourceBefore.rows);
+      expect((await client.execute("SELECT * FROM laps WHERE session_id=705")).rows).toEqual(lapsBefore.rows);
+      expect((await client.execute("SELECT * FROM dashboard_summary_state WHERE session_id=705")).rows[0]).toMatchObject(state);
+    });
+  });
+
+  test("v69 repairs incomplete schema already marked through v68 and hydrates live session index", async () => {
+    await withClient(async (client) => {
+      await runMigrations(client, 66);
+      await client.execute("DROP TABLE dashboard_day_entities");
+      await client.execute("DROP TABLE dashboard_time_buckets");
+      for (const trigger of ["dashboard_session_index_insert", "dashboard_session_index_update", "dashboard_session_index_delete"]) {
+        await client.execute(`DROP TRIGGER ${trigger}`);
+      }
+      await client.execute("DROP TABLE dashboard_session_index");
+      await client.execute("DROP TRIGGER dashboard_laps_update");
+      await client.execute(`CREATE TRIGGER dashboard_laps_update AFTER UPDATE OF created_at ON laps BEGIN
+        UPDATE dashboard_lap_index
+          SET created_at_ms=CAST(julianday(NEW.created_at)*86400000 AS INTEGER)
+          WHERE lap_id=NEW.id;
+        UPDATE dashboard_summary_state SET capture_dirty=1 WHERE session_id=NEW.session_id;
+      END`);
+      for (const column of ["podium_position", "capture_revision", "weather_revision"]) {
+        await client.execute(`ALTER TABLE dashboard_session_summaries DROP COLUMN ${column}`);
+      }
+      await client.execute("ALTER TABLE dashboard_session_time_buckets DROP COLUMN valid_seconds");
+      await insertSession(client, 706);
+      await insertSession(client, 707, "others");
+      await client.execute(`INSERT INTO laps
+        (id,session_id,lap_number,lap_time,is_valid,created_at,notes)
+        VALUES (1706,706,1,91.25,1,'2026-08-01T12:35:00.123Z','source lap')`);
+      await client.execute(`UPDATE dashboard_summary_state SET published_revision=source_revision,
+        metadata_dirty=0,capture_dirty=0,processor_version=5
+        WHERE session_id=706`);
+      await client.execute(`INSERT INTO dashboard_session_summaries
+        (session_id,source_revision,processor_version,game_id,created_at_ms,lap_count,positive_laps,
+         valid_laps,driven_seconds,valid_seconds)
+        VALUES (706,1,5,'iracing',1785587696789,1,1,1,91.25,91.25)`);
+      await client.execute(`UPDATE dashboard_summary_state SET retry_count=9,
+        next_retry_at='2031-01-01 00:00:00',last_success_at='2026-08-01 12:00:00'
+        WHERE session_id=706`);
+      await client.execute("INSERT INTO schema_migrations(version,name) VALUES (68,'interim v68')");
+
+      await runMigrations(client);
+      await assertSchemaAndTriggers(client);
+      const state = (await client.execute(
+        "SELECT retry_count,next_retry_at,last_success_at,metadata_dirty,capture_dirty,published_revision FROM dashboard_summary_state WHERE session_id=706",
+      )).rows[0];
+      expect(state).toMatchObject({
+        retry_count: 9,
+        next_retry_at: "2031-01-01 00:00:00",
+        last_success_at: "2026-08-01 12:00:00",
+        metadata_dirty: 1,
+        capture_dirty: 1,
+        published_revision: 0,
+      });
+      expect((await client.execute("SELECT * FROM dashboard_session_summaries WHERE session_id=706")).rows).toHaveLength(0);
+      expect((await client.execute("SELECT session_id,lap_id FROM dashboard_lap_index WHERE session_id=706")).rows
+        .map((row) => [Number(row.session_id), Number(row.lap_id)])).toEqual([[706, 1706]]);
+      const hydrated = await client.execute(`SELECT session_id,created_at_ms,game_id,ownership,car_id,car_ordinal,track_id,track_ordinal
+        FROM dashboard_session_index ORDER BY session_id`);
+      const source = await client.execute(`SELECT id,created_at,game_id,ownership,car_id,car_ordinal,track_id,track_ordinal
+        FROM sessions ORDER BY id`);
+      expect(hydrated.rows).toHaveLength(2);
+      expect(hydrated.rows.map((row) => [row.session_id, row.game_id, row.ownership, row.car_id, row.car_ordinal, row.track_id, row.track_ordinal]))
+        .toEqual(source.rows.map((row) => [row.id, row.game_id, row.ownership, row.car_id, row.car_ordinal, row.track_id, row.track_ordinal]));
+      expect(Number(hydrated.rows[0]?.created_at_ms)).toBe(Date.parse(String(source.rows[0]?.created_at)));
+      await client.execute("UPDATE sessions SET ownership='others' WHERE id=706");
+      expect((await client.execute("SELECT ownership FROM dashboard_session_index WHERE session_id=706")).rows[0])
+        .toMatchObject({ ownership: "others" });
+      await client.execute("DELETE FROM sessions WHERE id=707");
+      expect((await client.execute("SELECT session_id FROM dashboard_session_index WHERE session_id=707")).rows).toHaveLength(0);
+      await client.execute(`UPDATE laps SET created_at='2026-08-01T12:35:00.789Z' WHERE id=1706`);
+      const updatedLapIndex = await client.execute("SELECT created_at_ms FROM dashboard_lap_index WHERE lap_id=1706");
+      expect(Number(updatedLapIndex.rows[0]?.created_at_ms)).toBe(Date.parse("2026-08-01T12:35:00.789Z"));
+      expect(await runMigrations(client)).toBe(0);
+    });
+  });
   test("repairs a missing dashboard backfill cursor on an already-migrated database", async () => {
     await withClient(async (client) => {
       const historicalMigrations = migrations.map((migration) => migration.version === 63
@@ -149,7 +349,7 @@ describe("dashboard embedded migrations", () => {
       const lapsBefore = await client.execute("SELECT * FROM laps WHERE session_id=703");
       const stateBefore = await client.execute("SELECT * FROM dashboard_summary_state WHERE session_id=703");
 
-      expect(await runMigrations(client)).toBe(1);
+      expect(await runMigrations(client, 66)).toBe(1);
 
       expect((await client.execute("SELECT * FROM sessions WHERE id=703")).rows).toEqual(sourceBefore.rows);
       expect((await client.execute("SELECT * FROM laps WHERE session_id=703")).rows).toEqual(lapsBefore.rows);
@@ -158,7 +358,7 @@ describe("dashboard embedded migrations", () => {
       const queued = await client.execute(`SELECT session_id FROM dashboard_summary_state
         WHERE metadata_dirty=1 AND (next_retry_at IS NULL OR next_retry_at<=datetime('now'))`);
       expect(queued.rows.map((row) => Number(row.session_id))).toEqual([703]);
-      expect(await runMigrations(client)).toBe(0);
+      expect(await runMigrations(client, 66)).toBe(0);
     });
   });
 
@@ -170,10 +370,10 @@ describe("dashboard embedded migrations", () => {
         next_retry_at='2030-01-01 00:00:00',last_success_at='2026-08-01 12:00:00' WHERE session_id=704`);
       const stateBefore = await client.execute("SELECT * FROM dashboard_summary_state WHERE session_id=704");
 
-      expect(await runMigrations(client)).toBe(1);
+      expect(await runMigrations(client, 66)).toBe(1);
 
       expect((await client.execute("SELECT * FROM dashboard_summary_state WHERE session_id=704")).rows).toEqual(stateBefore.rows);
-      expect(await runMigrations(client)).toBe(0);
+      expect(await runMigrations(client, 66)).toBe(0);
     });
   });
 

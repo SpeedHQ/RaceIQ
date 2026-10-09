@@ -1,6 +1,7 @@
 import { client } from "@raceiq/backend-core/db/index";
+import { setDashboardQueryObserver } from "@raceiq/backend-core/db/dashboard-queries";
 
-export interface CapturedSql { sql: string; args: unknown; rowsReturned: number }
+export interface CapturedSql { sql: string; args: unknown; rowsReturned: number; elapsedMs: number }
 export interface SqlMeasurement {
   statements: number;
   rowsReturned: number;
@@ -10,27 +11,11 @@ export interface SqlMeasurement {
 }
 const emptySourceCounts = () => ({ laps: 0, lapIndex: 0, sessionIndex: 0, daySummaries: 0, timeBuckets: 0, sectors: 0, boundaryLapIndex: 0 });
 const current: SqlMeasurement = { statements: 0, rowsReturned: 0, sourceQueries: emptySourceCounts(), sourceRowsReturned: emptySourceCounts(), queries: [] };
-function getSql(args: readonly unknown[]): string {
-  const first = args[0];
-  if (typeof first === "string") return first;
-  if (!first || typeof first !== "object" || !("sql" in first)) return "";
-  const statement = first.sql;
-  return typeof statement === "string" ? statement : "";
-}
-function getBindings(args: readonly unknown[]): unknown {
-  const first = args[0];
-  if (first && typeof first === "object" && "args" in first) return first.args;
-  return args[1] ?? [];
-}
-function rowsCount(result: unknown): number {
-  if (!result || typeof result !== "object" || !("rows" in result) || !Array.isArray(result.rows)) return 0;
-  return result.rows.length;
-}
-function observe(statement: string, bindings: unknown, result: unknown): void {
-  const rows = rowsCount(result);
+function observe(statement: string, bindings: unknown, resultRows: unknown[], elapsedMs: number): void {
+  const rows = resultRows.length;
   current.statements++;
   current.rowsReturned += rows;
-  current.queries.push({ sql: statement, args: bindings, rowsReturned: rows });
+  current.queries.push({ sql: statement, args: bindings, rowsReturned: rows, elapsedMs });
   const sourceCounts = [
     [/\b(?:FROM|JOIN)\s+laps\b/i, "laps"],
     [/dashboard_lap_index/i, "lapIndex"],
@@ -49,25 +34,41 @@ function observe(statement: string, bindings: unknown, result: unknown): void {
     current.sourceRowsReturned.boundaryLapIndex += rows;
   }
 }
+function getSql(args: readonly unknown[]): string {
+  const first = args[0];
+  if (typeof first === "string") return first;
+  return first && typeof first === "object" && "sql" in first && typeof first.sql === "string" ? first.sql : "";
+}
+function getBindings(args: readonly unknown[]): unknown {
+  const first = args[0];
+  return first && typeof first === "object" && "args" in first ? first.args : args[1] ?? [];
+}
 function instrumentExecute(target: object): void {
   const original = Reflect.get(target, "execute");
   if (typeof original !== "function") throw new TypeError("libSQL execute method unavailable");
   Object.defineProperty(target, "execute", { configurable: true, value: new Proxy(original, {
     apply(method, receiver, args: unknown[]) {
-      const statement = getSql(args), bindings = getBindings(args);
-      const result = Reflect.apply(method, receiver, args);
-      return Promise.resolve(result).then((value: unknown) => { observe(statement, bindings, value); return value; });
+      const statement = getSql(args), bindings = getBindings(args), start = performance.now();
+      return Promise.resolve(Reflect.apply(method, receiver, args)).then((value: unknown) => {
+        if (value && typeof value === "object" && "rows" in value && Array.isArray(value.rows)) {
+          observe(statement, bindings, value.rows, performance.now() - start);
+        }
+        return value;
+      });
     },
   }) });
 }
 export function installDashboardSqlInstrumentation(): void {
+  setDashboardQueryObserver((statement, bindings, rows, elapsedMs) => observe(statement, bindings, rows, elapsedMs));
   const originalTransaction = Reflect.get(client, "transaction");
   if (typeof originalTransaction !== "function") throw new TypeError("libSQL transaction method unavailable");
   instrumentExecute(client);
   Object.defineProperty(client, "transaction", { configurable: true, value: new Proxy(originalTransaction, {
     apply(method, receiver, args: unknown[]) {
-      const transaction = Reflect.apply(method, receiver, args);
-      return Promise.resolve(transaction).then((tx: unknown) => { if (tx && typeof tx === "object") instrumentExecute(tx); return tx; });
+      return Promise.resolve(Reflect.apply(method, receiver, args)).then((tx: unknown) => {
+        if (tx && typeof tx === "object") instrumentExecute(tx);
+        return tx;
+      });
     },
   }) });
 }

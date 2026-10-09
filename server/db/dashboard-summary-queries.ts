@@ -105,6 +105,33 @@ async function adjustDayEntity(tx: DashboardTransaction, row: DayContribution, s
     args: [...keyArgs, ...values],
   });
 }
+async function adjustMonthEntity(tx: DashboardTransaction, row: DayContribution, sign: 1 | -1): Promise<void> {
+  const utcMonth = row.utc_day.slice(0, 7);
+  const keyArgs = [utcMonth, row.game_id, row.car_key, row.track_key];
+  const result = await tx.execute({ sql: "SELECT * FROM dashboard_month_entities WHERE utc_month=? AND game_id=? AND car_key=? AND track_key=?", args: keyArgs });
+  const current = result.rows[0] as DbRow | undefined;
+  const currentValues = Object.fromEntries(DAY_COLUMNS.map((field) => [field, number(current?.[field])])) as Record<typeof DAY_COLUMNS[number], number>;
+  const next = Object.fromEntries(DAY_COLUMNS.map((field) => [field, currentValues[field] + sign * number(row[field])])) as Record<typeof DAY_COLUMNS[number], number>;
+  for (const field of ["lap_count", "positive_laps", "valid_laps", "favourite_laps", "distance_laps", "podium_first", "podium_second", "podium_third"] as const) {
+    if (next[field] < 0) throw new Error(`Dashboard ${field} contribution underflow`);
+  }
+  const currentMoments = current ? stats(current, "valid_laps", "valid_mean_seconds", "valid_m2_seconds") : { count: 0, mean: 0, m2: 0 };
+  const contributionMoments = { count: number(row.valid_laps), mean: number(row.mean_lap_seconds), m2: number(row.m2_lap_seconds) };
+  const moments = sign === 1 ? mergeMoments(currentMoments, contributionMoments) : removeMoments(currentMoments, contributionMoments);
+  if (next.lap_count === 0 && next.podium_first === 0 && next.podium_second === 0 && next.podium_third === 0) {
+    await tx.execute({ sql: "DELETE FROM dashboard_month_entities WHERE utc_month=? AND game_id=? AND car_key=? AND track_key=?", args: keyArgs });
+    return;
+  }
+  const fields = [...DAY_COLUMNS, "valid_mean_seconds", "valid_m2_seconds"] as const;
+  const values = [...fields.map((field) => field === "valid_mean_seconds" ? (moments.count ? moments.mean : null)
+    : field === "valid_m2_seconds" ? (moments.count ? moments.m2 : null) : next[field])];
+  await tx.execute({
+    sql: `INSERT INTO dashboard_month_entities(utc_month,game_id,car_key,track_key,${fields.join(",")})
+      VALUES (?,?,?, ?,${fields.map(() => "?").join(",")})
+      ON CONFLICT(utc_month,game_id,car_key,track_key) DO UPDATE SET ${fields.map((field) => `${field}=excluded.${field}`).join(",")}`,
+    args: [...keyArgs, ...values],
+  });
+}
 async function adjustTimeBucket(tx: DashboardTransaction, row: TimeContribution, sign: 1 | -1): Promise<void> {
   const keys = [row.bucket_start_ms, row.game_id];
   const existing = await tx.execute({ sql: "SELECT * FROM dashboard_time_buckets WHERE bucket_start_ms=? AND game_id=?", args: keys });
@@ -298,7 +325,7 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
       && number(currentState.metadata_dirty) === 0 && number(currentState.capture_dirty) === 0 && number(currentState.deleted) === 0;
     if (alreadyPublished && !candidate.deleted && !excluded) { await tx.rollback(); return true; }
     const oldDays = await tx.execute({ sql: "SELECT * FROM dashboard_session_days WHERE session_id=?", args: [sessionId] });
-    for (const row of oldDays.rows as unknown as DayContribution[]) await adjustDayEntity(tx, row, -1);
+    for (const row of oldDays.rows as unknown as DayContribution[]) { await adjustDayEntity(tx, row, -1); await adjustMonthEntity(tx, row, -1); }
     const oldBuckets = await tx.execute({ sql: "SELECT * FROM dashboard_session_time_buckets WHERE session_id=?", args: [sessionId] });
     for (const row of oldBuckets.rows as unknown as TimeContribution[]) await adjustTimeBucket(tx, row, -1);
     for (const table of ["dashboard_session_summaries", "dashboard_session_days", "dashboard_session_sectors", "dashboard_session_time_buckets"]) {
@@ -326,6 +353,7 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
             row.best_lap_seconds,row.valid_laps ? row.mean_lap_seconds : null,row.valid_laps ? row.m2_lap_seconds : null,row.favourite_laps,row.favourite_seconds,row.distance_laps,
             row.distance_laps ? row.distance_meters : null,row.podium_first,row.podium_second,row.podium_third] });
         await adjustDayEntity(tx, row, 1);
+        await adjustMonthEntity(tx, row, 1);
       }
       for (const row of bucketMap.values()) {
         await tx.execute({ sql: `INSERT INTO dashboard_session_time_buckets(session_id,bucket_start_ms,game_id,valid_laps,positive_laps,driven_seconds,valid_seconds,podium_first,podium_second,podium_third)

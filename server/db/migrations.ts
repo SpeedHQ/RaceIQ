@@ -14,6 +14,225 @@
  *   1. Edit server/db/schema.ts
  *   2. Add a new { version, name, sql } entry below with the next version number
  */
+const dashboardProjectionRecoverySql = [
+  `CREATE TEMP TABLE dashboard_projection_repair_needed (needed INTEGER NOT NULL)`,
+  `INSERT INTO dashboard_projection_repair_needed
+   SELECT 1 WHERE
+     NOT EXISTS (SELECT 1 FROM sqlite_master WHERE type='table' AND name='dashboard_day_entities')
+     OR NOT EXISTS (SELECT 1 FROM sqlite_master WHERE type='table' AND name='dashboard_time_buckets')
+     OR NOT EXISTS (SELECT 1 FROM sqlite_master WHERE type='table' AND name='dashboard_session_time_buckets')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_summaries') WHERE name='podium_position')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_summaries') WHERE name='capture_revision')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_summaries') WHERE name='weather_revision')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_summaries') WHERE name='valid_mean_seconds')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_summaries') WHERE name='valid_m2_seconds')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_summaries') WHERE name='first_lap_at_ms')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_summaries') WHERE name='last_lap_at_ms')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_summaries') WHERE name='favourite_laps')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_summaries') WHERE name='favourite_seconds')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_summaries') WHERE name='distance_laps')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_summaries') WHERE name='distance_meters')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_summaries') WHERE name='duration_status')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_summaries') WHERE name='sector_status')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_summaries') WHERE name='weather_status')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_summaries') WHERE name='evidence_version')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_summaries') WHERE name='track_length_meters')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_summaries') WHERE name='podium_status')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_summaries') WHERE name='source_sector_starts_json')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_summaries') WHERE name='weather_conditions_json')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_days') WHERE name='favourite_laps')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_days') WHERE name='favourite_seconds')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_days') WHERE name='distance_laps')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_days') WHERE name='distance_meters')
+     OR NOT EXISTS (SELECT 1 FROM pragma_table_info('dashboard_session_time_buckets') WHERE name='valid_seconds')
+     OR NOT EXISTS (SELECT 1 FROM sqlite_master WHERE type='table' AND name='dashboard_session_index')
+     OR NOT EXISTS (SELECT 1 FROM sqlite_master WHERE type='table' AND name='dashboard_lap_index')
+     OR NOT EXISTS (SELECT 1 FROM sqlite_master WHERE type='index' AND name='dashboard_session_time_idx')
+     OR NOT EXISTS (SELECT 1 FROM sqlite_master WHERE type='index' AND name='dashboard_session_game_time_idx')
+     OR NOT EXISTS (SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='dashboard_session_index_insert')
+     OR NOT EXISTS (SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='dashboard_session_index_update')
+     OR NOT EXISTS (SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='dashboard_session_index_delete')
+     OR NOT EXISTS (SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='dashboard_laps_insert')
+     OR NOT EXISTS (SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='dashboard_laps_update')
+     OR NOT EXISTS (SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='dashboard_laps_delete')`,
+  `CREATE TABLE IF NOT EXISTS dashboard_session_time_buckets (
+    session_id INTEGER NOT NULL, bucket_start_ms INTEGER NOT NULL, game_id TEXT NOT NULL,
+    valid_laps INTEGER NOT NULL, positive_laps INTEGER NOT NULL, driven_seconds REAL NOT NULL,
+    podium_first INTEGER NOT NULL DEFAULT 0, valid_seconds REAL NOT NULL DEFAULT 0,
+    podium_second INTEGER NOT NULL DEFAULT 0, podium_third INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY(session_id,bucket_start_ms,game_id)
+  )`,
+  `ALTER TABLE dashboard_session_summaries ADD COLUMN podium_position INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE dashboard_session_summaries ADD COLUMN capture_revision TEXT`,
+  `ALTER TABLE dashboard_session_summaries ADD COLUMN weather_revision TEXT`,
+  `ALTER TABLE dashboard_session_summaries ADD COLUMN valid_mean_seconds REAL`,
+  `ALTER TABLE dashboard_session_summaries ADD COLUMN valid_m2_seconds REAL`,
+  `ALTER TABLE dashboard_session_summaries ADD COLUMN first_lap_at_ms INTEGER`,
+  `ALTER TABLE dashboard_session_summaries ADD COLUMN last_lap_at_ms INTEGER`,
+  `ALTER TABLE dashboard_session_summaries ADD COLUMN favourite_laps INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE dashboard_session_summaries ADD COLUMN favourite_seconds REAL NOT NULL DEFAULT 0`,
+  `ALTER TABLE dashboard_session_summaries ADD COLUMN distance_laps INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE dashboard_session_summaries ADD COLUMN distance_meters REAL`,
+  `ALTER TABLE dashboard_session_summaries ADD COLUMN duration_status TEXT NOT NULL DEFAULT 'pending'`,
+  `ALTER TABLE dashboard_session_summaries ADD COLUMN sector_status TEXT NOT NULL DEFAULT 'pending'`,
+  `ALTER TABLE dashboard_session_summaries ADD COLUMN weather_status TEXT NOT NULL DEFAULT 'pending'`,
+  `ALTER TABLE dashboard_session_summaries ADD COLUMN evidence_version INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE dashboard_session_summaries ADD COLUMN track_length_meters REAL`,
+  `ALTER TABLE dashboard_session_summaries ADD COLUMN podium_status TEXT NOT NULL DEFAULT 'unavailable'`,
+  `ALTER TABLE dashboard_session_summaries ADD COLUMN source_sector_starts_json TEXT`,
+  `ALTER TABLE dashboard_session_summaries ADD COLUMN weather_conditions_json TEXT`,
+  `ALTER TABLE dashboard_session_days ADD COLUMN favourite_laps INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE dashboard_session_days ADD COLUMN favourite_seconds REAL NOT NULL DEFAULT 0`,
+  `ALTER TABLE dashboard_session_days ADD COLUMN distance_laps INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE dashboard_session_days ADD COLUMN distance_meters REAL`,
+  `ALTER TABLE dashboard_session_time_buckets ADD COLUMN valid_seconds REAL NOT NULL DEFAULT 0`,
+  `CREATE TABLE IF NOT EXISTS dashboard_day_entities (
+    utc_day TEXT NOT NULL, game_id TEXT NOT NULL, car_key TEXT NOT NULL, track_key TEXT NOT NULL,
+    lap_count INTEGER NOT NULL, positive_laps INTEGER NOT NULL, valid_laps INTEGER NOT NULL,
+    driven_seconds REAL NOT NULL, valid_seconds REAL NOT NULL, valid_mean_seconds REAL, valid_m2_seconds REAL,
+    favourite_laps INTEGER NOT NULL, favourite_seconds REAL NOT NULL, distance_laps INTEGER NOT NULL,
+    distance_meters REAL NOT NULL, podium_first INTEGER NOT NULL, podium_second INTEGER NOT NULL,
+    podium_third INTEGER NOT NULL, PRIMARY KEY(utc_day,game_id,car_key,track_key)
+  )`,
+  `CREATE TABLE IF NOT EXISTS dashboard_time_buckets (
+    bucket_start_ms INTEGER NOT NULL, game_id TEXT NOT NULL, valid_laps INTEGER NOT NULL,
+    positive_laps INTEGER NOT NULL, driven_seconds REAL NOT NULL, valid_seconds REAL NOT NULL,
+    podium_first INTEGER NOT NULL, podium_second INTEGER NOT NULL, podium_third INTEGER NOT NULL,
+    PRIMARY KEY(bucket_start_ms,game_id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS dashboard_month_entities (
+    utc_month TEXT NOT NULL, game_id TEXT NOT NULL, car_key TEXT NOT NULL, track_key TEXT NOT NULL,
+    lap_count INTEGER NOT NULL, positive_laps INTEGER NOT NULL, valid_laps INTEGER NOT NULL,
+    driven_seconds REAL NOT NULL, valid_seconds REAL NOT NULL, valid_mean_seconds REAL, valid_m2_seconds REAL,
+    favourite_laps INTEGER NOT NULL, favourite_seconds REAL NOT NULL, distance_laps INTEGER NOT NULL,
+    distance_meters REAL NOT NULL, podium_first INTEGER NOT NULL, podium_second INTEGER NOT NULL, podium_third INTEGER NOT NULL,
+    PRIMARY KEY(utc_month,game_id,car_key,track_key)
+  )`,
+  `CREATE INDEX IF NOT EXISTS dashboard_day_entities_scope_idx ON dashboard_day_entities(game_id,utc_day)`,
+  `CREATE INDEX IF NOT EXISTS dashboard_day_entities_track_idx ON dashboard_day_entities(game_id,track_key,utc_day)`,
+  `CREATE INDEX IF NOT EXISTS dashboard_day_entities_car_idx ON dashboard_day_entities(game_id,car_key,utc_day)`,
+  `CREATE INDEX IF NOT EXISTS dashboard_time_buckets_game_time_idx ON dashboard_time_buckets(game_id,bucket_start_ms)`,
+  `CREATE INDEX IF NOT EXISTS dashboard_month_entities_scope_idx ON dashboard_month_entities(game_id,utc_month)`,
+  `CREATE INDEX IF NOT EXISTS dashboard_month_entities_track_idx ON dashboard_month_entities(game_id,track_key,utc_month)`,
+  `CREATE INDEX IF NOT EXISTS dashboard_month_entities_car_idx ON dashboard_month_entities(game_id,car_key,utc_month)`,
+  `CREATE TABLE IF NOT EXISTS dashboard_session_index (
+    session_id INTEGER PRIMARY KEY, created_at_ms INTEGER NOT NULL, game_id TEXT NOT NULL, ownership TEXT NOT NULL,
+    car_id TEXT, car_ordinal INTEGER NOT NULL, track_id TEXT, track_ordinal INTEGER NOT NULL, session_type TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS dashboard_session_time_idx ON dashboard_session_index(created_at_ms,session_id)`,
+  `CREATE INDEX IF NOT EXISTS dashboard_session_game_time_idx ON dashboard_session_index(game_id,created_at_ms,session_id)`,
+  `CREATE TABLE IF NOT EXISTS dashboard_lap_index (
+    lap_id INTEGER PRIMARY KEY, session_id INTEGER NOT NULL, created_at_ms INTEGER NOT NULL,
+    lap_time REAL NOT NULL, is_valid INTEGER NOT NULL, invalid_reason TEXT, sector_times TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS dashboard_lap_session_time_idx ON dashboard_lap_index(session_id,lap_time,lap_id)`,
+  `CREATE INDEX IF NOT EXISTS dashboard_lap_session_created_idx ON dashboard_lap_index(session_id,created_at_ms,lap_id)`,
+  `CREATE INDEX IF NOT EXISTS dashboard_lap_created_idx ON dashboard_lap_index(created_at_ms,session_id,lap_id)`,
+  `DELETE FROM dashboard_session_index WHERE EXISTS (SELECT 1 FROM dashboard_projection_repair_needed)`,
+  `DELETE FROM dashboard_lap_index WHERE EXISTS (SELECT 1 FROM dashboard_projection_repair_needed)`,
+  `INSERT OR IGNORE INTO dashboard_session_index(session_id,created_at_ms,game_id,ownership,car_id,car_ordinal,track_id,track_ordinal,session_type)
+   SELECT id,CAST(strftime('%s',created_at) AS INTEGER)*1000+CAST(substr(strftime('%f',created_at),4,3) AS INTEGER),
+     game_id,ownership,car_id,car_ordinal,track_id,track_ordinal,session_type FROM sessions`,
+  `CREATE TRIGGER IF NOT EXISTS dashboard_session_index_insert AFTER INSERT ON sessions BEGIN
+    INSERT INTO dashboard_session_index(session_id,created_at_ms,game_id,ownership,car_id,car_ordinal,track_id,track_ordinal,session_type)
+    VALUES (NEW.id,CAST(strftime('%s',NEW.created_at) AS INTEGER)*1000+CAST(substr(strftime('%f',NEW.created_at),4,3) AS INTEGER),
+      NEW.game_id,NEW.ownership,NEW.car_id,NEW.car_ordinal,NEW.track_id,NEW.track_ordinal,NEW.session_type);
+  END`,
+  `CREATE TRIGGER IF NOT EXISTS dashboard_session_index_update AFTER UPDATE OF created_at,game_id,ownership,car_id,car_ordinal,track_id,track_ordinal,session_type ON sessions BEGIN
+    UPDATE dashboard_session_index SET created_at_ms=CAST(strftime('%s',NEW.created_at) AS INTEGER)*1000+CAST(substr(strftime('%f',NEW.created_at),4,3) AS INTEGER),
+      game_id=NEW.game_id,ownership=NEW.ownership,car_id=NEW.car_id,car_ordinal=NEW.car_ordinal,
+      track_id=NEW.track_id,track_ordinal=NEW.track_ordinal,session_type=NEW.session_type WHERE session_id=NEW.id;
+  END`,
+  `CREATE TRIGGER IF NOT EXISTS dashboard_session_index_delete AFTER DELETE ON sessions BEGIN
+    DELETE FROM dashboard_session_index WHERE session_id=OLD.id;
+  END`,
+  `INSERT OR IGNORE INTO dashboard_lap_index(lap_id,session_id,created_at_ms,lap_time,is_valid,invalid_reason,sector_times)
+   SELECT id,session_id,CAST(strftime('%s',created_at) AS INTEGER)*1000+CAST(substr(strftime('%f',created_at),4,3) AS INTEGER),
+     lap_time,is_valid,invalid_reason,sector_times FROM laps`,
+  `DELETE FROM dashboard_session_summaries WHERE EXISTS (SELECT 1 FROM dashboard_projection_repair_needed)`,
+  `CREATE TRIGGER IF NOT EXISTS dashboard_laps_insert AFTER INSERT ON laps BEGIN
+    INSERT INTO dashboard_lap_index(lap_id,session_id,created_at_ms,lap_time,is_valid,invalid_reason,sector_times)
+    VALUES (NEW.id,NEW.session_id,CAST(strftime('%s',NEW.created_at) AS INTEGER)*1000+CAST(substr(strftime('%f',NEW.created_at),4,3) AS INTEGER),
+      NEW.lap_time,NEW.is_valid,NEW.invalid_reason,NEW.sector_times);
+    INSERT INTO dashboard_summary_state(session_id,source_revision,metadata_dirty)
+    SELECT NEW.session_id,1,1 WHERE EXISTS (SELECT 1 FROM sessions WHERE id=NEW.session_id AND ownership='mine')
+      OR EXISTS (SELECT 1 FROM dashboard_summary_state WHERE session_id=NEW.session_id)
+      OR EXISTS (SELECT 1 FROM dashboard_session_summaries WHERE session_id=NEW.session_id)
+    ON CONFLICT(session_id) DO UPDATE SET source_revision=source_revision+1,metadata_dirty=1,updated_at=datetime('now');
+  END`,
+  `CREATE TRIGGER IF NOT EXISTS dashboard_laps_update AFTER UPDATE OF session_id,lap_time,is_valid,invalid_reason,created_at,sector_times ON laps
+   WHEN OLD.session_id IS NOT NEW.session_id OR OLD.lap_time IS NOT NEW.lap_time OR OLD.is_valid IS NOT NEW.is_valid
+     OR OLD.invalid_reason IS NOT NEW.invalid_reason OR OLD.created_at IS NOT NEW.created_at OR OLD.sector_times IS NOT NEW.sector_times
+   BEGIN
+     DELETE FROM dashboard_lap_index WHERE lap_id=OLD.id;
+     INSERT INTO dashboard_lap_index(lap_id,session_id,created_at_ms,lap_time,is_valid,invalid_reason,sector_times)
+     VALUES (NEW.id,NEW.session_id,CAST(strftime('%s',NEW.created_at) AS INTEGER)*1000+CAST(substr(strftime('%f',NEW.created_at),4,3) AS INTEGER),
+       NEW.lap_time,NEW.is_valid,NEW.invalid_reason,NEW.sector_times);
+     INSERT INTO dashboard_summary_state(session_id,source_revision,metadata_dirty)
+     SELECT OLD.session_id,1,1 WHERE EXISTS (SELECT 1 FROM sessions WHERE id=OLD.session_id AND ownership='mine')
+       OR EXISTS (SELECT 1 FROM dashboard_summary_state WHERE session_id=OLD.session_id)
+       OR EXISTS (SELECT 1 FROM dashboard_session_summaries WHERE session_id=OLD.session_id)
+     ON CONFLICT(session_id) DO UPDATE SET source_revision=source_revision+1,metadata_dirty=1,updated_at=datetime('now');
+     INSERT INTO dashboard_summary_state(session_id,source_revision,metadata_dirty)
+     SELECT NEW.session_id,1,1 WHERE NEW.session_id!=OLD.session_id AND
+       (EXISTS (SELECT 1 FROM sessions WHERE id=NEW.session_id AND ownership='mine')
+        OR EXISTS (SELECT 1 FROM dashboard_summary_state WHERE session_id=NEW.session_id)
+        OR EXISTS (SELECT 1 FROM dashboard_session_summaries WHERE session_id=NEW.session_id))
+     ON CONFLICT(session_id) DO UPDATE SET source_revision=source_revision+1,metadata_dirty=1,updated_at=datetime('now');
+   END`,
+  `CREATE TRIGGER IF NOT EXISTS dashboard_laps_delete AFTER DELETE ON laps BEGIN
+     DELETE FROM dashboard_lap_index WHERE lap_id=OLD.id;
+     INSERT INTO dashboard_summary_state(session_id,source_revision,metadata_dirty)
+     SELECT OLD.session_id,1,1 WHERE EXISTS (SELECT 1 FROM sessions WHERE id=OLD.session_id AND ownership='mine')
+       OR EXISTS (SELECT 1 FROM dashboard_summary_state WHERE session_id=OLD.session_id)
+       OR EXISTS (SELECT 1 FROM dashboard_session_summaries WHERE session_id=OLD.session_id)
+     ON CONFLICT(session_id) DO UPDATE SET source_revision=source_revision+1,metadata_dirty=1,updated_at=datetime('now');
+   END`,
+  `DELETE FROM dashboard_session_days WHERE EXISTS (SELECT 1 FROM dashboard_projection_repair_needed)`,
+  `DELETE FROM dashboard_session_sectors WHERE EXISTS (SELECT 1 FROM dashboard_projection_repair_needed)`,
+  `DELETE FROM dashboard_session_time_buckets WHERE EXISTS (SELECT 1 FROM dashboard_projection_repair_needed)`,
+  `DELETE FROM dashboard_day_entities WHERE EXISTS (SELECT 1 FROM dashboard_projection_repair_needed)`,
+  `DELETE FROM dashboard_time_buckets WHERE EXISTS (SELECT 1 FROM dashboard_projection_repair_needed)`,
+  `DELETE FROM dashboard_month_entities WHERE EXISTS (SELECT 1 FROM dashboard_projection_repair_needed)`,
+  `UPDATE dashboard_summary_state SET metadata_dirty=1,capture_dirty=1,processor_version=0,published_revision=0
+   WHERE EXISTS (SELECT 1 FROM dashboard_projection_repair_needed)
+     AND EXISTS (SELECT 1 FROM sessions WHERE sessions.id=dashboard_summary_state.session_id AND ownership='mine')`,
+  `INSERT INTO dashboard_summary_state(session_id,source_revision,published_revision,processor_version,
+     metadata_dirty,capture_dirty,deleted,capture_ready)
+   SELECT id,1,0,0,1,1,0,1 FROM sessions WHERE ownership='mine'
+     AND EXISTS (SELECT 1 FROM dashboard_projection_repair_needed)
+   ON CONFLICT(session_id) DO NOTHING`,
+  `DROP TABLE dashboard_projection_repair_needed`,
+];
+const dashboardMonthlyRollupSql = [
+  `INSERT OR REPLACE INTO dashboard_month_entities
+    (utc_month,game_id,car_key,track_key,lap_count,positive_laps,valid_laps,driven_seconds,valid_seconds,
+     valid_mean_seconds,valid_m2_seconds,favourite_laps,favourite_seconds,distance_laps,distance_meters,podium_first,podium_second,podium_third)
+   WITH day_means AS (
+     SELECT substr(utc_day,1,7) utc_month,game_id,car_key,track_key,valid_laps,valid_mean_seconds,valid_m2_seconds,
+       SUM(valid_laps) OVER (PARTITION BY substr(utc_day,1,7),game_id,car_key,track_key) total_n,
+       SUM(valid_laps*COALESCE(valid_mean_seconds,0)) OVER (PARTITION BY substr(utc_day,1,7),game_id,car_key,track_key) total_sum
+     FROM dashboard_day_entities
+   ), month_means AS (
+     SELECT utc_month,game_id,car_key,track_key,total_n,total_sum,total_sum/NULLIF(total_n,0) mean
+     FROM day_means GROUP BY utc_month,game_id,car_key,track_key
+   ), month_variance AS (
+     SELECT d.utc_month,d.game_id,d.car_key,d.track_key,
+       SUM(COALESCE(d.valid_m2_seconds,0)+d.valid_laps*(COALESCE(d.valid_mean_seconds,0)-m.mean)*(COALESCE(d.valid_mean_seconds,0)-m.mean)) m2
+     FROM day_means d JOIN month_means m USING(utc_month,game_id,car_key,track_key)
+     GROUP BY d.utc_month,d.game_id,d.car_key,d.track_key
+   )
+   SELECT substr(d.utc_day,1,7),d.game_id,d.car_key,d.track_key,SUM(d.lap_count),SUM(d.positive_laps),SUM(d.valid_laps),
+     SUM(d.driven_seconds),SUM(d.valid_seconds),m.mean,v.m2,
+     SUM(d.favourite_laps),SUM(d.favourite_seconds),SUM(d.distance_laps),SUM(d.distance_meters),
+     SUM(d.podium_first),SUM(d.podium_second),SUM(d.podium_third)
+   FROM dashboard_day_entities d JOIN month_means m ON m.utc_month=substr(d.utc_day,1,7)
+     AND m.game_id=d.game_id AND m.car_key=d.car_key AND m.track_key=d.track_key
+   JOIN month_variance v ON v.utc_month=m.utc_month AND v.game_id=m.game_id AND v.car_key=m.car_key AND v.track_key=m.track_key
+   GROUP BY substr(d.utc_day,1,7),d.game_id,d.car_key,d.track_key`,
+];
+
+
 export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 1,
@@ -1732,5 +1951,43 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS dashboard_state_retry_idx ON dashboard_summary_state(next_retry_at, session_id)`,
     ],
   },
+  {
+    version: 67,
+    name: "maintain monthly dashboard entity rollups",
+    sql: [
+      ...dashboardProjectionRecoverySql,
+      `CREATE INDEX IF NOT EXISTS dashboard_month_entities_scope_idx ON dashboard_month_entities(game_id,utc_month)`,
+      `CREATE INDEX IF NOT EXISTS dashboard_month_entities_track_idx ON dashboard_month_entities(game_id,track_key,utc_month)`,
+      `CREATE INDEX IF NOT EXISTS dashboard_month_entities_car_idx ON dashboard_month_entities(game_id,car_key,utc_month)`,
+      ...dashboardMonthlyRollupSql,
+    ],
+  },
+  {
+    version: 68,
+    name: "recover incomplete dashboard projections after monthly rollups",
+    sql: [
+      ...dashboardProjectionRecoverySql,
+      ...dashboardMonthlyRollupSql,
+    ],
+  },
+  {
+    version: 69,
+    name: "restore dashboard source projection indexes",
+    sql: [
+      ...dashboardProjectionRecoverySql,
+      ...dashboardMonthlyRollupSql,
+    ],
+  },
 ];
+const dashboardV63CanonicalTriggers = (() => {
+  const v63 = migrations.find((migration) => migration.version === 63);
+  const latestByName = new Map<string, string>();
+  for (const sql of v63?.sql ?? []) {
+    const match = sql.match(/^\s*CREATE TRIGGER\s+([A-Za-z0-9_]+)/i);
+    if (match?.[1].startsWith("dashboard_")) latestByName.set(match[1], sql);
+  }
+  return [...latestByName].flatMap(([name, sql]) => [`DROP TRIGGER IF EXISTS ${name}`, sql]);
+})();
+
+migrations.find((migration) => migration.version === 69)?.sql.push(...dashboardV63CanonicalTriggers);
 

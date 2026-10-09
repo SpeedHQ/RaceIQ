@@ -7,15 +7,6 @@
   background: color-mix(in srgb, var(--app-surface-alt) 30%, transparent);
 }
 
-.recap-card-title {
-  margin-bottom: 8px;
-  color: var(--recap-label);
-  font-family: var(--font-mono);
-  font-size: var(--text-app-label);
-  font-weight: var(--font-weight-normal);
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-}
 
 .recap-cinematic .text-app-text-secondary,
 .recap-cinematic .text-app-text-muted {
@@ -25,28 +16,23 @@
 .recap-best-lap,
 .recap-sector,
 .recap-footer {
-  border: 1px solid var(--recap-border);
+  border: 1px solid var(--app-border);
   border-radius: 8px;
   background: var(--app-bg);
 }
 
-.recap-best-lap {
-  border-color: color-mix(in srgb, var(--app-accent) 65%, var(--recap-border));
-  box-shadow: 0 4px 18px color-mix(in srgb, var(--app-accent) 15%, transparent);
-}
 
 .recap-label {
   color: var(--recap-label);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: var(--text-app-label);
-  letter-spacing: 0.12em;
+  letter-spacing: var(--tracking-app-label);
   text-transform: uppercase;
 }
 
 .recap-best-time {
   color: var(--recap-timing);
-  font-size: clamp(1.25rem, 4cqw, 1.5rem);
-  letter-spacing: -0.035em;
+  font-size: var(--text-app-title);
   text-shadow: 0 2px 14px color-mix(in srgb, var(--recap-timing) 30%, transparent);
 }
 
@@ -57,13 +43,6 @@
   box-shadow: 0 2px 10px color-mix(in srgb, var(--app-accent) 28%, transparent);
 }
 
-.recap-footer > div:first-child .text-app-label {
-  color: var(--recap-label);
-  font-family: var(--font-mono);
-  font-size: var(--text-app-compact);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
 
 
 .latest-session-link:focus-visible {
@@ -71,6 +50,46 @@
   outline-offset: 3px;
 }
 
-.latest-session-link:hover .latest-session-card {
+/* Dashboard panels share one bounded gradient sweep; no idle animation. */
+.dashboard-hover-panel {
+  isolation: isolate;
+  transition: border-color 180ms ease-out;
+}
+
+.dashboard-hover-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(
+    ellipse at top right,
+    color-mix(in srgb, var(--app-accent) 12%, transparent),
+    transparent 70%
+  );
+  background-size: 110% 110%;
+  background-position: 100% 0;
+  opacity: 0;
+  transition: opacity 180ms ease-out, background-position 450ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.favourite-panel[role="link"]:is(:hover, :focus-visible),
+.favourite-panel[role="link"]:has(a:focus-visible),
+.latest-session-link:is(:hover, :focus-visible) .dashboard-hover-panel {
   border-color: var(--app-accent-hover);
+}
+
+.favourite-panel[role="link"]:is(:hover, :focus-visible)::before,
+.favourite-panel[role="link"]:has(a:focus-visible)::before,
+.latest-session-link:is(:hover, :focus-visible) .dashboard-hover-panel::before {
+  background-position: 80% 20%;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-hover-panel,
+  .dashboard-hover-panel::before {
+    transition: none;
+  }
 }

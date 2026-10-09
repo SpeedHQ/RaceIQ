@@ -285,7 +285,6 @@ export function startDashboardProcessor(options: { signal?: AbortSignal; idleMs?
         cursor = id;
         await rememberBackfillCursor(id);
         await processDashboardSession(id);
-        workSessionId = null;
         visited++;
         if (visited % BATCH_SIZE === 0) await checkpointYield();
       } catch (error) {

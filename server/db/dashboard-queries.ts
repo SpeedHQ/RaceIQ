@@ -1,5 +1,6 @@
+import { Database } from "bun:sqlite";
 import { DASHBOARD_PROCESSOR_VERSION } from "./dashboard-summary-queries";
-import { client } from "./index";
+import { DB_PATH } from "./index";
 import { dashboardCarIdentity, dashboardTrackIdentity, validateDashboardRequest } from "@raceiq/shared/racing/sessions/dashboard";
 import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
 import type { DashboardRequest, DashboardResponse, DashboardMetricTotals, DashboardCardTotal, DashboardCalendarBucket, DashboardEntityTotal, DashboardFavourite, DashboardSessionType } from "@raceiq/shared/racing/sessions/dashboard";
@@ -8,9 +9,28 @@ const DAY_MS = 86_400_000;
 const BUCKET_MS = 900_000;
 const MAX_FALLBACK_SESSIONS = 128;
 type Row = Record<string, unknown>;
+
 const n = (value: unknown): number => Number(value ?? 0);
 const nullableNumber = (value: unknown): number | null => value == null ? null : Number(value);
 const instant = (value: string): number => Date.parse(value);
+let dashboardDatabase: Database | null = null;
+
+function getDashboardDatabase(): Database {
+  if (process.env.DB_IN_MEMORY === "1") {
+    throw new Error("Dashboard reads require a file-backed SQLite database; DB_IN_MEMORY=1 is unsupported");
+  }
+  if (!dashboardDatabase) {
+    dashboardDatabase = new Database(DB_PATH, { readonly: true });
+    dashboardDatabase.exec("PRAGMA busy_timeout=5000");
+  }
+  return dashboardDatabase;
+}
+type DashboardQueryObserver = (sql: string, args: (string | number | null)[], rows: unknown[], elapsedMs: number) => void;
+let dashboardQueryObserver: DashboardQueryObserver | undefined;
+
+export function setDashboardQueryObserver(observer?: DashboardQueryObserver): void {
+  dashboardQueryObserver = observer;
+}
 
 export interface DashboardReadCoverage {
   status: "complete" | "pending" | "unavailable";
@@ -36,41 +56,15 @@ function emptyDashboard(request: DashboardRequest, coverage: DashboardReadCovera
     laps: 0, positiveLaps: 0, validLaps: 0, drivenSeconds: 0, validSeconds: 0,
     bestLapSeconds: null, averageLapSeconds: null, tracks: 0, cars: 0, sessions: 0,
   };
-  const timeZone = request.timeZone;
-  const dateFmt = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" });
-  const dateAt = (stamp: number) => {
-    const parts = Object.fromEntries(dateFmt.formatToParts(stamp).map((part) => [part.type, part.value]));
-    return `${parts.year}-${parts.month}-${parts.day}`;
-  };
-  const localDateTimeFmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone, year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
-  });
-  const localMidnight = (day: string): number => {
-    const [year, month, date] = day.split("-").map(Number);
-    const target = Date.UTC(year!, month! - 1, date!);
-    let guess = target;
-    for (let attempt = 0; attempt < 4; attempt++) {
-      const parts = Object.fromEntries(localDateTimeFmt.formatToParts(guess).map((part) => [part.type, Number(part.value)]));
-      const shown = Date.UTC(parts.year!, parts.month! - 1, parts.day!, parts.hour!, parts.minute!, parts.second!);
-      const correction = target - shown;
-      guess += correction;
-      if (correction === 0) break;
-    }
-    return guess;
-  };
   const start = Date.parse(request.from), end = Date.parse(request.to);
-  const firstDate = new Date(`${dateAt(start)}T00:00:00Z`);
-  const lastDate = new Date(`${dateAt(end - 1)}T00:00:00Z`);
-  const dayCount = Math.floor((lastDate.getTime() - firstDate.getTime()) / DAY_MS) + 1;
+  const firstDate = new Date(Math.floor(start / DAY_MS) * DAY_MS);
+  const dayCount = Math.ceil((end - firstDate.getTime()) / DAY_MS);
   const calendar: DashboardCalendarBucket[] = [];
   for (let index = 0; index < dayCount && index < 367; index++) {
     const dayDate = new Date(firstDate.getTime() + index * DAY_MS);
-    const nextDate = new Date(firstDate.getTime() + (index + 1) * DAY_MS);
     const day = dayDate.toISOString().slice(0, 10);
-    const nextDay = nextDate.toISOString().slice(0, 10);
-    const from = Math.max(start, localMidnight(day));
-    const to = Math.min(end, localMidnight(nextDay));
+    const from = Math.max(start, dayDate.getTime());
+    const to = Math.min(end, dayDate.getTime() + DAY_MS);
     calendar.push({ day, from: new Date(from).toISOString(), to: new Date(to).toISOString(), validLaps: 0,
       positiveLaps: 0, cleanRate: null, drivenSeconds: 0, podiums: 0 });
   }
@@ -94,31 +88,42 @@ function emptyDashboard(request: DashboardRequest, coverage: DashboardReadCovera
  */
 export async function getDashboard(request: DashboardRequest): Promise<DashboardResponse> {
   const bounds = assertRequest(request);
-  const tx = await client.transaction("read");
-  try {
+  const database = getDashboardDatabase();
+  const tx = {
+    execute: <T extends Row = Row>({ sql, args = [] }: { sql: string; args?: (string | number | null)[] }): { rows: T[] } => {
+      if (!dashboardQueryObserver) return { rows: database.query<T, (string | number | null)[]>(sql).all(...args) };
+      const started = performance.now();
+      const rows = database.query<T, (string | number | null)[]>(sql).all(...args);
+      dashboardQueryObserver(sql, args, rows, performance.now() - started);
+      return { rows };
+    },
+  };
+  return database.transaction(() => {
     const filter = scope(request.gameId, "si");
-    const coverageResult = await tx.execute({
+    const coverageResult = tx.execute({
       sql: `SELECT COUNT(*) AS mine_sessions,MAX(st.source_revision) AS revision,
-        SUM(CASE WHEN st.session_id IS NOT NULL AND st.metadata_dirty=0 AND st.capture_dirty=0
+        SUM(CASE WHEN st.session_id IS NOT NULL AND st.metadata_dirty=0
           AND st.deleted=0 AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION}
           AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
-          AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision THEN 1 ELSE 0 END) AS ready_sessions
+          AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision THEN 1 ELSE 0 END) AS ready_sessions,
+        SUM(CASE WHEN st.capture_dirty!=0 THEN 1 ELSE 0 END) AS pending_capture
         FROM dashboard_session_index si LEFT JOIN dashboard_summary_state st ON st.session_id=si.session_id
         LEFT JOIN dashboard_session_summaries p ON p.session_id=si.session_id
         WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<?${filter.predicate}`,
       args: [bounds.from, bounds.to, ...filter.args],
     });
-    const coverageRow = coverageResult.rows[0] as Row | undefined;
+    const coverageRow = coverageResult.rows[0];
     const mineSessions = n(coverageRow?.mine_sessions), readySessions = n(coverageRow?.ready_sessions);
-    const dirtyResult = await tx.execute({
+    const dirtyResult = tx.execute({
       sql: `SELECT candidate.session_id FROM (
           SELECT st.session_id FROM dashboard_summary_state st
           LEFT JOIN dashboard_session_summaries p ON p.session_id=st.session_id
           LEFT JOIN dashboard_session_index si ON si.session_id=st.session_id
-          WHERE (st.metadata_dirty!=0 OR st.capture_dirty!=0 OR st.deleted!=0
+          WHERE (st.metadata_dirty!=0 OR st.deleted!=0
             OR COALESCE(st.processor_version,-1)!=${DASHBOARD_PROCESSOR_VERSION}
             OR COALESCE(p.processor_version,-1)!=${DASHBOARD_PROCESSOR_VERSION}
-            OR st.published_revision!=st.source_revision)
+            OR st.published_revision!=st.source_revision OR p.session_id IS NULL
+            OR p.source_revision!=st.source_revision)
             AND ((si.created_at_ms>=? AND si.created_at_ms<?${request.gameId ? " AND si.game_id=?" : ""})
               OR EXISTS(SELECT 1 FROM dashboard_session_days old WHERE old.session_id=st.session_id AND old.utc_day>=? AND old.utc_day<?)
               OR EXISTS(SELECT 1 FROM dashboard_lap_index l WHERE l.session_id=st.session_id AND l.created_at_ms>=? AND l.created_at_ms<?))
@@ -136,7 +141,8 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
       ],
     });
     const dirtyIds = dirtyResult.rows.map((row) => n(row.session_id));
-    const pending = dirtyIds.length > 0 || readySessions < mineSessions;
+    const pending = dirtyIds.length > 0 || readySessions < mineSessions
+      || n(coverageRow?.pending_capture) > 0;
     const response = emptyDashboard(request, {
       status: pending ? "pending" : "complete", metadataComplete: true,
       mineSessions, readySessions, pendingSessions: mineSessions - readySessions,
@@ -144,29 +150,51 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     response.revision = n(coverageRow?.revision);
     if (dirtyIds.length > MAX_FALLBACK_SESSIONS) {
       response.coverage.metadataComplete = false;
-      await tx.commit();
       return response;
     }
 
-    // Read published interior UTC days, subtract each stale session's old
-    // contribution, then add current dirty and partial-day source facts.
+    // Read older complete UTC months, then remaining interior UTC days.
+    // Reconcile stale sessions once across both grains and add exact edges.
     const firstFullDayMs = Math.ceil(bounds.from / DAY_MS) * DAY_MS;
     const endFullDayMs = Math.floor(bounds.to / DAY_MS) * DAY_MS;
     const firstFullDay = new Date(firstFullDayMs).toISOString().slice(0, 10);
     const endFullDay = new Date(endFullDayMs).toISOString().slice(0, 10);
+    const firstMonthDate = new Date(firstFullDayMs);
+    firstMonthDate.setUTCMonth(firstMonthDate.getUTCMonth() + (firstMonthDate.getUTCDate() === 1 ? 0 : 1), 1);
+    const recentCutoff = new Date(Math.max(Date.now(), bounds.to) - 30 * DAY_MS);
+    recentCutoff.setUTCDate(1);
+    recentCutoff.setUTCHours(0, 0, 0, 0);
+    const endMonthDate = new Date(endFullDayMs);
+    endMonthDate.setUTCDate(1);
+    // Historical whole months use monthly grain too, but cannot escape the requested interval.
+    endMonthDate.setTime(Math.max(firstMonthDate.getTime(), Math.min(endMonthDate.getTime(), recentCutoff.getTime())));
+    const firstMonth = firstMonthDate.toISOString().slice(0, 7);
+    const endMonth = endMonthDate.toISOString().slice(0, 7);
+    const firstMonthDay = `${firstMonth}-01`;
+    const endMonthDay = `${endMonth}-01`;
+    const firstDailyEnd = firstMonthDay < endFullDay ? firstMonthDay : endFullDay;
+    const lastDailyStart = endMonthDay > firstFullDay ? endMonthDay : firstFullDay;
     const dirtyBindings = dirtyIds.slice(0, MAX_FALLBACK_SESSIONS);
     const dirtyIn = dirtyBindings.length ? dirtyBindings.map(() => "?").join(",") : "NULL";
     const dirtyCte = dirtyBindings.length ? `VALUES ${dirtyBindings.map(() => "(?)").join(",")}` : "SELECT NULL WHERE 0";
     const needsDaySource = dirtyBindings.length > 0 || bounds.from !== firstFullDayMs || bounds.to !== endFullDayMs;
-    const commonScope = "";
-    const entityResult = await tx.execute({
+    const entityResult = tx.execute({
       sql: `WITH dirty(session_id) AS (${dirtyCte}),
+        daily_entities AS (
+          SELECT * FROM dashboard_day_entities WHERE utc_day>=? AND utc_day<?
+          UNION ALL
+          SELECT * FROM dashboard_day_entities WHERE utc_day>=? AND utc_day<?
+        ),
         day_rollup AS (
+          SELECT m.utc_month||'-01' utc_day,m.game_id,m.car_key,m.track_key,m.lap_count,m.positive_laps,m.valid_laps,
+            m.driven_seconds,m.valid_seconds,m.favourite_laps,m.favourite_seconds,m.distance_laps,m.distance_meters,
+            m.podium_first,m.podium_second,m.podium_third,0 podium_evidence
+          FROM dashboard_month_entities m WHERE m.utc_month>=? AND m.utc_month<?
+          UNION ALL
           SELECT d.utc_day,d.game_id,d.car_key,d.track_key,d.lap_count,d.positive_laps,d.valid_laps,
             d.driven_seconds,d.valid_seconds,d.favourite_laps,d.favourite_seconds,d.distance_laps,d.distance_meters,
             d.podium_first,d.podium_second,d.podium_third,0 podium_evidence
-          FROM dashboard_day_entities d WHERE d.utc_day>=? AND d.utc_day<?
-            ${commonScope}
+          FROM daily_entities d
           UNION ALL
           SELECT old.utc_day,old.game_id,old.car_key,old.track_key,-old.lap_count,-old.positive_laps,-old.valid_laps,
             -old.driven_seconds,-old.valid_seconds,-old.favourite_laps,-old.favourite_seconds,-old.distance_laps,
@@ -238,7 +266,8 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
         GROUP BY f.game_id,f.car_key,f.track_key`,
       args: [
         ...dirtyBindings,
-        firstFullDay, endFullDay,
+        firstFullDay, firstDailyEnd, lastDailyStart, endFullDay,
+        firstMonth, endMonth,
         firstFullDay, endFullDay,
         bounds.from, bounds.to, firstFullDayMs, endFullDayMs, ...dirtyBindings,
         ...dirtyBindings, bounds.from, bounds.to, firstFullDayMs, endFullDayMs,
@@ -272,7 +301,6 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     };
     const tracks = new Map<string, EntityFacts>(), cars = new Map<string, EntityFacts>();
     const favouriteTracks = new Map<string, EntityFacts>(), favouriteCars = new Map<string, EntityFacts>();
-    const localDayFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: request.timeZone, year: "numeric", month: "2-digit", day: "2-digit" });
     for (const raw of entityResult.rows) {
       const row = raw as Row, gameId = String(row.game_id) as GameId;
       if (!KNOWN_GAME_IDS.includes(gameId)) continue;
@@ -302,14 +330,15 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
       card.laps += n(row.lap_count);
       card.drivenSeconds += n(row.driven_seconds);
     }
-    const periodFacts = await tx.execute({
+    const periodFacts = tx.execute({
       sql: `WITH dirty(session_id) AS (
           SELECT st.session_id FROM dashboard_summary_state st
           LEFT JOIN dashboard_session_summaries p ON p.session_id=st.session_id
-          WHERE st.metadata_dirty!=0 OR st.capture_dirty!=0 OR st.deleted!=0
+          WHERE st.metadata_dirty!=0 OR st.deleted!=0
             OR COALESCE(st.processor_version,-1)!=${DASHBOARD_PROCESSOR_VERSION}
             OR COALESCE(p.processor_version,-1)!=${DASHBOARD_PROCESSOR_VERSION}
-            OR st.published_revision!=st.source_revision),
+            OR st.published_revision!=st.source_revision OR p.session_id IS NULL
+            OR p.source_revision!=st.source_revision),
         sessions_in_period AS (
           SELECT DISTINCT d.session_id FROM dashboard_session_days d
           WHERE d.utc_day>=? AND d.utc_day<?${request.gameId ? " AND d.game_id=?" : ""}
@@ -324,7 +353,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
           JOIN dashboard_summary_state st ON st.session_id=p.session_id
           WHERE si.ownership='mine' AND p.best_lap_seconds>0 AND p.valid_laps>0
             AND p.first_lap_at_ms>=? AND p.last_lap_at_ms<?
-            AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
+            AND st.metadata_dirty=0 AND st.deleted=0
             AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
             AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision${request.gameId ? " AND si.game_id=?" : ""}
           UNION ALL
@@ -381,7 +410,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
       othersSeconds: otherTrackSeconds, othersShare: totalTrackSeconds ? otherTrackSeconds / totalTrackSeconds : 0,
       othersCount: Math.max(0, rankedTracks.length - 5),
     };
-    const members = await tx.execute({
+    const members = tx.execute({
       sql: `WITH dirty(session_id) AS (${dirtyCte}), member_rows(kind,game_id,identity_key,session_id) AS (
         SELECT 'track',d.game_id,d.track_key,d.session_id FROM dashboard_session_days d
         WHERE d.utc_day>=? AND d.utc_day<? AND d.track_key!='' AND NOT EXISTS(SELECT 1 FROM dirty x WHERE x.session_id=d.session_id)
@@ -389,27 +418,33 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
         SELECT 'car',d.game_id,d.car_key,d.session_id FROM dashboard_session_days d
         WHERE d.utc_day>=? AND d.utc_day<? AND d.car_key!='' AND NOT EXISTS(SELECT 1 FROM dirty x WHERE x.session_id=d.session_id)
         UNION
-        SELECT 'track',si.game_id,COALESCE(NULLIF(si.track_id,''),'#ord:'||si.track_ordinal),l.session_id
+        SELECT 'track',si.game_id,
+          CASE WHEN p.session_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM dirty x WHERE x.session_id=si.session_id)
+            THEN p.track_key ELSE COALESCE(NULLIF(si.track_id,''),'#ord:'||si.track_ordinal) END,l.session_id
         FROM dashboard_lap_index l JOIN dashboard_session_index si ON si.session_id=l.session_id
+        LEFT JOIN dashboard_session_summaries p ON p.session_id=si.session_id
         WHERE ${needsDaySource ? "" : "0 AND "}si.ownership='mine' AND l.created_at_ms>=? AND l.created_at_ms<?
           AND (l.session_id IN (${dirtyIn}) OR l.created_at_ms<? OR l.created_at_ms>=?)
         UNION
-        SELECT 'car',si.game_id,COALESCE(NULLIF(si.car_id,''),'#ord:'||si.car_ordinal),l.session_id
+        SELECT 'car',si.game_id,
+          CASE WHEN p.session_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM dirty x WHERE x.session_id=si.session_id)
+            THEN p.car_key ELSE COALESCE(NULLIF(si.car_id,''),'#ord:'||si.car_ordinal) END,l.session_id
         FROM dashboard_lap_index l JOIN dashboard_session_index si ON si.session_id=l.session_id
+        LEFT JOIN dashboard_session_summaries p ON p.session_id=si.session_id
         WHERE ${needsDaySource ? "" : "0 AND "}si.ownership='mine' AND l.created_at_ms>=? AND l.created_at_ms<?
           AND (l.session_id IN (${dirtyIn}) OR l.created_at_ms<? OR l.created_at_ms>=?)
         UNION
         SELECT 'track',p.game_id,p.track_key,p.session_id FROM dashboard_session_summaries p
         JOIN dashboard_session_index si ON si.session_id=p.session_id JOIN dashboard_summary_state st ON st.session_id=p.session_id
           AND si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<? AND p.track_key!=''
-          AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
+          AND st.metadata_dirty=0 AND st.deleted=0
           AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
           AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision
         UNION
         SELECT 'car',p.game_id,p.car_key,p.session_id FROM dashboard_session_summaries p
         JOIN dashboard_session_index si ON si.session_id=p.session_id JOIN dashboard_summary_state st ON st.session_id=p.session_id
         WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<? AND p.car_key!=''
-          AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
+          AND st.metadata_dirty=0 AND st.deleted=0
           AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
           AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision
         UNION
@@ -427,23 +462,23 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
         firstFullDay, endFullDay, firstFullDay, endFullDay,
         bounds.from, bounds.to, ...dirtyBindings, firstFullDayMs, endFullDayMs,
         bounds.from, bounds.to, ...dirtyBindings, firstFullDayMs, endFullDayMs,
-        bounds.from, bounds.to,
-        bounds.from, bounds.to,
-        bounds.from, bounds.to,
-        bounds.from, bounds.to,
-        bounds.from, bounds.to, ...dirtyBindings, bounds.from, bounds.to, ...dirtyBindings,
+        bounds.from, bounds.to, // clean published track sessions
+        bounds.from, bounds.to, // clean published car sessions
+        bounds.from, bounds.to, ...dirtyBindings, // dirty track sessions
+        bounds.from, bounds.to, ...dirtyBindings, // dirty car sessions
       ],
     });
+    // Clean boundary/interior rows share published keys; raw dirty groups have disjoint session IDs.
     for (const raw of members.rows) {
       const row = raw as Row, gameId = String(row.game_id) as GameId;
       const kind = String(row.kind);
       const identity = decodeIdentity(String(row.identity_key ?? ""), gameId, kind === "car" ? "car" : "track").identity;
       if (kind === "track") {
         const track = favouriteTracks.get(identity);
-        if (track) track.sessions = n(row.sessions);
+        if (track) track.sessions += n(row.sessions);
       } else {
         const car = favouriteCars.get(identity);
-        if (car) car.sessions = n(row.sessions);
+        if (car) car.sessions += n(row.sessions);
       }
     }
     const chooseFavourite = (map: Map<string, EntityFacts>): DashboardFavourite | null => {
@@ -459,7 +494,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     const firstFullBucket = Math.ceil(bounds.from / BUCKET_MS) * BUCKET_MS;
     const endFullBucket = Math.floor(bounds.to / BUCKET_MS) * BUCKET_MS;
     const needsBucketSource = dirtyBindings.length > 0 || bounds.from !== firstFullBucket || bounds.to !== endFullBucket;
-    const timeBuckets = await tx.execute({
+    const timeBuckets = tx.execute({
       sql: `WITH dirty(session_id) AS (${dirtyCte}), facts AS (
         SELECT b.bucket_start_ms,b.game_id,b.valid_laps,b.positive_laps,b.driven_seconds,b.podium_first,b.podium_second,b.podium_third
         FROM dashboard_time_buckets b WHERE b.bucket_start_ms>=? AND b.bucket_start_ms+?<=?
@@ -502,8 +537,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     for (const raw of timeBuckets.rows) {
       const row = raw as Row;
       if (request.gameId && String(row.game_id) !== request.gameId) continue;
-      const parts = Object.fromEntries(localDayFormatter.formatToParts(n(row.bucket_start_ms)).map((part) => [part.type, part.value]));
-      const day = `${parts.year}-${parts.month}-${parts.day}`;
+      const day = new Date(n(row.bucket_start_ms)).toISOString().slice(0, 10);
       const aggregate = heat.get(day) ?? { validLaps: 0, positiveLaps: 0, drivenSeconds: 0, podiums: 0 };
       aggregate.validLaps += n(row.valid_laps); aggregate.positiveLaps += n(row.positive_laps);
       aggregate.drivenSeconds += n(row.driven_seconds);
@@ -514,7 +548,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
       const values = heat.get(bucket.day);
       return values ? { ...bucket, ...values, cleanRate: values.positiveLaps ? values.validLaps / values.positiveLaps : null } : bucket;
     });
-    const consistencyResult = await tx.execute({
+    const consistencyResult = tx.execute({
       sql: `WITH RECURSIVE moments(session_id,n,mean,m2) AS (
         SELECT p.session_id,p.valid_laps,p.valid_mean_seconds,p.valid_m2_seconds
         FROM dashboard_session_summaries p JOIN dashboard_session_index si ON si.session_id=p.session_id
@@ -523,7 +557,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
           AND p.first_lap_at_ms>=? AND p.last_lap_at_ms<?
           AND p.valid_laps>=2 AND p.valid_mean_seconds IS NOT NULL AND p.valid_m2_seconds IS NOT NULL
           AND p.car_key IS NOT NULL AND p.car_key!='' AND p.track_key IS NOT NULL AND p.track_key!=''
-          AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
+          AND st.metadata_dirty=0 AND st.deleted=0
           AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
           AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision${request.gameId ? " AND si.game_id=?" : ""}
         UNION ALL
@@ -568,13 +602,13 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
       sessions: n(consistency?.sessions), averageStandardDeviation: nullableNumber(consistency?.average_sd),
       deviations: Array.from({ length: 10 }, (_, index) => n(consistency?.[`b${index}`])),
     };
-    const recentResult = await tx.execute({
+    const recentResult = tx.execute({
       sql: `SELECT si.session_id,si.game_id,si.created_at_ms,si.session_type,si.car_id,si.car_ordinal,si.track_id,si.track_ordinal,
-        CASE WHEN st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
+        CASE WHEN st.metadata_dirty=0 AND st.deleted=0
           AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
           AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision THEN p.lap_count
           ELSE (SELECT COUNT(*) FROM dashboard_lap_index l WHERE l.session_id=si.session_id) END lap_count,
-        CASE WHEN st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
+        CASE WHEN st.metadata_dirty=0 AND st.deleted=0
           AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
           AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision THEN p.best_lap_seconds
           ELSE (SELECT MIN(l.lap_time) FROM dashboard_lap_index l WHERE l.session_id=si.session_id
@@ -598,7 +632,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
       };
     });
     response.latestRecapSessionId = response.recentSessions[0]?.id ?? null;
-    const sessionStats = await tx.execute({
+    const sessionStats = tx.execute({
       sql: `SELECT
           SUM(CASE WHEN duration_status='available' AND elapsed_seconds>=0 THEN elapsed_seconds ELSE 0 END) duration_seconds,
           SUM(CASE WHEN duration_status='available' AND elapsed_seconds>=0 THEN 1 ELSE 0 END) with_duration,
@@ -613,7 +647,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
         FROM dashboard_session_summaries p JOIN dashboard_session_index si ON si.session_id=p.session_id
         JOIN dashboard_summary_state st ON st.session_id=p.session_id
         WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<?
-          AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
+          AND st.metadata_dirty=0 AND st.deleted=0
           AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
           AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision${request.gameId ? " AND si.game_id=?" : ""}`,
       args: [bounds.from, bounds.to, ...(request.gameId ? [request.gameId] : []), bounds.from, bounds.to, ...(request.gameId ? [request.gameId] : [])],
@@ -622,7 +656,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     const durationSeconds = n(stats?.duration_seconds);
     const withDuration = n(stats?.with_duration);
     const classified: Record<DashboardSessionType, number> = { practice: 0, qualifying: 0, race: 0, unknown: 0 };
-    const durationRows = await tx.execute({
+    const durationRows = tx.execute({
       sql: `SELECT CASE WHEN lower(trim(COALESCE(p.session_type,'')))='test-day' OR lower(trim(COALESCE(p.session_type,''))) LIKE 'practice%' THEN 'practice'
           WHEN lower(trim(COALESCE(p.session_type,''))) LIKE 'qualifying%' OR lower(trim(COALESCE(p.session_type,''))) LIKE 'qualify%' THEN 'qualifying'
           WHEN lower(trim(COALESCE(p.session_type,''))) LIKE 'race%' THEN 'race' ELSE 'unknown' END kind,
@@ -630,7 +664,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
         FROM dashboard_session_summaries p JOIN dashboard_session_index si ON si.session_id=p.session_id
         JOIN dashboard_summary_state st ON st.session_id=p.session_id
         WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<? AND p.duration_status='available' AND p.elapsed_seconds>=0
-          AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
+          AND st.metadata_dirty=0 AND st.deleted=0
           AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
           AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision${request.gameId ? " AND si.game_id=?" : ""}
         GROUP BY kind`,
@@ -648,10 +682,6 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     const first = n(stats?.firsts), second = n(stats?.seconds), third = n(stats?.thirds);
     response.podiums = { total: first + second + third, first, second, third, available: n(stats?.podium_evidence) > 0 };
     response.sessionTypes.sessionsWithoutDuration = Math.max(0, mineSessions - withDuration);
-    await tx.commit();
     return response;
-  } catch (error) {
-    await tx.rollback();
-    throw error;
-  }
+  }).deferred();
 }

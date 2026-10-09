@@ -798,6 +798,31 @@ export const dashboardDayEntities = sqliteTable("dashboard_day_entities", {
 	index("dashboard_day_entities_track_idx").on(table.gameId, table.trackKey, table.utcDay),
 	index("dashboard_day_entities_car_idx").on(table.gameId, table.carKey, table.utcDay),
 ]);
+export const dashboardMonthEntities = sqliteTable("dashboard_month_entities", {
+	utcMonth: text("utc_month").notNull(),
+	gameId: text("game_id").notNull(),
+	carKey: text("car_key").notNull(),
+	trackKey: text("track_key").notNull(),
+	lapCount: integer("lap_count").notNull(),
+	positiveLaps: integer("positive_laps").notNull(),
+	validLaps: integer("valid_laps").notNull(),
+	drivenSeconds: real("driven_seconds").notNull(),
+	validSeconds: real("valid_seconds").notNull(),
+	validMeanSeconds: real("valid_mean_seconds"),
+	validM2Seconds: real("valid_m2_seconds"),
+	favouriteLaps: integer("favourite_laps").notNull(),
+	favouriteSeconds: real("favourite_seconds").notNull(),
+	distanceLaps: integer("distance_laps").notNull(),
+	distanceMeters: real("distance_meters").notNull(),
+	podiumFirst: integer("podium_first").notNull(),
+	podiumSecond: integer("podium_second").notNull(),
+	podiumThird: integer("podium_third").notNull(),
+}, (table) => [
+	primaryKey({ columns: [table.utcMonth, table.gameId, table.carKey, table.trackKey] }),
+	index("dashboard_month_entities_scope_idx").on(table.gameId, table.utcMonth),
+	index("dashboard_month_entities_track_idx").on(table.gameId, table.trackKey, table.utcMonth),
+	index("dashboard_month_entities_car_idx").on(table.gameId, table.carKey, table.utcMonth),
+]);
 
 export const dashboardTimeBuckets = sqliteTable("dashboard_time_buckets", {
 	bucketStartMs: integer("bucket_start_ms").notNull(),

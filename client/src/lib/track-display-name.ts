@@ -8,15 +8,23 @@ export interface TrackDisplayReference {
   trackOrdinal?: number | null;
 }
 
-function identityValue(identity: string | null | undefined): number | string | null {
-  if (!identity || identity === "track:unknown") return null;
-  const numberPrefix = "track:number:";
-  if (identity.startsWith(numberPrefix)) {
-    const value = Number(identity.slice(numberPrefix.length));
-    return Number.isFinite(value) ? value : null;
+function identityValue(gameId: GameId, identity: string | null | undefined): number | string | null {
+  if (!identity) return null;
+  let key = identity;
+  if (key.startsWith("[")) {
+    try {
+      const decoded: unknown = JSON.parse(key);
+      if (!Array.isArray(decoded) || decoded.length !== 2 || decoded[0] !== gameId || typeof decoded[1] !== "string") return null;
+      key = decoded[1];
+    } catch {
+      return null;
+    }
   }
-  const stringPrefix = "track:string:";
-  return identity.startsWith(stringPrefix) ? identity.slice(stringPrefix.length) : identity;
+  if (key.startsWith("n:")) {
+    const value = Number(key.slice(2));
+    return key.length > 2 && Number.isInteger(value) && value !== -1 ? value : null;
+  }
+  return key.startsWith("s:") ? key.slice(2) : null;
 }
 
 /** Resolve a user-facing track name without losing game or layout identity. */
@@ -28,8 +36,10 @@ export function resolveTrackDisplayName(
   if (!gameId) return undefined;
 
   const trackId = reference.trackIdentity !== undefined
-    ? identityValue(reference.trackIdentity)
+    ? identityValue(gameId, reference.trackIdentity)
     : reference.trackId;
+  const suppliedIdentityName = trackId != null ? trackNames[`${gameId}:${trackId}`]?.trim() : undefined;
+  if (suppliedIdentityName) return suppliedIdentityName;
   if (gameId === "lmu" && typeof trackId === "string") {
     const catalogName = resolveLMUTrack(trackId)?.name;
     if (catalogName) return catalogName;

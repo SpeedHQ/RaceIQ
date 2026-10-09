@@ -2,7 +2,8 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-for (const mode of ["bench-standard-small", "bench-standard-large", "bench-boundary"]) {
+const modes = process.argv.slice(2).length ? process.argv.slice(2) : ["bench-realistic"];
+for (const mode of modes) {
   const work = mkdtempSync(join(tmpdir(), "raceiq-dashboard-bench-"));
   const dataDir = join(work, "data");
   mkdirSync(dataDir, { recursive: true });

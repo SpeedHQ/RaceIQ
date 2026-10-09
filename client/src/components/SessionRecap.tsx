@@ -251,20 +251,17 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishP
       {compact ? (
         <div className="relative flex min-w-0 flex-col gap-3">
           <div className="grid min-w-0 gap-2 @md:grid-cols-[1.65fr_3fr]">
-            <div className="recap-best-lap min-h-24 min-w-0 p-2.5">
+            <div className="recap-best-lap min-w-0 p-2.5">
               <div className="recap-label">{m.recap_best_lap()}</div>
               <div className="recap-best-time mt-2 whitespace-nowrap font-mono font-semibold tabular-nums leading-none">{recap.bestLapSec != null ? formatLapTime(recap.bestLapSec) : "—"}</div>
-              {recap.personalBest?.isNew && recap.bestLapSec != null && recap.personalBest.previousBestSec != null && <div className="mt-2 font-mono text-app-subtext tabular-nums text-status-success">{formatDelta(recap.personalBest.previousBestSec - recap.bestLapSec)}</div>}
             </div>
             <div className="grid min-w-0 grid-cols-3 gap-2">
               {Array.from({ length: 3 }, (_, index) => {
                 const sector = recap.sectors?.find((candidate) => candidate.index === index + 1);
                 const fastest = sector?.bestLapSec != null && sector.sessionBestSec != null && Math.abs(sector.bestLapSec - sector.sessionBestSec) <= 0.0005;
-                const delta = sector?.bestLapSec != null && sector.allTimeBestSec != null ? sector.bestLapSec - sector.allTimeBestSec : null;
-                return <div key={index} className="recap-sector min-h-24 min-w-0 p-2">
+                return <div key={index} className="recap-sector min-w-0 p-2">
                   <div className="recap-label">S{index + 1}</div>
                   <div className={`mt-2 font-mono text-app-subtext font-semibold tabular-nums @2xl:text-app-heading ${fastest ? "text-[var(--lap-record)]" : "text-app-text"}`}>{sector?.bestLapSec != null ? sector.bestLapSec.toFixed(3) : "—"}</div>
-                  <div title={m.recap_sector_previous_best()} className={`mt-3 font-mono text-app-label tabular-nums ${delta != null && delta < 0 ? "text-status-success" : delta != null && delta > 0 ? "text-status-warning" : "text-app-text-muted"}`}>{delta == null ? "—" : `${delta > 0 ? "+" : ""}${delta.toFixed(3)}`}</div>
                 </div>;
               })}
             </div>
@@ -277,7 +274,7 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishP
               {isRace && <div className="min-w-0"><div className="text-app-label text-app-text-muted">Finish</div><div className={`font-mono text-app-heading font-semibold tabular-nums ${finishLabel === "DNF" || finishLabel === "DSQ" ? "text-status-warning" : "text-app-text"}`}>{finishLabel}</div></div>}
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <span role="img" aria-label={weatherLabel} title={weatherLabel} className="text-app-text-secondary"><WeatherIcon aria-hidden="true" className="size-6" /></span>
+              <span role="img" aria-label={weatherLabel} title={weatherLabel} className="inline-flex shrink-0 items-center justify-center text-app-text-secondary"><WeatherIcon aria-hidden="true" className="size-6" /></span>
               {rainPercent != null && <span className="font-mono text-app-label tabular-nums text-app-text-secondary">{m.f1weather_rain_label()} {rainPercent}%</span>}
               {onCopy && <Button variant="app-outline" size="app-md" onClick={onCopy}>{copied ? m.recap_copied() : m.recap_copy()}</Button>}
             </div>

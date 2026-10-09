@@ -11,7 +11,7 @@ import type { PeriodKey } from "@/components/home/types";
 const DASHBOARD_REFRESH_EVENT = "raceiq:dashboard-refresh";
 export const dashboardQueryKeys = {
   all: ["dashboard"] as const,
-  data: (gameId: GameId | null, from: string, to: string, timeZone: string) => ["dashboard", gameId, from, to, timeZone] as const,
+  data: (gameId: GameId | null, from: string, to: string) => ["dashboard", gameId, from, to] as const,
   recap: ["dashboard-recap"] as const,
   recapById: (sessionId: number | null, gameId: GameId | null) => ["dashboard-recap", sessionId, gameId] as const,
 };
@@ -24,9 +24,9 @@ export function invalidateDashboardQueries() {
 
 const DAY_MS = 86_400_000;
 
-function periodFrom(now: Date, period: PeriodKey): Date {
+export function dashboardPeriodStart(now: Date, period: PeriodKey): Date {
   const start = new Date(now);
-  if (period === "today") start.setHours(0, 0, 0, 0);
+  if (period === "today") start.setUTCHours(0, 0, 0, 0);
   else start.setTime(now.getTime() - (period === "week" ? 7 : period === "month" ? 30 : 365) * DAY_MS);
   return start;
 }
@@ -34,19 +34,20 @@ function periodFrom(now: Date, period: PeriodKey): Date {
 export function useDashboard(period: PeriodKey) {
   const gameId = useGameId();
   const [now, setNow] = useState(() => new Date());
-  const today = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+  const today = `${now.getUTCFullYear()}-${now.getUTCMonth()}-${now.getUTCDate()}`;
   useEffect(() => {
     const refresh = () => setNow(new Date());
     const schedule = () => {
       const current = new Date();
-      const midnight = new Date(current.getFullYear(), current.getMonth(), current.getDate() + 1);
+      const midnight = new Date(current);
+      midnight.setUTCHours(24, 0, 0, 0);
       return window.setTimeout(() => { refresh(); }, midnight.getTime() - current.getTime() + 100);
     };
     let timer = schedule();
     const onVisibility = () => {
       if (document.visibilityState !== "visible") return;
       const current = new Date();
-      if (`${current.getFullYear()}-${current.getMonth()}-${current.getDate()}` !== today) refresh();
+      if (`${current.getUTCFullYear()}-${current.getUTCMonth()}-${current.getUTCDate()}` !== today) refresh();
       window.clearTimeout(timer);
       timer = schedule();
     };
@@ -59,17 +60,16 @@ export function useDashboard(period: PeriodKey) {
     };
   }, [today]);
 
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const to = now.toISOString();
-  const from = periodFrom(now, period).toISOString();
+  const from = dashboardPeriodStart(now, period).toISOString();
   const query = useQuery({
-    queryKey: dashboardQueryKeys.data(gameId, from, to, timeZone),
+    queryKey: dashboardQueryKeys.data(gameId, from, to),
     queryFn: async () => {
-      const response = await client.api.dashboard.$get({ query: { from, to, timeZone } }, gameId ? { headers: { "X-Game-Id": gameId } } : undefined);
+      const response = await client.api.dashboard.$get({ query: { from, to } }, gameId ? { headers: { "X-Game-Id": gameId } } : undefined);
       return rpcJson<DashboardResponse>(response);
     },
   });
-  return { ...query, gameId, from, to, timeZone };
+  return { ...query, gameId, from, to };
 }
 
 export function useDashboardRecap(sessionId: number | null | undefined, gameId: GameId | null | undefined) {

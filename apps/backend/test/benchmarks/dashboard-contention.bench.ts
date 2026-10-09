@@ -64,13 +64,13 @@ function sourceWireExpectation(path: string): WireExpectation {
   return { count: packets.length, bytes, digest: hash.digest("hex"), durationMs, packetHz: (packets.length - 1) / (durationMs / 1_000) };
 }
 
-async function launchScenario(mode: Mode, lapCount: number, sessionCount: number, fixture: string, seed: number, portOffset: number): Promise<ScenarioResult & { diagnosticOutput: string }> {
+async function launchScenario(mode: Mode, lapCount: number, sessionCount: number, fixture: string, seed: number, portOffset: number, profile: "active-user" | "archive-stress" = "active-user"): Promise<ScenarioResult & { diagnosticOutput: string }> {
   const dataDir = await mkdtemp(join(tmpdir(), `raceiq-dashboard-contention-${mode}-`));
   const httpPort = 37_000 + (process.pid % 500) * 6 + portOffset;
   const udpPort = httpPort + 1;
   const child = spawn(process.execPath, ["run", CHILD, `--mode=${mode}`, `--lapCount=${lapCount}`, `--sessionCount=${sessionCount}`, `--seed=${seed}`, `--fixture=${fixture}`, `--httpPort=${httpPort}`, `--udpPort=${udpPort}`], {
     cwd: ROOT,
-    env: { ...process.env, DATA_DIR: dataDir, RACEIQ_TEST_MODE: "0", NODE_ENV: "production" },
+    env: { ...process.env, DATA_DIR: dataDir, RACEIQ_TEST_MODE: "0", NODE_ENV: "production", DASHBOARD_WORKLOAD_PROFILE: profile },
     stdio: ["pipe", "pipe", "pipe"],
   });
   let diagnostics = "";
@@ -181,8 +181,10 @@ async function main(): Promise<void> {
   const values = cliArgs(process.argv.slice(2));
   const output = values.output;
   if (!output) throw new Error("--output=<path> required");
-  const laps = Number(values.laps ?? 1_000_000), sessions = Number(values.sessions ?? 100_000);
-  const smallLaps = Number(values["small-laps"] ?? 100_000), smallSessions = Number(values["small-sessions"] ?? 10_000);
+  const profile = values.profile ?? "active-user";
+  if (profile !== "active-user" && profile !== "archive-stress") throw new RangeError("--profile must be active-user or archive-stress");
+  const laps = Number(values.laps ?? 12_480), sessions = Number(values.sessions ?? 1_248);
+  const smallLaps = Number(values["small-laps"] ?? 120), smallSessions = Number(values["small-sessions"] ?? 12);
   const seed = Number(values.seed ?? 20261009);
   const fixture = values.fixture ?? DEFAULT_FIXTURE;
   if (![laps, sessions, smallLaps, smallSessions, seed].every(Number.isSafeInteger) || sessions <= 0 || smallSessions <= 0 || smallLaps <= 0 || laps <= 0) throw new Error("Lap/session/seed args must be positive safe integers");
@@ -196,8 +198,8 @@ async function main(): Promise<void> {
   }
   const scenarios = [
     await launchScenario("small", smallLaps, smallSessions, fixture, seed, 0),
-    await launchScenario("baseline", laps, sessions, fixture, seed, 2),
-    await launchScenario("enabled", laps, sessions, fixture, seed, 4),
+    await launchScenario("baseline", laps, sessions, fixture, seed, 2, profile),
+    await launchScenario("enabled", laps, sessions, fixture, seed, 4, profile),
   ];
   const [small, baseline, enabled] = scenarios;
   await verifyScenario(small, expectedWire, true, output);

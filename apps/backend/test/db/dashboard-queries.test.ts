@@ -29,11 +29,14 @@ const ownedSessionIds: number[] = [];
 const request: DashboardRequest = {
   from: "2026-01-01T00:00:00.000Z",
   to: "2027-01-01T00:00:00.000Z",
-  timeZone: "America/Los_Angeles",
 };
 
 afterEach(async () => {
-  for (const id of ownedSessionIds.splice(0)) await deleteSession(id);
+  for (const id of ownedSessionIds.splice(0)) {
+    await deleteSession(id);
+    const tombstone = await prepareDashboardPublicationCandidate(id);
+    if (tombstone) await publishDashboardSession(tombstone);
+  }
 });
 
 async function addSession(
@@ -156,11 +159,7 @@ function referenceDashboardFacts(
   }
   let first = 0, second = 0, third = 0, podiumEvidence = false;
   const calendar = new Map<string, { validLaps: number; positiveLaps: number; drivenSeconds: number; podiums: number }>();
-  const dayFormatter = new Intl.DateTimeFormat("en-US", { timeZone: req.timeZone, year: "numeric", month: "2-digit", day: "2-digit" });
-  const dayOf = (value: string) => {
-    const parts = Object.fromEntries(dayFormatter.formatToParts(new Date(stamp(value))).map(({ type, value: part }) => [type, part]));
-    return `${parts.year}-${parts.month}-${parts.day}`;
-  };
+  const dayOf = (value: string) => new Date(stamp(value)).toISOString().slice(0, 10);
   for (const lap of rows) {
     const day = dayOf(lap.createdAt);
     const bucket = calendar.get(day) ?? { validLaps: 0, positiveLaps: 0, drivenSeconds: 0, podiums: 0 };
@@ -250,7 +249,7 @@ test("published period bests and session counts are game-scoped and dirty minima
     const candidate = await prepareDashboardPublicationCandidate(sessionId);
     if (!candidate || !(await publishDashboardSession(candidate))) throw new Error(`Failed to publish dashboard facts for ${sessionId}`);
   }
-  const period = { from: "2026-01-01T00:00:00.000Z", to: "2026-01-02T00:00:00.000Z", timeZone: "UTC" };
+  const period = { from: "2026-01-01T00:00:00.000Z", to: "2026-01-02T00:00:00.000Z" };
   const allGames = await getDashboard(period);
   expect(allGames.totals).toMatchObject({ laps: 4, bestLapSeconds: 85, sessions: 3 });
   const acc = await getDashboard({ ...period, gameId: "acc" as GameId });
@@ -294,11 +293,11 @@ test("published favourite podium evidence survives partial days and preserves un
         ["2026-06-01T12:00:00.000Z", "2026-06-01T18:00:00.000Z"],
         ["2026-06-01T00:00:00.000Z", "2026-06-02T00:00:00.000Z"],
       ]) {
-        const response = await getDashboard({ from: from!, to: to!, timeZone: "UTC", gameId: "acc" });
+        const response = await getDashboard({ from: from!, to: to!, gameId: "acc" });
         expect(response.coverage.metadataComplete).toBe(true);
         expect(response.coverage.status).toBe("complete");
         expect(response.totals.laps).toBe(2);
-        const reference = await sourceDashboardReference({ from: from!, to: to!, timeZone: "UTC", gameId: "acc" });
+        const reference = await sourceDashboardReference({ from: from!, to: to!, gameId: "acc" });
         expect(response.cards["fm-2023"]?.laps).toBe(2);
         expect(reference.cards).toEqual(response.cards);
         for (const favourite of [response.favouriteCar, response.favouriteTrack]) {
@@ -315,6 +314,144 @@ test("published favourite podium evidence survives partial days and preserves un
     }
   }
 });
+
+test("historical complete month excludes contributions from later months", async () => {
+  const period = { from: "2004-01-01T00:00:00.000Z", to: "2004-02-01T00:00:00.000Z", gameId: "acc" as GameId };
+  for (const createdAt of ["2004-01-11T12:00:00.000Z", "2004-02-11T12:00:00.000Z"]) {
+    const sessionId = await addSession("acc" as GameId, createdAt);
+    await addLap(sessionId, 1, 90, true, createdAt);
+    const candidate = await prepareDashboardPublicationCandidate(sessionId);
+    expect(candidate).not.toBeNull();
+    expect(await publishDashboardSession(candidate!, {
+      sourceRevision: candidate!.sourceRevision, captureRevision: `historical-month-${sessionId}`,
+      duration: { status: "unavailable", elapsedSeconds: null }, sectorLayout: null,
+      weather: { status: "unavailable", revision: null, conditions: null },
+      trackLengthMeters: null, sourceSectorStarts: null,
+    })).toBe(true);
+  }
+  const actual = await getDashboard(period);
+  const expected = await sourceDashboardReference(period);
+  expect(actual.coverage).toMatchObject({ status: "complete", metadataComplete: true });
+  for (const field of ["totals", "cards", "calendar", "favouriteTrack", "favouriteCar"] as const) {
+    expect(actual[field]).toEqual(expected[field]);
+  }
+  expect(actual.totals.laps).toBe(1);
+  expect(actual.totals.drivenSeconds).toBe(90);
+});
+
+test("monthly read routing matches source facts across leap February and recent daily data", async () => {
+  const period = {
+    from: "2096-01-01T00:00:00.000Z", to: "2096-04-01T00:00:00.000Z",
+    gameId: "acc" as GameId,
+  };
+  const fixtures = [
+    ["2096-01-15T12:00:00.000Z", [90, 92]],
+    ["2096-02-29T12:00:00.000Z", [88, 94]],
+    ["2096-03-15T12:00:00.000Z", [86, 90]],
+  ] as const;
+  let oldMonthSessionId: number | undefined;
+  for (const [createdAt, lapTimes] of fixtures) {
+    const sessionId = await addSession("acc" as GameId, createdAt);
+    oldMonthSessionId ??= sessionId;
+    for (const [index, lapTime] of lapTimes.entries()) await addLap(sessionId, index + 1, lapTime, true, createdAt);
+    const candidate = await prepareDashboardPublicationCandidate(sessionId);
+    expect(candidate).not.toBeNull();
+    expect(await publishDashboardSession(candidate!, {
+      sourceRevision: candidate!.sourceRevision, captureRevision: `monthly-${sessionId}`,
+      duration: { status: "unavailable", elapsedSeconds: null }, sectorLayout: null,
+      weather: { status: "unavailable", revision: null, conditions: null },
+      trackLengthMeters: null, sourceSectorStarts: null,
+    })).toBe(true);
+  }
+
+  const actual = await getDashboard(period);
+  const expected = await sourceDashboardReference(period);
+  expect(actual.coverage).toMatchObject({ status: "complete", metadataComplete: true });
+  expect(actual.totals).toEqual(expected.totals);
+  expect(actual.cards).toEqual(expected.cards);
+  expect(actual.calendar).toEqual(expected.calendar);
+  expect(actual.favouriteTrack).toEqual(expected.favouriteTrack);
+  expect(actual.favouriteCar).toEqual(expected.favouriteCar);
+
+  await client.execute({ sql: "UPDATE laps SET lap_time=80 WHERE session_id=? AND lap_number=1", args: [oldMonthSessionId!] });
+  const dirty = await getDashboard(period);
+  const correctedReference = await sourceDashboardReference(period);
+  expect(dirty.coverage).toMatchObject({ status: "pending", metadataComplete: true });
+  for (const field of ["totals", "cards", "calendar", "favouriteTrack", "favouriteCar"] as const) {
+    expect(dirty[field]).toEqual(correctedReference[field]);
+  }
+  const correctedCandidate = await prepareDashboardPublicationCandidate(oldMonthSessionId!);
+  expect(correctedCandidate).not.toBeNull();
+  expect(await publishDashboardSession(correctedCandidate!, {
+    sourceRevision: correctedCandidate!.sourceRevision, captureRevision: `monthly-corrected-${oldMonthSessionId}`,
+    duration: { status: "unavailable", elapsedSeconds: null }, sectorLayout: null,
+    weather: { status: "unavailable", revision: null, conditions: null },
+    trackLengthMeters: null, sourceSectorStarts: null,
+  })).toBe(true);
+  const republished = await getDashboard(period);
+  expect(republished.coverage).toMatchObject({ status: "complete", metadataComplete: true });
+  for (const field of ["totals", "cards", "calendar", "favouriteTrack", "favouriteCar"] as const) {
+    expect(republished[field]).toEqual(correctedReference[field]);
+  }
+});
+test("partial UTC-day query edges bypass monthly grain without double counting", async () => {
+  const period = {
+    from: "2096-02-29T12:00:00.000Z", to: "2096-03-02T12:00:00.000Z",
+    gameId: "acc" as GameId,
+  };
+  const sessionId = await addSession("acc" as GameId, "2096-02-29T12:00:00.000Z");
+  await addLap(sessionId, 1, 90, true, period.from);
+  await addLap(sessionId, 2, 91, true, "2096-02-29T11:59:59.999Z");
+  await addLap(sessionId, 3, 92, true, "2096-03-02T11:59:59.999Z");
+  await addLap(sessionId, 4, 93, true, period.to);
+  const candidate = await prepareDashboardPublicationCandidate(sessionId);
+  expect(candidate).not.toBeNull();
+  expect(await publishDashboardSession(candidate!)).toBe(true);
+
+  const actual = await getDashboard(period);
+  const expected = await sourceDashboardReference(period);
+  expect(actual.totals).toEqual(expected.totals);
+  expect(actual.totals).toMatchObject({ laps: 2, validLaps: 2, validSeconds: 182 });
+  expect(actual.calendar.map(({ from: _from, to: _to, ...bucket }) => bucket))
+    .toEqual(expected.calendar.map(({ from: _from, to: _to, ...bucket }) => bucket));
+  expect(actual.calendar.map(({ from, to }) => [from, to])).toEqual([
+    [period.from, "2096-03-01T00:00:00.000Z"],
+    ["2096-03-01T00:00:00.000Z", "2096-03-02T00:00:00.000Z"],
+    ["2096-03-02T00:00:00.000Z", period.to],
+  ]);
+});
+
+test("favourite membership deduplicates clean boundary sessions and adds dirty sessions", async () => {
+  const period = { from: "2096-02-29T12:00:00.000Z", to: "2096-03-02T12:00:00.000Z", gameId: "acc" as GameId };
+  const sessionId = await addSession("acc" as GameId, "2096-02-29T13:00:00.000Z");
+  for (const [index, createdAt] of ["2096-02-29T13:00:00.000Z", "2096-03-01T13:00:00.000Z", "2096-03-02T11:00:00.000Z"].entries()) {
+    await addLap(sessionId, index + 1, 89 + index, true, createdAt);
+  }
+  const candidate = await prepareDashboardPublicationCandidate(sessionId);
+  expect(candidate).not.toBeNull();
+  expect(await publishDashboardSession(candidate!, {
+    sourceRevision: candidate!.sourceRevision, captureRevision: `boundary-members-${sessionId}`,
+    duration: { status: "unavailable", elapsedSeconds: null }, sectorLayout: null,
+    weather: { status: "unavailable", revision: null, conditions: null },
+    trackLengthMeters: null, sourceSectorStarts: null,
+  })).toBe(true);
+  const clean = await getDashboard(period);
+  const cleanReference = await sourceDashboardReference(period);
+  expect(clean.favouriteTrack).toEqual(cleanReference.favouriteTrack);
+  expect(clean.favouriteCar).toEqual(cleanReference.favouriteCar);
+  expect(clean.favouriteTrack?.sessions).toBe(1);
+  expect(clean.favouriteCar?.sessions).toBe(1);
+
+  const dirtySessionId = await addSession("acc" as GameId, "2096-03-01T14:00:00.000Z");
+  await addLap(dirtySessionId, 1, 92, true, "2096-03-01T14:00:00.000Z");
+  const mixed = await getDashboard(period);
+  const mixedReference = await sourceDashboardReference(period);
+  expect(mixed.favouriteTrack).toEqual(mixedReference.favouriteTrack);
+  expect(mixed.favouriteCar).toEqual(mixedReference.favouriteCar);
+  expect(mixed.favouriteTrack?.sessions).toBe(2);
+  expect(mixed.favouriteCar?.sessions).toBe(2);
+});
+
 
 test("published favorite track session count stays within requested period", async () => {
   const inPeriod = await addSession("acc" as GameId, "2026-01-01T10:00:00.000Z");
@@ -337,7 +474,6 @@ test("published favorite track session count stays within requested period", asy
   const response = await getDashboard({
     from: "2026-01-01T00:00:00.000Z",
     to: "2026-01-02T00:00:00.000Z",
-    timeZone: "UTC",
     gameId: "acc" as GameId,
   });
   expect(response.favouriteTrack).toMatchObject({ nativeId: 8, laps: 1, sessions: 1 });
@@ -346,7 +482,7 @@ test("getDashboard includes over 128 clean published boundary sessions without l
   const ids: number[] = [];
   const period = {
     from: "2026-10-09T00:00:00.000Z", to: "2026-10-09T00:45:00.000Z",
-    timeZone: "UTC", gameId: "acc" as GameId,
+    gameId: "acc" as GameId,
   };
   try {
     for (let index = 0; index < 150; index++) {
@@ -383,6 +519,51 @@ test("getDashboard includes over 128 clean published boundary sessions without l
     expect(response.consistency.deviations[9]).toBe(150);
     expect(response.favouriteTrack).toMatchObject({ nativeId: 8, laps: 300, sessions: 150 });
     expect(response.sessionTypes).toMatchObject({ totalSeconds: 3600, sessionsWithDuration: 1, sessionsWithoutDuration: 149 });
+  } finally {
+    for (const id of ids) {
+      await deleteSession(id);
+      const deleted = await prepareDashboardPublicationCandidate(id);
+      if (deleted) await publishDashboardSession(deleted);
+    }
+    for (let index = ownedSessionIds.length - 1; index >= 0; index--) {
+      if (ids.includes(ownedSessionIds[index]!)) ownedSessionIds.splice(index, 1);
+    }
+  }
+});
+test("getDashboard serves published metadata while capture backfill remains pending", async () => {
+  const ids: number[] = [];
+  const period = {
+    from: "2026-10-09T00:00:00.000Z", to: "2026-10-10T00:00:00.000Z",
+    gameId: "acc" as GameId,
+  };
+  try {
+    for (let index = 0; index < 150; index++) {
+      const id = await addSession("acc" as GameId, "2026-10-09T00:30:00.000Z");
+      ids.push(id);
+      await addLap(id, 1, 90 + index, true, "2026-10-09T00:31:00.000Z");
+      const candidate = await prepareDashboardPublicationCandidate(id);
+      if (!candidate || !(await publishDashboardSession(candidate, {
+        sourceRevision: candidate.sourceRevision,
+        captureRevision: `metadata-only-${id}`,
+        duration: { status: "unavailable", elapsedSeconds: null },
+        sectorLayout: null,
+        weather: { status: "unavailable", revision: null, conditions: null },
+        trackLengthMeters: null,
+        sourceSectorStarts: null,
+      }, { metadataOnly: true }))) throw new Error(`Failed to publish metadata for ${id}`);
+    }
+
+    const response = await getDashboard(period);
+    expect(response.coverage).toMatchObject({
+      status: "pending", metadataComplete: true, mineSessions: 150, readySessions: 150, pendingSessions: 0,
+    });
+    expect(response.totals).toMatchObject({ sessions: 150, laps: 150, validLaps: 150, drivenSeconds: 24675, tracks: 1, cars: 1 });
+    expect(response.favouriteTrack).toMatchObject({ nativeId: 8, laps: 150, sessions: 150 });
+    expect(response.recentSessions).toHaveLength(10);
+    expect(response.sessionTypes).toMatchObject({ totalSeconds: 0, sessionsWithDuration: 0, sessionsWithoutDuration: 150 });
+    const backlog = await db.select({ captureDirty: dashboardSummaryState.captureDirty }).from(dashboardSummaryState)
+      .where(inArray(dashboardSummaryState.sessionId, ids)).all();
+    expect(backlog.map((row) => row.captureDirty)).toEqual(ids.map(() => 1));
   } finally {
     for (const id of ids) {
       await deleteSession(id);
@@ -441,7 +622,7 @@ test("dashboard HTTP keeps all-game cards while bounding exact selected-game out
   expect(sourceOracle).toContainEqual({ gameId: "iracing", laps: 1, sessions: 1, bestLapSeconds: 85 });
 
 
-  const query = "from=2026-01-01T00%3A00%3A00Z&to=2026-01-02T00%3A00%3A00Z&timeZone=UTC";
+  const query = "from=2026-01-01T00%3A00%3A00Z&to=2026-01-02T00%3A00%3A00Z";
   const selected = await dashboardRoutes.request(`/api/dashboard?${query}`, { headers: { "X-Game-Id": "acc" } });
   expect(selected.status).toBe(200);
   const response = await selected.json() as DashboardResponse;
@@ -456,10 +637,10 @@ test("dashboard HTTP keeps all-game cards while bounding exact selected-game out
 
   const allGames = await dashboardRoutes.request(`/api/dashboard?${query}`);
   expect((await allGames.json() as DashboardResponse).totals).toMatchObject({ laps: 12, sessions: 12 });
-  const unavailable = await dashboardRoutes.request("/api/dashboard?from=2026-02-01T00%3A00%3A00Z&to=2026-02-02T00%3A00%3A00Z&timeZone=UTC", { headers: { "X-Game-Id": "acc" } });
+  const unavailable = await dashboardRoutes.request("/api/dashboard?from=2026-02-01T00%3A00%3A00Z&to=2026-02-02T00%3A00%3A00Z", { headers: { "X-Game-Id": "acc" } });
   expect((await unavailable.json() as DashboardResponse).podiums).toMatchObject({ total: 0, available: false });
 });
-test("dashboard preserves ordinal zero, groups UTC rollover by local day, and retains tiny deviations", async () => {
+test("dashboard preserves ordinal zero, groups by UTC day, and retains tiny deviations", async () => {
   const inserted = await db.insert(sessions).values({
     gameId: "acc", carId: null, carOrdinal: 0, trackId: null, trackOrdinal: 0,
     ownership: "mine", createdAt: "2026-01-01T03:00:00.000Z",
@@ -475,13 +656,12 @@ test("dashboard preserves ordinal zero, groups UTC rollover by local day, and re
   await addLap(malformed.id, 1, 2, true, "2026-01-02T02:02:00.000Z");
   const actual = await getDashboard({
     from: "2026-01-01T00:00:00.000Z", to: "2026-01-03T00:00:00.000Z",
-    timeZone: "America/Los_Angeles",
   });
   expect(actual.totals).toMatchObject({ tracks: 1, cars: 1 });
   expect(actual.favouriteTrack?.identity).toBe('["acc","n:0"]');
   expect(actual.favouriteCar?.identity).toBe('["acc","n:0"]');
-  expect(actual.calendar.find((bucket) => bucket.day === "2026-01-01")?.validLaps).toBe(3);
-  expect(actual.calendar.find((bucket) => bucket.day === "2026-01-02")?.validLaps).toBe(0);
+  expect(actual.calendar.find((bucket) => bucket.day === "2026-01-01")?.validLaps).toBe(0);
+  expect(actual.calendar.find((bucket) => bucket.day === "2026-01-02")?.validLaps).toBe(3);
   expect(actual.consistency.averageStandardDeviation).toBeCloseTo(1e-8, 10);
 });
 
@@ -726,27 +906,31 @@ test("full reducer matches independent reference facts across dashboard aggregat
     ({ day, validLaps, positiveLaps, drivenSeconds, podiums }))).toEqual(expected.calendar);
 });
 
-test("half-open UTC boundaries preserve UTC instants and local DST calendar day length", () => {
-
-  const from = "2026-03-08T08:00:00.000Z";
-  const to = "2026-03-09T07:00:00.000Z";
-  expect(isInDashboardInterval("2026-03-08T07:59:59.999Z", from, to)).toBe(false);
+test("half-open UTC boundaries bucket by fixed UTC days, including DST transition dates", () => {
+  const from = "2026-03-08T00:00:00.000Z";
+  const to = "2026-03-10T00:00:00.000Z";
+  expect(isInDashboardInterval("2026-03-07T23:59:59.999Z", from, to)).toBe(false);
   expect(isInDashboardInterval(from, from, to)).toBe(true);
-  expect(isInDashboardInterval("2026-03-08 08:00:00", from, to)).toBe(true);
-  expect(isInDashboardInterval("2026-03-08T08:00:00-00:00", from, to)).toBe(true);
+  expect(isInDashboardInterval("2026-03-08 00:00:00", from, to)).toBe(true);
+  expect(isInDashboardInterval("2026-03-08T00:00:00-00:00", from, to)).toBe(true);
   expect(isInDashboardInterval(to, from, to)).toBe(false);
   const response = reduceDashboard([
-    baseLap({ createdAt: from }), baseLap({ id: 2, createdAt: to }),
-  ], [], { from, to, timeZone: "America/Los_Angeles" });
-  expect(response.calendar).toHaveLength(1);
-  expect(response.calendar[0]).toMatchObject({ day: "2026-03-08", from, to, validLaps: 1 });
-  expect(Date.parse(to) - Date.parse(from)).toBe(23 * 60 * 60 * 1000);
-  expect(validateDashboardRequest({ from, to, timeZone: "invalid/timezone" })).toBe(false);
+    baseLap({ createdAt: "2026-03-08T23:59:59.999Z" }),
+    baseLap({ id: 2, createdAt: "2026-03-09T00:00:00.000Z" }),
+  ], [], { from, to });
+  expect(response.calendar.map(({ day, from: bucketFrom, to: bucketTo }) => [day, new Date(bucketFrom).toISOString(), new Date(bucketTo).toISOString()])).toEqual([
+    ["2026-03-08", from, "2026-03-09T00:00:00.000Z"],
+    ["2026-03-09", "2026-03-09T00:00:00.000Z", to],
+  ]);
+  expect(response.calendar[0]).toMatchObject({ day: "2026-03-08", validLaps: 1 });
+  expect(response.calendar[1]).toMatchObject({ day: "2026-03-09", validLaps: 1 });
+  expect(Date.parse("2026-03-09T00:00:00.000Z") - Date.parse(from)).toBe(24 * 60 * 60 * 1000);
+  expect(validateDashboardRequest({ from, to })).toBe(true);
 });
 test("actual dashboard reducer leaves others-only source facts empty", () => {
   const noRowsRequest = {
     ...request, from: "2026-06-01T00:00:00.000Z", to: "2026-06-02T00:00:00.000Z",
-    timeZone: "UTC", gameId: "acc" as GameId,
+    gameId: "acc" as GameId,
   };
   const response = reduceDashboard(
     [baseLap({ ownership: "others" })],

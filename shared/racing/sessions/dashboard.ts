@@ -6,7 +6,6 @@ export interface DashboardRequest {
   from: string;
   to: string;
   gameId?: GameId;
-  timeZone: string;
 }
 export interface DashboardMetricTotals {
   laps: number;
@@ -190,51 +189,27 @@ export function validateDashboardRequest(request: DashboardRequest): boolean {
   const to = dashboardInstant(request.to);
   if (!Number.isFinite(from) || !Number.isFinite(to) || from >= to || to - from > 366 * DAY_MS) return false;
   if (request.gameId !== undefined && !(KNOWN_GAME_IDS as readonly string[]).includes(request.gameId)) return false;
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: request.timeZone }).format(0);
-  } catch {
-    return false;
-  }
   return true;
-}
-
-function localDate(timestamp: number, timeZone: string): string {
-  const values = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
-    timeZone, year: "numeric", month: "2-digit", day: "2-digit",
-  }).formatToParts(timestamp).map((part) => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}`;
-}
-
-function localMidnightUtc(day: string, timeZone: string): number {
-  const [year, month, date] = day.split("-").map(Number);
-  const target = Date.UTC(year!, month! - 1, date!);
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone, year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
-  });
-  let candidate = target;
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const parts = Object.fromEntries(formatter.formatToParts(candidate).map((part) => [part.type, Number(part.value)]));
-    const shown = Date.UTC(parts.year!, parts.month! - 1, parts.day!, parts.hour!, parts.minute!, parts.second!);
-    const correction = target - shown;
-    candidate += correction;
-    if (correction === 0) break;
-  }
-  return candidate;
 }
 
 function calendarBounds(request: DashboardRequest): Array<{ day: string; from: number; to: number }> {
   const start = dashboardInstant(request.from);
   const end = dashboardInstant(request.to);
-  const firstDate = new Date(`${localDate(start, request.timeZone)}T00:00:00Z`);
-  const lastDate = new Date(`${localDate(end - 1, request.timeZone)}T00:00:00Z`);
+  const firstDate = new Date(start);
+  firstDate.setUTCHours(0, 0, 0, 0);
+  const lastDate = new Date(end - 1);
+  lastDate.setUTCHours(0, 0, 0, 0);
   const count = Math.floor((lastDate.getTime() - firstDate.getTime()) / DAY_MS) + 1;
   if (count < 1 || count > 367) return [];
   const result: Array<{ day: string; from: number; to: number }> = [];
   for (let index = 0; index < count; index++) {
-    const day = new Date(firstDate.getTime() + index * DAY_MS).toISOString().slice(0, 10);
-    const nextDay = new Date(firstDate.getTime() + (index + 1) * DAY_MS).toISOString().slice(0, 10);
-    result.push({ day, from: Math.max(start, localMidnightUtc(day, request.timeZone)), to: Math.min(end, localMidnightUtc(nextDay, request.timeZone)) });
+    const dayStart = firstDate.getTime() + index * DAY_MS;
+    const dayEnd = dayStart + DAY_MS;
+    result.push({
+      day: new Date(dayStart).toISOString().slice(0, 10),
+      from: Math.max(start, dayStart),
+      to: Math.min(end, dayEnd),
+    });
   }
   return result;
 }
