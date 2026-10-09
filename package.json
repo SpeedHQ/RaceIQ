@@ -69,7 +69,7 @@
     "mastra:migrate": "DATA_DIR=\"$PWD/data\" bunx --bun mastra migrate --dir apps/backend/src/mastra",
     "postinstall": "lefthook install",
     "record:demo": "cd playwright && PW_SERVER_SET=fresh DEMO_START_FRAME=28% DEMO_MAX_FRAMES=2700 bunx playwright test --project=record-demo",
-    "screenshots": "cd playwright && E2E_SERVER_MODE=dev PW_SERVER_SET=seeded PW_SCREENSHOT_ONLY=1 PW_SEED_SCREENSHOTS=1 bunx turbo run test --filter=raceiq-e2e -- --project=mobile-screenshots",
+    "screenshots": "cd playwright && E2E_SERVER_MODE=dev PW_SERVER_SET=seeded PW_SCREENSHOT_ONLY=1 PW_SEED_SCREENSHOTS=1 bunx turbo run test --filter=raceiq-e2e -- --project=app-screenshots",
     "test:e2e": "PW_SERVER_SET=all bunx turbo run test --filter=raceiq-e2e -- --workers=1 --project=fresh-install --project=tunes --project=tunes-unseeded --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=seeded-capture-migration --project=mobile-device --project=tablet-device",
     "test:e2e:fresh": "PW_SERVER_SET=fresh bunx turbo run test --filter=raceiq-e2e -- --project=fresh-install --max-failures=1",
     "test:e2e:tunes": "PW_SERVER_SET=tunes bunx turbo run test --filter=raceiq-e2e -- --project=tunes --max-failures=1",

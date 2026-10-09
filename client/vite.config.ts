@@ -39,18 +39,30 @@ function paraglideBuildPlugin(): Plugin {
 }
 
 function paraglideFullReloadPlugin(): Plugin {
-  let reloadTimer: NodeJS.Timeout | undefined;
+  const completionFiles = [
+    path.resolve(import.meta.dirname, "project.inlang/.cache/raceiq-paraglide-dev.json"),
+    path.resolve(import.meta.dirname, "project.inlang/.cache/raceiq-paraglide-build.json"),
+  ];
   return {
     name: "raceiq-paraglide-full-reload",
     apply: "serve",
-    handleHotUpdate({ file, server }) {
+    configureServer(server) {
+      server.watcher.add(completionFiles);
+    },
+    hotUpdate({ file, type }) {
+      if (completionFiles.includes(path.resolve(file))) {
+        if (type === "delete") return [];
+        // A publisher writes its manifest only after every generated module is ready.
+        // Discard cached transforms, including modules requested during publication.
+        this.environment.moduleGraph.invalidateAll();
+        if (this.environment.name === "client") {
+          this.environment.hot.send({ type: "full-reload", path: "*" });
+        }
+        return [];
+      }
       const relativePath = path.relative(paraglideOutdir, file);
       if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) return;
-      clearTimeout(reloadTimer);
-      reloadTimer = setTimeout(() => {
-        reloadTimer = undefined;
-        server.ws.send({ type: "full-reload", path: "*" });
-      }, 50);
+      // Partial publication must not reload consumers or capture missing exports.
       return [];
     },
   };

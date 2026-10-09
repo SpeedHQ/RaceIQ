@@ -1,3 +1,4 @@
 *.bin.gz -text
 shared/telemetry/catalog/generated/* text eol=lf
 test/artifacts/laps/*.bin.gz.part* -text
+packages/game-lmu-metadata/test/fixtures/*.svm -text

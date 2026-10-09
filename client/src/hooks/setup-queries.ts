@@ -75,7 +75,7 @@ export function usePlaceSetup() {
 export function useImportTuneFile() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { gameId: "acc" | "ac-evo"; filePath?: string; fileName?: string; contentBase64?: string; name?: string; author?: string; carOrdinal: number; category?: string }) => {
+    mutationFn: async (data: { gameId: "acc" | "ac-evo"; filePath?: string; fileName?: string; contentBase64?: string; name?: string; author?: string; carOrdinal: number; trackOrdinal?: number | null; category?: string }) => {
       const res = await client.api.tunes["import-file"].$post({ json: data });
       if (!res.ok) throw await errorFromResponse(res);
       return res.json();

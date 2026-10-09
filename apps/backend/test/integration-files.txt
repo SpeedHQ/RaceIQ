@@ -26,6 +26,7 @@ apps/backend/test/ai/tools/compare-analysis-tool.test.ts
 apps/backend/test/ai/tools/compare-engineer-tools.test.ts
 apps/backend/test/ai/tools/lap-analysis-generation-tool.test.ts
 apps/backend/test/ai/tools/lap-analysis-tool.test.ts
+apps/backend/test/ai/tools/lmu-setup-knowledge.test.ts
 apps/backend/test/analysis/data-panel-parity.test.ts
 apps/backend/test/analysis/suspension-compression.test.ts
 apps/backend/test/db/database-path.test.ts
@@ -127,6 +128,7 @@ apps/backend/test/setups/ac-evo/place-setup-carsetup.test.ts
 apps/backend/test/setups/ac-evo/setup-file-formats.test.ts
 apps/backend/test/setups/catalog.test.ts
 apps/backend/test/setups/engineer/setup-engineer-apply-guard.test.ts
+apps/backend/test/setups/lmu/lmu-setup-files.test.ts
 apps/backend/test/setups/engineer/setup-engineer-confirmation.test.ts
 apps/backend/test/setups/engineer/setup-engineer-tools.test.ts
 apps/backend/test/setups/tuning/community-tunes-sync.test.ts

@@ -150,6 +150,9 @@ export function ExperimentWorkspace({ gameId, experimentId, manageActivation = t
   const lapsByTest = useMemo(() => {
     const sorted = [...tests].sort((a, b) => a.version - b.version);
     const testForLap = (lap: LapMeta): number | null => {
+      if (lap.experimentVersionId != null) {
+        return sorted.some((test) => test.id === lap.experimentVersionId) ? lap.experimentVersionId : null;
+      }
       let match: number | null = sorted[0]?.id ?? null;
       const lapMs = parseUtcTimestamp(lap.createdAt).getTime();
       for (const t of sorted) {

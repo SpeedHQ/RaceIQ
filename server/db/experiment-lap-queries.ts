@@ -157,23 +157,22 @@ export async function getLapMetaForExperimentVersion(experimentVersionId: number
 }
 
 /**
- * Candidate laps for "Add laps from history" (docs/architecture/setup-engineer.md): laps matching this tuning session's game + car + track that aren't
- * already stamped to ANY tuning session. Ordinal-only match — a name-seeded
- * session already resolves `trackOrdinal` from `trackName` at creation
- * (createExperiment), so by the time this query runs that fallback is
- * already baked into the ordinal; `carOrdinal`/`trackOrdinal` left null on the
- * session (never resolved) are treated as "match any" for that dimension
- * rather than excluding everything. Newest-first, same shape as getLapsForExperiment.
+ * Candidate unlinked laps matching an experiment's game and car/track.
+ * String identities take precedence over discovered ordinals for games such
+ * as LMU. Omitted dimensions remain unrestricted for existing callers.
  */
 
 export async function getImportableLapsForExperiment(
   gameId: GameId,
   carOrdinal: number | null,
   trackOrdinal: number | null,
+  identity?: { carId?: string | null; trackId?: string | null },
 ): Promise<LapMeta[]> {
   const conds = [eq(sessions.gameId, gameId), isNull(laps.experimentId)];
-  if (carOrdinal != null) conds.push(eq(sessions.carOrdinal, carOrdinal));
-  if (trackOrdinal != null) conds.push(eq(sessions.trackOrdinal, trackOrdinal));
+  if (identity?.carId != null) conds.push(eq(sessions.carId, identity.carId));
+  else if (carOrdinal != null) conds.push(eq(sessions.carOrdinal, carOrdinal));
+  if (identity?.trackId != null) conds.push(eq(sessions.trackId, identity.trackId));
+  else if (trackOrdinal != null) conds.push(eq(sessions.trackOrdinal, trackOrdinal));
 
   const rows = await db
     .select(experimentLapSelection)

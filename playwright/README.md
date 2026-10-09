@@ -8,7 +8,7 @@ This suite owns route-level browser tests and screenshot evidence. It is separat
 | --- | --- | --- |
 | `fresh-install` | `fresh-install/**/*.spec.ts`, `responsive/workspaces.spec.ts` | Fresh compiled or dev app |
 | `marketing` | `marketing/**/*.spec.ts` | `MARKETING_BASE_URL` (default `https://raceiq.localhost`) |
-| `mobile-screenshots` | `responsive/mobile-screenshots.spec.ts` | Seeded app |
+| `app-screenshots` | `responsive/desktop-screenshots.spec.ts`, `responsive/lmu-screenshots.spec.ts`, `responsive/mobile-dashboard-screenshots.spec.ts` | Seeded app |
 | `tunes` | `tunes/**/*.spec.ts` | Tunes app |
 | `mobile-device`, `tablet-device` | `responsive/device.spec.ts` | Seeded app with Chromium device emulation |
 | `seeded-e2e` | `seeded/**/*.spec.ts` | Seeded app |
@@ -27,7 +27,7 @@ bun run typecheck
 bun run build
 bun run test                         # build, then full Playwright run
 bunx playwright test --project=seeded-e2e
-bunx playwright test --project=mobile-screenshots
+E2E_SERVER_MODE=dev PW_SERVER_SET=seeded PW_SCREENSHOT_ONLY=1 bunx playwright test --project=app-screenshots
 E2E_SERVER_MODE=dev bunx playwright test --project=seeded-e2e
 PW_SERVER_SET=fresh bunx playwright test --project=fresh-install
 ```
@@ -51,11 +51,11 @@ Compiled E2E CI prepares seeded data once in a prerequisite job. Before upload, 
 
 Seeded shards download that artifact and set `PW_SEEDED_DATABASE` to its database path, resolved relative to the repository root. Both launchers reset their private database, copy the artifact's database and referenced captures into the shard data directory, rebase capture paths, and skip fixture imports. Fresh/tunes projects remain unchanged; local runs without this override still seed normally. Import and conversion tests continue exercising real imports. Generated `playwright/test-data-*` directories are ignored by Git.
 
-Playwright output goes to `playwright/test-results/`. Responsive captures go to `playwright/screenshots/` (mobile captures under `screenshots/mobile/`). Both are generated artifacts and must not be committed. Seeded data under `test-results/` is disposable.
+Playwright output goes to `playwright/test-results/`. App captures go to `playwright/screenshots/app/`: desktop screens plus only the mobile live dashboard. No other phone or tablet screenshots. Both output trees are generated artifacts and must not be committed. Seeded data under `test-results/` is disposable; functional device-emulation tests remain.
 
 ## Responsive visual baselines
 
-Pull-request screenshot CI renders every `mobile-screenshots` case twice in the same runner environment: once from the PR and once from its current base revision. Both renders use the PR's screenshot spec so renamed selectors do not break baseline capture. The base render is the visual baseline. Screenshot-only menu cases use keyboard activation so overlapping controls in the base revision do not prevent capturing visual differences. Pixel differences at or below the shared 1% tolerance are treated as rendering noise; added, removed, resized, or materially changed screenshots fail the `screenshots` check.
+Pull-request screenshot CI renders every `app-screenshots` case twice in the same runner environment: once from the PR and once from its current base revision. Both renders use the PR's screenshot specs, registry, project configuration, and setup seeds. The base render is the visual baseline. Screenshot-only menu cases use keyboard activation so overlapping controls in the base revision do not prevent capturing visual differences. Pixel differences at or below the shared 1% tolerance are treated as rendering noise.
 
 Failed comparisons still upload the `pr-screenshot-preview` artifact and publish before/after/diff images in the PR UI-change comment. Review those images before accepting a visual change.
 

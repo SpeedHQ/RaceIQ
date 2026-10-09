@@ -56,6 +56,6 @@ export function createWebServers(runtime: E2ERuntime): WebServerDefinition[] {
   if (!runtime.screenshotOnly && runtime.needsTunesUnseededServer) {
     servers.push(serverDefinition(runtime, runtime.tunesUnseeded, false));
   }
-  if (runtime.needsSeededServer) servers.push(serverDefinition(runtime, runtime.seeded, true));
+  if (runtime.needsSeededServer) servers.push(serverDefinition(runtime, runtime.seeded, true, runtime.screenshotOnly));
   return servers;
 }

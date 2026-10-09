@@ -50,6 +50,16 @@ Seed is idempotent. Seeded sessions retain live `source` metadata (`NULL`); seed
 
 `bun run db:push` and `bun run db:generate` are development/introspection tools; production startup uses the custom migration runner.
 
+## Generated translations
+
+Run `bun run --cwd client i18n:compile` for the validated build/typecheck output. The build cache checks translation inputs, compiler settings and generated-file digests before reuse.
+
+Compilation writes to a staging directory first. On Windows, publication keeps `client/src/paraglide` in place so open readers cannot block an entire-directory rename. It copies only changed modules, removes obsolete generated files, and backs up the previous output for restoration if publication fails. Windows publication is file-by-file, not an atomic whole-directory replacement. Other platforms retain the directory-swap path.
+
+During development, Vite suppresses create, update, and delete events for individual generated modules. The dev and build publishers write completion manifests only after publication finishes; Vite then invalidates cached transforms and reloads the client. A quiet interval between file writes is not a completion signal.
+
+Do not stop your editor or Vite solely to run translation compilation. File write errors still fail the build; successful compilation does not suppress publication failures.
+
 ## Common commands
 
 ```bash

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { copyFile, cp, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -68,6 +68,25 @@ async function isFresh(clientRoot: string, key: string): Promise<boolean> {
     return false;
   }
 }
+// Preserve directory identity for Windows readers that do not share delete access.
+// Hashes come from outputDigest, so unchanged modules do not trigger watcher reloads.
+export async function syncParaglideOutput(
+  source: string,
+  destination: string,
+  sourceFiles: Readonly<Record<string, string>>,
+  destinationFiles: Readonly<Record<string, string>>,
+): Promise<void> {
+  await mkdir(destination, { recursive: true });
+  for (const [name, hash] of Object.entries(sourceFiles)) {
+    if (destinationFiles[name] === hash) continue;
+    const target = join(destination, name);
+    await mkdir(dirname(target), { recursive: true });
+    await copyFile(join(source, name), target);
+  }
+  for (const name of Object.keys(destinationFiles)) {
+    if (!(name in sourceFiles)) await rm(join(destination, name));
+  }
+}
 
 async function compile(clientRoot: string, key: string): Promise<void> {
   console.log("[Paraglide] Compiling translations (cache miss)...");
@@ -79,6 +98,9 @@ async function compile(clientRoot: string, key: string): Promise<void> {
   const backup = join(stage, "previous-output");
   let movedOld = false;
   let installedNew = false;
+  let copiedOld = false;
+  let syncingOutput = false;
+  let previousFiles: Record<string, string> = {};
   try {
     const child = Bun.spawn(["bunx", "paraglide-js", "compile", "--project", "./project.inlang", "--outdir", stageOut, ...BUILD_OPTIONS], {
       cwd: clientRoot, stdin: "ignore", stdout: "inherit", stderr: "inherit",
@@ -87,20 +109,44 @@ async function compile(clientRoot: string, key: string): Promise<void> {
     if (status !== 0) throw new Error(`Paraglide compile failed (${status})`);
     const generated = await outputDigest(stageOut);
     if (!Object.keys(generated.files).length) throw new Error("Paraglide compile produced no output");
-    try {
-      await rename(output, backup);
-      movedOld = true;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    if (process.platform === "win32") {
+      let outputExists = false;
+      try {
+        await stat(output);
+        outputExists = true;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
+      if (outputExists) {
+        previousFiles = (await outputDigest(output)).files;
+        await cp(output, backup, { recursive: true });
+        copiedOld = true;
+      }
+      syncingOutput = true;
+      await syncParaglideOutput(stageOut, output, generated.files, previousFiles);
+    } else {
+      try {
+        await rename(output, backup);
+        movedOld = true;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
+      await rename(stageOut, output);
+      installedNew = true;
     }
-    await rename(stageOut, output);
-    installedNew = true;
     const manifest = { key, files: generated.files, digest: generated.digest };
     await writeFile(join(cacheDir, "raceiq-paraglide-build.json.tmp"), `${JSON.stringify(manifest, null, 2)}\n`);
     await rename(join(cacheDir, "raceiq-paraglide-build.json.tmp"), join(clientRoot, MANIFEST));
   } catch (error) {
-    if (installedNew) await rm(output, { recursive: true, force: true });
-    if (movedOld) await rename(backup, output);
+    if (syncingOutput) {
+      if (copiedOld) {
+        const currentFiles = (await outputDigest(output)).files;
+        await syncParaglideOutput(backup, output, previousFiles, currentFiles);
+      } else await rm(output, { recursive: true, force: true });
+    } else {
+      if (installedNew) await rm(output, { recursive: true, force: true });
+      if (movedOld) await rename(backup, output);
+    }
     throw error;
   } finally {
     await rm(stage, { recursive: true, force: true });

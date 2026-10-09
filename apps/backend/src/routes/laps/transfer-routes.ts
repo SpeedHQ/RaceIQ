@@ -20,6 +20,7 @@ import { getMotecTargets } from "@raceiq/backend-core/motec/targets";
 import { initMotecTargets } from "../../games/motec-init";
 import { loadStagedMotec, removeStagedMotec, stageMotecArchive } from "@raceiq/backend-core/motec/import-staging";
 import { ExportZipQuerySchema, IbtCommitSchema, IbtImportTokenSchema, OwnershipSchema } from "./support";
+import { parseCarSetup } from "@raceiq/game-ac-evo/carsetup-wire";
 
 function temporaryDuckDBPath(): string {
   return resolve(
@@ -107,6 +108,11 @@ export const transferRoutes = new Hono()
     if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
     const bytes = new Uint8Array(await file.arrayBuffer());
     const lower = file.name.toLowerCase();
+    if (lower.endsWith(".carsetup")) {
+      const setup = parseCarSetup(Buffer.from(bytes));
+      const supported = !!setup && setup.raw.length > 0;
+      return c.json({ format: "carsetup" as const, supported, gameIds: supported ? ["ac-evo"] : [], captureCount: 0, message: supported ? null : "Couldn't decode that .carsetup file" });
+    }
     if (lower.endsWith(".zip")) {
       try {
         const staged = await stageMotecArchive(bytes);

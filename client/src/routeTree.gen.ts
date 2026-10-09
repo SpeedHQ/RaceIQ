@@ -59,6 +59,7 @@ import { Route as Fm23CarsCarOrdinalRouteImport } from './routes/fm23/cars_.$car
 import { Route as Fm23SetupsIndexRouteImport } from './routes/fm23/setups/index'
 import { Route as Fm23SetupsCatalogRouteImport } from './routes/fm23/setups/catalog'
 import { Route as Fm23SetupsNewRouteImport } from './routes/fm23/setups/new'
+import { Route as LmuSetupsIndexRouteImport } from './routes/lmu/setups/index'
 import { Route as GameidExperimentsExperimentIdReviewRouteImport } from './routes/$gameid/experiments.$experimentId_.review'
 import { Route as GameidSessionsSessionIdAnalyseRouteImport } from './routes/$gameid/sessions/$sessionId/analyse'
 import { Route as GameidTracksTrackOrdinalIndexRouteImport } from './routes/$gameid/tracks.$trackOrdinal.index'
@@ -66,6 +67,7 @@ import { Route as GameidTracksTrackOrdinalTabRouteImport } from './routes/$gamei
 import { Route as AcEvoSetupsEditTuneIdRouteImport } from './routes/ac-evo/setups/edit.$tuneId'
 import { Route as AccSetupsEditTuneIdRouteImport } from './routes/acc/setups/edit.$tuneId'
 import { Route as Fm23SetupsEditTuneIdRouteImport } from './routes/fm23/setups/edit.$tuneId'
+import { Route as LmuSetupsGuidesIndexRouteImport } from './routes/lmu/setups/guides/index'
 import { Route as GameidSessionsSessionIdReplayLapIdRouteImport } from './routes/$gameid/sessions/$sessionId/replay/$lapId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -319,6 +321,11 @@ const Fm23SetupsNewRoute = Fm23SetupsNewRouteImport.update({
   path: '/new',
   getParentRoute: () => Fm23SetupsRoute,
 } as any)
+const LmuSetupsIndexRoute = LmuSetupsIndexRouteImport.update({
+  id: '/setups/',
+  path: '/setups/',
+  getParentRoute: () => LmuRoute,
+} as any)
 const GameidExperimentsExperimentIdReviewRoute =
   GameidExperimentsExperimentIdReviewRouteImport.update({
     id: '/$experimentId_/review',
@@ -357,6 +364,11 @@ const Fm23SetupsEditTuneIdRoute = Fm23SetupsEditTuneIdRouteImport.update({
   id: '/edit/$tuneId',
   path: '/edit/$tuneId',
   getParentRoute: () => Fm23SetupsRoute,
+} as any)
+const LmuSetupsGuidesIndexRoute = LmuSetupsGuidesIndexRouteImport.update({
+  id: '/setups/guides/',
+  path: '/setups/guides/',
+  getParentRoute: () => LmuRoute,
 } as any)
 const GameidSessionsSessionIdReplayLapIdRoute =
   GameidSessionsSessionIdReplayLapIdRouteImport.update({
@@ -416,6 +428,7 @@ export interface FileRoutesByFullPath {
   '/f125/setups/': typeof F125SetupsIndexRoute
   '/f125/tunes/': typeof F125TunesIndexRoute
   '/fm23/setups/': typeof Fm23SetupsIndexRoute
+  '/lmu/setups/': typeof LmuSetupsIndexRoute
   '/$gameid/experiments/$experimentId/review': typeof GameidExperimentsExperimentIdReviewRoute
   '/$gameid/sessions/$sessionId/analyse': typeof GameidSessionsSessionIdAnalyseRoute
   '/$gameid/tracks/$trackOrdinal/$tab': typeof GameidTracksTrackOrdinalTabRoute
@@ -423,6 +436,7 @@ export interface FileRoutesByFullPath {
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
   '/$gameid/tracks/$trackOrdinal/': typeof GameidTracksTrackOrdinalIndexRoute
+  '/lmu/setups/guides/': typeof LmuSetupsGuidesIndexRoute
   '/$gameid/sessions/$sessionId/replay/$lapId': typeof GameidSessionsSessionIdReplayLapIdRoute
 }
 export interface FileRoutesByTo {
@@ -462,6 +476,7 @@ export interface FileRoutesByTo {
   '/f125/setups': typeof F125SetupsIndexRoute
   '/f125/tunes': typeof F125TunesIndexRoute
   '/fm23/setups': typeof Fm23SetupsIndexRoute
+  '/lmu/setups': typeof LmuSetupsIndexRoute
   '/$gameid/experiments/$experimentId/review': typeof GameidExperimentsExperimentIdReviewRoute
   '/$gameid/sessions/$sessionId/analyse': typeof GameidSessionsSessionIdAnalyseRoute
   '/$gameid/tracks/$trackOrdinal/$tab': typeof GameidTracksTrackOrdinalTabRoute
@@ -469,6 +484,7 @@ export interface FileRoutesByTo {
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
   '/$gameid/tracks/$trackOrdinal': typeof GameidTracksTrackOrdinalIndexRoute
+  '/lmu/setups/guides': typeof LmuSetupsGuidesIndexRoute
   '/$gameid/sessions/$sessionId/replay/$lapId': typeof GameidSessionsSessionIdReplayLapIdRoute
 }
 export interface FileRoutesById {
@@ -523,6 +539,7 @@ export interface FileRoutesById {
   '/f125/setups/': typeof F125SetupsIndexRoute
   '/f125/tunes/': typeof F125TunesIndexRoute
   '/fm23/setups/': typeof Fm23SetupsIndexRoute
+  '/lmu/setups/': typeof LmuSetupsIndexRoute
   '/$gameid/experiments/$experimentId_/review': typeof GameidExperimentsExperimentIdReviewRoute
   '/$gameid/sessions/$sessionId/analyse': typeof GameidSessionsSessionIdAnalyseRoute
   '/$gameid/tracks/$trackOrdinal/$tab': typeof GameidTracksTrackOrdinalTabRoute
@@ -530,6 +547,7 @@ export interface FileRoutesById {
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
   '/$gameid/tracks/$trackOrdinal/': typeof GameidTracksTrackOrdinalIndexRoute
+  '/lmu/setups/guides/': typeof LmuSetupsGuidesIndexRoute
   '/$gameid/sessions/$sessionId/replay/$lapId': typeof GameidSessionsSessionIdReplayLapIdRoute
 }
 export interface FileRouteTypes {
@@ -585,6 +603,7 @@ export interface FileRouteTypes {
     | '/f125/setups/'
     | '/f125/tunes/'
     | '/fm23/setups/'
+    | '/lmu/setups/'
     | '/$gameid/experiments/$experimentId/review'
     | '/$gameid/sessions/$sessionId/analyse'
     | '/$gameid/tracks/$trackOrdinal/$tab'
@@ -592,6 +611,7 @@ export interface FileRouteTypes {
     | '/acc/setups/edit/$tuneId'
     | '/fm23/setups/edit/$tuneId'
     | '/$gameid/tracks/$trackOrdinal/'
+    | '/lmu/setups/guides/'
     | '/$gameid/sessions/$sessionId/replay/$lapId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -631,6 +651,7 @@ export interface FileRouteTypes {
     | '/f125/setups'
     | '/f125/tunes'
     | '/fm23/setups'
+    | '/lmu/setups'
     | '/$gameid/experiments/$experimentId/review'
     | '/$gameid/sessions/$sessionId/analyse'
     | '/$gameid/tracks/$trackOrdinal/$tab'
@@ -638,6 +659,7 @@ export interface FileRouteTypes {
     | '/acc/setups/edit/$tuneId'
     | '/fm23/setups/edit/$tuneId'
     | '/$gameid/tracks/$trackOrdinal'
+    | '/lmu/setups/guides'
     | '/$gameid/sessions/$sessionId/replay/$lapId'
   id:
     | '__root__'
@@ -691,6 +713,7 @@ export interface FileRouteTypes {
     | '/f125/setups/'
     | '/f125/tunes/'
     | '/fm23/setups/'
+    | '/lmu/setups/'
     | '/$gameid/experiments/$experimentId_/review'
     | '/$gameid/sessions/$sessionId/analyse'
     | '/$gameid/tracks/$trackOrdinal/$tab'
@@ -698,6 +721,7 @@ export interface FileRouteTypes {
     | '/acc/setups/edit/$tuneId'
     | '/fm23/setups/edit/$tuneId'
     | '/$gameid/tracks/$trackOrdinal/'
+    | '/lmu/setups/guides/'
     | '/$gameid/sessions/$sessionId/replay/$lapId'
   fileRoutesById: FileRoutesById
 }
@@ -1069,6 +1093,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Fm23SetupsNewRouteImport
       parentRoute: typeof Fm23SetupsRoute
     }
+    '/lmu/setups/': {
+      id: '/lmu/setups/'
+      path: '/setups'
+      fullPath: '/lmu/setups/'
+      preLoaderRoute: typeof LmuSetupsIndexRouteImport
+      parentRoute: typeof LmuRoute
+    }
     '/$gameid/experiments/$experimentId_/review': {
       id: '/$gameid/experiments/$experimentId_/review'
       path: '/$experimentId/review'
@@ -1117,6 +1148,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/fm23/setups/edit/$tuneId'
       preLoaderRoute: typeof Fm23SetupsEditTuneIdRouteImport
       parentRoute: typeof Fm23SetupsRoute
+    }
+    '/lmu/setups/guides/': {
+      id: '/lmu/setups/guides/'
+      path: '/setups/guides'
+      fullPath: '/lmu/setups/guides/'
+      preLoaderRoute: typeof LmuSetupsGuidesIndexRouteImport
+      parentRoute: typeof LmuRoute
     }
     '/$gameid/sessions/$sessionId/replay/$lapId': {
       id: '/$gameid/sessions/$sessionId/replay/$lapId'
@@ -1357,10 +1395,14 @@ const LiveRouteWithChildren = LiveRoute._addFileChildren(LiveRouteChildren)
 
 interface LmuRouteChildren {
   LmuIndexRoute: typeof LmuIndexRoute
+  LmuSetupsIndexRoute: typeof LmuSetupsIndexRoute
+  LmuSetupsGuidesIndexRoute: typeof LmuSetupsGuidesIndexRoute
 }
 
 const LmuRouteChildren: LmuRouteChildren = {
   LmuIndexRoute: LmuIndexRoute,
+  LmuSetupsIndexRoute: LmuSetupsIndexRoute,
+  LmuSetupsGuidesIndexRoute: LmuSetupsGuidesIndexRoute,
 }
 
 const LmuRouteWithChildren = LmuRoute._addFileChildren(LmuRouteChildren)

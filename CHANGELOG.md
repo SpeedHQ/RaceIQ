@@ -22,14 +22,39 @@
 
 ### Features
 
+- Run LMU setup and driving experiments with saved `.svm` bases, version review, car-and-track-matched lap history, and confirmed AI setup changes saved as new files without overwriting originals.
+- Browse LMU game-folder or uploaded `.svm` setups, inspect the six in-game setup pages, and compare changed, added, and removed settings.
+- Make explicit LMU click edits with capability-aware controls, linked corners, independent third elements, and an original-to-proposed preview. Save a new game-folder file or download without overwriting originals; stale sources and filename collisions retain pending edits.
+- Consult attributed LMU community parameter and symptom guides. Saving or exporting setups requires acknowledgement that click ranges and physical values are unverified.
+- Read offline, source-linked official LMU facts about hybrid power, battery charge, Virtual Energy, fuel planning, ABS maps, and traction control alongside separately labelled community setup advice.
+- Ground LMU Analyse chat and experiment explanations in the bundled official and community setup knowledge through a read-only AI tool, with current-setup applicability and unchanged edit-confirmation rules.
+- Read standalone, illustrated LMU setup guides at `/lmu/setups/guides` from the sidebar or Setups toolbar, with topic navigation and direct parameter links from comparisons. Guides do not depend on an active setup, and pending setup edits remain intact.
+- Read front and rear ride height, springs, and anti-roll bar guidance together in one illustrated guide per topic instead of separate axle pages.
+- Explore dimensional LMU guide animations with shaded components, moving airflow and racing paths, and side-by-side setting comparisons with matching explanations. No car drawings; pause motion or use reduced-motion diagrams.
+- Use locale-backed LMU guide content with translated navigation and illustration labels in all supported languages; untranslated technical reference text falls back to English.
 - See each saved setup's best valid lap and sort setups by lap time.
 - Choose a track for ACC and AC Evo setups to see best laps recorded on that circuit.
 - Search cars, tracks, and categories in ACC and AC Evo setup forms.
 - Use keyboard-accessible controls to switch setup sections and sources.
 - Edit setups through structured fields instead of Paste JSON, with a clearly labelled “Save Setup” action.
+- Inspect uploaded setup contents from Import, show detected car information, then choose a destination track before saving; retain track assignments for imported AC Evo setups.
 
 ### Fixes
 
+- Preserve unknown car capabilities in LMU AI knowledge lookups, including parameter and symptom-cause guidance, instead of reporting unsupported advice.
+- Use consistent, readable font sizes across LMU setup guide navigation, explanations, links, and diagram captions on desktop and mobile.
+- Read LMU setup guides with divider-led sections and clearly marked official facts; spring guidance uses front and rear cards below one softer/stiffer illustration pair.
+- Compare isolated rear-wing and splitter mechanisms with downward load and setting-dependent airflow; distinguish toe, camber, caster, ride-height clearance, and braking-force diagrams.
+- See steering front-wheel pairs follow LMU cornering symptom paths, with turn-in, oversteer countersteering, and exit unwind; pause and reduced-motion views preserve visible steering.
+- Read axle-specific ride-height comparisons, side-profile wing and splitter diagrams, and differential wheel-speed coupling. Keep mechanisms visible when paused or using reduced motion, with readable stacked mobile comparisons and bumpstop engagement.
+- Remove the community attribution footer from LMU guides while retaining the bundled license notice.
+- Import LMU `.svm` originals into a selected existing game Settings folder, preserving exact bytes and listing them after reload. Existing files are protected; no browser-local setup persistence.
+- Match the LMU setup browser to other games with a compact action toolbar, right-aligned filters, responsive ranked rows, and pagination.
+- Use the shared import dialog for LMU `.svm` uploads, preserving the active setup on invalid files and confirming switches with pending edits.
+- Select LMU setups with table checkboxes; show the Compare action only when exactly two setups are selected, including imported game-folder files.
+- Keep fuel and Virtual Energy diagnosis available for non-hybrid cars; distinguish battery charge from stint allowances and correct extra-power and universal ABS-map claims using official LMU guidance.
+- Reload changed LMU setup files on refresh while preserving pending edits until confirmed; keep simultaneous comparison loads and newer setup selections independent.
+- Recognize LMU hybrid capabilities when setup headers omit class tokens, restrict rear-regeneration advice to LMDh cars, and mark impossible preset clicks unavailable.
 - Stop opening a browser automatically during development launches; preserve first-run browser opening in installed builds.
 - Warn before deleting a setup that is in use, list its linked sessions and laps, and preserve recordings when removing their setup associations.
 - Keep Analyse Data vertically scrollable; restore borderless wheel metrics, right-align wheel headings, show the combined balance signal, and label pressure units once per row.
@@ -47,6 +72,11 @@
 - Bundle official iRacing track maps for offline display without third-party browser requests.
 
 ### Internal
+- Keep LMU guide illustration palettes in central theme tokens and use shared typography scales without changing diagram colors or mobile label sizes.
+- Compose the exported backend RPC schema from named route schemas to avoid excessive compiler instantiation while preserving endpoint types and runtime routing.
+- Publish generated translations without moving the output directory on Windows; retain validated caching, stale-module removal, and restoration of previous output on publication failure.
+- Reload development clients only after translation publication completes; invalidate cached transforms instead of exposing partially updated message exports to the sidebar.
+- Cover all five LMU setup classes with identity, targeted-edit, unavailable-control, and exact-byte restoration regressions; retain a byte-preserved, user-supplied Ginetta LMP3 export alongside explicitly synthetic Hypercar, LMP2, GT3, and GTE inputs.
 - Separate backend core, capture formats, game implementations, and application composition into workspaces; colocate tests with their owners and isolate frontend contract tests from production dependency cycles.
 - Colocate game-specific car images and track SVGs with their owning game packages while preserving public URLs, offline asset delivery, and shared catalog data.
 - Run owner-scoped test processes with isolated databases and dependency-aware Turbo caches; select affected ordinary suites on pull requests with full-run fallback when SCM refs are unavailable.

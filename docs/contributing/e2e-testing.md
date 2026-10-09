@@ -194,10 +194,10 @@ Failures must report game, recording, selected lap segment, semantic or packet f
 ### Responsive app screenshots
 
 ```sh
-cd playwright && E2E_SERVER_MODE=dev PW_SCREENSHOT_ONLY=1 PW_SEED_SCREENSHOTS=1 bunx playwright test --project=mobile-screenshots
+cd playwright && E2E_SERVER_MODE=dev PW_SERVER_SET=seeded PW_SCREENSHOT_ONLY=1 PW_SEED_SCREENSHOTS=1 bunx playwright test --project=app-screenshots
 ```
 
-Artifacts land under `playwright/screenshots/mobile/` (gitignored). Review layout at phone, tablet boundary, and desktop cases. Treat output as visual evidence only.
+Artifacts land under `playwright/screenshots/app/` (gitignored). Desktop coverage includes shared routes and LMU catalogues, setup pages, pending edits, comparison/import/save/discard dialogs, experiments, every parameter and symptom guide in reduced motion, and an explicitly paused ride-height diagram. Mobile screenshots cover only the live dashboard; no other phone or tablet captures. Chromium device-emulation functional tests remain separate. PR CI compares base/current renders.
 
 ### Storybook snapshots
 

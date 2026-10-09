@@ -425,6 +425,7 @@
       "name": "raceiq-e2e",
       "dependencies": {
         "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/game-lmu-metadata": "workspace:*",
         "@raceiq/tooling-data": "workspace:*",
         "sharp": "^0.35.4",
         "zod": "^4.6.5",

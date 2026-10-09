@@ -21,6 +21,7 @@ import { CHAT_TURN_MESSAGES_KEY, hasExplicitChangeConfirmation } from "@raceiq/b
 
 import type { TuneDirection, TuneMagnitude } from "@raceiq/backend-core/ai/schemas";
 import { applyIntents, describeKnobs } from "@raceiq/backend-core/setups/rules/engine";
+import { readActiveSetup, writeAppliedSetup, type SetupWriteResult } from "../../setups/io";
 import {
   createExperimentVersion,
   deleteTestSubtree,
@@ -46,7 +47,6 @@ import {
   gameHasSetupFile,
   loadActiveExperimentContext,
 } from "../../experiments/setup-lineage";
-import { readActiveSetup, writeAppliedSetup } from "../../setups/io";
 import { readSetupEngineerContext } from "./setup-engineer-request-context";
 import { consultLapAnalystForSession } from "../../ai/consult-lap-analyst";
 import { loadCleanLapAggregate } from "../../experiments/lap-evidence/aggregate";
@@ -137,8 +137,8 @@ export function buildSetupEngineerTools() {
       knobs: z.array(z.object({
         component: z.string(),
         current: z.number().nullable(),
-        min: z.number(),
-        max: z.number(),
+        min: z.number().nullable(),
+        max: z.number().nullable(),
         step: z.object({ small: z.number(), medium: z.number(), large: z.number() }),
       })).default([]),
     }),
@@ -449,11 +449,11 @@ export function buildSetupEngineerTools() {
       const descriptive = slug ? `${label}-${slug}` : label;
       const stem = gameHasSetupFile(ctx.gameId) ? `${ctx.session.name}-${descriptive}` : descriptive;
 
-      let written: ReturnType<typeof writeAppliedSetup>;
+      let written: SetupWriteResult;
       try {
-        written = writeAppliedSetup(ctx.gameId, { baseDir, realPath: baseRealPath, setup, stem });
-      } catch (err: any) {
-        return { ok: false, error: `Write failed: ${err.message}`, applied: [], skipped: [] };
+        written = await writeAppliedSetup(ctx.gameId, { baseDir, realPath: baseRealPath, setup, sourceSetup: baseSetup, stem });
+      } catch (err: unknown) {
+        return { ok: false, error: `Write failed: ${err instanceof Error ? err.message : "Unknown write error"}`, applied: [], skipped: [] };
       }
 
       const newTestId = await createExperimentVersion({

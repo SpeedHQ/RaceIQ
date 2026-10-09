@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 /** Setup source/sink adapter for file-backed and snapshot-backed games. */
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -7,6 +8,10 @@ import { carSetupToKnobValues } from "@raceiq/game-ac-evo/carsetup";
 import { parseCarSetup } from "@raceiq/game-ac-evo/carsetup-wire";
 import { patchCarSetup } from "@raceiq/game-ac-evo/carsetup-writer";
 import type { ExperimentGameId } from "../experiments/setup-lineage";
+import { getSvmFieldAccess } from "@raceiq/game-lmu-metadata/setups/capabilities";
+import type { SvmDocument, SvmEdit } from "@raceiq/game-lmu-metadata/setups/svm";
+import { getSvmFieldDescriptor } from "@raceiq/game-lmu-metadata/setups/fields";
+import { saveLMUSetup } from "./lmu";
 import { isPathWithinSetupsFolder, sanitizeSetupStem, resolveGuardedSetupFile } from "./file-guard";
 
 export type SetupReadResult =
@@ -14,11 +19,11 @@ export type SetupReadResult =
   | { ok: false; status: 400 | 404 | 409 | 500; error: string };
 
 export interface SetupWriteResult {
-  /** File path for ACC/AC-EVO; null for F1 (no file written). */
+  /** Relative LMU Settings path, absolute ACC/AC-EVO path, or null for F1. */
   setupPath: string | null;
-  /** F1CarSetup JSON for F1; null for ACC/AC-EVO. */
+  /** Snapshot JSON for advisory/F1 setups; null for real setup files. */
   setupSnapshot: string | null;
-  /** Display name used in applied-changes markdown / new test label. */
+  /** Display name used in applied-changes markdown / new version label. */
   fileName: string;
 }
 
@@ -69,19 +74,25 @@ export async function readActiveSetup(
 }
 
 /** Write newly applied setup through file or snapshot adapter. */
-export function writeAppliedSetup(
+export async function writeAppliedSetup(
   gameId: ExperimentGameId,
   params: {
     baseDir: string | null;
     realPath: string | null;
     setup: unknown;
+    sourceSetup?: unknown;
     stem: string;
     overwrite?: boolean;
   },
-): SetupWriteResult {
-  if (gameId === "f1-2025" || !params.baseDir || !params.realPath) {
-    return advisorySetup(params.setup, params.stem);
+): Promise<SetupWriteResult> {
+  if (gameId === "f1-2025") return advisorySetup(params.setup, params.stem);
+  if (gameId === "lmu") {
+    if (!params.realPath || !isSvmDocument(params.setup) || !isSvmDocument(params.sourceSetup)) {
+      throw new Error("LMU setup context is invalid");
+    }
+    return writeAppliedLMUSetup(params.realPath, params.sourceSetup, params.setup, params.stem);
   }
+  if (!params.baseDir || !params.realPath) return advisorySetup(params.setup, params.stem);
   if (params.realPath.toLowerCase().endsWith(".carsetup")) {
     return writeAppliedCarSetup(
       params.baseDir,
@@ -101,6 +112,29 @@ export function writeAppliedSetup(
   return { setupPath: written.path, setupSnapshot: null, fileName: written.fileName };
 }
 
+function isSvmDocument(value: unknown): value is SvmDocument {
+  return typeof value === "object" && value !== null
+    && "originalBytes" in value && value.originalBytes instanceof Uint8Array
+    && "settings" in value && value.settings instanceof Map;
+}
+
+async function writeAppliedLMUSetup(sourcePath: string, source: SvmDocument, setup: SvmDocument, stem: string): Promise<SetupWriteResult> {
+  const edits: SvmEdit[] = [];
+  for (const [id, setting] of setup.settings) {
+    const sourceSetting = source.settings.get(id);
+    if (!sourceSetting || sourceSetting.index === setting.index || !getSvmFieldAccess(source, id).editable) continue;
+    if (!getSvmFieldDescriptor(id)) continue;
+    edits.push({ id, delta: setting.index - sourceSetting.index });
+  }
+  if (edits.length === 0) throw new Error("No editable LMU setup changes to save");
+  const result = await saveLMUSetup({
+    source: { kind: "file", path: sourcePath, sha256: createHash("sha256").update(source.originalBytes).digest("hex") },
+    fileName: `${sanitizeSetupStem(stem)}.svm`,
+    edits,
+  });
+  if (!result.ok) throw new Error(result.error);
+  return { setupPath: result.value.path, setupSnapshot: null, fileName: result.value.fileName };
+}
 /** Byte-patch a binary AC EVO setup; degrade to safe advisory snapshot on failure. */
 function writeAppliedCarSetup(
   baseDir: string,

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
 import { laps, sessions, experiments } from "@raceiq/backend-core/db/schema";
 import { getLapsForExperiment } from "@raceiq/backend-core/db/experiment-lap-queries";
@@ -7,7 +7,7 @@ import { insertLap, setLapMetrics } from "@raceiq/backend-core/db/lap-mutation-q
 import { insertSession } from "@raceiq/backend-core/db/session-queries";
 import { createExperiment } from "@raceiq/backend-core/db/experiment-queries";
 import { getActiveExperiment, setActiveExperiment } from "@raceiq/backend-core/experiments/active"
-import { experimentLapAnalysisRoutes } from "../../../src/routes/experiments/lap-routes";
+import { experimentLapAnalysisRoutes, experimentLapRoutes } from "../../../src/routes/experiments/lap-routes";
 
 /**
  * Explicit lap ↔ experiment link (migration v25). Tests the DB layer +
@@ -85,6 +85,37 @@ describe("lap ↔ experiment explicit link", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual([{ lapId, fuelPerLap: 2.7, tyreWear: 20 }]);
+  });
+
+  test("LMU history uses canonical string identities instead of matching every car and track", async () => {
+    const experimentId = await createExperiment({
+      gameId: "lmu",
+      name: "LMU history",
+      carName: "BMW M Hybrid V8 2023",
+      trackName: "Autodromo Nazionale Monza",
+    });
+    createdExperimentIds.push(experimentId);
+    const ids: number[] = [];
+    for (const [carId, trackId] of [
+      ["bmw_m_hybrid_v8_2023", "monza_2023/monzawec"],
+      ["other-car", "monza_2023/monzawec"],
+      ["bmw_m_hybrid_v8_2023", "monza_2023/monzawec_grande"],
+    ]) {
+      const sessionId = await insertSession(0, 0, "lmu");
+      createdSessionIds.push(sessionId);
+      await db.update(sessions).set({ carId, trackId }).where(eq(sessions.id, sessionId)).run();
+      ids.push(await insertLap(sessionId, 1, 90, true, null, 0));
+    }
+    const response = await experimentLapRoutes.request(`/api/experiments/${experimentId}/importable-laps`);
+    expect(response.status).toBe(200);
+    expect((await response.json() as { id: number }[]).map((lap) => lap.id)).toEqual([ids[0]!]);
+    const refused = await experimentLapRoutes.request(`/api/experiments/${experimentId}/import-laps`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ lapIds: [ids[1]!] }),
+    });
+    expect(refused.status).toBe(409);
+    expect(await getLapsForExperiment(experimentId)).toEqual([]);
   });
 
   test("a session with no laps recorded while active returns an empty pool", async () => {
