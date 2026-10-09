@@ -123,11 +123,6 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
               OR EXISTS(SELECT 1 FROM dashboard_session_days old WHERE old.session_id=st.session_id AND old.utc_day>=? AND old.utc_day<?)
               OR EXISTS(SELECT 1 FROM dashboard_lap_index l WHERE l.session_id=st.session_id AND l.created_at_ms>=? AND l.created_at_ms<?))
           UNION
-          SELECT p.session_id FROM dashboard_session_summaries p JOIN dashboard_session_index si ON si.session_id=p.session_id
-          WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<?${request.gameId ? " AND si.game_id=?" : ""}
-            AND (p.first_lap_at_ms<? OR p.last_lap_at_ms>=?)
-            AND EXISTS(SELECT 1 FROM dashboard_lap_index l WHERE l.session_id=p.session_id AND l.created_at_ms>=? AND l.created_at_ms<?)
-          UNION
           SELECT si.session_id FROM dashboard_session_index si
           LEFT JOIN dashboard_summary_state st ON st.session_id=si.session_id
           LEFT JOIN dashboard_session_summaries p ON p.session_id=si.session_id
@@ -137,9 +132,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
       args: [
         bounds.from, bounds.to, ...(request.gameId ? [request.gameId] : []),
         new Date(bounds.from).toISOString().slice(0, 10), new Date(bounds.to).toISOString().slice(0, 10), bounds.from, bounds.to,
-        bounds.from, bounds.to, ...(request.gameId ? [request.gameId] : []),
-        bounds.from, bounds.to, bounds.from, bounds.to, bounds.from, bounds.to, bounds.from, bounds.to,
-        ...(request.gameId ? [request.gameId] : []), MAX_FALLBACK_SESSIONS + 1,
+        bounds.from, bounds.to, ...(request.gameId ? [request.gameId] : []), MAX_FALLBACK_SESSIONS + 1,
       ],
     });
     const dirtyIds = dirtyResult.rows.map((row) => n(row.session_id));
@@ -516,11 +509,20 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
         UNION ALL
         SELECT l.session_id,COUNT(*),AVG(l.lap_time),SUM((l.lap_time-avg_time.mean)*(l.lap_time-avg_time.mean))
         FROM dashboard_lap_index l JOIN dashboard_session_index si ON si.session_id=l.session_id
-        JOIN (SELECT session_id,AVG(lap_time) mean FROM dashboard_lap_index WHERE created_at_ms>=? AND created_at_ms<?
-          AND is_valid=1 AND lap_time>0 AND session_id IN (${dirtyIn}) GROUP BY session_id) avg_time ON avg_time.session_id=l.session_id
+        LEFT JOIN dashboard_session_summaries p ON p.session_id=l.session_id
+        JOIN (SELECT l.session_id,AVG(l.lap_time) mean FROM dashboard_lap_index l
+          LEFT JOIN dashboard_session_summaries p ON p.session_id=l.session_id
+          WHERE l.created_at_ms>=? AND l.created_at_ms<? AND l.is_valid=1 AND l.lap_time>0
+            AND (l.session_id IN (${dirtyIn}) OR p.session_id IS NULL
+              OR COALESCE(p.processor_version,-1)!=${DASHBOARD_PROCESSOR_VERSION}
+              OR p.first_lap_at_ms<? OR p.last_lap_at_ms>=?)
+          GROUP BY l.session_id) avg_time ON avg_time.session_id=l.session_id
         WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<?
           AND l.created_at_ms>=? AND l.created_at_ms<? AND l.is_valid=1 AND l.lap_time>0
-          AND l.session_id IN (${dirtyIn}) AND si.car_ordinal!=-1 AND si.track_ordinal!=-1
+          AND (l.session_id IN (${dirtyIn}) OR p.session_id IS NULL
+            OR COALESCE(p.processor_version,-1)!=${DASHBOARD_PROCESSOR_VERSION}
+            OR p.first_lap_at_ms<? OR p.last_lap_at_ms>=?)
+          AND si.car_ordinal!=-1 AND si.track_ordinal!=-1
           ${request.gameId ? "AND si.game_id=?" : ""}
         GROUP BY l.session_id
       ), eligible AS (
@@ -537,8 +539,8 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
       FROM deviations`,
       args: [
         bounds.from, bounds.to, bounds.from, bounds.to, ...(request.gameId ? [request.gameId] : []),
-        bounds.from, bounds.to, ...dirtyBindings, bounds.from, bounds.to, bounds.from, bounds.to, ...dirtyBindings,
-        ...(request.gameId ? [request.gameId] : []),
+        bounds.from, bounds.to, ...dirtyBindings, bounds.from, bounds.to, bounds.from, bounds.to,
+        bounds.from, bounds.to, ...dirtyBindings, bounds.from, bounds.to, ...(request.gameId ? [request.gameId] : []),
       ],
     });
     const consistency = consistencyResult.rows[0] as Row | undefined;

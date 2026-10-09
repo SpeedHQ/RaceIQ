@@ -1711,5 +1711,16 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `UPDATE dashboard_summary_state SET capture_dirty=1, capture_ready=1, metadata_dirty=1, processor_version=0`,
     ],
   },
+  {
+    version: 65,
+    name: "repair missing dashboard backfill cursor",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS dashboard_backfill_cursor (
+        id INTEGER PRIMARY KEY CHECK(id = 1), last_session_id INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT OR IGNORE INTO dashboard_backfill_cursor(id, last_session_id) VALUES (1, 0)`,
+    ],
+  },
 ];
 

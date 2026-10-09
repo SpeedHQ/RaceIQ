@@ -107,6 +107,28 @@ describe("dashboard embedded migrations", () => {
     });
   });
 
+  test("repairs a missing dashboard backfill cursor on an already-migrated database", async () => {
+    await withClient(async (client) => {
+      const historicalMigrations = migrations.map((migration) => migration.version === 63
+        ? {
+          ...migration,
+          sql: migration.sql.filter((statement) => !statement.includes("dashboard_backfill_cursor")),
+        }
+        : migration);
+      await runMigrations(client, 64, historicalMigrations);
+
+      const missing = await client.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'dashboard_backfill_cursor'",
+      );
+      expect(missing.rows).toHaveLength(0);
+
+      await runMigrations(client);
+
+      const cursor = await client.execute("SELECT id, last_session_id FROM dashboard_backfill_cursor");
+      expect(cursor.rows.map((row) => [Number(row.id), Number(row.last_session_id)])).toEqual([[1, 0]]);
+    });
+  });
+
   test("v62 upgrade preserves source rows and timestamps, queues only owned sessions", async () => {
     await withClient(async (client) => {
       await runMigrations(client, 62);

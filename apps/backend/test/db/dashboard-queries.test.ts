@@ -288,6 +288,59 @@ test("published favorite track session count stays within requested period", asy
   });
   expect(response.favouriteTrack).toMatchObject({ nativeId: 8, laps: 1, sessions: 1 });
 });
+test("getDashboard includes over 128 clean published boundary sessions without losing exact-period facts", async () => {
+  const ids: number[] = [];
+  const period = {
+    from: "2026-10-09T00:00:00.000Z", to: "2026-10-09T00:45:00.000Z",
+    timeZone: "UTC", gameId: "acc" as GameId,
+  };
+  try {
+    for (let index = 0; index < 150; index++) {
+      const id = await addSession("acc" as GameId, "2026-10-09T00:30:00.000Z");
+      ids.push(id);
+      await addLap(id, 1, 90, true, "2026-10-09T00:31:00.000Z");
+      await addLap(id, 2, 92, true, "2026-10-09T00:32:00.000Z");
+      await addLap(id, 3, 94, true, "2026-10-09T00:46:00.000Z");
+    }
+    for (const [index, id] of ids.entries()) {
+      const candidate = await prepareDashboardPublicationCandidate(id);
+      if (!candidate || !(await publishDashboardSession(candidate, {
+        sourceRevision: candidate.sourceRevision,
+        captureRevision: `boundary-${id}`,
+        duration: index === 0 ? { status: "available", elapsedSeconds: 3600 } : { status: "unavailable", elapsedSeconds: null },
+        sectorLayout: null,
+        weather: { status: "unavailable", revision: null, conditions: null },
+        trackLengthMeters: null,
+        sourceSectorStarts: null,
+      }))) throw new Error(`Failed to publish dashboard facts for ${id}`);
+    }
+
+    const response = await getDashboard(period);
+    expect(response.coverage).toMatchObject({
+      status: "complete", metadataComplete: true, mineSessions: 150, readySessions: 150, pendingSessions: 0,
+    });
+    expect(response.totals).toMatchObject({
+      laps: 300, positiveLaps: 300, validLaps: 300, drivenSeconds: 27300, validSeconds: 27300,
+      bestLapSeconds: 90, averageLapSeconds: 91, tracks: 1, cars: 1, sessions: 150,
+    });
+    expect(response.calendar).toHaveLength(1);
+    expect(response.calendar[0]).toMatchObject({ day: "2026-10-09", validLaps: 300, positiveLaps: 300, cleanRate: 1, drivenSeconds: 27300 });
+    expect(response.consistency).toMatchObject({ sessions: 150, averageStandardDeviation: 1 });
+    expect(response.consistency.deviations[9]).toBe(150);
+    expect(response.favouriteTrack).toMatchObject({ nativeId: 8, laps: 300, sessions: 150 });
+    expect(response.sessionTypes).toMatchObject({ totalSeconds: 3600, sessionsWithDuration: 1, sessionsWithoutDuration: 149 });
+  } finally {
+    for (const id of ids) {
+      await deleteSession(id);
+      const deleted = await prepareDashboardPublicationCandidate(id);
+      if (deleted) await publishDashboardSession(deleted);
+    }
+    for (let index = ownedSessionIds.length - 1; index >= 0; index--) {
+      if (ids.includes(ownedSessionIds[index]!)) ownedSessionIds.splice(index, 1);
+    }
+  }
+});
+
 
 
 test("dashboard HTTP keeps all-game cards while bounding exact selected-game output", async () => {

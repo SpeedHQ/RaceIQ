@@ -11,6 +11,7 @@
 - Reduce loading interruptions when switching between game dashboards while keeping each game’s statistics separate.
 - Calculate exact mine-only dashboard totals and recaps across the full selected period, independent of lap-list limits, and refresh them after session changes.
 - Keep available dashboard data visible while clearly distinguishing pending or unavailable coverage from request failures.
+- Restore dashboard startup for existing databases missing the backfill cursor table.
 
 ### Internal
 - Document new-game integration, lossless sparse recording, lap correctness checks, and gzip fixture splitting without Git LFS; align capture and architecture guides with current implementation.
@@ -25,6 +26,7 @@
 - Declare the frontend contract tests' backend-core dependency so clean CI installs resolve setup-import test modules.
 - Add revision-checked SQLite dashboard summaries and indexed UTC projections; expose a bounded, snapshot-consistent dashboard API with explicit pending coverage.
 - Add the version-5 SQLite dashboard processor with durable capture readiness, revision-checked publication, resumable backfill, retry state, and ingest-pass capture facts; keep dashboard recap separate from generic analysis.
+- Add isolated Bun/SQLite dashboard scale assertion, timing, and recording/backfill contention runners.
 
 ## v0.19.2 - 2026-10-04
 
