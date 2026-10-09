@@ -2,75 +2,24 @@
 
 ### Features
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
-- Keep the game selector at the top of game dashboards for quick switching, and match each game's insights, recent sessions, and activity layout to the main dashboard.
-
-- Add Favourite track and Favourite car dashboard widgets stacked vertically in the right-hand half beside Latest Session, with a compact, height-matched desktop row and full-width mobile stacking. Include matching cinematic styling, real track outlines, car artwork, driving time, estimated distance in km or miles, session and lap counts, and confirmed race podiums. Favourites use completed-lap driving time in the selected period and game; distance estimates use known track lengths and disclose partial coverage, while unavailable statistics remain dashes.
-- Merge overview totals into small inline metrics beside the Clean laps, Track time distribution, and Session time widget titles instead of separate stat cards.
-- Place clean-lap percentages and valid/total counts, plus consistency deviation and session counts, inline with their widget titles to reduce chart height.
-- Make Latest Session half-width on desktop overview dashboards, retain full width on small screens, and remove its Copy button while keeping Analyse best lap.
-- Focus Latest Session on total laps, full session type, best lap time, and the best lap's sector splits, showing unavailable values as dashes.
-- View Latest Session as a flat timing card with faded car artwork, a separate track outline beside its sectors, purple splits matching each sector's fastest session time, and race finishing position or DNF for non-finishers.
-- Display session types as colour-coded single-letter badges across live dashboards, session lists, results, and setup browsers, with full labels available in tooltips and to screen readers.
-- Rename Session stats to Session time and show elapsed-time proportions in a doughnut chart matching Track time distribution, with full session-type labels, durations, and percentages instead of badges.
-- Place the activity calendar to the right of Recent Sessions on the main dashboard, with a two-thirds/one-third desktop split and a stacked mobile layout.
-- Show Clean laps and confirmed race podium counts with first-, second-, and third-place totals on the overview, replacing Pace progress and Practice rhythm.
-- Track clean-lap percentage over time with a chronological cumulative line chart using every eligible timed lap in the selected dashboard period and game.
-- Track cumulative podium counts across the selected period with an integer count axis, count tooltips, gold first-place segments on top, silver second-place segments in the middle, and bronze third-place segments at the bottom, retaining finishing-position distributions.
-- Keep Clean laps and Podiums chart axes visible when no data is available, without fabricating rates or results.
-- Apply the top period tabs to every dashboard widget, including the activity date range, Latest Session, and Recent Sessions; long activity ranges scroll horizontally.
-- Show session type, such as Practice or Race, in the overview's Recent Sessions table.
-- See a finishing-position distribution for fourth place onward in the overview's Podiums widget, counting confirmed finished races only.
-- See recorded lap time across tracks, compare consistency across every comparable session in the selected period, and review collective elapsed session time by session type, without fixed recent-sample limits or last-X labels.
-- Use catalog track names for LMU overview insight charts and Recent Sessions, preserving layout-specific labels.
-- Keep first-, second-, and third-place trophies visible in the overview's Podiums widget, including zero counts and unavailable-result states.
-- Show the total confirmed finished races beside the overview's Podiums title.
-- Read overview widget explanations from info-icon tooltips instead of long inline notes.
-- See period-scoped daily activity with Monday–Sunday rows, cyan intensity cells, full-date hover tooltips, and a Less–More legend, without printed day numbers.
-- Use Today, This Week, This Month, and This Year overview periods, defaulting to This Year instead of All Time.
-- See finer 0.1-second intervals across ten bars in the overview's Consistency chart.
+- Return to the all-games dashboard by clicking the selected game card.
 
 ### Fixes
-
-- Keep an empty stacked-bar chart visible in the Podiums widget with neutral bar tracks, a baseline, and selected-period date labels, without inventing race results. Let the chart fill the remaining card height and omit the finishing-position section when no other finishes are recorded.
-- Plot Clean laps as daily rates for ranges up to 90 days and monthly rates for longer ranges, instead of connecting every lap.
-
-- Make dashboard widget headings and favourite statistics labels easier to read, and keep Latest Session text sizes consistent while loading or unavailable.
-- Keep gradients only on dashboard game cards; give Latest Session and Favourite track/car flat backgrounds and remove their inner panel fills while retaining timing and personal-best accents.
-- Reduce oversized track names, best-lap times, and sector times in Latest Session without shrinking labels or changing standalone session recaps.
-
-- Use the selected dashboard period through the current time for the Clean laps chart axis instead of stretching the first and last recorded laps across the chart. Show times for same-day ranges and years for ranges crossing a year boundary; retain period labels when no laps are available.
-- Keep main dashboard widgets at stable, content-fitting heights across populated, empty, loading, and error states. Preserve labels and dash-valued placeholders behind faded “No data” overlays, except on game cards, which retain unobscured logos and dash values. Show animated loading skeletons that respect reduced-motion preferences.
-- Match Latest Session card padding to Favourite cards, remove unused fixed card height so the card ends with its content, and link the Favourite track name to its track detail page.
-- Match the combined Favourite track and Favourite car column to Latest Session's actual desktop height instead of independent fixed heights, with compact spacing and artwork that stays above the statistics; retain full-height mobile stacking.
-- Wrap Recent sessions in a card and remove the table's inner border and shaded header.
-- Show zero podium counts when laps are recorded but no podium results are available.
-- Place first-, second-, and third-place trophies and counts inline beside the Podiums heading, retaining accessible placement labels, and remove the redundant total-and-title row above the chart.
-- Keep Consistency, Clean laps, and Podiums chart regions at the same fixed height across card widths.
-- Align Session time and Track time distribution doughnut centers and legend midlines within their shared row.
-- Align labels and values across Favourite track and Favourite car statistics, including wrapped labels.
-- Narrow Favourite track and Favourite car statistics into compact inline metrics on wide cards, reserving the right-hand area for the track outline or car artwork without increasing the row height; retain full-width statistics on small screens.
-- Keep dashboard game cards compact and readable across phone, tablet, and desktop layouts.
-- Center smaller logo-only Overview cards, right-align values before Laps and Driving labels, and match their gradient styling to Latest Session.
-- Render Overview game cards with official logo images and original brand colours instead of recoloured masks and filters.
-- Enlarge Overview game logos proportionally to 90% of their inset card area and fade them toward the right-hand metrics so branding is easier to recognise without obscuring values.
-- Keep overview insights compact with shorter desktop panels.
-- Use compact 13px lap/time values in game cards and 16px metrics elsewhere on Overview, reduce heavy text weights, and keep latest-session recap text consistent without changing standalone recaps.
-- Give Recent Sessions the full overview width and replace the latest-session sidebar with a shorter summary above the table.
-- Match dashboard period controls to Sessions and use the same bordered, outlined-active treatment for default tabs.
-- Stack Consistency beneath Clean laps and align overview insights into compact, equal-height desktop groups without empty grid slots.
-- Find Latest Session directly below the main dashboard's game cards.
-- View activity beside summary statistics on wide main dashboards with tighter section spacing.
-- Remove the lap-time trend graph from dashboard session statistics.
-- Bring Recent Sessions higher on the main dashboard with a compact totals strip, activity beside insights, and content-sized panels instead of empty fixed-height cards.
-- Align dashboard insight card heights within each row and stretch Track time distribution across both desktop rows, while keeping mobile cards content-sized.
-- Show collective elapsed time across all tracks and cars in Session stats, including pits, idle time, and incomplete laps, with unavailable recording durations clearly identified.
+- Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
+- Open the favourite track’s game-specific detail page from the all-games dashboard, including Le Mans Ultimate tracks without stored ordinals.
+- Reduce loading interruptions when switching between game dashboards while keeping each game’s statistics separate.
 
 ### Internal
 - Document new-game integration, lossless sparse recording, lap correctness checks, and gzip fixture splitting without Git LFS; align capture and architecture guides with current implementation.
 - Avoid per-packet serialization and hashing during race-result reconciliation while retaining raw capture identity and processing provenance.
 - Add Bun-only parser/pipeline, retained-heap, import, and recording benchmarks with isolated workloads and explicit measurement scopes.
+- Move capture formats and parser contracts into reusable packages; place portable lap engines, policies, and sectors in telemetry-core, with batch orchestration and explicit parser routing in telemetry-processor.
+- Expose a complete-payload Bun batch API with caller-supplied capture bytes and explicit segment context/boundary markers.
+- Preserve copied benchmark harness compatibility with pre-extraction base checkouts and retain Forza's required backend dependency.
+- Preserve lap-quality rejection assertions and caller feature flags in relocated tests; keep portable detector constructors compatible with erasable TypeScript and remove unused host-detector remnants.
 - Correct Linux benchmark CPU/RSS sampling and run iRacing parser/import benchmarks independently of production release flags.
 - Skip build, test, browser, snapshot, and benchmark PR jobs for automated release version bump branches.
+- Declare the frontend contract tests' backend-core dependency so clean CI installs resolve setup-import test modules.
 
 ## v0.19.2 - 2026-10-04
 

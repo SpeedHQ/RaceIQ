@@ -72,7 +72,7 @@ const BRAND_CARDS: ReadonlyArray<{
 function GameBrandCard({ game, stats, loading, selected }: { game: (typeof BRAND_CARDS)[number]; stats: GameStats[GameKey]; loading: boolean; selected: boolean }) {
   return (
     <Link
-      to={game.route}
+      to={selected ? "/" : game.route}
       data-game-brand={game.gameId}
       aria-busy={loading}
       aria-current={selected ? "page" : undefined}

@@ -60,6 +60,10 @@ export function gameIdForRoutePrefix(prefix: string): GameId | undefined {
   return getAllGames().find((game) => game.routePrefix === prefix)?.id;
 }
 
+export function gameIdForPathname(pathname: string): GameId | null {
+  return getAllGames().find((game) => pathname === `/${game.routePrefix}` || pathname.startsWith(`/${game.routePrefix}/`))?.id ?? null;
+}
+
 /** Select the existing dashboard implementation for a registered game. */
 export function liveDashboardForGame(gameId: GameId): LiveDashboard {
   switch (gameId) {

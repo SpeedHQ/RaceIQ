@@ -1,6 +1,6 @@
 import type { GameId } from "@raceiq/shared/games/ids";
 import { tryGetGame } from "@raceiq/shared/games/registry";
-import { getLMUCar } from "@raceiq/game-lmu-metadata/catalog";
+import { getLMUCar, resolveLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { useSettings } from "@/hooks/settings";
 import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -20,7 +20,7 @@ import { resolveTrackDisplayName } from "@/lib/track-display-name";
 import type { FavouriteInsight } from "./dashboard-insights";
 import { formatDrivenTime } from "./Stats";
 import type { PeriodStats } from "./types";
-import { getGameRoute } from "@/stores/game";
+import { trackRoutePath } from "@/lib/track-routes";
 
 type PeriodSummary = Pick<PeriodStats["year"], "laps" | "tracks" | "cars" | "sessions" | "totalTime">;
 
@@ -63,10 +63,15 @@ function FavouritePanel({ title, insight, kind, trackNames, carNames, gameId, lo
   const carOrdinal = !insight || kind !== "car" ? null : typeof identity === "number" ? identity : insight.ordinal ?? null;
   const carName = suppliedCarName || (insight && carOrdinal != null && carOrdinal >= 0 ? game?.getCarName(carOrdinal) : undefined)
     || (insight?.gameId === "lmu" && typeof identity === "string" ? getLMUCar(identity)?.name : undefined);
+  const trackOrdinal = kind === "track" && insight
+    ? insight.ordinal
+      ?? (typeof identity === "string" ? game?.getTrackOrdinalByName?.(identity) : undefined)
+      ?? (typeof identity === "number" && identity >= 0 ? identity : undefined)
+    : undefined;
   const name = !insight ? null : kind === "track"
-    ? resolveTrackDisplayName(insight.gameId, { trackId: identity, trackOrdinal: insight.ordinal }, trackNames)
+    ? resolveTrackDisplayName(insight.gameId, { trackId: identity, trackOrdinal }, trackNames)
     : carName;
-  const trackIdentity = kind === "track" && !unavailable ? insight?.ordinal ?? identity : undefined;
+  const trackIdentity = kind === "track" && !unavailable ? trackOrdinal ?? identity : undefined;
   const { data: outlineData } = useTrackOutline(trackIdentity, contextGameId);
   const track = useMemo(() => {
     const points = (Array.isArray(outlineData) ? outlineData : outlineData?.points ?? [])
@@ -108,7 +113,12 @@ function FavouritePanel({ title, insight, kind, trackNames, carNames, gameId, lo
   const distance = insight?.distanceMeters == null ? "—" : imperial
     ? `${(insight.distanceMeters / 1609.344).toFixed(1)} mi`
     : `${(insight.distanceMeters / 1000).toFixed(1)} km`;
-  const trackHref = kind === "track" && insight?.ordinal != null ? `${getGameRoute(insight.gameId)}/tracks/${insight.ordinal}` : null;
+  const trackKey = insight?.gameId === "lmu"
+    ? typeof identity === "string" ? resolveLMUTrack(identity)?.id : undefined
+    : trackOrdinal;
+  const trackHref = kind === "track" && !unavailable && insight && trackKey != null
+    ? trackRoutePath(insight.gameId, trackKey)
+    : null;
   return <section aria-busy={loading || sessionsLoading} aria-labelledby={`insights-favourite-${kind}-title`} onClick={trackHref ? (event) => { if ((event.target as HTMLElement).closest("button,a")) return; void navigate({ to: trackHref as never }); } : undefined} onKeyDown={trackHref ? (event) => { if (event.target !== event.currentTarget) return; if (event.key === "Enter" || event.key === " ") { event.preventDefault(); void navigate({ to: trackHref as never }); } } : undefined} role={trackHref ? "link" : undefined} tabIndex={trackHref ? 0 : undefined} className={`@container/favourite relative isolate flex h-[320px] min-w-0 flex-col rounded-xl border border-app-border bg-app-surface-alt/30 p-4 @3xl/workspace:h-auto @3xl/workspace:min-h-0 @3xl/workspace:p-3 ${trackHref ? "cursor-pointer" : ""}`}>
     <div className="flex min-h-6 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
       <div className="flex items-center gap-1"><h2 id={`insights-favourite-${kind}-title`} className="text-app-heading font-semibold text-app-text">{title}</h2><InsightInfo label={title} content={m.home_insights_favourite_note()} /></div>
@@ -119,8 +129,8 @@ function FavouritePanel({ title, insight, kind, trackNames, carNames, gameId, lo
         {kind === "track" && !unavailable && track && <svg viewBox={track.viewBox} aria-hidden="true" className="pointer-events-none absolute right-0 top-0 h-20 w-28 text-app-text @min-[440px]/favourite:h-full @min-[440px]/favourite:w-[28%]"><polyline points={track.points} transform={track.transform} fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" /></svg>}
         {kind === "car" && !unavailable && carImageUrl && <img key={carImageUrl} src={carImageUrl} alt="" aria-hidden="true" onError={(event) => { event.currentTarget.style.display = "none"; }} className="pointer-events-none absolute -right-3 -top-3 h-28 w-2/3 object-contain object-right opacity-70 [mask-image:linear-gradient(to_right,transparent,black_35%)] @min-[360px]/favourite:opacity-100 @min-[440px]/favourite:right-0 @min-[440px]/favourite:top-0 @min-[440px]/favourite:h-full! @min-[440px]/favourite:w-[28%] @3xl/workspace:top-0! @3xl/workspace:h-10" />}
         <div className="relative mt-1 flex h-20 items-center @min-[440px]/favourite:h-16 @3xl/workspace:h-8">
-          {kind === "track" && insight?.ordinal != null
-            ? <Link to={`${getGameRoute(insight.gameId)}/tracks/${insight.ordinal}` as never} className="relative min-w-0 max-w-[65%] break-words text-app-heading font-semibold leading-tight text-app-text hover:underline focus-visible:outline-2 focus-visible:outline-app-accent">{unavailable ? "—" : name ?? unknown}</Link>
+          {trackHref
+            ? <Link to={trackHref as never} className="relative min-w-0 max-w-[65%] break-words text-app-heading font-semibold leading-tight text-app-text focus-visible:outline-2 focus-visible:outline-app-accent">{name ?? unknown}</Link>
             : <Skeleton loading={masked} className="relative min-w-0 max-w-[65%] break-words text-app-heading font-semibold leading-tight text-app-text">{unavailable ? "—" : name ?? (insight ? unknown : "—")}</Skeleton>}
         </div>
         <dl className="mt-2 grid min-h-14 shrink-0 grid-cols-2 gap-2 rounded-lg border p-2 text-app-detail [&>div]:grid [&>div]:min-w-0 [&>div]:grid-rows-[1fr_auto] [&>div]:content-start [&>div]:gap-0.5 [&>div]:whitespace-normal [&_dt]:min-w-0 [&_dt]:text-app-label [&_dt>button]:size-4 @min-[440px]/favourite:flex @min-[440px]/favourite:flex-wrap @min-[440px]/favourite:w-[70%] @min-[440px]/favourite:gap-y-1.5 @min-[440px]/favourite:[&>div]:flex @min-[440px]/favourite:[&>div]:flex-row @min-[440px]/favourite:[&>div]:items-baseline @min-[440px]/favourite:[&>div]:gap-1.5" style={{ borderColor: "var(--recap-border)" }}>
