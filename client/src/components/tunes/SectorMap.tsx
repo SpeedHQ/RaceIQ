@@ -56,7 +56,7 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<ProjPt | null>(null);
 
-  const geom = useMemo(() => buildGeometry(telemetry, sectorTimes, edges), [telemetry, sectorTimes, edges]);
+  const geom = useMemo(() => buildGeometry(telemetry, sectorTimes, edges, "line"), [telemetry, sectorTimes, edges]);
 
   if (!geom) {
     return <div className="p-4 text-xs text-app-text-dim">{m.tunes_no_position_data()}</div>;
@@ -121,7 +121,7 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
   }
 
   return (
-    <div className="p-3">
+    <div className="mx-auto w-full max-w-[28rem] p-3">
       <div className="relative">
         <svg
           ref={svgRef}

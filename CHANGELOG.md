@@ -4,6 +4,8 @@
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 
 ### Fixes
+- Show the full session Overview map when a recording ends with an unfinished lap.
+- Keep Overview maps compact on wide screens and fit the visible lap line independently of hidden track edges.
 - Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
 
 ### Internal
