@@ -1,7 +1,7 @@
 import { createHash, type Hash } from "node:crypto";
 import { resolve } from "node:path";
 import { Database } from "bun:sqlite";
-import { readdir } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { serverReleaseFeatures } from "@raceiq/backend-core/runtime/config/release-features";
 import { initDb } from "@raceiq/backend-core/db/index";
@@ -15,7 +15,7 @@ import { notifyDriverProfileLap } from "../../src/driver-profile/runner";
 import { initServerGameAdapters } from "../../src/games/init";
 import { initMotecTargets } from "../../src/games/motec-init";
 import app from "../../src/routes/index";
-import { readUdpDump } from "@raceiq/backend-core/test-support/recordings/udp";
+import { iterateSessionFrames } from "@raceiq/backend-core/session-capture/framing";
 import { udpListener } from "../../src/runtime/udp-listener";
 import { createDashboardFinalizationFixture, createDashboardFixture } from "./dashboard-read-model-fixture";
 import type { DashboardRequest } from "@raceiq/shared/racing/sessions/dashboard";
@@ -302,14 +302,15 @@ await udpListener.stop();
 const recordingDir = resolve(dataDir, "test", "artifacts", "sessions");
 const recordingFiles = await readdir(recordingDir);
 if (recordingFiles.length !== 1) throw new Error(`Expected one isolated UDP dump, found ${recordingFiles.length}`);
-const recordedPackets = readUdpDump(resolve(recordingDir, recordingFiles[0]!));
+const recordedPackets = iterateSessionFrames(await readFile(resolve(recordingDir, recordingFiles[0]!)));
 const recordedHash = createHash("sha256");
-let recordedBytes = 0;
+let recordedBytes = 0, recordedCount = 0;
 for (const packet of recordedPackets) {
+  recordedCount++;
   recordedBytes += packet.length;
   framedHash(recordedHash, packet);
 }
-const recordedWire = { count: recordedPackets.length, bytes: recordedBytes, digest: recordedHash.digest("hex") };
+const recordedWire = { count: recordedCount, bytes: recordedBytes, digest: recordedHash.digest("hex") };
 const finalizationStartedAt = performance.now();
 await lapDetector.finalizeCurrentSession();
 const seedCaptureDirtyRowsAfterRecording = Number(db.query<{ count: number }, [number]>(
@@ -441,7 +442,7 @@ const lapCount = Number(db.query<{ count: number }, [number, string]>("SELECT CO
 const duplicateLaps = Number(db.query<{ count: number }, [number, string]>(`SELECT COUNT(*) AS count FROM (
   SELECT l.session_id,l.lap_number FROM laps l JOIN sessions s ON s.id=l.session_id
   WHERE l.session_id>? AND s.game_id=? AND s.ownership='mine' GROUP BY l.session_id,l.lap_number HAVING COUNT(*)>1
-`).get(beforeSessionId, gameId)?.count ?? 0);
+  )`).get(beforeSessionId, gameId)?.count ?? 0);
 const lapHash = createHash("sha256");
 for (const lap of db.query<{ session_id: number; lap_number: number; lap_time: number; is_valid: number }, [number, string]>(
   "SELECT l.session_id,l.lap_number,l.lap_time,l.is_valid FROM laps l JOIN sessions s ON s.id=l.session_id WHERE l.session_id>? AND s.game_id=? AND s.ownership='mine' ORDER BY l.session_id,l.lap_number",

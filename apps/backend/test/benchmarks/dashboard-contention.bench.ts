@@ -122,7 +122,7 @@ async function launchScenario(mode: Mode, lapCount: number, sessionCount: number
     const ready = await receive("ready");
     child.stdin!.write("requests\n");
     await receive("requests-complete");
-    child.stdin!.write("record\n");
+    child.stdin!.end("record\n");
     await receive("recording");
     const done = await receive("done") as unknown as ScenarioResult;
     const exit = await exitPromise.promise;
@@ -139,7 +139,7 @@ async function launchScenario(mode: Mode, lapCount: number, sessionCount: number
   }
 }
 
-function verifyScenario(result: ScenarioResult, expectedWire: WireExpectation, enabled: boolean): void {
+async function verifyScenario(result: ScenarioResult, expectedWire: WireExpectation, enabled: boolean, output: string): Promise<void> {
   const cleanFinalization = result.mode === "finalization";
   const seedStateMatches = cleanFinalization
     ? result.fixture.metadataOnlyPublished === 0 && result.backfill.seededCaptureDirtyRows.beforeWorkload === 0
@@ -171,7 +171,10 @@ function verifyScenario(result: ScenarioResult, expectedWire: WireExpectation, e
   const lockErrors = /SQLITE_BUSY|database(?: table)? is locked|database is busy/i.test(result.diagnosticOutput ?? "");
   checks.push([!lockErrors, "SQLite lock error found in backend diagnostics"]);
   const failed = checks.filter(([passed]) => !passed).map(([, description]) => description);
-  if (failed.length) throw new Error(`${result.mode}: ${failed.join("; ")}`);
+  if (failed.length) {
+    await writeFile(resolve(output), `${JSON.stringify({ status: "failed", failures: failed, expectedWire, scenario: result }, null, 2)}\n`);
+    throw new Error(`${result.mode}: ${failed.join("; ")}. Evidence written to ${resolve(output)}`);
+  }
 }
 
 async function main(): Promise<void> {
@@ -186,7 +189,7 @@ async function main(): Promise<void> {
   const fixturePath = resolve(ROOT, fixture);
   const expectedWire = sourceWireExpectation(fixturePath);
   const finalization = await launchScenario("finalization", 1, 1, fixture, seed, 6);
-  verifyScenario(finalization, expectedWire, true);
+  await verifyScenario(finalization, expectedWire, true, output);
   if (finalization.finalFields.status !== "visible" || finalization.finalFields.recapFieldsMatched !== true) throw new Error("Clean-backlog finalization scenario did not publish matching recap fields");
   if (Math.abs(expectedWire.packetHz - 60) > 1 || finalization.replayTiming.actualPacketHz === null || Math.abs(finalization.replayTiming.actualPacketHz - 60) > 1) {
     throw new Error(`Fixture/live replay is not 60Hz: source=${expectedWire.packetHz.toFixed(2)}Hz, actual=${finalization.replayTiming.actualPacketHz?.toFixed(2) ?? "unavailable"}Hz`);
@@ -197,9 +200,9 @@ async function main(): Promise<void> {
     await launchScenario("enabled", laps, sessions, fixture, seed, 4),
   ];
   const [small, baseline, enabled] = scenarios;
-  verifyScenario(small, expectedWire, true);
-  verifyScenario(baseline, expectedWire, false);
-  verifyScenario(enabled, expectedWire, true);
+  await verifyScenario(small, expectedWire, true, output);
+  await verifyScenario(baseline, expectedWire, false, output);
+  await verifyScenario(enabled, expectedWire, true, output);
   if (enabled.concurrentRequests.p95Ms === null || enabled.concurrentRequests.p95Ms > 500 || enabled.concurrentRequests.byScope.some((scope) => scope.p95Ms === null || scope.p95Ms > 500)) throw new Error(`Concurrent aggregate p95 or per-scope p95 exceeds 500ms: ${enabled.concurrentRequests.p95Ms}ms`);
   if (baseline.persistence.writeP95Ms === null || enabled.persistence.writeP95Ms === null || baseline.persistence.writeP95Ms <= 0 || enabled.persistence.writeP95Ms > 100) throw new Error("Lap persistence p95 exceeds 100ms or baseline unavailable");
   const writeRegression = (enabled.persistence.writeP95Ms - baseline.persistence.writeP95Ms) / baseline.persistence.writeP95Ms;

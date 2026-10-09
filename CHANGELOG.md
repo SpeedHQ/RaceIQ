@@ -29,6 +29,7 @@
 - Add revision-checked SQLite dashboard summaries and indexed UTC projections; expose a bounded, snapshot-consistent dashboard API with explicit pending coverage.
 - Add the version-5 SQLite dashboard processor with durable capture readiness, revision-checked publication, resumable backfill, retry state, and ingest-pass capture facts; keep dashboard recap separate from generic analysis.
 - Add isolated Bun/SQLite dashboard scale assertion, timing, and recording/backfill contention runners.
+- Read timestamped recorder dumps correctly in contention checks, preserve failed-scenario evidence, fix duplicate-lap SQL, and close child input after the final command.
 
 ## v0.19.2 - 2026-10-04
 
