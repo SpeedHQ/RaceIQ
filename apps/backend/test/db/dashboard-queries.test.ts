@@ -23,6 +23,7 @@ import { DASHBOARD_PROCESSOR_VERSION, prepareDashboardPublicationCandidate, publ
 import { getDashboard } from "@raceiq/backend-core/db/dashboard-queries";
 import { client, db } from "@raceiq/backend-core/db/index";
 import { dashboardRoutes } from "../../src/routes/dashboard-routes";
+import { sourceDashboardReference } from "../benchmarks/dashboard-read-model-reference";
 
 const ownedSessionIds: number[] = [];
 const request: DashboardRequest = {
@@ -260,6 +261,59 @@ test("published period bests and session counts are game-scoped and dirty minima
   await db.update(laps).set({ lapTime: 95 }).where(and(eq(laps.sessionId, accWinner), eq(laps.lapNumber, 1))).run();
   const dirtyAcc = await getDashboard({ ...period, gameId: "acc" as GameId });
   expect(dirtyAcc.totals).toMatchObject({ laps: 3, bestLapSeconds: 92, sessions: 2 });
+});
+
+test("published favourite podium evidence survives partial days and preserves unknown versus zero", async () => {
+  for (const nativeId of [null, "native-car"] as const) {
+    for (const position of [null, 4, 2] as const) {
+      const createdAt = "2026-06-01T13:00:00.000Z";
+      const own = await addSession("acc", createdAt, "mine", nativeId, nativeId);
+      const other = await addSession("acc", createdAt, "others", nativeId, nativeId);
+      const otherGame = await addSession("fm-2023", createdAt, "mine", nativeId, nativeId);
+      for (const sessionId of [own, other, otherGame]) {
+        await addLap(sessionId, 1, 90, true, createdAt);
+        await addLap(sessionId, 2, 92, true, createdAt);
+        await db.update(sessions).set({ sessionType: "race" }).where(eq(sessions.id, sessionId)).run();
+        const resultPosition = sessionId === own ? position : 1;
+        if (resultPosition !== null) {
+          await client.execute({
+            sql: "INSERT INTO session_results(session_id,session_type,outcome_status,classification,finishing_position) VALUES (?,'race','confirmed','finished',?)",
+            args: [sessionId, resultPosition],
+          });
+        }
+        if (sessionId === other) continue;
+        const candidate = await prepareDashboardPublicationCandidate(sessionId);
+        if (!candidate || !await publishDashboardSession(candidate, {
+          sourceRevision: candidate.sourceRevision, captureRevision: `podium-${sessionId}`,
+          duration: { status: "unavailable", elapsedSeconds: null }, sectorLayout: null,
+          weather: { status: "unavailable", revision: null, conditions: null },
+          trackLengthMeters: null, sourceSectorStarts: null,
+        })) throw new Error(`Failed to publish ${sessionId}`);
+      }
+      for (const [from, to] of [
+        ["2026-06-01T12:00:00.000Z", "2026-06-01T18:00:00.000Z"],
+        ["2026-06-01T00:00:00.000Z", "2026-06-02T00:00:00.000Z"],
+      ]) {
+        const response = await getDashboard({ from: from!, to: to!, timeZone: "UTC", gameId: "acc" });
+        expect(response.coverage.metadataComplete).toBe(true);
+        expect(response.coverage.status).toBe("complete");
+        expect(response.totals.laps).toBe(2);
+        const reference = await sourceDashboardReference({ from: from!, to: to!, timeZone: "UTC", gameId: "acc" });
+        expect(response.cards["fm-2023"]?.laps).toBe(2);
+        expect(reference.cards).toEqual(response.cards);
+        for (const favourite of [response.favouriteCar, response.favouriteTrack]) {
+          expect(favourite?.nativeId).toBe(nativeId ?? 0);
+          expect(favourite?.podiums).toBe(position === null ? null : position <= 3 ? 1 : 0);
+        }
+      }
+      for (const sessionId of [own, other, otherGame]) {
+        await deleteSession(sessionId);
+        const deleted = await prepareDashboardPublicationCandidate(sessionId);
+        if (deleted) await publishDashboardSession(deleted);
+        ownedSessionIds.splice(ownedSessionIds.indexOf(sessionId), 1);
+      }
+    }
+  }
 });
 
 test("published favorite track session count stays within requested period", async () => {

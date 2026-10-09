@@ -157,19 +157,20 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     const dirtyBindings = dirtyIds.slice(0, MAX_FALLBACK_SESSIONS);
     const dirtyIn = dirtyBindings.length ? dirtyBindings.map(() => "?").join(",") : "NULL";
     const dirtyCte = dirtyBindings.length ? `VALUES ${dirtyBindings.map(() => "(?)").join(",")}` : "SELECT NULL WHERE 0";
+    const needsDaySource = dirtyBindings.length > 0 || bounds.from !== firstFullDayMs || bounds.to !== endFullDayMs;
     const commonScope = "";
     const entityResult = await tx.execute({
       sql: `WITH dirty(session_id) AS (${dirtyCte}),
         day_rollup AS (
           SELECT d.utc_day,d.game_id,d.car_key,d.track_key,d.lap_count,d.positive_laps,d.valid_laps,
             d.driven_seconds,d.valid_seconds,d.favourite_laps,d.favourite_seconds,d.distance_laps,d.distance_meters,
-            d.podium_first,d.podium_second,d.podium_third
+            d.podium_first,d.podium_second,d.podium_third,0 podium_evidence
           FROM dashboard_day_entities d WHERE d.utc_day>=? AND d.utc_day<?
             ${commonScope}
           UNION ALL
           SELECT old.utc_day,old.game_id,old.car_key,old.track_key,-old.lap_count,-old.positive_laps,-old.valid_laps,
             -old.driven_seconds,-old.valid_seconds,-old.favourite_laps,-old.favourite_seconds,-old.distance_laps,
-            -COALESCE(old.distance_meters,0),-old.podium_first,-old.podium_second,-old.podium_third
+            -COALESCE(old.distance_meters,0),-old.podium_first,-old.podium_second,-old.podium_third,0 podium_evidence
           FROM dashboard_session_days old JOIN dirty x ON x.session_id=old.session_id
           WHERE old.utc_day>=? AND old.utc_day<?
         ), current_source AS (
@@ -190,11 +191,11 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
               AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
               AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision
               THEN COALESCE(p.track_length_meters,0) ELSE 0 END) distance_meters,
-            0 podium_first,0 podium_second,0 podium_third
+            0 podium_first,0 podium_second,0 podium_third,0 podium_evidence
           FROM dashboard_lap_index l JOIN dashboard_session_index si ON si.session_id=l.session_id
           LEFT JOIN dashboard_session_summaries p ON p.session_id=si.session_id
           LEFT JOIN dashboard_summary_state st ON st.session_id=si.session_id
-          WHERE si.ownership='mine' AND l.created_at_ms>=? AND l.created_at_ms<?
+          WHERE ${needsDaySource ? "" : "0 AND "}si.ownership='mine' AND l.created_at_ms>=? AND l.created_at_ms<?
             AND (l.created_at_ms<? OR l.created_at_ms>=? OR l.session_id IN (${dirtyIn}))
           GROUP BY utc_day,si.game_id,track_key,car_key
         ), current_results AS (
@@ -203,31 +204,49 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
             COALESCE(NULLIF(si.track_id,''),'#ord:'||si.track_ordinal) track_key,
             0 lap_count,0 positive_laps,0 valid_laps,0 driven_seconds,0 valid_seconds,
             0 favourite_laps,0 favourite_seconds,0 distance_laps,0 distance_meters,
-            SUM(r.finishing_position=1) podium_first,SUM(r.finishing_position=2) podium_second,SUM(r.finishing_position=3) podium_third
+            SUM(r.finishing_position=1) podium_first,SUM(r.finishing_position=2) podium_second,SUM(r.finishing_position=3) podium_third,0 podium_evidence
           FROM session_results r JOIN dashboard_session_index si ON si.session_id=r.session_id
-          WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<?
+          WHERE ${needsDaySource ? "" : "0 AND "}si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<?
             AND (si.session_id IN (${dirtyIn}) OR si.created_at_ms<? OR si.created_at_ms>=?)
             AND lower(trim(si.session_type)) LIKE 'race%' AND r.outcome_status='confirmed' AND r.classification='finished'
             AND r.finishing_position>0 AND r.finishing_position=CAST(r.finishing_position AS INTEGER)
           GROUP BY si.session_id
+        ), result_evidence AS (
+          SELECT date(si.created_at_ms/1000,'unixepoch') utc_day,si.game_id,p.car_key,p.track_key,
+            0 lap_count,0 positive_laps,0 valid_laps,0 driven_seconds,0 valid_seconds,
+            0 favourite_laps,0 favourite_seconds,0 distance_laps,0 distance_meters,
+            0 podium_first,0 podium_second,0 podium_third,COUNT(DISTINCT si.session_id) podium_evidence
+          FROM session_results r JOIN dashboard_session_index si ON si.session_id=r.session_id
+          JOIN dashboard_session_summaries p ON p.session_id=si.session_id
+          JOIN dashboard_summary_state st ON st.session_id=si.session_id
+          WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<?
+            AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
+            AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
+            AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision
+            AND lower(trim(si.session_type)) LIKE 'race%' AND r.outcome_status='confirmed' AND r.classification='finished'
+            AND r.finishing_position>0 AND r.finishing_position=CAST(r.finishing_position AS INTEGER)${request.gameId ? " AND si.game_id=?" : ""}
+          GROUP BY utc_day,si.game_id,p.car_key,p.track_key
         )
-        SELECT utc_day,game_id,car_key,track_key,SUM(lap_count) lap_count,SUM(positive_laps) positive_laps,
-          SUM(valid_laps) valid_laps,SUM(driven_seconds) driven_seconds,SUM(valid_seconds) valid_seconds,
-          SUM(favourite_laps) favourite_laps,SUM(favourite_seconds) favourite_seconds,
-          SUM(distance_laps) distance_laps,SUM(distance_meters) distance_meters,
-          SUM(podium_first) podium_first,SUM(podium_second) podium_second,SUM(podium_third) podium_third
-        FROM (SELECT * FROM day_rollup UNION ALL SELECT * FROM current_source UNION ALL SELECT * FROM current_results)
-        GROUP BY utc_day,game_id,car_key,track_key`,
+        SELECT f.game_id,f.car_key,f.track_key,SUM(f.lap_count) lap_count,SUM(f.positive_laps) positive_laps,
+          SUM(f.valid_laps) valid_laps,SUM(f.driven_seconds) driven_seconds,SUM(f.valid_seconds) valid_seconds,
+          SUM(f.favourite_laps) favourite_laps,SUM(f.favourite_seconds) favourite_seconds,
+          SUM(f.distance_laps) distance_laps,SUM(f.distance_meters) distance_meters,
+          SUM(f.podium_first) podium_first,SUM(f.podium_second) podium_second,SUM(f.podium_third) podium_third,
+          MAX(f.podium_evidence) podium_evidence
+        FROM (SELECT * FROM day_rollup UNION ALL SELECT * FROM current_source UNION ALL SELECT * FROM current_results
+          UNION ALL SELECT * FROM result_evidence) f
+        GROUP BY f.game_id,f.car_key,f.track_key`,
       args: [
         ...dirtyBindings,
         firstFullDay, endFullDay,
         firstFullDay, endFullDay,
         bounds.from, bounds.to, firstFullDayMs, endFullDayMs, ...dirtyBindings,
         ...dirtyBindings, bounds.from, bounds.to, firstFullDayMs, endFullDayMs,
+        bounds.from, bounds.to, ...(request.gameId ? [request.gameId] : []),
       ],
     });
     type EntityFacts = { gameId: GameId; identity: string; nativeId: number | string | null; ordinal: number | null;
-      seconds: number; laps: number; sessions: number; distanceMeters: number; distanceLaps: number; podiums: number };
+      seconds: number; laps: number; sessions: number; distanceMeters: number; distanceLaps: number; podiums: number; podiumEvidence: boolean };
     const decodeIdentity = (value: string, gameId: GameId, kind: "car" | "track") => {
       if (value.startsWith("[")) {
         try {
@@ -261,18 +280,18 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
       const car = decodeIdentity(String(row.car_key ?? ""), gameId, "car");
       const values = {
         seconds: n(row.driven_seconds), laps: n(row.positive_laps), distanceMeters: n(row.distance_meters),
-        distanceLaps: n(row.distance_laps), podiums: n(row.podium_first) + n(row.podium_second) + n(row.podium_third),
+        distanceLaps: n(row.distance_laps), podiums: n(row.podium_first) + n(row.podium_second) + n(row.podium_third), podiumEvidence: n(row.podium_evidence) > 0,
       };
       const favouriteValues = { ...values, seconds: n(row.favourite_seconds), laps: n(row.favourite_laps) };
       const add = (map: Map<string, EntityFacts>, ident: typeof track, facts: typeof values) => {
         if (!ident.identity) return;
         const current = map.get(ident.identity) ?? { gameId, identity: ident.identity, nativeId: ident.nativeId, ordinal: ident.ordinal,
-          seconds: 0, laps: 0, sessions: 0, distanceMeters: 0, distanceLaps: 0, podiums: 0 };
+          seconds: 0, laps: 0, sessions: 0, distanceMeters: 0, distanceLaps: 0, podiums: 0, podiumEvidence: false };
         current.seconds += facts.seconds;
         current.laps += facts.laps;
         current.distanceMeters += facts.distanceMeters;
         current.distanceLaps += facts.distanceLaps;
-        current.podiums += facts.podiums;
+        current.podiums += facts.podiums; current.podiumEvidence ||= facts.podiumEvidence;
         map.set(ident.identity, current);
       };
       if (!request.gameId || request.gameId === gameId) {
@@ -297,7 +316,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
             AND NOT EXISTS(SELECT 1 FROM dirty x WHERE x.session_id=d.session_id)
           UNION
           SELECT DISTINCT l.session_id FROM dashboard_lap_index l JOIN dashboard_session_index si ON si.session_id=l.session_id
-          WHERE si.ownership='mine' AND l.created_at_ms>=? AND l.created_at_ms<?
+          WHERE ${needsDaySource ? "" : "0 AND "}si.ownership='mine' AND l.created_at_ms>=? AND l.created_at_ms<?
             AND (l.created_at_ms<? OR l.created_at_ms>=? OR l.session_id IN (${dirtyIn}))${request.gameId ? " AND si.game_id=?" : ""}
         ), best_values(best) AS (
           SELECT p.best_lap_seconds FROM dashboard_session_summaries p
@@ -372,12 +391,12 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
         UNION
         SELECT 'track',si.game_id,COALESCE(NULLIF(si.track_id,''),'#ord:'||si.track_ordinal),l.session_id
         FROM dashboard_lap_index l JOIN dashboard_session_index si ON si.session_id=l.session_id
-        WHERE si.ownership='mine' AND l.created_at_ms>=? AND l.created_at_ms<?
+        WHERE ${needsDaySource ? "" : "0 AND "}si.ownership='mine' AND l.created_at_ms>=? AND l.created_at_ms<?
           AND (l.session_id IN (${dirtyIn}) OR l.created_at_ms<? OR l.created_at_ms>=?)
         UNION
         SELECT 'car',si.game_id,COALESCE(NULLIF(si.car_id,''),'#ord:'||si.car_ordinal),l.session_id
         FROM dashboard_lap_index l JOIN dashboard_session_index si ON si.session_id=l.session_id
-        WHERE si.ownership='mine' AND l.created_at_ms>=? AND l.created_at_ms<?
+        WHERE ${needsDaySource ? "" : "0 AND "}si.ownership='mine' AND l.created_at_ms>=? AND l.created_at_ms<?
           AND (l.session_id IN (${dirtyIn}) OR l.created_at_ms<? OR l.created_at_ms>=?)
         UNION
         SELECT 'track',p.game_id,p.track_key,p.session_id FROM dashboard_session_summaries p
@@ -433,12 +452,13 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
       return winner ? { gameId: winner.gameId, identity: winner.identity, nativeId: winner.nativeId, ordinal: winner.ordinal,
         seconds: winner.seconds, laps: winner.laps, sessions: winner.sessions,
         distanceMeters: winner.distanceLaps ? winner.distanceMeters : null, distanceLaps: winner.distanceLaps,
-        podiums: pending ? null : winner.podiums } : null;
+        podiums: pending || !winner.podiumEvidence ? null : winner.podiums } : null;
     };
     response.favouriteTrack = chooseFavourite(favouriteTracks);
     response.favouriteCar = chooseFavourite(favouriteCars);
     const firstFullBucket = Math.ceil(bounds.from / BUCKET_MS) * BUCKET_MS;
     const endFullBucket = Math.floor(bounds.to / BUCKET_MS) * BUCKET_MS;
+    const needsBucketSource = dirtyBindings.length > 0 || bounds.from !== firstFullBucket || bounds.to !== endFullBucket;
     const timeBuckets = await tx.execute({
       sql: `WITH dirty(session_id) AS (${dirtyCte}), facts AS (
         SELECT b.bucket_start_ms,b.game_id,b.valid_laps,b.positive_laps,b.driven_seconds,b.podium_first,b.podium_second,b.podium_third
@@ -451,14 +471,14 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
         SELECT CAST(l.created_at_ms/? AS INTEGER)*?,si.game_id,SUM(l.is_valid=1 AND l.lap_time>0),SUM(l.lap_time>0),
           SUM(CASE WHEN l.lap_time>0 THEN l.lap_time ELSE 0 END),0,0,0
         FROM dashboard_lap_index l JOIN dashboard_session_index si ON si.session_id=l.session_id
-        WHERE si.ownership='mine' AND l.created_at_ms>=? AND l.created_at_ms<?
+        WHERE ${needsBucketSource ? "" : "0 AND "}si.ownership='mine' AND l.created_at_ms>=? AND l.created_at_ms<?
           AND (l.session_id IN (${dirtyIn}) OR l.created_at_ms<? OR l.created_at_ms>=?)
         GROUP BY CAST(l.created_at_ms/? AS INTEGER)*?,si.game_id
       ), current_results AS (
         SELECT CAST(si.created_at_ms/? AS INTEGER)*?,si.game_id,0,0,0,
           SUM(r.finishing_position=1),SUM(r.finishing_position=2),SUM(r.finishing_position=3)
         FROM session_results r JOIN dashboard_session_index si ON si.session_id=r.session_id
-        WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<?
+        WHERE ${needsBucketSource ? "" : "0 AND "}si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<?
           AND (si.session_id IN (${dirtyIn}) OR si.created_at_ms<? OR si.created_at_ms>=?)
           AND lower(trim(si.session_type)) LIKE 'race%' AND r.outcome_status='confirmed' AND r.classification='finished'
           AND r.finishing_position>0 AND r.finishing_position=CAST(r.finishing_position AS INTEGER)

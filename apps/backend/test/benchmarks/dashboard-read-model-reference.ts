@@ -8,7 +8,8 @@ const nullable = (v: unknown): number | null => v == null ? null : Number(v);
 const sqlRows = (result: { rows: unknown[] }) => result.rows as Row[];
 const entityIdentity = (gameId: GameId, raw: string | null, kind: "car" | "track", ordinal: number) => kind === "car"
   ? dashboardCarIdentity(gameId, raw, ordinal) ?? "" : dashboardTrackIdentity(gameId, raw, ordinal) ?? "";
-function rank(rows: Row[], kind: "car" | "track", favourite: boolean): Array<DashboardFavourite & { laps: number }> {
+type PodiumFacts = { count: number; evidence: number };
+function rank(rows: Row[], kind: "car" | "track", favourite: boolean, podiums: ReadonlyMap<string, PodiumFacts>): Array<DashboardFavourite & { laps: number }> {
   const byIdentity = new Map<string, DashboardFavourite & { laps: number }>();
   for (const row of rows) {
     const gameId = String(row.game_id) as GameId;
@@ -22,7 +23,9 @@ function rank(rows: Row[], kind: "car" | "track", favourite: boolean): Array<Das
     const nativeId = numericId ? Number(raw) : raw === null && ordinal !== -1 ? ordinal : raw;
     const seconds = n(favourite ? row.favourite_seconds : row.driven_seconds);
     const laps = n(favourite ? row.favourite_laps : row.positive_laps);
-    const current = byIdentity.get(identity) ?? { gameId, identity, nativeId, ordinal: resolvedOrdinal, seconds: 0, laps: 0, sessions: 0, distanceMeters: null, distanceLaps: 0, podiums: 0 };
+    const podiumFacts = podiums.get(identity);
+    const current = byIdentity.get(identity) ?? { gameId, identity, nativeId, ordinal: resolvedOrdinal, seconds: 0, laps: 0, sessions: 0, distanceMeters: null, distanceLaps: 0,
+      podiums: podiumFacts?.evidence ? podiumFacts.count : null };
     current.seconds += seconds; current.laps += laps; current.sessions += n(row.sessions);
     byIdentity.set(identity, current);
   }
@@ -62,9 +65,38 @@ export async function sourceDashboardReference(request: DashboardRequest): Promi
       AND li.created_at_ms>=? AND li.created_at_ms<?${whereScope}`, args: bind }));
   const totals = totalRows[0] ?? {};
   const cards = Object.fromEntries(KNOWN_GAME_IDS.map((gameId) => [gameId, { laps: 0, drivenSeconds: 0 }])) as DashboardResponse["cards"];
-  const tracks = rank(sourceLaps, "track", false), cars = rank(sourceLaps, "car", false);
-  const favouriteTracks = rank(sourceLaps, "track", true), favouriteCars = rank(sourceLaps, "car", true);
-  for (const row of sourceLaps) {
+  const entityPodiumRows = sqlRows(await client.execute({ sql: `SELECT s.game_id,s.car_id,s.car_ordinal,s.track_id,s.track_ordinal,
+      COUNT(DISTINCT CASE WHEN r.finishing_position IN (1,2,3) THEN s.id END) podiums,COUNT(DISTINCT s.id) evidence
+    FROM session_results r JOIN sessions s ON s.id=r.session_id
+    WHERE s.ownership='mine'
+      AND CAST(strftime('%s',s.created_at) AS INTEGER)*1000+CAST(substr(strftime('%f',s.created_at),4,3) AS INTEGER)>=?
+      AND CAST(strftime('%s',s.created_at) AS INTEGER)*1000+CAST(substr(strftime('%f',s.created_at),4,3) AS INTEGER)<?
+      AND lower(trim(s.session_type)) LIKE 'race%' AND r.outcome_status='confirmed' AND r.classification='finished'
+      AND r.finishing_position>0 AND r.finishing_position=CAST(r.finishing_position AS INTEGER)${request.gameId ? " AND s.game_id=?" : ""}
+    GROUP BY s.game_id,s.car_id,s.car_ordinal,s.track_id,s.track_ordinal`,
+    args: [from, to, ...(request.gameId ? [request.gameId] : [])] }));
+  const carPodiums = new Map<string, PodiumFacts>(), trackPodiums = new Map<string, PodiumFacts>();
+  for (const row of entityPodiumRows) {
+    const gameId = String(row.game_id) as GameId;
+    const carIdentity = entityIdentity(gameId, row.car_id == null ? null : String(row.car_id), "car", n(row.car_ordinal));
+    const trackIdentity = entityIdentity(gameId, row.track_id == null ? null : String(row.track_id), "track", n(row.track_ordinal));
+    for (const [podiumMap, identity] of [[carPodiums, carIdentity], [trackPodiums, trackIdentity]] as const) {
+      const current = podiumMap.get(identity) ?? { count: 0, evidence: 0 };
+      current.count += n(row.podiums); current.evidence += n(row.evidence);
+      podiumMap.set(identity, current);
+    }
+  }
+  const tracks = rank(sourceLaps, "track", false, trackPodiums), cars = rank(sourceLaps, "car", false, carPodiums);
+  const favouriteTracks = rank(sourceLaps, "track", true, trackPodiums), favouriteCars = rank(sourceLaps, "car", true, carPodiums);
+  const cardRows = sqlRows(await client.execute({
+    sql: `SELECT s.game_id,COUNT(l.id) lap_count,
+        SUM(CASE WHEN l.lap_time>0 THEN l.lap_time ELSE 0 END) driven_seconds
+      FROM laps l JOIN sessions s ON s.id=l.session_id
+      WHERE s.ownership='mine' AND julianday(l.created_at)>=julianday(?) AND julianday(l.created_at)<julianday(?)
+      GROUP BY s.game_id`,
+    args: [fromText, toText],
+  }));
+  for (const row of cardRows) {
     const card = cards[String(row.game_id) as GameId];
     card.laps += n(row.lap_count); card.drivenSeconds += n(row.driven_seconds);
   }
@@ -129,12 +161,15 @@ export async function sourceDashboardReference(request: DashboardRequest): Promi
     FROM sessions s JOIN dashboard_session_index si ON si.session_id=s.id
       LEFT JOIN dashboard_summary_state st ON st.session_id=s.id LEFT JOIN dashboard_session_summaries p ON p.session_id=s.id
     WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<?${sessionScope}`, args: [from, to, ...(request.gameId ? [request.gameId] : [])] }))[0] ?? {};
-  const podiumRows = sqlRows(await client.execute({ sql: `SELECT SUM(r.finishing_position=1) firsts,SUM(r.finishing_position=2) seconds,
-      SUM(r.finishing_position=3) thirds,COUNT(*) evidence FROM session_results r JOIN dashboard_session_index si ON si.session_id=r.session_id
-      WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<? AND lower(trim(si.session_type)) LIKE 'race%'
-      AND r.outcome_status='confirmed' AND r.classification='finished'
-      AND r.finishing_position>0 AND r.finishing_position=CAST(r.finishing_position AS INTEGER)
-      AND r.finishing_position IN (1,2,3)${sessionScope}`, args: [from, to, ...(request.gameId ? [request.gameId] : [])] }))[0] ?? {};
+  const podiumRows = sqlRows(await client.execute({ sql: `SELECT COUNT(DISTINCT CASE WHEN r.finishing_position=1 THEN s.id END) firsts,
+      COUNT(DISTINCT CASE WHEN r.finishing_position=2 THEN s.id END) seconds,
+      COUNT(DISTINCT CASE WHEN r.finishing_position=3 THEN s.id END) thirds,COUNT(DISTINCT s.id) evidence FROM session_results r JOIN sessions s ON s.id=r.session_id
+      WHERE s.ownership='mine'
+        AND CAST(strftime('%s',s.created_at) AS INTEGER)*1000+CAST(substr(strftime('%f',s.created_at),4,3) AS INTEGER)>=?
+        AND CAST(strftime('%s',s.created_at) AS INTEGER)*1000+CAST(substr(strftime('%f',s.created_at),4,3) AS INTEGER)<?
+        AND lower(trim(s.session_type)) LIKE 'race%' AND r.outcome_status='confirmed' AND r.classification='finished'
+        AND r.finishing_position>0 AND r.finishing_position=CAST(r.finishing_position AS INTEGER)${request.gameId ? " AND s.game_id=?" : ""}`,
+    args: [from, to, ...(request.gameId ? [request.gameId] : [])] }))[0] ?? {};
   const mineSessions = n(coverage.mine_sessions), readySessions = n(coverage.ready_sessions);
   const sessionTypes: DashboardResponse["sessionTypes"] = { shares: (["practice", "qualifying", "race", "unknown"] as DashboardSessionType[]).map((kind) => ({ kind, seconds: 0, share: 0 })),
     totalSeconds: 0, unknownSeconds: 0, unknownShare: 0, sessionsWithDuration: 0, sessionsWithoutDuration: mineSessions };

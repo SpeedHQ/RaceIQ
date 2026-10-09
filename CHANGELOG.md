@@ -12,6 +12,7 @@
 - Calculate exact mine-only dashboard totals and recaps across the full selected period, independent of lap-list limits, and refresh them after session changes.
 - Keep available dashboard data visible while clearly distinguishing pending or unavailable coverage from request failures.
 - Restore dashboard startup for existing databases missing the backfill cursor table.
+- Preserve favourite car and track podium totals for partial-day periods, distinguishing missing results from confirmed zero podiums.
 
 ### Internal
 - Document new-game integration, lossless sparse recording, lap correctness checks, and gzip fixture splitting without Git LFS; align capture and architecture guides with current implementation.
