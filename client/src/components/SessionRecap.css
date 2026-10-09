@@ -27,7 +27,7 @@
 .recap-footer {
   border: 1px solid var(--recap-border);
   border-radius: 8px;
-  background: var(--app-surface);
+  background: var(--app-bg);
 }
 
 .recap-best-lap {
