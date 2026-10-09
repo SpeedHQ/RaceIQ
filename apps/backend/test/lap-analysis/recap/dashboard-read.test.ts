@@ -7,6 +7,8 @@ import { deleteSession } from "@raceiq/backend-core/db/session-queries";
 import { prepareDashboardPublicationCandidate, publishDashboardSession } from "@raceiq/backend-core/db/dashboard-summary-queries";
 import { getDashboardSessionRecap } from "@raceiq/backend-core/db/dashboard-recap-queries";
 
+import { dashboardRoutes } from "../../../src/routes/dashboard-routes";
+import { sessionRoutes } from "../../../src/routes/session-routes";
 const ids: number[] = [];
 const gameId = "fm-2023" as GameId;
 afterEach(async () => {
@@ -79,10 +81,26 @@ test("dashboard recap returns null for others, unknown ownership, and deleted se
   await addLap(missing, 1, 80);
   await deleteSession(missing);
   ids.splice(ids.indexOf(missing), 1);
-
+  for (const sessionId of [others, unknown, missing]) {
+    expect((await dashboardRoutes.request(`/api/dashboard/sessions/${sessionId}/recap`, { headers: { "X-Game-Id": gameId } })).status).toBe(404);
+  }
   expect(await getDashboardSessionRecap(others, gameId)).toBeNull();
   expect(await getDashboardSessionRecap(unknown, gameId)).toBeNull();
   expect(await getDashboardSessionRecap(missing, gameId)).toBeNull();
+});
+
+test("dashboard recap HTTP enforces mine and game scope while generic recap remains available", async () => {
+  const mine = await addSession("mine");
+  const others = await addSession("others");
+  await addLap(mine, 1, 80);
+  await addLap(others, 1, 70);
+  const mineResponse = await dashboardRoutes.request(`/api/dashboard/sessions/${mine}/recap`, { headers: { "X-Game-Id": gameId } });
+  expect(mineResponse.status).toBe(200);
+  const payload = await mineResponse.json() as Record<string, unknown>;
+  expect(JSON.stringify(payload)).not.toMatch(/rawFile|capturePath|provenance/i);
+  expect((await dashboardRoutes.request(`/api/dashboard/sessions/${mine}/recap`, { headers: { "X-Game-Id": "acc" } })).status).toBe(404);
+  expect((await dashboardRoutes.request(`/api/dashboard/sessions/${others}/recap`, { headers: { "X-Game-Id": gameId } })).status).toBe(404);
+  expect((await sessionRoutes.request(`/api/sessions/${others}/recap?gameId=${gameId}`)).status).toBe(200);
 });
 
 test("ordinal zero remains known while unknown ordinal does not become zero", async () => {

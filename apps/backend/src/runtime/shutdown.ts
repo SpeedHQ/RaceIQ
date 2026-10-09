@@ -7,11 +7,13 @@ import type { DashboardProcessorHandle } from "@raceiq/backend-core/session-capt
 export interface ShutdownOptions {
   getNativeSources(): NativeSourceSupervisor | null;
   getDashboardProcessor(): DashboardProcessorHandle | null;
+  clearDashboardPublicationNotifications(): void;
 }
 
 export function installShutdown({
   getNativeSources,
   getDashboardProcessor,
+  clearDashboardPublicationNotifications,
 }: ShutdownOptions): void {
   const gracefulShutdown = async (signal: NodeJS.Signals) => {
     console.log(`[Server] Received ${signal} — flushing session recorder...`);
@@ -24,6 +26,7 @@ export function installShutdown({
       await Promise.allSettled([flushSessionRecorder()]);
       await getDashboardProcessor()?.stop();
     } finally {
+      clearDashboardPublicationNotifications();
       process.exit(0);
     }
   };

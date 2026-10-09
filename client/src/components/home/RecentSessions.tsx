@@ -1,9 +1,7 @@
+import type { DashboardRecentSession } from "@raceiq/shared/racing/sessions/dashboard";
 import { Card } from "@/components/ui/card";
 import { EmptyStateOverlay } from "@/components/ui/empty-state-overlay";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getLMUCar } from "@raceiq/game-lmu-metadata/catalog";
-import { resolveTrackDisplayName } from "@/lib/track-display-name";
-import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import { formatLapTime } from "@/components/LiveTelemetry";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -23,18 +21,14 @@ function formatTimeAgo(date: Date): string {
 
 export function RecentSessionsTable({
   sessions,
-  carNames,
-  trackNames,
   gameId,
   onAnalyseSession,
   loading = false,
   error = false,
 }: {
-  sessions: SessionMeta[];
-  carNames: Record<string, string>;
-  trackNames: Record<string, string>;
+  sessions: DashboardRecentSession[];
   gameId: string | null;
-  onAnalyseSession: (session: SessionMeta) => void;
+  onAnalyseSession: (session: DashboardRecentSession) => void;
   loading?: boolean;
   error?: boolean;
 }) {
@@ -58,17 +52,13 @@ export function RecentSessionsTable({
       </TableHeader>
       <TableBody>
         {stateMessage ? placeholderRows.map((row) => <TableRow key={row} aria-hidden="true">{Array.from({ length: gameId ? 6 : 7 }, (_, column) => <TableCell key={column} className="text-app-text-muted">{row === 0 && column === 0 ? <span className="sr-only" role={error ? "alert" : loading ? "status" : undefined}>{stateMessage}</span> : <Skeleton loading={loading}>—</Skeleton>}</TableCell>)}</TableRow>) : sessions.map((session) => {
-          const track = session.gameId === "lmu" && typeof session.trackId === "string"
-            ? resolveTrackDisplayName("lmu", { trackId: session.trackId }) ?? session.trackId
-            : trackNames[`${session.gameId}:${session.trackOrdinal}`] ?? "";
-          const car = session.gameId === "lmu" && typeof session.carId === "string"
-            ? getLMUCar(session.carId)?.name ?? session.carId
-            : carNames[`${session.gameId}:${session.carOrdinal}`] ?? "";
+          const track = session.track.name ?? "—";
+          const car = session.car.name ?? "—";
           return (
             <TableRow key={session.id} className="cursor-pointer" onClick={() => onAnalyseSession(session)}>
               {!gameId && (
                 <TableCell>
-                  <Badge variant="game-brand" size="compact" data-game-brand={session.gameId ?? "fm-2023"}>
+                  <Badge variant="game-brand" size="compact" data-game-brand={session.gameId}>
                     {session.gameId === "f1-2025" ? "F1" : session.gameId === "acc" ? "ACC" : session.gameId === "ac-evo" ? "ACE" : session.gameId === "iracing" ? "iR" : session.gameId === "lmu" ? "LMU" : "FM"}
                   </Badge>
                 </TableCell>
@@ -89,7 +79,7 @@ export function RecentSessionsTable({
               <TableCell className="text-app-text" title={car}>{car || "—"}</TableCell>
               <TableCell className="text-app-text"><SessionTypeBadge type={session.sessionType} /></TableCell>
               <TableCell className="text-right tabular-nums text-app-text">{session.lapCount ?? 0}</TableCell>
-              <TableCell className="text-right tabular-nums font-medium text-app-text">{session.bestLapTime ? formatLapTime(session.bestLapTime) : "—"}</TableCell>
+              <TableCell className="text-right tabular-nums font-medium text-app-text">{session.bestLapSeconds != null ? formatLapTime(session.bestLapSeconds) : "—"}</TableCell>
               <TableCell className="text-right tabular-nums text-app-text">{formatTimeAgo(parseUtcTimestamp(session.createdAt))}</TableCell>
             </TableRow>
           );

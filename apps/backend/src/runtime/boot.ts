@@ -25,6 +25,7 @@ import { startNativeSourceSupervisor, type NativeSourceSupervisor } from "./nati
 import { installShutdown } from "./shutdown";
 import { startMaintenanceJobs, startSyncAndStaleSessionJobs } from "./startup-jobs";
 import { startDashboardProcessor, type DashboardProcessorHandle } from "@raceiq/backend-core/session-capture/dashboard-processor";
+import { setDashboardPublicationNotifier } from "@raceiq/backend-core/db/dashboard-summary-queries";
 import { startTray } from "@raceiq/backend-core/runtime/platform/tray";
 import { initMotecTargets } from "../games/motec-init";
 import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
@@ -144,7 +145,12 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   installShutdown({
     getNativeSources: () => nativeSources,
     getDashboardProcessor: () => dashboardProcessor,
+    clearDashboardPublicationNotifications: () => {
+      setDashboardPublicationNotifier(null);
+      wsManager.clearDashboardUpdateNotification();
+    },
   });
+  setDashboardPublicationNotifier(() => wsManager.notifyDashboardUpdated());
   dashboardProcessor = startDashboardProcessor();
 
   const udpPort = options.udpPort

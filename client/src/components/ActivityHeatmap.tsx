@@ -3,8 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
-import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
-import { parseUtcTimestamp } from "../lib/utc-date";
+import type { DashboardCalendarBucket } from "@raceiq/shared/racing/sessions/dashboard";
 
 const CELL = 14;
 const GAP = 5;
@@ -33,7 +32,7 @@ function fmtDuration(sec: number): string {
   return `${s}s`;
 }
 
-export function ActivityHeatmap({ laps, periodStart, showTitle = true, loading = false }: { laps: LapMeta[]; periodStart: number; showTitle?: boolean; loading?: boolean }) {
+export function ActivityHeatmap({ buckets, periodStart, showTitle = true, loading = false, error = false }: { buckets: DashboardCalendarBucket[]; periodStart: number; showTitle?: boolean; loading?: boolean; error?: boolean }) {
   const [now, setNow] = useState(() => new Date());
   const [hover, setHover] = useState<{ date: string; duration: string; x: number; y: number } | null>(null);
   const year = now.getFullYear();
@@ -55,15 +54,12 @@ export function ActivityHeatmap({ laps, periodStart, showTitle = true, loading =
     const today = new Date(`${todayKey}T00:00:00`);
     const firstDay = new Date(periodStart);
     firstDay.setHours(0, 0, 0, 0);
-    const end = new Date(year, month, today.getDate() + 1);
     const secondsByDay = new Map<string, number>();
-    for (const lap of laps) {
-      if (!Number.isFinite(lap.lapTime) || lap.lapTime <= 0) continue;
-      const date = parseUtcTimestamp(lap.createdAt);
-      if (date < firstDay || date >= end) continue;
-      const key = dayKey(date);
-      if (key > todayKey) continue;
-      secondsByDay.set(key, (secondsByDay.get(key) ?? 0) + lap.lapTime);
+    for (const bucket of buckets) {
+      const seconds = bucket.drivenSeconds;
+      const key = bucket.day;
+      if (key < dayKey(firstDay) || key > todayKey) continue;
+      secondsByDay.set(key, seconds);
     }
     const daysInRange = (Date.UTC(year, month, today.getDate()) - Date.UTC(firstDay.getFullYear(), firstDay.getMonth(), firstDay.getDate())) / 86_400_000 + 1;
     const offset = (firstDay.getDay() + 6) % DAYS;
@@ -79,7 +75,7 @@ export function ActivityHeatmap({ laps, periodStart, showTitle = true, loading =
       maxSeconds = Math.max(maxSeconds, seconds);
     }
     return { cells: { days: grid, weeks }, max: maxSeconds };
-  }, [laps, year, month, todayKey, periodStart]);
+  }, [buckets, year, month, todayKey, periodStart]);
 
   const monthFormatter = new Intl.DateTimeFormat(locale, { month: "short" });
   const rangeFormatter = new Intl.DateTimeFormat(locale, { month: "long", day: "numeric", year: "numeric" });
@@ -150,7 +146,7 @@ export function ActivityHeatmap({ laps, periodStart, showTitle = true, loading =
       </div>
 
       </div>
-      {max <= 0 && !loading && <EmptyStateOverlay className="top-6" />}
+      {error ? <p className="absolute inset-0 grid place-items-center bg-app-surface/90 px-3 text-center text-app-detail text-status-danger" role="alert">{m.home_insights_analytics_error()}</p> : max <= 0 && !loading ? <EmptyStateOverlay className="top-6" /> : null}
       </div>
       <div className="mt-3 flex items-center justify-end gap-1.5 text-app-caption text-app-text-secondary" aria-hidden="true">
         <span>{m.heatmap_less()}</span>

@@ -148,6 +148,10 @@ export async function prepareDashboardPublicationCandidate(sessionId: number): P
   });
 }
 
+let dashboardPublicationNotifier: (() => void) | null = null;
+export function setDashboardPublicationNotifier(notifier: (() => void) | null): void {
+  dashboardPublicationNotifier = notifier;
+}
 /** Build exact session/day/time contributions, then atomically replace them iff candidate revision remains current. */
 export async function publishDashboardSession(candidate: DashboardPublicationCandidate, evidence?: DashboardCaptureFacts, options: { metadataOnly?: boolean } = {}): Promise<boolean> {
   const { sessionId, sourceRevision: revision, session } = candidate;
@@ -342,6 +346,7 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
       args: [revision,DASHBOARD_PROCESSOR_VERSION,evidenceReady && !options.metadataOnly ? 1 : 0,evidenceReady && !options.metadataOnly ? 1 : 0,candidate.deleted ? 1 : 0,evidenceReady ? 1 : 0,sessionId,revision],
     });
     await tx.commit();
+    dashboardPublicationNotifier?.();
     return true;
   } catch (error) { await tx.rollback(); throw error; }
 }

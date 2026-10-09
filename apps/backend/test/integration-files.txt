@@ -75,6 +75,7 @@ apps/backend/test/lap-analysis/lap-consistency.test.ts
 apps/backend/test/lap-analysis/lap-export-zip.test.ts
 apps/backend/test/lap-analysis/persist-lap-metrics.test.ts
 apps/backend/test/lap-analysis/recap/dashboard-read.test.ts
+apps/backend/test/routes/dashboard-routes.test.ts
 apps/backend/test/live-strategy/pit-cycle.test.ts
 apps/backend/test/live-strategy/pit-tracker.test.ts
 apps/backend/test/live-strategy/sector-tracker.test.ts

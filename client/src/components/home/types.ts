@@ -1,5 +1,6 @@
 import type { GameId } from "@raceiq/shared/games/ids";
-import type { LapMeta, SessionMeta, SessionRecap as SessionRecapDto } from "@raceiq/shared/racing/sessions/types";
+import type { DashboardRecentSession, DashboardResponse } from "@raceiq/shared/racing/sessions/dashboard";
+import type { SessionRecap as SessionRecapDto } from "@raceiq/shared/racing/sessions/types";
 import type { TrackOutlineData, TrackSectorBounds } from "@/components/SessionRecap";
 
 export type PeriodKey = "today" | "week" | "month" | "year";
@@ -15,8 +16,6 @@ export type PeriodStats = Record<
     tracks: number;
     cars: number;
     sessions: number;
-    favCarOrd: number | null;
-    favCarCount: number;
   }
 >;
 
@@ -25,22 +24,21 @@ export type GameStats = Record<"fm" | "f1" | "acc" | "acEvo" | "iracing" | "lmu"
 export interface HomePageViewProps {
   gameId: GameId | null;
   gameDisplayName: string | null;
-  allLaps: LapMeta[];
+  response: DashboardResponse | undefined;
   periodStart: number;
-  sessions: SessionMeta[];
-  recentSessions: SessionMeta[];
+  sessions: DashboardRecentSession[];
   carNames: Record<string, string>;
   trackNames: Record<string, string>;
   gameStats: GameStats;
   hiddenGames: string[];
-  latestSession: SessionMeta | null;
+  latestSession: DashboardRecentSession | null;
   latestRecap: SessionRecapDto | null | undefined;
   latestRecapLoading: boolean;
   latestRecapError: boolean;
   latestRecapOutline?: TrackOutlineData;
   latestRecapBounds?: TrackSectorBounds;
   latestRecapCarImageUrl?: string;
-  onAnalyseSession: (session: SessionMeta) => void;
+  onAnalyseSession: (session: DashboardRecentSession) => void;
   lapsLoading?: boolean;
   lapsError?: boolean;
   sessionsLoading?: boolean;

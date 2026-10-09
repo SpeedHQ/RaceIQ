@@ -3,11 +3,14 @@
 ### Features
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 - Return to the all-games dashboard by clicking the selected game card.
+- Show clean-rate and podium trends as bounded daily aggregates.
 
 ### Fixes
 - Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
 - Open the favourite track’s game-specific detail page from the all-games dashboard, including Le Mans Ultimate tracks without stored ordinals.
 - Reduce loading interruptions when switching between game dashboards while keeping each game’s statistics separate.
+- Calculate exact mine-only dashboard totals and recaps across the full selected period, independent of lap-list limits, and refresh them after session changes.
+- Keep available dashboard data visible while clearly distinguishing pending or unavailable coverage from request failures.
 
 ### Internal
 - Document new-game integration, lossless sparse recording, lap correctness checks, and gzip fixture splitting without Git LFS; align capture and architecture guides with current implementation.
@@ -20,8 +23,8 @@
 - Correct Linux benchmark CPU/RSS sampling and run iRacing parser/import benchmarks independently of production release flags.
 - Skip build, test, browser, snapshot, and benchmark PR jobs for automated release version bump branches.
 - Declare the frontend contract tests' backend-core dependency so clean CI installs resolve setup-import test modules.
-- Add revision-checked SQLite dashboard summaries and indexed UTC projections; expose a bounded, snapshot-consistent backend read module with explicit pending coverage. Dashboard route cutover remains pending.
-- Add the version-5 SQLite dashboard processor with durable capture readiness, revision-checked publication, resumable backfill, retry state, and ingest-pass capture facts; keep recap separate from generic analysis and leave route/UI cutover pending.
+- Add revision-checked SQLite dashboard summaries and indexed UTC projections; expose a bounded, snapshot-consistent dashboard API with explicit pending coverage.
+- Add the version-5 SQLite dashboard processor with durable capture readiness, revision-checked publication, resumable backfill, retry state, and ingest-pass capture facts; keep dashboard recap separate from generic analysis.
 
 ## v0.19.2 - 2026-10-04
 

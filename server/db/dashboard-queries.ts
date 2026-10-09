@@ -14,6 +14,7 @@ const instant = (value: string): number => Date.parse(value);
 
 export interface DashboardReadCoverage {
   status: "complete" | "pending" | "unavailable";
+  metadataComplete: boolean;
   mineSessions: number;
   readySessions: number;
   pendingSessions: number;
@@ -28,7 +29,6 @@ function scope(gameId: GameId | undefined, alias = "") {
   return { predicate: gameId ? ` AND ${prefix}game_id=?` : "", args: gameId ? [gameId] : [] };
 }
 
-type DashboardReader = { execute: (statement: { sql: string; args?: (string | number | null)[] }) => Promise<{ rows: Row[] }> };
 
 function emptyDashboard(request: DashboardRequest, coverage: DashboardReadCoverage): DashboardResponse {
   const cards = Object.fromEntries(KNOWN_GAME_IDS.map((gameId) => [gameId, { laps: 0, drivenSeconds: 0 }])) as Record<GameId, DashboardCardTotal>;
@@ -145,10 +145,12 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     const dirtyIds = dirtyResult.rows.map((row) => n(row.session_id));
     const pending = dirtyIds.length > 0 || readySessions < mineSessions;
     const response = emptyDashboard(request, {
-      status: pending ? "pending" : "complete", mineSessions, readySessions, pendingSessions: mineSessions - readySessions,
+      status: pending ? "pending" : "complete", metadataComplete: true,
+      mineSessions, readySessions, pendingSessions: mineSessions - readySessions,
     });
     response.revision = n(coverageRow?.revision);
     if (dirtyIds.length > MAX_FALLBACK_SESSIONS) {
+      response.coverage.metadataComplete = false;
       await tx.commit();
       return response;
     }
@@ -387,6 +389,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
         UNION
         SELECT 'track',p.game_id,p.track_key,p.session_id FROM dashboard_session_summaries p
         JOIN dashboard_session_index si ON si.session_id=p.session_id JOIN dashboard_summary_state st ON st.session_id=p.session_id
+          AND si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<? AND p.track_key!=''
           AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
           AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
           AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision
@@ -412,6 +415,8 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
         firstFullDay, endFullDay, firstFullDay, endFullDay,
         bounds.from, bounds.to, ...dirtyBindings, firstFullDayMs, endFullDayMs,
         bounds.from, bounds.to, ...dirtyBindings, firstFullDayMs, endFullDayMs,
+        bounds.from, bounds.to,
+        bounds.from, bounds.to,
         bounds.from, bounds.to,
         bounds.from, bounds.to,
         bounds.from, bounds.to, ...dirtyBindings, bounds.from, bounds.to, ...dirtyBindings,
@@ -576,7 +581,10 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
           SUM(CASE WHEN duration_status='available' AND elapsed_seconds>=0 THEN elapsed_seconds ELSE 0 END) duration_seconds,
           SUM(CASE WHEN duration_status='available' AND elapsed_seconds>=0 THEN 1 ELSE 0 END) with_duration,
           COUNT(*) sessions_in_scope,
-          SUM(CASE WHEN podium_status='confirmed' AND podium_position>0 THEN 1 ELSE 0 END) podium_evidence,
+          EXISTS (SELECT 1 FROM session_results r JOIN dashboard_session_index result_si ON result_si.session_id=r.session_id
+            WHERE result_si.ownership='mine' AND result_si.created_at_ms>=? AND result_si.created_at_ms<?
+              AND lower(trim(result_si.session_type)) LIKE 'race%' AND r.outcome_status='confirmed' AND r.classification='finished'
+              AND r.finishing_position>0 AND r.finishing_position=CAST(r.finishing_position AS INTEGER)${request.gameId ? " AND result_si.game_id=?" : ""}) podium_evidence,
           SUM(CASE WHEN podium_status='confirmed' AND podium_position=1 THEN 1 ELSE 0 END) firsts,
           SUM(CASE WHEN podium_status='confirmed' AND podium_position=2 THEN 1 ELSE 0 END) seconds,
           SUM(CASE WHEN podium_status='confirmed' AND podium_position=3 THEN 1 ELSE 0 END) thirds
@@ -586,7 +594,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
           AND st.metadata_dirty=0 AND st.capture_dirty=0 AND st.deleted=0
           AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
           AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision${request.gameId ? " AND si.game_id=?" : ""}`,
-      args: [bounds.from, bounds.to, ...(request.gameId ? [request.gameId] : [])],
+      args: [bounds.from, bounds.to, ...(request.gameId ? [request.gameId] : []), bounds.from, bounds.to, ...(request.gameId ? [request.gameId] : [])],
     });
     const stats = sessionStats.rows[0] as Row | undefined;
     const durationSeconds = n(stats?.duration_seconds);

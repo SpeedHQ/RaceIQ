@@ -2,11 +2,11 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { getLMUCar, resolveLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { useSettings } from "@/hooks/settings";
-import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
+import type { DashboardResponse } from "@raceiq/shared/racing/sessions/dashboard";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Info, Trophy } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { client } from "@/lib/rpc";
 import { rpcJson } from "@/lib/rpc-json";
 import { useTrackOutline } from "@/hooks/track-queries";
@@ -15,18 +15,18 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { m } from "@/paraglide/messages";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyStateOverlay } from "@/components/ui/empty-state-overlay";
-import { buildDashboardInsights, CONSISTENCY_DEVIATION_BOUNDS, type DashboardInsights, type SessionTypeKind, type TrackLengthLookup } from "./dashboard-insights";
+import { dashboardInsights, CONSISTENCY_DEVIATION_BOUNDS, type DashboardInsights as DashboardInsightsData, type SessionTypeKind } from "./dashboard-insights";
 import { resolveTrackDisplayName } from "@/lib/track-display-name";
 import type { FavouriteInsight } from "./dashboard-insights";
 import { formatDrivenTime } from "./Stats";
 import type { PeriodStats } from "./types";
 import { trackRoutePath } from "@/lib/track-routes";
 
+
 type PeriodSummary = Pick<PeriodStats["year"], "laps" | "tracks" | "cars" | "sessions" | "totalTime">;
 
 export interface DashboardInsightsProps {
-  laps: LapMeta[];
-  sessions: SessionMeta[];
+  response: DashboardResponse | undefined;
   gameId: GameId | null;
   periodStart: number;
   trackNames?: Record<string, string>;
@@ -195,7 +195,7 @@ function SummaryMetric({ label, value, accent = false, loading = false }: { labe
 
 
 
-function TrackDistribution({ insights, trackNames, periodSummary, loading, error }: { insights: DashboardInsights; trackNames: Record<string, string>; periodSummary?: PeriodSummary; loading: boolean; error: boolean }) {
+function TrackDistribution({ insights, trackNames, periodSummary, loading, error }: { insights: DashboardInsightsData; trackNames: Record<string, string>; periodSummary?: PeriodSummary; loading: boolean; error: boolean }) {
   const { totalSeconds, tracks, othersShare, othersCount } = insights.trackDistribution;
   const unavailable = loading || error || totalSeconds <= 0;
   const slices = [
@@ -256,35 +256,14 @@ function TrackDistribution({ insights, trackNames, periodSummary, loading, error
 }
 
 function PercentageTrendChart({ trend, label, periodStart, periodEnd, status = null }: {
-  trend: readonly { timestamp: number; rate: number; total: number }[];
+  trend: readonly { timestamp: number; rate: number; total: number; valid: number }[];
   label: string;
   periodStart: number;
   periodEnd: number;
   status?: { text: string; error: boolean } | null;
 }) {
   const span = periodEnd - periodStart;
-  const monthly = span > 90 * 24 * 60 * 60 * 1000;
-  const buckets = new Map<string, { timestamp: number; valid: number; total: number }>();
-  let previousValid = 0;
-  let previousTotal = 0;
-  for (const point of trend) {
-    const valid = Math.round(point.rate * point.total);
-    const bucketDate = new Date(point.timestamp);
-    const key = monthly
-      ? `${bucketDate.getUTCFullYear()}-${bucketDate.getUTCMonth()}`
-      : `${bucketDate.getUTCFullYear()}-${bucketDate.getUTCMonth()}-${bucketDate.getUTCDate()}`;
-    const bucket = buckets.get(key) ?? { timestamp: point.timestamp, valid: 0, total: 0 };
-    bucket.timestamp = point.timestamp;
-    bucket.valid += valid - previousValid;
-    bucket.total += point.total - previousTotal;
-    buckets.set(key, bucket);
-    previousValid = valid;
-    previousTotal = point.total;
-  }
-  const plottedTrend = [...buckets.values()].map((bucket) => ({
-    ...bucket,
-    rate: bucket.total > 0 ? bucket.valid / bucket.total : 0,
-  }));
+  const plottedTrend = trend;
   const x = (time: number) => span <= 0 ? 160 : 8 + (time - periodStart) / span * 304;
   const y = (rate: number) => 88 - rate * 76;
   const sameDay = new Date(periodStart).toDateString() === new Date(periodEnd).toDateString();
@@ -313,60 +292,33 @@ function PercentageTrendChart({ trend, label, periodStart, periodEnd, status = n
 }
 
 const PODIUM_COLORS = ["var(--app-podium-gold)", "var(--app-podium-silver)", "var(--app-podium-bronze)"] as const;
-const PODIUM_STACK_ORDER = [2, 1, 0] as const;
 
-function PodiumTrendChart({ trend, periodStart, periodEnd }: { trend: DashboardInsights["podiums"]["trend"]; periodStart: number; periodEnd: number }) {
+function PodiumTrendChart({ trend, periodStart, periodEnd }: { trend: DashboardInsightsData["podiums"]["trend"]; periodStart: number; periodEnd: number }) {
   const first = trend[0];
   const last = trend[trend.length - 1];
   const width = Math.max(320, trend.length * 8 + 16);
   const step = (width - 16) / Math.max(trend.length, 1);
-  const maxCount = Math.max(2, Math.ceil((last?.podiums ?? 0) / 2) * 2);
-  const dates = new Intl.DateTimeFormat(getLocale(), {
-    month: "short", day: "numeric",
-    year: new Date(first?.timestamp ?? periodStart).getFullYear() !== new Date(last?.timestamp ?? periodEnd).getFullYear() ? "numeric" : undefined,
-  });
+  const maxCount = Math.max(2, Math.ceil(Math.max(0, ...trend.map((point) => point.podiums)) / 2) * 2);
+  const dates = new Intl.DateTimeFormat(getLocale(), { month: "short", day: "numeric", year: new Date(first?.timestamp ?? periodStart).getFullYear() !== new Date(last?.timestamp ?? periodEnd).getFullYear() ? "numeric" : undefined });
   const times = new Intl.DateTimeFormat(getLocale(), { dateStyle: "medium", timeStyle: "short" });
-  const labels = [m.home_insights_podiums_first(), m.home_insights_podiums_second(), m.home_insights_podiums_third()];
-  return (
-    <div className="h-full overflow-x-auto">
-      <svg viewBox={`0 0 ${width} 112`} preserveAspectRatio="none" className="block h-full w-full" style={{ minWidth: width > 320 ? width : undefined }} role="group" aria-label={m.home_insights_podiums_description()}>
-        <title>{m.home_insights_podiums_description()}</title>
-        {trend.length === 0 && (
-          <g aria-hidden="true">
-            {Array.from({ length: 12 }, (_, index) => (
-              <rect key={index} x={8 + (index + 0.5) * (width - 16) / 12 - 8} y="12" width="16" height="76" fill="var(--app-progress-track)" />
-            ))}
-            <line x1="8" x2={width - 8} y1="88" y2="88" stroke="var(--app-border)" />
-          </g>
-        )}
-        {trend.map((point, index) => {
-          const counts = [point.first, point.second, point.third] as const;
-          const label = `${times.format(point.timestamp)} · ${m.home_insights_podiums_total({ total: point.podiums })} · ${counts.map((count, place) => `${labels[place]}: ${count}`).join(" · ")}`;
-          const barWidth = Math.min(step * 0.8, 16);
-          const x = 8 + index * step + (step - barWidth) / 2;
-          let bottom = 88;
-          return (
-            <g key={point.sessionId} role="img" aria-label={label} tabIndex={0} className="focus-visible:outline-2 focus-visible:outline-app-accent">
-              <title>{label}</title>
-              <rect x={x} y="12" width={barWidth} height="76" fill="var(--app-progress-track)" />
-              {PODIUM_STACK_ORDER.map((place) => {
-                const count = counts[place];
-                const height = count / maxCount * 76;
-                bottom -= height;
-                return count > 0 ? <rect key={place} x={x} y={bottom} width={barWidth} height={height} fill={PODIUM_COLORS[place]} /> : null;
-              })}
-            </g>
-          );
-        })}
-        <text x="8" y="106" fill="var(--app-text-muted)" className="font-mono text-app-caption">{dates.format(first?.timestamp ?? periodStart)}</text>
-        {(trend.length === 0 || trend.length > 1) && <text x={width - 8} y="106" textAnchor="end" fill="var(--app-text-muted)" className="font-mono text-app-caption">{dates.format(last?.timestamp ?? periodEnd)}</text>}
-      </svg>
-    </div>
-  );
+  return <div className="h-full overflow-x-auto">
+    <svg viewBox={`0 0 ${width} 112`} preserveAspectRatio="none" className="block h-full w-full" style={{ minWidth: width > 320 ? width : undefined }} role="group" aria-label={m.home_insights_podiums_description()}>
+      <title>{m.home_insights_podiums_description()}</title>
+      {trend.map((point, index) => {
+        const barWidth = Math.min(step * 0.8, 16);
+        const x = 8 + index * step + (step - barWidth) / 2;
+        const height = point.podiums / maxCount * 76;
+        const label = `${times.format(point.timestamp)} · ${m.home_insights_podiums_total({ total: point.podiums })}`;
+        return <g key={point.timestamp} role="img" aria-label={label} tabIndex={0} className="focus-visible:outline-2 focus-visible:outline-app-accent"><title>{label}</title><rect x={x} y="12" width={barWidth} height="76" fill="var(--app-progress-track)" /><rect x={x} y={88 - height} width={barWidth} height={height} fill="var(--app-accent)" /></g>;
+      })}
+      <text x="8" y="106" fill="var(--app-text-muted)" className="font-mono text-app-caption">{dates.format(first?.timestamp ?? periodStart)}</text>
+      {(trend.length === 0 || trend.length > 1) && <text x={width - 8} y="106" textAnchor="end" fill="var(--app-text-muted)" className="font-mono text-app-caption">{dates.format(last?.timestamp ?? periodEnd)}</text>}
+    </svg>
+  </div>;
 }
 
 function ConsistencyChart({ insights, loading, error }: {
-  insights: DashboardInsights;
+  insights: DashboardInsightsData;
   loading: boolean;
   error: boolean;
 }) {
@@ -420,7 +372,7 @@ function ConsistencyChart({ insights, loading, error }: {
   );
 }
 function SessionStats({ insights, loading, error, periodSummary }: {
-  insights: DashboardInsights;
+  insights: DashboardInsightsData;
   loading: boolean;
   error: boolean;
   periodSummary?: PeriodSummary;
@@ -488,46 +440,18 @@ function SessionStats({ insights, loading, error, periodSummary }: {
   );
 }
 
-export function DashboardInsights({ laps, sessions, gameId, periodStart, trackNames = {}, carNames = {}, latestSession, periodSummary, lapsLoading = false, lapsError = false, sessionsLoading = false, sessionsError = false }: DashboardInsightsProps) {
-  const periodEnd = Date.now();
+export function DashboardInsights({ response, gameId, periodStart, trackNames = {}, carNames = {}, latestSession, periodSummary, lapsLoading = false, lapsError = false, sessionsLoading = false, sessionsError = false }: DashboardInsightsProps) {
   const { displaySettings } = useSettings();
   const imperial = displaySettings.unit === "imperial";
-  const catalogGameIds = useMemo(() => {
-    const games = new Set<GameId>();
-    for (const lap of laps) if (lap.ownership !== "others" && lap.gameId && (gameId === null || lap.gameId === gameId)) games.add(lap.gameId);
-    for (const session of sessions) if (session.ownership !== "others" && session.gameId && (gameId === null || session.gameId === gameId)) games.add(session.gameId);
-    return [...games].sort();
-  }, [laps, sessions, gameId]);
-  const trackQueries = useQueries({
-    queries: catalogGameIds.map((catalogGameId) => ({
-      queryKey: ["tracks", catalogGameId],
-      queryFn: async () => rpcJson<{ id?: string | null; ordinal: number | null; lengthKm?: number | null }[]>(
-        await client.api.tracks.$get({ query: { gameId: catalogGameId } }),
-      ),
-      staleTime: Number.POSITIVE_INFINITY,
-    })),
-  });
-  const trackLengths = useMemo(() => {
-    const lengths: Record<string, number> = {};
-    catalogGameIds.forEach((catalogGameId, index) => {
-      for (const track of trackQueries[index]?.data ?? []) {
-        if (!Number.isFinite(track.lengthKm) || track.lengthKm! <= 0) continue;
-        const key = track.ordinal !== null ? `${catalogGameId}:${track.ordinal}`
-          : track.id ? `${catalogGameId}:${track.id}` : null;
-        if (key) lengths[key] = track.lengthKm!;
-      }
-    });
-    return lengths as TrackLengthLookup;
-  }, [catalogGameIds, trackQueries]);
-  const insights = useMemo(() => buildDashboardInsights(laps, sessions, gameId, new Date(), trackLengths), [laps, sessions, gameId, trackLengths]);
-  const podiumsKnown = insights.podiums.available || insights.clean.total > 0;
+  if (!response) return <div className="min-h-40 rounded-lg border border-app-border p-4 text-app-detail text-app-text-muted" role={lapsError ? "alert" : "status"} aria-busy={!lapsError}>{lapsError ? m.home_insights_analytics_error() : m.home_insights_analytics_loading()}</div>;
+  const periodEnd = Date.parse(response.request.to);
+  const insights = dashboardInsights(response);
+  const podiumsKnown = insights.podiums.available;
   const placements = [
     { label: m.home_insights_podiums_first(), count: insights.podiums.first },
     { label: m.home_insights_podiums_second(), count: insights.podiums.second },
     { label: m.home_insights_podiums_third(), count: insights.podiums.third },
   ];
-  const maxOtherPositionCount = Math.max(0, ...insights.podiums.otherPositions.map(({ count }) => count));
-  const totalRaces = insights.podiums.total + insights.podiums.otherPositions.reduce((total, { count }) => total + count, 0);
   const favouritesRow = (
     <div className="grid min-w-0 grid-cols-1 items-stretch gap-3 @3xl/workspace:grid-cols-2">
       {latestSession}
@@ -540,8 +464,19 @@ export function DashboardInsights({ laps, sessions, gameId, periodStart, trackNa
 
   return (
     <div className="@container/insights min-w-0 space-y-4">
+      {response.coverage.status !== "complete" && (
+        <p role="status" className="rounded-lg border border-app-border bg-app-surface px-3 py-2 text-app-detail text-app-text-muted">
+          {response.coverage.status === "pending"
+            ? m.home_dashboard_coverage_pending({
+                ready: response.coverage.readySessions,
+                mine: response.coverage.mineSessions,
+                pending: response.coverage.pendingSessions,
+              })
+            : m.home_dashboard_coverage_unavailable()}
+        </p>
+      )}
       {favouritesRow}
-    <div className="grid grid-cols-1 items-stretch gap-3 @min-[560px]/insights:grid-cols-2 @min-[800px]/insights:grid-cols-3">
+      <div className="grid grid-cols-1 items-stretch gap-3 @min-[560px]/insights:grid-cols-2 @min-[800px]/insights:grid-cols-3">
         <section aria-busy={lapsLoading} aria-labelledby="insights-clean-title" className={SPARKLINE_PANEL_CLASS}>
           <div className="flex min-h-6 shrink-0 flex-wrap items-start justify-between gap-x-3 gap-y-1">
             <div className="flex items-center gap-1">
@@ -554,7 +489,7 @@ export function DashboardInsights({ laps, sessions, gameId, periodStart, trackNa
               {periodSummary && <dl><SummaryMetric label={m.label_laps()} value={lapsLoading || lapsError || insights.clean.total === 0 ? "—" : periodSummary.laps} loading={lapsLoading && !lapsError} /></dl>}
             </div>
           </div>
-          <PercentageTrendChart trend={lapsLoading || lapsError ? [] : insights.clean.trend} label={m.home_insights_clean_rate()} periodStart={periodStart} periodEnd={periodEnd} status={lapsLoading || lapsError ? { text: lapsError ? m.home_insights_analytics_error() : m.home_insights_analytics_loading(), error: lapsError } : null} />
+          <PercentageTrendChart trend={lapsLoading || lapsError || insights.clean.rate == null ? [] : insights.clean.trend} label={m.home_insights_clean_rate()} periodStart={periodStart} periodEnd={periodEnd} status={lapsLoading || lapsError ? { text: lapsError ? m.home_insights_analytics_error() : m.home_insights_analytics_loading(), error: lapsError } : null} />
         </section>
       <div className="flex min-w-0 @min-[560px]/insights:col-span-2 @min-[560px]/insights:row-start-2 @min-[800px]/insights:col-span-1 @min-[800px]/insights:col-start-2 @min-[800px]/insights:row-start-1">
         <ConsistencyChart insights={insights} loading={lapsLoading} error={lapsError} />
@@ -564,7 +499,7 @@ export function DashboardInsights({ laps, sessions, gameId, periodStart, trackNa
         <div className="flex min-h-6 shrink-0 flex-wrap items-start gap-x-3 gap-y-1">
           <div className="flex items-center gap-1">
             <h2 id="insights-podiums-title" className="text-app-heading font-semibold text-app-text">{m.home_insights_podiums_title()}</h2>
-            <InsightInfo label={m.home_insights_podiums_title()} content={!podiumsKnown ? m.home_insights_podiums_unavailable() : insights.podiums.otherPositions.length === 0 ? `${m.home_insights_podiums_description()} ${m.home_insights_other_positions_empty()}` : m.home_insights_podiums_description()} />
+            <InsightInfo label={m.home_insights_podiums_title()} content={!podiumsKnown ? m.home_insights_podiums_unavailable() : m.home_insights_podiums_description()} />
           </div>
           <ul className="flex items-center gap-3" aria-label={m.home_insights_podiums_description()}>
             {placements.map(({ label, count }, index) => (
@@ -575,10 +510,10 @@ export function DashboardInsights({ laps, sessions, gameId, periodStart, trackNa
               </li>
             ))}
           </ul>
-          <span className="ml-auto text-app-detail tabular-nums text-app-text-muted"><Skeleton loading={sessionsLoading && !sessionsError}>{m.home_insights_podiums_races({ total: !sessionsLoading && !sessionsError && podiumsKnown ? totalRaces : "—" })}</Skeleton></span>
+          <span className="ml-auto text-app-detail tabular-nums text-app-text-muted"><Skeleton loading={sessionsLoading && !sessionsError}>{m.home_insights_podiums_total({ total: !sessionsLoading && !sessionsError && podiumsKnown ? insights.podiums.total : "—" })}</Skeleton></span>
         </div>
         <div className="mt-1 flex min-h-0 flex-1 flex-col">
-          {sessionsLoading || sessionsError ? (
+          {sessionsLoading || sessionsError || !podiumsKnown ? (
             <Skeleton loading={sessionsLoading && !sessionsError} shape="chart" className="flex min-h-0 flex-1 items-center justify-center">
               <p className={`flex h-full items-center justify-center px-3 text-center text-app-detail ${sessionsError ? "text-status-danger" : "text-app-text-muted"}`} role={sessionsError ? "alert" : sessionsLoading ? "status" : undefined}>
                 {sessionsError ? m.home_insights_podiums_error() : sessionsLoading ? m.home_insights_podiums_loading() : m.home_insights_podiums_unavailable()}
@@ -589,19 +524,6 @@ export function DashboardInsights({ laps, sessions, gameId, periodStart, trackNa
               <div className="min-h-0 flex-1">
                 <PodiumTrendChart trend={insights.podiums.trend} periodStart={periodStart} periodEnd={periodEnd} />
               </div>
-              {insights.podiums.otherPositions.length > 0 && (
-                <figure className="mt-1 max-h-10 shrink-0 overflow-y-auto overscroll-contain" aria-label={m.home_insights_other_positions_label()}>
-                  <ul className="space-y-1" aria-label={m.home_insights_other_positions_label()}>
-                    {insights.podiums.otherPositions.map(({ position, count }) => (
-                      <li key={position} className="grid grid-cols-[2.5rem_1fr_1.5rem] items-center gap-2 text-app-detail">
-                        <span className="font-mono tabular-nums text-app-text-secondary">P{position}</span>
-                        <span className="h-1 overflow-hidden rounded-full bg-app-progress-track" aria-hidden="true"><span className="block h-full bg-app-accent" style={{ width: `${(count / maxOtherPositionCount) * 100}%` }} /></span>
-                        <span className="text-right font-mono tabular-nums text-app-text">{count}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </figure>
-              )}
             </>
           )}
         </div>

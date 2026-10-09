@@ -64,7 +64,8 @@ The backend starts `startDashboardProcessor()` during runtime boot and awaits it
 
 Live recording and import pipelines publish observed facts from their existing packet-processing pass. A completed-capture checkpoint makes those facts eligible for publication; file lifecycle changes explicitly invalidate or safely preserve them. Capture fingerprints describe parsed record content, independent of file size or modification time, so lossless compression does not change content identity.
 
-`getDashboardSessionRecap()` is a capture-free query over persisted session facts and historical lap/session evidence. It is a separate recap function, not a route; the dashboard route cutover remains pending. Generic analysis recap behavior is unchanged.
+`GET /api/dashboard` validates a half-open `from`/`to` UTC instant interval (maximum 366 days) and IANA `timeZone`; optional `X-Game-Id` selects metrics while `cards` remain all-game totals. Dashboard reads include only exact `ownership='mine'`, return at most ten recent allow-listed sessions, and never include raw capture paths or provenance. `GET /api/dashboard/sessions/:id/recap` requires `X-Game-Id`, returns only an exact-mine session for that game, and uses persisted facts without capture access. Generic `/api/sessions/:id/recap` remains unchanged.
+Successful dashboard summary publication broadcasts `{ type: "dashboard_updated" }` to invalidate period and recap queries; rapid publications are coalesced. `getDashboardSessionRecap()` is the capture-free query behind the dedicated route.
 
 ## Boundaries
 

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useDeleteLap, useLaps } from "@/hooks/laps";
 import { queryKeys } from "@/hooks/query-keys";
 import { useSessions } from "@/hooks/session-queries";
+import { invalidateDashboardQueries } from "@/hooks/dashboard";
 import { useResolveNames } from "@/hooks/catalog-queries";
 import { client } from "@/lib/rpc";
 import { exportLapsZip } from "@/lib/lap-export";
@@ -177,6 +178,7 @@ export function SessionsPage() {
       setSelectedSessions(new Set());
       setConfirmDelete(false);
       await Promise.all([queryClient.invalidateQueries({ queryKey: queryKeys.sessions }), queryClient.invalidateQueries({ queryKey: queryKeys.laps }), queryClient.invalidateQueries({ queryKey: queryKeys.userTunes })]);
+      invalidateDashboardQueries();
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -202,6 +204,7 @@ export function SessionsPage() {
         queryClient.invalidateQueries({ queryKey: queryKeys.cacheStatus }),
         queryClient.invalidateQueries({ queryKey: queryKeys.userTunes }),
       ]);
+      invalidateDashboardQueries();
     },
     [allLaps, queryClient],
   );
@@ -227,6 +230,7 @@ export function SessionsPage() {
             void queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
             void queryClient.invalidateQueries({ queryKey: queryKeys.laps });
             void queryClient.invalidateQueries({ queryKey: queryKeys.userTunes });
+            invalidateDashboardQueries();
           }}
         />
       )}

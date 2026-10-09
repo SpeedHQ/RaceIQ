@@ -12,6 +12,7 @@ import { errorFromResponse } from "../lib/rpc-error";
 import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
 import { queryKeys } from "./query-keys";
+import { invalidateDashboardQueries } from "./dashboard";
 
 export function useLaps(options?: { refetchInterval?: number | false; allGames?: boolean }) {
   const gameId = useGameId();
@@ -213,6 +214,7 @@ export function useDeleteLap() {
       qc.invalidateQueries({ queryKey: queryKeys.laps });
       qc.invalidateQueries({ queryKey: queryKeys.sessions });
       qc.invalidateQueries({ queryKey: queryKeys.userTunes });
+      invalidateDashboardQueries();
     },
   });
 }
@@ -228,6 +230,7 @@ export function useBulkDeleteLaps() {
       qc.invalidateQueries({ queryKey: queryKeys.sessions });
       qc.invalidateQueries({ queryKey: queryKeys.tracks });
       qc.invalidateQueries({ queryKey: queryKeys.userTunes });
+      invalidateDashboardQueries();
     },
   });
 }

@@ -22,6 +22,8 @@ export interface DashboardMetricTotals {
 }
 export interface DashboardCoverage {
   status: "complete" | "pending" | "unavailable";
+  /** False only when exact metadata aggregates could not be computed. */
+  metadataComplete: boolean;
   mineSessions: number;
   readySessions: number;
   pendingSessions: number;
@@ -127,6 +129,7 @@ export interface DashboardRecapHistory {
   bestLapSeconds: number | null;
   bestSectorSeconds: Array<number | null> | null;
 }
+export interface DashboardUpdatedMessage { type: "dashboard_updated" }
 
 const DAY_MS = 86_400_000;
 const CONSISTENCY_BOUNDS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9] as const;
@@ -400,7 +403,7 @@ export function reduceDashboard(
   input: DashboardReductionInput = {},
 ): DashboardResponse {
   if (!validateDashboardRequest(request)) throw new RangeError("Invalid dashboard request");
-  const coverage = input.coverage ?? { status: "complete", mineSessions: 0, readySessions: 0, pendingSessions: 0 };
+  const coverage = input.coverage ?? { status: "complete", metadataComplete: true, mineSessions: 0, readySessions: 0, pendingSessions: 0 };
   const cardFacts: Record<GameId, { laps: number; drivenSeconds: number }> = Object.fromEntries(KNOWN_GAME_IDS.map((id) => [id, { laps: 0, drivenSeconds: 0 }])) as Record<GameId, { laps: number; drivenSeconds: number }>;
   const totals = emptyTotals();
   const buckets = calendarBounds(request).map((bucket) => ({ ...bucket, validLaps: 0, positiveLaps: 0, drivenSeconds: 0, podiums: 0 }));

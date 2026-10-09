@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { GameIdSchema, type GameId } from "@raceiq/shared/games/ids";
 import {
   dashboardCarIdentity,
@@ -13,14 +13,16 @@ import {
   selectDashboardRecentSessions,
   validateDashboardRequest,
   type DashboardRequest,
+  type DashboardResponse,
   type DashboardSessionType,
 } from "@raceiq/shared/racing/sessions/dashboard";
 import { dashboardSummaryState, dashboardSessionSummaries, laps, sessions } from "@raceiq/backend-core/db/schema";
-import { db } from "@raceiq/backend-core/db/index";
 import { deleteSession } from "@raceiq/backend-core/db/session-queries";
 import type { LapMeta, SessionMeta, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import { DASHBOARD_PROCESSOR_VERSION, prepareDashboardPublicationCandidate, publishDashboardSession } from "@raceiq/backend-core/db/dashboard-summary-queries";
 import { getDashboard } from "@raceiq/backend-core/db/dashboard-queries";
+import { client, db } from "@raceiq/backend-core/db/index";
+import { dashboardRoutes } from "../../src/routes/dashboard-routes";
 
 const ownedSessionIds: number[] = [];
 const request: DashboardRequest = {
@@ -239,10 +241,10 @@ test("published period bests and session counts are game-scoped and dirty minima
   const accWinner = await addSession("acc" as GameId, "2026-01-01T01:00:00.000Z");
   const accOther = await addSession("acc" as GameId, "2026-01-01T02:00:00.000Z");
   const iracingWinner = await addSession("iracing" as GameId, "2026-01-01T03:00:00.000Z");
+  await addLap(iracingWinner, 1, 85, true, "2026-01-01T10:02:00.000Z");
   await addLap(accWinner, 1, 90, true, "2026-01-01T10:00:00.000Z");
   await addLap(accWinner, 2, 92, true, "2026-01-01T10:01:00.000Z");
   await addLap(accOther, 1, 94, true, "2026-01-01T11:00:00.000Z");
-  await addLap(iracingWinner, 1, 85, true, "2026-01-01T12:00:00.000Z");
   for (const sessionId of [accWinner, accOther, iracingWinner]) {
     const candidate = await prepareDashboardPublicationCandidate(sessionId);
     if (!candidate || !(await publishDashboardSession(candidate))) throw new Error(`Failed to publish dashboard facts for ${sessionId}`);
@@ -260,6 +262,96 @@ test("published period bests and session counts are game-scoped and dirty minima
   expect(dirtyAcc.totals).toMatchObject({ laps: 3, bestLapSeconds: 92, sessions: 2 });
 });
 
+test("published favorite track session count stays within requested period", async () => {
+  const inPeriod = await addSession("acc" as GameId, "2026-01-01T10:00:00.000Z");
+  const outOfPeriod = await addSession("acc" as GameId, "2026-01-02T10:00:00.000Z");
+  await addLap(inPeriod, 1, 90, true, "2026-01-01T10:01:00.000Z");
+  await addLap(outOfPeriod, 1, 90, true, "2026-01-02T10:01:00.000Z");
+  for (const sessionId of [inPeriod, outOfPeriod]) {
+    const candidate = await prepareDashboardPublicationCandidate(sessionId);
+    if (!candidate || !(await publishDashboardSession(candidate, {
+      sourceRevision: candidate.sourceRevision,
+      captureRevision: `test-${sessionId}`,
+      duration: { status: "unavailable", elapsedSeconds: null },
+      sectorLayout: null,
+      weather: { status: "unavailable", revision: null, conditions: null },
+      trackLengthMeters: null,
+      sourceSectorStarts: null,
+    }))) throw new Error(`Failed to publish dashboard facts for ${sessionId}`);
+  }
+
+  const response = await getDashboard({
+    from: "2026-01-01T00:00:00.000Z",
+    to: "2026-01-02T00:00:00.000Z",
+    timeZone: "UTC",
+    gameId: "acc" as GameId,
+  });
+  expect(response.favouriteTrack).toMatchObject({ nativeId: 8, laps: 1, sessions: 1 });
+});
+
+
+test("dashboard HTTP keeps all-game cards while bounding exact selected-game output", async () => {
+  const ids = [await addSession("iracing" as GameId, "2026-01-01T03:00:00.000Z")];
+  const accIds: number[] = [];
+  for (let index = 0; index < 11; index++) {
+    const id = await addSession("acc" as GameId, `2026-01-01T04:${String(index).padStart(2, "0")}:00.000Z`);
+    accIds.push(id);
+    ids.push(id);
+    await addLap(id, 1, 90 + index, true, `2026-01-01T12:${String(index).padStart(2, "0")}:00.000Z`);
+  }
+  await addLap(ids[0]!, 1, 85, true, "2026-01-01T12:20:00.000Z");
+  await db.update(sessions).set({ sessionType: "race" }).where(eq(sessions.id, accIds[0]!)).run();
+  await client.execute({ sql: "INSERT INTO session_results(session_id,session_type,outcome_status,classification,finishing_position) VALUES (?,'race','confirmed','finished',4)", args: [accIds[0]!] });
+  for (const sessionId of ids) {
+    const candidate = await prepareDashboardPublicationCandidate(sessionId);
+    if (!candidate || !(await publishDashboardSession(candidate))) throw new Error(`Failed to publish dashboard facts for ${sessionId}`);
+  }
+  const podiumSource = await client.execute({
+    sql: `SELECT s.ownership, s.session_type, r.session_type result_session_type, r.outcome_status,
+        r.classification, r.finishing_position, p.podium_status, p.podium_position
+      FROM sessions s JOIN session_results r ON r.session_id=s.id
+      JOIN dashboard_session_summaries p ON p.session_id=s.id WHERE s.id=?`,
+    args: [accIds[0]!],
+  });
+  expect(podiumSource.rows[0]).toMatchObject({
+    ownership: "mine", session_type: "race", result_session_type: "race",
+    outcome_status: "confirmed", classification: "finished", finishing_position: 4,
+    podium_status: "confirmed", podium_position: 4,
+  });
+  const from = "2026-01-01T00:00:00.000Z";
+  const to = "2026-01-02T00:00:00.000Z";
+  const sourceOracle = await db.select({
+    gameId: sessions.gameId,
+    laps: sql<number>`count(${laps.id})`,
+    sessions: sql<number>`count(distinct ${sessions.id})`,
+    bestLapSeconds: sql<number | null>`min(case when ${laps.isValid} = 1 and ${laps.lapTime} > 0 then ${laps.lapTime} end)`,
+  }).from(sessions).leftJoin(laps, and(
+    eq(laps.sessionId, sessions.id),
+    gte(laps.createdAt, from),
+    lt(laps.createdAt, to),
+  )).where(and(inArray(sessions.id, ids), eq(sessions.ownership, "mine"))).groupBy(sessions.gameId).all();
+  expect(sourceOracle).toContainEqual({ gameId: "acc", laps: 11, sessions: 11, bestLapSeconds: 90 });
+  expect(sourceOracle).toContainEqual({ gameId: "iracing", laps: 1, sessions: 1, bestLapSeconds: 85 });
+
+
+  const query = "from=2026-01-01T00%3A00%3A00Z&to=2026-01-02T00%3A00%3A00Z&timeZone=UTC";
+  const selected = await dashboardRoutes.request(`/api/dashboard?${query}`, { headers: { "X-Game-Id": "acc" } });
+  expect(selected.status).toBe(200);
+  const response = await selected.json() as DashboardResponse;
+  expect(response.totals).toMatchObject({ laps: 11, sessions: 11 });
+  expect(response.cards.acc.laps).toBe(11);
+  expect(response.cards.iracing.laps).toBe(1);
+  expect(response.recentSessions).toHaveLength(10);
+  expect(response.recentSessions.every((session) => session.gameId === "acc")).toBe(true);
+  expect(JSON.stringify(response)).not.toMatch(/rawFile|capturePath|provenance|setup/i);
+  expect(new TextEncoder().encode(JSON.stringify(response)).byteLength).toBeLessThan(128 * 1024);
+  expect(response.podiums).toMatchObject({ total: 0, available: true });
+
+  const allGames = await dashboardRoutes.request(`/api/dashboard?${query}`);
+  expect((await allGames.json() as DashboardResponse).totals).toMatchObject({ laps: 12, sessions: 12 });
+  const unavailable = await dashboardRoutes.request("/api/dashboard?from=2026-02-01T00%3A00%3A00Z&to=2026-02-02T00%3A00%3A00Z&timeZone=UTC", { headers: { "X-Game-Id": "acc" } });
+  expect((await unavailable.json() as DashboardResponse).podiums).toMatchObject({ total: 0, available: false });
+});
 test("dashboard preserves ordinal zero, groups UTC rollover by local day, and retains tiny deviations", async () => {
   const inserted = await db.insert(sessions).values({
     gameId: "acc", carId: null, carOrdinal: 0, trackId: null, trackOrdinal: 0,
@@ -320,6 +412,7 @@ test("getDashboard treats clean previous-version publications as stale and uses 
     readySessions: 0,
     pendingSessions: 1,
   });
+  expect(response.coverage.metadataComplete).toBe(true);
   expect(response.totals).toMatchObject({ laps: 1, bestLapSeconds: 90, sessions: 1 });
   expect(response.sessionTypes.sessionsWithDuration).toBe(0);
 });
@@ -347,6 +440,7 @@ test("getDashboard matches the independent reducer for bounded source fallback",
   const oracle = reduceDashboard(sourceLaps, sourceSessions, request);
   const actual = await getDashboard(request);
   expect(actual.coverage.status).toBe("pending");
+  expect(actual.coverage.metadataComplete).toBe(true);
   expect(actual.totals).toMatchObject({
     laps: oracle.totals.laps, positiveLaps: oracle.totals.positiveLaps, validLaps: oracle.totals.validLaps,
     drivenSeconds: oracle.totals.drivenSeconds, validSeconds: oracle.totals.validSeconds,
@@ -399,6 +493,7 @@ test("source oracle includes target-game laps beyond cap; dashboard reports over
   });
   const actual = await getDashboard({ ...request, from, to, gameId: "acc" as GameId });
   expect(actual.coverage.status).toBe("pending");
+  expect(actual.coverage.metadataComplete).toBe(false);
   expect(actual.coverage.pendingSessions).toBe(205);
   expect(actual.totals.laps).toBe(0);
 });

@@ -1,6 +1,7 @@
 import { CaptureMigration } from "./CaptureMigration";
 import { canStartReprocess, isReprocessPending, submitStaleSessionReprocess } from "@/lib/reprocess-state";
 import { client } from "@/lib/rpc";
+import { invalidateDashboardQueries } from "@/hooks/dashboard";
 import { m } from "@/paraglide/messages";
 import { telemetryStore, useTelemetryStore } from "@/stores/telemetry";
 import { RaceResultStatus } from "./RaceResultStatus";
@@ -22,6 +23,7 @@ export function LapDetectorStatus() {
     try {
       await submitStaleSessionReprocess(() => client.api.sessions["reprocess-stale"].$post());
       telemetryStore.actions.setStaleLapDetection(null);
+      invalidateDashboardQueries();
       telemetryStore.actions.completeReprocess();
     } catch {
       telemetryStore.actions.failReprocess(m.root_reprocessing_failed_description());

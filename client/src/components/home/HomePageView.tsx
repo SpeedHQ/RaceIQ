@@ -17,10 +17,9 @@ import { getGameRoute } from "@/stores/game";
 export function HomePageView({
   gameId,
   gameDisplayName,
-  allLaps,
+  response,
   periodStart,
   sessions,
-  recentSessions,
   carNames,
   trackNames,
   gameStats,
@@ -57,10 +56,10 @@ export function HomePageView({
           recap={latestRecap}
           gameId={latestRecap.gameId}
           compact
-          sessionType={latestSession.sessionType}
+          sessionType={latestSession.sessionType ?? undefined}
           showTrackMap={false}
-          finishPosition={latestSession.finishingPosition}
-          resultClassification={latestSession.resultClassification}
+          finishPosition={undefined}
+          resultClassification={undefined}
           outlineData={latestRecapOutline}
           bounds={latestRecapBounds}
           carImageUrl={latestRecapCarImageUrl}
@@ -71,11 +70,11 @@ export function HomePageView({
             <div className="relative min-w-0 max-w-[65%] @max-sm:max-w-full">
               <div className="flex items-center gap-3">
                 <div aria-hidden="true" className="h-12 w-16 shrink-0" />
-                <div className="min-w-0 break-words text-app-heading font-semibold leading-tight text-app-text"><Skeleton loading={latestSessionLoading}>{latestSession ? trackNames[`${latestSession.gameId}:${latestSession.trackOrdinal}`] ?? "—" : "—"}</Skeleton></div>
+                <div className="min-w-0 break-words text-app-heading font-semibold leading-tight text-app-text"><Skeleton loading={latestSessionLoading}>{latestSession?.track.name ?? "—"}</Skeleton></div>
               </div>
               <div className="mt-2 flex items-start gap-2 text-app-subtext text-app-text-secondary">
                 <span className="shrink-0 rounded border border-app-accent/30 bg-app-accent/10 px-2 py-0.5 text-app-label font-semibold uppercase text-app-accent"><Skeleton loading={latestSessionLoading}>{latestSession?.gameId ?? "—"}</Skeleton></span>
-                <span className="break-words"><Skeleton loading={latestSessionLoading}>{latestSession ? carNames[`${latestSession.gameId}:${latestSession.carOrdinal}`] ?? "—" : "—"}</Skeleton></span>
+                <span className="break-words"><Skeleton loading={latestSessionLoading}>{latestSession?.car.name ?? "—"}</Skeleton></span>
               </div>
               <div className="mt-2 text-app-label text-app-text-muted"><Skeleton loading={latestSessionLoading}>—</Skeleton> · <Skeleton loading={latestSessionLoading}>{latestSession?.sessionType ?? "—"}</Skeleton></div>
           </div>
@@ -92,16 +91,16 @@ export function HomePageView({
                     <div className="flex min-w-0 items-center gap-2"><Flag aria-hidden="true" className="size-5 shrink-0 text-app-text-muted" /><div><div className="text-app-label text-app-text-muted">{m.recap_laps()}</div><div className="font-mono text-app-subtext font-semibold tabular-nums text-app-text"><Skeleton loading={latestSessionLoading}>—</Skeleton></div></div></div>
                     <div className="flex min-w-0 items-center gap-2"><Gauge aria-hidden="true" className="size-5 shrink-0 text-app-text-muted" /><div><div className="text-app-label text-app-text-muted">{m.recap_distance()}</div><div className="font-mono text-app-subtext font-semibold tabular-nums text-app-text"><Skeleton loading={latestSessionLoading}>—</Skeleton></div></div></div>
                     <div className="flex min-w-0 items-center gap-2"><Timer aria-hidden="true" className="size-5 shrink-0 text-app-text-muted" /><div><div className="text-app-label text-app-text-muted">{m.recap_time_on_track()}</div><div className="font-mono text-app-subtext font-semibold tabular-nums text-app-text"><Skeleton loading={latestSessionLoading}>—</Skeleton></div></div></div>
-                    {showFinishPlaceholder && <div className="min-w-0"><div className="text-app-label text-app-text-muted">Finish</div><div className="font-mono text-app-heading font-semibold tabular-nums text-app-text"><Skeleton loading={latestSessionLoading}>—</Skeleton></div></div>}
+                    {showFinishPlaceholder && <div className="min-w-0"><div className="text-app-label text-app-text-muted">{m.common_finish()}</div><div className="font-mono text-app-heading font-semibold tabular-nums text-app-text"><Skeleton loading={latestSessionLoading}>—</Skeleton></div></div>}
                   </div>
                 </div>
               </div>
-              <p className="sr-only" role={latestRecapError ? "alert" : "status"}>
-                {latestRecapError ? m.common_error() : latestSessionLoading ? m.common_loading() : latestSession ? m.common_loading() : m.home_no_sessions()}
+              <p className="sr-only" role={latestRecapError || sessionsError ? "alert" : "status"}>
+                {latestRecapError || sessionsError ? m.common_error() : latestSessionLoading ? m.common_loading() : latestSession ? m.common_loading() : m.home_no_sessions()}
               </p>
             </div>
       )}
-      {!latestSession && !latestRecap && !latestRecapLoading && !sessionsLoading && !latestRecapError && <EmptyStateOverlay />}
+      {!latestSession && !latestRecap && !latestRecapLoading && !sessionsLoading && !latestRecapError && !sessionsError && <EmptyStateOverlay />}
     </Card>
   );
   const latestSessionPanel = (
@@ -113,27 +112,19 @@ export function HomePageView({
     <div className="min-h-full bg-app-bg text-app-detail">
       <div className="mx-auto max-w-[1400px] space-y-4 p-4 @3xl/workspace:p-6">
         <PeriodSelector periodTab={periodTab} onPeriodTabChange={onPeriodTabChange} />
-        <GameBrandCards gameStats={gameStats} hiddenGames={hiddenGames} loading={lapsLoading || sessionsLoading} selectedGameId={gameId} />
+        <GameBrandCards gameStats={gameStats} hiddenGames={hiddenGames} loading={lapsLoading || sessionsLoading} error={lapsError || sessionsError} selectedGameId={gameId} />
         {gameId && <GameBrandHeader gameId={gameId} gameDisplayName={gameDisplayName} />}
 
         <div className="space-y-4">
           <main className="min-w-0">
-            <DashboardInsights latestSession={latestSessionPanel} laps={allLaps} sessions={sessions} gameId={gameId} periodStart={periodStart} trackNames={trackNames} carNames={carNames} periodSummary={periodStats[periodTab]} lapsLoading={lapsLoading || sessionsLoading} lapsError={lapsError || sessionsError} sessionsLoading={sessionsLoading} sessionsError={sessionsError} />
+            <DashboardInsights response={response} gameId={gameId} periodStart={periodStart} trackNames={trackNames} carNames={carNames} latestSession={latestSessionPanel} periodSummary={periodStats[periodTab]} lapsLoading={lapsLoading || sessionsLoading} lapsError={lapsError || sessionsError} sessionsLoading={sessionsLoading} sessionsError={sessionsError} />
           </main>
 
           <div className="grid min-w-0 items-start gap-3 @3xl/workspace:grid-cols-3">
             <section className="min-w-0 @3xl/workspace:col-span-2">
-              <RecentSessionsTable
-                sessions={recentSessions}
-                carNames={carNames}
-                trackNames={trackNames}
-                gameId={gameId}
-                onAnalyseSession={onAnalyseSession}
-                loading={sessionsLoading}
-                error={sessionsError}
-              />
+              <RecentSessionsTable sessions={sessions} gameId={gameId} onAnalyseSession={onAnalyseSession} loading={sessionsLoading} error={sessionsError} />
             </section>
-            <ActivityHeatmap laps={gameId ? allLaps.filter((lap) => lap.gameId === gameId) : allLaps} periodStart={periodStart} loading={lapsLoading || sessionsLoading} />
+            <ActivityHeatmap buckets={response?.calendar ?? []} periodStart={periodStart} loading={lapsLoading || sessionsLoading} error={lapsError || sessionsError} />
           </div>
         </div>
       </div>

@@ -69,7 +69,7 @@ const BRAND_CARDS: ReadonlyArray<{
   { key: "lmu", gameId: "lmu", route: "/lmu", name: "Le Mans Ultimate", logoSrc: "/lmu-logo.svg" },
 ];
 
-function GameBrandCard({ game, stats, loading, selected }: { game: (typeof BRAND_CARDS)[number]; stats: GameStats[GameKey]; loading: boolean; selected: boolean }) {
+function GameBrandCard({ game, stats, loading, error, selected }: { game: (typeof BRAND_CARDS)[number]; stats: GameStats[GameKey]; loading: boolean; error: boolean; selected: boolean }) {
   return (
     <Link
       to={selected ? "/" : game.route}
@@ -86,19 +86,19 @@ function GameBrandCard({ game, stats, loading, selected }: { game: (typeof BRAND
         <div aria-hidden="true" className="h-14 w-18 shrink-0" />
         <dl className="relative z-10 grid min-w-0 flex-1 grid-cols-[minmax(max-content,1fr)_max-content] items-baseline gap-x-1 gap-y-1 text-right">
           <dt className="col-start-2 row-start-1 whitespace-nowrap text-app-compact font-normal text-app-text-muted">{m.label_laps()}</dt>
-          <dd className="col-start-1 row-start-1 wrap-anywhere text-app-detail font-normal font-mono leading-snug tabular-nums text-app-text"><Skeleton loading={loading}>{stats.laps > 0 ? stats.laps : "—"}</Skeleton></dd>
+          <dd className="col-start-1 row-start-1 wrap-anywhere text-app-detail font-normal font-mono leading-snug tabular-nums text-app-text"><Skeleton loading={loading}>{error || stats.laps <= 0 ? "—" : stats.laps}</Skeleton></dd>
           <dt className="col-start-2 row-start-2 whitespace-nowrap text-app-compact font-normal text-app-text-muted">{m.home_card_driven()}</dt>
-          <dd className="col-start-1 row-start-2 wrap-anywhere text-app-detail font-normal font-mono leading-snug tabular-nums text-app-text"><Skeleton loading={loading}>{stats.laps > 0 ? stats.time : "—"}</Skeleton></dd>
+          <dd className="col-start-1 row-start-2 wrap-anywhere text-app-detail font-normal font-mono leading-snug tabular-nums text-app-text"><Skeleton loading={loading}>{error || stats.laps <= 0 ? "—" : stats.time}</Skeleton></dd>
         </dl>
       </Card>
     </Link>
   );
 }
 
-export function GameBrandCards({ gameStats, hiddenGames, loading = false, selectedGameId = null }: { gameStats: GameStats; hiddenGames: string[]; loading?: boolean; selectedGameId?: string | null }) {
+export function GameBrandCards({ gameStats, hiddenGames, loading = false, error = false, selectedGameId = null }: { gameStats: GameStats; hiddenGames: string[]; loading?: boolean; error?: boolean; selectedGameId?: string | null }) {
   return (
     <div className="grid grid-cols-2 justify-items-center gap-2 md:grid-cols-3 xl:grid-cols-6" aria-busy={loading}>
-      {BRAND_CARDS.map((game) => (hiddenGames.includes(game.gameId) && selectedGameId !== game.gameId ? null : <GameBrandCard key={game.gameId} game={game} stats={gameStats[game.key]} loading={loading} selected={selectedGameId === game.gameId} />))}
+      {BRAND_CARDS.map((game) => (hiddenGames.includes(game.gameId) && selectedGameId !== game.gameId ? null : <GameBrandCard key={game.gameId} game={game} stats={gameStats[game.key]} loading={loading} error={error} selected={selectedGameId === game.gameId} />))}
     </div>
   );
 }
