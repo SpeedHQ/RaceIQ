@@ -1,41 +1,18 @@
 ## Unreleased
 
 ### Features
-- Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
-- Return to the all-games dashboard by clicking the selected game card.
-- Show clean-rate and podium trends as bounded daily aggregates.
-
-- Browse enriched iRacing car, car-class, and track catalogs with official car images, offline pit-road maps, and grouped lap sections.
+- Reduce F1 race-result processing time by 88% in a matched processing benchmark.
+- Refresh the dashboard with cleaner session and favourite widgets, clean-rate and podium trends, and easier game navigation.
+- Browse enriched iRacing car, car-class, and track catalogs with official images, offline pit-road maps, and grouped lap sections.
 
 ### Fixes
-- Remove the Recap button from desktop and mobile session rows while keeping Analyse and favourite actions.
-- Reduce server startup delays with saved recording histories by avoiding unnecessary rescans of recordings whose race results are already current.
-- Process saved-recording backfills in the background so server startup and requests remain responsive while recording history is updated.
-- Remove delta rows and excess height from latest-session lap tiles; preserve favourite-card bottom padding and use compact game badges.
-- Show the favourite car's catalog class or Forza performance class when available, and stretch the latest-session card to match its dashboard row.
-- Match dashboard latest-session headings, labels, and lap times to the shared typography used across cards.
-- Unify interactive latest-session and favourite-panel hover highlights with a foreground top-right radial sheen matching game cards, minimal movement, keyboard-focus feedback, and a static reduced-motion alternative; non-interactive cards remain unchanged on hover.
-- Use neutral gray borders for latest-session internal cards and explicitly center the weather icon alongside its text.
-- Resolve track names across games in the dashboard’s time distribution instead of showing numeric placeholders or serialized identities.
-- Restore track and car names in recent dashboard sessions across games, including Le Mans Ultimate native identities.
-- Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
-- Open the favourite track’s game-specific detail page from the all-games dashboard, including Le Mans Ultimate tracks without stored ordinals.
-- Reduce loading interruptions when switching between game dashboards while keeping each game’s statistics separate.
-- Calculate exact mine-only dashboard totals and recaps across the full selected period, independent of lap-list limits, and refresh them after session changes.
-- Keep available dashboard data visible while clearly distinguishing pending or unavailable coverage from request failures.
-- Restore dashboard startup for existing databases missing the backfill cursor table.
-- Repair missing dashboard processor retry columns in already-migrated databases without resetting session data or existing retry history.
-- Restore incomplete historical dashboard projection schemas before monthly upgrades, rebuilding only derived data while preserving sessions, laps, results, recordings, and processor retry history.
-- Preserve favourite car and track podium totals for partial-day periods, distinguishing missing results from confirmed zero podiums.
-- Count favourite car and track sessions correctly during pending corrections without duplicating sessions across partial-day and full-day boundaries.
-- Render latest-session and favourite widgets only once on each game dashboard.
-- Search and aggregate dashboard periods in UTC, independent of browser time zone, while keeping displayed timestamps local.
-- Keep dashboard totals available while recording-history details are still processing.
-- Show session lap-time standard deviation in seconds, from >5 s on the left to <0.1 s on the right.
-- Use compact lower-bound labels for intermediate lap-time deviation bins, with exact-range hover information on tick labels and units, including empty states.
-- Prevent dashboard reads from repeatedly retaining native database allocations.
-
-- Load LMU track boundaries without long stalls on detailed SVG maps.
+- Remove the Recap button from session rows; keep Analyse and favourite actions.
+- Speed up startup with saved recordings and process history backfills in the background.
+- Calculate accurate dashboard totals, recaps, session counts, and podiums across the full selected period using only your sessions and consistent UTC boundaries.
+- Restore dashboard compatibility with existing databases while preserving recordings and session history.
+- Improve dashboard loading, track and car names, detail links, and lap-time consistency labels; keep available data visible while history is processing.
+- Preserve incomplete-lap eligibility and LMU first-outlap classification across detector transitions.
+- Load LMU track boundaries without long stalls on detailed maps.
 - Show unnamed multi-turn sections once in Analyse and track-detail labels.
 
 ### Internal
