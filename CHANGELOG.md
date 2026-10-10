@@ -31,7 +31,7 @@
 - Search and aggregate dashboard periods in UTC, independent of browser time zone, while keeping displayed timestamps local.
 - Keep dashboard totals available while recording-history details are still processing.
 - Show session lap-time standard deviation in seconds, from >5 s on the left to <0.1 s on the right.
-- Use compact lower-bound labels for intermediate lap-time deviation bins, preserving exact intervals in tooltips.
+- Use compact lower-bound labels for intermediate lap-time deviation bins, with exact-range hover information on tick labels and units, including empty states.
 - Prevent dashboard reads from repeatedly retaining native database allocations.
 
 - Load LMU track boundaries without long stalls on detailed SVG maps.

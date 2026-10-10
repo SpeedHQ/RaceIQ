@@ -381,10 +381,10 @@ function ConsistencyChart({ insights, loading, error }: {
               const height = count / maxCount * 76;
               return (
                 <g key={bin.label} role="img" aria-label={`${bin.interval}: ${count}`} tabIndex={0} className="focus-visible:outline-2 focus-visible:outline-app-accent">
-                  <title>{bin.interval}: {count}</title>
+                  <title>{`${bin.interval}: ${count}`}</title>
                   <rect x={x} y={88 - height} width={width} height={height} rx="2" fill={index === 0 ? "var(--app-accent)" : "var(--app-text-muted)"} />
-                  <text x={x + width / 2} y="100" textAnchor="middle" fill="var(--app-text-muted)" className="font-mono text-app-caption">{bin.label}<title>{bin.interval}: {count}</title></text>
-                  <text x={x + width / 2} y="111" textAnchor="middle" fill="var(--app-text-muted)" className="font-mono text-app-caption">s<title>{bin.interval}: {count}</title></text>
+                  <text x={x + width / 2} y="100" textAnchor="middle" fill="var(--app-text-muted)" className="font-mono text-app-caption">{bin.label}<title>{`${bin.interval}: ${count}`}</title></text>
+                  <text x={x + width / 2} y="111" textAnchor="middle" fill="var(--app-text-muted)" className="font-mono text-app-caption">s<title>{`${bin.interval}: ${count}`}</title></text>
                 </g>
               );
             })}
