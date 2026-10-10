@@ -71,10 +71,10 @@ export function startHttpServer({
         if (filePath.startsWith(staticDir)) {
           const file = Bun.file(filePath);
           if (await file.exists()) {
-            return new Response(file, { headers: staticAssetHeaders(filePath) });
+            return new Response(file, { headers: { ...staticAssetHeaders(filePath), "X-RaceIQ": "1" } });
           }
         }
-        return new Response(Bun.file(resolve(staticDir, "index.html")));
+        return new Response(Bun.file(resolve(staticDir, "index.html")), { headers: { "X-RaceIQ": "1" } });
       }
 
       if (process.env.NODE_ENV !== "production" && url.pathname === "/") {

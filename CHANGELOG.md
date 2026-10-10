@@ -6,6 +6,7 @@
 - Browse enriched iRacing car, car-class, and track catalogs with official car images, offline pit-road maps, and grouped lap sections.
 
 ### Fixes
+- Open the dashboard in your default browser when launching RaceIQ from the optional desktop shortcut or Start menu, even when the server was stopped.
 - Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
 
 - Load LMU track boundaries without long stalls on detailed SVG maps.
