@@ -37,7 +37,7 @@ export function createHttpAccess(env: NodeJS.ProcessEnv = process.env) {
       // Browser WebSockets cannot set them; cross-origin HTTP scripts require
       // a preflight, which lacks the spoofed values and is rejected. They do
       // not authenticate non-browser callers or override an explicit list.
-      const forwardedOrigin = forwardedHost && !/[\s,\/\\?#@]/.test(forwardedHost)
+      const forwardedOrigin = forwardedHost && !/[\s,/\\?#@]/.test(forwardedHost)
         && ["http", "https"].includes(forwardedProtocol)
         ? new URL(`${forwardedProtocol}://${forwardedHost}`).origin
         : null;
