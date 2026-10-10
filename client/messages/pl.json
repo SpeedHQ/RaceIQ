@@ -2383,5 +2383,7 @@
   "experiment_focus_car_agent_label": "Inżynier wyścigowy",
   "experiment_focus_driver_agent_label": "Trener kierowcy",
   "ob_community_body": "RaceIQ to projekt open source, który rozwija się dzięki społeczności. Każdy może pomóc — rozpowszechniając informacje, zgłaszając pomysły i błędy lub współtworząc kod.",
-  "settings_port_range_error": "Port musi mieścić się w zakresie 1024–65535"
+  "settings_port_range_error": "Port musi mieścić się w zakresie 1024–65535",
+  "sessions_show_laps": "Pokaż okrążenia",
+  "sessions_hide_laps": "Ukryj okrążenia"
 }

@@ -2383,5 +2383,7 @@
   "experiment_new_button": "+ New experiment",
   "dash_waiting_track": "Waiting for track…",
   "experiment_focus_car_agent_label": "Race engineer",
-  "experiment_focus_driver_agent_label": "Driver coach"
+  "experiment_focus_driver_agent_label": "Driver coach",
+  "sessions_show_laps": "Show laps",
+  "sessions_hide_laps": "Hide laps"
 }

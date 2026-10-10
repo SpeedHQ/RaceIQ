@@ -2383,5 +2383,7 @@
   "dash_waiting_track": "Esperando el circuito…",
   "experiment_focus_car_agent_label": "Ingeniero de carrera",
   "experiment_focus_driver_agent_label": "Entrenador de conducción",
-  "tune_confirm": "Confirmar"
+  "tune_confirm": "Confirmar",
+  "sessions_show_laps": "Mostrar vueltas",
+  "sessions_hide_laps": "Ocultar vueltas"
 }

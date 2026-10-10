@@ -2407,5 +2407,7 @@
   "experiment_new_button": "+ Neues Experiment",
   "dash_waiting_track": "Warte auf Strecke…",
   "experiment_focus_car_agent_label": "Renningenieur",
-  "experiment_focus_driver_agent_label": "Fahrercoach"
+  "experiment_focus_driver_agent_label": "Fahrercoach",
+  "sessions_show_laps": "Runden anzeigen",
+  "sessions_hide_laps": "Runden ausblenden"
 }

@@ -1,3 +1,4 @@
+import { ChevronRight } from "lucide-react";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import { formatLapTime } from "@/components/LiveTelemetry";
@@ -103,10 +104,17 @@ export function SessionMobileList({
                   <div className="flex items-baseline justify-between gap-2">
                     <div className="text-sm font-semibold text-app-text truncate">{sessionTrackName(session, { trackNames, carNames })}</div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <div className="text-app-compact text-app-text/90">
+                      <button
+                        type="button"
+                        aria-expanded={isExpanded}
+                        title={isExpanded ? m.sessions_hide_laps() : m.sessions_show_laps()}
+                        onClick={(event) => { event.stopPropagation(); toggleExpand(session.id); }}
+                        className="inline-flex cursor-pointer items-center gap-1 rounded px-1 py-1 text-app-compact text-app-accent underline underline-offset-4 hover:bg-app-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+                      >
+                        <ChevronRight aria-hidden="true" className={`h-4 w-4 shrink-0 ${isExpanded ? "rotate-90" : ""}`} />
                         {parseUtcTimestamp(session.createdAt).toLocaleDateString(getLocale())} {parseUtcTimestamp(session.createdAt).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" })}
                         {session.source === "motec" && <MotecBadge />}
-                      </div>
+                      </button>
                       <FavoriteToggleButton target="session" id={session.id} isFavorite={Boolean(session.isFavorite)} />
                       <Button
                         variant="app-outline"

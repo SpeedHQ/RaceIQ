@@ -2383,5 +2383,7 @@
   "experiment_search_aria": "Cerca esperimenti",
   "experiment_guide": "Guida",
   "experiment_new_button": "+ Nuovo esperimento",
-  "dash_waiting_track": "In attesa del tracciato…"
+  "dash_waiting_track": "In attesa del tracciato…",
+  "sessions_show_laps": "Mostra giri",
+  "sessions_hide_laps": "Nascondi giri"
 }
