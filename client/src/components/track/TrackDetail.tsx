@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBulkDeleteLaps } from "@/hooks/laps";
 import { queryKeys } from "@/hooks/query-keys";
-import { drawTrack } from "@/lib/canvas/draw-track";
+import { drawTrack, type PitLine } from "@/lib/canvas/draw-track";
 import { countryName } from "@/lib/country-names";
 import { storedLapsSectorCount } from "@/lib/lap-sectors";
 import { client } from "@/lib/rpc";
@@ -46,6 +46,7 @@ export function TrackDetail({
   const gid = gameId ?? undefined;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
+  const [pitLines, setPitLines] = useState<PitLine[]>([]);
   const [flipX, setFlipX] = useState(false);
   const [sectors, setSectors] = useState<TrackSectors | null>(null);
   const [segSource, setSegSource] = useState<string>(""); // "user" | "extracted" | "named" | "shared" | "auto"
@@ -146,7 +147,7 @@ export function TrackDetail({
     queryFn: () =>
       client.api["track-outline"][":ordinal"]
         .$get({ param: { ordinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gid ?? undefined } })
-        .then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[]),
+        .then((r) => r.json() as unknown as { points?: Point[]; pitLines?: PitLine[]; flipX?: boolean } | Point[]),
     // Return lightweight facts before cold outline alignment can block the server.
     enabled: !!gameId && (track.hasOutline || !!track.hasMap) && sectorsFetched && boundsFetched,
     staleTime: 5 * 60 * 1000,
@@ -155,12 +156,15 @@ export function TrackDetail({
   useEffect(() => {
     if (!Array.isArray(outlineData) && outlineData?.points && Array.isArray(outlineData.points)) {
       setOutline(outlineData.points);
+      setPitLines(Array.isArray(outlineData.pitLines) ? outlineData.pitLines : []);
       setFlipX(outlineData.flipX ?? false);
     } else if (Array.isArray(outlineData)) {
       setOutline(outlineData as Point[]);
+      setPitLines([]);
       setFlipX(false);
     } else {
       setOutline(null);
+      setPitLines([]);
       setFlipX(false);
     }
   }, [outlineData]);
@@ -200,8 +204,8 @@ export function TrackDetail({
     // While editing, every turn of a complex gets its own label so the row
     // being edited is identifiable on the map; otherwise the complex is
     // labelled once under its group name.
-    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX, undefined, editing, previewSegment, previewSector);
-  }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX, editing, hoveredSegments, hoveredSector]);
+    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX, undefined, editing, previewSegment, previewSector, pitLines);
+  }, [outline, pitLines, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX, editing, hoveredSegments, hoveredSector]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

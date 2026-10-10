@@ -1,3 +1,4 @@
+import { lapWrappedSegmentGroup, segmentDisplayNames } from "@raceiq/shared/racing/tracks/segment-label";
 import { memo, useMemo } from "react";
 import { m } from "@/paraglide/messages";
 import { semanticNumber, type SemanticAnalysisFrame } from "./track-map/types";
@@ -6,6 +7,9 @@ import { semanticNumber, type SemanticAnalysisFrame } from "./track-map/types";
 interface Segment {
   type: string;
   name: string;
+  group?: string;
+  number?: number;
+  covers?: number[];
   startFrac: number;
   endFrac: number;
 }
@@ -56,22 +60,33 @@ export function buildSegmentData(telemetry: SemanticAnalysisFrame[], segments: S
     return lo;
   }
 
-  let straightNumber = 1;
-  const displayNames = segments.map((segment) => {
-    if (segment.type === "straight" && (!segment.name || /^S[\d?]*$/.test(segment.name))) return `S${straightNumber++}`;
-    if (segment.type === "straight") straightNumber++;
-    return segment.name;
-  });
-  const staticSegments = segments.map((segment, index) => {
+  const displayNames = segmentDisplayNames(segments);
+  const lapWrap = lapWrappedSegmentGroup(segments);
+  const staticSegments = segments.flatMap((segment, index) => {
+    if (lapWrap && (index === lapWrap.firstIndex || index === lapWrap.lastIndex)) {
+      if (index === lapWrap.lastIndex) return [];
+      const first = segments[lapWrap.firstIndex];
+      const last = segments[lapWrap.lastIndex];
+      const firstStart = fracToIdx(first.startFrac);
+      const firstEnd = Math.min(fracToIdx(first.endFrac), n - 1);
+      const lastStart = fracToIdx(last.startFrac);
+      const lastEnd = Math.min(fracToIdx(last.endFrac), n - 1);
+      return [{
+        name: lapWrap.group,
+        type: segment.type,
+        ranges: [{ startFrac: last.startFrac, endFrac: last.endFrac }, { startFrac: first.startFrac, endFrac: first.endFrac }],
+        time: (semanticNumber(telemetry[firstEnd], "timing.current-lap") ?? 0) - (semanticNumber(telemetry[firstStart], "timing.current-lap") ?? 0)
+          + (semanticNumber(telemetry[lastEnd], "timing.current-lap") ?? 0) - (semanticNumber(telemetry[lastStart], "timing.current-lap") ?? 0),
+      }];
+    }
     const startIdx = fracToIdx(segment.startFrac);
     const endIdx = Math.min(fracToIdx(segment.endFrac), n - 1);
-    return {
+    return [{
       name: displayNames[index],
       type: segment.type,
       time: (semanticNumber(telemetry[endIdx], "timing.current-lap") ?? 0) - (semanticNumber(telemetry[startIdx], "timing.current-lap") ?? 0),
-      startFrac: segment.startFrac,
-      endFrac: segment.endFrac,
-    };
+      ranges: [{ startFrac: segment.startFrac, endFrac: segment.endFrac }],
+    }];
   });
   return { cumDist, totalDist, staticSegments };
 }
@@ -107,12 +122,12 @@ export const AnalyseSegmentList = memo(function AnalyseSegmentList({ telemetry, 
     if (!segmentData) return null;
     const cursorDistFrac = segmentData.cumDist[cursorIdx] / segmentData.totalDist;
     return segmentData.staticSegments.map((seg) => ({
-      key: `${seg.type}-${seg.name}-${seg.startFrac}-${seg.endFrac}`,
+      key: `${seg.type}-${seg.name}-${seg.ranges.map((range) => range.startFrac).join("-")}`,
       name: seg.name,
       type: seg.type,
       time: seg.time,
-      active: cursorDistFrac >= seg.startFrac && cursorDistFrac < seg.endFrac,
-      completed: cursorDistFrac >= seg.endFrac,
+      active: seg.ranges.some((range) => cursorDistFrac >= range.startFrac && cursorDistFrac < range.endFrac),
+      completed: seg.ranges.every((range) => cursorDistFrac >= range.endFrac),
     }));
   }, [segmentData, cursorIdx]);
 
