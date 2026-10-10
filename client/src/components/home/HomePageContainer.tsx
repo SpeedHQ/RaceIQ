@@ -23,7 +23,7 @@ export function HomePageContainer() {
   const gameId = useGameId();
   const navigate = useNavigate();
   const gameAdapter = gameId ? tryGetGame(gameId) : null;
-  const [periodTab, setPeriodTab] = useState<PeriodKey>("year");
+  const [periodTab, setPeriodTab] = useState<PeriodKey>("week");
   const dashboard = useDashboard(periodTab);
   const response = dashboard.data;
   const { displaySettings } = useSettings();
