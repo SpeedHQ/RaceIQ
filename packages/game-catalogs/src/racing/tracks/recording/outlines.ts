@@ -204,6 +204,63 @@ export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Po
   }
 }
 
+/**
+ * Record one valid open-route lap without cyclic alignment or averaging.
+ * Start and finish remain exact endpoints; intermediate points are smoothed
+ * and resampled by route distance.
+ */
+export function recordOpenLapTrace(ordinal: number, trace: Point[], gameId: string): void {
+  validateGameId(gameId);
+  if (trace.length < 50) return;
+  const filtered = filterOutlierPoints(trace);
+  if (filtered.length < 50) return;
+  const smoothed = filtered.map((point, index) => {
+    if (index === 0 || index === filtered.length - 1) return point;
+    const previous = filtered[index - 1];
+    const next = filtered[index + 1];
+    return {
+      x: (previous.x + 2 * point.x + next.x) / 4,
+      z: (previous.z + 2 * point.z + next.z) / 4,
+    };
+  });
+  const cumulative = [0];
+  for (let index = 1; index < smoothed.length; index++) {
+    cumulative.push(cumulative[index - 1] + Math.hypot(
+      smoothed[index].x - smoothed[index - 1].x,
+      smoothed[index].z - smoothed[index - 1].z,
+    ));
+  }
+  const total = cumulative[cumulative.length - 1];
+  if (total <= 0) return;
+  const count = Math.min(500, smoothed.length);
+  const outline: Point[] = [];
+  let segment = 1;
+  for (let index = 0; index < count; index++) {
+    const target = total * index / (count - 1);
+    while (segment < cumulative.length - 1 && cumulative[segment] < target) segment++;
+    const start = cumulative[segment - 1];
+    const length = cumulative[segment] - start;
+    const fraction = length > 0 ? (target - start) / length : 0;
+    const from = smoothed[segment - 1];
+    const to = smoothed[segment];
+    outline.push({
+      x: from.x + (to.x - from.x) * fraction,
+      z: from.z + (to.z - from.z) * fraction,
+    });
+  }
+  outline[0] = filtered[0];
+  outline[outline.length - 1] = filtered[filtered.length - 1];
+  const key = gk(gameId, ordinal);
+  recordedOutlines.set(key, outline);
+  recordedOrdinals.add(key);
+  const filePath = resolve(userGameDir(gameId), `${computedAverageFileName(gameId, ordinal)}.csv`);
+  try {
+    writeFileSync(filePath, `x,z\n${outline.map((point) => `${point.x},${point.z}`).join("\n")}`);
+  } catch (err) {
+    console.error("[Tracks] Failed to save open-route outline:", err);
+  }
+}
+
 
 /**
  * Get centerline for a track. Priority: bundled game data → computed average → TUMFTM.

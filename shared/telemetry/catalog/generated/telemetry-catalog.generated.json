@@ -6,10 +6,10 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.19.2",
-      "sourceHash": "6b034cdac3e5ddca6252f4b16ef194f29ba1d17ec023cbff2be1ef881787fe31"
+      "sourceHash": "05cdfc4d4c907180c48a4e5cc9503896ce6d5605802268b146194f2253c9ff88"
     },
     "sourceHashes": {
-      "packages/game-ac-evo/src/parser.ts": "5cd69dfb1fecf8732f31d30cf56143f1a258f7a7d2d1e02a1336c64be5ef83f4",
+      "packages/game-ac-evo/src/parser.ts": "899de3ed5705806df0320d4fe452e4d5129f213b169f1664e3cb22e540cbf1b5",
       "packages/game-acc/src/parser.ts": "87788f824d3c5f1bd8f975bb2ca1d20a491f9fc6ad605b035929990962dcc302",
       "packages/game-f1-2025/src/f1-state.ts": "8d20acdecb7413aacc36738e5ebfb0407f93a84f851629d16539e7a6bdeb93a3",
       "packages/game-fm-2023/src/parser.ts": "dd476256f50870123ab00bf486d4ed998069f3ff1f368b7b36a368a0254f4463",
@@ -20,7 +20,7 @@
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "11040a6a0d84ebdf7c9367303a563bb04e17891237b1a3e8d1fde58047419265"
     },
-    "contentHash": "c79a9091f13ccd4cdba1329693642f4262a46d38a76eab89e9d0216ebdc1fc36"
+    "contentHash": "997bc8e2e91f9d2b43beb3a6a471b1a79b8f36cef77f75e487640333fa51e926"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -380,6 +380,7 @@
         "identity.player-track-surface",
         "identity.player-track-surface-material",
         "identity.session-name",
+        "identity.source-identity",
         "identity.track-id",
         "identity.track-limits-steps",
         "identity.track-ordinal",
@@ -15575,9 +15576,19 @@
           "description": "acc parser fills this value with a placeholder because source does not provide it."
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "parser-placeholder",
-          "description": "ac-evo parser fills this value with a placeholder because source does not provide it."
+          "kind": "direct",
+          "nativeUnit": "text",
+          "sources": [
+            "AC-Evo.Graphics.car_model",
+            "AC-Evo.Graphics.car_model.size"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo maps 2 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-ac-evo/src/parser.ts"
+          },
+          "limitations": []
         },
         "iracing": {
           "kind": "unavailable",
@@ -16684,6 +16695,113 @@
       ],
       "cardinality": {
         "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "identity.source-identity",
+      "label": "Source identity",
+      "description": "Source vehicle name, venue name, and exact track configuration before ordinal allocation.",
+      "parentId": "identity",
+      "canonicalUnit": "structured",
+      "shape": "structured",
+      "packetFields": [
+        "acEvoIdentity"
+      ],
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "fm-2023 parser fills this value with a placeholder because source does not provide it."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "f1-2025 parser fills this value with a placeholder because source does not provide it."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "acc parser fills this value with a placeholder because source does not provide it."
+        },
+        "ac-evo": {
+          "kind": "derived",
+          "nativeUnit": "structured",
+          "sources": [
+            "AC-Evo.Graphics.car_model",
+            "AC-Evo.Graphics.car_model.size",
+            "AC-Evo.Static.track",
+            "AC-Evo.Static.track.size",
+            "AC-Evo.Static.track_configuration",
+            "AC-Evo.Static.track_configuration.size"
+          ],
+          "freshness": "continuous",
+          "normalization": "{ carName: carModelStr, trackName: trackStr, trackConfiguration: trackCfgStr }",
+          "description": "ac-evo maps 6 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-ac-evo/src/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "derivation",
+            "id": "ac-evo:identity.source-identity:derived",
+            "version": "0.19.2",
+            "deterministic": true,
+            "declaredInputs": [
+              "AC-Evo.Graphics.car_model",
+              "AC-Evo.Graphics.car_model.size",
+              "AC-Evo.Static.track",
+              "AC-Evo.Static.track.size",
+              "AC-Evo.Static.track_configuration",
+              "AC-Evo.Static.track_configuration.size"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "4a177ccac5cdd7697d543c3bc0f6ad65939869f05515e1a069ead87286f2fe37"
+          }
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "iracing parser fills this value with a placeholder because source does not provide it."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "lmu parser fills this value with a placeholder because source does not provide it."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "source-path:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "source-path",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "string",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
       },
       "limitations": []
     },
@@ -69475,6 +69593,30 @@
         "retention": "exact"
       },
       {
+        "path": "TelemetryPacket.acEvoIdentity",
+        "label": "Ac Evo Identity",
+        "unit": "structured",
+        "dataType": "{\n    carName: string;\n    trackName: string;\n    trackConfiguration: string;\n  }",
+        "count": 1,
+        "description": "Ac Evo Identity emitted by ac-evo parser.",
+        "semanticId": "identity.source-identity",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.carModelName",
+        "label": "Car Model Name",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Raw car name/model string from telemetry when CarOrdinal is -1 (car not in the game's cars.csv). Lets the session layer register the car in discovered_cars instead of storing an unresolvable -1. AC Evo only.",
+        "semanticId": "identity.car-model-name",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "acc.abs",
         "label": "ABS",
         "unit": "count",
@@ -84060,8 +84202,8 @@
     ]
   },
   "coverage": {
-    "normalizedPacketFields": 149,
-    "semanticVariables": 774,
+    "normalizedPacketFields": 150,
+    "semanticVariables": 775,
     "sourceCounts": {
       "fm-2023": {
         "total": 96,
@@ -84091,13 +84233,13 @@
         "recorded": 172
       },
       "ac-evo": {
-        "total": 254,
-        "packet": 124,
+        "total": 256,
+        "packet": 126,
         "extension": 100,
         "sdk": 0,
         "yaml": 0,
         "setup": 30,
-        "recorded": 224
+        "recorded": 226
       },
       "iracing": {
         "total": 952,

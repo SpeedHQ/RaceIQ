@@ -52,7 +52,7 @@ function readField(buf: Buffer, def: FieldDef): number | string {
 export const acEvoRoutes = new Hono()
 
   .get("/api/ac-evo/cars", (c) => {
-    const cars = getAllAcEvoCars().map((car) => ({ ...car }));
+    const cars = getAllAcEvoCars().map(({ id, ...car }) => ({ ordinal: id, ...car }));
     cars.sort((a, b) => a.class.localeCompare(b.class) || a.name.localeCompare(b.name));
     return c.json(cars);
   })

@@ -47,11 +47,8 @@ export const tunes = sqliteTable(
 );
 
 /**
- * Cars seen in telemetry that aren't in the per-game CSV data. AC Evo keys
- * cars by name (no stable ordinal), so unknown names get a generated ordinal
- * (>= 100000) here instead of importing as -1/"Unknown Car". Rows are
- * promoted to canonical CSV ids on startup once the name exists in cars.csv
- * (see reconcileDiscoveredCars).
+ * Runtime-discovered cars use generated ordinals; sourceKey preserves stable
+ * identity across catalogue updates. Null source keys retain native-ID behavior.
  */
 export const discoveredCars = sqliteTable(
 	"discovered_cars",
@@ -61,15 +58,14 @@ export const discoveredCars = sqliteTable(
 		ordinal: integer("ordinal").notNull(),
 		name: text("name").notNull(),
 		model: text("model").notNull().default(""),
+		sourceKey: text("source_key"),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
-	(table) => [unique().on(table.gameId, table.ordinal)],
+	(table) => [unique().on(table.gameId, table.ordinal), unique().on(table.gameId, table.sourceKey)],
 );
 
 /**
- * Tracks whose identity is supplied by runtime telemetry rather than a bundled
- * catalogue. The native ordinal is the durable identity; names are hydrated
- * into the relevant game adapter at startup.
+ * Tracks discovered at runtime. Native-ID games leave sourceKey null.
  */
 export const discoveredTracks = sqliteTable(
 	"discovered_tracks",
@@ -78,12 +74,17 @@ export const discoveredTracks = sqliteTable(
 		gameId: text("game_id").notNull(),
 		ordinal: integer("ordinal").notNull(),
 		name: text("name").notNull(),
+		sourceKey: text("source_key"),
+		trackName: text("track_name"),
+		trackConfiguration: text("track_configuration"),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(table) => [
 		unique().on(table.gameId, table.ordinal),
+		unique().on(table.gameId, table.sourceKey),
 	],
 );
+
 
 export const sessions = sqliteTable(
 	"sessions",

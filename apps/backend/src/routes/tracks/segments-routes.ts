@@ -28,6 +28,7 @@ import {
   OrdinalKeyParamSchema,
   requireGameId,
   resolveTrackSegments,
+  resolveTrackOutline,
   TrackOrdinalParamSchema,
 } from "./support";
 
@@ -148,6 +149,10 @@ export const trackSectorBoundaryRoutes = new Hono()
       }
       const ordinal = Number(trackKey);
       if (!Number.isInteger(ordinal)) return c.json({ error: "ordinal must be an integer" }, 400);
+      const resolved = gameId === "ac-evo" ? await resolveTrackOutline(ordinal, gameId) : null;
+      if (resolved?.closed === false) {
+        return c.json({ s1End: 1 / 3, s2End: 2 / 3, trackLength: computeOutlineLength(resolved.points) });
+      }
       const sharedName = getSharedTrackName(ordinal, gameId);
       const sectors = (sharedName && gameId ? loadTrackSectorsFor(sharedName, gameId) : undefined)
         ?? getTrackSectorsByOrdinal(ordinal);

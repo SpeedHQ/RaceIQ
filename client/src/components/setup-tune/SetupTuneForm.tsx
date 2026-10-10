@@ -77,7 +77,8 @@ export function SetupTuneForm({
 
   const [name, setName] = useState(initialData?.name ?? "");
   const [author, setAuthor] = useState(initialData?.author ?? m.setup_tune_default_author());
-  const [carOrdinal, setCarOrdinal] = useState<number>(initialData?.carOrdinal ?? cars[0]?.ordinal ?? 0);
+  const [carOrdinal, setCarOrdinal] = useState<number | null>(initialData?.carOrdinal ?? null);
+  const selectedCarOrdinal = carOrdinal ?? cars[0]?.ordinal ?? null;
   const [category, setCategory] = useState(initialData?.category ?? defaultCategory);
   const [description, setDescription] = useState(initialData?.description ?? "");
   // Structured-form state: keep a live settings object the fill-form mutates.
@@ -87,7 +88,7 @@ export function SetupTuneForm({
     if (!initialData) return;
     setName(initialData.name ?? "");
     setAuthor(initialData.author ?? m.setup_tune_default_author());
-    setCarOrdinal(initialData.carOrdinal ?? cars[0]?.ordinal ?? 0);
+    setCarOrdinal(initialData.carOrdinal ?? null);
     setCategory(initialData.category ?? defaultCategory);
     setDescription(initialData.description ?? "");
     setTrackOrdinal(initialData.trackOrdinal ?? null);
@@ -103,7 +104,8 @@ export function SetupTuneForm({
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    onSubmit({ gameId, name, author, carOrdinal, trackOrdinal, category, description, settings });
+    if (selectedCarOrdinal == null) return;
+    onSubmit({ gameId, name, author, carOrdinal: selectedCarOrdinal, trackOrdinal, category, description, settings });
   };
 
   return (
@@ -117,7 +119,7 @@ export function SetupTuneForm({
           <Button variant="app-outline" size="app-sm" onClick={onCancel}>
             {m.common_cancel()}
           </Button>
-          <Button type="submit" variant="app-primary" size="app-sm" disabled={!name || isSubmitting}>
+          <Button type="submit" variant="app-primary" size="app-sm" disabled={!name || selectedCarOrdinal == null || isSubmitting}>
             {isSubmitting ? m.common_saving() : m.setupform_save_setup()}
           </Button>
         </div>
@@ -138,9 +140,10 @@ export function SetupTuneForm({
         <label className="min-w-0 space-y-2">
           <span className="text-xs font-medium text-app-text-muted">{m.label_car()}</span>
           <SearchSelect
-            value={String(carOrdinal)}
+            value={selectedCarOrdinal == null ? "" : String(selectedCarOrdinal)}
             onChange={(value) => setCarOrdinal(Number(value))}
             options={cars.map((car) => ({ value: String(car.ordinal), label: car.name }))}
+            fallbackLabel={selectedCarOrdinal != null && !cars.some((car) => car.ordinal === selectedCarOrdinal) ? `Car ${selectedCarOrdinal}` : undefined}
             ariaLabel={m.label_car()}
             placeholder={m.analyse_search_cars()}
             className="h-8 w-full min-w-0 text-sm"
@@ -154,7 +157,10 @@ export function SetupTuneForm({
             onChange={(value) => setTrackOrdinal(value ? Number(value) : null)}
             options={[
               { value: "", label: m.setup_any_track() },
-              ...tracks.map((track) => ({ value: String(track.ordinal), label: track.name })),
+              ...tracks.map((track) => ({
+                value: String(track.ordinal),
+                label: gameId === "ac-evo" && track.variant ? `${track.name} - ${track.variant}` : track.name,
+              })),
             ]}
             fallbackLabel={trackOrdinal != null && !tracks.some((track) => track.ordinal === trackOrdinal) ? `Track ${trackOrdinal}` : undefined}
             ariaLabel={m.label_track()}

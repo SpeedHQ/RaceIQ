@@ -81,6 +81,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   }, [selectedLap, selectedTrack, selectedCar]);
   const trackOrd = selectedTrack ?? (selectedLap ? lapTrackKey(selectedLap) : null);
   const { data: outlineRaw } = useTrackOutline(trackOrd ?? undefined);
+  const closed = !outlineRaw || Array.isArray(outlineRaw) || typeof outlineRaw !== "object" || !("closed" in outlineRaw) || outlineRaw.closed !== false;
   const outline = useMemo(() => {
     if (!outlineRaw) return null;
     if (Array.isArray(outlineRaw)) return outlineRaw as Point[];
@@ -114,11 +115,12 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     return { sectorStarts: starts, sectorCount: starts.length, firstDist, lapDist, times };
   }, [semanticReplay, semanticFrames, sectorsRaw]);
   const sectors = useMemo(() => {
+    if (!closed) return { sectorStarts: [0, 1 / 3, 2 / 3], sectorCount: 3 } satisfies SectorBoundaries;
     if (getGame(gameId).nativeSectors) return sectorData ? ({ sectorStarts: sectorData.sectorStarts, sectorCount: sectorData.sectorCount } satisfies SectorBoundaries) : null;
     if (!sectorsRaw || typeof sectorsRaw !== "object") return null;
     const s = sectorsRaw as { s1End?: number; s2End?: number };
     return s.s1End != null && s.s2End != null ? ({ sectorStarts: [0, s.s1End, s.s2End], sectorCount: 3 } satisfies SectorBoundaries) : null;
-  }, [gameId, sectorData, sectorsRaw]);
+  }, [gameId, sectorData, sectorsRaw, closed]);
   const { data: segmentsRaw } = useTrackSectors(trackOrd ?? undefined);
   const segments = useMemo(() => {
     if (!segmentsRaw || typeof segmentsRaw !== "object") return null;
@@ -240,6 +242,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     selectedLapId,
     setSelectedLapId,
     outline,
+    closed,
     mapLabels,
     boundaries,
     pitLines,

@@ -6,7 +6,6 @@ import {
   getOrCreateDiscoveredCar,
   getDiscoveredCarName,
   listDiscoveredCars,
-  reconcileDiscoveredCars,
   DISCOVERED_CAR_ORDINAL_BASE,
 } from "@raceiq/backend-core/db/discovered-cars";
 import { injectDiscoveredAcEvoCars, getAcEvoCarName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo"
@@ -18,9 +17,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 // Follows DATA_DIR so this never touches the real dev database — `bun run
 // test` isolates DATA_DIR to a throwaway directory (see package.json).
 
-// Games used by non-reconcile tests. reconcileDiscoveredCars() only acts on
-// gameId === "ac-evo", so anything that must NOT be reconciled uses a
-// different id to stay isolated from that behavior.
+// Keep generic registry tests isolated from AC Evo catalog data.
 const GAME = "__test_discovered_cars__";
 const GAME2 = "__test_discovered_cars_2__";
 
@@ -114,63 +111,32 @@ describe("listDiscoveredCars", () => {
   });
 });
 
-describe("reconcileDiscoveredCars", () => {
-  test("promotes a discovered row once its name lands in cars.csv, remaps sessions/tunes, deletes the row", async () => {
-    // "Ferrari SF90 Stradale" is CSV id 0 (shared/games/ac-evo/cars.csv).
-    const discoveredOrdinal = await getOrCreateDiscoveredCar("ac-evo", "Ferrari SF90 Stradale");
-    expect(discoveredOrdinal).toBeGreaterThanOrEqual(DISCOVERED_CAR_ORDINAL_BASE);
-
-    const sessionId = (
-      await db
-        .insert(sessions)
-        .values({ carOrdinal: discoveredOrdinal, trackOrdinal: 1, gameId: "ac-evo" })
-        .returning({ id: sessions.id })
-    )[0].id;
-    const tuneId = (
-      await db
-        .insert(tunes)
-        .values({
-          gameId: "ac-evo",
-          name: "Discovered Tune",
-          author: "test",
-          carOrdinal: discoveredOrdinal,
-          category: "circuit",
-          settings: "{}",
-        })
-        .returning({ id: tunes.id })
-    )[0].id;
-
-    await reconcileDiscoveredCars();
-
+describe("AC EVO discovered identity stability", () => {
+  test("catalog enrichment does not renumber discovered session or tune identities", async () => {
+    const ordinal = await getOrCreateDiscoveredCar("ac-evo", "Ferrari SF90 Stradale");
+    expect(ordinal).toBeGreaterThanOrEqual(DISCOVERED_CAR_ORDINAL_BASE);
+    const sessionId = (await db.insert(sessions).values({
+      carOrdinal: ordinal, trackOrdinal: 1, gameId: "ac-evo",
+    }).returning({ id: sessions.id }))[0].id;
+    const tuneId = (await db.insert(tunes).values({
+      gameId: "ac-evo", name: "Stable identity tune", author: "test",
+      carOrdinal: ordinal, category: "circuit", settings: "{}",
+    }).returning({ id: tunes.id }))[0].id;
+    const sameOrdinal = await getOrCreateDiscoveredCar("ac-evo", "Ferrari SF90 Stradale");
     const session = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
-    expect(session?.carOrdinal).toBe(0);
-
     const tune = await db.select().from(tunes).where(eq(tunes.id, tuneId)).get();
-    expect(tune?.carOrdinal).toBe(0);
-
-    const row = await db
-      .select()
-      .from(discoveredCars)
-      .where(and(eq(discoveredCars.gameId, "ac-evo"), eq(discoveredCars.ordinal, discoveredOrdinal)))
-      .get();
-    expect(row).toBeUndefined();
+    expect(sameOrdinal).toBe(ordinal);
+    expect(session?.carOrdinal).toBe(ordinal);
+    expect(tune?.carOrdinal).toBe(ordinal);
   });
-
-  test("leaves a discovered row untouched when its name still isn't in cars.csv", async () => {
-    const ordinal = await getOrCreateDiscoveredCar(
-      "ac-evo",
-      "Definitely Not A Real Car __TEST__",
-    );
-
-    await reconcileDiscoveredCars();
-
-    const row = await db
-      .select()
-      .from(discoveredCars)
-      .where(and(eq(discoveredCars.gameId, "ac-evo"), eq(discoveredCars.ordinal, ordinal)))
-      .get();
-    expect(row).toBeDefined();
-    expect(row?.name).toBe("Definitely Not A Real Car __TEST__");
+  test("allocates unique ordinals for distinct identities created concurrently", async () => {
+    const [first, second] = await Promise.all([
+      getOrCreateDiscoveredCar("ac-evo", "Concurrent Identity Test Car A"),
+      getOrCreateDiscoveredCar("ac-evo", "Concurrent Identity Test Car B"),
+    ]);
+    expect(first).not.toBe(second);
+    const rows = await listDiscoveredCars("ac-evo");
+    expect(new Set(rows.map((car) => car.ordinal)).size).toBe(rows.length);
   });
 });
 
@@ -191,7 +157,12 @@ describe("pipeline: unknown car resolves through LapDetectorAcEvo into discovere
       gameId: "ac-evo",
       CarOrdinal: -1,
       carModelName: "Pipeline Unknown Car",
-      TrackOrdinal: 1,
+      TrackOrdinal: -1,
+      acEvoIdentity: {
+        carName: "Pipeline Unknown Car",
+        trackName: "Pipeline Test Circuit",
+        trackConfiguration: "Grand Prix",
+      },
       DistanceTraveled: 0,
       CurrentLap: 0,
     };

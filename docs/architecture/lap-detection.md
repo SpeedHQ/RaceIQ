@@ -58,11 +58,18 @@ Detector ID: `acc_lapdetector_v2`.
 Kunos timer-reset, partial-lap, pit, duplicate-emit, and persistence lifecycle:
 
 - unresolved car names receive stable discovered-car ordinals;
-- car and track metadata can be backfilled after shared-memory static data
-  appears;
-- Kunos per-frame validity can mark track-limit cuts.
+- track identity uses the exact source venue and configuration pair, normalized for lookup, with stable discovered ordinals;
+- car and track metadata can be backfilled after shared-memory static data appears;
+- Kunos per-frame validity can mark track-limit cuts;
+- Nürburgring `touristenfahrten` captures timed attempts as open routes. Source finish-count advances complete attempts even when consecutive times are equal; post-finish transit and reset jumps do not become laps.
 
-Detector ID: `ac_evo_lapdetector_v2`.
+AC Evo supplies source names, not stable numeric car/track IDs. Generated ordinals are internal persistence keys for session and tune links. Resolving either a new or existing source identity publishes its persisted row to the runtime name catalog before returning, so import and name APIs display source car/layout names without requiring a restart.
+
+Detector ID: `ac_evo_lapdetector_v5`.
+
+Tourist replay uses only recorded route geometry, or the selected attempt's telemetry when no outline exists. The API returns `closed: false`, no circuit boundaries or pit lines, and route-relative thirds for sectors. Maps show distinct Start and Finish markers; closed GP geometry and curated GP corner fractions are not reused.
+
+The supplied Tourist recording contains selected lap windows, not the continuous reset attempt. Missing historical telemetry cannot be reconstructed; controlled reset frames cover reset behavior.
 
 ## iRacing: `LapDetectorIRacing`
 

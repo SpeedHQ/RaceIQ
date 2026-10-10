@@ -160,6 +160,7 @@ apps/backend/test/tracks/acc-boundaries.test.ts
 apps/backend/test/tracks/calibration.test.ts
 apps/backend/test/tracks/compact-route.test.ts
 apps/backend/test/tracks/discovered-cars.test.ts
+apps/backend/test/tracks/discovered-tracks.test.ts
 apps/backend/test/tracks/geometry-alignment.test.ts
 apps/backend/test/tracks/guides/anchor-validity.test.ts
 apps/backend/test/tracks/guides/collision-ledger.test.ts
@@ -175,6 +176,7 @@ apps/backend/test/tracks/model/track-roster.test.ts
 apps/backend/test/tracks/model/track-sectors.test.ts
 apps/backend/test/tracks/model/track-segment-generate.test.ts
 apps/backend/test/tracks/model/track-turn-counts.test.ts
+apps/backend/test/tracks/tourist-open-route.test.ts
 apps/backend/test/tracks/track-coverage.test.ts
 apps/backend/test/tracks/visualization/acc-boundary-viz.test.ts
 apps/backend/test/tracks/visualization/iracing-track-segment-viz.test.ts

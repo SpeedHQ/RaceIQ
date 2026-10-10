@@ -99,6 +99,7 @@ export interface TrackMapProps {
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: Point[] | null;
+  closed?: boolean;
   mapLabels?: TrackMapLabel[] | null;
   boundaries: TrackMapBoundaries | null;
   pitLines?: PitLine[] | null;

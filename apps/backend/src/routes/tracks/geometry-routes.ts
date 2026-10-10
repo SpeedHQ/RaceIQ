@@ -28,7 +28,7 @@ import {
   transformToSourceSpace,
 } from "@raceiq/backend-core/tracks/calibration";
 import type { GameId } from "@raceiq/shared/games/ids";
-import { getSharedTrackName, requireGameId } from "./support";
+import { getSharedTrackName, requireGameId, resolveTrackOutline } from "./support";
 
 export const trackCalibrationRoutes = new Hono()
 
@@ -157,6 +157,9 @@ export const trackGeometryRoutes = new Hono()
       }
       const ordinal = Number(rawTrackKey);
       if (!Number.isInteger(ordinal)) return c.json({ error: "ordinal must be an integer" }, 400);
+      if (validGameId === "ac-evo" && (await resolveTrackOutline(ordinal, validGameId))?.closed === false) {
+        return c.json(null);
+      }
       const sharedName = getSharedTrackName(ordinal, validGameId);
       const extractedBoundaries = getTrackBoundariesByOrdinal(ordinal, validGameId);
       if (extractedBoundaries) {

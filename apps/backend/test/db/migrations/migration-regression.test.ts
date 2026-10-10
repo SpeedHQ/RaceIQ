@@ -211,6 +211,57 @@ describe("migration regressions", () => {
     });
     client.close();
   });
+  test("v63 seeds exact AC Evo identities without changing existing ordinals or links", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 62);
+    await client.execute(
+      `INSERT INTO discovered_tracks (game_id, ordinal, name)
+       VALUES ('ac-evo', 41001, 'Nurburgring'), ('ac-evo', 41002, 'Nurburgring')`,
+    );
+    await client.execute(
+      `INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id)
+       VALUES (1, 51001, 41001, 'ac-evo'), (2, 51001, 41002, 'ac-evo')`,
+    );
+    await client.execute(
+      `INSERT INTO tunes (id, game_id, name, author, car_ordinal, category, settings)
+       VALUES (1, 'ac-evo', 'Identity tune', 'test', 51001, 'circuit', '{}')`,
+    );
+    await client.execute(
+      `INSERT INTO tune_assignments (id, game_id, car_ordinal, track_ordinal, tune_id)
+       VALUES (1, 'ac-evo', 51001, 41001, 1), (2, 'ac-evo', 51001, 41002, 1)`,
+    );
+
+    await runMigrations(client);
+
+    const tracks = await client.execute(
+      `SELECT ordinal, track_name, track_configuration, source_key
+       FROM discovered_tracks WHERE game_id = 'ac-evo' AND ordinal IN (41001, 41002)
+       ORDER BY ordinal`,
+    );
+    expect(tracks.rows.map((row) => ({
+      ordinal: Number(row.ordinal),
+      trackName: row.track_name,
+      configuration: row.track_configuration,
+      sourceKey: row.source_key,
+    }))).toEqual([
+      { ordinal: 41001, trackName: "Nurburgring", configuration: "", sourceKey: '["nurburgring",""]' },
+      { ordinal: 41002, trackName: null, configuration: null, sourceKey: null },
+    ]);
+    const sessions = await client.execute("SELECT id, track_ordinal FROM sessions ORDER BY id");
+    expect(sessions.rows.map((row) => [Number(row.id), Number(row.track_ordinal)])).toEqual([[1, 41001], [2, 41002]]);
+    const assignments = await client.execute("SELECT id, track_ordinal, tune_id FROM tune_assignments ORDER BY id");
+    expect(assignments.rows.map((row) => [Number(row.id), Number(row.track_ordinal), Number(row.tune_id)]))
+      .toEqual([[1, 41001, 1], [2, 41002, 1]]);
+    const seeded = await client.execute(
+      `SELECT ordinal, track_name, track_configuration FROM discovered_tracks
+       WHERE game_id = 'ac-evo' AND track_name = 'Nurburgring'
+         AND track_configuration = 'Touristenfahrten'`,
+    );
+    expect(seeded.rows).toHaveLength(1);
+    expect(Number(seeded.rows[0].ordinal)).toBeGreaterThan(41002);
+    client.close();
+  });
 
 
 

@@ -37,6 +37,7 @@ export interface AcEvoParserCache {
   trackOrdinal: number;
   lastCarModel: string;
   lastTrack: string;
+  lastTrackConfiguration: string;
   playerSlotState: PlayerSlotState;
   distanceState: AcEvoDistanceState;
 }
@@ -51,6 +52,7 @@ export function createAcEvoParserCache(): AcEvoParserCache {
     trackOrdinal: -1,
     lastCarModel: "",
     lastTrack: "",
+    lastTrackConfiguration: "",
     playerSlotState: createPlayerSlotState(),
     distanceState: createAcEvoDistanceState(),
   };
@@ -76,32 +78,17 @@ export function parseAcEvoBuffers(
   const trackStr = readCString(staticBuf, STATIC_EVO.track.offset, STATIC_EVO.track.size);
   const trackCfgStr = readCString(staticBuf, STATIC_EVO.track_configuration.offset, STATIC_EVO.track_configuration.size);
 
-  if (carModelStr && carModelStr !== cache.lastCarModel) {
+  if (carModelStr !== cache.lastCarModel) {
     cache.lastCarModel = carModelStr;
-    const car = getAcEvoParserCarByDisplayName(carModelStr);
-    if (car) {
-      cache.carOrdinal = car.id;
-      console.log(`[AC Evo Parser] Resolved car: "${carModelStr}" → ordinal ${car.id}`);
-    } else {
-      cache.carOrdinal = -1;
-      console.warn(`[AC Evo Parser] Unknown car "${carModelStr}" — add it to shared/games/ac-evo/cars.csv`);
-    }
+    cache.carOrdinal = carModelStr ? getAcEvoParserCarByDisplayName(carModelStr)?.id ?? -1 : -1;
   }
 
-  // Include the layout in the cache key: switching GP → Indy at the same
-  // circuit changes only track_configuration, not track.
-  const trackKey = `${trackStr}|${trackCfgStr}`;
-  if (trackStr && trackKey !== cache.lastTrack) {
-    cache.lastTrack = trackKey;
-    const track = getAcEvoParserTrackByName(trackStr, trackCfgStr);
-    if (track) {
-      cache.trackOrdinal = track.id;
-      console.log(`[AC Evo Parser] Resolved track: "${trackStr}" (config "${trackCfgStr}") → ordinal ${track.id} (${track.name} - ${track.variant})`);
-    } else {
-      cache.trackOrdinal = -1;
-      console.warn(`[AC Evo Parser] Unknown track name: "${trackStr}" (config "${trackCfgStr}")`);
-    }
+  if (trackStr !== cache.lastTrack || trackCfgStr !== cache.lastTrackConfiguration) {
+    cache.lastTrack = trackStr;
+    cache.lastTrackConfiguration = trackCfgStr;
+    cache.trackOrdinal = trackStr ? getAcEvoParserTrackByName(trackStr, trackCfgStr)?.id ?? -1 : -1;
   }
+
 
   // --- Physics ---
   const gas = physicsBuf.readFloatLE(PHYSICS.gas.offset);
@@ -472,10 +459,11 @@ export function parseAcEvoBuffers(
 
   const packet: TelemetryPacket = {
     gameId: "ac-evo" as GameId,
+    acEvoIdentity: { carName: carModelStr, trackName: trackStr, trackConfiguration: trackCfgStr },
+    carModelName: carModelStr || undefined,
     acc,
     IsRaceOn: isRaceOn,
     TimestampMS: timestampMs,
-
     EngineMaxRpm: currentMaxRpm || 0,
     EngineIdleRpm: 0,
     CurrentEngineRpm: rpms,

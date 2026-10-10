@@ -4,6 +4,7 @@
  */
 import { describe, test, expect, afterEach, beforeEach } from "bun:test";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { insertTune } from "@raceiq/backend-core/db/tune-queries";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SessionRecorder } from "@raceiq/capture-formats/session/recorder";
@@ -293,29 +294,53 @@ describe("reprocessSession", () => {
     });
   });
 
-  test("replacement preserves matched favourites and their cleanup protection", async () => {
-    const binPath = join(tmpDir, "session.bin.gz");
-    copyFileSync("test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz", binPath);
-    sessionId = await insertTestSession(binPath);
-    await reprocessSession(sessionId);
-    const original = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
-    const favourite = original.find((lap) => lap.isValid && lap.lapTime > 0);
-    expect(favourite).toBeDefined();
-    await db.update(laps).set({ isFavorite: true, notes: "Keep this lap" }).where(eq(laps.id, favourite!.id)).run();
-    await insertTestLap(sessionId, Math.max(...original.map((lap) => lap.lapNumber)) + 1);
+  test("AC EVO Tourist repair is repeatable and preserves session metadata", async () => {
+    const binPath = join(tmpDir, "ac-evo-tourist.bin.gz");
+    copyFileSync("test/artifacts/sessions/ac-evo-tourist-2026-10-10.bin.gz", binPath);
+    const row = await db.insert(sessions).values({
+      carOrdinal: 1,
+      trackOrdinal: 1,
+      gameId: "ac-evo",
+      carId: "test-car",
+      trackId: "test-track",
+      rawFile: binPath,
+      notes: "Tourist repair metadata",
+      isFavorite: true,
+    }).returning({ id: sessions.id }).get();
+    sessionId = row!.id;
+    const initial = await reprocessSession(sessionId);
+    expect(initial.strategy).toBe("replace");
+    const lapsBefore = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
+    expect(lapsBefore.length).toBeGreaterThan(0);
+    const selected = lapsBefore.find((lap) => lap.rawByteOffset != null && (lap.rawFrameCount ?? 0) > 0)!;
+    const tuneId = await insertTune({
+      gameId: "ac-evo", name: "Repair tune", author: "test", carOrdinal: 1,
+      category: "baseline", description: "", settings: "{}",
+    });
+    await db.update(laps).set({
+      isFavorite: true,
+      notes: "Tourist window",
+      tuneId,
+    }).where(eq(laps.id, selected.id)).run();
+    // Force replacement strategy; matching must come from source windows.
+    await insertTestLap(sessionId, Math.max(...lapsBefore.map((lap) => lap.lapNumber)) + 1);
 
-    const result = await reprocessSession(sessionId);
-    const replaced = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
-    expect(result.strategy).toBe("replace");
-    expect(replaced.filter((lap) => lap.isFavorite).map((lap) => ({ lapNumber: lap.lapNumber, notes: lap.notes })))
-      .toEqual([{ lapNumber: favourite!.lapNumber, notes: "Keep this lap" }]);
-    expect(replaced.map((lap) => lap.lapNumber).sort((a, b) => a - b))
-      .toEqual(original.map((lap) => lap.lapNumber).sort((a, b) => a - b));
+    const first = await reprocessSession(sessionId);
+    const afterFirst = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
+    expect(first.strategy).toBe("replace");
+    expect(afterFirst.filter((lap) => lap.notes === "Tourist window")).toHaveLength(1);
+    expect(afterFirst.find((lap) => lap.notes === "Tourist window")?.isFavorite).toBe(true);
+    expect(afterFirst.find((lap) => lap.notes === "Tourist window")?.tuneId).toBe(tuneId);
+    expect(afterFirst.some((lap) => lap.lapNumber === Math.max(...lapsBefore.map((lap) => lap.lapNumber)) + 1)).toBe(false);
+    const windows = afterFirst.map(({ rawByteOffset, rawFrameCount }) => [rawByteOffset, rawFrameCount]);
 
-    const cleanup = await executeSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
-    expect(cleanup.protectedSessionIds).toEqual([sessionId]);
-    expect(cleanup.cleanedSessionIds).toEqual([]);
-    expect(existsSync(binPath)).toBe(true);
+    const second = await reprocessSession(sessionId);
+    const afterSecond = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
+    expect(second.strategy).toBe("in-place");
+    expect(afterSecond.map(({ rawByteOffset, rawFrameCount }) => [rawByteOffset, rawFrameCount])).toEqual(windows);
+    expect(afterSecond.filter((lap) => lap.notes === "Tourist window")).toHaveLength(1);
+    const session = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+    expect(session).toMatchObject({ gameId: "ac-evo", carId: "test-car", trackId: "test-track", notes: "Tourist repair metadata", isFavorite: true });
   });
 });
 

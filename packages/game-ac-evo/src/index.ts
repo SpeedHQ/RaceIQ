@@ -2,9 +2,9 @@ import { resolve } from "node:path";
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { acEvoAdapter } from "@raceiq/game-ac-evo-metadata/index";
-import { getAcEvoCarName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo"
-import { getAcEvoTrackName, getAcEvoSharedTrackName, getAcEvoTrackByName, getAcEvoTrackBySetupFolder } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo"
-import { LapDetectorAcEvo } from "./lap-detector"
+import { getAcEvoCarName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
+import { getAcEvoTrackName, getAcEvoSharedTrackName, getAcEvoTrackByName, getAcEvoTrackBySetupFolder } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
+import { LapDetectorAcEvo } from "./lap-detector";
 import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
 import { buildKunosAiContext } from "@raceiq/backend-core/games/kunos/ai-context";
 import { acEvoParser } from "./game-parser";
@@ -42,59 +42,32 @@ AC EVO-SPECIFIC RULES:
 
 export const acEvoServerAdapter: ServerGameAdapter = {
   ...acEvoAdapter,
-
   runtime: {
     pit: {
       seedFuelFromHistory: true,
       seedTireWearFromHistory: true,
-      useDistanceBasedWearCurves: false,
+      useDistanceBasedWearCurves: true,
     },
-    bestLapFromSession: false,
+    bestLapFromSession: true,
     requiresTrackCalibration: false,
-    normSuspensionTravelMm: { min: 20, max: 80 },
+    normSuspensionTravelMm: { min: 0, max: 50 },
   },
-
   processNames: ["AssettoCorsaEVO.exe"],
-
   getSetupsDirCandidates(home: string): string[] {
-    // AC EVO saves setups to Saved Games\ACE\Car Setups as binary
-    // .carsetup (protobuf) files — not under Documents like ACC.
     return [resolve(home, "Saved Games", "ACE", "Car Setups")];
   },
-
-  getCarName(ordinal: number): string {
-    return getAcEvoCarName(ordinal);
-  },
-
-  getTrackName(ordinal: number): string {
-    return getAcEvoTrackName(ordinal);
-  },
-
-  getSharedTrackName(ordinal: number): string | undefined {
-    return getAcEvoSharedTrackName(ordinal);
-  },
-
+  getCarName(ordinal: number): string { return getAcEvoCarName(ordinal); },
+  getTrackName(ordinal: number): string { return getAcEvoTrackName(ordinal); },
+  getSharedTrackName(ordinal: number): string | undefined { return getAcEvoSharedTrackName(ordinal); },
   getTrackOrdinalByName(name: string): number | undefined {
-    return getAcEvoTrackBySetupFolder(name)?.id ?? getAcEvoTrackByName(name)?.id;
+    return getAcEvoTrackBySetupFolder(name)?.id ?? getAcEvoTrackByName(name, "")?.id;
   },
-
   canHandle: acEvoParser.canHandle,
-  tryParse(buf, state, timestampMs) {
-    return acEvoParser.tryParse(buf, state as never, timestampMs ?? Date.now());
-  },
-  tryParseLapIndex(buf, state, timestampMs) {
-    return acEvoParser.tryParseLapIndex(buf, state as never, timestampMs ?? Date.now());
-  },
-  primeParserState(buf, state) {
-    acEvoParser.primeParserState(buf, state as never);
-  },
+  tryParse(buf, state, timestampMs) { return acEvoParser.tryParse(buf, state as never, timestampMs ?? Date.now()); },
+  tryParseLapIndex(buf, state, timestampMs) { return acEvoParser.tryParseLapIndex(buf, state as never, timestampMs ?? Date.now()); },
+  primeParserState(buf, state) { acEvoParser.primeParserState(buf, state as never); },
   createParserState: acEvoParser.createParserState,
-
   createLapDetector: (opts) => new LapDetectorAcEvo(opts),
-
   aiSystemPrompt: AC_EVO_SYSTEM_PROMPT,
-
-  buildAiContext(packets: TelemetryPacket[]): string {
-    return buildKunosAiContext(packets, false);
-  },
+  buildAiContext(packets: TelemetryPacket[]): string { return buildKunosAiContext(packets, false); },
 };

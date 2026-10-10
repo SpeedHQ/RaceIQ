@@ -14,6 +14,30 @@
  *   1. Edit server/db/schema.ts
  *   2. Add a new { version, name, sql } entry below with the next version number
  */
+import { cars as acEvoCars, tracks as acEvoTracks } from "@raceiq/game-ac-evo-metadata/parser-data";
+
+const sqlText = (value: string): string => `'${value.replaceAll("'", "''")}'`;
+const sourceName = (value: string): string => value.trim().normalize("NFC").toLowerCase();
+const acEvoCatalogSeedSql = [
+  `INSERT OR IGNORE INTO discovered_cars (game_id, ordinal, name, model, source_key) VALUES ${
+    acEvoCars.map((car) =>
+      `('ac-evo', ${car.id}, ${sqlText(car.name)}, ${sqlText(car.model)}, ${sqlText(JSON.stringify([sourceName(car.name)]))})`
+    ).join(",\n")
+  }`,
+  `INSERT OR IGNORE INTO discovered_tracks (game_id, ordinal, name, source_key, track_name, track_configuration) VALUES ${
+    acEvoTracks.map((track) =>
+      `('ac-evo', ${track.id}, ${sqlText(track.name)}, ${sqlText(JSON.stringify([sourceName(track.name), sourceName(track.variant)]))}, ${sqlText(track.name)}, ${sqlText(track.variant)})`
+    ).join(",\n")
+  }`,
+  `INSERT OR IGNORE INTO discovered_tracks (game_id, ordinal, name, source_key, track_name, track_configuration)
+   SELECT 'ac-evo', MAX(100000, COALESCE(MAX(ordinal), 99999) + 1), 'Nurburgring - Touristenfahrten',
+     json_array('nurburgring', 'touristenfahrten'), 'Nurburgring', 'Touristenfahrten'
+   FROM discovered_tracks WHERE game_id = 'ac-evo'`,
+  `UPDATE discovered_tracks SET track_name = 'Nurburgring', track_configuration = 'Touristenfahrten'
+   WHERE game_id = 'ac-evo' AND source_key = json_array('nurburgring', 'touristenfahrten')
+     AND track_name IS NULL`,
+];
+
 export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 1,
@@ -308,13 +332,9 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   },
 
   // ── v23: discovered cars — auto-registered cars not (yet) in cars.csv ─────
-  // AC Evo has no stable ordinals; cars are keyed by name. When the shared
-  // memory reports a car name that isn't in shared/games/ac-evo/cars.csv we
-  // register it here with a generated ordinal (>= 100000, far above any CSV
-  // id) instead of importing the session as -1/"Unknown Car". On startup,
-  // reconcileDiscoveredCars() promotes rows whose name has since been added
-  // to the CSV: sessions/tunes/etc are remapped to the canonical CSV id and
-  // the discovered row is deleted.
+  // AC Evo has no stable ordinals. Runtime source names receive generated
+  // ordinals rather than -1/"Unknown Car"; current source-key storage preserves
+  // those ordinals when catalog metadata changes.
   {
     version: 23,
     name: "discovered cars registry",
@@ -1288,6 +1308,39 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
     name: "version session capture storage",
     sql: [
       `ALTER TABLE sessions ADD COLUMN capture_format_version INTEGER`,
+    ],
+  },
+  // v63: Persist runtime source identities without changing native ordinals.
+  {
+    version: 63,
+    name: "persist discovered source identities",
+    sql: [
+      `ALTER TABLE discovered_cars ADD COLUMN source_key TEXT`,
+      `ALTER TABLE discovered_tracks ADD COLUMN source_key TEXT`,
+      `ALTER TABLE discovered_tracks ADD COLUMN track_name TEXT`,
+      `ALTER TABLE discovered_tracks ADD COLUMN track_configuration TEXT`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_discovered_cars_game_source
+       ON discovered_cars(game_id, source_key)`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_discovered_tracks_game_source
+       ON discovered_tracks(game_id, source_key)`,
+      `UPDATE discovered_cars AS current SET source_key = json_array(lower(trim(current.name)))
+       WHERE current.game_id = 'ac-evo' AND current.source_key IS NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM discovered_cars AS prior
+           WHERE prior.game_id = current.game_id
+             AND json_array(lower(trim(prior.name))) = json_array(lower(trim(current.name)))
+             AND prior.id < current.id
+         )`,
+      `UPDATE discovered_tracks AS current SET track_name = current.name, track_configuration = '',
+         source_key = json_array(lower(trim(current.name)), '')
+       WHERE current.game_id = 'ac-evo' AND current.source_key IS NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM discovered_tracks AS prior
+           WHERE prior.game_id = current.game_id
+             AND json_array(lower(trim(prior.name)), '') = json_array(lower(trim(current.name)), '')
+             AND prior.id < current.id
+         )`,
+      ...acEvoCatalogSeedSql,
     ],
   },
 ];

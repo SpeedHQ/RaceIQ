@@ -1,7 +1,7 @@
 import { cacheDelete } from "./telemetry-replay-storage";
-import { eq, and, notInArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "./index";
-import { laps } from "./schema";
+import { laps, sessions } from "./schema";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 
 export async function getLapsForSession(sessionId: number): Promise<Array<{
@@ -42,7 +42,6 @@ export async function updateLapRawIndex(
   sectors: number[] | null,
   versionIdentity?: TelemetryVersionIdentity,
 ): Promise<void> {
-  cacheDelete(lapId);
   await db.update(laps).set({
     rawByteOffset,
     rawFrameCount,
@@ -52,62 +51,57 @@ export async function updateLapRawIndex(
     sectorTimes: sectors,
     ...versionIdentity,
   }).where(eq(laps.id, lapId));
+  cacheDelete(lapId);
 }
 
-/** Insert a detected replacement while preserving matched row metadata. */
-
-export async function insertReprocessedLap(
+/** Replace lap rows atomically; cache invalidation follows successful commit. */
+export async function replaceLapsForSession(
   sessionId: number,
-  lapNumber: number,
-  lapTime: number,
-  isValid: boolean,
-  isFavorite: boolean,
-  rawByteOffset: number | null,
-  rawFrameCount: number,
-  tuneId: number | null,
-  notes: string | null,
-  invalidReason: string | null,
-  sectors: number[] | null,
-  versionIdentity?: TelemetryVersionIdentity,
-): Promise<number> {
-  const result = await db.insert(laps).values({
-    sessionId, lapNumber, lapTime, isValid, isFavorite,
-    rawByteOffset, rawFrameCount,
-    tuneId, notes, invalidReason,
-    sectorTimes: sectors,
-    ...versionIdentity,
-  }).returning({ id: laps.id }).get();
-  return result.id;
-}
-
-/** Delete replaceable laps while retaining explicitly archived fallback rows. */
-
-export async function deleteLapsForSession(
-  sessionId: number,
-  preserveLapIds: readonly number[] = [],
+  replacements: ReadonlyArray<{
+    lapNumber: number;
+    lapTime: number;
+    isValid: boolean;
+    isFavorite: boolean;
+    rawByteOffset: number | null;
+    rawFrameCount: number;
+    tuneId: number | null;
+    notes: string | null;
+    invalidReason: string | null;
+    sectors: number[] | null;
+    versionIdentity?: TelemetryVersionIdentity;
+  }>,
+  sessionIdentity?: { carOrdinal: number; trackOrdinal: number; identity?: { carId?: string | null; trackId?: string | null } },
 ): Promise<void> {
-  const rows = await db
-    .select({ id: laps.id })
-    .from(laps)
-    .where(eq(laps.sessionId, sessionId))
-    .all();
-  const preserved = new Set(preserveLapIds);
-  const deletedIds = rows
-    .map(({ id }) => id)
-    .filter((id) => !preserved.has(id));
+  const deletedIds = await db.transaction(async (tx) => {
+    const rows = await tx.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
+    const deleted = rows.map(({ id }) => id);
+    if (deleted.length > 0) await tx.delete(laps).where(eq(laps.sessionId, sessionId));
+    for (const replacement of replacements) {
+      await tx.insert(laps).values({
+        sessionId,
+        lapNumber: replacement.lapNumber,
+        lapTime: replacement.lapTime,
+        isValid: replacement.isValid,
+        isFavorite: replacement.isFavorite,
+        rawByteOffset: replacement.rawByteOffset,
+        rawFrameCount: replacement.rawFrameCount,
+        tuneId: replacement.tuneId,
+        notes: replacement.notes,
+        invalidReason: replacement.invalidReason,
+        sectorTimes: replacement.sectors,
+        ...replacement.versionIdentity,
+      });
+    }
+    if (sessionIdentity) {
+      await tx.update(sessions).set({
+        carOrdinal: sessionIdentity.carOrdinal,
+        trackOrdinal: sessionIdentity.trackOrdinal,
+        ...sessionIdentity.identity,
+      }).where(eq(sessions.id, sessionId));
+    }
+    return deleted;
+  });
   for (const id of deletedIds) cacheDelete(id);
-  if (deletedIds.length === 0) return;
-  if (preserveLapIds.length === 0) {
-    await db.delete(laps).where(eq(laps.sessionId, sessionId));
-    return;
-  }
-  await db.delete(laps).where(
-    and(
-      eq(laps.sessionId, sessionId),
-      notInArray(laps.id, [
-        preserveLapIds[0]!,
-        ...preserveLapIds.slice(1),
-      ]),
-    ),
-  );
 }
+
+

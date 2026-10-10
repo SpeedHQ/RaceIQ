@@ -105,14 +105,10 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     expect(getAcEvoCarName(last.CarOrdinal)).toBe("Porsche 992 GT3 R Rennsport");
   }, { timeout: 30000 });
 
-  // Regression guard for the unknown-track / discovered-car fix. Before the fix
-  // this capture's track re-derived as Unknown Track (ordinal -1); the fix
-  // resolves it to Red Bull Ring - GP (ordinal 13) off the session frames.
-  // Player car is a known ordinal (Audi R8 LMS GT3 Evo II → 68). The session
-  // also contains an unknown car ("Grand Prix 2026 MCL40") which the DB reconcile
-  // path registers as a discovered ordinal — that stateful path is covered by the
-  // import/reconcile tests; here we assert the pure re-derivation the fix touched.
-  test("ac-evo-unknown-track-session17.bin.gz — session-capture, AC Evo — track re-derivation fix (was Unknown Track)", () => {
+  // The trailing source frame has no track identity. Pure replay must not
+  // infer a layout from the capture's old cached ordinal or a venue alias.
+  // Stateful import allocates exact source pairs for the preceding frames.
+  test("ac-evo-unknown-track-session17.bin.gz — missing source identity stays unresolved", () => {
     const file = `${DIR}/ac-evo-unknown-track-session17.bin.gz`;
     expect(detectGameIdFromBuffer(readFileSync(file))).toBe("ac-evo");
     expect(hasMetaFrame(gunzip(file))).toBe(true);
@@ -120,9 +116,9 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     const packets = readSessionPackets(file, acEvoServerAdapter);
     expect(packets.length).toBeGreaterThan(0);
     const last = packets[packets.length - 1]!;
-    // Track: the fix's core re-derivation. Every frame (incl. the last) now
-    // resolves to Red Bull Ring - GP (ordinal 13); before the fix it was -1.
-    expect(getAcEvoTrackName(last.TrackOrdinal)).toBe("Red Bull Ring - GP");
+    expect(last.acEvoIdentity?.trackName).toBe("");
+    expect(last.acEvoIdentity?.trackConfiguration).toBe("");
+    expect(last.TrackOrdinal).toBe(-1);
 
     // Car: assert on the dominant (player) car ordinal, not `last`. All but one
     // of the ~22.5k frames carry the player's Audi R8 (ordinal 68); the single

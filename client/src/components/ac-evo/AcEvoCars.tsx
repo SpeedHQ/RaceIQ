@@ -6,7 +6,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
 interface AcEvoCar {
-  id: number;
+  ordinal: number;
   name: string;
   class: string;
 }
@@ -91,7 +91,7 @@ export function AcEvoCars() {
                 const brand = getManufacturer(car.name);
                 return (
                   <div
-                    key={car.id}
+                    key={car.ordinal}
                     data-car-brand={brand}
                     className="group relative bg-app-surface-alt/20 rounded-lg border border-app-border/10 overflow-hidden hover:border-app-border-hover/30 transition-all"
                   >

@@ -9,10 +9,9 @@ import type {
   MotecCarTrackOverride,
   MotecConversionResult,
 } from "@raceiq/backend-core/motec/types";
-import { getAcEvoCarByModel, getAcEvoCarName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
+import { getAcEvoCarByModel, getAcEvoCarByDisplayName, getAcEvoCarName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
 import {
   getAcEvoTrackByName,
-  getAcEvoTrackBySetupFolder,
   getAcEvoTracks,
 } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
 
@@ -23,11 +22,11 @@ export function resolveAcEvoMotecCarTrack(
   const car =
     override?.carOrdinal !== undefined && override.carOrdinal >= 0
       ? { id: override.carOrdinal, name: getAcEvoCarName(override.carOrdinal) }
-      : getAcEvoCarByModel(log.vehicleId);
+      : getAcEvoCarByDisplayName(log.vehicleId) ?? getAcEvoCarByModel(log.vehicleId);
   const track =
     override?.trackOrdinal !== undefined && override.trackOrdinal >= 0
       ? getAcEvoTracks().get(override.trackOrdinal)
-      : getAcEvoTrackBySetupFolder(log.venue) ?? getAcEvoTrackByName(log.venue);
+      : getAcEvoTrackByName(log.venue, "");
   return {
     carOrdinal: car?.id ?? -1,
     trackOrdinal: track?.id ?? -1,

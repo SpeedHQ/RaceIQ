@@ -12,8 +12,15 @@ export function parseAcEvoLapIndex(physics: Buffer, graphics: Buffer, stat: Buff
   const car = readCString(graphics, GRAPHICS_EVO.car_model.offset, GRAPHICS_EVO.car_model.size);
   const track = readCString(stat, STATIC_EVO.track.offset, STATIC_EVO.track.size);
   const cfg = readCString(stat, STATIC_EVO.track_configuration.offset, STATIC_EVO.track_configuration.size);
-  if (car) cache.carOrdinal = getAcEvoParserCarByDisplayName(car)?.id ?? -1;
-  if (track) cache.trackOrdinal = getAcEvoParserTrackByName(track, cfg)?.id ?? -1;
+  if (car !== cache.lastCarModel) {
+    cache.lastCarModel = car;
+    cache.carOrdinal = car ? getAcEvoParserCarByDisplayName(car)?.id ?? -1 : -1;
+  }
+  if (track !== cache.lastTrack || cfg !== cache.lastTrackConfiguration) {
+    cache.lastTrack = track;
+    cache.lastTrackConfiguration = cfg;
+    cache.trackOrdinal = track ? getAcEvoParserTrackByName(track, cfg)?.id ?? -1 : -1;
+  }
   const current = graphics.readInt32LE(GRAPHICS_EVO.current_lap_time_ms.offset), last = graphics.readInt32LE(GRAPHICS_EVO.last_laptime_ms.offset), best = graphics.readInt32LE(GRAPHICS_EVO.best_laptime_ms.offset);
   const distance = integrateDistance(cache.distanceState, physics.readInt32LE(EVO_PHYSICS.packetId.offset), physics.readFloatLE(EVO_PHYSICS.speedKmh.offset) / 3.6, graphics.readFloatLE(GRAPHICS_EVO.current_km.offset));
   const activeCars = graphics.readUInt8(GRAPHICS_EVO.active_cars.offset);
@@ -33,6 +40,12 @@ export function parseAcEvoLapIndex(physics: Buffer, graphics: Buffer, stat: Buff
   const isValidLapRaw = graphics.readUInt8(GRAPHICS_EVO.is_valid_lap.offset);
   const isValidLap = isValidLapRaw ? true : isInPitLane || isInPitBox ? null : false;
   return {
+    acEvoIdentity: {
+      carName: car,
+      trackName: track,
+      trackConfiguration: cfg,
+    },
+    carModelName: car || undefined,
     gameId: "ac-evo",
     CarPerformanceIndex: 0,
     CarClass: 0,

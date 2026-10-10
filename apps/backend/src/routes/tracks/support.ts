@@ -20,6 +20,9 @@ import { alignIRacingAutoSegmentsToTurnLabels, type IRacingMapLabel } from "@rac
 import { lapPath } from "@raceiq/shared/racing/tracks/path";
 import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { getLMUTrackOutline } from "@raceiq/game-lmu-metadata/track-boundaries";
+import { getDiscoveredAcEvoTrackSource } from "@raceiq/backend-core/db/discovered-tracks";
+import { getAcEvoParserTrackByName } from "@raceiq/game-ac-evo-metadata/parser-data-resolver";
+
 
 // ─── Param schemas ──────────────────────────────────────────────────────────
 
@@ -86,8 +89,9 @@ export interface ResolvedTrackOutline {
   points: { x: number; z: number }[];
   labels: IRacingMapLabel[];
   recorded: boolean;
-  source: "shared" | "official-svg" | "generated" | "bundled" | "recorded";
+  source: "shared" | "official-svg" | "generated" | "bundled" | "recorded" | "none";
   pitLines: IRacingPitLine[];
+  closed: boolean;
 }
 
 /**
@@ -99,6 +103,36 @@ export async function resolveTrackOutline(
   ordinal: number,
   gameId: string,
 ): Promise<ResolvedTrackOutline | null> {
+  if (gameId === "ac-evo") {
+    const source = await getDiscoveredAcEvoTrackSource(ordinal);
+    if (!source) return null;
+    const trackName = source.trackName.trim().normalize("NFC").toLowerCase();
+    const trackConfiguration = source.trackConfiguration.trim().normalize("NFC").toLowerCase();
+    if (trackName === "nurburgring" && trackConfiguration === "touristenfahrten") {
+      // Tourist sessions do not use the catalog's closed GP/Nordschleife line.
+      // Serve only telemetry-recorded route geometry; no geometry means no map.
+      const outline = getRecordedOutlineByOrdinal(ordinal, gameId);
+      if (!outline) {
+        return {
+          points: [],
+          labels: [],
+          pitLines: [],
+          recorded: false,
+          source: "none",
+          closed: false,
+        };
+      }
+      return {
+        points: outline.map(({ x, z }) => ({ x, z })),
+        labels: [],
+        pitLines: [],
+        recorded: true,
+        source: "recorded",
+        closed: false,
+      };
+    }
+    if (!getAcEvoParserTrackByName(source.trackName, source.trackConfiguration)) return null;
+  }
   const official = gameId === "iracing" ? await getIRacingSvgTrackMap(ordinal) : null;
   const sharedName = getSharedTrackName(ordinal, gameId);
 
@@ -119,6 +153,7 @@ export async function resolveTrackOutline(
             : [],
           recorded: false,
           source: "shared",
+          closed: true,
         };
       }
     }
@@ -127,6 +162,7 @@ export async function resolveTrackOutline(
         ...official,
         recorded: false,
         source: "official-svg",
+        closed: true,
       };
     }
 
@@ -138,6 +174,7 @@ export async function resolveTrackOutline(
         pitLines: [],
         recorded: true,
         source: "generated",
+        closed: true,
       };
     }
   } else {
@@ -149,6 +186,7 @@ export async function resolveTrackOutline(
         pitLines: [],
         recorded: true,
         source: "bundled",
+        closed: true,
       };
     }
   }
@@ -161,6 +199,7 @@ export async function resolveTrackOutline(
       pitLines: [],
       recorded: true,
       source: "recorded",
+      closed: true,
     };
   }
 
@@ -193,6 +232,7 @@ export async function resolveTrackOutline(
           pitLines: [],
           recorded: true,
           source: "generated",
+          closed: true,
         };
       }
     }
@@ -228,13 +268,13 @@ export async function resolveTrackSegments(
   }
 
   const ordinal = Number(trackKey);
+  const resolved = gameId ? await resolveTrackOutline(ordinal, gameId) : null;
   const slug = getSharedTrackName(ordinal, gameId);
-  const metaSegments = slug && gameId ? loadLabelledSegments(slug, gameId) : [];
+  const metaSegments = resolved?.closed !== false && slug && gameId ? loadLabelledSegments(slug, gameId) : [];
   if (metaSegments.length > 0) {
     return { segments: metaSegments, totalDist: 0, source: "shared" };
   }
 
-  const resolved = gameId ? await resolveTrackOutline(ordinal, gameId) : null;
   const outline = resolved?.points ?? null;
   if (!outline || outline.length < 20) return { segments: [], totalDist: 0, source: "none" };
 

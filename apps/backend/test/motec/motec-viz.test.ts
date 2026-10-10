@@ -23,7 +23,7 @@ import { resolve } from "node:path";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { loadCenterline } from "@raceiq/shared/racing/tracks/curation/generate";
-import { getAcEvoTrackByName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
+import { getAcEvoTrackByLegacyName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
 import { parseLd } from "@raceiq/backend-core/motec/ld";
 import { resolveMotecTarget } from "@raceiq/backend-core/motec/targets";
 import { MOTEC_SYNTH_HZ } from "@raceiq/backend-core/motec/kunos-synthesis";
@@ -90,7 +90,7 @@ describe("MoTeC reconstruction vs real centerlines", () => {
       expect(raw).not.toBeNull();
       const stint = centerlineToStint(raw!, { laps: 2, hz: MOTEC_SYNTH_HZ });
       const log = parseLd(buildLd(stint.spec));
-      const track = getAcEvoTrackByName(slug);
+      const track = getAcEvoTrackByLegacyName(slug);
       expect(track).not.toBeNull();
       const target = resolveMotecTarget("ac-evo");
       const carTrack = target.resolveCarTrack(log, { trackOrdinal: track!.id });

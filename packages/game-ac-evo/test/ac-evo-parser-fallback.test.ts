@@ -84,20 +84,42 @@ describe("AC Evo parser — malformed/empty STATIC recovery", () => {
     expect(parseAcEvoLapIndex(physics, graphics, staticData, createAcEvoParserCache())?.acc?.isValidLap).toBeNull();
   });
 
-  test("track name populated mid-session resolves on the frame it appears", () => {
+  test("track identity requires an exact layout configuration when it appears mid-session", () => {
     const { physics, graphics, staticData } = emptyBuffers();
     const cache = createAcEvoParserCache();
 
-    // Frame 1: game hasn't populated STATIC yet (production repro)
+    // Frame 1: game hasn't populated STATIC yet (production repro).
     parseAcEvoBuffers(physics, graphics, staticData, cache);
     expect(cache.trackOrdinal).toBe(-1);
 
-    // Frame 2: game fills in the track name
+    // Frame 2: track name alone cannot distinguish layouts.
     writeCString(staticData, STATIC_EVO.track.offset, STATIC_EVO.track.size, "monza");
+    const unresolved = parseAcEvoBuffers(physics, graphics, staticData, cache);
+    expect(unresolved?.TrackOrdinal).toBe(-1);
+    expect(unresolved?.acEvoIdentity?.trackConfiguration).toBe("");
+
+    // Exact source variant resolves to the catalog layout.
+    writeCString(staticData, STATIC_EVO.track_configuration.offset, STATIC_EVO.track_configuration.size, "GP");
     const packet = parseAcEvoBuffers(physics, graphics, staticData, cache);
     expect(packet).not.toBeNull();
-    expect(cache.trackOrdinal).toBe(0); // Monza GP — now legitimately resolved
+    expect(cache.trackOrdinal).toBe(0);
     expect(packet!.TrackOrdinal).toBe(0);
+    staticData.fill(0);
+    const blankPacket = parseAcEvoBuffers(physics, graphics, staticData, cache);
+    expect(cache.trackOrdinal).toBe(-1);
+    expect(blankPacket!.TrackOrdinal).toBe(-1);
+    expect(blankPacket!.acEvoIdentity?.trackName).toBe("");
+
+    const compactCache = createAcEvoParserCache();
+    expect(parseAcEvoLapIndex(physics, graphics, staticData, compactCache)?.TrackOrdinal).toBe(-1);
+    writeCString(staticData, STATIC_EVO.track.offset, STATIC_EVO.track.size, "monza");
+    expect(parseAcEvoLapIndex(physics, graphics, staticData, compactCache)?.TrackOrdinal).toBe(-1);
+    writeCString(staticData, STATIC_EVO.track_configuration.offset, STATIC_EVO.track_configuration.size, "GP");
+    expect(parseAcEvoLapIndex(physics, graphics, staticData, compactCache)?.TrackOrdinal).toBe(0);
+    staticData.fill(0);
+    const compactBlank = parseAcEvoLapIndex(physics, graphics, staticData, compactCache);
+    expect(compactCache.trackOrdinal).toBe(-1);
+    expect(compactBlank?.acEvoIdentity?.trackName).toBe("");
   });
 
   test("unknown car display name resolves to -1 sentinel, not ordinal 0", () => {

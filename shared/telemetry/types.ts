@@ -10,6 +10,11 @@ export interface RaceIQExtendedData {
 
 export interface TelemetryPacket {
   gameId: GameId;
+  acEvoIdentity?: {
+    carName: string;
+    trackName: string;
+    trackConfiguration: string;
+  };
   f1?: F1ExtendedData;
   acc?: KunosExtendedData;
   iracing?: IRacingExtendedData;

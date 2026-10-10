@@ -73,3 +73,6 @@ test/e2e/output/
 # Local agent checkpoints and verification evidence
 /.omp/checkpoints/
 /.omp/evidence/
+
+# Oversized Tourist fixture is committed as ordered gzip parts.
+/test/artifacts/sessions/ac-evo-tourist-2026-10-10.bin.gz

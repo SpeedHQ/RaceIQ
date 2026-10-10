@@ -30,6 +30,7 @@ export interface StaticTrackOptions {
   gameId?: GameId;
   resolvedPositions: Point[];
   outline: Point[] | null;
+  closed?: boolean;
   mapLabels?: TrackMapLabel[] | null;
   boundaries: TrackMapBoundaries | null;
   pitLines?: PitLine[] | null;
@@ -50,6 +51,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     gameId,
     resolvedPositions,
     outline,
+    closed = true,
     mapLabels,
     boundaries,
     pitLines,
@@ -73,12 +75,13 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const telemetryPoints = telemetryPointsWithIdx as Point[];
   const flip = needsTrackFlip(gameId);
   const displayTrackOutline = outline && flip ? flipPoints(outline) : outline;
+  const hasReferenceOutline = !!displayTrackOutline?.length;
   const displayOutline: Point[] = !showTrace
-    ? (displayTrackOutline ?? (telemetryPoints.length > 2 ? telemetryPoints : []))
+    ? (hasReferenceOutline ? displayTrackOutline! : telemetryPoints.length > 2 ? telemetryPoints : [])
     : telemetryPoints.length > 2
       ? telemetryPoints
-      : (displayTrackOutline ?? []);
-  const drawingReferenceOutline = displayTrackOutline !== null && displayOutline === displayTrackOutline;
+      : (hasReferenceOutline ? displayTrackOutline! : []);
+  const drawingReferenceOutline = closed && hasReferenceOutline && displayOutline === displayTrackOutline;
   if (displayOutline.length === 0) return { bufferCanvas: options.bufferCanvas, transform: null };
   const flippedLeft = flip && boundaries?.leftEdge ? flipPoints(boundaries.leftEdge) : boundaries?.leftEdge;
   const flippedRight = flip && boundaries?.rightEdge ? flipPoints(boundaries.rightEdge) : boundaries?.rightEdge;
@@ -90,8 +93,8 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
       const anchored = projectPointOntoPath(displayLabel, overlayOutline);
       return anchored ? { ...displayLabel, ...anchored } : displayLabel;
     }) ?? null;
-  const raceLine = showRaceLine && Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1 ? (flip ? flipPoints(boundaries.raceLine) : boundaries.raceLine) : null;
-  const hasBounds = !!(boundaries?.coordSystem && flippedLeft && flippedLeft.length > 2);
+  const raceLine = closed && showRaceLine && Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1 ? (flip ? flipPoints(boundaries.raceLine) : boundaries.raceLine) : null;
+  const hasBounds = closed && !!(boundaries?.coordSystem && flippedLeft && flippedLeft.length > 2);
   let minX = Infinity,
     maxX = -Infinity,
     minZ = Infinity,
@@ -157,7 +160,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const [sx, sy] = toCanvas(displayOutline[0].x, displayOutline[0].z);
   ctx.moveTo(sx, sy);
   for (let i = 1; i < displayOutline.length; i++) ctx.lineTo(...toCanvas(displayOutline[i].x, displayOutline[i].z));
-  if (drawingReferenceOutline) ctx.lineTo(sx, sy);
+  if (drawingReferenceOutline && closed) ctx.lineTo(sx, sy);
   ctx.stroke();
   const displayPitLines = flip && pitLines ? pitLines.map((line) => ({ ...line, points: flipPoints(line.points) })) : pitLines;
   drawPitLines(ctx, displayPitLines, toCanvas);
@@ -166,7 +169,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     ctx.beginPath();
     ctx.moveTo(...toCanvas(raceLine[0].x, raceLine[0].z));
     for (let i = 1; i < raceLine.length; i++) ctx.lineTo(...toCanvas(raceLine[i].x, raceLine[i].z));
-    ctx.closePath();
+    if (closed) ctx.closePath();
     ctx.globalAlpha = 1;
     ctx.strokeStyle = "var(--track-racing-line)";
     ctx.lineWidth = 2.5;
@@ -257,7 +260,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     ctx.lineWidth = 2;
     ctx.moveTo(sx, sy);
     for (let i = 1; i < displayOutline.length; i++) ctx.lineTo(...toCanvas(displayOutline[i].x, displayOutline[i].z));
-    if (drawingReferenceOutline) ctx.lineTo(sx, sy);
+    if (drawingReferenceOutline && closed) ctx.lineTo(sx, sy);
     ctx.stroke();
   }
 
@@ -281,7 +284,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
       drawRange(hl.startFrac, hl.endFrac, style.stroke, style.width);
     }
 
-  if (outline) {
+  if (outline || !closed) {
     const [sfCx, sfCy] = toCanvas(displayOutline[0].x, displayOutline[0].z);
     ctx.beginPath();
     ctx.arc(sfCx, sfCy, 5, 0, Math.PI * 2);
@@ -290,6 +293,21 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     ctx.strokeStyle = "var(--track-label-background)";
     ctx.lineWidth = 1.5;
     ctx.stroke();
+    if (!closed) {
+      const [finishX, finishY] = toCanvas(displayOutline.at(-1)!.x, displayOutline.at(-1)!.z);
+      ctx.beginPath();
+      ctx.arc(finishX, finishY, 5, 0, Math.PI * 2);
+      ctx.fillStyle = "var(--status-danger)";
+      ctx.fill();
+      ctx.strokeStyle = "var(--track-label-background)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.font = "var(--font-weight-bold) var(--text-app-micro) var(--font-mono)";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "var(--track-label-text)";
+      ctx.fillText("Start", sfCx, sfCy - 9);
+      ctx.fillText("Finish", finishX, finishY - 9);
+    }
   }
   if (sectors && overlayOutline.length > 10) {
     for (let si = 0; si < sectors.sectorStarts.slice(1).length; si++) {

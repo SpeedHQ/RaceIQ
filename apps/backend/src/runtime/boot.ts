@@ -2,16 +2,16 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { serverReleaseFeatures } from "@raceiq/backend-core/runtime/config/release-features";
-import { injectDiscoveredAcEvoCars } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
+import { hydrateDiscoveredAcEvoCars } from "@raceiq/backend-core/db/discovered-cars";
 import { injectDiscoveredIRacingIdentity } from "@raceiq/game-iracing-metadata/index";
 import { injectDiscoveredLMUIdentity } from "@raceiq/game-lmu-metadata/index";
 import app from "../routes/index";
 import { initServerGameAdapters } from "../games/init";
 import { initDb } from "@raceiq/backend-core/db/index";
-import { reconcileDiscoveredCars, listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
+import { listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
 import { backfillAllRaceResults } from "@raceiq/backend-core/race-results/reconcile";
 import { backfillLMUSessionIdentity } from "../imports/lmu-session-identity-backfill";
-import { listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
+import { hydrateDiscoveredAcEvoTracks, listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
 import { deleteEmptySessions } from "@raceiq/backend-core/db/session-queries";
 import { setCacheMaxBytes } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { isFirstRun, loadSettings } from "@raceiq/backend-core/runtime/config/settings";
@@ -76,8 +76,8 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   }
 
   await initDb();
-  await reconcileDiscoveredCars();
-  injectDiscoveredAcEvoCars(await listDiscoveredCars("ac-evo"));
+  await hydrateDiscoveredAcEvoCars();
+  await hydrateDiscoveredAcEvoTracks();
 
   const [iracingCars, iracingTracks] = await Promise.all([
     listDiscoveredCars("iracing"),
