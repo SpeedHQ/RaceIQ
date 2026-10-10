@@ -3,7 +3,6 @@
  *   macOS:   Keychain via `security` CLI
  *   Windows: Credential Manager via PowerShell
  */
-import { execSync } from "node:child_process";
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +10,7 @@ import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { IS_COMPILED } from "../config/paths";
 import { IS_DARWIN, IS_WINDOWS, runPowerShellScript } from "./shell";
+import { createMacKeychain } from "./mac-keychain";
 
 const SERVICE = "RaceIQ";
 
@@ -43,34 +43,13 @@ function ps(args: string[]): string {
 
 // ── macOS helpers ────────────────────────────────────────────
 
-function macGet(account: string): string {
-  return execSync(
-    `security find-generic-password -s "${SERVICE}" -a "${account}" -w 2>/dev/null`,
-    { encoding: "utf-8", timeout: 5000 },
-  ).trim();
-}
-
-function macSet(account: string, password: string): void {
-  // Delete first to avoid "already exists" error, then add
-  try { execSync(`security delete-generic-password -s "${SERVICE}" -a "${account}" 2>/dev/null`, { timeout: 5000 }); } catch { /* ok if missing */ }
-  execSync(
-    `security add-generic-password -s "${SERVICE}" -a "${account}" -w "${password.replace(/"/g, '\\"')}"`,
-    { timeout: 5000 },
-  );
-}
-
-function macDelete(account: string): void {
-  execSync(
-    `security delete-generic-password -s "${SERVICE}" -a "${account}" 2>/dev/null`,
-    { timeout: 5000 },
-  );
-}
+const macKeychain = createMacKeychain();
 
 // ── Public API ───────────────────────────────────────────────
 
 export async function getSecret(key: string): Promise<string> {
   if (IS_DARWIN) {
-    try { return macGet(key); } catch { return ""; }
+    try { return macKeychain.get(key); } catch { return ""; }
   }
   if (!WIN_STORE_AVAILABLE) { warnUnavailableOnce(); return ""; }
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -94,9 +73,9 @@ export async function getSecret(key: string): Promise<string> {
 export async function setSecret(key: string, value: string): Promise<void> {
   if (IS_DARWIN) {
     if (!value) {
-      macDelete(key);
+      macKeychain.delete(key);
     } else {
-      macSet(key, value);
+      macKeychain.set(key, value);
     }
     return;
   }

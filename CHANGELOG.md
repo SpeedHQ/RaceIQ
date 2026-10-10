@@ -1,9 +1,14 @@
 ## Unreleased
 
+### Breaking
+- Dashboard access is local-only by default. LAN and Docker users must configure a dashboard password and allowed addresses before connecting from other devices.
+
 ### Features
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 
 ### Fixes
+- Prevent crafted AI credential requests from running commands on macOS.
+- Block requests from unrelated websites to the dashboard and live telemetry connection.
 - Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
 
 ### Internal

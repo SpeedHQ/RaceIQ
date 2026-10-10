@@ -28,7 +28,7 @@ const server = spawn("bun", ["run", "apps/backend/src/index.ts"], {
   stdio: "inherit",
   env: { ...process.env, DATA_DIR: dir, SERVER_PORT: serverPort, UDP_PORT: udpPort },
 });
-const client = spawn("bun", ["run", "dev", "--", "--host", "0.0.0.0", "--port", clientPort], {
+const client = spawn("bun", ["run", "dev", "--", "--host", "127.0.0.1", "--port", clientPort], {
   cwd: resolve(repoDir, "client"),
   stdio: "inherit",
   env: {

@@ -10,6 +10,8 @@ Windows is recommended for full RaceIQ support, including live shared-memory tel
 
 Open dashboard by clicking RaceIQ tray icon, or visit <http://localhost:3117> in browser. Reopen it anytime through tray icon.
 
+The dashboard is local-only by default. To connect a phone, tablet, or another computer, configure [authenticated network access](network-access.md).
+
 ## Telemetry
 
 For Forza Motorsport and F1, configure game telemetry to send UDP data to `127.0.0.1:5301`.

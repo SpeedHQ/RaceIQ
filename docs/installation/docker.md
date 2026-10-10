@@ -6,15 +6,18 @@ RaceIQ publishes a `linux/amd64` image to GHCR. The image runs as unprivileged u
 
 Requirements: Docker Engine with support for `linux/amd64` images.
 
+Create a private `.env` file containing `SERVER_PASSWORD` (a unique random password of at least 24 characters) and `SERVER_ALLOWED_ORIGINS` (for example `http://localhost:3117`). See [network access](network-access.md) for LAN addresses and HTTPS proxy configuration. The container binds to `0.0.0.0` and refuses to start without these settings.
+
 ```bash
 docker run --detach --name raceiq --restart unless-stopped \
+  --env-file .env \
   --publish 3117:3117/tcp \
   --publish 5301:5301/udp \
   --volume raceiq-data:/data \
   ghcr.io/speedhq/raceiq:latest
 ```
 
-Open <http://localhost:3117>.
+Open <http://localhost:3117> and sign in as `raceiq` with your configured password.
 
 Do not add `--privileged`, `--user root`, or `sudo`. Named volume `raceiq-data` preserves database, settings, recordings, and other application state across container replacement.
 
@@ -32,6 +35,7 @@ Pull the new image, replace the container, and keep the same named volume:
 docker pull ghcr.io/speedhq/raceiq:latest
 docker rm --force raceiq
 docker run --detach --name raceiq --restart unless-stopped \
+  --env-file .env \
   --publish 3117:3117/tcp \
   --publish 5301:5301/udp \
   --volume raceiq-data:/data \
@@ -62,10 +66,11 @@ Override published ports while preserving the server's internal ports through Do
 
 ```bash
 docker run --detach --name raceiq \
+  --env-file .env \
   --publish 8080:3117/tcp \
   --publish 6301:5301/udp \
   --volume raceiq-data:/data \
   ghcr.io/speedhq/raceiq:latest
 ```
 
-The image defaults are `SERVER_PORT=3117`, `UDP_PORT=5301`, and `DATA_DIR=/data`. If changing internal ports with environment variables, keep the corresponding port mappings aligned.
+The image defaults are `SERVER_HOST=0.0.0.0`, `SERVER_PORT=3117`, `UDP_PORT=5301`, and `DATA_DIR=/data`. If changing internal ports with environment variables, keep the corresponding port mappings aligned. Update `SERVER_ALLOWED_ORIGINS` to the browser-facing address and port when changing the published address. The health check uses the configured password.

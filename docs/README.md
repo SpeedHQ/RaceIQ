@@ -10,6 +10,7 @@ Documentation is organized by audience. Start with a user guide; use contributor
 
 - [Windows](installation/windows.md) — install the desktop application and configure native or UDP telemetry.
 - [Docker on Linux](installation/docker.md) — run the published non-root container with persistent storage.
+- [Dashboard network access](installation/network-access.md) — configure authenticated LAN access and trusted browser origins.
 
 ## Contributors
 

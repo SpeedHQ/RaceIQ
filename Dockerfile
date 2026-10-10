@@ -21,6 +21,7 @@ RUN mkdir /data && chown bun:bun /data
 ENV NODE_ENV=production \
     DATA_DIR=/data \
     SERVER_PORT=3117 \
+    SERVER_HOST=0.0.0.0 \
     UDP_PORT=5301
 
 VOLUME ["/data"]
@@ -29,5 +30,5 @@ EXPOSE 5301/udp
 
 USER bun
 
-HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 CMD ["bun", "-e", "fetch(`http://127.0.0.1:${process.env.SERVER_PORT}/`).then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1))"]
+HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 CMD ["bun", "-e", "fetch(`http://127.0.0.1:${process.env.SERVER_PORT}/`, {headers: {Authorization: 'Basic ' + Buffer.from('raceiq:' + process.env.SERVER_PASSWORD).toString('base64')}}).then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1))"]
 ENTRYPOINT ["./raceiq"]
