@@ -19,7 +19,7 @@ describe("static asset headers", () => {
 describe("HTTP listener access controls", () => {
   test("blocks requests before reaching APIs, Studio, or the WebSocket upgrade", async () => {
     let calls = 0;
-    const password = "test-only-listener-password-24-characters";
+    const password = "abcdefgh";
     const server = startHttpServer({
       port: 0, staticDir: null, devPublicDir: null,
       access: createHttpAccess({ NODE_ENV: "production", SERVER_PASSWORD: password }),

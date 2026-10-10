@@ -6,7 +6,7 @@ RaceIQ publishes a `linux/amd64` image to GHCR. The image runs as unprivileged u
 
 Requirements: Docker Engine with support for `linux/amd64` images.
 
-Create a private `.env` file containing `SERVER_PASSWORD` (a unique random password of at least 24 characters) and `SERVER_ALLOWED_ORIGINS` (for example `http://localhost:3117`). See [network access](network-access.md) for LAN addresses and HTTPS proxy configuration. The container binds to `0.0.0.0` and refuses to start without these settings.
+Create a private `.env` file containing `SERVER_PASSWORD` (a unique password of at least 8 characters) and `SERVER_ALLOWED_ORIGINS` (for example `http://localhost:3117`). See [network access](network-access.md) for LAN addresses and HTTPS proxy configuration. The container binds to `0.0.0.0` and refuses to start without these settings.
 
 ```bash
 docker run --detach --name raceiq --restart unless-stopped \

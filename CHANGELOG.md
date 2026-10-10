@@ -1,7 +1,7 @@
 ## Unreleased
 
 ### Breaking
-- Dashboard access is local-only by default. LAN and Docker users must configure a dashboard password and allowed addresses before connecting from other devices.
+- Dashboard access is local-only by default. LAN and Docker users must configure a dashboard password of at least 8 characters and allowed addresses before connecting from other devices.
 
 ### Features
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.

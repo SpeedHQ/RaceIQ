@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createHttpAccess } from "../../src/runtime/http-access";
 
-const password = "test-only-password-at-least-24-characters";
+const password = "abcdefgh";
 const basic = `Basic ${Buffer.from(`raceiq:${password}`).toString("base64")}`;
 const local = createHttpAccess({ NODE_ENV: "production" });
 const dev = createHttpAccess({ NODE_ENV: "development" });
@@ -12,12 +12,21 @@ describe("HTTP access policy", () => {
   test("defaults to loopback and fails closed on incomplete LAN configuration", () => {
     expect(local.hostname).toBe("127.0.0.1");
     expect(() => createHttpAccess({ SERVER_HOST: "0.0.0.0" })).toThrow("SERVER_PASSWORD");
-    expect(() => createHttpAccess({ SERVER_HOST: "::", SERVER_PASSWORD: "short" })).toThrow("24");
+    expect(() => createHttpAccess({ SERVER_HOST: "::", SERVER_PASSWORD: "short" })).toThrow("8");
     expect(() => createHttpAccess({ SERVER_HOST: "0.0.0.0", SERVER_PASSWORD: password })).toThrow("SERVER_ALLOWED_ORIGINS");
     expect(() => createHttpAccess({ SERVER_ALLOWED_ORIGINS: "https://example.com/path" })).toThrow();
     expect(() => createHttpAccess({ SERVER_ALLOWED_ORIGINS: "https://user:pass@example.com" })).toThrow();
     expect(() => createHttpAccess({ SERVER_ALLOWED_ORIGINS: "*" })).toThrow();
     expect(() => createHttpAccess({ SERVER_ALLOWED_ORIGINS: "https://dashboard.example" })).toThrow("SERVER_PASSWORD");
+  });
+
+  test("rejects passwords below the 8-character minimum", () => {
+    for (const hostname of ["127.0.0.1", "0.0.0.0", "::"]) {
+      expect(() => createHttpAccess({
+        NODE_ENV: "production", SERVER_HOST: hostname,
+        SERVER_PASSWORD: "a".repeat(7), SERVER_ALLOWED_ORIGINS: "http://192.168.1.10:3117",
+      })).toThrow("SERVER_PASSWORD must contain at least 8 characters");
+    }
   });
 
   test("allows local dashboard and non-browser clients", () => {

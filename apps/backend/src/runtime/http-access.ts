@@ -8,7 +8,7 @@ export function createHttpAccess(env: NodeJS.ProcessEnv = process.env) {
   const loopback = (host: string) => host === "localhost" || host === "127.0.0.1" || host === "[::1]" || host === "::1";
   const localHost = (host: string) => loopback(host) || (development && host.endsWith(".localhost"));
   if (!loopback(hostname) && !isIP(hostname)) throw new Error("SERVER_HOST must be an IP address or localhost");
-  if (password && password.length < 24) throw new Error("SERVER_PASSWORD must contain at least 24 characters");
+  if (password && password.length < 8) throw new Error("SERVER_PASSWORD must contain at least 8 characters");
   if (!loopback(hostname) && !password) throw new Error("Non-loopback SERVER_HOST requires SERVER_PASSWORD");
 
   const origins = new Set<string>();

@@ -9,14 +9,14 @@ For LAN access, configure these environment variables **before starting RaceIQ**
 | Variable | Purpose |
 | --- | --- |
 | `SERVER_HOST` | Bind address, such as the PC's LAN IP or `0.0.0.0`. Default: `127.0.0.1`. |
-| `SERVER_PASSWORD` | A unique randomly generated password of at least 24 characters. Required for non-loopback bindings. |
+| `SERVER_PASSWORD` | A unique password of at least 8 characters. Numbers and special characters are optional. Required for non-loopback bindings. |
 | `SERVER_ALLOWED_ORIGINS` | Comma-separated exact browser origins, including scheme and port, such as `http://192.168.1.10:3117`. Required for non-loopback bindings. No wildcards, paths, or credentials. |
 
 Use a password manager to generate the password. In development or Docker, put the settings in a private `.env` file (ignored by Git):
 
 ```dotenv
 SERVER_HOST=0.0.0.0
-SERVER_PASSWORD=<paste-a-unique-random-password-of-at-least-24-characters>
+SERVER_PASSWORD=<paste-a-unique-password-of-at-least-8-characters>
 SERVER_ALLOWED_ORIGINS=http://192.168.1.10:3117
 ```
 
