@@ -173,11 +173,11 @@ function InsightInfo({ label, content }: { label: string; content: string }) {
 
 const HISTOGRAM_BINS = [
   { label: "<0.1", interval: "<0.1 s" },
-  { label: "≥0.1", interval: "0.1–<0.2 s" },
-  { label: "≥0.2", interval: "0.2–<0.5 s" },
-  { label: "≥0.5", interval: "0.5–<1 s" },
-  { label: "≥1", interval: "1–<2 s" },
-  { label: "≥2", interval: "2–5 s (inclusive)" },
+  { label: "0.1", interval: "0.1–<0.2 s" },
+  { label: "0.2", interval: "0.2–<0.5 s" },
+  { label: "0.5", interval: "0.5–<1 s" },
+  { label: "1", interval: "1–<2 s" },
+  { label: "2", interval: "2–5 s (inclusive)" },
   { label: ">5", interval: ">5 s" },
 ] as const;
 const INSIGHT_PANEL_BASE_CLASS = "flex min-w-0 flex-1 flex-col rounded-lg border border-app-border bg-app-surface-alt/30";
@@ -362,8 +362,8 @@ function ConsistencyChart({ insights, loading, error }: {
                 const x = 8 + visualIndex * step;
                 const width = step - 4;
                 return <g key={bin.label}>
-                  <text x={x + width / 2} y="100" textAnchor="middle" fill="var(--app-text-muted)" className="font-mono text-app-caption">{bin.label}</text>
-                  <text x={x + width / 2} y="111" textAnchor="middle" fill="var(--app-text-muted)" className="font-mono text-app-caption">s</text>
+                  <text x={x + width / 2} y="100" textAnchor="middle" fill="var(--app-text-muted)" className="font-mono text-app-caption">{bin.label}<title>{bin.interval}</title></text>
+                  <text x={x + width / 2} y="111" textAnchor="middle" fill="var(--app-text-muted)" className="font-mono text-app-caption">s<title>{bin.interval}</title></text>
                 </g>;
               })}
             </svg>
@@ -383,8 +383,8 @@ function ConsistencyChart({ insights, loading, error }: {
                 <g key={bin.label} role="img" aria-label={`${bin.interval}: ${count}`} tabIndex={0} className="focus-visible:outline-2 focus-visible:outline-app-accent">
                   <title>{bin.interval}: {count}</title>
                   <rect x={x} y={88 - height} width={width} height={height} rx="2" fill={index === 0 ? "var(--app-accent)" : "var(--app-text-muted)"} />
-                  <text x={x + width / 2} y="100" textAnchor="middle" fill="var(--app-text-muted)" className="font-mono text-app-caption">{bin.label}</text>
-                  <text x={x + width / 2} y="111" textAnchor="middle" fill="var(--app-text-muted)" className="font-mono text-app-caption">s</text>
+                  <text x={x + width / 2} y="100" textAnchor="middle" fill="var(--app-text-muted)" className="font-mono text-app-caption">{bin.label}<title>{bin.interval}: {count}</title></text>
+                  <text x={x + width / 2} y="111" textAnchor="middle" fill="var(--app-text-muted)" className="font-mono text-app-caption">s<title>{bin.interval}: {count}</title></text>
                 </g>
               );
             })}
