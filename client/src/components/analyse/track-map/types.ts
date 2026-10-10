@@ -1,3 +1,4 @@
+import type { PitLine } from "@/lib/canvas/draw-track";
 import { isTelemetryVariableId } from "@raceiq/shared/telemetry/catalog/query";
 import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -100,6 +101,7 @@ export interface TrackMapProps {
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
   boundaries: TrackMapBoundaries | null;
+  pitLines?: PitLine[] | null;
   sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   highlights?: TrackHighlight[] | null;

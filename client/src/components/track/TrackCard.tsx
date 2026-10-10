@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { drawTrack } from "@/lib/canvas/draw-track";
+import { drawTrack, type PitLine } from "@/lib/canvas/draw-track";
 import { countryName } from "@/lib/country-names";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
@@ -98,6 +98,7 @@ export function TrackCard({
   const cardRef = useRef<HTMLButtonElement>(null);
   const [outlineVisible, setOutlineVisible] = useState(false);
   const [outline, setOutline] = useState<Point[] | null>(null);
+  const [pitLines, setPitLines] = useState<PitLine[]>([]);
   const [flipX, setFlipX] = useState(false);
 
   useEffect(() => {
@@ -109,15 +110,20 @@ export function TrackCard({
     if (!track.hasOutline || !outlineVisible) return;
     client.api["track-outline"][":ordinal"]
       .$get({ param: { ordinal: encodeURIComponent(String(track.ordinal)) }, query: { gameId: gameId ?? undefined } })
-      .then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[])
+      .then((r) => r.json() as unknown as { points?: Point[]; pitLines?: PitLine[]; flipX?: boolean } | Point[])
       .then((data) => {
         if (!Array.isArray(data) && data?.points && Array.isArray(data.points)) {
           setOutline(data.points);
+          setPitLines(Array.isArray(data.pitLines) ? data.pitLines : []);
           setFlipX(data.flipX ?? false);
         } else if (Array.isArray(data)) {
           setOutline(data);
+          setPitLines([]);
+          setFlipX(false);
         } else {
           setOutline(null);
+          setPitLines([]);
+          setFlipX(false);
         }
       })
       .catch(() => {});
@@ -125,8 +131,8 @@ export function TrackCard({
 
   useEffect(() => {
     if (!outline || !canvasRef.current) return;
-    drawTrack(canvasRef.current, outline, false, null, 1, { x: 0, z: 0 }, undefined, flipX);
-  }, [outline, flipX]);
+    drawTrack(canvasRef.current, outline, false, null, 1, { x: 0, z: 0 }, undefined, flipX, undefined, undefined, undefined, undefined, pitLines);
+  }, [outline, flipX, pitLines]);
 
   const map = outline ? (
     <canvas ref={canvasRef} className="w-full h-full" />

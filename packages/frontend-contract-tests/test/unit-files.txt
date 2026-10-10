@@ -1,4 +1,6 @@
 packages/frontend-contract-tests/test/client/aligned-telemetry-fidelity.test.ts
 packages/frontend-contract-tests/test/client/analyse-chart-data.test.ts
 packages/frontend-contract-tests/test/client/compare-segment-key.test.ts
+packages/frontend-contract-tests/test/client/iracing-analysis-segments.test.ts
+packages/frontend-contract-tests/test/client/iracing-pit-line-rendering.test.ts
 packages/frontend-contract-tests/test/lap-analysis/stints/stint-traces.test.ts
