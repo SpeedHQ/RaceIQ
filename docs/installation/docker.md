@@ -6,6 +6,8 @@ RaceIQ publishes a `linux/amd64` image to GHCR. The image runs as unprivileged u
 
 Requirements: Docker Engine with support for `linux/amd64` images.
 
+No new environment variables are required. The container continues to bind to `0.0.0.0` and starts without a password or origin list. Password protection and a comma-separated trusted-origin list are independent, optional settings; see [network access](network-access.md) for LAN, Tailnet, and HTTPS proxy examples.
+
 ```bash
 docker run --detach --name raceiq --restart unless-stopped \
   --publish 3117:3117/tcp \
@@ -14,7 +16,7 @@ docker run --detach --name raceiq --restart unless-stopped \
   ghcr.io/speedhq/raceiq:latest
 ```
 
-Open <http://localhost:3117>.
+Open <http://localhost:3117>. If you choose to set `SERVER_PASSWORD`, add `--env-file .env` to the Docker command and sign in as `raceiq` with that password. The same env-file option can supply `SERVER_ALLOWED_ORIGINS` without enabling a password.
 
 Do not add `--privileged`, `--user root`, or `sudo`. Named volume `raceiq-data` preserves database, settings, recordings, and other application state across container replacement.
 
@@ -68,4 +70,4 @@ docker run --detach --name raceiq \
   ghcr.io/speedhq/raceiq:latest
 ```
 
-The image defaults are `SERVER_PORT=3117`, `UDP_PORT=5301`, and `DATA_DIR=/data`. If changing internal ports with environment variables, keep the corresponding port mappings aligned.
+The image defaults are `SERVER_HOST=0.0.0.0`, `SERVER_PORT=3117`, `UDP_PORT=5301`, and `DATA_DIR=/data`. If changing internal ports with environment variables, keep the corresponding port mappings aligned. If you configured `SERVER_ALLOWED_ORIGINS`, update it to the browser-facing address and port when changing the published address. The health check works without a password and sends authentication only when a password is configured. Keep any optional `--env-file .env` argument when replacing the container.

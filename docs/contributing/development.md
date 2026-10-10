@@ -7,6 +7,8 @@
 
 ## Install and run
 
+Development retains its existing network listeners, including Vite and the configured Portless proxy mode. See [network access](../installation/network-access.md) for browser origin restrictions and optional passwords. UDP telemetry is unaffected.
+
 ```bash
 bun install
 cd client && bun install && cd ..
