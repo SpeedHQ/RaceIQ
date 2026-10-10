@@ -8,6 +8,7 @@
 - Browse enriched iRacing car, car-class, and track catalogs with official car images, offline pit-road maps, and grouped lap sections.
 
 ### Fixes
+- Remove the Recap button from desktop and mobile session rows while keeping Analyse and favourite actions.
 - Reduce server startup delays with saved recording histories by avoiding unnecessary rescans of recordings whose race results are already current.
 - Process saved-recording backfills in the background so server startup and requests remain responsive while recording history is updated.
 - Remove delta rows and excess height from latest-session lap tiles; preserve favourite-card bottom padding and use compact game badges.

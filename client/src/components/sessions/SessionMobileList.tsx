@@ -37,7 +37,6 @@ export type SessionMobileListProps = {
   lapSortDir: SortDir;
   toggleLapSort: (key: LapSortKey) => void;
   saveSessionNotes: (id: number, notes: string) => void;
-  setRecapSessionId: (id: number) => void;
   analyseSession: (session: SessionMeta) => void;
 };
 
@@ -62,7 +61,6 @@ export function SessionMobileList({
   lapSortDir,
   toggleLapSort,
   saveSessionNotes,
-  setRecapSessionId,
   analyseSession,
 }: SessionMobileListProps) {
   return (
@@ -109,16 +107,6 @@ export function SessionMobileList({
                         {session.source === "motec" && <MotecBadge />}
                       </div>
                       <FavoriteToggleButton target="session" id={session.id} isFavorite={Boolean(session.isFavorite)} />
-                      <Button
-                        variant="app-outline"
-                        size="app-sm"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setRecapSessionId(session.id);
-                        }}
-                      >
-                        Recap
-                      </Button>
                       <Button
                         variant="app-primary"
                         size="app-sm"

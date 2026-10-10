@@ -3,7 +3,6 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SessionCleanupRequest, SessionCleanupResult } from "@raceiq/shared/racing/sessions/cleanup"
 import { SessionCleanupDialog } from "@/components/SessionCleanupDialog";
-import { SessionRecapModal } from "@/components/SessionRecapModal";
 import { Button } from "@/components/ui/button";
 import { useDeleteLap, useLaps } from "@/hooks/laps";
 import { queryKeys } from "@/hooks/query-keys";
@@ -54,7 +53,6 @@ export function SessionsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [cleanupRequest, setCleanupRequest] = useState<SessionCleanupRequest | null>(null);
-  const [recapSessionId, setRecapSessionId] = useState<number | null>(null);
   const routeSearch = useSearch({ strict: false }) as { tab?: string };
   const tab: SessionsTab = routeSearch.tab === "others" ? "others" : "mine";
   const setTab = useCallback(
@@ -221,7 +219,6 @@ export function SessionsPage() {
 
   return (
     <div className="h-full flex flex-col p-4 gap-3">
-      {recapSessionId != null && <SessionRecapModal sessionId={recapSessionId} gameId={gameId} onClose={() => setRecapSessionId(null)} />}
       {importOpen && (
         <SessionImportModal
           gameId={gameId}
@@ -285,7 +282,6 @@ export function SessionsPage() {
         lapSortDir={lapSortDir}
         toggleLapSort={toggleLapSort}
         saveSessionNotes={saveSessionNotes}
-        setRecapSessionId={setRecapSessionId}
       />
       <SessionDesktopTable
         lapsBySession={lapsBySession}
@@ -314,7 +310,6 @@ export function SessionsPage() {
         lapSortDir={lapSortDir}
         toggleLapSort={toggleLapSort}
         saveSessionNotes={saveSessionNotes}
-        setRecapSessionId={setRecapSessionId}
       />
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-xs text-app-text/90">

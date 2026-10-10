@@ -44,7 +44,6 @@ export type SessionDesktopTableProps = {
   lapSortDir: SortDir;
   toggleLapSort: (key: LapSortKey) => void;
   saveSessionNotes: (id: number, notes: string) => void;
-  setRecapSessionId: (id: number) => void;
   analyseSession: (session: SessionMeta) => void;
 };
 
@@ -74,7 +73,6 @@ export function SessionDesktopTable({
   lapSortDir,
   toggleLapSort,
   saveSessionNotes,
-  setRecapSessionId,
   analyseSession,
 }: SessionDesktopTableProps) {
   return (
@@ -150,16 +148,6 @@ export function SessionDesktopTable({
                         </span>
                         {session.source === "motec" && <MotecBadge />}
                         <FavoriteToggleButton target="session" id={session.id} isFavorite={Boolean(session.isFavorite)} />
-                        <Button
-                          variant="app-outline"
-                          size="app-sm"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setRecapSessionId(session.id);
-                          }}
-                        >
-                          Recap
-                        </Button>
                         <Button
                           variant="app-primary"
                           size="app-sm"
