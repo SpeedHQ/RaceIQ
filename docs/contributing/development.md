@@ -7,7 +7,7 @@
 
 ## Install and run
 
-Development HTTP access is loopback-only by default, including Vite and Portless. See [network access](../installation/network-access.md) for origin restrictions and authenticated LAN deployments. UDP telemetry is unaffected.
+Development retains its existing network listeners, including Vite and the configured Portless proxy mode. See [network access](../installation/network-access.md) for browser origin restrictions and optional passwords. UDP telemetry is unaffected.
 
 ```bash
 bun install

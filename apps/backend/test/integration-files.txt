@@ -95,6 +95,7 @@ apps/backend/test/routes/runtime-features.test.ts
 apps/backend/test/routes/storage-routes.test.ts
 apps/backend/test/routes/tune-deletion-guard.test.ts
 apps/backend/test/runtime/http-server.test.ts
+apps/backend/test/runtime/http-access-compiled.test.ts
 apps/backend/test/runtime/native-sources.test.ts
 apps/backend/test/runtime/release-feature-flags.test.ts
 apps/backend/test/runtime/runtime-options.test.ts

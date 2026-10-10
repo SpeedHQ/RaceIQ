@@ -29,7 +29,7 @@ const app = new Hono()
   .use(
     "/*",
     cors({
-      origin: (origin, c) => httpAccess.allowsOrigin(origin, c.req.url) ? origin : "",
+      origin: (origin, c) => httpAccess.allowsOrigin(origin, c.req.raw) ? origin : "",
       credentials: true,
       // Studio needs its own headers; reflect them only for trusted origins.
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

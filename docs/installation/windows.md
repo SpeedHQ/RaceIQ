@@ -10,7 +10,7 @@ Windows is recommended for full RaceIQ support, including live shared-memory tel
 
 Open dashboard by clicking RaceIQ tray icon, or visit <http://localhost:3117> in browser. Reopen it anytime through tray icon.
 
-The dashboard is local-only by default. To connect a phone, tablet, or another computer, configure [authenticated network access](network-access.md).
+Existing local, LAN, and Tailnet dashboard access continues without new settings. See [network access](network-access.md) for optional password protection and trusted browser origins.
 
 ## Telemetry
 

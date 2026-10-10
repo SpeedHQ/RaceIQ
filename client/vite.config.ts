@@ -118,7 +118,7 @@ export default defineConfig(({ command }) => {
     server: {
       open: false,
       port: parseInt(process.env.PORT || "5173", 10),
-      host: "127.0.0.1",
+      host: true,
       proxy: {
         "/api": {
           target: serverTarget,
