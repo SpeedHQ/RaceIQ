@@ -14,6 +14,7 @@ import type { LiveSectorData, LivePitData } from "@raceiq/shared/racing/live/typ
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { LiveProjection } from "@raceiq/telemetry-core/telemetry/live-projector";
+import type { DashboardUpdatedMessage } from "@raceiq/shared/racing/sessions/dashboard";
 import { IS_DEV, IS_E2E } from "./config/env";
 import {
   isDevTelemetryControlMessageV1,
@@ -94,6 +95,7 @@ export class WebSocketManager {
   private _staleRaceResultsNotification: Record<string, unknown> | null = null;
   private _captureMigrationNotification: { type: "capture-migration-available"; sessionCount: number; captureCount: number } | null = null;
   private _captureMigrationCountProvider: (() => Promise<{ sessionCount: number; captureCount: number }>) | null = null;
+  private dashboardUpdateTimer: ReturnType<typeof setTimeout> | null = null;
 
   setCaptureMigrationCountProvider(provider: () => Promise<{ sessionCount: number; captureCount: number }>): void {
     this._captureMigrationCountProvider = provider;
@@ -117,6 +119,19 @@ export class WebSocketManager {
     this.broadcastNotification({ type: "capture-migration-progress", ...payload });
   }
 
+  notifyDashboardUpdated(): void {
+    clearTimeout(this.dashboardUpdateTimer ?? undefined);
+    this.dashboardUpdateTimer = setTimeout(() => {
+      this.dashboardUpdateTimer = null;
+      const message = { type: "dashboard_updated" } satisfies DashboardUpdatedMessage;
+      this.broadcastNotification(message);
+    }, 100);
+  }
+
+  clearDashboardUpdateNotification(): void {
+    clearTimeout(this.dashboardUpdateTimer ?? undefined);
+    this.dashboardUpdateTimer = null;
+  }
   get captureMigrationNotification(): Readonly<{ type: "capture-migration-available"; sessionCount: number; captureCount: number }> | null {
     return this._captureMigrationNotification;
   }

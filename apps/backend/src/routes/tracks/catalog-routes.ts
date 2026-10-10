@@ -144,7 +144,7 @@ export const trackCatalogRoutes = new Hono()
             location: "",
             country: "",
             variant: info.variant,
-            lengthKm: 0,
+            lengthKm: Math.round((getTrackLengthMeters(id, "ac-evo", info.commonTrackName || undefined) ?? 0) / 10) / 100,
             hasOutline: hasBundled,
             outlineSource: hasBundled ? "bundled" : null,
             createdAt: null,

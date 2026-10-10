@@ -1,3 +1,5 @@
+import type { RaceResultOutcomeStatus } from "../results/types";
+
 import type { GameId } from "../../games/ids";
 
 import type { TelemetryVersionIdentity } from "../../telemetry/version";
@@ -80,6 +82,7 @@ export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
   sessionType?: string;
   resultClassification?: string | null;
   finishingPosition?: number | null;
+  resultOutcomeStatus?: RaceResultOutcomeStatus | null;
   qualifyingPosition?: number | null;
   isPodium?: boolean | null;
   isFastestLap?: boolean | null;
@@ -93,6 +96,8 @@ export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
    * absolute position matters.
    */
   source?: string;
+  /** Recorded elapsed span in seconds; null/undefined when capture timing is unavailable. */
+  elapsedSeconds?: number | null;
   ownership?: SessionOwnership;
   /** Whether raw telemetry remains available for this session. */
   telemetryAvailable?: boolean;
@@ -124,6 +129,8 @@ export interface SessionRecap {
   carId: number | string;
   trackId: number | string;
   createdAt: string;
+  /** Recorded conditions at the start of the best lap (first lap if no valid best). */
+  weather?: { kind: number | null; rainPercent: number | null } | null;
 
   /** Laps with isValid && lapTime > 0. */
   lapsValid: number;

@@ -66,6 +66,9 @@
   --app-accent: #22d3ee;
   --app-accent-hover: #67e8f9;
   --app-highlight: #06b6d4;
+  --app-podium-gold: #d4af37;
+  --app-podium-silver: #c0c0c0;
+  --app-podium-bronze: #cd7f32;
   --ai-accent: var(--color-amber-500);
   --ai-accent-hover: var(--color-amber-400);
 
@@ -73,6 +76,12 @@
   --app-scrollbar-thumb: rgba(255, 255, 255, 0.25);
   --app-scrollbar-thumb-hover: rgba(255, 255, 255, 0.4);
   --app-glow-accent: 0 0 6px color-mix(in srgb, var(--app-accent) 50%, transparent);
+
+  /* Reference-led latest-session card; intentionally independent of flat app surfaces. */
+  --recap-background: var(--app-bg);
+  --recap-panel: #031016;
+  --recap-label: #a3bac8;
+  --recap-timing: #c49cff;
 
   /* UI state. Do not use these to encode telemetry values. */
   --status-success: #34d399;

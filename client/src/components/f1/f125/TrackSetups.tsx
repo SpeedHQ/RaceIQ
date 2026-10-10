@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { SessionTypeBadge } from "@/components/sessions/SessionTypeBadge";
 import { ProviderBadge } from "@/components/f1/f125/ProviderBadge";
 import { F125SetupRanges } from "@/components/f1/f125/SetupRanges";
 import { setupId } from "@/components/f1/f125/setup-utils";
@@ -237,7 +238,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
                 {setup.lapTime}
                 {setup.inputDevice && ` · ${setup.inputDevice === "wheel" ? m.label_wheel() : m.f1setup_controller()}`}
                 {setup.weather === "Wet" && ` · ${m.f1setup_wet()}`}
-                {setup.sessionType && ` · ${setup.sessionType}`}
+                {setup.sessionType && <> · <SessionTypeBadge type={setup.sessionType} /></>}
               </span>
               {setup.source && (
                 <a

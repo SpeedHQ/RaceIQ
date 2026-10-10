@@ -12,12 +12,13 @@ import { createGzip } from "node:zlib";
 import { getUncompressedSessions } from "../db/session-queries";
 import { isSessionActive } from "../telemetry/live-pipeline";
 import { db } from "../db/index";
-import { sessions } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { dashboardSummaryState, sessions } from "../db/schema";
+import { eq, inArray } from "drizzle-orm";
 import { cleanupOrphanSessionFiles, listSessionCaptureFiles, withSessionCaptureMaintenanceLock } from "./cleanup";
 import { cleanupExpiredStagedMotec } from "../motec/import-staging";
 import { loadSettings } from "../runtime/config/settings";
 import { executeSessionCleanup, SessionCleanupBusyError } from "./session-cleanup";
+import { releaseDashboardCaptureCheckpoint, republishPersistedDashboardCaptureFacts } from "./dashboard-processor";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const INTERVAL_MS = 5 * 60 * 1000;
@@ -59,12 +60,17 @@ async function compressSessionGroup(ids: number[], binPath: string): Promise<voi
         .set({ rawFile: compressedFile.gzPath })
         .where(eq(sessions.rawFile, binPath))
         .run();
+      await tx.update(dashboardSummaryState).set({ captureReady: 0 }).where(inArray(dashboardSummaryState.sessionId, ids)).run();
     });
   } catch (error) {
     await rm(compressedFile.gzPath, { force: true }).catch((cleanupError) => {
       console.error(`[Compressor] Failed to remove uncommitted target ${compressedFile.gzPath}:`, cleanupError);
     });
     throw error;
+  }
+  const preserved = await republishPersistedDashboardCaptureFacts(ids);
+  if (!preserved) {
+    for (const sessionId of ids) await releaseDashboardCaptureCheckpoint(sessionId);
   }
 
   unlinkSync(binPath);

@@ -1,17 +1,23 @@
 ## Unreleased
 
 ### Features
-- Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
-
-- Browse enriched iRacing car, car-class, and track catalogs with official car images, offline pit-road maps, and grouped lap sections.
+- Reduce F1 race-result processing time by 88% in a matched processing benchmark.
+- Refresh the dashboard with cleaner session and favourite widgets, clean-rate and podium trends, and easier game navigation.
+- Browse enriched iRacing car, car-class, and track catalogs with official images, offline pit-road maps, and grouped lap sections.
 
 ### Fixes
-- Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
-
-- Load LMU track boundaries without long stalls on detailed SVG maps.
+- Remove the Recap button from session rows; keep Analyse and favourite actions.
+- Speed up startup with saved recordings and process history backfills in the background.
+- Calculate accurate dashboard totals, recaps, session counts, and podiums across the full selected period using only your sessions and consistent UTC boundaries.
+- Restore dashboard compatibility with existing databases while preserving recordings and session history.
+- Improve dashboard loading, track and car names, detail links, and lap-time consistency labels; keep available data visible while history is processing.
+- Preserve incomplete-lap eligibility and LMU first-outlap classification across detector transitions.
+- Load LMU track boundaries without long stalls on detailed maps.
 - Show unnamed multi-turn sections once in Analyse and track-detail labels.
 
 ### Internal
+- Report Paraglide development and production compilation stages, a 10-second elapsed-time heartbeat, and total build duration; preserve validated cache reuse.
+- Bound HTTP request/response adapter typing to avoid expanding the full RPC router schema during backend typechecking, preserving existing RPC contracts.
 - Remove unused compiled artifact downloads and base production builds from dev-mode dashboard screenshot CI.
 - Split current and base dashboard screenshot renders into four CI shards while retaining the complete screenshot inventory.
 - Document new-game integration, lossless sparse recording, lap correctness checks, and gzip fixture splitting without Git LFS; align capture and architecture guides with current implementation.
@@ -24,6 +30,13 @@
 - Correct Linux benchmark CPU/RSS sampling and run iRacing parser/import benchmarks independently of production release flags.
 - Skip build, test, browser, snapshot, and benchmark PR jobs for automated release version bump branches.
 - Declare the frontend contract tests' backend-core dependency so clean CI installs resolve setup-import test modules.
+- Add revision-checked SQLite dashboard summaries and indexed UTC projections; expose a bounded, snapshot-consistent dashboard API with explicit pending coverage.
+- Add the version-5 SQLite dashboard processor with durable capture readiness, revision-checked publication, resumable backfill, retry state, and ingest-pass capture facts; keep dashboard recap separate from generic analysis.
+- Add isolated Bun/SQLite dashboard scale assertion, timing, and recording/backfill contention runners.
+- Read timestamped recorder dumps correctly in contention checks, preserve failed-scenario evidence, fix duplicate-lap SQL, and close child input after the final command.
+- Maintain revision-safe monthly dashboard entity rollups for older complete months, preserving recent daily detail and exact boundaries; backfill existing summaries without changing source data.
+- Separate realistic active-user dashboard benchmarks from archive stress, report actual period membership and SQL Promise timings, and preserve incomplete/failed-scope measurements without weakening budgets.
+- Reuse a read-only SQLite connection and cached statements for synchronous dashboard snapshots; measure those queries directly and apply the active-user recorder fixture profile.
 
 ## v0.19.2 - 2026-10-04
 

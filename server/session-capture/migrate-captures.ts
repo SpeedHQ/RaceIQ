@@ -6,9 +6,10 @@ import { finished, pipeline } from "node:stream/promises";
 import { createGunzip, createGzip } from "node:zlib";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../db/index";
-import { laps, sessions } from "../db/schema";
+import { dashboardSummaryState, laps, sessions } from "../db/schema";
 import { listCaptureMigrationCandidates } from "../db/session-queries";
 import { cacheDelete } from "../db/telemetry-replay-storage";
+import { releaseDashboardCaptureCheckpoint, republishPersistedDashboardCaptureFacts } from "./dashboard-processor";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame } from "@raceiq/capture-formats/session/framing";
 import { clearSessionCaptureCache, iterateSessionCaptureRecordsFromSource, type SessionCaptureSource } from "./source-loader";
@@ -246,6 +247,7 @@ async function commit(candidate: Candidate, lapRows: LapOffset[], mapped: Map<nu
       .set({ captureFormatVersion: 1, rawFile: final })
       .where(inArray(sessions.id, candidate.sessionIds)).run();
     if (changed.rowsAffected !== candidate.sessionIds.length) throw new Error("Capture session update incomplete");
+    await tx.update(dashboardSummaryState).set({ captureReady: 0 }).where(inArray(dashboardSummaryState.sessionId, candidate.sessionIds)).run();
   });
 }
 
@@ -274,6 +276,10 @@ async function migrateOne(candidate: Candidate): Promise<Result> {
     renamed = true;
     await commit(candidate, lapRows, mapped, final);
     committed = true;
+    const preserved = await republishPersistedDashboardCaptureFacts(candidate.sessionIds);
+    if (!preserved) {
+      for (const sessionId of candidate.sessionIds) await releaseDashboardCaptureCheckpoint(sessionId);
+    }
     invalidateCapture(candidate, lapRows, final);
     try {
       const stillReferenced = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.rawFile, candidate.rawFile)).limit(1).get();

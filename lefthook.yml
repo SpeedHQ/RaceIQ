@@ -2,16 +2,25 @@ pre-commit:
   parallel: false
   jobs:
     - name: locale message keys
+      # Documentation and other non-code changes do not require code checks.
+      # Include configuration and dependency inputs that can affect results.
+      glob: &code_inputs
+        - "*.{ts,tsx,js,jsx,mjs,cjs,mts,cts,svelte,vue,html,css,scss,sass,less,sql,sh,py,json,jsonc,yml,yaml}"
+        - "*{lock,lockb}"
       run: bun run i18n:check-keys
 
     - name: typecheck
+      glob: *code_inputs
       run: bun run typecheck
     - name: test shards
+      glob: *code_inputs
       run: bun run test:shards
     - name: unit tests
+      glob: *code_inputs
       run: bun run test:unit
 
     - name: tooling tests
+      glob: *code_inputs
       run: bun run test:tooling
 
     - name: lint

@@ -325,9 +325,11 @@ async function importTelemetrySource<T>(
     for (const sessionId of db.sessionIds) {
       await reconcileSessionResult(sessionId, gameId);
     }
+    await pipeline.finalizeDashboardCaptureFacts([...db.sessionIds]);
   } catch (error) {
     return rollbackImport(db, error);
   }
+
 
   return {
     packetCount,

@@ -12,16 +12,19 @@ import { errorFromResponse } from "../lib/rpc-error";
 import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
 import { queryKeys } from "./query-keys";
+import { invalidateDashboardQueries } from "./dashboard";
 
-export function useLaps(options?: { refetchInterval?: number | false }) {
+export function useLaps(options?: { refetchInterval?: number | false; allGames?: boolean }) {
   const gameId = useGameId();
+  const { allGames = false, ...queryOptions } = options ?? {};
+  const queryGameId = allGames ? null : gameId;
   return useQuery({
-    queryKey: ["laps", gameId ?? null],
+    queryKey: ["laps", queryGameId],
     queryFn: async () => {
-      const res = await client.api.laps.$get({ query: { gameId: gameId ?? undefined } });
+      const res = await client.api.laps.$get({ query: { gameId: queryGameId ?? undefined } });
       return rpcJson<LapMeta[]>(res);
     },
-    ...options,
+    ...queryOptions,
   });
 }
 
@@ -211,6 +214,7 @@ export function useDeleteLap() {
       qc.invalidateQueries({ queryKey: queryKeys.laps });
       qc.invalidateQueries({ queryKey: queryKeys.sessions });
       qc.invalidateQueries({ queryKey: queryKeys.userTunes });
+      invalidateDashboardQueries();
     },
   });
 }
@@ -226,6 +230,7 @@ export function useBulkDeleteLaps() {
       qc.invalidateQueries({ queryKey: queryKeys.sessions });
       qc.invalidateQueries({ queryKey: queryKeys.tracks });
       qc.invalidateQueries({ queryKey: queryKeys.userTunes });
+      invalidateDashboardQueries();
     },
   });
 }

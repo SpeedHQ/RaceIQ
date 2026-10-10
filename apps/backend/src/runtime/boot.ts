@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+import { resolve } from "node:path";
 import { serverReleaseFeatures } from "@raceiq/backend-core/runtime/config/release-features";
 import { injectDiscoveredAcEvoCars } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
 import { injectDiscoveredIRacingIdentity } from "@raceiq/game-iracing-metadata/index";
@@ -9,8 +9,6 @@ import app from "../routes/index";
 import { initServerGameAdapters } from "../games/init";
 import { initDb } from "@raceiq/backend-core/db/index";
 import { reconcileDiscoveredCars, listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
-import { backfillAllRaceResults } from "@raceiq/backend-core/race-results/reconcile";
-import { backfillLMUSessionIdentity } from "../imports/lmu-session-identity-backfill";
 import { listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
 import { deleteEmptySessions } from "@raceiq/backend-core/db/session-queries";
 import { setCacheMaxBytes } from "@raceiq/backend-core/db/telemetry-replay-storage";
@@ -23,7 +21,9 @@ import { openFirstRunDashboard, preventMacSleep } from "@raceiq/backend-core/run
 import { clearHttpPort, startHttpServer } from "./http-server";
 import { startNativeSourceSupervisor, type NativeSourceSupervisor } from "./native-sources";
 import { installShutdown } from "./shutdown";
+import { startStartupWorker, type StartupWorkerHandle } from "./startup-worker";
 import { startMaintenanceJobs, startSyncAndStaleSessionJobs } from "./startup-jobs";
+import { setDashboardPublicationNotifier } from "@raceiq/backend-core/db/dashboard-summary-queries";
 import { startTray } from "@raceiq/backend-core/runtime/platform/tray";
 import { initMotecTargets } from "../games/motec-init";
 import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
@@ -121,27 +121,23 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   });
   console.log(`[Server] HTTP/WS server listening on http://localhost:${httpPort}`);
 
-  // Reconcile historical sessions without delaying HTTP startup.
-  void backfillAllRaceResults().catch((error) => {
-    console.error("[RaceResults] Startup backfill failed:", error);
-  });
-  void backfillLMUSessionIdentity()
-    .then((counts) => {
-      console.log("[LMU] Session identity backfill complete:", counts);
-    })
-    .catch((error) => {
-      console.error("[LMU] Session identity backfill failed:", error);
-    });
-
 
   if (recordingGameId === "fm-2023" || recordingGameId === "f1-2025") {
     udpListener.setRecordingGameId(recordingGameId);
   }
 
   let nativeSources: NativeSourceSupervisor | null = null;
+  let startupWorker: StartupWorkerHandle | null = null;
   installShutdown({
     getNativeSources: () => nativeSources,
+    getStartupWorker: () => startupWorker,
+    clearDashboardPublicationNotifications: () => {
+      setDashboardPublicationNotifier(null);
+      wsManager.clearDashboardUpdateNotification();
+    },
   });
+  setDashboardPublicationNotifier(() => wsManager.notifyDashboardUpdated());
+  startupWorker = startStartupWorker(() => wsManager.notifyDashboardUpdated());
 
   const udpPort = options.udpPort
     ?? (Number(process.env.RACEIQ_DEV_UDP_PORT) || settings.udpPort || Number(process.env.UDP_PORT) || 5301);

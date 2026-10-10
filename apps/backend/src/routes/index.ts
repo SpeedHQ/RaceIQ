@@ -18,6 +18,7 @@ import { f125Routes } from "./games/f1-2025";
 import { miscRoutes } from "./system/index";
 import { cacheRoutes } from "./cache-routes";
 import { devRoutes } from "./dev/index";
+import { dashboardRoutes } from "./dashboard-routes";
 
 const app = new Hono()
   // In dev, Mastra Studio (localhost:3000) probes /studio-api/auth/capabilities
@@ -45,6 +46,7 @@ const app = new Hono()
   .route("/", driverRoutes)
   .route("/", chatsRoutes)
 .route("/", chatRunRoutes)
+  .route("/", dashboardRoutes)
   .route("/", sessionRoutes)
   .route("/", trackRoutes)
   .route("/", carRoutes)

@@ -4,7 +4,8 @@ import { formatLapTime } from "@/components/LiveTelemetry";
 import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";
 import { FavoriteToggleButton } from "../FavoriteToggleButton";
 import { Button } from "@/components/ui/button";
-import { formatSessionType, sessionCarName, sessionTrackName } from "./helpers";
+import { sessionCarName, sessionTrackName } from "./helpers";
+import { SessionTypeBadge } from "./SessionTypeBadge";
 import { MotecBadge } from "./MotecBadge";
 import { NoteCell } from "./NoteCell";
 import { SessionLapTable } from "./SessionLapTable";
@@ -36,7 +37,6 @@ export type SessionMobileListProps = {
   lapSortDir: SortDir;
   toggleLapSort: (key: LapSortKey) => void;
   saveSessionNotes: (id: number, notes: string) => void;
-  setRecapSessionId: (id: number) => void;
   analyseSession: (session: SessionMeta) => void;
 };
 
@@ -61,7 +61,6 @@ export function SessionMobileList({
   lapSortDir,
   toggleLapSort,
   saveSessionNotes,
-  setRecapSessionId,
   analyseSession,
 }: SessionMobileListProps) {
   return (
@@ -109,16 +108,6 @@ export function SessionMobileList({
                       </div>
                       <FavoriteToggleButton target="session" id={session.id} isFavorite={Boolean(session.isFavorite)} />
                       <Button
-                        variant="app-outline"
-                        size="app-sm"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setRecapSessionId(session.id);
-                        }}
-                      >
-                        Recap
-                      </Button>
-                      <Button
                         variant="app-primary"
                         size="app-sm"
                         disabled={session.telemetryAvailable === false}
@@ -134,7 +123,7 @@ export function SessionMobileList({
                   </div>
                   <div className="text-xs text-app-text/90 truncate mt-0.5">
                     {sessionCarName(session, { trackNames, carNames })}
-                    {showSessionType && session.sessionType && session.sessionType !== "unknown" && <> · {formatSessionType(session.sessionType)}</>}
+                    {showSessionType && session.sessionType && session.sessionType !== "unknown" && <span className="ml-2 inline-flex align-middle"><SessionTypeBadge type={session.sessionType} /></span>}
                   </div>
                   <div className="mt-2">
                     <SessionResultMeta session={session} />

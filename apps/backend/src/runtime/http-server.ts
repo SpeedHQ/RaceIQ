@@ -1,12 +1,13 @@
 import { execSync } from "node:child_process";
 import { resolve, sep } from "node:path";
 import { wsManager, type WSData } from "@raceiq/backend-core/runtime/websocket-manager";
-import type { AppType } from "../routes/index";
 import { MAX_IBT_BYTES } from "../imports/iracing-ibt";
 import { IS_WINDOWS } from "@raceiq/backend-core/runtime/platform/shell";
 import { gameAssetsDir } from "@raceiq/shared/platform/runtime/data-paths";
 
-type HttpApp = Pick<AppType, "fetch">;
+type HttpApp = {
+  fetch: (request: Request) => Response | Promise<Response>;
+};
 
 export function staticAssetHeaders(filePath: string): HeadersInit | undefined {
   if (!filePath.endsWith(".gz")) return undefined;

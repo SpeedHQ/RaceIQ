@@ -125,7 +125,7 @@ async function main() {
     );
   }
 
-  compileArgs.push("apps/backend/src/bootstrap.ts", "server/experiments/lap-issues-worker.ts", "--outfile", join(distDir, "raceiq"));
+  compileArgs.push("apps/backend/src/bootstrap.ts", "server/experiments/lap-issues-worker.ts", "apps/backend/src/runtime/startup-worker-entry.ts", "--outfile", join(distDir, "raceiq"));
 
   await run(compileArgs, { env: { NODE_ENV: "production" } });
   // Bun's compiled Mach-O can retain an invalid linker signature after bundling.

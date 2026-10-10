@@ -2,12 +2,12 @@ import type { RaceResult, RaceResultAggregate, RaceResultOutcomeStatus, RaceResu
 import { isPracticeSession } from "@raceiq/shared/racing/sessions/session-type";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { SessionTypeBadge } from "@/components/sessions/SessionTypeBadge";
 import { m } from "@/paraglide/messages";
 import { cn } from "@/lib/utils";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { queryKeys } from "../../hooks/query-keys";
 import { client } from "../../lib/rpc";
-
 const classificationLabels: Record<RaceResultStatus, string> = {
   finished: m.race_result_finished(),
   dnf: m.race_result_dnf(),
@@ -102,7 +102,7 @@ function RecentResult({ result }: { result: RaceResult }) {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="font-medium text-app-text">{m.race_result_session_number({ id: result.sessionId })}</div>
-          <div className="text-app-caption text-app-text-muted">{fieldStatus.sessionType === "unavailable" || result.sessionType === "unknown" ? m.race_result_session_type_unavailable() : result.sessionType}</div>
+          <div className="mt-1"><SessionTypeBadge type={fieldStatus.sessionType === "unavailable" ? "unknown" : result.sessionType} label={fieldStatus.sessionType === "unavailable" || result.sessionType === "unknown" ? m.race_result_session_type_unavailable() : undefined} /></div>
         </div>
         <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
           <ResultAuthorityBadge status={result.outcomeStatus} />

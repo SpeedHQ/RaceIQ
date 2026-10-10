@@ -14,6 +14,7 @@ export interface TuneRow {
   lapTimeRaw: string | null;
   lapTimeTrack: string | null;
   description: string;
+  sessionType?: string | null;
   settings: unknown;
 }
 

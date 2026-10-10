@@ -56,6 +56,34 @@ Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, c
 
 `server/db/schema.ts` is the typed schema reference. Runtime migrations are embedded in `server/db/migrations.ts` and applied at startup. `apps/backend/src/routes/index.ts` composes feature route modules under `/api`; the client uses `client/src/lib/rpc.ts` rather than untyped fetch calls.
 
+## SQLite dashboard read model
+
+SQLite migration v64 persists capture-derived dashboard evidence and a `capture_ready` gate. The revision-checked publication model is implemented by `server/db/dashboard-summary-queries.ts`; `DASHBOARD_PROCESSOR_VERSION` is 5. Source mutations mark durable per-session work state, while publication replaces derived contributions only when the source revision observed by the candidate is still current.
+Migration v65 idempotently restores a missing `dashboard_backfill_cursor` table and its singleton row on existing databases, preserving any cursor already present.
+
+The backend starts `startDashboardProcessor()` during runtime boot and awaits its stop during graceful shutdown. Its resumable keyset backfill cursor, capture readiness, dirty flags, and retry schedule live in SQLite. The worker publishes metadata before expensive capture facts, streams one session capture through the game parser without constructing another lap detector, yields after each batch of 25 sessions, and persists retry timing/error codes after failures. Pending evidence remains distinct from unavailable evidence; incomplete capture work is not published as complete.
+
+Live recording and import pipelines publish observed facts from their existing packet-processing pass. A completed-capture checkpoint makes those facts eligible for publication; file lifecycle changes explicitly invalidate or safely preserve them. Capture fingerprints describe parsed record content, independent of file size or modification time, so lossless compression does not change content identity.
+
+`GET /api/dashboard` validates a half-open `from`/`to` UTC instant interval (maximum 366 days); optional `X-Game-Id` selects metrics while `cards` remain all-game totals. Calendar aggregation uses fixed 86,400,000 ms UTC days; browser-local timezone affects presentation only. Dashboard reads include only exact `ownership='mine'`, return at most ten recent allow-listed sessions, and never include raw capture paths or provenance. `GET /api/dashboard/sessions/:id/recap` requires `X-Game-Id`, returns only an exact-mine session for that game, and uses persisted facts without capture access. Generic `/api/sessions/:id/recap` remains unchanged.
+
+Older entity totals use maintained UTC monthly rollups. The latest 30 days relative to the later of wall clock and request end remain at daily grain; only complete UTC months before that cutoff and wholly inside the requested interval use monthly rows. Historical whole-month requests therefore use monthly grain too. Disjoint indexed daily ranges exclude the superseded daily interval; exact partial-day source edges complete the request without double counting. Publication subtracts old and adds new day/month contributions in one revision-checked transaction, including edits, deletion and ownership changes. Migration v67 backfills monthly counters and stable pooled moments from retained day aggregates; source rows, recordings and daily detail remain unchanged. Favourite session counts deduplicate published boundary/interior members and include disjoint dirty members after canonical identity decoding. Calendar values remain UTC; clients may format labels in browser-local time.
+
+Dashboard upgrades also repair historical databases whose recorded migration version predates the expanded projection schema. Versions 67–69 restore missing projection dependencies and canonical source-index maintenance before monthly backfill. Only an incomplete schema invalidates disposable dashboard projections; source sessions, laps, results, recordings, and retry history remain intact. Coverage stays pending until affected summaries are republished. Databases with complete schemas retain their existing summaries and day aggregates.
+
+Successful dashboard summary publication broadcasts `{ type: "dashboard_updated" }` to invalidate period and recap queries; rapid publications are coalesced. `getDashboardSessionRecap()` is the capture-free query behind the dedicated route.
+
+The processor resumes version-driven metadata and capture backfill from its persisted cursor; coverage reports pending or unavailable facts rather than claiming completion. Rebuilds operate on disposable derived summaries and preserve source sessions, laps, and recordings. Migration adds SQLite indexes and summary storage; allow for database-file growth during upgrade/backfill. There is no separate operator-facing rebuild command.
+
+Phase 5 benchmark entrypoints use isolated fixtures and never target the application database:
+
+- `bun apps/backend/test/benchmarks/dashboard-read-model.bench.ts` measures the active-user baseline: 120 stored laps and 12 sessions/week, approximately three driving hours at 90 seconds/lap, over two years (12,480 laps/1,248 sessions). Games are interleaved with skew; recurring car/track identities and excluded ownership remain present. Reports include each period's exact UTC bounds and source-counted stored/mine laps and sessions outside the timed samples. These assumptions are not observed production usage.
+- Add `bench-archive-100k` or `bench-archive-1m` to that command for archive stress. Those counts describe total stored history, not weekly activity; high-cardinality identities and a 500-lap recap session remain in the archive profiles. The default recap uses ten laps. Latency, memory, SQL and payload budgets are unchanged; failed scopes retain measurements and the runner exits nonzero.
+- `bun apps/backend/test/benchmarks/dashboard-read-model-smoke.ts` retains the original archive and adversarial-boundary correctness shapes.
+- `bun apps/backend/test/benchmarks/dashboard-contention.bench.ts --output=.omp/evidence/sqlite-dashboard/<unique-run>.json` measures actual recording/backfill; output is required. Default history is the active-user baseline, with a 120-lap/12-session small comparison. For archive stress, specify `--profile=archive-stress --laps=1000000 --sessions=100000`. The committed real recording fixture is `test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz`. Cadence or isolated finalization proof alone does not establish full recording/backfill acceptance.
+
+These are engineering tools, not production recovery commands. Results and outstanding acceptance gates are tracked in [the dashboard read-model execution index](../../advisor-plans/README.md).
+
 ## Boundaries
 
 - Server is authoritative for telemetry-domain state such as lap boundaries, sector timing, pit estimates, and persisted session results.
