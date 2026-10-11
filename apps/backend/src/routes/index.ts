@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { errorLogger } from "@raceiq/backend-core/runtime/logger";
 import { IS_DEV, IS_E2E } from "@raceiq/backend-core/runtime/config/env";
+import { httpAccess } from "../runtime/http-access";
 
 import { settingsRoutes } from "./settings-routes";
 import { lapRoutes } from "./laps/index";
@@ -20,24 +21,19 @@ import { cacheRoutes } from "./cache-routes";
 import { devRoutes } from "./dev/index";
 
 const app = new Hono()
-  // In dev, Mastra Studio (localhost:3000) probes /studio-api/auth/capabilities
-  // with `credentials: "include"`; browsers reject a wildcard ACAO on
-  // credentialed requests, so reflect the request origin + allow credentials.
-  // Prod keeps the plain wildcard (the desktop client is same-origin).
+  .use("/*", async (c, next) => {
+    const denied = httpAccess.authorize(c.req.raw);
+    if (denied) return denied;
+    await next();
+  })
   .use(
     "/*",
-    IS_DEV
-      ? cors({
-          origin: (origin) => origin ?? "*",
-          credentials: true,
-          // Omit allowHeaders so Hono reflects the browser's
-          // Access-Control-Request-Headers verbatim. Mastra Studio's client
-          // sends its own headers (e.g. x-mastra-client-type) on /studio-api
-          // requests; a static allow-list drops them and the credentialed
-          // preflight fails with "Failed to fetch".
-          allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        })
-      : cors(),
+    cors({
+      origin: (origin, c) => httpAccess.allowsOrigin(origin, c.req.raw) ? origin : "",
+      credentials: true,
+      // Studio needs its own headers; reflect them only for trusted origins.
+      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    }),
   )
   .use("/*", errorLogger())
   .route("/", settingsRoutes)
