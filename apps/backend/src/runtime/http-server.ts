@@ -4,6 +4,7 @@ import { wsManager, type WSData } from "@raceiq/backend-core/runtime/websocket-m
 import { MAX_IBT_BYTES } from "../imports/iracing-ibt";
 import { IS_WINDOWS } from "@raceiq/backend-core/runtime/platform/shell";
 import { gameAssetsDir } from "@raceiq/shared/platform/runtime/data-paths";
+import { httpAccess, type HttpAccess } from "./http-access";
 
 type HttpApp = {
   fetch: (request: Request) => Response | Promise<Response>;
@@ -24,6 +25,7 @@ export interface HttpServerOptions {
   port: number;
   staticDir: string | null;
   devPublicDir: string | null;
+  access?: HttpAccess;
 }
 
 export function clearHttpPort(port: number): void {
@@ -46,14 +48,19 @@ export function startHttpServer({
   port,
   staticDir,
   devPublicDir,
+  access = httpAccess,
 }: HttpServerOptions): Bun.Server<WSData> {
   return Bun.serve<WSData>({
     port,
+    hostname: access.hostname,
     idleTimeout: 255,
     // Bun otherwise terminates uploads above its 128 MiB default before Hono
     // can stream them to disk or return the route's structured size error.
     maxRequestBodySize: MAX_IBT_BYTES,
     async fetch(req, server) {
+      // Protect static content, APIs, Studio, and the WebSocket handshake alike.
+      const denied = access.authorize(req);
+      if (denied) return denied;
       const url = new URL(req.url);
       if (url.pathname === "/ws") {
         const upgraded = server.upgrade(req, {
@@ -79,13 +86,14 @@ export function startHttpServer({
       }
 
       if (process.env.NODE_ENV !== "production" && url.pathname === "/") {
-        const origin = req.headers.get("origin") ?? "*";
+        const origin = req.headers.get("origin");
         return new Response("ok", {
           status: 200,
-          headers: {
+          headers: origin ? {
             "access-control-allow-origin": origin,
             "access-control-allow-credentials": "true",
-          },
+            "vary": "Origin",
+          } : undefined,
         });
       }
 

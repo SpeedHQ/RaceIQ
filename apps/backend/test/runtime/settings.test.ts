@@ -16,6 +16,25 @@ describe("E2E settings behavior", () => {
   });
 });
 
+describe("credential request validation", () => {
+  test("rejects unsupported providers and malformed keys before accessing the OS store", async () => {
+    for (const body of [
+      { provider: 'gemini"; printf unexpected', apiKey: "test" },
+      { provider: "../other-account", apiKey: "test" },
+      { provider: "gemini", apiKey: 123 },
+      { provider: "gemini", apiKey: null },
+      { provider: "gemini" },
+      { provider: "gemini", apiKey: "test\0key" },
+      { provider: "gemini", apiKey: "x".repeat(8193) },
+    ]) {
+      const response = await settingsRoutes.request("/api/ai-key", {
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      expect(response.status).toBe(400);
+    }
+  });
+});
+
 describe("settings with unit system", () => {
   let originalContent: string | null = null;
 
