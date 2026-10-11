@@ -5,9 +5,22 @@ import {
   getAcEvoTracks,
   injectDiscoveredAcEvoTracks,
 } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
-import { acEvoTrackId, parseAcEvoTrackId } from "@raceiq/game-ac-evo-metadata/identity";
+import { acEvoTrackId, isAcEvoTouristLayout, parseAcEvoTrackId } from "@raceiq/game-ac-evo-metadata/identity";
 
 describe("AC Evo native track lookup", () => {
+  test("restricts Tourist geometry exceptions to the native venue and layout", () => {
+    expect(isAcEvoTouristLayout(parseAcEvoTrackId(acEvoTrackId(" NURBURGRING ", " Touristenfahrten ")))).toBe(true);
+    for (const [venue, layout] of [
+      ["Nurburgring", "Grand Prix"],
+      ["Nurburgring", "Nordschleife"],
+      ["Spa-Francorchamps", "Touristenfahrten"],
+      ["Nurburgring", "Tourist"],
+    ]) {
+      expect(isAcEvoTouristLayout(parseAcEvoTrackId(acEvoTrackId(venue, layout)))).toBe(false);
+    }
+    expect(isAcEvoTouristLayout(parseAcEvoTrackId("invalid"))).toBe(false);
+  });
+
   test("uses native name and configuration to distinguish layouts", () => {
     const trackName = "RaceIQ Identity Test Circuit";
     const gpId = acEvoTrackId(trackName, "Grand Prix");

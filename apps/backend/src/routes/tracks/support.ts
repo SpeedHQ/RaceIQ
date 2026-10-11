@@ -20,7 +20,7 @@ import { alignIRacingAutoSegmentsToTurnLabels, type IRacingMapLabel } from "@rac
 import { lapPath } from "@raceiq/shared/racing/tracks/path";
 import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { getLMUTrackOutline } from "@raceiq/game-lmu-metadata/track-boundaries";
-import { parseAcEvoTrackId } from "@raceiq/game-ac-evo-metadata/identity";
+import { isAcEvoTouristLayout, parseAcEvoTrackId } from "@raceiq/game-ac-evo-metadata/identity";
 
 export const TrackIdParamSchema = z.object({ trackId: z.string().min(1) });
 
@@ -60,6 +60,19 @@ export interface ResolvedTrackOutline {
   closed: boolean;
 }
 
+function resolveTouristOutline(trackId: string): ResolvedTrackOutline {
+  // Tourist has no closed-circuit fallback; missing telemetry means no map.
+  const outline = getRecordedOutlineById(trackId, "ac-evo");
+  return {
+    // Restore raw game coordinates; replay mirrors outline and boundaries together.
+    points: outline ? outline.map(({ x, z }) => ({ x: -x, z })) : [],
+    labels: [],
+    pitLines: [],
+    recorded: !!outline,
+    source: outline ? "recorded" : "none",
+    closed: false,
+  };
+}
 
 /**
  * Resolve one renderable outline in quality order. iRacing layouts are kept
@@ -73,31 +86,7 @@ export async function resolveTrackOutline(
   if (gameId === "ac-evo") {
     const source = parseAcEvoTrackId(trackId);
     if (!source) return null;
-    const trackName = source.trackName.trim().normalize("NFC").toLowerCase();
-    const trackConfiguration = source.trackConfiguration.trim().normalize("NFC").toLowerCase();
-    if (trackName === "nurburgring" && trackConfiguration === "touristenfahrten") {
-      // Tourist sessions do not use the catalog's closed GP/Nordschleife line.
-      // Serve only telemetry-recorded route geometry; no geometry means no map.
-      const outline = getRecordedOutlineById(trackId, gameId);
-      if (!outline) {
-        return {
-          points: [],
-          labels: [],
-          pitLines: [],
-          recorded: false,
-          source: "none",
-          closed: false,
-        };
-      }
-      return {
-        points: outline.map(({ x, z }) => ({ x, z })),
-        labels: [],
-        pitLines: [],
-        recorded: true,
-        source: "recorded",
-        closed: false,
-      };
-    }
+    if (isAcEvoTouristLayout(source)) return resolveTouristOutline(trackId);
   }
   const official = gameId === "iracing" ? await getIRacingSvgTrackMap(Number(trackId)) : null;
   const sharedName = getSharedTrackName(trackId, gameId);

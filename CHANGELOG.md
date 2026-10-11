@@ -9,8 +9,10 @@
 
 - Browse enriched iRacing car, car-class, and track catalogs with official car images, offline pit-road maps, and grouped lap sections.
 - Inspect AC Evo Tourist layouts with recorded open-route maps and explicit Start/Finish markers.
+- Show Nordschleife track edges along the supported portion of AC Evo Tourist routes without closing the Start/Finish gap.
 
 ### Fixes
+- Restore track edges in AC Evo Tourist replay, including the supported approach section, without joining edges across the missing connector.
 - Preserve car and track selections in numeric-ID bookmarks and native AC Evo venue/layout URLs.
 - Refresh experiment spread and corner results after recorded laps are repaired.
 - Initialize setup-folder imports after the car catalog loads and prevent imports without a valid car.

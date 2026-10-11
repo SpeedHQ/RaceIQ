@@ -67,7 +67,11 @@ AC Evo supplies source names, not stable numeric car/track IDs. Generated ordina
 
 Detector ID: `ac_evo_lapdetector_v5`.
 
-Tourist replay uses only recorded route geometry, or the selected attempt's telemetry when no outline exists. The API returns `closed: false`, no circuit boundaries or pit lines, and route-relative thirds for sectors. Maps show distinct Start and Finish markers; closed GP geometry and curated GP corner fractions are not reused.
+Tourist replay uses recorded route geometry, or the selected attempt's telemetry when no outline exists. The API returns `closed: false`, no pit lines, and route-relative thirds for sectors. Extracted Nordschleife edges share Tourist world coordinates but include a GP detour absent from the Tourist route. The primary boundary uses the longest continuous matching section, requiring at least 90% route coverage, points within 15 m of edge midpoints, and matching section length within 10%. Other supported runs, including the approach, are returned as `additionalSections` and drawn independently in replay's map and 3D scene. Only the missing Tourist connector remains telemetry-only; no edges bridge that gap. Maps retain distinct Start and Finish markers and route-relative overlays; closed GP geometry and curated GP corner fractions are not reused. Missing or unrelated recordings return no boundaries.
+
+Tourist recordings retain telemetry's normalized (negated) X. Boundary matching reverses that X when comparing against raw extracted edges; the Tourist outline response also restores raw X. Replay then applies its existing display flip once to both outline and boundaries. This conversion is restricted to AC Evo `Nurburgring / Touristenfahrten`; other games and layouts are unchanged.
+
+Outline resolution and boundary loading share `isAcEvoTouristLayout()` from AC Evo metadata after gating on `gameId === "ac-evo"`. Tourist outline resolution stays separate from closed-circuit fallbacks.
 
 The supplied Tourist recording contains selected lap windows, not the continuous reset attempt. Missing historical telemetry cannot be reconstructed; controlled reset frames cover reset behavior.
 

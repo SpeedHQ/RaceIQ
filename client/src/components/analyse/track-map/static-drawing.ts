@@ -85,8 +85,12 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   if (displayOutline.length === 0) return { bufferCanvas: options.bufferCanvas, transform: null };
   const flippedLeft = flip && boundaries?.leftEdge ? flipPoints(boundaries.leftEdge) : boundaries?.leftEdge;
   const flippedRight = flip && boundaries?.rightEdge ? flipPoints(boundaries.rightEdge) : boundaries?.rightEdge;
+  const additionalSections = boundaries?.additionalSections?.map((section) => ({
+    leftEdge: flip ? flipPoints(section.leftEdge) : section.leftEdge,
+    rightEdge: flip ? flipPoints(section.rightEdge) : section.rightEdge,
+  })) ?? [];
   const canonicalCenterLine = flip && boundaries?.centerLine?.length ? flipPoints(boundaries.centerLine) : boundaries?.centerLine;
-  const overlayOutline = canonicalCenterLine && canonicalCenterLine.length > 1 ? canonicalCenterLine : displayOutline;
+  const overlayOutline = closed && canonicalCenterLine && canonicalCenterLine.length > 1 ? canonicalCenterLine : displayOutline;
   const displayMapLabels =
     mapLabels?.map((label) => {
       const displayLabel = flip ? { ...label, x: -label.x } : label;
@@ -94,13 +98,14 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
       return anchored ? { ...displayLabel, ...anchored } : displayLabel;
     }) ?? null;
   const raceLine = closed && showRaceLine && Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1 ? (flip ? flipPoints(boundaries.raceLine) : boundaries.raceLine) : null;
-  const hasBounds = closed && !!(boundaries?.coordSystem && flippedLeft && flippedLeft.length > 2);
+  const hasBounds = !!(boundaries?.coordSystem && flippedLeft && flippedLeft.length > 2 && flippedRight && flippedRight.length > 2);
   let minX = Infinity,
     maxX = -Infinity,
     minZ = Infinity,
     maxZ = -Infinity;
   const allBoundsPts: Point[][] = [displayOutline, overlayOutline];
   if (hasBounds) allBoundsPts.push(flippedLeft!, flippedRight!);
+  if (hasBounds) for (const section of additionalSections) allBoundsPts.push(section.leftEdge, section.rightEdge);
   if (displayMapLabels?.length) allBoundsPts.push(displayMapLabels);
   for (const pts of allBoundsPts)
     for (const p of pts) {
@@ -130,9 +135,8 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   ctx.clearRect(0, 0, bufferCanvas.width, bufferCanvas.height);
   ctx.setTransform(bufferCanvas.width / offW, 0, 0, bufferCanvas.height / offH, 0, 0);
 
-  if (hasBounds) {
-    const left = flippedLeft!;
-    const right = flippedRight!;
+  function drawBoundary(left: Point[], right: Point[]): void {
+    if (left.length < 2 || right.length < 2) return;
     ctx.beginPath();
     ctx.moveTo(...toCanvas(left[0].x, left[0].z));
     for (let i = 1; i < left.length; i++) ctx.lineTo(...toCanvas(left[i].x, left[i].z));
@@ -150,6 +154,10 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     ctx.moveTo(...toCanvas(right[0].x, right[0].z));
     for (let i = 1; i < right.length; i++) ctx.lineTo(...toCanvas(right[i].x, right[i].z));
     ctx.stroke();
+  }
+  if (hasBounds) {
+    drawBoundary(flippedLeft!, flippedRight!);
+    for (const section of additionalSections) drawBoundary(section.leftEdge, section.rightEdge);
   }
 
   ctx.beginPath();

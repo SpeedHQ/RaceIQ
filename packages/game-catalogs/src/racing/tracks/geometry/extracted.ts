@@ -7,6 +7,97 @@ import { loadAccSvgBoundaryByName } from "@raceiq/shared/racing/tracks/geometry/
 import type { Point, TrackBoundary } from "@raceiq/shared/racing/tracks/geometry/types";
 import { getRecordedOutlineById } from "../recording/outlines";
 import { getAcEvoSharedTrackName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
+import { isAcEvoTouristLayout, parseAcEvoTrackId } from "@raceiq/game-ac-evo-metadata/identity";
+
+/** Tourist shares Nordschleife world coordinates, but not its lap origin or closing section. */
+function trimTouristBoundary(boundary: TrackBoundary, route: Point[]): TrackBoundary | null {
+  const count = Math.min(boundary.leftEdge.length, boundary.rightEdge.length);
+  if (count < 10 || route.length < 10) return null;
+  const center = Array.from({ length: count }, (_, index) => ({
+    x: (boundary.leftEdge[index].x + boundary.rightEdge[index].x) / 2,
+    z: (boundary.leftEdge[index].z + boundary.rightEdge[index].z) / 2,
+  }));
+  function nearest(point: Point): number {
+    let best = -1;
+    let distanceSquared = 15 * 15;
+    for (let index = 0; index < count; index++) {
+      // Recorded Tourist routes contain normalized telemetry X; extracted edges contain raw game X.
+      const distance = (-point.x - center[index].x) ** 2 + (point.z - center[index].z) ** 2;
+      if (distance < distanceSquared) {
+        best = index;
+        distanceSquared = distance;
+      }
+    }
+    return best;
+  }
+  const cumulative = [0];
+  for (let index = 1; index < count; index++) {
+    cumulative.push(cumulative[index - 1] + Math.hypot(center[index].x - center[index - 1].x, center[index].z - center[index - 1].z));
+  }
+  const circuitLength = cumulative[count - 1] + Math.hypot(center[0].x - center[count - 1].x, center[0].z - center[count - 1].z);
+  let previous = -1;
+  let runStart = -1;
+  let runLength = 0;
+  let bestStart = -1;
+  let bestEnd = -1;
+  let bestLength = 0;
+  let routeLength = 0;
+  const runs: { start: number; end: number; length: number }[] = [];
+  // Bundled edges include the GP detour. Preserve supported runs without bridging the missing connector.
+  for (let index = 0; index < route.length; index++) {
+    const current = nearest(route[index]);
+    const step = index > 0 ? Math.hypot(route[index].x - route[index - 1].x, route[index].z - route[index - 1].z) : 0;
+    routeLength += step;
+    const edgeStep = current >= 0 && previous >= 0
+      ? (cumulative[current] - cumulative[previous] + circuitLength) % circuitLength
+      : Infinity;
+    if (current < 0 || previous < 0 || edgeStep > step * 2 + 30) {
+      if (runStart >= 0 && previous >= 0 && runLength > 20) runs.push({ start: runStart, end: previous, length: runLength });
+      runStart = current;
+      runLength = 0;
+    } else {
+      runLength += step;
+    }
+    if (runLength > bestLength) {
+      bestLength = runLength;
+      bestStart = runStart;
+      bestEnd = current;
+    }
+    previous = current;
+  }
+  if (runStart >= 0 && previous >= 0 && runLength > 20) runs.push({ start: runStart, end: previous, length: runLength });
+  if (bestStart < 0 || bestEnd < 0 || bestStart === bestEnd || routeLength <= 0 || bestLength / routeLength < 0.9) return null;
+  function clip(start: number, end: number): TrackBoundary {
+    const leftEdge: Point[] = [];
+    const rightEdge: Point[] = [];
+    const centerLine: Point[] = [];
+    for (let index = start; ; index = (index + 1) % count) {
+      leftEdge.push(boundary.leftEdge[index]);
+      rightEdge.push(boundary.rightEdge[index]);
+      centerLine.push(center[index]);
+      if (index === end) break;
+    }
+    return { leftEdge, rightEdge, centerLine, pitLane: null };
+  }
+  function length(points: Point[]): number {
+    let result = 0;
+    for (let index = 1; index < points.length; index++) {
+      result += Math.hypot(points[index].x - points[index - 1].x, points[index].z - points[index - 1].z);
+    }
+    return result;
+  }
+  const primary = clip(bestStart, bestEnd);
+  if (Math.abs(length(primary.centerLine!) / bestLength - 1) > 0.1) return null;
+  const additionalSections: NonNullable<TrackBoundary["additionalSections"]> = [];
+  for (const run of runs) {
+    if (run.start === bestStart && run.end === bestEnd) continue;
+    const section = clip(run.start, run.end);
+    if (Math.abs(length(section.centerLine!) / run.length - 1) <= 0.1) {
+      additionalSections.push({ leftEdge: section.leftEdge, rightEdge: section.rightEdge });
+    }
+  }
+  return { ...primary, additionalSections };
+}
 
 /** Resolve curated boundaries by native AC Evo identity without ordinal translation. */
 export function getTrackBoundariesById(trackId: string, gameId: string): TrackBoundary | null {
@@ -15,7 +106,8 @@ export function getTrackBoundariesById(trackId: string, gameId: string): TrackBo
     const ordinal = Number(trackId);
     return Number.isInteger(ordinal) ? getTrackBoundariesByOrdinal(ordinal, gameId) : null;
   }
-  const name = getAcEvoSharedTrackName(trackId);
+  const tourist = isAcEvoTouristLayout(parseAcEvoTrackId(trackId));
+  const name = tourist ? "nordschleife" : getAcEvoSharedTrackName(trackId);
   if (!name) return null;
   const content = readDataFile(resolve(bundledGameDir(gameId), `${name}-boundaries.json`));
   let boundary: TrackBoundary | null = null;
@@ -27,6 +119,7 @@ export function getTrackBoundariesById(trackId: string, gameId: string): TrackBo
   }
   boundary ??= loadAccSvgBoundaryByName(name);
   const recordedCenterline = getRecordedOutlineById(trackId, gameId);
+  if (tourist) return boundary && recordedCenterline ? trimTouristBoundary(boundary, recordedCenterline) : null;
   if (!boundary || !recordedCenterline || !boundary.centerLine) return boundary;
   const alignment = computeAlignment(boundary.centerLine, recordedCenterline);
   if (!alignment) return boundary;

@@ -51,7 +51,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: { x: number; z: number }[] | null;
-  boundaries?: Pick<TrackMapBoundaries, "leftEdge" | "rightEdge" | "raceLine"> | null;
+  boundaries?: Pick<TrackMapBoundaries, "leftEdge" | "rightEdge" | "raceLine" | "additionalSections"> | null;
   carId?: string;
   carModel?: CarModelEnrichment & { hasModel: boolean };
   tempLabel?: string;

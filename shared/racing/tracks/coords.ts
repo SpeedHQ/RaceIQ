@@ -24,11 +24,18 @@ export function flipPoints<T extends Pt>(pts: T[]): T[] {
   return pts.map((p) => ({ ...p, x: -p.x }));
 }
 
-export function flipBoundaries<T extends { leftEdge: Pt[]; rightEdge: Pt[] }>(b: T): T {
+export function flipBoundaries<T extends { leftEdge: Pt[]; rightEdge: Pt[]; additionalSections?: { leftEdge: Pt[]; rightEdge: Pt[] }[] }>(b: T): T {
   return {
     ...b,
     leftEdge: flipPoints(b.leftEdge),
     rightEdge: flipPoints(b.rightEdge),
+    ...(b.additionalSections ? {
+      additionalSections: b.additionalSections.map((section) => ({
+        ...section,
+        leftEdge: flipPoints(section.leftEdge),
+        rightEdge: flipPoints(section.rightEdge),
+      })),
+    } : {}),
     ...("centerLine" in b && b.centerLine ? { centerLine: flipPoints(b.centerLine as Pt[]) } : {}),
     ...("pitLane" in b && b.pitLane ? { pitLane: flipPoints(b.pitLane as Pt[]) } : {}),
     ...("raceLine" in b && b.raceLine ? { raceLine: flipPoints(b.raceLine as Pt[]) } : {}),

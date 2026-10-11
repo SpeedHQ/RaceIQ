@@ -150,9 +150,6 @@ export const trackGeometryRoutes = new Hono()
         const boundaries = getLMUTrackBoundaries(trackId);
         return c.json(boundaries ? { ...boundaries, coordSystem: "lmu" } : null);
       }
-      if (validGameId === "ac-evo" && (await resolveTrackOutline(trackId, validGameId))?.closed === false) {
-        return c.json(null);
-      }
       const sharedName = getSharedTrackName(trackId, validGameId);
       const extractedBoundaries = getTrackBoundariesById(trackId, validGameId);
       if (extractedBoundaries) {
@@ -180,6 +177,7 @@ export const trackGeometryRoutes = new Hono()
           // overlay on top of leftEdge/rightEdge. Null for every other game.
           raceLine: getTrackRacelineById(trackId, validGameId),
           pitLane,
+          ...(extractedBoundaries.additionalSections ? { additionalSections: extractedBoundaries.additionalSections } : {}),
           coordSystem: validGameId === "f1-2025" ? "f1-2025" : (validGameId === "acc" || validGameId === "ac-evo") ? "acc" : "forza",
         });
       }

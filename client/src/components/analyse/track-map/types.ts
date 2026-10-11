@@ -91,6 +91,7 @@ export interface TrackMapBoundaries {
   raceLine?: Point[] | null;
   pitLane: Point[] | null;
   coordSystem: string;
+  additionalSections?: { leftEdge: Point[]; rightEdge: Point[] }[];
 }
 
 export type TrackZoomBehavior = "default" | "zoomed" | "disabled";

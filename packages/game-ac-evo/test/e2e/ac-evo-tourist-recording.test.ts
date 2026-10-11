@@ -13,7 +13,9 @@ import { LapDetectorAcEvo } from "../../src/lap-detector";
 import { isAcEvoTouristLayout } from "../../src/layout-policy";
 import { registerAcEvoTrack } from "@raceiq/backend-core/db/discovered-tracks";
 import { getRecordedOutlineById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { getTrackBoundariesById } from "@raceiq/game-catalogs/racing/tracks/geometry/extracted";
 import { combineRecordingParts } from "@raceiq/backend-core/session-capture/combine-recording-parts";
+import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/normalization";
 
 const RECORDING_PARTS = [
   "test/artifacts/sessions/ac-evo-tourist-2026-10-10.bin.gz.part1",
@@ -81,6 +83,7 @@ async function replayFullDetector(): Promise<CapturedLap[]> {
     const packet = parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, cache, record.frameTimeMs ?? 0);
     if (!packet || context) continue;
     if (!isAcEvoTouristLayout(packet)) throw new Error("Capture frame lost AC EVO tourist source identity");
+    normalizeTelemetryPacket(packet, true);
     await detector.feed(packet, record.offset);
   }
   await detector.finalizeCurrentSession();
@@ -242,5 +245,41 @@ describe("AC EVO tourist source finish metadata", () => {
     expect(outline).not.toBeNull();
     expect(outline!.length).toBeGreaterThan(50);
     expect(Math.hypot(outline![0].x - outline!.at(-1)!.x, outline![0].z - outline!.at(-1)!.z)).toBeGreaterThan(1_000);
+    const boundaries = getTrackBoundariesById(trackId, "ac-evo");
+    expect(boundaries).not.toBeNull();
+    const center = boundaries!.centerLine!;
+    expect(Math.hypot(-center.at(-1)!.x - outline!.at(-1)!.x, center.at(-1)!.z - outline!.at(-1)!.z)).toBeLessThan(15);
+    expect(Math.hypot(center[0].x - center.at(-1)!.x, center[0].z - center.at(-1)!.z)).toBeGreaterThan(1_000);
+    expect(boundaries!.pitLane).toBeNull();
+    const approach = boundaries!.additionalSections![0];
+    const startMidpoint = {
+      x: -(approach.leftEdge[0].x + approach.rightEdge[0].x) / 2,
+      z: (approach.leftEdge[0].z + approach.rightEdge[0].z) / 2,
+    };
+    expect(Math.hypot(startMidpoint.x - outline![0].x, startMidpoint.z - outline![0].z)).toBeLessThan(15);
+    const lastApproach = approach.leftEdge.at(-1)!;
+    expect(Math.hypot(lastApproach.x - boundaries!.leftEdge[0].x, lastApproach.z - boundaries!.leftEdge[0].z)).toBeGreaterThan(30);
+    for (const edge of [approach.leftEdge, approach.rightEdge]) {
+      let maxGap = 0;
+      for (let index = 1; index < edge.length; index++) {
+        maxGap = Math.max(maxGap, Math.hypot(edge[index].x - edge[index - 1].x, edge[index].z - edge[index - 1].z));
+      }
+      expect(maxGap).toBeLessThan(10);
+    }
+    let covered = 0;
+    let sampled = 0;
+    for (const window of windows) {
+      for (let index = 0; index < window.packets.length; index += 200) {
+        const packet = window.packets[index];
+        let nearest = Infinity;
+        for (const point of center) nearest = Math.min(nearest, Math.hypot(-point.x - packet.PositionX, point.z - packet.PositionZ));
+        if (nearest < 15) covered++;
+        sampled++;
+      }
+    }
+    expect(covered / sampled).toBeGreaterThan(0.9);
+    for (let index = 1; index < center.length; index++) {
+      expect(Math.hypot(center[index].x - center[index - 1].x, center[index].z - center[index - 1].z)).toBeLessThan(10);
+    }
   });
 });

@@ -29,7 +29,14 @@ test("Tourist geometry never falls back to closed circuit maps or sectors", asyn
     const trace = Array.from({ length: 100 }, (_, index) => ({ x: index * 10, z: 0 }));
     recordOpenLapTraceById(trackId, trace, "ac-evo");
     const recorded = await trackOutlineRoutes.request(`/api/track-outline/${suffix}`);
-    expect(await recorded.json()).toMatchObject({ points: trace, closed: false, source: "recorded", pitLines: [] });
+    const recordedData = await recorded.json() as { points: { x: number; z: number }[]; closed: boolean; source: string; pitLines: unknown[] };
+    expect(recordedData).toMatchObject({ closed: false, source: "recorded", pitLines: [] });
+    // Applying the replay display flip must recover the recorded telemetry positions.
+    for (let index = 0; index < trace.length; index++) {
+      expect(Math.hypot(-recordedData.points[index].x - trace[index].x, recordedData.points[index].z - trace[index].z)).toBeLessThan(1e-6);
+    }
+    const unrelatedBoundaries = await trackGeometryRoutes.request(`/api/track-boundaries/${suffix}`);
+    expect(await unrelatedBoundaries.json()).toBeNull();
     const sectors = await trackSectorBoundaryRoutes.request(`/api/track-sector-boundaries/${suffix}`);
     expect(await sectors.json()).toEqual({ s1End: 1 / 3, s2End: 2 / 3, trackLength: 990 });
     const segments = await trackSegmentRoutes.request(`/api/track-sectors/${suffix}`);
