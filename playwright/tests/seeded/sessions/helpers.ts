@@ -89,5 +89,8 @@ export async function cleanDisposable(request: APIRequestContext, disposable: Di
 }
 
 export function sessionRows(page: Page) {
-  return page.getByRole("row").filter({ has: page.getByRole("button", { name: "Recap", exact: true }) });
+  // Restrict rows to the session table body: the header has a select-all
+  // checkbox, and expanded lap ledgers have their own selectable rows.
+  return page.locator("[data-slot='table-container'] table").first().locator(":scope > tbody > tr")
+    .filter({ has: page.getByRole("checkbox") });
 }

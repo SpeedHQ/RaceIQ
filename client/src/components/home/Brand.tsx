@@ -76,7 +76,7 @@ function GameBrandCard({ game, stats, loading, error, selected }: { game: (typeo
       data-game-brand={game.gameId}
       aria-busy={loading}
       aria-current={selected ? "page" : undefined}
-      className="game-brand-card group block w-52 min-w-42 max-w-full flex-none rounded-lg active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent"
+      className="game-brand-card group block w-full min-w-0 max-w-52 rounded-lg active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent"
     >
       <Card variant="gradient" className={`relative h-full min-w-0 flex-row items-center gap-1.5 overflow-hidden rounded-lg p-2 font-normal transition-colors duration-150 motion-reduce:transition-none ${selected ? "border-app-accent" : "group-hover:border-app-border-hover"}`}>
         <span className="sr-only">{game.name}</span>
@@ -97,7 +97,7 @@ function GameBrandCard({ game, stats, loading, error, selected }: { game: (typeo
 
 export function GameBrandCards({ gameStats, hiddenGames, loading = false, error = false, selectedGameId = null }: { gameStats: GameStats; hiddenGames: string[]; loading?: boolean; error?: boolean; selectedGameId?: string | null }) {
   return (
-    <div className="grid grid-cols-2 justify-items-center gap-2 md:grid-cols-3 xl:grid-cols-6" aria-busy={loading}>
+    <div className="grid min-w-0 grid-cols-1 justify-items-stretch gap-2 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-6" aria-busy={loading}>
       {BRAND_CARDS.map((game) => (hiddenGames.includes(game.gameId) && selectedGameId !== game.gameId ? null : <GameBrandCard key={game.gameId} game={game} stats={gameStats[game.key]} loading={loading} error={error} selected={selectedGameId === game.gameId} />))}
     </div>
   );

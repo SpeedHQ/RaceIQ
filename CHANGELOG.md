@@ -3,9 +3,11 @@
 ### Features
 - Reduce F1 race-result processing time by 88% in a matched processing benchmark.
 - Refresh the dashboard with cleaner session and favourite widgets, clean-rate and podium trends, and easier game navigation.
+- Open the overview dashboard on the last seven days of activity by default.
 - Browse enriched iRacing car, car-class, and track catalogs with official images, offline pit-road maps, and grouped lap sections.
 
 ### Fixes
+- Keep home dashboard game cards within narrow phone screens without horizontal page scrolling.
 - Remove the Recap button from session rows; keep Analyse and favourite actions.
 - Speed up startup with saved recordings and process history backfills in the background.
 - Calculate accurate dashboard totals, recaps, session counts, and podiums across the full selected period using only your sessions and consistent UTC boundaries.
@@ -16,6 +18,7 @@
 - Show unnamed multi-turn sections once in Analyse and track-detail labels.
 
 ### Internal
+- Update browser coverage for dashboard periods, session analysis navigation, and persisted onboarding settings without relying on removed headings or recap buttons; enable feature-gated responsive routes in both fresh and seeded test servers.
 - Report Paraglide development and production compilation stages, a 10-second elapsed-time heartbeat, and total build duration; preserve validated cache reuse.
 - Bound HTTP request/response adapter typing to avoid expanding the full RPC router schema during backend typechecking, preserving existing RPC contracts.
 - Remove unused compiled artifact downloads and base production builds from dev-mode dashboard screenshot CI.
