@@ -91,10 +91,12 @@ async function createFixture(databasePath: string, profileName: string, throughV
         sql: "INSERT INTO profiles (name) VALUES (?)",
         args: [${JSON.stringify(profileName)}],
       });
+      const columns = await client.execute("PRAGMA table_info(sessions)");
+      const hasStringIdentities = columns.rows.some((column) => column.name === "car_id");
       await client.execute({
-        sql: ${JSON.stringify(throughVersion < 59
-          ? "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, raw_file) VALUES (1, 10, 20, 'iracing', 'seed.bin.gz')"
-          : "INSERT INTO sessions (id, car_id, track_id, game_id, raw_file) VALUES (1, '10', '20', 'iracing', 'seed.bin.gz')")},
+        sql: hasStringIdentities
+          ? "INSERT INTO sessions (id, car_id, track_id, game_id, raw_file) VALUES (1, '10', '20', 'iracing', 'seed.bin.gz')"
+          : "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, raw_file) VALUES (1, 10, 20, 'iracing', 'seed.bin.gz')",
       });
     } finally {
       client.close();
