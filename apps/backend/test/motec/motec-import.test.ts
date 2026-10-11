@@ -24,7 +24,7 @@ import { db } from "@raceiq/backend-core/db/index";
 import { laps as lapsTable, sessions, tunes } from "@raceiq/backend-core/db/schema";
 import { eq, isNull } from "drizzle-orm";
 import { getAcEvoTrackByName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
-import { getTrackOutlineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { getTrackOutlineById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { buildLd, buildLdx, syntheticStint } from "@raceiq/backend-core/test-support/motec/ld";
 const MOTEC_ARCHIVE = "test/artifacts/motec/acc-barcelona-porsche-992.zip";
 
@@ -249,7 +249,8 @@ describe("deadReckonPath", () => {
 });
 describe("alignPathToTrack", () => {
   test("fits each lap window with its own similarity transform", () => {
-    const outline = getTrackOutlineByOrdinal(5, "ac-evo")!;
+    const trackId = getAcEvoTrackByName("Spa-Francorchamps", "GP")!.id;
+    const outline = getTrackOutlineById(trackId, "ac-evo")!;
     const sourceOutline = outline.slice(0, -1);
     const transforms = [
       { scale: 1.35, rotation: 0.22, tx: 400, tz: -250 },
@@ -285,7 +286,7 @@ describe("alignPathToTrack", () => {
       heading: Float64Array.from(headings),
       yawFromLateralG: false,
     };
-    alignPathToTrack(path, lapIndexOf, "ac-evo", 5, true);
+    alignPathToTrack(path, lapIndexOf, "ac-evo", trackId, true);
 
     for (let lap = 0; lap < transforms.length; lap++) {
       const start = lap * sourceOutline.length;
@@ -307,14 +308,14 @@ describe("alignPathToTrack", () => {
 });
 
 describe("resolveMotecCarTrack", () => {
-  test("requires an explicit layout when the MoTeC header only contains a venue", () => {
+  test("preserves a venue with an empty layout instead of guessing a catalog layout", () => {
     const bytes = buildLd({
       vehicleId: "mercedes_amg_gt3_evo",
       venue: "spa",
       channels: [{ name: "SPEED", freq: 10, samples: [50, 50] }],
     });
     const resolved = resolveMotecTarget("ac-evo").resolveCarTrack(parseLd(bytes));
-    expect(resolved.trackOrdinal).toBe(-1);
+    expect(resolved.trackId).toBe(JSON.stringify(["spa", ""]));
     expect(resolved.trackName).toBe("spa");
   });
 
@@ -328,24 +329,16 @@ describe("resolveMotecCarTrack", () => {
     });
     const header = resolveMotecTarget("ac-evo").resolveCarTrack(parseLd(bytes));
     const monza = getAcEvoTrackByName("Monza", "GP")!;
-    expect(monza.id).not.toBe(header.trackOrdinal);
+    expect(monza.id).not.toBe(header.trackId);
 
     const overridden = resolveMotecTarget("ac-evo").resolveCarTrack(parseLd(bytes), {
-      carOrdinal: 0,
-      trackOrdinal: monza.id,
+      carId: "",
+      trackId: monza.id,
     });
-    expect(overridden.trackOrdinal).toBe(monza.id);
-    expect(overridden.carOrdinal).toBe(0);
+    expect(overridden.trackId).toBe(monza.id);
+    expect(overridden.carId).toBe("");
   });
 
-  test("an absent layout config does not guess from the venue header", () => {
-    const bytes = buildLd({
-      venue: "monza",
-      channels: [{ name: "SPEED", freq: 10, samples: [50, 50] }],
-    });
-    const resolved = resolveMotecTarget("ac-evo").resolveCarTrack(parseLd(bytes), {});
-    expect(resolved.trackOrdinal).toBe(-1);
-  });
 
   test("passes an unknown car through instead of guessing", () => {
     const bytes = buildLd({
@@ -354,7 +347,7 @@ describe("resolveMotecCarTrack", () => {
       channels: [{ name: "SPEED", freq: 10, samples: [50, 50] }],
     });
     const resolved = resolveMotecTarget("ac-evo").resolveCarTrack(parseLd(bytes));
-    expect(resolved.carOrdinal).toBe(-1);
+    expect(resolved.carId).toBe("not_a_real_car");
     // The raw string survives so the lap detector can register it as discovered.
     expect(resolved.carModel).toBe("not_a_real_car");
   });
@@ -595,11 +588,11 @@ describe("importMotec end to end", () => {
     const monza = getAcEvoTrackByName("Monza", "GP")!;
     const result = await importMotec(buildLd(spec), Buffer.from(buildLdx(beacons)), {
       gameId: "ac-evo",
-      carOrdinal: 0,
-      trackOrdinal: monza.id,
+      carId: "",
+      trackId: monza.id,
     });
 
-    expect(result.carTrack.trackOrdinal).toBe(monza.id);
+    expect(result.carTrack.trackId).toBe(monza.id);
     for (const lap of result.laps) expect(lap.trackId).toBe(monza.id);
   }, 30_000);
 
@@ -611,7 +604,7 @@ describe("importMotec end to end", () => {
         gameId: "ac-evo",
         name: "MoTeC import test setup",
         author: "test",
-        carOrdinal: 0,
+        carId: "",
         category: "race",
         settings: "{}",
       })
@@ -619,8 +612,8 @@ describe("importMotec end to end", () => {
     const tuneId = tune!.id;
     const result = await importMotec(buildLd(spec), Buffer.from(buildLdx(beacons)), {
       gameId: "ac-evo",
-      carOrdinal: 0,
-      trackOrdinal: getAcEvoTrackByName("Monza", "GP")!.id,
+      carId: "",
+      trackId: getAcEvoTrackByName("Monza", "GP")!.id,
       tuneId,
     });
 
@@ -635,8 +628,8 @@ describe("importMotec end to end", () => {
     const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
     const result = await importMotec(buildLd(spec), Buffer.from(buildLdx(beacons)), {
       gameId: "ac-evo",
-      carOrdinal: 0,
-      trackOrdinal: getAcEvoTrackByName("Monza", "GP")!.id,
+      carId: "",
+      trackId: getAcEvoTrackByName("Monza", "GP")!.id,
     });
 
     for (const lap of result.laps) {
@@ -656,8 +649,8 @@ describe("importMotec end to end", () => {
     const form = new FormData();
     form.append("motecToken", staged.token);
     form.append("gameId", "acc");
-    form.append("carOrdinal", "33");
-    form.append("trackOrdinal", "8");
+    form.append("carId", "33");
+    form.append("trackId", "8");
     form.append("ownership", "mine");
     const response = await transferRoutes.request("/api/laps/import-motec", { method: "POST", body: form });
     expect(response.status).toBe(200);

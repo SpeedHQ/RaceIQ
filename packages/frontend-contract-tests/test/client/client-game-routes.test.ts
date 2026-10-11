@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import {
   gameIdForRoutePrefix,
+  parseOptionalIdentityKey,
   parseOptionalNumber,
   routePrefixForGameId,
   setupEngineerGameIdForRoutePrefix,
@@ -38,20 +39,21 @@ describe("game route helpers", () => {
     expect(gameIdForRoutePrefix("unknown")).toBeUndefined();
   });
 
-  test("parses only finite numeric search values", () => {
-    expect(parseOptionalNumber("42")).toBe(42);
-    expect(parseOptionalNumber(3.5)).toBe(3.5);
-    expect(parseOptionalNumber(" ")).toBeUndefined();
-    expect(parseOptionalNumber("nope")).toBeUndefined();
-    expect(parseOptionalNumber(Number.NaN)).toBeUndefined();
-    expect(parseOptionalNumber(true)).toBeUndefined();
+  test("accepts only string identity keys and preserves tuple keys", () => {
+    const trackId = JSON.stringify(["Circuit Park", "Grand Prix"]);
+    expect(parseOptionalIdentityKey(42)).toBeUndefined();
+    expect(parseOptionalIdentityKey("42")).toBe("42");
+    expect(parseOptionalIdentityKey(trackId)).toBe(trackId);
+    expect(parseOptionalIdentityKey("")).toBeUndefined();
+    expect(validateAnalyseSearch({ track: trackId, car: "McLaren 720S" })).toMatchObject({ track: trackId, car: "McLaren 720S" });
   });
+
 
   test("validates analysis search values and track tabs", () => {
     expect(validateAnalyseSearch({ track: "12", car: 34, lap: "bad", cursor: "15", viz: "3d", ai: "1", trackTab: "braking", ignored: "x" } as Record<string, unknown>)).toEqual({
       session: undefined,
-      track: 12,
-      car: 34,
+      track: "12",
+      car: "34",
       lap: undefined,
       laps: undefined,
       primary: undefined,
@@ -60,15 +62,14 @@ describe("game route helpers", () => {
       ai: 1,
       view: undefined,
       tab: "braking",
-      
     });
   });
 
   test("validates comparison search values", () => {
     expect(validateCompareSearch({ track: "12", carA: 34, carB: "35", lapA: "8", lapB: "9", cursor: "15", ai: "1", ignored: "x" })).toEqual({
-      track: 12,
-      carA: 34,
-      carB: 35,
+      track: "12",
+      carA: "34",
+      carB: "35",
       lapA: 8,
       lapB: 9,
       cursor: 15,

@@ -7,8 +7,8 @@
 - Catalog version: `0.19.2`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.19.2`
-- Generator source SHA-256: `05cdfc4d4c907180c48a4e5cc9503896ce6d5605802268b146194f2253c9ff88`
-- Content SHA-256: `997bc8e2e91f9d2b43beb3a6a471b1a79b8f36cef77f75e487640333fa51e926`
+- Generator source SHA-256: `6d2c986924a834bd68c7cb38aed405849a1982efcf2164166f43babcd0837b83`
+- Content SHA-256: `37c7c55ded91317d6132a5d12b918ed24217ab244f2761998188b7901d67e0e3`
 
 ## Coverage
 
@@ -232,7 +232,6 @@
 | `identity.car-model` | Car Model | string | dimensionless | text | scalar |  |  |  |
 | `identity.car-model-name` | Car Model Name | string | dimensionless | text | scalar |  |  |  |
 | `identity.car-name` | Car Name | string | dimensionless | text | scalar |  |  |  |
-| `identity.car-ordinal` | Car Ordinal | number | dimensionless | id | scalar |  |  |  |
 | `identity.car-performance-index` | Car Performance Index | number | dimensionless | count | scalar |  |  |  |
 | `identity.driver-name` | Driver Name | string | dimensionless | text | scalar |  |  |  |
 | `identity.drivetrain-type` | Drivetrain Type | number | dimensionless | id | scalar |  |  |  |
@@ -252,7 +251,6 @@
 | `identity.track-id` | Track Id | string | dimensionless | text | scalar |  |  |  |
 | `identity.track-limits-steps` | Track Limits Steps | number | dimensionless | count | scalar |  |  |  |
 | `identity.track-name` | Track name | string | dimensionless | text | scalar |  |  |  |
-| `identity.track-ordinal` | Track Ordinal | number | dimensionless | id | scalar |  |  |  |
 | `identity.track.altitude` | Track altitude | number | length | m | scalar |  |  |  |
 | `identity.track.city` | Track city | string | dimensionless | text | scalar |  |  |  |
 | `identity.track.configuration-name` | Track configuration name | string | dimensionless | text | scalar |  |  |  |

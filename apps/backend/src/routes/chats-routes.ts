@@ -6,7 +6,6 @@ import { getLapMetaById } from "@raceiq/backend-core/db/lap-read-queries";
 import { getExperiment } from "@raceiq/backend-core/db/experiment-queries";
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
-import { getLMUCar, getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import {
   getChatMemory,
   CHAT_RESOURCE_ID,
@@ -29,10 +28,8 @@ interface LapSummary {
   isValid: boolean;
   carName: string;
   trackName: string;
-  trackOrdinal: number | null;
-  carOrdinal: number | null;
-  carId: number | string;
-  trackId: number | string;
+  carId: string;
+  trackId: string;
   gameId: string;
 }
 
@@ -65,12 +62,10 @@ async function loadLapSummary(id: number): Promise<LapSummary | null> {
     lapNumber: lap.lapNumber,
     lapTime: lap.lapTime,
     isValid: lap.isValid,
-    carName: typeof lap.carId === "string" ? getLMUCar(lap.carId)?.name ?? lap.carId : resolveCarName(lap.carOrdinal ?? 0, lap.gameId),
-    trackName: typeof lap.trackId === "string" ? getLMUTrack(lap.trackId)?.name ?? lap.trackId : resolveTrackName(lap.trackOrdinal ?? 0, lap.gameId),
-    trackOrdinal: lap.trackOrdinal ?? null,
-    carOrdinal: lap.carOrdinal ?? null,
-    carId: lap.carId ?? lap.carOrdinal ?? -1,
-    trackId: lap.trackId ?? lap.trackOrdinal ?? -1,
+    carName: resolveCarName(lap.carId, lap.gameId),
+    trackName: resolveTrackName(lap.trackId, lap.gameId),
+    carId: lap.carId,
+    trackId: lap.trackId,
     gameId: lap.gameId ?? "",
   };
 }
@@ -129,8 +124,8 @@ export function createChatsRoutes(
             if (!Number.isFinite(sessionId)) continue;
             const session = await getExperiment(sessionId);
             if (!session || session.gameId !== gameId) continue;
-            const carName = session.carName ?? resolveCarName(session.carOrdinal ?? 0, session.gameId);
-            const trackName = session.trackName ?? resolveTrackName(session.trackOrdinal ?? 0, session.gameId);
+            const carName = session.carName ?? resolveCarName(session.carId ?? "", session.gameId);
+            const trackName = session.trackName ?? resolveTrackName(session.trackId ?? "", session.gameId);
             rows.push({
               threadId: id,
               type: "tune",

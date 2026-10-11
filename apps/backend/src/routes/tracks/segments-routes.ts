@@ -1,12 +1,12 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { IS_DEV } from "@raceiq/backend-core/runtime/config/env";
-import { OrdinalParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
+import { TrackIdParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
 import { formatTurnNumbers, turnNumbers } from "@raceiq/shared/racing/tracks/segment-label";
 import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
 import { getCorners, saveCorners } from "@raceiq/backend-core/db/track-queries";
-import { getTrackOutlineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
-import { getTrackSectorsByOrdinal } from "@raceiq/game-catalogs/racing/tracks/storage/sectors";
+import { getTrackOutlineById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { resolveTrack } from "@raceiq/backend-core/tracks/info";
 import {
   loadTrackFacts,
   loadTrackGeometry,
@@ -23,18 +23,15 @@ import { splitSegments } from "@raceiq/shared/racing/tracks/curation/join";
 import { cornerKey } from "@raceiq/shared/racing/tracks/keys";
 import {
   computeOutlineLength,
-  decodeTrackKey,
   getSharedTrackName,
-  OrdinalKeyParamSchema,
   requireGameId,
   resolveTrackSegments,
   resolveTrackOutline,
-  TrackOrdinalParamSchema,
 } from "./support";
 
 export const trackCornerRoutes = new Hono()
 
-  // GET /api/tracks/:trackOrdinal/corners — authoritative corner fractions
+  // GET /api/tracks/:trackId/corners — authoritative corner fractions
   // (0..1 lap fraction, matching the track-focus map/lanes contract).
   //
   // Priority:
@@ -42,20 +39,20 @@ export const trackCornerRoutes = new Hono()
   //      lap-fraction, game-specific. This is the ground truth.
   //   b. Stored/auto-detected DB corners, which are in METERS — converted to
   //      fractions using the same outline-length calc as
-  //      GET /api/track-sector-boundaries/:ordinal.
+  //      GET /api/track-sector-boundaries/:trackId.
   //   c. Empty array — the client falls back to telemetry-based detection.
   // Telemetry detection does not happen here; stored-lap analysis resolves its
   // own metre-based corners, while the PUT handler owns manual edits.
-  .get("/api/tracks/:trackOrdinal/corners",
-    zValidator("param", TrackOrdinalParamSchema),
+  .get("/api/tracks/:trackId/corners",
+    zValidator("param", TrackIdParamSchema),
     async (c) => {
-      const { trackOrdinal } = c.req.valid("param");
+      const { trackId } = c.req.valid("param");
       const cornersGameId = requireGameId(c);
 
       // (a) Segments — already fractions. Same resolver (curated first, then
-      // the auto-detector on the outline) that GET /api/track-sectors/:ordinal
+      // the auto-detector on the outline) that GET /api/track-sectors/:trackId
       // uses, so track detail and the review dashboard agree.
-      const { segments } = await resolveTrackSegments(trackOrdinal, cornersGameId);
+      const { segments } = await resolveTrackSegments(trackId, cornersGameId);
       const cornerSegments = segments.filter((s) => s.type === "corner");
       if (cornerSegments.length > 0) {
         const corners: Corner[] = cornerSegments.map((s, index) => ({
@@ -70,11 +67,10 @@ export const trackCornerRoutes = new Hono()
       }
 
       // (b) Stored DB corners, in meters — convert to fractions.
-      const dbCorners = await getCorners(trackOrdinal, cornersGameId);
+      const dbCorners = await getCorners(trackId, cornersGameId);
       if (dbCorners.length > 0) {
-        const sharedName = getSharedTrackName(trackOrdinal, cornersGameId);
-        const outline = getTrackOutlineByOrdinal(trackOrdinal, cornersGameId, sharedName);
-        const trackLength = computeOutlineLength(outline);
+        const resolved = await resolveTrackOutline(trackId, cornersGameId);
+        const trackLength = computeOutlineLength(resolved?.points);
         if (trackLength > 0) {
           const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
           const corners: Corner[] = dbCorners.map((corner) => ({
@@ -92,11 +88,11 @@ export const trackCornerRoutes = new Hono()
     }
   )
 
-  // PUT /api/tracks/:trackOrdinal/corners — save/update corner definitions
-  .put("/api/tracks/:trackOrdinal/corners",
-    zValidator("param", TrackOrdinalParamSchema),
+  // PUT /api/tracks/:trackId/corners — save/update corner definitions
+  .put("/api/tracks/:trackId/corners",
+    zValidator("param", TrackIdParamSchema),
     async (c) => {
-      const { trackOrdinal } = c.req.valid("param");
+      const { trackId } = c.req.valid("param");
 
       const body = await c.req.json<Corner[]>();
 
@@ -125,53 +121,46 @@ export const trackCornerRoutes = new Hono()
         }
       }
 
-      await saveCorners(trackOrdinal, body, requireGameId(c), false);
+      await saveCorners(trackId, body, requireGameId(c), false);
       return c.json({ success: true, count: body.length });
     }
   );
 
 export const trackSectorBoundaryRoutes = new Hono()
 
-  // GET /api/track-sector-boundaries/:ordinal — returns s1End/s2End fractions for timing
-  .get("/api/track-sector-boundaries/:ordinal",
-    zValidator("param", OrdinalKeyParamSchema),
+  // GET /api/track-sector-boundaries/:trackId — returns s1End/s2End fractions for timing
+  .get("/api/track-sector-boundaries/:trackId",
+    zValidator("param", TrackIdParamSchema),
     zValidator("query", GameIdQuerySchema),
     async (c) => {
-      const trackKey = decodeTrackKey(c.req.valid("param").ordinal);
+      const { trackId } = c.req.valid("param");
       const gameId = c.req.query("gameId");
       if (gameId === "lmu") {
-        const track = getLMUTrack(trackKey);
+        const track = getLMUTrack(trackId);
         return c.json({
           s1End: track?.sectorFractions?.[0] ?? 1 / 3,
           s2End: track?.sectorFractions?.[1] ?? 2 / 3,
           trackLength: (track?.lengthKm ?? 0) * 1_000,
         });
       }
-      const ordinal = Number(trackKey);
-      if (!Number.isInteger(ordinal)) return c.json({ error: "ordinal must be an integer" }, 400);
-      const resolved = gameId === "ac-evo" ? await resolveTrackOutline(ordinal, gameId) : null;
+      const resolved = gameId ? await resolveTrackOutline(trackId, gameId) : null;
       if (resolved?.closed === false) {
         return c.json({ s1End: 1 / 3, s2End: 2 / 3, trackLength: computeOutlineLength(resolved.points) });
       }
-      const sharedName = getSharedTrackName(ordinal, gameId);
+      const sharedName = getSharedTrackName(trackId, gameId);
       const sectors = (sharedName && gameId ? loadTrackSectorsFor(sharedName, gameId) : undefined)
-        ?? getTrackSectorsByOrdinal(ordinal);
-
-      // Compute track length from outline
-      const outline = gameId
-        ? getTrackOutlineByOrdinal(ordinal, gameId, sharedName)
-        : null;
+        ?? resolveTrack(gameId, trackId).sectors;
+      const outline = gameId ? getTrackOutlineById(trackId, gameId, sharedName) : null;
       const trackLength = computeOutlineLength(outline);
       return c.json({ ...sectors, trackLength });
     }
   )
-
-  // PUT /api/track-sector-boundaries/:ordinal — update s1End/s2End fractions (dev only)
-  .put("/api/track-sector-boundaries/:ordinal",
-    zValidator("param", OrdinalParamSchema),
+  // PUT /api/track-sector-boundaries/:trackId — update s1End/s2End fractions (dev only)
+  .put("/api/track-sector-boundaries/:trackId",
+    zValidator("param", TrackIdParamSchema),
     async (c) => {
       if (!IS_DEV) return c.json({ error: "Not available in production" }, 403);
-      const { ordinal } = c.req.valid("param");
+      const { trackId } = c.req.valid("param");
 
       const body = await c.req.json();
       const { s1End, s2End } = body;
@@ -183,7 +172,7 @@ export const trackSectorBoundaryRoutes = new Hono()
       }
 
       const gameId = c.req.query("gameId");
-      const slug = getSharedTrackName(ordinal, gameId);
+      const slug = getSharedTrackName(trackId, gameId);
 
       // Sector boundaries are lap fractions, so they live with the rest of this
       // game's geometry rather than in the shared facts.
@@ -202,13 +191,13 @@ export const trackSectorBoundaryRoutes = new Hono()
 
 export const trackSegmentRoutes = new Hono()
 
-  // PUT /api/tracks/:trackOrdinal/segments — save segments to shared meta (dev only)
-  .put("/api/tracks/:trackOrdinal/segments",
-    zValidator("param", TrackOrdinalParamSchema),
+  // PUT /api/tracks/:trackId/segments — save segments to shared meta (dev only)
+  .put("/api/tracks/:trackId/segments",
+    zValidator("param", TrackIdParamSchema),
     zValidator("query", GameIdQuerySchema),
     async (c) => {
       if (!IS_DEV) return c.json({ error: "Not available in production" }, 403);
-      const { trackOrdinal } = c.req.valid("param");
+      const { trackId } = c.req.valid("param");
       const gameId = c.req.query("gameId");
 
       const body = await c.req.json();
@@ -216,9 +205,9 @@ export const trackSegmentRoutes = new Hono()
         return c.json({ error: "segments array required" }, 400);
       }
 
-      const slug = getSharedTrackName(trackOrdinal, gameId);
+      const slug = getSharedTrackName(trackId, gameId);
       if (!slug) {
-        return c.json({ error: "No shared track name for this ordinal" }, 400);
+        return c.json({ error: "No shared track name for this identity" }, 400);
       }
       if (!gameId) {
         return c.json({ error: "gameId required: fractions are always game-specific" }, 400);
@@ -263,16 +252,14 @@ export const trackSegmentRoutes = new Hono()
     }
   )
 
-  // GET /api/track-sectors/:ordinal — returns user-edited, named, or auto-detected segments.
-  .get("/api/track-sectors/:ordinal",
-    zValidator("param", OrdinalKeyParamSchema),
+  // GET /api/track-sectors/:trackId — returns user-edited, named, or auto-detected segments.
+  .get("/api/track-sectors/:trackId",
+    zValidator("param", TrackIdParamSchema),
     zValidator("query", GameIdQuerySchema),
     async (c) => {
-      const trackKey = decodeTrackKey(c.req.valid("param").ordinal);
+      const { trackId } = c.req.valid("param");
       const gameId = c.req.query("gameId");
-      const ordinal = Number(trackKey);
-      if (gameId !== "lmu" && !Number.isInteger(ordinal)) return c.json({ error: "ordinal must be an integer" }, 400);
-      const { segments, totalDist, source } = await resolveTrackSegments(gameId === "lmu" ? trackKey : ordinal, gameId);
+      const { segments, totalDist, source } = await resolveTrackSegments(trackId, gameId);
       if (source === "none") return c.json({ segments: [] });
 
       return c.json({
@@ -283,23 +270,20 @@ export const trackSegmentRoutes = new Hono()
     }
   )
 
-  // GET /api/track-guide/:ordinal — the expert guide for a track, as data.
+  // GET /api/track-guide/:trackId — the expert guide for a track, as data.
   // The same knowledge the AI analyst is given, so the Info page can show what
   // the coach knows before you ask it anything.
-  .get("/api/track-guide/:ordinal",
-    zValidator("param", OrdinalKeyParamSchema),
+  .get("/api/track-guide/:trackId",
+    zValidator("param", TrackIdParamSchema),
     zValidator("query", GameIdQuerySchema),
     async (c) => {
-      const trackKey = decodeTrackKey(c.req.valid("param").ordinal);
+      const { trackId } = c.req.valid("param");
       const gameId = c.req.query("gameId");
       if (gameId === "lmu") {
-        const track = getLMUTrack(trackKey);
+        const track = getLMUTrack(trackId);
         return c.json(track ? getTrackGuide(track.name, { slug: track.commonTrackName }) : null);
       }
-      const ordinal = Number(trackKey);
-      if (!Number.isInteger(ordinal)) return c.json({ error: "ordinal must be an integer" }, 400);
-      const slug = getSharedTrackName(ordinal, gameId);
-      const guide = getTrackGuide(resolveTrackName(ordinal, gameId as never), { slug });
+      const guide = getTrackGuide(resolveTrackName(trackId, gameId), { slug: getSharedTrackName(trackId, gameId) });
       return c.json(guide);
     }
   );

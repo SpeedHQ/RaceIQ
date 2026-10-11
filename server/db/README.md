@@ -17,8 +17,11 @@ Owns RaceIQ's SQLite persistence boundary: connection startup, schema evolution,
 - Schema and migration history are append-only compatibility contracts. Change both deliberately; never rewrite an applied migration.
 - Entrypoints must await `initDb()` before querying. Foreign keys, WAL mode, backfills, and migration ordering are established there.
 - Raw session files are the authoritative telemetry replay source; frame offsets and counts retain their persisted meaning.
-- Query modules normalize SQLite nulls and booleans at the boundary. Game IDs, ordinal pairs, experiment links, and exclusion provenance must remain scoped together.
+- Query modules normalize SQLite nulls and booleans at the boundary. Game IDs, string `carId`/`trackId` pairs, experiment links, and exclusion provenance must remain scoped together.
 - Database code may use game adapters to interpret persisted telemetry, but game policy and parsing semantics stay in their owning domains.
+- AC Evo stores the exact trimmed source car name and a JSON `[trackName, trackConfiguration]` tuple. Numeric game IDs become strings at normalization; binary source formats stay unchanged.
+- Historical ordinal columns are migration inputs only. Identity upgrades preserve session/lap IDs and user annotations; unresolved AC Evo IDs remain empty until source capture recovery.
+- Restore a pre-upgrade database backup to roll back an identity schema upgrade; older binaries cannot read the contracted schema.
 
 ## Testing
 

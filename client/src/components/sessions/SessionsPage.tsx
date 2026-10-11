@@ -36,9 +36,9 @@ export function SessionsPage() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [lapSortKey, setLapSortKey] = useState<LapSortKey>("lap");
   const [lapSortDir, setLapSortDir] = useState<SortDir>("asc");
-  const trackOrdinals = useMemo(() => [...new Set(sessions.map((session) => session.trackOrdinal).filter((ordinal): ordinal is number => !!ordinal))].sort((a, b) => a - b), [sessions]);
-  const carOrdinals = useMemo(() => [...new Set(sessions.map((session) => session.carOrdinal).filter((ordinal): ordinal is number => !!ordinal))].sort((a, b) => a - b), [sessions]);
-  const { data: resolvedNames } = useResolveNames(trackOrdinals, carOrdinals);
+  const trackIds = useMemo(() => [...new Set(sessions.map((session) => session.trackId).filter((id): id is string => id != null))].sort(), [sessions]);
+  const carIds = useMemo(() => [...new Set(sessions.map((session) => session.carId).filter((id): id is string => id != null))].sort(), [sessions]);
+  const { data: resolvedNames } = useResolveNames(trackIds, carIds);
   const trackNames = resolvedNames?.trackNames ?? {};
   const lapsBySession = useMemo(() => groupLapsBySession(allLaps), [allLaps]);
   const carNames = resolvedNames?.carNames ?? {};

@@ -88,19 +88,19 @@ describe("IRacingIbt import workflow", () => {
         expect(imported.laps).toHaveLength(1);
         expect(imported.laps[0]).toMatchObject({
           lapNumber: 2,
-          carId: importedIdentity.carId,
-          trackId: importedIdentity.trackId,
+          carId: String(importedIdentity.carId),
+          trackId: String(importedIdentity.trackId),
         });
         expect(
-          await getDiscoveredCarName("iracing", importedIdentity.carId),
+          await getDiscoveredCarName("iracing", String(importedIdentity.carId)),
         ).toBe(importedIdentity.carName);
         expect(
-          await getDiscoveredTrackName("iracing", importedIdentity.trackId),
+          await getDiscoveredTrackName("iracing", String(importedIdentity.trackId)),
         ).toBe(importedIdentity.trackName);
-        expect(iracingAdapter.getCarName(importedIdentity.carId)).toBe(
+        expect(iracingAdapter.getCarName(String(importedIdentity.carId))).toBe(
           importedIdentity.carName,
         );
-        expect(iracingAdapter.getTrackName(importedIdentity.trackId)).toBe(
+        expect(iracingAdapter.getTrackName(String(importedIdentity.trackId))).toBe(
           importedIdentity.trackName,
         );
 
@@ -117,7 +117,7 @@ describe("IRacingIbt import workflow", () => {
           .where(
             and(
               eq(discoveredCars.gameId, "iracing"),
-              eq(discoveredCars.ordinal, importedIdentity.carId),
+              eq(discoveredCars.carId, String(importedIdentity.carId)),
             ),
           )
           .run();
@@ -126,7 +126,7 @@ describe("IRacingIbt import workflow", () => {
           .where(
             and(
               eq(discoveredTracks.gameId, "iracing"),
-              eq(discoveredTracks.ordinal, importedIdentity.trackId),
+              eq(discoveredTracks.trackId, String(importedIdentity.trackId)),
             ),
           )
           .run();

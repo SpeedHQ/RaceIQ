@@ -42,7 +42,8 @@ const laps: LapMeta[] = LAP_TIMES.map((t, i) => ({
   lapTime: t,
   isValid: i !== 3,
   createdAt: new Date().toISOString(),
-  sectorTimes: [t * 0.32, t * 0.4, t * 0.28],
+  carId: "42",
+  trackId: "7",
 }));
 
 const telemetryByLap = new Map(laps.map((l, i) => [l.id, makeLapTelemetry(l.lapTime, i === 3 ? 40 : 6)]));

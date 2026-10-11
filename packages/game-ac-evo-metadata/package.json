@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     "./index": "./src/index.ts",
+    "./identity": "./src/identity.ts",
     "./racing/cars/ac-evo": "./src/racing/cars/ac-evo.ts",
     "./racing/tracks/catalogs/ac-evo": "./src/racing/tracks/catalogs/ac-evo.ts",
     "./setup-ranges.json": "./src/setup-ranges.json",

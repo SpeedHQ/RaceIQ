@@ -25,7 +25,7 @@ export function LiveTrackMap({ view, issues }: Props) {
   const [startYaw, setStartYaw] = useState<number | null>(null); // Yaw at start/finish line
   const [sectors, setSectors] = useState<{ s1End: number; s2End: number } | null>(null);
   const [boundaries, setBoundaries] = useState<TrackBoundaryData | null>(null);
-  const lastTrackOrdRef = useRef<number | null>(null);
+  const lastTrackIdRef = useRef<string | null>(null);
 
   // Distance-based position tracking
   const lapDistRef = useRef<{ startDist: number; totalDist: number; lastLap: number }>({
@@ -44,10 +44,10 @@ export function LiveTrackMap({ view, issues }: Props) {
 
   // Auto-detect track changes from canonical identity and fetch outline.
   useEffect(() => {
-    if (sample?.trackOrdinal === undefined) return;
-    const trackOrd = sample.trackOrdinal;
-    if (trackOrd === lastTrackOrdRef.current) return;
-    lastTrackOrdRef.current = trackOrd;
+    if (sample?.trackId === undefined) return;
+    const trackId = sample.trackId;
+    if (trackId === lastTrackIdRef.current) return;
+    lastTrackIdRef.current = trackId;
 
     // Reset state for new track
     liveTraceRef.current = [];
@@ -62,11 +62,11 @@ export function LiveTrackMap({ view, issues }: Props) {
     setSectors(null);
     setBoundaries(null);
 
-    if (!gameId) return;
+    if (!gameId || !trackId) return;
 
     // Fetch sector boundaries
-    client.api["track-sector-boundaries"][":ordinal"]
-      .$get({ param: { ordinal: encodeURIComponent(String(trackOrd)) }, query: { gameId: gameId! } })
+    client.api["track-sector-boundaries"][":trackId"]
+      .$get({ param: { trackId: encodeURIComponent(trackId) }, query: { gameId: gameId! } })
       .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
       .then((data: any) => {
         if (data?.s1End) setSectors(data);
@@ -74,16 +74,16 @@ export function LiveTrackMap({ view, issues }: Props) {
       .catch(() => {});
 
     // Fetch track boundaries (edges)
-    client.api["track-boundaries"][":ordinal"]
-      .$get({ param: { ordinal: encodeURIComponent(String(trackOrd)) }, query: { gameId: gameId ?? undefined } })
+    client.api["track-boundaries"][":trackId"]
+      .$get({ param: { trackId: encodeURIComponent(trackId) }, query: { gameId: gameId ?? undefined } })
       .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
       .then((data: any) => {
         if (data) setBoundaries(data);
       }) // eslint-disable-line @typescript-eslint/no-explicit-any
       .catch(() => {});
 
-    client.api["track-outline"][":ordinal"]
-      .$get({ param: { ordinal: encodeURIComponent(String(trackOrd)) }, query: { gameId: gameId ?? undefined } })
+    client.api["track-outline"][":trackId"]
+      .$get({ param: { trackId: encodeURIComponent(trackId) }, query: { gameId: gameId ?? undefined } })
       .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
       .then((data: any) => {
         if (data.points && Array.isArray(data.points)) {
@@ -108,20 +108,20 @@ export function LiveTrackMap({ view, issues }: Props) {
         setStartYaw(null);
         setNoOutline(true);
       });
-  }, [gameId, sample?.trackOrdinal]);
+  }, [gameId, sample?.trackId]);
 
   // Re-fetch outline on lap completion if we don't have a recorded one yet.
   // The server may have just recorded the first lap trace.
   // Also re-fetch boundaries (calibration may have completed after a lap).
   useEffect(() => {
     if (!sample) return;
-    const trackOrd = lastTrackOrdRef.current;
-    if (trackOrd === null) return;
+    const trackId = lastTrackIdRef.current;
+    if (trackId === null) return;
 
     if (!gameId) return;
     if (!isRecorded) {
-      client.api["track-outline"][":ordinal"]
-        .$get({ param: { ordinal: encodeURIComponent(String(trackOrd)) }, query: { gameId: gameId ?? undefined } })
+      client.api["track-outline"][":trackId"]
+        .$get({ param: { trackId: encodeURIComponent(trackId) }, query: { gameId: gameId ?? undefined } })
         .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
         .then((data: any) => {
           // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -140,8 +140,8 @@ export function LiveTrackMap({ view, issues }: Props) {
     // Boundary state is intentionally not an effect dependency: a response
     // must not trigger another fetch before the next lap checks calibration.
     if (!boundaries || (boundaries.coordSystem !== "forza" && boundaries.coordSystem !== "f1-2025")) {
-      client.api["track-boundaries"][":ordinal"]
-        .$get({ param: { ordinal: encodeURIComponent(String(trackOrd)) }, query: { gameId: gameId ?? undefined } })
+      client.api["track-boundaries"][":trackId"]
+        .$get({ param: { trackId: encodeURIComponent(trackId) }, query: { gameId: gameId ?? undefined } })
         .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
         .then((data: any) => {
           if (data) setBoundaries(data);
@@ -197,10 +197,10 @@ export function LiveTrackMap({ view, issues }: Props) {
   });
 
   async function handleDeleteMap() {
-    const trackOrd = lastTrackOrdRef.current;
-    if (!trackOrd) return;
+    const trackId = lastTrackIdRef.current;
+    if (!trackId || !gameId) return;
     try {
-      await client.api["track-outline"][":ordinal"].$delete({ param: { ordinal: encodeURIComponent(String(trackOrd)) } });
+      await client.api["track-outline"][":trackId"].$delete({ param: { trackId: encodeURIComponent(trackId) }, query: { gameId } });
       setOutline(null);
       setIsRecorded(false);
       setStartYaw(null);

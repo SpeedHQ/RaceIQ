@@ -1,7 +1,10 @@
 import { expect, test } from "bun:test";
-import { getOrCreateDiscoveredTrack } from "@raceiq/backend-core/db/discovered-tracks";
+import { and, eq } from "drizzle-orm";
+import { db } from "@raceiq/backend-core/db/index";
+import { discoveredTracks } from "@raceiq/backend-core/db/schema";
+import { registerAcEvoTrack } from "@raceiq/backend-core/db/discovered-tracks";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
-import { deleteRecordedOutline, getRecordedOutlineByOrdinal, recordLapTrace } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { deleteRecordedOutlineById, getRecordedOutlineById, recordOpenLapTraceById, recordLapTraceById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { initServerGameAdapters } from "../../src/games/init";
 import { trackOutlineRoutes } from "../../src/routes/tracks/outline-routes";
 import { trackGeometryRoutes } from "../../src/routes/tracks/geometry-routes";
@@ -11,11 +14,11 @@ initGameAdapters();
 initServerGameAdapters();
 
 test("Tourist geometry never falls back to closed circuit maps or sectors", async () => {
-  const ordinal = await getOrCreateDiscoveredTrack("ac-evo", "nurburgring", "touristenfahrten");
-  const original = getRecordedOutlineByOrdinal(ordinal, "ac-evo");
-  deleteRecordedOutline(ordinal, "ac-evo");
+  const trackId = await registerAcEvoTrack("Nurburgring", "Touristenfahrten");
+  const original = getRecordedOutlineById(trackId, "ac-evo");
+  deleteRecordedOutlineById(trackId, "ac-evo");
   try {
-    const suffix = `${ordinal}?gameId=ac-evo`;
+    const suffix = `${encodeURIComponent(trackId)}?gameId=ac-evo`;
     const empty = await trackOutlineRoutes.request(`/api/track-outline/${suffix}`);
     expect(empty.status).toBe(200);
     expect(await empty.json()).toMatchObject({ points: [], closed: false, source: "none", pitLines: [] });
@@ -24,7 +27,7 @@ test("Tourist geometry never falls back to closed circuit maps or sectors", asyn
     const emptySegments = await trackSegmentRoutes.request(`/api/track-sectors/${suffix}`);
     expect(await emptySegments.json()).toEqual({ segments: [] });
     const trace = Array.from({ length: 100 }, (_, index) => ({ x: index * 10, z: 0 }));
-    recordLapTrace(ordinal, trace, null, null, "ac-evo");
+    recordOpenLapTraceById(trackId, trace, "ac-evo");
     const recorded = await trackOutlineRoutes.request(`/api/track-outline/${suffix}`);
     expect(await recorded.json()).toMatchObject({ points: trace, closed: false, source: "recorded", pitLines: [] });
     const sectors = await trackSectorBoundaryRoutes.request(`/api/track-sector-boundaries/${suffix}`);
@@ -32,7 +35,8 @@ test("Tourist geometry never falls back to closed circuit maps or sectors", asyn
     const segments = await trackSegmentRoutes.request(`/api/track-sectors/${suffix}`);
     expect(await segments.json()).toEqual({ source: "auto", totalDist: 990, segments: [] });
   } finally {
-    deleteRecordedOutline(ordinal, "ac-evo");
-    if (original) recordLapTrace(ordinal, original, null, null, "ac-evo");
+    deleteRecordedOutlineById(trackId, "ac-evo");
+    if (original) recordLapTraceById(trackId, original, null, null, "ac-evo");
+    await db.delete(discoveredTracks).where(and(eq(discoveredTracks.gameId, "ac-evo"), eq(discoveredTracks.trackId, trackId))).run();
   }
 });

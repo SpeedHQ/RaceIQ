@@ -207,8 +207,8 @@ describe("LMU adapter", () => {
       Brake: 51,
       TrackTemp: 31,
       AirTemp: 24,
-      CarOrdinal: -1,
-      TrackOrdinal: -1,
+      carId: "",
+      trackId: "",
     });
     expect(packet).toMatchObject({
       TireTempFL: 92,
@@ -430,8 +430,8 @@ describe("LMU adapter", () => {
       LapNumber: 1,
       Speed: 50,
       SuspensionTravelMFL: 0.05,
-      CarOrdinal: -1,
-      TrackOrdinal: -1,
+      carId: "",
+      trackId: "",
       lmu: {
         carId: "ferrari_499p_2023",
         trackId: "lemans_2023/lemanswec",

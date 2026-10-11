@@ -311,9 +311,9 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
 
   // Tune selector
   const { data: availableTunes } = useQuery({
-    queryKey: ["tunes", selectedLap?.carOrdinal],
-    queryFn: () => client.api.tunes.$get({ query: { carOrdinal: selectedLap?.carOrdinal != null ? String(selectedLap.carOrdinal) : undefined } }).then((r) => r.json() as any),
-    enabled: gameId !== "lmu" && !!selectedLap?.carOrdinal,
+    queryKey: ["tunes", gameId, selectedLap?.carId],
+    queryFn: () => client.api.tunes.$get({ query: { gameId, carId: selectedLap?.carId ?? undefined } }).then((r) => r.json() as any),
+    enabled: gameId !== "lmu" && selectedLap?.carId != null,
   });
   const { data: persistedF1Setup } = useQuery<{ setup: F1CarSetup | null }>({
     queryKey: ["lap-setup", gameId, selectedLapId],

@@ -164,7 +164,7 @@ describe("racing-line late-braking overshoot", () => {
 
 describe("racing-line semantic resolution", () => {
   test("reports bundled ACC line as available track data", () => {
-    const reference = resolveRacingLineReference("acc", 0);
+    const reference = resolveRacingLineReference("acc", "0");
 
     expect(reference.semanticId).toBe("track.racing-line");
     expect(reference.source).toBe("track-data");
@@ -174,12 +174,12 @@ describe("racing-line semantic resolution", () => {
   });
 
   test("distinguishes missing track identity from missing track data", () => {
-    expect(resolveRacingLineReference("acc", undefined)).toEqual({
+    expect(resolveRacingLineReference("acc", "")).toMatchObject({
       semanticId: "track.racing-line",
       source: "unavailable",
       reason: "missing-track-identity",
     });
-    expect(resolveRacingLineReference("iracing", 0)).toEqual({
+    expect(resolveRacingLineReference("iracing", "unknown-native-layout")).toMatchObject({
       semanticId: "track.racing-line",
       source: "unavailable",
       reason: "missing-track-data",

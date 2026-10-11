@@ -3,10 +3,15 @@ import {
   normalizeKunosCatalogName,
   type KunosTrack,
 } from "@raceiq/shared/racing/tracks/catalogs/kunos";
+import { acEvoTrackId, parseAcEvoTrackId } from "../../../identity";
+
+export interface AcEvoTrack extends Omit<KunosTrack, "id"> {
+  id: string;
+}
 
 let tracks: Map<number, KunosTrack> | undefined;
-const discoveredTracksById = new Map<number, KunosTrack>();
-const discoveredTracksBySource = new Map<string, KunosTrack>();
+const discoveredTracksById = new Map<string, AcEvoTrack>();
+const discoveredTracksBySource = new Map<string, AcEvoTrack>();
 
 function getTracks(): Map<number, KunosTrack> {
   tracks ??= loadKunosTrackCatalog("ac-evo");
@@ -14,46 +19,54 @@ function getTracks(): Map<number, KunosTrack> {
 }
 
 export function injectDiscoveredAcEvoTracks(rows: {
-  ordinal: number;
+  id: string;
   name: string;
   trackName?: string | null;
   trackConfiguration?: string | null;
-  sourceKey?: string | null;
 }[]): void {
   for (const row of rows) {
     const sourceName = row.trackName ?? row.name;
     const configuration = row.trackConfiguration ?? "";
-    const track = {
-      id: row.ordinal,
+    const track: AcEvoTrack = {
+      id: row.id,
       name: sourceName,
       variant: configuration,
       commonTrackName: sourceName,
-    } as KunosTrack;
-    discoveredTracksById.set(row.ordinal, track);
+      setupFolder: "",
+    };
+    discoveredTracksById.set(row.id, track);
     if (row.trackName === null || row.trackConfiguration === null) continue;
-    const key = JSON.stringify([
-      sourceName.trim().normalize("NFC").toLowerCase(),
-      configuration.trim().normalize("NFC").toLowerCase(),
-    ]);
-    discoveredTracksBySource.set(key, track);
+    discoveredTracksBySource.set(acEvoTrackId(sourceName, configuration), track);
   }
 }
 
-export function getAcEvoTrackName(ordinal: number): string {
-  if (ordinal < 0) return "Unknown Track";
-  const track = discoveredTracksById.get(ordinal) ?? getTracks().get(ordinal);
-  return track ? `${track.name} - ${track.variant}` : `Track #${ordinal}`;
+function asNativeTrack(track: KunosTrack): AcEvoTrack {
+  return { ...track, id: acEvoTrackId(track.name, track.variant) };
 }
 
-export function getAcEvoSharedTrackName(ordinal: number): string | undefined {
-  return discoveredTracksById.get(ordinal)?.commonTrackName
-    ?? getTracks().get(ordinal)?.commonTrackName
-    ?? undefined;
+export function getAcEvoTrackName(id: string): string {
+  const track = getAcEvoTrackById(id);
+  if (!track) return id;
+  return `${track.name} - ${track.variant}`;
 }
 
-export function getAcEvoTracks(): Map<number, KunosTrack> {
-  const merged = new Map(getTracks());
-  for (const [ordinal, track] of discoveredTracksById) merged.set(ordinal, track);
+export function getAcEvoSharedTrackName(id: string): string | undefined {
+  return getAcEvoTrackById(id)?.commonTrackName;
+}
+
+export function getAcEvoTrackById(id: string): AcEvoTrack | undefined {
+  const discovered = discoveredTracksById.get(id);
+  if (discovered) return discovered;
+  const parsed = parseAcEvoTrackId(id);
+  return parsed ? getAcEvoTrackByName(parsed.trackName, parsed.trackConfiguration) : undefined;
+}
+export function getAcEvoTracks(): Map<string, AcEvoTrack> {
+  const merged = new Map<string, AcEvoTrack>();
+  for (const track of getTracks().values()) {
+    const nativeTrack = asNativeTrack(track);
+    merged.set(nativeTrack.id, nativeTrack);
+  }
+  for (const [id, track] of discoveredTracksById) merged.set(id, track);
   return merged;
 }
 
@@ -81,36 +94,33 @@ export function getAcEvoSetupFolderAliases(key: string): string[] {
   return Array.from(aliases).sort();
 }
 
-
-export function getAcEvoTrackByName(trackName: string, config = ""): KunosTrack | undefined {
-  const key = JSON.stringify([
-    trackName.trim().normalize("NFC").toLowerCase(),
-    config.trim().normalize("NFC").toLowerCase(),
-  ]);
+export function getAcEvoTrackByName(trackName: string, config = ""): AcEvoTrack | undefined {
+  const key = acEvoTrackId(trackName, config);
   const discovered = discoveredTracksBySource.get(key);
   if (discovered) return discovered;
   const exact = [...getTracks().values()].filter((track) =>
-    track.name.trim().normalize("NFC").toLowerCase() === trackName.trim().normalize("NFC").toLowerCase()
-    && track.variant.trim().normalize("NFC").toLowerCase() === config.trim().normalize("NFC").toLowerCase());
-  return exact.length === 1 ? exact[0] : undefined;
+    track.name.trim() === trackName.trim() && track.variant.trim() === config.trim());
+  return exact.length === 1 ? asNativeTrack(exact[0]!) : undefined;
 }
 
-export function getAcEvoTrackBySetupFolder(key: string): KunosTrack | undefined {
+export function getAcEvoTrackBySetupFolder(key: string): AcEvoTrack | undefined {
   const needle = normalizeKunosCatalogName(key);
   const discovered = [...discoveredTracksById.values()].filter((track) =>
     normalizeKunosCatalogName(track.name) === needle);
   if (discovered.length > 1) return undefined;
   if (discovered.length === 1) return discovered[0];
   for (const track of getTracks().values()) {
-    if (track.setupFolder && normalizeKunosCatalogName(track.setupFolder) === needle) return track;
+    if (track.setupFolder && normalizeKunosCatalogName(track.setupFolder) === needle) return asNativeTrack(track);
   }
   return undefined;
 }
-export function getAcEvoTrackByLegacyName(trackName: string): KunosTrack | undefined {
+
+export function getAcEvoTrackByLegacyName(trackName: string): AcEvoTrack | undefined {
   const needle = trackName.trim().normalize("NFC").toLowerCase();
   const matches = [...getTracks().values()].filter((track) =>
     track.name.trim().normalize("NFC").toLowerCase() === needle
     || track.commonTrackName.trim().normalize("NFC").toLowerCase() === needle);
-  return matches.length === 1 ? matches[0] : undefined;
+  return matches.length === 1 ? asNativeTrack(matches[0]!) : undefined;
 }
+
 

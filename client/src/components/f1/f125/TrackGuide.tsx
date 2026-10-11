@@ -23,12 +23,12 @@ function toEmbedUrl(url: string): string {
   return url;
 }
 
-export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
+export function F125TrackGuide({ trackId }: { trackId: string }) {
   const { data: tracks = [] } = useQuery<F125TrackSummary[]>({
     queryKey: ["f125-tracks"],
     queryFn: () => client.api["f1-25"].tracks.$get().then((r) => r.json() as unknown as F125TrackSummary[]),
   });
-  const trackSlug = tracks.find((t) => t.trackOrdinal === trackOrdinal)?.trackSlug;
+  const trackSlug = tracks.find((t) => t.trackId === trackId)?.trackSlug;
   const { data: trackData } = useQuery<F125TrackData>({
     queryKey: ["f125-setups", trackSlug],
     queryFn: () => client.api["f1-25"].setups.$get({ query: { track: trackSlug! } }).then((r) => r.json() as unknown as F125TrackData),

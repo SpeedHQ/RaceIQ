@@ -79,13 +79,14 @@ export function getPackagedTrackSectorsByOrdinal(ordinal: number): TrackSectors 
 }
 
 /** Pure sector computation. Explicit host geometry sectors take precedence over packaged fallback. */
-export function computeLapSectors(trackOrdinal: number, gameId: GameId, packets: TelemetryPacket[], lapTime: number, options: SectorComputationOptions = {}): number[] | null {
+export function computeLapSectors(trackId: string, gameId: GameId, packets: TelemetryPacket[], lapTime: number, options: SectorComputationOptions = {}): number[] | null {
   if (packets.length < 50) return null;
   if (gameId === "iracing") {
     const timeline = computeIRacingSectorTimeline(packets, lapTime);
     return timeline?.times ?? null;
   }
-  const { s1End, s2End } = options.sectors ?? getPackagedTrackSectorsByOrdinal(trackOrdinal);
+  const packagedSectors = /^\d+$/.test(trackId) ? getPackagedTrackSectorsByOrdinal(Number(trackId)) : DEFAULT_SECTORS;
+  const { s1End, s2End } = options.sectors ?? packagedSectors;
   if (gameId === "lmu") {
     const native = packets.findLast((packet) => (packet.lmu?.lastSector1 ?? 0) > 0 && (packet.lmu?.lastSector2 ?? 0) > 0);
     if (native?.lmu) {

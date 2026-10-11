@@ -6,21 +6,21 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.19.2",
-      "sourceHash": "05cdfc4d4c907180c48a4e5cc9503896ce6d5605802268b146194f2253c9ff88"
+      "sourceHash": "6d2c986924a834bd68c7cb38aed405849a1982efcf2164166f43babcd0837b83"
     },
     "sourceHashes": {
-      "packages/game-ac-evo/src/parser.ts": "899de3ed5705806df0320d4fe452e4d5129f213b169f1664e3cb22e540cbf1b5",
-      "packages/game-acc/src/parser.ts": "87788f824d3c5f1bd8f975bb2ca1d20a491f9fc6ad605b035929990962dcc302",
-      "packages/game-f1-2025/src/f1-state.ts": "8d20acdecb7413aacc36738e5ebfb0407f93a84f851629d16539e7a6bdeb93a3",
-      "packages/game-fm-2023/src/parser.ts": "dd476256f50870123ab00bf486d4ed998069f3ff1f368b7b36a368a0254f4463",
+      "packages/game-ac-evo/src/parser.ts": "1b8e588159a7e3e1cd37a882f57a961d501ef034d75fc54d84859920501cbd20",
+      "packages/game-acc/src/parser.ts": "f527d6448320e78072fb9dbfff0df28d5ce1029f020510d148bded12df8cb7ba",
+      "packages/game-f1-2025/src/f1-state.ts": "6a15c7fe6b10f2630daaa3d88a1a9000f10c93b7fe51be76706f1be3face9a59",
+      "packages/game-fm-2023/src/parser.ts": "71c348b894f84f6086c9582d0cce473bac75a3c85896010a0e5762854718b835",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
-      "packages/game-iracing/src/normalizer.ts": "6c2607cb65cf5aa1ac0798f2d0678fda2fbae3579c7c436b72074f732919d70c",
-      "packages/game-lmu/src/normalizer.ts": "443eb17dc93034a0a78023df8b08ce1bb12290a77b4b44f5a73e7bc18fad7dd7",
+      "packages/game-iracing/src/normalizer.ts": "76462dd0d2ab42538627c54e1a3962e00fab7935b3ba74548cf152b43b46bfa7",
+      "packages/game-lmu/src/normalizer.ts": "1c2d9c9bd1a9b1bdae8f587f009ee6d087dcddf821c7ce56c14a4301bc4789e9",
       "packages/tooling-catalog/src/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "11040a6a0d84ebdf7c9367303a563bb04e17891237b1a3e8d1fde58047419265"
     },
-    "contentHash": "997bc8e2e91f9d2b43beb3a6a471b1a79b8f36cef77f75e487640333fa51e926"
+    "contentHash": "37c7c55ded91317d6132a5d12b918ed24217ab244f2761998188b7901d67e0e3"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -364,7 +364,6 @@
         "identity.car-model",
         "identity.car-model-name",
         "identity.car-name",
-        "identity.car-ordinal",
         "identity.car-performance-index",
         "identity.driver-name",
         "identity.drivetrain-type",
@@ -383,7 +382,6 @@
         "identity.source-identity",
         "identity.track-id",
         "identity.track-limits-steps",
-        "identity.track-ordinal",
         "identity.vehicle-class",
         "session.session-type-ordinal",
         "weather.track-wetness",
@@ -15381,44 +15379,142 @@
     {
       "id": "identity.car-id",
       "label": "Car Id",
-      "description": "Car Id source value reported by lmu in text.",
+      "description": "Game-native vehicle model identifier, represented as a string.",
       "parentId": "identity",
       "canonicalUnit": "text",
       "shape": "scalar",
+      "packetFields": [
+        "carId"
+      ],
       "games": {
         "fm-2023": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "text",
+          "sources": [
+            "ForzaDataOut.carId"
+          ],
+          "freshness": "continuous",
+          "description": "fm-2023 maps 1 native source channel into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-fm-2023/src/parser.ts"
+          },
+          "limitations": []
         },
         "f1-2025": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "text",
+          "sources": [
+            "F1.Participants.player.teamId"
+          ],
+          "freshness": "continuous",
+          "normalization": "carId => player == null || player.teamId < 0 ? \"\" : String(player.teamId)",
+          "description": "f1-2025 maps 1 native source channel into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-f1-2025/src/f1-state.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "f1-2025:identity.car-id:normalized",
+            "version": "0.19.2",
+            "deterministic": true,
+            "declaredInputs": [
+              "F1.Participants.player.teamId"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "455dd3e8cf49a84ab88ce60644d9dae9579544bd567185170b70d4201916ce4d"
+          }
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "text",
+          "sources": [
+            "ACC.Static.carModel"
+          ],
+          "freshness": "continuous",
+          "normalization": "overrides?.carId ?? \"\"",
+          "description": "acc maps 1 native source channel into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-acc/src/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "acc:identity.car-id:normalized",
+            "version": "0.19.2",
+            "deterministic": true,
+            "declaredInputs": [
+              "ACC.Static.carModel"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "688f9d31cb9b69acda180208e9ff673616bd1704369b18fead5ef84e32a1d86a"
+          }
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "text",
+          "sources": [
+            "AC-Evo.Graphics.car_model"
+          ],
+          "freshness": "continuous",
+          "normalization": "cache.carId",
+          "description": "ac-evo maps 1 native source channel into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-ac-evo/src/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "ac-evo:identity.car-id:normalized",
+            "version": "0.19.2",
+            "deterministic": true,
+            "declaredInputs": [
+              "AC-Evo.Graphics.car_model"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "3721623d495cb06f4c84e9fd500edac5d031a0f0210488885ead1c22d76e6f94"
+          }
         },
         "iracing": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "text",
+          "sources": [
+            "iRacing.SessionInfo.carId"
+          ],
+          "freshness": "continuous",
+          "normalization": "session.carId < 0 ? \"\" : String(session.carId)",
+          "description": "iracing maps 1 native source channel into this value.",
+          "provenance": {
+            "origin": "yaml",
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:identity.car-id:normalized",
+            "version": "0.19.2",
+            "deterministic": true,
+            "declaredInputs": [
+              "iRacing.SessionInfo.carId"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "8077d528507445b70fdafd75626aee554aeea8971523d0b9a2df40b73b592a96"
+          }
         },
         "lmu": {
           "kind": "direct",
           "nativeUnit": "text",
           "sources": [
+            "LMU.Telemetry.vehicleModel",
+            "LMU.Telemetry.vehicleName",
             "lmu.carId"
           ],
           "freshness": "continuous",
-          "description": "lmu parser exposes 1 linked field.",
+          "description": "lmu maps 2 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
@@ -15552,7 +15648,7 @@
     {
       "id": "identity.car-model-name",
       "label": "Car Model Name",
-      "description": "Raw car name/model string from telemetry when CarOrdinal is -1 (car not in the game's cars.csv). Lets the session layer register the car in discovered_cars instead of storing an unresolvable -1. AC Evo only.",
+      "description": "Car info",
       "parentId": "identity",
       "canonicalUnit": "text",
       "shape": "scalar",
@@ -15668,150 +15764,6 @@
         }
       },
       "valueType": "string",
-      "dimensions": [
-        "dimensionless"
-      ],
-      "cardinality": {
-        "kind": "scalar"
-      },
-      "limitations": []
-    },
-    {
-      "id": "identity.car-ordinal",
-      "label": "Car Ordinal",
-      "description": "Source vehicle model identifier.",
-      "parentId": "identity",
-      "canonicalUnit": "id",
-      "shape": "scalar",
-      "packetFields": [
-        "CarOrdinal"
-      ],
-      "games": {
-        "fm-2023": {
-          "kind": "direct",
-          "nativeUnit": "id",
-          "sources": [
-            "ForzaDataOut.CarOrdinal"
-          ],
-          "freshness": "continuous",
-          "description": "fm-2023 maps 1 native source channel into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "packages/game-fm-2023/src/parser.ts"
-          },
-          "limitations": []
-        },
-        "f1-2025": {
-          "kind": "normalized",
-          "nativeUnit": "id",
-          "sources": [
-            "F1.Participants.player.teamId"
-          ],
-          "freshness": "continuous",
-          "normalization": "carOrdinal => teamId => this.participants[this.playerCarIndex]?.teamId ?? 0",
-          "description": "f1-2025 maps 1 native source channel into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "packages/game-f1-2025/src/f1-state.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "f1-2025:identity.car-ordinal:normalized",
-            "version": "0.19.2",
-            "deterministic": true,
-            "declaredInputs": [
-              "F1.Participants.player.teamId"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "1cdd024cc13f462ab1ec86df2d5f23064957682a7477285375c672bb2dc52959"
-          }
-        },
-        "acc": {
-          "kind": "normalized",
-          "nativeUnit": "id",
-          "sources": [
-            "ACC.Static.carModel"
-          ],
-          "freshness": "continuous",
-          "normalization": "overrides?.carOrdinal ?? 0",
-          "description": "acc maps 1 native source channel into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "packages/game-acc/src/parser.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "acc:identity.car-ordinal:normalized",
-            "version": "0.19.2",
-            "deterministic": true,
-            "declaredInputs": [
-              "ACC.Static.carModel"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "bc74fddb18c72ab72f3784455d6b3c0a8879b45979b24d39d2bf203d919217e6"
-          }
-        },
-        "ac-evo": {
-          "kind": "normalized",
-          "nativeUnit": "id",
-          "sources": [
-            "AC-Evo.Graphics.car_model"
-          ],
-          "freshness": "continuous",
-          "normalization": "cache.carOrdinal",
-          "description": "ac-evo maps 1 native source channel into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "packages/game-ac-evo/src/parser.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "ac-evo:identity.car-ordinal:normalized",
-            "version": "0.19.2",
-            "deterministic": true,
-            "declaredInputs": [
-              "AC-Evo.Graphics.car_model"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "6347c6cd61becf9dff929727cbe4fd4397ab9479e9a16efef2cca480caeb40fd"
-          }
-        },
-        "iracing": {
-          "kind": "normalized",
-          "nativeUnit": "id",
-          "sources": [
-            "iRacing.SessionInfo.carId"
-          ],
-          "freshness": "continuous",
-          "normalization": "Math.max(0, Math.trunc(session.carId))",
-          "description": "iracing maps 1 native source channel into this value.",
-          "provenance": {
-            "origin": "yaml",
-            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "iracing:identity.car-ordinal:normalized",
-            "version": "0.19.2",
-            "deterministic": true,
-            "declaredInputs": [
-              "iRacing.SessionInfo.carId"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "68e597466fa254bb66d8a2d9028ae7d98899d34419455f425e4f0d2585b7ec59"
-          }
-        },
-        "lmu": {
-          "kind": "unavailable",
-          "reason": "parser-placeholder",
-          "description": "lmu parser fills this value with a placeholder because source does not provide it."
-        }
-      },
-      "valueType": "number",
       "dimensions": [
         "dimensionless"
       ],
@@ -16808,44 +16760,158 @@
     {
       "id": "identity.track-id",
       "label": "Track Id",
-      "description": "Track Id source value reported by lmu in text.",
+      "description": "Game-native track or layout identifier, represented as a string.",
       "parentId": "identity",
       "canonicalUnit": "text",
       "shape": "scalar",
+      "packetFields": [
+        "trackId"
+      ],
       "games": {
         "fm-2023": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "text",
+          "sources": [
+            "ForzaDataOut.trackId"
+          ],
+          "freshness": "continuous",
+          "normalization": "buf.length >= 331 ? String(buf.readInt32LE(327)) : \"\"",
+          "description": "fm-2023 maps 1 native source channel into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-fm-2023/src/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "fm-2023:identity.track-id:normalized",
+            "version": "0.19.2",
+            "deterministic": true,
+            "declaredInputs": [
+              "ForzaDataOut.trackId"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "b2121fbf8459e0c7f195883e56e99f031430cc99319a27a12651c15f0dae35c5"
+          }
         },
         "f1-2025": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "text",
+          "sources": [
+            "F1.Session.trackId"
+          ],
+          "freshness": "continuous",
+          "normalization": "trackId => sess?.trackId == null || sess.trackId < 0 ? \"\" : String(sess.trackId)",
+          "description": "f1-2025 maps 1 native source channel into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-f1-2025/src/f1-state.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "f1-2025:identity.track-id:normalized",
+            "version": "0.19.2",
+            "deterministic": true,
+            "declaredInputs": [
+              "F1.Session.trackId"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "96feb561e4a19017a50a054cc2af9c2a6ac6e8d1c9177a0563a901e3c972c9d7"
+          }
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "text",
+          "sources": [
+            "ACC.Static.track"
+          ],
+          "freshness": "continuous",
+          "normalization": "overrides?.trackId ?? \"\"",
+          "description": "acc maps 1 native source channel into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-acc/src/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "acc:identity.track-id:normalized",
+            "version": "0.19.2",
+            "deterministic": true,
+            "declaredInputs": [
+              "ACC.Static.track"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "e114331a19fa76b7a45607ef014aa54cc9a3bc78fb849c2796db2b60ae3a210f"
+          }
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "text",
+          "sources": [
+            "AC-Evo.Static.track",
+            "AC-Evo.Static.track_configuration"
+          ],
+          "freshness": "continuous",
+          "normalization": "cache.trackId",
+          "description": "ac-evo maps 2 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-ac-evo/src/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "ac-evo:identity.track-id:normalized",
+            "version": "0.19.2",
+            "deterministic": true,
+            "declaredInputs": [
+              "AC-Evo.Static.track",
+              "AC-Evo.Static.track_configuration"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "d23194ba1ef31c9cf80f500df2fb2999df1a075756f8e4cac119e7d4f7e7e752"
+          }
         },
         "iracing": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "text",
+          "sources": [
+            "iRacing.SessionInfo.trackId",
+            "iRacing.SessionInfo.WeekendInfo.TrackID"
+          ],
+          "freshness": "continuous",
+          "normalization": "session.trackId < 0 ? \"\" : String(session.trackId)",
+          "description": "iracing maps 1 native source channel into this value.",
+          "provenance": {
+            "origin": "yaml",
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:identity.track-id:normalized",
+            "version": "0.19.2",
+            "deterministic": true,
+            "declaredInputs": [
+              "iRacing.SessionInfo.trackId",
+              "iRacing.SessionInfo.WeekendInfo.TrackID"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "a1f3a51faba690b29c805b4421e80dd75fa662cf21b3328df0cb64bf25e397e9"
+          }
         },
         "lmu": {
           "kind": "direct",
           "nativeUnit": "text",
           "sources": [
+            "LMU.ScoringInfo.trackName",
+            "LMU.Telemetry.trackName",
             "lmu.trackId"
           ],
           "freshness": "continuous",
-          "description": "lmu parser exposes 1 linked field.",
+          "description": "lmu maps 2 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "packages/game-lmu/src/normalizer.ts"
@@ -16980,166 +17046,6 @@
         }
       },
       "valueType": "string",
-      "dimensions": [
-        "dimensionless"
-      ],
-      "cardinality": {
-        "kind": "scalar"
-      },
-      "limitations": []
-    },
-    {
-      "id": "identity.track-ordinal",
-      "label": "Track Ordinal",
-      "description": "Source track or layout identifier.",
-      "parentId": "identity",
-      "canonicalUnit": "id",
-      "shape": "scalar",
-      "packetFields": [
-        "TrackOrdinal"
-      ],
-      "games": {
-        "fm-2023": {
-          "kind": "normalized",
-          "nativeUnit": "id",
-          "sources": [
-            "ForzaDataOut.TrackOrdinal"
-          ],
-          "freshness": "continuous",
-          "normalization": "buf.length >= 331 ? buf.readInt32LE(327) : 0",
-          "description": "fm-2023 maps 1 native source channel into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "packages/game-fm-2023/src/parser.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "fm-2023:identity.track-ordinal:normalized",
-            "version": "0.19.2",
-            "deterministic": true,
-            "declaredInputs": [
-              "ForzaDataOut.TrackOrdinal"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "542803583a2b5c6d274260a085ae17e5b384d5d69a3c50e6483940563187d6fb"
-          }
-        },
-        "f1-2025": {
-          "kind": "normalized",
-          "nativeUnit": "id",
-          "sources": [
-            "F1.Session.trackId"
-          ],
-          "freshness": "continuous",
-          "normalization": "trackOrdinal => sess?.trackId ?? 0",
-          "description": "f1-2025 maps 1 native source channel into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "packages/game-f1-2025/src/f1-state.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "f1-2025:identity.track-ordinal:normalized",
-            "version": "0.19.2",
-            "deterministic": true,
-            "declaredInputs": [
-              "F1.Session.trackId"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "dd71d12ea58f69d7d4ce8de8a71c5a65741e05cc5931a8e5057424b09c7bb462"
-          }
-        },
-        "acc": {
-          "kind": "normalized",
-          "nativeUnit": "id",
-          "sources": [
-            "ACC.Static.track"
-          ],
-          "freshness": "continuous",
-          "normalization": "overrides?.trackOrdinal ?? 0",
-          "description": "acc maps 1 native source channel into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "packages/game-acc/src/parser.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "acc:identity.track-ordinal:normalized",
-            "version": "0.19.2",
-            "deterministic": true,
-            "declaredInputs": [
-              "ACC.Static.track"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "0f2273777562d68b201afec0a7880e953a5e3fde0dda200d2131654608d29ac2"
-          }
-        },
-        "ac-evo": {
-          "kind": "normalized",
-          "nativeUnit": "id",
-          "sources": [
-            "AC-Evo.Static.track",
-            "AC-Evo.Static.track_configuration"
-          ],
-          "freshness": "continuous",
-          "normalization": "cache.trackOrdinal",
-          "description": "ac-evo maps 2 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "packages/game-ac-evo/src/parser.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "ac-evo:identity.track-ordinal:normalized",
-            "version": "0.19.2",
-            "deterministic": true,
-            "declaredInputs": [
-              "AC-Evo.Static.track",
-              "AC-Evo.Static.track_configuration"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "8cf39c6d4dd3ff6f2298989f4f3f762f5a1fd31b62ce43a2d5f44a8d3810146b"
-          }
-        },
-        "iracing": {
-          "kind": "normalized",
-          "nativeUnit": "id",
-          "sources": [
-            "iRacing.SessionInfo.trackId",
-            "iRacing.SessionInfo.WeekendInfo.TrackID"
-          ],
-          "freshness": "continuous",
-          "normalization": "Math.max(0, Math.trunc(session.trackId))",
-          "description": "iracing maps 1 native source channel into this value.",
-          "provenance": {
-            "origin": "yaml",
-            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "iracing:identity.track-ordinal:normalized",
-            "version": "0.19.2",
-            "deterministic": true,
-            "declaredInputs": [
-              "iRacing.SessionInfo.trackId",
-              "iRacing.SessionInfo.WeekendInfo.TrackID"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "02f91be89b9ea559ef45f992c5a6c8ad3d17974051b2199f2b76a237ae3f78d4"
-          }
-        },
-        "lmu": {
-          "kind": "unavailable",
-          "reason": "parser-placeholder",
-          "description": "lmu parser fills this value with a placeholder because source does not provide it."
-        }
-      },
-      "valueType": "number",
       "dimensions": [
         "dimensionless"
       ],
@@ -60791,18 +60697,6 @@
         "retention": "exact"
       },
       {
-        "path": "TelemetryPacket.CarOrdinal",
-        "label": "Car Ordinal",
-        "unit": "id",
-        "dataType": "number",
-        "count": 1,
-        "description": "Source vehicle model identifier.",
-        "semanticId": "identity.car-ordinal",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
         "path": "TelemetryPacket.CarPerformanceIndex",
         "label": "Car Performance Index",
         "unit": "count",
@@ -61595,18 +61489,6 @@
         "retention": "exact"
       },
       {
-        "path": "TelemetryPacket.TrackOrdinal",
-        "label": "Track Ordinal",
-        "unit": "id",
-        "dataType": "number",
-        "count": 1,
-        "description": "Source track or layout identifier.",
-        "semanticId": "identity.track-ordinal",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
         "path": "TelemetryPacket.VelocityX",
         "label": "Velocity X",
         "unit": "m/s",
@@ -61794,6 +61676,30 @@
         "count": 1,
         "description": "Vehicle heading angle around vertical axis.",
         "semanticId": "motion.yaw",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.carId",
+        "label": "Car Id",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Game-native vehicle model identifier, represented as a string.",
+        "semanticId": "identity.car-id",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.trackId",
+        "label": "Track Id",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Game-native track or layout identifier, represented as a string.",
+        "semanticId": "identity.track-id",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -62000,18 +61906,6 @@
         "count": 1,
         "description": "Source vehicle-class identifier.",
         "semanticId": "identity.car-class",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
-        "path": "TelemetryPacket.CarOrdinal",
-        "label": "Car Ordinal",
-        "unit": "id",
-        "dataType": "number",
-        "count": 1,
-        "description": "Source vehicle model identifier.",
-        "semanticId": "identity.car-ordinal",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -62989,18 +62883,6 @@
         "retention": "exact"
       },
       {
-        "path": "TelemetryPacket.TrackOrdinal",
-        "label": "Track Ordinal",
-        "unit": "id",
-        "dataType": "number",
-        "count": 1,
-        "description": "Source track or layout identifier.",
-        "semanticId": "identity.track-ordinal",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
         "path": "TelemetryPacket.TrackTemp",
         "label": "Track Temp",
         "unit": "°C",
@@ -63229,6 +63111,18 @@
         "retention": "exact"
       },
       {
+        "path": "TelemetryPacket.carId",
+        "label": "Car Id",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Game-native vehicle model identifier, represented as a string.",
+        "semanticId": "identity.car-id",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "TelemetryPacket.sessionUID",
         "label": "Session UID",
         "unit": "text",
@@ -63236,6 +63130,18 @@
         "count": 1,
         "description": "Game session UID (used for reliable session boundary detection)",
         "semanticId": "session.session-uid",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.trackId",
+        "label": "Track Id",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Game-native track or layout identifier, represented as a string.",
+        "semanticId": "identity.track-id",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -65871,18 +65777,6 @@
         "retention": "exact"
       },
       {
-        "path": "TelemetryPacket.CarOrdinal",
-        "label": "Car Ordinal",
-        "unit": "id",
-        "dataType": "number",
-        "count": 1,
-        "description": "Source vehicle model identifier.",
-        "semanticId": "identity.car-ordinal",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
         "path": "TelemetryPacket.CarPerformanceIndex",
         "label": "Car Performance Index",
         "unit": "count",
@@ -66939,18 +66833,6 @@
         "retention": "exact"
       },
       {
-        "path": "TelemetryPacket.TrackOrdinal",
-        "label": "Track Ordinal",
-        "unit": "id",
-        "dataType": "number",
-        "count": 1,
-        "description": "Source track or layout identifier.",
-        "semanticId": "identity.track-ordinal",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
         "path": "TelemetryPacket.TrackTemp",
         "label": "Track Temp",
         "unit": "°C",
@@ -67162,6 +67044,30 @@
         "count": 1,
         "description": "Vehicle heading angle around vertical axis.",
         "semanticId": "motion.yaw",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.carId",
+        "label": "Car Id",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Game-native vehicle model identifier, represented as a string.",
+        "semanticId": "identity.car-id",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.trackId",
+        "label": "Track Id",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Game-native track or layout identifier, represented as a string.",
+        "semanticId": "identity.track-id",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -68297,18 +68203,6 @@
         "retention": "exact"
       },
       {
-        "path": "TelemetryPacket.CarOrdinal",
-        "label": "Car Ordinal",
-        "unit": "id",
-        "dataType": "number",
-        "count": 1,
-        "description": "Source vehicle model identifier.",
-        "semanticId": "identity.car-ordinal",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
         "path": "TelemetryPacket.CarPerformanceIndex",
         "label": "Car Performance Index",
         "unit": "count",
@@ -69365,18 +69259,6 @@
         "retention": "exact"
       },
       {
-        "path": "TelemetryPacket.TrackOrdinal",
-        "label": "Track Ordinal",
-        "unit": "id",
-        "dataType": "number",
-        "count": 1,
-        "description": "Source track or layout identifier.",
-        "semanticId": "identity.track-ordinal",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
         "path": "TelemetryPacket.TrackTemp",
         "label": "Track Temp",
         "unit": "°C",
@@ -69605,13 +69487,37 @@
         "retention": "exact"
       },
       {
+        "path": "TelemetryPacket.carId",
+        "label": "Car Id",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Game-native vehicle model identifier, represented as a string.",
+        "semanticId": "identity.car-id",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "TelemetryPacket.carModelName",
         "label": "Car Model Name",
         "unit": "text",
         "dataType": "string",
         "count": 1,
-        "description": "Raw car name/model string from telemetry when CarOrdinal is -1 (car not in the game's cars.csv). Lets the session layer register the car in discovered_cars instead of storing an unresolvable -1. AC Evo only.",
+        "description": "Car info",
         "semanticId": "identity.car-model-name",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.trackId",
+        "label": "Track Id",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Game-native track or layout identifier, represented as a string.",
+        "semanticId": "identity.track-id",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -79009,7 +78915,7 @@
         "dataType": "yaml",
         "count": 1,
         "description": "Track ID from iRacing weekend and track metadata.",
-        "semanticId": "identity.track-ordinal",
+        "semanticId": "identity.track-id",
         "sourceKind": "yaml",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -80131,18 +80037,6 @@
         "retention": "exact"
       },
       {
-        "path": "TelemetryPacket.CarOrdinal",
-        "label": "Car Ordinal",
-        "unit": "id",
-        "dataType": "number",
-        "count": 1,
-        "description": "Source vehicle model identifier.",
-        "semanticId": "identity.car-ordinal",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
         "path": "TelemetryPacket.CarPerformanceIndex",
         "label": "Car Performance Index",
         "unit": "count",
@@ -81139,18 +81033,6 @@
         "retention": "exact"
       },
       {
-        "path": "TelemetryPacket.TrackOrdinal",
-        "label": "Track Ordinal",
-        "unit": "id",
-        "dataType": "number",
-        "count": 1,
-        "description": "Source track or layout identifier.",
-        "semanticId": "identity.track-ordinal",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
         "path": "TelemetryPacket.TrackTemp",
         "label": "Track Temp",
         "unit": "°C",
@@ -81355,6 +81237,18 @@
         "retention": "exact"
       },
       {
+        "path": "TelemetryPacket.carId",
+        "label": "Car Id",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Game-native vehicle model identifier, represented as a string.",
+        "semanticId": "identity.car-id",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "TelemetryPacket.sessionUID",
         "label": "Session UID",
         "unit": "text",
@@ -81362,6 +81256,18 @@
         "count": 1,
         "description": "Game session UID (used for reliable session boundary detection)",
         "semanticId": "session.session-uid",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.trackId",
+        "label": "Track Id",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Game-native track or layout identifier, represented as a string.",
+        "semanticId": "identity.track-id",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -82323,18 +82229,6 @@
         "count": 1,
         "description": "Source vehicle-class identifier.",
         "semanticId": "identity.car-class",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
-        "path": "TelemetryPacket.CarOrdinal",
-        "label": "Car Ordinal",
-        "unit": "id",
-        "dataType": "number",
-        "count": 1,
-        "description": "Source vehicle model identifier.",
-        "semanticId": "identity.car-ordinal",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -83408,18 +83302,6 @@
         "retention": "exact"
       },
       {
-        "path": "TelemetryPacket.TrackOrdinal",
-        "label": "Track Ordinal",
-        "unit": "id",
-        "dataType": "number",
-        "count": 1,
-        "description": "Source track or layout identifier.",
-        "semanticId": "identity.track-ordinal",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
         "path": "TelemetryPacket.TrackTemp",
         "label": "Track Temp",
         "unit": "°C",
@@ -83636,6 +83518,18 @@
         "retention": "exact"
       },
       {
+        "path": "TelemetryPacket.carId",
+        "label": "Car Id",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Game-native vehicle model identifier, represented as a string.",
+        "semanticId": "identity.car-id",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "TelemetryPacket.sessionUID",
         "label": "Session UID",
         "unit": "text",
@@ -83643,6 +83537,18 @@
         "count": 1,
         "description": "Game session UID (used for reliable session boundary detection)",
         "semanticId": "session.session-uid",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.trackId",
+        "label": "Track Id",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Game-native track or layout identifier, represented as a string.",
+        "semanticId": "identity.track-id",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -84203,7 +84109,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 150,
-    "semanticVariables": 775,
+    "semanticVariables": 773,
     "sourceCounts": {
       "fm-2023": {
         "total": 96,

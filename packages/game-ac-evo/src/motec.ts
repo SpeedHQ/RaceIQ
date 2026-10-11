@@ -9,29 +9,25 @@ import type {
   MotecCarTrackOverride,
   MotecConversionResult,
 } from "@raceiq/backend-core/motec/types";
-import { getAcEvoCarByModel, getAcEvoCarByDisplayName, getAcEvoCarName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
-import {
-  getAcEvoTrackByName,
-  getAcEvoTracks,
-} from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
+import { getAcEvoCarByModel, getAcEvoCarByDisplayName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
+import { getAcEvoTrackByName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
+import { acEvoCarId, acEvoTrackId } from "@raceiq/game-ac-evo-metadata/identity";
 
 export function resolveAcEvoMotecCarTrack(
   log: LdLog,
   override?: MotecCarTrackOverride,
 ): MotecCarTrack {
-  const car =
-    override?.carOrdinal !== undefined && override.carOrdinal >= 0
-      ? { id: override.carOrdinal, name: getAcEvoCarName(override.carOrdinal) }
-      : getAcEvoCarByDisplayName(log.vehicleId) ?? getAcEvoCarByModel(log.vehicleId);
-  const track =
-    override?.trackOrdinal !== undefined && override.trackOrdinal >= 0
-      ? getAcEvoTracks().get(override.trackOrdinal)
-      : getAcEvoTrackByName(log.venue, "");
+  const carName = override?.carName?.trim() || (typeof override?.carId === "string" ? override.carId.trim() : "") || log.vehicleId.trim();
+  const nativeCar = getAcEvoCarByDisplayName(carName) ?? getAcEvoCarByModel(carName);
+  const trackName = override?.trackName?.trim() || log.venue.trim();
+  const trackConfiguration = override?.trackConfiguration?.trim() ?? "";
+  const nativeTrack = getAcEvoTrackByName(trackName, trackConfiguration);
+  const carModel = nativeCar?.name ?? carName;
   return {
-    carOrdinal: car?.id ?? -1,
-    trackOrdinal: track?.id ?? -1,
-    carModel: car?.name ?? log.vehicleId,
-    trackName: track?.commonTrackName ?? log.venue,
+    carId: override?.carId ?? acEvoCarId(carModel),
+    trackId: override?.trackId ?? nativeTrack?.id ?? acEvoTrackId(trackName, trackConfiguration),
+    carModel,
+    trackName,
   };
 }
 
@@ -54,7 +50,7 @@ export function convertAcEvoMotecToPackets(
 ): MotecConversionResult {
   const prepared = prepareKunosMotecCapture(log, beacons, {
     gameId: "ac-evo",
-    trackOrdinal: carTrack.trackOrdinal,
+    trackId: carTrack.trackId,
   });
   const packets = convertPreparedKunosMotecPackets(
     prepared,

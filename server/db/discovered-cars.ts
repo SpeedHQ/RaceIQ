@@ -1,88 +1,39 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "./index";
 import { discoveredCars } from "./schema";
-import { DISCOVERED_CAR_ORDINAL_BASE, injectDiscoveredAcEvoCars } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
-
-export { DISCOVERED_CAR_ORDINAL_BASE };
+import { injectDiscoveredAcEvoCars } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
+import { acEvoCarId } from "@raceiq/game-ac-evo-metadata/identity";
 
 export interface DiscoveredCarRow {
   id: number;
   gameId: string;
-  ordinal: number;
+  carId: string;
   name: string;
   model: string;
-  sourceKey: string | null;
   createdAt: string;
 }
 
-export function normalizeSourceName(name: string): string {
-  return name.trim().normalize("NFC").toLowerCase();
+export async function registerDiscoveredCar(gameId: string, carId: string, name: string): Promise<void> {
+  if (gameId === "ac-evo") {
+    await registerAcEvoCar(name);
+    return;
+  }
+  await db.insert(discoveredCars).values({ gameId, carId, name }).onConflictDoNothing().run();
 }
 
-export function acEvoCarSourceKey(name: string): string {
-  return JSON.stringify([normalizeSourceName(name)]);
+export async function registerAcEvoCar(name: string, model = ""): Promise<string> {
+  const id = acEvoCarId(name);
+  if (!id) return "";
+  await db.insert(discoveredCars).values({
+    gameId: "ac-evo", carId: id, name: id, model,
+  }).onConflictDoNothing().run();
+  injectDiscoveredAcEvoCars([{ id, name: id, model }]);
+  return id;
 }
 
-export async function registerDiscoveredCar(gameId: string, ordinal: number, name: string): Promise<void> {
-  const sourceKey = gameId === "ac-evo" ? acEvoCarSourceKey(name) : null;
-  await db.insert(discoveredCars).values({ gameId, ordinal, name, sourceKey }).onConflictDoNothing().run();
-}
-
-const pending = new Map<string, Promise<number>>();
-const allocationLocks = new Map<string, Promise<void>>();
-
-export async function getOrCreateDiscoveredCar(gameId: string, name: string, model?: string): Promise<number> {
-  if (!name.trim()) return -1;
-  const sourceKey = gameId === "ac-evo" ? acEvoCarSourceKey(name) : null;
-  const pendingKey = JSON.stringify([gameId, sourceKey ?? name]);
-  const active = pending.get(pendingKey);
-  if (active) return active;
-  const task = (async () => {
-    const condition = sourceKey
-      ? and(eq(discoveredCars.gameId, gameId), eq(discoveredCars.sourceKey, sourceKey))
-      : and(eq(discoveredCars.gameId, gameId), eq(discoveredCars.name, name));
-    let release!: () => void;
-    const lock = new Promise<void>((resolve) => { release = resolve; });
-    while (allocationLocks.has(gameId)) await allocationLocks.get(gameId);
-    allocationLocks.set(gameId, lock);
-    try {
-      const found = await db.select().from(discoveredCars).where(condition).get();
-      if (found) {
-        if (gameId === "ac-evo") injectDiscoveredAcEvoCars([found]);
-        return found.ordinal;
-      }
-      const maxRow = await db.select({ maxOrdinal: sql<number | null>`max(${discoveredCars.ordinal})` })
-        .from(discoveredCars).where(eq(discoveredCars.gameId, gameId)).get();
-      let ordinal = Math.max(DISCOVERED_CAR_ORDINAL_BASE - 1, maxRow?.maxOrdinal ?? -1) + 1;
-      for (;;) {
-        try {
-          const [created] = await db.insert(discoveredCars).values({ gameId, ordinal, name, model: model ?? "", sourceKey }).returning();
-          if (gameId === "ac-evo") injectDiscoveredAcEvoCars([created]);
-          return ordinal;
-        } catch (error) {
-          const conflict = await db.select().from(discoveredCars).where(condition).get();
-          if (conflict) {
-            if (gameId === "ac-evo") injectDiscoveredAcEvoCars([conflict]);
-            return conflict.ordinal;
-          }
-          const ordinalConflict = await db.select({ id: discoveredCars.id }).from(discoveredCars)
-            .where(and(eq(discoveredCars.gameId, gameId), eq(discoveredCars.ordinal, ordinal))).get();
-          if (!ordinalConflict) throw error;
-          ordinal += 1;
-        }
-      }
-    } finally {
-      allocationLocks.delete(gameId);
-      release();
-    }
-  })();
-  pending.set(pendingKey, task);
-  try { return await task; } finally { pending.delete(pendingKey); }
-}
-
-export async function getDiscoveredCarName(gameId: string, ordinal: number): Promise<string | undefined> {
+export async function getDiscoveredCarName(gameId: string, carId: string): Promise<string | undefined> {
   const row = await db.select({ name: discoveredCars.name }).from(discoveredCars)
-    .where(and(eq(discoveredCars.gameId, gameId), eq(discoveredCars.ordinal, ordinal))).get();
+    .where(and(eq(discoveredCars.gameId, gameId), eq(discoveredCars.carId, carId))).get();
   return row?.name;
 }
 
@@ -91,5 +42,7 @@ export async function listDiscoveredCars(gameId?: string): Promise<DiscoveredCar
   return db.select().from(discoveredCars).all();
 }
 export async function hydrateDiscoveredAcEvoCars(): Promise<void> {
-  injectDiscoveredAcEvoCars(await listDiscoveredCars("ac-evo"));
+  injectDiscoveredAcEvoCars((await listDiscoveredCars("ac-evo")).map((row) => ({
+    id: row.carId, name: row.name, model: row.model,
+  })));
 }

@@ -64,9 +64,9 @@ describe("processTelemetryBatch", () => {
     const frames = udpFixtureFrames(resolve(import.meta.dir, "../../../test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz"));
     expect(frames).toHaveLength(11_912);
     const result = await processTelemetryBatch("fm-2023", frames);
-    expect(result.sessions.map(({ sessionKey, carOrdinal, trackOrdinal }) => ({ sessionKey, carOrdinal, trackOrdinal }))).toEqual([
-      { sessionKey: 1, carOrdinal: 3631, trackOrdinal: 5 },
-      { sessionKey: 2, carOrdinal: 3631, trackOrdinal: 5 },
+    expect(result.sessions.map(({ sessionKey, carId, trackId }) => ({ sessionKey, carId, trackId }))).toEqual([
+      { sessionKey: 1, carId: "3631", trackId: "5" },
+      { sessionKey: 2, carId: "3631", trackId: "5" },
     ]);
     expect(result.laps.map(({ sessionKey, lapNumber, lapTime, valid, invalidReason, frameCount, complete, byteOffset }) => ({
       sessionKey, lapNumber, lapTime, valid, invalidReason, frameCount, complete, byteOffset,
@@ -100,7 +100,7 @@ describe("processTelemetryBatch", () => {
     const path = resolve(import.meta.dir, "../../../test/artifacts/sessions/ac-evo-2026-04-15T17-12-25-825Z.bin.gz");
     const result = await processTelemetryBatch("ac-evo", kunosFixtureFrames(path, true, ACEVO_PACKED_MAGIC));
     expect(result.sessions).toHaveLength(1);
-    expect(result.sessions[0]).toMatchObject({ gameId: "ac-evo", carOrdinal: 59, trackOrdinal: -1 });
+    expect(result.sessions[0]).toMatchObject({ gameId: "ac-evo", carId: "Porsche 992 GT3 R Rennsport" });
     expect(result.laps.map(({ lapNumber, lapTime, complete, invalidReason, byteOffset, frameCount }) => ({
       lapNumber, lapTime, complete, invalidReason, byteOffset, frameCount,
     }))).toEqual([
@@ -181,9 +181,9 @@ describe("processTelemetryBatch", () => {
   test("preserves canonical F1 session, lap, offset, and timing results", async () => {
     const path = resolve(import.meta.dir, "../../../test/artifacts/sessions/f1-2025-2026-04-22T11-42-43-029Z.bin.gz");
     const result = await processTelemetryBatch("f1-2025", sessionFixtureInputs(path));
-    expect(result.sessions.map(({ sessionKey, carOrdinal, trackOrdinal }) => ({ sessionKey, carOrdinal, trackOrdinal }))).toEqual([
-      { sessionKey: 1, carOrdinal: 0, trackOrdinal: 19 },
-      { sessionKey: 2, carOrdinal: 41, trackOrdinal: 19 },
+    expect(result.sessions.map(({ sessionKey, carId, trackId }) => ({ sessionKey, carId, trackId }))).toEqual([
+      { sessionKey: 1, carId: "", trackId: "19" },
+      { sessionKey: 2, carId: "41", trackId: "19" },
     ]);
     expect(result.laps.slice(0, 2).map(({ sessionKey, lapNumber, lapTime, valid, invalidReason, frameCount, complete, byteOffset, sectors }) => ({
       sessionKey, lapNumber, lapTime, valid, invalidReason, frameCount, complete, byteOffset, sectors,

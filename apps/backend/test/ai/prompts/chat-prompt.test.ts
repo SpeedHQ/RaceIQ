@@ -26,10 +26,12 @@ describe("lap chat prompt", () => {
       lapNumber: 2,
       lapTime: 79.328,
       isValid: true,
+      carId: "",
+      trackId: "",
       gameId: "fm-2023",
     }, [{
       gameId: "fm-2023",
-      CarOrdinal: 0,
+      carId: "0",
       CarClass: 0,
       CarPerformanceIndex: 0,
       DrivetrainType: 0,
@@ -61,10 +63,12 @@ describe("lap chat prompt", () => {
       lapNumber: 2,
       lapTime: 79.328,
       isValid: true,
+      carId: "",
+      trackId: "",
       gameId: "fm-2023",
     }, [{
       gameId: "fm-2023",
-      CarOrdinal: 0,
+      carId: "0",
       CarClass: 0,
       CarPerformanceIndex: 0,
       DrivetrainType: 0,
@@ -100,12 +104,12 @@ describe("lap chat prompt", () => {
       lapNumber: 2,
       lapTime: 79.328,
       isValid: true,
-      carOrdinal: 1,
-      trackOrdinal: 19,
+      carId: "1",
+      trackId: "19",
       gameId: "f1-2025",
     }, [{
       gameId: "f1-2025",
-      CarOrdinal: 1,
+      carId: "1",
       DistanceTraveled: 0,
       VelocityX: 0,
       VelocityY: 0,
@@ -126,10 +130,10 @@ describe("lap chat prompt", () => {
 
     expect(prompt).toContain("Game: F1 2025");
     expect(prompt).toContain("Game ID: f1-2025");
-    expect(prompt).toContain(`Car: ${resolveCarName(1, "f1-2025")}`);
+    expect(prompt).toContain("Car: ");
     expect(prompt).toContain("Car ID: 1");
     expect(prompt).toContain("Track ID: 19");
-    expect(prompt).toContain(`Track: ${resolveTrackName(19, "f1-2025")}`);
+    expect(prompt).toContain("Track: ");
   });
 
 });

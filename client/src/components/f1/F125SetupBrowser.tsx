@@ -21,7 +21,7 @@ interface F125Setup {
 interface F125TrackSetups {
   trackSlug: string;
   trackName: string;
-  trackOrdinal: number;
+  trackId: string;
   setups: F125Setup[];
 }
 
@@ -47,21 +47,14 @@ export function F125SetupBrowser() {
   });
 
   const { rows, carNames, trackNames } = useMemo(() => {
-    const teamOrdinals = new Map<string, number>();
-    const carNames: Record<number, string> = {};
-    const trackNames: Record<number, string> = {};
+    const carNames: Record<string, string> = {};
+    const trackNames: Record<string, string> = {};
     const rows: TuneRow[] = [];
-
     for (const t of tracks) {
-      if (t.trackOrdinal != null) trackNames[t.trackOrdinal] = t.trackName;
+      trackNames[t.trackId] = t.trackName;
       t.setups?.forEach((s, i) => {
         const team = s.team || "Unknown";
-        let ord = teamOrdinals.get(team);
-        if (ord == null) {
-          ord = teamOrdinals.size;
-          teamOrdinals.set(team, ord);
-          carNames[ord] = team;
-        }
+        carNames[team] = team;
         rows.push({
           key: `${t.trackSlug}-${i}`,
           id: `${t.trackSlug}-${i}`,
@@ -70,8 +63,8 @@ export function F125SetupBrowser() {
           author: s.author || s.provider || "—",
           source: "community",
           category: (s.weather || "").toLowerCase() === "wet" ? "wet" : "dry",
-          carOrdinal: ord,
-          trackOrdinal: t.trackOrdinal ?? null,
+          carId: team,
+          trackId: t.trackId,
           lapTimeSec: parseLap(s.lapTime),
           lapTimeRaw: s.lapTime || null,
           lapTimeTrack: t.trackName,
@@ -84,17 +77,17 @@ export function F125SetupBrowser() {
   }, [tracks]);
 
   const trackOptions = useMemo(() => {
-    const counts = new Map<number, number>();
-    for (const r of rows) if (r.trackOrdinal != null) counts.set(r.trackOrdinal, (counts.get(r.trackOrdinal) ?? 0) + 1);
-    const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: trackNames[ord] ?? `Track ${ord}`, count })).sort((a, b) => b.count - a.count);
-    return [{ value: "any", label: m.setup_any_track(), count: rows.length }, ...opts];
+    const counts = new Map<string, number>();
+    for (const row of rows) if (row.trackId != null) counts.set(row.trackId, (counts.get(row.trackId) ?? 0) + 1);
+    const options = [...counts.entries()].map(([id, count]) => ({ value: id, label: trackNames[id] ?? id, count })).sort((a, b) => b.count - a.count);
+    return [{ value: "any", label: m.setup_any_track(), count: rows.length }, ...options];
   }, [rows, trackNames, uiLocale]);
 
   const carOptions = useMemo(() => {
-    const counts = new Map<number, number>();
-    for (const r of rows) counts.set(r.carOrdinal, (counts.get(r.carOrdinal) ?? 0) + 1);
-    const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: carNames[ord] ?? `Team ${ord}`, count })).sort((a, b) => b.count - a.count);
-    return [{ value: "any", label: m.setup_any_car(), count: rows.length }, ...opts];
+    const counts = new Map<string, number>();
+    for (const row of rows) counts.set(row.carId, (counts.get(row.carId) ?? 0) + 1);
+    const options = [...counts.entries()].map(([id, count]) => ({ value: id, label: carNames[id] ?? id, count })).sort((a, b) => b.count - a.count);
+    return [{ value: "any", label: m.setup_any_car(), count: rows.length }, ...options];
   }, [rows, carNames, uiLocale]);
 
   const sources: SourceTab[] = useMemo(() => SOURCE_KEYS.map((s) => ({ ...s, label: SOURCE_LABELS[s.key]() })), [uiLocale]);

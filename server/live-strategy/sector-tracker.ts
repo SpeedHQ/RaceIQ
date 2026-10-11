@@ -46,13 +46,13 @@ export class SectorTracker {
   private initialized = false;
   private prevCurrentLap = 0;
   private refLap: ReferenceLap | null = null;
-  private currentTrackOrdinal = -1;
-  private currentCarOrdinal = -1;
+  private currentTrackIdentity: string | null = null;
+  private currentCarIdentity: string | null = null;
   private currentGameId: GameId | null = null;
   private currentGame: GameAdapter | null = null;
 
   /** Reset for a new session — loads sector boundaries and track length. */
-  async reset(trackOrdinal: number, gameId: GameId, carOrdinal: number = -1): Promise<void> {
+  async reset(trackIdentity: string, gameId: GameId, carIdentity: string): Promise<void> {
     this.bounds = null;
     this.sectorCount = 3;
     this.lapDistStart = 0;
@@ -66,8 +66,8 @@ export class SectorTracker {
     this.initialized = false;
     this.prevCurrentLap = 0;
     this.refLap = null;
-    this.currentTrackOrdinal = trackOrdinal;
-    this.currentCarOrdinal = carOrdinal;
+    this.currentTrackIdentity = trackIdentity;
+    this.currentCarIdentity = carIdentity;
     this.currentGameId = gameId;
     this.currentGame = getGame(gameId);
 
@@ -76,7 +76,7 @@ export class SectorTracker {
     if (this.currentGame.nativeSectors) return;
 
     // Sector boundaries: this game's curated pair, else bundled, else thirds.
-    const track = resolveTrack(gameId, trackOrdinal);
+    const track = resolveTrack(gameId, trackIdentity);
     const sectors = track.sectors;
 
     if (!sectors?.s1End || !sectors?.s2End) return;
@@ -98,7 +98,7 @@ export class SectorTracker {
     };
     if (trackLength > 0) this.lapDistTotal = trackLength;
 
-    console.log(`[Sectors] Loaded for track ${trackOrdinal} (${gameId}): s1=${sectors.s1End}, s2=${sectors.s2End}, length=${trackLength.toFixed(0)}m, seeded best=${this.bestLapTime === Infinity ? "none" : this.bestLapTime.toFixed(3)}`);
+    console.log(`[Sectors] Loaded for track ${trackIdentity} (${gameId}): s1=${sectors.s1End}, s2=${sectors.s2End}, length=${trackLength.toFixed(0)}m, seeded best=${this.bestLapTime === Infinity ? "none" : this.bestLapTime.toFixed(3)}`);
   }
 
   /** Process a packet. Returns sector data or null if no sector bounds loaded. */
@@ -366,8 +366,8 @@ export class SectorTracker {
       prevCurrentLap: this.prevCurrentLap,
       refLapLength: this.refLap?.distances.length ?? 0,
       refLapTime: this.refLap?.lapTime ?? null,
-      currentTrackOrdinal: this.currentTrackOrdinal,
-      currentCarOrdinal: this.currentCarOrdinal,
+      currentTrackId: this.currentTrackIdentity,
+      currentCarId: this.currentCarIdentity,
     };
   }
 }

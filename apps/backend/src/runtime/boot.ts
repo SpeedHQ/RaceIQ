@@ -10,6 +10,7 @@ import { initServerGameAdapters } from "../games/init";
 import { initDb } from "@raceiq/backend-core/db/index";
 import { listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
 import { backfillAllRaceResults } from "@raceiq/backend-core/race-results/reconcile";
+import { reconcileHistoricalSessions } from "@raceiq/backend-core/session-capture/reconcile";
 import { backfillLMUSessionIdentity } from "../imports/lmu-session-identity-backfill";
 import { hydrateDiscoveredAcEvoTracks, listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
 import { deleteEmptySessions } from "@raceiq/backend-core/db/session-queries";
@@ -97,10 +98,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   }
   setCacheMaxBytes(settings.cacheMaxMB * 1024 * 1024);
 
-  const emptyCleaned = await deleteEmptySessions();
-  if (emptyCleaned > 0) {
-    console.log(`[DB] Cleaned up ${emptyCleaned} empty session(s)`);
-  }
+  // Empty-session cleanup runs after repair so pending candidates remain available.
 
   console.log("[Server] Starting RaceIQ Server...");
   clearHttpPort(httpPort);
@@ -120,18 +118,21 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     devPublicDir,
   });
   console.log(`[Server] HTTP/WS server listening on http://localhost:${httpPort}`);
-
-  // Reconcile historical sessions without delaying HTTP startup.
-  void backfillAllRaceResults().catch((error) => {
-    console.error("[RaceResults] Startup backfill failed:", error);
-  });
-  void backfillLMUSessionIdentity()
-    .then((counts) => {
-      console.log("[LMU] Session identity backfill complete:", counts);
+  void reconcileHistoricalSessions((reprocessed) => {
+    wsManager.broadcastNotification({ type: "lap-reprocessed", ...reprocessed });
+  })
+    .then(async (counts) => {
+      console.log("[SessionRepair] Historical session reconciliation complete:", counts);
+      if (counts.failed === 0) wsManager.setStaleSessionsNotification(null);
+      await backfillAllRaceResults();
+      await backfillLMUSessionIdentity().then((identityCounts) => {
+        console.log("[LMU] Session identity backfill complete:", identityCounts);
+      });
     })
     .catch((error) => {
-      console.error("[LMU] Session identity backfill failed:", error);
+      console.error("[SessionRepair] Startup reconciliation failed:", error);
     });
+
 
 
   if (recordingGameId === "fm-2023" || recordingGameId === "f1-2025") {

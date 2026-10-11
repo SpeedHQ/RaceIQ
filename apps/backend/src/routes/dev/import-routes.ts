@@ -104,14 +104,14 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
           }
         }
         const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
-          carOrdinal,
-          trackOrdinal,
+          carId: carOrdinal ? String(carOrdinal) : "",
+          trackId: trackOrdinal ? String(trackOrdinal) : "",
         });
         if (!packet) continue;
         const sourceFrame = packTriplet(
           ACC_PACKED_MAGIC,
-          packet.CarOrdinal,
-          packet.TrackOrdinal ?? 0,
+          carOrdinal || -1,
+          trackOrdinal || -1,
           frame.physics,
           frame.graphics,
           frame.staticData
@@ -134,8 +134,8 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
         if (!trackName) trackName = packet.acEvoIdentity?.trackName || null;
         const sourceFrame = packTriplet(
           ACEVO_PACKED_MAGIC,
-          packet.CarOrdinal,
-          packet.TrackOrdinal ?? -1,
+          0,
+          -1,
           frame.physics,
           frame.graphics,
           frame.staticData

@@ -1343,5 +1343,192 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       ...acEvoCatalogSeedSql,
     ],
   },
+  {
+    version: 64,
+    name: "use native AC Evo car and layout identities",
+    sql: [
+      `ALTER TABLE tunes ADD COLUMN car_id TEXT`,
+      `ALTER TABLE tunes ADD COLUMN track_id TEXT`,
+      `ALTER TABLE experiments ADD COLUMN car_id TEXT`,
+      `ALTER TABLE experiments ADD COLUMN track_id TEXT`,
+      `ALTER TABLE community_tunes ADD COLUMN car_id TEXT`,
+      `ALTER TABLE community_tunes ADD COLUMN track_id TEXT`,
+      ...["driver_profiles", "driver_profile_runs"].flatMap((table) => [
+        `ALTER TABLE ${table} ADD COLUMN car_id TEXT`,
+        `ALTER TABLE ${table} ADD COLUMN track_id TEXT`,
+      ]),
+      `CREATE TABLE tune_assignments_native (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, game_id TEXT NOT NULL,
+        car_ordinal INTEGER NOT NULL, track_ordinal INTEGER NOT NULL,
+        car_id TEXT, track_id TEXT,
+        tune_id INTEGER NOT NULL REFERENCES tunes(id) ON DELETE CASCADE
+      )`,
+      `INSERT INTO tune_assignments_native (id,game_id,car_ordinal,track_ordinal,tune_id)
+       SELECT id,game_id,car_ordinal,track_ordinal,tune_id FROM tune_assignments`,
+      `DROP TABLE tune_assignments`,
+      `ALTER TABLE tune_assignments_native RENAME TO tune_assignments`,
+      `CREATE INDEX idx_assignments_tune ON tune_assignments(tune_id)`,
+      `CREATE TABLE track_outlines_native (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, track_ordinal INTEGER NOT NULL,
+        game_id TEXT NOT NULL, track_id TEXT, outline BLOB NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT INTO track_outlines_native (id,track_ordinal,game_id,outline,created_at)
+       SELECT id,track_ordinal,game_id,outline,created_at FROM track_outlines`,
+      `DROP TABLE track_outlines`,
+      `ALTER TABLE track_outlines_native RENAME TO track_outlines`,
+      `CREATE INDEX idx_outlines_track ON track_outlines(track_ordinal)`,
+      `CREATE TABLE track_corners_native (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, track_ordinal INTEGER NOT NULL,
+        game_id TEXT NOT NULL, track_id TEXT, corner_index INTEGER NOT NULL,
+        label TEXT NOT NULL, distance_start REAL NOT NULL, distance_end REAL NOT NULL,
+        is_auto INTEGER NOT NULL DEFAULT 1
+      )`,
+      `INSERT INTO track_corners_native (id,track_ordinal,game_id,corner_index,label,distance_start,distance_end,is_auto)
+       SELECT id,track_ordinal,game_id,corner_index,label,distance_start,distance_end,is_auto FROM track_corners`,
+      `DROP TABLE track_corners`,
+      `ALTER TABLE track_corners_native RENAME TO track_corners`,
+      `CREATE INDEX idx_corners_track ON track_corners(track_ordinal)`,
+      ...["sessions", "tunes", "tune_assignments", "experiments", "community_tunes", "driver_profiles", "driver_profile_runs"].map((table) =>
+        `UPDATE ${table} SET car_id = COALESCE(car_id, (
+          SELECT trim(name) FROM discovered_cars
+          WHERE game_id = 'ac-evo' AND ordinal = ${table}.car_ordinal
+        )) WHERE game_id = 'ac-evo'`),
+      ...["sessions", "tunes", "tune_assignments", "track_outlines", "track_corners", "experiments", "community_tunes", "driver_profiles", "driver_profile_runs"].map((table) =>
+        `UPDATE ${table} SET track_id = COALESCE(track_id, (
+          SELECT json_array(trim(track_name), trim(COALESCE(track_configuration, '')))
+          FROM discovered_tracks
+          WHERE game_id = 'ac-evo' AND ordinal = ${table}.track_ordinal
+            AND track_name IS NOT NULL
+        )) WHERE game_id = 'ac-evo'`),
+      `CREATE UNIQUE INDEX idx_assignments_ordinal ON tune_assignments(game_id,car_ordinal,track_ordinal)
+       WHERE car_id IS NULL AND track_id IS NULL`,
+      `CREATE INDEX idx_assignments_native ON tune_assignments(game_id,car_id,track_id)
+       WHERE car_id IS NOT NULL AND track_id IS NOT NULL`,
+      `CREATE UNIQUE INDEX idx_outlines_ordinal ON track_outlines(track_ordinal,game_id) WHERE track_id IS NULL`,
+      `CREATE INDEX idx_outlines_native ON track_outlines(track_id,game_id) WHERE track_id IS NOT NULL`,
+      `CREATE UNIQUE INDEX idx_corners_ordinal ON track_corners(track_ordinal,game_id,corner_index) WHERE track_id IS NULL`,
+      `CREATE INDEX idx_corners_native ON track_corners(track_id,game_id,corner_index) WHERE track_id IS NOT NULL`,
+    ],
+  },
+  {
+    version: 65,
+    name: "stop allocating AC Evo discovery ordinals",
+    sql: [
+      `CREATE TABLE discovered_cars_native (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, game_id TEXT NOT NULL, ordinal INTEGER NOT NULL,
+        name TEXT NOT NULL, model TEXT NOT NULL DEFAULT '', source_key TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')), UNIQUE(game_id,source_key)
+      )`,
+      `INSERT INTO discovered_cars_native SELECT id,game_id,
+        CASE WHEN game_id = 'ac-evo' THEN -1 ELSE ordinal END,name,model,
+        CASE WHEN game_id = 'ac-evo' THEN
+          CASE WHEN EXISTS (SELECT 1 FROM discovered_cars prior WHERE prior.game_id = 'ac-evo'
+            AND prior.id < current.id AND trim(prior.name) = trim(current.name))
+          THEN NULL ELSE trim(name) END
+        ELSE source_key END,created_at FROM discovered_cars current`,
+      `DROP TABLE discovered_cars`,
+      `ALTER TABLE discovered_cars_native RENAME TO discovered_cars`,
+      `CREATE UNIQUE INDEX idx_discovered_cars_ordinal ON discovered_cars(game_id,ordinal) WHERE ordinal >= 0`,
+      `CREATE TABLE discovered_tracks_native (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, game_id TEXT NOT NULL, ordinal INTEGER NOT NULL,
+        name TEXT NOT NULL, source_key TEXT, track_name TEXT, track_configuration TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')), UNIQUE(game_id,source_key)
+      )`,
+      `INSERT INTO discovered_tracks_native SELECT id,game_id,
+        CASE WHEN game_id = 'ac-evo' THEN -1 ELSE ordinal END,name,
+        CASE WHEN game_id = 'ac-evo' THEN
+          CASE WHEN EXISTS (SELECT 1 FROM discovered_tracks prior WHERE prior.game_id = 'ac-evo'
+            AND prior.id < current.id
+            AND trim(COALESCE(prior.track_name,prior.name)) = trim(COALESCE(current.track_name,current.name))
+            AND trim(COALESCE(prior.track_configuration,'')) = trim(COALESCE(current.track_configuration,'')))
+          THEN NULL ELSE json_array(trim(COALESCE(track_name,name)),trim(COALESCE(track_configuration,''))) END
+        ELSE source_key END,
+        track_name,track_configuration,created_at FROM discovered_tracks current`,
+      `DROP TABLE discovered_tracks`,
+      `ALTER TABLE discovered_tracks_native RENAME TO discovered_tracks`,
+      `CREATE UNIQUE INDEX idx_discovered_tracks_ordinal ON discovered_tracks(game_id,ordinal) WHERE ordinal >= 0`,
+    ],
+  },
+  {
+    version: 66,
+    name: "consolidate game identities into string IDs",
+    sql: [
+      ...["sessions", "tunes", "tune_assignments", "experiments", "community_tunes", "driver_profiles", "driver_profile_runs"].map((table) =>
+        `UPDATE ${table} SET car_id = COALESCE(car_id,
+          CASE WHEN car_ordinal IS NULL THEN NULL
+            WHEN game_id = 'ac-evo' THEN '' ELSE CAST(car_ordinal AS TEXT) END)`),
+      ...["sessions", "tunes", "tune_assignments", "track_outlines", "track_corners", "experiments", "community_tunes", "driver_profiles", "driver_profile_runs"].map((table) =>
+        `UPDATE ${table} SET track_id = COALESCE(track_id,
+          CASE WHEN track_ordinal IS NULL THEN NULL
+            WHEN game_id = 'ac-evo' THEN '' ELSE CAST(track_ordinal AS TEXT) END)`),
+      `DELETE FROM driver_profiles AS current WHERE EXISTS (
+        SELECT 1 FROM driver_profiles newer WHERE newer.game_id = current.game_id
+          AND newer.car_id IS current.car_id AND newer.track_id IS current.track_id
+          AND newer.id > current.id)`,
+      ...["driver_profiles", "driver_profile_runs"].map((table) =>
+        `UPDATE ${table} SET scope_key = json_array(game_id, car_id, track_id)`),
+      `DROP INDEX IF EXISTS idx_tunes_car`,
+      `DROP INDEX IF EXISTS idx_tunes_game_car`,
+      `DROP INDEX IF EXISTS idx_assignments_ordinal`,
+      `DROP INDEX IF EXISTS idx_assignments_native`,
+      `DROP INDEX IF EXISTS idx_outlines_ordinal`,
+      `DROP INDEX IF EXISTS idx_outlines_native`,
+      `DROP INDEX IF EXISTS idx_corners_ordinal`,
+      `DROP INDEX IF EXISTS idx_corners_native`,
+      `DROP INDEX IF EXISTS idx_outlines_track`,
+      `DROP INDEX IF EXISTS idx_corners_track`,
+      ...["sessions", "tunes", "tune_assignments", "experiments", "community_tunes", "driver_profiles", "driver_profile_runs"].map((table) =>
+        `ALTER TABLE ${table} DROP COLUMN car_ordinal`),
+      ...["sessions", "tunes", "tune_assignments", "track_outlines", "track_corners", "experiments", "community_tunes", "driver_profiles", "driver_profile_runs"].map((table) =>
+        `ALTER TABLE ${table} DROP COLUMN track_ordinal`),
+      `DELETE FROM tune_assignments AS current WHERE car_id != '' AND track_id != ''
+        AND EXISTS (SELECT 1 FROM tune_assignments newer WHERE newer.game_id = current.game_id
+          AND newer.car_id = current.car_id AND newer.track_id = current.track_id AND newer.id > current.id)`,
+      `DELETE FROM track_outlines AS current WHERE track_id != ''
+        AND EXISTS (SELECT 1 FROM track_outlines newer WHERE newer.game_id = current.game_id
+          AND newer.track_id = current.track_id AND newer.id > current.id)`,
+      `DELETE FROM track_corners AS current WHERE track_id != ''
+        AND EXISTS (SELECT 1 FROM track_corners newer WHERE newer.game_id = current.game_id
+          AND newer.track_id = current.track_id AND newer.corner_index = current.corner_index AND newer.id > current.id)`,
+      `CREATE INDEX idx_tunes_car ON tunes(car_id)`,
+      `CREATE INDEX idx_tunes_game_car ON tunes(game_id,car_id)`,
+      `CREATE UNIQUE INDEX idx_assignments_identity ON tune_assignments(game_id,car_id,track_id)
+        WHERE car_id != '' AND track_id != ''`,
+      `CREATE UNIQUE INDEX idx_outlines_identity ON track_outlines(track_id,game_id) WHERE track_id != ''`,
+      `CREATE UNIQUE INDEX idx_corners_identity ON track_corners(track_id,game_id,corner_index) WHERE track_id != ''`,
+      `CREATE INDEX idx_outlines_track ON track_outlines(track_id)`,
+      `CREATE INDEX idx_corners_track ON track_corners(track_id)`,
+      `CREATE TABLE discovered_cars_identity (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, game_id TEXT NOT NULL, car_id TEXT NOT NULL,
+        name TEXT NOT NULL, model TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')), UNIQUE(game_id,car_id)
+      )`,
+      `INSERT OR IGNORE INTO discovered_cars_identity
+        SELECT id,game_id,CASE WHEN game_id = 'ac-evo' THEN trim(name) ELSE CAST(ordinal AS TEXT) END,
+          name,model,created_at FROM discovered_cars ORDER BY id`,
+      `DROP TABLE discovered_cars`,
+      `ALTER TABLE discovered_cars_identity RENAME TO discovered_cars`,
+      `CREATE TABLE discovered_tracks_identity (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, game_id TEXT NOT NULL, track_id TEXT NOT NULL,
+        name TEXT NOT NULL, track_name TEXT, track_configuration TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')), UNIQUE(game_id,track_id)
+      )`,
+      `INSERT OR IGNORE INTO discovered_tracks_identity
+        SELECT id,game_id,CASE WHEN game_id = 'ac-evo'
+          THEN json_array(trim(COALESCE(track_name,name)),trim(COALESCE(track_configuration,'')))
+          ELSE CAST(ordinal AS TEXT) END,name,track_name,track_configuration,created_at
+        FROM discovered_tracks ORDER BY id`,
+      `DROP TABLE discovered_tracks`,
+      `ALTER TABLE discovered_tracks_identity RENAME TO discovered_tracks`,
+    ],
+  },
+  {
+    version: 67,
+    name: "reconcile historical sessions with current lap detectors",
+    sql: [
+      `UPDATE sessions SET lap_detector_version = NULL`,
+    ],
+  },
 ];
 

@@ -13,7 +13,7 @@ afterAll(() => stopMaintenanceTasks());
 function packet(gameId: TelemetryPacket["gameId"], distance: number): TelemetryPacket {
   return {
     gameId, IsRaceOn: 1, TimestampMS: 1000, LapNumber: 1, CurrentLap: 30, LastLap: 0,
-    BestLap: 0, DistanceTraveled: distance, CarOrdinal: 100, TrackOrdinal: 5,
+    BestLap: 0, DistanceTraveled: distance, carId: "100", trackId: "5",
     Speed: 50, PositionX: 10, PositionZ: 20, Brake: 0, Throttle: 1,
   } as unknown as TelemetryPacket;
 }
@@ -32,7 +32,7 @@ function pipelineWithSession() {
     recorder: new NullSessionRecorderAdapter(),
   });
   const detector = {
-    session: { sessionId: 77, trackOrdinal: 5, gameId: "fm-2023" },
+    session: { sessionId: 77, trackId: "track-5", gameId: "fm-2023" },
     feed: async () => {},
   };
   const sectorTracker = {

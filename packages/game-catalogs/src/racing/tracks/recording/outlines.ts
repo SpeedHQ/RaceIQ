@@ -1,56 +1,157 @@
-import { existsSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { bundledTrackDir as bundledGameDir, computedAverageFileName, getBundledTrackName, loadBundledPointCsv } from "../resolve-name";
+
+import { getAcEvoSharedTrackName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
+import { copyFileSync, existsSync, unlinkSync, writeFileSync } from "node:fs";
+import { basename, resolve } from "node:path";
+import { bundledTrackDir as bundledGameDir, computedAverageFileName, getBundledTrackName, loadBundledPointCsv, loadBundledPointCsvByName } from "../resolve-name";
 import { loadAccSvgBoundaryByName } from "@raceiq/shared/racing/tracks/geometry/acc-svg";
 import { filterOutlierPoints } from "@raceiq/shared/racing/tracks/geometry/points";
 import { getBundledOutlineByOrdinal, hasBundledOutlineByOrdinal } from "../geometry/outlines";
 import { loadSharedOutline } from "@raceiq/shared/racing/tracks/geometry/shared";
 import type { Point } from "@raceiq/shared/racing/tracks/geometry/types";
 import { ttlCache } from "@raceiq/shared/racing/tracks/storage/cache";
-import { listDataFiles, readDataFile, userDir, userGameDir, validateGameId } from "@raceiq/shared/racing/tracks/storage/files";
 
-// Recorded outlines from in-game telemetry — keyed by "gameId:ordinal"
+import { loadKunosTrackCatalog, type KunosTrack } from "@raceiq/shared/racing/tracks/catalogs/kunos";
+import { acEvoTrackId } from "@raceiq/game-ac-evo-metadata/identity";
+import { listDataFiles, readDataFile, userDir, userGameDir, validateGameId } from "@raceiq/shared/racing/tracks/storage/files";
+/** Resolve curated centerline by native string identity. */
+export function getTrackOutlineById(trackId: string, gameId: string, sharedName?: string): Point[] | null {
+  validateGameId(gameId);
+  if (!trackId) return null;
+  if (gameId !== "ac-evo") {
+    const ordinal = Number(trackId);
+    if (!Number.isInteger(ordinal)) {
+      return loadRecordedOutline(trackId, gameId) ?? loadSharedOutline(sharedName ?? trackId);
+    }
+    const resolvedSharedName = sharedName ?? getBundledTrackName(gameId, ordinal);
+    return loadBundledPointCsv(ordinal, gameId, "centerline")
+      ?? loadRecordedOutline(trackId, gameId)
+      ?? loadSharedOutline(resolvedSharedName ?? "")
+      ?? (gameId === "fm-2023" ? getBundledOutlineByOrdinal(ordinal) : null);
+  }
+  const recorded = loadRecordedOutline(trackId, gameId);
+  if (recorded) return recorded;
+  const catalogName = getAcEvoSharedTrackName(trackId);
+  if (!catalogName) return null;
+  const name = sharedName ?? catalogName;
+  return loadBundledPointCsvByName(name, gameId, "centerline")
+    ?? loadAccSvgBoundaryByName(name)?.centerLine
+    ?? loadSharedOutline(name);
+}
+
+/** Resolve native game's extracted racing line by string identity. */
+export function getTrackRacelineById(trackId: string, gameId: string): Point[] | null {
+  validateGameId(gameId);
+  if (!trackId) return null;
+  if (gameId === "ac-evo") {
+    const name = getAcEvoSharedTrackName(trackId);
+    return name ? loadBundledPointCsvByName(name, gameId, "raceline") : null;
+  }
+  const ordinal = Number(trackId);
+  return Number.isInteger(ordinal) ? loadBundledPointCsv(ordinal, gameId, "raceline") : null;
+}
+
+/** Track length derived from native-identity centerline. */
+export function getTrackLengthMetersById(trackId: string, gameId: string, sharedName?: string): number | null {
+  const outline = getTrackOutlineById(trackId, gameId, sharedName);
+  if (!outline || outline.length < 2) return null;
+  let length = 0;
+  for (let i = 1; i < outline.length; i++) {
+    const dx = outline[i].x - outline[i - 1].x;
+    const dz = outline[i].z - outline[i - 1].z;
+    length += Math.sqrt(dx * dx + dz * dz);
+  }
+  return length;
+}
+
+// Recorded outlines are keyed by native identity or by another game's ordinal.
 const recordedOutlines = ttlCache<Point[]>();
 const recordedLapCounts = new Map<string, number>();
-const recordedOrdinals = new Set<string>();
+const recordedKeys = new Set<string>();
 
-function gk(gameId: string, ordinal: number): string { return `${gameId}:${ordinal}`; }
+function gk(gameId: string, identity: number | string): string { return `${gameId}:${identity}`; }
+function recordedFileName(gameId: string, identity: number | string): string {
+  if (typeof identity === "number") return computedAverageFileName(gameId, identity);
+  if (gameId === "ac-evo") return `native-${Buffer.from(identity).toString("base64url")}-computed-average`;
+  const ordinal = Number(identity);
+  return Number.isInteger(ordinal)
+    ? computedAverageFileName(gameId, ordinal)
+    : `native-${Buffer.from(identity).toString("base64url")}-computed-average`;
+}
 
 let _recordedScanned = false;
-// Scan which recorded files exist across user data + bundled dirs
+let legacyAcEvoCatalog: Map<number, KunosTrack> | undefined;
+
+function migrateLegacyAcEvoOutline(ordinal: number, sourcePath: string): string | undefined {
+  try {
+    legacyAcEvoCatalog ??= loadKunosTrackCatalog("ac-evo");
+    const track = legacyAcEvoCatalog.get(ordinal);
+    if (!track) return undefined;
+    const id = acEvoTrackId(track.name, track.variant);
+    const targetPath = resolve(userGameDir("ac-evo"), `${recordedFileName("ac-evo", id)}.csv`);
+    if (!existsSync(targetPath)) copyFileSync(sourcePath, targetPath);
+    return id;
+  } catch {
+    return undefined;
+  }
+}
+
+// Scan recorded files and backfill historical AC Evo ordinal files once to native filenames.
 export function scanRecordedFiles(): void {
   _recordedScanned = true;
-  recordedOrdinals.clear();
+  recordedKeys.clear();
   for (const gid of ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu"]) {
     const dir = resolve(userDir, gid);
     if (!existsSync(dir)) continue;
     for (const filePath of listDataFiles(dir, (f) => f.endsWith("-computed-average.csv"))) {
-      const m = filePath
-        .split("/")
-        .pop()!
-        .match(/(?:^|-)(\d+)-computed-average\.csv$/);
-      if (m) recordedOrdinals.add(gk(gid, parseInt(m[1], 10)));
+      const filename = basename(filePath);
+      const native = filename.match(/^native-([A-Za-z0-9_-]+)-computed-average\.csv$/);
+      if (native) {
+        try {
+          const id = Buffer.from(native[1], "base64url").toString("utf8");
+          if (id) recordedKeys.add(gk(gid, id));
+        } catch { /* Ignore malformed optional recording names. */ }
+        continue;
+      }
+      const legacy = filename.match(/(?:^|-)(\d+)-computed-average\.csv$/);
+      if (!legacy) {
+        if (gid === "ac-evo") {
+          legacyAcEvoCatalog ??= loadKunosTrackCatalog("ac-evo");
+          for (const [ordinal, track] of legacyAcEvoCatalog) {
+            if (`${track.commonTrackName}-computed-average.csv` !== filename) continue;
+            const id = migrateLegacyAcEvoOutline(ordinal, filePath);
+            if (id) recordedKeys.add(gk(gid, id));
+            break;
+          }
+        }
+        continue;
+      }
+      const ordinal = Number(legacy[1]);
+      if (gid !== "ac-evo") recordedKeys.add(gk(gid, ordinal));
+      if (gid === "ac-evo") {
+        const id = migrateLegacyAcEvoOutline(ordinal, filePath);
+        if (id) recordedKeys.add(gk(gid, id));
+      }
     }
   }
 }
 function ensureRecordedScanned() { if (!_recordedScanned) scanRecordedFiles(); }
 
 /** Check if higher-quality game-specific centerline geometry exists. */
-function hasExtractedOutline(ordinal: number, gameId: string): boolean {
-  const name = getBundledTrackName(gameId, ordinal);
+function hasExtractedOutline(identity: number | string, gameId: string): boolean {
+  const name = typeof identity === "string" && gameId === "ac-evo"
+    ? getAcEvoSharedTrackName(identity)
+    : typeof identity === "number" ? getBundledTrackName(gameId, identity) : undefined;
   if (!name) return false;
-  if (gameId === "acc") return loadAccSvgBoundaryByName(name) !== null;
-  if (existsSync(resolve(bundledGameDir(gameId), `${name}-centerline.csv`))) return true;
-  return false;
+  if (gameId === "acc" || gameId === "ac-evo") return loadAccSvgBoundaryByName(name) !== null;
+  return existsSync(resolve(bundledGameDir(gameId), `${name}-centerline.csv`));
 }
 
-function loadRecordedOutline(ordinal: number, gameId: string): Point[] | null {
+function loadRecordedOutline(identity: number | string, gameId: string): Point[] | null {
   ensureRecordedScanned();
-  const key = gk(gameId, ordinal);
+  const key = gk(gameId, identity);
   if (recordedOutlines.has(key)) return recordedOutlines.get(key)!;
-  if (!recordedOrdinals.has(key)) return null;
-  const caName = computedAverageFileName(gameId, ordinal);
-  const userPath = resolve(userGameDir(gameId), `${caName}.csv`);
+  if (!recordedKeys.has(key)) return null;
+  const userPath = resolve(userGameDir(gameId), `${recordedFileName(gameId, identity)}.csv`);
   const content = readDataFile(userPath);
   if (!content) return null;
   try {
@@ -73,9 +174,17 @@ export function getRecordedOutlineByOrdinal(
   gameId: string,
 ): Point[] | null {
   validateGameId(gameId);
+  if (gameId === "ac-evo") return null;
   return loadRecordedOutline(ordinal, gameId);
 }
-// Store all lap traces for averaging — keyed by "gameId:ordinal"
+
+/** Load a telemetry-generated outline by native AC Evo track identity. */
+export function getRecordedOutlineById(trackId: string, gameId: string): Point[] | null {
+  validateGameId(gameId);
+  if (!trackId) return null;
+  return loadRecordedOutline(trackId, gameId);
+}
+// Store traces by game identity for averaging.
 const lapTraces = new Map<string, Point[][]>();
 // Store start-line positions from lap boundaries for averaging
 const startLinePositions = new Map<string, Point[]>();
@@ -93,11 +202,13 @@ const startLineYaws = new Map<string, number[]>();
  * startYaw: the car's Yaw (radians) at lap start, used for direction arrow.
  * Both are averaged across valid laps.
  */
-export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Point | null, startYaw: number | null, gameId: string): void {
+function recordLapTraceForIdentity(identity: number | string, trace: Point[], startLinePos: Point | null, startYaw: number | null, gameId: string): void {
   validateGameId(gameId);
   if (trace.length < 50) return;
 
-  const key = gk(gameId, ordinal);
+  if (gameId === "ac-evo" && typeof identity === "number") return;
+  if (typeof identity === "string" && identity.length === 0) return;
+  const key = gk(gameId, identity);
   const count = (recordedLapCounts.get(key) ?? 0) + 1;
   recordedLapCounts.set(key, count);
 
@@ -120,7 +231,7 @@ export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Po
   // Prefer existing game-specific outlines over telemetry recordings.
   // AC Evo reuses ACC geometry but needs its own telemetry recording for
   // boundary alignment because it uses a different coordinate space.
-  if (hasExtractedOutline(ordinal, gameId) && gameId !== "ac-evo") return;
+  if (typeof identity === "number" && hasExtractedOutline(identity, gameId) && gameId !== "ac-evo") return;
 
   // Filter outlier points from the trace (pit lane teleports, rewind jumps)
   trace = filterOutlierPoints(trace);
@@ -156,7 +267,7 @@ export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Po
       }
       outline.push({ x: sx / n, z: sz / n });
     }
-    console.log(`[Tracks] Averaged ${traces.length} laps for track ${ordinal} (lap ${count})`);
+    console.log(`[Tracks] Averaged ${traces.length} laps for track ${identity} (lap ${count})`);
   } else {
     // Just use the latest trace
     outline = downsample(trace, 500);
@@ -186,14 +297,14 @@ export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Po
     // Rotate array so bestIdx becomes index 0
     if (bestIdx > 0) {
       outline = [...outline.slice(bestIdx), ...outline.slice(0, bestIdx)];
-      console.log(`[Tracks] Rotated outline for track ${ordinal}: start at point ${bestIdx} (avg of ${positions.length} lap starts)`);
+      console.log(`[Tracks] Rotated outline for track ${identity}: start at point ${bestIdx} (avg of ${positions.length} lap starts)`);
     }
   }
 
-  recordedOutlines.set(key, outline);
+  recordedKeys.add(key);
 
   if (shouldSave) {
-    const caName = computedAverageFileName(gameId, ordinal);
+    const caName = recordedFileName(gameId, identity);
     const filePath = resolve(userGameDir(gameId), `${caName}.csv`);
     try {
       writeFileSync(filePath, `x,z\n${outline.map((p) => `${p.x},${p.z}`).join("\n")}`);
@@ -203,14 +314,25 @@ export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Po
     }
   }
 }
+/** Record a lap trace for an ordinal-keyed game. */
+export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Point | null, startYaw: number | null, gameId: string): void {
+  recordLapTraceForIdentity(ordinal, trace, startLinePos, startYaw, gameId);
+}
+
+/** Record a lap trace for native AC Evo track identity. */
+export function recordLapTraceById(trackId: string, trace: Point[], startLinePos: Point | null, startYaw: number | null, gameId: string): void {
+  recordLapTraceForIdentity(trackId, trace, startLinePos, startYaw, gameId);
+}
 
 /**
  * Record one valid open-route lap without cyclic alignment or averaging.
  * Start and finish remain exact endpoints; intermediate points are smoothed
  * and resampled by route distance.
  */
-export function recordOpenLapTrace(ordinal: number, trace: Point[], gameId: string): void {
+function recordOpenLapTraceForIdentity(identity: number | string, trace: Point[], gameId: string): void {
   validateGameId(gameId);
+  if (gameId === "ac-evo" && typeof identity === "number") return;
+  if (typeof identity === "string" && identity.length === 0) return;
   if (trace.length < 50) return;
   const filtered = filterOutlierPoints(trace);
   if (filtered.length < 50) return;
@@ -250,15 +372,24 @@ export function recordOpenLapTrace(ordinal: number, trace: Point[], gameId: stri
   }
   outline[0] = filtered[0];
   outline[outline.length - 1] = filtered[filtered.length - 1];
-  const key = gk(gameId, ordinal);
+  const key = gk(gameId, identity);
   recordedOutlines.set(key, outline);
-  recordedOrdinals.add(key);
-  const filePath = resolve(userGameDir(gameId), `${computedAverageFileName(gameId, ordinal)}.csv`);
+  recordedKeys.add(key);
+  const filePath = resolve(userGameDir(gameId), `${recordedFileName(gameId, identity)}.csv`);
   try {
     writeFileSync(filePath, `x,z\n${outline.map((point) => `${point.x},${point.z}`).join("\n")}`);
   } catch (err) {
     console.error("[Tracks] Failed to save open-route outline:", err);
   }
+}
+/** Record an open-route lap for an ordinal-keyed game. */
+export function recordOpenLapTrace(ordinal: number, trace: Point[], gameId: string): void {
+  recordOpenLapTraceForIdentity(ordinal, trace, gameId);
+}
+
+/** Record an open-route lap for native AC Evo track identity. */
+export function recordOpenLapTraceById(trackId: string, trace: Point[], gameId: string): void {
+  recordOpenLapTraceForIdentity(trackId, trace, gameId);
 }
 
 
@@ -268,6 +399,7 @@ export function recordOpenLapTrace(ordinal: number, trace: Point[], gameId: stri
  */
 export function getTrackOutlineByOrdinal(ordinal: number, gameId: string, sharedName?: string): Point[] | null {
   validateGameId(gameId);
+  if (gameId === "ac-evo") return null;
   const resolvedSharedName = sharedName ?? getBundledTrackName(gameId, ordinal);
   return loadBundledPointCsv(ordinal, gameId, "centerline") ??
     loadRecordedOutline(ordinal, gameId) ??
@@ -284,6 +416,7 @@ export function getTrackOutlineByOrdinal(ordinal: number, gameId: string, shared
  */
 export function getTrackRacelineByOrdinal(ordinal: number, gameId: string): Point[] | null {
   validateGameId(gameId);
+  if (gameId === "ac-evo") return null;
   return loadBundledPointCsv(ordinal, gameId, "raceline");
 }
 
@@ -305,9 +438,19 @@ export function getTrackLengthMeters(ordinal: number, gameId: string, sharedName
 
 export function hasRecordedOutline(ordinal: number, gameId: string): boolean {
   validateGameId(gameId);
+  if (gameId === "ac-evo") return false;
   ensureRecordedScanned();
   const key = gk(gameId, ordinal);
-  return recordedOrdinals.has(key) || recordedOutlines.has(key);
+  return recordedKeys.has(key) || recordedOutlines.has(key);
+}
+
+/** Check whether native AC Evo track identity has a recorded outline. */
+export function hasRecordedOutlineById(trackId: string, gameId: string): boolean {
+  validateGameId(gameId);
+  if (!trackId) return false;
+  ensureRecordedScanned();
+  const key = gk(gameId, trackId);
+  return recordedKeys.has(key) || recordedOutlines.has(key);
 }
 
 export function hasTrackOutline(ordinal: number, gameId: string): boolean {
@@ -319,9 +462,9 @@ export function hasTrackOutline(ordinal: number, gameId: string): boolean {
 /**
  * Get the averaged start-line Yaw (radians) for a track. Returns null if not yet recorded.
  */
-export function getStartYaw(ordinal: number, gameId: string): number | null {
+export function getStartYaw(trackId: string, gameId: string): number | null {
   validateGameId(gameId);
-  const yaws = startLineYaws.get(gk(gameId, ordinal));
+  const yaws = startLineYaws.get(gk(gameId, trackId));
   if (!yaws || yaws.length === 0) return null;
   // Average yaw using circular mean (handles wrapping around ±π)
   let sinSum = 0, cosSum = 0;
@@ -332,22 +475,33 @@ export function getStartYaw(ordinal: number, gameId: string): number | null {
 /**
  * Delete a computed-average outline for a track (resets to bundled or no outline).
  */
-export function deleteRecordedOutline(ordinal: number, gameId: string): boolean {
+function deleteRecordedOutlineForIdentity(identity: number | string, gameId: string): boolean {
   validateGameId(gameId);
-  const key = gk(gameId, ordinal);
-  const had = recordedOutlines.has(key);
+  if (typeof identity === "number" && gameId === "ac-evo") return false;
+  if (typeof identity === "string" && identity.length === 0) return false;
+  const key = gk(gameId, identity);
+  const had = recordedKeys.has(key) || recordedOutlines.has(key);
+  recordedKeys.delete(key);
   recordedOutlines.delete(key);
   recordedLapCounts.delete(key);
   lapTraces.delete(key);
   startLinePositions.delete(key);
   startLineYaws.delete(key);
 
-  const { unlinkSync } = require("node:fs");
-  const caName = computedAverageFileName(gameId, ordinal);
-  const filePath = resolve(userGameDir(gameId), `${caName}.csv`);
+  const filePath = resolve(userGameDir(gameId), `${recordedFileName(gameId, identity)}.csv`);
   if (existsSync(filePath)) {
     try { unlinkSync(filePath); } catch {}
   }
-  if (had) console.log(`[Tracks] Deleted computed average for track ${ordinal}`);
+  if (had) console.log(`[Tracks] Deleted computed average for track ${identity}`);
   return had;
+}
+
+/** Delete an ordinal-keyed game's computed-average outline. */
+export function deleteRecordedOutline(ordinal: number, gameId: string): boolean {
+  return deleteRecordedOutlineForIdentity(ordinal, gameId);
+}
+
+/** Delete a native AC Evo track's computed-average outline. */
+export function deleteRecordedOutlineById(trackId: string, gameId: string): boolean {
+  return deleteRecordedOutlineForIdentity(trackId, gameId);
 }

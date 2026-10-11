@@ -1,6 +1,7 @@
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { getOrCreateDiscoveredCar } from "@raceiq/backend-core/db/discovered-cars";
-import { getOrCreateDiscoveredTrack } from "@raceiq/backend-core/db/discovered-tracks";
+import { registerAcEvoCar } from "@raceiq/backend-core/db/discovered-cars";
+import { registerAcEvoTrack } from "@raceiq/backend-core/db/discovered-tracks";
+import type { SessionIdentity } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import type { LapDetectorOptions } from "@raceiq/backend-core/lap-detection/types";
 import { KunosLapDetector } from "@raceiq/backend-core/games/kunos/lap-detector";
 import { classifyKunosTrackLimits } from "@raceiq/telemetry-core/processor/kunos-policy";
@@ -15,41 +16,17 @@ export class LapDetectorAcEvo extends KunosLapDetector {
     super(opts, LAP_DETECTOR_AC_EVO_ID, "[AC Evo Lap Detector]");
   }
 
-  /**
-   * AC Evo has no stable car ordinals. Register unresolved shared-memory
-   * model names in discovered_cars to obtain a stable ordinal.
-   */
-  protected resolveCarOrdinal(packet: TelemetryPacket): number | Promise<number> {
-    if (packet.gameId !== "ac-evo" || !packet.acEvoIdentity) return packet.CarOrdinal;
-    return getOrCreateDiscoveredCar(packet.gameId, packet.acEvoIdentity.carName || packet.carModelName || "");
+  protected async resolveSessionIdentity(packet: TelemetryPacket): Promise<SessionIdentity | undefined> {
+    if (packet.gameId !== "ac-evo" || !packet.acEvoIdentity) return undefined;
+    const [carId, trackId] = await Promise.all([
+      registerAcEvoCar(packet.acEvoIdentity.carName || packet.carModelName || ""),
+      registerAcEvoTrack(packet.acEvoIdentity.trackName, packet.acEvoIdentity.trackConfiguration),
+    ]);
+    return carId && trackId ? { carId, trackId } : undefined;
   }
 
-  protected resolveTrackOrdinal(packet: TelemetryPacket): number | Promise<number> {
-    if (packet.gameId !== "ac-evo" || !packet.acEvoIdentity) return packet.TrackOrdinal;
-    return getOrCreateDiscoveredTrack(
-      packet.gameId,
-      packet.acEvoIdentity.trackName,
-      packet.acEvoIdentity.trackConfiguration,
-    );
-  }
   protected isOpenRoute(packet: TelemetryPacket): boolean {
     return isAcEvoTouristLayout(packet);
-  }
-
-  protected async backfillSessionIdentifiers(packet: TelemetryPacket): Promise<void> {
-    const session = this.session!;
-    const nextTrack = packet.TrackOrdinal;
-    const nextCar = packet.CarOrdinal;
-    const trackChanged = nextTrack >= 0 && nextTrack !== session.trackOrdinal;
-    const carChanged = nextCar >= 0 && nextCar !== session.carOrdinal;
-    if (!trackChanged && !carChanged) return;
-    if (trackChanged) session.trackOrdinal = nextTrack;
-    if (carChanged) session.carOrdinal = nextCar;
-    await this.db.updateSessionCarTrack(
-      session.sessionId,
-      session.carOrdinal,
-      session.trackOrdinal,
-    );
   }
 
   protected classifyTrackLimits(packets: TelemetryPacket[]): "track limits" | null {

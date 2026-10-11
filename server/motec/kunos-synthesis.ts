@@ -1,6 +1,7 @@
-import { findChannel, type LdChannel, type LdLog } from "./ld";
+import type { LdChannel, LdLog } from "./ld";
+import { findChannel } from "./ld";
 import { fitLapToTrack } from "../tracks/calibration";
-import { getTrackOutlineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { getTrackOutlineById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 
 export const MOTEC_SYNTH_HZ = 60;
 export const MOTEC_STEER_LOCK_DEG = 240;
@@ -165,8 +166,8 @@ function alignPathWindowToTrack(path: DeadReckonedPath, start: number, endExclus
   }
 }
 
-export function alignPathToTrack(path: DeadReckonedPath, lapIndexOf: Int32Array, gameId: "acc" | "ac-evo", trackOrdinal: number, anchorLeadingAtEnd: boolean): void {
-  const outline = getTrackOutlineByOrdinal(trackOrdinal, gameId);
+export function alignPathToTrack(path: DeadReckonedPath, lapIndexOf: Int32Array, gameId: "acc" | "ac-evo", trackId: string, anchorLeadingAtEnd: boolean): void {
+  const outline = getTrackOutlineById(trackId, gameId);
   if (!outline || outline.length < 2 || path.x.length === 0) return;
   let start = 0;
   for (let i = 1; i <= path.x.length; i++) {
@@ -199,7 +200,7 @@ export function lapWindows(beacons: number[], duration: number): Array<[number, 
   return windows;
 }
 
-export function prepareKunosMotecCapture(log: LdLog, beacons: number[], profile: { gameId: "acc" | "ac-evo"; trackOrdinal: number } = { gameId: "acc", trackOrdinal: -1 }): PreparedKunosMotecCapture {
+export function prepareKunosMotecCapture(log: LdLog, beacons: number[], profile: { gameId: "acc" | "ac-evo"; trackId?: string } = { gameId: "acc" }): PreparedKunosMotecCapture {
   const dt = 1 / MOTEC_SYNTH_HZ;
   if (!(log.duration > 0)) throw new Error("MoTeC log has no usable duration");
   const frameCount = Math.max(1, Math.floor(log.duration * MOTEC_SYNTH_HZ));
@@ -250,7 +251,7 @@ export function prepareKunosMotecCapture(log: LdLog, beacons: number[], profile:
   const reconstructedHeading = profile.gameId === "ac-evo" && yawCh
     ? reconstructYawHeading(yawCh, frameCount, dt, windows, closedLapMask) : undefined;
   const path = deadReckonPath(speedKmh, yawRate, lateralG, lapIndexOf, dt, yawCh?.unit ?? "", reconstructedHeading, closedLapMask);
-  alignPathToTrack(path, lapIndexOf, profile.gameId, profile.trackOrdinal, windows.length > 1);
+  if (profile.trackId !== undefined) alignPathToTrack(path, lapIndexOf, profile.gameId, profile.trackId, windows.length > 1);
   return { frameCount, dt, windows, lapIndexOf, sessionDistanceM, lapDistanceM, lapLengthM, path, speedKmh, throttle, brake, clutch, steerDegrees, rpm, gear, lateralG, longitudinalG, yawRate, fuel, tc, abs, brakeTemperature, tyrePressure, tyreTemperature, suspensionTravel, suspensionTravelUnits: findChannel(log, "SUS_TRAVEL_LF")?.unit ?? "", wheelSpeed, missingChannels };
 }
 

@@ -4,7 +4,7 @@ export type SeededGame = {
   gameId: "fm-2023" | "f1-2025" | "acc" | "ac-evo" | "iracing";
   prefix: "fm23" | "f125" | "acc" | "ac-evo" | "iracing";
   name: string;
-  trackOrdinal: number;
+  trackId: string;
   trackName: string;
   supportedFeatures: readonly SeededFeature[];
   unsupportedFeatures: readonly SeededFeature[];
@@ -35,7 +35,7 @@ export const SEEDED_GAME_CASES: readonly SeededGame[] = [
     gameId: "fm-2023",
     prefix: "fm23",
     name: "Forza Motorsport 2023",
-    trackOrdinal: 5,
+    trackId: "5",
     trackName: "Road America",
     supportedFeatures: [...BASE_FEATURES, ...DRIVER_FEATURES, ...SETUP_FEATURES],
     unsupportedFeatures: [...EXPERIMENT_FEATURES],
@@ -44,7 +44,7 @@ export const SEEDED_GAME_CASES: readonly SeededGame[] = [
     gameId: "f1-2025",
     prefix: "f125",
     name: "F1 2025",
-    trackOrdinal: 19,
+    trackId: "19",
     trackName: "Autodromo Hermanos Rodriguez",
     supportedFeatures: [...BASE_FEATURES, ...DRIVER_FEATURES, ...SETUP_FEATURES, ...EXPERIMENT_FEATURES],
     unsupportedFeatures: [],
@@ -53,7 +53,7 @@ export const SEEDED_GAME_CASES: readonly SeededGame[] = [
     gameId: "acc",
     prefix: "acc",
     name: "Assetto Corsa Competizione",
-    trackOrdinal: 2,
+    trackId: "2",
     trackName: "Brands Hatch",
     supportedFeatures: [...BASE_FEATURES, ...DRIVER_FEATURES, ...SETUP_FEATURES, ...EXPERIMENT_FEATURES],
     unsupportedFeatures: [],
@@ -62,7 +62,7 @@ export const SEEDED_GAME_CASES: readonly SeededGame[] = [
     gameId: "ac-evo",
     prefix: "ac-evo",
     name: "Assetto Corsa EVO",
-    trackOrdinal: 2,
+    trackId: "2",
     trackName: "Brands Hatch",
     supportedFeatures: [...BASE_FEATURES, ...DRIVER_FEATURES, ...SETUP_FEATURES, ...EXPERIMENT_FEATURES],
     unsupportedFeatures: [],
@@ -71,7 +71,7 @@ export const SEEDED_GAME_CASES: readonly SeededGame[] = [
     gameId: "iracing",
     prefix: "iracing",
     name: "iRacing",
-    trackOrdinal: 192,
+    trackId: "192",
     trackName: "Daytona International Speedway",
     supportedFeatures: BASE_FEATURES,
     unsupportedFeatures: [...DRIVER_FEATURES, ...SETUP_FEATURES, ...EXPERIMENT_FEATURES],
@@ -101,9 +101,9 @@ function routeFor(game: SeededGame, feature: SeededFeature): Omit<SeededRouteCas
     case "analyse":
       return { path: `/${game.prefix}/sessions/analyse` };
     case "track-info":
-      return { path: `/${game.prefix}/tracks/${game.trackOrdinal}/info`, trackHeading: game.trackName };
+      return { path: `/${game.prefix}/tracks/${encodeURIComponent(game.trackId)}/info`, trackHeading: game.trackName };
     case "track-laps":
-      return { path: `/${game.prefix}/tracks/${game.trackOrdinal}/laps`, trackHeading: game.trackName };
+      return { path: `/${game.prefix}/tracks/${encodeURIComponent(game.trackId)}/laps`, trackHeading: game.trackName };
     default:
       return { path: `/${game.prefix}/${feature}` };
   }

@@ -17,7 +17,6 @@ import { computeRecap } from "@raceiq/backend-core/lap-analysis/recap";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
-import { getLMUCar, getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { backfillRaceResults, reconcileSessionResult, RACE_RESULT_PROCESSOR_ID } from "@raceiq/backend-core/race-results/reconcile";
 import { getRaceResultAggregate, getRecentRaceResults } from "@raceiq/backend-core/race-results/aggregates";
 import { recoverDeletedSessions } from "@raceiq/backend-core/telemetry/live-pipeline";
@@ -57,14 +56,10 @@ export const sessionRoutes = new Hono()
     const data = await getSessionRecapData(id, gameId);
     if (!data) return c.json({ error: "Session not found" }, 404);
     const adapter = tryGetGame(gameId);
-    const carId = data.session.carId;
-    const trackId = data.session.trackId;
-    const carName = gameId === "lmu" && typeof carId === "string"
-      ? getLMUCar(carId)?.name ?? carId
-      : adapter ? adapter.getCarName(Number(carId)) : resolveCarName(Number(carId), gameId);
-    const trackName = gameId === "lmu" && typeof trackId === "string"
-      ? getLMUTrack(trackId)?.name ?? trackId
-      : adapter ? adapter.getTrackName(Number(trackId)) : resolveTrackName(Number(trackId), gameId);
+    const carId = data.session.carId ?? "";
+    const trackId = data.session.trackId ?? "";
+    const carName = adapter ? adapter.getCarName(carId) : resolveCarName(carId, gameId);
+    const trackName = adapter ? adapter.getTrackName(trackId) : resolveTrackName(trackId, gameId);
     return c.json(computeRecap({ session: data.session, laps: data.laps, carName, trackName, trackLengthM: data.trackLengthM, allTimeBestSec: data.allTimeBestSec, allTimeBestSectors: data.allTimeBestSectors, sectorStarts: data.sectorStarts }));
   })
   .get("/api/sessions/:id/result", zValidator("param", IdParamSchema), zValidator("query", GameIdQuerySchema), async (c) => {
@@ -101,8 +96,6 @@ export const sessionRoutes = new Hono()
   })
   .get("/api/race-results/summary", zValidator("query", z.object({
     gameId: GameIdSchema,
-    carOrdinal: z.coerce.number().int().optional(),
-    trackOrdinal: z.coerce.number().int().optional(),
     carId: z.string().min(1).optional(),
     trackId: z.string().min(1).optional(),
   })), async (c) => c.json(await getRaceResultAggregate(c.req.valid("query"))))

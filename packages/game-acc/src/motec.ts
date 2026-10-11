@@ -1,5 +1,5 @@
 import { getAccCarByModel, getAccCarName } from "@raceiq/game-acc-metadata/racing/cars/acc";
-import { getAccTrackByName, getAccTrackBySetupFolder, getAccTracks } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
+import { getAccTrackByName, getAccTrackBySetupFolder } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
 import {
   convertPreparedKunosMotecPackets,
   type KunosMotecPacketProfile,
@@ -9,9 +9,16 @@ import type { LdLog } from "@raceiq/backend-core/motec/ld";
 import type { MotecCarTrack, MotecCarTrackOverride, MotecConversionResult } from "@raceiq/backend-core/motec/types";
 
 export function resolveAccMotecCarTrack(log: LdLog, override?: MotecCarTrackOverride): MotecCarTrack {
-  const car = override?.carOrdinal !== undefined && override.carOrdinal >= 0 ? { id: override.carOrdinal, name: getAccCarName(override.carOrdinal) } : getAccCarByModel(log.vehicleId);
-  const track = override?.trackOrdinal !== undefined && override.trackOrdinal >= 0 ? getAccTracks().get(override.trackOrdinal) : getAccTrackBySetupFolder(log.venue) ?? getAccTrackByName(log.venue);
-  return { carOrdinal: car?.id ?? -1, trackOrdinal: track?.id ?? -1, carModel: car?.name ?? log.vehicleId, trackName: track?.name ?? log.venue };
+  const car = getAccCarByModel(log.vehicleId);
+  const track = getAccTrackBySetupFolder(log.venue) ?? getAccTrackByName(log.venue);
+  const carId = override?.carId ?? String(car?.id ?? "");
+  const trackId = override?.trackId ?? String(track?.id ?? "");
+  return {
+    carId,
+    trackId,
+    carModel: override?.carName ?? (carId ? getAccCarName(Number(carId)) : log.vehicleId),
+    trackName: override?.trackName ?? track?.name ?? log.venue,
+  };
 }
 export { MOTEC_IMPORT_LIMITATIONS };
 const ACC_MOTEC_PACKET_PROFILE = {
@@ -28,7 +35,7 @@ const ACC_MOTEC_PACKET_PROFILE = {
 export function convertAccMotecToPackets(log: LdLog, beacons: number[], carTrack: MotecCarTrack): MotecConversionResult {
   const prepared = prepareKunosMotecCapture(log, beacons, {
     gameId: "acc",
-    trackOrdinal: carTrack.trackOrdinal,
+    trackId: carTrack.trackId,
   });
   const packets = convertPreparedKunosMotecPackets(
     prepared,

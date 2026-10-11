@@ -17,12 +17,12 @@ export function buildExportCsv(
   driverName?: string,
 ): string {
   const first = telemetry[0] ?? {};
-  const carOrdinal = selectedLap?.carOrdinal ?? first.CarOrdinal ?? "?";
-  const trackOrdinal = selectedLap?.trackOrdinal ?? first.TrackOrdinal ?? "?";
+  const carId = selectedLap?.carId ?? first.CarId ?? "?";
+  const trackId = selectedLap?.trackId ?? first.TrackId ?? "?";
   const header = [
     `# Driver: ${driverName || "Unknown"}`,
-    `# Car: ${carName || `Ordinal ${carOrdinal}`} | CarOrdinal: ${carOrdinal}`,
-    `# Track: ${trackName || `Ordinal ${trackOrdinal}`} | TrackOrdinal: ${trackOrdinal}`,
+    `# Car: ${carName || `ID ${carId}`} | CarId: ${carId}`,
+    `# Track: ${trackName || `ID ${trackId}`} | TrackId: ${trackId}`,
     `# Lap: ${selectedLap?.lapNumber ?? "?"} | LapId: ${selectedLapId} | Time: ${selectedLap ? formatLapTime(selectedLap.lapTime) : "?"} | Session: ${selectedLap?.sessionId ?? "?"} | Game: ${selectedLap?.gameId ?? "?"} | PI: ${selectedLap?.pi ?? "?"} | Valid: ${selectedLap?.isValid ?? "?"}`,
   ].join("\n");
   const csv = [header, Object.keys(first).join(","), ...telemetry.map((packet) => Object.values(packet).join(","))].join("\n");

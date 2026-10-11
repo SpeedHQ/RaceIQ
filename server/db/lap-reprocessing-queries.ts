@@ -1,7 +1,7 @@
 import { cacheDelete } from "./telemetry-replay-storage";
-import { eq } from "drizzle-orm";
+import { eq, or, inArray } from "drizzle-orm";
 import { db } from "./index";
-import { laps, sessions } from "./schema";
+import { laps, sessions, lapMetrics, lapAnalyses, compareAnalyses } from "./schema";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 
 export async function getLapsForSession(sessionId: number): Promise<Array<{
@@ -54,10 +54,11 @@ export async function updateLapRawIndex(
   cacheDelete(lapId);
 }
 
-/** Replace lap rows atomically; cache invalidation follows successful commit. */
+/** Reconcile lap rows atomically, preserving IDs and user-owned fields for matched laps. */
 export async function replaceLapsForSession(
   sessionId: number,
   replacements: ReadonlyArray<{
+    lapId: number | null;
     lapNumber: number;
     lapTime: number;
     isValid: boolean;
@@ -70,38 +71,57 @@ export async function replaceLapsForSession(
     sectors: number[] | null;
     versionIdentity?: TelemetryVersionIdentity;
   }>,
-  sessionIdentity?: { carOrdinal: number; trackOrdinal: number; identity?: { carId?: string | null; trackId?: string | null } },
+  sessionIdentity?: { carId: string; trackId: string },
 ): Promise<void> {
-  const deletedIds = await db.transaction(async (tx) => {
+  const invalidatedIds = await db.transaction(async (tx) => {
+    const matchedIds = new Set(replacements.flatMap(({ lapId }) => lapId === null ? [] : [lapId]));
     const rows = await tx.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
-    const deleted = rows.map(({ id }) => id);
-    if (deleted.length > 0) await tx.delete(laps).where(eq(laps.sessionId, sessionId));
+    const deleted = rows.map(({ id }) => id).filter((id) => !matchedIds.has(id));
+    const invalidated = [...matchedIds];
+    const invalidate = async (ids: readonly number[]) => {
+      for (const id of ids) {
+        await tx.delete(lapMetrics).where(eq(lapMetrics.lapId, id));
+        await tx.delete(lapAnalyses).where(eq(lapAnalyses.lapId, id));
+      }
+      if (ids.length > 0) {
+        await tx.delete(compareAnalyses).where(
+          or(inArray(compareAnalyses.lapAId, ids), inArray(compareAnalyses.lapBId, ids)),
+        );
+      }
+    };
+    await invalidate(rows.map(({ id }) => id));
+    for (const id of deleted) await tx.delete(laps).where(eq(laps.id, id));
     for (const replacement of replacements) {
-      await tx.insert(laps).values({
-        sessionId,
+      const values = {
         lapNumber: replacement.lapNumber,
         lapTime: replacement.lapTime,
         isValid: replacement.isValid,
-        isFavorite: replacement.isFavorite,
         rawByteOffset: replacement.rawByteOffset,
         rawFrameCount: replacement.rawFrameCount,
-        tuneId: replacement.tuneId,
-        notes: replacement.notes,
         invalidReason: replacement.invalidReason,
         sectorTimes: replacement.sectors,
         ...replacement.versionIdentity,
-      });
+      };
+      if (replacement.lapId !== null) {
+        await tx.update(laps).set({ ...values, fuelPerLap: null, tyreWear: null }).where(eq(laps.id, replacement.lapId));
+      } else {
+        const inserted = await tx.insert(laps).values({
+          sessionId,
+          ...values,
+          isFavorite: replacement.isFavorite,
+          tuneId: replacement.tuneId,
+          notes: replacement.notes,
+        }).returning({ id: laps.id }).get();
+        invalidated.push(inserted.id);
+      }
     }
     if (sessionIdentity) {
-      await tx.update(sessions).set({
-        carOrdinal: sessionIdentity.carOrdinal,
-        trackOrdinal: sessionIdentity.trackOrdinal,
-        ...sessionIdentity.identity,
-      }).where(eq(sessions.id, sessionId));
+      await tx.update(sessions).set(sessionIdentity).where(eq(sessions.id, sessionId));
     }
-    return deleted;
+    return { deleted, invalidated };
   });
-  for (const id of deletedIds) cacheDelete(id);
+  for (const id of invalidatedIds.deleted) cacheDelete(id);
+  for (const id of invalidatedIds.invalidated) cacheDelete(id);
 }
 
 

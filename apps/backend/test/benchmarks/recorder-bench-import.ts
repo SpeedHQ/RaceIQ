@@ -11,9 +11,9 @@ import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { LiveTelemetryPipeline } from "@raceiq/backend-core/telemetry/live-pipeline";
 import {
   CapturingDbAdapter,
-  NullSessionRecorderAdapter,
   NullWsAdapter,
-  type SessionIdentity,
+  NullSessionRecorderAdapter,
+  type CapturedSession,
 } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import { initServerGameAdapters } from "../../src/games/init";
 
@@ -35,10 +35,10 @@ export type MemoryImportResult = {
     lapNumber: number;
     lapTime: number;
     isValid: boolean;
-    carId: number;
-    trackId: number;
+    carId: string;
+    trackId: string;
   }[];
-  identity: SessionIdentity | null;
+  session: CapturedSession | null;
 };
 
 /** Production index parser/detector workload with capture and database persistence excluded. */
@@ -113,7 +113,7 @@ export async function runMemoryImport(bytes: Buffer, gameId: GameId): Promise<Me
   await pipeline.flushSessionRecorder();
   return {
     packetCount,
-    identity: db.sessions[0]?.identity ?? null,
+    session: db.sessions[0] ?? null,
     laps: db.laps.map((lap) => {
       const session = db.sessions[lap.sessionId - 1];
       if (!session) throw new Error(`Missing captured session ${lap.sessionId}`);
@@ -121,8 +121,8 @@ export async function runMemoryImport(bytes: Buffer, gameId: GameId): Promise<Me
         lapNumber: lap.lapNumber,
         lapTime: lap.lapTime,
         isValid: lap.isValid,
-        carId: session.carOrdinal,
-        trackId: session.trackOrdinal,
+        carId: session.carId,
+        trackId: session.trackId,
       };
     }),
   };

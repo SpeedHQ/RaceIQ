@@ -24,8 +24,8 @@ describe("GET /api/laps/:id game context", () => {
     const session = await db
       .insert(sessions)
       .values({
-        carOrdinal: 1,
-        trackOrdinal: 1,
+        carId: "1",
+        trackId: "1",
         gameId: "iracing",
         rawFile: null,
       })

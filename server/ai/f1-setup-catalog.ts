@@ -62,9 +62,9 @@ interface TrackCatalogMeta {
 }
 
 /**
- * `trackOrdinal` → catalog metadata. Keys correspond to F1 25 track IDs
- * (see `shared/games/f1-2025/tracks.csv`). Tracks without community data
- * are omitted; tool returns `available: false` for those.
+ * `trackId` → catalog metadata. Keys correspond to F1 25 track IDs
+ * (native ID represented as string; see `shared/games/f1-2025/tracks.csv`).
+ * Tracks without community data are omitted; tool returns `available: false` for those.
  *
  * Bundled at import time instead of via `getF1TrackInfo()` so this module
  * doesn't pull `readFileSync` into the Mastra tool bundle.
@@ -101,13 +101,16 @@ const PACKET_TO_CATALOG_KEY: Record<string, string> = {
   offThrottle: "diffOffThrottle",
 };
 
-export function getCatalogFolderForTrack(trackOrdinal: number): string | undefined {
-  return TRACK_CATALOG[trackOrdinal]?.folder;
+export function getCatalogFolderForTrack(trackId: string): string | undefined {
+  if (!/^(0|[1-9]\d*)$/.test(trackId)) return undefined;
+  return TRACK_CATALOG[Number(trackId)]?.folder;
 }
 
-export function getCatalogDisplayName(trackOrdinal: number): string | undefined {
-  return TRACK_CATALOG[trackOrdinal]?.displayName;
+export function getCatalogDisplayName(trackId: string): string | undefined {
+  if (!/^(0|[1-9]\d*)$/.test(trackId)) return undefined;
+  return TRACK_CATALOG[Number(trackId)]?.displayName;
 }
+
 
 /**
  * Remap packet-shape setup keys (`onThrottle`, `offThrottle`) onto the
@@ -129,8 +132,9 @@ export function parseLapTime(raw: string): number {
   return parseInt(m[1], 10) * 60 + parseFloat(m[2]);
 }
 
-function loadCatalogEntries(trackOrdinal: number): CatalogEntry[] {
-  const meta = TRACK_CATALOG[trackOrdinal];
+function loadCatalogEntries(trackId: string): CatalogEntry[] {
+  if (!/^(0|[1-9]\d*)$/.test(trackId)) return [];
+  const meta = TRACK_CATALOG[Number(trackId)];
   if (!meta) return [];
   const raw = meta.raw as Array<Omit<CatalogEntry, "lapTimeSeconds">>;
   if (!Array.isArray(raw)) return [];
@@ -138,11 +142,11 @@ function loadCatalogEntries(trackOrdinal: number): CatalogEntry[] {
 }
 
 export function topCatalogReferences(
-  trackOrdinal: number,
+  trackId: string,
   limit = 5,
   currentSetup?: F1Setup,
 ): CatalogReference[] {
-  const entries = loadCatalogEntries(trackOrdinal);
+  const entries = loadCatalogEntries(trackId);
   entries.sort((a, b) => a.lapTimeSeconds - b.lapTimeSeconds);
 
   return entries.slice(0, limit).map((e, i) => ({

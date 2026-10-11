@@ -140,8 +140,8 @@ export function buildAnalystPrompt(
     lapNumber: number;
     lapTime: number;
     isValid: boolean;
-    carOrdinal?: number;
-    trackOrdinal?: number;
+    carId: string;
+    trackId: string;
     gameId?: GameId;
   },
   packets: TelemetryPacket[],
@@ -159,8 +159,11 @@ export function buildAnalystPrompt(
   /** Versioned deterministic insights loaded from the per-lap cache. */
   insights: LapInsight[] = [],
 ): string {
-  const carName = resolveCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0, lap.gameId);
-  const trackName = resolveTrackName(lap.trackOrdinal ?? 0, lap.gameId);
+  const carIdentity = lap.carId;
+  const trackIdentity = lap.trackId;
+  const carName = resolveCarName(carIdentity, lap.gameId);
+  const specs = lap.gameId === "fm-2023" ? fmCarSpecsCatalog.get(Number(carIdentity)) : undefined;
+  const trackName = resolveTrackName(trackIdentity, lap.gameId);
 
   // F1 uses adapter-specific compact context; generic export is Forza-specific.
   const exportText = lap.gameId === "f1-2025"
@@ -252,7 +255,7 @@ export function buildAnalystPrompt(
 
   const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
 
-  const { slug } = resolveTrack(gameId, lap.trackOrdinal);
+  const { slug } = resolveTrack(gameId, trackIdentity);
 
   // Track grounding: the model invents corner names (e.g. "Bit-Kurve" at Lusail)
   // when nothing else constrains it. Build a whitelist from whatever named
@@ -266,8 +269,6 @@ export function buildAnalystPrompt(
       : `\n--- Corner Naming ---\nNo named corner data is available for this track. Refer to corners as "T1", "T2", … based on sequence. Do NOT invent corner names.\n`;
 
   // Get car specs for additional context
-  const carOrdinal = lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0;
-  const specs = fmCarSpecsCatalog.get(carOrdinal);
   let carDetailsText = `Car: ${carName}`;
   if (specs) {
     carDetailsText += `\nClass: ${specs.division}`;

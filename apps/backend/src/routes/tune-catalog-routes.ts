@@ -8,19 +8,18 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import { getCommunityTunes } from "@raceiq/backend-core/db/community-tune-queries";
 import { syncCommunityTunes } from "@raceiq/backend-core/tunes/community-sync";
 import { ensureLaptimesReady, getLaptimes, syncLaptimes } from "@raceiq/backend-core/sync/laptimes";
-import { communityRowToCatalog, CarOrdinalQuerySchema } from "./tune-shared";
+import { communityRowToCatalog, CarIdQuerySchema } from "./tune-shared";
 
 
 const AssignmentParamsSchema = z.object({
-  carOrdinal: z.string().transform(val => parseInt(val, 10)),
-  trackOrdinal: z.string().transform(val => parseInt(val, 10)),
+  carKey: z.string().min(1),
+  trackKey: z.string().min(1),
 });
-
 
 const SetAssignmentSchema = z.object({
   gameId: GameIdSchema,
-  carOrdinal: z.number().int(),
-  trackOrdinal: z.number().int(),
+  carId: z.string().min(1),
+  trackId: z.string().min(1),
   tuneId: z.number().int(),
 });
 
@@ -36,18 +35,13 @@ const LapTuneSchema = z.object({
 
 export const tuneCatalogRoutes = new Hono()
   .get("/api/catalog/tunes",
-    zValidator("query", CarOrdinalQuerySchema),
+    zValidator("query", CarIdQuerySchema),
     async (c) => {
-      const { carOrdinal } = c.req.valid("query");
+      const { carId } = c.req.valid("query");
       const gameId = c.req.header("x-game-id") as GameId | undefined;
-
       const communityRows = gameId ? await getCommunityTunes(gameId) : [];
       const tunes = communityRows.map(communityRowToCatalog);
-
-      if (carOrdinal !== undefined) {
-        return c.json(tunes.filter((t) => t.carOrdinal === carOrdinal));
-      }
-      return c.json(tunes);
+      return c.json(carId ? tunes.filter((t) => t.carId === carId) : tunes);
     }
   )
 
@@ -74,47 +68,39 @@ export const tuneCatalogRoutes = new Hono()
 
   // ─── Assignments ─────────────────────────────────────────────────────────────
 
-  // GET /api/tune-assignments — list all, optional ?gameId= and ?carOrdinal= filter
   .get("/api/tune-assignments",
-    zValidator("query", CarOrdinalQuerySchema),
+    zValidator("query", CarIdQuerySchema),
     async (c) => {
-      const { gameId, carOrdinal } = c.req.valid("query");
-      return c.json(await getTuneAssignments({ gameId, carOrdinal }));
+      const { gameId, carId } = c.req.valid("query");
+      return c.json(await getTuneAssignments({ gameId, carId }));
     }
   )
-
-  // GET /api/tune-assignments/:carOrdinal/:trackOrdinal — get specific assignment
-  .get("/api/tune-assignments/:carOrdinal/:trackOrdinal",
+  .get("/api/tune-assignments/:carKey/:trackKey",
     zValidator("param", AssignmentParamsSchema),
     zValidator("query", AssignmentQuerySchema),
     async (c) => {
-      const { carOrdinal, trackOrdinal } = c.req.valid("param");
+      const { carKey, trackKey } = c.req.valid("param");
       const { gameId } = c.req.valid("query");
-      const assignment = await getTuneAssignment(gameId, carOrdinal, trackOrdinal);
+      const assignment = await getTuneAssignment(gameId, carKey, trackKey);
       if (!assignment) return c.json({ error: "Assignment not found" }, 404);
       return c.json(assignment);
     }
   )
-
-  // PUT /api/tune-assignments — set/update assignment
   .put("/api/tune-assignments",
     zValidator("json", SetAssignmentSchema),
     async (c) => {
-      const { gameId, carOrdinal, trackOrdinal, tuneId } = c.req.valid("json");
-      await setTuneAssignment(gameId, carOrdinal, trackOrdinal, tuneId);
-      const assignment = await getTuneAssignment(gameId, carOrdinal, trackOrdinal);
-      return c.json(assignment);
+      const { gameId, carId, trackId, tuneId } = c.req.valid("json");
+      await setTuneAssignment(gameId, carId, trackId, tuneId);
+      return c.json(await getTuneAssignment(gameId, carId, trackId));
     }
   )
-
-  // DELETE /api/tune-assignments/:carOrdinal/:trackOrdinal — remove assignment
-  .delete("/api/tune-assignments/:carOrdinal/:trackOrdinal",
+  .delete("/api/tune-assignments/:carKey/:trackKey",
     zValidator("param", AssignmentParamsSchema),
     zValidator("query", AssignmentQuerySchema),
     async (c) => {
-      const { carOrdinal, trackOrdinal } = c.req.valid("param");
+      const { carKey, trackKey } = c.req.valid("param");
       const { gameId } = c.req.valid("query");
-      const deleted = await deleteTuneAssignment(gameId, carOrdinal, trackOrdinal);
+      const deleted = await deleteTuneAssignment(gameId, carKey, trackKey);
       if (!deleted) return c.json({ error: "Assignment not found" }, 404);
       return c.json({ success: true });
     }

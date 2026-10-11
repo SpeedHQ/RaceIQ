@@ -12,10 +12,8 @@ type StoredLapMetaRow = {
   pi: number | null;
   carSetup: string | null;
   createdAt: string;
-  carOrdinal: number;
-  trackOrdinal: number;
-  carId: string | null;
-  trackId: string | null;
+  carId: string;
+  trackId: string;
   tuneId: number | null;
   tuneName: string | null;
   gameId: string;
@@ -97,8 +95,8 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
 
   return {
     ...base,
-    carId: carId ?? row.carOrdinal,
-    trackId: trackId ?? row.trackOrdinal,
+    carId,
+    trackId,
     ...versionIdentity,
     ...frameCount,
     isValid: Boolean(isValid),

@@ -10,7 +10,7 @@ export async function gameRows<T>(request: APIRequestContext, resource: "laps" |
 }
 
 export async function getAlternateSeededLap(request: APIRequestContext, initialLap: SeededLapTarget): Promise<LapMeta> {
-  const alternate = (await gameRows<LapMeta>(request, "laps")).find((lap) => lap.id !== initialLap.id && lap.trackOrdinal === initialLap.trackOrdinal && lap.carOrdinal === initialLap.carOrdinal);
+  const alternate = (await gameRows<LapMeta>(request, "laps")).find((lap) => lap.id !== initialLap.id && lap.trackId === initialLap.trackId && lap.carId === initialLap.carId);
   if (!alternate) throw new Error("Missing alternate seeded FM lap");
   return alternate;
 }

@@ -7,7 +7,7 @@ import { driverProfileRuns } from "@raceiq/backend-core/db/schema";
 import { createDriverProfileRun, updateDriverProfileRun, getDriverProfileRun, listDriverProfileRuns, findDriverProfileRunByScopePool } from "@raceiq/backend-core/db/driver-profile-queries";
 
 const SETTINGS_PATH = `${process.env.DATA_DIR ?? "./data"}/settings.json`;
-const scope = { gameId: "fm-2023" as const, carOrdinal: 42, trackOrdinal: 7 };
+const scope = { gameId: "fm-2023" as const, carId: "Car|\"42\"", trackId: "Track,7" };
 
 let originalSettings: string | null = null;
 
@@ -45,7 +45,7 @@ describe("driver profile run persistence", () => {
 
     expect(await getDriverProfileRun(id)).toMatchObject({
       id,
-      scopeKey: "fm-2023|42|7",
+      scopeKey: `fm-2023|${JSON.stringify([scope.carId, scope.trackId])}`,
       status: "queued",
       poolKey: "pool-a",
       model: "model-a",
@@ -54,17 +54,17 @@ describe("driver profile run persistence", () => {
     });
 
     await expect(
-      updateDriverProfileRun(id, "fm-2023|other|scope", "queued", { status: "running" }),
+      updateDriverProfileRun(id, `fm-2023|${JSON.stringify(["other", "scope"])}`, "queued", { status: "running" }),
     ).rejects.toThrow("was not owned");
     await expect(
-      updateDriverProfileRun(id, "fm-2023|42|7", "queued", { status: "succeeded" }),
+      updateDriverProfileRun(id, `fm-2023|${JSON.stringify([scope.carId, scope.trackId])}`, "queued", { status: "succeeded" }),
     ).rejects.toThrow("Invalid driver profile run transition");
 
-    await updateDriverProfileRun(id, "fm-2023|42|7", "queued", {
+    await updateDriverProfileRun(id, `fm-2023|${JSON.stringify([scope.carId, scope.trackId])}`, "queued", {
       status: "running",
       startedAt: "2026-07-29T12:00:00.000Z",
     });
-    await updateDriverProfileRun(id, "fm-2023|42|7", "running", {
+    await updateDriverProfileRun(id, `fm-2023|${JSON.stringify([scope.carId, scope.trackId])}`, "running", {
       status: "succeeded",
       fingerprint: '{"pace":1}',
       plan: '{"summary":"keep braking"}',
@@ -100,7 +100,7 @@ describe("driver profile run persistence", () => {
   test("lists history newest first within a scope", async () => {
     const oldest = await createDriverProfileRun(scope, { poolKey: "oldest", createdAt: "2026-07-29 12:00:00" });
     const newest = await createDriverProfileRun(scope, { poolKey: "newest", createdAt: "2026-07-29T12:01:00.000Z" });
-    await createDriverProfileRun({ gameId: "fm-2023", carOrdinal: 99, trackOrdinal: 7 }, { poolKey: "other-scope" });
+    await createDriverProfileRun({ gameId: "fm-2023", carId: "99", trackId: "7" }, { poolKey: "other-scope" });
 
     const history = await listDriverProfileRuns(scope);
     expect(history.map((run) => run.id)).toEqual([newest, oldest]);

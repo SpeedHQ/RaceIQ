@@ -8,7 +8,7 @@ const games = [
   { gameId: "ac-evo", prefix: "ac-evo" },
 ] as const;
 
-async function createSetup(page: Page, gameId: GameId, carOrdinal: number) {
+async function createSetup(page: Page, gameId: GameId, carId: string) {
   const name = `Deletion regression ${gameId} ${crypto.randomUUID()}`;
   const settings = gameId === "fm-2023" ? {
     tires: { frontPressure: 30, rearPressure: 30 },
@@ -22,7 +22,7 @@ async function createSetup(page: Page, gameId: GameId, carOrdinal: number) {
     brakes: { balance: 55, pressure: 100 },
   } : {};
   const response = await page.request.post("/api/tunes", {
-    data: { gameId, carOrdinal, name, author: "Deletion regression", category: "road", settings },
+    data: { gameId, carId, name, author: "Deletion regression", category: "road", settings },
   });
   expect(response.status()).toBe(201);
   const setup = await response.json() as { id: number; name: string };
@@ -60,9 +60,9 @@ for (const { gameId, prefix } of games) {
       imports.push(await importDisposableLap(page.request, gameId, `setup-delete-second-${gameId}`, source.id));
       const importedIds = imports.flatMap((item) => item.lapIds);
       const beforeLaps = (await lapsFor(page.request, gameId)).filter((lap) => importedIds.includes(lap.id));
-      const carOrdinal = beforeLaps[0]?.carOrdinal;
-      if (carOrdinal == null) throw new Error(`${gameId} disposable lap has no car ordinal`);
-      const setup = await createSetup(page, gameId, carOrdinal);
+      const carId = beforeLaps[0]?.carId;
+      if (!carId) throw new Error(`${gameId} disposable lap has no car ID`);
+      const setup = await createSetup(page, gameId, carId);
       setupId = setup.id;
       for (const lap of beforeLaps) {
         const response = await page.request.patch(`/api/laps/${lap.id}/tune`, { data: { tuneId: setup.id } });

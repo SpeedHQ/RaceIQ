@@ -1,7 +1,7 @@
 import type { GameAdapter } from "@raceiq/shared/games/types";
 
-const carNames = new Map<number, string>();
-const trackNames = new Map<number, string>();
+const carNames = new Map<string, string>();
+const trackNames = new Map<string, string>();
 
 /**
  * iRacing publishes car and track identity in its session-info block instead
@@ -15,22 +15,22 @@ export function rememberIRacingIdentity(identity: {
   trackName: string;
 }): void {
   if (identity.carId >= 0 && identity.carName) {
-    carNames.set(identity.carId, identity.carName);
+    carNames.set(String(identity.carId), identity.carName);
   }
   if (identity.trackId >= 0 && identity.trackName) {
-    trackNames.set(identity.trackId, identity.trackName);
+    trackNames.set(String(identity.trackId), identity.trackName);
   }
 }
 
 export function injectDiscoveredIRacingIdentity(
-  cars: Iterable<{ ordinal: number; name: string }>,
-  tracks: Iterable<{ ordinal: number; name: string }>,
+  cars: Iterable<{ carId: string; name: string }>,
+  tracks: Iterable<{ trackId: string; name: string }>,
 ): void {
   for (const car of cars) {
-    carNames.set(car.ordinal, car.name);
+    carNames.set(car.carId, car.name);
   }
   for (const track of tracks) {
-    trackNames.set(track.ordinal, track.name);
+    trackNames.set(track.trackId, track.name);
   }
 }
 
@@ -85,12 +85,12 @@ export const iracingAdapter: GameAdapter = {
   suspensionThresholds: { values: [25, 65, 85] },
   tirePressureOptimal: { min: 24, max: 32 },
 
-  getCarName(ordinal: number): string {
-    return carNames.get(ordinal) ?? `iRacing car #${ordinal}`;
+  getCarName(carId: string): string {
+    return carNames.get(carId) ?? `iRacing car #${carId}`;
   },
 
-  getTrackName(ordinal: number): string {
-    return trackNames.get(ordinal) ?? `iRacing track #${ordinal}`;
+  getTrackName(trackId: string): string {
+    return trackNames.get(trackId) ?? `iRacing track #${trackId}`;
   },
 
   carForwardOffset(yaw) {

@@ -75,22 +75,22 @@ export function HomePageContainer() {
       const best = valid.length > 0 ? Math.min(...valid.map((l) => l.lapTime)) : 0;
       const avgTime = valid.length > 0 ? valid.reduce((s, l) => s + l.lapTime, 0) / valid.length : 0;
       const totalTime = laps.reduce((s, l) => s + (l.lapTime > 0 ? l.lapTime : 0), 0);
-      const tracks = new Set(laps.map((l) => l.trackOrdinal).filter(Boolean)).size;
-      const cars = new Set(laps.map((l) => l.carOrdinal).filter(Boolean)).size;
+      const tracks = new Set(laps.map((l) => l.trackId).filter(Boolean)).size;
+      const cars = new Set(laps.map((l) => l.carId).filter(Boolean)).size;
       const sessions = new Set(laps.map((l) => l.sessionId).filter(Boolean)).size;
-      const carCounts = new Map<number, number>();
+      const carCounts = new Map<string, number>();
       for (const l of laps) {
-        if (l.carOrdinal) carCounts.set(l.carOrdinal, (carCounts.get(l.carOrdinal) ?? 0) + 1);
+        if (l.carId) carCounts.set(l.carId, (carCounts.get(l.carId) ?? 0) + 1);
       }
-      let favCarOrd: number | null = null;
+      let favCarId: string | null = null;
       let favCarCount = 0;
-      for (const [ord, count] of carCounts) {
+      for (const [id, count] of carCounts) {
         if (count > favCarCount) {
-          favCarOrd = ord;
+          favCarId = id;
           favCarCount = count;
         }
       }
-      return { laps: laps.length, valid: valid.length, best, avgTime, totalTime, tracks, cars, sessions, favCarOrd, favCarCount };
+      return { laps: laps.length, valid: valid.length, best, avgTime, totalTime, tracks, cars, sessions, favCarId, favCarCount };
     }
 
     const gameLaps = gameId ? allLaps.filter((l) => l.gameId === gameId) : allLaps;
@@ -104,35 +104,35 @@ export function HomePageContainer() {
   }, [allLaps, gameId, todayStart, weekAgo, monthAgo, yearAgo]);
 
   const nameTargets = useMemo(() => {
-    const cars = new Map<string, { ordinal: number; gameId: NonNullable<SessionMeta["gameId"]> }>();
-    const tracks = new Map<string, { ordinal: number; gameId: NonNullable<SessionMeta["gameId"]> }>();
+    const cars = new Map<string, { id: string; gameId: NonNullable<SessionMeta["gameId"]> }>();
+    const tracks = new Map<string, { id: string; gameId: NonNullable<SessionMeta["gameId"]> }>();
     for (const session of recentSessions) {
       if (!session.gameId) continue;
-      if (session.carOrdinal != null) cars.set(`${session.gameId}:${session.carOrdinal}`, { ordinal: session.carOrdinal, gameId: session.gameId });
-      if (session.trackOrdinal != null) tracks.set(`${session.gameId}:${session.trackOrdinal}`, { ordinal: session.trackOrdinal, gameId: session.gameId });
+      if (session.carId != null) cars.set(`${session.gameId}:${session.carId}`, { id: session.carId, gameId: session.gameId });
+      if (session.trackId != null) tracks.set(`${session.gameId}:${session.trackId}`, { id: session.trackId, gameId: session.gameId });
     }
-    return { cars: [...cars.values()].sort((a, b) => String(a.gameId).localeCompare(String(b.gameId)) || a.ordinal - b.ordinal), tracks: [...tracks.values()].sort((a, b) => String(a.gameId).localeCompare(String(b.gameId)) || a.ordinal - b.ordinal) };
+    return { cars: [...cars.values()], tracks: [...tracks.values()] };
   }, [recentSessions]);
   const carNameQueries = useQueries({
     queries: nameTargets.cars.map((target) => ({
-      queryKey: [...queryKeys.carName(target.ordinal), target.gameId],
+      queryKey: [...queryKeys.carName(target.id), target.gameId],
       queryFn: async () => {
-        const response = await client.api["car-name"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(target.ordinal)) }, query: { gameId: target.gameId } });
+        const response = await client.api["car-name"][":carId"].$get({ param: { carId: encodeURIComponent(target.id) }, query: { gameId: target.gameId } } as never);
         return response.ok ? response.text() : "";
       },
     })),
   });
   const trackNameQueries = useQueries({
     queries: nameTargets.tracks.map((target) => ({
-      queryKey: [...queryKeys.trackName(target.ordinal), target.gameId],
+      queryKey: [...queryKeys.trackName(target.id), target.gameId],
       queryFn: async () => {
-        const response = await client.api["track-name"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(target.ordinal)) }, query: { gameId: target.gameId } });
+        const response = await client.api["track-name"][":trackId"].$get({ param: { trackId: encodeURIComponent(target.id) }, query: { gameId: target.gameId } } as never);
         return response.ok ? response.text() : "";
       },
     })),
   });
-  const carNames = useMemo(() => Object.fromEntries(nameTargets.cars.map((target, index) => [`${target.gameId}:${target.ordinal}`, carNameQueries[index]?.data ?? ""])), [carNameQueries, nameTargets.cars]);
-  const trackNames = useMemo(() => Object.fromEntries(nameTargets.tracks.map((target, index) => [`${target.gameId}:${target.ordinal}`, trackNameQueries[index]?.data ?? ""])), [nameTargets.tracks, trackNameQueries]);
+  const carNames = useMemo(() => Object.fromEntries(nameTargets.cars.map((target, index) => [`${target.gameId}:${target.id}`, carNameQueries[index]?.data ?? ""])), [carNameQueries, nameTargets.cars]);
+  const trackNames = useMemo(() => Object.fromEntries(nameTargets.tracks.map((target, index) => [`${target.gameId}:${target.id}`, trackNameQueries[index]?.data ?? ""])), [trackNameQueries, nameTargets.tracks]);
   const copyRecap = () => {
     if (!latestRecap) return;
     navigator.clipboard.writeText(buildRecapText(latestRecap)).then(() => {

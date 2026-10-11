@@ -149,6 +149,7 @@
     "./session-capture/migrate-captures": "./session-capture/migrate-captures.ts",
     "./session-capture/recorder": "./session-capture/recorder.ts",
     "./session-capture/reprocess": "./session-capture/reprocess.ts",
+    "./session-capture/reconcile": "./session-capture/reconcile.ts",
     "./session-capture/session-cleanup": "./session-capture/session-cleanup.ts",
     "./session-capture/source-loader": "./session-capture/source-loader.ts",
     "./session-capture/sparse-recorder": "./session-capture/sparse-recorder.ts",

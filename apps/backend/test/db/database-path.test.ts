@@ -92,7 +92,7 @@ async function createFixture(databasePath: string, profileName: string, throughV
         args: [${JSON.stringify(profileName)}],
       });
       await client.execute(
-        "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, raw_file) VALUES (1, 10, 20, 'iracing', 'seed.bin.gz')",
+        "INSERT INTO sessions (id, car_id, track_id, game_id, raw_file) VALUES (1, '10', '20', 'iracing', 'seed.bin.gz')",
       );
     } finally {
       client.close();
@@ -156,11 +156,11 @@ function expectImportedRecording(databasePath: string, existingIds: number[] = [
   const database = new Database(databasePath, { readonly: true });
   try {
     const rows = database.query(
-      "SELECT s.id AS sessionId, s.game_id AS gameId, s.car_ordinal AS carOrdinal, s.track_ordinal AS trackOrdinal, l.lap_number AS lapNumber, l.lap_time AS lapTime, l.is_valid AS isValid FROM laps l JOIN sessions s ON s.id = l.session_id WHERE s.car_ordinal = 42 AND s.track_ordinal = 99 ORDER BY l.lap_number",
-    ).all() as Array<{ sessionId: number; gameId: string; carOrdinal: number; trackOrdinal: number; lapNumber: number; lapTime: number; isValid: number }>;
+      "SELECT s.id AS sessionId, s.game_id AS gameId, s.car_id AS carId, s.track_id AS trackId, l.lap_number AS lapNumber, l.lap_time AS lapTime, l.is_valid AS isValid FROM laps l JOIN sessions s ON s.id = l.session_id WHERE s.car_id = '42' AND s.track_id = '99' ORDER BY l.lap_number",
+    ).all() as Array<{ sessionId: number; gameId: string; carId: string; trackId: string; lapNumber: number; lapTime: number; isValid: number }>;
     expect(rows.filter(({ sessionId }) => !existingIds.includes(sessionId)).map(({ sessionId: _sessionId, ...lap }) => lap)).toEqual([
-      { gameId: "iracing", carOrdinal: 42, trackOrdinal: 99, lapNumber: 1, lapTime: 31.917, isValid: 1 },
-      { gameId: "iracing", carOrdinal: 42, trackOrdinal: 99, lapNumber: 2, lapTime: 32.045, isValid: 1 },
+      { gameId: "iracing", carId: "42", trackId: "99", lapNumber: 1, lapTime: 31.917, isValid: 1 },
+      { gameId: "iracing", carId: "42", trackId: "99", lapNumber: 2, lapTime: 32.045, isValid: 1 },
     ]);
   } finally {
     database.close();

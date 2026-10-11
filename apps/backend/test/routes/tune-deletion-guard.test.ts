@@ -9,15 +9,14 @@ const sessionIds: number[] = [];
 
 async function createTune(name: string, gameId = "ac-evo"): Promise<number> {
   const row = await db.insert(tunes).values({
-    gameId, name, author: "test", carOrdinal: 1, category: "race", description: "", settings: "{}",
+    gameId, name, author: "test", carId: "1", category: "race", description: "", settings: "{}",
   }).returning({ id: tunes.id }).get();
   tuneIds.push(row!.id);
   return row!.id;
 }
 
 async function createSession(gameId = "ac-evo"): Promise<number> {
-  const row = await db.insert(sessions).values({ gameId, carOrdinal: 1, trackOrdinal: 2 }).returning({ id: sessions.id }).get();
-  sessionIds.push(row!.id);
+  const row = await db.insert(sessions).values({ gameId, carId: "1", trackId: "2" }).returning({ id: sessions.id }).get();
   return row!.id;
 }
 
@@ -36,7 +35,7 @@ describe("tune deletion guard API", () => {
       { sessionId, tuneId, lapNumber: 1, lapTime: 90, isValid: true },
       { sessionId, tuneId, lapNumber: 2, lapTime: 89, isValid: true },
     ]).returning({ id: laps.id }).all();
-    await db.insert(tuneAssignments).values({ gameId, carOrdinal: 1, trackOrdinal: 2, tuneId }).run();
+    await db.insert(tuneAssignments).values({ gameId, carId: "1", trackId: "2", tuneId }).run();
 
     for (const query of ["", "?confirmInUse=false"]) {
       const response = await tuneResourceRoutes.request(`/api/tunes/${tuneId}${query}`, { method: "DELETE" });
@@ -45,7 +44,7 @@ describe("tune deletion guard API", () => {
         expect(response.status).toBe(409);
         expect((await response.json()).usage).toMatchObject({
           sessions: [{ sessionId, gameId, laps: [{ id: inserted[0].id, lapNumber: 1 }, { id: inserted[1].id, lapNumber: 2 }] }],
-          assignments: [{ gameId, carOrdinal: 1, trackOrdinal: 2 }],
+          assignments: [{ gameId, carId: "1", trackId: "2" }],
         });
       } else {
         expect(response.status).toBe(400);
@@ -63,7 +62,7 @@ describe("tune deletion guard API", () => {
     const otherSessionId = await createSession(otherGameId);
     const linkedLap = await db.insert(laps).values({ sessionId: linkedSessionId, tuneId, lapNumber: 7, lapTime: 91, isValid: true }).returning({ id: laps.id }).get();
     const unrelatedLap = await db.insert(laps).values({ sessionId: otherSessionId, tuneId: unrelatedTuneId, lapNumber: 8, lapTime: 92, isValid: true }).returning({ id: laps.id }).get();
-    await db.insert(tuneAssignments).values({ gameId, carOrdinal: 1, trackOrdinal: 2, tuneId }).run();
+    await db.insert(tuneAssignments).values({ gameId, carId: "1", trackId: "2", tuneId }).run();
 
     const response = await tuneResourceRoutes.request(`/api/tunes/${tuneId}?confirmInUse=true`, { method: "DELETE" });
     expect(response.status).toBe(200);

@@ -1,8 +1,8 @@
 import { lapPath } from "@raceiq/shared/racing/tracks/path";
-import { recordOpenLapTrace } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { recordOpenLapTraceById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { KunosDetectorEngine, type KunosLapCapture } from "@raceiq/telemetry-core/processor/kunos-engine";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import type { DbAdapter } from "../../telemetry/pipeline-ports";
+import type { DbAdapter, SessionIdentity } from "../../telemetry/pipeline-ports";
 import { assessLapRecording } from "@raceiq/telemetry-core/processor/lap-policy";
 import { persistLapMetrics } from "../../lap-analysis/metrics-store";
 import { reconcileAutoExclusionsForLap } from "../../experiments/auto-exclude";
@@ -32,13 +32,7 @@ export class KunosLapDetector implements ILapDetector {
   private readonly onSessionStart?: LapDetectorCallbacks["onSessionStart"];
   private readonly onLapComplete_?: LapDetectorCallbacks["onLapComplete"];
   private currentSession: SessionState | null = null;
-  private lastAcEvoSourceIdentity: {
-    carName: string;
-    trackName: string;
-    trackConfiguration: string;
-    carOrdinal: number;
-    trackOrdinal: number;
-  } | null = null;
+  private lastAcEvoSourceIdentity: TelemetryPacket["acEvoIdentity"] | null = null;
 
   protected constructor(opts: LapDetectorOptions, detectorId: string, loggerLabel: string) {
     this.db = opts.db;
@@ -49,10 +43,11 @@ export class KunosLapDetector implements ILapDetector {
     this.loggerLabel = loggerLabel;
     this.engine = new KunosDetectorEngine({
       createSession: async packet => {
-        const carOrdinal = packet.CarOrdinal;
-        const trackOrdinal = packet.TrackOrdinal;
-        const sessionId = await this.db.insertSession(carOrdinal, trackOrdinal, packet.gameId, packet.acc?.acEvo?.sessionType ?? packet.acc?.sessionType);
-        this.currentSession = { sessionId, carOrdinal, trackOrdinal, carPI: packet.CarPerformanceIndex, gameId: packet.gameId, sessionUID: packet.sessionUID, bestLapTime: 0 };
+        const identity = await this.resolveSessionIdentity(packet);
+        const carId = identity?.carId ?? packet.carId;
+        const trackId = identity?.trackId ?? packet.trackId;
+        const sessionId = await this.db.insertSession(carId, trackId, packet.gameId, packet.acc?.acEvo?.sessionType ?? packet.acc?.sessionType);
+        this.currentSession = { sessionId, carId, trackId, carPI: packet.CarPerformanceIndex, gameId: packet.gameId, sessionUID: packet.sessionUID, bestLapTime: 0 };
       },
       onSessionStarted: async () => { await this.onSessionStart?.(this.currentSession!); },
       backfillSessionIdentifiers: packet => this.backfillSessionIdentifiers(packet),
@@ -67,22 +62,13 @@ export class KunosLapDetector implements ILapDetector {
     const identity = packet.gameId === "ac-evo" ? packet.acEvoIdentity : undefined;
     if (identity) {
       const previous = this.lastAcEvoSourceIdentity;
-      if (
-        previous?.carName === identity.carName &&
-        previous.trackName === identity.trackName &&
-        previous.trackConfiguration === identity.trackConfiguration
-      ) {
-        packet.CarOrdinal = previous.carOrdinal;
-        packet.TrackOrdinal = previous.trackOrdinal;
-      } else {
-        const [carOrdinal, trackOrdinal] = await Promise.all([
-          this.resolveCarOrdinal(packet),
-          this.resolveTrackOrdinal(packet),
-        ]);
-        packet.CarOrdinal = carOrdinal;
-        packet.TrackOrdinal = trackOrdinal;
-        this.lastAcEvoSourceIdentity = { ...identity, carOrdinal, trackOrdinal };
+      if (previous && this.currentSession &&
+        ((previous.carName && identity.carName && previous.carName !== identity.carName) ||
+         (previous.trackName && identity.trackName &&
+          (previous.trackName !== identity.trackName || previous.trackConfiguration !== identity.trackConfiguration)))) {
+        await this.finalizeCurrentSession();
       }
+      this.lastAcEvoSourceIdentity = identity;
     }
     await this.engine.feed(packet, rawByteOffset);
   }
@@ -122,14 +108,14 @@ export class KunosLapDetector implements ILapDetector {
         if (isValid) { const cutReason = this.classifyTrackLimits(packets); if (cutReason) { isValid = false; invalidReason = cutReason; } }
       }
     }
-    if (isValid && openRoute && session.trackOrdinal >= 0) {
+    const trackIdentity = session.trackId;
+    if (isValid && openRoute) {
       const path = lapPath(packets);
-      recordOpenLapTrace(session.trackOrdinal, path.x.map((x, index) => ({ x, z: path.z[index] })), session.gameId);
+      recordOpenLapTraceById(trackIdentity, path.x.map((x, index) => ({ x, z: path.z[index] })), session.gameId);
     }
     traceLap(traceGameId, "lap-boundary-stage", { sessionId: traceSessionId, lapNumber: lapNum, stage: "quality", durationMs: performance.now() - traceStageAt, valid: isValid, reason: invalidReason });
     traceStageAt = performance.now();
-    const sectors = await computeLapSectors(session.trackOrdinal, session.gameId, packets, lapTime, { sectors: resolveTrack(session.gameId, session.trackOrdinal).sectors });
-    traceLap(traceGameId, "lap-boundary-stage", { sessionId: traceSessionId, lapNumber: lapNum, stage: "sectors", durationMs: performance.now() - traceStageAt });
+    const sectors = await computeLapSectors(session.trackId, session.gameId, packets, lapTime, { sectors: resolveTrack(session.gameId, session.trackId).sectors });
     traceStageAt = performance.now();
     if (isValid && (session.bestLapTime === 0 || lapTime < session.bestLapTime)) session.bestLapTime = lapTime;
     const lapId = await this.db.insertLap(session.sessionId, lapNum, lapTime, isValid, lapByteOffset, lapFrameCount, null, null, invalidReason, sectors);
@@ -148,9 +134,15 @@ export class KunosLapDetector implements ILapDetector {
     traceLap(traceGameId, "lap-boundary-stage", { sessionId: traceSessionId, lapNumber: lapNum, stage: "callbacks", durationMs: performance.now() - traceStageAt });
     traceLap(traceGameId, "lap-boundary-end", { sessionId: traceSessionId, lapNumber: lapNum, totalMs: performance.now() - traceStartedAt });
   }
-  protected resolveCarOrdinal(packet: TelemetryPacket): number | Promise<number> { return packet.CarOrdinal; }
-  protected resolveTrackOrdinal(packet: TelemetryPacket): number | Promise<number> { return packet.TrackOrdinal; }
-  protected backfillSessionIdentifiers(_packet: TelemetryPacket): void | Promise<void> {}
+  protected async resolveSessionIdentity(_packet: TelemetryPacket): Promise<SessionIdentity | undefined> { return undefined; }
+  protected async backfillSessionIdentifiers(packet: TelemetryPacket): Promise<void> {
+    const session = this.currentSession;
+    if (!session || (session.carId && session.trackId)) return;
+    const identity = await this.resolveSessionIdentity(packet);
+    if (!identity) return;
+    await this.db.updateSessionCarTrack(session.sessionId, identity.carId, identity.trackId);
+    Object.assign(session, identity);
+  }
   protected isOpenRoute(_packet: TelemetryPacket): boolean { return false; }
   protected classifyTrackLimits(_packets: TelemetryPacket[]): "track limits" | null { return null; }
 }

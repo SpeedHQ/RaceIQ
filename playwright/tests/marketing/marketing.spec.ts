@@ -34,10 +34,10 @@ for (const page of PAGES) {
       : null;
     const path = comparePair
       ? `/f125/compare?${new URLSearchParams({
-          track: String(comparePair.trackOrdinal),
-          carA: String(comparePair.carOrdinal),
+          track: comparePair.trackId,
+          carA: comparePair.carId,
           lapA: String(comparePair.lapA.id),
-          carB: String(comparePair.carOrdinal),
+          carB: comparePair.carId,
           lapB: String(comparePair.lapB.id),
           cursor: "7",
         })}`

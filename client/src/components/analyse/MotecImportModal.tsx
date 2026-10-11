@@ -18,8 +18,8 @@ export interface MotecImportedLap {
   lapId: number;
   lapNumber: number;
   lapTime: number;
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: string;
+  trackId: string;
 }
 
 export interface MotecCapability {
@@ -211,8 +211,8 @@ export function MotecImportModal({
   const [archiveToken, setArchiveToken] = useState(stagedToken ?? "");
   const [archiveNames, setArchiveNames] = useState({ ld: initialLdName ?? "", ldx: initialLdxName ?? "" });
   const [archiveStatus, setArchiveStatus] = useState<"idle" | "extracting" | "ready" | "error">(stagedToken ? "ready" : "idle");
-  const [carOrdinal, setCarOrdinal] = useState("");
-  const [trackOrdinal, setTrackOrdinal] = useState("");
+  const [carId, setCarId] = useState("");
+  const [trackId, setTrackId] = useState("");
   const [tuneId, setTuneId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -305,30 +305,28 @@ export function MotecImportModal({
 
   const chooseGame = (value: string) => {
     setSelectedGameId(value as GameId);
-    setCarOrdinal("");
-    setTrackOrdinal("");
+    setCarId("");
+    setTrackId("");
     setTuneId("");
   };
 
-  const carOptions = useMemo(() => cars.map((c) => ({ value: String(c.ordinal), label: c.name, group: c.class })), [cars]);
+  const carOptions = useMemo(() => cars.map((c) => ({ value: String(c.id), label: c.name, group: c.class })), [cars]);
   const trackOptions = useMemo(
-    () => tracks.toSorted((a, b) => a.name.localeCompare(b.name)).map((t) => ({ value: String(t.ordinal), label: t.variant ? `${t.name} (${t.variant})` : t.name })),
+    () => tracks.toSorted((a, b) => a.name.localeCompare(b.name)).map((t) => ({ value: String(t.id), label: t.variant ? `${t.name} (${t.variant})` : t.name })),
     [tracks],
   );
-  // Only setups for the chosen car can apply to these laps; before a car is
-  // picked there is nothing sensible to offer, so the list stays empty.
   const tuneOptions = useMemo(() => {
-    if (!carOrdinal) return [];
-    return (tunes as { id: number; name: string; carOrdinal?: number | null }[])
-      .filter((t) => t.carOrdinal == null || String(t.carOrdinal) === carOrdinal)
+    if (!carId) return [];
+    return (tunes as { id: number; name: string; carId?: string | null }[])
+      .filter((t) => t.carId == null || t.carId === carId)
       .map((t) => ({ value: String(t.id), label: t.name }));
-  }, [tunes, carOrdinal]);
+  }, [tunes, carId, target?.gameId]);
 
   const isArchive = ld?.name.toLowerCase().endsWith(".zip") ?? false;
-  const canSubmit = !!target && hasCompleteMotecSource(ld, ldx, archiveToken) && (!isArchive || archiveStatus === "ready") && !!carOrdinal && !!trackOrdinal && !busy;
 
+  const canSubmit = !!target && hasCompleteMotecSource(ld, ldx, archiveToken) && (!isArchive || archiveStatus === "ready") && !!carId && !!trackId && !busy;
   async function submit() {
-    if (!target || !hasCompleteMotecSource(ld, ldx, archiveToken) || (isArchive && archiveStatus !== "ready") || !carOrdinal || !trackOrdinal) return;
+    if (!target || !hasCompleteMotecSource(ld, ldx, archiveToken) || (isArchive && archiveStatus !== "ready") || !carId || !trackId) return;
     setBusy(true);
     setError(null);
     try {
@@ -340,8 +338,8 @@ export function MotecImportModal({
         if (ldx) body.append("ldx", ldx);
       }
       body.append("gameId", target.gameId);
-      body.append("carOrdinal", carOrdinal);
-      body.append("trackOrdinal", trackOrdinal);
+      body.append("carId", carId);
+      body.append("trackId", trackId);
       if (tuneId) body.append("tuneId", tuneId);
       body.append("ownership", ownership);
       // Multipart upload — no RPC binding for form bodies, same as
@@ -427,15 +425,15 @@ export function MotecImportModal({
             <div className="space-y-2">
               <div className="block text-app-text-dim">
                 {m.analyse_car_label()}
-                <SearchSelect value={carOrdinal} onChange={setCarOrdinal} options={carOptions} placeholder={m.analyse_search_cars()} className="mt-1" />
+                <SearchSelect value={carId} onChange={setCarId} options={carOptions} placeholder={m.analyse_search_cars()} className="mt-1" />
               </div>
               <div className="block text-app-text-dim">
                 {m.analyse_track_label()}
-                <SearchSelect value={trackOrdinal} onChange={setTrackOrdinal} options={trackOptions} placeholder={m.analyse_search_tracks()} className="mt-1" />
+                <SearchSelect value={trackId} onChange={setTrackId} options={trackOptions} placeholder={m.analyse_search_tracks()} className="mt-1" />
               </div>
               <div className="block text-app-text-dim">
                 {m.analyse_setup_optional()}
-                <SearchSelect value={tuneId} onChange={setTuneId} options={tuneOptions} placeholder={carOrdinal ? m.analyse_search_setups() : m.analyse_pick_car()} disabled={!carOrdinal} className="mt-1" />
+                <SearchSelect value={tuneId} onChange={setTuneId} options={tuneOptions} placeholder={carId ? m.analyse_search_setups() : m.analyse_pick_car()} disabled={!carId} className="mt-1" />
               </div>
               <p className="text-app-text-muted">
                 {m.analyse_import_catalog_explanation()}

@@ -93,7 +93,7 @@ describe("MoTeC reconstruction vs real centerlines", () => {
       const track = getAcEvoTrackByLegacyName(slug);
       expect(track).not.toBeNull();
       const target = resolveMotecTarget("ac-evo");
-      const carTrack = target.resolveCarTrack(log, { trackOrdinal: track!.id });
+      const carTrack = target.resolveCarTrack(log, { trackId: track!.id });
       const conversion = target.convert(log, stint.beacons, carTrack);
       const all = reconstructPositions(conversion.packets);
 

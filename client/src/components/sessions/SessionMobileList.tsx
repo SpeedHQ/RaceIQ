@@ -18,8 +18,8 @@ import { parseUtcTimestamp } from "@/lib/utc-date";
 export type SessionMobileListProps = {
   sessions: SessionMeta[];
   lapsBySession: Map<number, LapMeta[]>;
-  trackNames: Record<number, string>;
-  carNames: Record<number, string>;
+  trackNames: Record<string, string>;
+  carNames: Record<string, string>;
   isLoading: boolean;
   sessionsError: boolean;
   showSessionType: boolean;

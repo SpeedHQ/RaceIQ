@@ -145,7 +145,7 @@ describe("F1 2025 session 2026-04-22 11:42 — lap times and sector splits", () 
     // must produce the exact same sector values as the saved lap row.
     for (const lap of laps) {
       if (!lap.isValid || lap.packets.length < 50 || !lap.sectors) continue;
-      const recomputed = await computeLapSectors(19, "f1-2025", lap.packets, lap.lapTime);
+      const recomputed = await computeLapSectors("19", "f1-2025", lap.packets, lap.lapTime);
       expect(recomputed).not.toBeNull();
       expect(recomputed).toEqual(lap.sectors);
     }

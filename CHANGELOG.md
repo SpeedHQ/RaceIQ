@@ -1,5 +1,8 @@
 ## Unreleased
 
+### Breaking
+- Use string car and track IDs across imports and integrations instead of ordinal fields. Existing sessions and setup links migrate automatically; downgrading requires restoring a pre-upgrade database backup.
+
 ### Features
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 
@@ -14,8 +17,10 @@
 - Keep AC Evo venue layouts distinct during import, setup selection, and session repair without losing saved notes, favorites, or setup links.
 - Replay long Tourist laps without chart crashes or closed-circuit map overlays.
 - Show AC Evo source car and layout names immediately after import instead of generated numeric placeholders.
+- Automatically reconcile pre-upgrade recordings with updated car, track, and lap detection, including AC Evo Tourist timed attempts; preserve user annotations on matched laps and report captures that cannot be repaired.
 
 ### Internal
+- Add a release-seeded startup upgrade regression that verifies historical Tourist sessions are automatically reprocessed into the correct layout and lap times.
 - Remove unused compiled artifact downloads and base production builds from dev-mode dashboard screenshot CI.
 - Split current and base dashboard screenshot renders into four CI shards while retaining the complete screenshot inventory.
 - Document new-game integration, lossless sparse recording, lap correctness checks, and gzip fixture splitting without Git LFS; align capture and architecture guides with current implementation.

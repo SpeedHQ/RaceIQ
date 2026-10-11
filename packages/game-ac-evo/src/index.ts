@@ -3,7 +3,7 @@ import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { acEvoAdapter } from "@raceiq/game-ac-evo-metadata/index";
 import { getAcEvoCarName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
-import { getAcEvoTrackName, getAcEvoSharedTrackName, getAcEvoTrackByName, getAcEvoTrackBySetupFolder } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
+import { getAcEvoTrackName, getAcEvoSharedTrackName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
 import { LapDetectorAcEvo } from "./lap-detector";
 import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
 import { buildKunosAiContext } from "@raceiq/backend-core/games/kunos/ai-context";
@@ -56,12 +56,9 @@ export const acEvoServerAdapter: ServerGameAdapter = {
   getSetupsDirCandidates(home: string): string[] {
     return [resolve(home, "Saved Games", "ACE", "Car Setups")];
   },
-  getCarName(ordinal: number): string { return getAcEvoCarName(ordinal); },
-  getTrackName(ordinal: number): string { return getAcEvoTrackName(ordinal); },
-  getSharedTrackName(ordinal: number): string | undefined { return getAcEvoSharedTrackName(ordinal); },
-  getTrackOrdinalByName(name: string): number | undefined {
-    return getAcEvoTrackBySetupFolder(name)?.id ?? getAcEvoTrackByName(name, "")?.id;
-  },
+  getCarName(identity: string): string { return getAcEvoCarName(identity); },
+  getTrackName(identity: string): string { return getAcEvoTrackName(identity); },
+  getSharedTrackName(identity: string): string | undefined { return getAcEvoSharedTrackName(identity); },
   canHandle: acEvoParser.canHandle,
   tryParse(buf, state, timestampMs) { return acEvoParser.tryParse(buf, state as never, timestampMs ?? Date.now()); },
   tryParseLapIndex(buf, state, timestampMs) { return acEvoParser.tryParseLapIndex(buf, state as never, timestampMs ?? Date.now()); },

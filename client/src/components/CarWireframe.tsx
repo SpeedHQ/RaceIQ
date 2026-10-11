@@ -33,7 +33,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   cursorIdx,
   outline,
   boundaries,
-  carOrdinal,
+  carId,
   lmuCarClass,
   carModel: carModelProp,
   tempLabel: tempLabelProp,
@@ -52,7 +52,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   cursorIdx: number;
   outline: { x: number; z: number }[] | null;
   boundaries?: Pick<TrackMapBoundaries, "leftEdge" | "rightEdge" | "raceLine"> | null;
-  carOrdinal?: number;
+  carId?: string;
   carModel?: CarModelEnrichment & { hasModel: boolean };
   tempLabel?: string;
   source: SceneSource;
@@ -84,17 +84,17 @@ export const CarWireframe = React.memo(function CarWireframe({
     // loadCarModelConfigs(). configsLoaded is in the dep list so the
     // memo re-runs once configs finish loading — eslint can't see the
     // dependency because it's hidden behind an impure read.
-    const perCar = getCarModel(carOrdinal ?? 0);
+    const perCar = carId == null ? { ...DEMO_CAR } : getCarModel(carId);
     if (perCar.hasModel) return perCar;
     // Fallback: any non-F1 game with no per-car GLB uses the Aston
     // Martin GT3 demo model. Previously this was FM-only, which left
     // ACC (and any future game) without a visible car in the scene.
     return DEMO_CAR;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [carOrdinal, configsLoaded, isF1, isLMU, lmuCarClass, carModelProp]);
+  }, [carId, configsLoaded, isF1, isLMU, lmuCarClass, carModelProp]);
   const units = useUnits(gameId);
   const { displaySettings } = useSettings();
-  const pressureOptimal = useTirePressureOptimal(gameId, carOrdinal);
+  const pressureOptimal = useTirePressureOptimal(gameId, carId);
   const adapter = tryGetGame(gameId);
   const suspThresholds = adapter?.suspensionThresholds.values ?? [25, 65, 85];
   const temperatureMetric = resolveAnalysisTelemetry(adapter).tireTemperature;
@@ -246,10 +246,11 @@ export const CarWireframe = React.memo(function CarWireframe({
             <div className="flex gap-1">
               <Button
                 onClick={async () => {
+                  if (!carId) return;
                   setSaveStatus("saving");
                   try {
-                    const res = await client.api["car-model-configs"][":ordinal"].$put({
-                      param: { ordinal: encodeURIComponent(String(carOrdinal)) },
+                    const res = await client.api["car-model-configs"][":carId"].$put({
+                      param: { carId: encodeURIComponent(carId) },
                       json: { glbOffsetX: modelOffsetX },
                     });
                     if (res.ok) {

@@ -3,7 +3,7 @@ import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "
 import { client } from "../lib/rpc";
 import { telemetryStore } from "../stores/telemetry";
 
-type DemoLap = { id: number; gameId: string; trackOrdinal?: number; isValid?: boolean; lapTime?: number };
+type DemoLap = { id: number; gameId: string; trackId?: string; isValid?: boolean; lapTime?: number };
 type ReplayResponse = { schema?: LiveTelemetrySchemaMessageV1; frames?: LiveTelemetryFrameMessageV1[] };
 
 export function useDemoMode(preferGameId?: string) {
@@ -55,7 +55,7 @@ export function useDemoMode(preferGameId?: string) {
       const laps = (await response.json()) as DemoLap[];
       const valid = laps.filter((lap) => lap.isValid && (lap.lapTime ?? 0) > 0);
       const preferred = preferGameId ? valid.filter((lap) => lap.gameId === preferGameId) : [];
-      const spa = valid.filter((lap) => lap.trackOrdinal === 530);
+      const spa = valid.filter((lap) => lap.trackId === "530");
       const pool = preferred.length ? preferred : spa.length ? spa : valid;
       const best = [...pool].sort((a, b) => (a.lapTime ?? Infinity) - (b.lapTime ?? Infinity))[0];
       if (!best) return;

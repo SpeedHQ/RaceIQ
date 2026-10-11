@@ -351,7 +351,7 @@ export function normalizeIRacingFrame(
     SuspensionTravelMRL: scalar(values, "LRshockDefl", 0),
     SuspensionTravelMRR: scalar(values, "RRshockDefl", 0),
 
-    CarOrdinal: Math.max(0, Math.trunc(session.carId)),
+    carId: session.carId < 0 ? "" : String(session.carId),
     CarClass: Math.max(0, Math.trunc(session.carClassId)),
     CarPerformanceIndex: 0,
     DrivetrainType: 1,
@@ -365,7 +365,7 @@ export function normalizeIRacingFrame(
     Speed: Math.max(0, scalar(values, "Speed", 0)),
     Power: 0,
     Torque: 0,
-    TrackOrdinal: Math.max(0, Math.trunc(session.trackId)),
+    trackId: session.trackId < 0 ? "" : String(session.trackId),
 
     TirePressureFrontLeft: coldPressurePsi(values, "LF"),
     TirePressureFrontRight: coldPressurePsi(values, "RF"),
@@ -386,5 +386,5 @@ export function projectIRacingLapIndex(frame: IRacingSourceFrame, state?: IRacin
   const lap = Math.max(0, Math.trunc(n("Lap")));
   if (state && (state.sessionKey !== key || state.rawLap === null)) { state.sessionKey = key; state.rawLap = lap; state.lapStartSessionTime = n("SessionTime"); }
   const wear = (c: string) => 1 - Math.min(1, Math.max(0, n(`${c}wearL`, 1)));
-  return { gameId: "iracing", sessionUID: key, IsRaceOn: n("PlayerTrackSurface") > 0 ? 1 : 0, TimestampMS: Math.round(n("SessionTime") * 1000), CarOrdinal: Math.max(0, Math.trunc(session.carId)), TrackOrdinal: Math.max(0, Math.trunc(session.trackId)), CarPerformanceIndex: 0, CarClass: Math.max(0, Math.trunc(session.carClassId)), LapNumber: lap, CurrentLap: n("LapCurrentLapTime"), LastLap: n("LapLastLapTime"), BestLap: n("LapBestLapTime"), DistanceTraveled: n("LapDist"), PositionX: 0, PositionZ: 0, Yaw: -n("Yaw"), Fuel: n("FuelLevel"), TireWearFL: wear("LF"), TireWearFR: wear("RF"), TireWearRL: wear("LR"), TireWearRR: wear("RR"), RacePosition: Math.max(0, Math.trunc(n("PlayerCarPosition"))), WheelOnRumbleStripFL: 0, WheelOnRumbleStripFR: 0, WheelOnRumbleStripRL: 0, WheelOnRumbleStripRR: 0 };
+  return { gameId: "iracing", sessionUID: key, IsRaceOn: n("PlayerTrackSurface") > 0 ? 1 : 0, TimestampMS: Math.round(n("SessionTime") * 1000), carId: session.carId < 0 ? "" : String(session.carId), trackId: session.trackId < 0 ? "" : String(session.trackId), CarPerformanceIndex: 0, CarClass: Math.max(0, Math.trunc(session.carClassId)), LapNumber: lap, CurrentLap: n("LapCurrentLapTime"), LastLap: n("LapLastLapTime"), BestLap: n("LapBestLapTime"), DistanceTraveled: n("LapDist"), PositionX: 0, PositionZ: 0, Yaw: -n("Yaw"), Fuel: n("FuelLevel"), TireWearFL: wear("LF"), TireWearFR: wear("RF"), TireWearRL: wear("LR"), TireWearRR: wear("RR"), RacePosition: Math.max(0, Math.trunc(n("PlayerCarPosition"))), WheelOnRumbleStripFL: 0, WheelOnRumbleStripFR: 0, WheelOnRumbleStripRL: 0, WheelOnRumbleStripRR: 0 };
 }

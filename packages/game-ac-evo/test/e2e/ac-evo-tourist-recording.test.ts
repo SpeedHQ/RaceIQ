@@ -11,8 +11,8 @@ import { KunosDetectorEngine, type KunosLapCapture } from "@raceiq/telemetry-cor
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import { LapDetectorAcEvo } from "../../src/lap-detector";
 import { isAcEvoTouristLayout } from "../../src/layout-policy";
-import { getOrCreateDiscoveredTrack } from "@raceiq/backend-core/db/discovered-tracks";
-import { getRecordedOutlineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { registerAcEvoTrack } from "@raceiq/backend-core/db/discovered-tracks";
+import { getRecordedOutlineById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { combineRecordingParts } from "@raceiq/backend-core/session-capture/combine-recording-parts";
 
 const RECORDING_PARTS = [
@@ -237,8 +237,8 @@ describe("AC EVO tourist source finish metadata", () => {
       expect(distance).toBeLessThan(22_000);
       expect(endpointDistance).toBeGreaterThan(1_000);
     }
-    const trackOrdinal = await getOrCreateDiscoveredTrack("ac-evo", "Nurburgring", "Touristenfahrten");
-    const outline = getRecordedOutlineByOrdinal(trackOrdinal, "ac-evo");
+    const trackId = await registerAcEvoTrack("Nurburgring", "Touristenfahrten");
+    const outline = getRecordedOutlineById(trackId, "ac-evo");
     expect(outline).not.toBeNull();
     expect(outline!.length).toBeGreaterThan(50);
     expect(Math.hypot(outline![0].x - outline!.at(-1)!.x, outline![0].z - outline!.at(-1)!.z)).toBeGreaterThan(1_000);

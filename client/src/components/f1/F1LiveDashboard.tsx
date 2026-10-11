@@ -48,8 +48,8 @@ export function F1LiveDashboard() {
   const sectors = useTelemetryStore((s) => s.sectors);
   const pit = useTelemetryStore((s) => s.pit);
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
-  const { data: trackName } = useTrackName(view?.identity.trackOrdinal);
-  const { data: carName } = useCarName(view?.identity.carOrdinal);
+  const { data: trackName } = useTrackName(view?.identity.trackId);
+  const { data: carName } = useCarName(view?.identity.carId);
 
   if (!view) {
     return (

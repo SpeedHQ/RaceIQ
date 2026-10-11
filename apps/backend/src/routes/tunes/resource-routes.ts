@@ -8,25 +8,18 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import { getCommunityTuneById } from "@raceiq/backend-core/db/community-tune-queries";
 import { deleteTune, getTuneById, getTuneUsage, getTunes, insertTune, updateTune } from "@raceiq/backend-core/db/tune-queries";
 import {
-  CarOrdinalQuerySchema,
+  CarIdQuerySchema,
   communityRowToCatalog,
   parseTuneRow,
   validateSettingsForGame,
 } from "../tune-shared";
 
 const CreateTuneSchema = z.object({
-  gameId: GameIdSchema,
-  name: z.string().min(1),
-  author: z.string().min(1),
-  carOrdinal: z.number().int(),
-  category: z.string().min(1),
-  settings: z.record(z.string(), z.unknown()),
-  trackOrdinal: z.number().int().nullable().optional(),
-  description: z.string().optional().default(""),
-  strengths: z.array(z.string()).optional(),
-  weaknesses: z.array(z.string()).optional(),
-  bestTracks: z.array(z.string()).optional(),
-  strategies: z.array(z.unknown()).optional(),
+  gameId: GameIdSchema, name: z.string().min(1), author: z.string().min(1),
+  carId: z.string().min(1), category: z.string().min(1), settings: z.record(z.string(), z.unknown()),
+  trackId: z.string().min(1).nullable().optional(), description: z.string().optional().default(""),
+  strengths: z.array(z.string()).optional(), weaknesses: z.array(z.string()).optional(),
+  bestTracks: z.array(z.string()).optional(), strategies: z.array(z.unknown()).optional(),
   unitSystem: z.enum(["metric", "imperial"]).optional().default("metric"),
   source: z.enum(["user", "catalog-clone", "imported-file"]).optional().default("user"),
   catalogId: z.string().optional(),
@@ -43,9 +36,9 @@ async function createTune(body: z.infer<typeof CreateTuneSchema>) {
     gameId: body.gameId,
     name: body.name,
     author: body.author,
-    carOrdinal: body.carOrdinal,
+    carId: body.carId,
     category: body.category,
-    trackOrdinal: body.trackOrdinal,
+    trackId: body.trackId,
     description: body.description,
     strengths: body.strengths ? JSON.stringify(body.strengths) : undefined,
     weaknesses: body.weaknesses ? JSON.stringify(body.weaknesses) : undefined,
@@ -60,13 +53,13 @@ async function createTune(body: z.infer<typeof CreateTuneSchema>) {
 }
 
 export const tuneResourceRoutes = new Hono()
-  // GET /api/tunes — list user tunes, optional ?gameId= and ?carOrdinal= filters
+  // GET /api/tunes — list tunes, optional game/car identity filters
   .get(
     "/api/tunes",
-    zValidator("query", CarOrdinalQuerySchema),
+    zValidator("query", CarIdQuerySchema),
     async (c) => {
-      const { gameId, carOrdinal } = c.req.valid("query");
-      const rows = await getTunes({ gameId, carOrdinal });
+      const { gameId, carId } = c.req.valid("query");
+      const rows = await getTunes({ gameId, carId });
       return c.json(rows.map(parseTuneRow));
     },
   )
@@ -123,11 +116,9 @@ export const tuneResourceRoutes = new Hono()
         return c.json({ error: "Invalid settings structure" }, 400);
       }
       const data: Record<string, any> = {};
-      if (body.name !== undefined) data.name = body.name;
-      if (body.author !== undefined) data.author = body.author;
-      if (body.carOrdinal !== undefined) data.carOrdinal = body.carOrdinal;
+      if (body.carId !== undefined) data.carId = body.carId;
       if (body.category !== undefined) data.category = body.category;
-      if (body.trackOrdinal !== undefined) data.trackOrdinal = body.trackOrdinal;
+      if (body.trackId !== undefined) data.trackId = body.trackId;
       if (body.description !== undefined) data.description = body.description;
       if (body.strengths !== undefined) data.strengths = JSON.stringify(body.strengths);
       if (body.weaknesses !== undefined) data.weaknesses = JSON.stringify(body.weaknesses);
@@ -187,9 +178,9 @@ export const tuneResourceRoutes = new Hono()
       gameId: catalogTune.gameId,
       name: `${catalogTune.name} (copy)`,
       author: catalogTune.author,
-      carOrdinal: catalogTune.carOrdinal,
+      carId: catalogTune.carId,
       category: catalogTune.category,
-      trackOrdinal: catalogTune.trackOrdinal,
+      trackId: catalogTune.trackId,
       description: catalogTune.description,
       strengths: JSON.stringify(catalogTune.strengths ?? []),
       weaknesses: JSON.stringify(catalogTune.weaknesses ?? []),
@@ -218,9 +209,9 @@ export const tuneResourceRoutes = new Hono()
         gameId: existing.gameId,
         name: `${existing.name} (copy)`,
         author: existing.author,
-        carOrdinal: existing.carOrdinal,
+        carId: existing.carId,
         category: existing.category,
-        trackOrdinal: existing.trackOrdinal ?? undefined,
+        trackId: existing.trackId ?? undefined,
         description: existing.description,
         strengths: existing.strengths ?? undefined,
         weaknesses: existing.weaknesses ?? undefined,

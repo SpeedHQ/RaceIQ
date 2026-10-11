@@ -5,6 +5,39 @@ import { applyAlignment, computeAlignment } from "@raceiq/shared/racing/tracks/g
 import { getTrackNameByOrdinal, hasBundledBoundaryByOrdinal, loadBoundaryByName } from "./outlines";
 import { loadAccSvgBoundaryByName } from "@raceiq/shared/racing/tracks/geometry/acc-svg";
 import type { Point, TrackBoundary } from "@raceiq/shared/racing/tracks/geometry/types";
+import { getRecordedOutlineById } from "../recording/outlines";
+import { getAcEvoSharedTrackName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
+
+/** Resolve curated boundaries by native AC Evo identity without ordinal translation. */
+export function getTrackBoundariesById(trackId: string, gameId: string): TrackBoundary | null {
+  if (!trackId) return null;
+  if (gameId !== "ac-evo") {
+    const ordinal = Number(trackId);
+    return Number.isInteger(ordinal) ? getTrackBoundariesByOrdinal(ordinal, gameId) : null;
+  }
+  const name = getAcEvoSharedTrackName(trackId);
+  if (!name) return null;
+  const content = readDataFile(resolve(bundledGameDir(gameId), `${name}-boundaries.json`));
+  let boundary: TrackBoundary | null = null;
+  if (content) {
+    try {
+      const data = JSON.parse(content) as TrackBoundary;
+      if (data.leftEdge?.length && data.rightEdge?.length) boundary = data;
+    } catch { /* Ignore malformed optional geometry. */ }
+  }
+  boundary ??= loadAccSvgBoundaryByName(name);
+  const recordedCenterline = getRecordedOutlineById(trackId, gameId);
+  if (!boundary || !recordedCenterline || !boundary.centerLine) return boundary;
+  const alignment = computeAlignment(boundary.centerLine, recordedCenterline);
+  if (!alignment) return boundary;
+  return {
+    ...boundary,
+    leftEdge: boundary.leftEdge.map((point) => applyAlignment(point, alignment)),
+    rightEdge: boundary.rightEdge.map((point) => applyAlignment(point, alignment)),
+    centerLine: boundary.centerLine.map((point) => applyAlignment(point, alignment)),
+    pitLane: boundary.pitLane?.map((point) => applyAlignment(point, alignment)) ?? null,
+  };
+}
 
 export function getTrackBoundariesByOrdinal(ordinal: number, gameId: string): TrackBoundary | null {
   if (gameId === "lmu") return null;

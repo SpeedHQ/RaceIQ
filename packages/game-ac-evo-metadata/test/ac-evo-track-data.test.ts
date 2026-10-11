@@ -2,19 +2,25 @@ import { describe, test, expect } from "bun:test";
 import {
   getAcEvoTrackByName,
   getAcEvoTrackBySetupFolder,
+  getAcEvoTracks,
   injectDiscoveredAcEvoTracks,
 } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
+import { acEvoTrackId, parseAcEvoTrackId } from "@raceiq/game-ac-evo-metadata/identity";
 
-describe("AC Evo discovered track lookup", () => {
-  test("resolves exact source layouts and refuses ambiguous setup-folder names", () => {
+describe("AC Evo native track lookup", () => {
+  test("uses native name and configuration to distinguish layouts", () => {
     const trackName = "RaceIQ Identity Test Circuit";
+    const gpId = acEvoTrackId(trackName, "Grand Prix");
+    const touristId = acEvoTrackId(trackName, "Tourist");
     injectDiscoveredAcEvoTracks([
-      { ordinal: 199900, name: trackName, trackName, trackConfiguration: "Grand Prix" },
-      { ordinal: 199901, name: trackName, trackName, trackConfiguration: "Tourist" },
+      { id: gpId, name: trackName, trackName, trackConfiguration: "Grand Prix" },
+      { id: touristId, name: trackName, trackName, trackConfiguration: "Tourist" },
     ]);
 
-    expect(getAcEvoTrackByName(trackName, "Grand Prix")?.id).toBe(199900);
-    expect(getAcEvoTrackByName(trackName, "Tourist")?.id).toBe(199901);
+    expect(getAcEvoTrackByName(trackName, "Grand Prix")?.id).toBe(gpId);
+    expect(getAcEvoTrackByName(trackName, "Tourist")?.id).toBe(touristId);
+    expect(parseAcEvoTrackId(gpId)).toEqual({ trackName, trackConfiguration: "Grand Prix" });
     expect(getAcEvoTrackBySetupFolder(trackName)).toBeUndefined();
+    expect(getAcEvoTracks().get(gpId)?.id).toBe(gpId);
   });
 });

@@ -6,8 +6,8 @@ export type SortKey = "date" | "track" | "car" | "laps" | "best" | "type" | "res
 export type SortDir = "asc" | "desc";
 
 export type SessionNames = {
-  trackNames: Record<number, string>;
-  carNames: Record<number, string>;
+  trackNames: Record<string, string>;
+  carNames: Record<string, string>;
 };
 
 export type SessionLapTableProps = {

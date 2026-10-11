@@ -39,8 +39,8 @@ for (const compressed of [false, true]) {
       rawFile,
       source: null,
       gameId: "f1-2025",
-      carOrdinal: 0,
-      trackOrdinal: 0,
+      carId: "0",
+      trackId: "0",
     })) {
       records.push({ offset: record.offset, frame: [...record.frame] });
     }
@@ -76,7 +76,7 @@ for (const compressed of [false, true]) {
     try {
       const actual = [];
       for await (const record of iterateSessionCaptureRecordsFromSource({
-        rawFile, source: null, gameId: "f1-2025", carOrdinal: 0, trackOrdinal: 0,
+        rawFile, source: null, gameId: "f1-2025", carId: "0", trackId: "0",
       })) actual.push(record);
       expect(actual.map(({ kind, offset }) => ({ kind, offset }))).toEqual(
         [...iterateSessionCaptureRecords(capture)].map(({ kind, offset }) => ({ kind, offset })),
@@ -103,8 +103,8 @@ for (const malformed of [
         rawFile,
         source: null,
         gameId: "f1-2025",
-        carOrdinal: 0,
-        trackOrdinal: 0,
+        carId: "0",
+        trackId: "0",
       })) {
         // No valid records expected.
       }
@@ -130,7 +130,7 @@ test("rejects sparse deltas backed by same-size cross-format checkpoints in both
     const rawFile = join(directory, `bad-${wrongCheckpoint === packed ? "kunos" : "lmu"}.bin`);
     writeFileSync(rawFile, capture);
     await expect(async () => {
-      for await (const _record of iterateSessionCaptureRecordsFromSource({ rawFile, source: null, gameId: "lmu", carOrdinal: -1, trackOrdinal: -1 })) {}
+      for await (const _record of iterateSessionCaptureRecordsFromSource({ rawFile, source: null, gameId: "lmu", carId: "ferrari_499p_2023", trackId: "lemans_2023/lemanswec" })) {}
     }).toThrow(/checkpoint/);
   }
 });

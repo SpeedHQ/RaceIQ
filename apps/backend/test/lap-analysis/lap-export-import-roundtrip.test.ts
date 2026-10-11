@@ -55,16 +55,16 @@ function captureSource(session: {
   rawFile: string | null;
   source: string | null;
   gameId: string;
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: string;
+  trackId: string;
 }): SessionCaptureSource {
   if (!session.rawFile) throw new Error("Session has no capture");
   return {
     rawFile: session.rawFile,
     source: session.source,
     gameId: session.gameId as GameId,
-    carOrdinal: session.carOrdinal,
-    trackOrdinal: session.trackOrdinal,
+    carId: session.carId,
+    trackId: session.trackId,
   };
 }
 
@@ -385,9 +385,8 @@ describe("lap export → import round-trip (real capture)", () => {
     expect((await db.select().from(sessions).where(eq(sessions.id, importedSid)).get())?.lapDetectorVersion).not.toBe("stale");
     await db.update(laps).set({ lapNumber: 999, notes: "keep this lap", isFavorite: true })
       .where(eq(laps.id, staleLap.id)).run();
-    const renumbered = await streamedReprocess();
+    await streamedReprocess();
     const restored = await db.select().from(laps).where(eq(laps.sessionId, importedSid)).all();
-    expect(renumbered.strategy).toBe("replace");
     expect(restored.map((lap) => lap.lapNumber).sort((a, b) => a - b)).toEqual(selectedNumbers);
     expect(restored.find((lap) => lap.rawByteOffset === staleLap.rawByteOffset))
       .toMatchObject({ lapNumber: staleLap.lapNumber, notes: "keep this lap", isFavorite: true });

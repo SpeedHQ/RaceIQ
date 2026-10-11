@@ -369,16 +369,15 @@ export const transferRoutes = new Hono()
     const sidecar = form?.get("ldx");
     const ldxBytes = stagedBytes?.ldxBytes ?? (sidecar instanceof File ? Buffer.from(await sidecar.arrayBuffer()) : undefined);
     if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
-    const num = (key: string): number | undefined => {
+    const identity = (key: string): string | undefined => {
       const raw = form?.get(key);
       if (typeof raw !== "string" || raw.trim() === "") return undefined;
-      const parsed = Number(raw);
-      return Number.isFinite(parsed) ? parsed : undefined;
+      return raw.trim();
     };
-    const carOrdinal = num("carOrdinal");
-    const trackOrdinal = num("trackOrdinal");
-    if (carOrdinal === undefined || trackOrdinal === undefined) {
-      return c.json({ error: "carOrdinal and trackOrdinal are required" }, 400);
+    const carId = identity("carId");
+    const trackId = identity("trackId");
+    if (!carId || !trackId) {
+      return c.json({ error: "carId and trackId are required" }, 400);
     }
     const gameIdRaw = form?.get("gameId");
     let target: ReturnType<typeof resolveMotecTarget>;
@@ -387,6 +386,12 @@ export const transferRoutes = new Hono()
     } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
     }
+    const num = (key: string): number | undefined => {
+      const raw = form?.get(key);
+      if (typeof raw !== "string" || raw.trim() === "") return undefined;
+      const value = Number(raw);
+      return Number.isFinite(value) ? value : undefined;
+    };
     const tuneId = num("tuneId");
     if (tuneId !== undefined && !(await getDbTune(tuneId))) {
       return c.json({ error: `No setup with id ${tuneId}` }, 400);
@@ -394,8 +399,8 @@ export const transferRoutes = new Hono()
     try {
       const result = await importMotec(ldBytes, ldxBytes, {
         gameId: target.gameId,
-        carOrdinal,
-        trackOrdinal,
+        carId,
+        trackId,
         tuneId,
         ownership: ownership.data,
       });
