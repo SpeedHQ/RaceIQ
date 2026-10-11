@@ -324,9 +324,9 @@ export function MotecImportModal({
 
   const isArchive = ld?.name.toLowerCase().endsWith(".zip") ?? false;
 
-  const canSubmit = !!target && hasCompleteMotecSource(ld, ldx, archiveToken) && (!isArchive || archiveStatus === "ready") && !!carId && !!trackId && !busy;
+  const canSubmit = !!target && cars.some((car) => String(car.id) === carId) && tracks.some((track) => String(track.id) === trackId) && hasCompleteMotecSource(ld, ldx, archiveToken) && (!isArchive || archiveStatus === "ready") && !!carId && !!trackId && !busy;
   async function submit() {
-    if (!target || !hasCompleteMotecSource(ld, ldx, archiveToken) || (isArchive && archiveStatus !== "ready") || !carId || !trackId) return;
+    if (!target || !cars.some((car) => String(car.id) === carId) || !tracks.some((track) => String(track.id) === trackId) || !hasCompleteMotecSource(ld, ldx, archiveToken) || (isArchive && archiveStatus !== "ready") || !carId || !trackId) return;
     setBusy(true);
     setError(null);
     try {

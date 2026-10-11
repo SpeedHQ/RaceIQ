@@ -62,7 +62,7 @@ export const SEEDED_GAME_CASES: readonly SeededGame[] = [
     gameId: "ac-evo",
     prefix: "ac-evo",
     name: "Assetto Corsa EVO",
-    trackId: "2",
+    trackId: "[\"Brands Hatch\",\"GP\"]",
     trackName: "Brands Hatch",
     supportedFeatures: [...BASE_FEATURES, ...DRIVER_FEATURES, ...SETUP_FEATURES, ...EXPERIMENT_FEATURES],
     unsupportedFeatures: [],

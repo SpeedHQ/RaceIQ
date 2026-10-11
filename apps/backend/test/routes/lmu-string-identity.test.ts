@@ -19,8 +19,7 @@ describe("LMU string identity routes", () => {
     const encoded = encodeURIComponent("spa_2023/spawec");
     const catalogResponse = await trackRoutes.request("/api/tracks?gameId=lmu");
     expect(catalogResponse.status).toBe(200);
-    const catalog = await catalogResponse.json() as Array<{ id: string; ordinal: number | null; lapCount: number }>;
-    expect(catalog.find((track) => track.id === "spa_2023/spawec")).toMatchObject({ ordinal: null });
+    const catalog = await catalogResponse.json() as Array<{ id: string; lapCount: number }>;
 
     const nameResponse = await trackRoutes.request(`/api/track-name/${encoded}?gameId=lmu`);
     expect(nameResponse.status).toBe(200);
@@ -155,22 +154,21 @@ describe("LMU string identity routes", () => {
     }
 
     const stats = await getLapStats("lmu");
-    expect(stats).toMatchObject({ totalLaps: 5, validLaps: 4, uniqueCars: 4, uniqueTracks: 4, totalTimeSec: 581 });
-    expect(stats.lapsByTrack).toHaveLength(4);
+    expect(stats).toMatchObject({ totalLaps: 5, validLaps: 3, uniqueCars: 3, uniqueTracks: 3, totalTimeSec: 581 });
+    expect(stats.lapsByTrack).toHaveLength(3);
     expect(stats.lapsByTrack).toEqual(expect.arrayContaining([
       { gameId: "lmu", trackId: "spa_2023/spawec", count: 2 },
       { gameId: "lmu", trackId: "bahrainwec_2023/bahrainwec", count: 1 },
       { gameId: "lmu", trackId: "481869333", count: 1 },
-      { gameId: "lmu", trackId: "other-driver-track", count: 1 },
     ]));
     const combined = await getLapStats();
-    expect(combined.uniqueCars - before.uniqueCars).toBe(5);
-    expect(combined.uniqueTracks - before.uniqueTracks).toBe(5);
+    expect(combined.uniqueCars - before.uniqueCars).toBe(4);
+    expect(combined.uniqueTracks - before.uniqueTracks).toBe(4);
     expect(combined.lapsByTrack).toContainEqual({ gameId: "fm-2023", trackId: "481869333", count: 1 });
 
     const response = await settingsRoutes.request("/api/stats?gameId=lmu");
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ uniqueCars: 4, uniqueTracks: 4, totalDistanceMeters: 19_420 });
+    expect(await response.json()).toMatchObject({ uniqueCars: 3, uniqueTracks: 3, totalDistanceMeters: 19_420 });
   });
 
   test("sector boundaries match generated track metadata and fall back only when unavailable", async () => {

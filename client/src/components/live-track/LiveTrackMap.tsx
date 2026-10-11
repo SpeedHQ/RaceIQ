@@ -15,10 +15,11 @@ interface Props {
 }
 
 export function LiveTrackMap({ view, issues }: Props) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const sample = useMemo(() => (view ? liveTrackSampleFromView(view) : null), [view]);
   const gameId = sample?.simulator ?? null;
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
+  const [outlineClosed, setOutlineClosed] = useState(true);
   const [pitLines, setPitLines] = useState<PitLine[]>([]);
   const [noOutline, setNoOutline] = useState(false);
   const [isRecorded, setIsRecorded] = useState(false); // true = Forza coords, can plot directly
@@ -57,6 +58,7 @@ export function LiveTrackMap({ view, issues }: Props) {
     deadReckonedLapRef.current = null;
     lapDistRef.current = { startDist: 0, totalDist: 0, lastLap: -1 };
     setOutline(null);
+    setOutlineClosed(true);
     setPitLines([]);
     setNoOutline(false);
     setSectors(null);
@@ -88,11 +90,13 @@ export function LiveTrackMap({ view, issues }: Props) {
       .then((data: any) => {
         if (data.points && Array.isArray(data.points)) {
           setOutline(data.points);
+          setOutlineClosed(data.closed !== false);
           setPitLines(Array.isArray(data.pitLines) ? data.pitLines : []);
           setIsRecorded(!!data.recorded);
           setStartYaw(data.startYaw ?? null);
         } else if (Array.isArray(data)) {
           setOutline(data);
+          setOutlineClosed(true);
           setPitLines([]);
           setIsRecorded(false);
           setStartYaw(null);
@@ -124,9 +128,9 @@ export function LiveTrackMap({ view, issues }: Props) {
         .$get({ param: { trackId: encodeURIComponent(trackId) }, query: { gameId: gameId ?? undefined } })
         .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
         .then((data: any) => {
-          // eslint-disable-line @typescript-eslint/no-explicit-any
           if (data?.points && Array.isArray(data.points)) {
             setOutline(data.points);
+            setOutlineClosed(data.closed !== false);
             setPitLines(Array.isArray(data.pitLines) ? data.pitLines : []);
             setIsRecorded(!!data.recorded);
             setStartYaw(data.startYaw ?? null);
@@ -193,7 +197,7 @@ export function LiveTrackMap({ view, issues }: Props) {
 
   // Redraw
   useEffect(() => {
-    drawLiveTrack({ canvasRef, sample, outline, pitLines, noOutline, isRecorded, startYaw, sectors, boundaries, issues, liveTraceRef, deadReckonedPosRef, lapDistRef });
+    drawLiveTrack({ canvasRef, sample, outline, closed: outlineClosed, pitLines, noOutline, isRecorded, startYaw, sectors, boundaries, issues, liveTraceRef, deadReckonedPosRef, lapDistRef });
   });
 
   async function handleDeleteMap() {

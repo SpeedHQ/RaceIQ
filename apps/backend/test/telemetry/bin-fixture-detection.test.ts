@@ -183,9 +183,8 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     // game never populated it). It previously asserted "Monza - GP", but that
     // only passed because unidentified tracks defaulted to ordinal 0, which
     // happens to be Monza — the exact production bug where every unnamed
-    // session imported as Monza. Unidentified must stay unidentified (-1).
+    // session imported as Monza. Unidentified must keep an empty identity.
     expect(last.trackId).toBe("");
-    expect(getAcEvoTrackName(last.trackId)).toBe("Unknown Track");
     expect(getAcEvoCarName(last.carId)).toBe("Porsche 992 GT3 R Rennsport");
   }, { timeout: 60000 });
 

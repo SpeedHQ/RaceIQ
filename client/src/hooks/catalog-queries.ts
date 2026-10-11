@@ -16,6 +16,26 @@ export function useTracksForGame(gameId: GameId | null) {
     staleTime: Number.POSITIVE_INFINITY,
   });
 }
+export function useCarsForGame(gameId: GameId | null) {
+  return useQuery({
+    queryKey: ["cars", gameId ?? null],
+    queryFn: async () => {
+      if (gameId === "acc") {
+        const response = await client.api.acc.cars.$get();
+        return rpcJson<Array<{ id: number | string; name: string }>>(response).then((rows) => rows.map((row) => ({ id: String(row.id), name: row.name })));
+      }
+      if (gameId === "ac-evo") {
+        const response = await fetch("/api/ac-evo/cars");
+        if (!response.ok) throw new Error(`Failed to load car catalog (${response.status})`);
+        return (await response.json() as Array<{ id: string; name: string }>).map(({ id, name }) => ({ id, name }));
+      }
+      const response = await client.api.cars.$get({ header: { "X-Game-Id": gameId! } });
+      return rpcJson<{ id: string; name: string }[]>(response);
+    },
+    enabled: !!gameId,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+}
 
 export interface MotecTargetInfo {
   gameId: GameId;
@@ -91,7 +111,7 @@ export function useCarName(carId: string | undefined) {
       const res = await client.api["car-name"][":carId"].$get({ param: { carId: encodeURIComponent(carId!) }, query: { gameId: gameId! } });
       return res.ok ? res.text() : "";
     },
-    enabled: carId != null && !!gameId,
+    enabled: !!carId && !!gameId,
   });
 }
 

@@ -108,8 +108,8 @@ export function HomePageContainer() {
     const tracks = new Map<string, { id: string; gameId: NonNullable<SessionMeta["gameId"]> }>();
     for (const session of recentSessions) {
       if (!session.gameId) continue;
-      if (session.carId != null) cars.set(`${session.gameId}:${session.carId}`, { id: session.carId, gameId: session.gameId });
-      if (session.trackId != null) tracks.set(`${session.gameId}:${session.trackId}`, { id: session.trackId, gameId: session.gameId });
+      if (session.carId) cars.set(`${session.gameId}:${session.carId}`, { id: session.carId, gameId: session.gameId });
+      if (session.trackId) tracks.set(`${session.gameId}:${session.trackId}`, { id: session.trackId, gameId: session.gameId });
     }
     return { cars: [...cars.values()], tracks: [...tracks.values()] };
   }, [recentSessions]);

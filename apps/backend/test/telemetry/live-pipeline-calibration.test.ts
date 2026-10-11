@@ -32,7 +32,7 @@ function pipelineWithSession() {
     recorder: new NullSessionRecorderAdapter(),
   });
   const detector = {
-    session: { sessionId: 77, trackId: "track-5", gameId: "fm-2023" },
+    session: { sessionId: 77, trackId: "5", gameId: "fm-2023" },
     feed: async () => {},
   };
   const sectorTracker = {

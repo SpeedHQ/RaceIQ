@@ -4,9 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
-import { sessions, laps, profiles, tunes, experiments, experimentVersions, lapMetrics } from "@raceiq/backend-core/db/schema";
+import { sessions, laps, profiles, tunes, experiments, experimentVersions, lapMetrics, lineSpreadCache } from "@raceiq/backend-core/db/schema";
 import { reprocessSession } from "@raceiq/backend-core/session-capture/reprocess";
 import { reconcileHistoricalSessions } from "@raceiq/backend-core/session-capture/reconcile";
+import { replaceLapsForSession } from "@raceiq/backend-core/db/lap-reprocessing-queries";
 import { combineRecordingParts } from "@raceiq/backend-core/session-capture/combine-recording-parts";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { encodeMetaFrame } from "@raceiq/capture-formats/session/framing";
@@ -121,6 +122,32 @@ describe("historical session reconciliation", () => {
     await reconcileHistoricalSessions();
     expect(await db.select().from(laps).where(eq(laps.id, first.lapId)).get()).toMatchObject({ lapTime: 123.456, notes: "keep lap note" });
   }, { timeout: 180_000 });
+
+  test("replacement invalidates caches for affected experiments and preserves matched lap IDs", async () => {
+    const session = await createSession("ac-evo", null);
+    const experiment = await db.insert(experiments).values({ gameId: "ac-evo", name: "cache invalidation experiment" }).returning().get();
+    createdExperiments.push(experiment.id);
+    const matched = await db.insert(laps).values({
+      sessionId: session.id, lapNumber: 1, lapTime: 100, experimentId: experiment.id, notes: "preserve me",
+    }).returning().get();
+    const unrelatedExperiment = await db.insert(experiments).values({ gameId: "ac-evo", name: "unaffected experiment" }).returning().get();
+    createdExperiments.push(unrelatedExperiment.id);
+    const cacheHash = "cache-invalidation-test";
+    await db.insert(lineSpreadCache).values([
+      { experimentId: experiment.id, lapSetHash: cacheHash, trace: "stale" },
+      { experimentId: unrelatedExperiment.id, lapSetHash: cacheHash, trace: "keep" },
+    ]).run();
+
+    await replaceLapsForSession(session.id, [{
+      lapId: matched.id, lapNumber: 1, lapTime: 99, isValid: true, isFavorite: false,
+      rawByteOffset: null, rawFrameCount: 0, tuneId: null, notes: "preserve me",
+      invalidReason: null, sectors: null,
+    }]);
+
+    expect(await db.select().from(laps).where(eq(laps.id, matched.id)).get()).toMatchObject({ lapTime: 99, notes: "preserve me" });
+    expect(await db.select().from(lineSpreadCache).where(eq(lineSpreadCache.experimentId, experiment.id)).all()).toEqual([]);
+    expect(await db.select().from(lineSpreadCache).where(eq(lineSpreadCache.experimentId, unrelatedExperiment.id)).all()).toHaveLength(1);
+  });
 
   test("recomputes historical Tourist attempts with native layout and source finish times", async () => {
     const recording = await combineRecordingParts([

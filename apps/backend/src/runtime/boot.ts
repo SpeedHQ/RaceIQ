@@ -5,6 +5,7 @@ import { serverReleaseFeatures } from "@raceiq/backend-core/runtime/config/relea
 import { hydrateDiscoveredAcEvoCars } from "@raceiq/backend-core/db/discovered-cars";
 import { injectDiscoveredIRacingIdentity } from "@raceiq/game-iracing-metadata/index";
 import { injectDiscoveredLMUIdentity } from "@raceiq/game-lmu-metadata/index";
+import { getAllServerGames } from "@raceiq/backend-core/games/registry";
 import app from "../routes/index";
 import { initServerGameAdapters } from "../games/init";
 import { initDb } from "@raceiq/backend-core/db/index";
@@ -13,7 +14,7 @@ import { backfillAllRaceResults } from "@raceiq/backend-core/race-results/reconc
 import { reconcileHistoricalSessions } from "@raceiq/backend-core/session-capture/reconcile";
 import { backfillLMUSessionIdentity } from "../imports/lmu-session-identity-backfill";
 import { hydrateDiscoveredAcEvoTracks, listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
-import { deleteEmptySessions } from "@raceiq/backend-core/db/session-queries";
+import { countStaleSessions, deleteEmptySessions } from "@raceiq/backend-core/db/session-queries";
 import { setCacheMaxBytes } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { isFirstRun, loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { wsManager, type WSData } from "@raceiq/backend-core/runtime/websocket-manager";
@@ -24,7 +25,7 @@ import { openFirstRunDashboard, preventMacSleep } from "@raceiq/backend-core/run
 import { clearHttpPort, startHttpServer } from "./http-server";
 import { startNativeSourceSupervisor, type NativeSourceSupervisor } from "./native-sources";
 import { installShutdown } from "./shutdown";
-import { startMaintenanceJobs, startSyncAndStaleSessionJobs } from "./startup-jobs";
+import { ALL_DETECTOR_IDS, startMaintenanceJobs, startSyncAndStaleSessionJobs } from "./startup-jobs";
 import { startTray } from "@raceiq/backend-core/runtime/platform/tray";
 import { initMotecTargets } from "../games/motec-init";
 import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
@@ -123,7 +124,10 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   })
     .then(async (counts) => {
       console.log("[SessionRepair] Historical session reconciliation complete:", counts);
-      if (counts.failed === 0) wsManager.setStaleSessionsNotification(null);
+      if (counts.failed === 0 && await countStaleSessions(
+        ALL_DETECTOR_IDS,
+        getAllServerGames().map((adapter) => adapter.id),
+      ) === 0) wsManager.setStaleSessionsNotification(null);
       await backfillAllRaceResults();
       await backfillLMUSessionIdentity().then((identityCounts) => {
         console.log("[LMU] Session identity backfill complete:", identityCounts);

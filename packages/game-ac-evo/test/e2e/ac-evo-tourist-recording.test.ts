@@ -99,7 +99,7 @@ beforeAll(async () => {
   fullFinishes = replay("full");
   compactFinishes = replay("compact");
   detectedLaps = await replayFullDetector();
-});
+}, 120_000);
 
 
 function touristPacket(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {

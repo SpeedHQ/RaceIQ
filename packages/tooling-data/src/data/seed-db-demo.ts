@@ -17,7 +17,6 @@ export async function insertDemoRows(profileId: number, importedLapIds: number[]
   const fmLaps = importedLaps.filter((lap) => lap.gameId === "fm-2023");
   const fm = fmLaps[0];
   if (fm) {
-    const secondCar = fmLaps.find((lap) => lap.carId !== fm.carId)?.carId ?? fm.carId;
     const tuneA = await db.insert(tunes).values({
       gameId: "fm-2023", name: "Demo Sprint Baseline", author: "RaceIQ Demo", carId: fm.carId,
       category: "road", trackId: fm.trackId, description: `Seeded demo tune (${SEED_MARKER})`,
@@ -25,14 +24,17 @@ export async function insertDemoRows(profileId: number, importedLapIds: number[]
       bestTracks: JSON.stringify(["Silverstone"]), strategies: JSON.stringify(["Brake earlier for consistency"]),
       settings: JSON.stringify({ frontArb: 32, rearArb: 28 }), unitSystem: "metric", source: SEED_MARKER,
     }).returning({ id: tunes.id }).get();
-    const tuneB = await db.insert(tunes).values({
-      gameId: "fm-2023", name: "Demo Qualifying Variant", author: "RaceIQ Demo", carId: secondCar,
-      category: "road", trackId: fm.trackId, description: `Second-car tune (${SEED_MARKER})`,
-      strengths: JSON.stringify(["Rotation"]), weaknesses: JSON.stringify(["Tyre wear"]), bestTracks: "[]", strategies: "[]",
-      settings: JSON.stringify({ frontArb: 28, rearArb: 34 }), unitSystem: "metric", source: SEED_MARKER,
-    }).returning({ id: tunes.id }).get();
     await db.insert(tuneAssignments).values({ gameId: "fm-2023", carId: fm.carId, trackId: fm.trackId, tuneId: tuneA.id }).run();
-    await db.insert(tuneAssignments).values({ gameId: "fm-2023", carId: secondCar, trackId: fm.trackId, tuneId: tuneB.id }).run();
+    if (fmLaps.some((lap) => lap.carId !== fm.carId)) {
+      const secondCar = fmLaps.find((lap) => lap.carId !== fm.carId)!.carId;
+      const tuneB = await db.insert(tunes).values({
+        gameId: "fm-2023", name: "Demo Qualifying Variant", author: "RaceIQ Demo", carId: secondCar,
+        category: "road", trackId: fm.trackId, description: `Second-car tune (${SEED_MARKER})`,
+        strengths: JSON.stringify(["Rotation"]), weaknesses: JSON.stringify(["Tyre wear"]), bestTracks: "[]", strategies: "[]",
+        settings: JSON.stringify({ frontArb: 28, rearArb: 34 }), unitSystem: "metric", source: SEED_MARKER,
+      }).returning({ id: tunes.id }).get();
+      await db.insert(tuneAssignments).values({ gameId: "fm-2023", carId: secondCar, trackId: fm.trackId, tuneId: tuneB.id }).run();
+    }
     await db.update(laps).set({ tuneId: tuneA.id }).where(inArray(laps.id, fmLaps.map((lap) => lap.id))).run();
     await saveChatMessages(chatThreadId(fm.id), [
       {

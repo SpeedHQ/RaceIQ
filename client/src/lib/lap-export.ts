@@ -74,12 +74,13 @@ export async function exportLapsZip(sel: { lapIds?: number[]; sessionIds?: numbe
 }
 
 /** Upload a .zip produced by {@link exportLapsZip}. Returns import counts. */
-export async function importLapsZip(file: File, ownership: "mine" | "others" = "mine"): Promise<{ imported: number; skipped: number }> {
+export async function importLapsZip(file: File, ownership: "mine" | "others" = "mine", identityOverrides?: Record<string, { carId: string; trackId: string }>): Promise<{ imported: number; skipped: number }> {
   // Multipart upload: the route takes a raw FormData body (no zod form
   // validator), so RPC has no typed shape for it — same as /api/laps/import.
   const body = new FormData();
   body.append("file", file);
   body.append("ownership", ownership);
+  if (identityOverrides) body.append("identityOverrides", JSON.stringify(identityOverrides));
   const res = await fetch("/api/laps/import-zip", { method: "POST", body });
   const data = (await res.json().catch(() => null)) as { imported?: number; skipped?: number; error?: string } | null;
   if (!res.ok) throw new Error(data?.error ?? `Import failed (${res.status})`);

@@ -43,9 +43,12 @@ describe("driver profile run persistence", () => {
     const id = await createDriverProfileRun(scope, { poolKey: "pool-a", model: "model-a" });
     expect(id).toBeGreaterThan(0);
 
-    expect(await getDriverProfileRun(id)).toMatchObject({
+    const queued = await getDriverProfileRun(id);
+    expect(queued).toMatchObject({
       id,
-      scopeKey: `fm-2023|${JSON.stringify([scope.carId, scope.trackId])}`,
+      gameId: scope.gameId,
+      carId: scope.carId,
+      trackId: scope.trackId,
       status: "queued",
       poolKey: "pool-a",
       model: "model-a",
@@ -54,17 +57,17 @@ describe("driver profile run persistence", () => {
     });
 
     await expect(
-      updateDriverProfileRun(id, `fm-2023|${JSON.stringify(["other", "scope"])}`, "queued", { status: "running" }),
+      updateDriverProfileRun(id, "different-scope", "queued", { status: "running" }),
     ).rejects.toThrow("was not owned");
     await expect(
-      updateDriverProfileRun(id, `fm-2023|${JSON.stringify([scope.carId, scope.trackId])}`, "queued", { status: "succeeded" }),
+      updateDriverProfileRun(id, queued!.scopeKey, "queued", { status: "succeeded" }),
     ).rejects.toThrow("Invalid driver profile run transition");
 
-    await updateDriverProfileRun(id, `fm-2023|${JSON.stringify([scope.carId, scope.trackId])}`, "queued", {
+    await updateDriverProfileRun(id, queued!.scopeKey, "queued", {
       status: "running",
       startedAt: "2026-07-29T12:00:00.000Z",
     });
-    await updateDriverProfileRun(id, `fm-2023|${JSON.stringify([scope.carId, scope.trackId])}`, "running", {
+    await updateDriverProfileRun(id, queued!.scopeKey, "running", {
       status: "succeeded",
       fingerprint: '{"pace":1}',
       plan: '{"summary":"keep braking"}',

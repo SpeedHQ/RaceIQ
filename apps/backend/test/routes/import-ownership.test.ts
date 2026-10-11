@@ -128,6 +128,7 @@ test("imports a MoTeC ZIP directly without staging", async () => {
     "file",
     new File([readFileSync(MOTEC_ARCHIVE)], "Barcelona-992-MoTeC.zip"),
   );
+  form.append("gameId", "acc");
   form.append("carId", "33");
   form.append("trackId", "8");
   form.append("ownership", "mine");

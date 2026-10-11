@@ -39,15 +39,23 @@ describe("game route helpers", () => {
     expect(gameIdForRoutePrefix("unknown")).toBeUndefined();
   });
 
-  test("accepts only string identity keys and preserves tuple keys", () => {
-    const trackId = JSON.stringify(["Circuit Park", "Grand Prix"]);
-    expect(parseOptionalIdentityKey(42)).toBeUndefined();
-    expect(parseOptionalIdentityKey("42")).toBe("42");
-    expect(parseOptionalIdentityKey(trackId)).toBe(trackId);
-    expect(parseOptionalIdentityKey("")).toBeUndefined();
-    expect(validateAnalyseSearch({ track: trackId, car: "McLaren 720S" })).toMatchObject({ track: trackId, car: "McLaren 720S" });
-  });
 
+  test("normalizes numeric URL identities without changing string keys", () => {
+    const trackId = JSON.stringify(["Circuit Park", "Grand Prix"]);
+    expect(parseOptionalIdentityKey(42)).toBe("42");
+    expect(parseOptionalIdentityKey("0042")).toBe("0042");
+    expect(parseOptionalIdentityKey(trackId)).toBe(trackId);
+    for (const value of ["", NaN, Infinity, -Infinity, null, undefined, true, {}]) {
+      expect(parseOptionalIdentityKey(value)).toBeUndefined();
+    }
+    expect(validateAnalyseSearch({ track: 12, car: 34 })).toMatchObject({ track: "12", car: "34" });
+    expect(validateAnalyseSearch({ track: trackId, car: "McLaren 720S" })).toMatchObject({ track: trackId, car: "McLaren 720S" });
+    expect(validateAnalyseSearch({ track: JSON.parse(trackId), car: "McLaren 720S" })).toMatchObject({ track: trackId, car: "McLaren 720S" });
+    expect(validateCompareSearch({ track: JSON.parse(trackId), carA: "McLaren 720S", carB: "McLaren 720S" })).toMatchObject({ track: trackId });
+    for (const value of [[], ["venue"], ["venue", ""], ["venue", 1], ["venue", "layout", "extra"]]) {
+      expect(parseOptionalIdentityKey(value)).toBeUndefined();
+    }
+  });
 
   test("validates analysis search values and track tabs", () => {
     expect(validateAnalyseSearch({ track: "12", car: 34, lap: "bad", cursor: "15", viz: "3d", ai: "1", trackTab: "braking", ignored: "x" } as Record<string, unknown>)).toEqual({

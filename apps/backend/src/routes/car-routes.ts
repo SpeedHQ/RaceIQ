@@ -19,6 +19,7 @@ import { getLMUCar, lmuCarCatalog } from "@raceiq/game-lmu-metadata/catalog";
 import { getAcEvoCarName } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
 import { getAcEvoTrackName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
 import { tryGetServerGame } from "@raceiq/backend-core/games/registry";
+import { getAllF1Cars } from "@raceiq/game-f1-2025-metadata/racing/cars/f1";
 // ─── Car model config paths ────────────────────────────────────────────────────
 
 import { USER_DATA_DIR } from "@raceiq/backend-core/runtime/config/paths";
@@ -119,6 +120,9 @@ export const carRoutes = new Hono()
         }),
       );
       return c.json([...cars, ...discovered].sort((left, right) => left.name.localeCompare(right.name)));
+    }
+    if (gameIdResult.data === "f1-2025") {
+      return c.json(getAllF1Cars());
     }
 
     if (gameIdResult.data === "iracing") {

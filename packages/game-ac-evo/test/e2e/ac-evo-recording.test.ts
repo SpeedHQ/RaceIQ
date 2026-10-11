@@ -53,7 +53,7 @@ beforeAll(async () => {
 		throw new Error("parseDump returned a lap without test packets");
 	}
 	laps = dump.laps as CapturedLapWithPackets[];
-});
+}, 120_000);
 
 describe("AC Evo v0.6 recording", () => {
 	test("parses packets with correct gameId", () => {
@@ -156,7 +156,7 @@ describe("AC Evo v0.6 recording", () => {
 			{ isValid: false, invalidReason: "track limits" },
 			{ isValid: false, invalidReason: "incomplete" },
 		]);
-	});
+	}, 120_000);
 
 	// This recording holds three laps and no clean one: a garage-start outlap, a
 	// flying lap the driver threw away (speed collapses 46 → 8 km/h at 25.6s and

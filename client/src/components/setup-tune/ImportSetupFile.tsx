@@ -17,6 +17,7 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars, initialF
 
   const [selectedPath, setSelectedPath] = useState<string | null>(initialFile?.name ?? null);
   const [carId, setCarId] = useState<string>(initialFile ? "" : cars[0]?.id ?? "");
+  const [carChosen, setCarChosen] = useState(false);
   const [name, setName] = useState(initialFile?.name.replace(/\.carsetup$/i, "") ?? "");
   const [author, setAuthor] = useState("Me");
   const [carFilter, setCarFilter] = useState("");
@@ -40,6 +41,10 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars, initialF
     })();
     return () => { active = false; };
   }, [initialFile, inspect]);
+
+  useEffect(() => {
+    if (!carChosen && cars.length > 0) setCarId((current) => cars.some((car) => car.id === current) ? current : cars[0].id);
+  }, [cars, carChosen]);
 
   useEffect(() => {
     if (!upload?.carName) return;
@@ -163,7 +168,7 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars, initialF
                   <span className="text-xs font-medium text-app-text-muted">{m.label_car()}</span>
                   <select
                     value={carId}
-                    onChange={(e) => setCarId(e.target.value)}
+                    onChange={(e) => { setCarId(e.target.value); setCarChosen(true); }}
                     className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
                   >
                     {initialFile && <option value="">{m.tune_form_select_car_placeholder()}</option>}
@@ -190,7 +195,7 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars, initialF
                 </label>
                 {importMut.error && <div className="text-app-caption text-status-danger">{(importMut.error as Error).message}</div>}
                 <div className="flex justify-end pt-2">
-                  <Button variant="app-primary" size="app-sm" onClick={doImport} disabled={!selectedPath || importMut.isPending || (initialFile != null && (!upload || !carId))}>
+                  <Button variant="app-primary" size="app-sm" onClick={doImport} disabled={!selectedPath || importMut.isPending || !carId || !cars.some((car) => car.id === carId) || (initialFile != null && !upload)}>
                     {importMut.isPending ? m.label_importing() : m.import_import_setup()}
                   </Button>
                 </div>

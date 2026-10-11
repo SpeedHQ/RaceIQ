@@ -50,8 +50,7 @@ export function getBundledTrackName(gameId: string, ordinal: number): string | u
   if (gameId === "iracing") return getIRacingSharedTrackName(ordinal);
   if (gameId === "fm-2023") return getFmBundledTrackName(ordinal);
   if (gameId === "acc") {
-    const baseOrdinal = ACC_2019_VARIANT[ordinal] ?? ordinal;
-    return getAccSharedTrackName(baseOrdinal);
+    return getAccSharedTrackName(ACC_2019_VARIANT[ordinal] ?? ordinal);
   }
   // AC Evo geometry is resolved by native trackId, never by ordinal.
   if (gameId === "ac-evo") return undefined;

@@ -1,6 +1,6 @@
 import type { GameId } from "@raceiq/shared/games/ids";
 import { RACING_LINE_SEMANTIC_ID, type RacingLineReference } from "@raceiq/analysis-core/racing/analysis/laps/insights/types";
-import { loadBundledPointCsvByName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
+import { getBundledTrackName, loadBundledPointCsvByName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";
 import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
 import { tryGetServerGame } from "../games/registry";
@@ -25,7 +25,9 @@ export function resolveRacingLineReference(gameId: GameId, trackId: string | nul
     };
   }
 
-  const name = tryGetServerGame(gameId)?.getSharedTrackName?.(trackId) ?? trackId;
+  const name = tryGetServerGame(gameId)?.getSharedTrackName?.(trackId)
+    ?? (Number.isInteger(Number(trackId)) ? getBundledTrackName(gameId, Number(trackId)) : undefined)
+    ?? trackId;
   const points = name ? loadBundledPointCsvByName(name, gameId, "raceline") : null;
   return points && points.length >= 20
     ? {

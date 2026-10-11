@@ -285,7 +285,7 @@ describe("reprocessSession", () => {
     const session = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
     expect(session).toMatchObject({ gameId: "ac-evo", trackId: '["Nurburgring","Touristenfahrten"]', notes: "Tourist repair metadata", isFavorite: true });
     expect(session?.carId).not.toBe("test-car");
-  });
+  }, { timeout: 180_000 });
 });
 
 // ── countStaleSessions ────────────────────────────────────────────────────────

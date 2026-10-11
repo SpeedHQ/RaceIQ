@@ -46,12 +46,9 @@ export async function updateSessionCarTrack(
   sessionId: number,
   carId: string,
   trackId: string,
-): Promise<void> {
-  await db
-    .update(sessions)
-    .set({ carId, trackId })
-    .where(eq(sessions.id, sessionId))
-    .run();
+): Promise<boolean> {
+  const result = await db.update(sessions).set({ carId, trackId }).where(eq(sessions.id, sessionId)).run();
+  return result.rowsAffected > 0;
 }
 
 export async function setSessionFavorite(id: number, favorite: boolean): Promise<boolean> {

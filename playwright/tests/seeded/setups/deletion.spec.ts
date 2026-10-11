@@ -112,7 +112,7 @@ for (const { gameId, prefix } of games) {
   });
 
   test(`${gameId}: unlinked setup still requires confirmation`, async ({ page }) => {
-    const setup = await createSetup(page, gameId, 1);
+    const setup = await createSetup(page, gameId, gameId === "fm-2023" ? "1" : "ferrari_488_pista");
     try {
       const dialog = await openDelete(page, prefix, setup.name);
       await expect(dialog).toContainText(/not linked to sessions or laps/i);
@@ -129,7 +129,7 @@ for (const { gameId, prefix } of games) {
 }
 
 test("setup deletion cannot proceed while usage is unknown or failed", async ({ page }) => {
-  const setup = await createSetup(page, "ac-evo", 1);
+  const setup = await createSetup(page, "ac-evo", "ferrari_488_pista");
   let releaseUsage!: () => void;
   const usageGate = new Promise<void>((resolve) => { releaseUsage = resolve; });
   const usagePath = `**/api/tunes/${setup.id}/usage`;
@@ -160,7 +160,7 @@ test("setup deletion cannot proceed while usage is unknown or failed", async ({ 
 });
 
 test("failed setup deletion remains visible and can be retried without losing setup", async ({ page }) => {
-  const setup = await createSetup(page, "ac-evo", 1);
+  const setup = await createSetup(page, "ac-evo", "ferrari_488_pista");
   const deletePath = `**/api/tunes/${setup.id}?confirmInUse=true`;
   try {
     await page.route(deletePath, (route) => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Deletion temporarily unavailable" }) }));

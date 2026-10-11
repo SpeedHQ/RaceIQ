@@ -10,10 +10,17 @@
 - Inspect AC Evo Tourist layouts with recorded open-route maps and explicit Start/Finish markers.
 
 ### Fixes
+- Preserve car and track selections in numeric-ID bookmarks and native AC Evo venue/layout URLs.
+- Refresh experiment spread and corner results after recorded laps are repaired.
+- Initialize setup-folder imports after the car catalog loads and prevent imports without a valid car.
+- Keep live Tourist route maps open between finish and start.
+- Keep outdated-recording warnings visible until every stale session is repaired.
+- Ask for missing or unresolved car and track identities when importing MoTeC ZIPs or opening saved sessions; retain valid selections and preserve original MoTeC content.
 - Restore history-lap imports for experiments without selected car or track IDs.
 - Persist setup name, author, description, and weakness edits.
 - Show saved lap favorites and telemetry availability in lap details.
 - Resolve session car and track names for display, search, and sorting.
+- Avoid missing-identity lookup errors on Home and live dashboards before a car is known.
 - Preserve all four brake temperatures in ACC and AC Evo MoTeC imports.
 - Keep bundled AC Evo track geometry and setup-folder metadata after discovery.
 - Restore the Any car filter in the AC Evo setup browser.

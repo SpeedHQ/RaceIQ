@@ -1,7 +1,7 @@
 import { cacheDelete } from "./telemetry-replay-storage";
-import { eq, or, inArray } from "drizzle-orm";
+import { and, eq, isNotNull, or, inArray } from "drizzle-orm";
 import { db } from "./index";
-import { laps, sessions, lapMetrics, lapAnalyses, compareAnalyses } from "./schema";
+import { laps, sessions, lapMetrics, lapAnalyses, compareAnalyses, lineSpreadCache } from "./schema";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 
 export async function getLapsForSession(sessionId: number): Promise<Array<{
@@ -89,6 +89,15 @@ export async function replaceLapsForSession(
         );
       }
     };
+    const affectedExperiments = await tx
+      .selectDistinct({ experimentId: laps.experimentId })
+      .from(laps)
+      .where(and(eq(laps.sessionId, sessionId), isNotNull(laps.experimentId)))
+      .all();
+    for (const { experimentId } of affectedExperiments) {
+      if (experimentId === null) continue;
+      await tx.delete(lineSpreadCache).where(eq(lineSpreadCache.experimentId, experimentId));
+    }
     await invalidate(rows.map(({ id }) => id));
     for (const id of deleted) await tx.delete(laps).where(eq(laps.id, id));
     for (const replacement of replacements) {

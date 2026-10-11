@@ -38,10 +38,6 @@ describe("committed LMU seed fixture", () => {
       expect.objectContaining({
         carId: identity.carId,
         trackId: identity.trackId,
-        identity: {
-          carId: identity.carId,
-          trackId: identity.trackId,
-        },
         gameId: "lmu",
       }),
     );

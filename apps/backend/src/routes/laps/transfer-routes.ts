@@ -18,6 +18,7 @@ import { isDuckDBFile, previewLMUDuckDB } from "@raceiq/game-lmu/import-duckdb";
 import { importMotec, resolveMotecTarget } from "@raceiq/backend-core/motec/import";
 import { getMotecTargets } from "@raceiq/backend-core/motec/targets";
 import { initMotecTargets } from "../../games/motec-init";
+import { isSessionIdentityInCatalog } from "../../games/session-identity";
 import { loadStagedMotec, removeStagedMotec, stageMotecArchive } from "@raceiq/backend-core/motec/import-staging";
 import { ExportZipQuerySchema, IbtCommitSchema, IbtImportTokenSchema, OwnershipSchema } from "./support";
 
@@ -121,10 +122,13 @@ export const transferRoutes = new Hono()
         const detection = detectLapsZip(bytes);
         return c.json({
           format: "zip" as const,
-          supported: detection.isRaceIqArchive,
+          supported: detection.isRaceIqArchive && !detection.missingMotecIdentities.some((identity) => identity.unsupported),
           gameIds: detection.gameIds,
           captureCount: detection.captureCount,
-          message: detection.isRaceIqArchive ? null : "ZIP does not contain RaceIQ session captures.",
+          missingMotecIdentities: detection.missingMotecIdentities,
+          message: detection.missingMotecIdentities.some((identity) => identity.unsupported)
+            ? "MoTeC archive is missing a supported game identity."
+            : detection.isRaceIqArchive ? null : "ZIP does not contain RaceIQ session captures.",
         });
       } catch {
         return c.json({ format: "unknown" as const, supported: false, gameIds: [], captureCount: 0, message: "File is not a readable ZIP archive." });
@@ -204,7 +208,15 @@ export const transferRoutes = new Hono()
     if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
     if (!file.name.toLowerCase().endsWith(".zip")) return c.json({ error: "Expected a .zip file" }, 400);
     try {
-      const result = await importLapsZip(new Uint8Array(await file.arrayBuffer()), { ownership: ownership.data });
+      const rawOverrides = form?.get("identityOverrides");
+      let identityOverrides: Record<string, { carId: string; trackId: string }> | undefined;
+      if (typeof rawOverrides === "string") {
+        let parsed: unknown;
+        try { parsed = JSON.parse(rawOverrides); } catch { return c.json({ error: "identityOverrides must be valid JSON" }, 400); }
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return c.json({ error: "identityOverrides must be an object keyed by archive filename" }, 400);
+        identityOverrides = parsed as Record<string, { carId: string; trackId: string }>;
+      }
+      const result = await importLapsZip(new Uint8Array(await file.arrayBuffer()), { ownership: ownership.data, identityOverrides });
       return c.json(result);
     } catch (err) {
       return c.json({ error: `Failed to import zip: ${err instanceof Error ? err.message : String(err)}` }, 400);
@@ -385,6 +397,9 @@ export const transferRoutes = new Hono()
       target = resolveMotecTarget(typeof gameIdRaw === "string" && gameIdRaw ? gameIdRaw : "");
     } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
+    }
+    if (!isSessionIdentityInCatalog(target.gameId, carId, trackId)) {
+      return c.json({ error: "carId and trackId must resolve in current game catalogs" }, 400);
     }
     const num = (key: string): number | undefined => {
       const raw = form?.get(key);
