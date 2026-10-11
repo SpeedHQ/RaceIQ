@@ -80,7 +80,9 @@ export async function updateTune(id: number, data: Partial<Omit<InsertTuneData, 
   if (data.carId !== undefined) sets.carId = data.carId;
   if (data.category !== undefined) sets.category = data.category;
   if (data.trackId !== undefined) sets.trackId = data.trackId;
+  if (data.description !== undefined) sets.description = data.description;
   if (data.strengths !== undefined) sets.strengths = data.strengths;
+  if (data.weaknesses !== undefined) sets.weaknesses = data.weaknesses;
   if (data.bestTracks !== undefined) sets.bestTracks = data.bestTracks;
   if (data.strategies !== undefined) sets.strategies = data.strategies;
   if (data.settings !== undefined) sets.settings = data.settings;

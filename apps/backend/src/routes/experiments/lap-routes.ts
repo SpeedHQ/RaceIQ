@@ -39,8 +39,8 @@ export const experimentLapRoutes = new Hono()
 
       const importable = await getImportableLapsForExperiment(
         session.gameId as GameId,
-        session.carId ?? "",
-        session.trackId ?? "",
+        session.carId,
+        session.trackId,
       );
       if (session.gameId !== "f1-2025") {
         return c.json(importable);
@@ -82,8 +82,8 @@ export const experimentLapRoutes = new Hono()
       const body = c.req.valid("json");
       const importable = await getImportableLapsForExperiment(
         session.gameId as GameId,
-        session.carId ?? "",
-        session.trackId ?? "",
+        session.carId,
+        session.trackId,
       );
       const importableIds = new Set(importable.map((lap) => lap.id));
       const invalidLapIds = body.lapIds.filter((lapId) => !importableIds.has(lapId));

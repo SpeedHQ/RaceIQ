@@ -432,6 +432,8 @@ function buildLapResult(
     lapNumber: row.lapNumber,
     lapTime: row.lapTime,
     isValid: Boolean(row.isValid),
+    isFavorite: Boolean(row.isFavorite),
+    telemetryAvailable: row.rawFile != null && row.rawByteOffset != null && (row.rawFrameCount ?? 0) > 0,
     carId: row.carId,
     trackId: row.trackId,
     createdAt: row.createdAt,

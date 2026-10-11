@@ -23,4 +23,15 @@ describe("AC Evo native track lookup", () => {
     expect(getAcEvoTrackBySetupFolder(trackName)).toBeUndefined();
     expect(getAcEvoTracks().get(gpId)?.id).toBe(gpId);
   });
+
+  test("keeps curated geometry and setup metadata when a known track is discovered", () => {
+    const id = acEvoTrackId("Spa-Francorchamps", "GP");
+    injectDiscoveredAcEvoTracks([
+      { id, name: "Spa-Francorchamps", trackName: "Spa-Francorchamps", trackConfiguration: "GP" },
+    ]);
+
+    expect(getAcEvoTracks().get(id)).toMatchObject({ commonTrackName: "spa", setupFolder: "spa" });
+    expect(getAcEvoTrackByName("Spa-Francorchamps", "GP")).toMatchObject({ commonTrackName: "spa", setupFolder: "spa" });
+    expect(getAcEvoTrackBySetupFolder("spa")?.id).toBe(id);
+  });
 });

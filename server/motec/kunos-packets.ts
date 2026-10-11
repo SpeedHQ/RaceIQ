@@ -234,6 +234,7 @@ export function convertPreparedKunosMotecPackets(
       Power: 0,
       Torque: 0,
       trackId: carTrack.trackId,
+      BrakeTempFrontLeft: brakeTemperatures[0],
       BrakeTempFrontRight: brakeTemperatures[1],
       BrakeTempRearLeft: brakeTemperatures[2],
       BrakeTempRearRight: brakeTemperatures[3],

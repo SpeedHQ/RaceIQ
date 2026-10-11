@@ -20,12 +20,12 @@ export function formatSessionType(type?: string): string {
 }
 
 export function sessionTrackName(session: RacingIdentityFields & { gameId?: string }, names: SessionNames): string {
-  if (session.trackId != null) return names.trackNames[`${session.gameId}:${session.trackId}`] ?? session.trackId;
+  if (session.trackId != null) return names.trackNames[session.trackId] ?? session.trackId;
   return "";
 }
 
 export function sessionCarName(session: RacingIdentityFields & { gameId?: string }, names: SessionNames): string {
-  if (session.carId != null) return names.carNames[`${session.gameId}:${session.carId}`] ?? session.carId;
+  if (session.carId != null) return names.carNames[session.carId] ?? session.carId;
   return "";
 }
 

@@ -10,6 +10,11 @@ import { reconcileHistoricalSessions } from "@raceiq/backend-core/session-captur
 import { combineRecordingParts } from "@raceiq/backend-core/session-capture/combine-recording-parts";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { encodeMetaFrame } from "@raceiq/capture-formats/session/framing";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+import { initServerGameAdapters } from "../../src/games/init";
+
+initGameAdapters();
+initServerGameAdapters();
 
 const createdSessions: number[] = [];
 const directories: string[] = [];

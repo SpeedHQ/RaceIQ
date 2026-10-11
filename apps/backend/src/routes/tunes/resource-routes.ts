@@ -116,6 +116,8 @@ export const tuneResourceRoutes = new Hono()
         return c.json({ error: "Invalid settings structure" }, 400);
       }
       const data: Record<string, any> = {};
+      if (body.name !== undefined) data.name = body.name;
+      if (body.author !== undefined) data.author = body.author;
       if (body.carId !== undefined) data.carId = body.carId;
       if (body.category !== undefined) data.category = body.category;
       if (body.trackId !== undefined) data.trackId = body.trackId;

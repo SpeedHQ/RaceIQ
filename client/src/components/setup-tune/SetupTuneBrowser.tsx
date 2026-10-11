@@ -62,7 +62,7 @@ export function SetupTuneBrowser({ gameId, routePrefix, cars }: { gameId: GameId
     const counts = new Map<string, number>();
     for (const r of rows) counts.set(r.carId, (counts.get(r.carId) ?? 0) + 1);
     const opts = [...counts.entries()].map(([id, count]) => ({ value: id, label: carNames[id] ?? `Car #${id}`, count })).sort((a, b) => b.count - a.count);
-    return opts;
+    return [{ value: "any", label: m.setup_any_car(), count: rows.length }, ...opts];
   }, [rows, carNames, uiLocale]);
 
   const trackOptions = useMemo(() => {

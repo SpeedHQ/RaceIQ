@@ -34,6 +34,12 @@ export function injectDiscoveredAcEvoTracks(rows: {
       commonTrackName: sourceName,
       setupFolder: "",
     };
+    for (const curated of getTracks().values()) {
+      if (curated.name.trim() !== sourceName.trim() || curated.variant.trim() !== configuration.trim()) continue;
+      track.commonTrackName = curated.commonTrackName;
+      track.setupFolder = curated.setupFolder;
+      break;
+    }
     discoveredTracksById.set(row.id, track);
     if (row.trackName === null || row.trackConfiguration === null) continue;
     discoveredTracksBySource.set(acEvoTrackId(sourceName, configuration), track);
