@@ -5,6 +5,7 @@ import type { VerifiedRecordingCodec, UploadGame } from "./payload";
 type AcceptanceInput = api.AcceptanceInput;
 type OwnLap = api.OwnLap;
 type UploadPreferencesInput = api.UploadPreferencesInput;
+type ProfilePatch = api.ProfilePatch;
 const REQUEST_TIMEOUT_MS = 8_000;
 const MAX_UPLOAD_BYTES = 128 * 1024 * 1024;
 
@@ -31,6 +32,7 @@ export class OnlineAdapterError extends Error {
 export interface OnlineCredentials {
   accessToken: string;
   consentAccepted: boolean;
+  discordAccountName?: string | null;
 }
 export interface CanonicalBoardKey { gameId: string; trackId: string; carId: string }
 export interface LocalBoardKey { gameId: string; trackId: string; carId: string }
@@ -139,12 +141,25 @@ function retryAfterTimestamp(value: string | null): string | null {
       return { available: true as const, termsUrl, privacyUrl, termsVersion, privacyVersion };
     },
     async getMe() {
-      const headers = await authHeaders(false);
+      const credentials = await options.credentials();
+      if (!credentials?.accessToken) throw new OnlineAdapterError("not_connected", false);
+      const headers = { Authorization: `Bearer ${credentials.accessToken}` };
       const profile = await request(() => api.getMe({ client: client.apiClient, headers }));
       const userId = stringField(profile.userId);
       const displayName = stringField(profile.displayName);
       if (!userId || !displayName) throw new OnlineAdapterError("invalid_response", false);
-      return { userId, displayName, avatarUrl: safeUrl(profile.avatarUrl) };
+      return { userId, displayName, avatarUrl: safeUrl(profile.avatarUrl), discordUsername: stringField(credentials.discordAccountName) };
+    },
+    async setDisplayName(displayName: string) {
+      const credentials = await options.credentials();
+      if (!credentials?.accessToken || !credentials.consentAccepted) throw new OnlineAdapterError("not_connected", false);
+      const headers = { Authorization: `Bearer ${credentials.accessToken}`, Origin: base.origin };
+      const body: ProfilePatch = { displayName };
+      const profile = await request(() => api.patchMe({ client: client.apiClient, headers, body }));
+      const userId = stringField(profile.userId);
+      const returnedName = stringField(profile.displayName);
+      if (!userId || !returnedName) throw new OnlineAdapterError("invalid_response", false);
+      return { userId, displayName: returnedName, avatarUrl: safeUrl(profile.avatarUrl), discordUsername: stringField(credentials.discordAccountName) };
     },
     async getConsent() {
       const headers = await authHeaders(false);

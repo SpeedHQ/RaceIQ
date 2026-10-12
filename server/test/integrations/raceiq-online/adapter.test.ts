@@ -26,6 +26,25 @@ describe("Online adapter transfer boundary", () => {
     expect(requests).toBe(0);
     expect(recording).toEqual(new Uint8Array([1, 2, 3, 4]));
   });
+
+  test("keeps session Discord account name separate and stable across leaderboard name patches", async () => {
+    const createAdapter = (discordAccountName: string | null) => createRaceIqOnlineAdapter({
+      baseUrl: "https://raceiq.example",
+      credentials: async () => ({ accessToken: "test-token", consentAccepted: true, discordAccountName }),
+      identifiers: createBoardIdentifierResolver([]),
+      fetch: Object.assign(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = new Request(input, init);
+        if (new URL(request.url).pathname.endsWith("/me")) {
+          return Response.json({ userId: "account-1", displayName: request.method === "PATCH" ? "Chosen Name Updated" : "Chosen Name", avatarUrl: "https://cdn.example/avatar.png" });
+        }
+        throw new Error("Account metadata must not require a separate auth request");
+      }, { preconnect: globalThis.fetch.preconnect }),
+    });
+    const connected = createAdapter("Discord Account Name");
+    expect(await connected.getMe()).toEqual({ userId: "account-1", displayName: "Chosen Name", avatarUrl: "https://cdn.example/avatar.png", discordUsername: "Discord Account Name" });
+    expect(await connected.setDisplayName("Chosen Name Updated")).toEqual({ userId: "account-1", displayName: "Chosen Name Updated", avatarUrl: "https://cdn.example/avatar.png", discordUsername: "Discord Account Name" });
+    expect((await createAdapter(null).getMe()).discordUsername).toBeNull();
+  });
   test("maps published flat ranked laps without copying private identity fields", async () => {
     const key = { gameId: "acc", trackId: "local-track", carId: "local-car" };
     const adapter = createRaceIqOnlineAdapter({

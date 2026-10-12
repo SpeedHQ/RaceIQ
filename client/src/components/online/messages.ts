@@ -10,6 +10,7 @@ const errorMessages: Record<OnlineErrorCode, () => string> = {
   auth_failed: m.online_error_auth_failed,
   auth_cancelled: m.online_error_auth_cancelled,
   consent_required: m.online_error_consent_required,
+  sharing_required: m.online_community_laps_private,
   stale_state: m.online_error_stale_state,
   invalid_request: m.online_error_invalid_request,
   preferences_failed: m.online_error_preferences_failed,

@@ -14,8 +14,8 @@ const errorMessage = (code: OnlineErrorCode) => {
     case "unknown_track": return m.online_community_laps_unknown_track();
     case "unknown_car": return m.online_community_laps_unknown_car();
     case "offline": return m.online_community_laps_offline();
-    case "not_connected": return m.online_error_not_connected();
     case "consent_required": return m.online_error_consent_required();
+    case "sharing_required": return m.online_community_laps_private();
     default: return onlineErrorMessage(code);
   }
 };
@@ -34,14 +34,20 @@ export function OnlineCommunityLaps({ gameId, trackId, carId }: { gameId: string
     const timer = window.setTimeout(() => setRetryDelayElapsed(true), Math.min(delay, 2_147_483_647));
     return () => window.clearTimeout(timer);
   }, [retryAfter]);
-  const stateNotice = online.state?.connection.status === "signed_out"
+  const state = online.state;
+  const locked = !query.accessAllowed;
+  const stateNotice = state?.connection.status !== "connected"
     ? m.online_community_laps_not_connected()
-    : online.state?.consent.status === "required" || online.state?.consent.status === "not_accepted"
+    : state.consent.status !== "accepted"
       ? m.online_community_laps_consent_required()
-      : online.state?.preferences?.visibility === "private"
+      : state.preferences?.visibility !== "public" || state.preferencePersistence !== "confirmed"
         ? m.online_community_laps_private()
         : null;
   if (!input) return <div className="p-4 text-sm text-app-text-dim">{m.online_community_laps_select_car()}</div>;
+  if (locked) return <section aria-label={m.online_community_laps_title()} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <h2 className="px-3 pt-3 text-app-detail font-semibold text-app-text">{m.online_onboarding_title()}</h2>
+    <p role="status" className="p-4 text-sm text-app-text-dim">{stateNotice ?? m.online_community_laps_private()}</p>
+  </section>;
   const board = query.data;
   const error = board?.error;
   const transportFailure = query.error instanceof OnlineTransportFailure ? query.error : online.transportError;
@@ -54,7 +60,6 @@ export function OnlineCommunityLaps({ gameId, trackId, carId }: { gameId: string
   return (
     <section aria-label={m.online_community_laps_title()} aria-live="polite" className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <h2 className="px-3 pt-3 text-app-detail font-semibold text-app-text">{m.online_onboarding_title()}</h2>
-      {stateNotice && <p className="px-3 pt-3 text-sm text-app-text-dim">{stateNotice}</p>}
       {online.state?.service === "offline" && <p className="px-3 pt-3 text-sm text-app-text-dim">{m.online_community_laps_offline()}</p>}
       {online.state?.service === "unavailable" && <p className="px-3 pt-3 text-sm text-app-text-dim">{m.online_community_laps_unavailable()}</p>}
       {online.accountHidden && <p role="status" className="p-4 text-sm text-app-text-dim">{online.signOutPending ? m.online_signout_pending() : m.online_signout_unknown()}</p>}

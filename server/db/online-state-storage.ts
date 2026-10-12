@@ -6,9 +6,11 @@ import { z } from "zod";
 import { resolveDataDir } from "../runtime/config/data-dir";
 
 const PreferencesSchema = z.object({ visibility: z.enum(["private", "public"]), setupUploads: z.boolean() }).strict();
+const AccountProfileSchema = z.object({ userId: z.string().min(1), displayName: z.string(), avatarUrl: z.string().nullable(), discordUsername: z.string().min(1).nullable().optional() }).strict();
 const ConsentSchema = z.object({ termsVersion: z.string(), privacyVersion: z.string(), acceptedAt: z.string() }).strict();
 const StateSchema = z.object({
   accountEpoch: z.string().min(1), revision: z.number().int().nonnegative(),
+  profile: AccountProfileSchema.nullable().default(null),
   preferences: PreferencesSchema.nullable(), persistedPreferences: PreferencesSchema.nullable(),
   preferencePersistence: z.enum(["unconfirmed", "confirmed", "pending", "failed"]),
   consent: ConsentSchema.nullable(), privacyBarrier: z.boolean(), setupBarrier: z.boolean(),
@@ -17,9 +19,10 @@ const StateSchema = z.object({
 export type PersistedOnlineState = z.infer<typeof StateSchema>;
 
 function initial(): PersistedOnlineState {
-  return { accountEpoch: randomUUID(), revision: 0, preferences: null, persistedPreferences: null,
+  return { accountEpoch: randomUUID(), revision: 0, profile: null, preferences: null, persistedPreferences: null,
     preferencePersistence: "unconfirmed", consent: null, privacyBarrier: true, setupBarrier: true };
 }
+
 
 export class OnlineStateStorage {
   private readonly path: string;

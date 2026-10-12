@@ -5,14 +5,21 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import type { RaceIqOnlinePort, OnlineErrorCode, OnlineCommandResult } from "@raceiq/shared/integrations/raceiq-online";
 import { getOnlineService } from "@raceiq/backend-core/integrations/raceiq-online/service";
+import { onlineAuthPage } from "./online-auth-page";
 
 const id = z.string().min(1).max(512);
 const context = z.object({ expectedRevision: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER), accountEpoch: id }).strict();
 const versions = z.object({ termsVersion: id, privacyVersion: id }).strict();
 const preferences = z.object({ visibility: z.enum(["private", "public"]), setupUploads: z.boolean() }).strict();
-const connect = context.extend({ acceptedPolicyVersions: versions, preferences });
 const consent = context.extend({ acceptedPolicyVersions: versions });
 const preferenceInput = context.extend({ preferences });
+const displayName = context.extend({ displayName: z.string().refine((value) => {
+  const trimmed = value.trim();
+  if (!trimmed || /\p{Cc}/u.test(trimmed)) return false;
+  let codePoints = 0;
+  for (const _character of trimmed) if (++codePoints > 80) return false;
+  return true;
+}) });
 const cancel = context.extend({ flowId: id });
 const board = z.object({ trackId: id, carId: id }).strict();
 
@@ -76,13 +83,17 @@ export function createOnlineRoutes(port: OnlineRoutePort) {
       return c.json({ ok: false, error: { code: invalid ? "invalid_request" : "internal_error", retryable: false, retryAfter: null }, state: await port.getState() } satisfies OnlineCommandResult, invalid ? 400 : 500);
     })
     .get("/api/online/auth/callback", async (c) => {
-      if (c.req.header("Host") !== `127.0.0.1:${Number(process.env.SERVER_PORT) || 3117}`) return c.text("Sign-in could not be completed. Return to RaceIQ.", 400);
+      const nonce = crypto.randomUUID();
+      c.header("Referrer-Policy", "no-referrer");
+      c.header("Content-Security-Policy", `default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`);
+      c.header("X-Content-Type-Options", "nosniff");
+      if (c.req.header("Host") !== `127.0.0.1:${Number(process.env.SERVER_PORT) || 3117}`) return c.html(onlineAuthPage(false, nonce), 400);
       let handled = false;
       try { handled = await port.handleAuthCallback(c.req.url); } catch { /* Keep browser response generic. */ }
-      return c.html(`<!doctype html><meta charset="utf-8"><title>RaceIQ sign-in</title><p>${handled ? "Sign-in completed. Return to RaceIQ." : "Sign-in could not be completed. Return to RaceIQ."}</p>`, handled ? 200 : 400);
+      return c.html(onlineAuthPage(handled, nonce), handled ? 200 : 400);
     })
     .get("/api/online/state", async (c) => c.json(await port.getState()))
-    .post("/api/online/connect", validate(connect), async (c) => {
+    .post("/api/online/connect", validate(context), async (c) => {
       const result = await port.connect(c.req.valid("json"));
       return c.json(result, result.ok ? 202 : onlineErrorStatus(result.error.code));
     })
@@ -92,6 +103,10 @@ export function createOnlineRoutes(port: OnlineRoutePort) {
     })
     .put("/api/online/consent", validate(consent), async (c) => {
       const result = await port.acceptConsent(c.req.valid("json"));
+      return c.json(result, result.ok ? 200 : onlineErrorStatus(result.error.code));
+    })
+    .put("/api/online/profile", validate(displayName), async (c) => {
+      const result = await port.setDisplayName(c.req.valid("json"));
       return c.json(result, result.ok ? 200 : onlineErrorStatus(result.error.code));
     })
     .put("/api/online/preferences", validate(preferenceInput), async (c) => {
@@ -123,6 +138,7 @@ const port: RaceIqOnlinePort & { handleAuthCallback(url: string): Promise<boolea
   cancelSignIn: (input) => getOnlineService().cancelSignIn(input),
   acceptConsent: (input) => getOnlineService().acceptConsent(input),
   setPreferences: (input) => getOnlineService().setPreferences(input),
+  setDisplayName: (input) => getOnlineService().setDisplayName(input),
   signOut: (input) => getOnlineService().signOut(input),
   getLeaderboard: (input) => getOnlineService().getLeaderboard(input),
   handleAuthCallback: (url) => getOnlineService().handleAuthCallback(url),

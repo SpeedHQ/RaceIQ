@@ -1,10 +1,10 @@
 import { m } from "@/paraglide/messages";
 
+
 export const NAV_ITEMS = [
   { id: "general", label: "General" },
   { id: "games", label: "Games" },
   { id: "connection", label: "Connection" },
-  { id: "online", label: "RaceIQ Online" },
   { id: "wheel", label: "Wheel" },
   { id: "speed", label: "Units" },
   { id: "sound", label: "Sound" },
@@ -21,7 +21,6 @@ export const NAV_LABELS: Record<SectionId, () => string> = {
   general: m.label_general,
   games: m.label_games,
   connection: m.label_connection,
-  online: m.online_settings_title,
   wheel: m.label_wheel,
   speed: m.label_units,
   sound: m.label_sound,

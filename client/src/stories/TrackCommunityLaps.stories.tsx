@@ -34,4 +34,4 @@ export function TrackCommunityLapsPreview() {
 const meta = { title: "Tracks/Community Laps", component: TrackCommunityLapsPreview, parameters: { layout: "fullscreen" } } satisfies Meta<typeof TrackCommunityLapsPreview>;
 export default meta;
 type Story = StoryObj<typeof meta>;
-export const PrivateReadableBoard: Story = {};
+export const PrivateLockedBoard: Story = {};

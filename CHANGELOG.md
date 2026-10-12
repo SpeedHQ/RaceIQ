@@ -2,16 +2,33 @@
 
 ### Features
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
-- Add optional RaceIQ Online onboarding, dedicated Online settings, and separate Community Laps while keeping offline features available.
+- Add optional RaceIQ Online onboarding, Online controls in General settings, and separate Community Laps while keeping offline features available.
+- Choose Discord sign-in or offline setup using selectable cards after Welcome and one dynamic footer action; review sharing permissions after sign-in and resume that step when returning from authorization.
 - Implement documented Supabase desktop PKCE sign-in through the loopback callback, requiring OS-keystore refresh-token storage and keeping access tokens in memory; real login remains gated on provider callback allowlisting.
+- Default “Make my laps public” to on when choosing Online sharing permissions; users must still confirm before the preference takes effect.
+- Use your Discord-linked Online name as the onboarding placeholder; enter a new leaderboard display name or leave it blank to keep your current name. Offline names remain local.
+- Require public lap sharing for RaceIQ Online leaderboard integration in the app, encouraging drivers to share their fastest laps; website leaderboards remain available with sharing off.
+- Show your Discord account name and profile picture alongside your chosen leaderboard name in General settings.
 
 ### Fixes
+- Remember your Online policy acceptance on your account so signing in again does not ask you to accept unchanged terms.
+- Sync Online sharing preferences from your Live account after sign-in and during account refresh, without requiring you to save them again; keep unsaved privacy restrictions in place.
+- Use your Discord account display name in Online settings, keeping it separate from your editable leaderboard name.
+- Keep local Online sign-in and last sharing preferences across restarts, service outages, and temporarily unavailable saved credentials, with account controls available and remote actions disabled until authentication recovers.
+- Confirm Online sharing preferences together with policy acceptance, including newly connected accounts without saved preferences; show choices before approval and allow retrying missing preferences without duplicate warnings.
+- Edit your Online leaderboard name and sharing settings as a local draft and apply them with Save; keep unsaved choices available when saving fails.
+- Keep Online connected after public sharing is confirmed instead of reporting an invalid backend response; failed connections no longer display an empty account name or a misleading loading message.
+- Mention in-app comparison with other drivers’ laps in Online onboarding and settings descriptions.
+- Place Online sharing confirmation on the right, with Continue offline or Sign out on the left; keep actions stacked on smaller screens.
+- Replace the bare Online sign-in callback response with responsive success and failure pages, safe recovery guidance, and a close-tab action; remove callback credentials from the address bar and prevent referrer leakage.
+- Keep the official Discord logo neutral instead of cyan in the onboarding account-choice card.
 - Report RaceIQ Online service health separately from missing policy configuration, keeping consent-dependent transfers blocked.
 - Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
 
 ### Internal
+- Isolate Online route-test credentials from the OS keystore so sign-out checks cannot remove saved account credentials.
 - Add the typed local RaceIQ Online API and durable fail-closed transfer boundaries; authenticated transfers remain disabled until service authentication, eligibility, recording sanitization, and replay contracts are verified.
-- Upgrade the RaceIQ Online client to `@speedhq/live-client@0.1.8` and use its documented Supabase desktop-auth contract.
+- Upgrade the RaceIQ Online client to `@speedhq/live-client@0.1.9` and use its documented Supabase desktop-auth contract and session-provided Discord account name.
 - Document new-game integration, lossless sparse recording, lap correctness checks, and gzip fixture splitting without Git LFS; align capture and architecture guides with current implementation.
 - Avoid per-packet serialization and hashing during race-result reconciliation while retaining raw capture identity and processing provenance.
 - Add Bun-only parser/pipeline, retained-heap, import, and recording benchmarks with isolated workloads and explicit measurement scopes.

@@ -1,4 +1,4 @@
-import type { CancelSignInInput, ConnectInput, ConnectResult, ConsentInput, LeaderboardInput, OnlineCommandResult, OnlineConnection, OnlineConsent, OnlineError, OnlineErrorCode, OnlineLeaderboard, OnlineMutationContext, OnlinePolicy, OnlinePreferences, OnlinePublication, OnlineState, OnlineSync, OnlineSyncBlock, OnlineTransportError, PolicyVersions, PreferencesInput, RaceIqOnlinePort } from "@raceiq/shared/integrations/raceiq-online";
+import type { CancelSignInInput, ConnectInput, ConnectResult, ConsentInput, DisplayNameInput, LeaderboardInput, OnlineCommandResult, OnlineConnection, OnlineConsent, OnlineError, OnlineErrorCode, OnlineLeaderboard, OnlineMutationContext, OnlinePolicy, OnlinePreferences, OnlinePublication, OnlineState, OnlineSync, OnlineSyncBlock, OnlineTransportError, PolicyVersions, PreferencesInput, RaceIqOnlinePort } from "@raceiq/shared/integrations/raceiq-online";
 import { client } from "./rpc";
 export type { RaceIqOnlinePort };
 
@@ -29,7 +29,7 @@ const isHttpsUrl = (v: unknown): v is string => {
   try { const url = new URL(v); return url.protocol === "https:" && !url.username && !url.password; } catch { return false; }
 };
 const isEnum = <T extends string>(v: unknown, values: readonly T[]): v is T => values.some((candidate) => candidate === v);
-const errorCodes: readonly OnlineErrorCode[] = ["offline", "service_unavailable", "policy_unavailable", "policy_changed", "not_connected", "auth_failed", "auth_cancelled", "consent_required", "stale_state", "invalid_request", "preferences_failed", "rate_limited", "unsupported_game", "unknown_track", "unknown_car", "ineligible_lap", "f1_sanitization_failed", "validation_rejected", "account_unavailable", "unpublish_failed", "external_open_failed", "internal_error"];
+const errorCodes: readonly OnlineErrorCode[] = ["offline", "service_unavailable", "policy_unavailable", "policy_changed", "not_connected", "auth_failed", "auth_cancelled", "consent_required", "sharing_required", "stale_state", "invalid_request", "preferences_failed", "rate_limited", "unsupported_game", "unknown_track", "unknown_car", "ineligible_lap", "f1_sanitization_failed", "validation_rejected", "account_unavailable", "unpublish_failed", "external_open_failed", "internal_error"];
 const blocks: readonly OnlineSyncBlock[] = ["signed_out", "consent_required", "private", "preferences_unconfirmed", "offline", "service_unavailable", "account_unavailable"];
 function isError(v: unknown): v is OnlineError { return isRecord(v) && hasExactKeys(v, ["code", "retryable", "retryAfter"]) && isEnum(v.code, errorCodes) && typeof v.retryable === "boolean" && (v.retryAfter === null || isIso(v.retryAfter)); }
 function isVersions(v: unknown): v is PolicyVersions { return isRecord(v) && hasExactKeys(v, ["termsVersion", "privacyVersion"]) && isString(v.termsVersion) && isString(v.privacyVersion); }
@@ -39,7 +39,7 @@ function isConnection(v: unknown): v is OnlineConnection {
   if (v.status === "signed_out") return hasExactKeys(v, ["status"]);
   if (v.status === "signing_in") return hasExactKeys(v, ["status", "flowId"]) && isString(v.flowId);
   if (v.status === "error") return hasExactKeys(v, ["status", "error"]) && isError(v.error);
-  return v.status === "connected" && hasExactKeys(v, ["status", "account"]) && isRecord(v.account) && hasExactKeys(v.account, ["userId", "displayName", "avatarUrl"]) && isString(v.account.userId) && isString(v.account.displayName) && isNullableString(v.account.avatarUrl);
+  return v.status === "connected" && hasExactKeys(v, ["status", "account"]) && isRecord(v.account) && (hasExactKeys(v.account, ["userId", "displayName", "avatarUrl"]) || hasExactKeys(v.account, ["userId", "displayName", "avatarUrl", "discordUsername"])) && isString(v.account.userId) && isString(v.account.displayName) && isNullableString(v.account.avatarUrl) && (!("discordUsername" in v.account) || v.account.discordUsername === null || isString(v.account.discordUsername));
 }
 function isPolicy(v: unknown): v is OnlinePolicy {
   if (!isRecord(v)) return false;
@@ -87,5 +87,6 @@ export const raceIqOnlinePort: RaceIqOnlinePort = {
   acceptConsent: (input: ConsentInput) => call(client.api.online.consent.$put({ json: input }), isCommand, commandStatuses),
   setPreferences: (input: PreferencesInput) => call(client.api.online.preferences.$put({ json: input }), isCommand, commandStatuses),
   signOut: (input: OnlineMutationContext) => call(client.api.online["sign-out"].$post({ json: input }), isCommand, commandStatuses),
+  setDisplayName: (input: DisplayNameInput) => call(client.api.online.profile.$put({ json: input }), isCommand, commandStatuses),
   getLeaderboard: (input: LeaderboardInput) => call(client.api.online.leaderboard.$get({ query: { trackId: input.trackId, carId: input.carId } }, { headers: { "X-Game-Id": input.gameId } }), isOnlineLeaderboard, [200]),
 };

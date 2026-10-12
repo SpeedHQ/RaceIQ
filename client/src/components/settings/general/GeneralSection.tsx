@@ -6,7 +6,7 @@ import { SearchSelect } from "@/components/ui/SearchSelect";
 import { useSaveSettings, useSettings } from "@/hooks/settings";
 import { applyLocale } from "@/lib/locale";
 import { m } from "@/paraglide/messages";
-
+import { OnlineSection } from "../OnlineSection";
 export function GeneralSection() {
   const { displaySettings } = useSettings();
   const saveSettings = useSaveSettings();
@@ -61,6 +61,9 @@ export function GeneralSection() {
           </span>
         </div>
         <p className="text-app-text-muted text-xs mt-1">{m.settings_launch_on_login_desc()}</p>
+      </div>
+      <div className="mt-8 border-t border-app-border pt-6">
+        <OnlineSection />
       </div>
     </section>
   );
