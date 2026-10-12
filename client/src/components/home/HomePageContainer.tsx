@@ -45,7 +45,7 @@ export function HomePageContainer() {
       ids.add(track.identity);
       idsByGame.set(track.gameId, ids);
     }
-    return [...idsByGame].map(([gameId, ids]) => ({ gameId, tracks: [...ids].join(",") }));
+    return [...idsByGame].map(([gameId, ids]) => ({ gameId, tracks: JSON.stringify([...ids].sort()) }));
   }, [response]);
   const resolvedTrackNames = useQueries({
     queries: trackNameRequests.map(({ gameId, tracks }) => ({

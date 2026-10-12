@@ -15,6 +15,7 @@
 - Show Nordschleife track edges along the supported portion of AC Evo Tourist routes without closing the Start/Finish gap.
 
 ### Fixes
+- Restore track names in home and game dashboards without failed lookup requests.
 - Show car images in F1 and ACC dashboard session and favourite-car panels.
 - Reject unknown database migration versions, conflicting migration identities, and duplicate migration numbers before applying upgrades instead of modifying incompatible databases.
 - Keep home dashboard game cards within narrow phone screens without horizontal page scrolling.
@@ -53,6 +54,7 @@
 ### Internal
 - Limit CI test execution to two concurrent Turbo tasks and one Bun unit-test worker per task to reduce resource pressure on constrained runners.
 - Update browser coverage for dashboard periods, session analysis navigation, and persisted onboarding settings without relying on removed headings or recap buttons; enable feature-gated responsive routes in both fresh and seeded test servers.
+- Align responsive Analyse waits with replay readiness and keep session-table browser tests scoped to visible rows after expansion.
 - Report Paraglide development and production compilation stages, a 10-second elapsed-time heartbeat, and total build duration; preserve validated cache reuse.
 - Bound HTTP request/response adapter typing to avoid expanding the full RPC router schema during backend typechecking, preserving existing RPC contracts.
 - Add a release-seeded startup upgrade regression that verifies historical Tourist sessions are automatically reprocessed into the correct layout and lap times.
