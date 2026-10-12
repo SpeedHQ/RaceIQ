@@ -292,8 +292,11 @@ async function representativeLapFallback(
   sourceScope: CleanLapAggregate["sourceScope"],
   headOwnLapCount: number | null,
   lapBreakdown: LapBreakdownRow[],
+  allowedLapIds?: readonly number[],
 ): Promise<CleanLapAggregate> {
-  const lap = await loadRepresentativeLap(sessionId);
+  const lap = allowedLapIds
+    ? await loadRepresentativeLap(sessionId, { lapIds: allowedLapIds })
+    : await loadRepresentativeLap(sessionId);
   if (!lap) {
     return {
       ok: false,
@@ -301,20 +304,23 @@ async function representativeLapFallback(
       symptoms: null,
       trackConditions: null,
       consistency: emptyConsistency("very-low"),
-      fallbackSingleLap: true,
+      fallbackSingleLap: allowedLapIds === undefined,
       sourceScope,
       headOwnLapCount,
       lapBreakdown,
     };
   }
 
+  const consistency = emptyConsistency("very-low");
+  consistency.cleanLapCount = 1;
+  consistency.bestLapSec = lap.lapTime;
   const corners = await resolveLapCorners(lap.trackOrdinal, lap.gameId, lap.telemetry);
   return {
     ok: true,
     lapIds: [lap.id],
     symptoms: telemetryToSymptoms(lap.telemetry, corners),
     trackConditions: telemetryToTrackConditions(lap.telemetry),
-    consistency: emptyConsistency("very-low"),
+    consistency,
     fallbackSingleLap: true,
     sourceScope,
     headOwnLapCount,
@@ -331,15 +337,25 @@ async function representativeLapFallback(
  */
 export async function loadCleanLapAggregate(
   sessionId: number,
-  opts?: { versionId?: number },
+  opts?: { versionId?: number | null; lapIds?: readonly number[]; strictBranch?: boolean },
 ): Promise<CleanLapAggregate> {
-  const headVersionId = opts?.versionId ?? (await resolveActiveTestId(sessionId));
+  const headVersionId = opts && "versionId" in opts
+    ? opts.versionId ?? null
+    : await resolveActiveTestId(sessionId);
 
   let pool: LapMeta[] = [];
   let sourceScope: "branch" | "session-baseline" = "session-baseline";
 
   let headOwnLapCount: number | null = null;
-  if (headVersionId != null) {
+  if (opts?.strictBranch) {
+    const allowed = new Set(opts.lapIds ?? []);
+    const branchPool = headVersionId == null
+      ? (await getLapsForExperiment(sessionId)).filter((lap) => lap.experimentVersionId == null)
+      : await getLapMetaForExperimentVersion(headVersionId);
+    pool = branchPool.filter((lap) => allowed.has(lap.id));
+    headOwnLapCount = pool.length;
+    sourceScope = "branch";
+  } else if (headVersionId != null) {
     const branchPool = await getLapMetaForExperimentVersion(headVersionId);
     headOwnLapCount = branchPool.length;
     const branchClean = selectCleanLaps(branchPool);
@@ -349,15 +365,15 @@ export async function loadCleanLapAggregate(
     }
   }
 
-  if (sourceScope === "session-baseline") {
+  if (!opts?.strictBranch && sourceScope === "session-baseline") {
     pool = await getLapsForExperiment(sessionId);
   }
-
   const { clean, breakdown } = selectCleanLaps(pool);
   const droppedOutliers = breakdown.filter((r) => r.reason === "auto-outlier").length;
-
   if (clean.length < 2) {
-    return representativeLapFallback(sessionId, sourceScope, headOwnLapCount, breakdown);
+    return representativeLapFallback(
+      sessionId, sourceScope, headOwnLapCount, breakdown, opts?.strictBranch ? (opts.lapIds ?? []) : undefined,
+    );
   }
 
   // Fastest-first, capped.
@@ -372,11 +388,11 @@ export async function loadCleanLapAggregate(
   }
 
   if (loadedLaps.length < 2) {
-    // Telemetry too thin to analyse as a pool — fall back to the single
-    // representative lap rather than aggregating over <2 laps.
-    return representativeLapFallback(sessionId, sourceScope, headOwnLapCount, breakdown);
+    // A pinned branch must never escape its allowlist, even when telemetry is thin.
+    return representativeLapFallback(
+      sessionId, sourceScope, headOwnLapCount, breakdown, opts?.strictBranch ? (opts.lapIds ?? []) : undefined,
+    );
   }
-
   const fastestLoaded = loadedLaps.find((l) => l.meta.id === fastestMeta.id) ?? loadedLaps[0]!;
 
   const corners = await resolveLapCorners(

@@ -7,6 +7,16 @@
 - Browse enriched iRacing car, car-class, and track catalogs with official car images, offline pit-road maps, and grouped lap sections.
 
 ### Fixes
+- Keep lap-chat follow-ups grounded in the selected lap and its latest analysis without asking drivers for internal lap identifiers.
+- Restrict AI setup recommendations to available adjustments and legal values for the associated car and setup without dropping legal front-wing recommendations; suppress unchanged settings.
+- Show setup values from the lap's linked setup and preserve bump values in older saved AC Evo setups while keeping separate left/right Slow bump settings.
+- Block screenshots for chat models without verified image support and keep text conversations usable.
+- Remove failed screenshot messages without losing unrelated conversation or saved lap analysis.
+- Keep experiment AI chat tied to the selected version and its own laps; ask drivers to refresh when the version changes during a reply.
+- Create multiple confirmed setup alternatives in the same experiment chat reply without incorrectly asking drivers to refresh.
+- Preserve the selected experiment branch when undoing an unrelated branch deletion or partial restoration.
+- Prevent simultaneous saves of new setups from overwriting existing files.
+- Preserve saved lap analysis when clearing chat history.
 - Prevent crafted AI credential requests from running commands on macOS.
 - Reject unrelated browser origins on dashboard and live telemetry requests while preserving same-origin access through reverse proxies.
 - Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.

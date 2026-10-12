@@ -7,6 +7,7 @@ import { getLapsForExperiment } from "@raceiq/backend-core/db/experiment-lap-que
 import { telemetryToSymptoms, type TuneSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
 import { telemetryToTrackConditions, type TrackConditions } from "@raceiq/backend-core/ai/track-conditions";
 import { MIN_TELEMETRY_FRAMES } from "@raceiq/backend-core/experiments/lap-policy";
+import { medianSorted, percentileSorted } from "@raceiq/backend-core/experiments/statistics";
 
 export type RepresentativeLap = LapMeta & {
   telemetry: TelemetryPacket[];
@@ -14,20 +15,28 @@ export type RepresentativeLap = LapMeta & {
 };
 
 /**
- * The session's representative lap — the fastest valid lap it owns, with enough
- * telemetry to analyse (≥30 frames). Single source of truth so symptom and
- * track-condition reads always describe the same lap. Returns null when no such
- * lap exists yet.
+ * Select the fastest eligible lap, excluding user exclusions and statistical
+ * outliers before telemetry availability is considered.
  */
 export async function loadRepresentativeLap(
   experimentId: number,
+  opts?: { lapIds?: readonly number[] },
 ): Promise<RepresentativeLap | null> {
+  const allowed = opts?.lapIds == null ? null : new Set(opts.lapIds);
   const sessionLaps = await getLapsForExperiment(experimentId);
-  let best: (typeof sessionLaps)[number] | null = null;
-  for (const lap of sessionLaps) {
-    if (!lap.isValid || lap.lapTime <= 0) continue;
-    if (best == null || lap.lapTime < best.lapTime) best = lap;
-  }
+  const candidates = sessionLaps.filter((lap) =>
+    (!allowed || allowed.has(lap.id))
+    && lap.isValid === true
+    && lap.lapTime > 0
+    && lap.experimentExcluded !== true
+  );
+  const times = candidates.map((lap) => lap.lapTime).sort((a, b) => a - b);
+  const bestTime = times[0] ?? 0;
+  const iqr = percentileSorted(times, 0.75) - percentileSorted(times, 0.25);
+  const threshold = Math.max(medianSorted(times) + 1.5 * iqr, bestTime * 1.02);
+  const best = candidates
+    .filter((lap) => times.length <= 1 || lap.lapTime <= threshold)
+    .sort((a, b) => a.lapTime - b.lapTime)[0];
   if (!best) return null;
 
   const lap = await getLapById(best.id);
@@ -36,16 +45,22 @@ export async function loadRepresentativeLap(
 }
 
 /** Deterministic symptom report for the experiment's representative lap. */
-export async function computeSessionSymptoms(experimentId: number): Promise<TuneSymptoms | null> {
-  const lap = await loadRepresentativeLap(experimentId);
+export async function computeSessionSymptoms(
+  experimentId: number,
+  opts?: { lapIds?: readonly number[] },
+): Promise<TuneSymptoms | null> {
+  const lap = await loadRepresentativeLap(experimentId, opts);
   if (!lap) return null;
   const corners = await resolveLapCorners(lap.trackOrdinal, lap.gameId, lap.telemetry);
   return telemetryToSymptoms(lap.telemetry, corners);
 }
 
 /** Deterministic weather/track-surface context for the representative lap. */
-export async function computeSessionTrackConditions(experimentId: number): Promise<TrackConditions | null> {
-  const lap = await loadRepresentativeLap(experimentId);
+export async function computeSessionTrackConditions(
+  experimentId: number,
+  opts?: { lapIds?: readonly number[] },
+): Promise<TrackConditions | null> {
+  const lap = await loadRepresentativeLap(experimentId, opts);
   if (!lap) return null;
   return telemetryToTrackConditions(lap.telemetry);
 }

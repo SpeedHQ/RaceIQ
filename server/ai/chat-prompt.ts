@@ -31,7 +31,7 @@ Be brief. Use bullet points. Cite specific numbers in ${units}. Address them as 
 }
 
 export function formatLapChatIdentity(lap: { id?: number; lapNumber: number; lapTime: number }): string {
-  return `Lap ID: ${lap.id ?? "unknown"}\nLap #${lap.lapNumber} — ${lap.lapTime.toFixed(3)}s`;
+  return `Current lap: Lap #${lap.lapNumber} — ${lap.lapTime.toFixed(3)}s\nInternal lap reference (for RaceIQ tools only; never ask the driver to look it up): ${lap.id ?? "unavailable"}`;
 }
 
 export function buildChatSystemPrompt(
@@ -96,7 +96,7 @@ export function buildChatSystemPrompt(
   if (analysisJson) {
     try {
       const parsed = JSON.parse(analysisJson);
-      analysisContext = `\n--- PREVIOUS ANALYSIS (already shown to driver) ---\nVerdict: ${parsed.verdict}\n`;
+      analysisContext = `\n--- PREVIOUS ANALYSIS (already shown to driver) ---\nVerdict: ${parsed.verdict ?? "Not provided"}\n`;
       if (parsed.corners?.length) {
         analysisContext += `Problem corners: ${parsed.corners.map((c: any) => `${c.name} (${c.severity}): ${c.issue}`).join("; ")}\n`;
       }
@@ -104,10 +104,9 @@ export function buildChatSystemPrompt(
         analysisContext += `Technique tips: ${parsed.technique.map((t: any) => t.tip).join("; ")}\n`;
       }
       if (parsed.setup?.length) {
-        analysisContext += `Setup changes: ${parsed.setup.map((s: any) => `${s.change}: ${s.fix}`).join("; ")}\n`;
+        analysisContext += `Setup changes: ${parsed.setup.map((s: any) => `${s.component ?? "Setup"}: current ${s.current ?? "unspecified"}, target ${s.target ?? "unspecified"}${s.reason ? ` (${s.reason})` : ""}`).join("; ")}\n`;
       }
     } catch {
-      // If analysis JSON is invalid, include raw
       analysisContext = `\n--- PREVIOUS ANALYSIS ---\n${analysisJson}\n`;
     }
   }

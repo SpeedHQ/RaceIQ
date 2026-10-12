@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "./index";
 import { experimentFocusEvents, experiments } from "./schema";
 import { tryGetServerGame } from "../games/registry";
@@ -134,11 +134,23 @@ export async function listExperimentFocusEvents(experimentId: number) {
 }
 
 /** Set (or clear, with null) the checked-out head test for a session. */
-export async function setSessionHead(sessionId: number, headVersionId: number | null): Promise<boolean> {
+export async function setSessionHead(
+  sessionId: number,
+  headVersionId: number | null,
+  expectedHeadVersionId?: number | null,
+): Promise<boolean> {
+  const conditions = [eq(experiments.id, sessionId)];
+  if (expectedHeadVersionId !== undefined) {
+    conditions.push(
+      expectedHeadVersionId == null
+        ? isNull(experiments.headVersionId)
+        : eq(experiments.headVersionId, expectedHeadVersionId),
+    );
+  }
   const result = await db
     .update(experiments)
     .set({ headVersionId, updatedAt: sql`(datetime('now'))` })
-    .where(eq(experiments.id, sessionId))
+    .where(and(...conditions))
     .run();
   return result.rowsAffected > 0;
 }

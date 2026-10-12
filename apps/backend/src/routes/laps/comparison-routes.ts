@@ -4,8 +4,10 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
 import type { GameId } from "@raceiq/shared/games/ids";
+import { chatRequestHasImage, resolveChatVisionCapability } from "@raceiq/shared/integrations/ai/chat-vision";
 import { getLapsByIds } from "@raceiq/backend-core/db/lap-read-queries";
 import { deleteCompareAnalysis, getAnalysis, getCompareAnalysis, saveCompareAnalysis } from "@raceiq/backend-core/db/analysis-queries";
+import { sanitizeAnalystOutput } from "@raceiq/backend-core/ai/schemas";
 import { compareLaps } from "@raceiq/backend-core/lap-analysis/comparison";
 import { getOrComputeLapInsightsBatch } from "@raceiq/backend-core/lap-analysis/metrics-store";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
@@ -29,6 +31,8 @@ import {
 import { configureAiProviderEnvironment } from "@raceiq/backend-core/ai/openai-compatible-provider";
 import { CHAT_TURN_CONTEXT_KEY } from "@raceiq/backend-core/ai/chat-message-context";
 import { AnalyseQuerySchema, ChatBodySchema, CompareParamsSchema } from "./support";
+import { linkedTuneSetupForLap, setupContextForLap } from "../../ai/lap-setup-context";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 const inputsAnalysisRunKey = (idA: number, idB: number) =>
   `inputs:${Math.min(idA, idB)}:${Math.max(idA, idB)}`;
 
@@ -37,6 +41,29 @@ async function loadComparisonLaps(id1: number, id2: number) {
   const laps = await getLapsByIds([id1, id2], { parallelSessionDecodes: true });
   const byId = new Map(laps.map((lap) => [lap.id, lap]));
   return [byId.get(id1) ?? null, byId.get(id2) ?? null] as const;
+}
+type ComparisonLapContext = {
+  id: number;
+  gameId?: GameId | null;
+  carOrdinal?: number | null;
+  trackOrdinal?: number | null;
+  carSetup?: string | null;
+  telemetry: TelemetryPacket[];
+  tuneId?: number | null;
+};
+
+async function sanitizeLapAnalysis(lap: ComparisonLapContext, analysis: string): Promise<string | undefined> {
+  const linkedTune = await linkedTuneSetupForLap({ ...lap, gameId: lap.gameId ?? undefined });
+  const context = setupContextForLap({
+    id: lap.id,
+    gameId: lap.gameId ?? undefined,
+    carOrdinal: lap.carOrdinal ?? undefined,
+    trackOrdinal: lap.trackOrdinal,
+    carSetup: lap.carSetup,
+    telemetry: lap.telemetry,
+  }, undefined, linkedTune);
+  const sanitized = sanitizeAnalystOutput(analysis, context, { requireMatchingProvenance: true });
+  return sanitized.success ? JSON.stringify(sanitized.data) : undefined;
 }
 
 export const comparisonRoutes = new Hono()
@@ -264,6 +291,13 @@ export const comparisonRoutes = new Hono()
 
     const insights = await getOrComputeLapInsightsBatch([id1, id2]);
 
+    const [analysisA, analysisB] = await Promise.all([
+      sanitizeLapAnalysis(lapA, cachedA.analysis),
+      sanitizeLapAnalysis(lapB, cachedB.analysis),
+    ]);
+    if (!analysisA || !analysisB) {
+      return c.json({ error: "One or both cached analyses are invalid. Run analysis again before chatting." }, 400);
+    }
     const settings = loadSettings();
     const systemPrompt = buildCompareChatSystemPrompt(
       {
@@ -285,8 +319,8 @@ export const comparisonRoutes = new Hono()
         gameId: lapB.gameId as GameId | undefined,
       },
       comparison,
-      cachedA.analysis,
-      cachedB.analysis,
+      analysisA,
+      analysisB,
       settings.unit,
       settings.temperatureUnit,
       settings.language,
@@ -298,7 +332,6 @@ export const comparisonRoutes = new Hono()
     if (!chatProvider) {
       return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
     }
-    await configureAiProviderEnvironment(chatProvider, settings.localEndpoint || "http://localhost:1234/v1");
 
     const chatModelLabel = settings.chatModel
       || (chatProvider === "openai"
@@ -306,6 +339,10 @@ export const comparisonRoutes = new Hono()
         : chatProvider === "openai-compatible"
           ? "local-model"
           : "gemini-flash-latest");
+    if (chatRequestHasImage(messages) && resolveChatVisionCapability(chatProvider, chatModelLabel) !== "supported") {
+      return c.json({ error: "This chat model has no verified image support. Remove the image or choose an image-capable chat model." }, 400);
+    }
+    await configureAiProviderEnvironment(chatProvider, settings.localEndpoint || "http://localhost:1234/v1");
 
     const threadId = await resolveActiveThread(compareChatThreadId(id1, id2));
     await ensureSystemPrompt(threadId, systemPrompt);
@@ -316,6 +353,7 @@ export const comparisonRoutes = new Hono()
       const stream = await compareChatAgent.stream(
         messages,
         {
+          requestContext,
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
           providerOptions: {
             openai: { reasoningEffort: "medium" },
@@ -340,7 +378,7 @@ export const comparisonRoutes = new Hono()
       });
     } catch (err: any) {
       console.error("[CompareChat] Stream failed:", err.message);
-      return c.json({ error: err.message }, 500);
+      return c.json({ error: "Chat request failed. Check provider settings and retry." }, 500);
     }
   })
 

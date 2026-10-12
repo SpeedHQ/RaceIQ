@@ -1,5 +1,5 @@
 import type { GameId } from "../../games/ids";
-import { AC_EVO_SETUP_SCHEMA } from "./ac-evo-schema";
+import { AC_EVO_SETUP_SCHEMA, normalizeAcEvoTuneSettings } from "./ac-evo-schema";
 import {
   SETUP_FILE_SECTION_DEFINITIONS,
   SETUP_FILE_SOURCE_DEFINITIONS,
@@ -12,6 +12,7 @@ import type {
 } from "./catalog/groups";
 
 export { SETUP_FORM_TAB_ORDER };
+export { normalizeAcEvoTuneSettings };
 
 // ACC stores nested JSON click values; AC Evo stores decoded flat knob values.
 // Both schemas retain native units and use the same field readers and writers.
@@ -72,13 +73,12 @@ function readPath(obj: unknown, path: string): unknown {
   return current;
 }
 
-export function readSetupField(
-  obj: unknown,
-  field: FieldDef,
-): unknown {
-  return readPath(obj, field.path);
+export function readSetupField(obj: unknown, field: FieldDef): unknown {
+  const normalized = field.path.endsWith("Bump") && obj != null && typeof obj === "object"
+    ? normalizeAcEvoTuneSettings(obj as Record<string, unknown>)
+    : obj;
+  return readPath(normalized, field.path);
 }
-
 export function readSetupSection(
   obj: unknown,
   section: SectionDef,
@@ -94,6 +94,11 @@ export function writeSetupField(
   field: FieldDef,
   value: unknown,
 ): void {
+  if (field.path.endsWith("Bump")) {
+    const normalized = normalizeAcEvoTuneSettings(obj);
+    for (const key of Object.keys(obj)) delete obj[key];
+    Object.assign(obj, normalized);
+  }
   const segments = field.path.split(".");
   let current: Record<string, unknown> = obj;
   for (let index = 0; index < segments.length - 1; index++) {

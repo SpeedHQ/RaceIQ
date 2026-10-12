@@ -9,14 +9,16 @@ initGameAdapters();
 initServerGameAdapters();
 
 describe("lap chat prompt", () => {
-  test("exposes database lap ID separately from display lap number", () => {
+  test("keeps internal lap reference distinct from driver-facing lap number", () => {
     const identity = formatLapChatIdentity({
       id: 5,
       lapNumber: 2,
       lapTime: 79.328,
     });
 
-    expect(identity).toContain("Lap ID: 5");
+    expect(identity).toContain("Internal lap reference");
+    expect(identity).toContain("5");
+    expect(identity).not.toContain("Lap ID:");
     expect(identity).toContain("Lap #2 — 79.328s");
   });
 
@@ -88,7 +90,7 @@ describe("lap chat prompt", () => {
       SuspensionTravelMRL: 0,
       SuspensionTravelMRR: 0,
     } as never], []);
-    expect(prompt).toContain("Lap ID: 5");
+    expect(prompt).toContain("Internal lap reference");
     expect(prompt).toContain("No JSON output.");
     expect(prompt).toContain("--- TELEMETRY DATA ---");
     expect(prompt).not.toContain("Your response MUST be valid JSON");

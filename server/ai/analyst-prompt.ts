@@ -15,6 +15,16 @@ import { telemetryToTrackConditions, formatTrackConditions } from "./track-condi
 import { segmentPromptLabels } from "@raceiq/shared/racing/tracks/segment-label";
 import { aiLanguageInstruction } from "@raceiq/shared/integrations/ai/language";
 import { ADJUSTMENT_FORMAT_PROMPT } from "@raceiq/shared/integrations/ai/prompt-snippets";
+import { getRuleTable, renderSetupCapabilityBlock } from "../setups/rules/catalog";
+
+function valueAtPath(source: unknown, path: string): unknown {
+  let value = source;
+  for (const part of path.split(".")) {
+    if (value && typeof value === "object") value = (value as Record<string, unknown>)[part];
+    else return undefined;
+  }
+  return value;
+}
 interface CornerDef {
   index: number;
   label: string;
@@ -122,6 +132,8 @@ RULES:
 - When tune settings are provided, correlate telemetry symptoms with those actual setup values
 - Never invent game-specific setup options, current values, target values, units, adjustment granularity, valid ranges, or tuning rules
 - Do not assume simulator-specific setup semantics; omit unsupported setup claims instead
+- Treat kerb skipping as a hypothesis unless telemetry directly supports it; suspension travel alone is insufficient evidence.
+- Do not attribute a mismatch to the driver's original setup unless that exact setup was provided for this lap.
 - Output ONLY valid JSON, nothing else
 - Escape any special characters in string values (quotes, newlines)
 - Do not include trailing commas in arrays or objects`;
@@ -196,6 +208,19 @@ export function buildAnalystPrompt(
         settings: tune.settings,
       }) +
       "\n";
+  }
+  const capabilityText = lap.gameId
+    ? `\n${renderSetupCapabilityBlock(lap.gameId, carName)}\n`
+    : "";
+  let currentSetupText = "";
+  if (lap.gameId === "ac-evo" && tune) {
+    const rules = getRuleTable(lap.gameId, carName) ?? {};
+    const values = Object.entries(rules).flatMap(([label, def]) => {
+      const current = def.paths.map((path) => valueAtPath(tune.settings, path));
+      if (!current.length || current.some((value) => typeof value !== "number" || !Number.isFinite(value))) return [];
+      return [`${label}: ${current.map((value) => `${value} ${def.unit ?? "unknown unit"}`).join(" / ")}`];
+    });
+    if (values.length) currentSetupText = `\n--- LAP-LINKED CURRENT SETUP (from associated tune; evidence only) ---\n${values.join("\n")}\n`;
   }
   // F1 setup comes from the `compare-f1-setup-to-catalog` tool — see the
   // Lap Analyst system prompt. Not injected here.
@@ -286,7 +311,7 @@ export function buildAnalystPrompt(
 
   const context = `${carDetailsText}
 Track: ${trackName}
-${conditionsText}${tuneText}${segmentsList}${sectorsText}${cornerGuardrail}${trackGuide}
+${conditionsText}${capabilityText}${currentSetupText}${tuneText}${segmentsList}${sectorsText}${cornerGuardrail}${trackGuide}
 ${exportText}
 ${cornerData}
 ${insightsText}`;

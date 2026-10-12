@@ -12,6 +12,134 @@
  * applies to that flow.
  */
 import { z } from "zod";
+import type { GameId } from "@raceiq/shared/games/ids";
+import { getAcEvoCarRanges, getRuleTable, getSetupCapabilities } from "../setups/rules/catalog";
+
+export interface SetupValidationContext {
+  gameId?: GameId;
+  gameVersion?: string | null;
+  carModel?: string;
+  carVersion?: string | null;
+  trackName?: string;
+  setupSnapshot?: unknown;
+  setupVersion?: string | number;
+  lapId?: number;
+}
+
+const TARGET_VALUE = /^\s*(-?(?:\d+(?:\.\d*)?|\.\d+))\s*([^\d\s].*)?\s*$/;
+
+function setupValue(snapshot: unknown, path: string): number | undefined {
+  if (!snapshot || typeof snapshot !== "object") return undefined;
+  let value: unknown = snapshot;
+  for (const part of path.split(".")) {
+    if (Array.isArray(value)) value = value[Number(part)];
+    else if (value && typeof value === "object") value = (value as Record<string, unknown>)[part];
+    else return undefined;
+  }
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+
+export type AnalystOutputParseResult = z.ZodSafeParseResult<AnalystOutput>;
+
+export interface AnalystSetupProvenance {
+  gameId: GameId | null;
+  gameVersion: string | null;
+  carModel: string | null;
+  carVersion: string | null;
+  trackName: string | null;
+  setupVersion: string | null;
+  lapId: number | null;
+}
+
+const AnalystSetupProvenanceSchema = z.object({
+  gameId: z.string().nullable(),
+  gameVersion: z.string().nullish(),
+  carModel: z.string().nullable(),
+  carVersion: z.string().nullish(),
+  trackName: z.string().nullable(),
+  setupVersion: z.string().nullable(),
+  lapId: z.number().int().nullable(),
+}).strict();
+/** Keep only exact numeric recommendations supported by this car's rules and parsed setup. */
+export function validateSetupRecommendations(recs: unknown, context: SetupValidationContext): AnalystOutput["setup"] {
+  if (!Array.isArray(recs) || !context.gameId || !context.setupSnapshot) return [];
+  if (context.gameId === "ac-evo" && !getAcEvoCarRanges(context.carModel)) return [];
+  const table = getRuleTable(context.gameId, context.carModel);
+  if (!table) return [];
+  const capabilities = getSetupCapabilities(context.gameId, context.carModel);
+  const accepted: AnalystOutput["setup"] = [];
+  for (const raw of recs) {
+    const parsed = SetupItem.safeParse(raw);
+    if (!parsed.success) continue;
+    const item = parsed.data;
+    const rule = table[item.component];
+    if (!rule) continue;
+    const control = rule.rangeKey ?? rule.paths[0]!;
+    const capability = capabilities.find((candidate) => candidate.control === control);
+    if (capability?.status !== "adjustable") continue;
+    const match = TARGET_VALUE.exec(item.target);
+    if (!match) continue;
+    const target = Number(match[1]);
+    const targetUnit = match[2]?.trim() ?? "";
+    const unit = rule.unit;
+    if (!targetUnit || !unit || targetUnit.toLowerCase() !== unit.toLowerCase()) continue;
+    if (!Number.isFinite(target) || target < rule.min || target > rule.max) continue;
+    if (rule.integer && !Number.isInteger(target)) continue;
+    const step = rule.step.small;
+    if (!(step > 0) || Math.abs((target - rule.min) / step - Math.round((target - rule.min) / step)) > 1e-7) continue;
+    const current = rule.paths.map((path) => setupValue(context.setupSnapshot, path));
+    if (current.some((value) => value === undefined)) continue;
+    const numericCurrent = current as number[];
+    if (numericCurrent.every((value) => target === value)) continue;
+    if (item.direction === "increase" && numericCurrent.some((value) => target <= value)) continue;
+    if (item.direction === "decrease" && numericCurrent.some((value) => target >= value)) continue;
+    if (/\bfast[- ]?(?:bump|rebound)\b/i.test(`${item.component} ${item.symptom} ${item.fix}`)) continue;
+    const currentText = current.length === 1 ? `${current[0]} ${unit}` : current.map((v) => `${v} ${unit}`).join(" / ");
+    accepted.push({
+      ...item,
+      current: currentText,
+      target: `${target} ${unit}`,
+      fix: `${item.component}: ${currentText} → ${target} ${unit}`,
+    });
+  }
+  return accepted;
+}
+
+/** Parse analyst output, replacing model-authored current values with snapshot values. */
+export function sanitizeAnalystOutput(
+  raw: unknown,
+  context: SetupValidationContext,
+  options: { requireMatchingProvenance?: boolean } = {},
+): AnalystOutputParseResult {
+  const parsed = parseAnalystOutput(raw);
+  if (!parsed.success) return parsed;
+  const provenance: AnalystSetupProvenance = {
+    gameId: context.gameId ?? null,
+    gameVersion: context.gameVersion ?? null,
+    carModel: context.carModel ?? null,
+    carVersion: context.carVersion ?? null,
+    trackName: context.trackName ?? null,
+    setupVersion: context.setupVersion == null ? null : String(context.setupVersion),
+    lapId: context.lapId ?? null,
+  };
+  const cachedProvenance = parsed.data.setupProvenance;
+  const provenanceMatches = !!cachedProvenance &&
+    cachedProvenance.gameId === provenance.gameId &&
+    cachedProvenance.gameVersion === provenance.gameVersion &&
+    cachedProvenance.carModel === provenance.carModel &&
+    cachedProvenance.carVersion === provenance.carVersion &&
+    cachedProvenance.trackName === provenance.trackName &&
+    cachedProvenance.setupVersion === provenance.setupVersion &&
+    cachedProvenance.lapId === provenance.lapId;
+  return AnalystOutputSchema.safeParse({
+    ...parsed.data,
+    setup: options.requireMatchingProvenance && !provenanceMatches
+      ? []
+      : validateSetupRecommendations(parsed.data.setup, context),
+    setupProvenance: provenance,
+  });
+}
 
 const AssessmentEnum = z.enum(["good", "warning", "critical"]);
 const SeverityEnum = z.enum(["minor", "moderate", "major"]);
@@ -51,16 +179,19 @@ export const AnalystOutputSchema = z.object({
   corners: z.array(CornerIssue),
   technique: z.array(TechniqueTip),
   setup: z.array(SetupItem),
+  setupProvenance: AnalystSetupProvenanceSchema.optional(),
 });
+
+/** Model output excludes provenance, which is attached only by the server. */
+export const AnalystModelOutputSchema = AnalystOutputSchema.omit({ setupProvenance: true });
 
 export type AnalystOutput = z.infer<typeof AnalystOutputSchema>;
 
 /**
- * JSON Schema form of `AnalystOutputSchema`, for OpenAI-spec Structured
- * Outputs. Mastra uses this shared contract for native or injected schemas.
+ * JSON Schema for model-authored analysis, excluding server-owned provenance.
  */
 export function getAnalystJsonSchema(): Record<string, unknown> {
-  return z.toJSONSchema(AnalystOutputSchema) as Record<string, unknown>;
+  return z.toJSONSchema(AnalystModelOutputSchema) as Record<string, unknown>;
 }
 
 /**
@@ -104,7 +235,7 @@ function normalizeAnalystInput(raw: unknown): unknown {
  * Strips common model wrappers (markdown fences, leading prose) before parsing.
  * Legacy cached objects omitting setup are normalized to setup: [].
  */
-export function parseAnalystOutput(raw: unknown): ReturnType<typeof AnalystOutputSchema.safeParse> {
+export function parseAnalystOutput(raw: unknown): AnalystOutputParseResult {
   if (typeof raw !== "string") return AnalystOutputSchema.safeParse(normalizeAnalystInput(raw));
 
   const trimmed = raw.trim();

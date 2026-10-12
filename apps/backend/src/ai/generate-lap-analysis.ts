@@ -1,5 +1,6 @@
 import type { Tune } from "@raceiq/shared/racing/tuning/types";
 import type { GameId } from "@raceiq/shared/games/ids";
+import { setupContextForLap, type LinkedLapTuneSetup } from "./lap-setup-context";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { getCorners } from "@raceiq/backend-core/db/track-queries";
 import { getAnalysis, saveAnalysis } from "@raceiq/backend-core/db/analysis-queries";
@@ -12,7 +13,7 @@ import { resolveTrack } from "@raceiq/backend-core/tracks/info";
 import { computeNativeSectorTimeline, computeLapSectors } from "@raceiq/telemetry-core/processor/sectors";
 import { getGame } from "@raceiq/shared/games/registry";
 import { lapAnalystAgent } from "./agents";
-import { getAnalystJsonSchema, AnalystOutputSchema, parseAnalystOutput } from "@raceiq/backend-core/ai/schemas";
+import { getAnalystJsonSchema, AnalystModelOutputSchema, sanitizeAnalystOutput } from "@raceiq/backend-core/ai/schemas";
 import { buildGoogleThinkingProviderOptions } from "@raceiq/backend-core/ai/google-provider-options";
 import { formatClientAiErrorMessage, toClientAiError } from "@raceiq/backend-core/ai/provider-error";
 import { resolveAi } from "./ai-runtime";
@@ -70,6 +71,7 @@ export interface GenerateLapAnalysisDeps {
 const invalidAnalysisError =
   "Model produced invalid analysis structure. Not cached. Try again or switch model.";
 
+
 async function getRuntimeContextLength(endpoint: string, model: string): Promise<number | undefined> {
   const result = await getOpenAiCompatibleModelsDetailed(endpoint);
   return result.models.find((candidate) => candidate.id === model)?.contextLength;
@@ -105,6 +107,30 @@ export async function generateLapAnalysis(
       hasTune: false,
       error: "No telemetry data",
     };
+  let parsedTune: Tune | undefined;
+  let linkedTune: LinkedLapTuneSetup | undefined;
+  if (lap.tuneId) {
+    const dbTune = await (deps.getDbTune ?? getDbTune)(lap.tuneId);
+    if (dbTune && dbTune.gameId === lap.gameId && dbTune.carOrdinal === lap.carOrdinal &&
+      (dbTune.trackOrdinal == null || dbTune.trackOrdinal === lap.trackOrdinal)) {
+      parsedTune = {
+        ...dbTune,
+        strengths: dbTune.strengths ? JSON.parse(dbTune.strengths) : [],
+        weaknesses: dbTune.weaknesses ? JSON.parse(dbTune.weaknesses) : [],
+        bestTracks: dbTune.bestTracks ? JSON.parse(dbTune.bestTracks) : [],
+        strategies: dbTune.strategies ? JSON.parse(dbTune.strategies) : [],
+        settings: JSON.parse(dbTune.settings),
+      } as Tune;
+      linkedTune = {
+        id: dbTune.id,
+        gameId: dbTune.gameId,
+        carOrdinal: dbTune.carOrdinal,
+        trackOrdinal: dbTune.trackOrdinal,
+        settings: parsedTune.settings,
+      };
+    }
+  }
+  const setupContext = setupContextForLap(lap, deps.getGame ?? getGame, linkedTune);
 
   const trackOrdinal = lap.trackOrdinal ?? 0;
   let corners: Corner[] =
@@ -128,7 +154,7 @@ export async function generateLapAnalysis(
 
   if (!options.regenerate) {
     const cached = await readAnalysis(lapId);
-    const cachedAnalysis = parseAnalystOutput(cached?.analysis);
+    const cachedAnalysis = sanitizeAnalystOutput(cached?.analysis, setupContext, { requireMatchingProvenance: true });
     if (cached && cachedAnalysis.success) {
       return {
         analysis: JSON.stringify(cachedAnalysis.data),
@@ -149,20 +175,6 @@ export async function generateLapAnalysis(
   }
 
   const settings = (deps.loadSettings ?? loadSettings)();
-  let parsedTune: Tune | undefined;
-  if (lap.tuneId) {
-    const dbTune = await (deps.getDbTune ?? getDbTune)(lap.tuneId);
-    if (dbTune) {
-      parsedTune = {
-        ...dbTune,
-        strengths: dbTune.strengths ? JSON.parse(dbTune.strengths) : [],
-        weaknesses: dbTune.weaknesses ? JSON.parse(dbTune.weaknesses) : [],
-        bestTracks: dbTune.bestTracks ? JSON.parse(dbTune.bestTracks) : [],
-        strategies: dbTune.strategies ? JSON.parse(dbTune.strategies) : [],
-        settings: JSON.parse(dbTune.settings),
-      } as Tune;
-    }
-  }
   const track = (deps.resolveTrack ?? resolveTrack)(
     lap.gameId,
     lap.trackOrdinal,
@@ -266,7 +278,7 @@ export async function generateLapAnalysis(
       maxSteps: 5,
       modelSettings: { maxOutputTokens: 8192, temperature: 0 },
       structuredOutput: {
-        schema: AnalystOutputSchema,
+        schema: AnalystModelOutputSchema,
         // LM Studio cannot combine tool and output grammars. Preserve tool
         // analysis, then constrain a separate, tool-free structuring pass.
         ...(ai.provider === "openai-compatible"
@@ -291,7 +303,7 @@ export async function generateLapAnalysis(
     const result = await runStructured(ai, input, (requestContext) =>
       generate(prompt, { ...generationOptions, requestContext }),
     );
-    const parsed = parseAnalystOutput(result.analysis);
+    const parsed = sanitizeAnalystOutput(result.analysis, setupContext);
     if (!parsed.success) {
       let error = invalidAnalysisError;
       if (ai.provider === "openai-compatible") {

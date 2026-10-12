@@ -18,9 +18,9 @@
       "packages/game-lmu/src/normalizer.ts": "443eb17dc93034a0a78023df8b08ce1bb12290a77b4b44f5a73e7bc18fad7dd7",
       "packages/tooling-catalog/src/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
-      "shared/racing/setups/schema.ts": "11040a6a0d84ebdf7c9367303a563bb04e17891237b1a3e8d1fde58047419265"
+      "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "c79a9091f13ccd4cdba1329693642f4262a46d38a76eab89e9d0216ebdc1fc36"
+    "contentHash": "dbb1ae43e1c2425af530338a5006b2ddeefad7ed1dcd976885897bb978ab7586"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -37982,8 +37982,10 @@
           "kind": "direct",
           "nativeUnit": "level",
           "sources": [
-            "ACEvo.SetupFile.frontBump",
-            "ACEvo.SetupFile.rearBump"
+            "ACEvo.SetupFile.frontLeftBump",
+            "ACEvo.SetupFile.frontRightBump",
+            "ACEvo.SetupFile.rearLeftBump",
+            "ACEvo.SetupFile.rearRightBump"
           ],
           "freshness": "static",
           "description": "ac-evo setup file exposes this scalar value.",
@@ -67711,18 +67713,6 @@
         "retention": "not-recorded"
       },
       {
-        "path": "ACEvo.SetupFile.frontBump",
-        "label": "Front bump",
-        "unit": "level",
-        "dataType": "setup-value",
-        "count": 1,
-        "description": "Front bump from ac-evo setup file.",
-        "semanticId": "setup.dampers.compression",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
         "path": "ACEvo.SetupFile.frontCamber",
         "label": "Front camber (°)",
         "unit": "deg",
@@ -67730,6 +67720,18 @@
         "count": 1,
         "description": "Front camber (°) from ac-evo setup file.",
         "semanticId": "setup.alignment.camber",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.frontLeftBump",
+        "label": "Front left bump",
+        "unit": "level",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Front left bump from ac-evo setup file.",
+        "semanticId": "setup.dampers.compression",
         "sourceKind": "setup",
         "recordedByRaceIQ": false,
         "retention": "not-recorded"
@@ -67766,6 +67768,18 @@
         "count": 1,
         "description": "Front ride height (mm) from ac-evo setup file.",
         "semanticId": "setup.suspension.ride-height",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.frontRightBump",
+        "label": "Front right bump",
+        "unit": "level",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Front right bump from ac-evo setup file.",
+        "semanticId": "setup.dampers.compression",
         "sourceKind": "setup",
         "recordedByRaceIQ": false,
         "retention": "not-recorded"
@@ -67843,18 +67857,6 @@
         "retention": "not-recorded"
       },
       {
-        "path": "ACEvo.SetupFile.rearBump",
-        "label": "Rear bump",
-        "unit": "level",
-        "dataType": "setup-value",
-        "count": 1,
-        "description": "Rear bump from ac-evo setup file.",
-        "semanticId": "setup.dampers.compression",
-        "sourceKind": "setup",
-        "recordedByRaceIQ": false,
-        "retention": "not-recorded"
-      },
-      {
         "path": "ACEvo.SetupFile.rearCamber",
         "label": "Rear camber (°)",
         "unit": "deg",
@@ -67862,6 +67864,18 @@
         "count": 1,
         "description": "Rear camber (°) from ac-evo setup file.",
         "semanticId": "setup.alignment.camber",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.rearLeftBump",
+        "label": "Rear left bump",
+        "unit": "level",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Rear left bump from ac-evo setup file.",
+        "semanticId": "setup.dampers.compression",
         "sourceKind": "setup",
         "recordedByRaceIQ": false,
         "retention": "not-recorded"
@@ -67898,6 +67912,18 @@
         "count": 1,
         "description": "Rear ride height (mm) from ac-evo setup file.",
         "semanticId": "setup.suspension.ride-height",
+        "sourceKind": "setup",
+        "recordedByRaceIQ": false,
+        "retention": "not-recorded"
+      },
+      {
+        "path": "ACEvo.SetupFile.rearRightBump",
+        "label": "Rear right bump",
+        "unit": "level",
+        "dataType": "setup-value",
+        "count": 1,
+        "description": "Rear right bump from ac-evo setup file.",
+        "semanticId": "setup.dampers.compression",
         "sourceKind": "setup",
         "recordedByRaceIQ": false,
         "retention": "not-recorded"
@@ -84091,12 +84117,12 @@
         "recorded": 172
       },
       "ac-evo": {
-        "total": 254,
+        "total": 256,
         "packet": 124,
         "extension": 100,
         "sdk": 0,
         "yaml": 0,
-        "setup": 30,
+        "setup": 32,
         "recorded": 224
       },
       "iracing": {
