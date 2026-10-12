@@ -11,8 +11,13 @@ import { UnitsStep } from "./steps/UnitsStep";
 import { WelcomeStep } from "./steps/WelcomeStep";
 import { WheelStep } from "./steps/WheelStep";
 
+function AccessStep() {
+  return <div className="flex flex-col gap-4"><h2>{m.access_title()}</h2><p>{m.access_configured()}</p></div>;
+}
+
 const MODAL_STEPS = [
   { id: "welcome", label: m.step_welcome, Component: WelcomeStep },
+  { id: "access", label: m.access_title, Component: AccessStep },
   { id: "profile", label: m.step_profile, Component: ProfileStep },
   { id: "wheel", label: m.label_wheel, Component: WheelStep },
   { id: "units", label: m.label_units, Component: UnitsStep },
@@ -21,8 +26,8 @@ const MODAL_STEPS = [
   { id: "community", label: m.step_community, Component: CommunityStep },
 ];
 
-export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
-  const [step, setStep] = useState(0);
+export function OnboardingModal({ onClose, initialStep = 0 }: { onClose?: () => void; initialStep?: number } = {}) {
+  const [step, setStep] = useState(initialStep);
   const saveSettings = useSaveSettings();
   const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
   const udpPps = useTelemetryStore((s) => s.udpPps);

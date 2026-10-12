@@ -1290,5 +1290,36 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE sessions ADD COLUMN capture_format_version INTEGER`,
     ],
   },
+  {
+    // Version 63 was used by an unreleased bookmarks branch. Some development
+    // databases also ran the earlier dashboard-auth draft at that version.
+    version: 64,
+    name: "persist dashboard access and login sessions",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS dashboard_access (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        mode TEXT NOT NULL CHECK (mode IN ('pending', 'enabled', 'disabled')),
+        password_hash TEXT,
+        revision INTEGER NOT NULL DEFAULT 0,
+        network_json TEXT,
+        upgrade INTEGER
+      )`,
+      // Preserve draft auth state. If its recorded migration exists but its
+      // state is lost, leave the row missing so startup still fails closed.
+      `INSERT INTO dashboard_access (id, mode)
+       SELECT 1, 'pending'
+       WHERE NOT EXISTS (SELECT 1 FROM dashboard_access WHERE id = 1)
+         AND NOT EXISTS (
+           SELECT 1 FROM schema_migrations
+           WHERE version = 63 AND name = 'persist dashboard access and login sessions'
+         )`,
+      `CREATE TABLE IF NOT EXISTS dashboard_sessions (
+        token_hash TEXT PRIMARY KEY,
+        csrf TEXT NOT NULL,
+        generation TEXT NOT NULL,
+        expires_at INTEGER NOT NULL
+      )`,
+    ],
+  },
 ];
 

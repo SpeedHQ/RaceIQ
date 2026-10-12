@@ -5,6 +5,7 @@ import { migrations } from "./migrations";
 import { existsSync, mkdirSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
+import { assertDashboardDatabasePresent } from "../runtime/config/dashboard-access-state";
 
 // Always resolve the data dir, even when the DB itself lives in memory: the
 // call doubles as the safety net that throws if a test run somehow reaches
@@ -36,6 +37,9 @@ export const DB_PATH = join(
   DB_DIR,
   process.env.RACEIQ_TEST_MODE === "1" ? "test.db" : "app.db",
 );
+
+// Check before libSQL can create a replacement or migrate an older database.
+assertDashboardDatabasePresent(DB_PATH);
 
 function migrateLegacyDatabase(): void {
   const legacyPath = join(DB_DIR, "forza-telemetry.db");

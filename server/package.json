@@ -118,6 +118,7 @@
     "./race-results/reconcile": "./race-results/reconcile.ts",
     "./race-results/source": "./race-results/source.ts",
     "./race-results/types": "./race-results/types.ts",
+    "./runtime/config/dashboard-access-state": "./runtime/config/dashboard-access-state.ts",
     "./runtime/config/data-dir": "./runtime/config/data-dir.ts",
     "./runtime/config/env": "./runtime/config/env.ts",
     "./runtime/config/paths": "./runtime/config/paths.ts",

@@ -7,7 +7,7 @@ import { injectDiscoveredIRacingIdentity } from "@raceiq/game-iracing-metadata/i
 import { injectDiscoveredLMUIdentity } from "@raceiq/game-lmu-metadata/index";
 import app from "../routes/index";
 import { initServerGameAdapters } from "../games/init";
-import { initDb } from "@raceiq/backend-core/db/index";
+import { initDb, DB_PATH } from "@raceiq/backend-core/db/index";
 import { reconcileDiscoveredCars, listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
 import { backfillAllRaceResults } from "@raceiq/backend-core/race-results/reconcile";
 import { backfillLMUSessionIdentity } from "../imports/lmu-session-identity-backfill";
@@ -28,6 +28,8 @@ import { startTray } from "@raceiq/backend-core/runtime/platform/tray";
 import { initMotecTargets } from "../games/motec-init";
 import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
 import { notifyDriverProfileLap } from "../driver-profile/runner";
+import { DashboardAuth, setDashboardAuth } from "./dashboard-auth";
+import { configureHttpAccess, httpAccess } from "./http-access";
 
 export interface BootOptions {
   httpPort?: number;
@@ -47,6 +49,7 @@ function recordingGameIdFromArgs(args: readonly string[]): string | null {
 }
 
 export async function bootServer(options: BootOptions = {}): Promise<RunningServer> {
+  const upgradingAccess = !isFirstRun();
   initGameAdapters(serverReleaseFeatures);
   initServerGameAdapters(serverReleaseFeatures);
   initMotecTargets();
@@ -76,6 +79,10 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   }
 
   await initDb();
+  const auth = new DashboardAuth(DB_PATH);
+  await auth.initialize(upgradingAccess);
+  setDashboardAuth(auth);
+  configureHttpAccess(auth, httpPort);
   await reconcileDiscoveredCars();
   injectDiscoveredAcEvoCars(await listDiscoveredCars("ac-evo"));
 
@@ -119,7 +126,12 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     staticDir,
     devPublicDir,
   });
-  console.log(`[Server] HTTP/WS server listening on http://localhost:${httpPort}`);
+  for (const hostname of httpAccess.hosts.slice(1)) {
+    startHttpServer({ app, port: httpPort, staticDir, devPublicDir, access: { ...httpAccess, hostname } });
+  }
+  for (const host of httpAccess.hosts) {
+    console.log(`[Server] HTTP/WS server listening on http://${host.includes(":") ? `[${host}]` : host}:${httpPort}`);
+  }
 
   // Reconcile historical sessions without delaying HTTP startup.
   void backfillAllRaceResults().catch((error) => {

@@ -49,7 +49,19 @@ export function startHttpServer({
   devPublicDir,
   access = httpAccess,
 }: HttpServerOptions): Bun.Server<WSData> {
-  return Bun.serve<WSData>({
+  // Also disconnect already-open sockets after logout/password replacement,
+  // including resets performed by another process against the shared DB.
+  const sockets = new Map<Bun.ServerWebSocket<WSData>, Request>();
+  const sessionCheck = setInterval(() => {
+    if (!access.usesSessions) return;
+    for (const [socket, request] of sockets) {
+      try { if (access.authorize(request)) socket.close(1008, "Authentication required"); }
+      catch { socket.close(1008, "Authentication unavailable"); }
+    }
+  }, 1000);
+  sessionCheck.unref();
+  const requests = new WeakMap<WSData, Request>();
+  const server = Bun.serve<WSData>({
     port,
     hostname: access.hostname,
     idleTimeout: 255,
@@ -62,9 +74,9 @@ export function startHttpServer({
       if (denied) return denied;
       const url = new URL(req.url);
       if (url.pathname === "/ws") {
-        const upgraded = server.upgrade(req, {
-          data: { createdAt: Date.now(), devTelemetrySubscribed: false },
-        });
+        const data = { createdAt: Date.now(), devTelemetrySubscribed: false };
+        requests.set(data, req);
+        const upgraded = server.upgrade(req, { data });
         if (upgraded) return undefined as unknown as Response;
       }
 
@@ -129,9 +141,12 @@ export function startHttpServer({
     },
     websocket: {
       open(ws) {
+        const request = requests.get(ws.data);
+        if (request) sockets.set(ws, request);
         wsManager.addClient(ws);
       },
       close(ws) {
+        sockets.delete(ws);
         wsManager.removeClient(ws);
       },
       message(ws, msg) {
@@ -139,4 +154,10 @@ export function startHttpServer({
       },
     },
   });
+  const stop = server.stop.bind(server);
+  server.stop = (closeActiveConnections) => {
+    clearInterval(sessionCheck);
+    return stop(closeActiveConnections);
+  };
+  return server;
 }

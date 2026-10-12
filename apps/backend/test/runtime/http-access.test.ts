@@ -54,6 +54,18 @@ describe("HTTP access policy", () => {
     expect(local.authorize(request("/", { "sec-fetch-site": "cross-site", "sec-fetch-mode": "navigate" }))).toBeUndefined();
   });
 
+  test("accepts the LAN dashboard authority forwarded by Vite without trusting a different browser origin", () => {
+    for (const path of ["/api/status", "/ws"]) {
+      const headers = { origin: "http://192.168.1.135:4051", "x-forwarded-host": "192.168.1.135:4051", "x-forwarded-proto": "http" };
+      expect(dev.authorize(request(path, headers))).toBeUndefined();
+      for (const origin of ["https://attacker.example", "http://192.168.1.135:4052", "null"]) {
+        expect(dev.authorize(request(path, { ...headers, origin }))?.status).toBe(403);
+      }
+      const restricted = createHttpAccess({ NODE_ENV: "development", SERVER_ALLOWED_ORIGINS: "http://localhost:3117" });
+      expect(restricted.authorize(request(path, headers))?.status).toBe(403);
+    }
+  });
+
   test("rejects inconsistent hosts and does not grant trust from client IP headers", () => {
     expect(dev.authorize(request("/api/status", { host: "attacker.example:3117", "x-forwarded-host": "localhost:3117" }))?.status).toBe(403);
     expect(dev.authorize(request("/api/status", { origin: "https://attacker.example", "x-forwarded-for": "127.0.0.1" }))?.status).toBe(403);

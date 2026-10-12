@@ -11,6 +11,9 @@ import * as schema from "@raceiq/backend-core/db/schema";
 type ColInfo = { name: string; type: string; notnull: number; dflt_value: string | null };
 
 function applyMigrations(db: Database) {
+  // The production runner creates and maintains this ledger before migration
+  // SQL executes; upgrade migrations can inspect the recorded history.
+  db.exec("CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL)");
   for (const m of migrations) {
     for (const sql of m.sql) {
       try {
@@ -22,6 +25,7 @@ function applyMigrations(db: Database) {
         if (!message.includes("duplicate column name")) throw error;
       }
     }
+    db.query("INSERT INTO schema_migrations (version, name) VALUES (?, ?)").run(m.version, m.name);
   }
 }
 

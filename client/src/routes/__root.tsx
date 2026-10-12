@@ -5,6 +5,7 @@ import { Menu } from "lucide-react";
 import { useEffect, useState } from "react";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { Settings } from "@/components/settings/Settings";
+import { AuthGate, useDashboardAuth } from "@/components/security/AuthGate";
 import { useSettings } from "@/hooks/settings";
 import { applyLocale } from "@/lib/locale";
 import { m } from "@/paraglide/messages";
@@ -35,6 +36,7 @@ function useUpdateCheck() {
 }
 
 function AppShell() {
+  const { setupJustCompleted } = useDashboardAuth();
   useWebSocket();
   const { displaySettings, settingsLoaded } = useSettings();
 
@@ -89,7 +91,7 @@ function AppShell() {
 
   const forceWelcome = new URLSearchParams(window.location.search).has("welcome");
   if (forceWelcome || !displaySettings.onboardingComplete) {
-    return <OnboardingModal />;
+    return <OnboardingModal initialStep={setupJustCompleted ? 2 : 0} />;
   }
 
   if (isPortable) {
@@ -188,7 +190,7 @@ function AppShell() {
 function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppShell />
+      <AuthGate><AppShell /></AuthGate>
     </QueryClientProvider>
   );
 }

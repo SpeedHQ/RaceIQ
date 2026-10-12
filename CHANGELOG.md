@@ -1,12 +1,27 @@
 ## Unreleased
 
 ### Features
+- Open the dashboard on another LAN device using a copied link or QR code in Access & security settings.
+- Choose dashboard password protection during setup or in Access & security settings, sign in across devices, and recover a forgotten password from the terminal.
+- Select dashboard network interfaces and browser domains in Access & security settings without changing UDP telemetry reception.
 - Optionally protect dashboard access with a password and configure trusted browser origins independently, while keeping existing local and remote access working without new settings.
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 
 - Browse enriched iRacing car, car-class, and track catalogs with official car images, offline pit-road maps, and grouped lap sections.
 
+### Breaking
+- New desktop and self-hosted installs restrict dashboard access to this computer until you select additional network interfaces.
+- Password-protected dashboards use a login screen and browser sessions; API clients must sign in and send the session cookie and a CSRF token for writes.
+
 ### Fixes
+- Refuse to reopen dashboard setup when a previously configured database is lost or replaced.
+- Use the development dashboard port for localhost, LAN, and Tailscale links in settings.
+- Label the confirmation to disable dashboard password protection as “Confirm settings”.
+- Keep localhost dashboard access working after adding browser domains to an existing all-interface configuration.
+- Hide the selected password-free setup option while showing its exposure warning.
+- Restrict development dashboard access to selected network interfaces.
+- Keep live telemetry connected when opening the development dashboard through a LAN link.
+- Open the dashboard instead of a backend status page when using a shared link during development.
 - Prevent crafted AI credential requests from running commands on macOS.
 - Reject unrelated browser origins on dashboard and live telemetry requests while preserving same-origin access through reverse proxies.
 - Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -34,7 +34,7 @@ function expectArtifactsAbsent(databasePath: string): void {
   }
 }
 
-async function runDbStartup(dataDir: string, importRecording = false): Promise<{ code: number; output: string }> {
+async function runDbStartup(dataDir: string, importRecording = false, configurePassword?: string | null): Promise<{ code: number; output: string }> {
   const env: Record<string, string | undefined> = { ...process.env, DATA_DIR: dataDir };
   delete env.RACEIQ_TEST_MODE;
   delete env.DB_IN_MEMORY;
@@ -42,6 +42,7 @@ async function runDbStartup(dataDir: string, importRecording = false): Promise<{
   // Child import must occur after isolated env setup; parent owns preloaded test client.
   const source = `
     import * as database from ${JSON.stringify(DATABASE_MODULE_URL)};
+    import { DashboardAuth } from ${JSON.stringify(pathToFileURL(join(REPO_ROOT, "apps/backend/src/runtime/dashboard-auth.ts")).href)};
     ${importRecording ? `
     import { readFileSync } from "node:fs";
     import { initGameAdapters } from ${JSON.stringify(pathToFileURL(join(REPO_ROOT, "packages/game-catalogs/src/games/init.ts")).href)};
@@ -50,6 +51,11 @@ async function runDbStartup(dataDir: string, importRecording = false): Promise<{
     ` : ""}
     try {
       await database.initDb();
+      ${configurePassword !== undefined ? `
+      const auth = new DashboardAuth(database.DB_PATH, {});
+      try { await auth.initialize(false); await auth.setup(${JSON.stringify(configurePassword)}, true); }
+      finally { auth.database.close(); }
+      ` : ""}
       if (${importRecording}) {
         initGameAdapters();
         initServerGameAdapters();
@@ -189,6 +195,47 @@ afterEach(async () => {
 });
 
 describe("production database path", () => {
+  test("losing a configured database fails before recreating it or migrating an older backup", async () => {
+    for (const password of ["abcdefgh", null]) {
+      const dataDir = makeDataDir();
+      const appPath = join(dataDir, "app.db");
+      expect((await runDbStartup(dataDir, false, password)).code).toBe(0);
+      writeFileSync(join(dataDir, "settings.json"), JSON.stringify({ onboardingComplete: true }));
+      expect(readFileSync(`${appPath}.dashboard-access`, "utf8")).not.toContain(password ?? "password_hash");
+      for (const artifact of databaseArtifacts(appPath)) rmSync(artifact, { force: true });
+      // A pre-auth database must not silently replace the configured instance.
+      const legacyPath = join(dataDir, "forza-telemetry.db");
+      await createFixture(legacyPath, "preserve legacy", 62);
+      const legacyBefore = snapshotArtifacts(legacyPath);
+      const result = await runDbStartup(dataDir);
+      expect(result.code).toBe(1);
+      expect(result.output).toContain("Previously configured dashboard database is missing");
+      expectArtifactsAbsent(appPath);
+      expect(snapshotArtifacts(legacyPath)).toEqual(legacyBefore);
+      expect(JSON.parse(readFileSync(join(dataDir, "settings.json"), "utf8"))).toEqual({ onboardingComplete: true });
+    }
+  });
+  test("startup applies dashboard access after the unreleased bookmarks migration used version 63", async () => {
+    const dataDir = makeDataDir();
+    const appPath = join(dataDir, "app.db");
+    const sentinel = `bookmarks-profile-${crypto.randomUUID()}`;
+    await createFixture(appPath, sentinel, 62);
+    const before = new Database(appPath);
+    before.exec("CREATE TABLE live_bookmarks (id INTEGER PRIMARY KEY, note TEXT); INSERT INTO live_bookmarks VALUES (1, 'preserve me')");
+    before.query("INSERT INTO schema_migrations (version, name) VALUES (63, ?)").run("persist live session bookmarks");
+    before.close();
+
+    const result = await runDbStartup(dataDir);
+    expect(result.code, result.output).toBe(0);
+    expect(profileNames(appPath)).toEqual([sentinel]);
+    const after = new Database(appPath, { readonly: true });
+    try {
+      expect(after.query("SELECT mode FROM dashboard_access WHERE id = 1").get()).toEqual({ mode: "pending" });
+      expect(after.query("SELECT name FROM schema_migrations WHERE version = 63").get()).toEqual({ name: "persist live session bookmarks" });
+      expect(after.query("SELECT name FROM schema_migrations WHERE version = 64").get()).toEqual({ name: "persist dashboard access and login sessions" });
+      expect(after.query("SELECT note FROM live_bookmarks WHERE id = 1").get()).toEqual({ note: "preserve me" });
+    } finally { after.close(); }
+  });
   test("fresh startup creates only app.db", async () => {
     const dataDir = makeDataDir();
     const appPath = join(dataDir, "app.db");

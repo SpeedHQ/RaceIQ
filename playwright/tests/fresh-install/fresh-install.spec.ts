@@ -48,14 +48,20 @@ test.describe
 
       await page.goto("/", { waitUntil: "domcontentloaded" });
 
-      // Step 1: Welcome — demo 3D render (R3F canvas) should mount from demo-lap.csv
-      await expect(page.getByRole("heading", { name: "RaceIQ", level: 2 })).toBeVisible({ timeout: 15_000 });
-      const demoCanvas = page.locator("canvas").first();
-      await expect(demoCanvas).toBeVisible({ timeout: 15_000 });
-      const canvasBox = await demoCanvas.boundingBox();
-      expect(canvasBox?.width ?? 0).toBeGreaterThan(0);
-      expect(canvasBox?.height ?? 0).toBeGreaterThan(0);
+      // First-run shell exposes language/setup only, before application APIs.
+      await expect(page.getByText("RaceIQ", { exact: true })).toBeVisible({ timeout: 15_000 });
       await page.getByRole("button", { name: "Get Started" }).click();
+
+      // Page two: make an explicit protection choice before application access.
+      await page.getByRole("button", { name: "Continue without a password" }).click();
+      await expect(page.getByRole("button", { name: "Continue without a password" })).toBeHidden();
+      // Users can still reconsider before confirming the exposure warning.
+      await page.getByRole("button", { name: "Enable password protection", exact: true }).click();
+      await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
+      await page.getByRole("button", { name: "Continue without a password" }).click();
+      await expect(page.getByRole("button", { name: "Continue without a password" })).toBeHidden();
+      await page.getByRole("switch", { name: "I understand and accept this exposure." }).click();
+      await page.getByRole("button", { name: "Next", exact: true }).click();
 
       // Step 2: Profile
       await expect(page.getByRole("heading", { name: "What's your name?" })).toBeVisible();
@@ -86,8 +92,8 @@ test.describe
         if (response.request().method() !== "PUT" || !response.url().endsWith("/api/settings")) return false;
         const body = response.request().postDataJSON() as { onboardingComplete?: boolean } | null;
         return body?.onboardingComplete === true;
-      });
-      await page.getByRole("button", { name: "Next" }).click();
+      }, { timeout: 60_000 });
+      await page.getByRole("button", { name: /^(Next|Finish)$/ }).click();
       expect((await saveSettings).ok(), "onboarding settings save").toBe(true);
 
       // Onboarding modal closes after settings mutation invalidates cached settings.
@@ -192,5 +198,156 @@ test.describe
       await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
       await assertImagesLoaded(page);
       expect(errors, `unexpected browser errors:\n${errors.join("\n")}`).toEqual([]);
+    });
+
+    test("dashboard passwords support login, logout, change, disable and authenticated WebSockets", async ({ page, browser, baseURL }) => {
+      await page.goto("/");
+      async function openAccess() {
+        await page.getByRole("navigation", { name: "Navigation" }).getByRole("button", { name: "Settings" }).click();
+        await page.getByRole("button", { name: "Access & security", exact: true }).click();
+      }
+      await openAccess();
+      await expect(page.getByRole("button", { name: "Enable password protection", exact: true })).toHaveCount(1);
+      await expect(page.getByRole("button", { name: "Disable password protection", exact: true })).toHaveCount(0);
+      await page.getByLabel("Password", { exact: true }).fill("abcdefg");
+      await page.getByLabel("Confirm password", { exact: true }).fill("different");
+      await expect(page.getByText("Passwords do not match.")).toBeVisible();
+      await expect(page.getByRole("button", { name: "Enable password protection", exact: true })).toBeDisabled();
+      await page.getByLabel("Password", { exact: true }).fill("abcdefgh");
+      await page.getByLabel("Confirm password", { exact: true }).fill("abcdefgh");
+      await page.getByRole("button", { name: "Show password", exact: true }).first().click();
+      await expect(page.getByLabel("Password", { exact: true })).toHaveAttribute("type", "text");
+      await page.getByRole("button", { name: "Enable password protection", exact: true }).click();
+      await expect(page.getByText("Password protection is enabled on every dashboard address.")).toBeVisible();
+      await expect(page.getByRole("button", { name: "Enable password protection", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Disable password protection", exact: true })).toBeVisible();
+      await expect(page.getByLabel("New password", { exact: true })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Save password settings" })).toHaveCount(0);
+      await page.reload();
+      await expect(page.getByRole("heading", { name: "Hello, TestDriver" })).toBeVisible();
+      expect((await page.request.get("/api/status")).status()).toBe(200);
+      expect((await page.request.put("/api/settings", { data: { driverName: "CSRF must fail" } })).status()).toBe(403);
+      const opened = await page.evaluate(() => new Promise<boolean>((resolve) => {
+        const socket = new WebSocket(`${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/ws`);
+        socket.onopen = () => { socket.close(); resolve(true); };
+        socket.onerror = () => resolve(false);
+      }));
+      expect(opened).toBe(true);
+      const visitor = await browser.newContext({ baseURL });
+      try {
+        expect((await visitor.request.get("/api/status")).status()).toBe(401);
+        const guest = await visitor.newPage(); await guest.goto("/");
+        await expect(guest.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+        await expect(guest.getByText("Continue without a password")).toHaveCount(0);
+      } finally { await visitor.close(); }
+      await openAccess();
+      await expect(page.getByLabel("Current password", { exact: true })).toHaveCount(0);
+      await expect(page.getByLabel("New password", { exact: true })).toHaveCount(0);
+      await page.getByRole("button", { name: "Change password", exact: true }).click();
+      await page.getByLabel("Current password", { exact: true }).fill("abcdefgh");
+      await page.getByLabel("New password", { exact: true }).fill("ijklmnop");
+      await page.getByLabel("Confirm new password", { exact: true }).fill("ijklmnop");
+      const changed = page.waitForResponse((response) => response.url().endsWith("/api/auth/password") && response.request().method() === "PUT");
+      await page.getByRole("button", { name: "Save password settings" }).click();
+      expect((await changed).ok()).toBe(true);
+      await expect(page.getByLabel("New password", { exact: true })).toHaveCount(0);
+      await page.getByRole("button", { name: "Sign out", exact: true }).click();
+      await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+      await page.getByLabel("Password", { exact: true }).fill("abcdefgh");
+      await page.getByRole("button", { name: "Sign in", exact: true }).click();
+      await expect(page.getByText("The password is incorrect.")).toBeVisible();
+      await page.getByLabel("Password", { exact: true }).fill("ijklmnop");
+      await page.getByRole("button", { name: "Sign in", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "Hello, TestDriver" })).toBeVisible();
+      await openAccess();
+      await page.getByRole("button", { name: "Disable password protection", exact: true }).click();
+      await expect(page.getByRole("button", { name: "Save password settings" })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Confirm settings", exact: true })).toBeDisabled();
+      await expect(page.getByLabel("New password", { exact: true })).toHaveCount(0);
+      await page.getByLabel("Current password", { exact: true }).fill("ijklmnop");
+      await page.getByRole("switch", { name: "I understand and accept this exposure." }).click();
+      await page.getByRole("button", { name: "Confirm settings", exact: true }).click();
+      await expect(page.getByText("Password protection is disabled.")).toBeVisible();
+      await expect(page.getByRole("button", { name: "Enable password protection", exact: true })).toHaveCount(1);
+      await expect(page.getByRole("button", { name: "Disable password protection", exact: true })).toHaveCount(0);
+      await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
+    });
+
+    test("dashboard sharing shows active LAN links and copies them without credentials", async ({ page }) => {
+      async function openAccess() {
+        await page.getByRole("navigation", { name: "Navigation" }).getByRole("button", { name: "Settings" }).click();
+        await page.getByRole("button", { name: "Access & security", exact: true }).click();
+      }
+      await page.goto("/");
+      await openAccess();
+      await expect(page.getByText("Open on another device", { exact: true })).toHaveCount(0);
+
+      // Model network bindings without exposing a real listener or changing
+      // the user's network configuration. The preceding test disabled auth.
+      let protectedAccess = false;
+      let activeHosts = ["127.0.0.1", "192.0.2.15", "100.64.0.2"];
+      await page.route("**/api/auth/status", async (route) => {
+        const response = await route.fetch();
+        const status = await response.json();
+        await route.fulfill({ response, json: {
+          ...status,
+          protected: protectedAccess,
+          interfaces: [
+            { name: "Active LAN", address: "192.0.2.15", tailnet: false },
+            { name: "Inactive LAN", address: "192.0.2.16", tailnet: false },
+            { name: "Tailscale", address: "100.64.0.2", tailnet: true },
+          ],
+          activeHosts,
+          network: { hosts: ["127.0.0.1", "192.0.2.15", "100.64.0.2"], origins: [] },
+        } });
+      });
+      await page.reload();
+      await openAccess();
+      const port = await page.evaluate(() => document.querySelector<HTMLMetaElement>('meta[name="raceiq-dashboard-port"]')?.content);
+      if (process.env.E2E_SERVER_MODE === "dev") {
+        expect(port).toBe(new URL(page.url()).port);
+        const dashboard = await page.request.get(`http://localhost:${port}/`);
+        expect(dashboard.headers()["content-type"]).toContain("text/html");
+        expect(await dashboard.text()).toContain('<div id="root">');
+      }
+      const url = `http://192.0.2.15:${port ?? "3118"}/`;
+      const dashboardUrls = page.getByRole("group", { name: "Dashboard URLs" });
+      for (const address of ["127.0.0.1", "192.0.2.15", "100.64.0.2"]) {
+        await expect(dashboardUrls.getByRole("link", { name: `http://${address}:${port ?? "3118"}`, exact: true })).toBeVisible();
+      }
+      if (port) await expect(dashboardUrls.getByRole("link", { name: "http://100.64.0.2:3118", exact: true })).toHaveCount(0);
+      await expect(page.getByText("Open on another device", { exact: true })).toBeVisible();
+      await expect(page.getByText("Connect to the same network, then scan the QR code or open the link.", { exact: true })).toBeVisible();
+      await expect(page.getByRole("img", { name: `QR code for ${url}`, exact: true })).toBeVisible();
+      await expect(page.getByRole("img", { name: /QR code for/ })).toHaveCount(1);
+      await page.getByRole("switch", { name: /Inactive LAN/ }).click();
+      await expect(page.getByRole("img", { name: /QR code for/ })).toHaveCount(1);
+
+      await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+      const copy = page.getByRole("button", { name: `Copy link for ${url}`, exact: true });
+      await copy.click();
+      await expect(page.getByText("Link copied.", { exact: true })).toBeVisible();
+      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url);
+
+      // Exercise the plain HTTP fallback with the real browser copy command.
+      await page.evaluate(() => Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true }));
+      await copy.click();
+      await expect(page.getByText("Link copied.", { exact: true })).toBeVisible();
+      await page.evaluate(() => Reflect.deleteProperty(navigator, "clipboard"));
+      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url);
+
+      await page.evaluate(() => {
+        Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true });
+        document.execCommand = () => false;
+      });
+      await copy.click();
+      await expect(page.getByRole("alert").filter({ hasText: "Could not copy the link." })).toBeVisible();
+
+      protectedAccess = true;
+      activeHosts = ["0.0.0.0"];
+      await page.reload();
+      await openAccess();
+      await expect(page.getByRole("img", { name: /QR code for/ })).toHaveCount(2);
+      await expect(page.getByText("Connect to the same network, then scan the QR code or open the link and sign in with your dashboard password.", { exact: true })).toBeVisible();
     });
   });

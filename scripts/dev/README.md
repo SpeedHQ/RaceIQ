@@ -13,6 +13,8 @@ Inputs: optional onboarding override, `SERVER_PORT` for a fixed backend port, `P
 
 Startup does not open a browser automatically. Open the printed Portless URL manually when needed.
 
+Vite listens on `127.0.0.1` for Portless. The launcher reads only saved network configuration from the running server's data directory and supplies selected listener addresses to Vite; additional TCP listeners bind those specific IPs and forward HTTP/WebSocket traffic to Vite. Both launchers load `.env.development`, so `DATA_DIR` and explicit `SERVER_HOST` overrides agree. Existing wildcard configurations expand to current interface addresses. Unselected interfaces do not get listeners, and a failed bind stops startup rather than broadening access. Localhost must remain selected for Portless development; otherwise startup fails. Restart the full development command after changing network interfaces. Sharing links use the actual dashboard port. Explicit `SERVER_ALLOWED_ORIGINS` must include that origin for LAN development requests.
+
 Translation build reuse hashes message files, project settings, dependency lockfile, installed compiler version, and generation options. Every generated file is validated before reuse; missing, modified, or obsolete output triggers staged regeneration. Failed compilation preserves the previous valid output. Development watching keeps its separate locale-module profile.
 
 Boundary: development orchestration and generated translation preparation. Release packaging remains under `packages/tooling-build/src/build/`; scripts here do not modify application service configuration.
