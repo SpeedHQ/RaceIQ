@@ -1,8 +1,9 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test as bunTest } from "bun:test";
 import { createClient } from "@libsql/client";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { migrations } from "@raceiq/backend-core/db/migrations";
 import { DashboardAuth, setDashboardAuth, validateNetwork } from "../../src/runtime/dashboard-auth";
 import { createHttpAccess } from "../../src/runtime/http-access";
@@ -10,23 +11,99 @@ import { Hono } from "hono";
 import { authRoutes } from "../../src/routes/auth-routes";
 import { startHttpServer } from "../../src/runtime/http-server";
 import { dashboardAccessMarkerPath } from "@raceiq/backend-core/runtime/config/dashboard-access-state";
+import { client as applicationDb } from "@raceiq/backend-core/db/index";
+import type { WSData } from "@raceiq/backend-core/runtime/websocket-manager";
+
+// The parent owns fixture files; only child processes open their databases.
+// libSQL close() can leave native handles alive until process exit on Windows.
+function test(name: string, scenario: () => Promise<void>) {
+  if (process.env.RACEIQ_AUTH_CASE) {
+    if (process.env.RACEIQ_AUTH_CASE === name) bunTest(name, scenario);
+    return;
+  }
+  bunTest(name, async () => {
+    const directory = mkdtempSync(join(tmpdir(), "raceiq-dashboard-auth-"));
+    try {
+      const config = join(directory, "bunfig.toml");
+      writeFileSync(config, `[test]\nroot = ${JSON.stringify(directory.replaceAll("\\", "/"))}\npreload = []\ntimeout = 10000\n`);
+      const child = Bun.spawn([process.execPath, "test", `--config=${config}`, import.meta.path], {
+        env: {
+          ...process.env,
+          DATA_DIR: directory,
+          RACEIQ_TEST_DATA_DIR: directory,
+          RACEIQ_TEST_MODE: "1",
+          DB_IN_MEMORY: "0",
+          SERVER_PASSWORD: "",
+          RACEIQ_AUTH_CASE: name,
+          RACEIQ_AUTH_FIXTURE_DIR: directory,
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      // A watchdog bounds a hung native subprocess; successful runs await exit,
+      // never a fixed delay. Fake timers cannot terminate another process.
+      const deadline = setTimeout(() => child.kill(), 15000);
+      try {
+        const [code, stdout, stderr] = await Promise.all([
+          child.exited,
+          new Response(child.stdout).text(),
+          new Response(child.stderr).text(),
+        ]);
+        if (code !== 0) throw new Error(`Authentication scenario failed (${code}):\n${stdout}\n${stderr}`);
+      } finally {
+        clearTimeout(deadline);
+        child.kill();
+        await child.exited;
+      }
+    } finally {
+      await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    }
+  }, 20000);
+}
+
+if (process.env.RACEIQ_AUTH_CASE) afterAll(() => applicationDb.close());
+
+async function recoverPassword(path: string, password: string) {
+  const child = Bun.spawn([process.execPath, join(import.meta.dir, "fixtures/reset-dashboard-password.ts")], {
+    env: {
+      ...process.env,
+      DATA_DIR: dirname(path),
+      RACEIQ_TEST_MODE: "0",
+      SERVER_PASSWORD: "",
+      RACEIQ_AUTH_RECOVERY_PASSWORD: password,
+    },
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  // Bound a hung command process; completion itself is signaled by child.exited.
+  const deadline = setTimeout(() => child.kill(), 10000);
+  try {
+    const [code, stdout, stderr] = await Promise.all([
+      child.exited,
+      new Response(child.stdout).text(),
+      new Response(child.stderr).text(),
+    ]);
+    if (code !== 0) throw new Error(`Password recovery command failed (${code}):\n${stdout}\n${stderr}`);
+  } finally {
+    clearTimeout(deadline);
+    child.kill();
+    await child.exited;
+  }
+}
 
 async function fixture(env: NodeJS.ProcessEnv = {}) {
-  const directory = mkdtempSync(join(tmpdir(), "raceiq-dashboard-auth-"));
+  const directory = mkdtempSync(join(process.env.RACEIQ_AUTH_FIXTURE_DIR!, "fixture-"));
   const path = join(directory, "app.db");
   const db = createClient({ url: `file:${path}` });
-  await db.execute("CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL)");
-  for (const sql of migrations.find((migration) => migration.version === 68)!.sql) await db.execute(sql);
-  const auth = await DashboardAuth.create(db, path, env);
-  return {
-    auth,
-    db,
-    path,
-    close: async () => {
-      await db.close();
-      rmSync(directory, { recursive: true, force: true });
-    },
-  };
+  try {
+    await db.execute("CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL)");
+    for (const sql of migrations.find((migration) => migration.version === 68)!.sql) await db.execute(sql);
+    const auth = await DashboardAuth.create(db, path, env);
+    return { auth, db, path, close: async () => db.close() };
+  } catch (error) {
+    db.close();
+    throw error;
+  }
 }
 const request = (path = "/api/laps", headers: HeadersInit = {}, method = "GET") => new Request(`http://localhost:3117${path}`, { headers, method });
 const cookieRequest = (cookie: string, headers: HeadersInit = {}, method = "GET") => request("/api/laps", { cookie: cookie.split(";")[0], ...headers }, method);
@@ -135,18 +212,19 @@ describe("persistent dashboard authentication", () => {
   });
   test("password recovery rejects old HTTP sessions and disconnects an already authenticated WebSocket", async () => {
     const f = await fixture();
-    await f.auth.initialize(true);
-    await f.auth.setup("abcdefgh", false);
-    const access = await createHttpAccess({ NODE_ENV: "production" }, f.auth);
-    const server = startHttpServer({
-      app: { fetch: () => Response.json({ ok: true }) },
-      port: 0,
-      staticDir: null,
-      devPublicDir: null,
-      access: { ...access, hostname: "127.0.0.1" },
-    });
+    let server: Bun.Server<WSData> | undefined;
     let socket: WebSocket | undefined;
     try {
+      await f.auth.initialize(true);
+      await f.auth.setup("abcdefgh", false);
+      const access = await createHttpAccess({ NODE_ENV: "production" }, f.auth);
+      server = startHttpServer({
+        app: { fetch: () => Response.json({ ok: true }) },
+        port: 0,
+        staticDir: null,
+        devPublicDir: null,
+        access: { ...access, hostname: "127.0.0.1" },
+      });
       const url = `http://127.0.0.1:${server.port}`;
       expect((await fetch(`${url}/api/status`)).status).toBe(401);
       const session = await f.auth.login("abcdefgh", new Request(url));
@@ -160,18 +238,13 @@ describe("persistent dashboard authentication", () => {
         socket!.onopen = () => resolve();
         socket!.onerror = () => reject(new Error("Authenticated WebSocket did not open"));
       });
-      const recoveryDb = createClient({ url: `file:${f.path}` });
-      try {
-        await (await DashboardAuth.create(recoveryDb, f.path, {})).reset("ijklmnop");
-      } finally {
-        await recoveryDb.close();
-      }
+      await recoverPassword(f.path, "ijklmnop");
       expect((await fetch(`${url}/api/status`, { headers })).status).toBe(401);
       // Live server must observe cross-process session invalidation and close this socket.
-      expect(await Promise.race([closed, Bun.sleep(4000).then(() => -1)])).toBe(1008);
+      expect(await closed).toBe(1008);
     } finally {
       socket?.close();
-      server.stop(true);
+      await server?.stop(true);
       await f.close();
     }
   });
@@ -294,13 +367,11 @@ describe("persistent dashboard authentication", () => {
       await f.auth.changePassword("abcdefgh", "ijklmnop", false);
       expect(await f.auth.session(cookieRequest(session.cookie))).toBeNull();
       const second = await f.auth.login("ijklmnop", request());
-      const recoveryDb = createClient({ url: `file:${f.path}` });
-      try {
-        await (await DashboardAuth.create(recoveryDb, f.path, {})).reset("qrstuvwx");
-      } finally {
-        await recoveryDb.close();
-      }
+      await recoverPassword(f.path, "qrstuvwx");
       expect(await f.auth.session(cookieRequest(second.cookie))).toBeNull();
+      await expect(f.auth.login("ijklmnop", request())).rejects.toThrow("incorrect_password");
+      const recovered = await f.auth.login("qrstuvwx", request());
+      expect((await f.auth.session(cookieRequest(recovered.cookie)))?.csrf).toBe(recovered.csrf);
       await expect(f.auth.changePassword("qrstuvwx", null, false)).rejects.toThrow("confirm_exposure");
       await f.auth.changePassword("qrstuvwx", null, true);
       expect(await f.auth.isProtected()).toBe(false);
