@@ -157,6 +157,34 @@ export function createChatsRoutes(
     }
   )
 
+  // Export canonical records, not UI-normalized messages or a compacted summary.
+  .get("/api/chats/:threadId/export", async (c) => {
+    const { base } = parseThreadGeneration(c.req.param("threadId"));
+    try {
+      const memory = getChatMemory();
+      const generations = await listThreadGenerations(base, memory);
+      const threads = [];
+      for (const generation of generations) {
+        const thread = await memory.getThreadById({ threadId: generation.threadId });
+        const { messages = [] } = await memory.recall({ threadId: generation.threadId, perPage: false });
+        const systemPrompt = thread?.metadata?.raceiqSystemPrompt;
+        threads.push({
+          ...generation,
+          thread,
+          systemPrompt: typeof systemPrompt === "string" ? systemPrompt : null,
+          systemPromptUnavailable: typeof systemPrompt !== "string",
+          messages,
+        });
+      }
+      c.header("Cache-Control", "no-store");
+      return c.json({ formatVersion: 1, exportedAt: new Date().toISOString(), threadId: base, threads });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[Chats] Failed to export:", message);
+      return c.json({ error: "Could not export chat history" }, 500);
+    }
+  })
+
   // ── Delete a chat session (all generations) ────────────────
   .delete(
     "/api/chats/:threadId",

@@ -1811,6 +1811,7 @@
   "ai_chat_open_fullscreen": "Відкрити чат на весь екран",
   "ai_chat_actions": "Дії чату",
   "ai_chat_copy_json": "Копіювати JSON чату",
+  "ai_chat_export_json": "Експортувати весь чат у JSON",
   "ai_chat_clear": "Очистити чат",
   "ai_chat_read_only_notice": "Перегляд попередньої розмови (лише читання). Перейдіть до останньої, щоб продовжити.",
   "ai_chat_compact_failed": "Не вдалося стиснути",
