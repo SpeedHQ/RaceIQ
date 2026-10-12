@@ -2,13 +2,14 @@ import { describe, expect, test } from "bun:test";
 import Database from "libsql";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { readDashboardHosts } from "../../dev/dashboard-network";
 import { developmentDashboardHosts } from "../../dev/dashboard-listeners";
 
 describe("development dashboard network access", () => {
-  test("uses saved selections and explicit overrides without reading credentials", () => {
+  test("uses saved selections and explicit overrides without reading credentials", async () => {
     const directory = mkdtempSync(join(tmpdir(), "raceiq-dev-network-"));
     const path = join(directory, "app.db");
     const database = new Database(path);
@@ -20,7 +21,11 @@ describe("development dashboard network access", () => {
       database.exec("DELETE FROM dashboard_access");
       expect(() => readDashboardHosts(path)).toThrow("missing or corrupt");
       expect(() => readDashboardHosts(join(directory, "absent.db"))).toThrow();
-    } finally { database.close(); rmSync(directory, { recursive: true, force: true }); }
+    } finally {
+      database.close();
+      // Windows can retain SQLite file handles briefly after the connection closes.
+      await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    }
   });
 
   test("defaults to loopback and refuses missing loopback or malformed configuration", () => {

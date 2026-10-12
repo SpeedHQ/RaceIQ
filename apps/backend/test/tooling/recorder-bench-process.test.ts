@@ -16,7 +16,8 @@ describe("recorder process resources", () => {
     expect(rows.get(104)).toEqual({ parent: 1, cpuSeconds: 7425.67, rssBytes: 524288 });
   });
 
-  test("rejects unavailable initial root samples instead of reporting zero resources", async () => {
+  // Live sampling requires ps; Windows still exercises the portable parser above.
+  test.skipIf(process.platform === "win32")("rejects unavailable initial root samples instead of reporting zero resources", async () => {
     const sampler = new ProcessTreeSampler(-1, true);
     await expect(sampler.mark()).rejects.toThrow("No process resource sample for root PID -1");
   });
