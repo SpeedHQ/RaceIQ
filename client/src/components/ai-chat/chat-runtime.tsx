@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu } from "@/components/ui/DropdownMenu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { downloadResponse } from "@/lib/lap-export";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import type { ChatGeneration } from "./chat-history";
@@ -81,6 +82,23 @@ export function ChatPanelThread({
   const runtime = useChatRuntime({ messages: initialMessages, transport, onFinish });
   const [compacting, setCompacting] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState(false);
+
+  const exportChat = async () => {
+    if (!compactThreadId || exporting) return;
+    setExporting(true);
+    setExportError(false);
+    try {
+      const response = await fetch(`/api/chats/${encodeURIComponent(compactThreadId)}/export`);
+      if (!response.ok) throw new Error(m.ai_chat_export_failed());
+      await downloadResponse(response, `${compactThreadId}-chat.json`);
+    } catch {
+      setExportError(true);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const copyChat = () => {
     void (async () => {
@@ -122,11 +140,13 @@ export function ChatPanelThread({
             }
             items={[
               { key: "copy", label: m.ai_chat_copy_json(), onClick: copyChat },
+              { key: "export", label: m.ai_chat_export_json(), onClick: () => void exportChat(), disabled: !compactThreadId || exporting },
               { key: "clear", label: m.ai_chat_clear(), onClick: onClearChat },
             ]}
           />
         </div>
       </div>
+      {exportError && <div role="alert" className="shrink-0 px-2 py-1 text-status-danger">{m.ai_chat_export_failed()}</div>}
       {readOnly && (
         <div className="shrink-0 border-b border-status-warning/30 bg-status-warning/10 px-2 py-1 text-app-caption text-status-warning">
           {m.ai_chat_read_only_notice()}
