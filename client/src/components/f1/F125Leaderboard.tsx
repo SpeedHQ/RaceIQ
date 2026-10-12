@@ -18,16 +18,16 @@ interface F125TrackData {
 
 interface F125TrackSummary {
   trackSlug: string;
-  trackOrdinal: number;
+  trackId: string;
 }
 
-export function F125Leaderboard({ trackOrdinal }: { trackOrdinal: number }) {
+export function F125Leaderboard({ trackId }: { trackId: string }) {
   const { data: tracks = [] } = useQuery<F125TrackSummary[]>({
     queryKey: ["f125-tracks"],
     queryFn: () => client.api["f1-25"].tracks.$get().then((r) => r.json() as unknown as F125TrackSummary[]),
   });
 
-  const trackSlug = tracks.find((t) => t.trackOrdinal === trackOrdinal)?.trackSlug;
+  const trackSlug = tracks.find((t) => t.trackId === trackId)?.trackSlug;
 
   const { data: trackData } = useQuery<F125TrackData>({
     queryKey: ["f125-setups", trackSlug],

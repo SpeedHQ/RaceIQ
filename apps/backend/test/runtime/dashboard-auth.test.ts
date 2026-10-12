@@ -16,7 +16,7 @@ function fixture(env: NodeJS.ProcessEnv = {}) {
   const path = join(directory, "app.db");
   const db = new Database(path);
   db.exec("CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL)");
-  for (const sql of migrations.find((migration) => migration.version === 64)!.sql) db.exec(sql);
+  for (const sql of migrations.find((migration) => migration.version === 68)!.sql) db.exec(sql);
   db.close();
   const auth = new DashboardAuth(path, env);
   return {
@@ -118,7 +118,7 @@ describe("persistent dashboard authentication", () => {
       await f.auth.initialize(false);
       await f.auth.setup("abcdefgh", false);
       const session = await f.auth.login("abcdefgh", request());
-      const migration = migrations.find((value) => value.version === 64)!;
+      const migration = migrations.find((value) => value.version === 68)!;
       for (const sql of migration.sql) f.auth.database.exec(sql);
       expect(f.auth.protected).toBe(true);
       expect(f.auth.session(cookieRequest(session.cookie))?.csrf).toBe(session.csrf);

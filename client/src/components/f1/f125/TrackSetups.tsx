@@ -27,7 +27,7 @@ function SetupVideo({ url }: { url: string }) {
     </div>
   );
 }
-export function F125SetupsWithGuide({ trackOrdinal, trackName }: { trackOrdinal: number; trackName: string }) {
+export function F125SetupsWithGuide({ trackId, trackName }: { trackId: string; trackName: string }) {
   const search = useSearch({ strict: false }) as { subtab?: string };
   const navigate = useNavigate();
   const validSubTabs = ["setups", "ranges"] as const;
@@ -55,11 +55,11 @@ export function F125SetupsWithGuide({ trackOrdinal, trackName }: { trackOrdinal:
           </Button>
         ))}
       </div>
-      {subTab === "setups" ? <F125TrackSetups trackOrdinal={trackOrdinal} trackName={trackName} /> : <F125SetupRanges trackOrdinal={trackOrdinal} />}
+      {subTab === "setups" ? <F125TrackSetups trackId={trackId} trackName={trackName} /> : <F125SetupRanges trackId={trackId} />}
     </div>
   );
 }
-export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackName?: string }) {
+export function F125TrackSetups({ trackId }: { trackId: string; trackName?: string }) {
   const search = useSearch({ strict: false }) as { setup?: string };
   const navigate = useNavigate();
   const [selectedIdx, setSelectedIdx] = useState(0);
@@ -72,7 +72,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
     queryFn: () => client.api["f1-25"].tracks.$get().then((r) => r.json() as unknown as F125TrackSummary[]),
   });
 
-  const trackSlug = tracks.find((t) => t.trackOrdinal === trackOrdinal)?.trackSlug;
+  const trackSlug = tracks.find((t) => t.trackId === trackId)?.trackSlug;
 
   const { data: trackData, isLoading } = useQuery<F125TrackData>({
     queryKey: ["f125-setups", trackSlug],

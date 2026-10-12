@@ -26,7 +26,7 @@ interface SectorMapProps {
   /** Show the source-defined sector time legend under the map. Default true. */
   showTimes?: boolean;
   /** When provided, the track's left/right edges are fetched and drawn faintly. */
-  trackOrdinal?: number;
+  trackId?: string;
   gameId?: GameId;
   /** Tooltip content for the hovered frame; when omitted, hover is disabled. */
   readout?: (frame: SemanticTuneSample, fraction: number) => ReadoutRow[];
@@ -46,8 +46,8 @@ interface SectorMapProps {
  * drawn faintly when the track has geometry. Hovering scrubs the lap like a
  * chart — a marker follows the cursor and a tooltip shows values at that point.
  */
-export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true, trackOrdinal, gameId, readout, onHover, issueMarkers = [], markFraction }: SectorMapProps) {
-  const { data: bounds } = useTrackBoundaries(trackOrdinal, gameId);
+export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true, trackId, gameId, readout, onHover, issueMarkers = [], markFraction }: SectorMapProps) {
+  const { data: bounds } = useTrackBoundaries(trackId, gameId);
   const edges = useMemo(() => {
     const extracted = extractEdges(bounds);
     if (!extracted || !gameId || !needsTrackFlip(gameId)) return extracted;

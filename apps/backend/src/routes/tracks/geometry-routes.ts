@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { OrdinalParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
+import { TrackIdParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
 import { getLaps, getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { getTrackOutline as getDbTrackOutline } from "@raceiq/backend-core/db/track-queries";
 import {
@@ -9,15 +9,14 @@ import {
   recordCurbData,
 } from "@raceiq/shared/racing/tracks/recording/curbs";
 import { getBundledOutlineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/geometry/outlines";
-import { getTrackBoundariesByOrdinal } from "@raceiq/game-catalogs/racing/tracks/geometry/extracted";
+import { getTrackBoundariesById } from "@raceiq/game-catalogs/racing/tracks/geometry/extracted";
 import {
-  getTrackOutlineByOrdinal,
-  getTrackRacelineByOrdinal,
-  hasRecordedOutline as sharedHasRecordedOutline,
+  getTrackOutlineById,
+  getTrackRacelineById,
+  hasRecordedOutlineById,
 } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { loadSharedBoundary } from "@raceiq/shared/racing/tracks/geometry/shared";
 import { getLMUTrackBoundaries } from "@raceiq/game-lmu-metadata/track-boundaries";
-import { decodeTrackKey, OrdinalKeyParamSchema } from "./support";
 import {
   calibrateFromPositions,
   clearCurbRefinement,
@@ -27,57 +26,56 @@ import {
   refineAlignmentWithCurbs,
   transformToSourceSpace,
 } from "@raceiq/backend-core/tracks/calibration";
-import type { GameId } from "@raceiq/shared/games/ids";
-import { getSharedTrackName, requireGameId } from "./support";
+import { getSharedTrackName, requireGameId, resolveTrackOutline } from "./support";
 
 export const trackCalibrationRoutes = new Hono()
 
-  // GET /api/track-calibration/:ordinal — calibration status
-  .get("/api/track-calibration/:ordinal",
-    zValidator("param", OrdinalParamSchema),
+  // GET /api/track-calibration/:trackId — calibration status
+  .get("/api/track-calibration/:trackId",
+    zValidator("param", TrackIdParamSchema),
     (c) => {
-      const { ordinal } = c.req.valid("param");
-      return c.json(getCalibrationStatus(ordinal));
+      const { trackId } = c.req.valid("param");
+      return c.json(getCalibrationStatus(trackId));
     }
   )
-  .get("/api/track-calibration/:ordinal/comparison",
-    zValidator("param", OrdinalParamSchema),
-    (c) => c.json(getCalibrationComparison(c.req.valid("param").ordinal))
+  .get("/api/track-calibration/:trackId/comparison",
+    zValidator("param", TrackIdParamSchema),
+    (c) => c.json(getCalibrationComparison(c.req.valid("param").trackId))
   )
 
-  // POST /api/track-calibration/:ordinal/from-lap — calibrate using a stored lap's positions
-  .post("/api/track-calibration/:ordinal/from-lap",
-    zValidator("param", OrdinalParamSchema),
+  // POST /api/track-calibration/:trackId/from-lap — calibrate using a stored lap's positions
+  .post("/api/track-calibration/:trackId/from-lap",
+    zValidator("param", TrackIdParamSchema),
     async (c) => {
-      const { ordinal } = c.req.valid("param");
+      const { trackId } = c.req.valid("param");
 
       const body = await c.req.json<{ lapId: number }>();
       if (!body?.lapId) return c.json({ error: "lapId required" }, 400);
 
       const lapData = await getLapById(body.lapId);
       if (!lapData) return c.json({ error: "Lap not found" }, 404);
-      if (lapData.trackOrdinal !== ordinal) return c.json({ error: "Lap is not from this track" }, 400);
+      if (lapData.trackId !== trackId) return c.json({ error: "Lap is not from this track" }, 400);
       if (!lapData.telemetry || lapData.telemetry.length < 50) {
         return c.json({ error: "Lap has insufficient telemetry data" }, 400);
       }
 
       // Get the track geometry
       const gameId = requireGameId(c);
-      const outline = getTrackOutlineByOrdinal(ordinal, gameId);
+      const outline = (await resolveTrackOutline(trackId, gameId))?.points;
       if (!outline || outline.length === 0) return c.json({ error: "No outline available for this track" }, 400);
 
       // Extract positions from telemetry
       const positions = lapData.telemetry.map(p => ({ x: p.PositionX, z: p.PositionZ }));
 
       const success = calibrateFromPositions(
-        ordinal,
+        trackId,
         positions,
         outline,
-        getTrackBoundariesByOrdinal(ordinal, gameId) ?? undefined
+        getTrackBoundariesById(trackId, gameId) ?? undefined
       );
       if (!success) return c.json({ error: "Calibration failed — not enough valid position points" }, 400);
 
-      return c.json(getCalibrationStatus(ordinal));
+      return c.json(getCalibrationStatus(trackId));
     }
   );
 
@@ -140,25 +138,20 @@ function smoothBoundary(boundary: { x: number; z: number }[], passes = 3): void 
 
 export const trackGeometryRoutes = new Hono()
 
-  // GET /api/track-boundaries/:ordinal — track boundary edges (left/right + pit lane)
-  .get("/api/track-boundaries/:ordinal",
-    zValidator("param", OrdinalKeyParamSchema),
+  // GET /api/track-boundaries/:trackId — track boundary edges (left/right + pit lane)
+  .get("/api/track-boundaries/:trackId",
+    zValidator("param", TrackIdParamSchema),
     zValidator("query", GameIdQuerySchema),
     async (c) => {
-      const { ordinal: rawTrackKey } = c.req.valid("param");
+      const { trackId } = c.req.valid("param");
       const { gameId: validGameId } = c.req.valid("query");
       if (!validGameId) return c.json({ error: "gameId query parameter is required" }, 400);
       if (validGameId === "lmu") {
-        const boundaries = getLMUTrackBoundaries(decodeTrackKey(rawTrackKey));
-        return c.json(boundaries ? {
-          ...boundaries,
-          coordSystem: "lmu",
-        } : null);
+        const boundaries = getLMUTrackBoundaries(trackId);
+        return c.json(boundaries ? { ...boundaries, coordSystem: "lmu" } : null);
       }
-      const ordinal = Number(rawTrackKey);
-      if (!Number.isInteger(ordinal)) return c.json({ error: "ordinal must be an integer" }, 400);
-      const sharedName = getSharedTrackName(ordinal, validGameId);
-      const extractedBoundaries = getTrackBoundariesByOrdinal(ordinal, validGameId);
+      const sharedName = getSharedTrackName(trackId, validGameId);
+      const extractedBoundaries = getTrackBoundariesById(trackId, validGameId);
       if (extractedBoundaries) {
         let leftEdge = extractedBoundaries.leftEdge;
         let rightEdge = extractedBoundaries.rightEdge;
@@ -175,9 +168,6 @@ export const trackGeometryRoutes = new Hono()
           }
         }
 
-        // LMU returns above using canonical string identity. Numeric games may
-        // align extracted boundaries through their existing ordinal pipeline.
-
         return c.json({
           leftEdge,
           rightEdge,
@@ -185,8 +175,9 @@ export const trackGeometryRoutes = new Hono()
           // Game reference racing line, if the game shipped one (ACC/AC Evo only).
           // A driving line, not track geometry — the analyse map may draw it as an
           // overlay on top of leftEdge/rightEdge. Null for every other game.
-          raceLine: getTrackRacelineByOrdinal(ordinal, validGameId),
+          raceLine: getTrackRacelineById(trackId, validGameId),
           pitLane,
+          ...(extractedBoundaries.additionalSections ? { additionalSections: extractedBoundaries.additionalSections } : {}),
           coordSystem: validGameId === "f1-2025" ? "f1-2025" : (validGameId === "acc" || validGameId === "ac-evo") ? "acc" : "forza",
         });
       }
@@ -202,15 +193,15 @@ export const trackGeometryRoutes = new Hono()
 
       // If we have a recorded Forza-coords outline AND a bundled TUMFTM outline,
       // compute static alignment so boundaries match without needing live driving.
-      const recordedOutline = (await getDbTrackOutline(ordinal, requireGameId(c))) ?? (sharedHasRecordedOutline(ordinal, requireGameId(c)) ? getTrackOutlineByOrdinal(ordinal, requireGameId(c)) : null);
-      const bundledOutline = getBundledOutlineByOrdinal(ordinal);
+      const recordedOutline = (await getDbTrackOutline(trackId, validGameId)) ?? (hasRecordedOutlineById(trackId, validGameId) ? getTrackOutlineById(trackId, validGameId) : null);
+      const bundledOutline = getBundledOutlineByOrdinal(Number(trackId));
       if (recordedOutline && bundledOutline) {
-        computeStaticAlignment(ordinal, bundledOutline, recordedOutline);
+        computeStaticAlignment(trackId, bundledOutline, recordedOutline);
 
         // Refine alignment using curb data as boundary anchors (if available)
-        const curbs = getTrackCurbs(ordinal, requireGameId(c));
+        const curbs = getTrackCurbs(trackId, validGameId);
         if (curbs && curbs.length > 0) {
-          refineAlignmentWithCurbs(ordinal, bundledOutline, recordedOutline, boundaries, curbs);
+          refineAlignmentWithCurbs(trackId, bundledOutline, recordedOutline, boundaries, curbs);
         }
       }
 
@@ -225,15 +216,15 @@ export const trackGeometryRoutes = new Hono()
       }
 
       // Transform TUMFTM coords -> Forza coords (uses live calibration or static alignment)
-      const leftForza = transformToSourceSpace(ordinal, boundaries.leftEdge);
-      const rightForza = transformToSourceSpace(ordinal, boundaries.rightEdge);
-      const centerForza = transformToSourceSpace(ordinal, centerLine);
-      const pitForza = boundaries.pitLane ? transformToSourceSpace(ordinal, boundaries.pitLane) : null;
+      const leftForza = transformToSourceSpace(trackId, boundaries.leftEdge);
+      const rightForza = transformToSourceSpace(trackId, boundaries.rightEdge);
+      const centerForza = transformToSourceSpace(trackId, centerLine);
+      const pitForza = boundaries.pitLane ? transformToSourceSpace(trackId, boundaries.pitLane) : null;
 
       if (leftForza && rightForza && centerForza) {
         // Local warp: nudge boundary points toward nearby curb ground-truth positions
         // Curbs are not pre-assigned to sides — correlate each curb point with the nearest boundary edge
-        const curbs = getTrackCurbs(ordinal, requireGameId(c));
+        const curbs = getTrackCurbs(trackId, validGameId);
         if (curbs && curbs.length > 0) {
           const allCurbPts = curbs.flatMap(c => c.points);
           // For each curb point, assign to whichever boundary edge is closer
@@ -294,28 +285,28 @@ export const trackGeometryRoutes = new Hono()
     }
   )
 
-  // GET /api/track-curbs/:ordinal — curb/kerb positions detected from rumble strip data
-  .get("/api/track-curbs/:ordinal",
-    zValidator("param", OrdinalParamSchema),
+  // GET /api/track-curbs/:trackId — curb/kerb positions detected from rumble strip data
+  .get("/api/track-curbs/:trackId",
+    zValidator("param", TrackIdParamSchema),
     zValidator("query", GameIdQuerySchema),
     (c) => {
-      const { ordinal } = c.req.valid("param");
+      const { trackId } = c.req.valid("param");
 
-      const curbs = getTrackCurbs(ordinal, requireGameId(c));
+      const curbs = getTrackCurbs(trackId, requireGameId(c));
       if (!curbs) return c.json({ error: "No curb data" }, 404);
       return c.json(curbs);
     }
   )
 
-  // POST /api/track-curbs/:ordinal/extract — extract curbs from all stored laps and recalibrate boundaries
-  .post("/api/track-curbs/:ordinal/extract",
-    zValidator("param", OrdinalParamSchema),
+  // POST /api/track-curbs/:trackId/extract — extract curbs from all stored laps and recalibrate boundaries
+  .post("/api/track-curbs/:trackId/extract",
+    zValidator("param", TrackIdParamSchema),
     async (c) => {
-      const { ordinal } = c.req.valid("param");
+      const { trackId } = c.req.valid("param");
 
       // Find all laps for this track
-      const curbGameId = c.req.query("gameId") as GameId | undefined;
-      const trackLaps = (await getLaps(curbGameId)).filter(l => l.trackOrdinal === ordinal && l.lapTime > 0);
+      const curbGameId = requireGameId(c);
+      const trackLaps = (await getLaps(curbGameId)).filter(l => l.trackId === trackId && l.lapTime > 0);
       if (trackLaps.length === 0) return c.json({ error: "No laps found for this track" }, 404);
 
       let totalSegments = 0;
@@ -327,25 +318,25 @@ export const trackGeometryRoutes = new Hono()
 
         const segments = extractCurbSegments(lapData.telemetry);
         if (segments.length > 0) {
-          recordCurbData(ordinal, segments, requireGameId(c));
+          recordCurbData(trackId, segments, curbGameId);
           totalSegments += segments.length;
           lapsWithCurbs++;
         }
       }
 
-      const curbs = getTrackCurbs(ordinal, requireGameId(c));
+      const curbs = getTrackCurbs(trackId, curbGameId);
 
       // Trigger boundary recalibration if we have curb data
-      const boundaries = getTrackBoundariesByOrdinal(ordinal, requireGameId(c));
-      const recordedOutline = (await getDbTrackOutline(ordinal, requireGameId(c))) ?? (sharedHasRecordedOutline(ordinal, requireGameId(c)) ? getTrackOutlineByOrdinal(ordinal, requireGameId(c)) : null);
-      const bundledOutline = getBundledOutlineByOrdinal(ordinal);
+      const boundaries = getTrackBoundariesById(trackId, curbGameId);
+      const recordedOutline = (await getDbTrackOutline(trackId, curbGameId)) ?? (hasRecordedOutlineById(trackId, curbGameId) ? getTrackOutlineById(trackId, curbGameId) : null);
+      const bundledOutline = curbGameId === "fm-2023" ? getBundledOutlineByOrdinal(Number(trackId)) : null;
 
       let calibrated = false;
       if (curbs && curbs.length > 0 && boundaries && recordedOutline && bundledOutline) {
         // Clear caches so alignment re-runs with fresh curb data
-        clearCurbRefinement(ordinal);
-        computeStaticAlignment(ordinal, bundledOutline, recordedOutline);
-        refineAlignmentWithCurbs(ordinal, bundledOutline, recordedOutline, boundaries, curbs);
+        clearCurbRefinement(trackId);
+        computeStaticAlignment(trackId, bundledOutline, recordedOutline);
+        refineAlignmentWithCurbs(trackId, bundledOutline, recordedOutline, boundaries, curbs);
         calibrated = true;
       }
 

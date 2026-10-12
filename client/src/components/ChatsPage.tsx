@@ -113,9 +113,9 @@ export function ChatsPage() {
         navigate({
           to: `${routePrefix}/compare` as never,
           search: {
-            track: allLaps.find((lap) => lap.id === a.id)?.trackOrdinal ?? allLaps.find((lap) => lap.id === b.id)?.trackOrdinal,
-            carA: allLaps.find((lap) => lap.id === a.id)?.carOrdinal,
-            carB: allLaps.find((lap) => lap.id === b.id)?.carOrdinal,
+            track: allLaps.find((lap) => lap.id === a.id)?.trackId ?? allLaps.find((lap) => lap.id === b.id)?.trackId,
+            carA: allLaps.find((lap) => lap.id === a.id)?.carId,
+            carB: allLaps.find((lap) => lap.id === b.id)?.carId,
             lapA: a.id,
             lapB: b.id,
             ai: 1,

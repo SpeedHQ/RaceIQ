@@ -11,17 +11,17 @@ function buildComparisonLapOption(lap: LapMeta, locale?: "en" | "de") {
     label: `${m.compare_lap_label({}, { locale })} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others({}, { locale }) : m.import_ownership_mine({}, { locale })}${!lap.isValid ? " (inv)" : ""}`,
   };
 }
-type TrackGroup = { trackOrdinal: number; trackName: string; laps: LapMeta[] };
+type TrackGroup = { trackId: string; trackName: string; laps: LapMeta[] };
 
 
 export function ComparisonSelectors({
   trackGroups,
   selectedTrack,
   setSelectedTrack,
-  carAOrd,
-  setCarAOrd,
-  carBOrd,
-  setCarBOrd,
+  carAId,
+  setCarAId,
+  carBId,
+  setCarBId,
   lapAId,
   setLapAId,
   lapBId,
@@ -35,18 +35,18 @@ export function ComparisonSelectors({
   toggleAiPanel,
 }: {
   trackGroups: TrackGroup[];
-  selectedTrack: number | null;
-  setSelectedTrack: (value: number | null) => void;
-  carAOrd: number | null;
-  setCarAOrd: (value: number | null) => void;
-  carBOrd: number | null;
-  setCarBOrd: (value: number | null) => void;
+  selectedTrack: string | null;
+  setSelectedTrack: (value: string | null) => void;
+  carAId: string | null;
+  setCarAId: (value: string | null) => void;
+  carBId: string | null;
+  setCarBId: (value: string | null) => void;
   lapAId: number | null;
   setLapAId: (value: number | null) => void;
   lapBId: number | null;
   setLapBId: (value: number | null) => void;
-  trackCars: number[];
-  carNames: Map<number, string>;
+  trackCars: string[];
+  carNames: Map<string, string>;
   carALaps: LapMeta[];
   carBLaps: LapMeta[];
   comparisonReady: boolean;
@@ -61,9 +61,9 @@ export function ComparisonSelectors({
         </label>
         <SearchSelect
           id="compare-track"
-          value={selectedTrack != null ? String(selectedTrack) : ""}
-          onChange={(v) => setSelectedTrack(v ? Number(v) : null)}
-          options={trackGroups.map((g) => ({ value: String(g.trackOrdinal), label: `${g.trackName} (${g.laps.length} ${m.pitwindow_laps()})` }))}
+          value={selectedTrack ?? ""}
+          onChange={(value) => setSelectedTrack(value || null)}
+          options={trackGroups.map((group) => ({ value: group.trackId, label: `${group.trackName} (${group.laps.length} ${m.pitwindow_laps()})` }))}
           placeholder={m.compare_search_tracks()}
         />
       </div>
@@ -75,10 +75,9 @@ export function ComparisonSelectors({
           </label>
         </div>
         <SearchSelect
-          id="compare-car-a"
-          value={carAOrd != null ? String(carAOrd) : ""}
-          onChange={(v) => setCarAOrd(v ? Number(v) : null)}
-          options={trackCars.map((ord) => ({ value: String(ord), label: carNames.get(ord) || `${m.compare_car_fallback()} ${ord}` }))}
+          value={carAId ?? ""}
+          onChange={(value) => setCarAId(value || null)}
+          options={trackCars.map((carId) => ({ value: carId, label: carNames.get(carId) || `${m.compare_car_fallback()} ${carId}` }))}
           placeholder={m.compare_search_cars()}
           disabled={!selectedTrack}
         />
@@ -95,7 +94,7 @@ export function ComparisonSelectors({
             onChange={(v) => setLapAId(v ? Number(v) : null)}
             options={carALaps.map((lap) => buildComparisonLapOption(lap))}
             placeholder={m.compare_search_laps()}
-            disabled={!carAOrd}
+            disabled={!carAId}
           />
           {lapAId != null && (
             <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
@@ -113,9 +112,9 @@ export function ComparisonSelectors({
         </div>
         <SearchSelect
           id="compare-car-b"
-          value={carBOrd != null ? String(carBOrd) : ""}
-          onChange={(v) => setCarBOrd(v ? Number(v) : null)}
-          options={trackCars.map((ord) => ({ value: String(ord), label: carNames.get(ord) || `${m.compare_car_fallback()} ${ord}` }))}
+          value={carBId ?? ""}
+          onChange={(value) => setCarBId(value || null)}
+          options={trackCars.map((carId) => ({ value: carId, label: carNames.get(carId) || `${m.compare_car_fallback()} ${carId}` }))}
           placeholder={m.compare_search_cars()}
           disabled={!selectedTrack}
         />
@@ -130,7 +129,7 @@ export function ComparisonSelectors({
             ariaLabel={m.compare_lap_b()}
             value={lapBId != null ? String(lapBId) : ""}
             onChange={(v) => setLapBId(v ? Number(v) : null)}
-            disabled={!carBOrd}
+            disabled={!carBId}
             options={carBLaps.map((lap) => buildComparisonLapOption(lap))}
           />
           {lapBId != null && (

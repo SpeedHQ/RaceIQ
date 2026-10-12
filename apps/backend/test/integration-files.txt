@@ -92,6 +92,7 @@ apps/backend/test/routes/lmu-string-identity.test.ts
 apps/backend/test/routes/place-setup-sanitise.test.ts
 apps/backend/test/routes/recording-support.test.ts
 apps/backend/test/routes/runtime-features.test.ts
+apps/backend/test/routes/session-identity-repair.test.ts
 apps/backend/test/routes/storage-routes.test.ts
 apps/backend/test/routes/tune-deletion-guard.test.ts
 apps/backend/test/runtime/http-server.test.ts
@@ -113,6 +114,7 @@ apps/backend/test/session-capture/capture-migration.test.ts
 apps/backend/test/session-capture/context-markers.test.ts
 apps/backend/test/session-capture/filename.test.ts
 apps/backend/test/session-capture/generic-sparse-recorder.test.ts
+apps/backend/test/session-capture/historical-reconciliation.test.ts
 apps/backend/test/session-capture/kunos-sparse-recorder.test.ts
 apps/backend/test/session-capture/lap-index-import.test.ts
 apps/backend/test/session-capture/lmu-capture-format.test.ts
@@ -154,7 +156,6 @@ apps/backend/test/telemetry/game-metric-contracts.test.ts
 apps/backend/test/telemetry/line-spread-cache.test.ts
 apps/backend/test/telemetry/live-contracts.test.ts
 apps/backend/test/telemetry/live-pipeline-calibration.test.ts
-apps/backend/test/telemetry/pipeline-adapters.test.ts
 apps/backend/test/telemetry/pipeline-live-issues.test.ts
 apps/backend/test/telemetry/telemetry-model.test.ts
 apps/backend/test/telemetry/telemetry-storage.test.ts
@@ -162,6 +163,7 @@ apps/backend/test/tracks/acc-boundaries.test.ts
 apps/backend/test/tracks/calibration.test.ts
 apps/backend/test/tracks/compact-route.test.ts
 apps/backend/test/tracks/discovered-cars.test.ts
+apps/backend/test/tracks/discovered-tracks.test.ts
 apps/backend/test/tracks/geometry-alignment.test.ts
 apps/backend/test/tracks/guides/anchor-validity.test.ts
 apps/backend/test/tracks/guides/collision-ledger.test.ts
@@ -170,6 +172,7 @@ apps/backend/test/tracks/guides/prose-cross-checks.test.ts
 apps/backend/test/tracks/guides/track-guides-coverage.test.ts
 apps/backend/test/tracks/iracing-sector-layout.test.ts
 apps/backend/test/tracks/lap-route-game-id.test.ts
+apps/backend/test/tracks/model/ac-evo-native-geometry.test.ts
 apps/backend/test/tracks/model/iracing-track-catalog.test.ts
 apps/backend/test/tracks/model/iracing-track-map.test.ts
 apps/backend/test/tracks/model/track-model-join.test.ts
@@ -177,6 +180,7 @@ apps/backend/test/tracks/model/track-roster.test.ts
 apps/backend/test/tracks/model/track-sectors.test.ts
 apps/backend/test/tracks/model/track-segment-generate.test.ts
 apps/backend/test/tracks/model/track-turn-counts.test.ts
+apps/backend/test/tracks/tourist-open-route.test.ts
 apps/backend/test/tracks/track-coverage.test.ts
 apps/backend/test/tracks/visualization/acc-boundary-viz.test.ts
 apps/backend/test/tracks/visualization/iracing-track-segment-viz.test.ts

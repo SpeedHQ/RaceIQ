@@ -2,7 +2,7 @@ export interface TrackLap {
   lapId: number;
   lapNumber: number;
   lapTime: number;
-  carOrdinal: number;
+  carId: string;
   carName: string;
   carClass: string;
   pi: number;

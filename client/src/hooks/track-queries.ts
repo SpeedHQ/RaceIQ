@@ -5,69 +5,80 @@ import { client } from "../lib/rpc";
 import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
 import { queryKeys } from "./query-keys";
+// Route identity types remain explicit until generated client routes catch up.
+type TrackIdGet = (input: { param: { trackId: string }; query: { gameId?: string } }) => Promise<Response>;
+type TrackIdRoutes = {
+  "track-name": { ":trackId": { $get: TrackIdGet } };
+  "track-sectors": { ":trackId": { $get: TrackIdGet } };
+  "track-sector-boundaries": { ":trackId": { $get: TrackIdGet } };
+  "track-outline": { ":trackId": { $get: TrackIdGet } };
+  "track-boundaries": { ":trackId": { $get: TrackIdGet } };
+  tracks: { ":trackId": { corners: { $get: TrackIdGet } } };
+};
+const trackIdRoutes = client.api as unknown as TrackIdRoutes;
 
-export function useTrackName(ord: number | string | undefined) {
+export function useTrackName(trackId: string | undefined) {
   const gameId = useGameId();
   return useQuery({
-    queryKey: [...queryKeys.trackName(ord!), gameId ?? null],
+    queryKey: [...queryKeys.trackName(trackId!), gameId ?? null],
     queryFn: async () => {
-      const res = await client.api["track-name"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ord!)) }, query: { gameId: gameId! } });
+      const res = await trackIdRoutes["track-name"][":trackId"].$get({ param: { trackId: encodeURIComponent(trackId!) }, query: { gameId: gameId! } });
       return res.ok ? res.text() : "";
     },
-    enabled: ord != null && gameId != null,
+    enabled: trackId != null && gameId != null,
   });
 }
 
-export function useTrackSectors(ord: number | string | undefined) {
+export function useTrackSectors(trackId: string | undefined) {
   const gameId = useGameId();
   return useQuery({
-    queryKey: [...queryKeys.trackSectors(ord!), gameId ?? null],
+    queryKey: [...queryKeys.trackSectors(trackId!), gameId ?? null],
     queryFn: async () => {
-      const res = await client.api["track-sectors"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ord!)) }, query: { gameId: gameId! } });
+      const res = await trackIdRoutes["track-sectors"][":trackId"].$get({ param: { trackId: encodeURIComponent(trackId!) }, query: { gameId: gameId! } });
       return rpcJson(res);
     },
-    enabled: ord != null && !!gameId,
+    enabled: trackId != null && !!gameId,
   });
 }
 
-export function useTrackSectorBoundaries(ord: number | string | undefined, gameIdOverride?: GameId | null) {
+export function useTrackSectorBoundaries(trackId: string | undefined, gameIdOverride?: GameId | null) {
   const storeGameId = useGameId();
   const gameId = gameIdOverride ?? storeGameId;
   return useQuery({
-    queryKey: [...queryKeys.trackSectorBoundaries(ord!), gameId ?? null],
+    queryKey: [...queryKeys.trackSectorBoundaries(trackId!), gameId ?? null],
     queryFn: async () => {
-      const res = await client.api["track-sector-boundaries"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ord!)) }, query: { gameId: gameId! } });
+      const res = await trackIdRoutes["track-sector-boundaries"][":trackId"].$get({ param: { trackId: encodeURIComponent(trackId!) }, query: { gameId: gameId! } });
       return rpcJson<{ s1End: number; s2End: number } | null>(res);
     },
-    enabled: ord != null && (typeof ord === "string" || ord >= 0) && !!gameId,
+    enabled: trackId != null && !!gameId,
   });
 }
 
-export function useTrackOutline(ord: number | string | undefined, gameIdOverride?: GameId | null) {
+export function useTrackOutline(trackId: string | undefined, gameIdOverride?: GameId | null) {
   const storeGameId = useGameId();
   const gameId = gameIdOverride ?? storeGameId;
   return useQuery({
-    queryKey: [...queryKeys.trackOutline(ord!), gameId ?? null],
+    queryKey: [...queryKeys.trackOutline(trackId!), gameId ?? null],
     queryFn: async () => {
-      const res = await client.api["track-outline"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ord!)) }, query: { gameId: gameId! } });
-      return rpcJson<{ points?: { x: number; z: number }[]; labels?: { text: string; x: number; z: number }[]; flipX?: boolean; recorded?: boolean; source?: string; pitLines?: PitLine[] } | { x: number; z: number }[]>(
+      const res = await trackIdRoutes["track-outline"][":trackId"].$get({ param: { trackId: encodeURIComponent(trackId!) }, query: { gameId: gameId! } });
+      return rpcJson<{ points?: { x: number; z: number }[]; labels?: { text: string; x: number; z: number }[]; flipX?: boolean; recorded?: boolean; source?: string; pitLines?: PitLine[]; closed?: boolean } | { x: number; z: number }[]>(
         res,
       );
     },
-    enabled: ord != null && (typeof ord === "string" || ord >= 0) && !!gameId,
+    enabled: trackId != null && !!gameId,
   });
 }
 
-export function useTrackBoundaries(ord: number | string | undefined, gameIdOverride?: GameId | null) {
+export function useTrackBoundaries(trackId: string | undefined, gameIdOverride?: GameId | null) {
   const storeGameId = useGameId();
   const gameId = gameIdOverride ?? storeGameId;
   return useQuery({
-    queryKey: ["track-boundaries", ord!, gameId ?? null],
+    queryKey: ["track-boundaries", trackId!, gameId ?? null],
     queryFn: async () => {
-      const res = await client.api["track-boundaries"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ord!)) }, query: { gameId: gameId ?? undefined } });
+      const res = await trackIdRoutes["track-boundaries"][":trackId"].$get({ param: { trackId: encodeURIComponent(trackId!) }, query: { gameId: gameId ?? undefined } });
       return rpcJson(res);
     },
-    enabled: ord != null && (typeof ord === "string" || ord >= 0) && !!gameId,
+    enabled: trackId != null && !!gameId,
   });
 }
 
@@ -80,19 +91,19 @@ export interface TrackCorner {
   apexDistance?: number;
 }
 
-export function useTrackCorners(ord: number | undefined, gameIdOverride?: GameId | null) {
+export function useTrackCorners(trackId: string | undefined, gameIdOverride?: GameId | null) {
   const storeGameId = useGameId();
   const gameId = gameIdOverride ?? storeGameId;
   return useQuery({
-    queryKey: ["track-corners", ord!, gameId ?? null],
+    queryKey: ["track-corners", trackId ?? null, gameId ?? null],
     queryFn: async () => {
-      const res = await (client.api as any).tracks[":trackOrdinal"].corners.$get({
-        param: { trackOrdinal: encodeURIComponent(String(ord!)) },
+      const res = await trackIdRoutes.tracks[":trackId"].corners.$get({
+        param: { trackId: encodeURIComponent(trackId!) },
         query: { gameId: gameId! },
       });
       return rpcJson<TrackCorner[]>(res);
     },
-    enabled: ord != null && ord > 0 && !!gameId,
+    enabled: !!trackId && !!gameId,
     staleTime: Number.POSITIVE_INFINITY,
   });
 }

@@ -19,9 +19,9 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const sectors = useTelemetryStore((s) => s.sectors);
   const pit = useTelemetryStore((s) => s.pit);
-  const { data: trackName } = useTrackName(view?.identity.trackOrdinal);
-  const { data: carName } = useCarName(view?.identity.carOrdinal);
-  const pressureOptimal = useTirePressureOptimal(gameId, view?.identity.carOrdinal);
+  const { data: trackName } = useTrackName(view?.identity.trackId);
+  const { data: carName } = useCarName(view?.identity.carId);
+  const pressureOptimal = useTirePressureOptimal(gameId, view?.identity.carId);
 
   if (!view || view.simulator !== gameId) {
     return (

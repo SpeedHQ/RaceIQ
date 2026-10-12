@@ -11,6 +11,7 @@ import type {
 } from "./model";
 
 const NORMALIZED_SEMANTIC_ALIASES: Record<string, string> = {
+  acEvoIdentity: "identity.source-identity",
   TyreCompound: "tires.tire-compound",
   NumCylinders: "engine.cylinder-count",
   SurfaceRumbleFL_2: "tires.surface-rumble",

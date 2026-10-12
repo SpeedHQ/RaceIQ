@@ -18,6 +18,12 @@ export function getF1TeamName(teamId: number): string {
   return teams.get(teamId) ?? `Team ${teamId}`;
 }
 
+export function hasF1CarOrdinal(ordinal: number): boolean {
+  return teams.has(ordinal);
+}
+export function getAllF1Cars(): Array<{ id: string; name: string }> {
+  return Array.from(teams, ([id, name]) => ({ id: String(id), name }));
+}
 export function getF1CarName(ordinal: number): string {
   return getF1TeamName(ordinal);
 }

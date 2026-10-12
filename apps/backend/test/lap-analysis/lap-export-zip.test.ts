@@ -141,7 +141,7 @@ describe("buildLapsZip", () => {
   ): Promise<number> {
     const row = await db
       .insert(sessions)
-      .values({ carOrdinal: 3000, trackOrdinal: 434343, gameId, rawFile })
+      .values({ carId: "3000", trackId: "434343", gameId, rawFile })
       .returning({ id: sessions.id })
       .get();
     sessionIds.push(row!.id);

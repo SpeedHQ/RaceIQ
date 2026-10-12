@@ -6,6 +6,6 @@ function TrackTabRoute() {
   return <TrackDetailRoute tab={tab} />;
 }
 
-export const Route = createFileRoute("/$gameid/tracks/$trackOrdinal/$tab")({
+export const Route = createFileRoute("/$gameid/tracks/$trackId/$tab")({
   component: TrackTabRoute,
 });

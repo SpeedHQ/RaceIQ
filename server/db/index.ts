@@ -93,6 +93,32 @@ await client.execute(`
 `);
 
 async function runMigrations() {
+  // Unreleased feature builds used IDs now owned by main. Move only their
+  // named ledger entries; preserve their tables, credentials, and sessions.
+  const legacy = await client.execute(`SELECT version, name FROM schema_migrations
+    WHERE version IN (63, 64) AND name = 'persist dashboard access and login sessions'
+       OR version = 63 AND name = 'persist live session bookmarks'`);
+  if (legacy.rows.length) {
+    const tx = await client.transaction("write");
+    try {
+      if (legacy.rows.some((row) => row.name === "persist dashboard access and login sessions")) {
+        const existing = await tx.execute("SELECT name FROM schema_migrations WHERE version = 68");
+        if (existing.rows.length && existing.rows[0]!.name !== "persist dashboard access and login sessions") {
+          throw new Error("Dashboard access migration conflicts with the recorded database history");
+        }
+        await tx.execute(`INSERT OR IGNORE INTO schema_migrations (version, name, applied_at)
+          SELECT 68, name, applied_at FROM schema_migrations
+          WHERE version IN (63, 64) AND name = 'persist dashboard access and login sessions'
+          ORDER BY version DESC LIMIT 1`);
+        await tx.execute("DELETE FROM schema_migrations WHERE version IN (63, 64) AND name = 'persist dashboard access and login sessions'");
+      }
+      await tx.execute("DELETE FROM schema_migrations WHERE version = 63 AND name = 'persist live session bookmarks'");
+      await tx.commit();
+    } catch (error) {
+      await tx.rollback();
+      throw error;
+    }
+  }
   const appliedRows = await client.execute("SELECT version FROM schema_migrations");
   const applied = new Set(appliedRows.rows.map((r) => Number(r.version)));
   const pending = migrations.filter((m) => !applied.has(m.version)).sort((a, b) => a.version - b.version);

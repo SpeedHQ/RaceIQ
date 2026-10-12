@@ -106,6 +106,7 @@ export function getIRacingTrackOrdinalByName(name: string): number | undefined {
   const byTrackName = tracks.filter((track) => normalized(track.name) === needle);
   return byTrackName.length === 1 ? byTrackName[0].ordinal : undefined;
 }
+export const getIRacingTrackIdByName = getIRacingTrackOrdinalByName;
 
 /**
  * Physical racing direction for oval layouts. iRacing's oval catalogue is

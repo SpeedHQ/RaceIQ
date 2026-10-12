@@ -11,8 +11,8 @@ export interface ImportedLap {
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
-  carId: number | string;
-  trackId: number | string;
+  carId: string;
+  trackId: string;
 }
 export interface AnalyseImportResult {
   fileName: string;

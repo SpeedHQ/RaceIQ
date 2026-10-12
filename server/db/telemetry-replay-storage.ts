@@ -328,12 +328,12 @@ export async function getSessionRawFile(sessionId: number, gameId: GameId): Prom
 export async function* iterateSessionTelemetry(sessionId: number, gameId: GameId): AsyncGenerator<TelemetryPacket> {
   const session = await db.select({
     rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId,
-    carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal,
+    carId: sessions.carId, trackId: sessions.trackId,
   }).from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.gameId, gameId))).get();
   if (!session?.rawFile) return;
   const source = {
     rawFile: session.rawFile, source: session.source, gameId: session.gameId as GameId,
-    carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal,
+    carId: session.carId, trackId: session.trackId,
   };
   if (session.rawFile.endsWith(".motec.zip")) {
     const loaded = await loadSessionSource(source);

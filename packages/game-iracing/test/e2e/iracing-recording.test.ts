@@ -111,8 +111,8 @@ describe("iRacing dump-mode recording", () => {
       expect(replay.rawPackets).toHaveLength(2);
       expect(replay.rawPackets[0]).toMatchObject({
         gameId: "iracing",
-        CarOrdinal: 42,
-        TrackOrdinal: 99,
+        carId: "42",
+        trackId: "99",
       });
       expect(replay.rawPackets[0]?.iracing).toMatchObject({
         carName: "GT3 Test Car",

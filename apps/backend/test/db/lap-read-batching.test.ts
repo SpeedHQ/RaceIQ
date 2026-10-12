@@ -68,8 +68,8 @@ test("getLapsByIds batches cache misses from one session", async () => {
   const session = await db
     .insert(sessions)
     .values({
-      carOrdinal: 1,
-      trackOrdinal: 2,
+      carId: "1",
+      trackId: "2",
       gameId: "ac-evo",
       rawFile: "/virtual/ac-evo-session.bin",
     })
@@ -99,8 +99,8 @@ test("getLapsByIds decodes different sessions in parallel and preserves order", 
   const insertedSessions = await db
     .insert(sessions)
     .values([
-      { carOrdinal: 1, trackOrdinal: 2, gameId: "ac-evo", rawFile: "/virtual/session-a.bin" },
-      { carOrdinal: 1, trackOrdinal: 2, gameId: "ac-evo", rawFile: "/virtual/session-b.bin" },
+      { carId: "1", trackId: "2", gameId: "ac-evo", rawFile: "/virtual/session-a.bin" },
+      { carId: "1", trackId: "2", gameId: "ac-evo", rawFile: "/virtual/session-b.bin" },
     ])
     .returning({ id: sessions.id })
     .all();

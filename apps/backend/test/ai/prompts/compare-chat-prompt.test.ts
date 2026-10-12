@@ -9,8 +9,8 @@ initServerGameAdapters();
 describe("compare chat initialization prompt", () => {
   test("requires all comparison tools before any response", () => {
     const prompt = buildCompareChatSystemPrompt(
-      { id: 13, lapNumber: 1, lapTime: 97.932, isValid: true },
-      { id: 14, lapNumber: 2, lapTime: 98.706, isValid: false },
+      { id: 13, lapNumber: 1, lapTime: 97.932, isValid: true, carId: "", trackId: "" },
+      { id: 14, lapNumber: 2, lapTime: 98.706, isValid: false, carId: "", trackId: "" },
       {
         timeDelta: [0, 0.004],
         distances: [0, 2178],
@@ -38,8 +38,8 @@ describe("compare chat initialization prompt", () => {
 
   test("includes database lap IDs in dynamic context", () => {
     const context = buildCompareChatContext(
-      { id: 13, lapNumber: 1, lapTime: 97.932, isValid: true },
-      { id: 14, lapNumber: 2, lapTime: 98.706, isValid: false },
+      { id: 13, lapNumber: 1, lapTime: 97.932, isValid: true, carId: "", trackId: "" },
+      { id: 14, lapNumber: 2, lapTime: 98.706, isValid: false, carId: "", trackId: "" },
       { timeDelta: [0, 0.004], distances: [0, 2178], cornerDeltas: [] } as any,
     );
 
@@ -49,8 +49,8 @@ describe("compare chat initialization prompt", () => {
 
   test("resolves track and car names with lap game identity", () => {
     const context = buildCompareChatContext(
-      { id: 13, lapNumber: 1, lapTime: 97.932, isValid: true, carOrdinal: 59, trackOrdinal: 2, gameId: "ac-evo" },
-      { id: 14, lapNumber: 2, lapTime: 98.706, isValid: false, carOrdinal: 59, trackOrdinal: 2, gameId: "ac-evo" },
+      { id: 13, lapNumber: 1, lapTime: 97.932, isValid: true, carId: "Porsche 992 GT3 R Rennsport", trackId: '["Brands Hatch","GP"]', gameId: "ac-evo" },
+      { id: 14, lapNumber: 2, lapTime: 98.706, isValid: false, carId: "Porsche 992 GT3 R Rennsport", trackId: '["Brands Hatch","GP"]', gameId: "ac-evo" },
       { timeDelta: [0, 0.004], distances: [0, 2178], cornerDeltas: [] } as any,
     );
 
@@ -60,8 +60,8 @@ describe("compare chat initialization prompt", () => {
 
   test("includes every deterministic segment delta", () => {
     const context = buildCompareChatContext(
-      { id: 13, lapNumber: 1, lapTime: 97.932, isValid: true },
-      { id: 14, lapNumber: 2, lapTime: 98.706, isValid: false },
+      { id: 13, lapNumber: 1, lapTime: 97.932, isValid: true, carId: "", trackId: "" },
+      { id: 14, lapNumber: 2, lapTime: 98.706, isValid: false, carId: "", trackId: "" },
       {
         distances: [0, 5, 10, 15, 20],
         timeDelta: [0, -1, 0, 1, 0],

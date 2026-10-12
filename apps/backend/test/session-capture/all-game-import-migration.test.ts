@@ -42,7 +42,7 @@ type StoredCapture = {
 };
 
 function captureSource(path: string, gameId: GameId) {
-  return { rawFile: path, gameId, source: null, carOrdinal: -1, trackOrdinal: -1 };
+  return { rawFile: path, gameId, source: null, carId: "0", trackId: "0" };
 }
 
 async function compareEveryRecord(capture: StoredCapture, finalPath: string, remapped: Map<number, number>): Promise<void> {

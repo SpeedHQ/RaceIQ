@@ -18,7 +18,7 @@ const TRACK_CAPABILITY: TrackCapability = {
 for (const game of SEEDED_GAME_CASES) {
   test(`${game.name} tracks support search, sorting, map, and capability routes`, async ({ page, request }) => {
     const browserErrors = collectBrowserErrors(page);
-    const curbResponse = await request.get(`/api/track-curbs/${game.trackOrdinal}?gameId=${game.gameId}`);
+    const curbResponse = await request.get(`/api/track-curbs/${encodeURIComponent(game.trackId)}?gameId=${game.gameId}`);
     expect([200, 404], `${game.name} curb capability status`).toContain(curbResponse.status());
     const curbUnavailable = curbResponse.status() === 404;
     await page.goto(`/${game.prefix}/tracks`, { waitUntil: "domcontentloaded" });
@@ -32,10 +32,10 @@ for (const game of SEEDED_GAME_CASES) {
     await lapsSort.click();
     await expect(lapsSort).toHaveAttribute("aria-selected", "true");
 
-    const trackCard = page.getByTestId(`track-card-${game.trackOrdinal}`);
+    const trackCard = page.getByTestId(`track-card-${game.trackId}`);
     await expect(trackCard).toBeVisible();
     await trackCard.click();
-    await expect(page).toHaveURL(new RegExp(`/${game.prefix}/tracks/${game.trackOrdinal}/?$`));
+    await expect(page).toHaveURL(new RegExp(`/${game.prefix}/tracks/.+/?$`));
     await expect(page.getByText(game.trackName, { exact: true }).first()).toBeVisible();
 
     const infoTab = page.getByRole("tab", { name: "Info", exact: true });
@@ -101,7 +101,7 @@ for (const game of SEEDED_GAME_CASES) {
     await expect(page).not.toHaveURL(/\/(laps|setups|guide|debug)\/?$/);
     const expectedResourceError = "console.error: Failed to load resource: the server responded with a status of 404 (Not Found)";
     expect(
-      browserErrors.errors.filter((error) => !curbUnavailable || (error !== expectedResourceError && !error.includes(`/api/track-curbs/${game.trackOrdinal}?gameId=${game.gameId}`))),
+      browserErrors.errors.filter((error) => !curbUnavailable || (error !== expectedResourceError && !error.includes(`/api/track-curbs/${encodeURIComponent(game.trackId)}?gameId=${game.gameId}`))),
       `${game.name} tracks browser errors`,
     ).toEqual([]);
   });
@@ -114,7 +114,7 @@ test("track lap deletion uses imported disposable data and cleans imported sessi
   const sessionsBefore = (await sessionsBeforeResponse.json()) as { id: number }[];
   const lapsResponse = await request.get("/api/laps?gameId=fm-2023");
   expect(lapsResponse.ok()).toBe(true);
-  const seededLaps = (await lapsResponse.json()) as { id: number; trackOrdinal: number; isValid: boolean; telemetryAvailable?: boolean; rawFrameCount?: number }[];
+  const seededLaps = (await lapsResponse.json()) as { id: number; trackId: string; isValid: boolean; telemetryAvailable?: boolean; rawFrameCount?: number }[];
   const source = seededLaps.find((lap) => lap.isValid && lap.telemetryAvailable && (lap.rawFrameCount ?? 0) > 0);
   if (!source) throw new Error("Missing valid FM lap with available raw capture for disposable import");
   const exportResponse = await request.get(`/api/laps/${source.id}/export-bin`);
@@ -140,7 +140,7 @@ test("track lap deletion uses imported disposable data and cleans imported sessi
     expect(sessionsAfterResponse.ok()).toBe(true);
     const sessionIdsBefore = new Set(sessionsBefore.map((session) => session.id));
     importedSessionIds = ((await sessionsAfterResponse.json()) as { id: number }[]).filter((session) => !sessionIdsBefore.has(session.id)).map((session) => session.id);
-    await page.goto(`/fm23/tracks/${source.trackOrdinal}/laps`, { waitUntil: "domcontentloaded" });
+    await page.goto(`/fm23/tracks/${encodeURIComponent(source.trackId)}/laps`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("tab", { name: /^Laps(?: \(\d+\))?$/ })).toHaveAttribute("aria-selected", "true");
     const importedRow = page.locator(`[data-testid="track-lap-${importedLapIds[0]}"]`);
     await expect(importedRow).toBeVisible({ timeout: 20_000 });

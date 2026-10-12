@@ -15,8 +15,8 @@ export interface RecapLapInput {
 
 export interface RecapSessionInput {
   id: number;
-  carId: number | string;
-  trackId: number | string;
+  carId: string;
+  trackId: string;
   gameId: GameId;
   createdAt: string;
   ownership?: "mine" | "others";

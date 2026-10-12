@@ -48,12 +48,12 @@ export function lapCornersFromSegments(
 
 /** Resolve game-aware corner and straight segments, including iRacing SVG labels. */
 export async function resolveLapSegments(
-  trackOrdinal: number | null | undefined,
+  trackIdentity: string | null | undefined,
   gameId: string | null | undefined,
 ): Promise<NamedSegment[]> {
-  if (trackOrdinal == null || trackOrdinal <= 0 || !gameId) return [];
+  if (!trackIdentity || !gameId) return [];
   try {
-    return (await resolveTrackSegments(trackOrdinal, gameId)).segments;
+    return (await resolveTrackSegments(trackIdentity, gameId)).segments;
   } catch {
     return [];
   }
@@ -64,18 +64,18 @@ export async function resolveLapSegments(
  * Official-label-aligned segments win, then stored corners, then telemetry detection.
  */
 export async function resolveLapCorners(
-  trackOrdinal: number | null | undefined,
+  trackIdentity: string | null | undefined,
   gameId: string | null | undefined,
   telemetry: TelemetryPacket[],
   options: { saveDetected?: boolean; segments?: readonly NamedSegment[] } = {},
 ): Promise<Corner[]> {
-  const segments = options.segments ?? await resolveLapSegments(trackOrdinal, gameId);
+  const segments = options.segments ?? await resolveLapSegments(trackIdentity, gameId);
   const segmentCorners = lapCornersFromSegments(segments, telemetry);
   if (segmentCorners.length > 0) return segmentCorners;
 
-  if (trackOrdinal != null && trackOrdinal > 0 && gameId) {
+  if (trackIdentity && gameId) {
     try {
-      const stored = await getCorners(trackOrdinal, gameId as GameId);
+      const stored = await getCorners(trackIdentity, gameId as GameId);
       if (stored.length > 0) return stored;
     } catch {
       // Stored corners are optional; telemetry detection remains available.
@@ -83,9 +83,9 @@ export async function resolveLapCorners(
   }
 
   const detected = detectCorners(telemetry);
-  if (options.saveDetected && detected.length > 0 && trackOrdinal != null && trackOrdinal > 0 && gameId) {
+  if (options.saveDetected && detected.length > 0 && trackIdentity && gameId) {
     try {
-      await saveCorners(trackOrdinal, detected, gameId as GameId, true);
+      await saveCorners(trackIdentity, detected, gameId as GameId, true);
     } catch {
       // A concurrent insert is harmless; return the in-memory detection.
     }

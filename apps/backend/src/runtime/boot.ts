@@ -2,17 +2,19 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { serverReleaseFeatures } from "@raceiq/backend-core/runtime/config/release-features";
-import { injectDiscoveredAcEvoCars } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
+import { hydrateDiscoveredAcEvoCars } from "@raceiq/backend-core/db/discovered-cars";
 import { injectDiscoveredIRacingIdentity } from "@raceiq/game-iracing-metadata/index";
 import { injectDiscoveredLMUIdentity } from "@raceiq/game-lmu-metadata/index";
+import { getAllServerGames } from "@raceiq/backend-core/games/registry";
 import app from "../routes/index";
 import { initServerGameAdapters } from "../games/init";
 import { initDb, DB_PATH } from "@raceiq/backend-core/db/index";
-import { reconcileDiscoveredCars, listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
+import { listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
 import { backfillAllRaceResults } from "@raceiq/backend-core/race-results/reconcile";
+import { reconcileHistoricalSessions } from "@raceiq/backend-core/session-capture/reconcile";
 import { backfillLMUSessionIdentity } from "../imports/lmu-session-identity-backfill";
-import { listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
-import { deleteEmptySessions } from "@raceiq/backend-core/db/session-queries";
+import { hydrateDiscoveredAcEvoTracks, listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
+import { countStaleSessions, deleteEmptySessions } from "@raceiq/backend-core/db/session-queries";
 import { setCacheMaxBytes } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { isFirstRun, loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { wsManager, type WSData } from "@raceiq/backend-core/runtime/websocket-manager";
@@ -23,7 +25,7 @@ import { openFirstRunDashboard, preventMacSleep } from "@raceiq/backend-core/run
 import { clearHttpPort, startHttpServer } from "./http-server";
 import { startNativeSourceSupervisor, type NativeSourceSupervisor } from "./native-sources";
 import { installShutdown } from "./shutdown";
-import { startMaintenanceJobs, startSyncAndStaleSessionJobs } from "./startup-jobs";
+import { ALL_DETECTOR_IDS, startMaintenanceJobs, startSyncAndStaleSessionJobs } from "./startup-jobs";
 import { startTray } from "@raceiq/backend-core/runtime/platform/tray";
 import { initMotecTargets } from "../games/motec-init";
 import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
@@ -83,8 +85,8 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   await auth.initialize(upgradingAccess);
   setDashboardAuth(auth);
   configureHttpAccess(auth, httpPort);
-  await reconcileDiscoveredCars();
-  injectDiscoveredAcEvoCars(await listDiscoveredCars("ac-evo"));
+  await hydrateDiscoveredAcEvoCars();
+  await hydrateDiscoveredAcEvoTracks();
 
   const [iracingCars, iracingTracks] = await Promise.all([
     listDiscoveredCars("iracing"),
@@ -104,10 +106,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   }
   setCacheMaxBytes(settings.cacheMaxMB * 1024 * 1024);
 
-  const emptyCleaned = await deleteEmptySessions();
-  if (emptyCleaned > 0) {
-    console.log(`[DB] Cleaned up ${emptyCleaned} empty session(s)`);
-  }
+  // Empty-session cleanup runs after repair so pending candidates remain available.
 
   console.log("[Server] Starting RaceIQ Server...");
   clearHttpPort(httpPort);
@@ -132,18 +131,24 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   for (const host of httpAccess.hosts) {
     console.log(`[Server] HTTP/WS server listening on http://${host.includes(":") ? `[${host}]` : host}:${httpPort}`);
   }
-
-  // Reconcile historical sessions without delaying HTTP startup.
-  void backfillAllRaceResults().catch((error) => {
-    console.error("[RaceResults] Startup backfill failed:", error);
-  });
-  void backfillLMUSessionIdentity()
-    .then((counts) => {
-      console.log("[LMU] Session identity backfill complete:", counts);
+  void reconcileHistoricalSessions((reprocessed) => {
+    wsManager.broadcastNotification({ type: "lap-reprocessed", ...reprocessed });
+  })
+    .then(async (counts) => {
+      console.log("[SessionRepair] Historical session reconciliation complete:", counts);
+      if (counts.failed === 0 && await countStaleSessions(
+        ALL_DETECTOR_IDS,
+        getAllServerGames().map((adapter) => adapter.id),
+      ) === 0) wsManager.setStaleSessionsNotification(null);
+      await backfillAllRaceResults();
+      await backfillLMUSessionIdentity().then((identityCounts) => {
+        console.log("[LMU] Session identity backfill complete:", identityCounts);
+      });
     })
     .catch((error) => {
-      console.error("[LMU] Session identity backfill failed:", error);
+      console.error("[SessionRepair] Startup reconciliation failed:", error);
     });
+
 
 
   if (recordingGameId === "fm-2023" || recordingGameId === "f1-2025") {

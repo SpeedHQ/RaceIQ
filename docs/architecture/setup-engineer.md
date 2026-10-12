@@ -7,6 +7,7 @@ Setup Engineer provides a persistent workspace for tuning one car at one track. 
 - An experiment is scoped to one game, car, and track.
 - Setup versions form a forest. Base setups are roots; applied changes and branches create immutable descendants.
 - ACC and AC Evo versions refer to setup files. F1 25 versions store telemetry-derived setup snapshots and present changes as values to enter in-game.
+- AC Evo selections persist stable car ordinals and exact venue/configuration track ordinals. Track selectors display layout names; a new setup derives its default car from loaded options rather than assuming ordinal zero. Existing saved ordinals remain unchanged.
 - Laps can be recorded during a deliberate run or imported from matching history. Imported laps may be assigned to a version or retained as experiment-level baseline data.
 - Deleting a version moves its subtree to trash. Action history supports restoring and undoing mutations without deleting laps or setup files.
 

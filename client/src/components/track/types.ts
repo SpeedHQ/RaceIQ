@@ -1,6 +1,5 @@
 export interface TrackInfo {
-  id?: string;
-  ordinal: number;
+  id: string;
   name: string;
   location: string;
   country: string;

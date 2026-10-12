@@ -90,8 +90,8 @@ function readAccPackets(recordingPath: string): RecordedTelemetry {
       }
     }
     const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
-      carOrdinal,
-      trackOrdinal,
+      carId: carOrdinal ? String(carOrdinal) : "",
+      trackId: trackOrdinal ? String(trackOrdinal) : "",
     });
     if (packet) packets.push(packet);
   }

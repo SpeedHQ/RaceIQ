@@ -20,8 +20,8 @@ export interface TelemetryBatchLap {
   byteOffset: number | null; frameCount: number; complete: boolean;
 }
 export interface TelemetryBatchSession {
-  sessionKey: number; gameId: GameId; carOrdinal: number; trackOrdinal: number;
-  sessionUID?: string; carId?: string; trackId?: string;
+  sessionKey: number; gameId: GameId; carId: string; trackId: string;
+  sessionUID?: string;
 }
 export interface TelemetryBatchResult { sessions: TelemetryBatchSession[]; laps: TelemetryBatchLap[] }
 export interface TelemetryBatchOptions {
@@ -75,14 +75,12 @@ export async function processTelemetryBatch(gameId: GameId, frames: readonly Tel
   const now = options.now ?? (() => 1);
   const policy = options.policies?.[gameId] ?? (gameId === "lmu" ? LMU_LAP_DETECTOR_POLICY : DEFAULT_LAP_DETECTOR_POLICY);
   const sessionFromPacket = (p: TelemetryPacket): TelemetryBatchSession => {
-    const value: TelemetryBatchSession = { sessionKey: ++nextSessionKey, gameId, carOrdinal: p.CarOrdinal, trackOrdinal: p.TrackOrdinal };
+    const value: TelemetryBatchSession = { sessionKey: ++nextSessionKey, gameId, carId: p.carId, trackId: p.trackId };
     if (p.sessionUID !== undefined) value.sessionUID = p.sessionUID;
-    if (p.lmu?.carId !== undefined) value.carId = p.lmu.carId;
-    if (p.lmu?.trackId !== undefined) value.trackId = p.lmu.trackId;
     return value;
   };
   const push = (sessionKey: number, lapNumber: number, lapTime: number, lapPackets: readonly TelemetryPacket[], valid: boolean, reason: string | null, byteOffset: number | null, frameCount: number, complete: boolean) => {
-    const sectors = complete ? computeLapSectors(lapPackets.at(-1)?.TrackOrdinal ?? 0, gameId, lapPackets as TelemetryPacket[], lapTime, options.sectors ? { sectors: options.sectors } : {}) : null;
+    const sectors = complete ? computeLapSectors(lapPackets.at(-1)?.trackId ?? "", gameId, lapPackets as TelemetryPacket[], lapTime, options.sectors ? { sectors: options.sectors } : {}) : null;
     result.laps.push({ sessionKey, lapNumber, lapTime, packets: lapPackets, sectors, valid: valid && !reason, invalidReason: reason, byteOffset, frameCount, complete });
   };
   const offsets = new Map<TelemetryPacket, number>();
@@ -91,7 +89,13 @@ export async function processTelemetryBatch(gameId: GameId, frames: readonly Tel
     let sessionKey = 0;
     const engine = new KunosDetectorEngine({
       createSession: async p => { const session = sessionFromPacket(p); sessionKey = session.sessionKey; result.sessions.push(session); },
-      backfillSessionIdentifiers: () => {}, isPitOnly: packets => classifyPitCycleLap(packets) === "pit lap",
+      backfillSessionIdentifiers: p => {
+        const session = result.sessions.at(-1);
+        if (!session) return;
+        if (!session.carId && p.carId) session.carId = p.carId;
+        if (!session.trackId && p.trackId) session.trackId = p.trackId;
+      },
+      isPitOnly: packets => classifyPitCycleLap(packets) === "pit lap",
       emitLap: async (capture: KunosLapCapture) => {
         const quality = assessLapRecording(capture.packets, capture.lapTime);
         const pitReason = classifyPitCycleLap(capture.packets);
@@ -116,10 +120,8 @@ export async function processTelemetryBatch(gameId: GameId, frames: readonly Tel
     createSession: async p => {
       const session = sessionFromPacket(p); result.sessions.push(session);
       return {
-        carOrdinal: p.CarOrdinal, trackOrdinal: p.TrackOrdinal, gameId,
+        carId: p.carId, trackId: p.trackId, gameId,
         ...(p.sessionUID === undefined ? {} : { sessionUID: p.sessionUID }),
-        ...(p.lmu?.carId === undefined ? {} : { carId: p.lmu.carId }),
-        ...(p.lmu?.trackId === undefined ? {} : { trackId: p.lmu.trackId }),
       };
     },
     finalizeLap: async (packet, s) => {

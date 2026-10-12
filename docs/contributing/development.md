@@ -63,4 +63,6 @@ bun run test
 bun run test:all
 ```
 
+Backend type checking uses `bun run --cwd apps/backend typecheck`. It forces a full composite check rather than trusting incremental state: TypeScript 7.0.2 produced a locationless TS2589 on incremental runs while fresh checks passed. No diagnostics are disabled.
+
 For telemetry captures and imports, see [Telemetry recordings](telemetry-recordings.md). For test-process leaks, see [Test troubleshooting](test-troubleshooting.md).

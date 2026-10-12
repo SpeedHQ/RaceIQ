@@ -144,10 +144,10 @@ describe("FM 2023 telemetry catalog coverage", () => {
             minimumRange: 1,
           },
           {
-            semanticId: "identity.track-ordinal",
+            semanticId: "identity.track-id",
             mappingStatus: "normalized",
             unit: "id",
-            accepts: (value): boolean => isFiniteNumber(value) && Number.isInteger(value) && value > 0 && value < 10_000,
+            accepts: (value): boolean => typeof value === "string" && /^[0-9]+$/.test(value),
           },
         ],
       });

@@ -6,22 +6,19 @@ import type { GameId } from "@raceiq/shared/games/ids";
 
 export interface DriverProfileScopeKey {
   gameId: GameId;
-  carOrdinal?: number | null;
-  trackOrdinal?: number | null;
+  carId?: string | null;
+  trackId?: string | null;
 }
 
 /**
  * Canonical cache key for a profile scope.
  *
- * `*` stands in for an unset ordinal rather than leaning on SQL NULL, because
- * SQLite treats NULLs as distinct in a UNIQUE index — two global-scope rows
- * would both insert and the upsert would never replace the one it meant to.
+ * JSON tuple encoding preserves native delimiters and distinguishes null scopes
+ * from literal IDs, while giving SQLite a non-null unique key.
  */
 
 export function driverProfileScopeKey(scope: DriverProfileScopeKey): string {
-  const car = scope.carOrdinal ?? "*";
-  const track = scope.trackOrdinal ?? "*";
-  return `${scope.gameId}|${car}|${track}`;
+  return JSON.stringify([scope.gameId, scope.carId ?? null, scope.trackId ?? null]);
 }
 
 
@@ -33,8 +30,8 @@ export interface DriverProfileRunRow {
   id: number;
   scopeKey: string;
   gameId: GameId;
-  carOrdinal: number | null;
-  trackOrdinal: number | null;
+  carId: string | null;
+  trackId: string | null;
   poolKey: string;
   status: DriverProfileRunStatus;
   /** JSON snapshot strings; callers own parsing against the relevant schemas. */
@@ -118,8 +115,8 @@ export async function saveDriverProfile(
       .values({
         scopeKey,
         gameId: scope.gameId,
-        carOrdinal: scope.carOrdinal ?? null,
-        trackOrdinal: scope.trackOrdinal ?? null,
+        carId: scope.carId ?? null,
+        trackId: scope.trackId ?? null,
         ...values,
       })
       .run();
@@ -137,8 +134,8 @@ export async function createDriverProfileRun(
     .values({
       scopeKey: driverProfileScopeKey(scope),
       gameId: scope.gameId,
-      carOrdinal: scope.carOrdinal ?? null,
-      trackOrdinal: scope.trackOrdinal ?? null,
+      carId: scope.carId ?? null,
+      trackId: scope.trackId ?? null,
       poolKey: data.poolKey,
       status: data.status ?? "queued",
       fingerprint: data.fingerprint ?? null,

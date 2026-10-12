@@ -27,8 +27,8 @@ type SessionRow = {
   rawFile: string | null;
   isFavorite: boolean;
   gameId: SessionCleanupGameSummary["gameId"];
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: string;
+  trackId: string;
 };
 
 type LapFavoriteRow = { sessionId: number; isFavorite: boolean };
@@ -58,8 +58,8 @@ async function loadRows(request: SessionCleanupRequest): Promise<{
       rawFile: sessions.rawFile,
       isFavorite: sessions.isFavorite,
       gameId: sessions.gameId,
-      carOrdinal: sessions.carOrdinal,
-      trackOrdinal: sessions.trackOrdinal,
+      carId: sessions.carId,
+      trackId: sessions.trackId,
     })
     .from(sessions)
     .all()) as SessionRow[];
@@ -126,8 +126,8 @@ async function buildGameSummaries(groups: CleanupGroup[]): Promise<SessionCleanu
         .map((session) => ({
           id: session.id,
           createdAt: session.createdAt,
-          trackName: adapter?.getTrackName(session.trackOrdinal) ?? resolveTrackName(session.trackOrdinal, gameId),
-          carName: adapter?.getCarName(session.carOrdinal) ?? resolveCarName(session.carOrdinal, gameId),
+          trackName: adapter?.getTrackName(session.trackId) ?? resolveTrackName(session.trackId, gameId),
+          carName: adapter?.getCarName(session.carId) ?? resolveCarName(session.carId, gameId),
           laps: lapsBySession.get(session.id) ?? [],
         }));
 

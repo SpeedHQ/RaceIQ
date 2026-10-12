@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { migrations } from "@raceiq/backend-core/db/migrations";
+import { DashboardAuth } from "../../src/runtime/dashboard-auth";
 
 const DATABASE_SUFFIXES = ["", "-wal", "-shm"] as const;
 const REPO_ROOT = process.cwd();
@@ -51,11 +52,9 @@ async function runDbStartup(dataDir: string, importRecording = false, configureP
     ` : ""}
     try {
       await database.initDb();
-      ${configurePassword !== undefined ? `
       const auth = new DashboardAuth(database.DB_PATH, {});
-      try { await auth.initialize(false); await auth.setup(${JSON.stringify(configurePassword)}, true); }
+      try { ${configurePassword !== undefined ? `await auth.initialize(false); await auth.setup(${JSON.stringify(configurePassword)}, true);` : ""} }
       finally { auth.database.close(); }
-      ` : ""}
       if (${importRecording}) {
         initGameAdapters();
         initServerGameAdapters();
@@ -97,9 +96,13 @@ async function createFixture(databasePath: string, profileName: string, throughV
         sql: "INSERT INTO profiles (name) VALUES (?)",
         args: [${JSON.stringify(profileName)}],
       });
-      await client.execute(
-        "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, raw_file) VALUES (1, 10, 20, 'iracing', 'seed.bin.gz')",
-      );
+      const columns = await client.execute("PRAGMA table_info(sessions)");
+      const hasStringIdentities = !columns.rows.some((column) => column.name === "car_ordinal");
+      await client.execute({
+        sql: hasStringIdentities
+          ? "INSERT INTO sessions (id, car_id, track_id, game_id, raw_file) VALUES (1, '10', '20', 'iracing', 'seed.bin.gz')"
+          : "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, raw_file) VALUES (1, 10, 20, 'iracing', 'seed.bin.gz')",
+      });
     } finally {
       client.close();
     }
@@ -162,11 +165,11 @@ function expectImportedRecording(databasePath: string, existingIds: number[] = [
   const database = new Database(databasePath, { readonly: true });
   try {
     const rows = database.query(
-      "SELECT s.id AS sessionId, s.game_id AS gameId, s.car_ordinal AS carOrdinal, s.track_ordinal AS trackOrdinal, l.lap_number AS lapNumber, l.lap_time AS lapTime, l.is_valid AS isValid FROM laps l JOIN sessions s ON s.id = l.session_id WHERE s.car_ordinal = 42 AND s.track_ordinal = 99 ORDER BY l.lap_number",
-    ).all() as Array<{ sessionId: number; gameId: string; carOrdinal: number; trackOrdinal: number; lapNumber: number; lapTime: number; isValid: number }>;
+      "SELECT s.id AS sessionId, s.game_id AS gameId, s.car_id AS carId, s.track_id AS trackId, l.lap_number AS lapNumber, l.lap_time AS lapTime, l.is_valid AS isValid FROM laps l JOIN sessions s ON s.id = l.session_id WHERE s.car_id = '42' AND s.track_id = '99' ORDER BY l.lap_number",
+    ).all() as Array<{ sessionId: number; gameId: string; carId: string; trackId: string; lapNumber: number; lapTime: number; isValid: number }>;
     expect(rows.filter(({ sessionId }) => !existingIds.includes(sessionId)).map(({ sessionId: _sessionId, ...lap }) => lap)).toEqual([
-      { gameId: "iracing", carOrdinal: 42, trackOrdinal: 99, lapNumber: 1, lapTime: 31.917, isValid: 1 },
-      { gameId: "iracing", carOrdinal: 42, trackOrdinal: 99, lapNumber: 2, lapTime: 32.045, isValid: 1 },
+      { gameId: "iracing", carId: "42", trackId: "99", lapNumber: 1, lapTime: 31.917, isValid: 1 },
+      { gameId: "iracing", carId: "42", trackId: "99", lapNumber: 2, lapTime: 32.045, isValid: 1 },
     ]);
   } finally {
     database.close();
@@ -195,6 +198,52 @@ afterEach(async () => {
 });
 
 describe("production database path", () => {
+  test("main's identity migrations preserve credentials and sessions from colliding auth drafts", async () => {
+    for (const version of [63, 64]) {
+      for (const password of ["abcdefgh", null]) {
+        const dataDir = makeDataDir();
+        const appPath = join(dataDir, "app.db");
+        await createFixture(appPath, "preserved driver", 62);
+        const before = new Database(appPath);
+        for (const sql of migrations.find((migration) => migration.version === 68)!.sql) before.exec(sql);
+        before.query("INSERT INTO schema_migrations (version, name) VALUES (?, ?)").run(version, "persist dashboard access and login sessions");
+        before.close();
+        const original = new DashboardAuth(appPath, {});
+        await original.initialize(false);
+        await original.setup(password, true);
+        const session = password ? await original.login(password, new Request("http://localhost:3117")) : null;
+        const access = original.database.query("SELECT * FROM dashboard_access").get();
+        original.database.close();
+        const result = await runDbStartup(dataDir);
+        expect(result.code, result.output).toBe(0);
+        const upgraded = new DashboardAuth(appPath, {});
+        try {
+          expect(upgraded.pending).toBe(false);
+          expect(upgraded.protected).toBe(password !== null);
+          expect(upgraded.database.query("SELECT * FROM dashboard_access").get()).toEqual(access);
+          expect(profileNames(appPath)).toEqual(["preserved driver"]);
+          expect(upgraded.database.query("SELECT name FROM schema_migrations WHERE version = 64").get()).toEqual({ name: "use native AC Evo car and layout identities" });
+          expect(upgraded.database.query("SELECT name FROM schema_migrations WHERE version = 68").get()).toEqual({ name: "persist dashboard access and login sessions" });
+          if (session) expect(upgraded.session(new Request("http://localhost:3117", { headers: { cookie: session.cookie.split(";")[0] } }))?.csrf).toBe(session.csrf);
+        } finally { upgraded.database.close(); }
+      }
+    }
+  });
+  test("a colliding auth draft with a lost access row remains closed after merging main", async () => {
+    const dataDir = makeDataDir();
+    const appPath = join(dataDir, "app.db");
+    await createFixture(appPath, "preserved driver", 62);
+    const before = new Database(appPath);
+    before.query("INSERT INTO schema_migrations (version, name) VALUES (64, ?)").run("persist dashboard access and login sessions");
+    before.close();
+    const result = await runDbStartup(dataDir);
+    expect(result.code).toBe(1);
+    const after = new Database(appPath, { readonly: true });
+    try {
+      expect(after.query("SELECT name FROM sqlite_master WHERE name = 'dashboard_access'").get()).toBeNull();
+      expect(after.query("SELECT name FROM schema_migrations WHERE version = 68").get()).toEqual({ name: "persist dashboard access and login sessions" });
+    } finally { after.close(); }
+  });
   test("losing a configured database fails before recreating it or migrating an older backup", async () => {
     for (const password of ["abcdefgh", null]) {
       const dataDir = makeDataDir();
@@ -231,8 +280,8 @@ describe("production database path", () => {
     const after = new Database(appPath, { readonly: true });
     try {
       expect(after.query("SELECT mode FROM dashboard_access WHERE id = 1").get()).toEqual({ mode: "pending" });
-      expect(after.query("SELECT name FROM schema_migrations WHERE version = 63").get()).toEqual({ name: "persist live session bookmarks" });
-      expect(after.query("SELECT name FROM schema_migrations WHERE version = 64").get()).toEqual({ name: "persist dashboard access and login sessions" });
+      expect(after.query("SELECT name FROM schema_migrations WHERE version = 63").get()).toEqual({ name: "persist discovered source identities" });
+      expect(after.query("SELECT name FROM schema_migrations WHERE version = 68").get()).toEqual({ name: "persist dashboard access and login sessions" });
       expect(after.query("SELECT note FROM live_bookmarks WHERE id = 1").get()).toEqual({ note: "preserve me" });
     } finally { after.close(); }
   });

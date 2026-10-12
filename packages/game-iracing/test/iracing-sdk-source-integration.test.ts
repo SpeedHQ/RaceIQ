@@ -90,8 +90,8 @@ describe("iRacing source ownership integration", () => {
     };
     normalizeIRacingFrame(historical);
 
-    expect(iracingAdapter.getCarName(carOrdinal)).toBe("Live GT3");
-    expect(iracingAdapter.getTrackName(trackOrdinal)).toBe("Live Raceway");
+    expect(iracingAdapter.getCarName(String(carOrdinal))).toBe("Live GT3");
+    expect(iracingAdapter.getTrackName(String(trackOrdinal))).toBe("Live Raceway");
   });
 
   test("translates iRacing gear and weather into canonical dashboard fields", () => {

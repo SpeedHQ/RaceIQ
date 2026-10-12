@@ -13,7 +13,7 @@ import { GameStoryScope } from "./GameStoryScope";
 
 const GAME_ID = "fm-2023" as const;
 const SESSION_ID = 9001;
-const TRACK_ORDINAL = 1641;
+const TRACK_ID = "1641";
 const HAKONE_CLUB_OUTLINE = hakoneClubCenterlineCsv
   .trim()
   .split("\n")
@@ -36,8 +36,8 @@ function makeLap(id: number, day: number, lapNumber: number, lapTime: number, is
     isValid,
     createdAt: `2026-07-${String(day).padStart(2, "0")}T18:2${lapNumber}:00.000Z`,
     gameId: GAME_ID,
-    carOrdinal: 201,
-    trackOrdinal: TRACK_ORDINAL,
+    carId: "201",
+    trackId: TRACK_ID,
   };
 }
 
@@ -59,8 +59,8 @@ const laps: LapMeta[] = [
 const sessions: SessionMeta[] = [
   {
     id: SESSION_ID,
-    carOrdinal: 201,
-    trackOrdinal: TRACK_ORDINAL,
+    carId: "201",
+    trackId: TRACK_ID,
     createdAt: "2026-07-28T18:45:00.000Z",
     lapCount: laps.length,
     bestLapTime: 95.844,
@@ -69,8 +69,8 @@ const sessions: SessionMeta[] = [
   },
   {
     id: 9000,
-    carOrdinal: 201,
-    trackOrdinal: TRACK_ORDINAL,
+    carId: "201",
+    trackId: TRACK_ID,
     createdAt: "2026-07-26T18:30:00.000Z",
     lapCount: 0,
     bestLapTime: 0,
@@ -84,8 +84,8 @@ const recap: SessionRecap = {
   gameId: GAME_ID,
   carName: "2023 Cadillac V-Series.R",
   trackName: "Hakone Club",
-  carOrdinal: 201,
-  trackOrdinal: TRACK_ORDINAL,
+  carId: "201",
+  trackId: TRACK_ID,
   createdAt: "2026-07-28T18:45:00.000Z",
   lapsValid: 11,
   lapsTotal: 12,
@@ -135,7 +135,7 @@ const DRIVER_TREND: DriverTrend = {
 };
 const DRIVER_FINGERPRINT: DriverFingerprint = {
   ok: true,
-  scope: { kind: "car-track", gameId: GAME_ID, carOrdinal: 201, trackOrdinal: TRACK_ORDINAL },
+  scope: { kind: "car-track", gameId: GAME_ID, carId: "201", trackId: TRACK_ID },
   laps: { lapIds: laps.map((lap) => lap.id), analyzed: 12, candidates: 12, droppedNoTelemetry: 0 },
   confidence: "high",
   style: {
@@ -175,11 +175,11 @@ const DRIVER_FINGERPRINT: DriverFingerprint = {
 
 const PROFILE_RUN: DriverProfileRun = {
   id: 7001,
-  scopeKey: "fm-2023:global",
+  scopeKey: JSON.stringify([GAME_ID, null, null]),
   gameId: GAME_ID,
-  carOrdinal: null,
-  trackOrdinal: null,
-  poolKey: "fm-2023:global",
+  carId: null,
+  trackId: null,
+  poolKey: "storybook-pool",
   status: "succeeded",
   fingerprint: JSON.stringify(DRIVER_FINGERPRINT),
   plan: null,

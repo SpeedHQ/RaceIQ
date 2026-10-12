@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { TrackDetailRoute } from "../../components/track/TrackDetailRoute";
 
-export const Route = createFileRoute("/$gameid/tracks/$trackOrdinal/")({
+export const Route = createFileRoute("/$gameid/tracks/$trackId/")({
   component: () => <TrackDetailRoute tab="info" />,
 });

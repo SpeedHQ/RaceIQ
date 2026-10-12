@@ -11,7 +11,7 @@ export const forzaParser: TelemetryParser<null> = {
     if (isRaceOn === 0) return null;
     return {
       gameId: "fm-2023", IsRaceOn: isRaceOn, TimestampMS: buf.readUInt32LE(4),
-      CarOrdinal: buf.readInt32LE(212), TrackOrdinal: buf.length >= 331 ? buf.readInt32LE(327) : 0,
+      carId: String(buf.readInt32LE(212)), trackId: buf.length >= 331 ? String(buf.readInt32LE(327)) : "",
       CarPerformanceIndex: buf.readInt32LE(220), CarClass: buf.readInt32LE(216),
       LapNumber: buf.readUInt16LE(300), CurrentLap: buf.readFloatLE(292), LastLap: buf.readFloatLE(288), BestLap: buf.readFloatLE(284),
       DistanceTraveled: buf.readFloatLE(280), PositionX: buf.readFloatLE(232), PositionZ: buf.readFloatLE(240), Yaw: buf.readFloatLE(56), Fuel: buf.readFloatLE(276),

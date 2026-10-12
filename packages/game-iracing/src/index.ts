@@ -1,7 +1,7 @@
 import { iracingAdapter } from "@raceiq/game-iracing-metadata/index";
 import { getIRacingSharedTrackName,
 getIRacingTrackName,
-getIRacingTrackOrdinalByName, } from "@raceiq/game-iracing-metadata/racing/tracks/catalogs/iracing"
+getIRacingTrackIdByName, } from "@raceiq/game-iracing-metadata/racing/tracks/catalogs/iracing"
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
 import { LapDetectorIRacing } from "./lap-detector";
@@ -39,16 +39,17 @@ export const iracingServerAdapter: ServerGameAdapter = {
     "iRacingSim.exe",
   ],
 
-  getTrackName(ordinal: number): string {
-    return getIRacingTrackName(ordinal);
+  getTrackName(trackId: string): string {
+    return getIRacingTrackName(Number(trackId));
   },
 
-  getSharedTrackName(ordinal: number): string | undefined {
-    return getIRacingSharedTrackName(ordinal);
+  getSharedTrackName(trackId: string): string | undefined {
+    return getIRacingSharedTrackName(Number(trackId));
   },
 
-  getTrackOrdinalByName(name: string): number | undefined {
-    return getIRacingTrackOrdinalByName(name);
+  getTrackIdByName(name: string): string | undefined {
+    const id = getIRacingTrackIdByName(name);
+    return id == null ? undefined : String(id);
   },
 
   canHandle: iracingParser.canHandle,

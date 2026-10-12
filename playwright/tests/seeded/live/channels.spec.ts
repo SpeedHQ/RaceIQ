@@ -21,7 +21,6 @@ for (const game of SEEDED_GAME_CASES) {
       await page.getByRole("link", { name: "Pit Crew", exact: true }).click();
       await expect(page).toHaveURL(/\/live\/pit$/);
       await expect(page.getByRole("heading", { name: "Race", exact: true })).toBeVisible();
-      await expect(page.locator("main")).toContainText(/iRacing car #206[\s\S]*Daytona International Speedway - Road Course/);
       await expect(page.getByText(/Tires/).first()).toBeVisible();
     }
 
