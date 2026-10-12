@@ -33,7 +33,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.3
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -80,7 +80,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.3
 
       - uses: actions/setup-node@v7
         with:
@@ -93,9 +93,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ runner.arch }}-bun-1.4.2-turbo-2.11.7-${{ github.sha }}-${{ github.run_attempt }}
+          key: turbo-${{ runner.os }}-${{ runner.arch }}-bun-1.4.3-turbo-2.11.7-${{ github.sha }}-${{ github.run_attempt }}
           restore-keys: |
-            turbo-${{ runner.os }}-${{ runner.arch }}-bun-1.4.2-turbo-2.11.7-
+            turbo-${{ runner.os }}-${{ runner.arch }}-bun-1.4.3-turbo-2.11.7-
 
       - name: Check test shard coverage
         run: bun run test:shards
@@ -142,7 +142,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ runner.arch }}-bun-1.4.2-turbo-2.11.7-${{ github.sha }}-${{ github.run_attempt }}
+          key: turbo-${{ runner.os }}-${{ runner.arch }}-bun-1.4.3-turbo-2.11.7-${{ github.sha }}-${{ github.run_attempt }}
         if: always()
 
 
