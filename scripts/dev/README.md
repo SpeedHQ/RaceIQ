@@ -13,6 +13,10 @@ Inputs: optional onboarding override, `SERVER_PORT` for a fixed backend port, `P
 
 Startup does not open a browser automatically. Open the printed Portless URL manually when needed.
 
+Database migrations validate both version numbers and names. A `Migration history conflict` means the database was provisioned by a different migration history; restarting will not repair it. Use the matching build or restore a compatible backup. For disposable local data, stop the backend and move `data/app.db`, `data/app.db-wal`, and `data/app.db-shm` together into a backup directory before running `bun dev` again. Keep `settings.json` and `sessions/` if needed; recordings remain on disk, but a fresh database does not retain their session rows, annotations, or setup links.
+
+Migration identities are append-only: never renumber or rename applied migrations. When merging branches, assign unused versions to unpublished migrations before provisioning a database. Duplicate versions and stored-name conflicts fail before pending upgrades run.
+
 Translation build reuse hashes message files, project settings, dependency lockfile, installed compiler version, and generation options. Every generated file is validated before reuse; missing, modified, or obsolete output triggers staged regeneration. Failed compilation preserves the previous valid output. Development watching keeps its separate locale-module profile.
 
 Boundary: development orchestration and generated translation preparation. Release packaging remains under `packages/tooling-build/src/build/`; scripts here do not modify application service configuration.

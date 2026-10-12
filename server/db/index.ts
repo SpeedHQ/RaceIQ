@@ -2,6 +2,7 @@ import { createClient, type Client } from "@libsql/client/sqlite3";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
 import { migrations } from "./migrations";
+import { pendingMigrations } from "./migration-plan";
 import { existsSync, mkdirSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
@@ -89,9 +90,10 @@ await client.execute(`
 `);
 
 async function runMigrations() {
-  const appliedRows = await client.execute("SELECT version FROM schema_migrations");
-  const applied = new Set(appliedRows.rows.map((r) => Number(r.version)));
-  const pending = migrations.filter((m) => !applied.has(m.version)).sort((a, b) => a.version - b.version);
+  const appliedRows = await client.execute("SELECT version, name FROM schema_migrations");
+  const pending = pendingMigrations(migrations, appliedRows.rows.map((row) => ({
+    version: Number(row.version), name: String(row.name),
+  })));
 
   if (pending.length === 0) return;
 

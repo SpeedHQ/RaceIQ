@@ -281,7 +281,10 @@ describe("dashboard embedded migrations", () => {
       await client.execute(`UPDATE dashboard_summary_state SET retry_count=9,
         next_retry_at='2031-01-01 00:00:00',last_success_at='2026-08-01 12:00:00'
         WHERE session_id=706`);
-      await client.execute("INSERT INTO schema_migrations(version,name) VALUES (73,'interim v73')");
+      await client.execute({
+        sql: "INSERT INTO schema_migrations(version,name) VALUES (73,?)",
+        args: [migrations.find((migration) => migration.version === 73)!.name],
+      });
 
       await runMigrations(client);
       await assertSchemaAndTriggers(client);

@@ -6,6 +6,48 @@ import {
 } from "@raceiq/backend-core/test-support/db/migrations";
 
 describe("migration regressions", () => {
+  test("rejects branch migration collisions before changing stored data", async () => {
+    const client = newClient();
+    try {
+      await bootstrap(client);
+      await runMigrations(client, 62);
+      await client.execute(
+        `INSERT INTO discovered_cars (game_id, ordinal, name)
+         VALUES ('iracing', 101, 'Preserved Car')`,
+      );
+      await client.execute(
+        `INSERT INTO schema_migrations (version, name) VALUES (63, 'add dashboard read model')`,
+      );
+
+      await expect(runMigrations(client)).rejects.toThrow(
+        'Migration history conflict at v63: database has "add dashboard read model", this build expects "persist discovered source identities"',
+      );
+      const car = await client.execute("SELECT ordinal, name FROM discovered_cars WHERE game_id='iracing'");
+      expect(car.rows).toMatchObject([{ ordinal: 101, name: "Preserved Car" }]);
+      const columns = await client.execute("PRAGMA table_info(discovered_cars)");
+      expect(columns.rows.map((row) => row.name)).not.toContain("source_key");
+      const ledger = await client.execute("SELECT name FROM schema_migrations WHERE version=63");
+      expect(ledger.rows[0]?.name).toBe("add dashboard read model");
+    } finally {
+      client.close();
+    }
+  });
+
+  test("rejects duplicate migration numbers before applying either upgrade", async () => {
+    const client = newClient();
+    try {
+      await bootstrap(client);
+      await expect(runMigrations(client, Infinity, [
+        { version: 1, name: "first branch", sql: ["CREATE TABLE first_branch (id INTEGER)"] },
+        { version: 1, name: "second branch", sql: ["CREATE TABLE second_branch (id INTEGER)"] },
+      ])).rejects.toThrow("Duplicate migration version v1");
+      const tables = await client.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
+      expect(tables.rows.map((row) => row.name)).toEqual(["schema_migrations"]);
+    } finally {
+      client.close();
+    }
+  });
+
 
 
   test("v45 keeps native car ordinals unique without treating names as identity", async () => {
