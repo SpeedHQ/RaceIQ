@@ -1,7 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { unzipSync } from "fflate";
-
+import { mkdtemp, readdir, realpath, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { basename, join, sep } from "node:path";
+import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
+import { deleteSession } from "@raceiq/backend-core/db/session-queries";
+import { parseRawLapFrames } from "@raceiq/backend-core/db/telemetry-replay-storage";
+import { startRecordingDirectoryMove, getRecordingDirectoryMoveStatus } from "@raceiq/backend-core/session-capture/relocate-recordings";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { parseLd, findChannel } from "@raceiq/backend-core/motec/ld";
@@ -35,6 +41,15 @@ function loadAccFixture(): AccFixture {
 
 initGameAdapters();
 initServerGameAdapters();
+async function waitForRecordingMove(): Promise<void> {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const status = getRecordingDirectoryMoveStatus();
+    if (status.state === "complete") return;
+    if (status.state === "error") throw new Error(status.error ?? "Recording-directory move failed");
+    await new Promise<void>((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error("Recording-directory move did not finish");
+}
 
 describe("MoTeC real recording", () => {
   const fixture = loadAccFixture();
@@ -150,20 +165,53 @@ describe("MoTeC real recording", () => {
     expect(Math.max(...deviations)).toBeLessThan(30);
   });
 
-  test("imports one lap under MoTeC source", async () => {
-    const result = await importMotec(fixture.ld, fixture.ldx, {
-      gameId: "acc",
-      carId: "33",
-      trackId: "8",
-    });
-    expect(result.gameId).toBe("acc");
-    expect(result.packetCount).toBe(6164);
-    expect(result.laps).toHaveLength(1);
-    expect(result.laps[0]?.lapTime).toBeGreaterThan(100);
-    expect(result.laps[0]?.lapTime).toBeLessThan(104);
-    const [session] = await db.select().from(sessions).where(eq(sessions.id, result.laps[0]!.sessionId));
-    expect(session?.gameId).toBe("acc");
-    expect(session?.source).toBe("motec");
+  test("imports, relocates, and replays MoTeC data from the selected recording folder", async () => {
+    const originalDirectory = loadSettings().recordingDirectory;
+    const importDirectory = await mkdtemp(join(tmpdir(), "raceiq-motec-storage-import-"));
+    const destinationDirectory = await mkdtemp(join(tmpdir(), "raceiq-motec-storage-destination-"));
+    let sessionId: number | undefined;
+    saveSettings({ ...loadSettings(), recordingDirectory: importDirectory });
+    try {
+      const result = await importMotec(fixture.ld, fixture.ldx, {
+        gameId: "acc",
+        carId: "33",
+        trackId: "8",
+      });
+      sessionId = result.laps[0]!.sessionId;
+      expect(result.gameId).toBe("acc");
+      expect(result.packetCount).toBe(6164);
+      expect(result.laps).toHaveLength(1);
+      expect(result.laps[0]?.lapTime).toBeGreaterThan(100);
+      expect(result.laps[0]?.lapTime).toBeLessThan(104);
+      const [imported] = await db.select().from(sessions).where(eq(sessions.id, sessionId));
+      expect(imported?.gameId).toBe("acc");
+      expect(imported?.source).toBe("motec");
+      expect(imported?.rawFile).toStartWith(`${join(importDirectory, "acc")}${sep}`);
+      expect(imported?.rawFile).toEndWith(".motec.zip");
+
+      await startRecordingDirectoryMove(destinationDirectory);
+      await waitForRecordingMove();
+      const [moved] = await db.select().from(sessions).where(eq(sessions.id, sessionId));
+      const expectedArchive = join(await realpath(destinationDirectory), "acc", basename(imported!.rawFile!));
+      expect(moved?.rawFile).toBe(expectedArchive);
+      expect(await readdir(join(await realpath(destinationDirectory), "acc"))).toEqual([basename(expectedArchive)]);
+      const replayed = await parseRawLapFrames({
+        rawFile: expectedArchive,
+        source: "motec",
+        gameId: "acc",
+        carId: "33",
+        trackId: "8",
+      }, 0, result.packetCount);
+      expect(replayed).toHaveLength(result.packetCount);
+    } finally {
+      try {
+        if (sessionId !== undefined) await deleteSession(sessionId);
+      } finally {
+        saveSettings({ ...loadSettings(), recordingDirectory: originalDirectory ?? null });
+        await rm(importDirectory, { recursive: true, force: true });
+        await rm(destinationDirectory, { recursive: true, force: true });
+      }
+    }
   });
 
   test("rejects MoTeC imports without the signal sidecar", async () => {

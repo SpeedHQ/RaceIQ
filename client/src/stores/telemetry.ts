@@ -7,6 +7,7 @@ import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "
 import type { LiveTelemetryView } from "../lib/live-telemetry-view";
 import { buildLiveTelemetryView } from "../lib/live-telemetry-view";
 export interface DisplaySettings {
+  recordingDirectory: string | null;
   unit: "metric" | "imperial";
   temperatureUnit: "C" | "F";
   aiProvider: "gemini" | "openai" | "openai-compatible";
@@ -26,9 +27,9 @@ export interface DisplaySettings {
   /** Opt-in background removal of old raw session captures. */
   sessionCleanupEnabled: boolean;
   sessionCleanupAgeDays: 30 | 90 | 180 | 365;
-  /** Server-injected: current UDP port */
+  /** Server-injected canonical active recording directory. */
+  resolvedRecordingDirectory?: string;
   udpPort?: number;
-  /** Server-injected: whether a Gemini API key is stored */
   geminiApiKeySet?: boolean;
   /** Server-injected: whether an OpenAI API key is stored */
   openaiApiKeySet?: boolean;
@@ -51,6 +52,7 @@ export interface DisplaySettings {
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
+  recordingDirectory: null,
   unit: "metric",
   temperatureUnit: "C",
   aiProvider: "gemini",

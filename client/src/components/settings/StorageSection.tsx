@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SessionCleanupDialog } from "@/components/SessionCleanupDialog";
+import { useRecordingDirectoryStatus } from "@/hooks/recording-storage";
 import { queryKeys } from "@/hooks/query-keys";
+import { RecordingDirectoryControl } from "./RecordingDirectoryControl";
 import { m } from "@/paraglide/messages";
 import { formatBytes } from "@/lib/format-bytes";
 import { useSaveSettings, useSettings } from "../../hooks/settings";
@@ -248,8 +250,10 @@ function StorageFilesSection() {
   });
   const queryClient = useQueryClient();
   const [cleanupRequest, setCleanupRequest] = useState<SessionCleanupRequest | null>(null);
-  const { displaySettings } = useSettings();
+  const { displaySettings, settingsLoaded } = useSettings();
   const saveSettings = useSaveSettings();
+  const directoryStatus = useRecordingDirectoryStatus();
+  const movingDirectory = directoryStatus.data?.state === "moving";
   const [cleanupSettingsError, setCleanupSettingsError] = useState("");
 
   const compress = useMutation({
@@ -281,12 +285,13 @@ function StorageFilesSection() {
             <HardDrive className="size-4 text-app-text-dim" aria-hidden="true" />
             {m.storage_recording_files_title()}
           </h3>
-          <Button variant="app-outline" size="app-sm" onClick={() => setCleanupRequest({ mode: "older-than", olderThanDays: 30 })}>
+          <Button variant="app-outline" size="app-sm" disabled={movingDirectory} onClick={() => setCleanupRequest({ mode: "older-than", olderThanDays: 30 })}>
             {m.sessions_cleanup_free_space()}
           </Button>
         </div>
+        <RecordingDirectoryControl disabled={isLoading || isError || !settingsLoaded} />
         <p className="text-xs text-app-text-dim mb-4">
-          {m.storage_recording_files_desc_prefix()} <code className="font-mono">data/sessions/</code>. {m.storage_recording_files_desc_suffix()}
+          {m.storage_recording_files_desc_prefix()} <code className="break-all font-mono">{displaySettings.resolvedRecordingDirectory ?? ""}</code>. {m.storage_recording_files_desc_suffix()}
         </p>
         {isLoading && <p className="text-sm text-app-text-dim">{m.common_loading()}</p>}
         {isError && (
@@ -364,7 +369,7 @@ function StorageFilesSection() {
           <div className="mt-4">
             <Button
               onClick={() => compress.mutate()}
-              disabled={compress.isPending}
+              disabled={compress.isPending || movingDirectory}
               className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md bg-app-surface-alt hover:bg-app-surface-hover/60 text-app-text disabled:opacity-50 transition-colors"
             >
               {compress.isPending && <Loader2 className="size-3 animate-spin" />}

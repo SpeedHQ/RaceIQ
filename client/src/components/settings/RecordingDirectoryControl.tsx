@@ -1,0 +1,55 @@
+import { useSettings } from "@/hooks/settings";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useMoveRecordingDirectory, useRecordingDirectories, useRecordingDirectoryStatus } from "@/hooks/recording-storage";
+import { m } from "@/paraglide/messages";
+
+export function RecordingDirectoryControl({ disabled = false }: { disabled?: boolean }) {
+  const { settingsLoaded } = useSettings();
+  const status = useRecordingDirectoryStatus();
+  const move = useMoveRecordingDirectory();
+  const [open, setOpen] = useState(false);
+  const [path, setPath] = useState("");
+  const [confirm, setConfirm] = useState(false);
+  const activePath = status.data?.directory ?? "";
+  const moving = status.data?.state === "moving";
+  const transitionLocked = moving || move.isPending;
+  const listing = useRecordingDirectories(path === activePath ? undefined : path || undefined, open && !confirm);
+  useEffect(() => { if (open && !path && activePath) setPath(activePath); }, [open, path, activePath]);
+  const phaseLabel = (() => {
+    switch (status.data?.phase) {
+      case "copying": return m.storage_directory_phase_copying();
+      case "committing": return m.storage_directory_phase_committing();
+      case "removing-sources": return m.storage_directory_phase_removing_sources();
+      default: return "";
+    }
+  })();
+  const errorCode = status.data?.state === "error" ? status.data.code ?? "" : move.error && "code" in move.error ? String(move.error.code) : "";
+  const errorMessage = (() => {
+    switch (errorCode) {
+      case "INVALID_DIRECTORY": return m.storage_directory_error_invalid_directory();
+      case "DESTINATION_NOT_EMPTY": return m.storage_directory_error_destination_not_empty();
+      case "RECORDING_ACTIVE": return m.storage_directory_error_recording_active();
+      case "IMPORT_ACTIVE": return m.storage_directory_error_import_active();
+      case "MOVE_ACTIVE": return m.storage_directory_error_move_active();
+      case "INSUFFICIENT_SPACE": return m.storage_directory_error_insufficient_space();
+      case "SOURCE_CLEANUP_FAILED": return m.storage_directory_error_source_cleanup_failed();
+      case "RECOVERY_REQUIRED": return m.storage_directory_error_recovery_required();
+      case "RELOCATION_REQUIRED": return m.storage_directory_error_relocation_required();
+      case "STORAGE_IO_ERROR": return m.storage_directory_error_storage_io();
+      default: return errorCode ? m.storage_directory_error_unknown() : "";
+    }
+  })();
+  return <div className="space-y-3 rounded-lg border border-app-border bg-app-surface-alt/50 p-4">
+    <div className="flex flex-wrap items-center justify-between gap-3"><div className="min-w-0 w-full sm:w-auto sm:flex-1"><Label>{m.storage_directory_active()}</Label><p className="mt-1 break-all font-mono text-sm text-app-text" title={activePath}>{activePath || m.common_loading()}</p></div><div className="flex w-full justify-end gap-2 sm:w-auto"><Button variant="outline" disabled={!activePath} onClick={() => { void navigator.clipboard.writeText(activePath); }}>{m.storage_directory_copy_path()}</Button><Button variant="outline" disabled={disabled || !settingsLoaded || !status.isSuccess || transitionLocked} onClick={() => { setPath(activePath); setConfirm(false); setOpen(true); }}>{m.storage_directory_change()}</Button></div></div>
+    {moving && <p aria-live="polite" className="text-sm text-app-text-dim">{m.storage_directory_progress({ phase: phaseLabel, completed: status.data?.completedFiles ?? 0, total: status.data?.totalFiles ?? 0 })}</p>}
+    {errorMessage && <p role="alert" className="text-sm text-status-danger">{errorMessage}</p>}
+    <Dialog open={open} onOpenChange={(value) => { if (!transitionLocked) setOpen(value); }}><DialogContent><DialogHeader><DialogTitle>{confirm ? m.storage_directory_confirm_title() : m.storage_directory_picker_title()}</DialogTitle><DialogDescription>{confirm ? m.storage_directory_confirm_desc() : m.storage_directory_picker_desc()}</DialogDescription></DialogHeader>
+      {!confirm ? <div className="space-y-3"><Label htmlFor="recording-directory-path">{m.storage_directory_path_label()}</Label><Input id="recording-directory-path" value={path} onChange={(event) => setPath(event.target.value)} autoComplete="off"/><div className="flex flex-wrap gap-2">{listing.data?.roots.map((root) => <Button key={root} variant="outline" size="sm" onClick={() => setPath(root)}>{root}</Button>)}{listing.data?.parent && <Button variant="outline" size="sm" onClick={() => setPath(listing.data!.parent!)}>{m.storage_directory_parent()}</Button>}</div><div className="max-h-52 overflow-y-auto rounded border border-app-border" role="list">{listing.data?.directories.map((directory) => <button type="button" role="listitem" key={directory.path} className="block w-full px-3 py-2 text-left text-sm hover:bg-app-surface-hover" onClick={() => setPath(directory.path)}>{directory.name}</button>)}</div><p className="text-xs text-app-text-dim">{m.storage_directory_empty_guidance()}</p>{listing.isError && <p role="alert" className="text-sm text-status-danger">{m.storage_directory_browse_error()}</p>}</div> : <div className="space-y-2 text-sm"><p className="break-all"><strong>{m.storage_directory_old_label()}</strong> {activePath}</p><p className="break-all"><strong>{m.storage_directory_new_label()}</strong> {path}</p><p>{m.storage_directory_move_notice()}</p><p>{m.storage_directory_machine_notice()}</p></div>}
+      <DialogFooter>{!confirm ? <><Button variant="outline" disabled={transitionLocked} onClick={() => setOpen(false)}>{m.common_cancel()}</Button><Button disabled={!path.trim() || listing.isLoading} onClick={() => setConfirm(true)}>{m.storage_directory_use()}</Button></> : <><Button variant="outline" disabled={transitionLocked} onClick={() => setConfirm(false)}>{m.common_back()}</Button><Button disabled={transitionLocked} onClick={() => move.mutate(path, { onSuccess: () => { setOpen(false); setConfirm(false); }, onError: () => { void status.refetch(); } })}>{move.isPending ? m.common_saving() : m.storage_directory_move()}</Button></>}</DialogFooter>
+    </DialogContent></Dialog>
+  </div>;
+}

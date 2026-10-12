@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { collectBrowserErrors } from "../support/browser-errors";
 
@@ -80,7 +80,38 @@ test.describe
       await expect(page.getByRole("heading", { name: "Launch on Login" })).toBeVisible();
       await page.getByRole("button", { name: "Next" }).click();
 
-      // Step 7: Community — final. Button reads "Next" when not receiving telemetry; clicking it finishes.
+      // Step 7: Choose recording folder through server-backed browser.
+      await expect(page.getByRole("heading", { name: "Storage" })).toBeVisible();
+      await page.getByRole("button", { name: "Change folder" }).click();
+      const destination = mkdtempSync(resolve(__dirname, "..", "..", "test-data", "recordings-e2e-"));
+      await page.getByLabel("Folder path").fill(destination);
+      await page.getByRole("button", { name: "Use this folder" }).click();
+      let releaseMoveRequest!: () => void;
+      const moveRequestGate = new Promise<void>((resolve) => { releaseMoveRequest = resolve; });
+      await page.route("**/api/storage/recording-directory", async (route) => {
+        if (route.request().method() === "POST") await moveRequestGate;
+        await route.continue();
+      });
+      try {
+        await page.getByRole("button", { name: "Move recordings" }).click();
+        await expect(page.getByRole("button", { name: "Next", includeHidden: true })).toBeDisabled();
+        const backButtons = page.getByRole("button", { name: "Back", includeHidden: true });
+        await expect(backButtons).toHaveCount(2);
+        await expect(backButtons.nth(0)).toBeDisabled();
+        await expect(backButtons.nth(1)).toBeDisabled();
+        await page.keyboard.press("Escape");
+        await expect(page.getByRole("dialog")).toBeVisible();
+      } finally {
+        releaseMoveRequest();
+      }
+      await expect.poll(async () => {
+        const response = await page.request.get("/api/storage/recording-directory");
+        const state = await response.json() as { state: string; directory: string };
+        return state.state === "complete" && state.directory === realpathSync(destination);
+      }, { timeout: 60_000 }).toBe(true);
+      await page.getByRole("button", { name: "Next" }).click();
+
+      // Step 8: Community — final. Button reads "Next" when not receiving telemetry; clicking it finishes.
       await expect(page.getByRole("heading", { name: "You're all set!" })).toBeVisible();
       const saveSettings = page.waitForResponse((response) => {
         if (response.request().method() !== "PUT" || !response.url().endsWith("/api/settings")) return false;
@@ -96,12 +127,40 @@ test.describe
       await expect(page.getByRole("heading", { name: "Hello, TestDriver" })).toBeVisible();
 
       // Server persisted driver name + onboardingComplete to settings.json
-      const settings = JSON.parse(readFileSync(SETTINGS_PATH, "utf8"));
-      expect(settings.driverName).toBe("TestDriver");
-      expect(settings.onboardingComplete).toBe(true);
+      const settingsResponse = await page.request.get("/api/settings");
+      const persistedSettings = await settingsResponse.json() as { recordingDirectory: string | null; resolvedRecordingDirectory: string; driverName: string; onboardingComplete: boolean };
+      expect(persistedSettings.recordingDirectory).toBe(realpathSync(destination));
+      expect(persistedSettings.resolvedRecordingDirectory).toBe(realpathSync(destination));
+      expect(persistedSettings.driverName).toBe("TestDriver");
+      expect(persistedSettings.onboardingComplete).toBe(true);
 
       await assertImagesLoaded(page);
+      rmSync(destination, { recursive: true, force: true });
+      resetSettingsFile();
       expect(errors, `unexpected browser errors:\n${errors.join("\n")}`).toEqual([]);
+    });
+
+    test("replaying the wizard keeps the default recording folder", async ({ page }) => {
+      resetSettingsFile();
+      await page.goto("/", { waitUntil: "domcontentloaded" });
+      await page.getByRole("button", { name: "Get Started" }).click();
+      for (const heading of ["What's your name?", "Choose the steering wheel displayed during live telemetry.", "Units", "Sound", "Launch on Login"]) {
+        await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+        await page.getByRole("button", { name: "Next" }).click();
+      }
+      await expect(page.getByRole("heading", { name: "Storage" })).toBeVisible();
+      const storageResponse = await page.request.get("/api/storage/recording-directory");
+      const storage = await storageResponse.json() as { directory: string };
+      expect(storage.directory.replaceAll("\\", "/")).toMatch(/\/sessions$/);
+      await page.getByRole("button", { name: "Next" }).click();
+      await expect(page.getByRole("heading", { name: "You're all set!" })).toBeVisible();
+      const saveSettings = page.waitForResponse((response) =>
+        response.request().method() === "PUT" && response.url().endsWith("/api/settings")
+        && (response.request().postDataJSON() as { onboardingComplete?: boolean } | null)?.onboardingComplete === true);
+      await page.getByRole("button", { name: "Next" }).click();
+      expect((await saveSettings).ok()).toBe(true);
+      const settings = JSON.parse(readFileSync(SETTINGS_PATH, "utf8"));
+      expect(settings.recordingDirectory ?? null).toBeNull();
     });
 
     for (const prefix of GAME_ROUTE_PREFIXES) {

@@ -1,3 +1,7 @@
+import { useIsMutating } from "@tanstack/react-query";
+import { queryKeys } from "@/hooks/query-keys";
+import { UnitsStep } from "./steps/UnitsStep";
+import { useRecordingDirectoryStatus } from "@/hooks/recording-storage";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useSaveSettings } from "@/hooks/settings";
@@ -7,7 +11,7 @@ import { CommunityStep } from "./steps/CommunityStep";
 import { ProfileStep } from "./steps/ProfileStep";
 import { SoundStep } from "./steps/SoundStep";
 import { StartupStep } from "./steps/StartupStep";
-import { UnitsStep } from "./steps/UnitsStep";
+import { StorageStep } from "./steps/StorageStep";
 import { WelcomeStep } from "./steps/WelcomeStep";
 import { WheelStep } from "./steps/WheelStep";
 
@@ -18,12 +22,16 @@ const MODAL_STEPS = [
   { id: "units", label: m.label_units, Component: UnitsStep },
   { id: "sound", label: m.label_sound, Component: SoundStep },
   { id: "startup", label: m.step_startup, Component: StartupStep },
+  { id: "storage", label: m.label_storage, Component: StorageStep },
   { id: "community", label: m.step_community, Component: CommunityStep },
 ];
 
 export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
   const [step, setStep] = useState(0);
   const saveSettings = useSaveSettings();
+  const storageStatus = useRecordingDirectoryStatus();
+  const isMovePending = useIsMutating({ mutationKey: queryKeys.recordingDirectoryMove }) > 0;
+  const storageBusy = isMovePending || storageStatus.data?.state === "moving";
   const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
   const udpPps = useTelemetryStore((s) => s.udpPps);
   const lastUdpAt = useTelemetryStore((s) => s.lastUdpAt);
@@ -73,16 +81,16 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
         <div className="flex shrink-0 items-center justify-end border-t border-app-border bg-app-surface-alt/30 px-4 py-4 @3xl/onboarding:px-6">
           <div className="flex items-center gap-2">
             {step > 0 && (
-              <Button variant="outline" size="sm" onClick={() => setStep((s) => s - 1)}>
+              <Button variant="outline" size="sm" disabled={storageBusy} onClick={() => setStep((s) => s - 1)}>
                 {m.common_back()}
               </Button>
             )}
             {step < MODAL_STEPS.length - 1 ? (
-              <Button variant="app-primary" size="sm" onClick={() => setStep((s) => s + 1)}>
+              <Button variant="app-primary" size="sm" disabled={storageBusy} onClick={() => setStep((s) => s + 1)}>
                 {step === 0 ? m.common_get_started() : m.common_next()}
               </Button>
             ) : (
-              <Button size="sm" variant={receiving ? "default" : "outline"} onClick={handleFinish} disabled={saveSettings.isPending}>
+              <Button size="sm" variant={receiving ? "default" : "outline"} onClick={handleFinish} disabled={saveSettings.isPending || storageBusy}>
                 {receiving ? m.common_finish() : m.common_next()}
               </Button>
             )}
