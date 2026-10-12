@@ -29,9 +29,9 @@ interface Props {
 
 export function LiveTelemetry({ view, mode = "driver" }: Props) {
   const pit = useTelemetryStore((s) => s.pit);
-  const carOrdinal = view?.identity.carOrdinal;
-  const { data: resolvedCarName } = useCarName(carOrdinal);
-  const carName = resolvedCarName || (carOrdinal != null ? `Car #${carOrdinal}` : "");
+  const carId = view?.identity.carId;
+  const { data: resolvedCarName } = useCarName(carId);
+  const carName = resolvedCarName || carId || "";
 
 
   const units = useUnits();

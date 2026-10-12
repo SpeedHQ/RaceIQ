@@ -27,7 +27,7 @@ export interface F125GuideEntry {
 export interface F125TrackData {
   trackSlug: string;
   trackName: string;
-  trackOrdinal: number;
+  trackId: string;
   trackGuide?: F125GuideEntry[];
   setups: F125Setup[];
 }
@@ -35,6 +35,6 @@ export interface F125TrackData {
 export interface F125TrackSummary {
   trackSlug: string;
   trackName: string;
-  trackOrdinal: number;
+  trackId: string;
   setupCount: number;
 }

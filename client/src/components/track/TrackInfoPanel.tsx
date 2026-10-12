@@ -60,12 +60,12 @@ export function TrackInfoPanel({
   onSectorHover?: (index: number | null) => void;
 }) {
   // The expert guide the AI analyst is given for this track, if we have one.
-  const trackKey = gameId === "lmu" ? track.id : track.ordinal;
+  const trackKey = track.id;
   const { data: guide } = useQuery<ResolvedTrackGuide | null>({
     queryKey: ["track-guide", trackKey, gameId ?? null],
     queryFn: () =>
-      client.api["track-guide"][":ordinal"]
-        .$get({ param: { ordinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gameId ?? undefined } } as never)
+      client.api["track-guide"][":trackId"]
+        .$get({ param: { trackId: encodeURIComponent(trackKey) }, query: { gameId: gameId ?? undefined } } as never)
         .then((r) => r.json() as unknown as ResolvedTrackGuide | null),
     enabled: !!gameId,
     staleTime: 5 * 60 * 1000,

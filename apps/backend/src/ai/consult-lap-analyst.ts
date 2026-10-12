@@ -43,9 +43,9 @@ export async function consultLapAnalystForSession(
     };
   }
 
-  const trackOrdinal = lap.trackOrdinal ?? 0;
-  const segments = await resolveLapSegments(trackOrdinal, lap.gameId);
-  const corners = await resolveLapCorners(trackOrdinal, lap.gameId, lap.telemetry, { segments });
+  const trackIdentity = lap.trackId;
+  const segments = await resolveLapSegments(trackIdentity, lap.gameId);
+  const corners = await resolveLapCorners(trackIdentity, lap.gameId, lap.telemetry, { segments });
 
   const settings = loadSettings();
   const insights = await getOrComputeLapInsights(lap.id) ?? [];

@@ -103,8 +103,8 @@ export function ExperimentWorkspace({ gameId, experimentId, manageActivation = t
   }, [addBase, loadingVersions, session, tests.length]);
 
   // Header car/track labels: setup-file-seeded sessions carry names directly;
-  // ordinal-seeded ones resolve names from the ordinals.
-  const { data: names } = useResolveNames(session?.trackOrdinal != null ? [session.trackOrdinal] : [], session?.carOrdinal != null ? [session.carOrdinal] : []);
+  // IDs resolve names for older rows without labels.
+  const { data: names } = useResolveNames(session?.trackId != null ? [session.trackId] : [], session?.carId != null ? [session.carId] : []);
 
   // The session's lap pool: persisted laps explicitly linked to this tuning
   // session (experimentId stamped server-side, spanning any number of race
@@ -225,9 +225,9 @@ export function ExperimentWorkspace({ gameId, experimentId, manageActivation = t
     );
   }
 
-  const rawCarLabel = session.carName ?? (session.carOrdinal != null ? names?.carNames[String(session.carOrdinal)] : undefined) ?? null;
+  const rawCarLabel = session.carName ?? (session.carId != null ? names?.carNames[session.carId] : undefined) ?? null;
   const carLabel = gameId === "acc" ? accCarName(rawCarLabel) : rawCarLabel;
-  const rawTrackLabel = session.trackName ?? (session.trackOrdinal != null ? names?.trackNames[String(session.trackOrdinal)] : undefined) ?? null;
+  const rawTrackLabel = session.trackName ?? (session.trackId != null ? names?.trackNames[session.trackId] : undefined) ?? null;
   // Session trackName can be a raw folder slug (e.g. "brands_hatch") — turn
   // slug-looking values into a friendly title-cased label.
   const trackLabel = rawTrackLabel && /^[a-z0-9_-]+$/.test(rawTrackLabel) ? rawTrackLabel.replace(/[_-]+/g, " ").replace(/\b[a-z]/g, (c) => c.toUpperCase()) : rawTrackLabel;
@@ -360,7 +360,7 @@ export function ExperimentWorkspace({ gameId, experimentId, manageActivation = t
                   </div>
                 </div>
                 <div className="flex-1 min-h-0 p-2">
-                  <LiveTestDashboard gameId={gameId} trackOrdinal={session.trackOrdinal ?? null} />
+                  <LiveTestDashboard gameId={gameId} trackId={session.trackId ?? null} />
                 </div>
               </div>
             )}

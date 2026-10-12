@@ -7,14 +7,14 @@ import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "../telemetr
 import type { GameId } from "@raceiq/shared/games/ids";
 import { loadSessionSource, iterateSessionCaptureRecordsFromSource } from "./source-loader";
 import { packetIndexToLegacyMotecOffset } from "../motec/source-archive";
-import { getLapsForSession, updateLapRawIndex, insertReprocessedLap, deleteLapsForSession } from "../db/lap-reprocessing-queries";
+import { getLapsForSession, updateLapRawIndex, replaceLapsForSession } from "../db/lap-reprocessing-queries";
 import { updateSessionRawFile } from "../db/session-queries";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { applyFrameTime } from "./frame-time";
-interface ReprocessResult {
+export interface ReprocessResult {
   sessionId: number;
   lapsDetected: number;
   lapsUpdated: number;
@@ -49,7 +49,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
 
 async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessResult> {
   const sessionRows = await db
-    .select({ rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId, carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal })
+    .select({ rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId, lapDetectorVersion: sessions.lapDetectorVersion })
     .from(sessions)
     .where(eq(sessions.id, sessionId))
     .all();
@@ -70,11 +70,10 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
 
   const source = {
     rawFile: session.rawFile, source: session.source, gameId,
-    carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal,
+    carId: session.carId, trackId: session.trackId,
   };
   const loaded = session.rawFile.endsWith(".motec.zip") ? await loadSessionSource(source) : null;
   const existingLaps = await getLapsForSession(sessionId);
-
   const capturingDb = new CapturingDbAdapter();
   let detector = serverGame.createLapDetector({ db: capturingDb, bypassPacketRateFilter: true });
   if (loaded?.kind === "packets") {
@@ -90,7 +89,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
     let parserState = serverGame.createParserState?.() ?? null;
     let inContext = false;
     let segmentHasFrames = false;
-    for await (const record of iterateSessionCaptureRecordsFromSource(source)) {
+    for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) {
       if (record.kind === "segment-boundary") {
         // Imports start a fresh detector per segment while retaining the same
         // session. A boundary discards the previous detector's partial lap.
@@ -121,20 +120,56 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
   }
 
   await detector.flushIncompleteLap?.();
-
   const detectedLaps = capturingDb.laps;
+  if (existingLaps.length > 0 && detectedLaps.length === 0) {
+    throw new Error(`Session ${sessionId} replay detected no laps; preserving ${existingLaps.length} existing lap(s)`);
+  }
+  const detectedSession = capturingDb.sessions[0];
+  const identityChanged = Boolean(detectedSession &&
+    ((detectedSession.carId && detectedSession.carId !== session.carId) ||
+      (detectedSession.trackId && detectedSession.trackId !== session.trackId)));
+  const carId = detectedSession?.carId || session.carId;
+  const trackId = detectedSession?.trackId || session.trackId;
 
   let strategy: "in-place" | "replace";
   let lapsUpdated = 0;
 
-  const matched = new Set<number>();
+  const frameOrdinals = new Map<number, number>();
+  if (loaded?.kind === "packets") {
+    for (let index = 0; index < loaded.packets.length; index++) {
+      const offset = loaded.offsetEncoding === "packet-index"
+        ? index
+        : packetIndexToLegacyMotecOffset(gameId, index);
+      frameOrdinals.set(offset, index);
+    }
+  } else {
+    let frameIndex = 0;
+    for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) {
+      if (record.kind === "frame") frameOrdinals.set(record.offset, frameIndex++);
+    }
+  }
+  const frameInterval = (offset: number | null, count: number): [number, number] | null => {
+    if (offset == null || count <= 0) return null;
+    const start = frameOrdinals.get(offset);
+    return start == null ? null : [start, start + count];
+  };
+  const overlaps = (a: [number, number] | null, b: [number, number] | null) =>
+    a != null && b != null && a[0] < b[1] && b[0] < a[1];
+  const sharedFrames = (a: [number, number], b: [number, number]) =>
+    Math.min(a[1], b[1]) - Math.max(a[0], b[0]);
+
   const inPlaceMatches = detectedLaps.map((detected) => {
-    const existing = existingLaps.find((lap) => lap.lapNumber === detected.lapNumber && lap.rawByteOffset === detected.rawByteOffset && !matched.has(lap.id))
-      ?? existingLaps.find((lap) => lap.lapNumber === detected.lapNumber && !matched.has(lap.id));
-    if (existing) matched.add(existing.id);
-    return existing;
+    const detectedWindow = frameInterval(detected.rawByteOffset, detected.rawFrameCount);
+    if (!detectedWindow) return undefined;
+    const candidates = existingLaps
+      .map((lap) => ({ lap, window: frameInterval(lap.rawByteOffset, lap.rawFrameCount ?? 0) }))
+      .filter((candidate): candidate is { lap: typeof existingLaps[number]; window: [number, number] } =>
+        candidate.window != null && overlaps(detectedWindow, candidate.window))
+      .sort((a, b) => sharedFrames(detectedWindow, b.window) - sharedFrames(detectedWindow, a.window));
+    return candidates[0]?.lap;
   });
-  if (detectedLaps.length === existingLaps.length && inPlaceMatches.every(Boolean)) {
+  const uniqueInPlaceMatches = new Set(inPlaceMatches.filter(Boolean).map((lap) => lap!.id)).size === inPlaceMatches.length;
+  if (detectedLaps.length === existingLaps.length && uniqueInPlaceMatches && inPlaceMatches.every((lap, index) => lap?.lapNumber === detectedLaps[index]!.lapNumber) && !identityChanged && session.lapDetectorVersion !== null) {
     strategy = "in-place";
     for (let index = 0; index < detectedLaps.length; index++) {
       const detected = detectedLaps[index]!;
@@ -153,51 +188,38 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
       lapsUpdated++;
     }
   } else {
-    // Rebuild when count or lap numbers change. Offset matches preserve notes,
-    // tune links and favourites even when detector changes a lap's number.
     strategy = "replace";
     const available = [...existingLaps];
     const replacements = detectedLaps.map((detected) => {
-      const exact = detected.rawByteOffset == null ? -1
-        : available.findIndex((lap) => lap.rawByteOffset === detected.rawByteOffset);
-      const byNumber = exact >= 0 ? exact
-        : available.findIndex((lap) => lap.lapNumber === detected.lapNumber);
-      const preserved = byNumber >= 0 ? available.splice(byNumber, 1)[0] : undefined;
-      return { detected, preserved };
-    });
-    await deleteLapsForSession(sessionId);
-    for (const { detected, preserved } of replacements) {
-      const sectors = detected.sectors ? [...detected.sectors] : null;
-      await insertReprocessedLap(
-        sessionId,
-        detected.lapNumber,
-        detected.lapTime,
-        detected.isValid,
-        preserved?.isFavorite ?? false,
-        detected.rawByteOffset,
-        detected.rawFrameCount,
-        preserved?.tuneId ?? null,
-        preserved?.notes ?? null,
-        detected.invalidReason,
-        sectors,
+      const detectedWindow = frameInterval(detected.rawByteOffset, detected.rawFrameCount);
+      const candidates = detectedWindow == null ? [] : available
+        .map((lap) => ({ lap, window: frameInterval(lap.rawByteOffset, lap.rawFrameCount ?? 0) }))
+        .filter((candidate): candidate is { lap: typeof existingLaps[number]; window: [number, number] } =>
+          candidate.window != null && overlaps(detectedWindow, candidate.window))
+        .sort((a, b) => sharedFrames(detectedWindow, b.window) - sharedFrames(detectedWindow, a.window));
+      const preserved = candidates.length > 0
+        ? available.splice(available.findIndex((lap) => lap.id === candidates[0]!.lap.id), 1)[0]
+        : undefined;
+      return {
+        lapId: preserved?.id ?? null,
+        lapNumber: detected.lapNumber,
+        lapTime: detected.lapTime,
+        isValid: detected.isValid,
+        isFavorite: preserved?.isFavorite ?? false,
+        rawByteOffset: detected.rawByteOffset,
+        rawFrameCount: detected.rawFrameCount,
+        tuneId: preserved?.tuneId ?? null,
+        notes: preserved?.notes ?? null,
+        invalidReason: detected.invalidReason,
+        sectors: detected.sectors ? [...detected.sectors] : null,
         versionIdentity,
-      );
-      lapsUpdated++;
-    }
+      };
+    });
+    await replaceLapsForSession(sessionId, replacements, identityChanged ? { carId, trackId } : undefined);
+    lapsUpdated = detectedLaps.length;
   }
 
-  // Update session lap detector version
-  await updateSessionRawFile(
-    sessionId,
-    session.rawFile,
-    detector.detectorId,
-    versionIdentity,
-  );
+  await updateSessionRawFile(sessionId, session.rawFile, detector.detectorId, versionIdentity);
 
-  return {
-    sessionId,
-    lapsDetected: detectedLaps.length,
-    lapsUpdated,
-    strategy,
-  };
+  return { sessionId, lapsDetected: detectedLaps.length, lapsUpdated, strategy };
 }

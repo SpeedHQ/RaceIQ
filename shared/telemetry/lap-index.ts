@@ -8,11 +8,13 @@ import type { TelemetryPacket } from "./types";
 export type LapIndexPacket = Pick<
   TelemetryPacket,
   | "gameId"
+  | "acEvoIdentity"
+  | "carModelName"
   | "sessionUID"
   | "IsRaceOn"
   | "TimestampMS"
-  | "CarOrdinal"
-  | "TrackOrdinal"
+  | "carId"
+  | "trackId"
   | "CarPerformanceIndex"
   | "CarClass"
   | "LapNumber"

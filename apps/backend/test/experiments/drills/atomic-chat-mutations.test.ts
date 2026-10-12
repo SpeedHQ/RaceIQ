@@ -62,7 +62,7 @@ describe("atomic guarded Setup Engineer mutations", () => {
 
   test("guarded exclusion rejects stale head and null-head lap retagging without action rows", async () => {
     const sid = await ownedExperiment("atomic-exclusion");
-    const sessionId = await db.insert(sessions).values({ gameId: "acc", carOrdinal: 0, trackOrdinal: 0 }).returning({ id: sessions.id }).get();
+    const sessionId = await db.insert(sessions).values({ gameId: "acc", carId: "1", trackId: "2" }).returning({ id: sessions.id }).get();
     ownedRaceSessionIds.push(sessionId!.id);
     const lapId = await db.insert(laps).values({ sessionId: sessionId!.id, lapNumber: 1, lapTime: 90000,
       experimentId: sid, experimentVersionId: null, experimentExcluded: 1, experimentExcludedSource: "auto" })

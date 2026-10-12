@@ -40,8 +40,8 @@ export function buildChatSystemPrompt(
     lapNumber: number;
     lapTime: number;
     isValid: boolean;
-    carOrdinal?: number;
-    trackOrdinal?: number;
+    carId: string;
+    trackId: string;
     gameId?: GameId;
   },
   packets: TelemetryPacket[],
@@ -57,11 +57,11 @@ export function buildChatSystemPrompt(
 ): string {
   const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
   const serverAdapter = tryGetServerGame(gameId);
-  const carOrdinal = lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0;
-  const trackOrdinal = lap.trackOrdinal ?? packets[0]?.TrackOrdinal ?? 0;
+  const carIdentity = lap.carId;
+  const trackIdentity = lap.trackId;
   const gameName = serverAdapter?.displayName ?? gameId ?? "unknown game";
-  const carName = resolveCarName(carOrdinal, gameId);
-  const trackName = resolveTrackName(trackOrdinal, gameId);
+  const carName = resolveCarName(carIdentity, gameId);
+  const trackName = resolveTrackName(trackIdentity, gameId);
 
   const exportText = generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
@@ -127,9 +127,9 @@ ${gameSystemNote}
 Game: ${gameName}
 Game ID: ${gameId ?? "unknown"}
 Car: ${carName}
-Car ID: ${carOrdinal}
+Car ID: ${carIdentity}
 Track: ${trackName}
-Track ID: ${trackOrdinal}
+Track ID: ${trackIdentity}
 ${formatLapChatIdentity(lap)}
 --- LAP CONTEXT ---
 Car: ${carName}

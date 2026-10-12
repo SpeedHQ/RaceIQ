@@ -19,7 +19,7 @@ afterEach(async () => {
 
 test("explicit profile request restores missing and stale detector evidence without computing during background refresh", async () => {
   initServerGameAdapters();
-  const sessionId = await insertSession(1, 2, "fm-2023");
+  const sessionId = await insertSession("1", "2", "fm-2023");
   sessions.push(sessionId);
   const lapId = await insertLap(sessionId, 1, 90, true, null, 0);
   cacheSet(lapId, Array.from({ length: 60 }, (_, i) => ({
@@ -47,7 +47,7 @@ test("explicit profile request restores missing and stale detector evidence with
 
 test("concurrent metric reads and forced insight reruns leave current evidence persisted", async () => {
   initServerGameAdapters();
-  const sessionId = await insertSession(1, 2, "fm-2023");
+  const sessionId = await insertSession("1", "2", "fm-2023");
   sessions.push(sessionId);
   const lapId = await insertLap(sessionId, 1, 90, true, null, 0);
   cacheSet(lapId, Array.from({ length: 60 }, (_, i) => ({

@@ -10,19 +10,19 @@ import { normalizeAcEvoTuneSettings } from "@raceiq/shared/racing/setups/schema"
 export interface LinkedLapTuneSetup {
   id: number;
   gameId: string;
-  carOrdinal: number;
-  trackOrdinal: number | null;
+  carId: string;
+  trackId: string | null;
   settings: unknown;
 }
 
 export async function linkedTuneSetupForLap(
-  lap: { tuneId?: number | null; gameId?: string; carOrdinal?: number | null; trackOrdinal?: number | null },
+  lap: { tuneId?: number | null; gameId?: string; carId?: string | null; trackId?: string | null },
   readTune: typeof getTuneById = getTuneById,
 ): Promise<LinkedLapTuneSetup | undefined> {
-  if (lap.tuneId == null || lap.gameId !== "ac-evo" || lap.carOrdinal == null) return undefined;
+  if (lap.tuneId == null || lap.gameId !== "ac-evo" || lap.carId == null) return undefined;
   const tune = await readTune(lap.tuneId);
-  if (!tune || tune.gameId !== lap.gameId || tune.carOrdinal !== lap.carOrdinal ||
-    (tune.trackOrdinal != null && tune.trackOrdinal !== lap.trackOrdinal)) return undefined;
+  if (!tune || tune.gameId !== lap.gameId || tune.carId !== lap.carId ||
+    (tune.trackId != null && tune.trackId !== lap.trackId)) return undefined;
   let settings: unknown = tune.settings;
   if (typeof settings === "string") {
     try {
@@ -34,8 +34,8 @@ export async function linkedTuneSetupForLap(
   return {
     id: tune.id,
     gameId: tune.gameId,
-    carOrdinal: tune.carOrdinal,
-    trackOrdinal: tune.trackOrdinal,
+    carId: tune.carId,
+    trackId: tune.trackId,
     settings,
   };
 }
@@ -44,8 +44,8 @@ export function setupContextForLap(
   lap: {
     id: number;
     gameId?: GameId;
-    carOrdinal?: number;
-    trackOrdinal?: number | null;
+    carId?: string | null;
+    trackId?: string | null;
     carSetup?: string | null;
     telemetry: TelemetryPacket[];
   },
@@ -61,14 +61,14 @@ export function setupContextForLap(
     }
   }
   const gameId = lap.gameId;
-  const carModel = typeof game?.getCarName === "function" && lap.carOrdinal != null ? game.getCarName(lap.carOrdinal) : undefined;
-  const trackName = typeof game?.getTrackName === "function" && lap.trackOrdinal != null
-    ? game.getTrackName(lap.trackOrdinal)
+  const carModel = typeof game?.getCarName === "function" && lap.carId != null ? game.getCarName(lap.carId) : undefined;
+  const trackName = typeof game?.getTrackName === "function" && lap.trackId != null
+    ? game.getTrackName(lap.trackId)
     : undefined;
   const f1Setup = gameId === "f1-2025" ? resolveLapF1Setup(lap) : null;
-  const tuneMatchesLap = gameId === "ac-evo" && linkedTune != null && lap.carOrdinal != null &&
-    linkedTune.gameId === gameId && linkedTune.carOrdinal === lap.carOrdinal &&
-    (linkedTune.trackOrdinal == null || linkedTune.trackOrdinal === lap.trackOrdinal);
+  const tuneMatchesLap = gameId === "ac-evo" && linkedTune != null && lap.carId != null &&
+    linkedTune.gameId === gameId && linkedTune.carId === lap.carId &&
+    (linkedTune.trackId == null || linkedTune.trackId === lap.trackId);
   const tuneValues: Record<string, number> = {};
   if (linkedTune && tuneMatchesLap && linkedTune.settings && typeof linkedTune.settings === "object") {
     const normalized = normalizeAcEvoTuneSettings(linkedTune.settings as Record<string, unknown>);

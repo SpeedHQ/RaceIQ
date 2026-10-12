@@ -4,12 +4,10 @@ import { detectLapBoundary, detectLapReset, detectSessionBoundary } from "./boun
 export interface OrdinalSession {
   /** Monotonic processor-local key. Never a database identifier. */
   sessionKey: number;
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: string;
+  trackId: string;
   gameId: TelemetryPacket["gameId"];
   sessionUID?: string;
-  carId?: string;
-  trackId?: string;
 }
 export interface OrdinalFuelData { lap: number; fuelStart: number; fuelEnd: number; fuelUsed: number }
 export interface OrdinalTireWearData {

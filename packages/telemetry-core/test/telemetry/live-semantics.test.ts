@@ -57,7 +57,7 @@ describe("live telemetry semantics", () => {
       requested: liveSemanticIds("lmu").map((semanticId) => ({ semanticId })),
     });
     const frame = resolver.createFrameView(
-      packet("lmu", { CarOrdinal: -1, TrackOrdinal: -1, lmu: { carId: "Custom / Car", trackId: "spa_2023/spawec" } as never }),
+      packet("lmu", { carId: "Custom / Car", trackId: "spa_2023/spawec", lmu: { carId: "Custom / Car", trackId: "spa_2023/spawec" } as never }),
       { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1) },
     );
     expect(frame.resolveValue(resolver.slot("identity.car-id")).value).toBe("Custom / Car");

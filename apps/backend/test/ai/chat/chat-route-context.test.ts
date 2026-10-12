@@ -27,15 +27,15 @@ afterEach(async () => {
 
 async function makeLapFixture(lapNumber: number, label: string) {
   const session = await db.insert(sessions).values({
-    carOrdinal: 1, trackOrdinal: 19, gameId: "fm-2023", rawFile: null,
+    carId: "1", trackId: "19", gameId: "fm-2023", rawFile: null,
   }).returning({ id: sessions.id }).get();
   const tune = await db.insert(tunes).values({
     gameId: "fm-2023",
     name: `Test setup ${label}`,
     author: "route test",
-    carOrdinal: 1,
+    carId: "1",
     category: "race",
-    trackOrdinal: 19,
+    trackId: "19",
     settings: JSON.stringify({ setupLabel: label }),
   }).returning({ id: tunes.id }).get();
   const lapRow = await db.insert(laps).values({
@@ -45,12 +45,12 @@ async function makeLapFixture(lapNumber: number, label: string) {
   const setupContext = setupContextForLap({
     id: lapRow!.id,
     gameId: "fm-2023",
-    carOrdinal: 1,
-    trackOrdinal: 19,
+    carId: "1",
+    trackId: "19",
     carSetup: null,
     telemetry: [telemetry] as never,
   }, undefined, {
-    id: tune!.id, gameId: "fm-2023", carOrdinal: 1, trackOrdinal: 19, settings: { setupLabel: label },
+    id: tune!.id, gameId: "fm-2023", carId: "1", trackId: "19", settings: { setupLabel: label },
   });
   await saveAnalysis(lapRow!.id, JSON.stringify({
     verdict: `analysis-${label}`,
@@ -89,10 +89,8 @@ function makeMemory() {
     deleteThread: async (threadId: string) => { threads.delete(threadId); },
   };
 }
-
 const telemetry = {
-  gameId: "fm-2023", CarOrdinal: 1, CarClass: 0, CarPerformanceIndex: 0, DrivetrainType: 0,
-  VelocityX: 0, VelocityY: 0, VelocityZ: 0, CurrentEngineRpm: 0, Accel: 0, Brake: 0,
+  gameId: "fm-2023", carId: "1", trackId: "19", CarClass: 0, CarPerformanceIndex: 0, DrivetrainType: 0,
   TireTempFL: 32, TireTempFR: 32, TireTempRL: 32, TireTempRR: 32,
   TireWearFL: 0, TireWearFR: 0, TireWearRL: 0, TireWearRR: 0, Gear: 1,
   SuspensionTravelMFL: 0, SuspensionTravelMFR: 0, SuspensionTravelMRL: 0, SuspensionTravelMRR: 0,
@@ -101,7 +99,7 @@ const telemetry = {
 function lap(fixture: { id: number; lapNumber: number; tuneId: number }) {
   return {
     id: fixture.id, lapNumber: fixture.lapNumber, lapTime: 91.234, isValid: true,
-    telemetry: [telemetry], gameId: "fm-2023", trackOrdinal: 19, carOrdinal: 1,
+    telemetry: [telemetry], gameId: "fm-2023", trackId: "19", carId: "1",
     tuneId: fixture.tuneId,
   };
 }
@@ -174,14 +172,14 @@ describe("lap chat route context and targeted removal", () => {
     });
     for (const invalid of [
       { gameId: "ac-evo" },
-      { carOrdinal: 2 },
-      { trackOrdinal: 20 },
+      { carId: "2" },
+      { trackId: "20" },
       { settings: "{malformed" },
       { settings: "[]" },
       { settings: "null" },
     ]) {
       await db.update(tunes).set({
-        gameId: "fm-2023", carOrdinal: 1, trackOrdinal: 19,
+        gameId: "fm-2023", carId: "1", trackId: "19",
         settings: JSON.stringify({ setupLabel: "UNRELATED-SETUP" }),
         ...invalid,
       }).where(eq(tunes.id, fixture.tuneId)).run();

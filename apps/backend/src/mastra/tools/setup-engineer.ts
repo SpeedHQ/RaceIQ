@@ -910,7 +910,7 @@ export function buildSetupEngineerTools() {
         return { ok: false, error: "One or both laps have no telemetry data." };
       }
       const corners = detectCorners(lapA.telemetry);
-      const track = resolveTrack(lapA.gameId, lapA.trackOrdinal);
+      const track = resolveTrack(lapA.gameId, lapA.trackId);
       const result = compareLaps(lapA.telemetry, lapB.telemetry, corners, {
         lapAIsValid: lapA.isValid,
         lapBIsValid: lapB.isValid,

@@ -27,9 +27,9 @@ export async function seedIRacingSession(fixturePath: string): Promise<void> {
     if (!packet) continue;
     if (!identityRegistered && packet.iracing) {
       await registerImportedIRacingIdentity({
-        carId: packet.CarOrdinal,
+        carId: Number(packet.carId),
         carName: packet.iracing.carName,
-        trackId: packet.TrackOrdinal,
+        trackId: Number(packet.trackId),
         trackName: packet.iracing.trackName,
       });
       identityRegistered = true;

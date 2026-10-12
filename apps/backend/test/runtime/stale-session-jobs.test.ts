@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test, spyOn } from "bun:test";
 import { eq } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions, sessionResults } from "@raceiq/backend-core/db/schema";
-import { insertSession } from "@raceiq/backend-core/db/session-queries";
+import { insertSession, countStaleSessions } from "@raceiq/backend-core/db/session-queries";
 import { upsertSessionResult, type SessionResultInput } from "@raceiq/backend-core/db/session-result-queries";
 import { RACE_RESULT_PROCESSOR_ID } from "@raceiq/backend-core/race-results/reconcile";
 import { LAP_DETECTOR_ID } from "@raceiq/backend-core/lap-detection/detector";
@@ -54,7 +54,7 @@ async function waitForStartupChecks() {
 }
 
 async function insertDetectorSession(rawFile: string | null, version: string | null) {
-  return db.insert(sessions).values({ carOrdinal: 1, trackOrdinal: 1, gameId: "fm-2023", rawFile, lapDetectorVersion: version }).returning({ id: sessions.id }).get();
+  return db.insert(sessions).values({ carId: "1", trackId: "1", gameId: "fm-2023", rawFile, lapDetectorVersion: version }).returning({ id: sessions.id }).get();
 }
 
 async function insertResult(sessionId: number, processorVersion: string) {
@@ -86,9 +86,9 @@ describe("startup stale-session notifications", () => {
     const nullRaw = await insertDetectorSession("null.bin", null);
     const currentDetector = await insertDetectorSession("current.bin", LAP_DETECTOR_ID);
     const noRaw = await insertDetectorSession(null, null);
-    const oldResult = await insertSession(2, 3, "f1-2025", "race");
-    const resultless = await insertSession(2, 4, "f1-2025", "race");
-    const currentResult = await insertSession(2, 5, "f1-2025", "race");
+    const oldResult = await insertSession("2", "3", "f1-2025", "race");
+    const resultless = await insertSession("2", "4", "f1-2025", "race");
+    const currentResult = await insertSession("2", "5", "f1-2025", "race");
     sessionIds.push(oldRaw.id, nullRaw.id, currentDetector.id, noRaw.id, oldResult, resultless, currentResult);
     await insertResult(oldRaw.id, RACE_RESULT_PROCESSOR_ID);
     await insertResult(nullRaw.id, RACE_RESULT_PROCESSOR_ID);
@@ -115,7 +115,7 @@ describe("startup stale-session notifications", () => {
       currentDetectorSessions.push(await insertDetectorSession(`${detectorVersion}.bin`, detectorVersion));
     }
     const noRaw = await insertDetectorSession(null, null);
-    const currentResult = await insertSession(2, 6, "f1-2025", "race");
+    const currentResult = await insertSession("2", "6", "f1-2025", "race");
     sessionIds.push(...currentDetectorSessions.map(({ id }) => id), noRaw.id, currentResult);
     for (const { id } of currentDetectorSessions) await insertResult(id, RACE_RESULT_PROCESSOR_ID);
     await insertResult(noRaw.id, RACE_RESULT_PROCESSOR_ID);
@@ -132,6 +132,14 @@ describe("startup stale-session notifications", () => {
 
     expect(staleSessionsSpy).not.toHaveBeenCalled();
     expect(staleResultsSpy).not.toHaveBeenCalled();
+  });
+  test("counts sessions with non-null outdated detector versions as remaining stale", async () => {
+    const old = await insertDetectorSession("test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz", "obsolete-detector");
+    sessionIds.push(old.id);
+    expect(await countStaleSessions(
+      [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID],
+      ["fm-2023"],
+    )).toBeGreaterThan(0);
   });
 
 });

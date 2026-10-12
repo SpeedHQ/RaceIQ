@@ -1812,6 +1812,7 @@
   "ai_chat_open_fullscreen": "全画面チャットを開く",
   "ai_chat_actions": "チャットの操作",
   "ai_chat_copy_json": "チャット JSON をコピー",
+  "ai_chat_export_json": "チャット全体を JSON でエクスポート",
   "ai_chat_clear": "チャットを消去",
   "ai_chat_read_only_notice": "過去のチャットを表示中（読み取り専用）です。続けるには最新のチャットに切り替えてください。",
   "ai_chat_compact_failed": "要約に失敗しました",

@@ -19,12 +19,12 @@ const full = (setup: unknown) => ({ verdict: "fixture", pace: [], handling: [], 
 describe("AC EVO setup recommendation validation", () => {
   test("generated Ferrari F2004 context validates supported Front Wing recommendation", () => {
     const context = setupContextForLap({
-      id: 1, gameId, carOrdinal: 88, telemetry: [],
+      id: 1, gameId, carId: "88", telemetry: [],
     }, (() => ({
       getCarName: () => "ferrari_f2004",
       getTrackName: () => "",
     }) as unknown as GameAdapter), {
-      id: 1, gameId, carOrdinal: 88, trackOrdinal: null,
+      id: 1, gameId, carId: "88", trackId: null,
       settings: { frontWing: 10, rearWing: 10 },
     });
     expect(context.setupSnapshot).toMatchObject({ frontWing: 10, rearWing: 10 });

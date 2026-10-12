@@ -21,10 +21,8 @@ interface SessionRow {
   gameId: string;
   ownership: string;
   source: string | null;
-  carOrdinal: number;
-  trackOrdinal: number;
-  carId: string | null;
-  trackId: string | null;
+  carId: string;
+  trackId: string;
   sessionType: string | null;
   rawFile: string | null;
 }
@@ -53,8 +51,8 @@ export interface FileImportLapOutcome {
     gameId: string;
     ownership: string;
     source: string | null;
-    carId: string | number;
-    trackId: string | number;
+    carId: string;
+    trackId: string;
     sessionType: string | null;
   };
   lapNumber: number;
@@ -130,8 +128,7 @@ export async function validateFileImport(dataDir: string, gameId: string, respon
   const root = await realpath(dataDir);
   using db = new Database(join(root, "app.db"), { readonly: true });
   const sessions = db.query<SessionRow, []>(`
-    SELECT id, game_id AS gameId, ownership, source, car_ordinal AS carOrdinal,
-      track_ordinal AS trackOrdinal, car_id AS carId, track_id AS trackId,
+    SELECT id, game_id AS gameId, ownership, source, car_id AS carId, track_id AS trackId,
       session_type AS sessionType, raw_file AS rawFile FROM sessions
   `).all();
   if (sessions.length === 0) throw Error("Import persisted no sessions");
@@ -159,8 +156,8 @@ export async function validateFileImport(dataDir: string, gameId: string, respon
     if (!lap || !session || returnedIds.has(lapId)) throw Error(`Returned lap ${lapId} is missing, orphaned or duplicated`);
     returnedIds.add(lapId);
     if (result.sessionId !== lap.sessionId || result.lapNumber !== lap.lapNumber || result.lapTime !== lap.lapTime || result.isValid !== Boolean(lap.isValid) ||
-      (result.carId !== session.carId && result.carId !== session.carOrdinal) || (result.trackId !== session.trackId && result.trackId !== session.trackOrdinal)) {
-      validationIssues.push(`Lap ${lapId}: response fields ${JSON.stringify({ sessionId: result.sessionId, lapNumber: result.lapNumber, lapTime: result.lapTime, isValid: result.isValid, carId: result.carId, trackId: result.trackId })} differ from durable fields ${JSON.stringify({ sessionId: lap.sessionId, lapNumber: lap.lapNumber, lapTime: lap.lapTime, isValid: Boolean(lap.isValid), carId: session.carId, carOrdinal: session.carOrdinal, trackId: session.trackId, trackOrdinal: session.trackOrdinal })}`);
+      result.carId !== session.carId || result.trackId !== session.trackId) {
+      validationIssues.push(`Lap ${lapId}: response fields ${JSON.stringify({ sessionId: result.sessionId, lapNumber: result.lapNumber, lapTime: result.lapTime, isValid: result.isValid, carId: result.carId, trackId: result.trackId })} differ from durable fields ${JSON.stringify({ sessionId: lap.sessionId, lapNumber: lap.lapNumber, lapTime: lap.lapTime, isValid: Boolean(lap.isValid), carId: session.carId, trackId: session.trackId })}`);
     }
   }
 
@@ -173,7 +170,7 @@ export async function validateFileImport(dataDir: string, gameId: string, respon
     const rawFile = await realpath(session.rawFile);
     const localPath = relative(root, rawFile);
     if (localPath === ".." || localPath.startsWith("../") || isAbsolute(localPath)) throw Error(`Session ${session.id} capture escapes isolated data directory`);
-    const source: SessionCaptureSource = { rawFile, gameId: gameId as GameId, source: session.source, carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal };
+    const source: SessionCaptureSource = { rawFile, gameId: gameId as GameId, source: session.source, carId: session.carId, trackId: session.trackId };
     const sessionLaps = laps.filter((lap) => lap.sessionId === session.id);
     let capture = captureStats.get(rawFile);
     if (!capture) {
@@ -193,7 +190,7 @@ export async function validateFileImport(dataDir: string, gameId: string, respon
     }
     const identity: FileImportLapOutcome["session"] = {
       gameId: session.gameId, ownership: session.ownership, source: session.source,
-      carId: session.carId ?? session.carOrdinal, trackId: session.trackId ?? session.trackOrdinal,
+      carId: session.carId, trackId: session.trackId,
       sessionType: session.sessionType,
     };
     const outcomes: FileImportLapOutcome[] = [];

@@ -159,7 +159,7 @@ test("Analyse racing-line overlay follows seeded track availability", async ({ p
   });
 
   const accTarget = await getSeededLapTarget(request, "acc");
-  const accBoundariesResponse = await request.get(`/api/track-boundaries/${accTarget.trackOrdinal}?gameId=acc`);
+  const accBoundariesResponse = await request.get(`/api/track-boundaries/${encodeURIComponent(accTarget.trackId)}?gameId=acc`);
   expect(accBoundariesResponse.ok(), "ACC track boundaries response").toBe(true);
   const accBoundaries = (await accBoundariesResponse.json()) as { raceLine?: Array<{ x: number; z: number }> } | null;
   expect(accBoundaries, "ACC bundled track boundaries").not.toBeNull();
@@ -182,7 +182,7 @@ test("Analyse racing-line overlay follows seeded track availability", async ({ p
   await expectVisible3dRacingLine(page);
 
   const acEvoTarget = await getSeededLapTarget(request, "ac-evo");
-  const acEvoBoundariesResponse = await request.get(`/api/track-boundaries/${acEvoTarget.trackOrdinal}?gameId=ac-evo`);
+  const acEvoBoundariesResponse = await request.get(`/api/track-boundaries/${encodeURIComponent(acEvoTarget.trackId)}?gameId=ac-evo`);
   expect(acEvoBoundariesResponse.ok(), "AC Evo track boundaries response").toBe(true);
   const acEvoBoundaries = (await acEvoBoundariesResponse.json()) as { raceLine?: unknown };
   expect(Array.isArray(acEvoBoundaries.raceLine), "AC Evo racing-line payload").toBe(true);

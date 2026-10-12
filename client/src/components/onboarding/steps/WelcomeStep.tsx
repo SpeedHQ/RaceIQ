@@ -47,7 +47,7 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
     return generation;
   }, []);
   telemetryLengthRef.current = telemetry.length;
-  const trackOrdinal = telemetry[0]?.values["identity.track-ordinal"];
+  const trackId = typeof telemetry[0]?.values["identity.track-id"] === "string" ? telemetry[0].values["identity.track-id"] : undefined;
   const pauseAnimation = useCallback(() => {
     if (!isRunningRef.current) return;
     setPlaying(false);
@@ -77,26 +77,28 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
   }, [seek]);
 
   useQuery({
-    queryKey: ["track-outline", trackOrdinal],
+    queryKey: ["track-outline", trackId],
     queryFn: async () => {
-      const res = await client.api["track-outline"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(trackOrdinal)) }, query: { gameId: "fm-2023" } });
+      if (!trackId) return null;
+      const res = await client.api["track-outline"][":trackId"].$get({ param: { trackId: encodeURIComponent(trackId) }, query: { gameId: "fm-2023" } });
       if (!res.ok) return null;
       const d = (await res.json()) as Record<string, unknown>;
       if (d?.points && Array.isArray(d.points)) return d.points as { x: number; z: number }[];
       if (Array.isArray(d)) return d as { x: number; z: number }[];
       return null;
     },
-    enabled: !!trackOrdinal,
+    enabled: !!trackId,
     staleTime: Number.POSITIVE_INFINITY,
   });
   const { data: boundaries } = useQuery({
-    queryKey: ["track-boundaries", trackOrdinal],
+    queryKey: ["track-boundaries", trackId],
     queryFn: async () => {
-      const res = await client.api["track-boundaries"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(trackOrdinal)) }, query: { gameId: "fm-2023" } });
+      if (!trackId) return null;
+      const res = await client.api["track-boundaries"][":trackId"].$get({ param: { trackId: encodeURIComponent(trackId) }, query: { gameId: "fm-2023" } });
       if (!res.ok) return null;
       return res.json();
     },
-    enabled: !!trackOrdinal,
+    enabled: !!trackId,
     staleTime: Number.POSITIVE_INFINITY,
   });
 
@@ -147,7 +149,6 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
   }, [telemetry]);
   const packet = telemetry[cursorIdx] ?? telemetry[0];
   if (!packet) return null;
-  const carOrdinal = packet.values["identity.car-ordinal"];
   return (
     <div className="w-full h-48 rounded-lg overflow-hidden border border-app-border bg-app-bg">
       <CarWireframe
@@ -159,7 +160,6 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
         onRuntime={handleRuntime}
         outline={lapLine}
         boundaries={boundaries ?? undefined}
-        carOrdinal={typeof carOrdinal === "number" ? carOrdinal : undefined}
         carModel={DEMO_CAR}
         minimal
         hideControls

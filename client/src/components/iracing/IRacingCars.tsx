@@ -8,7 +8,7 @@ import { errorFromResponse } from "../../lib/rpc-error";
 import { AppInput } from "../ui/AppInput";
 import { Button } from "../ui/button";
 interface IRacingCatalogCar {
-  ordinal: number;
+  id: string;
   name: string;
   shortName: string;
   path: string;
@@ -124,7 +124,7 @@ export function IRacingCars() {
         <div className="grid grid-cols-1 gap-3 @3xl/workspace:grid-cols-2 @5xl/workspace:grid-cols-3 @7xl/workspace:grid-cols-4">
           {filtered.map((car) => {
             return (
-              <article key={car.ordinal} className="group overflow-hidden rounded-lg border border-app-border/10 bg-app-surface-alt/20 transition-colors hover:border-app-border-hover/30">
+              <article key={car.id} className="group overflow-hidden rounded-lg border border-app-border/10 bg-app-surface-alt/20 transition-colors hover:border-app-border-hover/30">
                 <div className="relative h-40 overflow-hidden bg-gradient-to-br from-app-text/10 via-app-surface-alt/20 to-app-bg/20">
                   <div className="absolute inset-0 flex items-center justify-center text-3xl font-black italic text-app-text/10">iR</div>
                   {car.imageUrl && (

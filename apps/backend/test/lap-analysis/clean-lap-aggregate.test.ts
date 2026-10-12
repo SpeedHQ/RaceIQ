@@ -10,6 +10,8 @@ import type { TuneSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
 
 function lap(overrides: Partial<LapMeta> & { id: number }): LapMeta {
   return {
+    carId: "",
+    trackId: "",
     sessionId: 1,
     lapNumber: overrides.id,
     lapTime: 90,

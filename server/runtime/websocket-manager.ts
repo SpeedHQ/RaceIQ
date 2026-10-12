@@ -246,10 +246,8 @@ export class WebSocketManager {
     detectedGame: { id: string; name: string } | null;
     currentSession: {
       id: number;
-      carOrdinal: number;
-      trackOrdinal: number;
-      carId: number | string;
-      trackId: number | string;
+      carId: string;
+      trackId: string;
     } | null;
   }): void {
     if (this.clients.size === 0) return;

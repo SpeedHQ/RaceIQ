@@ -32,14 +32,14 @@ interface Props {
   sessionFocused?: boolean;
   onAnalyseSession?: () => void;
   // Selection state
-  selectedTrack: number | string | null;
-  selectedCar: number | string | null;
+  selectedTrack: string | null;
+  selectedCar: string | null;
   selectedLapId: number | null;
   selectedLap: LapMeta | undefined;
   trackNames: Record<string, string>;
   carNames: Record<string, string>;
-  tracks: [number | string, number][];
-  carsForTrack: [number | string, number][];
+  tracks: [string, number][];
+  carsForTrack: [string, number][];
   filteredLaps: LapMeta[];
   // Tune state
   hasTelemetry: boolean;
@@ -50,8 +50,8 @@ interface Props {
   loading: boolean;
   aiPanelOpen: boolean;
   // Callbacks
-  onTrackChange: (v: number | string | null) => void;
-  onCarChange: (v: number | string | null) => void;
+  onTrackChange: (v: string | null) => void;
+  onCarChange: (v: string | null) => void;
   onLapChange: (v: number | null) => void;
   onTuneChange: (tuneId: number | null) => void;
   onViewTune: (tuneId: number) => void;
@@ -112,8 +112,8 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   const queryClient = useQueryClient();
   const [noteOpen, setNoteOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
-  const trackOptions = useMemo(() => tracks.map(([ordinal, count]) => ({ value: String(ordinal), label: `${trackNames[ordinal] || `Track ${ordinal}`} (${count})` })), [trackNames, tracks]);
-  const carOptions = useMemo(() => carsForTrack.map(([ordinal, count]) => ({ value: String(ordinal), label: `${carNames[ordinal] || `Car ${ordinal}`} (${count})` })), [carNames, carsForTrack]);
+  const trackOptions = useMemo(() => tracks.map(([trackId, count]) => ({ value: trackId, label: `${trackNames[trackId] || `Track ${trackId}`} (${count})` })), [trackNames, tracks]);
+  const carOptions = useMemo(() => carsForTrack.map(([carId, count]) => ({ value: carId, label: `${carNames[carId] || `Car ${carId}`} (${count})` })), [carNames, carsForTrack]);
   const lapOptions = useMemo(() => {
     const sessions = new Map<number, LapMeta[]>();
     for (const lap of filteredLaps) {
@@ -210,8 +210,8 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
         )}
         {sessionFocused && (
           <div className="order-2 flex min-w-0 basis-full flex-wrap items-center gap-x-3 text-sm text-app-text-muted">
-            <span className="truncate">Track: {trackNames[selectedTrack ?? ""] ?? selectedLap?.trackId ?? (selectedLap?.trackOrdinal != null ? `Track ${selectedLap.trackOrdinal}` : "")}</span>
-            <span className="truncate">Car: {carNames[selectedCar ?? ""] ?? selectedLap?.carId ?? (selectedLap?.carOrdinal != null ? `Car ${selectedLap.carOrdinal}` : "")}</span>
+            <span className="truncate">Track: {trackNames[selectedTrack ?? ""] ?? selectedLap?.trackId ?? ""}</span>
+            <span className="truncate">Car: {carNames[selectedCar ?? ""] ?? selectedLap?.carId ?? ""}</span>
           </div>
         )}
 

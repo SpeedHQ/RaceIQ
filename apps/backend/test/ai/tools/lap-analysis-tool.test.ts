@@ -85,7 +85,7 @@ describe("lap analysis retrieval contract", () => {
           durationMs: 1,
           model: "test-model",
         }),
-        async () => ({ ...lap, carOrdinal: 0, trackOrdinal: null, tuneId: null, telemetry: [] }) as never,
+        async () => ({ ...lap, carId: "0", trackId: null, tuneId: null, telemetry: [] }) as never,
         async () => null,
         (() => ({})) as never,
       );
@@ -103,16 +103,16 @@ describe("lap analysis retrieval contract", () => {
     const toolLap = {
       id: 4,
       gameId: "ac-evo" as const,
-      carOrdinal: 1,
-      trackOrdinal: 2,
+      carId: "1",
+      trackId: "2",
       tuneId: 5,
       telemetry: [],
     };
     const tune = {
       id: 5,
       gameId: "ac-evo",
-      carOrdinal: 1,
-      trackOrdinal: 2,
+      carId: "1",
+      trackId: "2",
       settings: { frontRideHeight: 56 },
     };
     const resolveGame = (() => ({
@@ -189,8 +189,8 @@ describe("lap analysis retrieval contract", () => {
   });
   test("does not embed cached analysis in compare prompts", () => {
     const comparePrompt = buildCompareChatSystemPrompt(
-      lap,
-      { ...lap, lapNumber: 5 },
+      { ...lap, carId: "", trackId: "" },
+      { ...lap, lapNumber: 5, carId: "", trackId: "" },
       comparison,
       "metric",
       "C",

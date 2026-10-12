@@ -21,7 +21,7 @@ const lap = {
   id: 7,
   lapTime: 91.2,
   gameId: "fm-2023" as const,
-  trackOrdinal: 1,
+  trackId: "1",
   telemetry: [{ DistanceTraveled: 0 }, { DistanceTraveled: 100 }],
 };
 
@@ -154,10 +154,10 @@ describe("generateLapAnalysis", () => {
       }),
     });
     deps.getLapById = async () => ({
-      ...lap, gameId: "ac-evo", carOrdinal: 42, trackOrdinal: 7, tuneId: 9,
+      ...lap, gameId: "ac-evo", carId: "42", trackId: "7", tuneId: 9,
     } as never);
     deps.getDbTune = async () => ({
-      id: 9, gameId: "ac-evo", carOrdinal: 42, trackOrdinal: 7, settings: JSON.stringify({ frontARB: 2 }),
+      id: 9, gameId: "ac-evo", carId: "42", trackId: "7", settings: JSON.stringify({ frontARB: 2 }),
       strengths: null, weaknesses: null, bestTracks: null, strategies: null,
     }) as never;
     deps.getGame = (() => ({

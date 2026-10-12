@@ -28,7 +28,7 @@ type ImportResult = {
   packetCount: number;
   importedLapCount: number;
   outcomeSha256: string;
-  outcome: { packetCount: number; identity: unknown; laps: Record<string, unknown>[] };
+  outcome: { packetCount: number; session: MemoryImportResult["session"]; laps: Record<string, unknown>[] };
   outputStorage: "memory";
   resourceMethod: string;
 };
@@ -49,9 +49,9 @@ function outcomeSignature(result: MemoryImportResult): {
   packetCount: number;
   importedLapCount: number;
   outcomeSha256: string;
-  outcome: { packetCount: number; identity: unknown; laps: Record<string, unknown>[] };
+  outcome: { packetCount: number; session: MemoryImportResult["session"]; laps: Record<string, unknown>[] };
 } {
-  const { packetCount, identity, laps } = result;
+  const { packetCount, session, laps } = result;
   const normalizedLaps = laps.map((lap) => ({
     lapNumber: lap.lapNumber,
     lapTime: lap.lapTime,
@@ -59,7 +59,7 @@ function outcomeSignature(result: MemoryImportResult): {
     car: lap.carId,
     track: lap.trackId,
   }));
-  const outcome = { packetCount, identity, laps: normalizedLaps };
+  const outcome = { packetCount, session, laps: normalizedLaps };
   return {
     packetCount,
     importedLapCount: laps.length,
@@ -88,7 +88,6 @@ async function runMemoryImport(testCase: typeof GAMES[number]): Promise<ImportRe
   const cpu = process.cpuUsage(cpuBefore);
   const processCpuSeconds = (cpu.user + cpu.system) / 1e6;
   const peakRssBytes = Math.max(rssBefore, process.memoryUsage().rss);
-  const result = { packetCount: imported.packetCount, laps: imported.laps, identity: imported.identity };
   const resourceMethod = "Bun process CPU delta; RSS sampled before/after each trial";
   return {
     fixture,
@@ -98,7 +97,7 @@ async function runMemoryImport(testCase: typeof GAMES[number]): Promise<ImportRe
     elapsedSeconds,
     processCpuSeconds,
     peakRssBytes,
-    ...outcomeSignature(result),
+    ...outcomeSignature(imported),
     outputStorage: "memory",
     resourceMethod,
   };

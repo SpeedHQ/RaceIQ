@@ -113,18 +113,18 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
     if (lap.telemetry.length === 0) return c.json({ error: "No telemetry data" }, 400);
 
     const settings = settingsLoader();
-    const trackOrdinal = lap.trackOrdinal ?? 0;
+    const trackIdentity = lap.trackId;
     // Official track segments first, then stored corners and telemetry detection,
     // so AI card jumps use the same turn labels as Analyse.
-    const corners = await resolveCorners(trackOrdinal, lap.gameId, lap.telemetry);
+    const corners = await resolveCorners(trackIdentity, lap.gameId, lap.telemetry);
 
     // Load tune if linked
     let parsedTune: Tune | undefined;
-    let linkedTune: { id: number; gameId: string; carOrdinal: number; trackOrdinal: number | null; settings: unknown } | undefined;
+    let linkedTune: { id: number; gameId: string; carId: string; trackId: string | null; settings: unknown } | undefined;
     if (lap.tuneId) {
       const dbTune = await getDbTune(lap.tuneId);
-      if (dbTune && dbTune.gameId === lap.gameId && dbTune.carOrdinal === lap.carOrdinal &&
-        (dbTune.trackOrdinal == null || dbTune.trackOrdinal === lap.trackOrdinal)) {
+      if (dbTune && dbTune.gameId === lap.gameId && dbTune.carId === lap.carId &&
+        (dbTune.trackId == null || dbTune.trackId === lap.trackId)) {
         try {
           const candidate = parseTuneRow(dbTune);
           if (candidate.settings && typeof candidate.settings === "object" && !Array.isArray(candidate.settings)) {
@@ -132,8 +132,8 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
             linkedTune = {
               id: dbTune.id,
               gameId: dbTune.gameId,
-              carOrdinal: dbTune.carOrdinal,
-              trackOrdinal: dbTune.trackOrdinal,
+              carId: dbTune.carId,
+              trackId: dbTune.trackId,
               settings: candidate.settings,
             };
           }
@@ -147,8 +147,8 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
     const setupContext = setupContextForLap({
       id: Number(id),
       gameId: lap.gameId,
-      carOrdinal: lap.carOrdinal,
-      trackOrdinal: lap.trackOrdinal,
+      carId: lap.carId,
+      trackId: lap.trackId,
       carSetup: lap.carSetup,
       telemetry: lap.telemetry,
     }, undefined, linkedTune);

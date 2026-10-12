@@ -29,7 +29,6 @@ import {
   type OrdinalEngineState,
 } from "@raceiq/telemetry-core/processor/ordinal-engine";
 import { logger } from "../runtime/logger";
-import type { SessionIdentity } from "../telemetry/pipeline-ports";
 
 function traceCapture(game: string, event: string, fields: Record<string, unknown>): void {
   logger.trace({ component: "capture", event, game, ...fields }, "Lap capture trace");
@@ -38,13 +37,11 @@ function traceCapture(game: string, event: string, fields: Record<string, unknow
 
 export interface SessionState {
   sessionId: number;
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: string;
+  trackId: string;
   carPI: number;
   gameId: GameId;
   sessionUID?: string; // F1 session UID for reliable session boundary detection
-  carId?: string;
-  trackId?: string;
   bestLapTime: number; // best valid lap time in current session (0 = none yet)
 }
 
@@ -155,9 +152,10 @@ export class LapDetector implements ILapDetector {
         const created = await this.startNewSession(packet);
         if (!created) return null;
         return {
-          carOrdinal: created.carOrdinal, trackOrdinal: created.trackOrdinal,
-          gameId: created.gameId, sessionUID: created.sessionUID,
-          carId: created.carId, trackId: created.trackId,
+          carId: created.carId,
+          trackId: created.trackId,
+          gameId: created.gameId,
+          sessionUID: created.sessionUID,
         };
       },
       onSessionStarted: async () => { if (this.currentSession) await this.onSessionStart?.(this.currentSession); },
@@ -187,7 +185,7 @@ export class LapDetector implements ILapDetector {
       finalizeStaleLap: async (lapTime, isComplete, silenceMs, state) => {
         const session = this.currentSession;
         if (!session) return;
-        const tuneAssignment = await this.db.getTuneAssignment(session.gameId, session.carOrdinal, session.trackOrdinal);
+        const tuneAssignment = await this.db.getTuneAssignment(session.gameId, session.carId, session.trackId);
         const lapNum = state.lapNumber;
         const packetCount = state.lapBuffer.length;
         const lapPackets = state.lapBuffer;
@@ -228,7 +226,7 @@ export class LapDetector implements ILapDetector {
     const lapTime = this.lapBuffer.at(-1)!.CurrentLap;
     if (lapTime < 10) return;
     this.pendingIncompleteLapWrite = (async () => {
-      const tune = await this.db.getTuneAssignment(session.gameId, session.carOrdinal, session.trackOrdinal);
+      const tune = await this.db.getTuneAssignment(session.gameId, session.carId, session.trackId);
       this.pendingIncompleteLapId = await this.db.insertLap(session.sessionId, lapNumber, lapTime, false, this._lapByteOffset, this._lapFrameCount, null, tune?.tuneId ?? null, this.currentPitCycleReason ?? "incomplete", null);
       console.log(`[Lap] Saved provisional incomplete lap ${lapNumber}`);
     })();
@@ -259,42 +257,28 @@ export class LapDetector implements ILapDetector {
 
 
   private async startNewSession(packet: TelemetryPacket): Promise<SessionState | null> {
-    const trackOrd = packet.TrackOrdinal ?? 0;
     const gameId = packet.gameId;
     const sessionType = packet.f1?.sessionType ?? packet.lmu?.sessionType;
-    const identity: SessionIdentity | undefined = packet.lmu
-      ? {
-          carId: packet.lmu.carId,
-          trackId: packet.lmu.trackId,
-        }
-      : undefined;
+    const carId = packet.carId;
+    const trackId = packet.trackId;
     let sessionId: number;
     try {
-      sessionId = await this.db.insertSession(
-        packet.CarOrdinal,
-        trackOrd,
-        gameId,
-        sessionType,
-        undefined,
-        undefined,
-        identity,
-      );
+      sessionId = await this.db.insertSession(carId, trackId, gameId, sessionType);
     } catch (err) {
       console.error(`[LapDetector] Failed to insert session:`, (err as Error).message);
       return null;
     }
     this.currentSession = {
       sessionId,
-      carOrdinal: packet.CarOrdinal,
-      trackOrdinal: trackOrd,
+      carId,
+      trackId,
       carPI: packet.CarPerformanceIndex,
       gameId,
       sessionUID: packet.sessionUID,
-      ...identity,
       bestLapTime: 0,
     };
     console.log(
-      `[Session] New session #${sessionId} | Car: ${packet.CarOrdinal} | Class: ${packet.CarClass} | PI: ${packet.CarPerformanceIndex}${sessionType ? ` | Type: ${sessionType}` : ""}`
+      `[Session] New session #${sessionId} | Car: ${carId} | Class: ${packet.CarClass} | PI: ${packet.CarPerformanceIndex}${sessionType ? ` | Type: ${sessionType}` : ""}`
     );
     return this.currentSession;
   }
@@ -341,8 +325,8 @@ export class LapDetector implements ILapDetector {
     {
       const tuneAssignment = await this.db.getTuneAssignment(
         this.currentSession.gameId,
-        this.currentSession.carOrdinal,
-        this.currentSession.trackOrdinal
+        this.currentSession.carId,
+        this.currentSession.trackId
       );
       const tuneId = tuneAssignment?.tuneId ?? null;
       traceCapture(this.currentSession.gameId, "lap-boundary-stage", {
@@ -400,8 +384,8 @@ export class LapDetector implements ILapDetector {
       if (
         valid &&
         this.currentSession.gameId === "iracing" &&
-        this.currentSession.trackOrdinal > 0 &&
-        !getIRacingSharedTrackName(this.currentSession.trackOrdinal)
+        Number(this.currentSession.trackId) > 0 &&
+        !getIRacingSharedTrackName(Number(this.currentSession.trackId))
       ) {
         const path = lapPath(this.lapBuffer);
         const trace = path.x.map((x, index) => ({
@@ -409,7 +393,7 @@ export class LapDetector implements ILapDetector {
           z: path.z[index],
         }));
         recordLapTrace(
-          this.currentSession.trackOrdinal,
+          Number(this.currentSession.trackId),
           trace,
           trace[0] ?? null,
           this.lapBuffer[0]?.Yaw ?? null,
@@ -484,10 +468,10 @@ export class LapDetector implements ILapDetector {
 
 
     // Extract and record curb data from any valid lap
-    if (this.lapIsValid && this.currentSession.trackOrdinal > 0 && this.lapBuffer.length > 50) {
+    if (this.lapIsValid && this.currentSession.trackId && this.lapBuffer.length > 50) {
       const curbSegments = extractCurbSegments(this.lapBuffer);
       if (curbSegments.length > 0) {
-        recordCurbData(this.currentSession.trackOrdinal, curbSegments, this.currentSession.gameId);
+        recordCurbData(this.currentSession.trackId, curbSegments, this.currentSession.gameId);
       }
     }
     traceCapture(this.currentSession.gameId, "lap-boundary-stage", {
@@ -511,8 +495,8 @@ export class LapDetector implements ILapDetector {
     if (!this.currentSession || !this.lapBuffer.length || this.currentLapNumber < 0) return;
     const tuneAssignment = await this.db.getTuneAssignment(
       this.currentSession.gameId,
-      this.currentSession.carOrdinal,
-      this.currentSession.trackOrdinal
+      this.currentSession.carId,
+      this.currentSession.trackId
     );
     const lapPackets = this.lapBuffer;
     this.db.insertLap(
@@ -550,8 +534,8 @@ export class LapDetector implements ILapDetector {
     lapTime: number
   ): Promise<number[] | null> {
     if (!this.currentSession) return null;
-    const { trackOrdinal, gameId } = this.currentSession;
-    return computeLapSectorsHelper(trackOrdinal, gameId, packets, lapTime, { sectors: resolveTrack(gameId, trackOrdinal).sectors });
+    const { trackId, gameId } = this.currentSession;
+    return computeLapSectorsHelper(trackId, gameId, packets, lapTime, { sectors: resolveTrack(gameId, trackId).sectors });
   }
 
   private async persistLapFollowups(

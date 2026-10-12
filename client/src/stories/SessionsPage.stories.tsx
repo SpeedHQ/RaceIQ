@@ -20,8 +20,8 @@ function makeLaps(sessionId: number, count: number, base: number): LapMeta[] {
     lapTime: +(base + Math.sin(i) * 0.4).toFixed(3),
     isValid: i !== 0,
     invalidReason: i === 0 ? "outlap" : undefined,
-    carOrdinal: 42,
-    trackOrdinal: 7,
+    carId: "42",
+    trackId: "7",
     sectorTimes: sessionId === 2 ? undefined : [30.1, 33.5, 30.6],
     createdAt: new Date(Date.now() - (count - i) * 95_000).toISOString(),
   })) as unknown as LapMeta[];
@@ -35,8 +35,8 @@ const sessions = [
   {
     id: 1,
     gameId,
-    trackOrdinal: 7,
-    carOrdinal: 42,
+    trackId: "7",
+    carId: "42",
     lapCount: 6,
     bestLapTime: 94.201,
     sessionType: "practice",
@@ -47,8 +47,8 @@ const sessions = [
   {
     id: 2,
     gameId,
-    trackOrdinal: 12,
-    carOrdinal: 43,
+    trackId: "12",
+    carId: "43",
     lapCount: 4,
     bestLapTime: 412.887,
     sessionType: "race",
@@ -59,8 +59,8 @@ const sessions = [
   {
     id: 3,
     gameId,
-    trackOrdinal: 7,
-    carOrdinal: 42,
+    trackId: "7",
+    carId: "42",
     lapCount: 3,
     bestLapTime: 93.118,
     sessionType: "practice",
@@ -71,8 +71,8 @@ const sessions = [
   {
     id: 4,
     gameId,
-    trackOrdinal: 12,
-    carOrdinal: 43,
+    trackId: "12",
+    carId: "43",
     lapCount: 2,
     bestLapTime: 408.442,
     sessionType: "qualifying",
@@ -86,11 +86,11 @@ const laps = [...makeLaps(1, 6, 94.2), ...makeLaps(2, 4, 412.9), ...makeLaps(3, 
 
 queryClient.setQueryData(["sessions", gameId], sessions);
 queryClient.setQueryData(["laps", gameId], laps);
-queryClient.setQueryData(["resolve-names", gameId, "7,12", "42,43"], {
+queryClient.setQueryData(["resolve-names", gameId, JSON.stringify(["7", "12"]), JSON.stringify(["42", "43"])], {
   trackNames: { "7": "Spa-Francorchamps", "12": "Nürburgring" },
   carNames: { "42": "Huracan GT3", "43": "BMW M4 GT3" },
 });
-queryClient.setQueryData(["resolve-names", null, "7,12", "42,43"], {
+queryClient.setQueryData(["resolve-names", null, JSON.stringify(["7", "12"]), JSON.stringify(["42", "43"])], {
   trackNames: { "7": "Spa-Francorchamps", "12": "Nürburgring" },
   carNames: { "42": "Huracan GT3", "43": "BMW M4 GT3" },
 });

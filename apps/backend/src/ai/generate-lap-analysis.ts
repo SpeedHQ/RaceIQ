@@ -111,8 +111,8 @@ export async function generateLapAnalysis(
   let linkedTune: LinkedLapTuneSetup | undefined;
   if (lap.tuneId) {
     const dbTune = await (deps.getDbTune ?? getDbTune)(lap.tuneId);
-    if (dbTune && dbTune.gameId === lap.gameId && dbTune.carOrdinal === lap.carOrdinal &&
-      (dbTune.trackOrdinal == null || dbTune.trackOrdinal === lap.trackOrdinal)) {
+    if (dbTune && dbTune.gameId === lap.gameId && dbTune.carId === lap.carId &&
+      (dbTune.trackId == null || dbTune.trackId === lap.trackId)) {
       parsedTune = {
         ...dbTune,
         strengths: dbTune.strengths ? JSON.parse(dbTune.strengths) : [],
@@ -124,18 +124,18 @@ export async function generateLapAnalysis(
       linkedTune = {
         id: dbTune.id,
         gameId: dbTune.gameId,
-        carOrdinal: dbTune.carOrdinal,
-        trackOrdinal: dbTune.trackOrdinal,
+        carId: dbTune.carId,
+        trackId: dbTune.trackId,
         settings: parsedTune.settings,
       };
     }
   }
   const setupContext = setupContextForLap(lap, deps.getGame ?? getGame, linkedTune);
 
-  const trackOrdinal = lap.trackOrdinal ?? 0;
+  const trackIdentity = lap.trackId;
   let corners: Corner[] =
-    trackOrdinal > 0 && lap.gameId
-      ? await findCorners(trackOrdinal, lap.gameId)
+    trackIdentity && lap.gameId
+      ? await findCorners(trackIdentity, lap.gameId)
       : [];
   if (corners.length === 0)
     corners = (deps.detectCorners ?? detectCorners)(lap.telemetry);
@@ -175,11 +175,11 @@ export async function generateLapAnalysis(
   }
 
   const settings = (deps.loadSettings ?? loadSettings)();
+  let sectors: PromptSectors | undefined;
   const track = (deps.resolveTrack ?? resolveTrack)(
     lap.gameId,
-    lap.trackOrdinal,
+    trackIdentity,
   );
-  let sectors: PromptSectors | undefined;
   try {
     const game = lap.gameId ? (deps.getGame ?? getGame)(lap.gameId) : undefined;
     if (game?.nativeSectors && game.getNativeSectorLayout) {
@@ -196,10 +196,10 @@ export async function generateLapAnalysis(
       track.sectors.s1End &&
       track.sectors.s2End &&
       lap.gameId &&
-      lap.trackOrdinal != null
+      trackIdentity != null
     ) {
       const times = await (deps.computeLapSectors ?? computeLapSectors)(
-        lap.trackOrdinal,
+        trackIdentity,
         lap.gameId as GameId,
         lap.telemetry,
         lap.lapTime,

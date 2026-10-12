@@ -129,11 +129,11 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
       })
     : null;
   // Per-car best times
-  const carBests = new Map<number, { carOrdinal: number; carName: string; bestTime: number }>();
+  const carBests = new Map<string, { carId: string; carName: string; bestTime: number }>();
   for (const lap of chronoLaps) {
-    const existing = carBests.get(lap.carOrdinal);
+    const existing = carBests.get(lap.carId);
     if (!existing || lap.lapTime < existing.bestTime) {
-      carBests.set(lap.carOrdinal, { carOrdinal: lap.carOrdinal, carName: lap.carName, bestTime: lap.lapTime });
+      carBests.set(lap.carId, { carId: lap.carId, carName: lap.carName, bestTime: lap.lapTime });
     }
   }
   const carList = [...carBests.values()].sort((a, b) => a.bestTime - b.bestTime);
@@ -447,7 +447,7 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
             {carList.map((car, i) => {
               const barPct = 100 - ((car.bestTime - minT) / carRange) * 100;
               return (
-                <div key={car.carOrdinal} className="flex flex-col gap-0.5">
+                <div key={car.carId} className="flex flex-col gap-0.5">
                   <div className="flex justify-between items-baseline">
                     <span className="text-app-label text-app-text truncate max-w-[160px]" title={car.carName}>
                       {car.carName}

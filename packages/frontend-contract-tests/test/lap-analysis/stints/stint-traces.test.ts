@@ -247,6 +247,8 @@ function lapMeta(overrides: Partial<LapMeta>): LapMeta {
     lapNumber: 1,
     lapTime: 90,
     isValid: true,
+    carId: "",
+    trackId: "",
     createdAt: new Date().toISOString(),
     ...overrides,
   };

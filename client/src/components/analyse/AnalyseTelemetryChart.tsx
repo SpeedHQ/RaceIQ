@@ -26,10 +26,16 @@ function axisValue(value: number, range: number): string {
 }
 
 function chartDomain(series: ChartSeries[]): [number, number] {
-  const values = series.flatMap((item) => item.data).filter(Number.isFinite);
-  if (values.length === 0) return [-1, 1];
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  let min = Infinity;
+  let max = -Infinity;
+  for (const item of series) {
+    for (const value of item.data) {
+      if (!Number.isFinite(value)) continue;
+      min = Math.min(min, value);
+      max = Math.max(max, value);
+    }
+  }
+  if (min === Infinity) return [-1, 1];
   const observedRange = max - min;
   // Scale padding to observed values so small telemetry changes remain visible.
   const pad = observedRange > 0 ? observedRange * 0.08 : Math.max(Math.abs(min) * 0.05, 1);

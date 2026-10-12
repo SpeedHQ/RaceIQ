@@ -29,7 +29,7 @@ import {
 import { getLapMetaForProfileScope } from "@raceiq/backend-core/db/lap-read-queries";
 import type { AnalysisUsage } from "@raceiq/backend-core/db/analysis-queries";
 
-export type DriverProfileScope = Pick<DriverProfileScopeKey, "gameId">;
+export type DriverProfileScope = Pick<DriverProfileScopeKey, "gameId" | "carId" | "trackId">;
 export type DriverProfileState = DriverProfileRunStatus | "disabled" | "not-configured";
 
 export interface DriverProfileRunResult {
@@ -59,7 +59,7 @@ export function driverProfilePoolKey(lapIds: readonly number[]): string {
 }
 
 function scopeKey(scope: DriverProfileScope): string {
-  return `${scope.gameId}|*|*`;
+  return JSON.stringify([scope.gameId, scope.carId ?? null, scope.trackId ?? null]);
 }
 const pendingLaps = new Map<string, { count: number; poolKey: string }>();
 const activeRuns = new Map<string, Promise<DriverProfileRunResult>>();

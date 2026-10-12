@@ -37,8 +37,8 @@ async function version(experimentId: number, n: number, parentVersionId: number 
 }
 const telemetry: TelemetryPacket[] = Array.from({ length: 30 }, (_, frame) => ({
   gameId: "acc",
-  CarOrdinal: 0,
-  TrackOrdinal: 0,
+  carId: "1",
+  trackId: "2",
   CarPerformanceIndex: 0,
   CarClass: 0,
   LapNumber: 1,
@@ -55,7 +55,7 @@ const telemetry: TelemetryPacket[] = Array.from({ length: 30 }, (_, frame) => ({
 } as TelemetryPacket));
 
 async function addLap(sid: number, versionId: number | null, lapTime: number, opts: { valid?: boolean; excluded?: boolean; packetCount?: number; carSetup?: string | null } = {}): Promise<number> {
-  const raceId = await insertSession(0, 0, experimentGames.get(sid) ?? "acc");
+  const raceId = await insertSession("1", "2", experimentGames.get(sid) ?? "acc");
   raceSessionIds.push(raceId);
   const row = await db.insert(laps).values({
     sessionId: raceId, lapNumber: raceId, lapTime, isValid: opts.valid ?? true,
