@@ -1,13 +1,17 @@
+import { lstat, realpath } from "node:fs/promises";
+import { dirname, isAbsolute, resolve as resolvePath } from "node:path";
+import os from "node:os";
+import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
+import { getRecordingDirectoryMoveStatus, startRecordingDirectoryMove } from "@raceiq/backend-core/session-capture/relocate-recordings";
 import { existsSync } from "node:fs";
 import { readdir, stat, statfs } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { Hono } from "hono";
 import { z } from "zod";
 import { previewSessionCleanup, executeSessionCleanup, SessionCleanupBusyError } from "@raceiq/backend-core/session-capture/session-cleanup";
 import type { SessionCleanupRequest } from "@raceiq/shared/racing/sessions/cleanup";
 
 import { getAllGames } from "@raceiq/shared/games/registry";
-import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 
 interface GameStorageStats {
   binCount: number;
@@ -21,10 +25,53 @@ const sessionCleanupRequestSchema: z.ZodType<SessionCleanupRequest> = z.union([
   z.object({ mode: z.literal("selected"), sessionIds: z.array(z.number().int().positive()) }).strict(),
 ]);
 
+
 export const storageRoutes = new Hono()
+  .get("/api/storage/recording-directory", (c) => c.json(getRecordingDirectoryMoveStatus()))
+  .post("/api/storage/recording-directory", async (c) => {
+    let body: unknown;
+    try { body = await c.req.json(); } catch { return c.json({ code: "INVALID_DIRECTORY", error: "Expected JSON body" }, 400); }
+    const parsed = z.object({ directory: z.string() }).strict().safeParse(body);
+    if (!parsed.success) return c.json({ code: "INVALID_DIRECTORY", error: "Expected absolute directory" }, 400);
+    try {
+      const result = await startRecordingDirectoryMove(parsed.data.directory);
+      return c.json(result, result.noOp ? 200 : 202);
+    } catch (error) {
+      const code = error instanceof Error && "code" in error ? String(error.code) : "STORAGE_IO_ERROR";
+      const http = code === "MOVE_ACTIVE" || code === "RECORDING_ACTIVE" || code === "IMPORT_ACTIVE" || code === "RECOVERY_REQUIRED" ? 409 : 400;
+      return c.json({ code, error: error instanceof Error ? error.message : "Storage operation failed" }, http);
+    }
+  })
+  .get("/api/storage/directories", async (c) => {
+    const requested = c.req.query("path");
+    let directory = requested ?? resolveRecordingDirectory();
+    if (!isAbsolute(directory) || directory.includes("\0")) return c.json({ code: "INVALID_DIRECTORY", error: "Path must be absolute" }, 400);
+    try {
+      if (!requested) {
+        while (!existsSync(directory) && dirname(directory) !== directory) directory = dirname(directory);
+      }
+      directory = await realpath(directory);
+      if (!(await lstat(directory)).isDirectory()) return c.json({ code: "INVALID_DIRECTORY", error: "Path is not a directory" }, 400);
+      const directories: { name: string; path: string }[] = [];
+      for (const name of await readdir(directory)) {
+        try {
+          const path = resolvePath(directory, name);
+          if ((await lstat(path)).isDirectory()) directories.push({ name, path: await realpath(path) });
+        } catch { /* Skip inaccessible entries and symlinks. */ }
+      }
+      directories.sort((a, b) => a.name.localeCompare(b.name));
+      const roots = process.platform === "win32"
+        ? Array.from({ length: 26 }, (_, index) => `${String.fromCharCode(65 + index)}:\\`).filter(existsSync)
+        : ["/", os.homedir()];
+      return c.json({ directory, parent: dirname(directory) === directory ? null : dirname(directory), roots, directories });
+    } catch (error) {
+      const code = error instanceof Error && "code" in error ? String(error.code) : "";
+      return c.json({ code: code === "ENOENT" ? "DIRECTORY_NOT_FOUND" : code === "EACCES" ? "DIRECTORY_FORBIDDEN" : "STORAGE_IO_ERROR", error: code === "ENOENT" ? "Directory not found" : "Directory cannot be read" }, code === "ENOENT" ? 404 : code === "EACCES" ? 403 : 400);
+    }
+  })
   // GET /api/storage/sessions — recording file stats
   .get("/api/storage/sessions", async (c) => {
-    const sessionsDir = resolve(resolveDataDir(), "sessions");
+    const sessionsDir = resolveRecordingDirectory();
     const byGame: Record<string, GameStorageStats> = {};
     for (const game of getAllGames()) {
       byGame[game.id] = { binCount: 0, gzCount: 0, binBytes: 0, gzBytes: 0 };

@@ -1,3 +1,4 @@
+import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
 import { deleteLap } from "./lap-mutation-queries";
 import { getLapById } from "./lap-read-queries";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
@@ -9,8 +10,7 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { existsSync, unlinkSync } from "node:fs";
-import { relative, resolve, sep } from "node:path";
-import { resolveDataDir } from "../runtime/config/data-dir";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import { getTrackLengthMeters, getTrackLengthMetersById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
 import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
@@ -200,9 +200,9 @@ export async function markSessionCaptureFormatCurrent(sessionId: number): Promis
   await db.update(sessions).set({ captureFormatVersion: 1 }).where(eq(sessions.id, sessionId)).run();
 }
 export function isOwnedSessionRawFile(rawFile: string): boolean {
-  const sessionsDir = resolve(resolveDataDir(), "sessions");
+  const sessionsDir = resolveRecordingDirectory();
   const relativePath = relative(sessionsDir, resolve(rawFile));
-  return relativePath.length > 0 && relativePath !== ".." && !relativePath.startsWith(`..${sep}`);
+  return relativePath.length > 0 && !isAbsolute(relativePath) && relativePath !== ".." && !relativePath.startsWith(`..${sep}`);
 }
 
 async function unlinkOwnedSessionRawFile(rawFile: string | null): Promise<void> {

@@ -31,6 +31,7 @@ import { parseLdxBeacons } from "./ldx";
 import type { MotecCarTrack } from "./types";
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
+import { beginRecordingStorageImport } from "../session-capture/storage-activity";
 import {
   analyseSemanticIds,
   unavailableAnalysisFeatures,
@@ -94,6 +95,8 @@ export async function importMotec(
   ldxBytes: Buffer | undefined,
   options: MotecImportOptions,
 ): Promise<MotecImportResult> {
+  const releaseStorageImport = beginRecordingStorageImport();
+  try {
   if (!ldxBytes) throw new Error("MoTeC .ldx signal file is required");
   const target = resolveMotecTarget(options.gameId);
   const log = parseLd(ldBytes);
@@ -174,4 +177,7 @@ export async function importMotec(
     yawFromLateralG: conversion.yawFromLateralG,
     limitations: target.limitations,
   };
+  } finally {
+    releaseStorageImport();
+  }
 }

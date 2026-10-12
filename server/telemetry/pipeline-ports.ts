@@ -26,7 +26,7 @@ import type { ExclusionScopeLap } from "../experiments/auto-exclude";
 import { getTuneAssignment } from "../db/tune-queries";
 import { SessionRecorder } from "@raceiq/capture-formats/session/recorder";
 import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
-import { resolveDataDir } from "../runtime/config/data-dir";
+import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
 import { timestampForFilename } from "../session-capture/filename";
 
 export function currentTelemetryVersionIdentity(gameId: GameId): TelemetryVersionIdentity {
@@ -345,9 +345,8 @@ export class RealSessionRecorderAdapter implements SessionRecorderAdapter {
   get epoch(): number { return this._epoch; }
 
   start(gameId: GameId): void {
-    const dataDir = resolveDataDir();
     const timestamp = timestampForFilename();
-    const sessionDir = resolve(dataDir, "sessions", gameId);
+    const sessionDir = resolve(resolveRecordingDirectory(), gameId);
     mkdirSync(sessionDir, { recursive: true });
     const filePath = resolve(sessionDir, `${timestamp}.bin`);
     this._inner = new SessionRecorder();
@@ -379,7 +378,7 @@ export class SparseSessionRecorderAdapter implements SessionRecorderAdapter {
   get epoch(): number { return this.currentEpoch; }
 
   start(gameId: GameId): void {
-    const sessionDir = resolve(resolveDataDir(), "sessions", gameId);
+    const sessionDir = resolve(resolveRecordingDirectory(), gameId);
     mkdirSync(sessionDir, { recursive: true });
     this.inner = new SparseSessionRecorder(gameId);
     this.inner.start(resolve(sessionDir, `${timestampForFilename()}.bin`));

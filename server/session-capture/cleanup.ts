@@ -1,3 +1,4 @@
+import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
 /**
  * Session file cleanup for startup and scheduled maintenance.
  *
@@ -6,8 +7,7 @@
  */
 import { readdir, stat, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { resolve, join } from "node:path";
-import { resolveDataDir } from "../runtime/config/data-dir";
+import { join } from "node:path";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { sql } from "drizzle-orm";
@@ -47,7 +47,7 @@ async function loadReferencedRawFiles(): Promise<Set<string>> {
  * and extension rules.
  */
 export async function listSessionCaptureFiles(): Promise<string[]> {
-  const sessionsDir = resolve(resolveDataDir(), "sessions");
+  const sessionsDir = resolveRecordingDirectory();
   if (!existsSync(sessionsDir)) return [];
 
   const captureFiles: string[] = [];
@@ -75,7 +75,7 @@ export async function cleanupOrphanSessionFiles(
       console.log("[Cleanup] Session active — skipping orphan sweep");
       return 0;
     }
-    const sessionsDir = resolve(resolveDataDir(), "sessions");
+    const sessionsDir = resolveRecordingDirectory();
     if (!existsSync(sessionsDir)) return 0;
 
     const referenced = await loadReferencedRawFiles();

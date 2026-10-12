@@ -1,3 +1,4 @@
+import { beginRecordingStorageImport } from "./storage-activity";
 import { existsSync, unlinkSync } from "node:fs";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
@@ -270,6 +271,8 @@ async function importTelemetrySource<T>(
   options: ImportSessionOptions,
   processItem: ImportItemHandler<T>,
 ): Promise<ImportSessionResult> {
+  const releaseStorageImport = beginRecordingStorageImport();
+  try {
   const db = new ImportCaptureAdapter({
     notifyDriverProfile: options.notifyDriverProfile,
     ownership: options.ownership,
@@ -321,6 +324,9 @@ async function importTelemetrySource<T>(
     laps: db.laps,
     sessionIds: [...db.sessionIds],
   };
+  } finally {
+    releaseStorageImport();
+  }
 }
 
 /**

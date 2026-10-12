@@ -1,3 +1,4 @@
+import { recoverRecordingDirectoryMove } from "@raceiq/backend-core/session-capture/relocate-recordings";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
@@ -78,6 +79,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   }
 
   await initDb();
+  await recoverRecordingDirectoryMove();
   await hydrateDiscoveredAcEvoCars();
   await hydrateDiscoveredAcEvoTracks();
 

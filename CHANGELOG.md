@@ -12,6 +12,8 @@
 - Inspect AC Evo Tourist layouts with recorded open-route maps and explicit Start/Finish markers.
 - Show Nordschleife track edges along the supported portion of AC Evo Tourist routes without closing the Start/Finish gap.
 
+- Choose a recording folder; existing telemetry recordings move safely to the new location.
+
 ### Fixes
 - Restore track edges in AC Evo Tourist replay, including the supported approach section, without joining edges across the missing connector.
 - Preserve car and track selections in numeric-ID bookmarks and native AC Evo venue/layout URLs.

@@ -1,3 +1,4 @@
+import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
@@ -84,6 +85,7 @@ export const settingsRoutes = new Hono()
     }
     return c.json({
       ...settings,
+      resolvedRecordingDirectory: resolveRecordingDirectory(),
       udpPort: udpListener.port,
       openaiCompatibleApiKeySet: hasOpenAiCompatibleKey,
       geminiApiKeySet: hasGeminiKey,
@@ -248,6 +250,9 @@ export const settingsRoutes = new Hono()
     const body = await c.req.json();
     const parseResult = PartialSettingsSchema.parse(body);
     const current = loadSettings();
+    if (Object.hasOwn(body, "recordingDirectory") && body.recordingDirectory !== current.recordingDirectory) {
+      return c.json({ error: "Use recording folder relocation", code: "RELOCATION_REQUIRED" }, 409);
+    }
     // Only merge keys explicitly sent in the request body (Zod partial applies defaults for missing fields)
     const provided: Record<string, unknown> = {};
     for (const key of Object.keys(body)) {
@@ -279,7 +284,7 @@ export const settingsRoutes = new Hono()
       }
       const durationMs = Math.round(performance.now() - startedAt);
       console.info(`[Settings] PUT /api/settings saved in ${durationMs}ms`);
-      return c.json(merged);
+      return c.json({ ...merged, resolvedRecordingDirectory: resolveRecordingDirectory() });
     } catch (err) {
       const durationMs = Math.round(performance.now() - startedAt);
       console.error(`[Settings] PUT /api/settings failed in ${durationMs}ms`, err instanceof Error ? err.message : String(err));
