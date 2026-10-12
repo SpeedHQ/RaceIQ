@@ -5,6 +5,7 @@ import { m } from "@/paraglide/messages";
 import { useTelemetryStore } from "@/stores/telemetry";
 import { CommunityStep } from "./steps/CommunityStep";
 import { ProfileStep } from "./steps/ProfileStep";
+import { RecordingStep } from "./steps/RecordingStep";
 import { SoundStep } from "./steps/SoundStep";
 import { StartupStep } from "./steps/StartupStep";
 import { UnitsStep } from "./steps/UnitsStep";
@@ -18,6 +19,7 @@ const MODAL_STEPS = [
   { id: "units", label: m.label_units, Component: UnitsStep },
   { id: "sound", label: m.label_sound, Component: SoundStep },
   { id: "startup", label: m.step_startup, Component: StartupStep },
+  { id: "recording", label: m.step_recording, Component: RecordingStep },
   { id: "community", label: m.step_community, Component: CommunityStep },
 ];
 
