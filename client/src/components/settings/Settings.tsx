@@ -16,6 +16,8 @@ import { SpeedSection } from "./speed/SpeedSection";
 import { UpdatesSection } from "./UpdatesSection";
 import { WheelSection } from "./wheel/WheelSection";
 
+import { OnlineSection } from "./OnlineSection";
+
 export function Settings({ initialSection, onClose }: { initialSection?: SectionId; onClose?: () => void } = {}) {
   const { openOnboarding } = uiStore.actions;
   const [activeSection, setActiveSection] = useState<SectionId>(initialSection ?? "general");
@@ -81,6 +83,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
         {activeSection === "games" && <GamesSection />}
 
         {activeSection === "connection" && <ConnectionSection />}
+        {activeSection === "online" && <OnlineSection />}
 
         {activeSection === "wheel" && <WheelSection />}
 

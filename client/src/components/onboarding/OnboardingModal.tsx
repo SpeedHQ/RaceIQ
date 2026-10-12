@@ -9,6 +9,8 @@ import { SoundStep } from "./steps/SoundStep";
 import { StartupStep } from "./steps/StartupStep";
 import { UnitsStep } from "./steps/UnitsStep";
 import { WelcomeStep } from "./steps/WelcomeStep";
+import { OnlineStep } from "./steps/OnlineStep";
+
 import { WheelStep } from "./steps/WheelStep";
 
 const MODAL_STEPS = [
@@ -19,6 +21,8 @@ const MODAL_STEPS = [
   { id: "sound", label: m.label_sound, Component: SoundStep },
   { id: "startup", label: m.step_startup, Component: StartupStep },
   { id: "community", label: m.step_community, Component: CommunityStep },
+  { id: "online", label: m.online_onboarding_title, Component: OnlineStep },
+
 ];
 
 export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
@@ -68,7 +72,7 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
           </div>
         )}
         <div className="min-h-[280px] flex-1 overflow-y-auto border-t border-app-border px-4 py-5 @3xl/onboarding:px-6">
-          <StepComponent />
+          {MODAL_STEPS[step].id === "online" ? <OnlineStep onSkip={handleFinish} /> : <StepComponent />}
         </div>
         <div className="flex shrink-0 items-center justify-end border-t border-app-border bg-app-surface-alt/30 px-4 py-4 @3xl/onboarding:px-6">
           <div className="flex items-center gap-2">

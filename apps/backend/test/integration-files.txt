@@ -89,6 +89,7 @@ apps/backend/test/routes/lap-analysis-integration.test.ts
 apps/backend/test/routes/lap-analysis-route.test.ts
 apps/backend/test/routes/laps-issues-route.test.ts
 apps/backend/test/routes/lmu-string-identity.test.ts
+apps/backend/test/routes/online-routes.test.ts
 apps/backend/test/routes/place-setup-sanitise.test.ts
 apps/backend/test/routes/recording-support.test.ts
 apps/backend/test/routes/runtime-features.test.ts

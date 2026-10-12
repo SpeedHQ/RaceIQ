@@ -2,11 +2,16 @@
 
 ### Features
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
+- Add optional RaceIQ Online onboarding, dedicated Online settings, and separate Community Laps while keeping offline features available.
+- Implement documented Supabase desktop PKCE sign-in through the loopback callback, requiring OS-keystore refresh-token storage and keeping access tokens in memory; real login remains gated on provider callback allowlisting.
 
 ### Fixes
+- Report RaceIQ Online service health separately from missing policy configuration, keeping consent-dependent transfers blocked.
 - Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
 
 ### Internal
+- Add the typed local RaceIQ Online API and durable fail-closed transfer boundaries; authenticated transfers remain disabled until service authentication, eligibility, recording sanitization, and replay contracts are verified.
+- Upgrade the RaceIQ Online client to `@speedhq/live-client@0.1.8` and use its documented Supabase desktop-auth contract.
 - Document new-game integration, lossless sparse recording, lap correctness checks, and gzip fixture splitting without Git LFS; align capture and architecture guides with current implementation.
 - Avoid per-packet serialization and hashing during race-result reconciliation while retaining raw capture identity and processing provenance.
 - Add Bun-only parser/pipeline, retained-heap, import, and recording benchmarks with isolated workloads and explicit measurement scopes.

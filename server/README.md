@@ -13,6 +13,7 @@ All other code belongs to domain folders. Each domain README defines ownership, 
 - [`runtime/`](runtime/README.md) — process lifecycle, configuration, HTTP/WebSocket/UDP transport, desktop integration, and updates.
 - [`routes/`](routes/README.md) — Hono HTTP boundary, request validation, and response translation.
 - [`sync/`](sync/README.md) — remote lap-time manifest and payload synchronization.
+- `integrations/raceiq-online/` — optional Online adapter and fail-closed local account/payload/dispatch boundaries; `db/online-outbox-storage.ts` owns its separate durable SQLite queue. See [implementation status and service gates](../docs/plans/raceiq-live-service.md).
 
 ### Game and telemetry pipeline
 

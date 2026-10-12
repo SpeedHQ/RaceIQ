@@ -1,0 +1,14 @@
+---
+status: proposed
+---
+# Keep RaceIQ Online optional and offline-first
+
+RaceIQ is offline-first: all core features work without an Online account, sign-in, or network. Discord sign-in is never required to install, onboard, record laps, or use local review and analysis. RaceIQ Online is optional cloud enrichment for account-backed validation of public lap submissions and additional community leaderboards, not a prerequisite or replacement for offline features. Place Online standings in Track Detail → Laps → Community Laps. Keep RaceIQ Online controls minimal: connection state, Discord sign-in/sign-out, public-lap and separate setup-inclusion preferences, and an external Manage Account link; profile and account administration stay on the Online website. Target published `@speedhq/live-client@0.1.5` contract for external API integration.
+
+Separate UI implementation from backend implementation so both tracks can proceed in parallel against one explicit boundary: backend owns shared DTOs/export, typed local Hono routes, external-service adapter, auth/consent/preferences, privacy and dispatch barriers, queue, sanitization, and leaderboard mapping; UI owns presentation, localized copy, and typed RPC consumer. Local backend means RaceIQ's Bun/Hono server plus an adapter, not a redesign or presumed capability of the external service. The [shared contract](../plans/raceiq-online-contract.md) is the proposed local API baseline, not an already implemented interface. This division preserves clear enforcement ownership without blocking UI fixture work or safe backend work on unresolved service gates.
+
+Public participation defaults on only as an explicit-confirmation draft; private laps remain local and receive no cloud validation. Setup attachments require a separate default-off opt-in; public participation never implies setup sharing. Embedded F1 setup telemetry is stripped from every uploaded recording regardless of attachment preference, while local source recordings remain unchanged. Initial public opt-in backfills eligible fastest laps through a durable, resumable account-isolated queue with bounded background draining. Backend rechecks consent, account, and effective preferences at dispatch and fails closed when service behavior or sanitization is unresolved. External API policy availability, desktop auth, eligibility, idempotency, and sanitization compatibility remain gates to the operations depending on them; they do not block independent typed routes, safe storage/domain work, or UI fixtures. Never invent endpoints or present proposed local routes as external service capabilities.
+
+Plan: [Backend scope and end-to-end acceptance](../plans/raceiq-live-service.md)
+UI plan: [RaceIQ Online UI implementation](../plans/raceiq-online-ui.md)
+Shared contract: [RaceIQ Online UI/backend contract](../plans/raceiq-online-contract.md)

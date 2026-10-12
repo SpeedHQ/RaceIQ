@@ -54,6 +54,14 @@ export function startHttpServer({
     maxRequestBodySize: MAX_IBT_BYTES,
     async fetch(req, server) {
       const url = new URL(req.url);
+      // Online account/transfer controls are local-only, even when telemetry
+      // endpoints intentionally listen on LAN interfaces.
+      if (url.pathname === "/api/online" || url.pathname.startsWith("/api/online/")) {
+        const peer = server.requestIP(req)?.address;
+        if (peer !== "127.0.0.1" && peer !== "::1" && peer !== "::ffff:127.0.0.1") {
+          return Response.json({ error: { code: "invalid_request", retryable: false, retryAfter: null } }, { status: 403 });
+        }
+      }
       if (url.pathname === "/ws") {
         const upgraded = server.upgrade(req, {
           data: { createdAt: Date.now(), devTelemetrySubscribed: false },

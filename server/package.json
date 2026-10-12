@@ -3,6 +3,9 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./integrations/raceiq-online/service": "./integrations/raceiq-online/service.ts",
+    "./integrations/raceiq-online/adapter": "./integrations/raceiq-online/adapter.ts",
+    "./db/online-state-storage": "./db/online-state-storage.ts",
     "./ai/agent-stream": "./ai/agent-stream.ts",
     "./ai/ai-features": "./ai/ai-features.ts",
     "./ai/ai-types": "./ai/ai-types.ts",
@@ -183,6 +186,7 @@
     "./tunes/community-sync": "./tunes/community-sync.ts"
   },
   "dependencies": {
+    "@speedhq/live-client": "0.1.8",
     "@libsql/client": "^0.18.0",
     "@libsql/win32-x64-msvc": "^0.5.29",
     "drizzle-orm": "^0.45.2",

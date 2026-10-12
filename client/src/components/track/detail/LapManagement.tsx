@@ -12,6 +12,7 @@ import { getGameRoute } from "@/stores/game";
 import { parseUtcTimestamp } from "@/lib/utc-date";
 import type { TrackInfo } from "../types";
 import { CommunityLeaderboard } from "../CommunityLeaderboard";
+import { OnlineCommunityLaps } from "../OnlineCommunityLaps";
 import { carClassColor } from "./helpers";
 import { LapStatsPanel } from "./LapStatsPanel";
 import type { TrackLap, TrackLapSortKey } from "./types";
@@ -81,8 +82,9 @@ export function LapManagement(props: LapManagementProps) {
   const navTo = useNavigate();
   const [carouselEl, setCarouselEl] = useState<HTMLDivElement | null>(null);
   const [carouselPage, setCarouselPage] = useState(0);
-  const [carouselHeight, setCarouselHeight] = useState<number | null>(null);
+  const [carouselHeight, setCarouselHeight] = useState(0);
   const [referenceTab, setReferenceTab] = useState("stats");
+  const [onlineCarSelection, setOnlineCarSelection] = useState<{ gameId: string; trackId: string; carId: string } | null>(null);
   const gotoCarouselPage = useCallback(
     (i: number) => {
       if (!carouselEl) return;
@@ -114,6 +116,8 @@ export function LapManagement(props: LapManagementProps) {
   const leaderboard = isF125
     ? <F125Leaderboard trackOrdinal={track.ordinal} />
     : <CommunityLeaderboard trackName={track.name} trackVariant={track.variant} selectedCarNames={selectedCarNames} />;
+  const trackId = track.id ?? String(track.ordinal);
+  const onlineCarId = onlineCarSelection?.gameId === gameId && onlineCarSelection.trackId === trackId && uniqueCars.some((car) => String(car.carOrdinal) === onlineCarSelection.carId) ? onlineCarSelection.carId : "";
   const referenceContent = (
     <>
       <TabsContent value="stats" className="min-h-0 @3xl/workspace:flex-1 @3xl/workspace:overflow-hidden">
@@ -122,13 +126,25 @@ export function LapManagement(props: LapManagementProps) {
       <TabsContent value="community" className="flex h-[400px] min-h-0 flex-col overflow-hidden @3xl/workspace:h-auto @3xl/workspace:flex-1">
         {leaderboard}
       </TabsContent>
+      <TabsContent value="community-laps" className="flex h-[400px] min-h-0 flex-col overflow-hidden @3xl/workspace:h-auto @3xl/workspace:flex-1">
+        <label className="flex shrink-0 items-center gap-2 p-2 text-sm text-app-text-muted">
+          <span>{m.online_community_laps_car()}</span>
+          <select className="min-w-0 rounded border border-app-border bg-app-surface px-2 py-1 text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent" value={onlineCarId} onChange={(event) => setOnlineCarSelection(gameId && event.target.value ? { gameId, trackId, carId: event.target.value } : null)}>
+            <option value="">{m.online_community_laps_select_car()}</option>
+            {uniqueCars.map((car) => <option key={car.carOrdinal} value={String(car.carOrdinal)}>{car.carName}</option>)}
+          </select>
+          {uniqueCars.length === 0 && <span className="text-xs text-app-text-dim">{m.online_community_laps_no_cars()}</span>}
+        </label>
+        <OnlineCommunityLaps gameId={gameId} trackId={trackId} carId={onlineCarId || null} />
+      </TabsContent>
     </>
   );
   const referencePanel = (
     <Tabs value={referenceTab} onValueChange={setReferenceTab} className="flex h-full min-h-0 flex-col gap-3 @3xl/workspace:row-span-2 @3xl/workspace:grid @3xl/workspace:grid-rows-subgrid">
-      <TabsList className="shrink-0">
+      <TabsList className="max-w-full shrink-0 justify-start">
         <TabsTrigger value="stats">{m.track_detail_stats()}</TabsTrigger>
         <TabsTrigger value="community">{m.leaderboard_community()}</TabsTrigger>
+        <TabsTrigger value="community-laps">{m.online_community_laps_title()}</TabsTrigger>
       </TabsList>
       {referenceContent}
     </Tabs>
@@ -347,9 +363,10 @@ export function LapManagement(props: LapManagementProps) {
                 <div className="col-span-2 grid grid-cols-subgrid items-center gap-3">
                   <div className="flex flex-wrap items-center gap-3">
                     {filterRow}
-                    <TabsList className="shrink-0">
+                    <TabsList className="max-w-full shrink-0 justify-start">
                       <TabsTrigger value="stats">{m.track_detail_stats()}</TabsTrigger>
                       <TabsTrigger value="community">{m.leaderboard_community()}</TabsTrigger>
+                      <TabsTrigger value="community-laps">{m.online_community_laps_title()}</TabsTrigger>
                     </TabsList>
                   </div>
                   <div className="flex min-h-10 items-center">
