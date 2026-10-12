@@ -8,7 +8,7 @@
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.19.2`
 - Generator source SHA-256: `6b034cdac3e5ddca6252f4b16ef194f29ba1d17ec023cbff2be1ef881787fe31`
-- Content SHA-256: `c79a9091f13ccd4cdba1329693642f4262a46d38a76eab89e9d0216ebdc1fc36`
+- Content SHA-256: `dbb1ae43e1c2425af530338a5006b2ddeefad7ed1dcd976885897bb978ab7586`
 
 ## Coverage
 
@@ -17,7 +17,7 @@
 | fm-2023 | 96 | 96 | 95 | 1 | 0 | 0 | 0 |
 | f1-2025 | 289 | 289 | 119 | 170 | 0 | 0 | 0 |
 | acc | 205 | 172 | 124 | 48 | 0 | 0 | 33 |
-| ac-evo | 254 | 224 | 124 | 100 | 0 | 0 | 30 |
+| ac-evo | 256 | 224 | 124 | 100 | 0 | 0 | 32 |
 | iracing | 952 | 702 | 115 | 18 | 324 | 495 | 0 |
 | lmu | 172 | 172 | 126 | 46 | 0 | 0 | 0 |
 
