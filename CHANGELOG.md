@@ -8,6 +8,8 @@
 - Browse enriched iRacing car, car-class, and track catalogs with official car images, offline pit-road maps, and grouped lap sections.
 
 ### Fixes
+- Show the full session Overview map when a recording ends with an unfinished lap.
+- Keep Overview maps compact on wide screens and fit the visible lap line independently of hidden track edges.
 - Prevent crafted AI credential requests from running commands on macOS.
 - Reject unrelated browser origins on dashboard and live telemetry requests while preserving same-origin access through reverse proxies.
 - Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
