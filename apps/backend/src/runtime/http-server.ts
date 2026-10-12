@@ -18,7 +18,6 @@ export function staticAssetHeaders(filePath: string): HeadersInit | undefined {
   };
 }
 
-
 export interface HttpServerOptions {
   app: HttpApp;
   port: number;
@@ -30,10 +29,10 @@ export interface HttpServerOptions {
 export function clearHttpPort(port: number): void {
   try {
     if (IS_WINDOWS) {
-      execSync(
-        `powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort ${port} -State Listen -EA 0 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -EA 0 }"`,
-        { stdio: "ignore", windowsHide: true },
-      );
+      execSync(`powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort ${port} -State Listen -EA 0 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -EA 0 }"`, {
+        stdio: "ignore",
+        windowsHide: true,
+      });
     } else {
       execSync(`lsof -ti:${port} | xargs kill -9`, { stdio: "ignore" });
     }
@@ -42,21 +41,19 @@ export function clearHttpPort(port: number): void {
   }
 }
 
-export function startHttpServer({
-  app,
-  port,
-  staticDir,
-  devPublicDir,
-  access = httpAccess,
-}: HttpServerOptions): Bun.Server<WSData> {
+export function startHttpServer({ app, port, staticDir, devPublicDir, access = httpAccess }: HttpServerOptions): Bun.Server<WSData> {
   // Also disconnect already-open sockets after logout/password replacement,
   // including resets performed by another process against the shared DB.
   const sockets = new Map<Bun.ServerWebSocket<WSData>, Request>();
   const sessionCheck = setInterval(() => {
     if (!access.usesSessions) return;
     for (const [socket, request] of sockets) {
-      try { if (access.authorize(request)) socket.close(1008, "Authentication required"); }
-      catch { socket.close(1008, "Authentication unavailable"); }
+      void access
+        .authorize(request)
+        .then((denied) => {
+          if (denied) socket.close(1008, "Authentication required");
+        })
+        .catch(() => socket.close(1008, "Authentication unavailable"));
     }
   }, 1000);
   sessionCheck.unref();
@@ -70,7 +67,7 @@ export function startHttpServer({
     maxRequestBodySize: MAX_IBT_BYTES,
     async fetch(req, server) {
       // Protect static content, APIs, Studio, and the WebSocket handshake alike.
-      const denied = access.authorize(req);
+      const denied = await access.authorize(req);
       if (denied) return denied;
       const url = new URL(req.url);
       if (url.pathname === "/ws") {
@@ -100,11 +97,13 @@ export function startHttpServer({
         const origin = req.headers.get("origin");
         return new Response("ok", {
           status: 200,
-          headers: origin ? {
-            "access-control-allow-origin": origin,
-            "access-control-allow-credentials": "true",
-            "vary": "Origin",
-          } : undefined,
+          headers: origin
+            ? {
+                "access-control-allow-origin": origin,
+                "access-control-allow-credentials": "true",
+                vary: "Origin",
+              }
+            : undefined,
         });
       }
 

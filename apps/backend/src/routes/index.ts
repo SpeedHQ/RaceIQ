@@ -23,7 +23,7 @@ import { devRoutes } from "./dev/index";
 
 const app = new Hono()
   .use("/*", async (c, next) => {
-    const denied = httpAccess.authorize(c.req.raw);
+    const denied = await httpAccess.authorize(c.req.raw);
     if (denied) return denied;
     if (httpAccess.usesSessions) c.header("Cache-Control", "no-store");
     await next();
@@ -31,7 +31,7 @@ const app = new Hono()
   .use(
     "/*",
     cors({
-      origin: (origin, c) => httpAccess.allowsOrigin(origin, c.req.raw) ? origin : "",
+      origin: (origin, c) => (httpAccess.allowsOrigin(origin, c.req.raw) ? origin : ""),
       credentials: true,
       exposeHeaders: ["X-RaceIQ-CSRF"],
       // Studio needs its own headers; reflect them only for trusted origins.
@@ -44,7 +44,7 @@ const app = new Hono()
   .route("/", lapRoutes)
   .route("/", driverRoutes)
   .route("/", chatsRoutes)
-.route("/", chatRunRoutes)
+  .route("/", chatRunRoutes)
   .route("/", sessionRoutes)
   .route("/", trackRoutes)
   .route("/", carRoutes)

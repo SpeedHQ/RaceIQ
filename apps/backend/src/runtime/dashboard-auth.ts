@@ -1,4 +1,4 @@
-import { Database } from "bun:sqlite";
+import type { Client, Transaction } from "@libsql/client";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { networkInterfaces } from "node:os";
 import { isIP } from "node:net";
@@ -52,44 +52,36 @@ export function validateNetwork(input: DashboardNetwork): DashboardNetwork {
   return { hosts: [...new Set(network.hosts)], origins: [...new Set(network.origins)] };
 }
 
-/** Uses the application's migrated DB; never creates a missing state row.
- * A deleted row/table or invalid configuration therefore fails closed.
- */
+/** Uses the application's migrated DB; never creates or owns a connection. */
 export class DashboardAuth {
   readonly env: NodeJS.ProcessEnv;
-  readonly database: Database;
   readonly overrides: string[];
   private readonly envPassword: string;
   private attempts = 0;
   private attemptWindow = 0;
   private activeVerifications = 0;
   private readonly path: string;
-
-  constructor(path: string, env: NodeJS.ProcessEnv = process.env, recovery = false) {
+  private readonly database: Client;
+  private constructor(database: Client, path: string, env: NodeJS.ProcessEnv) {
     this.path = path;
+    this.database = database;
     this.env = env;
-    this.database = new Database(path, { readwrite: true, create: false });
-    this.database.exec("PRAGMA busy_timeout = 5000");
     this.envPassword = env.SERVER_PASSWORD || "";
     if (this.envPassword && !PasswordSchema.safeParse(this.envPassword).success) throw new Error("SERVER_PASSWORD must contain at least 8 characters (maximum 1024)");
     this.overrides = ["SERVER_PASSWORD", "SERVER_HOST", "SERVER_ALLOWED_ORIGINS"].filter((key) => !!env[key]);
-    if (!recovery) {
-      try {
-        const row = this.read();
-        // Adopt configured installations from the earlier auth draft.
-        if (row.mode !== "pending") markDashboardAccessConfigured(this.path);
-      } catch (error) {
-        this.database.close();
-        throw error;
-      }
-    }
   }
-
-  private read(): AccessRow {
-    const row = this.database.query<AccessRow, []>("SELECT mode, password_hash, revision, network_json, upgrade FROM dashboard_access WHERE id = 1").get();
-    if (row?.mode === "pending" && dashboardAccessWasConfigured(this.path)) {
-      throw new Error("Previously configured dashboard authentication is missing; restore the access configuration from backup");
+  static async create(database: Client, path: string, env: NodeJS.ProcessEnv = process.env, recovery = false): Promise<DashboardAuth> {
+    const auth = new DashboardAuth(database, path, env);
+    if (!recovery) {
+      const row = await auth.read();
+      if (row.mode !== "pending") markDashboardAccessConfigured(path);
     }
+    return auth;
+  }
+  private async read(executor: Client | Transaction = this.database): Promise<AccessRow> {
+    const result = await executor.execute("SELECT mode, password_hash, revision, network_json, upgrade FROM dashboard_access WHERE id = 1");
+    const row = result.rows[0] as unknown as AccessRow | undefined;
+    if (row?.mode === "pending" && dashboardAccessWasConfigured(this.path)) throw new Error("Previously configured dashboard authentication is missing; restore the access configuration from backup");
     if (
       !row ||
       !["pending", "disabled", "enabled"].includes(row.mode) ||
@@ -115,60 +107,60 @@ export class DashboardAuth {
     } else if (row.mode !== "pending") throw new Error("Dashboard access configuration is missing");
     return row;
   }
-
   async initialize(upgrade: boolean) {
-    const row = this.read();
+    const row = await this.read();
     if (row.network_json === null) {
-      // An intentional one-time migration preserves old all-interface deployments.
-      const network: DashboardNetwork = { hosts: [upgrade ? "0.0.0.0" : "127.0.0.1"], origins: [] };
-      this.database.query("UPDATE dashboard_access SET network_json = ?, upgrade = ? WHERE id = 1 AND network_json IS NULL").run(JSON.stringify(network), Number(upgrade));
+      await this.database.execute({
+        sql: "UPDATE dashboard_access SET network_json = ?, upgrade = ? WHERE id = 1 AND network_json IS NULL",
+        args: [JSON.stringify({ hosts: [upgrade ? "0.0.0.0" : "127.0.0.1"], origins: [] }), Number(upgrade)],
+      });
     }
-    if (this.envPassword && this.read().mode === "pending") {
+    if (this.envPassword && (await this.read()).mode === "pending") {
       const hash = await Bun.password.hash(this.envPassword, { algorithm: "argon2id" });
-      this.database.transaction(() => {
-        const changed = this.database.query("UPDATE dashboard_access SET mode = 'enabled', password_hash = ?, revision = revision + 1 WHERE id = 1 AND mode = 'pending'").run(hash);
-        if (changed.changes) markDashboardAccessConfigured(this.path);
-      })();
+      const tx = await this.database.transaction("write");
+      try {
+        const result = await tx.execute({
+          sql: "UPDATE dashboard_access SET mode = 'enabled', password_hash = ?, revision = revision + 1 WHERE id = 1 AND mode = 'pending'",
+          args: [hash],
+        });
+        if (Number(result.rowsAffected) === 1) markDashboardAccessConfigured(this.path);
+        await tx.commit();
+      } catch (error) {
+        await tx.rollback();
+        throw error;
+      }
     }
   }
-
-  get network(): DashboardNetwork {
-    return JSON.parse(this.read().network_json ?? '{"hosts":["127.0.0.1"],"origins":[]}');
+  async getNetwork(): Promise<DashboardNetwork> {
+    return JSON.parse((await this.read()).network_json ?? '{"hosts":["127.0.0.1"],"origins":[]}');
   }
-  get pending() {
-    return this.read().mode === "pending" && !this.envPassword;
+  async isPending(): Promise<boolean> {
+    return (await this.read()).mode === "pending" && !this.envPassword;
   }
-  get protected() {
-    return !!this.envPassword || this.read().mode === "enabled";
+  async isProtected(): Promise<boolean> {
+    return !!this.envPassword || (await this.read()).mode === "enabled";
   }
-  private generation(row = this.read()) {
+  private generation(row: AccessRow) {
     return digest(`${row.revision}:${this.envPassword}`);
   }
-
-  session(request: Request): Session | null {
+  async session(request: Request, executor: Client | Transaction = this.database): Promise<Session | null> {
     const token = /(?:^|;\s*)raceiq_session=([a-f0-9]{64})(?:;|$)/.exec(request.headers.get("cookie") ?? "")?.[1];
     if (!token) return null;
-    const session = this.database.query<Session, [string]>("SELECT csrf, generation, expires_at FROM dashboard_sessions WHERE token_hash = ?").get(digest(token));
-    return session && session.expires_at > Date.now() && session.generation === this.generation() ? session : null;
+    const result = await executor.execute({ sql: "SELECT csrf, generation, expires_at FROM dashboard_sessions WHERE token_hash = ?", args: [digest(token)] });
+    const session = result.rows[0] as unknown as Session | undefined;
+    const row = await this.read(executor);
+    return session && Number(session.expires_at) > Date.now() && session.generation === this.generation(row) ? session : null;
   }
-
-  status(request: Request) {
-    const session = this.session(request);
-    return {
-      pending: this.pending,
-      protected: this.protected,
-      authenticated: !this.pending && (!this.protected || !!session),
-      csrf: session?.csrf ?? null,
-      upgrade: !!this.read().upgrade,
-      overrides: this.overrides,
-    };
+  async status(request: Request) {
+    const [session, row] = await Promise.all([this.session(request), this.read()]);
+    const pending = row.mode === "pending" && !this.envPassword;
+    const protectedAccess = !!this.envPassword || row.mode === "enabled";
+    return { pending, protected: protectedAccess, authenticated: !pending && (!protectedAccess || !!session), csrf: session?.csrf ?? null, upgrade: !!row.upgrade, overrides: this.overrides };
   }
-
-  csrfAllowed(request: Request) {
-    const session = this.session(request);
+  async csrfAllowed(request: Request) {
+    const session = await this.session(request);
     return !!session && request.headers.get("x-raceiq-csrf") === session.csrf;
   }
-
   private async verify(password: string) {
     if (password.length > 1024 || this.activeVerifications >= 2) throw new AccessError("try_later", 429);
     if (Date.now() - this.attemptWindow > 60_000) {
@@ -176,99 +168,112 @@ export class DashboardAuth {
       this.attempts = 0;
     }
     if (++this.attempts > 15) throw new AccessError("try_later", 429);
-    const row = this.read();
     this.activeVerifications++;
     try {
+      const row = await this.read();
       const valid = this.envPassword
         ? timingSafeEqual(Buffer.from(digest(password)), Buffer.from(digest(this.envPassword)))
         : !!row.password_hash && (await Bun.password.verify(password, row.password_hash));
-      if (!valid || this.generation(row) !== this.generation()) throw new AccessError("incorrect_password", 401);
+      const current = await this.read();
+      if (!valid || this.generation(row) !== this.generation(current)) throw new AccessError("incorrect_password", 401);
       return row.revision;
     } finally {
       this.activeVerifications--;
     }
   }
-
-  issueSession(request: Request, expectedRevision?: number) {
-    const token = randomBytes(32).toString("hex");
-    const csrf = randomBytes(32).toString("hex");
-    this.database.transaction(() => {
-      const row = this.read();
+  async issueSession(request: Request, expectedRevision?: number) {
+    const token = randomBytes(32).toString("hex"),
+      csrf = randomBytes(32).toString("hex");
+    const tx = await this.database.transaction("write");
+    try {
+      const row = await this.read(tx);
       if (expectedRevision !== undefined && row.revision !== expectedRevision) throw new AccessError("configuration_changed", 409);
-      this.database.query("DELETE FROM dashboard_sessions WHERE expires_at <= ?").run(Date.now());
-      this.database
-        .query("INSERT INTO dashboard_sessions (token_hash, csrf, generation, expires_at) VALUES (?, ?, ?, ?)")
-        .run(digest(token), csrf, this.generation(row), Date.now() + SESSION_SECONDS * 1000);
-    })();
+      await tx.execute({ sql: "DELETE FROM dashboard_sessions WHERE expires_at <= ?", args: [Date.now()] });
+      await tx.execute({
+        sql: "INSERT INTO dashboard_sessions (token_hash, csrf, generation, expires_at) VALUES (?, ?, ?, ?)",
+        args: [digest(token), csrf, this.generation(row), Date.now() + SESSION_SECONDS * 1000],
+      });
+      await tx.commit();
+    } catch (error) {
+      await tx.rollback();
+      throw error;
+    }
     const secure = new URL(request.url).protocol === "https:" || request.headers.get("x-forwarded-proto") === "https";
     return { csrf, cookie: `raceiq_session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_SECONDS}${secure ? "; Secure" : ""}` };
   }
-
   async login(password: string, request: Request) {
-    if (this.pending || !this.protected) throw new AccessError("not_available", 409);
-    const revision = await this.verify(password);
-    return this.issueSession(request, revision);
+    if ((await this.isPending()) || !(await this.isProtected())) throw new AccessError("not_available", 409);
+    return this.issueSession(request, await this.verify(password));
   }
-
-  logout(request: Request) {
+  async logout(request: Request) {
     const token = /(?:^|;\s*)raceiq_session=([a-f0-9]{64})(?:;|$)/.exec(request.headers.get("cookie") ?? "")?.[1];
-    if (token) this.database.query("DELETE FROM dashboard_sessions WHERE token_hash = ?").run(digest(token));
+    if (token) await this.database.execute({ sql: "DELETE FROM dashboard_sessions WHERE token_hash = ?", args: [digest(token)] });
     return "raceiq_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0";
   }
-
   async setup(password: string | null, exposureConfirmed: boolean) {
-    if (!this.pending) throw new AccessError("already_configured", 409);
+    if (!(await this.isPending())) throw new AccessError("already_configured", 409);
     if (password !== null && !PasswordSchema.safeParse(password).success) throw new AccessError("password_length");
     if (password === null && !exposureConfirmed) throw new AccessError("confirm_exposure");
     const hash = password === null ? null : await Bun.password.hash(password, { algorithm: "argon2id" });
-    this.database.transaction(() => {
-      const changed = this.database
-        .query("UPDATE dashboard_access SET mode = ?, password_hash = ?, revision = revision + 1 WHERE id = 1 AND mode = 'pending'")
-        .run(password === null ? "disabled" : "enabled", hash);
-      if (changed.changes !== 1) throw new AccessError("already_configured", 409);
-      // Persist the witness before committing the choice. A partial failure
-      // remains closed instead of offering first-run setup again.
+    const tx = await this.database.transaction("write");
+    try {
+      const changed = await tx.execute({
+        sql: "UPDATE dashboard_access SET mode = ?, password_hash = ?, revision = revision + 1 WHERE id = 1 AND mode = 'pending'",
+        args: [password === null ? "disabled" : "enabled", hash],
+      });
+      if (Number(changed.rowsAffected) !== 1) throw new AccessError("already_configured", 409);
       markDashboardAccessConfigured(this.path);
-    })();
+      await tx.commit();
+    } catch (error) {
+      await tx.rollback();
+      throw error;
+    }
   }
-
   async changePassword(current: string, password: string | null, exposureConfirmed: boolean) {
     if (this.envPassword) throw new AccessError("environment_override", 409);
-    if (this.pending) throw new AccessError("not_available", 409);
+    const row = await this.read();
+    if (row.mode === "pending") throw new AccessError("not_available", 409);
     if (password !== null && !PasswordSchema.safeParse(password).success) throw new AccessError("password_length");
     if (password === null && !exposureConfirmed) throw new AccessError("confirm_exposure");
-    const revision = this.protected ? await this.verify(current) : this.read().revision;
+    const revision = row.mode === "enabled" ? await this.verify(current) : row.revision;
     const hash = password === null ? null : await Bun.password.hash(password, { algorithm: "argon2id" });
-    this.database.transaction(() => {
-      const result = this.database
-        .query("UPDATE dashboard_access SET mode = ?, password_hash = ?, revision = revision + 1 WHERE id = 1 AND revision = ? AND mode != 'pending'")
-        .run(password === null ? "disabled" : "enabled", hash, revision);
-      if (result.changes !== 1) throw new AccessError("configuration_changed", 409);
-      this.database.exec("DELETE FROM dashboard_sessions");
-    })();
+    const tx = await this.database.transaction("write");
+    try {
+      const result = await tx.execute({
+        sql: "UPDATE dashboard_access SET mode = ?, password_hash = ?, revision = revision + 1 WHERE id = 1 AND revision = ? AND mode != 'pending'",
+        args: [password === null ? "disabled" : "enabled", hash, revision],
+      });
+      if (Number(result.rowsAffected) !== 1) throw new AccessError("configuration_changed", 409);
+      await tx.execute("DELETE FROM dashboard_sessions");
+      await tx.commit();
+    } catch (error) {
+      await tx.rollback();
+      throw error;
+    }
   }
-
-  saveNetwork(network: DashboardNetwork) {
-    const existing = this.network;
-    const sameHosts = JSON.stringify(existing.hosts) === JSON.stringify(network.hosts);
-    const sameOrigins = JSON.stringify(existing.origins) === JSON.stringify(network.origins);
+  async saveNetwork(network: DashboardNetwork) {
+    const existing = await this.getNetwork();
+    const sameHosts = JSON.stringify(existing.hosts) === JSON.stringify(network.hosts),
+      sameOrigins = JSON.stringify(existing.origins) === JSON.stringify(network.origins);
     if ((this.env.SERVER_HOST && !sameHosts) || (this.env.SERVER_ALLOWED_ORIGINS && !sameOrigins)) throw new AccessError("environment_override", 409);
     const validated = validateNetwork({ ...network, hosts: sameHosts ? ["127.0.0.1"] : network.hosts });
-    this.database.query("UPDATE dashboard_access SET network_json = ? WHERE id = 1").run(JSON.stringify({ ...validated, hosts: sameHosts ? existing.hosts : validated.hosts }));
+    await this.database.execute({ sql: "UPDATE dashboard_access SET network_json = ? WHERE id = 1", args: [JSON.stringify({ ...validated, hosts: sameHosts ? existing.hosts : validated.hosts })] });
   }
-
   async reset(password: string) {
     if (this.envPassword) throw new AccessError("environment_override", 409);
     PasswordSchema.parse(password);
     const hash = await Bun.password.hash(password, { algorithm: "argon2id" });
-    // Recovery can repair an invalid hash/mode, but never recreates lost network
-    // configuration or invents a first-run state.
-    this.database.transaction(() => {
-      const result = this.database.query("UPDATE dashboard_access SET mode = 'enabled', password_hash = ?, revision = revision + 1 WHERE id = 1 AND network_json IS NOT NULL").run(hash);
-      if (result.changes !== 1) throw new AccessError("restore_configuration", 409);
+    const tx = await this.database.transaction("write");
+    try {
+      const result = await tx.execute({ sql: "UPDATE dashboard_access SET mode = 'enabled', password_hash = ?, revision = revision + 1 WHERE id = 1 AND network_json IS NOT NULL", args: [hash] });
+      if (Number(result.rowsAffected) !== 1) throw new AccessError("restore_configuration", 409);
       markDashboardAccessConfigured(this.path);
-      this.database.exec("DELETE FROM dashboard_sessions");
-    })();
+      await tx.execute("DELETE FROM dashboard_sessions");
+      await tx.commit();
+    } catch (error) {
+      await tx.rollback();
+      throw error;
+    }
   }
 }
 

@@ -1,4 +1,4 @@
-import { initDb, DB_PATH } from "@raceiq/backend-core/db/index";
+import { initDb, DB_PATH, client } from "@raceiq/backend-core/db/index";
 import { DashboardAuth, PasswordSchema } from "./dashboard-auth";
 
 export function readHiddenPassword(prompt: string): Promise<string> {
@@ -39,15 +39,11 @@ export async function resetDashboardPassword(args: string[]) {
   if (args.length !== 2 || args[0] !== "auth" || args[1] !== "reset") throw new Error("Usage: raceiq auth reset. Password arguments are not accepted.");
   if (process.env.SERVER_PASSWORD) throw new Error("Remove SERVER_PASSWORD from the server and recovery environment before resetting the UI-managed password.");
   await initDb();
-  const auth = new DashboardAuth(DB_PATH, process.env, true);
-  try {
-    const password = await readHiddenPassword("New password: ");
-    const confirmation = await readHiddenPassword("Confirm new password: ");
-    if (password !== confirmation) throw new Error("Passwords do not match.");
-    if (!PasswordSchema.safeParse(password).success) throw new Error("Password must contain 8 to 1024 characters. Numbers and special characters are optional.");
-    await auth.reset(password);
-    console.log("Dashboard password replaced. Previous sessions are invalid. A running server reads the replacement immediately; restart after removing environment overrides.");
-  } finally {
-    auth.database.close();
-  }
+  const auth = await DashboardAuth.create(client, DB_PATH, process.env, true);
+  const password = await readHiddenPassword("New password: ");
+  const confirmation = await readHiddenPassword("Confirm new password: ");
+  if (password !== confirmation) throw new Error("Passwords do not match.");
+  if (!PasswordSchema.safeParse(password).success) throw new Error("Password must contain 8 to 1024 characters. Numbers and special characters are optional.");
+  await auth.reset(password);
+  console.log("Dashboard password replaced. Previous sessions are invalid. A running server reads the replacement immediately; restart after removing environment overrides.");
 }

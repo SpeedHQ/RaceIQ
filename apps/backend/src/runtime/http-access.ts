@@ -3,9 +3,10 @@ import { isIP } from "node:net";
 import { networkInterfaces } from "node:os";
 import type { DashboardAuth } from "./dashboard-auth";
 
-export function createHttpAccess(env: NodeJS.ProcessEnv = process.env, auth?: DashboardAuth) {
+export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, auth?: DashboardAuth) {
+  const network = auth ? await auth.getNetwork() : undefined;
   // Preserve Bun's existing all-interface listener for upgrades, including Docker.
-  const hosts = env.SERVER_HOST ? [env.SERVER_HOST] : auth?.network.hosts ?? ["0.0.0.0"];
+  const hosts = env.SERVER_HOST ? [env.SERVER_HOST] : (network?.hosts ?? ["0.0.0.0"]);
   const hostname = hosts[0];
   const password = auth ? "" : env.SERVER_PASSWORD || "";
   // Release builds replace this exact process.env expression. An installed
@@ -28,10 +29,19 @@ export function createHttpAccess(env: NodeJS.ProcessEnv = process.env, auth?: Da
       }
     }
   }
-  const configuredOrigins = env.SERVER_ALLOWED_ORIGINS || (auth && (!hosts.includes("0.0.0.0") && !hosts.includes("::") || auth.network.origins.length > 0)
-    ? [...auth.network.origins, ...[...listenerHosts].map((host) => `http://${host.includes(":") ? `[${host}]` : host}:${port}`), ...(listenerHosts.has("127.0.0.1") || listenerHosts.has("::1") ? [`http://localhost:${port}`] : [])].join(",")
-    : "");
-  for (const value of configuredOrigins.split(",").map((s) => s.trim()).filter(Boolean)) {
+  const configuredOrigins =
+    env.SERVER_ALLOWED_ORIGINS ||
+    (auth && ((!hosts.includes("0.0.0.0") && !hosts.includes("::")) || (network?.origins.length ?? 0) > 0)
+      ? [
+          ...(network?.origins ?? []),
+          ...[...listenerHosts].map((host) => `http://${host.includes(":") ? `[${host}]` : host}:${port}`),
+          ...(listenerHosts.has("127.0.0.1") || listenerHosts.has("::1") ? [`http://localhost:${port}`] : []),
+        ].join(",")
+      : "");
+  for (const value of configuredOrigins
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)) {
     const url = new URL(value);
     if (!["http:", "https:"].includes(url.protocol) || url.hostname.includes("*") || url.username || url.password || (value !== url.origin && value !== `${url.origin}/`)) {
       throw new Error("SERVER_ALLOWED_ORIGINS must contain exact HTTP(S) origins, without paths or credentials");
@@ -46,9 +56,7 @@ export function createHttpAccess(env: NodeJS.ProcessEnv = process.env, auth?: Da
       const url = new URL(origin);
       if (url.origin !== origin || !["http:", "https:"].includes(url.protocol)) return false;
       // An explicit list replaces compatibility rules, independently of auth.
-      if (origins.size > 0) return origins.has(origin) || (!env.SERVER_ALLOWED_ORIGINS && development && (
-        localHost(url.hostname) || hosts.includes(url.hostname)
-      ));
+      if (origins.size > 0) return origins.has(origin) || (!env.SERVER_ALLOWED_ORIGINS && development && (localHost(url.hostname) || hosts.includes(url.hostname)));
       const target = new URL(request.url);
       const forwardedHost = request.headers.get("x-forwarded-host");
       const forwardedProtocol = request.headers.get("x-forwarded-proto") || target.protocol.slice(0, -1);
@@ -56,28 +64,27 @@ export function createHttpAccess(env: NodeJS.ProcessEnv = process.env, auth?: Da
       // Browser WebSockets cannot set them; cross-origin HTTP scripts require
       // a preflight, which lacks the spoofed values and is rejected. They do
       // not authenticate non-browser callers or override an explicit list.
-      const forwardedOrigin = forwardedHost && !/[\s,/\\?#@]/.test(forwardedHost)
-        && ["http", "https"].includes(forwardedProtocol)
-        ? new URL(`${forwardedProtocol}://${forwardedHost}`).origin
-        : null;
-      return origin === target.origin
+      const forwardedOrigin = forwardedHost && !/[\s,/\\?#@]/.test(forwardedHost) && ["http", "https"].includes(forwardedProtocol) ? new URL(`${forwardedProtocol}://${forwardedHost}`).origin : null;
+      return (
+        origin === target.origin ||
         // TLS termination can change the scheme seen by Bun, but not the
         // browser-facing authority.
-        || (target.protocol === "http:" && url.protocol === "https:" && url.host === target.host)
-        || origin === forwardedOrigin
+        (target.protocol === "http:" && url.protocol === "https:" && url.host === target.host) ||
+        origin === forwardedOrigin ||
         // A proxy may also rewrite Host. Browsers control Sec-Fetch-Site and
         // cannot set it from script; same-origin preserves that supported path.
         // Non-browser callers can forge it, as they already can omit Origin.
-        || request.headers.get("sec-fetch-site") === "same-origin"
+        request.headers.get("sec-fetch-site") === "same-origin" ||
         // Local development tools have dynamically assigned ports. .localhost
         // is reserved for loopback, unlike arbitrary domains resolving locally.
-        || (development && (localHost(url.hostname) || url.hostname === target.hostname));
+        (development && (localHost(url.hostname) || url.hostname === target.hostname))
+      );
     } catch {
       return false;
     }
   }
 
-  function authorize(request: Request): Response | undefined {
+  async function authorize(request: Request): Promise<Response | undefined> {
     const url = new URL(request.url);
     const host = request.headers.get("host");
     // Forwarded headers never bypass authentication or Host consistency.
@@ -86,13 +93,11 @@ export function createHttpAccess(env: NodeJS.ProcessEnv = process.env, auth?: Da
     if (host && host.toLowerCase() !== url.host.toLowerCase()) {
       return new Response("Forbidden", { status: 403 });
     }
-    if (auth && origins.size > 0 && ![...origins].some((value) => new URL(value).host === url.host)
-      && !(development && localHost(url.hostname))) return new Response("Forbidden", { status: 403 });
+    if (auth && origins.size > 0 && ![...origins].some((value) => new URL(value).host === url.host) && !(development && localHost(url.hostname))) return new Response("Forbidden", { status: 403 });
     const origin = request.headers.get("origin");
     if (origin !== null && !allowsOrigin(origin, request)) return new Response("Forbidden", { status: 403 });
     if (!origin && request.headers.get("sec-fetch-site") === "cross-site") {
-      const navigation = request.method === "GET" && request.headers.get("sec-fetch-mode") === "navigate"
-        && !/^\/(?:api|studio-api|ws)(?:\/|$)/.test(url.pathname);
+      const navigation = request.method === "GET" && request.headers.get("sec-fetch-mode") === "navigate" && !/^\/(?:api|studio-api|ws)(?:\/|$)/.test(url.pathname);
       if (!navigation) return new Response("Forbidden", { status: 403 });
     }
     // Browser preflight carries no credentials. Only trusted origins get past
@@ -100,13 +105,16 @@ export function createHttpAccess(env: NodeJS.ProcessEnv = process.env, auth?: Da
     if (origin && request.method === "OPTIONS" && request.headers.has("access-control-request-method")) {
       // End preflight here: never forward an unauthenticated OPTIONS request
       // to static-file serving, Studio, or a WebSocket upgrade handler.
-      return new Response(null, { status: 204, headers: {
-        "Access-Control-Allow-Origin": origin,
-        "Access-Control-Allow-Credentials": "true",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-        "Access-Control-Allow-Headers": request.headers.get("access-control-request-headers") || "content-type",
-        "Vary": "Origin, Access-Control-Request-Headers",
-      } });
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "Access-Control-Allow-Origin": origin,
+          "Access-Control-Allow-Credentials": "true",
+          "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+          "Access-Control-Allow-Headers": request.headers.get("access-control-request-headers") || "content-type",
+          Vary: "Origin, Access-Control-Request-Headers",
+        },
+      });
     }
     if (auth) {
       const bootstrap = ["/api/auth/status", "/api/auth/setup", "/api/auth/login"].includes(url.pathname);
@@ -114,9 +122,10 @@ export function createHttpAccess(env: NodeJS.ProcessEnv = process.env, auth?: Da
       // data, Studio, and telemetry stay behind the gate below.
       const shell = !/^\/(?:api|studio-api|ws)(?:\/|$)/.test(url.pathname) && ["GET", "HEAD"].includes(request.method);
       if (bootstrap || shell) return;
-      if (auth.pending) return Response.json({ error: "setup_required" }, { status: 423 });
-      if (auth.protected && !auth.session(request)) return Response.json({ error: "login_required" }, { status: 401, headers: { "Cache-Control": "no-store" } });
-      if (auth.session(request) && !["GET", "HEAD", "OPTIONS"].includes(request.method) && !auth.csrfAllowed(request)) return new Response("Forbidden", { status: 403 });
+      const status = await auth.status(request);
+      if (status.pending) return Response.json({ error: "setup_required" }, { status: 423 });
+      if (status.protected && !status.authenticated) return Response.json({ error: "login_required" }, { status: 401, headers: { "Cache-Control": "no-store" } });
+      if (status.csrf && !["GET", "HEAD", "OPTIONS"].includes(request.method) && !(await auth.csrfAllowed(request))) return new Response("Forbidden", { status: 403 });
       return;
     }
     if (password) {
@@ -133,6 +142,15 @@ export function createHttpAccess(env: NodeJS.ProcessEnv = process.env, auth?: Da
   return { hostname, hosts, port, authorize, allowsOrigin, usesSessions: !!auth };
 }
 
-export type HttpAccess = ReturnType<typeof createHttpAccess>;
-export let httpAccess = createHttpAccess();
-export function configureHttpAccess(auth: DashboardAuth, port = Number(process.env.SERVER_PORT) || 3117) { httpAccess = createHttpAccess({ ...process.env, SERVER_PORT: String(port) }, auth); }
+export interface HttpAccess {
+  hostname: string;
+  hosts: string[];
+  port: number;
+  authorize(request: Request): Promise<Response | undefined>;
+  allowsOrigin(origin: string, request: Request): boolean;
+  usesSessions: boolean;
+}
+export let httpAccess: HttpAccess = await createHttpAccess();
+export async function configureHttpAccess(auth: DashboardAuth, port = Number(process.env.SERVER_PORT) || 3117) {
+  httpAccess = await createHttpAccess({ ...process.env, SERVER_PORT: String(port) }, auth);
+}

@@ -53,6 +53,8 @@
 - Automatically reconcile pre-upgrade recordings with updated car, track, and lap detection, including AC Evo Tourist timed attempts; preserve user annotations on matched laps and report captures that cannot be repaired.
 
 ### Internal
+- Share the application-owned database connection with dashboard authentication to prevent Linux WAL cleanup from discarding imported sessions during upgrade verification.
+- Ban Bun's separate SQLite driver in repository lint and use libSQL for synchronous fixtures and tooling.
 - Preserve dashboard access from earlier feature builds while applying the current identity migrations.
 - Add a release-seeded startup upgrade regression that verifies historical Tourist sessions are automatically reprocessed into the correct layout and lap times.
 - Remove unused compiled artifact downloads and base production builds from dev-mode dashboard screenshot CI.

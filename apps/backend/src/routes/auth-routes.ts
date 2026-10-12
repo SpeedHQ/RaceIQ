@@ -22,18 +22,19 @@ export const authRoutes = new Hono()
       throw error;
     }
   })
-  .get("/api/auth/status", (c) => {
+  .get("/api/auth/status", async (c) => {
     const auth = getDashboardAuth();
-    const status = auth.status(c.req.raw);
+    const status = await auth.status(c.req.raw);
     // Authentication polling must not synchronously query the Windows registry
     // and stall telemetry processing. Launch-on-login is unrelated to auth.
     const settings = loadSettings({ syncLaunchOnLogin: false });
+    const network = status.authenticated ? await auth.getNetwork() : null;
     return c.json({
       ...status,
       language: settings.language,
       onboardingComplete: settings.onboardingComplete,
       features: serverReleaseFeatures,
-      network: status.authenticated ? auth.network : null,
+      network,
       interfaces: status.authenticated ? availableInterfaces() : [],
       activeHosts: status.authenticated ? httpAccess.hosts : [],
       port: httpAccess.port,
@@ -45,8 +46,8 @@ export const authRoutes = new Hono()
     const auth = getDashboardAuth();
     await auth.setup(body.password, body.exposureConfirmed);
     if (body.language) saveSettings({ ...loadSettings({ syncLaunchOnLogin: false }), language: body.language });
-    if (auth.protected) {
-      const session = auth.issueSession(c.req.raw);
+    if (await auth.isProtected()) {
+      const session = await auth.issueSession(c.req.raw);
       c.header("Set-Cookie", session.cookie);
       c.header("X-RaceIQ-CSRF", session.csrf);
     }
@@ -58,8 +59,8 @@ export const authRoutes = new Hono()
     c.header("X-RaceIQ-CSRF", session.csrf);
     return c.json({ ok: true });
   })
-  .post("/api/auth/logout", (c) => {
-    c.header("Set-Cookie", getDashboardAuth().logout(c.req.raw));
+  .post("/api/auth/logout", async (c) => {
+    c.header("Set-Cookie", await getDashboardAuth().logout(c.req.raw));
     c.header("X-RaceIQ-CSRF", "");
     return c.json({ ok: true });
   })
@@ -67,17 +68,17 @@ export const authRoutes = new Hono()
     const body = c.req.valid("json");
     const auth = getDashboardAuth();
     await auth.changePassword(body.currentPassword, body.password, body.exposureConfirmed);
-    if (auth.protected) {
-      const session = auth.issueSession(c.req.raw);
+    if (await auth.isProtected()) {
+      const session = await auth.issueSession(c.req.raw);
       c.header("Set-Cookie", session.cookie);
       c.header("X-RaceIQ-CSRF", session.csrf);
     } else {
-      c.header("Set-Cookie", auth.logout(c.req.raw));
+      c.header("Set-Cookie", await auth.logout(c.req.raw));
       c.header("X-RaceIQ-CSRF", "");
     }
     return c.json({ ok: true });
   })
-  .put("/api/auth/network", zValidator("json", NetworkSchema), (c) => {
-    getDashboardAuth().saveNetwork(c.req.valid("json"));
+  .put("/api/auth/network", zValidator("json", NetworkSchema), async (c) => {
+    await getDashboardAuth().saveNetwork(c.req.valid("json"));
     return c.json({ ok: true, restartRequired: true });
   });

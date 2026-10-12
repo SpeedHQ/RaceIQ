@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Database } from "bun:sqlite";
+import Database from "libsql";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -14,7 +14,7 @@ describe("development dashboard network access", () => {
     const database = new Database(path);
     try {
       database.exec("CREATE TABLE dashboard_access (id INTEGER PRIMARY KEY, network_json TEXT)");
-      database.query("INSERT INTO dashboard_access VALUES (1, ?)").run(JSON.stringify({ hosts: ["127.0.0.1", "127.0.0.2"], origins: [] }));
+      database.prepare("INSERT INTO dashboard_access VALUES (1, ?)").run(JSON.stringify({ hosts: ["127.0.0.1", "127.0.0.2"], origins: [] }));
       expect(readDashboardHosts(path)).toEqual(["127.0.0.1", "127.0.0.2"]);
       expect(readDashboardHosts(path, "127.0.0.1")).toEqual(["127.0.0.1"]);
       database.exec("DELETE FROM dashboard_access");

@@ -8,7 +8,7 @@ import { injectDiscoveredLMUIdentity } from "@raceiq/game-lmu-metadata/index";
 import { getAllServerGames } from "@raceiq/backend-core/games/registry";
 import app from "../routes/index";
 import { initServerGameAdapters } from "../games/init";
-import { initDb, DB_PATH } from "@raceiq/backend-core/db/index";
+import { initDb, DB_PATH, client } from "@raceiq/backend-core/db/index";
 import { listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
 import { backfillAllRaceResults } from "@raceiq/backend-core/race-results/reconcile";
 import { reconcileHistoricalSessions } from "@raceiq/backend-core/session-capture/reconcile";
@@ -47,7 +47,7 @@ export interface RunningServer {
 
 function recordingGameIdFromArgs(args: readonly string[]): string | null {
   const arg = args.find((value) => value.startsWith("--record="));
-  return arg ? arg.split("=")[1] ?? null : null;
+  return arg ? (arg.split("=")[1] ?? null) : null;
 }
 
 export async function bootServer(options: BootOptions = {}): Promise<RunningServer> {
@@ -57,9 +57,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   initMotecTargets();
   registerDriverProfileLapNotifier(notifyDriverProfileLap);
 
-  const staticDir = IS_COMPILED && existsSync(resolve(PUBLIC_DIR, "index.html"))
-    ? PUBLIC_DIR
-    : null;
+  const staticDir = IS_COMPILED && existsSync(resolve(PUBLIC_DIR, "index.html")) ? PUBLIC_DIR : null;
   if (staticDir) {
     console.log(`[Server] Serving static assets from ${staticDir}`);
   }
@@ -73,30 +71,22 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     console.log(`[Server] Development onboarding override: ${onboardingOverride ? "show" : "skip"}`);
   }
 
-  const recordingGameId = options.recordingGameId === undefined
-    ? recordingGameIdFromArgs(process.argv)
-    : options.recordingGameId;
+  const recordingGameId = options.recordingGameId === undefined ? recordingGameIdFromArgs(process.argv) : options.recordingGameId;
   if (recordingGameId) {
     console.log(`[Server] Recording mode enabled for game: ${recordingGameId}`);
   }
 
   await initDb();
-  const auth = new DashboardAuth(DB_PATH);
+  const auth = await DashboardAuth.create(client, DB_PATH, process.env);
   await auth.initialize(upgradingAccess);
   setDashboardAuth(auth);
-  configureHttpAccess(auth, httpPort);
+  await configureHttpAccess(auth, httpPort);
   await hydrateDiscoveredAcEvoCars();
   await hydrateDiscoveredAcEvoTracks();
 
-  const [iracingCars, iracingTracks] = await Promise.all([
-    listDiscoveredCars("iracing"),
-    listDiscoveredTracks("iracing"),
-  ]);
+  const [iracingCars, iracingTracks] = await Promise.all([listDiscoveredCars("iracing"), listDiscoveredTracks("iracing")]);
   injectDiscoveredIRacingIdentity(iracingCars, iracingTracks);
-  const [lmuCars, lmuTracks] = await Promise.all([
-    listDiscoveredCars("lmu"),
-    listDiscoveredTracks("lmu"),
-  ]);
+  const [lmuCars, lmuTracks] = await Promise.all([listDiscoveredCars("lmu"), listDiscoveredTracks("lmu")]);
   injectDiscoveredLMUIdentity(lmuCars, lmuTracks);
 
   const firstRun = IS_COMPILED && isFirstRun();
@@ -136,10 +126,14 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   })
     .then(async (counts) => {
       console.log("[SessionRepair] Historical session reconciliation complete:", counts);
-      if (counts.failed === 0 && await countStaleSessions(
-        ALL_DETECTOR_IDS,
-        getAllServerGames().map((adapter) => adapter.id),
-      ) === 0) wsManager.setStaleSessionsNotification(null);
+      if (
+        counts.failed === 0 &&
+        (await countStaleSessions(
+          ALL_DETECTOR_IDS,
+          getAllServerGames().map((adapter) => adapter.id),
+        )) === 0
+      )
+        wsManager.setStaleSessionsNotification(null);
       await backfillAllRaceResults();
       await backfillLMUSessionIdentity().then((identityCounts) => {
         console.log("[LMU] Session identity backfill complete:", identityCounts);
@@ -148,8 +142,6 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     .catch((error) => {
       console.error("[SessionRepair] Startup reconciliation failed:", error);
     });
-
-
 
   if (recordingGameId === "fm-2023" || recordingGameId === "f1-2025") {
     udpListener.setRecordingGameId(recordingGameId);
@@ -160,8 +152,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     getNativeSources: () => nativeSources,
   });
 
-  const udpPort = options.udpPort
-    ?? (Number(process.env.RACEIQ_DEV_UDP_PORT) || settings.udpPort || Number(process.env.UDP_PORT) || 5301);
+  const udpPort = options.udpPort ?? (Number(process.env.RACEIQ_DEV_UDP_PORT) || settings.udpPort || Number(process.env.UDP_PORT) || 5301);
   void udpListener.start(udpPort);
 
   startSyncAndStaleSessionJobs();

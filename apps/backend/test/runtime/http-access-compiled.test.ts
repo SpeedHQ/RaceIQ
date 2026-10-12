@@ -11,18 +11,27 @@ test("packaged access policy stays in production without runtime NODE_ENV", () =
     const entry = join(directory, "entry.ts");
     const binary = join(directory, process.platform === "win32" ? "access.exe" : "access");
     const source = fileURLToPath(new URL("../../src/runtime/http-access.ts", import.meta.url));
-    writeFileSync(entry, `
+    writeFileSync(
+      entry,
+      `
       import { httpAccess } from ${JSON.stringify(source)};
       const req = (origin) => new Request("http://localhost:3117/ws", { headers: { origin } });
+      const [unlisted, local] = await Promise.all([
+        httpAccess.authorize(req("http://unrelated.localhost:1355")),
+        httpAccess.authorize(req("http://localhost:3117")),
+      ]);
       console.log(JSON.stringify({
         mode: process.env.NODE_ENV,
         hostname: httpAccess.hostname,
-        unlisted: httpAccess.authorize(req("http://unrelated.localhost:1355"))?.status,
-        local: httpAccess.authorize(req("http://localhost:3117"))?.status ?? 200,
+        unlisted: unlisted?.status,
+        local: local?.status ?? 200,
       }));
-    `);
+    `,
+    );
     execFileSync(process.execPath, ["build", "--compile", "--define", 'process.env.NODE_ENV="production"', entry, "--outfile", binary], {
-      cwd: directory, stdio: "pipe", timeout: 45_000,
+      cwd: directory,
+      stdio: "pipe",
+      timeout: 45_000,
     });
     const env = { ...process.env };
     for (const key of ["NODE_ENV", "SERVER_HOST", "SERVER_PASSWORD", "SERVER_ALLOWED_ORIGINS"]) delete env[key];
