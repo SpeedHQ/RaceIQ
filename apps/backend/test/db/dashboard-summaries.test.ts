@@ -17,7 +17,7 @@ afterEach(async () => {
 
 async function seedSession(createdAt = "2026-06-01T12:00:00.000Z") {
   const row = await db.insert(sessions).values({
-    gameId: "acc", carId: "7", trackId: "8", carOrdinal: 7, trackOrdinal: 8,
+    gameId: "acc", carId: "7", trackId: "8",
     ownership: "mine", createdAt, sessionType: "race",
   }).returning({ id: sessions.id }).get();
   ids.push(row.id);
@@ -282,7 +282,7 @@ test("monthly publication moves time and identity contributions without stale en
   expect(prior[0]?.lap_count).toBe(1);
 
   await client.execute({ sql: "UPDATE laps SET created_at='2097-02-02T12:01:00.000Z' WHERE session_id=?", args: [sessionId] });
-  await db.update(sessions).set({ carId: "9", trackId: "10", carOrdinal: 9, trackOrdinal: 10 }).where(eq(sessions.id, sessionId)).run();
+  await db.update(sessions).set({ carId: "9", trackId: "10" }).where(eq(sessions.id, sessionId)).run();
   expect(await publish(sessionId)).toBe(true);
   expect((await read("SELECT lap_count FROM dashboard_month_entities WHERE utc_month='2097-01' AND game_id='acc'")).map((row) => Number(row.lap_count))).toEqual([]);
   const moved = await read("SELECT car_key,track_key,lap_count,valid_seconds FROM dashboard_month_entities WHERE utc_month='2097-02' AND game_id='acc'");

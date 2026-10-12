@@ -60,16 +60,16 @@ export const f1ServerAdapter: ServerGameAdapter = {
 
   processNames: ["F1_25.exe", "F1_2025.exe"],
 
-  getCarName(ordinal) {
-    return getF1CarName(ordinal);
+  getCarName(carId: string) {
+    return getF1CarName(Number(carId));
   },
 
-  getTrackName(ordinal) {
-    return getF1TrackName(ordinal);
+  getTrackName(trackId: string) {
+    return getF1TrackName(Number(trackId));
   },
 
-  getSharedTrackName(ordinal) {
-    return getF1TrackInfo(ordinal)?.commonTrackName || undefined;
+  getSharedTrackName(trackId: string) {
+    return getF1TrackInfo(Number(trackId))?.commonTrackName || undefined;
   },
 
   canHandle: f1Parser.canHandle,

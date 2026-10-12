@@ -32,14 +32,14 @@ export function HomePageContainer() {
   const latestSession = response?.latestRecapSessionId == null ? null : recentSessions.find((session) => session.id === response.latestRecapSessionId) ?? null;
   const recapGameId = latestSession?.gameId ?? null;
   const { data: latestRecap, isLoading: latestRecapLoading, isError: latestRecapError } = useDashboardRecap(response?.latestRecapSessionId, recapGameId);
-  const { data: recapCars } = useQuery<{ id?: string | number | null; ordinal?: number | null; imageUrl?: string | null; specs?: { imageUrl?: string | null } | null }[]>({
+  const { data: recapCars } = useQuery<{ id?: string | null; imageUrl?: string | null; specs?: { imageUrl?: string | null } | null }[]>({
     queryKey: ["cars", recapGameId],
     queryFn: async () => {
       if (recapGameId === "acc") {
         const response = await client.api.acc.cars.$get();
         if (!response.ok) throw await errorFromResponse(response);
-        const cars = await response.json() as { id: number }[];
-        return cars.map((car) => ({ id: car.id, imageUrl: `/car-images/acc-${car.id}.jpg` }));
+        const cars = await response.json();
+        return cars.map((car) => ({ id: String(car.id), imageUrl: `/car-images/acc-${car.id}.jpg` }));
       }
       if (!recapGameId) return [];
       const response = await client.api.cars.$get({}, { headers: { "X-Game-Id": recapGameId } });
@@ -49,20 +49,19 @@ export function HomePageContainer() {
     enabled: !!recapGameId && latestRecap?.carId != null,
     staleTime: Infinity,
   });
-  const matchedRecapCar = recapCars?.find((car) => String(car.id) === String(latestRecap?.carId) || (typeof latestRecap?.carId === "number" && car.ordinal === latestRecap.carId));
+  const matchedRecapCar = recapCars?.find((car) => car.id === latestRecap?.carId);
   const latestRecapCarImageUrl = matchedRecapCar?.imageUrl || matchedRecapCar?.specs?.imageUrl || undefined;
   const { data: latestRecapOutline } = useTrackOutline(latestRecap?.trackId, latestRecap?.gameId ?? recapGameId);
   const { data: latestRecapBounds } = useTrackSectorBoundaries(latestRecap?.trackId, latestRecap?.gameId ?? recapGameId);
   const trackNameRequests = useMemo(() => {
-    const ordinalsByGame = new Map<string, Set<number>>();
+    const idsByGame = new Map<string, Set<string>>();
     const identities = [...(response?.trackDistribution.topFive ?? []), ...(response?.favouriteTrack ? [response.favouriteTrack] : [])];
     for (const track of identities) {
-      if (track.ordinal == null || track.ordinal < 0) continue;
-      const ordinals = ordinalsByGame.get(track.gameId) ?? new Set<number>();
-      ordinals.add(track.ordinal);
-      ordinalsByGame.set(track.gameId, ordinals);
+      const ids = idsByGame.get(track.gameId) ?? new Set<string>();
+      ids.add(track.identity);
+      idsByGame.set(track.gameId, ids);
     }
-    return [...ordinalsByGame].map(([gameId, ordinals]) => ({ gameId, tracks: [...ordinals].sort((a, b) => a - b).join(",") }));
+    return [...idsByGame].map(([gameId, ids]) => ({ gameId, tracks: [...ids].join(",") }));
   }, [response]);
   const resolvedTrackNames = useQueries({
     queries: trackNameRequests.map(({ gameId, tracks }) => ({
@@ -76,16 +75,16 @@ export function HomePageContainer() {
     const cars: Record<string, string> = {};
     const tracks: Record<string, string> = {};
     for (const session of recentSessions) {
-      const key = `${session.gameId}:${session.car.ordinal ?? session.car.id}`;
+      const key = `${session.gameId}:${session.car.id ?? ""}`;
       const carName = session.car.name;
-      if (carName) cars[key] = carName;
-      const trackKey = `${session.gameId}:${session.track.ordinal ?? session.track.id}`;
-      if (session.track.name) tracks[trackKey] = session.track.name;
+      if (session.car.id != null && carName) cars[key] = carName;
+      const trackKey = `${session.gameId}:${session.track.id ?? ""}`;
+      if (session.track.id != null && session.track.name) tracks[trackKey] = session.track.name;
     }
     for (let index = 0; index < trackNameRequests.length; index++) {
       const gameId = trackNameRequests[index].gameId;
-      for (const [ordinal, name] of Object.entries(resolvedTrackNames[index].data?.trackNames ?? {})) {
-        if (name) tracks[`${gameId}:${ordinal}`] = name;
+      for (const [identity, name] of Object.entries(resolvedTrackNames[index].data?.trackNames ?? {})) {
+        if (name && tracks[`${gameId}:${identity}`] == null) tracks[`${gameId}:${identity}`] = name;
       }
     }
     return { cars, tracks };
@@ -101,6 +100,8 @@ export function HomePageContainer() {
       tracks: totals?.tracks ?? 0,
       cars: totals?.cars ?? 0,
       sessions: totals?.sessions ?? 0,
+      favCarId: response?.favouriteCar?.nativeId ?? null,
+      favCarCount: response?.favouriteCar?.laps ?? 0,
     };
     return { today: current, week: current, month: current, year: current };
   }, [response, totals]);

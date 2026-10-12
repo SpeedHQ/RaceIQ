@@ -88,7 +88,7 @@ export function TrackFocusView({
   gameId,
   alignedSet,
   lapIds,
-  trackOrdinal,
+  trackId,
   primaryLapId,
   experimentId,
   lineSpreadOverride,
@@ -116,13 +116,13 @@ export function TrackFocusView({
   const lineSpread = lineSpreadOverride ?? fetchedLineSpread ?? null;
   const focusTelemetry = useMemo(() => {
     const lap = alignedSet?.laps.find((candidate) => candidate.lapId === primaryLapId);
-    return lap ? semanticTuneSamplesFromAlignedTrace(lap, gameId, trackOrdinal, alignedSet?.nominalSpanMeters ?? 0) : null;
-  }, [alignedSet, gameId, primaryLapId, trackOrdinal]);
+    return lap ? semanticTuneSamplesFromAlignedTrace(lap, gameId, trackId, alignedSet?.nominalSpanMeters ?? 0) : null;
+  }, [alignedSet, gameId, primaryLapId, trackId]);
   const { data: issues } = useLapIssues(primaryLapId);
   const { data: lapInsights } = useLapInsights(primaryLapId);
-  const { data: bounds } = useTrackBoundaries(trackOrdinal, gameId);
-  const { data: corners } = useTrackCorners(trackOrdinal, gameId);
-  const { data: sectorBoundaries } = useTrackSectorBoundaries(trackOrdinal, gameId);
+  const { data: bounds } = useTrackBoundaries(trackId, gameId);
+  const { data: corners } = useTrackCorners(trackId, gameId);
+  const { data: sectorBoundaries } = useTrackSectorBoundaries(trackId, gameId);
   const edges = useMemo(() => {
     const e = extractEdges(bounds);
     if (!e) return null;
@@ -179,7 +179,7 @@ export interface TrackFocusViewProps {
   gameId: GameId;
   alignedSet: AlignedLapSet | undefined;
   lapIds: readonly number[];
-  trackOrdinal?: number;
+  trackId?: string;
   primaryLapId: number;
   experimentId?: number | null;
   lineSpreadOverride?: LineSpreadTrace | null;

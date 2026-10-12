@@ -1,10 +1,6 @@
 import { client } from "@raceiq/backend-core/db/index";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { SessionRecap } from "@raceiq/shared/racing/sessions/types";
-import { tryGetGame } from "@raceiq/shared/games/registry";
-import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
-import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
-import { getLMUCar, getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 type Row = Record<string, unknown>;
 const n = (value: unknown) => Number(value ?? 0);
 const nullable = (value: unknown) => value == null ? null : Number(value);
@@ -12,20 +8,16 @@ const roundoff = (value: number) => value;
 
 /** Metric oracle derives target and historical values directly from source laps, not summaries/reducers. */
 export async function sourceRecapMetricOracle(sessionId: number, gameId: GameId): Promise<SessionRecap> {
-  const sessionResult = await client.execute({ sql: "SELECT id,game_id,created_at,car_id,track_id,car_ordinal,track_ordinal FROM sessions WHERE id=? AND game_id=?", args: [sessionId, gameId] });
+  const sessionResult = await client.execute({ sql: "SELECT id,game_id,created_at,car_id,track_id FROM sessions WHERE id=? AND game_id=?", args: [sessionId, gameId] });
   const session = sessionResult.rows[0];
   if (!session) throw new Error(`Fixture recap session ${sessionId} missing`);
   const sourceRow = session;
   const sourceCarId = typeof sourceRow.car_id === "string" ? sourceRow.car_id : null;
   const sourceTrackId = typeof sourceRow.track_id === "string" ? sourceRow.track_id : null;
-  const carOrdinal = nullable(sourceRow.car_ordinal), trackOrdinal = nullable(sourceRow.track_ordinal);
-  const carId = sourceCarId ?? carOrdinal ?? -1;
-  const trackId = sourceTrackId ?? trackOrdinal ?? -1;
-  const adapter = tryGetGame(gameId);
-  const carName = gameId === "lmu" && typeof carId === "string" ? getLMUCar(carId)?.name ?? carId
-    : adapter ? adapter.getCarName(n(carId)) : resolveCarName(n(carId), gameId);
-  const trackName = gameId === "lmu" && typeof trackId === "string" ? getLMUTrack(trackId)?.name ?? trackId
-    : adapter ? adapter.getTrackName(n(trackId)) : resolveTrackName(n(trackId), gameId);
+  const carId = sourceCarId ?? "";
+  const trackId = sourceTrackId ?? "";
+  const carName = carId;
+  const trackName = trackId;
   const lapsResult = await client.execute({ sql: "SELECT id,lap_number,lap_time,is_valid,invalid_reason,sector_times FROM laps WHERE session_id=? ORDER BY lap_number,id", args: [sessionId] });
   const laps = (lapsResult.rows as Row[]).map((row) => ({
     id: n(row.id), lapNumber: n(row.lap_number), lapTime: n(row.lap_time), isValid: Boolean(row.is_valid),
@@ -42,7 +34,7 @@ export async function sourceRecapMetricOracle(sessionId: number, gameId: GameId)
   const validSectorLaps = valid.filter((lap) => lap.sectors && lap.sectors.length >= 2 && lap.sectors.every((time) => time > 0));
   const sectorCount = validSectorLaps[0]?.sectors?.length ?? 0;
   const sessionBests = sectorCount ? Array.from({ length: sectorCount }, (_, index) => Math.min(...validSectorLaps.filter((lap) => lap.sectors!.length === sectorCount).map((lap) => lap.sectors![index]!))) : null;
-  const sectorStarts = Number(sourceRow.track_ordinal) === 0 ? [0, 1 / 3, 2 / 3] : null;
+  const sectorStarts = sourceTrackId === "fixture-track-hot" || sourceTrackId === "0" ? [0, 1 / 3, 2 / 3] : null;
   const historicalSectors = sectorCount ? await client.execute({ sql: `SELECT json_each.key sector_index,MIN(CAST(json_each.value AS REAL)) best
     FROM sessions s JOIN laps l ON l.session_id=s.id, json_each(l.sector_times)
     WHERE s.ownership='mine' AND s.game_id=? AND s.id!=? AND s.car_id IS ? AND s.track_id IS ?

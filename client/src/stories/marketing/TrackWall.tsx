@@ -11,7 +11,7 @@ const wallTracks = fixture.tracks
 
 function trackInfo(track: WallTrack): TrackInfo {
   return {
-    ordinal: track.ordinal,
+    id: track.trackId,
     name: track.name,
     location: track.location,
     country: track.country,

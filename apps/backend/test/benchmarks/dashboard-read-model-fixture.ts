@@ -39,7 +39,7 @@ export const ARCHIVE_STRESS_SHAPES = {
 let randomState = 1;
 function random(): number { randomState = (Math.imul(randomState, 1664525) + 1013904223) >>> 0; return randomState / 0x1_0000_0000; }
 // Source authority belongs to this synthetic fixture contract, not native game recordings.
-// Track ordinal 0 uses a declared three-sector layout; its laps are generated with ordered sector times.
+// Hot-track and zero-ID fixtures declare three sectors; their laps use ordered sector times.
 const FIXTURE_SECTOR_STARTS = [0, 1 / 3, 2 / 3] as const;
 function sourceTime(sessionIndex: number, sessionCount: number, lapIndex: number, distribution: DashboardFixtureOptions["distribution"], forSession = false, activeUser = false): string {
   if (distribution === "boundary-heavy") {
@@ -66,7 +66,6 @@ export async function createDashboardFixture(options: DashboardFixtureOptions): 
   const countForSession = (index: number) => index === options.sessionCount - 1 ? recapLaps : perSession + (index < remainder ? 1 : 0);
   let mineLaps = 0;
   const gameCounts = Array(GAMES.length).fill(0) as number[];
-  const gameOrdinals = Array(GAMES.length).fill(0) as number[];
   for (let base = 0; base < options.sessionCount; base += 100) {
     const values: Array<typeof sessions.$inferInsert> = [];
     const resultValues: Array<typeof sessionResults.$inferInsert> = [];
@@ -76,15 +75,12 @@ export async function createDashboardFixture(options: DashboardFixtureOptions): 
         : offset % 11 === 0 ? "others" : offset % 29 === 0 ? "unknown" : "mine";
       const hotIdentity = offset === options.sessionCount - 1;
       const gameIndex = fixtureGameIndex(offset, options.sessionCount, activeUser);
-      const gameOrdinal = gameOrdinals[gameIndex]!;
+      const gameOrdinal = gameCounts[gameIndex]!;
       gameCounts[gameIndex]!++;
-      gameOrdinals[gameIndex]!++;
-      const trackOrdinal = hotIdentity || offset % 113 === 1 ? 0 : offset % 89 === 0 ? -1 : gameOrdinal % (activeUser ? 6 : 60);
-      const carOrdinal = hotIdentity || offset % 109 === 1 ? 0 : offset % 97 === 0 ? -1 : gameOrdinal % (activeUser ? 4 : 220);
-      const carId = offset % 19 === 0 || carOrdinal === -1 ? null : offset % 109 === 1 ? "0" : `fixture-car-${carOrdinal}`;
-      const trackId = offset % 17 === 0 || trackOrdinal === -1 ? null : offset % 113 === 1 ? "0" : `fixture-track-${trackOrdinal}`;
+      const carId = hotIdentity ? "fixture-car-hot" : offset % 19 === 0 ? "-1" : offset % 109 === 1 ? "0" : `fixture-car-${gameOrdinal % (activeUser ? 4 : 220)}`;
+      const trackId = hotIdentity ? "fixture-track-hot" : offset % 17 === 0 ? "-1" : offset % 113 === 1 ? "0" : `fixture-track-${gameOrdinal % (activeUser ? 6 : 60)}`;
       const sessionType = ["practice", "qualifying", "race", null][offset % 4];
-      values.push({ id: firstId + offset, gameId: GAMES[gameIndex]!, carOrdinal, trackOrdinal, ownership: ownership as "mine" | "others",
+      values.push({ id: firstId + offset, gameId: GAMES[gameIndex]!, ownership: ownership as "mine" | "others",
         carId, trackId, sessionType, createdAt: sourceTime(offset, options.sessionCount, 0, options.distribution, true, activeUser) });
       const classification = offset % 6 === 3 ? "dnf" : offset % 6 === 5 ? "unknown" : "finished";
       const outcomeStatus = offset % 6 === 4 ? "provisional" : offset % 6 === 5 ? "unavailable" : "confirmed";
@@ -144,7 +140,7 @@ export async function createDashboardFinalizationFixture(): Promise<DashboardFix
   const sessionId = Number(existing.rows[0]?.last_id ?? 0) + 1;
   const gameId: GameId = "fm-2023";
   await db.insert(sessions).values({
-    id: sessionId, gameId, carOrdinal: 1, trackOrdinal: 1, ownership: "mine",
+    id: sessionId, gameId, ownership: "mine",
     carId: "fixture-finalization-car", trackId: "fixture-finalization-track", sessionType: "race",
     createdAt: "2025-12-31T23:30:00.000Z",
   }).run();
@@ -182,7 +178,7 @@ export async function drainDashboardFixture(): Promise<number> {
       lastSessionId = Number(row.session_id);
       const candidate = await prepareDashboardPublicationCandidate(lastSessionId);
       if (!candidate) continue;
-      const fixtureTrack = Number(candidate.session?.track_ordinal) === 0;
+      const fixtureTrack = candidate.session?.track_id === "fixture-track-hot" || candidate.session?.track_id === "0";
       const gameId = String(candidate.session?.game_id ?? "unknown");
       const evidence: DashboardCaptureFacts = { sourceRevision: candidate.sourceRevision, captureRevision: `fixture-source-v1-${candidate.sourceRevision}`,
         duration: { status: "unavailable", elapsedSeconds: null },

@@ -39,7 +39,7 @@ test("recovers timestamped duration across segments while excluding context and 
     const rawFile = join(directory, "session.bin.gz");
     writeFileSync(rawFile, gzipSync(capture));
     expect(await getRecordedElapsedSeconds({
-      rawFile, source: null, gameId: "fm-2023", carOrdinal: 0, trackOrdinal: 0,
+      rawFile, source: null, gameId: "fm-2023", carId: "7", trackId: "8",
     })).toBe(15);
   } finally {
     rmSync(directory, { recursive: true, force: true });
@@ -53,7 +53,7 @@ test("leaves legacy unclocked captures unavailable", async () => {
     const frame = Buffer.from([1, 2, 3]);
     writeFileSync(rawFile, Buffer.concat([encodeMetaFrame(1), encodeFrameLength(frame.length), frame]));
     expect(await getRecordedElapsedSeconds({
-      rawFile, source: null, gameId: "acc", carOrdinal: 0, trackOrdinal: 0,
+      rawFile, source: null, gameId: "acc", carId: "", trackId: "",
     })).toBeNull();
   } finally {
     rmSync(directory, { recursive: true, force: true });
@@ -70,7 +70,7 @@ test("prefers embedded LMU acquisition UTC over simulator elapsed clock", async 
       encodeMetaFrame(2), encodeFrameLength(first.length), first, encodeFrameLength(last.length), last,
     ]));
     expect(await getRecordedElapsedSeconds({
-      rawFile, source: null, gameId: "lmu", carOrdinal: 0, trackOrdinal: 0,
+      rawFile, source: null, gameId: "lmu", carId: "", trackId: "",
     })).toBe(5.001);
   } finally {
     rmSync(directory, { recursive: true, force: true });
@@ -85,7 +85,7 @@ test("invalidates cached duration when capture grows", async () => {
       encodeMetaFrame(times.length), ...times.map((time) => captureFrame(time)),
     ]));
     writeCapture([1_000, 2_000]);
-    const source = { rawFile, source: null, gameId: "fm-2023" as const, carOrdinal: 0, trackOrdinal: 0 };
+    const source = { rawFile, source: null, gameId: "fm-2023" as const, carId: "7", trackId: "8" };
     expect(await getRecordedElapsedSeconds(source)).toBe(1);
     writeCapture([1_000, 2_000, 6_000]);
     expect(await getRecordedElapsedSeconds(source)).toBe(5);

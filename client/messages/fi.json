@@ -1855,6 +1855,7 @@
 "ai_chat_open_fullscreen": "Avaa keskustelu koko näytölle",
 "ai_chat_actions": "Keskustelutoiminnot",
 "ai_chat_copy_json": "Kopioi keskustelu JSON-muodossa",
+"ai_chat_export_json": "Vie koko keskustelu JSON-muodossa",
 "ai_chat_clear": "Tyhjennä keskustelu",
 "ai_chat_read_only_notice": "Tarkastelet aiempaa keskustelua (vain luku). Jatka vaihtamalla uusimpaan.",
 "ai_chat_compact_failed": "Tiivistäminen epäonnistui",

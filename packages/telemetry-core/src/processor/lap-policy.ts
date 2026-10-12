@@ -33,7 +33,12 @@ export function mergePitCycleReason(current: PitCycleReason | null, next: PitCyc
   return "pit lap";
 }
 
-export function assessLapRecording(packets: readonly TelemetryPacket[], lapTime: number): LapQualityResult {
+export function assessLapRecording(
+  packets: readonly TelemetryPacket[],
+  lapTime: number,
+  options: { closed?: boolean } = {},
+): LapQualityResult {
+  const closed = options.closed ?? true;
   if (packets.length < 30) return { valid: false, reason: "too few telemetry packets" };
   const first = packets[0]!;
   const last = packets[packets.length - 1]!;
@@ -48,7 +53,7 @@ export function assessLapRecording(packets: readonly TelemetryPacket[], lapTime:
   if (first.gameId === "acc" && first.LapNumber === 0 && lapTime < 30) {
     return { valid: false, reason: "starting lap" };
   }
-  if (first.gameId !== "acc") {
+  if (closed && first.gameId !== "acc") {
     const dx = last.PositionX - first.PositionX;
     const dz = last.PositionZ - first.PositionZ;
     if (Math.sqrt(dx * dx + dz * dz) > 20) {

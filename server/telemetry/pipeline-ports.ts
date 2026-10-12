@@ -46,13 +46,12 @@ export interface SessionIdentity {
 
 
 export interface CapturedSession {
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: string;
+  trackId: string;
   gameId: GameId;
   sessionType?: string;
   versionIdentity?: TelemetryVersionIdentity;
   ownership?: SessionOwnership;
-  identity?: SessionIdentity;
 }
 
 export interface CapturedLap {
@@ -73,13 +72,12 @@ export interface CapturedLap {
 
 export interface DbAdapter {
   insertSession(
-    carOrdinal: number,
-    trackOrdinal: number,
+    carId: string,
+    trackId: string,
     gameId: GameId,
     sessionType?: string,
     versionIdentity?: TelemetryVersionIdentity,
     ownership?: SessionOwnership,
-    identity?: SessionIdentity,
   ): Promise<number>;
   insertLap(
     sessionId: number,
@@ -102,12 +100,8 @@ export interface DbAdapter {
   updateLapCarSetup(lapId: number, carSetup: object | null): Promise<void>;
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]>;
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string, sparseCapture?: boolean): Promise<void>;
-  updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number, identity?: SessionIdentity): Promise<void>;
-  getTuneAssignment(
-    gameId: GameId,
-    carOrdinal: number,
-    trackOrdinal: number
-  ): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null>;
+  updateSessionCarTrack(sessionId: number, carId: string, trackId: string): Promise<void>;
+  getTuneAssignment(gameId: GameId, carId: string, trackId: string): Promise<{ carId: string; trackId: string; tuneId: number; tuneName: string } | null>;
   /** Auto-exclude fastest-5 curation (server/experiments/auto-exclude.ts). */
   getLapsForExclusionScope(experimentId: number, tuneId: number): Promise<ExclusionScopeLap[]>;
   setLapAutoExclusion(lapId: number, excluded: boolean): Promise<void>;
@@ -161,8 +155,8 @@ export interface WsAdapter {
 export class RealDbAdapter implements DbAdapter {
   private readonly sessionScopes = new Map<number, {
     gameId: GameId;
-    carOrdinal: number;
-    trackOrdinal: number;
+    carId: string;
+    trackId: string;
     versionIdentity: TelemetryVersionIdentity;
   }>();
   private readonly options: { notifyDriverProfile?: boolean; ownership?: SessionOwnership };
@@ -171,10 +165,10 @@ export class RealDbAdapter implements DbAdapter {
     this.options = options;
   }
 
-  async insertSession(carOrdinal: number, trackOrdinal: number, gameId: GameId, sessionType?: string, versionIdentity?: TelemetryVersionIdentity, ownership?: SessionOwnership, sessionIdentity?: SessionIdentity): Promise<number> {
+  async insertSession(carId: string, trackId: string, gameId: GameId, sessionType?: string, versionIdentity?: TelemetryVersionIdentity, ownership?: SessionOwnership): Promise<number> {
     const identity = versionIdentity ?? currentTelemetryVersionIdentity(gameId);
-    const sessionId = await insertSession(carOrdinal, trackOrdinal, gameId, sessionType, identity, ownership ?? this.options.ownership, sessionIdentity);
-    this.sessionScopes.set(sessionId, { gameId, carOrdinal, trackOrdinal, versionIdentity: identity });
+    const sessionId = await insertSession(carId, trackId, gameId, sessionType, identity, ownership ?? this.options.ownership);
+    this.sessionScopes.set(sessionId, { gameId, carId, trackId, versionIdentity: identity });
     return sessionId;
   }
 
@@ -200,19 +194,19 @@ export class RealDbAdapter implements DbAdapter {
     await updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
     if (sparseCapture) await markSessionCaptureFormatCurrent(sessionId);
   }
-  async updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number, identity?: SessionIdentity): Promise<void> {
-    await updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal, identity);
+  async updateSessionCarTrack(sessionId: number, carId: string, trackId: string): Promise<void> {
+    await updateSessionCarTrack(sessionId, carId, trackId);
     const existing = this.sessionScopes.get(sessionId);
-    if (existing) this.sessionScopes.set(sessionId, { ...existing, carOrdinal, trackOrdinal });
-  }
-  getTuneAssignment(gameId: GameId, carOrdinal: number, trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
-    return getTuneAssignment(gameId, carOrdinal, trackOrdinal);
+    if (existing) this.sessionScopes.set(sessionId, { ...existing, carId, trackId });
   }
   getLapsForExclusionScope(experimentId: number, tuneId: number): Promise<ExclusionScopeLap[]> {
     return getLapsForExclusionScope(experimentId, tuneId);
   }
   setLapAutoExclusion(lapId: number, excluded: boolean): Promise<void> {
     return setLapAutoExclusion(lapId, excluded);
+  }
+  getTuneAssignment(gameId: GameId, carId: string, trackId: string): Promise<{ carId: string; trackId: string; tuneId: number; tuneName: string } | null> {
+    return getTuneAssignment(gameId, carId, trackId);
   }
   getLapExperimentScope(lapId: number): Promise<{ experimentId: number | null; tuneId: number | null }> {
     return getLapExperimentScope(lapId);
@@ -227,8 +221,8 @@ export class CapturingDbAdapter implements DbAdapter {
   private _lapId = 0;
   private readonly _lapIds: number[] = [];
 
-  insertSession(carOrdinal: number, trackOrdinal: number, gameId: GameId, sessionType?: string, versionIdentity?: TelemetryVersionIdentity, ownership?: SessionOwnership, identity?: SessionIdentity): Promise<number> {
-    this.sessions.push({ carOrdinal, trackOrdinal, gameId, sessionType, versionIdentity, ownership, identity });
+  insertSession(carId: string, trackId: string, gameId: GameId, sessionType?: string, versionIdentity?: TelemetryVersionIdentity, ownership?: SessionOwnership): Promise<number> {
+    this.sessions.push({ carId, trackId, gameId, sessionType, versionIdentity, ownership });
     return Promise.resolve(++this._sessionId);
   }
 
@@ -264,17 +258,16 @@ export class CapturingDbAdapter implements DbAdapter {
     return Promise.resolve();
   }
 
-  updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number, identity?: SessionIdentity): Promise<void> {
+  updateSessionCarTrack(sessionId: number, carId: string, trackId: string): Promise<void> {
     const session = this.sessions[sessionId - 1];
     if (session) {
-      session.carOrdinal = carOrdinal;
-      session.trackOrdinal = trackOrdinal;
-      session.identity = identity;
+      session.carId = carId;
+      session.trackId = trackId;
     }
     return Promise.resolve();
   }
 
-  getTuneAssignment(_gameId: GameId, _carOrdinal: number, _trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
+  getTuneAssignment(_gameId: GameId, _carId: string, _trackId: string): Promise<{ carId: string; trackId: string; tuneId: number; tuneName: string } | null> {
     return Promise.resolve(null);
   }
 
@@ -304,7 +297,7 @@ export class NullWsAdapter implements WsAdapter {
 
 /** No-op database adapter. Used in benchmarks and tests that don't need DB output. */
 export class NullDbAdapter implements DbAdapter {
-  insertSession(_carOrdinal: number, _trackOrdinal: number, _gameId: GameId, _sessionType?: string, _versionIdentity?: TelemetryVersionIdentity, _ownership?: SessionOwnership, _identity?: SessionIdentity): Promise<number> {
+  insertSession(_carId: string, _trackId: string, _gameId: GameId, _sessionType?: string, _versionIdentity?: TelemetryVersionIdentity, _ownership?: SessionOwnership): Promise<number> {
     return Promise.resolve(1);
   }
   insertLap(_sessionId: number, _lapNumber: number, _lapTime: number, _isValid: boolean, _rawByteOffset: number | null, _rawFrameCount: number, _profileId: number | null, _tuneId: number | null, _invalidReason: string | null, _sectors: number[] | null, _versionIdentity?: TelemetryVersionIdentity): Promise<number> {
@@ -325,10 +318,10 @@ export class NullDbAdapter implements DbAdapter {
   updateSessionRawFile(_sessionId: number, _rawFile: string, _lapDetectorVersion: string): Promise<void> {
     return Promise.resolve();
   }
-  updateSessionCarTrack(_sessionId: number, _carOrdinal: number, _trackOrdinal: number, _identity?: SessionIdentity): Promise<void> {
+  updateSessionCarTrack(_sessionId: number, _carId: string, _trackId: string): Promise<void> {
     return Promise.resolve();
   }
-  getTuneAssignment(_gameId: GameId, _carOrdinal: number, _trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
+  getTuneAssignment(_gameId: GameId, _carId: string, _trackId: string): Promise<{ carId: string; trackId: string; tuneId: number; tuneName: string } | null> {
     return Promise.resolve(null);
   }
   getLapsForExclusionScope(_experimentId: number, _tuneId: number): Promise<ExclusionScopeLap[]> {

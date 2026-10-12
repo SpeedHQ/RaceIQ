@@ -129,7 +129,7 @@ async function readCanonicalHeader(path: string): Promise<number | null> {
 }
 
 function source(rawFile: string, gameId: GameId): SessionCaptureSource {
-  return { rawFile, gameId, source: null, carOrdinal: -1, trackOrdinal: -1 };
+  return { rawFile, gameId, source: null, carId: "", trackId: "" };
 }
 
 async function writeVerifiedStage(candidate: Candidate, stage: string, lapRows: LapOffset[]): Promise<Map<number, number>> {

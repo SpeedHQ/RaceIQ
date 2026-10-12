@@ -1,6 +1,6 @@
 import type { GameId } from "@raceiq/shared/games/ids";
+import { getLMUCar } from "@raceiq/game-lmu-metadata/catalog";
 import { tryGetGame } from "@raceiq/shared/games/registry";
-import { getLMUCar, resolveLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { useSettings } from "@/hooks/settings";
 import type { DashboardResponse } from "@raceiq/shared/racing/sessions/dashboard";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -60,19 +60,14 @@ function FavouritePanel({ title, insight, kind, trackNames, carNames, gameId, lo
   const game = contextGameId ? tryGetGame(contextGameId) : null;
   const identity = insight?.identity;
   const suppliedCarName = !insight || kind !== "car" ? undefined
-    : (carNames[`${insight.gameId}:${identity}`] ?? (insight.ordinal != null ? carNames[`${insight.gameId}:${insight.ordinal}`] : undefined))?.trim();
-  const carOrdinal = !insight || kind !== "car" ? null : typeof identity === "number" ? identity : insight.ordinal ?? null;
-  const carName = suppliedCarName || (insight && carOrdinal != null && carOrdinal >= 0 ? game?.getCarName(carOrdinal) : undefined)
+    : carNames[`${insight.gameId}:${identity}`]?.trim();
+  const carName = suppliedCarName
+    || (identity ? game?.getCarName(identity) : undefined)
     || (insight?.gameId === "lmu" && typeof identity === "string" ? getLMUCar(identity)?.name : undefined);
-  const trackOrdinal = kind === "track" && insight
-    ? insight.ordinal
-      ?? (typeof identity === "string" ? game?.getTrackOrdinalByName?.(identity) : undefined)
-      ?? (typeof identity === "number" && identity >= 0 ? identity : undefined)
-    : undefined;
   const name = !insight ? null : kind === "track"
-    ? resolveTrackDisplayName(insight.gameId, { trackId: identity, trackOrdinal }, trackNames)
+    ? resolveTrackDisplayName(insight.gameId, { trackIdentity: identity }, trackNames)
     : carName;
-  const trackIdentity = kind === "track" && !unavailable ? trackOrdinal ?? identity : undefined;
+  const trackIdentity = kind === "track" && !unavailable ? identity : undefined;
   const { data: outlineData } = useTrackOutline(trackIdentity, contextGameId);
   const track = useMemo(() => {
     const points = (Array.isArray(outlineData) ? outlineData : outlineData?.points ?? [])
@@ -93,24 +88,21 @@ function FavouritePanel({ title, insight, kind, trackNames, carNames, gameId, lo
       transform: !Array.isArray(outlineData) && outlineData?.flipX ? `translate(${minX + maxX},0) scale(-1,1)` : undefined,
     };
   }, [outlineData]);
-  const { data: cars } = useQuery<{ id?: string | number | null; ordinal?: number | null; class?: string; imageUrl?: string | null; specs?: { imageUrl?: string | null; pi?: number } | null }[]>({
+  const { data: cars } = useQuery<{ id?: string | null; class?: string; imageUrl?: string | null; specs?: { imageUrl?: string | null; pi?: number } | null }[]>({
     queryKey: ["cars", contextGameId],
     queryFn: async () => {
       if (contextGameId === "acc") {
-        const catalog = await rpcJson<{ id: number; class: string }[]>(await client.api.acc.cars.$get());
+        const catalog = await rpcJson<{ id: string; class: string }[]>(await client.api.acc.cars.$get());
         return catalog.map((car) => ({ id: car.id, class: car.class, imageUrl: `/car-images/acc-${car.id}.jpg` }));
       }
-      if (contextGameId === "ac-evo") {
-        return rpcJson<{ ordinal: number; class: string }[]>(await client.api["ac-evo"].cars.$get());
-      }
-      if (!contextGameId) return [];
+      if (contextGameId === "ac-evo" || !contextGameId) return [];
       return rpcJson(await client.api.cars.$get({}, { headers: { "X-Game-Id": contextGameId } }));
     },
     enabled: kind === "car" && !!insight && !unavailable,
     staleTime: Infinity,
   });
   const car = kind === "car" && insight
-    ? cars?.find((candidate) => String(candidate.id) === String(identity) || (insight.ordinal != null && candidate.ordinal === insight.ordinal))
+    ? cars?.find((candidate) => candidate.id === identity)
     : undefined;
   const carImageUrl = car?.imageUrl || car?.specs?.imageUrl || undefined;
   const carClass = car?.class?.trim() || (contextGameId === "fm-2023" && car?.specs?.pi != null && car.specs.pi > 0 ? piClass(car.specs.pi) : undefined);
@@ -118,9 +110,9 @@ function FavouritePanel({ title, insight, kind, trackNames, carNames, gameId, lo
   const distance = insight?.distanceMeters == null ? "—" : imperial
     ? `${(insight.distanceMeters / 1609.344).toFixed(1)} mi`
     : `${(insight.distanceMeters / 1000).toFixed(1)} km`;
-  const trackKey = insight?.gameId === "lmu"
-    ? typeof identity === "string" ? resolveLMUTrack(identity)?.id : undefined
-    : trackOrdinal;
+  const trackKey = kind === "track" && insight
+    ? insight.nativeId ?? undefined
+    : undefined;
   const trackHref = kind === "track" && !unavailable && insight && trackKey != null
     ? trackRoutePath(insight.gameId, trackKey)
     : null;
@@ -254,7 +246,7 @@ function TrackDistribution({ insights, trackNames, periodSummary, loading, error
           {Array.from({ length: 6 }, (_, index) => {
             const slice = unavailable ? undefined : slices[index];
             const name = !slice ? "—" : slice.track
-              ? resolveTrackDisplayName(slice.track.gameId, { trackIdentity: slice.track.trackIdentity, trackOrdinal: slice.track.trackOrdinal }, trackNames) ?? m.home_insights_unknown_track()
+              ? resolveTrackDisplayName(slice.track.gameId, { trackIdentity: slice.track.trackIdentity }, trackNames) ?? m.home_insights_unknown_track()
               : m.home_insights_other_tracks({ count: othersCount });
             return <li key={index} className="grid min-w-0 grid-cols-[0.5rem_minmax(0,1fr)_2.25rem] items-center gap-1.5 text-app-detail">
               <span className="size-2 rounded-full" style={{ backgroundColor: slice ? colors[index % colors.length] : "var(--app-progress-track)" }} aria-hidden="true" />

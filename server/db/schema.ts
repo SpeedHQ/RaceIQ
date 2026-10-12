@@ -6,6 +6,7 @@ import {
 	blob,
 	index,
 	unique,
+	uniqueIndex,
 	primaryKey,
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
@@ -25,9 +26,9 @@ export const tunes = sqliteTable(
 		gameId: text("game_id").notNull(),
 		name: text("name").notNull(),
 		author: text("author").notNull(),
-		carOrdinal: integer("car_ordinal").notNull(),
+		carId: text("car_id").notNull(),
 		category: text("category").notNull(),
-		trackOrdinal: integer("track_ordinal"),
+		trackId: text("track_id"),
 		description: text("description").notNull().default(""),
 		strengths: text("strengths"),
 		weaknesses: text("weaknesses"),
@@ -41,59 +42,48 @@ export const tunes = sqliteTable(
 		updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(table) => ({
-		carIdx: index("idx_tunes_car").on(table.carOrdinal),
-		gameCarIdx: index("idx_tunes_game_car").on(table.gameId, table.carOrdinal),
+		carIdx: index("idx_tunes_car").on(table.carId),
+		gameCarIdx: index("idx_tunes_game_car").on(table.gameId, table.carId),
 	}),
 );
 
-/**
- * Cars seen in telemetry that aren't in the per-game CSV data. AC Evo keys
- * cars by name (no stable ordinal), so unknown names get a generated ordinal
- * (>= 100000) here instead of importing as -1/"Unknown Car". Rows are
- * promoted to canonical CSV ids on startup once the name exists in cars.csv
- * (see reconcileDiscoveredCars).
- */
+/** Game-native identities and names discovered at runtime. */
 export const discoveredCars = sqliteTable(
 	"discovered_cars",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
 		gameId: text("game_id").notNull(),
-		ordinal: integer("ordinal").notNull(),
+		carId: text("car_id").notNull(),
 		name: text("name").notNull(),
 		model: text("model").notNull().default(""),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
-	(table) => [unique().on(table.gameId, table.ordinal)],
+	(table) => [unique().on(table.gameId, table.carId)],
 );
 
-/**
- * Tracks whose identity is supplied by runtime telemetry rather than a bundled
- * catalogue. The native ordinal is the durable identity; names are hydrated
- * into the relevant game adapter at startup.
- */
+/** Tracks discovered at runtime, including native layout metadata. */
 export const discoveredTracks = sqliteTable(
 	"discovered_tracks",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
 		gameId: text("game_id").notNull(),
-		ordinal: integer("ordinal").notNull(),
+		trackId: text("track_id").notNull(),
 		name: text("name").notNull(),
+		trackName: text("track_name"),
+		trackConfiguration: text("track_configuration"),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
-	(table) => [
-		unique().on(table.gameId, table.ordinal),
-	],
+	(table) => [unique().on(table.gameId, table.trackId)],
 );
+
 
 export const sessions = sqliteTable(
 	"sessions",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
-		carOrdinal: integer("car_ordinal").notNull(),
-		trackOrdinal: integer("track_ordinal").notNull(),
+		carId: text("car_id").notNull(),
+		trackId: text("track_id").notNull(),
 		gameId: text("game_id").notNull(),
-		carId: text("car_id"),
-		trackId: text("track_id"),
 		sessionType: text("session_type"),
 		notes: text("notes"),
 		rawFile: text("raw_file"),
@@ -248,14 +238,14 @@ export const tuneAssignments = sqliteTable(
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
 		gameId: text("game_id").notNull(),
-		carOrdinal: integer("car_ordinal").notNull(),
-		trackOrdinal: integer("track_ordinal").notNull(),
+		carId: text("car_id").notNull(),
+		trackId: text("track_id").notNull(),
 		tuneId: integer("tune_id")
 			.notNull()
 			.references(() => tunes.id, { onDelete: "cascade" }),
 	},
 	(table) => ({
-		gameCarTrackUnique: unique().on(table.gameId, table.carOrdinal, table.trackOrdinal),
+		gameCarTrackUnique: uniqueIndex("idx_assignments_identity").on(table.gameId, table.carId, table.trackId).where(sql`${table.carId} != '' AND ${table.trackId} != ''`),
 		tuneIdx: index("idx_assignments_tune").on(table.tuneId),
 	}),
 );
@@ -264,14 +254,14 @@ export const trackOutlines = sqliteTable(
 	"track_outlines",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
-		trackOrdinal: integer("track_ordinal").notNull(),
+		trackId: text("track_id").notNull(),
 		gameId: text("game_id").notNull(),
 		outline: blob("outline", { mode: "buffer" }).notNull(), // gzip'd JSON array of {x,z,speed}
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(table) => ({
-		trackIdx: index("idx_outlines_track").on(table.trackOrdinal),
-		trackGameUnique: unique().on(table.trackOrdinal, table.gameId),
+		trackIdx: index("idx_outlines_track").on(table.trackId),
+		trackGameUnique: uniqueIndex("idx_outlines_identity").on(table.trackId, table.gameId).where(sql`${table.trackId} != ''`),
 	}),
 );
 
@@ -279,7 +269,7 @@ export const trackCorners = sqliteTable(
 	"track_corners",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
-		trackOrdinal: integer("track_ordinal").notNull(),
+		trackId: text("track_id").notNull(),
 		gameId: text("game_id").notNull(),
 		cornerIndex: integer("corner_index").notNull(),
 		label: text("label").notNull(),
@@ -288,12 +278,8 @@ export const trackCorners = sqliteTable(
 		isAuto: integer("is_auto", { mode: "boolean" }).notNull().default(true),
 	},
 	(table) => ({
-		trackIdx: index("idx_corners_track").on(table.trackOrdinal),
-		trackCornerUnique: unique().on(
-			table.trackOrdinal,
-			table.gameId,
-			table.cornerIndex,
-		),
+		trackIdx: index("idx_corners_track").on(table.trackId),
+		trackCornerUnique: uniqueIndex("idx_corners_identity").on(table.trackId, table.gameId, table.cornerIndex).where(sql`${table.trackId} != ''`),
 	}),
 );
 
@@ -347,8 +333,8 @@ export const communityTunes = sqliteTable(
 	{
 		id: text("id").primaryKey(),
 		gameId: text("game_id").notNull(),
-		carOrdinal: integer("car_ordinal").notNull(),
-		trackOrdinal: integer("track_ordinal"),
+		carId: text("car_id").notNull(),
+		trackId: text("track_id"),
 		name: text("name").notNull(),
 		author: text("author").notNull(),
 		category: text("category").notNull(),
@@ -365,11 +351,8 @@ export const communityTunes = sqliteTable(
  * session is the parent container for the Setup IQ loop: it owns the base
  * setup, the stints driven, and (later phases) the setup versions v1..vN.
  *
- * Car/track are stored two ways because the two seed paths supply different
- * identifiers: seeding from an ACC/AC-Evo saved setup file gives the car/track
- * folder *names* (carName/trackName + baseSetupPath), while seeding from a live
- * or recorded telemetry session gives numeric ordinals. Both are nullable; a
- * session uses whichever its origin provided.
+ * Car/track identities use native string IDs. Names and baseSetupPath retain
+ * the labels and source setup path supplied by the session's origin.
  */
 export const experiments = sqliteTable(
 	"experiments",
@@ -380,8 +363,8 @@ export const experiments = sqliteTable(
 		seq: integer("seq").notNull().default(1),
 		gameId: text("game_id").notNull(),
 		name: text("name").notNull(),
-		carOrdinal: integer("car_ordinal"),
-		trackOrdinal: integer("track_ordinal"),
+		carId: text("car_id"),
+		trackId: text("track_id"),
 		carName: text("car_name"),
 		trackName: text("track_name"),
 		baseSetupPath: text("base_setup_path"),
@@ -582,7 +565,7 @@ export const lapMetrics = sqliteTable("lap_metrics", {
 /**
  * Cached Driver Profile summary snapshots, one row per profile scope.
  *
- * `scopeKey` (`gameId|carOrdinal|trackOrdinal`, with `*` for an unset ordinal)
+ * `scopeKey` (JSON tuple of gameId, carId and trackId, with null for unset IDs)
  * carries the uniqueness rather than a composite index over the three columns,
  * because SQLite's UNIQUE constraint treats NULLs as distinct.
  *
@@ -599,8 +582,8 @@ export const driverProfiles = sqliteTable(
 		id: integer("id").primaryKey({ autoIncrement: true }),
 		scopeKey: text("scope_key").notNull(),
 		gameId: text("game_id").notNull(),
-		carOrdinal: integer("car_ordinal"),
-		trackOrdinal: integer("track_ordinal"),
+		carId: text("car_id"),
+		trackId: text("track_id"),
 		poolKey: text("pool_key").notNull(),
 		/** JSON — DriverFingerprint from server/driver-profile/fingerprint.ts. */
 		fingerprint: text("fingerprint").notNull(),
@@ -623,8 +606,8 @@ export const driverProfileRuns = sqliteTable(
 		id: integer("id").primaryKey({ autoIncrement: true }),
 		scopeKey: text("scope_key").notNull(),
 		gameId: text("game_id").notNull(),
-		carOrdinal: integer("car_ordinal"),
-		trackOrdinal: integer("track_ordinal"),
+		carId: text("car_id"),
+		trackId: text("track_id"),
 		poolKey: text("pool_key").notNull(),
 		status: text("status", { enum: ["queued", "running", "succeeded", "failed"] }).notNull().default("queued"),
 		/** JSON — deterministic DriverFingerprint snapshot, when available. */
@@ -674,8 +657,6 @@ export const dashboardSessionSummaries = sqliteTable("dashboard_session_summarie
 	trackKey: text("track_key"),
 	carId: text("car_id"),
 	trackId: text("track_id"),
-	carOrdinal: integer("car_ordinal"),
-	trackOrdinal: integer("track_ordinal"),
 	sessionType: text("session_type"),
 	lapCount: integer("lap_count").notNull(),
 	positiveLaps: integer("positive_laps").notNull(),
@@ -717,9 +698,6 @@ export const dashboardSessionIndex = sqliteTable("dashboard_session_index", {
 	gameId: text("game_id").notNull(),
 	ownership: text("ownership").notNull(),
 	carId: text("car_id"),
-	carOrdinal: integer("car_ordinal").notNull(),
-	trackId: text("track_id"),
-	trackOrdinal: integer("track_ordinal").notNull(),
 	sessionType: text("session_type"),
 }, (table) => [
 	index("dashboard_session_time_idx").on(table.createdAtMs, table.sessionId),

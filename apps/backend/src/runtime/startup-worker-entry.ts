@@ -8,6 +8,14 @@ import { backfillLMUSessionIdentity } from "../imports/lmu-session-identity-back
 import { startDashboardProcessor, type DashboardProcessorHandle } from "@raceiq/backend-core/session-capture/dashboard-processor";
 import { setDashboardPublicationNotifier } from "@raceiq/backend-core/db/dashboard-summary-queries";
 import { initMotecTargets } from "../games/motec-init";
+import { reconcileHistoricalSessions } from "@raceiq/backend-core/session-capture/reconcile";
+import { ALL_DETECTOR_IDS } from "./startup-jobs";
+import { getAllServerGames } from "@raceiq/backend-core/games/registry";
+import { countStaleSessions, deleteEmptySessions } from "@raceiq/backend-core/db/session-queries";
+import { hydrateDiscoveredAcEvoCars, listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
+import { hydrateDiscoveredAcEvoTracks, listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
+import { injectDiscoveredIRacingIdentity } from "@raceiq/game-iracing-metadata/index";
+import { injectDiscoveredLMUIdentity } from "@raceiq/game-lmu-metadata/index";
 
 const port = parentPort!;
 let stopping = false;
@@ -56,6 +64,13 @@ async function start(): Promise<void> {
     initServerGameAdapters(serverReleaseFeatures);
     initMotecTargets();
     await initDb();
+    await hydrateDiscoveredAcEvoCars();
+    await hydrateDiscoveredAcEvoTracks();
+    for (const gameId of ["iracing", "lmu"] as const) {
+      const [cars, tracks] = await Promise.all([listDiscoveredCars(gameId), listDiscoveredTracks(gameId)]);
+      if (gameId === "iracing") injectDiscoveredIRacingIdentity(cars, tracks);
+      else injectDiscoveredLMUIdentity(cars, tracks);
+    }
     if (stopping) {
       await shutdown();
       return;
@@ -64,6 +79,17 @@ async function start(): Promise<void> {
     port.postMessage({ type: "ready" });
 
     backgroundTasks = [(async () => {
+      await runTask("Historical session reconciliation", async () => {
+        const counts = await reconcileHistoricalSessions((reprocessed) => {
+          port.postMessage({ type: "lap-reprocessed", reprocessed });
+        });
+        console.log("[SessionRepair] Historical session reconciliation complete:", counts);
+        if (counts.failed === 0 && await countStaleSessions(
+          ALL_DETECTOR_IDS,
+          getAllServerGames().map((adapter) => adapter.id),
+        ) === 0) port.postMessage({ type: "clear-stale-sessions" });
+        await deleteEmptySessions();
+      });
       await runTask("LMU session identity backfill", async () => {
         const counts = await backfillLMUSessionIdentity();
         console.log("[LMU] Session identity backfill complete:", counts);

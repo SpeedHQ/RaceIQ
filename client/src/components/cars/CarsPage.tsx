@@ -53,8 +53,7 @@ export function CarsPage() {
     return new Set(
       compareParam
         .split(",")
-        .map(Number)
-        .filter((number) => !Number.isNaN(number)),
+        .filter((id) => id.length > 0),
     );
   }, [compareParam]);
   const [search, setSearch] = useState("");
@@ -62,8 +61,8 @@ export function CarsPage() {
   const [driveFilter, setDriveFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<1 | -1>(1);
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  const [selected, setSelected] = useState<Set<number>>(() => initialCompareIds ?? new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(() => initialCompareIds ?? new Set());
   const [comparing, setComparing] = useState(false);
   const [viewMode, setViewMode] = useState<"table" | "grid">("grid");
   const [detailCar, setDetailCar] = useState<Car | null>(null);
@@ -76,7 +75,7 @@ export function CarsPage() {
   }, [initialCompareIds, cars.length]);
 
   const filtered = useMemo(() => filterAndSortCars(cars, search, classFilter, driveFilter, sort, sortDir), [cars, search, classFilter, driveFilter, sort, sortDir]);
-  const carMap = useMemo(() => new Map(cars.map((car) => [car.ordinal, car])), [cars]);
+  const carMap = useMemo(() => new Map(cars.map((car) => [car.id, car])), [cars]);
   const selectedCars = useMemo(() => [...selected].map((id) => carMap.get(id)).filter((car): car is Car => !!car), [selected, carMap]);
 
   function toggleSort(key: SortKey) {
@@ -86,19 +85,19 @@ export function CarsPage() {
       setSortDir(key === "name" ? 1 : -1);
     }
   }
-  function toggleSelect(ordinal: number) {
+  function toggleSelect(carId: string) {
     setSelected((previous) => {
       const next = new Set(previous);
-      if (next.has(ordinal)) next.delete(ordinal);
-      else next.add(ordinal);
+      if (next.has(carId)) next.delete(carId);
+      else next.add(carId);
       return next;
     });
   }
-  function toggleExpanded(ordinal: number) {
+  function toggleExpanded(carId: string) {
     setExpanded((previous) => {
       const next = new Set(previous);
-      if (next.has(ordinal)) next.delete(ordinal);
-      else next.add(ordinal);
+      if (next.has(carId)) next.delete(carId);
+      else next.add(carId);
       return next;
     });
   }
@@ -178,7 +177,7 @@ export function CarsPage() {
           configsReady={configsReady}
           onSelect={toggleSelect}
           onDetail={setDetailCar}
-          onModel={(ordinal) => navigate({ to: "/fm23/cars/$carOrdinal", params: { carOrdinal: encodeURIComponent(String(ordinal)) } })}
+          onModel={(carId) => navigate({ to: "/fm23/cars/$carId", params: { carId } })}
           {...formatters}
         />
       ) : (

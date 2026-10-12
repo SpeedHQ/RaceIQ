@@ -9,8 +9,8 @@ test("F1 experiment creates, switches focus, imports laps, uses history, and arc
   test.setTimeout(200_000);
   const browserErrors = collectBrowserErrors(page);
   const seededLap = await getSeededLapTarget(request, "f1-2025");
-  const trackResponse = await request.get(`/api/track-name/${seededLap.trackOrdinal}?gameId=f1-2025`);
-  const carResponse = await request.get(`/api/car-name/${seededLap.carOrdinal}?gameId=f1-2025`);
+  const trackResponse = await request.get(`/api/track-name/${encodeURIComponent(seededLap.trackId)}?gameId=f1-2025`);
+  const carResponse = await request.get(`/api/car-name/${encodeURIComponent(seededLap.carId)}?gameId=f1-2025`);
   expect(trackResponse.ok()).toBe(true);
   expect(carResponse.ok()).toBe(true);
   const trackName = await trackResponse.text();

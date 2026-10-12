@@ -2,15 +2,14 @@ import { existsSync } from "node:fs";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { resolve } from "node:path";
 import { serverReleaseFeatures } from "@raceiq/backend-core/runtime/config/release-features";
-import { injectDiscoveredAcEvoCars } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
+import { hydrateDiscoveredAcEvoCars } from "@raceiq/backend-core/db/discovered-cars";
 import { injectDiscoveredIRacingIdentity } from "@raceiq/game-iracing-metadata/index";
 import { injectDiscoveredLMUIdentity } from "@raceiq/game-lmu-metadata/index";
 import app from "../routes/index";
 import { initServerGameAdapters } from "../games/init";
 import { initDb } from "@raceiq/backend-core/db/index";
-import { reconcileDiscoveredCars, listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
-import { listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
-import { deleteEmptySessions } from "@raceiq/backend-core/db/session-queries";
+import { listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
+import { hydrateDiscoveredAcEvoTracks, listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
 import { setCacheMaxBytes } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { isFirstRun, loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { wsManager, type WSData } from "@raceiq/backend-core/runtime/websocket-manager";
@@ -76,8 +75,8 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   }
 
   await initDb();
-  await reconcileDiscoveredCars();
-  injectDiscoveredAcEvoCars(await listDiscoveredCars("ac-evo"));
+  await hydrateDiscoveredAcEvoCars();
+  await hydrateDiscoveredAcEvoTracks();
 
   const [iracingCars, iracingTracks] = await Promise.all([
     listDiscoveredCars("iracing"),
@@ -97,10 +96,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   }
   setCacheMaxBytes(settings.cacheMaxMB * 1024 * 1024);
 
-  const emptyCleaned = await deleteEmptySessions();
-  if (emptyCleaned > 0) {
-    console.log(`[DB] Cleaned up ${emptyCleaned} empty session(s)`);
-  }
+  // Empty-session cleanup runs after repair so pending candidates remain available.
 
   console.log("[Server] Starting RaceIQ Server...");
   clearHttpPort(httpPort);
@@ -137,7 +133,11 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     },
   });
   setDashboardPublicationNotifier(() => wsManager.notifyDashboardUpdated());
-  startupWorker = startStartupWorker(() => wsManager.notifyDashboardUpdated());
+  startupWorker = startStartupWorker(
+    () => wsManager.notifyDashboardUpdated(),
+    (reprocessed) => wsManager.broadcastNotification({ type: "lap-reprocessed", ...reprocessed }),
+    () => wsManager.setStaleSessionsNotification(null),
+  );
 
   const udpPort = options.udpPort
     ?? (Number(process.env.RACEIQ_DEV_UDP_PORT) || settings.udpPort || Number(process.env.UDP_PORT) || 5301);

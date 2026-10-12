@@ -2,22 +2,22 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { OrdinalParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
-import { getLapCountsByTrack, getLMULapCountsByTrack } from "@raceiq/backend-core/db/lap-read-queries";
-import { getTrackLengthMeters, getTrackOutlineByOrdinal, hasRecordedOutline as sharedHasRecordedOutline } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { TrackIdParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
+import { getLapCountsByTrack } from "@raceiq/backend-core/db/lap-read-queries";
+import { getTrackLengthMetersById, getTrackOutlineById, hasRecordedOutlineById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";
 import { loadSharedOutline } from "@raceiq/shared/racing/tracks/geometry/shared";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import { fmTrackCatalog } from "@raceiq/game-fm-2023-metadata/racing/tracks/catalogs/fm";
 import { getF1Tracks } from "@raceiq/game-f1-2025-metadata/racing/tracks/catalogs/f1";
 import { getAccTracks } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
-import { getAcEvoTracks } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
-import { getAllIRacingTracks, getIRacingTrack } from "@raceiq/game-iracing-metadata/racing/tracks/catalogs/iracing";
+import { getAcEvoTracks, getAcEvoTrackName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
 import { getLMUTrack, getLMUTrackByAssetName, lmuTrackCatalog } from "@raceiq/game-lmu-metadata/catalog";
 import { gameAssetsDir } from "@raceiq/shared/platform/runtime/data-paths";
 import { tryGetServerGame } from "@raceiq/backend-core/games/registry";
 import { listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
-import { decodeTrackKey, OrdinalKeyParamSchema } from "./support";
+import { computeOutlineLength, resolveTrackOutline } from "./support";
+import { getIRacingTrack, getAllIRacingTracks } from "@raceiq/game-iracing-metadata/racing/tracks/catalogs/iracing";
 
 
 export const trackCatalogInfoRoutes = new Hono()
@@ -30,8 +30,8 @@ export const trackCatalogInfoRoutes = new Hono()
       headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=31536000, immutable" },
     });
   })
-  .get("/api/iracing-assets/tracks/:ordinal", (c): Response => {
-    const ordinal = Number(c.req.param("ordinal"));
+  .get("/api/iracing-assets/tracks/:trackId", (c): Response => {
+    const ordinal = Number(c.req.param("trackId"));
     const track = getIRacingTrack(ordinal);
     if (!track) return c.json({ error: "iRacing track asset not found" }, 404);
     const file = resolve(
@@ -51,33 +51,32 @@ export const trackCatalogInfoRoutes = new Hono()
   })
 
 
-  // GET /api/tracks/:ordinal (info)
-  .get("/api/tracks/:ordinal",
-    zValidator("param", OrdinalParamSchema),
+  // GET /api/tracks/:trackId (info)
+  .get("/api/tracks/:trackId",
+    zValidator("param", TrackIdParamSchema),
     (c) => {
-      const { ordinal } = c.req.valid("param");
-
-      const track = fmTrackCatalog.get(ordinal);
+      const trackId = Number(c.req.valid("param").trackId);
+      if (!Number.isInteger(trackId)) return c.json({ error: "Track not found" }, 404);
+      const track = fmTrackCatalog.get(trackId);
       if (!track) return c.json({ error: "Track not found" }, 404);
-
-      return c.json({ ordinal, ...track });
+      return c.json({ id: String(trackId), ...track });
     }
   )
 
-  // GET /api/track-name/:ordinal — plain text
+  // GET /api/track-name/:trackId — plain text
   .get(
-    "/api/track-name/:ordinal",
-    zValidator("param", OrdinalKeyParamSchema),
+    "/api/track-name/:trackId",
+    zValidator("param", TrackIdParamSchema),
     zValidator("query", GameIdQuerySchema),
     (c) => {
-      const trackKey = decodeTrackKey(c.req.valid("param").ordinal);
+      const trackKey = c.req.valid("param").trackId;
       const { gameId } = c.req.valid("query");
       if (gameId === "lmu") return c.text(getLMUTrack(trackKey)?.name ?? trackKey);
-      const ordinal = Number(trackKey);
-      if (!Number.isInteger(ordinal)) return c.text("Unknown track", 400);
+      if (gameId === "ac-evo") return c.text(getAcEvoTrackName(trackKey) ?? trackKey);
+      if (gameId === "iracing") return c.text(getIRacingTrack(Number(trackKey))?.name ?? "Unknown track");
       const serverAdapter = gameId ? tryGetServerGame(gameId) : undefined;
-      if (serverAdapter) return c.text(serverAdapter.getTrackName(ordinal));
-      return c.text(resolveTrackName(ordinal, gameId));
+      if (serverAdapter) return c.text(serverAdapter.getTrackName(trackKey));
+      return c.text(resolveTrackName(trackKey, gameId));
     },
   );
 
@@ -92,9 +91,10 @@ export const trackCatalogRoutes = new Hono()
         const f1Tracks = getF1Tracks();
         const lapCounts = await getLapCountsByTrack("f1-2025");
         const tracks = Array.from(f1Tracks.entries()).map(([id, info]) => {
-          const hasBundled = !!getTrackOutlineByOrdinal(id, "f1-2025", info.commonTrackName);
+          const trackId = String(id);
+          const hasBundled = !!getTrackOutlineById(trackId, "f1-2025", info.commonTrackName);
           return {
-            ordinal: id,
+            id: trackId,
             name: info.name,
             location: info.location,
             country: info.country,
@@ -104,7 +104,7 @@ export const trackCatalogRoutes = new Hono()
             outlineSource: hasBundled ? "bundled" : null,
             commonTrackName: info.commonTrackName || null,
             createdAt: null,
-            lapCount: lapCounts.get(id) ?? 0,
+            lapCount: lapCounts.get(trackId) ?? 0,
           };
         });
         tracks.sort((a, b) => a.name.localeCompare(b.name));
@@ -115,18 +115,20 @@ export const trackCatalogRoutes = new Hono()
         const accTracks = getAccTracks();
         const lapCounts = await getLapCountsByTrack("acc");
         const tracks = Array.from(accTracks.entries()).map(([id, info]) => {
-          const hasBundled = !!getTrackOutlineByOrdinal(id, "acc", info.commonTrackName ?? undefined);
+          const trackId = String(id);
+          const outline = getTrackOutlineById(trackId, "acc", info.commonTrackName ?? undefined);
+          const hasBundled = !!outline;
           return {
-            ordinal: id,
+            id: trackId,
             name: info.name,
             location: "",
             country: "",
             variant: info.variant,
-            lengthKm: Math.round((getTrackLengthMeters(id, "acc", info.commonTrackName || undefined) ?? 0) / 10) / 100,
+            lengthKm: Math.round(computeOutlineLength(outline) / 10) / 100,
             hasOutline: hasBundled,
             outlineSource: hasBundled ? "bundled" : null,
             createdAt: null,
-            lapCount: lapCounts.get(id) ?? 0,
+            lapCount: lapCounts.get(trackId) ?? 0,
           };
         });
         tracks.sort((a, b) => a.name.localeCompare(b.name));
@@ -134,35 +136,30 @@ export const trackCatalogRoutes = new Hono()
       }
 
       if (gameId === "ac-evo") {
-        const acEvoTracks = getAcEvoTracks();
         const lapCounts = await getLapCountsByTrack("ac-evo");
-        const tracks = Array.from(acEvoTracks.entries()).map(([id, info]) => {
-          const hasBundled = !!getTrackOutlineByOrdinal(id, "ac-evo", info.commonTrackName ?? undefined);
+        const tracks = await Promise.all(Array.from(getAcEvoTracks().entries()).map(async ([id, info]) => {
+          const outline = await resolveTrackOutline(id, "ac-evo");
           return {
-            ordinal: id,
+            id,
             name: info.name,
             location: "",
             country: "",
             variant: info.variant,
-            lengthKm: Math.round((getTrackLengthMeters(id, "ac-evo", info.commonTrackName || undefined) ?? 0) / 10) / 100,
-            hasOutline: hasBundled,
-            outlineSource: hasBundled ? "bundled" : null,
+            lengthKm: Math.round((getTrackLengthMetersById(id, "ac-evo", info.commonTrackName || undefined) ?? 0) / 10) / 100,
+            hasOutline: !!outline?.points.length,
+            outlineSource: outline?.points.length ? outline.source : null,
             createdAt: null,
             lapCount: lapCounts.get(id) ?? 0,
           };
-        });
-        tracks.sort((a, b) => a.name.localeCompare(b.name));
+        }));
+        tracks.sort((a, b) => a.name.localeCompare(b.name) || a.variant.localeCompare(b.variant));
         return c.json(tracks);
       }
       if (gameId === "lmu") {
-        const [lapCounts, legacyLapCounts] = await Promise.all([
-          getLMULapCountsByTrack(),
-          getLapCountsByTrack("lmu"),
-        ]);
+        const lapCounts = await getLapCountsByTrack("lmu");
         const tracks = lmuTrackCatalog.map((track) => {
           return {
             id: track.id,
-            ordinal: null,
             name: track.name,
             location: track.location,
             country: track.countryCode,
@@ -179,8 +176,7 @@ export const trackCatalogRoutes = new Hono()
           };
         });
         const discovered = (await listDiscoveredTracks("lmu")).map((track) => ({
-          id: null,
-          ordinal: track.ordinal,
+          id: track.trackId,
           name: track.name,
           location: "",
           country: "",
@@ -188,12 +184,12 @@ export const trackCatalogRoutes = new Hono()
           lengthKm: 0,
           category: "discovered",
           commonTrackName: null,
-          hasOutline: sharedHasRecordedOutline(track.ordinal, "lmu"),
-          hasMap: sharedHasRecordedOutline(track.ordinal, "lmu"),
+          hasOutline: hasRecordedOutlineById(track.trackId, "lmu"),
+          hasMap: hasRecordedOutlineById(track.trackId, "lmu"),
           mapUrl: null,
           outlineSource: "generated",
           createdAt: track.createdAt,
-          lapCount: legacyLapCounts.get(track.ordinal) ?? 0,
+          lapCount: lapCounts.get(track.trackId) ?? 0,
         }));
         return c.json([...tracks, ...discovered].sort((left, right) => left.name.localeCompare(right.name)));
       }
@@ -202,7 +198,7 @@ export const trackCatalogRoutes = new Hono()
         const lapCounts = await getLapCountsByTrack("iracing");
         const catalogTracks = getAllIRacingTracks();
         const catalogIds = new Set(
-          catalogTracks.map((track) => track.ordinal),
+          catalogTracks.map((track) => String(track.ordinal)),
         );
         const catalogEntries = catalogTracks.map((info) => {
           const hasShared = !!(
@@ -213,15 +209,15 @@ export const trackCatalogRoutes = new Hono()
               "iracing",
             ).length > 0
           );
-          const hasGenerated = sharedHasRecordedOutline(
-            info.ordinal,
+          const hasGenerated = hasRecordedOutlineById(
+            String(info.ordinal),
             "iracing",
           );
           const hasOfficialSvg = !!info.mapUrl;
           const hasOutline =
             hasShared || hasOfficialSvg || hasGenerated;
           return {
-            ordinal: info.ordinal,
+            id: String(info.ordinal),
             name: info.name,
             location: info.location,
             country: info.country,
@@ -254,13 +250,13 @@ export const trackCatalogRoutes = new Hono()
                   : null,
             commonTrackName: info.commonTrackName || null,
             createdAt: null,
-            lapCount: lapCounts.get(info.ordinal) ?? 0,
+            lapCount: lapCounts.get(String(info.ordinal)) ?? 0,
           };
         });
         const discoveredOnly = (await listDiscoveredTracks("iracing"))
-          .filter((track) => !catalogIds.has(track.ordinal))
+          .filter((track) => !catalogIds.has(track.trackId))
           .map((track) => ({
-            ordinal: track.ordinal,
+            id: track.trackId,
             name: track.name,
             location: "",
             country: "",
@@ -285,7 +281,7 @@ export const trackCatalogRoutes = new Hono()
             outlineSource: null,
             commonTrackName: null,
             createdAt: track.createdAt,
-            lapCount: lapCounts.get(track.ordinal) ?? 0,
+            lapCount: lapCounts.get(track.trackId) ?? 0,
           }));
         const tracks = [...catalogEntries, ...discoveredOnly];
         tracks.sort((a, b) => {
@@ -304,9 +300,10 @@ export const trackCatalogRoutes = new Hono()
 
       const lapCounts = await getLapCountsByTrack("fm-2023");
       const tracks = Array.from(fmTrackCatalog.entries()).map(([ordinal, info]) => {
-        const hasBundled = !!getTrackOutlineByOrdinal(ordinal, "fm-2023");
+        const trackId = String(ordinal);
+        const hasBundled = !!getTrackOutlineById(trackId, "fm-2023");
         return {
-          ordinal,
+          id: trackId,
           name: info.name,
           location: info.location,
           country: info.country,
@@ -315,7 +312,7 @@ export const trackCatalogRoutes = new Hono()
           hasOutline: hasBundled,
           outlineSource: hasBundled ? "bundled" : null,
           createdAt: null,
-          lapCount: lapCounts.get(ordinal) ?? 0,
+          lapCount: lapCounts.get(trackId) ?? 0,
         };
       });
       // Sort: tracks with outlines first, then alphabetically

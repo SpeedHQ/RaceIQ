@@ -103,7 +103,7 @@ test("canonical replay values clone recursive boolean and string structures", ()
 });
 
 test("native-values replay skips non-native raw capture identity loading", async () => {
-  const sessionId = await insertSession(1, 2, "f1-2025");
+  const sessionId = await insertSession("1", "2", "f1-2025");
   const rawFile = `${process.env.DATA_DIR ?? "."}/semantic-replay-invalid-${Date.now()}.bin.gz`;
   let lapId: number | undefined;
   await Bun.write(rawFile, Buffer.from("not gzip"));
@@ -142,7 +142,7 @@ test("semantic replay aligns native session frames and hashes decompressed captu
   const rawFile = `${process.env.DATA_DIR ?? "."}/semantic-replay-${Date.now()}.bin.gz`;
   await Bun.write(rawFile, gzipSync(capture));
 
-  const sessionId = await insertSession(42, 99, "iracing");
+  const sessionId = await insertSession("42", "99", "iracing");
   try {
     await updateSessionRawFile(sessionId, rawFile, "test-detector");
     const lapId = await insertLap(sessionId, 1, 1, true, rawByteOffset, 2);

@@ -154,7 +154,7 @@ async function adjustTimeBucket(tx: DashboardTransaction, row: TimeContribution,
 export async function prepareDashboardPublicationCandidate(sessionId: number): Promise<DashboardPublicationCandidate | null> {
   const result = await client.execute({
     sql: `SELECT st.source_revision, st.published_revision, st.metadata_dirty, st.deleted, st.capture_dirty, st.capture_ready, s.id, s.game_id, s.ownership, s.created_at,
-        s.car_id, s.track_id, s.car_ordinal, s.track_ordinal, s.session_type, s.raw_file, s.source,
+        s.car_id, s.track_id, s.session_type, s.raw_file, s.source,
         s.capture_format_version, r.outcome_status, r.classification, r.finishing_position
       FROM dashboard_summary_state st LEFT JOIN sessions s ON s.id=st.session_id
       LEFT JOIN session_results r ON r.session_id=s.id WHERE st.session_id=?`,
@@ -202,7 +202,7 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
   const gameId = session ? String(session.game_id) : "";
   const excluded = !session || candidate.deleted || session.ownership !== "mine";
   const trackKeyForSectors = session
-    ? dashboardTrackIdentity(gameId as GameId, session.track_id as string | number | null, nullableNumber(session.track_ordinal))
+    ? dashboardTrackIdentity(gameId as GameId, stringOrNull(session.track_id))
     : null;
   const sectorLayoutKey = evidence ? (evidence.sectorLayout?.status === "available" ? evidence.sectorLayout.key : null)
     : preserveCapture && prior && stringOrNull(prior.track_key) === trackKeyForSectors ? stringOrNull(prior.sector_layout_key) : null;
@@ -231,8 +231,8 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
   let validMean = 0, validM2 = 0, bestLap: number | null = null, firstLapAt: number | null = null, lastLapAt: number | null = null;
   let favouriteLaps = 0, favouriteSeconds = 0, distanceLaps = 0, distanceMeters = 0, lastLapId = 0;
   if (!excluded && session) {
-    const carKey = dashboardCarIdentity(gameId as GameId, session.car_id as string | number | null, nullableNumber(session.car_ordinal)) ?? "";
-    const trackKey = dashboardTrackIdentity(gameId as GameId, session.track_id as string | number | null, nullableNumber(session.track_ordinal)) ?? "";
+    const carKey = dashboardCarIdentity(gameId as GameId, stringOrNull(session.car_id)) ?? "";
+    const trackKey = dashboardTrackIdentity(gameId as GameId, stringOrNull(session.track_id)) ?? "";
     for (;;) {
       const page = await client.execute({ sql: `SELECT lap_id, created_at_ms, lap_time, is_valid, invalid_reason, sector_times
         FROM dashboard_lap_index WHERE session_id=? AND lap_id>? ORDER BY lap_id LIMIT ?`, args: [sessionId, lastLapId, LAP_PAGE_SIZE] });
@@ -297,11 +297,11 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
     ? number(session.finishing_position) : 0;
   if (!excluded && podium > 0) {
     const day = new Date(createdAtMs).toISOString().slice(0, 10);
-    const dayKey = `${day}\0${dashboardCarIdentity(gameId as GameId, session!.car_id as string | number | null, nullableNumber(session!.car_ordinal)) ?? ""}\0${dashboardTrackIdentity(gameId as GameId, session!.track_id as string | number | null, nullableNumber(session!.track_ordinal)) ?? ""}`;
+    const dayKey = `${day}\0${dashboardCarIdentity(gameId as GameId, stringOrNull(session!.car_id)) ?? ""}\0${dashboardTrackIdentity(gameId as GameId, stringOrNull(session!.track_id)) ?? ""}`;
     let entity = entityMap.get(dayKey);
     if (!entity) {
-      entity = { utc_day: day, game_id: gameId, car_key: dashboardCarIdentity(gameId as GameId, session!.car_id as string | number | null, nullableNumber(session!.car_ordinal)) ?? "",
-        track_key: dashboardTrackIdentity(gameId as GameId, session!.track_id as string | number | null, nullableNumber(session!.track_ordinal)) ?? "",
+      entity = { utc_day: day, game_id: gameId, car_key: dashboardCarIdentity(gameId as GameId, stringOrNull(session!.car_id)) ?? "",
+        track_key: dashboardTrackIdentity(gameId as GameId, stringOrNull(session!.track_id)) ?? "",
         lap_count: 0, positive_laps: 0, valid_laps: 0, driven_seconds: 0, valid_seconds: 0, best_lap_seconds: null, mean_lap_seconds: 0, m2_lap_seconds: 0,
         favourite_laps: 0, favourite_seconds: 0, distance_laps: 0, distance_meters: 0, podium_first: 0, podium_second: 0, podium_third: 0 };
       entityMap.set(dayKey, entity);
@@ -333,12 +333,12 @@ export async function publishDashboardSession(candidate: DashboardPublicationCan
     }
     if (!excluded && session) {
       await tx.execute({
-        sql: `INSERT INTO dashboard_session_summaries(session_id,source_revision,processor_version,game_id,created_at_ms,car_key,track_key,car_id,track_id,car_ordinal,track_ordinal,session_type,lap_count,positive_laps,valid_laps,driven_seconds,valid_seconds,valid_mean_seconds,valid_m2_seconds,best_lap_seconds,first_lap_at_ms,last_lap_at_ms,favourite_laps,favourite_seconds,distance_laps,distance_meters,track_length_meters,elapsed_seconds,duration_status,sector_layout_key,sector_count,source_sector_starts_json,sector_status,podium_position,podium_status,capture_revision,weather_revision,weather_status,weather_conditions_json,evidence_version)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        sql: `INSERT INTO dashboard_session_summaries(session_id,source_revision,processor_version,game_id,created_at_ms,car_key,track_key,car_id,track_id,session_type,lap_count,positive_laps,valid_laps,driven_seconds,valid_seconds,valid_mean_seconds,valid_m2_seconds,best_lap_seconds,first_lap_at_ms,last_lap_at_ms,favourite_laps,favourite_seconds,distance_laps,distance_meters,track_length_meters,elapsed_seconds,duration_status,sector_layout_key,sector_count,source_sector_starts_json,sector_status,podium_position,podium_status,capture_revision,weather_revision,weather_status,weather_conditions_json,evidence_version)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         args: [sessionId,revision,DASHBOARD_PROCESSOR_VERSION,gameId,createdAtMs,
-          dashboardCarIdentity(gameId as GameId,session.car_id as string|number|null,nullableNumber(session.car_ordinal)),
-          dashboardTrackIdentity(gameId as GameId,session.track_id as string|number|null,nullableNumber(session.track_ordinal)),
-          stringOrNull(session.car_id),stringOrNull(session.track_id),nullableNumber(session.car_ordinal),nullableNumber(session.track_ordinal),stringOrNull(session.session_type),
+          dashboardCarIdentity(gameId as GameId,stringOrNull(session.car_id)),
+          dashboardTrackIdentity(gameId as GameId,stringOrNull(session.track_id)),
+          stringOrNull(session.car_id),stringOrNull(session.track_id),stringOrNull(session.session_type),
           lapCount,positiveLaps,validLaps,drivenSeconds,validSeconds,validLaps ? validMean : null,validLaps ? validM2 : null,bestLap,firstLapAt,lastLapAt,
           favouriteLaps,favouriteSeconds,distanceLaps,distanceLaps ? distanceMeters : null,trackLengthMeters,elapsedSeconds,durationStatus,sectorLayoutKey,sectorCount,
           sourceSectorStarts ? JSON.stringify(sourceSectorStarts) : null,

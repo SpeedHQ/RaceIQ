@@ -44,9 +44,7 @@ async function addSession(
   carId: number | string | null = 7, trackId: number | string | null = 8,
 ) {
   const inserted = await db.insert(sessions).values({
-    gameId, carId: carId === null ? null : String(carId), trackId: trackId === null ? null : String(trackId),
-    carOrdinal: typeof carId === "number" ? carId : 0,
-    trackOrdinal: typeof trackId === "number" ? trackId : 0,
+    gameId, carId: carId === null ? "" : String(carId), trackId: trackId === null ? "" : String(trackId),
     ownership, createdAt,
   }).returning({ id: sessions.id }).get();
   ownedSessionIds.push(inserted.id);
@@ -66,28 +64,21 @@ function parseGameId(value: string): GameId {
 
 function asLap(row: {
   id: number; sessionId: number; lapNumber: number; lapTime: number; isValid: boolean;
-  createdAt: string; gameId: string; ownership: string; carId: number | string | null;
-  trackId: number | string | null; carOrdinal: number | null; trackOrdinal: number | null;
+  createdAt: string; gameId: string; ownership: string; carId: string;
+  trackId: string;
 }): LapMeta {
   if (row.ownership !== "mine" && row.ownership !== "others") throw new Error(`Unexpected session ownership: ${row.ownership}`);
-  return {
-    ...row,
-    gameId: parseGameId(row.gameId),
-    carOrdinal: row.carOrdinal ?? undefined,
-    trackOrdinal: row.trackOrdinal ?? undefined,
-    ownership: row.ownership,
-    invalidReason: undefined,
-  };
+  return { ...row, gameId: parseGameId(row.gameId), ownership: row.ownership, invalidReason: undefined };
 }
 
 const baseLap = (overrides: Partial<LapMeta> = {}): LapMeta => ({
   id: 1, sessionId: 1, lapNumber: 1, lapTime: 90, isValid: true,
   createdAt: "2026-06-01T12:00:00.000Z", gameId: "acc" as GameId,
-  ownership: "mine", carId: 7, carOrdinal: 7, trackId: 8, trackOrdinal: 8,
+  ownership: "mine", carId: "7", trackId: "8",
   ...overrides,
 });
 const baseSession = (overrides: Partial<SessionMeta> = {}): SessionMeta => ({
-  id: 1, gameId: "acc" as GameId, carId: 7, carOrdinal: 7, trackId: 8, trackOrdinal: 8,
+  id: 1, gameId: "acc" as GameId, carId: "7", trackId: "8",
   ownership: "mine", createdAt: "2026-06-01T12:00:00.000Z", sessionType: "race",
   ...overrides,
 });
@@ -102,49 +93,35 @@ function referenceDashboardFacts(
     row.ownership === "mine" && !!row.gameId && (!req.gameId || row.gameId === req.gameId);
   const periodSessions = sessions.filter((session) => owns(session) && inside(session.createdAt));
   const sessionById = new Map(periodSessions.map((session) => [session.id, session]));
-  const identity = (gameId: GameId, native: number | string | null | undefined, ordinal: number | null | undefined) => {
-    let value: number | string | null = native ?? null;
-    if (typeof value === "number" && value === -1) value = null;
-    if (typeof value === "string") {
-      const normalized = value.trim();
-      const numeric = normalized === "" ? Number.NaN : Number(normalized);
-      if (Number.isInteger(numeric) && Number.isFinite(numeric)) value = numeric === -1 ? null : numeric;
-      else if (normalized === "") value = null;
-    }
-    if (value == null || typeof value === "number" && !Number.isFinite(value)) {
-      value = ordinal != null && Number.isInteger(ordinal) && ordinal !== -1 ? ordinal : null;
-    }
-    if (value == null) return null;
-    const key = `${gameId}:${typeof value === "number" ? `n:${value}` : `s:${value}`}`;
-    return { key, value };
+  const identity = (gameId: GameId, native: number | string | null | undefined) => {
+    const value = native == null ? null : String(native);
+    if (value == null || value === "" || value === "-1") return null;
+    return { key: `${gameId}:${value}`, value };
   };
   const rows = laps.filter((lap) => owns(lap) && inside(lap.createdAt) && sessionById.has(lap.sessionId));
-  const distribution = new Map<string, { gameId: GameId; ordinal: number | null; seconds: number }>();
+  const distribution = new Map<string, { gameId: GameId; identity: string; seconds: number }>();
   type ReferenceFavourite = {
-    gameId: GameId; nativeId: number | string; ordinal: number | null; seconds: number; laps: number;
+    gameId: GameId; identity: string; nativeId: string; seconds: number; laps: number;
     sessions: Set<number>; distanceMeters: number; distanceLaps: number; podiums: number; hasEvidence: boolean;
   };
   const favourites: Record<"track" | "car", Map<string, ReferenceFavourite>> = { track: new Map(), car: new Map() };
   for (const lap of rows) {
-    const track = identity(lap.gameId!, lap.trackId, lap.trackOrdinal);
+    const track = identity(lap.gameId!, lap.trackId);
     if (track) {
-      const row = distribution.get(track.key) ?? { gameId: lap.gameId!, ordinal: lap.trackOrdinal ?? null, seconds: 0 };
+      const row = distribution.get(track.key) ?? { gameId: lap.gameId!, identity: String(track.value), seconds: 0 };
       if (Number.isFinite(lap.lapTime) && lap.lapTime > 0) row.seconds += lap.lapTime;
       distribution.set(track.key, row);
     }
     if (!Number.isFinite(lap.lapTime) || lap.lapTime <= 0 || lap.invalidReason === "incomplete") continue;
-    for (const [field, native, ordinal] of [
-      ["track", lap.trackId, lap.trackOrdinal],
-      ["car", lap.carId, lap.carOrdinal],
-    ] as const) {
-      const item = identity(lap.gameId!, native, ordinal);
+    for (const [field, native] of [["track", lap.trackId], ["car", lap.carId]] as const) {
+      const item = identity(lap.gameId!, native);
       if (!item) continue;
       const map = favourites[field];
-      const aggregate = map.get(item.key) ?? { gameId: lap.gameId!, nativeId: item.value, ordinal: ordinal ?? null, seconds: 0, laps: 0, sessions: new Set<number>(), distanceMeters: 0, distanceLaps: 0, podiums: 0, hasEvidence: false };
+      const aggregate = map.get(item.key) ?? { gameId: lap.gameId!, identity: String(item.value), nativeId: item.value, seconds: 0, laps: 0, sessions: new Set<number>(), distanceMeters: 0, distanceLaps: 0, podiums: 0, hasEvidence: false };
       aggregate.seconds += lap.lapTime;
       aggregate.laps++;
       aggregate.sessions.add(lap.sessionId);
-      const distance = trackLengths[`${lap.gameId}:${lap.trackOrdinal}`];
+      const distance = trackLengths[`${lap.gameId}:${lap.trackId}`];
       if (Number.isFinite(distance) && distance > 0) { aggregate.distanceMeters += distance; aggregate.distanceLaps++; }
       map.set(item.key, aggregate);
     }
@@ -152,7 +129,7 @@ function referenceDashboardFacts(
   for (const session of periodSessions) {
     if (!session.gameId) continue;
     for (const field of ["track", "car"] as const) {
-      const item = field === "track" ? identity(session.gameId, session.trackId, session.trackOrdinal) : identity(session.gameId, session.carId, session.carOrdinal);
+      const item = field === "track" ? identity(session.gameId, session.trackId) : identity(session.gameId, session.carId);
       const aggregate = item && favourites[field].get(item.key);
       if (aggregate) aggregate.sessions.add(session.id);
     }
@@ -191,10 +168,10 @@ function referenceDashboardFacts(
       || !session.sessionType?.trim().toLowerCase().startsWith("race")) continue;
     const position = session.finishingPosition!;
     for (const field of ["track", "car"] as const) {
-      const item = field === "track" ? identity(session.gameId, session.trackId, session.trackOrdinal) : identity(session.gameId, session.carId, session.carOrdinal);
+      const item = field === "track" ? identity(session.gameId, session.trackId) : identity(session.gameId, session.carId);
       if (!item) continue;
       for (const aggregate of favourites[field].values()) {
-        if (aggregate.gameId !== session.gameId || `${typeof aggregate.nativeId === "number" ? `n:${aggregate.nativeId}` : `s:${aggregate.nativeId}`}` !== item.key.slice(item.key.indexOf(":") + 1)) continue;
+        if (aggregate.gameId !== session.gameId || String(aggregate.nativeId) !== item.value) continue;
         aggregate.hasEvidence = true;
         if (position <= 3) aggregate.podiums++;
       }
@@ -211,7 +188,7 @@ function referenceDashboardFacts(
   const deviations: number[] = [];
   for (const session of periodSessions) {
     const eligible = rows.filter((lap) => lap.sessionId === session.id && lap.isValid && Number.isFinite(lap.lapTime) && lap.lapTime > 0);
-    const contexts = new Set(eligible.map((lap) => `${identity(lap.gameId!, lap.trackId, lap.trackOrdinal)?.key}|${identity(lap.gameId!, lap.carId, lap.carOrdinal)?.key}`));
+    const contexts = new Set(eligible.map((lap) => `${identity(lap.gameId!, lap.trackId)?.key}|${identity(lap.gameId!, lap.carId)?.key}`));
     if (eligible.length < 2 || contexts.size !== 1 || contexts.has("null|null")) continue;
     const mean = eligible.reduce((sum, lap) => sum + lap.lapTime, 0) / eligible.length;
     deviations.push(Math.sqrt(eligible.reduce((sum, lap) => sum + (lap.lapTime - mean) ** 2, 0) / eligible.length));
@@ -228,7 +205,7 @@ function referenceDashboardFacts(
     types[kind] += session.elapsedSeconds;
   }
   return {
-    distribution: [...distribution.values()].sort((a, b) => b.seconds - a.seconds || a.gameId.localeCompare(b.gameId)).map(({ gameId, ordinal, seconds }) => ({ gameId, ordinal, seconds })),
+    distribution: [...distribution.values()].sort((a, b) => b.seconds - a.seconds || a.gameId.localeCompare(b.gameId)).map(({ gameId, identity, seconds }) => ({ gameId, identity, seconds })),
     favouriteTrack: winner(favourites.track), favouriteCar: winner(favourites.car),
     consistency: deviations,
     sessionTypes: { types, sessionsWithDuration, sessionsWithoutDuration },
@@ -301,8 +278,12 @@ test("published favourite podium evidence survives partial days and preserves un
         expect(response.cards["fm-2023"]?.laps).toBe(2);
         expect(reference.cards).toEqual(response.cards);
         for (const favourite of [response.favouriteCar, response.favouriteTrack]) {
-          expect(favourite?.nativeId).toBe(nativeId ?? 0);
-          expect(favourite?.podiums).toBe(position === null ? null : position <= 3 ? 1 : 0);
+          if (nativeId === null) {
+            expect(favourite).toBeNull();
+          } else {
+            expect(favourite?.nativeId).toBe(nativeId);
+            expect(favourite?.podiums).toBe(position === null ? null : position <= 3 ? 1 : 0);
+          }
         }
       }
       for (const sessionId of [own, other, otherGame]) {
@@ -476,7 +457,7 @@ test("published favorite track session count stays within requested period", asy
     to: "2026-01-02T00:00:00.000Z",
     gameId: "acc" as GameId,
   });
-  expect(response.favouriteTrack).toMatchObject({ nativeId: 8, laps: 1, sessions: 1 });
+  expect(response.favouriteTrack).toMatchObject({ nativeId: "8", laps: 1, sessions: 1 });
 });
 test("getDashboard includes over 128 clean published boundary sessions without losing exact-period facts", async () => {
   const ids: number[] = [];
@@ -517,7 +498,7 @@ test("getDashboard includes over 128 clean published boundary sessions without l
     expect(response.calendar[0]).toMatchObject({ day: "2026-10-09", validLaps: 300, positiveLaps: 300, cleanRate: 1, drivenSeconds: 27300 });
     expect(response.consistency).toMatchObject({ sessions: 150, averageStandardDeviation: 1 });
     expect(response.consistency.deviations).toEqual([0, 0, 0, 0, 150, 0, 0]);
-    expect(response.favouriteTrack).toMatchObject({ nativeId: 8, laps: 300, sessions: 150 });
+    expect(response.favouriteTrack).toMatchObject({ nativeId: "8", laps: 300, sessions: 150 });
     expect(response.sessionTypes).toMatchObject({ totalSeconds: 3600, sessionsWithDuration: 1, sessionsWithoutDuration: 149 });
   } finally {
     for (const id of ids) {
@@ -558,7 +539,7 @@ test("getDashboard serves published metadata while capture backfill remains pend
       status: "pending", metadataComplete: true, mineSessions: 150, readySessions: 150, pendingSessions: 0,
     });
     expect(response.totals).toMatchObject({ sessions: 150, laps: 150, validLaps: 150, drivenSeconds: 24675, tracks: 1, cars: 1 });
-    expect(response.favouriteTrack).toMatchObject({ nativeId: 8, laps: 150, sessions: 150 });
+    expect(response.favouriteTrack).toMatchObject({ nativeId: "8", laps: 150, sessions: 150 });
     expect(response.recentSessions).toHaveLength(10);
     expect(response.sessionTypes).toMatchObject({ totalSeconds: 0, sessionsWithDuration: 0, sessionsWithoutDuration: 150 });
     const backlog = await db.select({ captureDirty: dashboardSummaryState.captureDirty }).from(dashboardSummaryState)
@@ -640,16 +621,16 @@ test("dashboard HTTP keeps all-game cards while bounding exact selected-game out
   const unavailable = await dashboardRoutes.request("/api/dashboard?from=2026-02-01T00%3A00%3A00Z&to=2026-02-02T00%3A00%3A00Z", { headers: { "X-Game-Id": "acc" } });
   expect((await unavailable.json() as DashboardResponse).podiums).toMatchObject({ total: 0, available: false });
 });
-test("dashboard preserves ordinal zero, groups by UTC day, and retains tiny deviations", async () => {
+test("dashboard preserves native ID zero, groups by UTC day, and retains tiny deviations", async () => {
   const inserted = await db.insert(sessions).values({
-    gameId: "acc", carId: null, carOrdinal: 0, trackId: null, trackOrdinal: 0,
+    gameId: "acc", carId: "0", trackId: "0",
     ownership: "mine", createdAt: "2026-01-01T03:00:00.000Z",
   }).returning({ id: sessions.id }).get();
   ownedSessionIds.push(inserted.id);
   await addLap(inserted.id, 1, 1, true, "2026-01-02T02:00:00.000Z");
   await addLap(inserted.id, 2, 1.00000002, true, "2026-01-02T02:01:00.000Z");
   const malformed = await db.insert(sessions).values({
-    gameId: "acc", carId: null, carOrdinal: -1, trackId: null, trackOrdinal: -1,
+    gameId: "acc", carId: "-1", trackId: "-1",
     ownership: "mine", createdAt: "2026-01-01T04:00:00.000Z",
   }).returning({ id: sessions.id }).get();
   ownedSessionIds.push(malformed.id);
@@ -658,8 +639,8 @@ test("dashboard preserves ordinal zero, groups by UTC day, and retains tiny devi
     from: "2026-01-01T00:00:00.000Z", to: "2026-01-03T00:00:00.000Z",
   });
   expect(actual.totals).toMatchObject({ tracks: 1, cars: 1 });
-  expect(actual.favouriteTrack?.identity).toBe('["acc","n:0"]');
-  expect(actual.favouriteCar?.identity).toBe('["acc","n:0"]');
+  expect(actual.favouriteTrack?.identity).toBe("0");
+  expect(actual.favouriteCar?.identity).toBe("0");
   expect(actual.calendar.find((bucket) => bucket.day === "2026-01-01")?.validLaps).toBe(0);
   expect(actual.calendar.find((bucket) => bucket.day === "2026-01-02")?.validLaps).toBe(3);
   expect(actual.consistency.averageStandardDeviation).toBeCloseTo(1e-8, 10);
@@ -697,8 +678,9 @@ test("consistency histogram buckets exact deviation boundaries before and after 
 });
 
 test("getDashboard treats clean previous-version publications as stale and uses source fallback", async () => {
-  const sessionId = await addSession("acc" as GameId, "2026-06-01T10:00:00.000Z");
-  await addLap(sessionId, 1, 90, true, "2026-06-01T10:01:00.000Z");
+  const isolatedRequest = { from: "2078-06-01T00:00:00.000Z", to: "2078-06-02T00:00:00.000Z" };
+  const sessionId = await addSession("acc" as GameId, "2078-06-01T10:00:00.000Z");
+  await addLap(sessionId, 1, 90, true, "2078-06-01T10:01:00.000Z");
   const candidate = await prepareDashboardPublicationCandidate(sessionId);
   expect(candidate).not.toBeNull();
   expect(await publishDashboardSession(candidate!, {
@@ -723,7 +705,7 @@ test("getDashboard treats clean previous-version publications as stale and uses 
     processorVersion: DASHBOARD_PROCESSOR_VERSION - 1,
   }).where(eq(dashboardSessionSummaries.sessionId, sessionId)).run();
 
-  const response = await getDashboard(request);
+  const response = await getDashboard(isolatedRequest);
   expect(response.coverage).toMatchObject({
     status: "pending",
     mineSessions: 1,
@@ -735,28 +717,56 @@ test("getDashboard treats clean previous-version publications as stale and uses 
   expect(response.sessionTypes.sessionsWithDuration).toBe(0);
 });
 
+test("consistency fallback excludes missing canonical car and track identities", async () => {
+  const period = { from: "2076-06-01T12:00:00.000Z", to: "2076-06-01T13:00:00.000Z" };
+  for (const [carId, trackId] of [
+    ["car-alpha", "track-alpha"], ["", "track-alpha"], ["-1", "track-alpha"],
+    ["car-alpha", ""], ["car-alpha", "-1"],
+  ]) {
+    const sessionId = await addSession("acc" as GameId, "2076-06-01T12:00:00.000Z", "mine", carId, trackId);
+    await addLap(sessionId, 1, 99, true, "2076-06-01T12:01:00.000Z");
+    await addLap(sessionId, 2, 101, true, "2076-06-01T12:02:00.000Z");
+  }
+  const response = await getDashboard(period);
+  expect(response.consistency).toEqual({
+    sessions: 1, averageStandardDeviation: 1, deviations: [0, 0, 0, 0, 1, 0, 0],
+  });
+});
+
+test("dashboard counts in-period laps from sessions starting before the period", async () => {
+  const period = { from: "2077-06-01T00:00:00.000Z", to: "2077-06-02T00:00:00.000Z" };
+  const sessionId = await addSession("acc" as GameId, "2077-05-31T23:59:00.000Z");
+  await addLap(sessionId, 1, 90, true, "2077-05-31T23:59:59.000Z");
+  await addLap(sessionId, 2, 88, true, "2077-06-01T00:01:00.000Z");
+  const actual = await getDashboard(period);
+  const reference = await sourceDashboardReference(period);
+  expect(actual.totals).toMatchObject({ laps: 1, validLaps: 1, sessions: 1, drivenSeconds: 88, bestLapSeconds: 88 });
+  expect(actual.cards.acc).toEqual({ laps: 1, drivenSeconds: 88 });
+  expect(reference.totals).toEqual(actual.totals);
+});
+
 test("getDashboard matches the independent reducer for bounded source fallback", async () => {
+  const isolatedRequest = { from: "2079-06-01T00:00:00.000Z", to: "2079-06-05T00:00:00.000Z" };
   const sessionIds = [
-    await addSession("acc" as GameId, "2026-06-01T10:00:00.000Z"),
-    await addSession("acc" as GameId, "2026-06-02T10:00:00.000Z"),
-    await addSession("iracing" as GameId, "2026-06-03T10:00:00.000Z"),
-    await addSession("acc" as GameId, "2026-06-04T10:00:00.000Z", "others"),
+    await addSession("acc" as GameId, "2079-06-01T10:00:00.000Z"),
+    await addSession("acc" as GameId, "2079-06-02T10:00:00.000Z"),
+    await addSession("iracing" as GameId, "2079-06-03T10:00:00.000Z"),
+    await addSession("acc" as GameId, "2079-06-04T10:00:00.000Z", "others"),
   ];
-  await addLap(sessionIds[0]!, 1, 90, true, "2026-06-01T10:01:00.000Z");
-  await addLap(sessionIds[0]!, 2, 92, false, "2026-06-01T10:02:00.000Z");
-  await addLap(sessionIds[1]!, 1, 88, true, "2026-06-02T10:01:00.000Z");
-  await addLap(sessionIds[2]!, 1, 101, true, "2026-06-03T10:01:00.000Z");
-  await addLap(sessionIds[3]!, 1, 70, true, "2026-06-04T10:01:00.000Z");
+  await addLap(sessionIds[0]!, 1, 90, true, "2079-06-01T10:01:00.000Z");
+  await addLap(sessionIds[0]!, 2, 92, false, "2079-06-01T10:02:00.000Z");
+  await addLap(sessionIds[1]!, 1, 88, true, "2079-06-02T10:01:00.000Z");
+  await addLap(sessionIds[2]!, 1, 101, true, "2079-06-03T10:01:00.000Z");
+  await addLap(sessionIds[3]!, 1, 70, true, "2079-06-04T10:01:00.000Z");
   const rows = await db.select({
     id: laps.id, sessionId: laps.sessionId, lapNumber: laps.lapNumber, lapTime: laps.lapTime,
     isValid: laps.isValid, createdAt: laps.createdAt, gameId: sessions.gameId,
     ownership: sessions.ownership, carId: sessions.carId, trackId: sessions.trackId,
-    carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal,
   }).from(laps).innerJoin(sessions, eq(laps.sessionId, sessions.id)).where(inArray(laps.sessionId, sessionIds)).all();
   const sourceLaps = rows.map((row) => asLap(row!));
   const sourceSessions = (await db.select().from(sessions).where(inArray(sessions.id, sessionIds)).all()) as unknown as SessionMeta[];
-  const oracle = reduceDashboard(sourceLaps, sourceSessions, request);
-  const actual = await getDashboard(request);
+  const oracle = reduceDashboard(sourceLaps, sourceSessions, isolatedRequest);
+  const actual = await getDashboard(isolatedRequest);
   expect(actual.coverage.status).toBe("pending");
   expect(actual.coverage.metadataComplete).toBe(true);
   expect(actual.totals).toMatchObject({
@@ -799,7 +809,6 @@ test("source oracle includes target-game laps beyond cap; dashboard reports over
     id: laps.id, sessionId: laps.sessionId, lapNumber: laps.lapNumber, lapTime: laps.lapTime,
     isValid: laps.isValid, createdAt: laps.createdAt, gameId: sessions.gameId,
     ownership: sessions.ownership, carId: sessions.carId, trackId: sessions.trackId,
-    carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal,
   }).from(laps).innerJoin(sessions, eq(laps.sessionId, sessions.id)).where(where).all();
   const shared = reduceDashboardLaps(sourceRows.map((row) => asLap(row!)), { ...request, from, to, gameId: "acc" as GameId });
   expect(oracle).toMatchObject({ laps: 205, positiveLaps: 205, validLaps: 153, sessions: 205, tracks: 1, cars: 1 });
@@ -828,15 +837,14 @@ test("SQL ownership transitions change eligible source rows exactly", async () =
   expect((await countMineRows())?.count).toBe(0);
 });
 
-test("ownership and source identity preserve exact mine, native IDs, ordinal zero and sentinels", () => {
+test("dashboard preserves exact native IDs, groups by UTC day, and retains tiny deviations", () => {
   expect(["mine", "others", null, undefined, "unknown"].map(isDashboardOwned)).toEqual([true, false, false, false, false]);
-  expect(dashboardTrackIdentity("lmu" as GameId, "track-α", 0)).toBe('["lmu","s:track-α"]');
-  expect(dashboardTrackIdentity("acc" as GameId, "8", 99)).toBe(dashboardTrackIdentity("acc" as GameId, 8, 2));
-  expect(dashboardCarIdentity("acc" as GameId, null, 0)).toBe('["acc","n:0"]');
-  expect(dashboardCarIdentity("acc" as GameId, "-1", 0)).toBe(dashboardCarIdentity("acc" as GameId, null, 0));
-  expect(dashboardCarIdentity("acc" as GameId, "", 0)).toBe(dashboardCarIdentity("acc" as GameId, null, 0));
-  expect(dashboardCarIdentity("acc" as GameId, "-1.0", 0)).toBe(dashboardCarIdentity("acc" as GameId, null, 0));
-  expect(dashboardTrackIdentity("iracing" as GameId, 0, 9)).not.toBe(dashboardTrackIdentity("acc" as GameId, 0, 9));
+  expect(dashboardTrackIdentity("lmu" as GameId, "track-α")).toBe('["lmu","track-α"]');
+  expect(dashboardTrackIdentity("acc" as GameId, "8")).not.toBe(dashboardTrackIdentity("iracing" as GameId, "8"));
+  expect(dashboardCarIdentity("acc" as GameId, null)).toBeNull();
+  expect(dashboardCarIdentity("acc" as GameId, "-1")).toBeNull();
+  expect(dashboardCarIdentity("acc" as GameId, "")).toBeNull();
+  expect(dashboardCarIdentity("acc" as GameId, "0")).toBe('["acc","0"]');
 });
 
 test("reducer counts recorded zero-time laps, excludes non-mine, and separates positive from valid", () => {
@@ -856,24 +864,24 @@ test("reducer counts recorded zero-time laps, excludes non-mine, and separates p
 test("favorite aggregation canonicalizes numeric native IDs and excludes incomplete laps", () => {
   const result = reduceDashboard([
     baseLap({ lapTime: 90, invalidReason: "incomplete" }),
-    baseLap({ id: 2, lapNumber: 2, trackId: "8", trackOrdinal: 8, lapTime: 100 }),
+    baseLap({ id: 2, lapNumber: 2, trackId: "8", lapTime: 100 }),
   ], [baseSession(), baseSession({ id: 2 })], request, { trackLengthsMeters: { "acc:8": 5 } });
   expect(result.trackDistribution).toMatchObject({
-    totalSeconds: 190, topFive: [{ gameId: "acc", ordinal: 8, seconds: 190 }],
+    totalSeconds: 190, topFive: [{ gameId: "acc", identity: "8", seconds: 190 }],
   });
   expect(result.favouriteTrack).toMatchObject({
-    nativeId: 8, seconds: 100, laps: 1, sessions: 2, distanceMeters: 5, distanceLaps: 1,
+    nativeId: "8", seconds: 100, laps: 1, sessions: 2, distanceMeters: 5, distanceLaps: 1,
   });
-  expect(result.favouriteCar).toMatchObject({ gameId: "acc", nativeId: 7, distanceMeters: 5, distanceLaps: 1 });
+  expect(result.favouriteCar).toMatchObject({ gameId: "acc", nativeId: "7", distanceMeters: 5, distanceLaps: 1 });
 });
 
 test("favourite tie ranking preserves lap-count precedence", () => {
   const result = reduceDashboard([
     baseLap({ lapTime: 50 }),
     baseLap({ id: 2, sessionId: 2, lapNumber: 2, lapTime: 50 }),
-    baseLap({ id: 3, sessionId: 3, trackId: 9, trackOrdinal: 9, lapTime: 100 }),
-  ], [baseSession(), baseSession({ id: 2 }), baseSession({ id: 3, trackId: 9 })], request);
-  expect(result.favouriteTrack).toMatchObject({ nativeId: 8, seconds: 100, laps: 2 });
+    baseLap({ id: 3, sessionId: 3, trackId: "9", lapTime: 100 }),
+  ], [baseSession(), baseSession({ id: 2 }), baseSession({ id: 3, trackId: "9" })], request);
+  expect(result.favouriteTrack).toMatchObject({ nativeId: "8", seconds: 100, laps: 2 });
 });
 
 test("consistency uses valid same-context laps and podium evidence distinguishes zero from absent", () => {
@@ -908,13 +916,13 @@ test("full reducer matches independent reference facts across dashboard aggregat
   expect(response.totals).toMatchObject({ laps: 2, drivenSeconds: 190, sessions: 2 });
   expect(response.cards.acc).toEqual({ laps: 1, drivenSeconds: 90 });
   expect(response.cards.iracing).toEqual({ laps: 1, drivenSeconds: 100 });
-  expect(response.trackDistribution.topFive.map(({ gameId, ordinal, seconds }) => ({ gameId, ordinal, seconds }))).toEqual(expected.distribution);
+  expect(response.trackDistribution.topFive.map(({ gameId, identity, seconds }) => ({ gameId, identity, seconds }))).toEqual(expected.distribution);
   const favouriteProjection = (value: typeof response.favouriteTrack) => value && ({
-    gameId: value.gameId, nativeId: value.nativeId, ordinal: value.ordinal, seconds: value.seconds,
+    gameId: value.gameId, nativeId: value.nativeId, identity: value.identity, seconds: value.seconds,
     laps: value.laps, sessions: value.sessions, distanceMeters: value.distanceMeters, podiums: value.podiums,
   });
   const favouriteExpected = (value: typeof expected.favouriteTrack) => value && ({
-    gameId: value.gameId, nativeId: value.nativeId, ordinal: value.ordinal, seconds: value.seconds,
+    gameId: value.gameId, nativeId: value.nativeId, identity: value.identity, seconds: value.seconds,
     laps: value.laps, sessions: value.sessions.size, distanceMeters: value.distanceLaps ? value.distanceMeters : null,
     podiums: value.hasEvidence ? value.podiums : null,
   });
@@ -997,12 +1005,12 @@ test("recent ordering and recap lookup exclude unknown ownership before limiting
 });
 
 test("recap history requires compatible exact-mine sessions and matching sector evidence", () => {
-  const current = { sessionId: 1, gameId: "acc" as GameId, carId: 7, carOrdinal: 7, trackId: 8, trackOrdinal: 8, sectorLayoutKey: "layout-v1", sectorCount: 3 };
+  const current = { sessionId: 1, gameId: "acc" as GameId, carId: "7", trackId: "8", sectorLayoutKey: "layout-v1", sectorCount: 3 };
   const currentLap = baseLap({ lapTime: 70, sectorTimes: [20, 20, 30] });
   const differentLayoutLap = baseLap({ id: 4, sessionId: 5, lapTime: 60, sectorTimes: [20, 20, 20] });
   const sessions = [
     baseSession({ id: 1 }), baseSession({ id: 2 }), baseSession({ id: 3, ownership: "others" }),
-    baseSession({ id: 4, trackId: 9 }), baseSession({ id: 5 }),
+    baseSession({ id: 4, trackId: "9" }), baseSession({ id: 5 }),
   ];
   const laps = [
     currentLap,

@@ -89,7 +89,7 @@ test("Compare chat calls Qwen through frontend", async ({ page, request }) => {
     await request.delete(`/api/laps/${alternate.id}/analyse`);
     await generateAnalysis(request, lap.id);
     await generateAnalysis(request, alternate.id);
-    await page.goto(`/fm23/compare?track=${lap.trackOrdinal}&carA=${lap.carOrdinal}&carB=${alternate.carOrdinal}&lapA=${lap.id}&lapB=${alternate.id}&ai=1`, { waitUntil: "domcontentloaded" });
+    await page.goto(`/fm23/compare?track=${encodeURIComponent(lap.trackId)}&carA=${encodeURIComponent(lap.carId)}&carB=${encodeURIComponent(alternate.carId)}&lapA=${lap.id}&lapB=${alternate.id}&ai=1`, { waitUntil: "domcontentloaded" });
     const response = await sendThroughChatUi(page, `/api/laps/${lap.id}/compare/${alternate.id}/chat`);
     expect(response.ok, `Compare chat failed (${response.status})`).toBe(true);
   } finally {

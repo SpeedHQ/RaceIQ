@@ -98,8 +98,8 @@ describe("iRacing recorder container", () => {
     expect(packets).toHaveLength(138);
     expect(packets[0]).toMatchObject({
       gameId: "iracing",
-      CarOrdinal: 42,
-      TrackOrdinal: 99,
+      carId: "42",
+      trackId: "99",
     });
     expect(packets[0]?.iracing).toMatchObject({
       carName: "GT3 Test Car",

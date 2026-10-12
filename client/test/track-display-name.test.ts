@@ -1,20 +1,23 @@
 import { describe, expect, test } from "bun:test";
-import { dashboardTrackIdentity } from "@raceiq/shared/racing/sessions/dashboard";
 import { resolveTrackDisplayName } from "../src/lib/track-display-name";
 
 describe("dashboard track display names", () => {
-  test("decodes native string identities instead of displaying serialized keys", () => {
-    expect(resolveTrackDisplayName("lmu", { trackIdentity: dashboardTrackIdentity("lmu", "Circuit de Spa-Francorchamps", null) })).toBe("Circuit de Spa-Francorchamps");
+  test("keeps readable LMU identities unchanged", () => {
+    expect(resolveTrackDisplayName("lmu", { trackIdentity: "Circuit de Spa-Francorchamps" })).toBe("Circuit de Spa-Francorchamps");
   });
-  test("resolves native numeric identities with game-scoped server names", () => {
-    expect(resolveTrackDisplayName("acc", { trackIdentity: dashboardTrackIdentity("acc", 5, null) }, { "acc:5": "Monza", "f1-2025:5": "Monaco" })).toBe("Monza");
+  test("resolves exact string identities with game-scoped server names", () => {
+    expect(resolveTrackDisplayName("acc", { trackIdentity: "track-5" }, { "acc:track-5": "Monza", "f1-2025:track-5": "Monaco" })).toBe("Monza");
   });
-  test("accepts reference reducer identities and preserves unknown tracks", () => {
-    expect(resolveTrackDisplayName("acc", { trackIdentity: "n:19" }, { "acc:19": "Spa" })).toBe("Spa");
-    expect(resolveTrackDisplayName("lmu", { trackIdentity: "s:Circuit de Spa-Francorchamps" })).toBe("Circuit de Spa-Francorchamps");
-    expect(resolveTrackDisplayName("acc", { trackIdentity: "track:unknown", trackOrdinal: -1 })).toBeUndefined();
+  test("accepts raw string IDs and excludes invalid IDs", () => {
+    expect(resolveTrackDisplayName("acc", { trackIdentity: "track-19" }, { "acc:track-19": "Spa" })).toBe("Spa");
+    expect(resolveTrackDisplayName("acc", { trackIdentity: "" })).toBeUndefined();
+    expect(resolveTrackDisplayName("acc", { trackIdentity: "-1" })).toBeUndefined();
   });
-  test("does not resolve serialized identities from another game", () => {
-    expect(resolveTrackDisplayName("acc", { trackIdentity: dashboardTrackIdentity("f1-2025", 5, null) }, { "acc:5": "Monza" })).toBeUndefined();
+  test("does not use another game's name for the same ID", () => {
+    expect(resolveTrackDisplayName("acc", { trackIdentity: "track-5" }, { "f1-2025:track-5": "Monaco" })).toBeUndefined();
+  });
+  test("preserves native JSON venue-layout IDs without decoding them as dashboard keys", () => {
+    const trackId = JSON.stringify(["Nürburgring", "Tourist"]);
+    expect(resolveTrackDisplayName("ac-evo", { trackIdentity: trackId }, { [`ac-evo:${trackId}`]: "Nürburgring Tourist" })).toBe("Nürburgring Tourist");
   });
 });

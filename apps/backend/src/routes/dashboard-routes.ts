@@ -7,7 +7,6 @@ import { getDashboardSessionRecap } from "@raceiq/backend-core/db/dashboard-reca
 import { tryGetServerGame } from "@raceiq/backend-core/games/registry";
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
-import { resolveLMUCar, resolveLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 
 const instant = z.string().regex(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/).refine((value) => Number.isFinite(Date.parse(value)), "Must be a finite UTC instant");
 const DashboardQuery = z.object({
@@ -32,17 +31,11 @@ export const dashboardRoutes = new Hono()
       for (const kind of ["track", "car"] as const) {
         const entity = session[kind];
         if (entity.name?.trim()) continue;
-        const nativeId = typeof entity.id === "string" ? entity.id.trim() : entity.id;
-        if (session.gameId === "lmu" && typeof nativeId === "string" && nativeId !== "" && !Number.isFinite(Number(nativeId))) {
-          entity.name = (kind === "track" ? resolveLMUTrack(nativeId)?.name : resolveLMUCar(nativeId)?.name) ?? nativeId;
-          continue;
-        }
-        const numericId = nativeId != null && nativeId !== "" ? Number(nativeId) : null;
-        const ordinal = numericId != null && Number.isInteger(numericId) && numericId >= 0 ? numericId : entity.ordinal;
-        if (ordinal == null || !Number.isInteger(ordinal) || ordinal < 0) continue;
+        const id = entity.id;
+        if (!id || id === "-1") continue;
         entity.name = kind === "track"
-          ? adapter?.getTrackName(ordinal) ?? resolveTrackName(ordinal, session.gameId)
-          : adapter?.getCarName(ordinal) ?? resolveCarName(ordinal, session.gameId);
+          ? adapter?.getTrackName(id) ?? resolveTrackName(id, session.gameId)
+          : adapter?.getCarName(id) ?? resolveCarName(id, session.gameId);
       }
     }
     return c.json(dashboard);

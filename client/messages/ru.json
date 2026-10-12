@@ -1854,6 +1854,7 @@
   "ai_chat_open_fullscreen": "Открыть чат на весь экран",
   "ai_chat_actions": "Действия чата",
   "ai_chat_copy_json": "Копировать JSON чата",
+  "ai_chat_export_json": "Экспортировать весь чат в JSON",
   "ai_chat_clear": "Очистить чат",
   "ai_chat_read_only_notice": "Просмотр предыдущего чата (только чтение). Переключитесь на последний, чтобы продолжить.",
   "ai_chat_compact_failed": "Не удалось сжать чат",

@@ -16,8 +16,8 @@ function packet(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
     TireWearFR: -1,
     TireWearRL: -1,
     TireWearRR: -1,
-    CarOrdinal: 1,
-    TrackOrdinal: 1,
+    carId: "1",
+    trackId: "1",
     ...overrides,
   } as TelemetryPacket;
 }
@@ -26,8 +26,8 @@ function makeEngine(finalized: (packet: TelemetryPacket) => boolean, incomplete:
   return new OrdinalDetectorEngine({
     now: () => 1,
     createSession: async (p) => ({
-      carOrdinal: 1,
-      trackOrdinal: 1,
+      carId: "1",
+      trackId: "1",
       gameId: p.gameId,
       sessionUID: p.sessionUID,
     }),

@@ -1,7 +1,7 @@
 import { createHash, type Hash } from "node:crypto";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { getTrackLengthMeters } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { getTrackLengthMetersById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { dashboardTrackIdentity } from "@raceiq/shared/racing/sessions/dashboard";
 import { TrackConditionsAccumulator } from "../ai/track-conditions";
 import { getServerGame } from "../games/registry";
@@ -25,12 +25,10 @@ export class DashboardCaptureObservation {
   private timeSampleCount = 0;
   private layout: { starts: number[]; trackLengthM?: number } | null = null;
   private readonly gameId: GameId;
-  private readonly trackOrdinal: number;
-  private readonly trackId: string | number | null;
+  private readonly trackId: string | null;
 
-  constructor(gameId: GameId, trackOrdinal: number, trackId: string | number | null) {
+  constructor(gameId: GameId, trackId: string | null) {
     this.gameId = gameId;
-    this.trackOrdinal = trackOrdinal;
     this.trackId = trackId;
   }
 
@@ -74,8 +72,8 @@ export class DashboardCaptureObservation {
     this.finishSegment();
     if (this.packetCount === 0) this.timingKnown = false;
     const conditions = this.weather.result();
-    const trackLengthMeters = this.layout?.trackLengthM ?? getTrackLengthMeters(this.trackOrdinal, this.gameId);
-    const trackKey = dashboardTrackIdentity(this.gameId, this.trackId, this.trackOrdinal);
+    const trackLengthMeters = this.layout?.trackLengthM ?? getTrackLengthMetersById(this.trackId ?? "", this.gameId);
+    const trackKey = dashboardTrackIdentity(this.gameId, this.trackId);
     const starts = this.layout?.starts ?? null;
     const weatherRevision = conditions ? createHash("sha256").update(JSON.stringify(conditions)).digest("hex") : null;
     return {

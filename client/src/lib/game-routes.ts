@@ -5,8 +5,8 @@ import { clientReleaseFeatures } from "./release-features";
 
 export type AnalyseSearch = {
   session?: number;
-  track?: number | string;
-  car?: number | string;
+  track?: string;
+  car?: string;
   lap?: number;
   laps?: string;
   primary?: number;
@@ -17,9 +17,9 @@ export type AnalyseSearch = {
   tab?: TuneReviewTrackTab;
 };
 export type CompareSearch = {
-  track?: number;
-  carA?: number;
-  carB?: number;
+  track?: string;
+  carA?: string;
+  carB?: string;
   lapA?: number;
   lapB?: number;
   cursor?: number;
@@ -94,11 +94,12 @@ export function parseOptionalNumber(value: unknown): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-export function parseOptionalIdentityKey(value: unknown): number | string | undefined {
-  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
-  if (typeof value !== "string" || value === "") return undefined;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && value.trim() !== "" ? parsed : value;
+/** Normalize URL-parser numbers while preserving canonical string identity keys verbatim. */
+export function parseOptionalIdentityKey(value: unknown): string | undefined {
+  if (typeof value === "number") return Number.isFinite(value) ? String(value) : undefined;
+  // TanStack's default search parser decodes native venue/layout keys as JSON.
+  if (Array.isArray(value) && value.length === 2 && value.every((part) => typeof part === "string" && part.length > 0)) return JSON.stringify(value);
+  return typeof value === "string" && value !== "" ? value : undefined;
 }
 
 /** Parse the canonical comparison lap list without silently accepting malformed IDs. */
@@ -139,9 +140,9 @@ export function validateAnalyseSearch(search: Record<string, unknown>): AnalyseS
 
 export function validateCompareSearch(search: Record<string, unknown>): CompareSearch {
   return {
-    track: parseOptionalNumber(search.track),
-    carA: parseOptionalNumber(search.carA),
-    carB: parseOptionalNumber(search.carB),
+    track: parseOptionalIdentityKey(search.track),
+    carA: parseOptionalIdentityKey(search.carA),
+    carB: parseOptionalIdentityKey(search.carB),
     lapA: parseOptionalNumber(search.lapA),
     lapB: parseOptionalNumber(search.lapB),
     cursor: parseOptionalNumber(search.cursor),

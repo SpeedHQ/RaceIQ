@@ -28,6 +28,7 @@ interface AnalyseTrackPanelProps {
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: Point[] | null;
+  closed?: boolean;
   mapLabels?: TrackMapLabel[] | null;
   boundaries: TrackMapBoundaries | null;
   pitLines?: PitLine[] | null;
@@ -68,6 +69,7 @@ interface AnalyseTrackPanelProps {
 export function AnalyseTrackPanel({
   gameId,
   telemetry,
+  closed = true,
   cursorIdx,
   outline,
   mapLabels,
@@ -127,6 +129,7 @@ export function AnalyseTrackPanel({
         telemetry={telemetry}
         cursorIdx={cursorIdx}
         outline={outline}
+        closed={closed}
         mapLabels={trackOverlays.segments ? mapLabels : null}
         boundaries={boundaries}
         pitLines={pitLines}

@@ -4,12 +4,12 @@ import { readWString } from "./utils";
 import { getAccParserCarByModel, getAccParserTrackByName } from "@raceiq/game-acc-metadata/parser-data-resolver";
 
 /** Direct detector projection for packed ACC frames. No TelemetryPacket allocation. */
-export function parseAccLapIndex(physics: Buffer, graphics: Buffer, stat: Buffer, carOrdinal: number, trackOrdinal: number, timestampMs = 0): LapIndexPacket | null {
+export function parseAccLapIndex(physics: Buffer, graphics: Buffer, stat: Buffer, carId: string, trackId: string, timestampMs = 0): LapIndexPacket | null {
   if (physics.length < ACC_PHYSICS.SIZE || graphics.length < ACC_GRAPHICS.MIN_SIZE || stat.length < ACC_STATIC.SIZE) return null;
   const cm = readWString(stat, ACC_STATIC.carModel.offset, ACC_STATIC.carModel.size);
   const tn = readWString(stat, ACC_STATIC.track.offset, ACC_STATIC.track.size);
-  carOrdinal = getAccParserCarByModel(cm)?.id ?? carOrdinal;
-  trackOrdinal = getAccParserTrackByName(tn)?.id ?? trackOrdinal;
+  carId = String(getAccParserCarByModel(cm)?.id ?? carId);
+  trackId = String(getAccParserTrackByName(tn)?.id ?? trackId);
   const i = (o: number) => graphics.readInt32LE(o);
   const f = (o: number) => physics.readFloatLE(o);
   const playerCarId = i(ACC_GRAPHICS.playerCarID.offset);
@@ -25,7 +25,7 @@ export function parseAccLapIndex(physics: Buffer, graphics: Buffer, stat: Buffer
   const coord = ACC_GRAPHICS.carCoordinatesBase.offset + slot * 12;
   const packet: LapIndexPacket = {
     gameId: "acc", IsRaceOn: i(ACC_GRAPHICS.status.offset) === 2 ? 1 : 0, TimestampMS: timestampMs,
-    CarOrdinal: carOrdinal, TrackOrdinal: trackOrdinal, CarPerformanceIndex: 0, CarClass: 0, LapNumber: i(ACC_GRAPHICS.completedLaps.offset) + 1,
+    carId, trackId, CarPerformanceIndex: 0, CarClass: 0, LapNumber: i(ACC_GRAPHICS.completedLaps.offset) + 1,
     CurrentLap: current > 0 && current !== 0x7fffffff ? current / 1000 : 0,
     LastLap: last > 0 && last !== 0x7fffffff ? last / 1000 : 0, BestLap: best > 0 && best !== 0x7fffffff ? best / 1000 : 0,
     DistanceTraveled: graphics.readFloatLE(ACC_GRAPHICS.distanceTraveled.offset), PositionX: graphics.readFloatLE(coord), PositionZ: graphics.readFloatLE(coord + 8),

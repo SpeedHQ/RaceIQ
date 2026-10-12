@@ -180,8 +180,8 @@ test("MoTeC import fixture creates disposable imported session when repository e
   const tracksResponse = await request.get("/api/tracks?gameId=ac-evo");
   expect(carsResponse.ok()).toBe(true);
   expect(tracksResponse.ok()).toBe(true);
-  const cars = (await carsResponse.json()) as { ordinal: number }[];
-  const tracks = (await tracksResponse.json()) as { ordinal: number }[];
+  const cars = (await carsResponse.json()) as { id: string }[];
+  const tracks = (await tracksResponse.json()) as { id: string }[];
   expect(cars.length).toBeGreaterThan(0);
   expect(tracks.length).toBeGreaterThan(0);
   const multipart: Parameters<typeof request.post>[1] = {
@@ -189,8 +189,8 @@ test("MoTeC import fixture creates disposable imported session when repository e
       file: { name: "repository.ld", mimeType: "application/octet-stream", buffer: readFileSync(motecLd) },
       ...(motecLdx ? { ldx: { name: "repository.ldx", mimeType: "application/xml", buffer: readFileSync(motecLdx) } } : {}),
       gameId: "ac-evo",
-      carOrdinal: String(cars[0].ordinal),
-      trackOrdinal: String(tracks[0].ordinal),
+      carId: cars[0].id,
+      trackId: tracks[0].id,
     },
   };
   let importedLapIds: number[] = [];

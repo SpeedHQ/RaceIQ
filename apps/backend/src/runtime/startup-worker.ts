@@ -1,10 +1,11 @@
 import { Worker } from "node:worker_threads";
 import { IS_COMPILED } from "@raceiq/backend-core/runtime/config/paths";
+import type { ReprocessResult } from "@raceiq/backend-core/session-capture/reprocess";
 
-type WorkerMessage = { type: "publication" } | { type: "ready" } | { type: "error"; task: string; error: string } | { type: "stopped" };
+type WorkerMessage = { type: "publication" } | { type: "ready" } | { type: "lap-reprocessed"; reprocessed: ReprocessResult } | { type: "clear-stale-sessions" } | { type: "error"; task: string; error: string } | { type: "stopped" };
 export interface StartupWorkerHandle { stop(): Promise<void>; }
 
-export function startStartupWorker(notifyDashboardUpdated: () => void): StartupWorkerHandle {
+export function startStartupWorker(notifyDashboardUpdated: () => void, notifyLapReprocessed: (reprocessed: ReprocessResult) => void, clearStaleSessions: () => void): StartupWorkerHandle {
   // Bun resolves embedded worker entrypoint paths in compiled builds; dev uses module-relative URL.
   const worker = new Worker(IS_COMPILED ? "./apps/backend/src/runtime/startup-worker-entry.ts" : new URL("./startup-worker-entry", import.meta.url));
   let stopping = false;
@@ -20,6 +21,8 @@ export function startStartupWorker(notifyDashboardUpdated: () => void): StartupW
 
   worker.on("message", (message: WorkerMessage) => {
     if (message.type === "publication") notifyDashboardUpdated();
+    else if (message.type === "lap-reprocessed") notifyLapReprocessed(message.reprocessed);
+    else if (message.type === "clear-stale-sessions") clearStaleSessions();
     else if (message.type === "error") console.error(`[StartupWorker] ${message.task} failed: ${message.error}`);
     else if (message.type === "stopped") settle();
   });

@@ -1,55 +1,37 @@
 import { client } from "@raceiq/backend-core/db/index";
 import { dashboardCarIdentity, dashboardTrackIdentity, type DashboardRequest, type DashboardResponse, type DashboardEntityTotal, type DashboardFavourite, type DashboardSessionType } from "@raceiq/shared/racing/sessions/dashboard";
 import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
-import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
-import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
-import { resolveLMUCar, resolveLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 
 type Row = Record<string, unknown>;
 const n = (v: unknown): number => Number(v ?? 0);
 const nullable = (v: unknown): number | null => v == null ? null : Number(v);
 const sqlRows = (result: { rows: unknown[] }) => result.rows as Row[];
-const entityIdentity = (gameId: GameId, raw: string | null, kind: "car" | "track", ordinal: number) => kind === "car"
-  ? dashboardCarIdentity(gameId, raw, ordinal) ?? "" : dashboardTrackIdentity(gameId, raw, ordinal) ?? "";
+const entityIdentity = (gameId: GameId, raw: string | null, kind: "car" | "track") => kind === "car"
+  ? dashboardCarIdentity(gameId, raw) ?? "" : dashboardTrackIdentity(gameId, raw) ?? "";
 
-function sourceEntityName(row: Row, gameId: GameId, kind: "car" | "track"): string | null {
-  const nativeId = row[kind === "car" ? "car_id" : "track_id"];
-  const ordinal = nullable(row[kind === "car" ? "car_ordinal" : "track_ordinal"]);
-  const id = typeof nativeId === "string" ? nativeId.trim() : nativeId;
-  if (gameId === "lmu" && typeof id === "string" && id !== "" && !Number.isFinite(Number(id))) {
-    return (kind === "car" ? resolveLMUCar(id)?.name : resolveLMUTrack(id)?.name) ?? id;
-  }
-  const numericId = id != null && id !== "" ? Number(id) : null;
-  const resolvedOrdinal = numericId != null && Number.isInteger(numericId) && numericId >= 0 ? numericId : ordinal;
-  if (resolvedOrdinal == null || !Number.isInteger(resolvedOrdinal) || resolvedOrdinal < 0) return null;
-  return kind === "car" ? resolveCarName(resolvedOrdinal, gameId) : resolveTrackName(resolvedOrdinal, gameId);
-}
 type PodiumFacts = { count: number; evidence: number };
 function rank(rows: Row[], kind: "car" | "track", favourite: boolean, podiums: ReadonlyMap<string, PodiumFacts>): Array<DashboardFavourite & { laps: number }> {
   const byIdentity = new Map<string, DashboardFavourite & { laps: number }>();
   for (const row of rows) {
     const gameId = String(row.game_id) as GameId;
-    const id = kind === "car" ? row.car_id : row.track_id;
-    const raw = id == null ? null : String(id);
-    const ordinal = n(kind === "car" ? row.car_ordinal : row.track_ordinal);
-    const identity = entityIdentity(gameId, raw, kind, ordinal);
-    if (!identity) continue;
-    const numericId = raw !== null && /^-?\d+(?:\.\d+)?$/.test(raw);
-    const resolvedOrdinal = numericId ? Number(raw) : raw === null && ordinal !== -1 ? ordinal : null;
-    const nativeId = numericId ? Number(raw) : raw === null && ordinal !== -1 ? ordinal : raw;
+    const rawValue = kind === "car" ? row.car_id : row.track_id;
+    const raw = rawValue == null ? null : String(rawValue);
+    if (raw === null) continue;
+    const identityKey = entityIdentity(gameId, raw, kind);
+    if (!identityKey) continue;
     const seconds = n(favourite ? row.favourite_seconds : row.driven_seconds);
     const laps = n(favourite ? row.favourite_laps : row.positive_laps);
-    const podiumFacts = podiums.get(identity);
-    const current = byIdentity.get(identity) ?? { gameId, identity, nativeId, ordinal: resolvedOrdinal, seconds: 0, laps: 0, sessions: 0, distanceMeters: null, distanceLaps: 0,
+    const podiumFacts = podiums.get(identityKey);
+    const current = byIdentity.get(identityKey) ?? { gameId, identity: raw, nativeId: raw, seconds: 0, laps: 0, sessions: 0, distanceMeters: null, distanceLaps: 0,
       podiums: podiumFacts?.evidence ? podiumFacts.count : null };
     current.seconds += seconds; current.laps += laps; current.sessions += n(row.sessions);
-    byIdentity.set(identity, current);
+    byIdentity.set(identityKey, current);
   }
   return [...byIdentity.values()].filter((row) => row.laps > 0).sort((a, b) => b.seconds - a.seconds || b.laps - a.laps
     || a.gameId.localeCompare(b.gameId) || a.identity.localeCompare(b.identity));
 }
 function asEntity(item: DashboardFavourite & { laps: number }, total: number): DashboardEntityTotal {
-  return { gameId: item.gameId, identity: item.identity, ordinal: item.ordinal, seconds: item.seconds, share: total ? item.seconds / total : 0 };
+  return { gameId: item.gameId, identity: item.identity, seconds: item.seconds, share: total ? item.seconds / total : 0 };
 }
 
 /** SQL reference reads only source sessions, laps, results, and explicit fixture evidence. */
@@ -57,9 +39,10 @@ export async function sourceDashboardReference(request: DashboardRequest): Promi
   const from = Date.parse(request.from), to = Date.parse(request.to);
   const fromText = new Date(from).toISOString(), toText = new Date(to).toISOString();
   const bind = [from, to, from, to, ...(request.gameId ? [request.gameId] : [])];
+  const lapBind = [from, to, ...(request.gameId ? [request.gameId] : [])];
   const whereScope = request.gameId ? " AND si.game_id=?" : "";
   const sessionScope = request.gameId ? " AND si.game_id=?" : "";
-  const sourceLaps = sqlRows(await client.execute({ sql: `SELECT s.game_id,s.car_id,s.car_ordinal,s.track_id,s.track_ordinal,
+  const sourceLaps = sqlRows(await client.execute({ sql: `SELECT s.game_id,s.car_id,s.track_id,
       COUNT(l.id) lap_count,SUM(l.lap_time>0) positive_laps,SUM(l.is_valid=1 AND l.lap_time>0) valid_laps,
       SUM(CASE WHEN l.lap_time>0 THEN l.lap_time ELSE 0 END) driven_seconds,
       SUM(CASE WHEN l.is_valid=1 AND l.lap_time>0 THEN l.lap_time ELSE 0 END) valid_seconds,
@@ -68,8 +51,8 @@ export async function sourceDashboardReference(request: DashboardRequest): Promi
       COUNT(DISTINCT l.session_id) sessions
     FROM laps l JOIN dashboard_lap_index li ON li.lap_id=l.id JOIN sessions s ON s.id=l.session_id
     JOIN dashboard_session_index si ON si.session_id=s.id
-    WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<? AND li.created_at_ms>=? AND li.created_at_ms<?${whereScope}
-    GROUP BY s.game_id,s.car_id,s.car_ordinal,s.track_id,s.track_ordinal`, args: bind }));
+    WHERE si.ownership='mine' AND li.created_at_ms>=? AND li.created_at_ms<?${whereScope}
+    GROUP BY s.game_id,s.car_id,s.track_id`, args: lapBind }));
   const totalRows = sqlRows(await client.execute({ sql: `SELECT COUNT(l.id) laps,SUM(l.lap_time>0) positive_laps,
       SUM(l.is_valid=1 AND l.lap_time>0) valid_laps,SUM(CASE WHEN l.lap_time>0 THEN l.lap_time ELSE 0 END) driven_seconds,
       SUM(CASE WHEN l.is_valid=1 AND l.lap_time>0 THEN l.lap_time ELSE 0 END) valid_seconds,
@@ -77,11 +60,11 @@ export async function sourceDashboardReference(request: DashboardRequest): Promi
       COUNT(DISTINCT s.game_id||':'||s.track_id) tracks,COUNT(DISTINCT s.game_id||':'||s.car_id) cars,
       COUNT(DISTINCT s.id) sessions
     FROM laps l JOIN dashboard_lap_index li ON li.lap_id=l.id JOIN sessions s ON s.id=l.session_id
-      JOIN dashboard_session_index si ON si.session_id=s.id WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<?
-      AND li.created_at_ms>=? AND li.created_at_ms<?${whereScope}`, args: bind }));
+      JOIN dashboard_session_index si ON si.session_id=s.id WHERE si.ownership='mine'
+      AND li.created_at_ms>=? AND li.created_at_ms<?${whereScope}`, args: lapBind }));
   const totals = totalRows[0] ?? {};
   const cards = Object.fromEntries(KNOWN_GAME_IDS.map((gameId) => [gameId, { laps: 0, drivenSeconds: 0 }])) as DashboardResponse["cards"];
-  const entityPodiumRows = sqlRows(await client.execute({ sql: `SELECT s.game_id,s.car_id,s.car_ordinal,s.track_id,s.track_ordinal,
+  const entityPodiumRows = sqlRows(await client.execute({ sql: `SELECT s.game_id,s.car_id,s.track_id,
       COUNT(DISTINCT CASE WHEN r.finishing_position IN (1,2,3) THEN s.id END) podiums,COUNT(DISTINCT s.id) evidence
     FROM session_results r JOIN sessions s ON s.id=r.session_id
     WHERE s.ownership='mine'
@@ -89,13 +72,13 @@ export async function sourceDashboardReference(request: DashboardRequest): Promi
       AND CAST(strftime('%s',s.created_at) AS INTEGER)*1000+CAST(substr(strftime('%f',s.created_at),4,3) AS INTEGER)<?
       AND lower(trim(s.session_type)) LIKE 'race%' AND r.outcome_status='confirmed' AND r.classification='finished'
       AND r.finishing_position>0 AND r.finishing_position=CAST(r.finishing_position AS INTEGER)${request.gameId ? " AND s.game_id=?" : ""}
-    GROUP BY s.game_id,s.car_id,s.car_ordinal,s.track_id,s.track_ordinal`,
+    GROUP BY s.game_id,s.car_id,s.track_id`,
     args: [from, to, ...(request.gameId ? [request.gameId] : [])] }));
   const carPodiums = new Map<string, PodiumFacts>(), trackPodiums = new Map<string, PodiumFacts>();
   for (const row of entityPodiumRows) {
     const gameId = String(row.game_id) as GameId;
-    const carIdentity = entityIdentity(gameId, row.car_id == null ? null : String(row.car_id), "car", n(row.car_ordinal));
-    const trackIdentity = entityIdentity(gameId, row.track_id == null ? null : String(row.track_id), "track", n(row.track_ordinal));
+    const carIdentity = entityIdentity(gameId, row.car_id == null ? null : String(row.car_id), "car");
+    const trackIdentity = entityIdentity(gameId, row.track_id == null ? null : String(row.track_id), "track");
     for (const [podiumMap, identity] of [[carPodiums, carIdentity], [trackPodiums, trackIdentity]] as const) {
       const current = podiumMap.get(identity) ?? { count: 0, evidence: 0 };
       current.count += n(row.podiums); current.evidence += n(row.evidence);
@@ -128,7 +111,8 @@ export async function sourceDashboardReference(request: DashboardRequest): Promi
       FROM sessions s JOIN dashboard_session_index si ON si.session_id=s.id
       JOIN laps l ON l.session_id=s.id JOIN dashboard_lap_index li ON li.lap_id=l.id
       WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<? AND li.created_at_ms>=? AND li.created_at_ms<?
-        AND l.is_valid=1 AND l.lap_time>0 AND s.car_ordinal!=-1 AND s.track_ordinal!=-1${sessionScope}
+        AND l.is_valid=1 AND l.lap_time>0 AND s.car_id IS NOT NULL AND s.car_id!='' AND s.car_id!='-1'
+        AND s.track_id IS NOT NULL AND s.track_id!='' AND s.track_id!='-1'${sessionScope}
       GROUP BY s.id HAVING COUNT(*)>=2
     ), deviations AS (SELECT sqrt(MAX(variance,0)) sd FROM per_session)
     SELECT COUNT(*) sessions,AVG(sd) average_sd,
@@ -136,7 +120,7 @@ export async function sourceDashboardReference(request: DashboardRequest): Promi
       SUM(sd>=0.5 AND sd<1) b3,SUM(sd>=1 AND sd<2) b4,SUM(sd>=2 AND sd<=5) b5,SUM(sd>5) b6 FROM deviations`, args: bind }))[0] ?? {};
   const consistency: DashboardResponse["consistency"] = { sessions: n(consistencyRow.sessions), averageStandardDeviation: nullable(consistencyRow.average_sd),
     deviations: Array.from({ length: 7 }, (_, i) => n(consistencyRow[`b${i}`])) };
-  const recent = sqlRows(await client.execute({ sql: `SELECT s.id,s.game_id,s.created_at,s.session_type,s.car_id,s.car_ordinal,s.track_id,s.track_ordinal,
+  const recent = sqlRows(await client.execute({ sql: `SELECT s.id,s.game_id,s.created_at,s.session_type,s.car_id,s.track_id,
       COUNT(l.id) lap_count,MIN(CASE WHEN l.is_valid=1 AND l.lap_time>0 THEN l.lap_time END) best_lap_seconds
     FROM sessions s JOIN dashboard_session_index si ON si.session_id=s.id LEFT JOIN laps l ON l.session_id=s.id
     WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<?${sessionScope}
@@ -144,8 +128,8 @@ export async function sourceDashboardReference(request: DashboardRequest): Promi
   const recentSessions: DashboardResponse["recentSessions"] = recent.map((row) => ({
     id: n(row.id), gameId: String(row.game_id) as GameId, createdAt: new Date(String(row.created_at).replace(" ", "T") + (String(row.created_at).endsWith("Z") ? "" : "Z")).toISOString(),
     sessionType: row.session_type == null ? null : String(row.session_type),
-    car: { id: row.car_id == null ? null : String(row.car_id), ordinal: nullable(row.car_ordinal), name: sourceEntityName(row, String(row.game_id) as GameId, "car") },
-    track: { id: row.track_id == null ? null : String(row.track_id), ordinal: nullable(row.track_ordinal), name: sourceEntityName(row, String(row.game_id) as GameId, "track") },
+    car: { id: row.car_id == null ? null : String(row.car_id), name: null },
+    track: { id: row.track_id == null ? null : String(row.track_id), name: null },
     lapCount: n(row.lap_count), bestLapSeconds: nullable(row.best_lap_seconds),
   }));
   const calendarRows = sqlRows(await client.execute({ sql: `SELECT date(li.created_at_ms/1000,'unixepoch') day,

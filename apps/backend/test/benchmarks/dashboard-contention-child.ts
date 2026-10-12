@@ -437,8 +437,8 @@ const rssTrajectory = {
   sampleCount: workloadRssSamples.length, samplingIntervalMs: 1_000, overflow: rssSamplingOverflow,
   phases: rssPhases, midToTailGrowthBytes: Math.max(0, rssTailPeakBytes - rssMidpointBytes),
 };
-const liveRows = db.query<{ id: number; game_id: string; raw_file: string | null; source: string | null; car_ordinal: number; track_ordinal: number }, [number, string]>(
-  "SELECT id,game_id,raw_file,source,car_ordinal,track_ordinal FROM sessions WHERE id>? AND game_id=? AND ownership='mine' ORDER BY id",
+const liveRows = db.query<{ id: number; game_id: string; raw_file: string | null; source: string | null }, [number, string]>(
+  "SELECT id,game_id,raw_file,source FROM sessions WHERE id>? AND game_id=? AND ownership='mine' ORDER BY id",
 ).all(beforeSessionId, gameId);
 const liveSessionIds = liveRows.map((row) => row.id);
 

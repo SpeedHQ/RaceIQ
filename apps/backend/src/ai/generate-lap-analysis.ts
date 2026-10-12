@@ -106,10 +106,10 @@ export async function generateLapAnalysis(
       error: "No telemetry data",
     };
 
-  const trackOrdinal = lap.trackOrdinal ?? 0;
+  const trackIdentity = lap.trackId;
   let corners: Corner[] =
-    trackOrdinal > 0 && lap.gameId
-      ? await findCorners(trackOrdinal, lap.gameId)
+    trackIdentity && lap.gameId
+      ? await findCorners(trackIdentity, lap.gameId)
       : [];
   if (corners.length === 0)
     corners = (deps.detectCorners ?? detectCorners)(lap.telemetry);
@@ -163,11 +163,11 @@ export async function generateLapAnalysis(
       } as Tune;
     }
   }
+  let sectors: PromptSectors | undefined;
   const track = (deps.resolveTrack ?? resolveTrack)(
     lap.gameId,
-    lap.trackOrdinal,
+    trackIdentity,
   );
-  let sectors: PromptSectors | undefined;
   try {
     const game = lap.gameId ? (deps.getGame ?? getGame)(lap.gameId) : undefined;
     if (game?.nativeSectors && game.getNativeSectorLayout) {
@@ -184,10 +184,10 @@ export async function generateLapAnalysis(
       track.sectors.s1End &&
       track.sectors.s2End &&
       lap.gameId &&
-      lap.trackOrdinal != null
+      trackIdentity != null
     ) {
       const times = await (deps.computeLapSectors ?? computeLapSectors)(
-        lap.trackOrdinal,
+        trackIdentity,
         lap.gameId as GameId,
         lap.telemetry,
         lap.lapTime,

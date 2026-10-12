@@ -48,20 +48,20 @@ export const forzaServerAdapter: ServerGameAdapter = {
 
 	processNames: ["ForzaMotorsport.exe", "forza_steamworks_release_final"],
 
-	getCarName(ordinal) {
-		const car = fmCarCatalog.get(ordinal);
-		if (!car) return `Car #${ordinal}`;
+	getCarName(carId: string) {
+		const car = fmCarCatalog.get(Number(carId));
+		if (!car) return `Car #${carId}`;
 		return `${car.year} ${car.make} ${car.model}`;
 	},
 
-	getTrackName(ordinal) {
-		const track = fmTrackCatalog.get(ordinal);
-		if (!track) return `Track #${ordinal}`;
+	getTrackName(trackId: string) {
+		const track = fmTrackCatalog.get(Number(trackId));
+		if (!track) return `Track #${trackId}`;
 		return `${track.name} - ${track.variant}`;
 	},
 
-	getSharedTrackName(ordinal) {
-		return getForzaSharedOutline(ordinal);
+	getSharedTrackName(trackId: string) {
+		return getForzaSharedOutline(Number(trackId));
 	},
 
 	canHandle: forzaParser.canHandle,

@@ -1857,6 +1857,7 @@
   "ai_chat_open_fullscreen": "Chat op volledig scherm openen",
   "ai_chat_actions": "Chatacties",
   "ai_chat_copy_json": "Chat-JSON kopiëren",
+  "ai_chat_export_json": "Volledige chat als JSON exporteren",
   "ai_chat_clear": "Chat wissen",
   "ai_chat_read_only_notice": "Je bekijkt een eerdere chat (alleen-lezen). Schakel over naar de nieuwste chat om verder te gaan.",
   "ai_chat_compact_failed": "Samenvatten mislukt",

@@ -14,9 +14,9 @@ const lapId = focusLap.id;
 queryClient.setQueryData(["lap-telemetry", lapId], { telemetry: generateFakeLapTelemetry(), sectorTimes: fakeSectorTimes });
 queryClient.setQueryData(["lap-issues", lapId], fakeTuneIssues);
 queryClient.setQueryData(["setup-files", "acc"], { baseDir: "C:/setups", files: [{ carModel: "Huracan GT3", trackName: "Spa", fileName: "race_dry.json", absolutePath: "C:/setups/race_dry.json" }] });
-queryClient.setQueryData(["acc-car-class", focusLap.carOrdinal], "GT3");
-queryClient.setQueryData(["resolve-names", "acc", "7", "42"], { trackNames: { "7": "Spa-Francorchamps" }, carNames: { "42": "Huracan GT3" } });
-queryClient.setQueryData(["resolve-names", null, "7", "42"], { trackNames: { "7": "Spa-Francorchamps" }, carNames: { "42": "Huracan GT3" } });
+queryClient.setQueryData(["acc-car-class", String(focusLap.carId)], "GT3");
+queryClient.setQueryData(["resolve-names", "acc", JSON.stringify(["7"]), JSON.stringify(["42"])], { trackNames: { "7": "Spa-Francorchamps" }, carNames: { "42": "Huracan GT3" } });
+queryClient.setQueryData(["resolve-names", null, JSON.stringify(["7"]), JSON.stringify(["42"])], { trackNames: { "7": "Spa-Francorchamps" }, carNames: { "42": "Huracan GT3" } });
 queryClient.setQueryData(["lap-semantic-telemetry", 10, "acc"], []);
 function StoryDecorator({ children }: { children: React.ReactNode }) {
   return (

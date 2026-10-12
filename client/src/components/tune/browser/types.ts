@@ -8,8 +8,8 @@ export interface TuneRow {
   author: string;
   source: SourceKey;
   category: string;
-  carOrdinal: number;
-  trackOrdinal: number | null;
+  carId: string;
+  trackId: string | null;
   lapTimeSec: number | null;
   lapTimeRaw: string | null;
   lapTimeTrack: string | null;

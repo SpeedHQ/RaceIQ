@@ -15,9 +15,9 @@ afterEach(async () => {
   for (const id of ids.splice(0)) await deleteSession(id);
 });
 
-async function addSession(ownership: "mine" | "others", carOrdinal = 7, trackOrdinal = 8): Promise<number> {
+async function addSession(ownership: "mine" | "others", carId: string | null = "7", trackId: string | null = "8"): Promise<number> {
   const row = await db.insert(sessions).values({
-    gameId, ownership, carOrdinal, trackOrdinal, createdAt: "2026-06-01T12:00:00.000Z",
+    gameId, ownership, carId: carId ?? "", trackId: trackId ?? "", createdAt: "2026-06-01T12:00:00.000Z",
   }).returning({ id: sessions.id }).get();
   ids.push(row.id);
   return row.id;
@@ -103,11 +103,11 @@ test("dashboard recap HTTP enforces mine and game scope while generic recap rema
   expect((await sessionRoutes.request(`/api/sessions/${others}/recap?gameId=${gameId}`)).status).toBe(200);
 });
 
-test("ordinal zero remains known while unknown ordinal does not become zero", async () => {
-  const current = await addSession("mine", 0, 0);
-  const unknown = await addSession("mine", -1, -1);
+test("dashboard recap excludes invalid native IDs from comparisons", async () => {
+  const current = await addSession("mine");
+  const invalid = await addSession("mine", "-1", "-1");
   await addLap(current, 1, 80);
-  await addLap(unknown, 1, 20);
+  await addLap(invalid, 1, 20);
   const recap = await getDashboardSessionRecap(current, gameId);
   expect(recap?.personalBest).toEqual({ isNew: true, previousBestSec: null });
 });

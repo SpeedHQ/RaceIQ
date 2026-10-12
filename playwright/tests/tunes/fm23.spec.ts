@@ -37,7 +37,7 @@ test.describe("Forza Motorsport tunes", () => {
         gameId: "fm-2023",
         name: "E2E Forza Tune",
         author: "Playwright",
-        carOrdinal: 2860,
+        carId: "2860",
         category: "circuit",
         description: "Created by Playwright",
         settings: {
@@ -92,8 +92,8 @@ test.describe("Forza Motorsport tunes", () => {
             gameId: "fm-2023",
             name: `E2E FM Bulk ${i}`,
             author: i === 11 ? "E2E Secondary Author" : "E2E Primary Author",
-            carOrdinal: i === 11 ? 2861 : 2860,
-            trackOrdinal: i === 11 ? 6 : 5,
+            carId: i === 11 ? "2861" : "2860",
+            trackId: i === 11 ? "6" : "5",
             category: "circuit",
             settings: validFmSettings(),
           },
@@ -167,7 +167,7 @@ test.describe("Forza Motorsport tunes", () => {
           gameId: "fm-2023",
           name: "E2E FM Editable",
           author: "E2E Editor",
-          carOrdinal: 2860,
+          carId: "2860",
           category: "circuit",
           settings: validFmSettings(),
         },
@@ -191,7 +191,7 @@ test.describe("Forza Motorsport tunes", () => {
       const importedPayload = {
         name: "E2E FM Imported",
         author: "E2E Importer",
-        carOrdinal: 2860,
+        carId: "2860",
         category: "circuit",
         settings: validFmSettings(),
       };

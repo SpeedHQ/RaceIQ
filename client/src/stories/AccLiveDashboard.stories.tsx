@@ -10,9 +10,9 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
 });
 queryClient.setQueryData(["laps", "acc"], fakeSessionLaps);
-queryClient.setQueryData(["track-name", 7, "acc"], "Spa-Francorchamps");
-queryClient.setQueryData(["car-name", 301, "acc"], "Lamborghini Huracan GT3");
-queryClient.setQueryData(["acc-car-class", 301], "GT3");
+queryClient.setQueryData(["track-name", "7", "acc"], "Spa-Francorchamps");
+queryClient.setQueryData(["car-name", "301", "acc"], "Lamborghini Huracan GT3");
+queryClient.setQueryData(["acc-car-class", "301"], "GT3");
 queryClient.setQueryData(["settings"], DEFAULT_DISPLAY_SETTINGS);
 
 function StoryDecorator({ story }: { story: React.ComponentType }) {
@@ -35,7 +35,7 @@ function StoryDecorator({ story }: { story: React.ComponentType }) {
       droppedPackets: 0,
       udpPort: 5300,
       detectedGame: { id: "acc", name: "Assetto Corsa Competizione" },
-      currentSession: { id: 3, carOrdinal: 301, trackOrdinal: 7 },
+      currentSession: { id: 3, carId: "301", trackId: "7" },
     },
   });
 

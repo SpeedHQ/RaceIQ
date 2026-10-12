@@ -2,8 +2,7 @@ import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
 import type { TrackFacts } from "@raceiq/shared/racing/tracks/facts";
 import type { TrackGeometry } from "@raceiq/shared/racing/tracks/geometry";
 import type { TrackSectors } from "@raceiq/shared/racing/tracks/sectors";
-import { getTrackSectorsByOrdinal } from "@raceiq/game-catalogs/racing/tracks/storage/sectors";
-import { getTrackLengthMeters, getTrackOutlineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { getTrackLengthMetersById, getTrackOutlineById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import {
   loadLabelledSegments,
   loadTrackFacts,
@@ -38,45 +37,35 @@ interface TrackInfo {
 }
 
 /**
- * One lookup for everything about a track, given the two things a lap actually
- * carries: its game and its track ordinal.
- *
- * This exists because the resolution chain was open-coded at a dozen call sites
- * and the copies drifted. Two ways in particular:
- *
- * - Slug resolution asked two different registries. Both work once startup has
- *   run both `init` calls, but only because the server adapters supply the real
- *   implementations — every shared adapter returns `undefined` on its own, so a
- *   copy reaching for the shared registry silently resolves nothing.
- * - The sector fallback (`curated ?? bundled ?? thirds`) was retyped at five
- *   sites, each spelling the final default as a bare `1 / 3` and `2 / 3`. One of
- *   them disagreeing is invisible until sector times drift apart.
+ * Resolve everything known about one game's track from its string ID.
+ * Numeric catalog IDs remain strings here; game/catalog adapters own any
+ * protocol-boundary conversion required for metadata lookup.
  *
  * `outline` and `lengthMeters` are getters rather than fields: they parse a
  * centerline CSV, and most callers only want names and fractions. Everything
  * else here is already cached by `shared/racing/tracks/geometry` and `shared/racing/tracks/storage`, so a call is cheap.
  */
-export function resolveTrack(gameId: string | undefined, trackOrdinal: number | null | undefined): TrackInfo {
-  const ordinal = trackOrdinal ?? null;
-  const slug = gameId && ordinal != null ? (tryGetServerGame(gameId)?.getSharedTrackName?.(ordinal) ?? undefined) : undefined;
+export function resolveTrack(gameId: string | undefined, trackId: string | null | undefined): TrackInfo {
+  const id = trackId ?? null;
+  const slug = gameId && id != null ? (tryGetServerGame(gameId)?.getSharedTrackName?.(id) ?? undefined) : undefined;
 
   const facts = slug ? loadTrackFacts(slug) : null;
   const geometry = slug && gameId ? loadTrackGeometry(slug, gameId) : null;
   const segments = slug && gameId ? loadLabelledSegments(slug, gameId) : [];
-  const sectors = geometry?.sectors ?? (ordinal != null ? getTrackSectorsByOrdinal(ordinal) : { s1End: 1 / 3, s2End: 2 / 3 });
+  const sectors = geometry?.sectors ?? { s1End: 1 / 3, s2End: 2 / 3 };
 
   return {
     slug,
-    name: facts?.name ?? (ordinal != null ? resolveTrackName(ordinal, gameId) : ""),
+    name: facts?.name ?? (id != null ? resolveTrackName(id, gameId) : ""),
     facts,
     geometry,
     segments,
     sectors,
     get outline() {
-      return gameId && ordinal != null ? getTrackOutlineByOrdinal(ordinal, gameId, slug) : null;
+      return gameId && id != null ? getTrackOutlineById(id, gameId, slug) : null;
     },
     get lengthMeters() {
-      return gameId && ordinal != null ? getTrackLengthMeters(ordinal, gameId, slug) : null;
+      return gameId && id != null ? getTrackLengthMetersById(id, gameId, slug) : null;
     },
   };
 }

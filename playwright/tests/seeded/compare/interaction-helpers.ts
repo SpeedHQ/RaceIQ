@@ -25,7 +25,7 @@ export async function getDistinctPair(request: APIRequestContext, gameId: GameId
   const fallbackLaps = laps.filter((lap) => lap.lapTime >= 30);
   for (const lapA of firstLaps.length > 0 ? firstLaps : fallbackLaps) {
     for (const lapB of laps) {
-      if (lapB.id === lapA.id || lapB.lapTime < 30 || lapB.trackOrdinal !== lapA.trackOrdinal || lapB.carOrdinal !== lapA.carOrdinal) {
+      if (lapB.id === lapA.id || lapB.lapTime < 30 || lapB.trackId !== lapA.trackId || lapB.carId !== lapA.carId) {
         continue;
       }
       const pair = { lapA, lapB };
@@ -55,9 +55,9 @@ export async function getDistinctPair(request: APIRequestContext, gameId: GameId
 
 export function compareQuery(pair: SeededLapPair): string {
   return new URLSearchParams({
-    track: String(pair.lapA.trackOrdinal),
-    carA: String(pair.lapA.carOrdinal),
-    carB: String(pair.lapB.carOrdinal),
+    track: pair.lapA.trackId,
+    carA: pair.lapA.carId,
+    carB: pair.lapB.carId,
     lapA: String(pair.lapA.id),
     lapB: String(pair.lapB.id),
     cursor: "7",

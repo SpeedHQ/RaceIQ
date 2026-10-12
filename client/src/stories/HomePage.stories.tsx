@@ -1,3 +1,4 @@
+import { reduceDashboard, type DashboardResponse } from "@raceiq/shared/racing/sessions/dashboard";
 import type { LapMeta, SessionMeta, SessionRecap } from "@raceiq/shared/racing/sessions/types";
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -8,12 +9,12 @@ import type { DriverProfileRun } from "@/hooks/driver-profile";
 import { DEFAULT_DISPLAY_SETTINGS } from "@/stores/telemetry";
 import type { DriverFingerprint } from "@raceiq/backend/driver-profile/fingerprint";
 import type { DriverTrend } from "@raceiq/backend-core/driver-profile/trend";
-import hakoneClubCenterlineCsv from "@raceiq/shared/data/tracks/fm-2023/hakone-s-1641-centerline.csv?raw";
+import hakoneClubCenterlineCsv from "../../../shared/data/tracks/fm-2023/hakone-s-1641-centerline.csv?raw";
 import { GameStoryScope } from "./GameStoryScope";
 
 const GAME_ID = "fm-2023" as const;
 const SESSION_ID = 9001;
-const TRACK_ORDINAL = 1641;
+const TRACK_ID = "1641";
 const HAKONE_CLUB_OUTLINE = hakoneClubCenterlineCsv
   .trim()
   .split("\n")
@@ -36,8 +37,8 @@ function makeLap(id: number, day: number, lapNumber: number, lapTime: number, is
     isValid,
     createdAt: `2026-07-${String(day).padStart(2, "0")}T18:2${lapNumber}:00.000Z`,
     gameId: GAME_ID,
-    carOrdinal: 201,
-    trackOrdinal: TRACK_ORDINAL,
+    ownership: "mine",
+    trackId: TRACK_ID,
   };
 }
 
@@ -60,25 +61,26 @@ const laps: LapMeta[] = [
 const sessions: SessionMeta[] = [
   {
     id: SESSION_ID,
-    carOrdinal: 201,
-    trackOrdinal: TRACK_ORDINAL,
+    carId: "201",
+    trackId: TRACK_ID,
     createdAt: "2026-07-28T18:45:00.000Z",
     lapCount: laps.length,
     bestLapTime: 95.844,
-    sessionType: "Practice",
+    ownership: "mine",
     gameId: GAME_ID,
   },
   {
     id: 9000,
-    carOrdinal: 201,
-    trackOrdinal: TRACK_ORDINAL,
+    carId: "201",
+    trackId: TRACK_ID,
     createdAt: "2026-07-26T18:30:00.000Z",
     lapCount: 0,
     bestLapTime: 0,
     sessionType: "Practice",
     gameId: GAME_ID,
+    ownership: "mine",
   },
-  { id: 9100, carOrdinal: 201, trackOrdinal: TRACK_ORDINAL, createdAt: "2026-07-27T18:45:00.000Z", sessionType: "Race", resultClassification: "finished", resultOutcomeStatus: "confirmed", finishingPosition: 1, gameId: GAME_ID },
+  { id: 9100, carId: "201", trackId: TRACK_ID, createdAt: "2026-07-27T18:45:00.000Z", sessionType: "Race", resultClassification: "finished", resultOutcomeStatus: "confirmed", finishingPosition: 1, gameId: GAME_ID, ownership: "mine" },
 ];
 
 const recap: SessionRecap = {
@@ -86,8 +88,8 @@ const recap: SessionRecap = {
   gameId: GAME_ID,
   carName: "2023 Cadillac V-Series.R",
   trackName: "Hakone Club",
-  carOrdinal: 201,
-  trackOrdinal: TRACK_ORDINAL,
+  carId: "201",
+  trackId: TRACK_ID,
   createdAt: "2026-07-28T18:45:00.000Z",
   lapsValid: 11,
   lapsTotal: 12,
@@ -137,7 +139,7 @@ const DRIVER_TREND: DriverTrend = {
 };
 const DRIVER_FINGERPRINT: DriverFingerprint = {
   ok: true,
-  scope: { kind: "car-track", gameId: GAME_ID, carOrdinal: 201, trackOrdinal: TRACK_ORDINAL },
+  scope: { kind: "car-track", gameId: GAME_ID, carId: "201", trackId: TRACK_ID },
   laps: { lapIds: laps.map((lap) => lap.id), analyzed: 12, candidates: 12, droppedNoTelemetry: 0 },
   confidence: "high",
   style: {
@@ -177,11 +179,11 @@ const DRIVER_FINGERPRINT: DriverFingerprint = {
 
 const PROFILE_RUN: DriverProfileRun = {
   id: 7001,
-  scopeKey: "fm-2023:global",
+  scopeKey: JSON.stringify([GAME_ID, null, null]),
   gameId: GAME_ID,
-  carOrdinal: null,
-  trackOrdinal: null,
-  poolKey: "fm-2023:global",
+  carId: null,
+  trackId: null,
+  poolKey: "storybook-pool",
   status: "succeeded",
   fingerprint: JSON.stringify(DRIVER_FINGERPRINT),
   plan: null,
@@ -196,15 +198,25 @@ const PROFILE_RUN: DriverProfileRun = {
   completedAt: "2026-07-28T19:00:00.000Z",
 };
 
+const dashboardFixture = reduceDashboard(laps, sessions, {
+  from: "2026-07-01T00:00:00.000Z",
+  to: "2026-08-01T00:00:00.000Z",
+}, {
+  carNames: { [`${GAME_ID}:201`]: recap.carName },
+  trackNames: { [`${GAME_ID}:${TRACK_ID}`]: recap.trackName },
+  trackLengthsMeters: { [`${GAME_ID}:${TRACK_ID}`]: HAKONE_CLUB_TRACK_LENGTH },
+});
+
 function createQueryClient() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity, gcTime: Infinity } },
   });
+  queryClient.setQueryDefaults(["dashboard"], { initialData: dashboardFixture });
 
   queryClient.setQueryData(["laps", GAME_ID], laps);
   queryClient.setQueryData(["sessions", GAME_ID], sessions);
   queryClient.setQueryData(["settings"], { ...DEFAULT_DISPLAY_SETTINGS, driverName: "Alex", hiddenGames: [] });
-  queryClient.setQueryData(["session-recap", SESSION_ID, GAME_ID], recap);
+  queryClient.setQueryData(["dashboard-recap", SESSION_ID, GAME_ID], recap);
   queryClient.setQueryData(["driver-profile", GAME_ID], { fingerprint: DRIVER_FINGERPRINT, gameName: "Forza Motorsport 2023" });
   queryClient.setQueryData(["driver-profile-runs", GAME_ID], {
     scope: { gameId: GAME_ID },
@@ -216,11 +228,11 @@ function createQueryClient() {
     runs: [PROFILE_RUN],
   });
 
-  queryClient.setQueryData(["car-name", 201, GAME_ID], "2023 Cadillac V-Series.R");
-  queryClient.setQueryData(["track-name", TRACK_ORDINAL, GAME_ID], "Hakone Club");
-  queryClient.setQueryData(["track-outline", TRACK_ORDINAL, GAME_ID], { points: HAKONE_CLUB_OUTLINE, source: "storybook", startYaw: null, flipX: false });
+  queryClient.setQueryData(["car-name", "201", GAME_ID], "2023 Cadillac V-Series.R");
+  queryClient.setQueryData(["track-name", TRACK_ID, GAME_ID], "Hakone Club");
+  queryClient.setQueryData(["track-outline", TRACK_ID, GAME_ID], { points: HAKONE_CLUB_OUTLINE, source: "storybook", startYaw: null, flipX: false });
   const sectorBoundaries = { s1End: 1 / 3, s2End: 2 / 3, trackLength: HAKONE_CLUB_TRACK_LENGTH };
-  queryClient.setQueryData(["track-sector-boundaries", TRACK_ORDINAL, GAME_ID], sectorBoundaries);
+  queryClient.setQueryData(["track-sector-boundaries", TRACK_ID, GAME_ID], sectorBoundaries);
   queryClient.setQueryData(["track-sector-boundaries", 42, GAME_ID], sectorBoundaries);
   return queryClient;
 }

@@ -65,7 +65,7 @@ test("race-result raw provenance is stable when capture storage is gzipped", asy
       arrayBuffer: () => { fullReads++; throw new Error("reconciliation loaded entire capture"); },
     };
   });
-  const sessionId = await insertSession(1, 1, "f1-2025", "race");
+  const sessionId = await insertSession("1", "1", "f1-2025", "race");
   try {
     await updateSessionRawFile(sessionId, rawPath, "test");
     await reconcileSessionResult(sessionId, "f1-2025");

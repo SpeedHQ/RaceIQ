@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { GameIdQuerySchema, IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
 import { GameIdSchema } from "@raceiq/shared/games/ids";
-import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions, getSessionRecapData, setSessionFavorite, getCaptureMigrationCandidates } from "@raceiq/backend-core/db/session-queries";
+import { getSessions, deleteSession, updateSession, updateSessionCarTrack, countStaleSessions, getStaleSessions, getSessionRecapData, setSessionFavorite, getCaptureMigrationCandidates } from "@raceiq/backend-core/db/session-queries";
 import { getSessionResult, getStaleRaceResultSessionIds } from "@raceiq/backend-core/db/session-result-queries";
 import { reprocessSession, SessionNotFoundError, SessionRawFileMissingError } from "@raceiq/backend-core/session-capture/reprocess";
 import { getCaptureMigrationProgress, migrateCaptures } from "@raceiq/backend-core/session-capture/migrate-captures";
@@ -15,9 +15,6 @@ import { getAllServerGames } from "@raceiq/backend-core/games/registry";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import { computeRecap } from "@raceiq/backend-core/lap-analysis/recap";
 import { tryGetGame } from "@raceiq/shared/games/registry";
-import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
-import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
-import { getLMUCar, getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { backfillRaceResults, reconcileSessionResult, RACE_RESULT_PROCESSOR_ID } from "@raceiq/backend-core/race-results/reconcile";
 import { getRaceResultAggregate, getRecentRaceResults } from "@raceiq/backend-core/race-results/aggregates";
 import { recoverDeletedSessions } from "@raceiq/backend-core/telemetry/live-pipeline";
@@ -26,6 +23,9 @@ import { getLapReplaySource } from "@raceiq/backend-core/db/telemetry-replay-sto
 import { resolveTelemetryReplay } from "@raceiq/backend-core/telemetry/replay";
 import { loadRawCaptureIdentity } from "@raceiq/backend-core/session-capture/identity";
 
+import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
+import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
+import { isSessionIdentityInCatalog } from "../games/session-identity";
 const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID];
 
 export const sessionRoutes = new Hono()
@@ -61,14 +61,10 @@ export const sessionRoutes = new Hono()
     const data = await getSessionRecapData(id, gameId);
     if (!data) return c.json({ error: "Session not found" }, 404);
     const adapter = tryGetGame(gameId);
-    const carId = data.session.carId;
-    const trackId = data.session.trackId;
-    const carName = gameId === "lmu" && typeof carId === "string"
-      ? getLMUCar(carId)?.name ?? carId
-      : adapter ? adapter.getCarName(Number(carId)) : resolveCarName(Number(carId), gameId);
-    const trackName = gameId === "lmu" && typeof trackId === "string"
-      ? getLMUTrack(trackId)?.name ?? trackId
-      : adapter ? adapter.getTrackName(Number(trackId)) : resolveTrackName(Number(trackId), gameId);
+    const carId = data.session.carId ?? "";
+    const trackId = data.session.trackId ?? "";
+    const carName = adapter ? adapter.getCarName(carId) : resolveCarName(carId, gameId);
+    const trackName = adapter ? adapter.getTrackName(trackId) : resolveTrackName(trackId, gameId);
     const recap = computeRecap({ session: data.session, laps: data.laps, carName, trackName, trackLengthM: data.trackLengthM, allTimeBestSec: data.allTimeBestSec, allTimeBestSectors: data.allTimeBestSectors, sectorStarts: data.sectorStarts });
     const weatherLapId = recap.bestLapId ?? data.laps[0]?.id;
     let weather: { kind: number | null; rainPercent: number | null } | null = null;
@@ -126,12 +122,25 @@ export const sessionRoutes = new Hono()
   })
   .get("/api/race-results/summary", zValidator("query", z.object({
     gameId: GameIdSchema,
-    carOrdinal: z.coerce.number().int().optional(),
-    trackOrdinal: z.coerce.number().int().optional(),
     carId: z.string().min(1).optional(),
     trackId: z.string().min(1).optional(),
   })), async (c) => c.json(await getRaceResultAggregate(c.req.valid("query"))))
   .get("/api/race-results/recent", zValidator("query", z.object({ gameId: GameIdSchema, limit: z.coerce.number().int().min(1).max(50).default(10) })), async (c) => c.json(await getRecentRaceResults(c.req.valid("query").gameId, c.req.valid("query").limit)))
+  .patch("/api/sessions/:id/identity", zValidator("param", IdParamSchema), zValidator("json", z.object({
+    gameId: GameIdSchema,
+    carId: z.string().min(1),
+    trackId: z.string().min(1),
+  }).strict()), async (c) => {
+    const { id } = c.req.valid("param");
+    const { gameId, carId, trackId } = c.req.valid("json");
+    const session = (await getSessions(gameId)).find((candidate) => candidate.id === id);
+    if (!session) return c.json({ error: "Session not found" }, 404);
+    if (!isSessionIdentityInCatalog(gameId, carId, trackId)) {
+      return c.json({ error: "Car or track ID is not in the selected game's catalog" }, 400);
+    }
+    if (!await updateSessionCarTrack(id, carId, trackId)) return c.json({ error: "Session not found" }, 404);
+    return c.json({ ok: true, sessionId: id, carId, trackId });
+  })
   .patch("/api/sessions/:id/notes", zValidator("param", IdParamSchema), zValidator("json", z.object({ notes: z.string().nullable() })), async (c) => {
     const { id } = c.req.valid("param");
     await updateSession(id, { notes: c.req.valid("json").notes });

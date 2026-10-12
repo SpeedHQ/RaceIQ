@@ -41,7 +41,6 @@ export interface DashboardCalendarBucket {
 export interface DashboardEntityTotal {
   gameId: GameId;
   identity: string;
-  ordinal: number | null;
   seconds: number;
   share: number;
 }
@@ -55,8 +54,7 @@ export interface DashboardDistribution {
 export interface DashboardFavourite {
   gameId: GameId;
   identity: string;
-  nativeId: number | string | null;
-  ordinal: number | null;
+  nativeId: string;
   seconds: number;
   laps: number;
   sessions: number;
@@ -79,8 +77,8 @@ export interface DashboardRecentSession {
   gameId: GameId;
   createdAt: string;
   sessionType: string | null;
-  car: { id: number | string | null; ordinal: number | null; name: string | null };
-  track: { id: number | string | null; ordinal: number | null; name: string | null };
+  car: { id: string | null; name: string | null };
+  track: { id: string | null; name: string | null };
   lapCount: number;
   bestLapSeconds: number | null;
 }
@@ -117,10 +115,8 @@ export interface DashboardReductionInput {
 export interface DashboardRecapIdentity {
   sessionId: number;
   gameId: GameId;
-  carId: number | string | null;
-  carOrdinal: number | null;
-  trackId: number | string | null;
-  trackOrdinal: number | null;
+  carId: string | null;
+  trackId: string | null;
   sectorLayoutKey: string | null;
   sectorCount: number;
 }
@@ -154,33 +150,18 @@ export function isInDashboardInterval(createdAt: string, from: string, to: strin
     && start < end && timestamp >= start && timestamp < end;
 }
 
-function canonicalIdentity(native: number | string | null | undefined, ordinal: number | null | undefined): { key: string; display: number | string } | null {
-  if (native != null && !(typeof native === "number" && native === -1)) {
-    if (typeof native === "number") {
-      if (Number.isFinite(native)) return { key: `n:${native}`, display: native };
-    } else {
-      const normalized = native.trim();
-      if (normalized !== "") {
-        const numeric = Number(normalized);
-        if (Number.isInteger(numeric) && Number.isFinite(numeric)) {
-          if (numeric !== -1) return { key: `n:${numeric}`, display: numeric };
-        } else if (normalized !== "") {
-          return { key: `s:${native}`, display: native };
-        }
-      }
-    }
-  }
-  return ordinal != null && Number.isInteger(ordinal) && Number.isFinite(ordinal) && ordinal !== -1
-    ? { key: `n:${ordinal}`, display: ordinal }
+function canonicalIdentity(native: string | null | undefined): { key: string; display: string } | null {
+  return native != null && native !== "" && native !== "-1"
+    ? { key: native, display: native }
     : null;
 }
 
-export function dashboardTrackIdentity(gameId: GameId, trackId: number | string | null | undefined, trackOrdinal: number | null | undefined): string | null {
-  const identity = canonicalIdentity(trackId, trackOrdinal);
+export function dashboardTrackIdentity(gameId: GameId, trackId: string | null | undefined): string | null {
+  const identity = canonicalIdentity(trackId);
   return identity ? JSON.stringify([gameId, identity.key]) : null;
 }
-export function dashboardCarIdentity(gameId: GameId, carId: number | string | null | undefined, carOrdinal: number | null | undefined): string | null {
-  const identity = canonicalIdentity(carId, carOrdinal);
+export function dashboardCarIdentity(gameId: GameId, carId: string | null | undefined): string | null {
+  const identity = canonicalIdentity(carId);
   return identity ? JSON.stringify([gameId, identity.key]) : null;
 }
 
@@ -240,24 +221,23 @@ function classifySessionType(value: string | null | undefined): DashboardSession
 }
 function entityKey(gameId: GameId, identity: string): string { return JSON.stringify([gameId, identity]) }
 function fieldIdentity(item: LapMeta | SessionMeta, field: "track" | "car") {
-  return field === "track" ? canonicalIdentity(item.trackId, item.trackOrdinal) : canonicalIdentity(item.carId, item.carOrdinal);
+  return canonicalIdentity(field === "track" ? item.trackId : item.carId);
 }
 
 interface EntityAccumulator {
-  gameId: GameId; identity: string; display: number | string; ordinal: number | null;
+  gameId: GameId; identity: string; display: string;
   seconds: number; laps: number; sessionIds: Set<number>; distanceMeters: number; distanceLaps: number;
   hasDistance: boolean; podiums: number; hasPodiumEvidence: boolean;
 }
 function addEntityLap(
-  aggregates: Map<string, EntityAccumulator>, lap: LapMeta, field: "track" | "car",
-  identity: { key: string; display: number | string }, trackLength: number | undefined,
+  aggregates: Map<string, EntityAccumulator>, lap: LapMeta,
+  identity: { key: string; display: string }, trackLength: number | undefined,
 ): void {
   const key = entityKey(lap.gameId!, identity.key);
   let aggregate = aggregates.get(key);
   if (!aggregate) {
     aggregate = {
       gameId: lap.gameId!, identity: identity.key, display: identity.display,
-      ordinal: (field === "track" ? lap.trackOrdinal : lap.carOrdinal) ?? null,
       seconds: 0, laps: 0, sessionIds: new Set(), distanceMeters: 0, distanceLaps: 0,
       hasDistance: false, podiums: 0, hasPodiumEvidence: false,
     };
@@ -294,8 +274,8 @@ export function selectDashboardRecentSessions(
     .slice(0, safeLimit)
     .map((session) => ({
       id: session.id, gameId: session.gameId!, createdAt: session.createdAt, sessionType: session.sessionType ?? null,
-      car: { id: session.carId ?? null, ordinal: session.carOrdinal ?? null, name: names.carNames?.[`${session.gameId}:${session.carOrdinal}`] ?? null },
-      track: { id: session.trackId ?? null, ordinal: session.trackOrdinal ?? null, name: names.trackNames?.[`${session.gameId}:${session.trackOrdinal}`] ?? null },
+      car: { id: session.carId ?? null, name: names.carNames?.[`${session.gameId}:${session.carId}`] ?? null },
+      track: { id: session.trackId ?? null, name: names.trackNames?.[`${session.gameId}:${session.trackId}`] ?? null },
       lapCount: session.lapCount ?? 0, bestLapSeconds: session.bestLapTime ?? null,
     }));
 }
@@ -309,13 +289,13 @@ export function reduceDashboardRecapHistory(
   sectorLayoutBySession: Readonly<Record<number, string | null>>,
 ): DashboardRecapHistory {
   const ids = new Set<number>();
-  const car = dashboardCarIdentity(current.gameId, current.carId, current.carOrdinal);
-  const track = dashboardTrackIdentity(current.gameId, current.trackId, current.trackOrdinal);
+  const car = dashboardCarIdentity(current.gameId, current.carId);
+  const track = dashboardTrackIdentity(current.gameId, current.trackId);
   if (car === null || track === null) return { bestLapSeconds: null, bestSectorSeconds: null };
   for (const session of sessions) {
     if (session.id === current.sessionId || !isDashboardOwned(session.ownership) || session.gameId !== current.gameId
-      || dashboardCarIdentity(current.gameId, session.carId, session.carOrdinal) !== car
-      || dashboardTrackIdentity(current.gameId, session.trackId, session.trackOrdinal) !== track) continue;
+      || dashboardCarIdentity(current.gameId, session.carId) !== car
+      || dashboardTrackIdentity(current.gameId, session.trackId) !== track) continue;
     ids.add(session.id);
   }
   let bestLapSeconds: number | null = null;
@@ -344,8 +324,8 @@ export function reduceDashboardLaps(laps: readonly LapMeta[], request: Dashboard
       || !isInDashboardInterval(lap.createdAt, request.from, request.to)) continue;
     totals.laps++;
     totals.sessions.add(lap.sessionId);
-    const track = dashboardTrackIdentity(lap.gameId, lap.trackId, lap.trackOrdinal);
-    const car = dashboardCarIdentity(lap.gameId, lap.carId, lap.carOrdinal);
+    const track = dashboardTrackIdentity(lap.gameId, lap.trackId);
+    const car = dashboardCarIdentity(lap.gameId, lap.carId);
     if (track) totals.tracks.add(track);
     if (car) totals.cars.add(car);
     if (!finitePositive(lap.lapTime)) continue;
@@ -400,8 +380,8 @@ export function reduceDashboard(
     if (request.gameId && lap.gameId !== request.gameId) continue;
     totals.laps++;
     totals.sessions.add(lap.sessionId);
-    const track = canonicalIdentity(lap.trackId, lap.trackOrdinal);
-    const car = canonicalIdentity(lap.carId, lap.carOrdinal);
+    const track = canonicalIdentity(lap.trackId);
+    const car = canonicalIdentity(lap.carId);
     if (track) totals.tracks.add(entityKey(lap.gameId, track.key));
     if (car) totals.cars.add(entityKey(lap.gameId, car.key));
     const time = dashboardInstant(lap.createdAt);
@@ -421,22 +401,20 @@ export function reduceDashboard(
         totals.bestLapSeconds = totals.bestLapSeconds === null ? lap.lapTime : Math.min(totals.bestLapSeconds, lap.lapTime);
         if (day >= 0) buckets[day]!.validLaps++;
       }
-      const trackLength = lap.trackOrdinal != null && lap.trackOrdinal !== -1
-        ? input.trackLengthsMeters?.[`${lap.gameId}:${lap.trackOrdinal}`]
-        : undefined;
+      const trackLength = lap.trackId != null ? input.trackLengthsMeters?.[`${lap.gameId}:${lap.trackId}`] : undefined;
       if (track) {
-        addEntityLap(tracks, lap, "track", track, trackLength);
-        if (lap.invalidReason !== "incomplete") addEntityLap(favouriteTracks, lap, "track", track, trackLength);
+        addEntityLap(tracks, lap, track, trackLength);
+        if (lap.invalidReason !== "incomplete") addEntityLap(favouriteTracks, lap, track, trackLength);
       }
       if (car) {
-        addEntityLap(cars, lap, "car", car, trackLength);
-        if (lap.invalidReason !== "incomplete") addEntityLap(favouriteCars, lap, "car", car, trackLength);
+        addEntityLap(cars, lap, car, trackLength);
+        if (lap.invalidReason !== "incomplete") addEntityLap(favouriteCars, lap, car, trackLength);
       }
       if (lap.isValid) {
         const session = ownedSessions.get(lap.sessionId);
         if (session) {
-          const trackKey = dashboardTrackIdentity(lap.gameId, lap.trackId, lap.trackOrdinal);
-          const carKey = dashboardCarIdentity(lap.gameId, lap.carId, lap.carOrdinal);
+          const trackKey = dashboardTrackIdentity(lap.gameId, lap.trackId);
+          const carKey = dashboardCarIdentity(lap.gameId, lap.carId);
           const context = trackKey && carKey ? JSON.stringify([lap.gameId, trackKey, carKey]) : null;
           const state = consistency.get(lap.sessionId) ?? { count: 0, mean: 0, m2: 0, context, mismatch: false };
           if (state.context !== context || !context) state.mismatch = true;
@@ -531,7 +509,7 @@ export function reduceDashboard(
             || (entity.gameId === winner.gameId && entity.identity.localeCompare(winner.identity) < 0)))))) winner = entity;
     }
     return winner ? {
-      gameId: winner.gameId, identity: winner.identity, nativeId: winner.display, ordinal: winner.ordinal,
+      gameId: winner.gameId, identity: winner.identity, nativeId: winner.display,
       seconds: winner.seconds, laps: winner.laps, sessions: winner.sessionIds.size,
       distanceMeters: winner.hasDistance ? winner.distanceMeters : null, distanceLaps: winner.distanceLaps,
       podiums: winner.hasPodiumEvidence ? winner.podiums : null,
@@ -553,7 +531,7 @@ export function reduceDashboard(
   const trackDistribution: DashboardDistribution = {
     totalSeconds: totalTrackSeconds,
     topFive: rankedTracks.slice(0, 5).map((entity) => ({
-      gameId: entity.gameId, identity: entity.identity, ordinal: entity.ordinal,
+      gameId: entity.gameId, identity: entity.identity,
       seconds: entity.seconds, share: totalTrackSeconds ? entity.seconds / totalTrackSeconds : 0,
     })),
     othersSeconds: otherTracks.reduce((sum, entity) => sum + entity.seconds, 0),

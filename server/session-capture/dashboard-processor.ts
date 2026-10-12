@@ -1,6 +1,6 @@
 import { stat } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { getTrackLengthMeters } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { getTrackLengthMetersById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { TrackConditionsAccumulator, type TrackConditions } from "../ai/track-conditions";
 import { getServerGame } from "../games/registry";
@@ -18,7 +18,7 @@ import { iterateSessionCaptureRecordsFromSource, type SessionCaptureSource } fro
 const USES_SESSION_CLOCK: Partial<Record<GameId, true>> = { "fm-2023": true, "f1-2025": true, iracing: true, lmu: true };
 const BATCH_SIZE = 25;
 const checkpointYield = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
-type SessionInfo = { raw_file: string | null; source: string | null; game_id: string; car_ordinal: number; track_ordinal: number; track_id: string | number | null };
+type SessionInfo = { raw_file: string | null; source: string | null; game_id: string; car_id: string | null; track_id: string | null };
 
 
 function unavailableCapture(candidate: DashboardPublicationCandidate): DashboardCaptureFacts {
@@ -129,7 +129,7 @@ export async function republishPersistedDashboardCaptureFacts(sessionIds: readon
 async function readCaptureFacts(candidate: DashboardPublicationCandidate): Promise<DashboardCaptureFacts> {
   const session = candidate.session as SessionInfo | null;
   if (!session?.raw_file) return unavailableCapture(candidate);
-  const source: SessionCaptureSource = { rawFile: session.raw_file, source: session.source, gameId: session.game_id as GameId, carOrdinal: session.car_ordinal, trackOrdinal: session.track_ordinal };
+  const source: SessionCaptureSource = { rawFile: session.raw_file, source: session.source, gameId: session.game_id as GameId, carId: session.car_id ?? "", trackId: session.track_id ?? "" };
   const initialStat = await stat(source.rawFile).catch(() => null);
   if (!initialStat) return unavailableCapture(candidate);
   const game = getServerGame(source.gameId);
@@ -187,8 +187,8 @@ async function readCaptureFacts(candidate: DashboardPublicationCandidate): Promi
   const finalStat = await stat(source.rawFile).catch(() => null);
   if (!finalStat || finalStat.size !== initialStat.size || finalStat.mtimeMs !== initialStat.mtimeMs) throw new Error("Capture changed during dashboard processing");
   const revision = `${fingerprint}:${DASHBOARD_PROCESSOR_VERSION}`;
-  const trackLengthMeters = layout?.trackLengthM ?? getTrackLengthMeters(source.trackOrdinal, source.gameId);
-  const trackKey = dashboardTrackIdentity(source.gameId, session.track_id, source.trackOrdinal);
+  const trackLengthMeters = layout?.trackLengthM ?? getTrackLengthMetersById(source.trackId, source.gameId);
+  const trackKey = dashboardTrackIdentity(source.gameId, session.track_id);
   const sectorLayout = layout && layout.starts.length <= 16
     ? { status: "available" as const, key: `${trackKey}:${layout.starts.join(",")}`, sectorCount: layout.starts.length, starts: layout.starts }
     : null;

@@ -7,11 +7,12 @@ Reusable request-boundary schemas for route parameters and query strings.
 
 ## Schemas and output keys
 - `IdParamSchema`: path-param object with output key `id`; transforms string input with base-10 `parseInt` and requires an integer result.
-- `OrdinalParamSchema`: path-param object with output key `ordinal`; transforms string input with base-10 `parseInt`.
+- `CarIdParamSchema`: path-param object with nonempty string output key `carId`; preserves native names and numeric game IDs represented as strings.
+- `TrackIdParamSchema`: path-param object with nonempty string output key `trackId`; preserves native IDs, including AC Evo JSON `[trackName, trackConfiguration]` tuples.
 - `IdVersionParamSchema`: path-param object with output keys `id` and `versionId`; transforms both with base-10 `parseInt` and requires integer results.
 - `GameIdQuerySchema`: query object with optional output key `gameId`, validated by `shared/games/ids.ts`.
 
-Output-key ownership matters: schema keys must match both route placeholder/query names and `c.req.valid("param" | "query")` destructuring. For example, a `:ord` route cannot use `OrdinalParamSchema` without mapping the incoming key to the schema-owned `ordinal` output contract.
+Output-key ownership matters: schema keys must match both route placeholder/query names and `c.req.valid("param" | "query")` destructuring. Use `:carId` with `CarIdParamSchema` and `:trackId` with `TrackIdParamSchema`. URL-encode native IDs when constructing URLs; Hono decodes path parameters before validation.
 
 ## Browser vs Node boundary
 Schemas are environment-neutral TypeScript and Zod. They contain no Hono, DOM, Node, database, or transport setup. Current consumers are server Hono routes, which own validator wiring and HTTP error translation.
@@ -36,6 +37,7 @@ import {
   GameIdQuerySchema,
   IdParamSchema,
   IdVersionParamSchema,
-  OrdinalParamSchema,
+  CarIdParamSchema,
+  TrackIdParamSchema,
 } from "@shared/platform/http/route-schemas";
 ```

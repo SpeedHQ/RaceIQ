@@ -9,9 +9,9 @@ import { Button } from "../../components/ui/button";
 import { getCarModel, loadCarModelConfigs } from "../../data/car-models";
 import { client } from "../../lib/rpc";
 
-function makeStaticFrame(carOrdinal: number): SemanticAnalysisFrame {
+function makeStaticFrame(carId: string): SemanticAnalysisFrame {
   return { values: {
-    "identity.car-ordinal": carOrdinal, "identity.car-class": 0, "identity.car-performance-index": 0,
+    "identity.car-id": carId, "identity.car-class": 0, "identity.car-performance-index": 0,
     "motion.speed": 0, "motion.position-x": 0, "motion.position-z": 0, "motion.yaw": 0, "motion.pitch": 0, "motion.roll": 0,
     "inputs.accel": 0, "inputs.brake": 0, "inputs.steer": 0, "inputs.gear": 0,
     "engine.current-engine-rpm": 800, "engine.engine-idle-rpm": 800, "engine.engine-max-rpm": 8000, "fuel.fuel": 1,
@@ -20,21 +20,20 @@ function makeStaticFrame(carOrdinal: number): SemanticAnalysisFrame {
 }
 
 function CarModelPage() {
-  const { carOrdinal } = Route.useParams();
-  const ordinal = parseInt(carOrdinal, 10);
+  const { carId } = Route.useParams();
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
   useEffect(() => {
     loadCarModelConfigs().then(() => setReady(true));
   }, []);
-  const carModel = useMemo(() => (ready ? getCarModel(ordinal) : null), [ordinal, ready]);
+  const carModel = useMemo(() => (ready ? getCarModel(carId) : null), [carId, ready]);
 
   const { data: carInfo } = useQuery({
-    queryKey: ["car", ordinal],
-    queryFn: () => client.api.cars[":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ordinal)) } }, { headers: { "X-Game-Id": "fm-2023" } }).then((r) => (r.ok ? r.json() : null)),
+    queryKey: ["car", carId],
+    queryFn: () => client.api.cars[":carId"].$get({ param: { carId } }, { headers: { "X-Game-Id": "fm-2023" } }).then((r) => (r.ok ? r.json() : null)),
   });
 
-  const staticFrame = useMemo(() => makeStaticFrame(ordinal), [ordinal]);
+  const staticFrame = useMemo(() => makeStaticFrame(carId), [carId]);
   const telemetry = useMemo(() => [staticFrame], [staticFrame]);
   const framesRef = useRef(telemetry);
   framesRef.current = telemetry;
@@ -74,9 +73,9 @@ function CarModelPage() {
           &larr; Cars
         </Button>
         <div>
-          <div className="text-app-heading font-semibold text-app-text">{carInfo?.name ?? `Car ${ordinal}`}</div>
+          <div className="text-app-heading font-semibold text-app-text">{carInfo?.name ?? `Car ${carId}`}</div>
           <div className="text-app-label text-app-text-muted">
-            3D Model &middot; Ordinal {ordinal}
+            3D Model &middot; {carId}
             {carModel.bodyLength && ` \u00b7 ${carModel.bodyLength}m`}
             {` \u00b7 Track: ${(carModel.halfFrontTrack * 2 * 1000).toFixed(0)}/${(carModel.halfRearTrack * 2 * 1000).toFixed(0)}mm`}
             {` \u00b7 Wheelbase: ${(carModel.halfWheelbase * 2 * 1000).toFixed(0)}mm`}
@@ -84,12 +83,12 @@ function CarModelPage() {
         </div>
       </div>
       <div className="flex-1 min-h-0">
-        <CarWireframe frame={staticFrame} telemetry={telemetry} cursorIdx={0} source={source} outline={null} carOrdinal={ordinal} minimal />
+        <CarWireframe frame={staticFrame} telemetry={telemetry} cursorIdx={0} source={source} outline={null} carId={carId} minimal />
       </div>
     </div>
   );
 }
 
-export const Route = createFileRoute("/fm23/cars_/$carOrdinal")({
+export const Route = createFileRoute("/fm23/cars_/$carId")({
   component: CarModelPage,
 });

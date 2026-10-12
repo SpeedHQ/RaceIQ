@@ -31,7 +31,7 @@ afterEach(async () => {
 
 async function seedSession(rawFile = fixture): Promise<number> {
   const row = await db.insert(sessions).values({
-    gameId: "acc", carId: "7", trackId: "8", carOrdinal: 7, trackOrdinal: 8,
+    gameId: "acc", carId: "7", trackId: "8",
     ownership: "mine", createdAt: "2026-04-23T16:42:16.158Z", sessionType: "practice", rawFile,
   }).returning({ id: sessions.id }).get();
   sessionIds.push(row.id);

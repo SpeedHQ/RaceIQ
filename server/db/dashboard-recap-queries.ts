@@ -16,28 +16,13 @@ const parseJson = <T>(value: unknown): T | null => {
   try { return JSON.parse(value) as T; } catch { return null; }
 };
 
-function sqliteCanonicalIdentity(nativeColumn: string, ordinalColumn: string): string {
-  const native = `TRIM(${nativeColumn})`;
-  const numeric = `(${native} NOT GLOB '*[^0-9]*' OR (json_valid(${native}) AND json_type(${native}) IN ('integer','real')))`;
-  const numericValue = `CAST(${native} AS REAL)`;
-  return `CASE
-    WHEN ${nativeColumn} IS NULL OR ${native}='' OR (${numeric} AND ${numericValue}=-1)
-      THEN CASE WHEN ${ordinalColumn} IS NOT NULL AND ${ordinalColumn}!=-1 THEN 'n:'||${ordinalColumn} ELSE NULL END
-    WHEN ${numeric} AND ${numericValue}=CAST(${native} AS INTEGER)
-      THEN 'n:'||CAST(CAST(${native} AS INTEGER) AS TEXT)
-    ELSE 's:'||${nativeColumn} END`;
-}
-
-function canonicalIdentityPart(key: string | null): string | null {
-  return key === null ? null : JSON.parse(key)[1] as string;
-}
 
 /** Capture-free, exact-mine dashboard recap. Returns null for unavailable sessions. */
 export async function getDashboardSessionRecap(id: number, gameId: GameId): Promise<SessionRecap | null> {
   const tx = await client.transaction("read");
   try {
     const selected = await tx.execute({
-      sql: `SELECT s.id,s.game_id,s.created_at,s.car_id,s.car_ordinal,s.track_id,s.track_ordinal,
+      sql: `SELECT s.id,s.game_id,s.created_at,s.car_id,s.track_id,
           p.source_revision,p.published_revision,p.processor_version,p.metadata_dirty,p.capture_dirty,p.deleted,
           d.source_revision AS summary_source_revision,d.processor_version AS summary_processor_version,d.evidence_version,
           d.best_lap_seconds,d.track_length_meters,d.sector_layout_key,d.sector_count,d.sector_status,
@@ -61,23 +46,21 @@ export async function getDashboardSessionRecap(id: number, gameId: GameId): Prom
       || session.processor_version == null || session.processor_version !== session.summary_processor_version
       || session.source_revision !== session.summary_source_revision;
     const captureEvidenceCurrent = !staleSummary && session.evidence_version === DASHBOARD_PROCESSOR_VERSION;
-    const carOrdinal = maybeNumber(session.car_ordinal);
-    const trackOrdinal = maybeNumber(session.track_ordinal);
-    const trackId = session.track_id == null ? trackOrdinal ?? -1 : String(session.track_id);
-    const carId = session.car_id == null ? carOrdinal ?? -1 : String(session.car_id);
-    const carKey = dashboardCarIdentity(gameId, session.car_id == null ? null : String(session.car_id), carOrdinal);
-    const trackKey = dashboardTrackIdentity(gameId, session.track_id == null ? null : String(session.track_id), trackOrdinal);
-    const carSourcePredicate = carKey === null ? "0=1" : `${sqliteCanonicalIdentity("s.car_id", "s.car_ordinal")}=?`;
-    const trackSourcePredicate = trackKey === null ? "0=1" : `${sqliteCanonicalIdentity("s.track_id", "s.track_ordinal")}=?`;
-    const carSourceArgs = carKey === null ? [] : [canonicalIdentityPart(carKey)];
-    const trackSourceArgs = trackKey === null ? [] : [canonicalIdentityPart(trackKey)];
+    const trackId = session.track_id == null ? "-1" : String(session.track_id);
+    const carId = session.car_id == null ? "-1" : String(session.car_id);
+    const carKey = dashboardCarIdentity(gameId, session.car_id == null ? null : String(session.car_id));
+    const trackKey = dashboardTrackIdentity(gameId, session.track_id == null ? null : String(session.track_id));
+    const carSourcePredicate = carKey === null ? "0=1" : "s.car_id=?";
+    const trackSourcePredicate = trackKey === null ? "0=1" : "s.track_id=?";
+    const carSourceArgs = carKey === null ? [] : [String(session.car_id)];
+    const trackSourceArgs = trackKey === null ? [] : [String(session.track_id)];
     const adapter = tryGetGame(gameId);
     const carName = gameId === "lmu" && typeof carId === "string"
       ? getLMUCar(carId)?.name ?? carId
-      : adapter ? adapter.getCarName(asNumber(carId)) : resolveCarName(asNumber(carId), gameId);
+      : adapter ? adapter.getCarName(carId) : resolveCarName(carId, gameId);
     const trackName = gameId === "lmu" && typeof trackId === "string"
       ? getLMUTrack(trackId)?.name ?? trackId
-      : adapter ? adapter.getTrackName(asNumber(trackId)) : resolveTrackName(asNumber(trackId), gameId);
+      : adapter ? adapter.getTrackName(trackId) : resolveTrackName(trackId, gameId);
     const trackLengthM = captureEvidenceCurrent ? maybeNumber(session.track_length_meters) : null;
 
     // Clean published summaries provide indexed historical minima. Dirty/missing rows are

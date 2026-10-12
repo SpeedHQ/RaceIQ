@@ -28,11 +28,12 @@ function getSourceDirs(): { slug: string; meta: F125SourceMeta; dir: string }[] 
     }));
 }
 
-/** Load track identity (slug, name, ordinal) from top-level JSON */
-function loadTrackIdentity(slug: string): { trackSlug: string; trackName: string; trackOrdinal: number } | null {
+/** Load track identity (slug, name, normalized ID) from top-level JSON */
+function loadTrackIdentity(slug: string): { trackSlug: string; trackName: string; trackId: string } | null {
   const path = resolve(F125_TUNES_DIR, `${slug}.json`);
   if (!existsSync(path)) return null;
-  return JSON.parse(readFileSync(path, "utf-8"));
+  const identity = JSON.parse(readFileSync(path, "utf-8"));
+  return { trackSlug: identity.trackSlug, trackName: identity.trackName, trackId: String(identity.trackOrdinal) };
 }
 
 /** Load setups for a track from all sources */
@@ -104,7 +105,7 @@ export const f125Routes = new Hono()
           summary.push({
             trackSlug: data.trackSlug,
             trackName: data.trackName,
-            trackOrdinal: data.trackOrdinal,
+            trackId: String(data.trackOrdinal),
             setupCount: setups.length,
             guideCount: guides.length,
             videoUrl: firstGuide?.videoUrl ?? meta.videoUrl ?? "",

@@ -1857,6 +1857,7 @@
   "ai_chat_open_fullscreen": "Ouvrir la conversation en plein écran",
   "ai_chat_actions": "Actions de la conversation",
   "ai_chat_copy_json": "Copier le JSON de la conversation",
+  "ai_chat_export_json": "Exporter toute la conversation en JSON",
   "ai_chat_clear": "Effacer la conversation",
   "ai_chat_read_only_notice": "Consultation d’une ancienne conversation (lecture seule). Passez à la plus récente pour continuer.",
   "ai_chat_compact_failed": "Échec de la synthèse",

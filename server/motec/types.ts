@@ -1,6 +1,6 @@
 export interface MotecCarTrack {
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: string;
+  trackId: string;
   /** Display name written into the graphics page for the parser to resolve. */
   carModel: string;
   /** Shared-memory-style track string written into the static page. */
@@ -9,9 +9,13 @@ export interface MotecCarTrack {
 
 /** Caller-supplied car/track, which always beats what the log header claims. */
 export interface MotecCarTrackOverride {
-  carOrdinal?: number;
-  trackOrdinal?: number;
+  carId?: string;
+  trackId?: string;
+  carName?: string;
+  trackName?: string;
+  trackConfiguration?: string;
 }
+
 
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 

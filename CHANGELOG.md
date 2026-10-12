@@ -1,10 +1,18 @@
 ## Unreleased
 
+### Breaking
+- Use string car and track IDs across imports and integrations instead of ordinal fields. Existing sessions and setup links migrate automatically; downgrading requires restoring a pre-upgrade database backup.
+
 ### Features
-- Reduce F1 race-result processing time by 88% in a matched processing benchmark.
 - Refresh the dashboard with cleaner session and favourite widgets, clean-rate and podium trends, and easier game navigation.
 - Open the overview dashboard on the last seven days of activity by default.
-- Browse enriched iRacing car, car-class, and track catalogs with official images, offline pit-road maps, and grouped lap sections.
+- Export complete chat history as JSON for developer debugging, including retained chat generations, stored thinking, tool calls and results, and system prompts.
+- Optionally protect dashboard access with a password and configure trusted browser origins independently, while keeping existing local and remote access working without new settings.
+- Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
+
+- Browse enriched iRacing car, car-class, and track catalogs with official car images, offline pit-road maps, and grouped lap sections.
+- Inspect AC Evo Tourist layouts with recorded open-route maps and explicit Start/Finish markers.
+- Show Nordschleife track edges along the supported portion of AC Evo Tourist routes without closing the Start/Finish gap.
 
 ### Fixes
 - Keep home dashboard game cards within narrow phone screens without horizontal page scrolling.
@@ -12,27 +20,40 @@
 - Speed up startup with saved recordings and process history backfills in the background.
 - Calculate accurate dashboard totals, recaps, session counts, and podiums across the full selected period using only your sessions and consistent UTC boundaries.
 - Restore dashboard compatibility with existing databases while preserving recordings and session history.
+- Preserve canonical string car and track IDs in dashboard summaries, recaps, and capture processing after database upgrades.
 - Improve dashboard loading, track and car names, detail links, and lap-time consistency labels; keep available data visible while history is processing.
-- Preserve incomplete-lap eligibility and LMU first-outlap classification across detector transitions.
-- Load LMU track boundaries without long stalls on detailed maps.
-- Optionally protect dashboard access with a password and configure trusted browser origins independently, while keeping existing local and remote access working without new settings.
-- Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
-
-- Browse enriched iRacing car, car-class, and track catalogs with official car images, offline pit-road maps, and grouped lap sections.
-
-### Fixes
+- Restore track edges in AC Evo Tourist replay, including the supported approach section, without joining edges across the missing connector.
+- Preserve car and track selections in numeric-ID bookmarks and native AC Evo venue/layout URLs.
+- Refresh experiment spread and corner results after recorded laps are repaired.
+- Initialize setup-folder imports after the car catalog loads and prevent imports without a valid car.
+- Keep live Tourist route maps open between finish and start.
+- Keep outdated-recording warnings visible until every stale session is repaired.
+- Ask for missing or unresolved car and track identities when importing MoTeC ZIPs or opening saved sessions; retain valid selections and preserve original MoTeC content.
+- Restore history-lap imports for experiments without selected car or track IDs.
+- Persist setup name, author, description, and weakness edits.
+- Show saved lap favorites and telemetry availability in lap details.
+- Resolve session car and track names for display, search, and sorting.
+- Avoid missing-identity lookup errors on Home and live dashboards before a car is known.
+- Preserve all four brake temperatures in ACC and AC Evo MoTeC imports.
+- Keep bundled AC Evo track geometry and setup-folder metadata after discovery.
+- Restore the Any car filter in the AC Evo setup browser.
 - Prevent crafted AI credential requests from running commands on macOS.
 - Reject unrelated browser origins on dashboard and live telemetry requests while preserving same-origin access through reverse proxies.
 - Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
 
 - Load LMU track boundaries without long stalls on detailed SVG maps.
 - Show unnamed multi-turn sections once in Analyse and track-detail labels.
+- Keep AC Evo venue layouts distinct during import, setup selection, and session repair without losing saved notes, favorites, or setup links.
+- Replay long Tourist laps without chart crashes or closed-circuit map overlays.
+- Show AC Evo source car and layout names immediately after import instead of generated numeric placeholders.
+- Automatically reconcile pre-upgrade recordings with updated car, track, and lap detection, including AC Evo Tourist timed attempts; preserve user annotations on matched laps and report captures that cannot be repaired.
 
 ### Internal
 - Limit CI test execution to two concurrent Turbo tasks and one Bun unit-test worker per task to reduce resource pressure on constrained runners.
 - Update browser coverage for dashboard periods, session analysis navigation, and persisted onboarding settings without relying on removed headings or recap buttons; enable feature-gated responsive routes in both fresh and seeded test servers.
 - Report Paraglide development and production compilation stages, a 10-second elapsed-time heartbeat, and total build duration; preserve validated cache reuse.
 - Bound HTTP request/response adapter typing to avoid expanding the full RPC router schema during backend typechecking, preserving existing RPC contracts.
+- Add a release-seeded startup upgrade regression that verifies historical Tourist sessions are automatically reprocessed into the correct layout and lap times.
 - Remove unused compiled artifact downloads and base production builds from dev-mode dashboard screenshot CI.
 - Split current and base dashboard screenshot renders into four CI shards while retaining the complete screenshot inventory.
 - Document new-game integration, lossless sparse recording, lap correctness checks, and gzip fixture splitting without Git LFS; align capture and architecture guides with current implementation.

@@ -16,6 +16,8 @@ export type PeriodStats = Record<
     tracks: number;
     cars: number;
     sessions: number;
+    favCarId: string | null;
+    favCarCount: number;
   }
 >;
 

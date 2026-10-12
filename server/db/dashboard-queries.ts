@@ -203,8 +203,8 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
           WHERE old.utc_day>=? AND old.utc_day<?
         ), current_source AS (
           SELECT date(l.created_at_ms/1000,'unixepoch') utc_day,si.game_id,
-            COALESCE(NULLIF(si.car_id,''),'#ord:'||si.car_ordinal) car_key,
-            COALESCE(NULLIF(si.track_id,''),'#ord:'||si.track_ordinal) track_key,
+            CASE WHEN si.car_id IS NULL OR si.car_id IN ('','-1') THEN '' ELSE json_array(si.game_id,si.car_id) END car_key,
+            CASE WHEN si.track_id IS NULL OR si.track_id IN ('','-1') THEN '' ELSE json_array(si.game_id,si.track_id) END track_key,
             COUNT(*) lap_count,SUM(l.lap_time>0) positive_laps,SUM(l.is_valid=1 AND l.lap_time>0) valid_laps,
             SUM(CASE WHEN l.lap_time>0 THEN l.lap_time ELSE 0 END) driven_seconds,
             SUM(CASE WHEN l.is_valid=1 AND l.lap_time>0 THEN l.lap_time ELSE 0 END) valid_seconds,
@@ -228,8 +228,8 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
           GROUP BY utc_day,si.game_id,track_key,car_key
         ), current_results AS (
           SELECT date(si.created_at_ms/1000,'unixepoch') utc_day,si.game_id,
-            COALESCE(NULLIF(si.car_id,''),'#ord:'||si.car_ordinal) car_key,
-            COALESCE(NULLIF(si.track_id,''),'#ord:'||si.track_ordinal) track_key,
+            CASE WHEN si.car_id IS NULL OR si.car_id IN ('','-1') THEN '' ELSE json_array(si.game_id,si.car_id) END car_key,
+            CASE WHEN si.track_id IS NULL OR si.track_id IN ('','-1') THEN '' ELSE json_array(si.game_id,si.track_id) END track_key,
             0 lap_count,0 positive_laps,0 valid_laps,0 driven_seconds,0 valid_seconds,
             0 favourite_laps,0 favourite_seconds,0 distance_laps,0 distance_meters,
             SUM(r.finishing_position=1) podium_first,SUM(r.finishing_position=2) podium_second,SUM(r.finishing_position=3) podium_third,0 podium_evidence
@@ -274,30 +274,20 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
         bounds.from, bounds.to, ...(request.gameId ? [request.gameId] : []),
       ],
     });
-    type EntityFacts = { gameId: GameId; identity: string; nativeId: number | string | null; ordinal: number | null;
+    type EntityFacts = { gameId: GameId; key: string; identity: string; nativeId: string | null;
       seconds: number; laps: number; sessions: number; distanceMeters: number; distanceLaps: number; podiums: number; podiumEvidence: boolean };
     const decodeIdentity = (value: string, gameId: GameId, kind: "car" | "track") => {
       if (value.startsWith("[")) {
         try {
           const parsed = JSON.parse(value) as [string, string];
-          const key = parsed[1] ?? "";
-          const match = /^n:(-?\d+(?:\.\d+)?)$/.exec(key);
-          return { identity: JSON.stringify([gameId, key]), nativeId: match ? Number(match[1]) : key.slice(2), ordinal: match ? Number(match[1]) : null };
-        } catch { return { identity: value, nativeId: null, ordinal: null }; }
+          const nativeId = parsed[1] || null;
+          const key = kind === "car" ? dashboardCarIdentity(gameId, nativeId) : dashboardTrackIdentity(gameId, nativeId);
+          return { key: key ?? "", identity: nativeId ?? "", nativeId };
+        } catch { return { key: "", identity: "", nativeId: null }; }
       }
-      if (value.startsWith("#ord:")) {
-        const rawOrdinal = value.slice(5);
-        const ordinal = Number(rawOrdinal);
-        if (!rawOrdinal || !Number.isInteger(ordinal) || !Number.isFinite(ordinal) || ordinal === -1) {
-          return { identity: "", nativeId: null, ordinal: null };
-        }
-        const identity = kind === "car" ? dashboardCarIdentity(gameId, null, ordinal) : dashboardTrackIdentity(gameId, null, ordinal);
-        return identity ? { identity, nativeId: ordinal, ordinal } : { identity: "", nativeId: null, ordinal: null };
-      }
-      const native = value === "" ? null : value;
-      const identity = kind === "car" ? dashboardCarIdentity(gameId, native, null) : dashboardTrackIdentity(gameId, native, null);
-      const numeric = native != null && Number.isFinite(Number(native)) && String(Number(native)) === native;
-      return { identity: identity ?? "", nativeId: numeric ? Number(native) : native, ordinal: numeric ? Number(native) : null };
+      const nativeId = value === "" || value === "-1" ? null : value;
+      const key = kind === "car" ? dashboardCarIdentity(gameId, nativeId) : dashboardTrackIdentity(gameId, nativeId);
+      return { key: key ?? "", identity: nativeId ?? "", nativeId };
     };
     const tracks = new Map<string, EntityFacts>(), cars = new Map<string, EntityFacts>();
     const favouriteTracks = new Map<string, EntityFacts>(), favouriteCars = new Map<string, EntityFacts>();
@@ -312,15 +302,15 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
       };
       const favouriteValues = { ...values, seconds: n(row.favourite_seconds), laps: n(row.favourite_laps) };
       const add = (map: Map<string, EntityFacts>, ident: typeof track, facts: typeof values) => {
-        if (!ident.identity) return;
-        const current = map.get(ident.identity) ?? { gameId, identity: ident.identity, nativeId: ident.nativeId, ordinal: ident.ordinal,
+        if (!ident.key) return;
+        const current = map.get(ident.key) ?? { gameId, key: ident.key, identity: ident.identity, nativeId: ident.nativeId,
           seconds: 0, laps: 0, sessions: 0, distanceMeters: 0, distanceLaps: 0, podiums: 0, podiumEvidence: false };
         current.seconds += facts.seconds;
         current.laps += facts.laps;
         current.distanceMeters += facts.distanceMeters;
         current.distanceLaps += facts.distanceLaps;
         current.podiums += facts.podiums; current.podiumEvidence ||= facts.podiumEvidence;
-        map.set(ident.identity, current);
+        map.set(ident.key, current);
       };
       if (!request.gameId || request.gameId === gameId) {
         add(tracks, track, values); add(cars, car, values);
@@ -384,8 +374,8 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
       const row = raw as Row, gameId = String(row.game_id) as GameId, lapCount = n(row.lap_count);
       const track = decodeIdentity(String(row.track_key ?? ""), gameId, "track");
       const car = decodeIdentity(String(row.car_key ?? ""), gameId, "car");
-      if (track.identity) selectedTracks.set(track.identity, (selectedTracks.get(track.identity) ?? 0) + lapCount);
-      if (car.identity) selectedCars.set(car.identity, (selectedCars.get(car.identity) ?? 0) + lapCount);
+      if (track.key) selectedTracks.set(track.key, (selectedTracks.get(track.key) ?? 0) + lapCount);
+      if (car.key) selectedCars.set(car.key, (selectedCars.get(car.key) ?? 0) + lapCount);
     }
     response.totals = {
       laps: selectedRows.reduce((sum, raw) => sum + n((raw as Row).lap_count), 0),
@@ -404,7 +394,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     response.trackDistribution = {
       totalSeconds: totalTrackSeconds,
       topFive: rankedTracks.slice(0, 5).map((entity): DashboardEntityTotal => ({
-        gameId: entity.gameId, identity: entity.identity, ordinal: entity.ordinal,
+        gameId: entity.gameId, identity: entity.identity,
         seconds: entity.seconds, share: totalTrackSeconds ? entity.seconds / totalTrackSeconds : 0,
       })),
       othersSeconds: otherTrackSeconds, othersShare: totalTrackSeconds ? otherTrackSeconds / totalTrackSeconds : 0,
@@ -420,7 +410,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
         UNION
         SELECT 'track',si.game_id,
           CASE WHEN p.session_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM dirty x WHERE x.session_id=si.session_id)
-            THEN p.track_key ELSE COALESCE(NULLIF(si.track_id,''),'#ord:'||si.track_ordinal) END,l.session_id
+            THEN p.track_key ELSE CASE WHEN si.track_id IS NULL OR si.track_id IN ('','-1') THEN '' ELSE json_array(si.game_id,si.track_id) END END,l.session_id
         FROM dashboard_lap_index l JOIN dashboard_session_index si ON si.session_id=l.session_id
         LEFT JOIN dashboard_session_summaries p ON p.session_id=si.session_id
         WHERE ${needsDaySource ? "" : "0 AND "}si.ownership='mine' AND l.created_at_ms>=? AND l.created_at_ms<?
@@ -428,7 +418,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
         UNION
         SELECT 'car',si.game_id,
           CASE WHEN p.session_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM dirty x WHERE x.session_id=si.session_id)
-            THEN p.car_key ELSE COALESCE(NULLIF(si.car_id,''),'#ord:'||si.car_ordinal) END,l.session_id
+            THEN p.car_key ELSE CASE WHEN si.car_id IS NULL OR si.car_id IN ('','-1') THEN '' ELSE json_array(si.game_id,si.car_id) END END,l.session_id
         FROM dashboard_lap_index l JOIN dashboard_session_index si ON si.session_id=l.session_id
         LEFT JOIN dashboard_session_summaries p ON p.session_id=si.session_id
         WHERE ${needsDaySource ? "" : "0 AND "}si.ownership='mine' AND l.created_at_ms>=? AND l.created_at_ms<?
@@ -448,11 +438,11 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
           AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
           AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision
         UNION
-        SELECT 'track',si.game_id,COALESCE(NULLIF(si.track_id,''),'#ord:'||si.track_ordinal),si.session_id
+        SELECT 'track',si.game_id,CASE WHEN si.track_id IS NULL OR si.track_id IN ('','-1') THEN '' ELSE json_array(si.game_id,si.track_id) END,si.session_id
         FROM dashboard_session_index si WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<?
           AND si.session_id IN (${dirtyIn})
         UNION
-        SELECT 'car',si.game_id,COALESCE(NULLIF(si.car_id,''),'#ord:'||si.car_ordinal),si.session_id
+        SELECT 'car',si.game_id,CASE WHEN si.car_id IS NULL OR si.car_id IN ('','-1') THEN '' ELSE json_array(si.game_id,si.car_id) END,si.session_id
         FROM dashboard_session_index si WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<?
           AND si.session_id IN (${dirtyIn})
       )
@@ -472,7 +462,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     for (const raw of members.rows) {
       const row = raw as Row, gameId = String(row.game_id) as GameId;
       const kind = String(row.kind);
-      const identity = decodeIdentity(String(row.identity_key ?? ""), gameId, kind === "car" ? "car" : "track").identity;
+      const identity = decodeIdentity(String(row.identity_key ?? ""), gameId, kind === "car" ? "car" : "track").key;
       if (kind === "track") {
         const track = favouriteTracks.get(identity);
         if (track) track.sessions += n(row.sessions);
@@ -484,7 +474,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     const chooseFavourite = (map: Map<string, EntityFacts>): DashboardFavourite | null => {
       const winner = [...map.values()].sort((a, b) => b.seconds - a.seconds || b.laps - a.laps
         || a.gameId.localeCompare(b.gameId) || a.identity.localeCompare(b.identity))[0];
-      return winner ? { gameId: winner.gameId, identity: winner.identity, nativeId: winner.nativeId, ordinal: winner.ordinal,
+      return winner ? { gameId: winner.gameId, identity: winner.identity, nativeId: winner.nativeId ?? "",
         seconds: winner.seconds, laps: winner.laps, sessions: winner.sessions,
         distanceMeters: winner.distanceLaps ? winner.distanceMeters : null, distanceLaps: winner.distanceLaps,
         podiums: pending || !winner.podiumEvidence ? null : winner.podiums } : null;
@@ -576,7 +566,8 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
           AND (l.session_id IN (${dirtyIn}) OR p.session_id IS NULL
             OR COALESCE(p.processor_version,-1)!=${DASHBOARD_PROCESSOR_VERSION}
             OR p.first_lap_at_ms<? OR p.last_lap_at_ms>=?)
-          AND si.car_ordinal!=-1 AND si.track_ordinal!=-1
+          AND si.car_id IS NOT NULL AND si.car_id!='' AND si.car_id!='-1'
+          AND si.track_id IS NOT NULL AND si.track_id!='' AND si.track_id!='-1'
           ${request.gameId ? "AND si.game_id=?" : ""}
         GROUP BY l.session_id
       ), eligible AS (
@@ -605,7 +596,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
       deviations: Array.from({ length: 7 }, (_, index) => n(consistency?.[`b${index}`])),
     };
     const recentResult = tx.execute({
-      sql: `SELECT si.session_id,si.game_id,si.created_at_ms,si.session_type,si.car_id,si.car_ordinal,si.track_id,si.track_ordinal,
+      sql: `SELECT si.session_id,si.game_id,si.created_at_ms,si.session_type,si.car_id,si.track_id,
         CASE WHEN st.metadata_dirty=0 AND st.deleted=0
           AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
           AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision THEN p.lap_count
@@ -624,12 +615,11 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     });
     response.recentSessions = recentResult.rows.map((raw) => {
       const row = raw as Row, gameId = String(row.game_id) as GameId;
-      const carOrdinal = nullableNumber(row.car_ordinal), trackOrdinal = nullableNumber(row.track_ordinal);
       return {
         id: n(row.session_id), gameId, createdAt: new Date(n(row.created_at_ms)).toISOString(),
         sessionType: row.session_type == null ? null : String(row.session_type),
-        car: { id: row.car_id == null ? null : row.car_id as string, ordinal: carOrdinal, name: null },
-        track: { id: row.track_id == null ? null : row.track_id as string, ordinal: trackOrdinal, name: null },
+        car: { id: row.car_id == null ? null : String(row.car_id), name: null },
+        track: { id: row.track_id == null ? null : String(row.track_id), name: null },
         lapCount: n(row.lap_count), bestLapSeconds: nullableNumber(row.best_lap_seconds),
       };
     });

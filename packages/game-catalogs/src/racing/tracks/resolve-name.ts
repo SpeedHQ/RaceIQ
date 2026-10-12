@@ -4,7 +4,6 @@ import { resolve } from "node:path";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { SHARED_DIR, USER_TRACKS_DIR } from "@raceiq/shared/platform/runtime/data-paths";
 import { getAccSharedTrackName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
-import { getAcEvoSharedTrackName } from "@raceiq/game-ac-evo-metadata/racing/tracks/catalogs/ac-evo";
 import { getF1TrackInfo } from "@raceiq/game-f1-2025-metadata/racing/tracks/catalogs/f1";
 import { getFmBundledTrackName, getFmTrackName } from "@raceiq/game-fm-2023-metadata/racing/tracks/catalogs/fm";
 import { getIRacingSharedTrackName } from "@raceiq/game-iracing-metadata/racing/tracks/catalogs/iracing";
@@ -36,22 +35,25 @@ function readDataFile(filePath: string): string | null {
   }
 }
 
-/** Resolve display name through registered game adapter, then Forza fallback. */
-export function resolveTrackName(ordinal: number, gameId?: string): string {
+/** Resolve a string track ID through its registered adapter, then Forza fallback. */
+export function resolveTrackName(trackId: string, gameId?: string): string {
   const adapter = gameId ? tryGetGame(gameId) : undefined;
-  return adapter?.getTrackName(ordinal) ?? getFmTrackName(ordinal);
+  return adapter?.getTrackName(trackId)
+    ?? (gameId === "fm-2023" && /^\d+$/.test(trackId)
+      ? getFmTrackName(Number(trackId))
+      : trackId);
 }
 
-/** Resolve ordinal to bundled geometry file prefix. */
+/** Resolve a numeric catalog ordinal at the bundled-geometry boundary. */
 export function getBundledTrackName(gameId: string, ordinal: number): string | undefined {
   if (gameId === "f1-2025") return getF1TrackInfo(ordinal)?.commonTrackName || undefined;
   if (gameId === "iracing") return getIRacingSharedTrackName(ordinal);
   if (gameId === "fm-2023") return getFmBundledTrackName(ordinal);
   if (gameId === "acc") {
-    const baseOrdinal = ACC_2019_VARIANT[ordinal] ?? ordinal;
-    return getAccSharedTrackName(baseOrdinal);
+    return getAccSharedTrackName(ACC_2019_VARIANT[ordinal] ?? ordinal);
   }
-  if (gameId === "ac-evo") return getAcEvoSharedTrackName(ordinal);
+  // AC Evo geometry is resolved by native trackId, never by ordinal.
+  if (gameId === "ac-evo") return undefined;
   return undefined;
 }
 

@@ -46,7 +46,7 @@ describe("capture migration consent and progress", () => {
     await writeFile(corruptPath, Buffer.from("not a canonical capture"));
     paths.push(rawPath, gzipPath, corruptPath);
     for (const path of paths) {
-      const id = await insertSession(1, 2, "fm-2023");
+      const id = await insertSession("1", "2", "fm-2023");
       sessionIds.push(id);
       await updateSessionRawFile(id, path, "test");
       if (path === corruptPath) corruptId = id;

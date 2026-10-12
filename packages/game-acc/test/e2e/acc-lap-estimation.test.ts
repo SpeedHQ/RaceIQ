@@ -23,9 +23,9 @@ describe(`${recordingFile} lap estimation`, () => {
 
     const tracker = new SectorTracker();
     await tracker.reset(
-      target.packets[0]!.TrackOrdinal,
+      target.packets[0]!.trackId,
       "acc",
-      target.packets[0]!.CarOrdinal,
+      target.packets[0]!.carId,
     );
     tracker.updateRefLap(reference.packets, reference.lapTime, reference.sectors);
     tracker.feed(reference.packets[0]!);

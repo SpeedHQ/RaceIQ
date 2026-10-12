@@ -1857,6 +1857,7 @@
   "ai_chat_open_fullscreen": "Apri la chat a schermo intero",
   "ai_chat_actions": "Azioni della chat",
   "ai_chat_copy_json": "Copia JSON della chat",
+  "ai_chat_export_json": "Esporta tutta la chat in JSON",
   "ai_chat_clear": "Svuota la chat",
   "ai_chat_read_only_notice": "Stai visualizzando una chat precedente (sola lettura). Passa alla più recente per continuare.",
   "ai_chat_compact_failed": "Impossibile compattare",
