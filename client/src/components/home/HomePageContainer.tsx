@@ -1,17 +1,17 @@
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import type { DashboardRecentSession } from "@raceiq/shared/racing/sessions/dashboard";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useDashboard, useDashboardRecap } from "@/hooks/dashboard";
 import { useSettings } from "@/hooks/settings";
 import { useTrackOutline, useTrackSectorBoundaries } from "@/hooks/track-queries";
-import { errorFromResponse } from "@/lib/rpc-error";
 import { client } from "@/lib/rpc";
 import { getGameRoute, useGameId } from "@/stores/game";
 import { rpcJson } from "@/lib/rpc-json";
 import { HomePageView } from "./HomePageView";
 import type { GameStats, PeriodKey } from "./types";
+import { useDashboardCars } from "@/hooks/dashboard-cars";
 
 function cardStats(cards: Record<string, { laps: number; drivenSeconds: number }>): GameStats {
   const display = (seconds: number) => seconds <= 0 ? "—" : seconds >= 86400 ? `${Math.floor(seconds / 86400)}d` : seconds >= 3600 ? `${Math.floor(seconds / 3600)}h` : `${Math.floor(seconds / 60)}m`;
@@ -32,23 +32,7 @@ export function HomePageContainer() {
   const latestSession = response?.latestRecapSessionId == null ? null : recentSessions.find((session) => session.id === response.latestRecapSessionId) ?? null;
   const recapGameId = latestSession?.gameId ?? null;
   const { data: latestRecap, isLoading: latestRecapLoading, isError: latestRecapError } = useDashboardRecap(response?.latestRecapSessionId, recapGameId);
-  const { data: recapCars } = useQuery<{ id?: string | null; imageUrl?: string | null; specs?: { imageUrl?: string | null } | null }[]>({
-    queryKey: ["cars", recapGameId],
-    queryFn: async () => {
-      if (recapGameId === "acc") {
-        const response = await client.api.acc.cars.$get();
-        if (!response.ok) throw await errorFromResponse(response);
-        const cars = await response.json();
-        return cars.map((car) => ({ id: String(car.id), imageUrl: `/car-images/acc-${car.id}.jpg` }));
-      }
-      if (!recapGameId) return [];
-      const response = await client.api.cars.$get({}, { headers: { "X-Game-Id": recapGameId } });
-      if (!response.ok) throw await errorFromResponse(response);
-      return response.json();
-    },
-    enabled: !!recapGameId && latestRecap?.carId != null,
-    staleTime: Infinity,
-  });
+  const { data: recapCars } = useDashboardCars(recapGameId, latestRecap?.carId != null);
   const matchedRecapCar = recapCars?.find((car) => car.id === latestRecap?.carId);
   const latestRecapCarImageUrl = matchedRecapCar?.imageUrl || matchedRecapCar?.specs?.imageUrl || undefined;
   const { data: latestRecapOutline } = useTrackOutline(latestRecap?.trackId, latestRecap?.gameId ?? recapGameId);

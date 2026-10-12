@@ -6,9 +6,6 @@ import type { DashboardResponse } from "@raceiq/shared/racing/sessions/dashboard
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Info, Trophy } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { client } from "@/lib/rpc";
-import { rpcJson } from "@/lib/rpc-json";
 import { useTrackOutline } from "@/hooks/track-queries";
 import { getLocale } from "@/paraglide/runtime";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -22,6 +19,7 @@ import { formatDrivenTime } from "./Stats";
 import type { PeriodStats } from "./types";
 import { trackRoutePath } from "@/lib/track-routes";
 import { piClass } from "@/components/forza/PiBadge";
+import { useDashboardCars } from "@/hooks/dashboard-cars";
 
 
 type PeriodSummary = Pick<PeriodStats["year"], "laps" | "tracks" | "cars" | "sessions" | "totalTime">;
@@ -88,19 +86,7 @@ function FavouritePanel({ title, insight, kind, trackNames, carNames, gameId, lo
       transform: !Array.isArray(outlineData) && outlineData?.flipX ? `translate(${minX + maxX},0) scale(-1,1)` : undefined,
     };
   }, [outlineData]);
-  const { data: cars } = useQuery<{ id?: string | null; class?: string; imageUrl?: string | null; specs?: { imageUrl?: string | null; pi?: number } | null }[]>({
-    queryKey: ["cars", contextGameId],
-    queryFn: async () => {
-      if (contextGameId === "acc") {
-        const catalog = await rpcJson<{ id: string; class: string }[]>(await client.api.acc.cars.$get());
-        return catalog.map((car) => ({ id: car.id, class: car.class, imageUrl: `/car-images/acc-${car.id}.jpg` }));
-      }
-      if (contextGameId === "ac-evo" || !contextGameId) return [];
-      return rpcJson(await client.api.cars.$get({}, { headers: { "X-Game-Id": contextGameId } }));
-    },
-    enabled: kind === "car" && !!insight && !unavailable,
-    staleTime: Infinity,
-  });
+  const { data: cars } = useDashboardCars(contextGameId, kind === "car" && !!insight && !unavailable);
   const car = kind === "car" && insight
     ? cars?.find((candidate) => candidate.id === identity)
     : undefined;
