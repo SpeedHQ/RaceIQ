@@ -16,7 +16,7 @@
 
 ### Fixes
 - Show car images in F1 and ACC dashboard session and favourite-car panels.
-- Reject conflicting database migration identities and duplicate migration numbers before applying upgrades instead of silently skipping unrelated branch migrations.
+- Reject unknown database migration versions, conflicting migration identities, and duplicate migration numbers before applying upgrades instead of modifying incompatible databases.
 - Keep home dashboard game cards within narrow phone screens without horizontal page scrolling.
 - Remove the Recap button from session rows; keep Analyse and favourite actions.
 - Speed up startup with saved recordings and process history backfills in the background.

@@ -18,7 +18,14 @@ export function pendingMigrations<T extends MigrationIdentity>(
   const appliedVersions = new Set<number>();
   for (const stored of applied) {
     const expected = byVersion.get(stored.version);
-    if (expected && expected.name !== stored.name) {
+    if (!expected) {
+      throw new Error(
+        `Migration history conflict at v${stored.version}: database has "${stored.name}", ` +
+        `this build does not recognize that migration version. Use the matching build or restore a compatible database. ` +
+        `For disposable development data, back up and reset the database.`,
+      );
+    }
+    if (expected.name !== stored.name) {
       throw new Error(
         `Migration history conflict at v${stored.version}: database has "${stored.name}", ` +
         `this build expects "${expected.name}". Use the matching build or restore a compatible database. ` +

@@ -33,6 +33,43 @@ describe("migration regressions", () => {
     }
   });
 
+  for (const unknownVersion of [2, 4]) {
+    test(`rejects unknown stored v${unknownVersion} before applying destructive upgrades`, async () => {
+      const client = newClient();
+      const migrationSet = [
+        { version: 1, name: "base", sql: ["CREATE TABLE retained_data (id INTEGER PRIMARY KEY)"] },
+        { version: 3, name: "rebuild", sql: ["DELETE FROM retained_data"] },
+      ];
+      try {
+        await bootstrap(client);
+        await runMigrations(client, 1, migrationSet);
+        await client.execute("INSERT INTO retained_data VALUES (42)");
+        await client.execute({
+          sql: "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
+          args: [unknownVersion, "foreign branch schema"],
+        });
+
+        await expect(runMigrations(client, Infinity, migrationSet)).rejects.toThrow(
+          `Migration history conflict at v${unknownVersion}`,
+        );
+        const retainedRows = (await client.execute("SELECT id FROM retained_data")).rows;
+        expect(retainedRows).toHaveLength(1);
+        expect(retainedRows).toMatchObject([{ id: 42 }]);
+        const history = (
+          await client.execute("SELECT version, name FROM schema_migrations ORDER BY version")
+        ).rows;
+        expect(history).toHaveLength(2);
+        expect(history).toMatchObject([
+          { version: 1, name: "base" },
+          { version: unknownVersion, name: "foreign branch schema" },
+        ]);
+        expect((await client.execute("PRAGMA foreign_keys")).rows[0]?.foreign_keys).toBe(1);
+      } finally {
+        client.close();
+      }
+    });
+  }
+
   test("rejects duplicate migration numbers before applying either upgrade", async () => {
     const client = newClient();
     try {
