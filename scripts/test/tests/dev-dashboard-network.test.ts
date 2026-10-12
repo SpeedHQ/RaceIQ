@@ -1,30 +1,24 @@
 import { describe, expect, test } from "bun:test";
-import Database from "libsql";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { readDashboardHosts } from "../../dev/dashboard-network";
 import { developmentDashboardHosts } from "../../dev/dashboard-listeners";
 
 describe("development dashboard network access", () => {
-  test("uses saved selections and explicit overrides without reading credentials", async () => {
+  test("uses saved selections and explicit overrides without reading credentials", () => {
     const directory = mkdtempSync(join(tmpdir(), "raceiq-dev-network-"));
-    const path = join(directory, "app.db");
-    const database = new Database(path);
     try {
-      database.exec("CREATE TABLE dashboard_access (id INTEGER PRIMARY KEY, network_json TEXT)");
-      database.prepare("INSERT INTO dashboard_access VALUES (1, ?)").run(JSON.stringify({ hosts: ["127.0.0.1", "127.0.0.2"], origins: [] }));
-      expect(readDashboardHosts(path)).toEqual(["127.0.0.1", "127.0.0.2"]);
-      expect(readDashboardHosts(path, "127.0.0.1")).toEqual(["127.0.0.1"]);
-      database.exec("DELETE FROM dashboard_access");
-      expect(() => readDashboardHosts(path)).toThrow("missing or corrupt");
-      expect(() => readDashboardHosts(join(directory, "absent.db"))).toThrow();
+      // libSQL statements can retain native file handles after close() until GC.
+      // Process exit releases every handle before the parent removes the fixture.
+      const result = spawnSync(process.execPath, [
+        join(import.meta.dir, "../fixtures/dev-dashboard-network.ts"),
+        join(directory, "app.db"),
+      ], { encoding: "utf8", timeout: 15_000, windowsHide: true });
+      expect(result.error).toBeUndefined();
+      expect(result.status, result.stderr).toBe(0);
     } finally {
-      database.close();
-      // Windows can retain SQLite file handles briefly after the connection closes.
-      await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      rmSync(directory, { recursive: true, force: true });
     }
   });
 
