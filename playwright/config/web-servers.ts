@@ -21,6 +21,7 @@ function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boole
     NODE_ENV: runtime.devServer ? "test" : "production",
     PW_ACCESS_MODE: ports === runtime.freshInstall ? "pending" : "disabled",
     RACEIQ_SETUP_HOME: resolve(ports.dataDir, "setup-home"),
+    RACEIQ_FEATURE_F1_EXPERIMENTS: "true",
   };
   if (runtime.devServer) {
     env.CLIENT_PORT = ports.clientPort;
@@ -29,7 +30,6 @@ function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boole
   if (seeded) {
     env.PW_SEED_SCREENSHOTS = "1";
     env.RACEIQ_E2E = "1";
-    env.RACEIQ_FEATURE_F1_EXPERIMENTS = "true";
     env.RACEIQ_FEATURE_IRACING_ADAPTER = "true";
     env.PW_SEED_GAMES = DEFAULT_GAMES.join(",");
     if (seedSetups) env.PW_SEED_SETUP_DATA = "1";

@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import { FavoriteToggleButton } from "../FavoriteToggleButton";
 import { Button } from "@/components/ui/button";
-import { formatSessionType, sessionCarName, sessionTrackName } from "./helpers";
+import { sessionCarName, sessionTrackName } from "./helpers";
+import { SessionTypeBadge } from "./SessionTypeBadge";
 import { NoteCell } from "./NoteCell";
 import { MotecBadge } from "./MotecBadge";
 import { SessionLapTable } from "./SessionLapTable";
@@ -43,7 +44,6 @@ export type SessionDesktopTableProps = {
   lapSortDir: SortDir;
   toggleLapSort: (key: LapSortKey) => void;
   saveSessionNotes: (id: number, notes: string) => void;
-  setRecapSessionId: (id: number) => void;
   analyseSession: (session: SessionMeta) => void;
 };
 
@@ -73,7 +73,6 @@ export function SessionDesktopTable({
   lapSortDir,
   toggleLapSort,
   saveSessionNotes,
-  setRecapSessionId,
   analyseSession,
 }: SessionDesktopTableProps) {
   return (
@@ -150,16 +149,6 @@ export function SessionDesktopTable({
                         {session.source === "motec" && <MotecBadge />}
                         <FavoriteToggleButton target="session" id={session.id} isFavorite={Boolean(session.isFavorite)} />
                         <Button
-                          variant="app-outline"
-                          size="app-sm"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setRecapSessionId(session.id);
-                          }}
-                        >
-                          Recap
-                        </Button>
-                        <Button
                           variant="app-primary"
                           size="app-sm"
                           disabled={session.telemetryAvailable === false}
@@ -180,7 +169,7 @@ export function SessionDesktopTable({
                     <TableCell className="text-app-label">
                       <SessionResultMeta session={session} />
                     </TableCell>
-                    {showSessionType && <TableCell className="text-app-label">{formatSessionType(session.sessionType) || "—"}</TableCell>}
+                    {showSessionType && <TableCell className="text-app-label"><SessionTypeBadge type={session.sessionType} /></TableCell>}
                     <TableCell>
                       <NoteCell value={session.notes ?? undefined} onSave={(notes) => saveSessionNotes(session.id, notes)} />
                     </TableCell>

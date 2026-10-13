@@ -192,13 +192,13 @@ afterEach(async () => {
 
 describe("production database path", () => {
   test("main's identity migrations preserve credentials and sessions from colliding auth drafts", async () => {
-    for (const version of [63, 64]) {
+    for (const version of [63, 64, 68]) {
       for (const password of ["abcdefgh", null]) {
         const dataDir = makeDataDir();
         const appPath = join(dataDir, "app.db");
-        await createFixture(appPath, "preserved driver", 62);
+        await createFixture(appPath, "preserved driver", version === 68 ? 67 : 62);
         const before = new Database(appPath);
-        for (const sql of migrations.find((migration) => migration.version === 68)!.sql) before.exec(sql);
+        for (const sql of migrations.find((migration) => migration.name === "persist dashboard access and login sessions")!.sql) before.exec(sql);
         before.prepare("INSERT INTO schema_migrations (version, name) VALUES (?, ?)").run(version, "persist dashboard access and login sessions");
         before.close();
         const originalClient = createClient({ url: `file:${appPath}` });
@@ -217,7 +217,8 @@ describe("production database path", () => {
           expect(await upgraded.isProtected()).toBe(password !== null);
           expect((await upgradedClient.execute("SELECT * FROM dashboard_access")).rows[0]).toEqual(access);
           expect((await upgradedClient.execute("SELECT name FROM schema_migrations WHERE version = 64")).rows[0]?.name).toBe("use native AC Evo car and layout identities");
-          expect((await upgradedClient.execute("SELECT name FROM schema_migrations WHERE version = 68")).rows[0]?.name).toBe("persist dashboard access and login sessions");
+          expect((await upgradedClient.execute("SELECT name FROM schema_migrations WHERE version = 68")).rows[0]?.name).toBe("add dashboard read model");
+          expect((await upgradedClient.execute("SELECT name FROM schema_migrations WHERE version = 75")).rows[0]?.name).toBe("persist dashboard access and login sessions");
           if (session) expect((await upgraded.session(new Request("http://localhost:3117", { headers: { cookie: session.cookie.split(";")[0] } })))?.csrf).toBe(session.csrf);
         } finally {
           upgradedClient.close();
@@ -225,7 +226,7 @@ describe("production database path", () => {
         expect(profileNames(appPath)).toEqual(["preserved driver"]);
       }
     }
-  });
+  }, 60_000);
   test("a colliding auth draft with a lost access row remains closed after merging main", async () => {
     const dataDir = makeDataDir();
     const appPath = join(dataDir, "app.db");
@@ -238,7 +239,7 @@ describe("production database path", () => {
     const after = new Database(appPath, { readonly: true, fileMustExist: true });
     try {
       expect(after.prepare("SELECT name FROM sqlite_master WHERE name = 'dashboard_access'").all()).toEqual([]);
-      expect(after.prepare("SELECT name FROM schema_migrations WHERE version = 68").get()).toHaveProperty("name", "persist dashboard access and login sessions");
+      expect(after.prepare("SELECT name FROM schema_migrations WHERE version = 75").get()).toHaveProperty("name", "persist dashboard access and login sessions");
     } finally {
       after.close();
     }
@@ -280,7 +281,7 @@ describe("production database path", () => {
     try {
       expect(after.prepare("SELECT mode FROM dashboard_access WHERE id = 1").get()).toHaveProperty("mode", "pending");
       expect(after.prepare("SELECT name FROM schema_migrations WHERE version = 63").get()).toHaveProperty("name", "persist discovered source identities");
-      expect(after.prepare("SELECT name FROM schema_migrations WHERE version = 68").get()).toHaveProperty("name", "persist dashboard access and login sessions");
+      expect(after.prepare("SELECT name FROM schema_migrations WHERE version = 75").get()).toHaveProperty("name", "persist dashboard access and login sessions");
       expect(after.prepare("SELECT note FROM live_bookmarks WHERE id = 1").get()).toHaveProperty("note", "preserve me");
     } finally {
       after.close();

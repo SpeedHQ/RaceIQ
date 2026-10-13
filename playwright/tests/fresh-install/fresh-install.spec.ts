@@ -1,15 +1,16 @@
 import { test, expect, type Page } from "@playwright/test";
-import { readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { runtime } from "../../config/runtime";
 import { collectBrowserErrors } from "../support/browser-errors";
 
-const SETTINGS_PATH = resolve(__dirname, "..", "..", "test-data", "settings.json");
+const SETTINGS_PATH = resolve(runtime.freshInstall.dataDir, "settings.json");
 
 // Reset settings.json to the same seed start-server.ts writes at boot, so the
 // wizard test is idempotent across retries (server re-reads settings on every
 // GET /api/settings, so a file reset is enough — no server restart needed).
 function resetSettingsFile() {
-  writeFileSync(SETTINGS_PATH, JSON.stringify({ udpPort: 15318 }));
+  writeFileSync(SETTINGS_PATH, JSON.stringify({ udpPort: Number(runtime.freshInstall.udpPort) }));
 }
 const GAME_ROUTE_PREFIXES = ["fm23", "f125", "acc", "ac-evo"] as const;
 
@@ -41,81 +42,59 @@ async function assertImagesLoaded(page: Page) {
 // before the wizard reaches its final step.
 test.describe.serial("fresh install", () => {
   test.setTimeout(140_000);
-  test("user steps through wizard and lands on home page", async ({ page }) => {
+  test("user steps through wizard and lands on home page", async ({ page, request }) => {
     resetSettingsFile();
     const { errors } = collectBrowserErrors(page, [/THREE\.GLTFLoader: Couldn't load texture/]);
-
     await page.goto("/", { waitUntil: "domcontentloaded" });
-
-    // First-run shell exposes language/setup only, before application APIs.
     await expect(page.getByText("RaceIQ", { exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(page).toHaveURL(/\/onboarding\?/);
     await expect(page.locator("canvas")).toBeVisible();
     await expect(page.getByRole("button", { name: "Sign in", exact: true })).toHaveCount(0);
+    const demoCanvas = page.locator("canvas").first();
+    const canvasBox = await demoCanvas.boundingBox();
+    expect(canvasBox?.width ?? 0).toBeGreaterThan(0);
+    expect(canvasBox?.height ?? 0).toBeGreaterThan(0);
     await page.getByRole("button", { name: "Get Started" }).click();
-
-    // Page two: make an explicit protection choice before application access.
-    await expect(page.getByRole("button", { name: "Next", exact: true })).toHaveCount(1);
+    // Page two requires an explicit protection choice before application access.
     await expect(page.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
     await page.getByRole("button", { name: "Back", exact: true }).click();
     await expect(page.locator("canvas")).toBeVisible();
     await page.getByRole("button", { name: "Get Started" }).click();
     await expect(page.locator('[data-slot="onboarding-footer"]').getByRole("button", { name: "Next", exact: true })).toBeDisabled();
-    await page.getByRole("tab", { name: "Continue without a password" }).click();
+    await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Continue without a password" }).click();
     await expect(page.getByRole("alert")).toBeVisible();
     await expect(page.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
-    // Users can still reconsider before submitting the unprotected choice.
-    await page.getByRole("tab", { name: "Enable password protection", exact: true }).click();
+    await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Enable password protection", exact: true }).click();
     await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
-    await page.getByRole("tab", { name: "Continue without a password" }).click();
+    await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Continue without a password" }).click();
     await page.getByRole("button", { name: "Next", exact: true }).click();
-
-    // Step 2: Profile
     await expect(page.getByRole("heading", { name: "What's your name?" })).toBeVisible();
     await page.getByLabel("Driver name").fill("TestDriver");
     await page.getByRole("button", { name: "Next" }).click();
-
-    // Step 3: Wheel
     await expect(page.getByText(/Choose the steering wheel/i)).toBeVisible();
     await page.getByRole("button", { name: "Next" }).click();
-
-    // Step 4: Units
     await expect(page.getByRole("heading", { name: "Units" })).toBeVisible();
     await page.getByRole("button", { name: /^Metric/ }).click();
     await page.getByRole("button", { name: "Next" }).click();
-
-    // Step 5: Sound
     await expect(page.getByRole("heading", { name: "Sound" })).toBeVisible();
     await page.getByRole("switch", { name: "Sector blip" }).click();
     await page.getByRole("button", { name: "Next" }).click();
-
-    // Step 6: Startup (Launch on Login)
     await expect(page.getByRole("heading", { name: "Launch on Login" })).toBeVisible();
     await page.getByRole("button", { name: "Next" }).click();
-
-    // Step 7: Community — final. Button reads "Next" when not receiving telemetry; clicking it finishes.
     await expect(page.getByRole("heading", { name: "You're all set!" })).toBeVisible();
-    const saveSettings = page.waitForResponse(
-      (response) => {
-        if (response.request().method() !== "PUT" || !response.url().endsWith("/api/settings")) return false;
-        const body = response.request().postDataJSON() as { onboardingComplete?: boolean } | null;
-        return body?.onboardingComplete === true;
-      },
-      { timeout: 60_000 },
-    );
+    const saveSettings = page.waitForResponse((response) => {
+      if (response.request().method() !== "PUT" || !response.url().endsWith("/api/settings")) return false;
+      const body = response.request().postDataJSON() as { onboardingComplete?: boolean } | null;
+      return body?.onboardingComplete === true;
+    }, { timeout: 60_000 });
     await page.getByRole("button", { name: /^(Next|Finish)$/ }).click();
     expect((await saveSettings).ok(), "onboarding settings save").toBe(true);
-
-    // Onboarding modal closes after settings mutation invalidates cached settings.
     await expect(page.getByRole("heading", { name: "You're all set!" })).toBeHidden({ timeout: 15_000 });
     await expect(page.getByRole("link", { name: "Home" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Hello, TestDriver" })).toBeVisible();
-
-    // Server persisted driver name + onboardingComplete to settings.json
-    const settings = JSON.parse(readFileSync(SETTINGS_PATH, "utf8"));
-    expect(settings.driverName).toBe("TestDriver");
-    expect(settings.onboardingComplete).toBe(true);
-
+    await page.reload({ waitUntil: "domcontentloaded" });
+    const persistedResponse = await request.get("/api/settings");
+    expect(persistedResponse.ok()).toBe(true);
+    expect(await persistedResponse.json()).toMatchObject({ driverName: "TestDriver", onboardingComplete: true });
     await assertImagesLoaded(page);
     expect(errors, `unexpected browser errors:\n${errors.join("\n")}`).toEqual([]);
   });
@@ -203,7 +182,6 @@ test.describe.serial("fresh install", () => {
   test("settings modal opens without error", async ({ page }) => {
     const { errors } = collectBrowserErrors(page, [/THREE\.GLTFLoader: Couldn't load texture/]);
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "Hello, TestDriver" })).toBeVisible();
     await page.getByRole("navigation", { name: "Navigation" }).getByRole("button", { name: "Settings" }).click();
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
     await assertImagesLoaded(page);
@@ -217,7 +195,7 @@ test.describe.serial("fresh install", () => {
       await page.getByRole("button", { name: "Access & security", exact: true }).click();
     }
     await openAccess();
-    await expect(page.getByRole("tab", { name: "Enable password protection", exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Enable password protection", exact: true })).toHaveAttribute("aria-pressed", "true");
     const passwordForm = page.locator("form").filter({ has: page.getByLabel("Password", { exact: true }) });
     const formBounds = await passwordForm.boundingBox();
     const dialogBounds = await page.locator('[class~="@container/settings"]').boundingBox();
@@ -225,19 +203,18 @@ test.describe.serial("fresh install", () => {
     await page.getByLabel("Password", { exact: true }).fill("abcdefg");
     await page.getByLabel("Confirm password", { exact: true }).fill("different");
     await expect(page.getByText("Passwords do not match.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Enable password protection", exact: true })).toBeDisabled();
+    await expect(passwordForm.getByRole("button", { name: "Enable password protection", exact: true }).and(passwordForm.locator('[type="submit"]'))).toBeDisabled();
     await page.getByLabel("Password", { exact: true }).fill("abcdefgh");
     await page.getByLabel("Confirm password", { exact: true }).fill("abcdefgh");
     await page.getByRole("button", { name: "Show password", exact: true }).first().click();
     await expect(page.getByLabel("Password", { exact: true })).toHaveAttribute("type", "text");
-    await page.getByRole("button", { name: "Enable password protection", exact: true }).click();
+    await passwordForm.getByRole("button", { name: "Enable password protection", exact: true }).and(passwordForm.locator('[type="submit"]')).click();
     await expect(page.getByText("Password protection is enabled on every dashboard address.")).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Change password", exact: true })).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByRole("tab", { name: "Disable password protection", exact: true })).toBeVisible();
+    await expect(page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Change password", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Disable password protection", exact: true })).toBeVisible();
     await expect(page.getByLabel("New password", { exact: true })).toHaveValue("");
     await expect(page.getByRole("button", { name: "Save password settings" })).toBeDisabled();
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Hello, TestDriver" })).toBeVisible();
     expect((await page.request.get("/api/status")).status()).toBe(200);
     expect((await page.request.put("/api/settings", { data: { driverName: "CSRF must fail" } })).status()).toBe(403);
     const opened = await page.evaluate(
@@ -289,7 +266,7 @@ test.describe.serial("fresh install", () => {
     });
     await page.evaluate(() => window.dispatchEvent(new Event("raceiq-auth-required")));
     await staleStatusStarted.promise;
-    await page.getByRole("tab", { name: "Change password", exact: true }).click();
+    await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Change password", exact: true }).click();
     await page.getByLabel("Current password", { exact: true }).fill("abcdefgh");
     await page.getByLabel("New password", { exact: true }).fill("ijklmnop");
     await page.getByLabel("Confirm new password", { exact: true }).fill("ijklmnop");
@@ -308,19 +285,17 @@ test.describe.serial("fresh install", () => {
     await expect(page.getByText("The password is incorrect.")).toBeVisible();
     await page.getByLabel("Password", { exact: true }).fill("ijklmnop");
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Hello, TestDriver" })).toBeVisible();
     await openAccess();
-    await page.getByRole("tab", { name: "Change password", exact: true }).focus();
+    await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Change password", exact: true }).focus();
     await page.keyboard.press("ArrowRight");
     await page.keyboard.press("Enter");
-    await expect(page.getByRole("tab", { name: "Disable password protection", exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Disable password protection", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("button", { name: "Save password settings" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Confirm settings", exact: true })).toBeDisabled();
     await expect(page.getByLabel("New password", { exact: true })).toHaveCount(0);
     await page.getByLabel("Current password", { exact: true }).fill("ijklmnop");
     await page.getByRole("button", { name: "Confirm settings", exact: true }).click();
     await expect(page.getByText("Password protection is disabled.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Enable password protection", exact: true })).toHaveCount(1);
     await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
   });
 

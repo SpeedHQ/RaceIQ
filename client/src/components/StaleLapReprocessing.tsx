@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { canStartReprocess, submitStaleSessionReprocess } from "@/lib/reprocess-state";
 import { client } from "@/lib/rpc";
+import { invalidateDashboardQueries } from "@/hooks/dashboard";
 import { m } from "@/paraglide/messages";
 import { telemetryStore, useTelemetryStore } from "@/stores/telemetry";
 
@@ -35,6 +36,7 @@ export function StaleLapReprocessing() {
     try {
       await submitStaleSessionReprocess(() => client.api.sessions["reprocess-stale"].$post());
       telemetryStore.actions.setStaleLapDetection(null);
+      invalidateDashboardQueries();
       telemetryStore.actions.completeReprocess();
     } catch {
       telemetryStore.actions.failReprocess(m.root_reprocessing_failed_description());

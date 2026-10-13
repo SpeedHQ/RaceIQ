@@ -18,6 +18,10 @@ import { tryGetGame } from "@raceiq/shared/games/registry";
 import { backfillRaceResults, reconcileSessionResult, RACE_RESULT_PROCESSOR_ID } from "@raceiq/backend-core/race-results/reconcile";
 import { getRaceResultAggregate, getRecentRaceResults } from "@raceiq/backend-core/race-results/aggregates";
 import { recoverDeletedSessions } from "@raceiq/backend-core/telemetry/live-pipeline";
+import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
+import { getLapReplaySource } from "@raceiq/backend-core/db/telemetry-replay-storage";
+import { resolveTelemetryReplay } from "@raceiq/backend-core/telemetry/replay";
+import { loadRawCaptureIdentity } from "@raceiq/backend-core/session-capture/identity";
 
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
@@ -61,7 +65,28 @@ export const sessionRoutes = new Hono()
     const trackId = data.session.trackId ?? "";
     const carName = adapter ? adapter.getCarName(carId) : resolveCarName(carId, gameId);
     const trackName = adapter ? adapter.getTrackName(trackId) : resolveTrackName(trackId, gameId);
-    return c.json(computeRecap({ session: data.session, laps: data.laps, carName, trackName, trackLengthM: data.trackLengthM, allTimeBestSec: data.allTimeBestSec, allTimeBestSectors: data.allTimeBestSectors, sectorStarts: data.sectorStarts }));
+    const recap = computeRecap({ session: data.session, laps: data.laps, carName, trackName, trackLengthM: data.trackLengthM, allTimeBestSec: data.allTimeBestSec, allTimeBestSectors: data.allTimeBestSectors, sectorStarts: data.sectorStarts });
+    const weatherLapId = recap.bestLapId ?? data.laps[0]?.id;
+    let weather: { kind: number | null; rainPercent: number | null } | null = null;
+    if (weatherLapId != null && (gameId === "f1-2025" || gameId === "iracing" || gameId === "lmu")) {
+      const [lap, source] = await Promise.all([getLapById(weatherLapId), getLapReplaySource(weatherLapId)]);
+      const packet = lap?.telemetry[0];
+      if (packet && source && !lap?.parseError) {
+        const rawCapture = gameId === "iracing" && source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined;
+        const values = resolveTelemetryReplay(weatherLapId, source, [packet], ["weather.weather-type", "weather.rain-percent"], rawCapture).envelopes[0]?.values;
+        const number = (id: string) => {
+          const value = values?.find((entry) => entry.semanticId === id);
+          return value?.state === "ok" && typeof value.value === "number" && Number.isFinite(value.value) ? value.value : null;
+        };
+        // F1 and LMU normalize their observed conditions to the six weather categories.
+        const category = values?.find((entry) => entry.semanticId === "weather.weather-type");
+        const kind = (gameId === "f1-2025" || gameId === "lmu") && category?.state === "ok" && typeof category.value === "string" && /^[0-5]$/.test(category.value) ? Number(category.value) : null;
+        const rainPercent = number("weather.rain-percent");
+        if (kind != null || rainPercent != null) weather = { kind, rainPercent };
+      }
+    }
+    recap.weather = weather;
+    return c.json(recap);
   })
   .get("/api/sessions/:id/result", zValidator("param", IdParamSchema), zValidator("query", GameIdQuerySchema), async (c) => {
     const { id } = c.req.valid("param");

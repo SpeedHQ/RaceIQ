@@ -14,10 +14,6 @@ export function fuzzyToken(token: string, field: string): boolean {
   return normalize(field).includes(normalize(token));
 }
 
-export function formatSessionType(type?: string): string {
-  if (!type || type === "unknown") return "";
-  return type.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 export function sessionTrackName(session: RacingIdentityFields & { gameId?: string }, names: SessionNames): string {
   if (session.trackId != null) return names.trackNames[session.trackId] ?? session.trackId;

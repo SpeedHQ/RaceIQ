@@ -97,7 +97,7 @@ async function fixture(env: NodeJS.ProcessEnv = {}) {
   const db = createClient({ url: `file:${path}` });
   try {
     await db.execute("CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL)");
-    for (const sql of migrations.find((migration) => migration.version === 68)!.sql) await db.execute(sql);
+    for (const sql of migrations.find((migration) => migration.name === "persist dashboard access and login sessions")!.sql) await db.execute(sql);
     const auth = await DashboardAuth.create(db, path, env);
     return { auth, db, path, close: async () => db.close() };
   } catch (error) {
@@ -199,7 +199,7 @@ describe("persistent dashboard authentication", () => {
       await f.auth.initialize(false);
       await f.auth.setup("abcdefgh", false);
       const session = await f.auth.login("abcdefgh", request());
-      const migration = migrations.find((value) => value.version === 68)!;
+      const migration = migrations.find((value) => value.name === "persist dashboard access and login sessions")!;
       for (const sql of migration.sql) await f.db.execute(sql);
       expect(await f.auth.isProtected()).toBe(true);
       expect((await f.auth.session(cookieRequest(session.cookie)))?.csrf).toBe(session.csrf);

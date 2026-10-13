@@ -140,14 +140,6 @@
   border-color: color-mix(in srgb, var(--brand-color) 20%, transparent);
 }
 
-.game-brand-card {
-  border-color: color-mix(in srgb, var(--brand-color) 12%, transparent);
-}
-
-.game-brand-card:hover {
-  border-color: color-mix(in srgb, var(--brand-color) 35%, transparent);
-  box-shadow: 0 8px 32px color-mix(in srgb, var(--brand-color) 10%, transparent);
-}
 
 .game-brand-glow {
   background: radial-gradient(circle, color-mix(in srgb, var(--brand-color) 15%, transparent) 0%, transparent 70%);
