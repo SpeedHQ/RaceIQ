@@ -243,6 +243,24 @@ test.describe
       await openAccess();
       await expect(page.getByLabel("Current password", { exact: true })).toHaveCount(0);
       await expect(page.getByLabel("New password", { exact: true })).toHaveCount(0);
+      const staleStatusRelease = Promise.withResolvers<void>();
+      const staleStatusStarted = Promise.withResolvers<void>();
+      const staleStatusDelivered = Promise.withResolvers<void>();
+      let holdNextStatus = true;
+      await page.route("**/api/auth/status", async (route) => {
+        if (!holdNextStatus) {
+          await route.continue();
+          return;
+        }
+        holdNextStatus = false;
+        const response = await route.fetch();
+        staleStatusStarted.resolve();
+        await staleStatusRelease.promise;
+        await route.fulfill({ response });
+        staleStatusDelivered.resolve();
+      });
+      await page.evaluate(() => window.dispatchEvent(new Event("raceiq-auth-required")));
+      await staleStatusStarted.promise;
       await page.getByRole("button", { name: "Change password", exact: true }).click();
       await page.getByLabel("Current password", { exact: true }).fill("abcdefgh");
       await page.getByLabel("New password", { exact: true }).fill("ijklmnop");
@@ -251,6 +269,9 @@ test.describe
       await page.getByRole("button", { name: "Save password settings" }).click();
       expect((await changed).ok()).toBe(true);
       await expect(page.getByLabel("New password", { exact: true })).toHaveCount(0);
+      staleStatusRelease.resolve();
+      await staleStatusDelivered.promise;
+      await page.unroute("**/api/auth/status");
       await page.getByRole("button", { name: "Sign out", exact: true }).click();
       await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
       await page.getByLabel("Password", { exact: true }).fill("abcdefgh");
