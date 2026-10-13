@@ -152,7 +152,7 @@ test.each(["mine", "others"] as const)("imports a MoTeC ZIP as %s into its owner
   });
   const session = await db.select().from(sessions).where(eq(sessions.id, result.laps[0]!.sessionId)).get();
   expect(session?.ownership).toBe(ownership);
-  expect(dirname(session!.rawFile!)).toBe(join(resolveRecordingDirectory(), ownership === "others" ? "others" : "own", "acc"));
+  expect(dirname(session!.rawFile!)).toBe(join(resolveRecordingDirectory(), "acc", ownership === "others" ? "others" : "own"));
   const source = decodeMotecSourceArchive(readFileSync(session!.rawFile!));
   const uploaded = unzipSync(readFileSync(MOTEC_ARCHIVE));
   const ldEntry = Object.entries(uploaded).find(([name]) => name.endsWith(".ld"))!;
@@ -175,5 +175,5 @@ test.each([
   const result = await response.json() as { laps: { sessionId: number }[] };
   const session = await db.select().from(sessions).where(eq(sessions.id, result.laps[0]!.sessionId)).get();
   expect(session?.ownership).toBe(ownership);
-  expect(dirname(session!.rawFile!)).toBe(join(resolveRecordingDirectory(), ownership === "others" ? "others" : "own", "fm-2023"));
+  expect(dirname(session!.rawFile!)).toBe(join(resolveRecordingDirectory(), "fm-2023", ownership === "others" ? "others" : "own"));
 }, 60_000);

@@ -1,4 +1,4 @@
-import { resolveRecordingDirectory, resolveRecordingGameDirectory } from "../runtime/config/recording-directory";
+import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
 /**
  * Session file cleanup for startup and scheduled maintenance.
  *
@@ -49,28 +49,36 @@ async function loadReferencedRawFiles(): Promise<Set<string>> {
 export async function listSessionCaptureFiles(): Promise<string[]> {
   const sessionsDir = resolveRecordingDirectory();
   const captureFiles: string[] = [];
-  const roots = [sessionsDir, resolveRecordingGameDirectory("", "mine"), resolveRecordingGameDirectory("", "others")];
-  for (const root of roots) {
-    if (!existsSync(root)) continue;
-    let games;
+  let games;
+  try {
+    games = await readdir(sessionsDir, { withFileTypes: true });
+  } catch {
+    return captureFiles;
+  }
+  for (const game of games) {
+    if (!game.isDirectory() || game.name === "own" || game.name === "others") continue;
+    const gamePath = join(sessionsDir, game.name);
+    let entries;
     try {
-      if (root !== sessionsDir && !(await lstat(root)).isDirectory()) continue;
-      games = await readdir(root, { withFileTypes: true });
+      entries = await readdir(gamePath, { withFileTypes: true });
     } catch {
       continue;
     }
-    for (const game of games) {
-      if (!game.isDirectory() || (root === sessionsDir && (game.name === "own" || game.name === "others"))) continue;
-      const dirPath = join(root, game.name);
-      let files;
-      try {
-        files = await readdir(dirPath, { withFileTypes: true });
-      } catch {
-        continue;
-      }
-      for (const file of files) {
-        if (file.isFile() && (file.name.endsWith(".bin") || file.name.endsWith(".bin.gz") || file.name.endsWith(".motec.zip"))) {
-          captureFiles.push(join(dirPath, file.name));
+    for (const entry of entries) {
+      if (entry.isFile() && (entry.name.endsWith(".bin") || entry.name.endsWith(".bin.gz") || entry.name.endsWith(".motec.zip"))) {
+        captureFiles.push(join(gamePath, entry.name));
+      } else if (entry.isDirectory() && (entry.name === "own" || entry.name === "others")) {
+        const ownershipPath = join(gamePath, entry.name);
+        let captures;
+        try {
+          captures = await readdir(ownershipPath, { withFileTypes: true });
+        } catch {
+          continue;
+        }
+        for (const file of captures) {
+          if (file.isFile() && (file.name.endsWith(".bin") || file.name.endsWith(".bin.gz") || file.name.endsWith(".motec.zip"))) {
+            captureFiles.push(join(ownershipPath, file.name));
+          }
         }
       }
     }

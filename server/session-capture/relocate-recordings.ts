@@ -13,8 +13,9 @@ import { resolveDataDir } from "../runtime/config/data-dir";
 import { loadSettings, saveSettings } from "../runtime/config/settings";
 import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
 import { isSessionActive } from "../telemetry/live-pipeline";
-import { getRecordingStorageActivity, RecordingStorageBusyError, setRecordingStorageRelocating } from "./storage-activity";
+import { reserveRecordingStorageOperation } from "./storage-activity";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
+import { hasPendingLayoutMigration } from "./layout-migration";
 
 export type RecordingDirectoryMoveStatus = { operationId: string | null; state: "idle" | "moving" | "complete" | "error"; phase: "copying" | "committing" | "removing-sources" | null; completedFiles: number; totalFiles: number; directory: string; code: string | null; error: string | null };
 type Entry = { source: string; destination: string; size: number; sha256: string };
@@ -146,6 +147,34 @@ async function validateDirectory(input: string): Promise<string> {
   try { await handle.sync(); } finally { await handle.close(); await unlink(probe); }
   return canonical;
 }
+export async function preflightRecordingDirectoryMove(directory: string): Promise<{ current: string; destination: string }> {
+  const destination = await validateDirectory(directory);
+  const raw = resolveRecordingDirectory();
+  const current = await realpath(raw).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? resolve(raw) : Promise.reject(error));
+  if (current === destination || isContained(current, destination) || isContained(destination, current)) {
+    if (current !== destination) throw Object.assign(new Error("Recording folders cannot contain one another"), { code: "INVALID_DIRECTORY" });
+  }
+  if (current !== destination && (await readdir(destination)).length) throw Object.assign(new Error("Destination must be empty"), { code: "DESTINATION_NOT_EMPTY" });
+  return { current, destination };
+}
+
+export async function relocateRecordingDirectoryUnderReservation(directory: string): Promise<void> {
+  const requested = await validateDirectory(directory);
+  const current = await realpath(resolveRecordingDirectory()).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? resolve(resolveRecordingDirectory()) : Promise.reject(error));
+  if (requested === current) return;
+  if (isContained(current, requested) || isContained(requested, current)) throw Object.assign(new Error("Recording folders cannot contain one another"), { code: "INVALID_DIRECTORY" });
+  if ((await readdir(requested)).length) throw Object.assign(new Error("Destination must be empty"), { code: "DESTINATION_NOT_EMPTY" });
+  const operationId = randomUUID();
+  status = { operationId, state: "moving", phase: "copying", completedFiles: 0, totalFiles: 0, directory: current, code: null, error: null };
+  try {
+    await executeMove(requested, operationId, defaultMoveHooks);
+    status = { ...status, state: "complete", phase: null, directory: resolveRecordingDirectory() };
+  } catch (error) {
+    const rawCode = error instanceof Error && "code" in error ? String(error.code) : "STORAGE_IO_ERROR";
+    status = { ...status, state: "error", phase: null, code: rawCode, error: error instanceof Error ? error.message : String(error), directory: resolveRecordingDirectory() };
+    throw error;
+  }
+}
 async function enumerate(root: string): Promise<string[]> {
   const found: string[] = [];
   async function visit(directory: string): Promise<void> {
@@ -268,6 +297,7 @@ async function executeMove(directory: string, operationId: string, hooks: Requir
       if (referencesUpdated) await updateReferences(references, "oldPath");
       for (const entry of entries) await rm(`${entry.destination}.move-${operationId}.tmp`, { force: true });
       for (const path of published) await rm(path, { force: true });
+      await removeEmptyDestinationDirs(journal);
       await rm(journalPath, { force: true });
     } else {
       throw Object.assign(error instanceof Error ? error : new Error(String(error)), { code: "SOURCE_CLEANUP_FAILED" });
@@ -275,15 +305,33 @@ async function executeMove(directory: string, operationId: string, hooks: Requir
     throw error;
   }
 }
+
+async function removeEmptyDestinationDirs(journal: Journal): Promise<void> {
+  const directories = new Set<string>();
+  for (const entry of journal.entries) {
+    let directory = dirname(entry.destination);
+    while (directory !== journal.newDirectory && isContained(journal.newDirectory, directory)) {
+      directories.add(directory);
+      directory = dirname(directory);
+    }
+  }
+  for (const directory of [...directories].sort((a, b) => b.length - a.length)) {
+    await rmdir(directory).catch((error) => {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "ENOENT" && code !== "ENOTEMPTY") throw error;
+    });
+  }
+}
 export function getRecordingDirectoryMoveStatus(): RecordingDirectoryMoveStatus { return { ...status, directory: resolveRecordingDirectory() }; }
 export async function startRecordingDirectoryMove(directory: string, overrides?: MoveTestHooks): Promise<{ operationId: string; noOp?: boolean }> {
-  if (active) throw Object.assign(new Error("A recording move is already active"), { code: "MOVE_ACTIVE" });
-  // HTTP routes pass no overrides; hooks make filesystem failures deterministic in storage tests.
-  const hooks = overrides ? { ...defaultMoveHooks, ...overrides } : defaultMoveHooks;
+  const release = reserveRecordingStorageOperation("directory-move");
+  if (active) { release(); throw Object.assign(new Error("A recording move is already active"), { code: "MOVE_ACTIVE" }); }
   active = true;
+  const hooks = overrides ? { ...defaultMoveHooks, ...overrides } : defaultMoveHooks;
   let requested: string;
   let current: string;
   try {
+    if (await hasPendingLayoutMigration()) throw Object.assign(new Error("Complete pending recording layout migration before moving the recording folder"), { code: "LAYOUT_MIGRATION_PENDING" });
     requested = await validateDirectory(directory);
     current = await realpath(resolveRecordingDirectory()).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? resolve(resolveRecordingDirectory()) : Promise.reject(error));
     const pending = await readFile(journalPath, "utf8").then((contents) => JSON.parse(contents) as Journal).catch((error) => {
@@ -293,25 +341,24 @@ export async function startRecordingDirectoryMove(directory: string, overrides?:
     if (pending && !(await isValidJournal(pending))) throw Object.assign(new Error("Recording storage recovery is required"), { code: "RECOVERY_REQUIRED" });
     if (pending && (pending.newDirectory !== requested || current !== requested)) throw Object.assign(new Error("Finish recovery for the previous destination first"), { code: "RECOVERY_REQUIRED" });
     if (pending) {
-      try {
-        for (const entry of pending.entries) {
-          if (!(await lstat(entry.destination)).isFile()) throw new Error("Committed recording is not a regular file");
-          const digest = await hashFile(entry.destination);
-          if (digest.size !== entry.size || digest.sha256 !== entry.sha256) throw new Error("Committed recording verification failed");
-        }
-        await cleanupSources(pending, hooks.unlink);
-        status = { operationId: pending.operationId, state: "complete", phase: null, completedFiles: pending.entries.length, totalFiles: pending.entries.length, directory: current, code: null, error: null };
-      } catch (error) {
-        throw Object.assign(error instanceof Error ? error : new Error(String(error)), { code: "SOURCE_CLEANUP_FAILED" });
+      for (const entry of pending.entries) {
+        if (!(await lstat(entry.destination)).isFile()) throw new Error("Committed recording is not a regular file");
+        const digest = await hashFile(entry.destination);
+        if (digest.size !== entry.size || digest.sha256 !== entry.sha256) throw new Error("Committed recording verification failed");
       }
+      await cleanupSources(pending, hooks.unlink);
+      status = { operationId: pending.operationId, state: "complete", phase: null, completedFiles: pending.entries.length, totalFiles: pending.entries.length, directory: current, code: null, error: null };
+      release();
       active = false;
       return { operationId: pending.operationId, noOp: true };
     }
     if (requested === current) {
+      release();
       active = false;
       return { operationId: "", noOp: true };
     }
   } catch (error) {
+    release();
     active = false;
     throw error;
   }
@@ -325,8 +372,6 @@ export async function startRecordingDirectoryMove(directory: string, overrides?:
       const lockedOld = await realpath(resolveRecordingDirectory()).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? resolve(resolveRecordingDirectory()) : Promise.reject(error));
       if (isContained(lockedOld, requested) || isContained(requested, lockedOld)) throw Object.assign(new Error("Recording folders cannot contain one another"), { code: "INVALID_DIRECTORY" });
       if ((await readdir(requested)).length) throw Object.assign(new Error("Destination must be empty"), { code: "DESTINATION_NOT_EMPTY" });
-      if (getRecordingStorageActivity().imports) throw new RecordingStorageBusyError("IMPORT_ACTIVE");
-      setRecordingStorageRelocating(true);
       status = { operationId, state: "moving", phase: "copying", completedFiles: 0, totalFiles: 0, directory: current, code: null, error: null };
       admit();
       try {
@@ -336,12 +381,11 @@ export async function startRecordingDirectoryMove(directory: string, overrides?:
         const rawCode = error instanceof Error && "code" in error ? String(error.code) : "STORAGE_IO_ERROR";
         const known = ["INVALID_DIRECTORY", "DESTINATION_NOT_EMPTY", "SOURCE_CLEANUP_FAILED", "INSUFFICIENT_SPACE"];
         status = { ...status, state: "error", phase: null, code: rawCode === "ENOSPC" ? "INSUFFICIENT_SPACE" : known.includes(rawCode) ? rawCode : "STORAGE_IO_ERROR", error: error instanceof Error ? error.message : String(error), directory: resolveRecordingDirectory() };
-      } finally {
-        setRecordingStorageRelocating(false);
-        active = false;
       }
     } catch (error) {
       rejectAdmission(error);
+    } finally {
+      release();
       active = false;
     }
   });
@@ -375,6 +419,7 @@ export async function recoverRecordingDirectoryMove(): Promise<void> {
         await rm(`${entry.destination}.move-${journal.operationId}.tmp`, { force: true });
         try { if ((await lstat(entry.destination)).isFile()) { const digest = await hashFile(entry.destination); if (digest.size === entry.size && digest.sha256 === entry.sha256) await rm(entry.destination); } } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
       }
+      await removeEmptyDestinationDirs(journal);
       await rm(journalPath, { force: true });
     } catch { throw new Error("[RecordingStorage] Recovery required: rollback could not restore storage"); }
     return;

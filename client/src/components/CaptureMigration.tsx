@@ -6,7 +6,7 @@ import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { telemetryStore, useTelemetryStore, type CaptureMigrationState } from "@/stores/telemetry";
 
-export function CaptureMigration({ compact = false }: { compact?: boolean }) {
+export function CaptureMigration({ compact = false, suppressed = false }: { compact?: boolean; suppressed?: boolean }) {
   const available = useTelemetryStore((state) => state.captureMigration);
   const progress = useTelemetryStore((state) => state.captureMigrationState);
   const [statusError, setStatusError] = useState(false);
@@ -45,6 +45,7 @@ export function CaptureMigration({ compact = false }: { compact?: boolean }) {
       telemetryStore.actions.failCaptureMigration(m.capture_migration_request_failed());
     }
   }
+  if (suppressed) return null;
 
   const running = progress.status === "running";
   const percent = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;

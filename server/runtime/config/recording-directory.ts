@@ -8,5 +8,5 @@ export function resolveRecordingDirectory(): string {
 }
 
 export function resolveRecordingGameDirectory(gameId: string, ownership: SessionOwnership = "mine"): string {
-  return resolve(resolveRecordingDirectory(), ownership === "others" ? "others" : "own", gameId);
+  return resolve(resolveRecordingDirectory(), gameId, ownership === "others" ? "others" : "own");
 }

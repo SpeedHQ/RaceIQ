@@ -1,13 +1,15 @@
 import { lstat, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, resolve as resolvePath } from "node:path";
 import os from "node:os";
-import { resolveRecordingDirectory, resolveRecordingGameDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
+import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
+import { getLayoutMigrationStatus, startLayoutMigration } from "@raceiq/backend-core/session-capture/layout-migration";
 import { getRecordingDirectoryMoveStatus, startRecordingDirectoryMove } from "@raceiq/backend-core/session-capture/relocate-recordings";
-import { existsSync } from "node:fs";
+import { existsSync, type Dirent } from "node:fs";
 import { readdir, statfs } from "node:fs/promises";
 import { join } from "node:path";
 import { Hono } from "hono";
 import { z } from "zod";
+import { zValidator } from "@hono/zod-validator";
 import { previewSessionCleanup, executeSessionCleanup, SessionCleanupBusyError } from "@raceiq/backend-core/session-capture/session-cleanup";
 import type { SessionCleanupRequest } from "@raceiq/shared/racing/sessions/cleanup";
 
@@ -27,6 +29,22 @@ const sessionCleanupRequestSchema: z.ZodType<SessionCleanupRequest> = z.union([
 
 
 export const storageRoutes = new Hono()
+  .get("/api/storage/layout-migration", async (c) => c.json(await getLayoutMigrationStatus()))
+  .post("/api/storage/layout-migration", zValidator("json", z.object({ directory: z.string().optional() }).strict(), (result, c) => {
+    if (!result.success) return c.json({ code: "INVALID_DIRECTORY", error: "Invalid migration request" }, 400);
+  }), async (c) => {
+    const request = c.req.valid("json");
+    try {
+      await startLayoutMigration(request.directory);
+      return c.json({ accepted: true }, 202);
+    } catch (error) {
+      const code = error instanceof Error && "code" in error ? String(error.code) : "STORAGE_IO_ERROR";
+      const busy = ["MIGRATION_ACTIVE", "IMPORT_ACTIVE", "MOVE_ACTIVE", "RECORDING_ACTIVE", "LAYOUT_MIGRATION_PENDING", "STORAGE_OPERATION_BUSY"].includes(code);
+      const invalid = ["INVALID_DIRECTORY", "DESTINATION_NOT_EMPTY"].includes(code);
+      const http = busy ? 409 : invalid ? 400 : 500;
+      return c.json({ code, error: error instanceof Error ? error.message : "Layout migration failed" }, http);
+    }
+  })
   .get("/api/storage/recording-directory", (c) => c.json(getRecordingDirectoryMoveStatus()))
   .post("/api/storage/recording-directory", async (c) => {
     let body: unknown;
@@ -38,7 +56,7 @@ export const storageRoutes = new Hono()
       return c.json(result, result.noOp ? 200 : 202);
     } catch (error) {
       const code = error instanceof Error && "code" in error ? String(error.code) : "STORAGE_IO_ERROR";
-      const http = code === "MOVE_ACTIVE" || code === "RECORDING_ACTIVE" || code === "IMPORT_ACTIVE" || code === "RECOVERY_REQUIRED" ? 409 : 400;
+      const http = code === "MOVE_ACTIVE" || code === "RECORDING_ACTIVE" || code === "IMPORT_ACTIVE" || code === "RECOVERY_REQUIRED" || code === "LAYOUT_MIGRATION_PENDING" ? 409 : 400;
       return c.json({ code, error: error instanceof Error ? error.message : "Storage operation failed" }, http);
     }
   })
@@ -103,36 +121,41 @@ export const storageRoutes = new Hono()
       }
     }
 
-    const roots = [sessionsDir, resolveRecordingGameDirectory("", "mine"), resolveRecordingGameDirectory("", "others")];
-    await Promise.all(roots.map(async (root) => {
-      if (!existsSync(root)) return;
+    let games: Dirent[];
+    try {
+      games = await readdir(sessionsDir, { withFileTypes: true });
+    } catch {
+      games = [];
+    }
+    await Promise.all(games.map(async (game) => {
+      if (!game.isDirectory() || game.name === "own" || game.name === "others") return;
+      const gameId = game.name;
+      const gamePath = join(sessionsDir, gameId);
       let entries;
       try {
-        if (root !== sessionsDir && !(await lstat(root)).isDirectory()) return;
-        entries = await readdir(root, { withFileTypes: true });
+        entries = await readdir(gamePath, { withFileTypes: true });
       } catch {
         return;
       }
-      await Promise.all(entries.map(async (entry) => {
-        if (!entry.isDirectory() || (root === sessionsDir && (entry.name === "own" || entry.name === "others"))) return;
-        const gameId = entry.name;
-        const gamePath = join(root, gameId);
-        let files;
+      const captureDirectories = [{ path: gamePath, files: entries.filter((entry) => entry.isFile()) }];
+      for (const ownership of entries) {
+        if (!ownership.isDirectory() || (ownership.name !== "own" && ownership.name !== "others")) continue;
+        const ownershipPath = join(gamePath, ownership.name);
         try {
-          files = await readdir(gamePath, { withFileTypes: true });
+          const files = await readdir(ownershipPath, { withFileTypes: true });
+          captureDirectories.push({ path: ownershipPath, files: files.filter((file) => file.isFile()) });
         } catch {
-          return;
+          /* skip */
         }
-        await Promise.all(files.map(async (file) => {
-          if (!file.isFile()) return;
-          try {
-            const { size } = await lstat(join(gamePath, file.name));
-            tally(gameId, file.name, size);
-          } catch {
-            /* skip */
-          }
-        }));
-      }));
+      }
+      await Promise.all(captureDirectories.flatMap(({ path, files }) => files.map(async (file) => {
+        try {
+          const { size } = await lstat(join(path, file.name));
+          tally(gameId, file.name, size);
+        } catch {
+          /* skip */
+        }
+      })));
     }));
 
     let diskTotal = 0,

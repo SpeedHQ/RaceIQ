@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { miscRoutes } from "../../src/routes/system/index";
@@ -36,15 +36,19 @@ describe("session storage stats", () => {
     const root = resolveRecordingDirectory();
     const gameId = "storage-layout-test-game";
     const paths = [
-      join(root, "own", gameId, "mine.bin"),
-      join(root, "others", gameId, "other.bin.gz"),
+      join(root, gameId, "own", "mine.bin"),
+      join(root, gameId, "others", "other.bin.gz"),
       join(root, gameId, "legacy.bin"),
     ];
+    const externalDir = await mkdtemp(join(tmpdir(), "raceiq-storage-link-"));
+    const externalCapture = join(externalDir, "linked.bin");
+    await writeFile(externalCapture, Buffer.from("outside"));
     try {
       for (const path of paths) {
         await mkdir(join(path, ".."), { recursive: true });
         await writeFile(path, Buffer.from("file"));
       }
+      await symlink(externalDir, join(root, gameId, "own", "linked-dir"), "dir");
       const response = await miscRoutes.request("/api/storage/sessions");
       const body = await response.json() as {
         byGame: Record<string, { binCount: number; gzCount: number; binBytes: number; gzBytes: number }>;
@@ -53,9 +57,8 @@ describe("session storage stats", () => {
       expect(body.byGame.own).toBeUndefined();
       expect(body.byGame.others).toBeUndefined();
     } finally {
-      await rm(join(root, "own", gameId), { recursive: true, force: true });
-      await rm(join(root, "others", gameId), { recursive: true, force: true });
       await rm(join(root, gameId), { recursive: true, force: true });
+      await rm(externalDir, { recursive: true, force: true });
     }
   });
 });

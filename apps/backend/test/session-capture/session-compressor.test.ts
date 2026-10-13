@@ -205,8 +205,8 @@ describe("session capture cleanup", () => {
     const root = resolveRecordingDirectory();
     const gameId = `cleanup-test-${crypto.randomUUID()}`;
     const paths = [
-      join(root, "own", gameId, "mine.bin"),
-      join(root, "others", gameId, "others.bin"),
+      join(root, gameId, "own", "mine.bin"),
+      join(root, gameId, "others", "others.bin"),
       join(root, gameId, "legacy.bin"),
     ];
     for (const path of paths) {
@@ -216,7 +216,7 @@ describe("session capture cleanup", () => {
     const externalDir = mkdtempSync(join(tmpdir(), "raceiq-cleanup-link-"));
     const externalCapture = join(externalDir, "external.bin");
     writeFileSync(externalCapture, Buffer.alloc(32));
-    const link = join(root, "own", gameId, "linked-game");
+    const link = join(root, gameId, "own", "linked-game");
     fs.symlinkSync(externalDir, link, "dir");
     try {
       const files = await listSessionCaptureFiles();
@@ -226,8 +226,6 @@ describe("session capture cleanup", () => {
       expect(paths.every((path) => !existsSync(path))).toBe(true);
       expect(existsSync(externalCapture)).toBe(true);
     } finally {
-      rmSync(join(root, "own", gameId), { recursive: true, force: true });
-      rmSync(join(root, "others", gameId), { recursive: true, force: true });
       rmSync(join(root, gameId), { recursive: true, force: true });
       rmSync(externalDir, { recursive: true, force: true });
     }

@@ -267,6 +267,7 @@ describe("recording-directory relocation", () => {
       expect(await readFile(unrelatedSource, "utf8")).toBe("preserve source");
       expect(await readFile(unrelatedDestination, "utf8")).toBe("preserve destination");
 
+      await mkdir(join(destination, "game"), { recursive: true });
       await writeFile(target, bytes);
       await writeFile(journalPath, JSON.stringify(journal));
       saveSettings({ ...loadSettings(), recordingDirectory: destination });

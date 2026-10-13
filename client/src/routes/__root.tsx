@@ -1,3 +1,4 @@
+import { RecordingLayoutMigration } from "../components/RecordingLayoutMigration";
 import { getAllGames } from "@raceiq/shared/games/registry"
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
@@ -17,6 +18,7 @@ import { StaleLapReprocessing } from "../components/StaleLapReprocessing";
 import { UpdateModal } from "../components/UpdateModal";
 import { Button } from "../components/ui/button";
 import { useLocalStorage } from "../hooks/useLocalStorage";
+import { useRecordingLayoutMigration } from "../hooks/recording-storage";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { queryClient } from "../lib/queryClient";
 import { useTelemetryStore } from "../stores/telemetry";
@@ -60,6 +62,11 @@ function AppShell() {
   const showSettings = useUiStore((s) => s.settingsOpen);
   const settingsSection = useUiStore((s) => s.settingsSection);
   const onboardingOpen = useUiStore((s) => s.onboardingOpen);
+  const [layoutSuccessDismissed, setLayoutSuccessDismissed] = useState(false);
+  const layoutMigration = useRecordingLayoutMigration();
+  useEffect(() => {
+    if (layoutMigration.data?.progress.status === "running") setLayoutSuccessDismissed(false);
+  }, [layoutMigration.data?.progress.status]);
   const { openSettings, closeSettings, closeOnboarding } = uiStore.actions;
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useLocalStorage<boolean>("raceiq-sidebar-collapsed", false);
@@ -186,7 +193,8 @@ function AppShell() {
         {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? updateAvailable ?? "?"} currentVersion={updateState?.current ?? "?"} newReleases={updateState?.newReleases ?? []} fullReleaseNotes={updateState?.fullReleaseNotes ?? null} currentReleaseNotes={updateState?.currentReleaseNotes ?? null} currentReleaseDate={updateState?.currentReleaseDate ?? null} updatesDisabled={updateState?.updatesDisabled} onClose={() => setShowUpdateModal(false)} />}
         {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
       </div>
-      <CaptureMigration />
+      <RecordingLayoutMigration onSuccessDismissed={() => setLayoutSuccessDismissed(true)} />
+      <CaptureMigration suppressed={Boolean(layoutMigration.data?.fileCount) || layoutMigration.data?.progress.status === "running" || layoutMigration.data?.progress.status === "partial" || layoutMigration.data?.progress.status === "error" || (layoutMigration.data?.progress.status === "success" && !layoutSuccessDismissed)} />
       <StaleLapReprocessing />
       <RaceResultStatus compact />
     </>

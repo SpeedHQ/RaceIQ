@@ -1,4 +1,6 @@
 let imports = 0;
+type StorageOperation = "layout-migration" | "directory-move";
+let reservedOperation: { kind: StorageOperation; token: object } | null = null;
 let relocating = false;
 
 export class RecordingStorageBusyError extends Error {
@@ -8,6 +10,18 @@ export class RecordingStorageBusyError extends Error {
     this.code = code;
     this.name = "RecordingStorageBusyError";
   }
+}
+export function reserveRecordingStorageOperation(kind: StorageOperation): () => void {
+  if (imports) throw new RecordingStorageBusyError("IMPORT_ACTIVE");
+  if (reservedOperation || relocating) throw new RecordingStorageBusyError("MOVE_ACTIVE");
+  const reservation = { kind, token: {} };
+  reservedOperation = reservation;
+  relocating = true;
+  return () => {
+    if (reservedOperation?.token !== reservation.token) return;
+    reservedOperation = null;
+    relocating = false;
+  };
 }
 
 export function beginRecordingStorageImport(): () => void {
@@ -24,8 +38,4 @@ export function beginRecordingStorageImport(): () => void {
 
 export function getRecordingStorageActivity(): { imports: number; relocating: boolean } {
   return { imports, relocating };
-}
-
-export function setRecordingStorageRelocating(value: boolean): void {
-  relocating = value;
 }

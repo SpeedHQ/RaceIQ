@@ -11,6 +11,7 @@ import { SessionCleanupDialog } from "@/components/SessionCleanupDialog";
 import { useRecordingDirectoryStatus } from "@/hooks/recording-storage";
 import { queryKeys } from "@/hooks/query-keys";
 import { RecordingDirectoryControl } from "./RecordingDirectoryControl";
+import { RecordingLayoutMigration } from "@/components/RecordingLayoutMigration";
 import { m } from "@/paraglide/messages";
 import { formatBytes } from "@/lib/format-bytes";
 import { useSaveSettings, useSettings } from "../../hooks/settings";
@@ -290,6 +291,7 @@ function StorageFilesSection() {
           </Button>
         </div>
         <RecordingDirectoryControl disabled={isLoading || isError || !settingsLoaded} />
+        <RecordingLayoutMigration compact />
         <p className="text-xs text-app-text-dim mb-4">
           {m.storage_recording_files_desc_prefix()} <code className="break-all font-mono">{displaySettings.resolvedRecordingDirectory ?? ""}</code>. {m.storage_recording_files_desc_suffix()}
         </p>
