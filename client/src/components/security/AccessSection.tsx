@@ -17,6 +17,7 @@ export function AccessSection() {
   const { status, refresh } = useDashboardAuth();
   const [hosts, setHosts] = useState(status.network?.hosts ?? ["127.0.0.1"]);
   const [origins, setOrigins] = useState(status.network?.origins.join("\n") ?? "");
+  const [originsEnabled, setOriginsEnabled] = useState(status.network?.originsEnabled ?? false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -72,6 +73,7 @@ export function AccessSection() {
           try {
             const response = await client.api.auth.network.$put({
               json: {
+                originsEnabled,
                 hosts,
                 origins: origins
                   .split(/\r?\n/)
@@ -118,17 +120,30 @@ export function AccessSection() {
                 </FieldLabel>
               </Field>
             ))}
+            <Field orientation="horizontal">
+              <Switch
+                id="access-origins-enabled"
+                disabled={Boolean(status.allowedOriginsOverride)}
+                checked={Boolean(status.allowedOriginsOverride) || originsEnabled}
+                onCheckedChange={setOriginsEnabled}
+              />
+              <div>
+                <FieldLabel htmlFor="access-origins-enabled">{m.access_origins_enabled()}</FieldLabel>
+                <FieldDescription>{status.allowedOriginsOverride ? m.access_origins_managed() : m.access_origins_enabled_help()}</FieldDescription>
+              </div>
+            </Field>
             <Field>
               <FieldLabel htmlFor="access-origins">{m.access_domains()}</FieldLabel>
               <Textarea
                 id="access-origins"
-                disabled={status.overrides.includes("SERVER_ALLOWED_ORIGINS")}
+                disabled={Boolean(status.allowedOriginsOverride) || !originsEnabled}
                 value={origins}
                 onChange={(event) => setOrigins(event.target.value)}
                 placeholder="http://raceiq.example-tailnet.ts.net:3117"
               />
               <FieldDescription>{m.access_domains_help()}</FieldDescription>
             </Field>
+            <p className="text-sm">{m.access_origins_safety()}</p>
           </FieldGroup>
         </FieldSet>
         {!status.protected && (

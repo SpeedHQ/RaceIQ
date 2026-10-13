@@ -2497,5 +2497,11 @@
   "dash_lan_address": "Lokaal netwerkadres",
   "dash_hostname_label": "Aangepaste hostnaam (optioneel)",
   "dash_hostname_help": "Gebruik bijvoorbeeld een Tailscale-FQDN voor HUD-links en QR-codes. Laat leeg voor een lokaal IP-adres. Het weergaveapparaat moet de hostnaam kunnen bereiken.",
+  "access_origins_enabled": "Browserorigin-allowlist",
+  "access_origins_enabled_help": "Standaard uit. Schakel in om browsertoegang te beperken tot geselecteerde interfaces en de hieronder vermelde origins.",
+  "access_origins_managed": "Ingeschakeld door SERVER_ALLOWED_ORIGINS. Wijzig deze omgevingsvariabele en herstart RaceIQ.",
+  "access_origins_safety": "Netwerkwijzigingen vereisen een herstart van RaceIQ. Uitschakelen verwijdert opgeslagen origins niet. Same-originbeveiliging blijft actief.",
+  "dash_hostname_origin_settings": "Voeg deze exacte origin toe bij Instellingen → Toegang en beveiliging → browserdomeinen: {origin}. De hostnaam opslaan geeft geen toegang.",
+  "dash_hostname_origin_managed": "Voeg deze exacte origin toe aan SERVER_ALLOWED_ORIGINS: {origin}. De hostnaam opslaan geeft geen toegang.",
   "dash_hostname_invalid": "Voer alleen een hostnaam in, zonder http://, poort of pad."
 }

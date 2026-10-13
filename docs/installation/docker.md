@@ -18,6 +18,8 @@ docker run --detach --name raceiq --restart unless-stopped \
 
 Open <http://localhost:3117> and choose password protection or explicitly confirm unprotected access. To allow other devices afterward, recreate the container with the dashboard port published on the intended host address, retaining the same volume. Sign in using the password alone. Optional `--env-file .env` overrides are identified in Settings → Access & security.
 
+Browser-origin whitelisting is off by default and independent of password protection. Enable it in **Settings → Access & security**, or provide a nonempty `SERVER_ALLOWED_ORIGINS` through `--env-file .env`; that environment list applies even when the saved UI toggle is off. Environment origins replace the UI-managed list, so include every browser-facing origin you use, with its published port or public HTTPS domain. Recreate the container with the same volume after changing environment overrides. See [browser-origin whitelisting](network-access.md#browser-origin-whitelist).
+
 Do not add `--privileged`, `--user root`, or `sudo`. Named volume `raceiq-data` preserves database, settings, recordings, and other application state across container replacement.
 
 ## Telemetry

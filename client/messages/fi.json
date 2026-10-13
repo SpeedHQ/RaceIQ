@@ -2497,5 +2497,11 @@
   "dash_lan_address": "Paikallisverkon osoite",
   "dash_hostname_label": "Korvaava isäntänimi (valinnainen)",
   "dash_hostname_help": "Käytä esimerkiksi Tailscale-isäntänimeä HUD-linkeissä ja QR-koodeissa. Tyhjä kenttä käyttää paikallista IP-osoitetta. Katselulaitteen on voitava tavoittaa isäntänimi.",
+  "access_origins_enabled": "Selaimen alkuperälista",
+  "access_origins_enabled_help": "Oletuksena pois käytöstä. Ota käyttöön rajoittaaksesi selaimen käytön valittuihin liitäntöihin ja alla lueteltuihin alkuperiin.",
+  "access_origins_managed": "SERVER_ALLOWED_ORIGINS ottaa tämän käyttöön. Muuta listaa ympäristömuuttujassa ja käynnistä RaceIQ uudelleen.",
+  "access_origins_safety": "Verkkomuutokset vaativat RaceIQ:n uudelleenkäynnistyksen. Poistaminen käytöstä ei poista tallennettuja alkuperiä. Saman alkuperän suojaukset jatkuvat.",
+  "dash_hostname_origin_settings": "Lisää tämä tarkka alkuperä kohtaan Asetukset → Käyttöoikeudet ja suojaus → selaimen verkkotunnukset: {origin}. Isäntänimen tallentaminen ei anna käyttöoikeutta.",
+  "dash_hostname_origin_managed": "Lisää tämä tarkka alkuperä muuttujaan SERVER_ALLOWED_ORIGINS: {origin}. Isäntänimen tallentaminen ei anna käyttöoikeutta.",
   "dash_hostname_invalid": "Anna vain isäntänimi ilman http://-alkua, porttia tai polkua."
 }

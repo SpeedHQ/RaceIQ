@@ -9,8 +9,15 @@ export const PasswordSchema = z.string().min(8).max(1024);
 export const NetworkSchema = z.object({
   hosts: z.array(z.string()).min(1).max(32),
   origins: z.array(z.string()).max(32),
+  originsEnabled: z.boolean().default(false),
 });
-export type DashboardNetwork = z.infer<typeof NetworkSchema>;
+export type DashboardNetwork = z.output<typeof NetworkSchema>;
+export type DashboardNetworkInput = z.input<typeof NetworkSchema>;
+export interface DashboardInterface {
+  name: string;
+  address: string;
+  tailnet: boolean;
+}
 type AccessRow = { mode: "pending" | "enabled" | "disabled"; password_hash: string | null; revision: number; network_json: string | null; upgrade: number | null };
 type Session = { csrf: string; generation: string; expires_at: number };
 const SESSION_SECONDS = 30 * 24 * 60 * 60;
@@ -26,7 +33,7 @@ export class AccessError extends Error {
   }
 }
 
-export function availableInterfaces() {
+export function availableInterfaces(): DashboardInterface[] {
   return Object.entries(networkInterfaces()).flatMap(([name, values]) =>
     (values ?? [])
       .filter((value) => value.family === "IPv4" && !value.internal)
@@ -34,7 +41,7 @@ export function availableInterfaces() {
   );
 }
 
-export function validateNetwork(input: DashboardNetwork): DashboardNetwork {
+export function validateNetwork(input: DashboardNetworkInput): DashboardNetwork {
   const network = NetworkSchema.parse(input);
   const available = new Set(["127.0.0.1", "::1", ...availableInterfaces().map((value) => value.address)]);
   for (const host of network.hosts) {
@@ -49,7 +56,7 @@ export function validateNetwork(input: DashboardNetwork): DashboardNetwork {
     }
     if (!["http:", "https:"].includes(url.protocol) || origin !== url.origin || url.username || url.password || url.hostname.includes("*")) throw new AccessError("invalid_network");
   }
-  return { hosts: [...new Set(network.hosts)], origins: [...new Set(network.origins)] };
+  return { hosts: [...new Set(network.hosts)], origins: [...new Set(network.origins)], originsEnabled: network.originsEnabled };
 }
 
 /** Uses the application's migrated DB; never creates or owns a connection. */
@@ -113,7 +120,7 @@ export class DashboardAuth {
     if (row.network_json === null) {
       await this.database.execute({
         sql: "UPDATE dashboard_access SET network_json = ?, upgrade = ? WHERE id = 1 AND network_json IS NULL",
-        args: [JSON.stringify({ hosts: [upgrade ? "0.0.0.0" : "127.0.0.1"], origins: [] }), Number(upgrade)],
+        args: [JSON.stringify({ hosts: [upgrade ? "0.0.0.0" : "127.0.0.1"], origins: [], originsEnabled: false }), Number(upgrade)],
       });
     }
     if (this.envPassword && (await this.read()).mode === "pending") {
@@ -133,7 +140,7 @@ export class DashboardAuth {
     }
   }
   async getNetwork(): Promise<DashboardNetwork> {
-    return JSON.parse((await this.read()).network_json ?? '{"hosts":["127.0.0.1"],"origins":[]}');
+    return NetworkSchema.parse(JSON.parse((await this.read()).network_json ?? '{"hosts":["127.0.0.1"],"origins":[]}'));
   }
   async isPending(): Promise<boolean> {
     return (await this.read()).mode === "pending" && !this.envPassword;
@@ -260,11 +267,13 @@ export class DashboardAuth {
       throw error;
     }
   }
-  async saveNetwork(network: DashboardNetwork) {
+  async saveNetwork(input: DashboardNetworkInput) {
     const existing = await this.getNetwork();
+    const network = NetworkSchema.parse(input);
     const sameHosts = JSON.stringify(existing.hosts) === JSON.stringify(network.hosts),
-      sameOrigins = JSON.stringify(existing.origins) === JSON.stringify(network.origins);
-    if ((this.env.SERVER_HOST && !sameHosts) || (this.env.SERVER_ALLOWED_ORIGINS && !sameOrigins)) throw new AccessError("environment_override", 409);
+      sameOrigins = JSON.stringify(existing.origins) === JSON.stringify(network.origins),
+      sameOriginsEnabled = existing.originsEnabled === network.originsEnabled;
+    if ((this.env.SERVER_HOST && !sameHosts) || (this.env.SERVER_ALLOWED_ORIGINS && (!sameOrigins || !sameOriginsEnabled))) throw new AccessError("environment_override", 409);
     const validated = validateNetwork({ ...network, hosts: sameHosts ? ["127.0.0.1"] : network.hosts });
     await this.database.execute({ sql: "UPDATE dashboard_access SET network_json = ? WHERE id = 1", args: [JSON.stringify({ ...validated, hosts: sameHosts ? existing.hosts : validated.hosts })] });
   }

@@ -21,6 +21,8 @@
 - Show Nordschleife track edges along the supported portion of AC Evo Tourist routes without closing the Start/Finish gap.
 
 ### Fixes
+- Make browser-origin whitelisting opt-in and explain how to allow external HUD hostnames when it is enabled.
+- Use active dashboard-sharing addresses and the dashboard port for HUD links and QR codes, without offering inactive interfaces.
 - Preserve the original welcome and setup wizard, configure dashboard access within it, and show sign-in only after password protection is configured.
 - Match protected-dashboard sign-in screen to RaceIQ's dark telemetry workspace styling.
 - Refuse to reopen dashboard setup when a previously configured database is lost or replaced.

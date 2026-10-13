@@ -2497,5 +2497,11 @@
   "dash_lan_address": "Adres sieci lokalnej",
   "dash_hostname_label": "Własna nazwa hosta (opcjonalnie)",
   "dash_hostname_help": "Użyj nazwy hosta, np. FQDN Tailscale, w linkach HUD i kodach QR. Pozostaw puste, aby użyć lokalnego IP. Urządzenie musi mieć dostęp do tego hosta.",
+  "access_origins_enabled": "Lista dozwolonych źródeł przeglądarki",
+  "access_origins_enabled_help": "Domyślnie wyłączona. Włącz, aby ograniczyć dostęp przeglądarki do wybranych interfejsów i źródeł wymienionych poniżej.",
+  "access_origins_managed": "Włączona przez SERVER_ALLOWED_ORIGINS. Zmień tę zmienną środowiskową i uruchom ponownie RaceIQ.",
+  "access_origins_safety": "Zmiany sieci wymagają ponownego uruchomienia RaceIQ. Wyłączenie nie usuwa zapisanych źródeł. Ochrona same-origin nadal działa.",
+  "dash_hostname_origin_settings": "Dodaj to dokładne źródło w Ustawienia → Dostęp i bezpieczeństwo → domeny przeglądarki: {origin}. Zapisanie nazwy hosta nie autoryzuje dostępu.",
+  "dash_hostname_origin_managed": "Dodaj to dokładne źródło do SERVER_ALLOWED_ORIGINS: {origin}. Zapisanie nazwy hosta nie autoryzuje dostępu.",
   "dash_hostname_invalid": "Wpisz tylko nazwę hosta, bez http://, portu ani ścieżki."
 }

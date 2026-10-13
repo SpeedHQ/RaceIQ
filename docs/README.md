@@ -10,7 +10,7 @@ Documentation is organized by audience. Start with a user guide; use contributor
 
 - [Windows](installation/windows.md) — install the desktop application and configure native or UDP telemetry.
 - [Docker on Linux](installation/docker.md) — run the published non-root container with persistent storage.
-- [Dashboard network access](installation/network-access.md) — configure dashboard passwords, recover a forgotten password from the terminal, and manage trusted browser origins.
+- [Dashboard access and security](installation/network-access.md) — choose password protection, share dashboard/HUD links, manage the opt-in browser-origin whitelist and environment overrides, authenticate API clients, and recover forgotten passwords.
 
 ## Contributors
 

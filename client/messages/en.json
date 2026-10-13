@@ -2497,5 +2497,11 @@
   "dash_lan_address": "Local network address",
   "dash_hostname_label": "Hostname override (optional)",
   "dash_hostname_help": "Use a hostname such as a Tailscale FQDN for HUD links and QR codes. Leave blank to use a local IP address. The viewing device must be able to reach this hostname.",
+  "access_origins_enabled": "Browser-origin whitelist",
+  "access_origins_enabled_help": "Off by default. Enable to restrict browser access to selected interfaces and the origins listed below.",
+  "access_origins_managed": "Enabled by SERVER_ALLOWED_ORIGINS. This environment setting controls the whitelist; change it there and restart RaceIQ.",
+  "access_origins_safety": "Saving network access requires a RaceIQ restart. Turning this off does not erase saved origins. Same-origin protections continue.",
+  "dash_hostname_origin_settings": "Include this exact origin in Settings → Access & security → browser domains: {origin}. Saving this hostname does not authorize access.",
+  "dash_hostname_origin_managed": "Include this exact origin in SERVER_ALLOWED_ORIGINS: {origin}. Saving this hostname does not authorize access.",
   "dash_hostname_invalid": "Enter a hostname only, without http://, a port or a path."
 }

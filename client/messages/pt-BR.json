@@ -2497,5 +2497,11 @@
   "dash_lan_address": "Endereço de rede local",
   "dash_hostname_label": "Nome de host personalizado (opcional)",
   "dash_hostname_help": "Use um nome de host, como um FQDN do Tailscale, nos links HUD e códigos QR. Deixe vazio para usar um IP local. O dispositivo deve conseguir acessar esse host.",
+  "access_origins_enabled": "Lista de permissões de origens do navegador",
+  "access_origins_enabled_help": "Desativada por padrão. Ative para restringir o acesso do navegador às interfaces selecionadas e às origens listadas abaixo.",
+  "access_origins_managed": "Ativada por SERVER_ALLOWED_ORIGINS. Altere essa variável de ambiente e reinicie o RaceIQ.",
+  "access_origins_safety": "Alterações de rede exigem reiniciar o RaceIQ. Desativar não apaga as origens salvas. As proteções de mesma origem continuam.",
+  "dash_hostname_origin_settings": "Inclua esta origem exata em Configurações → Acesso e segurança → domínios do navegador: {origin}. Salvar o nome do host não autoriza o acesso.",
+  "dash_hostname_origin_managed": "Inclua esta origem exata em SERVER_ALLOWED_ORIGINS: {origin}. Salvar o nome do host não autoriza o acesso.",
   "dash_hostname_invalid": "Digite apenas o nome de host, sem http://, porta ou caminho."
 }

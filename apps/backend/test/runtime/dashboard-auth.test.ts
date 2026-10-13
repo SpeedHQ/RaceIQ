@@ -146,7 +146,7 @@ describe("persistent dashboard authentication", () => {
     try {
       await f.auth.initialize(true);
       await f.auth.setup("abcdefgh", false);
-      await f.db.execute({ sql: "UPDATE dashboard_access SET network_json = ? WHERE id = 1", args: [JSON.stringify({ hosts: ["0.0.0.0"], origins: ["http://raceiq.tailnet.ts.net:3117"] })] });
+      await f.db.execute({ sql: "UPDATE dashboard_access SET network_json = ? WHERE id = 1", args: [JSON.stringify({ hosts: ["0.0.0.0"], origins: ["http://raceiq.tailnet.ts.net:3117"], originsEnabled: true })] });
       const policy = await createHttpAccess({ NODE_ENV: "production" }, f.auth);
       const session = await f.auth.login("abcdefgh", request());
       const cookie = session.cookie.split(";")[0];
@@ -171,7 +171,7 @@ describe("persistent dashboard authentication", () => {
       await f.auth.initialize(true);
       await f.auth.setup("abcdefgh", false);
       // Use a documentation-only IP without changing real network bindings.
-      await f.db.execute({ sql: "UPDATE dashboard_access SET network_json = ? WHERE id = 1", args: [JSON.stringify({ hosts: ["127.0.0.1", "192.0.2.15"], origins: [] })] });
+      await f.db.execute({ sql: "UPDATE dashboard_access SET network_json = ? WHERE id = 1", args: [JSON.stringify({ hosts: ["127.0.0.1", "192.0.2.15"], origins: [], originsEnabled: true })] });
       const policy = await createHttpAccess({ NODE_ENV: "development" }, f.auth);
       const session = await f.auth.login("abcdefgh", request());
       for (const path of ["/api/laps", "/ws"]) {
@@ -426,6 +426,51 @@ describe("persistent dashboard authentication", () => {
     }
   });
 
+  test("network origins remain inactive until explicitly enabled and persist across toggles", async () => {
+    const f = await fixture();
+    try {
+      await f.auth.initialize(false);
+      await f.auth.setup(null, true);
+      await f.auth.saveNetwork({ hosts: ["127.0.0.1"], origins: ["https://raceiq.example.com"] });
+      expect(await f.auth.getNetwork()).toEqual({ hosts: ["127.0.0.1"], origins: ["https://raceiq.example.com"], originsEnabled: false });
+      let access = await createHttpAccess({ NODE_ENV: "production" }, f.auth);
+      expect(await access.authorize(new Request("http://localhost:3117/", { headers: { origin: "https://raceiq.example.com" } }))).toMatchObject({ status: 403 });
+      expect(await access.authorize(new Request("https://raceiq.example.com/", { headers: { origin: "https://raceiq.example.com" } }))).toBeUndefined();
+      expect(await access.authorize(request("/", { origin: "https://attacker.example" }))).toMatchObject({ status: 403 });
+      await f.auth.saveNetwork({ hosts: ["127.0.0.1"], origins: ["https://raceiq.example.com"], originsEnabled: true });
+      access = await createHttpAccess({ NODE_ENV: "production" }, f.auth);
+      expect(await access.authorize(request("/", { origin: "https://raceiq.example.com" }))).toBeUndefined();
+      expect(await access.authorize(request("/", { origin: "https://attacker.example" }))).toMatchObject({ status: 403 });
+      await f.auth.saveNetwork({ hosts: ["127.0.0.1"], origins: ["https://raceiq.example.com"], originsEnabled: false });
+      expect((await f.auth.getNetwork()).origins).toEqual(["https://raceiq.example.com"]);
+      expect((await f.auth.getNetwork()).originsEnabled).toBe(false);
+    } finally {
+      await f.close();
+    }
+  });
+
+  test("legacy stored network defaults originsEnabled to false; environment allowlist cannot be disabled", async () => {
+    const f = await fixture();
+    try {
+      await f.auth.initialize(false);
+      await f.db.execute({ sql: "UPDATE dashboard_access SET network_json = ? WHERE id = 1", args: ['{"hosts":["127.0.0.1"],"origins":["https://raceiq.example.com"]}'] });
+      expect((await f.auth.getNetwork()).originsEnabled).toBe(false);
+      const environment = { NODE_ENV: "production", SERVER_ALLOWED_ORIGINS: "https://trusted.example" };
+      const disabledOverride = await DashboardAuth.create(f.db, f.path, environment);
+      const disabledOverrideAccess = await createHttpAccess(environment, disabledOverride);
+      expect(await disabledOverrideAccess.authorize(new Request("https://trusted.example/", { headers: { origin: "https://trusted.example" } }))).toBeUndefined();
+      expect(await disabledOverrideAccess.authorize(new Request("https://raceiq.example.com/", { headers: { origin: "https://raceiq.example.com" } }))).toMatchObject({ status: 403 });
+      await f.db.execute({ sql: "UPDATE dashboard_access SET network_json = ? WHERE id = 1", args: ['{"hosts":["127.0.0.1"],"origins":["https://trusted.example"],"originsEnabled":true}'] });
+      const overridden = await DashboardAuth.create(f.db, f.path, { SERVER_ALLOWED_ORIGINS: "https://trusted.example" });
+      await expect(overridden.saveNetwork({ hosts: ["127.0.0.1"], origins: ["https://trusted.example"], originsEnabled: false })).rejects.toMatchObject({ code: "environment_override" });
+      const access = await createHttpAccess({ NODE_ENV: "production", SERVER_ALLOWED_ORIGINS: "https://trusted.example" }, overridden);
+      expect(await access.authorize(new Request("https://trusted.example/", { headers: { origin: "https://trusted.example" } }))).toBeUndefined();
+      expect(await access.authorize(request("/", { origin: "https://raceiq.example.com" }))).toMatchObject({ status: 403 });
+    } finally {
+      await f.close();
+    }
+  });
+
   test("network choices do not change auth or include unselected interfaces", async () => {
     const f = await fixture();
     try {
@@ -433,7 +478,7 @@ describe("persistent dashboard authentication", () => {
       await f.auth.setup(null, true);
       expect(() => validateNetwork({ hosts: ["0.0.0.0"], origins: [] })).toThrow();
       expect(() => validateNetwork({ hosts: ["127.0.0.1"], origins: ["https://example.com/path"] })).toThrow();
-      await f.auth.saveNetwork({ hosts: ["127.0.0.1"], origins: ["https://raceiq.example.com", "http://raceiq.tailnet.ts.net:3117"] });
+      await f.auth.saveNetwork({ hosts: ["127.0.0.1"], origins: ["https://raceiq.example.com", "http://raceiq.tailnet.ts.net:3117"], originsEnabled: true });
       expect(await f.auth.isProtected()).toBe(false);
       expect((await f.auth.getNetwork()).hosts).toEqual(["127.0.0.1"]);
       const access = await createHttpAccess({ NODE_ENV: "production" }, f.auth);
@@ -444,7 +489,6 @@ describe("persistent dashboard authentication", () => {
       await f.close();
     }
   });
-
   test("concurrent logins reserve verification capacity before reading credentials and release it afterward", async () => {
     const f = await fixture();
     try {

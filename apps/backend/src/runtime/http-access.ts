@@ -43,9 +43,9 @@ export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, aut
   }
   const configuredOrigins =
     env.SERVER_ALLOWED_ORIGINS ||
-    (auth && ((!hosts.includes("0.0.0.0") && !hosts.includes("::")) || (network?.origins.length ?? 0) > 0)
+    (auth && network?.originsEnabled
       ? [
-          ...(network?.origins ?? []),
+          ...(network.origins ?? []),
           ...[...listenerHosts].map((host) => `http://${host.includes(":") ? `[${host}]` : host}:${port}`),
           ...(listenerHosts.has("127.0.0.1") || listenerHosts.has("::1") ? [`http://localhost:${port}`] : []),
         ].join(",")

@@ -5,7 +5,7 @@ import { m } from "@/paraglide/messages";
 import { Button } from "@/components/ui/button";
 import { FieldSet, FieldLegend, FieldDescription } from "@/components/ui/field";
 import type { AuthStatus } from "@/lib/dashboard-auth";
-import { dashboardPort } from "./dashboard-port";
+import { dashboardShareTargets } from "./dashboard-share";
 
 async function copyLink(url: string) {
   try {
@@ -37,47 +37,44 @@ async function copyLink(url: string) {
 export function DashboardShareLinks({ status }: { status: AuthStatus }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const port = dashboardPort(status.port);
-  const urls = [...new Set(status.interfaces
-    .filter(({ address, tailnet }) => !tailnet && (
-      status.activeHosts.includes(address)
-      || status.activeHosts.includes(address.includes(":") ? "::" : "0.0.0.0")
-    ))
-    .map(({ address }) => `http://${address.includes(":") ? `[${address}]` : address}:${port}/`))];
+  const targets = dashboardShareTargets(status);
 
-  if (urls.length === 0) return null;
+  if (targets.length === 0) return null;
   return (
     <FieldSet>
       <FieldLegend>{m.access_share_title()}</FieldLegend>
       <FieldDescription>{status.protected ? m.access_share_protected() : m.access_share_unprotected()}</FieldDescription>
       <ul className="flex flex-col gap-4">
-        {urls.map((url) => (
-          <li key={url} className="flex flex-wrap items-center gap-4">
-            <QRCodeSVG value={url} size={144} marginSize={4} role="img" aria-label={m.access_qr_label({ url })} />
-            <div className="flex min-w-0 flex-col items-start gap-2">
-              <a className="break-all" href={url} target="_blank" rel="noreferrer">{url}</a>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                aria-label={m.access_copy_link_label({ url })}
-                onClick={async () => {
-                  setMessage("");
-                  setError("");
-                  try {
-                    await copyLink(url);
-                    setMessage(m.access_link_copied());
-                  } catch {
-                    setError(m.access_copy_failed());
-                  }
-                }}
-              >
-                <Copy data-icon="inline-start" />
-                {m.access_copy_link()}
-              </Button>
-            </div>
-          </li>
-        ))}
+        {targets.map(({ origin }) => {
+          const url = `${origin}/`;
+          return (
+            <li key={origin} className="flex flex-wrap items-center gap-4">
+              <QRCodeSVG value={url} size={144} marginSize={4} role="img" aria-label={m.access_qr_label({ url })} />
+              <div className="flex min-w-0 flex-col items-start gap-2">
+                <a className="break-all" href={url} target="_blank" rel="noreferrer">{url}</a>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  aria-label={m.access_copy_link_label({ url })}
+                  onClick={async () => {
+                    setMessage("");
+                    setError("");
+                    try {
+                      await copyLink(url);
+                      setMessage(m.access_link_copied());
+                    } catch {
+                      setError(m.access_copy_failed());
+                    }
+                  }}
+                >
+                  <Copy data-icon="inline-start" />
+                  {m.access_copy_link()}
+                </Button>
+              </div>
+            </li>
+          );
+        })}
       </ul>
       {message && <p role="status">{message}</p>}
       {error && <p role="alert">{error}</p>}

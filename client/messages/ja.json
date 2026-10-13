@@ -2498,5 +2498,11 @@
   "dash_lan_address": "ローカルネットワークアドレス",
   "dash_hostname_label": "ホスト名の上書き（任意）",
   "dash_hostname_help": "HUDリンクとQRコードにTailscaleのFQDNなどのホスト名を使用します。空欄の場合はローカルIPアドレスを使用します。表示端末からこのホスト名に接続できる必要があります。",
+  "access_origins_enabled": "ブラウザーオリジン許可リスト",
+  "access_origins_enabled_help": "既定ではオフです。有効にすると、選択したインターフェースと以下に記載したオリジンにブラウザーアクセスを制限します。",
+  "access_origins_managed": "SERVER_ALLOWED_ORIGINS により有効です。この環境変数を変更して RaceIQ を再起動してください。",
+  "access_origins_safety": "ネットワーク設定の変更には RaceIQ の再起動が必要です。オフにしても保存済みオリジンは削除されません。同一オリジン保護は継続します。",
+  "dash_hostname_origin_settings": "この正確なオリジンを「設定 → アクセスとセキュリティ → ブラウザー ドメイン」に追加してください: {origin}。ホスト名を保存してもアクセスは許可されません。",
+  "dash_hostname_origin_managed": "この正確なオリジンを SERVER_ALLOWED_ORIGINS に追加してください: {origin}。ホスト名を保存してもアクセスは許可されません。",
   "dash_hostname_invalid": "http://、ポート、パスを含めず、ホスト名のみ入力してください。"
 }

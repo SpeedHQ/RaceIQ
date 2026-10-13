@@ -2521,5 +2521,11 @@
   "dash_lan_address": "Lokale Netzwerkadresse",
   "dash_hostname_label": "Hostname überschreiben (optional)",
   "dash_hostname_help": "Hostname, etwa einen Tailscale-FQDN, für HUD-Links und QR-Codes verwenden. Leer lassen für eine lokale IP-Adresse. Das Anzeigegerät muss den Hostnamen erreichen können.",
+  "access_origins_enabled": "Browser-Ursprungs-Allowlist",
+  "access_origins_enabled_help": "Standardmäßig deaktiviert. Aktivieren, um den Browserzugriff auf ausgewählte Schnittstellen und die unten aufgeführten Ursprünge zu beschränken.",
+  "access_origins_managed": "Durch SERVER_ALLOWED_ORIGINS aktiviert. Diese Umgebungsvariable steuert die Allowlist; ändere sie dort und starte RaceIQ neu.",
+  "access_origins_safety": "Netzwerkänderungen erfordern einen Neustart von RaceIQ. Deaktivieren löscht gespeicherte Ursprünge nicht. Same-Origin-Schutz bleibt aktiv.",
+  "dash_hostname_origin_settings": "Füge diesen exakten Ursprung unter Einstellungen → Zugriff & Sicherheit → Browser-Domains hinzu: {origin}. Das Speichern des Hostnamens gewährt keinen Zugriff.",
+  "dash_hostname_origin_managed": "Füge diesen exakten Ursprung zu SERVER_ALLOWED_ORIGINS hinzu: {origin}. Das Speichern des Hostnamens gewährt keinen Zugriff.",
   "dash_hostname_invalid": "Nur einen Hostnamen ohne http://, Port oder Pfad eingeben."
 }

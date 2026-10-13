@@ -77,6 +77,14 @@ For Forza and F1, configure the game's telemetry settings to send UDP data to `1
 
 > **Already forwarding telemetry to a wheel base or other app?** Use [UDP Forwarder](https://github.com/SpeedHQ/udp-forwarder) to send telemetry to multiple destinations at once.
 
+### Dashboard access and security
+
+Choose optional password protection during setup; protected dashboards use a password-only sign-in and browser sessions. New desktop installs listen only on localhost. Enable individual LAN or Tailscale interfaces in **Settings → Access & security**, save, and restart before sharing links or QR codes.
+
+Browser-origin whitelisting is **off by default**. Turn it on explicitly in Access & security, or supply a nonempty `SERVER_ALLOWED_ORIGINS` in `.env`; the environment list applies even when the saved toggle is off. When using the whitelist, include the exact external origin for any MagicDNS, tunnel, or HUD hostname.
+
+See [dashboard access and security](docs/installation/network-access.md) for passwords, session-authenticated API clients, external access, environment overrides, and forgotten-password recovery.
+
 ## Updates
 
 RaceIQ checks for new releases automatically and notifies you when one is available. You can also force a check at any time from **Settings → About → Check for updates**.

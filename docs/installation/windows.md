@@ -10,7 +10,9 @@ Windows is recommended for full RaceIQ support, including live shared-memory tel
 
 Open dashboard by clicking RaceIQ tray icon, or visit <http://localhost:3117> in browser. Reopen it anytime through tray icon.
 
-Existing local, LAN, and Tailnet dashboard access continues without new settings. See [network access](network-access.md) for optional password protection and trusted browser origins.
+New installations listen only on localhost and ask you to choose password protection during setup. Protected dashboards use password-only sign-in; no username is required. Select LAN or Tailscale interfaces in **Settings → Access & security**, save, and restart before using another device. Existing all-interface listeners are preserved during upgrades until you change them.
+
+Browser-origin whitelisting is off by default. Enable it in Access & security, or supply a nonempty `SERVER_ALLOWED_ORIGINS` environment setting. If enabled, include the exact external origin for MagicDNS, tunnel, or HUD hostname links. See [dashboard access and security](network-access.md) for configuration and forgotten-password recovery.
 
 ## Telemetry
 
