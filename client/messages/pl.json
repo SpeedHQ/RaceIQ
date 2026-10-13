@@ -2459,7 +2459,7 @@
   "streaming_f1_semantics_note": "Klasyfikacja i sąsiednie samochody są dostępne tylko w F1 25. Sąsiedztwo oznacza pozycje w kolejności wyścigu, nie odległość na torze; różnice są względem lidera.",
   "streaming_driving_title": "Jazda",
   "streaming_inputs_title": "Pedały",
-  "streaming_inputs_description": "Dziesięć sekund historii hamulca, gazu i sprzęgła z bieżącymi procentami. Niedostępne dane są oznaczone —.",
+  "streaming_inputs_description": "Dziesięć sekund historii hamulca i gazu z bieżącymi słupkami hamulca i gazu po prawej stronie. Niedostępne dane są oznaczone —.",
   "streaming_clutch": "Sprzęgło",
   "streaming_driving_description": "Prędkość, bieg, obroty oraz dostępne wejścia gazu i hamulca.",
   "streaming_timing_title": "Czas",

@@ -7,7 +7,7 @@
 
 - Find streaming overlay widgets in the Streaming tab on the Portable page, alongside portable dashboards.
 - Add a car damage streaming widget with a color-coded car display and live component readings for F1 25, ACC, and AC Evo, plus a copyable OBS browser-source URL.
-- Add an Inputs streaming widget with a ten-second brake, throttle, and clutch graph, live percentages, and a copyable 640 × 260 OBS browser-source URL. Unavailable inputs remain explicitly missing.
+- Add an Inputs streaming widget with a ten-second brake and throttle graph, vertical brake and throttle bars on the right, and a copyable 640 × 260 OBS browser-source URL. Unavailable inputs remain explicitly missing.
 - Allow a saved hostname, including a Tailscale FQDN, for remote HUD links and QR codes.
 - Refresh the dashboard with cleaner session and favourite widgets, clean-rate and podium trends, and seven days of activity by default.
 - Export complete chat history as JSON for developer debugging, including retained chat generations, stored thinking, tool calls and results, and system prompts.

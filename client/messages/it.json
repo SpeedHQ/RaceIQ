@@ -2459,7 +2459,7 @@
   "streaming_f1_semantics_note": "Classifica e auto vicine sono disponibili solo in F1 25. Vicine indica posizioni di gara adiacenti, non distanza in pista; i distacchi sono dal leader.",
   "streaming_driving_title": "Guida",
   "streaming_inputs_title": "Pedali",
-  "streaming_inputs_description": "Dieci secondi di cronologia di freno, acceleratore e frizione con percentuali in tempo reale. I dati non disponibili mostrano —.",
+  "streaming_inputs_description": "Dieci secondi di cronologia di freno e acceleratore con barre di freno e acceleratore in tempo reale a destra. I dati non disponibili mostrano —.",
   "streaming_clutch": "Frizione",
   "streaming_driving_description": "Velocità, marcia, giri motore e input disponibili di acceleratore/freno.",
   "streaming_timing_title": "Cronometraggio",

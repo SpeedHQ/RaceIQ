@@ -2460,7 +2460,7 @@
   "streaming_driving_title": "Driving",
   "streaming_driving_description": "Speed, gear, RPM and available throttle/brake inputs.",
   "streaming_inputs_title": "Inputs",
-  "streaming_inputs_description": "Ten seconds of brake, throttle and clutch history with live percentages. Unavailable inputs show —.",
+  "streaming_inputs_description": "Ten seconds of brake and throttle history with live brake and throttle bars on the right. Unavailable inputs show —.",
   "streaming_clutch": "Clutch",
   "streaming_timing_title": "Timing",
   "streaming_timing_description": "Current lap, lap time, race position and delta to best.",

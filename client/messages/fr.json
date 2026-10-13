@@ -2459,7 +2459,7 @@
   "streaming_f1_semantics_note": "Le classement et les voitures proches sont disponibles uniquement dans F1 25. Proches signifie positions de course adjacentes, pas proximité sur la piste ; les écarts sont calculés par rapport au leader.",
   "streaming_driving_title": "Conduite",
   "streaming_inputs_title": "Pédales",
-  "streaming_inputs_description": "Dix secondes d’historique du frein, de l’accélérateur et de l’embrayage avec pourcentages en direct. Les données indisponibles affichent —.",
+  "streaming_inputs_description": "Dix secondes d’historique du frein et de l’accélérateur avec barres de frein et d’accélérateur en direct à droite. Les données indisponibles affichent —.",
   "streaming_clutch": "Embrayage",
   "streaming_driving_description": "Vitesse, rapport, régime et entrées d’accélérateur/frein disponibles.",
   "streaming_timing_title": "Chronométrage",

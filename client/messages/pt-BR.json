@@ -2459,7 +2459,7 @@
   "streaming_f1_semantics_note": "Classificação e carros próximos estão disponíveis apenas no F1 25. Próximos significa posições adjacentes na corrida, não distância na pista; diferenças são em relação ao líder.",
   "streaming_driving_title": "Pilotagem",
   "streaming_inputs_title": "Pedais",
-  "streaming_inputs_description": "Dez segundos de histórico de freio, acelerador e embreagem com porcentagens ao vivo. Dados indisponíveis mostram —.",
+  "streaming_inputs_description": "Dez segundos de histórico de freio e acelerador com barras de freio e acelerador ao vivo à direita. Dados indisponíveis mostram —.",
   "streaming_clutch": "Embreagem",
   "streaming_driving_description": "Velocidade, marcha, RPM e entradas disponíveis de acelerador/freio.",
   "streaming_timing_title": "Cronometragem",

@@ -2459,7 +2459,7 @@
   "streaming_f1_semantics_note": "La clasificación y los coches cercanos solo están disponibles en F1 25. Cercanos significa posiciones adyacentes en carrera, no proximidad en pista; las diferencias son respecto al líder.",
   "streaming_driving_title": "Conducción",
   "streaming_inputs_title": "Pedales",
-  "streaming_inputs_description": "Diez segundos de historial de freno, acelerador y embrague con porcentajes en directo. Los datos no disponibles se muestran como —.",
+  "streaming_inputs_description": "Diez segundos de historial de freno y acelerador con barras de freno y acelerador en directo a la derecha. Los datos no disponibles se muestran como —.",
   "streaming_clutch": "Embrague",
   "streaming_driving_description": "Velocidad, marcha, RPM y entradas disponibles de acelerador/freno.",
   "streaming_timing_title": "Cronometraje",

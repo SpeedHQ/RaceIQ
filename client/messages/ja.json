@@ -2460,7 +2460,7 @@
   "streaming_f1_semantics_note": "順位表と近くの車はF1 25のみ対応します。近くとはコース上の距離ではなく、レース順位の前後を指します。差はリーダー基準です。",
   "streaming_driving_title": "走行",
   "streaming_inputs_title": "ペダル入力",
-  "streaming_inputs_description": "ブレーキ、アクセル、クラッチの10秒間の履歴とリアルタイムのパーセント表示。取得できない入力は — と表示します。",
+  "streaming_inputs_description": "ブレーキとアクセルの10秒間の履歴と、右側にブレーキとアクセルのリアルタイムバーを表示。取得できない入力は — と表示します。",
   "streaming_clutch": "クラッチ",
   "streaming_driving_description": "速度、ギア、RPM、利用可能なアクセル／ブレーキ入力。",
   "streaming_timing_title": "タイミング",

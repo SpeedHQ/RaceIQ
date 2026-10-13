@@ -2459,7 +2459,7 @@
   "streaming_f1_semantics_note": "Sijoitukset ja lähimmät autot ovat saatavilla vain F1 25:ssä. Läheisyys tarkoittaa vierekkäisiä kilpailusijoituksia, ei etäisyyttä radalla; erot ovat johtajaan.",
   "streaming_driving_title": "Ajaminen",
   "streaming_inputs_title": "Polkimet",
-  "streaming_inputs_description": "Kymmenen sekunnin jarru-, kaasu- ja kytkinhistoria sekä reaaliaikaiset prosentit. Puuttuvat tiedot näytetään merkillä —.",
+  "streaming_inputs_description": "Kymmenen sekunnin jarru- ja kaasuhistoria sekä reaaliaikaiset jarru- ja kaasupalkit oikealla. Puuttuvat tiedot näytetään merkillä —.",
   "streaming_clutch": "Kytkin",
   "streaming_driving_description": "Nopeus, vaihde, kierrosluku sekä kaasu- ja jarrutiedot.",
   "streaming_timing_title": "Ajanotto",

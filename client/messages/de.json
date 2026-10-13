@@ -2483,7 +2483,7 @@
   "streaming_f1_semantics_note": "Fahrerwertung und Nachbarfahrzeuge sind nur in F1 25 verfügbar. Nähe bedeutet benachbarte Rennpositionen, nicht Streckennähe; Abstände gelten zum Führenden.",
   "streaming_driving_title": "Fahren",
   "streaming_inputs_title": "Pedale",
-  "streaming_inputs_description": "Zehn Sekunden Brems-, Gas- und Kupplungsverlauf mit aktuellen Prozentwerten. Nicht verfügbare Werte erscheinen als —.",
+  "streaming_inputs_description": "Zehn Sekunden Brems- und Gasverlauf mit aktuellen Brems- und Gasbalken rechts. Nicht verfügbare Werte erscheinen als —.",
   "streaming_clutch": "Kupplung",
   "streaming_driving_description": "Geschwindigkeit, Gang, Drehzahl und verfügbare Gas-/Bremswerte.",
   "streaming_timing_title": "Zeiten",
