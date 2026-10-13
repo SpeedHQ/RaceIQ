@@ -8,7 +8,7 @@ import { useSettings } from "@/hooks/settings";
 import { type ChatStreamError, type ChatStreamStatus, readChatStream } from "@/lib/chat-stream";
 import { isAiAnalysisConfigured, launchAiFeature } from "@/lib/is-ai-configured";
 import { resolveCssColor } from "@/lib/rendering/css-values";
-import { client } from "@/lib/rpc";
+import { authenticatedFetch, client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { uiStore } from "@/stores/ui";
 import { LapAnalysisText } from "../ai-chat/LapAnalysisText";
@@ -105,7 +105,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       clearChat: () => {
         // Clear persisted chat only (keeps analysis), then remount ChatPanel
         // so it re-seeds from the now-empty thread.
-        fetch(`/api/laps/${lapId}/chat?keepAnalysis=true`, { method: "DELETE" })
+        authenticatedFetch(`/api/laps/${lapId}/chat?keepAnalysis=true`, { method: "DELETE" })
           .catch(() => {})
           .finally(() => setChatRemountKey((k) => k + 1));
       },
@@ -116,7 +116,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         setHasTune(false);
         setAnalysisOpen(false);
         onHighlightsChange?.([]);
-        void fetch(`/api/laps/${lapId}/analyse`, { method: "DELETE" })
+        void authenticatedFetch(`/api/laps/${lapId}/analyse`, { method: "DELETE" })
           .then((res) => {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
           })
@@ -130,7 +130,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         setError(null);
         setHasTune(false);
         onHighlightsChange?.([]);
-        fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" })
+        authenticatedFetch(`/api/laps/${lapId}/chat`, { method: "DELETE" })
           .catch(() => {})
           .finally(() => setChatRemountKey((k) => k + 1));
       },
@@ -150,7 +150,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       setAnalyseStatus(null);
       setAnalyseTool(null);
       try {
-        const res = await fetch(`/api/laps/${lapId}/analyse${regenerate ? "?regenerate=true" : ""}`, { method: "POST" });
+        const res = await authenticatedFetch(`/api/laps/${lapId}/analyse${regenerate ? "?regenerate=true" : ""}`, { method: "POST" });
         if (!res.ok) {
           const data = (await res.json().catch(() => ({ error: m.aipanel_unknown_error() }))) as { error?: string };
           throw new Error(data.error || `HTTP ${res.status}`);
@@ -354,7 +354,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
   }, [carName, trackName]);
 
   const clearChat = useCallback(() => {
-    fetch(`/api/laps/${lapId}/chat?keepAnalysis=true`, { method: "DELETE" })
+    authenticatedFetch(`/api/laps/${lapId}/chat?keepAnalysis=true`, { method: "DELETE" })
       .catch(() => {})
       .finally(() => setChatRemountKey((k) => k + 1));
   }, [lapId]);
@@ -377,7 +377,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     if (analysisDeleting || loading || !window.confirm(m.aipanel_delete_confirmation())) return;
     setAnalysisDeleting(true);
     try {
-      const res = await fetch(`/api/laps/${lapId}/analyse`, { method: "DELETE" });
+      const res = await authenticatedFetch(`/api/laps/${lapId}/analyse`, { method: "DELETE" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setAnalysis(null);
       setUsage(null);

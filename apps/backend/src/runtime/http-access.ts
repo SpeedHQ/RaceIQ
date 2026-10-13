@@ -3,6 +3,18 @@ import { isIP } from "node:net";
 import { networkInterfaces } from "node:os";
 import type { DashboardAuth } from "./dashboard-auth";
 
+const sharedAuthorizationRequests = new WeakSet<Request>();
+const sharedAuthorizationCache = new WeakMap<Request, Promise<Response | undefined>>();
+
+export function beginRequestAuthorization(request: Request): void {
+  sharedAuthorizationRequests.add(request);
+}
+
+export function endRequestAuthorization(request: Request): void {
+  sharedAuthorizationRequests.delete(request);
+  sharedAuthorizationCache.delete(request);
+}
+
 export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, auth?: DashboardAuth) {
   const network = auth ? await auth.getNetwork() : undefined;
   // Preserve Bun's existing all-interface listener for upgrades, including Docker.
@@ -84,7 +96,7 @@ export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, aut
     }
   }
 
-  async function authorize(request: Request): Promise<Response | undefined> {
+  async function authorizeUncached(request: Request): Promise<Response | undefined> {
     const url = new URL(request.url);
     const host = request.headers.get("host");
     // Forwarded headers never bypass authentication or Host consistency.
@@ -125,7 +137,7 @@ export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, aut
       const status = await auth.status(request);
       if (status.pending) return Response.json({ error: "setup_required" }, { status: 423 });
       if (status.protected && !status.authenticated) return Response.json({ error: "login_required" }, { status: 401, headers: { "Cache-Control": "no-store" } });
-      if (status.csrf && !["GET", "HEAD", "OPTIONS"].includes(request.method) && !(await auth.csrfAllowed(request))) return new Response("Forbidden", { status: 403 });
+      if (status.csrf && !["GET", "HEAD", "OPTIONS"].includes(request.method) && request.headers.get("x-raceiq-csrf") !== status.csrf) return new Response("Forbidden", { status: 403 });
       return;
     }
     if (password) {
@@ -139,6 +151,14 @@ export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, aut
     }
   }
 
+  function authorize(request: Request): Promise<Response | undefined> {
+    if (!sharedAuthorizationRequests.has(request)) return authorizeUncached(request);
+    const cached = sharedAuthorizationCache.get(request);
+    if (cached) return cached;
+    const pending = authorizeUncached(request);
+    sharedAuthorizationCache.set(request, pending);
+    return pending;
+  }
   return { hostname, hosts, port, authorize, allowsOrigin, usesSessions: !!auth };
 }
 

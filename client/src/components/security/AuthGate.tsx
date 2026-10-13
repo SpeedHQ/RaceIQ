@@ -1,7 +1,8 @@
 import type { InferResponseType } from "hono/client";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { LockKeyhole } from "lucide-react";
 import { LOCALES } from "@raceiq/shared/platform/i18n/locales";
-import { client, setCsrfToken } from "@/lib/rpc";
+import { client, getSessionMutationGeneration, setCsrfToken } from "@/lib/rpc";
 import { applyLocale } from "@/lib/locale";
 import { queryClient } from "@/lib/queryClient";
 import { uiStore } from "@/stores/ui";
@@ -27,7 +28,7 @@ function Login({ refresh }: { refresh: () => Promise<void> }) {
   const [pending, setPending] = useState(false);
   return (
     <form
-      className="flex flex-col gap-4"
+      className="flex flex-col gap-5"
       onSubmit={async (event) => {
         event.preventDefault();
         setPending(true);
@@ -49,8 +50,9 @@ function Login({ refresh }: { refresh: () => Promise<void> }) {
       }}
     >
       <PasswordField id="login-password" label={m.access_password()} value={password} onChange={setPassword} autoComplete="current-password" />
-      {error && <p role="alert">{error}</p>}
-      <Button type="submit" disabled={pending || !password}>
+      {error && <p className="rounded-lg border border-status-danger/30 bg-status-danger/10 px-3 py-2 text-sm text-status-danger" role="alert">{error}</p>}
+      <Button type="submit" variant="app-primary" size="app-lg" className="w-full" disabled={pending || !password}>
+        <LockKeyhole aria-hidden="true" />
         {m.access_login()}
       </Button>
     </form>
@@ -64,12 +66,16 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState(getLocale());
   const [setupJustCompleted, setSetupJustCompleted] = useState(false);
   const [, updateLocale] = useState(0);
+  const refreshSequence = useRef(0);
   const localeInitialized = useRef(false);
   async function refresh() {
+    const sequence = ++refreshSequence.current;
+    const generation = getSessionMutationGeneration();
     try {
       const response = await client.api.auth.status.$get();
       if (!response.ok) throw new Error("request_failed");
       const next = await response.json();
+      if (sequence !== refreshSequence.current || generation !== getSessionMutationGeneration()) return;
       if (!next.authenticated) {
         queryClient.clear();
       }
@@ -82,6 +88,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
       }
       localeInitialized.current = true;
     } catch {
+      if (sequence !== refreshSequence.current || generation !== getSessionMutationGeneration()) return;
       setFailed(true);
       setStatus(null);
       setCsrfToken(null);
@@ -105,13 +112,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }, []);
   if (failed)
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p role="alert">{m.access_unavailable()}</p>
-        <Button
-          onClick={() => {
-            void refresh();
-          }}
-        >
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-app-bg p-4 text-app-text">
+        <p className="text-sm text-status-danger" role="alert">{m.access_unavailable()}</p>
+        <Button variant="app-outline" onClick={() => void refresh()}>
           {m.access_retry()}
         </Button>
       </div>
@@ -136,13 +139,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   if (!status.authenticated)
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-lg">
-          <CardHeader>
+      <div className="flex min-h-screen items-center justify-center bg-app-bg p-4 text-app-text">
+        <Card className="w-full max-w-md border border-app-border bg-app-surface shadow-lg">
+          <CardHeader className="gap-2 border-b border-app-border pb-5">
+            <div aria-hidden="true" className="mb-2 h-1 w-10 rounded-full bg-app-accent shadow-[var(--app-glow-accent)]" />
             <CardTitle>{status.pending && welcome ? "RaceIQ" : status.pending ? m.access_title() : m.access_login_title()}</CardTitle>
-            <CardDescription>{status.pending && welcome ? m.ob_welcome_tagline() : status.pending ? m.access_setup_description() : m.access_login_description()}</CardDescription>
+            <CardDescription className="text-app-text-muted">{status.pending && welcome ? m.ob_welcome_tagline() : status.pending ? m.access_setup_description() : m.access_login_description()}</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-1">
             {status.pending ? (
               welcome ? (
                 <div className="flex flex-col gap-4">
@@ -158,7 +162,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
                     options={LOCALES.map((locale) => ({ value: locale.code, label: locale.label }))}
                     placeholder={m.label_language()}
                   />
-                  <Button onClick={() => setWelcome(false)}>{m.common_get_started()}</Button>
+                  <Button variant="app-primary" size="app-lg" onClick={() => setWelcome(false)}>{m.common_get_started()}</Button>
                 </div>
               ) : (
                 <AccessSetupForm setup language={language} onComplete={complete} />

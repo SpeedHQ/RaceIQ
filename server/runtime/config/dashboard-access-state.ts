@@ -1,4 +1,5 @@
-import { closeSync, existsSync, fsyncSync, openSync, readFileSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { closeSync, existsSync, fsyncSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 
 const CONFIGURED = "raceiq-dashboard-access-v1\n";
 export const dashboardAccessMarkerPath = (databasePath: string) => `${databasePath}.dashboard-access`;
@@ -18,18 +19,25 @@ export function assertDashboardDatabasePresent(databasePath: string) {
 }
 
 export function markDashboardAccessConfigured(databasePath: string) {
+  const path = dashboardAccessMarkerPath(databasePath);
   if (dashboardAccessWasConfigured(databasePath)) return;
-  let descriptor: number;
+  const temporaryPath = `${path}.${process.pid}.${randomBytes(8).toString("hex")}.tmp`;
+  let descriptor: number | undefined;
   try {
-    descriptor = openSync(dashboardAccessMarkerPath(databasePath), "wx", 0o600);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "EEXIST" && dashboardAccessWasConfigured(databasePath)) return;
-    throw error;
-  }
-  try {
+    descriptor = openSync(temporaryPath, "wx", 0o600);
     writeFileSync(descriptor, CONFIGURED);
     fsyncSync(descriptor);
-  } finally {
     closeSync(descriptor);
+    descriptor = undefined;
+    renameSync(temporaryPath, path);
+  } catch (error) {
+    if (descriptor !== undefined) closeSync(descriptor);
+    try {
+      unlinkSync(temporaryPath);
+    } catch {
+      // Temporary marker was not published.
+    }
+    if ((error as NodeJS.ErrnoException).code === "EEXIST" && dashboardAccessWasConfigured(databasePath)) return;
+    throw error;
   }
 }

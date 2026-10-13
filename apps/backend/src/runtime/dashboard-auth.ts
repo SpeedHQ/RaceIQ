@@ -59,6 +59,7 @@ export class DashboardAuth {
   private readonly envPassword: string;
   private attempts = 0;
   private attemptWindow = 0;
+  private activeHashings = 0;
   private activeVerifications = 0;
   private readonly path: string;
   private readonly database: Client;
@@ -116,7 +117,7 @@ export class DashboardAuth {
       });
     }
     if (this.envPassword && (await this.read()).mode === "pending") {
-      const hash = await Bun.password.hash(this.envPassword, { algorithm: "argon2id" });
+      const hash = await this.hashPassword(this.envPassword);
       const tx = await this.database.transaction("write");
       try {
         const result = await tx.execute({
@@ -143,23 +144,29 @@ export class DashboardAuth {
   private generation(row: AccessRow) {
     return digest(`${row.revision}:${this.envPassword}`);
   }
-  async session(request: Request, executor: Client | Transaction = this.database): Promise<Session | null> {
+  async session(request: Request, executor: Client | Transaction = this.database, row?: AccessRow): Promise<Session | null> {
     const token = /(?:^|;\s*)raceiq_session=([a-f0-9]{64})(?:;|$)/.exec(request.headers.get("cookie") ?? "")?.[1];
     if (!token) return null;
     const result = await executor.execute({ sql: "SELECT csrf, generation, expires_at FROM dashboard_sessions WHERE token_hash = ?", args: [digest(token)] });
     const session = result.rows[0] as unknown as Session | undefined;
-    const row = await this.read(executor);
-    return session && Number(session.expires_at) > Date.now() && session.generation === this.generation(row) ? session : null;
+    const current = row ?? await this.read(executor);
+    return session && Number(session.expires_at) > Date.now() && session.generation === this.generation(current) ? session : null;
   }
   async status(request: Request) {
-    const [session, row] = await Promise.all([this.session(request), this.read()]);
+    const row = await this.read();
+    const session = await this.session(request, this.database, row);
     const pending = row.mode === "pending" && !this.envPassword;
     const protectedAccess = !!this.envPassword || row.mode === "enabled";
     return { pending, protected: protectedAccess, authenticated: !pending && (!protectedAccess || !!session), csrf: session?.csrf ?? null, upgrade: !!row.upgrade, overrides: this.overrides };
   }
-  async csrfAllowed(request: Request) {
-    const session = await this.session(request);
-    return !!session && request.headers.get("x-raceiq-csrf") === session.csrf;
+  private async hashPassword(password: string): Promise<string> {
+    if (this.activeHashings >= 2) throw new AccessError("try_later", 429);
+    this.activeHashings++;
+    try {
+      return await Bun.password.hash(password, { algorithm: "argon2id" });
+    } finally {
+      this.activeHashings--;
+    }
   }
   private async verify(password: string) {
     if (password.length > 1024 || this.activeVerifications >= 2) throw new AccessError("try_later", 429);
@@ -210,42 +217,44 @@ export class DashboardAuth {
     if (token) await this.database.execute({ sql: "DELETE FROM dashboard_sessions WHERE token_hash = ?", args: [digest(token)] });
     return "raceiq_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0";
   }
-  async setup(password: string | null, exposureConfirmed: boolean) {
+  async setup(password: string | null, exposureConfirmed: boolean): Promise<number> {
     if (!(await this.isPending())) throw new AccessError("already_configured", 409);
     if (password !== null && !PasswordSchema.safeParse(password).success) throw new AccessError("password_length");
     if (password === null && !exposureConfirmed) throw new AccessError("confirm_exposure");
-    const hash = password === null ? null : await Bun.password.hash(password, { algorithm: "argon2id" });
+    const hash = password === null ? null : await this.hashPassword(password);
     const tx = await this.database.transaction("write");
     try {
       const changed = await tx.execute({
-        sql: "UPDATE dashboard_access SET mode = ?, password_hash = ?, revision = revision + 1 WHERE id = 1 AND mode = 'pending'",
+        sql: "UPDATE dashboard_access SET mode = ?, password_hash = ?, revision = revision + 1 WHERE id = 1 AND mode = 'pending' RETURNING revision",
         args: [password === null ? "disabled" : "enabled", hash],
       });
-      if (Number(changed.rowsAffected) !== 1) throw new AccessError("already_configured", 409);
+      if (changed.rows.length !== 1) throw new AccessError("already_configured", 409);
       markDashboardAccessConfigured(this.path);
       await tx.commit();
+      return Number(changed.rows[0]!.revision);
     } catch (error) {
       await tx.rollback();
       throw error;
     }
   }
-  async changePassword(current: string, password: string | null, exposureConfirmed: boolean) {
+  async changePassword(current: string, password: string | null, exposureConfirmed: boolean): Promise<number> {
     if (this.envPassword) throw new AccessError("environment_override", 409);
     const row = await this.read();
     if (row.mode === "pending") throw new AccessError("not_available", 409);
     if (password !== null && !PasswordSchema.safeParse(password).success) throw new AccessError("password_length");
     if (password === null && !exposureConfirmed) throw new AccessError("confirm_exposure");
     const revision = row.mode === "enabled" ? await this.verify(current) : row.revision;
-    const hash = password === null ? null : await Bun.password.hash(password, { algorithm: "argon2id" });
+    const hash = password === null ? null : await this.hashPassword(password);
     const tx = await this.database.transaction("write");
     try {
       const result = await tx.execute({
-        sql: "UPDATE dashboard_access SET mode = ?, password_hash = ?, revision = revision + 1 WHERE id = 1 AND revision = ? AND mode != 'pending'",
+        sql: "UPDATE dashboard_access SET mode = ?, password_hash = ?, revision = revision + 1 WHERE id = 1 AND revision = ? AND mode != 'pending' RETURNING revision",
         args: [password === null ? "disabled" : "enabled", hash, revision],
       });
-      if (Number(result.rowsAffected) !== 1) throw new AccessError("configuration_changed", 409);
+      if (result.rows.length !== 1) throw new AccessError("configuration_changed", 409);
       await tx.execute("DELETE FROM dashboard_sessions");
       await tx.commit();
+      return Number(result.rows[0]!.revision);
     } catch (error) {
       await tx.rollback();
       throw error;
@@ -262,7 +271,7 @@ export class DashboardAuth {
   async reset(password: string) {
     if (this.envPassword) throw new AccessError("environment_override", 409);
     PasswordSchema.parse(password);
-    const hash = await Bun.password.hash(password, { algorithm: "argon2id" });
+    const hash = await this.hashPassword(password);
     const tx = await this.database.transaction("write");
     try {
       const result = await tx.execute({ sql: "UPDATE dashboard_access SET mode = 'enabled', password_hash = ?, revision = revision + 1 WHERE id = 1 AND network_json IS NOT NULL", args: [hash] });

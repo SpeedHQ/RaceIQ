@@ -11,6 +11,7 @@ import { DropdownMenu } from "@/components/ui/DropdownMenu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { downloadResponse } from "@/lib/lap-export";
+import { authenticatedFetch } from "@/lib/rpc";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import type { ChatGeneration } from "./chat-history";
@@ -70,15 +71,16 @@ export function ChatPanelThread({
   onClearChat: () => void;
 }) {
   const transport = resumableThreadId
-    ? new AssistantChatTransport({
-        api,
-        body: extraBody,
-        resumable: {
-          storage: createResumableSessionStorage({ key: `chat-resume-${resumableThreadId}` }),
-          resumeApi: () => `/api/chats/${encodeURIComponent(resumableThreadId)}/run/stream`,
-        },
-      })
-    : new AssistantChatTransport({ api, body: extraBody });
+      ? new AssistantChatTransport({
+          api,
+          body: extraBody,
+          fetch: authenticatedFetch as typeof fetch,
+          resumable: {
+            storage: createResumableSessionStorage({ key: `chat-resume-${resumableThreadId}` }),
+            resumeApi: () => `/api/chats/${encodeURIComponent(resumableThreadId)}/run/stream`,
+          },
+        })
+      : new AssistantChatTransport({ api, body: extraBody, fetch: authenticatedFetch as typeof fetch });
   const runtime = useChatRuntime({ messages: initialMessages, transport, onFinish });
   const [compacting, setCompacting] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);

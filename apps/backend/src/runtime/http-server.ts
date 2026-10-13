@@ -5,7 +5,7 @@ import type { AppType } from "../routes/index";
 import { MAX_IBT_BYTES } from "../imports/iracing-ibt";
 import { IS_WINDOWS } from "@raceiq/backend-core/runtime/platform/shell";
 import { gameAssetsDir } from "@raceiq/shared/platform/runtime/data-paths";
-import { httpAccess, type HttpAccess } from "./http-access";
+import { beginRequestAuthorization, endRequestAuthorization, httpAccess, type HttpAccess } from "./http-access";
 
 type HttpApp = Pick<AppType, "fetch">;
 
@@ -48,6 +48,7 @@ export function startHttpServer({ app, port, staticDir, devPublicDir, access = h
   const sessionCheck = setInterval(() => {
     if (!access.usesSessions) return;
     for (const [socket, request] of sockets) {
+      endRequestAuthorization(request);
       void access
         .authorize(request)
         .then((denied) => {
@@ -66,7 +67,7 @@ export function startHttpServer({ app, port, staticDir, devPublicDir, access = h
     // can stream them to disk or return the route's structured size error.
     maxRequestBodySize: MAX_IBT_BYTES,
     async fetch(req, server) {
-      // Protect static content, APIs, Studio, and the WebSocket handshake alike.
+      beginRequestAuthorization(req);
       const denied = await access.authorize(req);
       if (denied) return denied;
       const url = new URL(req.url);

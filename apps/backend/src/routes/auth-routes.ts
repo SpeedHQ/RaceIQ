@@ -44,10 +44,10 @@ export const authRoutes = new Hono()
   .post("/api/auth/setup", zValidator("json", ChoiceSchema), async (c) => {
     const body = c.req.valid("json");
     const auth = getDashboardAuth();
-    await auth.setup(body.password, body.exposureConfirmed);
+    const revision = await auth.setup(body.password, body.exposureConfirmed);
     if (body.language) saveSettings({ ...loadSettings({ syncLaunchOnLogin: false }), language: body.language });
     if (await auth.isProtected()) {
-      const session = await auth.issueSession(c.req.raw);
+      const session = await auth.issueSession(c.req.raw, revision);
       c.header("Set-Cookie", session.cookie);
       c.header("X-RaceIQ-CSRF", session.csrf);
     }
@@ -67,9 +67,9 @@ export const authRoutes = new Hono()
   .put("/api/auth/password", zValidator("json", ChoiceSchema.extend({ currentPassword: z.string().max(1024) })), async (c) => {
     const body = c.req.valid("json");
     const auth = getDashboardAuth();
-    await auth.changePassword(body.currentPassword, body.password, body.exposureConfirmed);
+    const revision = await auth.changePassword(body.currentPassword, body.password, body.exposureConfirmed);
     if (await auth.isProtected()) {
-      const session = await auth.issueSession(c.req.raw);
+      const session = await auth.issueSession(c.req.raw, revision);
       c.header("Set-Cookie", session.cookie);
       c.header("X-RaceIQ-CSRF", session.csrf);
     } else {

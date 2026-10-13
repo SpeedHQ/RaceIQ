@@ -18,6 +18,7 @@
 - Show Nordschleife track edges along the supported portion of AC Evo Tourist routes without closing the Start/Finish gap.
 
 ### Fixes
+- Match protected-dashboard sign-in screen to RaceIQ's dark telemetry workspace styling.
 - Refuse to reopen dashboard setup when a previously configured database is lost or replaced.
 - Use the development dashboard port for localhost, LAN, and Tailscale links in settings.
 - Label the confirmation to disable dashboard password protection as “Confirm settings”.
@@ -45,6 +46,7 @@
 - Reject unrelated browser origins on dashboard and live telemetry requests while preserving same-origin access through reverse proxies.
 - Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
 
+- Keep authenticated imports, cleanup, and dashboard chat working after enabling password protection.
 - Load LMU track boundaries without long stalls on detailed SVG maps.
 - Show unnamed multi-turn sections once in Analyse and track-detail labels.
 - Keep AC Evo venue layouts distinct during import, setup selection, and session repair without losing saved notes, favorites, or setup links.
