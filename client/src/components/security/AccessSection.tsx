@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { AccessSetupForm, accessErrorMessage } from "./AccessSetupForm";
-import { useDashboardAuth } from "./AuthGate";
+import { useDashboardAuth } from "@/lib/dashboard-auth";
 import { DashboardShareLinks } from "./DashboardShareLinks";
 import { dashboardPort } from "./dashboard-port";
 
@@ -33,7 +33,7 @@ export function AccessSection() {
     ]),
   ];
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex w-full max-w-xl flex-col gap-6">
       <h2>{m.access_title()}</h2>
       <p>{status.protected ? m.access_protected() : m.access_unprotected()}</p>
       {status.overrides.length > 0 && (

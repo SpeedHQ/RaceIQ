@@ -15,6 +15,7 @@
   ],
   "scripts": {
     "dev": "bun scripts/dev/dev.ts",
+    "clean": "bun -e \"import { rmSync } from 'node:fs'; rmSync('data', { recursive: true, force: true });\"",
     "dev:server": "bun --env-file=.env.development --watch run apps/backend/src/index.ts",
     "dev:proxy": "bun scripts/dev/dev-proxy.ts",
     "dev:dump:ac-evo": "bun run dev:proxy && concurrently \"bun --env-file=.env.development --watch run apps/backend/src/index.ts --record=ac-evo\" \"bun --env-file=.env.development scripts/dev/client.ts\"",

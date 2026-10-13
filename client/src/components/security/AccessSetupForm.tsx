@@ -1,4 +1,5 @@
-import { useState, type ComponentProps } from "react";
+import { useId, useState, type ComponentProps } from "react";
+import { createPortal } from "react-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
@@ -6,8 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldGroup, FieldDescription } from "@/components/ui/field";
 import { InputGroup, InputGroupInput, InputGroupAddon, InputGroupButton } from "@/components/ui/input-group";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Switch } from "@/components/ui/switch";
+import { ToggleGroup03 } from "@/components/shadcn-studio/toggle-group/toggle-group-03";
 
 export function accessErrorMessage(error: unknown) {
   const code = error instanceof Error ? error.message : "request_failed";
@@ -26,6 +26,7 @@ export function accessErrorMessage(error: unknown) {
 export function PasswordField({
   id,
   label,
+  hint,
   value,
   onChange,
   invalid = false,
@@ -33,6 +34,7 @@ export function PasswordField({
 }: {
   id: string;
   label: string;
+  hint?: string;
   value: string;
   onChange: (value: string) => void;
   invalid?: boolean;
@@ -41,7 +43,10 @@ export function PasswordField({
   const [shown, setShown] = useState(false);
   return (
     <Field data-invalid={invalid}>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <FieldLabel htmlFor={id}>{label}</FieldLabel>
+        {hint && <FieldDescription id={`${id}-hint`}>{hint}</FieldDescription>}
+      </div>
       <InputGroup>
         <InputGroupInput
           id={id}
@@ -50,6 +55,7 @@ export function PasswordField({
           onChange={(event) => onChange(event.target.value)}
           autoComplete={autoComplete}
           aria-invalid={invalid}
+          aria-describedby={hint ? `${id}-hint` : undefined}
           maxLength={1024}
         />
         <InputGroupAddon align="inline-end">
@@ -67,40 +73,43 @@ export function AccessSetupForm({
   protectedAccess = false,
   overridden = false,
   language,
+  submitContainer,
   onComplete,
 }: {
   setup?: boolean;
   protectedAccess?: boolean;
   overridden?: boolean;
   language?: string;
+  submitContainer?: HTMLElement | null;
   onComplete: () => Promise<void>;
 }) {
-  const [selectedMode, setSelectedMode] = useState("");
-  const mode = selectedMode || "enabled";
-  const showForm = setup || !protectedAccess || selectedMode !== "";
+  const formId = useId();
+  const [mode, setMode] = useState("enabled");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [current, setCurrent] = useState("");
-  const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const tooShort = mode === "enabled" && password.length > 0 && password.length < 8;
   const mismatch = mode === "enabled" && confirmation.length > 0 && password !== confirmation;
-  const valid = mode === "disabled" ? confirmed : password.length >= 8 && password === confirmation;
-  const submitLabel = setup ? m.common_next()
-    : !protectedAccess ? m.access_enable()
-    : mode === "disabled" ? m.access_confirm_settings()
-    : m.access_save();
+  const valid = mode === "disabled" || (password.length >= 8 && password === confirmation);
+  const submitLabel = setup ? m.common_next() : mode === "disabled" ? m.access_confirm_settings() : !protectedAccess ? m.access_enable() : m.access_save();
+  const submitButton = (
+    <Button variant="app-primary" size="sm" className="self-start" form={formId} type="submit" disabled={pending || !valid || overridden || (!setup && protectedAccess && !current)}>
+      {submitLabel}
+    </Button>
+  );
   return (
     <form
-      className="flex flex-col gap-4"
+      id={formId}
+      className="flex w-full max-w-md flex-col gap-4"
       onSubmit={async (event) => {
         event.preventDefault();
-        if (!showForm || !valid) return;
+        if (!valid) return;
         setPending(true);
         setError("");
         try {
-          const json = { password: mode === "enabled" ? password : null, exposureConfirmed: confirmed, language };
+          const json = { password: mode === "enabled" ? password : null, exposureConfirmed: mode === "disabled", language };
           const response = setup ? await client.api.auth.setup.$post({ json }) : await client.api.auth.password.$put({ json: { ...json, currentPassword: current } });
           if (!response.ok) {
             const body = await response.json();
@@ -110,8 +119,7 @@ export function AccessSetupForm({
           setConfirmation("");
           setCurrent("");
           await onComplete();
-          setSelectedMode("");
-          setConfirmed(false);
+          setMode("enabled");
         } catch (failure) {
           setError(accessErrorMessage(failure));
         } finally {
@@ -125,59 +133,40 @@ export function AccessSetupForm({
           <AlertDescription>{m.access_override()}</AlertDescription>
         </Alert>
       )}
-      {(setup || protectedAccess) && (
-        <ToggleGroup
-          value={setup ? [mode] : selectedMode ? [selectedMode] : []}
-          onValueChange={(values) => {
-            setSelectedMode(values[0] ?? "");
-          }}
-          orientation="vertical"
-          variant="outline"
-          disabled={overridden}
-          aria-label={m.access_protection()}
-        >
-          <ToggleGroupItem value="enabled">{protectedAccess ? m.access_change_password() : m.access_enable()}</ToggleGroupItem>
-          {(!setup || mode !== "disabled") && (
-            <ToggleGroupItem value="disabled">{setup ? m.access_continue_unprotected() : m.access_disable()}</ToggleGroupItem>
-          )}
-        </ToggleGroup>
-      )}
-      {showForm && (
-        <FieldGroup>
-          {!setup && protectedAccess && <PasswordField id="access-current-password" label={m.access_current_password()} value={current} onChange={setCurrent} autoComplete="current-password" />}
-          {mode === "enabled" ? (
-            <>
-              <PasswordField id="access-password" label={protectedAccess ? m.access_new_password() : m.access_password()} value={password} onChange={setPassword} invalid={tooShort} />
-              <FieldDescription>{m.access_password_length()}</FieldDescription>
-              <PasswordField
-                id="access-confirm-password"
-                label={protectedAccess ? m.access_confirm_new_password() : m.access_confirm_password()}
-                value={confirmation}
-                onChange={setConfirmation}
-                invalid={mismatch}
-              />
-              {mismatch && <p role="alert">{m.access_password_mismatch()}</p>}
-            </>
-          ) : (
-            <>
+      <fieldset disabled={overridden || pending} className="min-w-0 w-fit max-w-full">
+        <ToggleGroup03
+          ariaLabel={m.access_protection()}
+          value={mode}
+          onValueChange={setMode}
+          options={[
+            { value: "enabled", label: protectedAccess ? m.access_change_password() : m.access_enable() },
+            { value: "disabled", label: setup ? m.access_continue_unprotected() : m.access_disable() },
+          ]}
+        />
+      </fieldset>
+          <FieldGroup>
+            {!setup && protectedAccess && <PasswordField id="access-current-password" label={m.access_current_password()} value={current} onChange={setCurrent} autoComplete="current-password" />}
+            {mode === "enabled" ? (
+              <>
+                <PasswordField id="access-password" label={protectedAccess ? m.access_new_password() : m.access_password()} hint={m.access_password_length()} value={password} onChange={setPassword} invalid={tooShort} />
+                <PasswordField
+                  id="access-confirm-password"
+                  label={protectedAccess ? m.access_confirm_new_password() : m.access_confirm_password()}
+                  value={confirmation}
+                  onChange={setConfirmation}
+                  invalid={mismatch}
+                />
+                {mismatch && <p role="alert">{m.access_password_mismatch()}</p>}
+              </>
+            ) : (
               <Alert>
                 <AlertTitle>{m.access_warning_title()}</AlertTitle>
                 <AlertDescription>{m.access_warning()}</AlertDescription>
               </Alert>
-              <Field orientation="horizontal">
-                <Switch id="access-exposure" checked={confirmed} onCheckedChange={setConfirmed} />
-                <FieldLabel htmlFor="access-exposure">{m.access_confirm_warning()}</FieldLabel>
-              </Field>
-            </>
-          )}
-        </FieldGroup>
-      )}
-      {error && <p role="alert">{error}</p>}
-      {showForm && (
-        <Button type="submit" disabled={pending || !valid || overridden || (!setup && protectedAccess && !current)}>
-          {submitLabel}
-        </Button>
-      )}
+            )}
+          </FieldGroup>
+          {error && <p role="alert">{error}</p>}
+          {setup ? submitContainer && createPortal(submitButton, submitContainer) : submitButton}
     </form>
   );
 }

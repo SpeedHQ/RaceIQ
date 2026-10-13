@@ -19,6 +19,8 @@ import { Route as Fm23RouteImport } from './routes/fm23'
 import { Route as IracingRouteImport } from './routes/iracing'
 import { Route as LiveRouteImport } from './routes/live'
 import { Route as LmuRouteImport } from './routes/lmu'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as GameidCarsRouteImport } from './routes/$gameid/cars'
 import { Route as GameidChatsRouteImport } from './routes/$gameid/chats'
 import { Route as GameidCompareRouteImport } from './routes/$gameid/compare'
@@ -116,6 +118,16 @@ const LiveRoute = LiveRouteImport.update({
 const LmuRoute = LmuRouteImport.update({
   id: '/lmu',
   path: '/lmu',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GameidCarsRoute = GameidCarsRouteImport.update({
@@ -375,6 +387,8 @@ export interface FileRoutesByFullPath {
   '/iracing': typeof IracingRouteWithChildren
   '/live': typeof LiveRouteWithChildren
   '/lmu': typeof LmuRouteWithChildren
+  '/login': typeof LoginRoute
+  '/onboarding': typeof OnboardingRoute
   '/$gameid/cars': typeof GameidCarsRoute
   '/$gameid/chats': typeof GameidChatsRoute
   '/$gameid/compare': typeof GameidCompareRoute
@@ -429,6 +443,8 @@ export interface FileRoutesByTo {
   '/$gameid': typeof GameidRouteWithChildren
   '/dev': typeof DevRoute
   '/live': typeof LiveRouteWithChildren
+  '/login': typeof LoginRoute
+  '/onboarding': typeof OnboardingRoute
   '/$gameid/cars': typeof GameidCarsRoute
   '/$gameid/chats': typeof GameidChatsRoute
   '/$gameid/compare': typeof GameidCompareRoute
@@ -482,6 +498,8 @@ export interface FileRoutesById {
   '/iracing': typeof IracingRouteWithChildren
   '/live': typeof LiveRouteWithChildren
   '/lmu': typeof LmuRouteWithChildren
+  '/login': typeof LoginRoute
+  '/onboarding': typeof OnboardingRoute
   '/$gameid/cars': typeof GameidCarsRoute
   '/$gameid/chats': typeof GameidChatsRoute
   '/$gameid/compare': typeof GameidCompareRoute
@@ -544,6 +562,8 @@ export interface FileRouteTypes {
     | '/iracing'
     | '/live'
     | '/lmu'
+    | '/login'
+    | '/onboarding'
     | '/$gameid/cars'
     | '/$gameid/chats'
     | '/$gameid/compare'
@@ -598,6 +618,8 @@ export interface FileRouteTypes {
     | '/$gameid'
     | '/dev'
     | '/live'
+    | '/login'
+    | '/onboarding'
     | '/$gameid/cars'
     | '/$gameid/chats'
     | '/$gameid/compare'
@@ -650,6 +672,8 @@ export interface FileRouteTypes {
     | '/iracing'
     | '/live'
     | '/lmu'
+    | '/login'
+    | '/onboarding'
     | '/$gameid/cars'
     | '/$gameid/chats'
     | '/$gameid/compare'
@@ -711,6 +735,8 @@ export interface RootRouteChildren {
   IracingRoute: typeof IracingRouteWithChildren
   LiveRoute: typeof LiveRouteWithChildren
   LmuRoute: typeof LmuRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  OnboardingRoute: typeof OnboardingRoute
   PortableCombo1Route: typeof PortableCombo1Route
   PortableCombo2Route: typeof PortableCombo2Route
   PortableIndexRoute: typeof PortableIndexRoute
@@ -786,6 +812,20 @@ declare module '@tanstack/react-router' {
       path: '/lmu'
       fullPath: '/lmu'
       preLoaderRoute: typeof LmuRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$gameid/cars': {
@@ -1375,6 +1415,8 @@ const rootRouteChildren: RootRouteChildren = {
   IracingRoute: IracingRouteWithChildren,
   LiveRoute: LiveRouteWithChildren,
   LmuRoute: LmuRouteWithChildren,
+  LoginRoute: LoginRoute,
+  OnboardingRoute: OnboardingRoute,
   PortableCombo1Route: PortableCombo1Route,
   PortableCombo2Route: PortableCombo2Route,
   PortableIndexRoute: PortableIndexRoute,

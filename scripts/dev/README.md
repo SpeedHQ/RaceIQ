@@ -5,6 +5,7 @@ Start local development services.
 | Command | Purpose |
 |---|---|
 | `bun scripts/dev/dev.ts [--onboarding <value>]` | Share portless proxy, assign backend port, and start watched server and client. Linked worktrees also receive separate UDP ports. |
+| `bun clean` | Delete the repository-local `data/` directory, including databases, settings, logs, and captures. Stop development services first. Ignores `DATA_DIR` overrides; safe to repeat when the directory is absent. |
 | `bun scripts/dev/dev-proxy.ts` | Start shared HTTP portless proxy on port `1355` without stopping existing proxy. |
 | `bun scripts/dev/mastra-studio.ts` | Start Mastra Studio on `PORT` (default `4111`) against local server port `3117`. |
 | `bun run --cwd client i18n:compile` | Generate production Paraglide message modules and declarations, or reuse validated output. |

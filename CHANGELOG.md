@@ -18,12 +18,15 @@
 - Show Nordschleife track edges along the supported portion of AC Evo Tourist routes without closing the Start/Finish gap.
 
 ### Fixes
+- Preserve the original welcome and setup wizard, configure dashboard access within it, and show sign-in only after password protection is configured.
 - Match protected-dashboard sign-in screen to RaceIQ's dark telemetry workspace styling.
 - Refuse to reopen dashboard setup when a previously configured database is lost or replaced.
 - Use the development dashboard port for localhost, LAN, and Tailscale links in settings.
 - Label the confirmation to disable dashboard password protection as “Confirm settings”.
 - Keep localhost dashboard access working after adding browser domains to an existing all-interface configuration.
-- Hide the selected password-free setup option while showing its exposure warning.
+- Use tabs to switch password protection options and keep Access & security forms compact within the dialog.
+- Keep the access setup Next button in the wizard footer alongside Back.
+- Show concise, translated password-length guidance inline with the field label and remove the redundant exposure acknowledgement toggle; warn that unprotected dashboard visitors can edit data and settings and use configured AI chat.
 - Restrict development dashboard access to selected network interfaces.
 - Keep live telemetry connected when opening the development dashboard through a LAN link.
 - Open the dashboard instead of a backend status page when using a shared link during development.
@@ -55,6 +58,7 @@
 - Automatically reconcile pre-upgrade recordings with updated car, track, and lap detection, including AC Evo Tourist timed attempts; preserve user annotations on matched laps and report captures that cannot be repaired.
 
 ### Internal
+- Add `bun clean` to remove repository-local development data without targeting custom `DATA_DIR` locations.
 - Isolate dashboard-authentication tests in subprocesses so Windows releases database handles before cleanup, and verify password recovery through the command in a separate process.
 - Run development-dashboard SQLite assertions in a subprocess so Windows releases native database handles before fixture cleanup.
 - Limit live `ps` resource-sampler tests to supported platforms.

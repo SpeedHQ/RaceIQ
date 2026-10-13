@@ -4,9 +4,10 @@ import { client } from "../lib/rpc";
 import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from "../stores/telemetry";
 import { queryKeys } from "./query-keys";
 
-export function useSettings() {
+export function useSettings({ enabled = true }: { enabled?: boolean } = {}) {
   const { data: displaySettings = DEFAULT_DISPLAY_SETTINGS, isSuccess } = useQuery({
     queryKey: queryKeys.settings,
+    enabled,
     queryFn: async () => {
       const res = await client.api.settings.$get();
       if (!res.ok) throw new Error(res.statusText);

@@ -10,9 +10,17 @@ import { StartupStep } from "./steps/StartupStep";
 import { UnitsStep } from "./steps/UnitsStep";
 import { WelcomeStep } from "./steps/WelcomeStep";
 import { WheelStep } from "./steps/WheelStep";
+import { AccessSetupForm } from "@/components/security/AccessSetupForm";
+import { useDashboardAuth } from "@/lib/dashboard-auth";
+import { getLocale } from "@/paraglide/runtime";
 
 function AccessStep() {
-  return <div className="flex flex-col gap-4"><h2>{m.access_title()}</h2><p>{m.access_configured()}</p></div>;
+  return (
+    <div className="flex flex-col gap-4">
+      <h2>{m.access_title()}</h2>
+      <p>{m.access_configured()}</p>
+    </div>
+  );
 }
 
 const MODAL_STEPS = [
@@ -26,17 +34,22 @@ const MODAL_STEPS = [
   { id: "community", label: m.step_community, Component: CommunityStep },
 ];
 
-export function OnboardingModal({ onClose, initialStep = 0 }: { onClose?: () => void; initialStep?: number } = {}) {
+export function OnboardingModal({ onClose, onComplete, initialStep = 0 }: { onClose?: () => void; onComplete?: () => Promise<void>; initialStep?: number } = {}) {
+  const { status, refresh } = useDashboardAuth();
   const [step, setStep] = useState(initialStep);
+  const [accessFooter, setAccessFooter] = useState<HTMLSpanElement | null>(null);
   const saveSettings = useSaveSettings();
   const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
   const udpPps = useTelemetryStore((s) => s.udpPps);
   const lastUdpAt = useTelemetryStore((s) => s.lastUdpAt);
   const receiving = udpPps > 0 || packetsPerSec > 0 || lastUdpAt > 0;
   const { Component: StepComponent } = MODAL_STEPS[step];
-  function handleFinish() {
+  async function handleFinish() {
     if (onClose) onClose();
-    else saveSettings.mutate({ onboardingComplete: true } as never);
+    else {
+      await saveSettings.mutateAsync({ onboardingComplete: true });
+      await onComplete?.();
+    }
   }
   return (
     <div className="@container/onboarding fixed inset-0 z-50 flex items-center justify-center bg-app-bg p-4">
@@ -73,16 +86,35 @@ export function OnboardingModal({ onClose, initialStep = 0 }: { onClose?: () => 
           </div>
         )}
         <div className="min-h-[280px] flex-1 overflow-y-auto border-t border-app-border px-4 py-5 @3xl/onboarding:px-6">
-          <StepComponent />
+          {step === 0 ? (
+            <WelcomeStep setup={status.pending} />
+          ) : step === 1 && status.pending ? (
+            <div className="flex flex-col gap-4">
+              <p>{status.upgrade ? m.access_upgrade() : m.access_setup_description()}</p>
+              <AccessSetupForm
+                setup
+                submitContainer={accessFooter}
+                language={getLocale()}
+                onComplete={async () => {
+                  await refresh();
+                  setStep((current) => current + 1);
+                }}
+              />
+            </div>
+          ) : (
+            <StepComponent />
+          )}
         </div>
-        <div className="flex shrink-0 items-center justify-end border-t border-app-border bg-app-surface-alt/30 px-4 py-4 @3xl/onboarding:px-6">
+        <div data-slot="onboarding-footer" className="flex shrink-0 items-center justify-end border-t border-app-border bg-app-surface-alt/30 px-4 py-4 @3xl/onboarding:px-6">
           <div className="flex items-center gap-2">
             {step > 0 && (
               <Button variant="outline" size="sm" onClick={() => setStep((s) => s - 1)}>
                 {m.common_back()}
               </Button>
             )}
-            {step < MODAL_STEPS.length - 1 ? (
+            {step === 1 && status.pending ? (
+              <span ref={setAccessFooter} />
+            ) : step < MODAL_STEPS.length - 1 ? (
               <Button variant="app-primary" size="sm" onClick={() => setStep((s) => s + 1)}>
                 {step === 0 ? m.common_get_started() : m.common_next()}
               </Button>

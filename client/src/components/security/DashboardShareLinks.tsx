@@ -4,7 +4,7 @@ import { Copy } from "lucide-react";
 import { m } from "@/paraglide/messages";
 import { Button } from "@/components/ui/button";
 import { FieldSet, FieldLegend, FieldDescription } from "@/components/ui/field";
-import type { AuthStatus } from "./AuthGate";
+import type { AuthStatus } from "@/lib/dashboard-auth";
 import { dashboardPort } from "./dashboard-port";
 
 async function copyLink(url: string) {

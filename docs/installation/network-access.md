@@ -12,7 +12,7 @@ An existing `SERVER_PASSWORD` is migrated to a salted hash and continues to over
 
 ## Settings → Access & security
 
-- Enable protection, change the password, or disable protection. Changing or disabling an existing password requires the current password. Disabling also requires confirmation of the exposure warning.
+- Enable protection, change the password, or disable protection. Changing or disabling an existing password requires the current password. To disable protection, select the unprotected option, review the exposure warning, and submit Confirm settings; no separate acknowledgement toggle is required.
 - Select localhost, individual LAN interfaces, or Tailscale interfaces. RaceIQ binds only selected addresses after restarting. Update Windows Firewall for the chosen TCP port if necessary.
 - Add exact HTTP(S) browser origins for MagicDNS or Cloudflare Tunnel, one per line, including non-default ports. Examples: `http://raceiq-host.example-tailnet.ts.net:3117` and `https://raceiq.example.com`. No paths, credentials, or wildcards.
 - Review saved dashboard URLs and the addresses currently listening. All network changes require a restart. A saved URL does not configure DNS, a firewall, or a tunnel.
