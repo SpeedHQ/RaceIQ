@@ -2387,7 +2387,6 @@
   "online_service_unavailable": "Online service is unavailable. Offline capture and review remain available.",
   "online_policy_unavailable": "Current policies are unavailable. Sharing permissions cannot be confirmed; you can continue offline.",
   "online_connected_as": "Connected as {name}",
-  "online_consent_accepted": "Current policy acceptance confirmed.",
   "online_manage_account": "Manage Account",
   "online_sign_out": "Sign out",
   "online_signout_pending": "Signing out… Awaiting backend acknowledgement.",

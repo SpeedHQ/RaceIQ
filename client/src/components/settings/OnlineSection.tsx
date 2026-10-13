@@ -217,7 +217,6 @@ export function OnlineSection({ onboarding = false, stage = "permissions", onSki
               </label>
             </div>
           </div>
-          {!online.isCachedState && state.consent.status === "accepted" && <p className="mt-1 text-xs text-app-text-muted">{m.online_consent_accepted()}</p>}
           <div className="mt-3 flex flex-wrap gap-3 text-sm"><a className="text-app-accent underline" href={accountUrl} target="_blank" rel="noopener noreferrer">{m.online_manage_account()}</a>
           <button className="text-status-danger underline disabled:opacity-50" disabled={pending} onClick={() => void signOut()}>{m.online_sign_out()}</button></div>
         </div>}
