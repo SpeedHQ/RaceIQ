@@ -1,11 +1,17 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { zipSync } from "fflate";
+import { unzipSync, zipSync } from "fflate";
 import { initServerGameAdapters } from "../../src/games/init";
 import { initMotecTargets } from "../../src/games/motec-init";
 import { transferRoutes } from "../../src/routes/laps/transfer-routes";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+import { dirname, join } from "node:path";
+import { eq } from "drizzle-orm";
+import { db } from "@raceiq/backend-core/db/index";
+import { sessions } from "@raceiq/backend-core/db/schema";
+import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
+import { decodeMotecSourceArchive } from "@raceiq/backend-core/motec/source-archive";
 
 const MOTEC_ARCHIVE = "test/artifacts/motec/acc-barcelona-porsche-992.zip";
 
@@ -122,7 +128,7 @@ test("staged MoTeC names are safe display-only basenames", async () => {
   });
 });
 
-test("imports a MoTeC ZIP directly without staging", async () => {
+test.each(["mine", "others"] as const)("imports a MoTeC ZIP as %s into its ownership folder", async (ownership) => {
   const form = new FormData();
   form.append(
     "file",
@@ -131,16 +137,43 @@ test("imports a MoTeC ZIP directly without staging", async () => {
   form.append("gameId", "acc");
   form.append("carId", "33");
   form.append("trackId", "8");
-  form.append("ownership", "mine");
+  form.append("ownership", ownership);
 
   const response = await transferRoutes.request("/api/laps/import-motec", {
     method: "POST",
     body: form,
   });
   expect(response.status).toBe(200);
-  expect(await response.json()).toMatchObject({
+  const result = await response.json() as { laps: { sessionId: number }[] };
+  expect(result).toMatchObject({
     ok: true,
     gameId: "acc",
     imported: 1,
   });
+  const session = await db.select().from(sessions).where(eq(sessions.id, result.laps[0]!.sessionId)).get();
+  expect(session?.ownership).toBe(ownership);
+  expect(dirname(session!.rawFile!)).toBe(join(resolveRecordingDirectory(), ownership === "others" ? "others" : "own", "acc"));
+  const source = decodeMotecSourceArchive(readFileSync(session!.rawFile!));
+  const uploaded = unzipSync(readFileSync(MOTEC_ARCHIVE));
+  const ldEntry = Object.entries(uploaded).find(([name]) => name.endsWith(".ld"))!;
+  expect(source.ldBytes).toEqual(Buffer.from(ldEntry[1]));
 }, 30_000);
+
+test.each([
+  ["mine", "sparse"],
+  ["others", "sparse"],
+  ["mine", "raw"],
+  ["others", "raw"],
+] as const)("imports %s binary telemetry with %s storage into its ownership folder", async (ownership, storage) => {
+  const form = new FormData();
+  form.append("file", new File([readFileSync("test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz")], "capture.bin.gz"));
+  form.append("gameId", "fm-2023");
+  form.append("ownership", ownership);
+  if (storage === "raw") form.append("captureStorage", "raw");
+  const response = await transferRoutes.request("/api/laps/import", { method: "POST", body: form });
+  expect(response.status).toBe(200);
+  const result = await response.json() as { laps: { sessionId: number }[] };
+  const session = await db.select().from(sessions).where(eq(sessions.id, result.laps[0]!.sessionId)).get();
+  expect(session?.ownership).toBe(ownership);
+  expect(dirname(session!.rawFile!)).toBe(join(resolveRecordingDirectory(), ownership === "others" ? "others" : "own", "fm-2023"));
+}, 60_000);

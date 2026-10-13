@@ -14,6 +14,7 @@
 - Show Nordschleife track edges along the supported portion of AC Evo Tourist routes without closing the Start/Finish gap.
 
 - Choose a recording folder; existing telemetry recordings move safely to the new location.
+- Separate new recordings into `own/<game>` for live telemetry and imports marked as yours, and `others/<game>` for imports marked as someone else's. Existing recordings remain accessible, and folder relocation preserves both groups.
 
 ### Fixes
 

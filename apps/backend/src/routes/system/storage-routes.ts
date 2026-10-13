@@ -1,10 +1,10 @@
 import { lstat, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, resolve as resolvePath } from "node:path";
 import os from "node:os";
-import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
+import { resolveRecordingDirectory, resolveRecordingGameDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
 import { getRecordingDirectoryMoveStatus, startRecordingDirectoryMove } from "@raceiq/backend-core/session-capture/relocate-recordings";
 import { existsSync } from "node:fs";
-import { readdir, stat, statfs } from "node:fs/promises";
+import { readdir, statfs } from "node:fs/promises";
 import { join } from "node:path";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -103,32 +103,37 @@ export const storageRoutes = new Hono()
       }
     }
 
-    const entries = await readdir(sessionsDir);
-    await Promise.all(
-      entries.map(async (entry) => {
-        const entryPath = join(sessionsDir, entry);
+    const roots = [sessionsDir, resolveRecordingGameDirectory("", "mine"), resolveRecordingGameDirectory("", "others")];
+    await Promise.all(roots.map(async (root) => {
+      if (!existsSync(root)) return;
+      let entries;
+      try {
+        if (root !== sessionsDir && !(await lstat(root)).isDirectory()) return;
+        entries = await readdir(root, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      await Promise.all(entries.map(async (entry) => {
+        if (!entry.isDirectory() || (root === sessionsDir && (entry.name === "own" || entry.name === "others"))) return;
+        const gameId = entry.name;
+        const gamePath = join(root, gameId);
+        let files;
         try {
-          const entryStat = await stat(entryPath);
-          if (entryStat.isDirectory()) {
-            const files = await readdir(entryPath);
-            await Promise.all(
-              files.map(async (file) => {
-                try {
-                  const { size } = await stat(join(entryPath, file));
-                  tally(entry, file, size);
-                } catch {
-                  /* skip */
-                }
-              }),
-            );
-          } else {
-            // flat files pre-date per-game subdirs — skip
-          }
+          files = await readdir(gamePath, { withFileTypes: true });
         } catch {
-          /* skip unreadable entries */
+          return;
         }
-      }),
-    );
+        await Promise.all(files.map(async (file) => {
+          if (!file.isFile()) return;
+          try {
+            const { size } = await lstat(join(gamePath, file.name));
+            tally(gameId, file.name, size);
+          } catch {
+            /* skip */
+          }
+        }));
+      }));
+    }));
 
     let diskTotal = 0,
       diskFree = 0;

@@ -1,11 +1,11 @@
-import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
+import { resolveRecordingDirectory, resolveRecordingGameDirectory } from "../runtime/config/recording-directory";
 /**
  * Session file cleanup for startup and scheduled maintenance.
  *
  * Removes tiny `.bin` captures (at most the 12-byte metadata header) and
  * `.bin`, `.bin.gz`, and `.motec.zip` captures not referenced by `sessions.rawFile`.
  */
-import { readdir, stat, unlink } from "node:fs/promises";
+import { readdir, lstat, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { db } from "../db/index";
@@ -48,19 +48,30 @@ async function loadReferencedRawFiles(): Promise<Set<string>> {
  */
 export async function listSessionCaptureFiles(): Promise<string[]> {
   const sessionsDir = resolveRecordingDirectory();
-  if (!existsSync(sessionsDir)) return [];
-
   const captureFiles: string[] = [];
-  for (const gameDir of await readdir(sessionsDir)) {
-    const dirPath = join(sessionsDir, gameDir);
+  const roots = [sessionsDir, resolveRecordingGameDirectory("", "mine"), resolveRecordingGameDirectory("", "others")];
+  for (const root of roots) {
+    if (!existsSync(root)) continue;
+    let games;
     try {
-      if (!(await stat(dirPath)).isDirectory()) continue;
+      if (root !== sessionsDir && !(await lstat(root)).isDirectory()) continue;
+      games = await readdir(root, { withFileTypes: true });
     } catch {
       continue;
     }
-    for (const file of await readdir(dirPath)) {
-      if (file.endsWith(".bin") || file.endsWith(".bin.gz") || file.endsWith(".motec.zip")) {
-        captureFiles.push(join(dirPath, file));
+    for (const game of games) {
+      if (!game.isDirectory() || (root === sessionsDir && (game.name === "own" || game.name === "others"))) continue;
+      const dirPath = join(root, game.name);
+      let files;
+      try {
+        files = await readdir(dirPath, { withFileTypes: true });
+      } catch {
+        continue;
+      }
+      for (const file of files) {
+        if (file.isFile() && (file.name.endsWith(".bin") || file.name.endsWith(".bin.gz") || file.name.endsWith(".motec.zip"))) {
+          captureFiles.push(join(dirPath, file.name));
+        }
       }
     }
   }
@@ -84,8 +95,9 @@ export async function cleanupOrphanSessionFiles(
     for (const filePath of captureFiles) {
       if (sessionActive()) break;
       try {
-        const { size } = await stat(filePath);
-        const isTiny = filePath.endsWith(".bin") && size <= TINY_ORPHAN_THRESHOLD_BYTES;
+        const info = await lstat(filePath);
+        if (!info.isFile()) continue;
+        const isTiny = filePath.endsWith(".bin") && info.size <= TINY_ORPHAN_THRESHOLD_BYTES;
         if (!isTiny && referenced.has(filePath)) continue;
         await unlink(filePath);
         removed++;

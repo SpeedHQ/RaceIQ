@@ -302,7 +302,7 @@ export const transferRoutes = new Hono()
 
       const { packetCount, laps } = await importSessionBin(bytes, gameId, {
         ownership: ownership.data,
-        ...(captureStorage === "raw" ? { recorder: new RealSessionRecorderAdapter() } : {}),
+        ...(captureStorage === "raw" ? { recorder: new RealSessionRecorderAdapter(ownership.data) } : {}),
       });
       if (packetCount === 0) return c.json({ error: "No telemetry packets found in file" }, 400);
       return c.json({

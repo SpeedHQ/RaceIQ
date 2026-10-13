@@ -186,15 +186,15 @@ describe("MoTeC real recording", () => {
       const [imported] = await db.select().from(sessions).where(eq(sessions.id, sessionId));
       expect(imported?.gameId).toBe("acc");
       expect(imported?.source).toBe("motec");
-      expect(imported?.rawFile).toStartWith(`${join(importDirectory, "acc")}${sep}`);
+      expect(imported?.rawFile).toStartWith(`${join(importDirectory, "own", "acc")}${sep}`);
       expect(imported?.rawFile).toEndWith(".motec.zip");
 
       await startRecordingDirectoryMove(destinationDirectory);
       await waitForRecordingMove();
       const [moved] = await db.select().from(sessions).where(eq(sessions.id, sessionId));
-      const expectedArchive = join(await realpath(destinationDirectory), "acc", basename(imported!.rawFile!));
+      const expectedArchive = join(await realpath(destinationDirectory), "own", "acc", basename(imported!.rawFile!));
       expect(moved?.rawFile).toBe(expectedArchive);
-      expect(await readdir(join(await realpath(destinationDirectory), "acc"))).toEqual([basename(expectedArchive)]);
+      expect(await readdir(join(await realpath(destinationDirectory), "own", "acc"))).toEqual([basename(expectedArchive)]);
       const replayed = await parseRawLapFrames({
         rawFile: expectedArchive,
         source: "motec",

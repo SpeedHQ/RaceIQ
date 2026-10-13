@@ -12,8 +12,9 @@ import { client, db } from "@raceiq/backend-core/db/index";
 import { sessions } from "@raceiq/backend-core/db/schema";
 import { eq } from "drizzle-orm";
 import { runCompressionNow } from "@raceiq/backend-core/session-capture/compressor";
-import { cleanupOrphanSessionFiles, withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
+import { cleanupOrphanSessionFiles, listSessionCaptureFiles, withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
+import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
 
 // Insert a minimal session row. createdAt accepts an ISO string so we can
 // back-date it to simulate files older than 24 hours.
@@ -198,6 +199,38 @@ describe("session capture cleanup", () => {
 
   afterEach(() => {
     rmSync(cleanupDir, { recursive: true, force: true });
+  });
+
+  test("orphan sweep discovers ownership folders and legacy game folders without following symlinks", async () => {
+    const root = resolveRecordingDirectory();
+    const gameId = `cleanup-test-${crypto.randomUUID()}`;
+    const paths = [
+      join(root, "own", gameId, "mine.bin"),
+      join(root, "others", gameId, "others.bin"),
+      join(root, gameId, "legacy.bin"),
+    ];
+    for (const path of paths) {
+      mkdirSync(join(path, ".."), { recursive: true });
+      writeFileSync(path, Buffer.alloc(32));
+    }
+    const externalDir = mkdtempSync(join(tmpdir(), "raceiq-cleanup-link-"));
+    const externalCapture = join(externalDir, "external.bin");
+    writeFileSync(externalCapture, Buffer.alloc(32));
+    const link = join(root, "own", gameId, "linked-game");
+    fs.symlinkSync(externalDir, link, "dir");
+    try {
+      const files = await listSessionCaptureFiles();
+      expect(files).toEqual(expect.arrayContaining(paths));
+      expect(files).not.toContain(externalCapture);
+      expect(await cleanupOrphanSessionFiles()).toBeGreaterThanOrEqual(3);
+      expect(paths.every((path) => !existsSync(path))).toBe(true);
+      expect(existsSync(externalCapture)).toBe(true);
+    } finally {
+      rmSync(join(root, "own", gameId), { recursive: true, force: true });
+      rmSync(join(root, "others", gameId), { recursive: true, force: true });
+      rmSync(join(root, gameId), { recursive: true, force: true });
+      rmSync(externalDir, { recursive: true, force: true });
+    }
   });
 
   test("stops orphan sweep when a recording starts during enumeration", async () => {

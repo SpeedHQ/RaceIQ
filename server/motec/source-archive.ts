@@ -1,10 +1,11 @@
-import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
+import { resolveRecordingGameDirectory } from "../runtime/config/recording-directory";
 import { mkdir, rename, unlink, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { zipSync } from "fflate";
 import { MOTEC_ZIP_LIMITS, unzipBounded } from "../archive/bounded-unzip";
 import type { GameId } from "@raceiq/shared/games/ids";
+import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import { timestampForFilename } from "../session-capture/filename";
 
 const LD_ENTRY = "session.ld";
@@ -79,8 +80,9 @@ export async function persistMotecSourceArchive(
   gameId: GameId,
   ldBytes: Uint8Array,
   ldxBytes?: Uint8Array,
+  ownership: SessionOwnership = "mine",
 ): Promise<string> {
-  const directory = join(resolveRecordingDirectory(), gameId);
+  const directory = resolveRecordingGameDirectory(gameId, ownership);
   await mkdir(directory, { recursive: true });
 
   const archivePath = join(

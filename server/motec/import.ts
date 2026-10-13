@@ -137,7 +137,7 @@ export async function importMotec(
     }))
     .sort((a, b) => a.group.localeCompare(b.group) || a.label.localeCompare(b.label));
   const unavailableFeatures = unavailableAnalysisFeatures(adapter, availableSemanticIds);
-  const sourcePath = await persistMotecSourceArchive(options.gameId, ldBytes, ldxBytes);
+  const sourcePath = await persistMotecSourceArchive(options.gameId, ldBytes, ldxBytes, options.ownership);
   const { packetCount, laps } = await importSessionPackets(
     conversion.packets,
     target.gameId,
