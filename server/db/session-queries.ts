@@ -1,4 +1,5 @@
 import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
+import { getRecordedElapsedSeconds } from "../session-capture/elapsed-duration";
 import { deleteLap } from "./lap-mutation-queries";
 import { getLapById } from "./lap-read-queries";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
@@ -11,7 +12,7 @@ import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version"
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { existsSync, unlinkSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
-import { getTrackLengthMeters, getTrackLengthMetersById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { getTrackLengthMetersById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
 import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 
@@ -285,6 +286,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       ownership: sessions.ownership,
       isFavorite: sessions.isFavorite,
       telemetryAvailable: sql<number>`${sessions.rawFile} IS NOT NULL`,
+      capturePath: sessions.rawFile,
       notes: sessions.notes,
       source: sessions.source,
       sessionType: sessions.sessionType,
@@ -302,6 +304,28 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
     ? await query.where(eq(sessions.gameId, gameId)).all()
     : await query.all();
 
+  // Shared paths lack per-session interval metadata; never count one full file twice.
+  const capturePaths = [...new Set(rows.flatMap((session) => session.capturePath ? [session.capturePath] : []))];
+  const sharedCaptureRows = capturePaths.length
+    ? await db.select({ rawFile: sessions.rawFile }).from(sessions).where(inArray(sessions.rawFile, capturePaths)).all()
+    : [];
+  const sessionsByFile = new Map<string, number>();
+  for (const session of sharedCaptureRows) {
+    if (session.rawFile) sessionsByFile.set(session.rawFile, (sessionsByFile.get(session.rawFile) ?? 0) + 1);
+  }
+  const elapsedBySession = new Map<number, number | null>();
+  for (const session of rows) {
+    const elapsedSeconds = session.capturePath && sessionsByFile.get(session.capturePath) === 1
+      ? await getRecordedElapsedSeconds({
+        rawFile: session.capturePath,
+        source: session.source ?? null,
+        gameId: session.gameId as GameId,
+        carId: session.carId,
+        trackId: session.trackId,
+      })
+      : null;
+    elapsedBySession.set(session.id, elapsedSeconds);
+  }
   // Get lap counts and best lap per session
   const result: SessionMeta[] = [];
   for (const session of rows) {
@@ -313,8 +337,9 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
     const validLapTimes = lapRows.filter((lap) => Boolean(lap.isValid)).map((lap) => lap.lapTime);
     const bestLapTime = validLapTimes.length > 0 ? Math.min(...validLapTimes) : 0;
 
+    const { capturePath: _capturePath, ...sessionMetadata } = session;
     const normalizedSession = {
-      ...session,
+      ...sessionMetadata,
       sessionType: session.sessionType ?? undefined,
       telemetryAvailable: Boolean(session.telemetryAvailable),
       isFavorite: Boolean(session.isFavorite),
@@ -325,6 +350,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
         classification: sessionResults.classification,
         finishingPosition: sessionResults.finishingPosition,
         qualifyingPosition: sessionResults.qualifyingPosition,
+        outcomeStatus: sessionResults.outcomeStatus,
         isPodium: sessionResults.isPodium,
         isFastestLap: sessionResults.isFastestLap,
         pitCount: sessionResults.pitCount,
@@ -341,11 +367,13 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       : null;
     result.push({
       ...normalizedSession,
+      elapsedSeconds: elapsedBySession.get(session.id) ?? null,
       lapCount: lapRows.length,
       bestLapTime,
       resultClassification: resultRow?.classification ?? null,
       finishingPosition: resultRow?.finishingPosition ?? null,
       qualifyingPosition: resultRow?.qualifyingPosition ?? null,
+      resultOutcomeStatus: resultRow?.outcomeStatus ?? null,
       isPodium: resultRow?.isPodium ?? null,
       isFastestLap: resultRow?.isFastestLap ?? null,
       pitCount: resultRow?.pitCount ?? null,
@@ -416,9 +444,7 @@ export async function getSessionRecapData(
 
   const trackLengthM = gameId === "lmu" && sessionRow.trackId
     ? (getLMUTrack(sessionRow.trackId)?.lengthKm ?? 0) * 1_000 || null
-    : gameId === "ac-evo"
-      ? getTrackLengthMetersById(sessionRow.trackId, gameId)
-      : getTrackLengthMeters(Number(sessionRow.trackId), gameId);
+    : getTrackLengthMetersById(sessionRow.trackId, gameId);
   const sessionSectorCount =
     lapRows.find(
       (lap) =>

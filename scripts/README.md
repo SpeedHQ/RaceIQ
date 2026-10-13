@@ -99,6 +99,10 @@ the wrapper runs full selection. CI cache partitions include host and toolchain.
 Application, tooling, and frontend contract tasks compile client translations
 explicitly; game/core tasks do not depend on client compilation.
 
+The Build & Test CI job limits Turbo to two concurrent test tasks and sets
+`BUN_TEST_WORKERS=1` for both affected and full runs to avoid nested test
+parallelism overwhelming constrained runners. Local suite defaults are unchanged.
+
 Root `bun run typecheck` checks workspace packages sequentially. The shared
 base config uses `${configDir}/dist`, giving each composite workspace its own
 incremental cache instead of overwriting root `dist/tsconfig.tsbuildinfo`.

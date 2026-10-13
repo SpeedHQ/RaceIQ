@@ -2,7 +2,7 @@ import { getAllGames } from "@raceiq/shared/games/registry"
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { Settings } from "@/components/settings/Settings";
 import { useSettings } from "@/hooks/settings";
@@ -20,7 +20,9 @@ import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { queryClient } from "../lib/queryClient";
 import { useTelemetryStore } from "../stores/telemetry";
+import { gameIdForPathname } from "../lib/game-routes";
 import { uiStore, useUiStore } from "../stores/ui";
+import { GameRouteProvider, gameStore, usesStoreGameContext, useGameStore } from "../stores/game";
 
 let _gamePrefixes: string[] | null = null;
 function getGamePrefixes() {
@@ -70,6 +72,12 @@ function AppShell() {
     return true;
   });
   const location = useLocation();
+  const routeGameId = gameIdForPathname(location.pathname);
+  useLayoutEffect(() => {
+    if (!(routeGameId === null && usesStoreGameContext(location.pathname))) {
+      gameStore.actions.setGameId(routeGameId);
+    }
+  }, [location.pathname, routeGameId]);
   const hiddenGames: string[] = displaySettings.hiddenGames ?? [];
 
   // Close mobile drawer on route change, but keep it open when the user
@@ -186,9 +194,15 @@ function AppShell() {
 }
 
 function RootLayout() {
+  const location = useLocation();
+  const routeGameId = gameIdForPathname(location.pathname);
+  const storedGameId = useGameStore((state) => state.gameId);
+  const gameId = routeGameId ?? (usesStoreGameContext(location.pathname) ? storedGameId : null);
   return (
     <QueryClientProvider client={queryClient}>
-      <AppShell />
+      <GameRouteProvider value={gameId}>
+        <AppShell />
+      </GameRouteProvider>
     </QueryClientProvider>
   );
 }

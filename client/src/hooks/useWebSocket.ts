@@ -7,8 +7,19 @@ import { telemetryStore } from "../stores/telemetry";
 import { devTelemetryStore } from "../stores/dev-telemetry";
 import { queryKeys } from "./query-keys";
 import { buildWebSocketUrl, type DevWebSocketTarget } from "./websocket-url";
+import { invalidateDashboardQueries } from "./dashboard";
 
 declare const __RACEIQ_DEV_WS_TARGET__: DevWebSocketTarget;
+
+let dashboardRefreshTimer: number | undefined;
+
+function invalidateDashboard() {
+  if (dashboardRefreshTimer !== undefined) window.clearTimeout(dashboardRefreshTimer);
+  dashboardRefreshTimer = window.setTimeout(() => {
+    dashboardRefreshTimer = undefined;
+    invalidateDashboardQueries();
+  }, 100);
+}
 
 const VERSION_REQUEST_TIMEOUT_MS = 10_000;
 const RACE_RESULT_REPROCESS_ERROR = "One or more race results could not be reconciled.";
@@ -119,12 +130,15 @@ export function useWebSocket() {
             telemetryStore.actions.setUpdateProgress({ stage: data.stage, percent: data.percent ?? 0 });
           } else if (data.type === "onboarding_complete") {
             queryClient.invalidateQueries({ queryKey: ["settings"] });
+          } else if (data.type === "dashboard_updated") {
+            invalidateDashboard();
           } else if (data.type === "session-laps") {
             telemetryStore.actions.setSessionLaps(data.laps);
           } else if (data.type === "dev-state") {
             telemetryStore.actions.setDevState(data);
           } else if (data.type === "lap-saved") {
             queryClient.invalidateQueries({ queryKey: ["laps"] });
+            invalidateDashboard();
             queryClient.invalidateQueries({ queryKey: queryKeys.userTunes });
           } else if (data.type === "stale-lap-detection") {
             telemetryStore.actions.setStaleLapDetection({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
@@ -161,6 +175,7 @@ export function useWebSocket() {
             if (done === total) {
               if (!failedEarlier && !failedNow) telemetryStore.actions.setStaleRaceResults(null);
               telemetryStore.actions.setRaceResultReprocessProgress(null);
+              invalidateDashboard();
             }
             queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
             queryClient.invalidateQueries({ queryKey: queryKeys.sessionResults });
