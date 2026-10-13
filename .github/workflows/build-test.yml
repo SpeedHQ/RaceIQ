@@ -33,7 +33,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.3
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -70,6 +70,8 @@ jobs:
       - mars-macos-arm64-2vcpu-10g
       - mars-ubuntu-arm64-2vcpu-10g
       - mars-retry-3
+    env:
+      BUN_TEST_WORKERS: "1"
     steps:
       - uses: actions/checkout@v7
         with:
@@ -78,7 +80,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.3
 
       - uses: actions/setup-node@v7
         with:
@@ -91,9 +93,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ runner.arch }}-bun-1.4.2-turbo-2.11.7-${{ github.sha }}-${{ github.run_attempt }}
+          key: turbo-${{ runner.os }}-${{ runner.arch }}-bun-1.4.3-turbo-2.11.7-${{ github.sha }}-${{ github.run_attempt }}
           restore-keys: |
-            turbo-${{ runner.os }}-${{ runner.arch }}-bun-1.4.2-turbo-2.11.7-
+            turbo-${{ runner.os }}-${{ runner.arch }}-bun-1.4.3-turbo-2.11.7-
 
       - name: Check test shard coverage
         run: bun run test:shards
@@ -115,20 +117,32 @@ jobs:
 
       - name: Check generated telemetry catalog
         run: bun scripts/ci/check-telemetry-catalog.ts
-      - name: Run affected test suites
+      - name: Run affected unit tests
         env:
           TURBO_SCM_BASE: ${{ github.event.pull_request.base.sha }}
           TURBO_SCM_HEAD: ${{ github.event.pull_request.head.sha }}
-        run: bun scripts/test/run-turbo.ts test:unit test:tooling test:integration --affected
+        run: bun scripts/test/run-turbo.ts test:unit --affected --log-order=stream --concurrency=2
+        if: github.event_name == 'pull_request'
+      - name: Run affected tooling tests
+        env:
+          TURBO_SCM_BASE: ${{ github.event.pull_request.base.sha }}
+          TURBO_SCM_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: bun scripts/test/run-turbo.ts test:tooling --affected --log-order=stream --concurrency=2
+        if: github.event_name == 'pull_request'
+      - name: Run affected integration tests
+        env:
+          TURBO_SCM_BASE: ${{ github.event.pull_request.base.sha }}
+          TURBO_SCM_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: bun scripts/test/run-turbo.ts test:integration --affected --log-order=stream --concurrency=2
         if: github.event_name == 'pull_request'
       - name: Run full test suites
-        run: bun scripts/test/run-turbo.ts test:unit test:tooling test:integration
+        run: bun scripts/test/run-turbo.ts test:unit test:tooling test:integration --concurrency=2
         if: github.event_name != 'pull_request'
       - name: Save Turbo task cache
         uses: actions/cache/save@v4
         with:
           path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ runner.arch }}-bun-1.4.2-turbo-2.11.7-${{ github.sha }}-${{ github.run_attempt }}
+          key: turbo-${{ runner.os }}-${{ runner.arch }}-bun-1.4.3-turbo-2.11.7-${{ github.sha }}-${{ github.run_attempt }}
         if: always()
 
 

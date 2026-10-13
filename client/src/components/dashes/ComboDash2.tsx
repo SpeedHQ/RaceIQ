@@ -11,7 +11,7 @@ interface ComboDash2Props {
 }
 
 export function ComboDash2({ view, sessionLaps }: ComboDash2Props) {
-  const trackOrdinal = view?.identity.trackOrdinal;
+  const trackId = view?.identity.trackId;
 
   return (
     <DashShell>
@@ -21,9 +21,9 @@ export function ComboDash2({ view, sessionLaps }: ComboDash2Props) {
         </div>
 
         <div className="min-w-0 min-h-0 rounded-md border border-app-text/10 bg-app-text/[0.02] overflow-hidden [&_div:has(>h2)]:hidden [&_button]:hidden [&_div.w-16]:hidden [&_.uppercase.tracking-wider]:hidden">
-          {trackOrdinal ? (
+          {trackId ? (
             <div className="h-full overflow-hidden">
-              <RecordedLaps laps={sessionLaps} trackOrdinal={trackOrdinal} maxLaps={30} />
+              <RecordedLaps laps={sessionLaps} trackId={trackId} maxLaps={30} />
             </div>
           ) : (
             <div className="h-full flex items-center justify-center text-app-text/40 text-sm tracking-widest uppercase">{m.dash_waiting_track()}</div>

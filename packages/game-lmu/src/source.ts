@@ -122,7 +122,7 @@ export class LMUTelemetrySource {
       const sharedMemory = this.reader.readLatest();
       if (!sharedMemory) return false;
       const frameTimeMs = Date.now();
-      const rawFrame = encodeLMUSourceFrame(sharedMemory);
+      const rawFrame = encodeLMUSourceFrame(sharedMemory, frameTimeMs);
       if (!rawFrame) return false;
       const frame = decodeLMUSourceFrame(rawFrame);
       if (!frame) return false;

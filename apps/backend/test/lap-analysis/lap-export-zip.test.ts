@@ -20,7 +20,7 @@ import { sessions, laps } from "@raceiq/backend-core/db/schema";
 import { eq } from "drizzle-orm";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
-import { iterateSessionCaptureRecords, META_FRAME_MAGIC, SEGMENT_BOUNDARY_MAGIC } from "@raceiq/backend-core/session-capture/framing";
+import { iterateSessionCaptureRecords, META_FRAME_MAGIC, SEGMENT_BOUNDARY_MAGIC } from "@raceiq/capture-formats/session/framing";
 import { buildLapsZip, LAPS_ZIP_VERSION, type LapsZipManifest } from "../../src/laps/archive";
 import {
   createIRacingSourceDecoderState,
@@ -141,7 +141,7 @@ describe("buildLapsZip", () => {
   ): Promise<number> {
     const row = await db
       .insert(sessions)
-      .values({ carOrdinal: 3000, trackOrdinal: 434343, gameId, rawFile })
+      .values({ carId: "3000", trackId: "434343", gameId, rawFile })
       .returning({ id: sessions.id })
       .get();
     sessionIds.push(row!.id);

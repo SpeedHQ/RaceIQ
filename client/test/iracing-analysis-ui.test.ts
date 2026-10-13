@@ -165,6 +165,7 @@ describe("iRacing analysis segment timing", () => {
     expect(result?.staticSegments.map((segment) => segment.time)).toEqual([12.5, 12.5, 12.5, 12.5]);
     expect(result?.staticSegments.map((segment) => segment.name)).toEqual(["S1", "T1", "S2", "T2"]);
   });
+
 });
 
 describe("session Analyse map hover sectors", () => {

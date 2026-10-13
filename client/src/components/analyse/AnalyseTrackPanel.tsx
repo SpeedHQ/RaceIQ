@@ -1,4 +1,5 @@
 import type { GameId } from "@raceiq/shared/games/ids";
+import type { PitLine } from "@/lib/canvas/draw-track";
 import type { RefObject } from "react";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
 import { m } from "../../paraglide/messages";
@@ -27,8 +28,10 @@ interface AnalyseTrackPanelProps {
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: Point[] | null;
+  closed?: boolean;
   mapLabels?: TrackMapLabel[] | null;
   boundaries: TrackMapBoundaries | null;
+  pitLines?: PitLine[] | null;
   sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   currentFrame: SemanticAnalysisFrame | null;
@@ -66,9 +69,11 @@ interface AnalyseTrackPanelProps {
 export function AnalyseTrackPanel({
   gameId,
   telemetry,
+  closed = true,
   cursorIdx,
   outline,
   mapLabels,
+  pitLines,
   boundaries,
   sectors,
   segments,
@@ -124,8 +129,10 @@ export function AnalyseTrackPanel({
         telemetry={telemetry}
         cursorIdx={cursorIdx}
         outline={outline}
+        closed={closed}
         mapLabels={trackOverlays.segments ? mapLabels : null}
         boundaries={boundaries}
+        pitLines={pitLines}
         sectors={trackOverlays.sectors ? sectors : null}
         segments={trackOverlays.segments ? segments : null}
         highlights={aiPanelOpen ? aiHighlights : null}

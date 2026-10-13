@@ -16,7 +16,7 @@ import { ReplayedUdpDataSource } from "@raceiq/backend-core/test-support/recordi
 import {
   decompressIfGzipSync,
   iterateSessionFrames,
-} from "@raceiq/backend-core/session-capture/framing";
+} from "@raceiq/capture-formats/session/framing";
 const RECORDINGS_DIR = resolve(process.cwd(), "test", "artifacts", "sessions");
 const RECORDING_CASES: readonly {
   gameId: GameId;

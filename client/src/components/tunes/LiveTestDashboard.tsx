@@ -9,6 +9,7 @@ import { convertTemp } from "@raceiq/frontend-pure/temperature";
 import { semanticTuneSampleFromView } from "./semantic-tune";
 import { AnalyseTrackPanel } from "../analyse/AnalyseTrackPanel";
 import type { Point } from "../analyse/track-map/types";
+import { isPitLine, type PitLine } from "@/lib/canvas/draw-track";
 import { CurrentLapTireStrip } from "./CurrentLapTireStrip";
 import { LiveLapCards } from "./LiveLapCards";
 import { LiveLapInfo } from "./LiveLapInfo";
@@ -16,8 +17,8 @@ import { LiveLapInfo } from "./LiveLapInfo";
 function viewToSemanticFrame(view: LiveTelemetryView): SemanticAnalysisFrame {
   return {
     values: {
-      "identity.track-ordinal": view.identity.trackOrdinal,
-      "identity.car-ordinal": view.identity.carOrdinal,
+      "identity.track-id": view.identity.trackId,
+      "identity.car-id": view.identity.carId,
       "motion.position-x": view.motion.position?.x,
       "motion.position-z": view.motion.position?.z,
       "motion.speed": view.motion.speedMps,
@@ -81,11 +82,11 @@ export function LiveTrackConditions({ view }: { view: LiveTelemetryView | null |
  */
 export function LiveTestDashboard({
   gameId,
-  trackOrdinal,
+  trackId,
   initialViews,
 }: {
   gameId: ExperimentGameId;
-  trackOrdinal: number | null;
+  trackId: string | null;
   /** Story-only canonical trace for immediate rendering. */
   initialViews?: LiveTelemetryView[];
 }) {
@@ -98,8 +99,8 @@ export function LiveTestDashboard({
   const gameLaps = useMemo(() => sessionLaps.filter((lap) => lap.gameId === gameId), [gameId, sessionLaps]);
   const gameSectors = telemetryView?.simulator === gameId ? sectors : null;
 
-  // Most-recently-completed lap's track ordinal, used as a fallback below.
-  const latestLap = useMemo(() => (gameLaps.length ? [...gameLaps].sort((a, b) => b.lapNumber - a.lapNumber)[0] : null), [gameLaps]);
+  // Most-recently-completed lap's track ID, used as a fallback below.
+  const latestLap = gameLaps.at(-1);
 
   const [rotateWithCar, setRotateWithCar] = useState(false);
   const [mapZoom, setMapZoom] = useState(1);
@@ -130,8 +131,8 @@ export function LiveTestDashboard({
   const tuneTrace = useMemo(() => activeViews.map(semanticTuneSampleFromView), [activeViews]);
   const currentFrame = semanticTrace.at(-1) ?? null;
 
-  const trackOrd = trackOrdinal ?? latestLap?.trackOrdinal ?? currentView?.identity.trackOrdinal ?? null;
-  const { data: outlineRaw } = useTrackOutline(trackOrd ?? undefined, gameId);
+  const activeTrackId = trackId ?? latestLap?.trackId ?? currentView?.identity.trackId ?? null;
+  const { data: outlineRaw } = useTrackOutline(activeTrackId ?? undefined, gameId);
   const outline = useMemo(() => {
     if (!outlineRaw) return null;
     const d = outlineRaw as any;
@@ -139,7 +140,11 @@ export function LiveTestDashboard({
     if (Array.isArray(d)) return d as Point[];
     return null;
   }, [outlineRaw]);
-  const { data: boundariesRaw } = useTrackBoundaries(trackOrd ?? undefined, gameId);
+  const pitLines = useMemo<PitLine[] | null>(() => {
+    if (!outlineRaw || Array.isArray(outlineRaw) || typeof outlineRaw !== "object" || !("pitLines" in outlineRaw)) return null;
+    return Array.isArray(outlineRaw.pitLines) ? outlineRaw.pitLines.filter(isPitLine) : null;
+  }, [outlineRaw]);
+  const { data: boundariesRaw } = useTrackBoundaries(activeTrackId ?? undefined, gameId);
   const boundaries = (boundariesRaw as TrackMapBoundaries | null) ?? null;
 
   return (
@@ -154,6 +159,7 @@ export function LiveTestDashboard({
               telemetry={semanticTrace}
               cursorIdx={semanticTrace.length - 1}
               outline={outline}
+              pitLines={pitLines}
               boundaries={boundaries}
               sectors={null}
               segments={null}
@@ -179,7 +185,7 @@ export function LiveTestDashboard({
         {/* recorded laps so far, as a card row, with the in-progress lap leading */}
         <div className="shrink-0 border-b border-app-border">
           <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{m.tunes_laps_heading()}</div>
-          <LiveLapCards laps={gameLaps} trackOrdinal={trackOrd ?? undefined} sectors={gameSectors} currentLapNumber={currentView?.timing.lapNumber ?? null} maxLaps={30} />
+          <LiveLapCards laps={gameLaps} trackId={activeTrackId ?? undefined} sectors={gameSectors} currentLapNumber={currentView?.timing.lapNumber ?? null} maxLaps={30} />
         </div>
         {/* compact live tyre readout for the in-progress lap — sector-by-sector
             breakdown reviews a completed lap, not what's happening right now */}

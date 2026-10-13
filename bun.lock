@@ -38,7 +38,7 @@
         "@mastra/observability": "^1.17.8",
         "@playwright/test": "1.62.1",
         "@shadcn/lint": "^0.1.5",
-        "@types/bun": "^1.4.2",
+        "@types/bun": "^1.4.3",
         "cheerio": "^1.2.0",
         "concurrently": "^10.0.5",
         "drizzle-kit": "^0.31.10",
@@ -195,6 +195,10 @@
     },
     "packages/capture-formats": {
       "name": "@raceiq/capture-formats",
+      "dependencies": {
+        "@raceiq/game-iracing-metadata": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+      },
     },
     "packages/frontend-contract-tests": {
       "name": "@raceiq/frontend-contract-tests",
@@ -202,6 +206,7 @@
         "@raceiq/analysis-core": "workspace:*",
         "@raceiq/backend": "workspace:*",
         "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
         "@raceiq/game-ac-evo": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
@@ -222,6 +227,7 @@
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
       },
     },
     "packages/game-ac-evo-metadata": {
@@ -278,6 +284,7 @@
       "name": "@raceiq/game-fm-2023",
       "dependencies": {
         "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/game-fm-2023-metadata": "workspace:*",
         "@raceiq/shared": "workspace:*",
@@ -296,6 +303,7 @@
         "@raceiq/capture-formats": "workspace:*",
         "@raceiq/game-iracing-metadata": "workspace:*",
         "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
         "drizzle-orm": "^0.45.2",
       },
     },
@@ -326,7 +334,25 @@
     "packages/telemetry-core": {
       "name": "@raceiq/telemetry-core",
       "dependencies": {
+        "@raceiq/analysis-core": "workspace:*",
         "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/telemetry-processor": {
+      "name": "@raceiq/telemetry-processor",
+      "dependencies": {
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/game-ac-evo": "workspace:*",
+        "@raceiq/game-acc": "workspace:*",
+        "@raceiq/game-f1-2025": "workspace:*",
+        "@raceiq/game-fm-2023": "workspace:*",
+        "@raceiq/game-iracing": "workspace:*",
+        "@raceiq/game-lmu": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+        "@raceiq/telemetry-core": "workspace:*",
+      },
+      "devDependencies": {
+        "@raceiq/capture-formats": "workspace:*",
       },
     },
     "packages/tooling-build": {
@@ -363,6 +389,7 @@
         "@raceiq/game-acc-metadata": "workspace:*",
         "@raceiq/game-fm-2023": "workspace:*",
         "@raceiq/game-iracing": "workspace:*",
+        "@raceiq/game-iracing-metadata": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
         "cheerio": "^1.2.0",
@@ -1142,6 +1169,8 @@
 
     "@raceiq/telemetry-core": ["@raceiq/telemetry-core@workspace:packages/telemetry-core"],
 
+    "@raceiq/telemetry-processor": ["@raceiq/telemetry-processor@workspace:packages/telemetry-processor"],
+
     "@raceiq/tooling": ["@raceiq/tooling@workspace:scripts"],
 
     "@raceiq/tooling-build": ["@raceiq/tooling-build@workspace:packages/tooling-build"],
@@ -1494,7 +1523,7 @@
 
     "@types/babel__traverse": ["@types/babel__traverse@7.28.0", "", { "dependencies": { "@babel/types": "^7.28.2" } }, "sha512-8PvcXf70gTDZBgt9ptxJ8elBeBjcLOAcOtoO/mPJjtji1+CdGbHgm77om1GrsPxsiE+uXIpNSK64UYaIwQXd4Q=="],
 
-    "@types/bun": ["@types/bun@1.3.14", "", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+    "@types/bun": ["@types/bun@1.4.3", "", { "dependencies": { "bun-types": "1.4.3" } }, "sha512-N67Pqy8JXbAY/j0tNraS3V5mubGvc6rrrNDmDCtZLlFzccbUJPDb0tvgUBC5q4m8ybkP93Jcn1QB+RYQ6PvBhw=="],
 
     "@types/chai": ["@types/chai@5.2.3", "", { "dependencies": { "@types/deep-eql": "*", "assertion-error": "^2.0.1" } }, "sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA=="],
 
@@ -1662,7 +1691,7 @@
 
     "buffer-from": ["buffer-from@1.1.2", "", {}, "sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ=="],
 
-    "bun-types": ["bun-types@1.3.14", "", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+    "bun-types": ["bun-types@1.4.3", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-tinRJNGOmUN+tEAsn2y2e942n9JHRHR42iUYzDH75NmhJqVBokGSQkkfSFdNWwsANIdrK6ACH9t01M452YyTwg=="],
 
     "bundle-name": ["bundle-name@4.1.0", "", { "dependencies": { "run-applescript": "^7.0.0" } }, "sha512-tjwM5exMg6BGRI+kNmTntNsvdZS1X8BFYS6tnJ2hdH0kVxM6/eVZ2xy+FqStSWvYmtfFMDLIxurorHwDKfDz5Q=="],
 

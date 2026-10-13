@@ -58,8 +58,8 @@ function makeFakeDb() {
 function packet(fields: Partial<TelemetryPacket>): TelemetryPacket {
   return {
     gameId: "acc",
-    CarOrdinal: 34,
-    TrackOrdinal: 2,
+    carId: "34",
+    trackId: "2",
     CarPerformanceIndex: 0,
     CarClass: 0,
     LapNumber: 0,

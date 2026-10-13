@@ -1,12 +1,8 @@
 /**
- * One-off backfill: find AC Evo sessions stuck at car_ordinal = -1 (recorded
- * before the discovered_cars feature existed, or before an unresolved car's
- * model string made it into a packet the old parser kept), re-read their raw
- * capture files, extract the first resolvable car model string, register it
- * in discovered_cars, and patch the session's car_ordinal.
+ * One-off backfill: find AC Evo sessions missing native car IDs, re-read raw
+ * captures, extract first car model string, and register it in discovered cars.
  *
- * Safe to re-run: sessions that still can't be resolved (corrupt/truncated
- * raw file, or the car never sent a model string) are left at -1 and logged.
+ * Safe to re-run: unresolved sessions remain unchanged and are logged.
  *
  * Usage: bun run apps/backend/scripts/data/backfill-unknown-cars.ts
  */
@@ -18,8 +14,8 @@ import { and, eq } from "drizzle-orm";
 import { db, initDb } from "@raceiq/backend-core/db/index";
 import { sessions } from "@raceiq/backend-core/db/schema";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
-import { getOrCreateDiscoveredCar } from "@raceiq/backend-core/db/discovered-cars";
-import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing";
+import { registerAcEvoCar } from "@raceiq/backend-core/db/discovered-cars";
+import { META_FRAME_MAGIC } from "@raceiq/capture-formats/session/framing";
 import { gunzipIfNeeded } from "@raceiq/tooling-data/lib/compression";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
@@ -58,7 +54,7 @@ async function resolveCarModelFromRawFile(rawFile: string): Promise<string | und
     const carModelName = (packet as TelemetryPacket & { carModelName?: string }).carModelName;
     if (carModelName) return carModelName;
     // Already resolved by the (now-updated) canonical car list — nothing to backfill.
-    if (packet.CarOrdinal >= 0) return undefined;
+    if (packet.carId !== "" && packet.carId !== "-1") return undefined;
   }
   return undefined;
 }
@@ -67,7 +63,7 @@ async function main() {
   const unresolved = await db
     .select()
     .from(sessions)
-    .where(and(eq(sessions.gameId, GAME_ID), eq(sessions.carOrdinal, -1)))
+    .where(and(eq(sessions.gameId, GAME_ID), eq(sessions.carId, "")))
     .all();
 
   console.log(`[Backfill] Found ${unresolved.length} unresolved AC Evo session(s).`);
@@ -97,9 +93,9 @@ async function main() {
       continue;
     }
 
-    const ordinal = await getOrCreateDiscoveredCar(GAME_ID, carModelName);
-    await db.update(sessions).set({ carOrdinal: ordinal }).where(eq(sessions.id, session.id)).run();
-    console.log(`[Backfill] Session ${session.id}: "${carModelName}" → ordinal ${ordinal}`);
+    const carId = await registerAcEvoCar(carModelName);
+    await db.update(sessions).set({ carId }).where(eq(sessions.id, session.id)).run();
+    console.log(`[Backfill] Session ${session.id}: "${carModelName}" → native ID ${carId}`);
     fixed++;
   }
 

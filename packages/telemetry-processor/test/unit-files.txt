@@ -1,0 +1,4 @@
+packages/telemetry-processor/test/batch.test.ts
+packages/telemetry-processor/test/iracing-engine.test.ts
+packages/telemetry-processor/test/lap-policy.test.ts
+packages/telemetry-processor/test/ordinal-engine.test.ts

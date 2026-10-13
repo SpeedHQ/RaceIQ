@@ -14,14 +14,16 @@
     "./track-map-svg": "./src/track-map-svg.ts",
     "./track-map": "./src/track-map.ts",
     "./test-support/games/iracing-ibt": "./test/support/games/iracing-ibt.ts",
-    "./test-support/recordings": "./test/support/recordings.ts"
+    "./test-support/recordings": "./test/support/recordings.ts",
+    "./game-parser": "./src/game-parser.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
     "@raceiq/shared": "workspace:*",
-    "@raceiq/game-iracing-metadata": "workspace:*"
+    "@raceiq/game-iracing-metadata": "workspace:*",
+    "@raceiq/telemetry-core": "workspace:*"
   },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit",

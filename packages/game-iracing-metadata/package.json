@@ -15,6 +15,7 @@
     "./session-info/setup-tires": "./src/session-info/setup-tires.ts",
     "./session-info/formatting": "./src/session-info/formatting.ts",
     "./racing/cars/iracing": "./src/racing/cars/iracing.ts",
+    "./racing/cars/iracing-classes": "./src/racing/cars/iracing-classes.ts",
     "./racing/tracks/catalogs/iracing": "./src/racing/tracks/catalogs/iracing.ts"
   },
   "dependencies": {

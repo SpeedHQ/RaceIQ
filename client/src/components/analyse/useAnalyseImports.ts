@@ -1,5 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../../hooks/query-keys";
+import { invalidateDashboardQueries } from "../../hooks/dashboard";
 import { useCallback, useState } from "react";
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import { client } from "../../lib/rpc";
@@ -11,8 +12,8 @@ export interface ImportedLap {
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
-  carId: number | string;
-  trackId: number | string;
+  carId: string;
+  trackId: string;
 }
 export interface AnalyseImportResult {
   fileName: string;
@@ -41,6 +42,7 @@ export function useAnalyseImports(args: {
       void queryClient.invalidateQueries({ queryKey: ["sessions"] });
       void queryClient.invalidateQueries({ queryKey: ["tracks"] });
       void queryClient.invalidateQueries({ queryKey: queryKeys.userTunes });
+      invalidateDashboardQueries();
       setImportResult(result);
     },
     [queryClient],

@@ -63,7 +63,7 @@ describe("MoTeC real recording", () => {
   });
 
   test("round-trips real samples through the game adapter", () => {
-    const carTrack = resolveMotecTarget("acc").resolveCarTrack(log, { carOrdinal: 33, trackOrdinal: 8 });
+    const carTrack = resolveMotecTarget("acc").resolveCarTrack(log, { carId: "33", trackId: "8" });
     const capture = resolveMotecTarget("acc").convert(log, beacons, carTrack);
     expect(capture.frameCount).toBe(6164);
     expect(capture.lapCount).toBe(1);
@@ -97,8 +97,8 @@ describe("MoTeC real recording", () => {
     expect(maxAbsYaw).toBeGreaterThan(0.1);
     for (const packet of packets) {
       expect(packet.gameId).toBe("acc");
-      expect(packet.CarOrdinal).toBe(33);
-      expect(packet.TrackOrdinal).toBe(8);
+      expect(packet.carId).toBe("33");
+      expect(packet.trackId).toBe("8");
     }
     for (const frameIndex of [0, 1500, 3000, 6000]) {
       const packet = packets[frameIndex]!;
@@ -153,8 +153,8 @@ describe("MoTeC real recording", () => {
   test("imports one lap under MoTeC source", async () => {
     const result = await importMotec(fixture.ld, fixture.ldx, {
       gameId: "acc",
-      carOrdinal: 33,
-      trackOrdinal: 8,
+      carId: "33",
+      trackId: "8",
     });
     expect(result.gameId).toBe("acc");
     expect(result.packetCount).toBe(6164);
@@ -169,8 +169,8 @@ describe("MoTeC real recording", () => {
   test("rejects MoTeC imports without the signal sidecar", async () => {
     await expect(importMotec(fixture.ld, undefined, {
       gameId: "acc",
-      carOrdinal: 33,
-      trackOrdinal: 8,
+      carId: "33",
+      trackId: "8",
     })).rejects.toThrow("MoTeC .ldx signal file is required");
   });
 

@@ -34,8 +34,8 @@ export function AnalyseRoute({ gameId, sessionId }: { gameId: GameId; sessionId?
   const hasSession = search.session != null || (nested && !hasTrack && !hasCar && !hasLap);
   const selectedSessionId = search.session ?? sessionId;
   const comparisonLapIds = parseAnalyseLapIds(search.laps);
-  const validTrack = !hasTrack || (gameId === "lmu" ? typeof search.track === "string" && search.track.length > 0 : typeof search.track === "number" && Number.isInteger(search.track) && search.track > 0);
-  const validCar = !hasCar || (gameId === "lmu" ? typeof search.car === "string" && search.car.length > 0 : typeof search.car === "number" && Number.isInteger(search.car) && search.car > 0);
+  const validTrack = !hasTrack || typeof search.track === "string" && search.track.length > 0;
+  const validCar = !hasCar || typeof search.car === "string" && search.car.length > 0;
   const validLap = !hasLap || (Number.isInteger(search.lap!) && search.lap! > 0);
 
   if (!validTrack || !validCar || !validLap) return <InvalidAnalyseSelection nested={nested} message={m.review_invalid_track_car_lap_selection()} />;
@@ -57,5 +57,5 @@ export function AnalyseRoute({ gameId, sessionId }: { gameId: GameId; sessionId?
   if ((hasLap || hasComparison) && (!hasTrack || !hasCar)) return <InvalidAnalyseSelection nested={nested} message={m.review_lap_selection_track_car_required()} />;
   if (hasLap) return <LapAnalyse sessionId={nested ? sessionId : undefined} />;
   if (gameId === "lmu") return <LapAnalyse sessionId={nested ? sessionId : undefined} />;
-  return <TrackCarAnalyseReviewPage gameId={gameId} trackOrdinal={search.track as number} carOrdinal={search.car as number} />;
+  return <TrackCarAnalyseReviewPage gameId={gameId} trackId={search.track} carId={search.car} />;
 }

@@ -3,8 +3,8 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { LMU_SOURCE_FRAME_HEADER_SIZE, LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
-import { advanceSessionFrames, iterateSessionFrameRecords, sessionFrameAt } from "@raceiq/backend-core/session-capture/framing";
-import { SparseSessionRecorder } from "@raceiq/backend-core/session-capture/sparse-recorder";
+import { advanceSessionFrames, iterateSessionFrameRecords, sessionFrameAt } from "@raceiq/capture-formats/session/framing";
+import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
 import { iterateSessionCaptureFrames } from "@raceiq/backend-core/session-capture/source-loader";
 
 const directories: string[] = [];
@@ -44,7 +44,7 @@ describe("LMU sparse session recorder", () => {
       if (index + 1 < offsets.length) expect(advanceSessionFrames(bytes, offsets[index]!, 1)).toBe(offsets[index + 1]);
     }
     const streamed: Buffer[] = [];
-    for await (const record of iterateSessionCaptureFrames({ rawFile: file, source: null, gameId: "lmu", carOrdinal: -1, trackOrdinal: -1 })) {
+    for await (const record of iterateSessionCaptureFrames({ rawFile: file, source: null, gameId: "lmu", carId: "ferrari_499p_2023", trackId: "lemans_2023/lemanswec" })) {
       streamed.push(record.frame);
     }
     expect(streamed).toEqual(expected);

@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { resolve } from "node:path";
-import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { parseAccBuffers } from "@raceiq/game-acc/parser";
 import { readWString } from "@raceiq/game-acc/utils";
 import { STATIC } from "@raceiq/capture-formats/acc/structs";
@@ -135,8 +135,8 @@ export function parseAccRecordingPoints(frames: KunosRecordingFrame[]): Point2D[
     }
 
     const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
-      carOrdinal,
-      trackOrdinal,
+      carId: carOrdinal ? String(carOrdinal) : "",
+      trackId: trackOrdinal ? String(trackOrdinal) : "",
     });
 
     if (packet) {
@@ -173,8 +173,8 @@ export function parseAccRecordingPacketsWithSpeed(frames: KunosRecordingFrame[])
     }
 
     const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
-      carOrdinal,
-      trackOrdinal,
+      carId: carOrdinal ? String(carOrdinal) : "",
+      trackId: trackOrdinal ? String(trackOrdinal) : "",
     });
 
     if (packet) {
@@ -216,8 +216,8 @@ export function parseAccRecordingLaps(frames: KunosRecordingFrame[]): E2eLapResu
     }
 
     const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
-      carOrdinal,
-      trackOrdinal,
+      carId: carOrdinal ? String(carOrdinal) : "",
+      trackId: trackOrdinal ? String(trackOrdinal) : "",
     });
 
     if (packet && packet.LapNumber !== undefined) {

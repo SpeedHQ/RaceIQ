@@ -13,6 +13,7 @@ import {
   IRSDK_VAR_HEADER_SIZE,
   IRSDKVariableType,
 } from "@raceiq/capture-formats/iracing/variable-table";
+import { getAllIRacingCarClasses, getIRacingCarClass } from "@raceiq/game-iracing-metadata/racing/cars/iracing-classes";
 import {
   iracingAdapter,
 } from "@raceiq/game-iracing-metadata/index";
@@ -282,5 +283,26 @@ DriverInfo:
     expect(session.carName).toBe("GT3 Test Car");
     expect(session.carClassName).toBe("GT3");
     expect(session.sessionNum).toBe(2);
+  });
+
+  test("uses contextual class metadata when session YAML omits class name", () => {
+    const session = parseIRacingSessionInfo(`
+DriverInfo:
+  DriverCarIdx: 7
+  Drivers:
+  - CarIdx: 7
+    CarID: 132
+    CarScreenName: BMW M4 GT3 EVO
+    CarClassID: 2708
+    CarClassRelSpeed: 52
+`);
+    expect(session.carClassName).toBe("GT3 Class");
+    expect(getIRacingCarClass(2708)).toMatchObject({
+      shortName: "GT3 Class",
+      relativeSpeed: 52,
+      rainEnabled: true,
+    });
+    expect(getIRacingCarClass(2708)?.carIds).toContain(132);
+    expect(getAllIRacingCarClasses()).toHaveLength(270);
   });
 });

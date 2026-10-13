@@ -1,0 +1,30 @@
+{
+  "name": "@raceiq/telemetry-processor",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./parser": "./src/parser.ts",
+    "./routing": "./src/routing.ts",
+    "./batch": "./src/batch.ts"
+  },
+  "scripts": {
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/telemetry-processor",
+    "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/telemetry-processor"
+  },
+  "dependencies": {
+    "@raceiq/shared": "workspace:*",
+    "@raceiq/analysis-core": "workspace:*",
+    "@raceiq/game-acc": "workspace:*",
+    "@raceiq/game-ac-evo": "workspace:*",
+    "@raceiq/game-fm-2023": "workspace:*",
+    "@raceiq/game-f1-2025": "workspace:*",
+    "@raceiq/game-iracing": "workspace:*",
+    "@raceiq/game-lmu": "workspace:*",
+    "@raceiq/telemetry-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@raceiq/capture-formats": "workspace:*"
+  }
+}

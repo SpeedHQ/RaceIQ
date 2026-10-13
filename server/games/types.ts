@@ -1,6 +1,7 @@
 import type { GameAdapter } from "@raceiq/shared/games/types";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import type { LapDetectorFactory, LapIndexPacket } from "../lap-detection/types";
+import type { LapDetectorFactory } from "../lap-detection/types";
+import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 /** Server-only runtime behavior owned by each game implementation. */
 export interface ServerGameRuntimePolicy {
   /** Pit strategy behavior and history seeding strategy. */
@@ -39,10 +40,10 @@ export interface ServerGameAdapter extends GameAdapter {
    * Return null if the packet should be skipped (e.g. paused).
    * `state` is the per-game parser state from createParserState().
    */
-  tryParse(buf: Buffer, state: unknown): TelemetryPacket | null;
+  tryParse(buf: Buffer, state: unknown, timestampMs?: number): TelemetryPacket | null;
 
   /** Parse only detector-facing fields for canonical metadata/index scans. */
-  tryParseLapIndex(buf: Buffer, state: unknown): LapIndexPacket | null;
+  tryParseLapIndex(buf: Buffer, state: unknown, timestampMs?: number): LapIndexPacket | null;
 
   /** Advance state without constructing a full live telemetry packet. */
   primeParserState(buf: Buffer, state: unknown): void;

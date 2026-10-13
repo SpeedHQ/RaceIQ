@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4]
     runs-on:
       - mars-windows-x64-4vcpu-15g
       - mars-retry-3
@@ -101,12 +101,6 @@ jobs:
       - name: Pin Playwright Chromium
         working-directory: playwright
         run: bunx playwright install chromium
-      - name: Download current compiled artifact
-        uses: actions/download-artifact@v7
-        with:
-          name: raceiq-dist-windows
-          path: dist
-
 
       - name: Capture current responsive screenshots
         id: current-responsive

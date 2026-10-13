@@ -42,15 +42,15 @@ export const forzaAdapter: GameAdapter = {
   suspensionThresholds: { values: [25, 65, 85] },
 
   // Stubs — server adapter overrides with real CSV-backed lookups
-  getCarName(ordinal) {
-    return `Car #${ordinal}`;
+  getCarName(carId: string): string {
+    return `Car #${carId}`;
   },
 
-  getTrackName(ordinal) {
-    return `Track #${ordinal}`;
+  getTrackName(trackId: string): string {
+    return `Track #${trackId}`;
   },
 
-  getSharedTrackName() {
+  getSharedTrackName(_trackId: string): string | undefined {
     return undefined;
   },
 

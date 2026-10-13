@@ -12,8 +12,8 @@ export interface Experiment {
   seq: number;
   gameId: string;
   name: string;
-  carOrdinal: number | null;
-  trackOrdinal: number | null;
+  carId: string | null;
+  trackId: string | null;
   carName: string | null;
   trackName: string | null;
   baseSetupPath: string | null;
@@ -51,8 +51,8 @@ export function useCreateExperiment() {
     mutationFn: async (data: {
       gameId: ExperimentGameId;
       name: string;
-      carOrdinal?: number | null;
-      trackOrdinal?: number | null;
+      carId?: string | null;
+      trackId?: string | null;
       carName?: string | null;
       trackName?: string | null;
       baseSetupPath?: string | null;

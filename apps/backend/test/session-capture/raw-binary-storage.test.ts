@@ -1,13 +1,13 @@
 /**
- * Tests for raw binary lap storage: SessionRecorder meta frames, byte offset tracking,
- * and reprocessSession strategy selection (in-place vs replace).
+ * Raw binary storage, byte offsets, and non-destructive session reprocessing.
  */
 import { describe, test, expect, afterEach, beforeEach } from "bun:test";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { insertTune } from "@raceiq/backend-core/db/tune-queries";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { SessionRecorder } from "@raceiq/backend-core/session-capture/recorder";
-import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing";
+import { SessionRecorder } from "@raceiq/capture-formats/session/recorder";
+import { META_FRAME_MAGIC, encodeMetaFrame } from "@raceiq/capture-formats/session/framing";
 import { reprocessSession } from "@raceiq/backend-core/session-capture/reprocess";
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps } from "@raceiq/backend-core/db/schema";
@@ -18,6 +18,7 @@ import { countStaleSessions, getStaleSessions } from "@raceiq/backend-core/db/se
 import { sessionRoutes } from "../../src/routes/session-routes";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { executeSessionCleanup } from "@raceiq/backend-core/session-capture/session-cleanup";
+import { combineRecordingParts } from "@raceiq/backend-core/session-capture/combine-recording-parts";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -114,7 +115,7 @@ describe("reprocessSession", () => {
   async function insertTestSession(rawFile: string | null, lapDetectorVersion?: string): Promise<number> {
     const row = await db
       .insert(sessions)
-      .values({ carOrdinal: 1, trackOrdinal: 1, gameId: "fm-2023", rawFile, lapDetectorVersion: lapDetectorVersion ?? null })
+      .values({ carId: "1", trackId: "1", gameId: "fm-2023", rawFile, lapDetectorVersion: lapDetectorVersion ?? null })
       .returning({ id: sessions.id })
       .get();
     return row!.id;
@@ -135,11 +136,7 @@ describe("reprocessSession", () => {
   }
 
   function emptyBin(path: string): void {
-    // A valid .bin with only an empty meta frame, no real packets
-    const buf = Buffer.alloc(8);
-    buf.writeUInt32LE(META_FRAME_MAGIC, 0);
-    buf.writeUInt32LE(0, 4);
-    writeFileSync(path, buf);
+    writeFileSync(path, encodeMetaFrame());
   }
 
   test("throws if session has no raw file", async () => {
@@ -151,92 +148,35 @@ describe("reprocessSession", () => {
     await expect(reprocessSession(999999)).rejects.toThrow();
   });
 
-  test("in-place strategy when lap count matches", async () => {
-    // Empty bin → 0 laps detected; session with 0 existing laps → in-place
+
+  test("preserves existing laps when replay detects no recoverable laps", async () => {
     const binPath = join(tmpDir, "session.bin");
     emptyBin(binPath);
     sessionId = await insertTestSession(binPath, "0.9.0");
-
-    const result = await reprocessSession(sessionId);
-
-    expect(result.strategy).toBe("in-place");
-    expect(result.lapsDetected).toBe(0);
-    expect(result.lapsUpdated).toBe(0);
-    expect(result.sessionId).toBe(sessionId);
-  });
-
-  test("replace strategy when lap count differs", async () => {
-    // Empty bin → 0 laps detected; session with 1 existing lap → replace
-    const binPath = join(tmpDir, "session.bin");
-    emptyBin(binPath);
-    sessionId = await insertTestSession(binPath, "0.9.0");
-    await insertTestLap(sessionId, 1, "my lap note");
-
-    const result = await reprocessSession(sessionId);
-
-    expect(result.strategy).toBe("replace");
-    expect(result.lapsDetected).toBe(0);
-  });
-
-  test("replace strategy preserves no orphan laps when 0 detected", async () => {
-    const binPath = join(tmpDir, "session.bin");
-    emptyBin(binPath);
-    sessionId = await insertTestSession(binPath, "0.9.0");
-    await insertTestLap(sessionId, 1);
-    await insertTestLap(sessionId, 2);
-
-    await reprocessSession(sessionId);
-
-    const remaining = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
-    expect(remaining).toHaveLength(0);
+    await insertTestLap(sessionId, 1, "keep first annotation");
+    await insertTestLap(sessionId, 2, "keep second annotation");
+    const before = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
+    await expect(reprocessSession(sessionId)).rejects.toThrow();
+    expect(await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all()).toEqual(before);
+    expect(await db.select().from(sessions).where(eq(sessions.id, sessionId)).get()).toMatchObject({
+      lapDetectorVersion: "0.9.0",
+    });
   });
 
 
-  test("updates lap_detector_version on session after reprocess", async () => {
+
+  test("rejects truncated frames without changing saved laps or repair marker", async () => {
     const binPath = join(tmpDir, "session.bin");
-    emptyBin(binPath);
+    const truncated = Buffer.from([10, 0, 0, 0, 0xAA, 0xBB]);
+    writeFileSync(binPath, Buffer.concat([encodeMetaFrame(1), truncated]));
     sessionId = await insertTestSession(binPath, "0.9.0");
-
-    await reprocessSession(sessionId);
-
-    const updated = await db.select({ v: sessions.lapDetectorVersion }).from(sessions).where(eq(sessions.id, sessionId)).get();
-    expect(updated?.v).not.toBe("0.9.0");
-    expect(updated?.v).toBeTruthy();
-  });
-
-  test("skips additional meta frames inside bin during replay", async () => {
-    // Build a bin with: meta frame + another meta frame (should be skipped gracefully)
-    const binPath = join(tmpDir, "session.bin");
-    const meta1 = Buffer.alloc(8);
-    meta1.writeUInt32LE(META_FRAME_MAGIC, 0);
-    meta1.writeUInt32LE(0, 4);
-    const meta2 = Buffer.alloc(8);
-    meta2.writeUInt32LE(META_FRAME_MAGIC, 0);
-    meta2.writeUInt32LE(0, 4);
-    writeFileSync(binPath, Buffer.concat([meta1, meta2]));
-
-    sessionId = await insertTestSession(binPath, "0.9.0");
-    // Should not throw — meta frames are silently skipped
-    const result = await reprocessSession(sessionId);
-    expect(result.lapsDetected).toBe(0);
-  });
-
-  test("handles truncated frame at end of file gracefully", async () => {
-    const binPath = join(tmpDir, "session.bin");
-    // meta frame + a truncated packet (declares 10 bytes, only 2 present)
-    const meta = Buffer.alloc(8);
-    meta.writeUInt32LE(META_FRAME_MAGIC, 0);
-    meta.writeUInt32LE(0, 4);
-    const truncated = Buffer.alloc(6);
-    truncated.writeUInt32LE(10, 0); // claims 10 bytes
-    truncated.writeUInt8(0xAA, 4);
-    truncated.writeUInt8(0xBB, 5);
-    writeFileSync(binPath, Buffer.concat([meta, truncated]));
-
-    sessionId = await insertTestSession(binPath, "0.9.0");
-    // Should not throw — truncated frame causes loop to break
-    const result = await reprocessSession(sessionId);
-    expect(result.lapsDetected).toBe(0);
+    await insertTestLap(sessionId, 1, "keep truncated capture annotation");
+    const before = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
+    await expect(reprocessSession(sessionId)).rejects.toThrow();
+    expect(await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all()).toEqual(before);
+    expect(await db.select().from(sessions).where(eq(sessions.id, sessionId)).get()).toMatchObject({
+      lapDetectorVersion: "0.9.0",
+    });
   });
 
   test("throws with descriptive error when raw file is missing from disk", async () => {
@@ -293,30 +233,59 @@ describe("reprocessSession", () => {
     });
   });
 
-  test("replacement preserves matched favourites and their cleanup protection", async () => {
-    const binPath = join(tmpDir, "session.bin.gz");
-    copyFileSync("test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz", binPath);
-    sessionId = await insertTestSession(binPath);
+  test("AC EVO Tourist repair is repeatable and preserves session metadata", async () => {
+    const binPath = join(tmpDir, "ac-evo-tourist.bin.gz");
+    const recording = await combineRecordingParts([
+      "test/artifacts/sessions/ac-evo-tourist-2026-10-10.bin.gz.part1",
+      "test/artifacts/sessions/ac-evo-tourist-2026-10-10.bin.gz.part2",
+    ]);
+    try {
+      copyFileSync(recording.path, binPath);
+    } finally {
+      recording.cleanup();
+    }
+    const row = await db.insert(sessions).values({
+      gameId: "ac-evo",
+      carId: "test-car",
+      trackId: "test-track",
+      rawFile: binPath,
+      notes: "Tourist repair metadata",
+      isFavorite: true,
+    }).returning({ id: sessions.id }).get();
+    sessionId = row!.id;
+
     await reprocessSession(sessionId);
-    const original = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
-    const favourite = original.find((lap) => lap.isValid && lap.lapTime > 0);
-    expect(favourite).toBeDefined();
-    await db.update(laps).set({ isFavorite: true, notes: "Keep this lap" }).where(eq(laps.id, favourite!.id)).run();
-    await insertTestLap(sessionId, Math.max(...original.map((lap) => lap.lapNumber)) + 1);
+    const lapsBefore = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
+    expect(lapsBefore.length).toBeGreaterThan(0);
+    const selected = lapsBefore.find((lap) => lap.rawByteOffset != null && (lap.rawFrameCount ?? 0) > 0)!;
+    const tuneId = await insertTune({
+      gameId: "ac-evo", name: "Repair tune", author: "test", carId: "test-car",
+      category: "baseline", description: "", settings: "{}",
+    });
+    await db.update(laps).set({
+      isFavorite: true,
+      notes: "Tourist window",
+      tuneId,
+    }).where(eq(laps.id, selected.id)).run();
+    // Force replacement strategy; matching must come from source windows.
+    await insertTestLap(sessionId, Math.max(...lapsBefore.map((lap) => lap.lapNumber)) + 1);
 
-    const result = await reprocessSession(sessionId);
-    const replaced = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
-    expect(result.strategy).toBe("replace");
-    expect(replaced.filter((lap) => lap.isFavorite).map((lap) => ({ lapNumber: lap.lapNumber, notes: lap.notes })))
-      .toEqual([{ lapNumber: favourite!.lapNumber, notes: "Keep this lap" }]);
-    expect(replaced.map((lap) => lap.lapNumber).sort((a, b) => a - b))
-      .toEqual(original.map((lap) => lap.lapNumber).sort((a, b) => a - b));
+    await reprocessSession(sessionId);
+    const afterFirst = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
+    expect(afterFirst.filter((lap) => lap.notes === "Tourist window")).toHaveLength(1);
+    expect(afterFirst.find((lap) => lap.notes === "Tourist window")?.isFavorite).toBe(true);
+    expect(afterFirst.find((lap) => lap.notes === "Tourist window")?.tuneId).toBe(tuneId);
+    expect(afterFirst.some((lap) => lap.lapNumber === Math.max(...lapsBefore.map((lap) => lap.lapNumber)) + 1)).toBe(false);
+    const windows = afterFirst.map(({ rawByteOffset, rawFrameCount }) => [rawByteOffset, rawFrameCount]);
 
-    const cleanup = await executeSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
-    expect(cleanup.protectedSessionIds).toEqual([sessionId]);
-    expect(cleanup.cleanedSessionIds).toEqual([]);
-    expect(existsSync(binPath)).toBe(true);
-  });
+    await reprocessSession(sessionId);
+    const afterSecond = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
+    expect(afterSecond.map(({ rawByteOffset, rawFrameCount }) => [rawByteOffset, rawFrameCount])).toEqual(windows);
+    expect(afterSecond.filter((lap) => lap.notes === "Tourist window")).toHaveLength(1);
+    const session = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+    expect(session).toMatchObject({ gameId: "ac-evo", trackId: '["Nurburgring","Touristenfahrten"]', notes: "Tourist repair metadata", isFavorite: true });
+    expect(session?.carId).not.toBe("test-car");
+  }, { timeout: 180_000 });
 });
 
 // ── countStaleSessions ────────────────────────────────────────────────────────
@@ -346,7 +315,7 @@ describe("countStaleSessions", () => {
   ): Promise<number> {
     const row = await db
       .insert(sessions)
-      .values({ carOrdinal: 1, trackOrdinal: 1, gameId, rawFile, lapDetectorVersion })
+      .values({ carId: "1", trackId: "1", gameId, rawFile, lapDetectorVersion })
       .returning({ id: sessions.id })
       .get();
     const id = row!.id;

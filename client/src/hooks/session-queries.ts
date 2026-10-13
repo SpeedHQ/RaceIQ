@@ -7,11 +7,13 @@ import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
 import { queryKeys } from "./query-keys";
 
-export function useSessions() {
+export function useSessions(options?: { allGames?: boolean }) {
   const gameId = useGameId();
+  const { allGames = false } = options ?? {};
+  const queryGameId = allGames ? null : gameId;
   return useQuery({
-    queryKey: ["sessions", gameId ?? null],
-    queryFn: async () => rpcJson<SessionMeta[]>(await client.api.sessions.$get({ query: { gameId: gameId ?? undefined } })),
+    queryKey: ["sessions", queryGameId],
+    queryFn: async () => rpcJson<SessionMeta[]>(await client.api.sessions.$get({ query: { gameId: queryGameId ?? undefined } })),
   });
 }
 

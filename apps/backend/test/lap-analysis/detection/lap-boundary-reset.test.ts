@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { detectLapBoundary, detectLapReset } from "@raceiq/backend-core/lap-detection/boundaries";
+import { detectLapBoundary, detectLapReset } from "@raceiq/telemetry-core/processor/boundaries";
 
 function pkt(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
   return {
@@ -12,8 +12,8 @@ function pkt(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
     LastLap: 0,
     BestLap: 0,
     DistanceTraveled: 2000,
-    CarOrdinal: 100,
-    TrackOrdinal: 5,
+    carId: "100",
+    trackId: "5",
     Speed: 50,
     PositionX: 0,
     PositionZ: 0,

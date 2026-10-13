@@ -89,6 +89,8 @@ export async function syncParaglideOutput(
 }
 
 async function compile(clientRoot: string, key: string): Promise<void> {
+  const startedAt = performance.now();
+  const elapsed = () => `${((performance.now() - startedAt) / 1000).toFixed(1)}s`;
   console.log("[Paraglide] Compiling translations (cache miss)...");
   const cacheDir = dirname(join(clientRoot, MANIFEST));
   await mkdir(cacheDir, { recursive: true });
@@ -105,10 +107,20 @@ async function compile(clientRoot: string, key: string): Promise<void> {
     const child = Bun.spawn(["bunx", "paraglide-js", "compile", "--project", "./project.inlang", "--outdir", stageOut, ...BUILD_OPTIONS], {
       cwd: clientRoot, stdin: "ignore", stdout: "inherit", stderr: "inherit",
     });
-    const status = await child.exited;
+    const heartbeat = setInterval(() => {
+      console.log(`[Paraglide] Still compiling — ${elapsed()} elapsed`);
+    }, 10_000);
+    let status: number;
+    try {
+      status = await child.exited;
+    } finally {
+      clearInterval(heartbeat);
+    }
     if (status !== 0) throw new Error(`Paraglide compile failed (${status})`);
+    console.log("[Paraglide] Validating generated output...");
     const generated = await outputDigest(stageOut);
     if (!Object.keys(generated.files).length) throw new Error("Paraglide compile produced no output");
+    console.log("[Paraglide] Installing output...");
     if (process.platform === "win32") {
       let outputExists = false;
       try {
@@ -151,6 +163,7 @@ async function compile(clientRoot: string, key: string): Promise<void> {
   } finally {
     await rm(stage, { recursive: true, force: true });
   }
+  console.log(`[Paraglide] Complete — ${elapsed()}`);
 }
 
 export async function ensureParaglideBuild(clientRoot: string): Promise<void> {

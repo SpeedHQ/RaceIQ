@@ -20,15 +20,6 @@ import { deriveFuelPerLap, deriveTyreWear, type LapMetric } from "@raceiq/backen
 import { tuneSessionThreadId, saveChatMessages } from "@raceiq/backend-core/ai/chat-agent";
 import { nextFreeLabel } from "@raceiq/backend-core/ai/version-label";
 import { resolveLapF1Setup, f1SetupFingerprint, summarizeF1Setup } from "@raceiq/backend-core/ai/f1-setup-identity";
-import { resolveLMUCar, resolveLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
-
-function experimentLapIdentity(session: { gameId: string; carName: string | null; trackName: string | null }) {
-  if (session.gameId !== "lmu") return undefined;
-  return {
-    carId: session.carName ? resolveLMUCar(session.carName)?.id ?? session.carName : null,
-    trackId: session.trackName ? resolveLMUTrack(session.trackName)?.id ?? session.trackName : null,
-  };
-}
 
 const ImportLapsSchema = z.object({
   lapIds: z.array(z.number().int()).min(1).max(500),
@@ -48,11 +39,9 @@ export const experimentLapRoutes = new Hono()
 
       const importable = await getImportableLapsForExperiment(
         session.gameId as GameId,
-        session.carOrdinal ?? null,
-        session.trackOrdinal ?? null,
-        experimentLapIdentity(session),
+        session.carId,
+        session.trackId,
       );
-
       if (session.gameId !== "f1-2025") {
         return c.json(importable);
       }
@@ -93,9 +82,8 @@ export const experimentLapRoutes = new Hono()
       const body = c.req.valid("json");
       const importable = await getImportableLapsForExperiment(
         session.gameId as GameId,
-        session.carOrdinal ?? null,
-        session.trackOrdinal ?? null,
-        experimentLapIdentity(session),
+        session.carId,
+        session.trackId,
       );
       const importableIds = new Set(importable.map((lap) => lap.id));
       const invalidLapIds = body.lapIds.filter((lapId) => !importableIds.has(lapId));
@@ -349,7 +337,7 @@ export const experimentLapAnalysisRoutes = new Hono()
 
       const fastest = [...loadedLaps].sort((a, b) => a.meta.lapTime - b.meta.lapTime)[0]!;
       const corners = await resolveLapCorners(
-        session?.trackOrdinal,
+        session?.trackId ?? "",
         session?.gameId,
         fastest.telemetry,
       );

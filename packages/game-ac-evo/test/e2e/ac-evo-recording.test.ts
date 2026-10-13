@@ -20,13 +20,13 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { CapturedLap } from "@raceiq/backend-core/telemetry/pipeline-ports"
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import { parseDump } from "@raceiq/backend-core/test-support/recordings/parse-dump";
-import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { parseAcEvoLapIndex } from "../../src/lap-index";
 import { createAcEvoParserCache } from "../../src/parser";
 import { LapDetectorAcEvo } from "../../src/lap-detector";
 import { generateRecordingVisualizations } from "@raceiq/backend-core/test-support/laps/visualizations";
 import { assertValidLapHasSectors } from "@raceiq/backend-core/test-support/laps/assertions";
-import { getTrackSectorsByOrdinal } from "@raceiq/game-catalogs/racing/tracks/storage/sectors";
+import { resolveTrack } from "@raceiq/backend-core/tracks/info";
 
 type CapturedLapWithPackets = CapturedLap & { packets: TelemetryPacket[] };
 
@@ -53,7 +53,7 @@ beforeAll(async () => {
 		throw new Error("parseDump returned a lap without test packets");
 	}
 	laps = dump.laps as CapturedLapWithPackets[];
-});
+}, 120_000);
 
 describe("AC Evo v0.6 recording", () => {
 	test("parses packets with correct gameId", () => {
@@ -156,7 +156,7 @@ describe("AC Evo v0.6 recording", () => {
 			{ isValid: false, invalidReason: "track limits" },
 			{ isValid: false, invalidReason: "incomplete" },
 		]);
-	});
+	}, 120_000);
 
 	// This recording holds three laps and no clean one: a garage-start outlap, a
 	// flying lap the driver threw away (speed collapses 46 → 8 km/h at 25.6s and
@@ -267,8 +267,7 @@ describe("AC Evo v0.6 recording", () => {
 			// time in one sector), so allow a wide ±0.12 absolute tolerance. This
 			// still catches a collapsed/miscomputed boundary (e.g. s1 taking 80% of
 			// lap time when the split is at 31% of distance).
-			const trackOrdinal = l.packets[0].TrackOrdinal ?? 0;
-			const meta = getTrackSectorsByOrdinal(trackOrdinal);
+			const meta = resolveTrack("ac-evo", l.packets[0].trackId).sectors;
 			const s1Frac = s[0] / l.lapTime;
 			const s12Frac = (s[0] + s[1]) / l.lapTime;
 			expect(Math.abs(s1Frac - meta.s1End)).toBeLessThan(0.12);

@@ -2,9 +2,9 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC, packTriplet, unpackTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
-import { iterateSessionFrames, sessionFrameAt } from "@raceiq/backend-core/session-capture/framing";
-import { SparseSessionRecorder } from "@raceiq/backend-core/session-capture/sparse-recorder";
+import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC, packTriplet, unpackTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
+import { iterateSessionFrames, sessionFrameAt } from "@raceiq/capture-formats/session/framing";
+import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
 import { iterateSessionCaptureFrames } from "@raceiq/backend-core/session-capture/source-loader";
 
 const directories: string[] = [];
@@ -43,7 +43,7 @@ for (const [gameId, magic] of [["acc", ACC_PACKED_MAGIC], ["ac-evo", ACEVO_PACKE
         expect(unpackTriplet(frame!)?.staticData.length).toBe(index === 200 ? 120 : 160);
       }
       const streamed: Buffer[] = [];
-      for await (const record of iterateSessionCaptureFrames({ rawFile: path, source: null, gameId, carOrdinal: 4, trackOrdinal: 8 })) streamed.push(record.frame);
+      for await (const record of iterateSessionCaptureFrames({ rawFile: path, source: null, gameId, carId: "4", trackId: "8" })) streamed.push(record.frame);
       expect(streamed).toEqual(originals);
     });
     test("uses raw checkpoint when every payload block changes", async () => {

@@ -16,7 +16,7 @@ import { gunzipSync } from "node:zlib";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
 import { LapDetectorAcEvo } from "../src/lap-detector"
-import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing"
+import { META_FRAME_MAGIC } from "@raceiq/capture-formats/session/framing"
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
 import { parseRawLapFramesFromBuffer } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";

@@ -13,12 +13,12 @@ import { gunzipSync } from "node:zlib";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
 import { LapDetectorAcEvo } from "../src/lap-detector"
-import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing"
+import { META_FRAME_MAGIC } from "@raceiq/capture-formats/session/framing"
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
 import { parseRawLapFrames, parseRawLapFramesFromBuffer, parseSessionLapsBatchedForTest } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { parseAcEvoLapIndex } from "../src/lap-index";
 import { createAcEvoParserCache, parseAcEvoBuffers } from "../src/parser";
-import { unpackTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
+import { unpackTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { loadSessionCapture, setCaptureFileFactoryForTest, clearSessionCaptureCache } from "@raceiq/backend-core/session-capture/source-loader";
 
 registerGame(acEvoServerAdapter);
@@ -99,7 +99,7 @@ describe("parseSessionLapsBatched — parity with per-lap parseRawLapFrames", ()
       const sample = laps.slice(0, 6);
       const metas = sample.map((l, i) => ({ id: i + 1, rawByteOffset: l.rawByteOffset, rawFrameCount: l.rawFrameCount }));
 
-      const source = { rawFile: FIXTURE, source: null, gameId: "ac-evo" as const, carOrdinal: 0, trackOrdinal: 0 };
+      const source = { rawFile: FIXTURE, source: null, gameId: "ac-evo" as const, carId: "", trackId: "" };
       const canonical = await loadSessionCapture(source);
       const batch = await parseSessionLapsBatchedForTest(source, metas);
 
@@ -121,7 +121,7 @@ describe("parseSessionLapsBatched — parity with per-lap parseRawLapFrames", ()
 
 test("batch decode streams capture without materializing full file", async () => {
   const laps = (await detectLaps()).slice(0, 2);
-  const source = { rawFile: FIXTURE, source: null, gameId: "ac-evo" as const, carOrdinal: 0, trackOrdinal: 0 };
+  const source = { rawFile: FIXTURE, source: null, gameId: "ac-evo" as const, carId: "", trackId: "" };
   const originalNow = Date.now;
   Date.now = () => 1_000_000_000;
   clearSessionCaptureCache();

@@ -47,14 +47,14 @@ try {
     chatDatabase.close();
   }
   // Verify generated captures before replacing producer-specific absolute paths.
-  const captures = database.query<{ raw_file: string; game_id: string; car_ordinal: number; track_ordinal: number; source: string | null }, []>(
-    "SELECT raw_file, game_id, car_ordinal, track_ordinal, source FROM sessions",
+  const captures = database.query<{ raw_file: string; game_id: string; car_id: string; track_id: string; source: string | null }, []>(
+    "SELECT raw_file, game_id, car_id, track_id, source FROM sessions",
   ).all();
   for (const capture of captures) {
     let hasFrame = false;
     for await (const record of iterateSessionCaptureRecordsFromSource({
       rawFile: capture.raw_file, gameId: capture.game_id as GameId,
-      carOrdinal: capture.car_ordinal, trackOrdinal: capture.track_ordinal, source: capture.source,
+      carId: capture.car_id, trackId: capture.track_id, source: capture.source,
     }, { strict: true })) {
       if (record.kind === "frame") { hasFrame = true; break; }
     }

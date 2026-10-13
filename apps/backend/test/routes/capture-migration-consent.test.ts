@@ -8,7 +8,7 @@ import { db } from "@raceiq/backend-core/db/index";
 import { sessions } from "@raceiq/backend-core/db/schema";
 import { deleteSession, insertSession, updateSessionRawFile, getCaptureMigrationCandidates } from "@raceiq/backend-core/db/session-queries";
 import { sessionRoutes } from "../../src/routes/session-routes";
-import { encodeFrameLength, encodeMetaFrame } from "@raceiq/backend-core/session-capture/framing";
+import { encodeFrameLength, encodeMetaFrame } from "@raceiq/capture-formats/session/framing";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { WSData, wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import { startSyncAndStaleSessionJobs } from "../../src/runtime/startup-jobs";
@@ -46,7 +46,7 @@ describe("capture migration consent and progress", () => {
     await writeFile(corruptPath, Buffer.from("not a canonical capture"));
     paths.push(rawPath, gzipPath, corruptPath);
     for (const path of paths) {
-      const id = await insertSession(1, 2, "fm-2023");
+      const id = await insertSession("1", "2", "fm-2023");
       sessionIds.push(id);
       await updateSessionRawFile(id, path, "test");
       if (path === corruptPath) corruptId = id;

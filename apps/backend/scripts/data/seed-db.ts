@@ -6,7 +6,7 @@ import { db, client, initDb } from "@raceiq/backend-core/db/index";
 import { importSessionBin } from "@raceiq/backend-core/session-capture/import-capture";
 import { RealSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import { importSessionFrames } from "@raceiq/backend-core/session-capture/import-pipeline";
-import { LMU_DUMP_MAGIC, LMU_DUMP_VERSION } from "@raceiq/capture-formats/lmu/dump";
+import { LMU_DUMP_MAGIC, LMU_DUMP_VERSION } from "@raceiq/capture-formats/lmu/dump-decoder";
 import { LMU_MAX_SOURCE_FRAME_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";

@@ -70,7 +70,7 @@ export const tuneChatRoutes = new Hono()
       const packets = lap.telemetry;
       if (packets.length < 30) return c.json([]);
 
-      const corners = await resolveLapCorners(lap.trackOrdinal, lap.gameId, packets);
+      const corners = await resolveLapCorners(lap.trackId, lap.gameId, packets);
       const symptoms = telemetryToSymptoms(packets, corners);
       const issues = symptomsToIssues(symptoms, lap.lapNumber);
       return c.json(issues);

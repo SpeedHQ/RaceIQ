@@ -124,7 +124,7 @@ export function SessionToolbar({
             if (!lapA || !lapB) return null;
             const sessionA = sessions.find((session) => session.id === lapA.sessionId);
             const sessionB = sessions.find((session) => session.id === lapB.sessionId);
-            if (!sessionA || !sessionB || sessionA.trackOrdinal !== sessionB.trackOrdinal || lapA.telemetryAvailable === false || lapB.telemetryAvailable === false) return null;
+            if (!sessionA || !sessionB || sessionA.trackId !== sessionB.trackId || lapA.telemetryAvailable === false || lapB.telemetryAvailable === false) return null;
             return (
               <Button
                 variant="app-primary"
@@ -132,7 +132,7 @@ export function SessionToolbar({
                 onClick={() =>
                   navigate({
                     to: `${gameRoute}/compare` as never,
-                    search: { track: sessionA.trackOrdinal, carA: sessionA.carOrdinal, carB: sessionB.carOrdinal, lapA: lapA.id, lapB: lapB.id } as never,
+                    search: { track: sessionA.trackId, carA: sessionA.carId, carB: sessionB.carId, lapA: lapA.id, lapB: lapB.id } as never,
                   })
                 }
               >

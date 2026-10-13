@@ -1,6 +1,7 @@
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { useRef, useState, type ReactNode } from "react";
+import { SessionIdentityDialog } from "../import/SessionIdentityDialog";
 import { MotecImportModal, type MotecImportSuccess } from "../analyse/MotecImportModal";
 import { OwnershipChoice } from "../import/OwnershipChoice";
 import { importLapsZip } from "../../lib/lap-export";
@@ -17,6 +18,7 @@ type DetectionResult = {
   gameIds: string[];
   captureCount: number;
   message: string | null;
+  missingMotecIdentities?: { file: string; gameId: GameId | null; carId: string | null; trackId: string | null; unsupported: boolean }[];
   preview?: {
     driverName: string;
     carName: string;
@@ -67,8 +69,12 @@ export function SessionImportModal({ gameId, onClose, onImported, setupImport }:
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [setupPreview, setSetupPreview] = useState<ReactNode>(null);
+  const [identityIndex, setIdentityIndex] = useState<number | null>(null);
+  const [identityOverrides, setIdentityOverrides] = useState<Record<string, { carId: string; trackId: string }>>({});
 
   async function chooseFile(nextFile: File | null, nextWalFile: File | null) {
+    setIdentityIndex(null);
+    setIdentityOverrides({});
     setFile(nextFile);
     setWalFile(nextWalFile);
     setDetected(null);
@@ -108,8 +114,19 @@ export function SessionImportModal({ gameId, onClose, onImported, setupImport }:
     }
   }
 
-  async function importFile() {
+  async function importFile(overrides = identityOverrides) {
     if (!file || busy || setupImport?.disabled || (!setupImport && (!detected?.supported || !["zip", "bin", "duckdb"].includes(detected.format)))) return;
+    if (!setupImport && detected?.format === "zip") {
+      const missing = (detected.missingMotecIdentities ?? []).find((item) => !overrides[item.file]);
+      if (missing) {
+        if (missing.unsupported || !missing.gameId) {
+          setError(`${missing.file}: missing or unsupported game metadata`);
+          return;
+        }
+        setIdentityIndex(detected.missingMotecIdentities!.indexOf(missing));
+        return;
+      }
+    }
     setBusy(true);
     setError(null);
     try {
@@ -121,7 +138,7 @@ export function SessionImportModal({ gameId, onClose, onImported, setupImport }:
       if (!detected) return;
       let imported: ImportResult;
       if (detected.format === "zip") {
-        const response = await importLapsZip(file, ownership);
+        const response = await importLapsZip(file, ownership, overrides);
         imported = { imported: response.imported, skipped: response.skipped };
       } else {
         const body = new FormData();
@@ -133,9 +150,11 @@ export function SessionImportModal({ gameId, onClose, onImported, setupImport }:
         if (!response.ok) throw new Error(data?.error ?? `Import failed (${response.status})`);
         imported = data;
       }
+      setIdentityIndex(null);
       setResult(imported);
       onImported?.(imported);
     } catch (cause) {
+      setIdentityIndex(null);
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setBusy(false);
@@ -143,6 +162,27 @@ export function SessionImportModal({ gameId, onClose, onImported, setupImport }:
   }
 
   const canImport = !!file && !detecting && !setupImport?.disabled && (setupImport !== undefined ? (!setupImport.onInspect || !!setupPreview) : (!!detected?.supported && ["zip", "bin", "duckdb"].includes(detected.format))) && !busy;
+  const identityPrompt = identityIndex == null ? null : detected?.missingMotecIdentities?.[identityIndex] ?? null;
+  if (identityPrompt?.gameId && !identityPrompt.unsupported) {
+    return (
+      <SessionIdentityDialog
+        key={identityPrompt.file}
+        gameId={identityPrompt.gameId}
+        initialCarId={identityPrompt.carId}
+        initialTrackId={identityPrompt.trackId}
+        onClose={() => setIdentityIndex(null)}
+        onSave={async (identity) => {
+          const nextOverrides = { ...identityOverrides, [identityPrompt.file]: identity };
+          setIdentityOverrides(nextOverrides);
+          const remaining = (detected?.missingMotecIdentities ?? []).find((item) => !nextOverrides[item.file]);
+          if (remaining) setIdentityIndex(detected!.missingMotecIdentities!.indexOf(remaining));
+          else {
+            await importFile(nextOverrides);
+          }
+        }}
+      />
+    );
+  }
   if (detected?.supported && detected.format === "carsetup" && file) {
     return <AcEvoSetupImport file={file} onClose={onClose} />;
   }
@@ -220,7 +260,7 @@ export function SessionImportModal({ gameId, onClose, onImported, setupImport }:
               {error && <div role="alert" className="rounded border border-status-danger/30 bg-status-danger/5 p-2 text-status-danger">{error}</div>}
               <div className="flex justify-end gap-2">
                 <Button variant="app-outline" size="app-md" onClick={onClose} disabled={busy}>{m.common_cancel()}</Button>
-                <Button variant="app-outline" size="app-md" onClick={importFile} disabled={!canImport}>{busy ? m.common_loading() : m.setup_import_button()}</Button>
+                <Button variant="app-outline" size="app-md" onClick={() => void importFile()} disabled={!canImport}>{busy ? m.common_loading() : m.setup_import_button()}</Button>
               </div>
             </>
           )}

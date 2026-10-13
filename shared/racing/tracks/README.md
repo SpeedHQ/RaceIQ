@@ -79,7 +79,7 @@ Map correspondence matters beyond counts: Montréal T10 is the main hairpin and 
 ## Dependency direction
 - **Leaf contracts first:** `keys.ts`, `named-segments.ts`, `facts.ts`, `geometry.ts`, `segment-label.ts`, `projection.ts`.
 - **Join/read layer:** `curation/join.ts` + `storage/meta.ts` compose leaf contracts.
-- **Identity layer:** metadata-owner catalogs plus game-catalogs name resolution map ordinals to shared slugs.
+- **Identity layer:** metadata-owner catalogs plus game-catalogs name resolution map each game’s identity to shared slugs.
 - **Derived layer:** game-catalogs outlines and shared recording, guide, and curation leaves consume identity and storage.
 
 ## Add/extend safely

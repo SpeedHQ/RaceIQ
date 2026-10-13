@@ -5,9 +5,9 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { Database } from "bun:sqlite";
-import { decompressIfGzipSync, iterateSessionFrames } from "@raceiq/backend-core/session-capture/framing";
-import { IRACING_DUMP_MAGIC, readIRacingFramesFromBuffer } from "@raceiq/capture-formats/iracing/dump";
-import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump";
+import { decompressIfGzipSync, iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
+import { IRACING_DUMP_MAGIC, readIRacingFramesFromBuffer } from "@raceiq/capture-formats/iracing/dump-decoder";
+import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump-decoder";
 import { replayWithClock } from "./recorder-bench-replay";
 import { ProcessTreeSampler } from "./recorder-bench-process";
 import type { FileImportResponse } from "./recorder-file-import-validation";
@@ -28,7 +28,7 @@ type ImportResult = {
   packetCount: number;
   importedLapCount: number;
   outcomeSha256: string;
-  outcome: { packetCount: number; identity: unknown; laps: Record<string, unknown>[] };
+  outcome: { packetCount: number; session: MemoryImportResult["session"]; laps: Record<string, unknown>[] };
   outputStorage: "memory";
   resourceMethod: string;
 };
@@ -49,9 +49,9 @@ function outcomeSignature(result: MemoryImportResult): {
   packetCount: number;
   importedLapCount: number;
   outcomeSha256: string;
-  outcome: { packetCount: number; identity: unknown; laps: Record<string, unknown>[] };
+  outcome: { packetCount: number; session: MemoryImportResult["session"]; laps: Record<string, unknown>[] };
 } {
-  const { packetCount, identity, laps } = result;
+  const { packetCount, session, laps } = result;
   const normalizedLaps = laps.map((lap) => ({
     lapNumber: lap.lapNumber,
     lapTime: lap.lapTime,
@@ -59,7 +59,7 @@ function outcomeSignature(result: MemoryImportResult): {
     car: lap.carId,
     track: lap.trackId,
   }));
-  const outcome = { packetCount, identity, laps: normalizedLaps };
+  const outcome = { packetCount, session, laps: normalizedLaps };
   return {
     packetCount,
     importedLapCount: laps.length,
@@ -88,7 +88,6 @@ async function runMemoryImport(testCase: typeof GAMES[number]): Promise<ImportRe
   const cpu = process.cpuUsage(cpuBefore);
   const processCpuSeconds = (cpu.user + cpu.system) / 1e6;
   const peakRssBytes = Math.max(rssBefore, process.memoryUsage().rss);
-  const result = { packetCount: imported.packetCount, laps: imported.laps, identity: imported.identity };
   const resourceMethod = "Bun process CPU delta; RSS sampled before/after each trial";
   return {
     fixture,
@@ -98,7 +97,7 @@ async function runMemoryImport(testCase: typeof GAMES[number]): Promise<ImportRe
     elapsedSeconds,
     processCpuSeconds,
     peakRssBytes,
-    ...outcomeSignature(result),
+    ...outcomeSignature(imported),
     outputStorage: "memory",
     resourceMethod,
   };

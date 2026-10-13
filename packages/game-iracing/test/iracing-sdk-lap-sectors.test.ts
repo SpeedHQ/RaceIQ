@@ -2,8 +2,7 @@ import { registerGame } from "@raceiq/shared/games/registry";
 import { iracingServerAdapter } from "../src/index";
 import { registerServerGame } from "@raceiq/backend-core/games/registry";
 import { describe, expect, test } from "bun:test";
-import { computeIRacingSectorTimeline,
-computeLapSectors, } from "@raceiq/backend-core/lap-analysis/sectors"
+import { computeIRacingSectorTimeline, computeLapSectors } from "@raceiq/telemetry-core/processor/sectors";
 import {
   createIRacingParserState,
   normalizeIRacingFrame,
@@ -12,6 +11,7 @@ import { LapDetectorIRacing } from "../src/lap-detector";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
 import { SectorTracker } from "@raceiq/backend-core/live-strategy/sector-tracker";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { LiveSectorData } from "@raceiq/shared/racing/live/types";
 
 registerGame(iracingServerAdapter);
 registerServerGame(iracingServerAdapter);
@@ -78,7 +78,7 @@ describe("iRacing lap timing and native sectors", () => {
     expect(timeline?.boundaryIndices).toHaveLength(1);
     expect(
       await computeLapSectors(
-        twoSectorTrackOrdinal,
+        String(twoSectorTrackOrdinal),
         "iracing",
         packets,
         32,
@@ -86,8 +86,8 @@ describe("iRacing lap timing and native sectors", () => {
     ).toEqual([16, 16]);
 
     const liveTracker = new SectorTracker();
-    await liveTracker.reset(twoSectorTrackOrdinal, "iracing", 42);
-    let live: ReturnType<SectorTracker["feed"]> = null;
+    await liveTracker.reset(String(twoSectorTrackOrdinal), "iracing", "42");
+    let live: LiveSectorData | null = null;
     for (const packet of packets) live = liveTracker.feed(packet);
     expect(live?.sectorCount).toBe(2);
     expect(live?.currentSector).toBe(1);
@@ -105,12 +105,12 @@ describe("iRacing lap timing and native sectors", () => {
     });
 
     expect(computeIRacingSectorTimeline(packets, 32)).toBeNull();
-    expect(await computeLapSectors(99, "iracing", packets, 32)).toBeNull();
+    expect(await computeLapSectors("99", "iracing", packets, 32)).toBeNull();
   });
 
   test("keeps native sector fractions when the source attaches mid-lap", async () => {
     const tracker = new SectorTracker();
-    await tracker.reset(99, "iracing", 42);
+    await tracker.reset("99", "iracing", "42");
 
     const packet = (
       lapNumber: number,
@@ -181,9 +181,8 @@ describe("iRacing lap timing and native sectors", () => {
       ({
         gameId: "iracing",
         sessionUID: "456:123:2",
-        CarOrdinal: 42,
-        TrackOrdinal: 99,
-        CarPerformanceIndex: 0,
+        carId: "42",
+        trackId: "99",
         CarClass: 8,
         LapNumber: lapNumber,
         CurrentLap: currentLap,
@@ -246,8 +245,8 @@ describe("iRacing lap timing and native sectors", () => {
     expect(db.laps[0].rawFrameCount).toBe(65);
     expect(db.laps[0].sectors).toHaveLength(2);
     expect(db.sessions[0]).toMatchObject({
-      carOrdinal: 42,
-      trackOrdinal: 99,
+      carId: "42",
+      trackId: "99",
     });
     expect(db.sessions[0]).not.toHaveProperty("carName");
     expect(db.sessions[0]).not.toHaveProperty("trackName");

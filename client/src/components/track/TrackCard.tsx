@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { drawTrack } from "@/lib/canvas/draw-track";
+import { drawTrack, type PitLine } from "@/lib/canvas/draw-track";
 import { countryName } from "@/lib/country-names";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
@@ -80,7 +80,7 @@ export function TrackCardVisual({ track, map, setupCount, guideCount, gameLabel 
   );
 }
 
-/** TrackCard — Gallery thumbnail: fetches outline by ordinal and renders a small static track map. */
+/** TrackCard — Gallery thumbnail: fetches outline by native track ID and renders a small static track map. */
 export function TrackCard({
   track,
   onSelect,
@@ -98,6 +98,7 @@ export function TrackCard({
   const cardRef = useRef<HTMLButtonElement>(null);
   const [outlineVisible, setOutlineVisible] = useState(false);
   const [outline, setOutline] = useState<Point[] | null>(null);
+  const [pitLines, setPitLines] = useState<PitLine[]>([]);
   const [flipX, setFlipX] = useState(false);
 
   useEffect(() => {
@@ -107,26 +108,31 @@ export function TrackCard({
 
   useEffect(() => {
     if (!track.hasOutline || !outlineVisible) return;
-    client.api["track-outline"][":ordinal"]
-      .$get({ param: { ordinal: encodeURIComponent(String(track.ordinal)) }, query: { gameId: gameId ?? undefined } })
-      .then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[])
+    client.api["track-outline"][":trackId"]
+      .$get({ param: { trackId: encodeURIComponent(track.id) }, query: { gameId: gameId ?? undefined } })
+      .then((r) => r.json() as unknown as { points?: Point[]; pitLines?: PitLine[]; flipX?: boolean } | Point[])
       .then((data) => {
         if (!Array.isArray(data) && data?.points && Array.isArray(data.points)) {
           setOutline(data.points);
+          setPitLines(Array.isArray(data.pitLines) ? data.pitLines : []);
           setFlipX(data.flipX ?? false);
         } else if (Array.isArray(data)) {
           setOutline(data);
+          setPitLines([]);
+          setFlipX(false);
         } else {
           setOutline(null);
+          setPitLines([]);
+          setFlipX(false);
         }
       })
       .catch(() => {});
-  }, [track.ordinal, track.hasOutline, gameId, outlineVisible]);
+  }, [track.id, track.hasOutline, gameId, outlineVisible]);
 
   useEffect(() => {
     if (!outline || !canvasRef.current) return;
-    drawTrack(canvasRef.current, outline, false, null, 1, { x: 0, z: 0 }, undefined, flipX);
-  }, [outline, flipX]);
+    drawTrack(canvasRef.current, outline, false, null, 1, { x: 0, z: 0 }, undefined, flipX, undefined, undefined, undefined, undefined, pitLines);
+  }, [outline, flipX, pitLines]);
 
   const map = outline ? (
     <canvas ref={canvasRef} className="w-full h-full" />
@@ -140,7 +146,7 @@ export function TrackCard({
       size="content"
       type="button"
       ref={cardRef}
-      data-testid={`track-card-${track.ordinal}`}
+      data-testid={`track-card-${track.id}`}
       className={`${TRACK_CARD_SHELL_CLASS} text-left cursor-pointer transition-all hover:border-app-border-hover hover:bg-app-surface-hover/50`}
       onClick={() => onSelect(track)}
     >

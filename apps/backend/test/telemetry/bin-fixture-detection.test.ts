@@ -1,3 +1,5 @@
+import { getAccCarByModel } from "@raceiq/game-acc-metadata/racing/cars/acc";
+import { getAccTrackByName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
 import { readAccPackets } from "@raceiq/game-acc/test-support/recordings";
 import { readAcEvoPackets } from "@raceiq/game-ac-evo/test-support/recordings";
 import { accServerAdapter } from "@raceiq/game-acc";
@@ -27,7 +29,7 @@ import { initServerGameAdapters } from "../../src/games/init";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { getGame } from "@raceiq/shared/games/registry";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
-import { META_FRAME_MAGIC } from "@raceiq/backend-core/session-capture/framing"
+import { META_FRAME_MAGIC } from "@raceiq/capture-formats/session/framing"
 import { detectGameIdFromBuffer } from "@raceiq/backend-core/session-capture/import-capture"
 import { getAccTrackName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc"
 import { getAccCarName } from "@raceiq/game-acc-metadata/racing/cars/acc"
@@ -61,8 +63,8 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     const packets = readSessionPackets(file, accServerAdapter);
     expect(packets.length).toBeGreaterThan(0);
     const last = packets[packets.length - 1]!;
-    expect(getAccTrackName(last.TrackOrdinal)).toBe("Brands Hatch - GP");
-    expect(getAccCarName(last.CarOrdinal)).toBe("McLaren 720S GT3 Evo 2023");
+    expect(getAccTrackName(Number(last.trackId))).toBe("Brands Hatch - GP");
+    expect(getAccCarName(Number(last.carId))).toBe("McLaren 720S GT3 Evo 2023");
   });
 
   test("f1-2025-2026-04-22T11-42-43-029Z.bin.gz — session-capture, F1 2025 — REGRESSION-BASELINE ONLY", () => {
@@ -74,8 +76,8 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     expect(packets.length).toBeGreaterThan(0);
     const last = packets[packets.length - 1]!;
     const adapter = getGame("f1-2025");
-    expect(adapter.getTrackName(last.TrackOrdinal)).toBe("Autodromo Hermanos Rodriguez");
-    expect(adapter.getCarName(last.CarOrdinal)).toBe("F1 World");
+    expect(adapter.getTrackName(last.trackId)).toBe("Autodromo Hermanos Rodriguez");
+    expect(adapter.getCarName(last.carId)).toBe("F1 World");
   });
 
   test("session-ac-evo-menu-exit-2026-04-23T18-11-48-959Z.bin.gz — session-capture, AC Evo — REGRESSION-BASELINE ONLY", () => {
@@ -89,8 +91,8 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     const packets = readSessionPackets(file, acEvoServerAdapter);
     expect(packets.length).toBeGreaterThan(0);
     const last = packets[packets.length - 1]!;
-    expect(getAcEvoTrackName(last.TrackOrdinal)).toBe("Brands Hatch - GP");
-    expect(getAcEvoCarName(last.CarOrdinal)).toBe("Porsche 992 GT3 R Rennsport");
+    expect(getAcEvoTrackName(last.trackId)).toBe("Brands Hatch - GP");
+    expect(getAcEvoCarName(last.carId)).toBe("Porsche 992 GT3 R Rennsport");
   }, { timeout: 30000 });
 
   test("session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz — session-capture, AC Evo — REGRESSION-BASELINE ONLY", () => {
@@ -101,18 +103,14 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     const packets = readSessionPackets(file, acEvoServerAdapter);
     expect(packets.length).toBeGreaterThan(0);
     const last = packets[packets.length - 1]!;
-    expect(getAcEvoTrackName(last.TrackOrdinal)).toBe("Brands Hatch - GP");
-    expect(getAcEvoCarName(last.CarOrdinal)).toBe("Porsche 992 GT3 R Rennsport");
+    expect(getAcEvoTrackName(last.trackId)).toBe("Brands Hatch - GP");
+    expect(getAcEvoCarName(last.carId)).toBe("Porsche 992 GT3 R Rennsport");
   }, { timeout: 30000 });
 
-  // Regression guard for the unknown-track / discovered-car fix. Before the fix
-  // this capture's track re-derived as Unknown Track (ordinal -1); the fix
-  // resolves it to Red Bull Ring - GP (ordinal 13) off the session frames.
-  // Player car is a known ordinal (Audi R8 LMS GT3 Evo II → 68). The session
-  // also contains an unknown car ("Grand Prix 2026 MCL40") which the DB reconcile
-  // path registers as a discovered ordinal — that stateful path is covered by the
-  // import/reconcile tests; here we assert the pure re-derivation the fix touched.
-  test("ac-evo-unknown-track-session17.bin.gz — session-capture, AC Evo — track re-derivation fix (was Unknown Track)", () => {
+  // The trailing source frame has no track identity. Pure replay must not
+  // infer a layout from the capture's old cached ordinal or a venue alias.
+  // Stateful import allocates exact source pairs for the preceding frames.
+  test("ac-evo-unknown-track-session17.bin.gz — missing source identity stays unresolved", () => {
     const file = `${DIR}/ac-evo-unknown-track-session17.bin.gz`;
     expect(detectGameIdFromBuffer(readFileSync(file))).toBe("ac-evo");
     expect(hasMetaFrame(gunzip(file))).toBe(true);
@@ -120,18 +118,15 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     const packets = readSessionPackets(file, acEvoServerAdapter);
     expect(packets.length).toBeGreaterThan(0);
     const last = packets[packets.length - 1]!;
-    // Track: the fix's core re-derivation. Every frame (incl. the last) now
-    // resolves to Red Bull Ring - GP (ordinal 13); before the fix it was -1.
-    expect(getAcEvoTrackName(last.TrackOrdinal)).toBe("Red Bull Ring - GP");
+    expect(last.acEvoIdentity?.trackName).toBe("");
+    expect(last.acEvoIdentity?.trackConfiguration).toBe("");
+    expect(last.trackId).toBe("");
 
-    // Car: assert on the dominant (player) car ordinal, not `last`. All but one
-    // of the ~22.5k frames carry the player's Audi R8 (ordinal 68); the single
-    // trailing frame is an unmapped car (-1) that the DB import path registers as
-    // a discovered ordinal — a stateful step this pure-parse replay doesn't run.
-    const carCounts = new Map<number, number>();
-    for (const p of packets) carCounts.set(p.CarOrdinal, (carCounts.get(p.CarOrdinal) ?? 0) + 1);
-    const playerCarOrdinal = [...carCounts.entries()].sort((a, b) => b[1] - a[1])[0]![0];
-    expect(getAcEvoCarName(playerCarOrdinal)).toBe("Audi R8 LMS GT3 Evo II");
+    // Car: assert dominant player's native string ID, not trailing unresolved packet.
+    const carCounts = new Map<string, number>();
+    for (const p of packets) carCounts.set(p.carId, (carCounts.get(p.carId) ?? 0) + 1);
+    const playerCarId = [...carCounts.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+    expect(getAcEvoCarName(playerCarId)).toBe("Audi R8 LMS GT3 Evo II");
   }, { timeout: 30000 });
 
   test("f1-2025-2026-04-09T21-34-10-190Z.bin.gz — raw UDP dump, F1 2025 — REGRESSION-BASELINE ONLY", () => {
@@ -143,8 +138,8 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     expect(packets.length).toBeGreaterThan(0);
     const last = packets[packets.length - 1]!;
     const adapter = getGame("f1-2025");
-    expect(adapter.getTrackName(last.TrackOrdinal)).toBe("Lusail International Circuit");
-    expect(adapter.getCarName(last.CarOrdinal)).toBe("F1 World");
+    expect(adapter.getTrackName(last.trackId)).toBe("Lusail International Circuit");
+    expect(adapter.getCarName(last.carId)).toBe("F1 World");
   }, { timeout: 60000 });
 
   test("fm-2023-2026-04-09T21-53-00-102Z.bin.gz — raw UDP dump, FM 2023 — REGRESSION-BASELINE ONLY", () => {
@@ -156,8 +151,8 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     expect(packets.length).toBeGreaterThan(0);
     const last = packets[packets.length - 1]!;
     const adapter = getGame("fm-2023");
-    expect(adapter.getTrackName(last.TrackOrdinal)).toBe("Road America - East Route");
-    expect(adapter.getCarName(last.CarOrdinal)).toBe("2022 Aston Martin Valkyrie AMR Pro");
+    expect(adapter.getTrackName(last.trackId)).toBe("Road America - East Route");
+    expect(adapter.getCarName(last.carId)).toBe("2022 Aston Martin Valkyrie AMR Pro");
   });
 
   test("fm-2023-2026-04-09T21-55-03-186Z.bin.gz — raw UDP dump, FM 2023 — REGRESSION-BASELINE ONLY (same car/track as 21-53-00 fixture, cross-consistent)", () => {
@@ -169,8 +164,8 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     expect(packets.length).toBeGreaterThan(0);
     const last = packets[packets.length - 1]!;
     const adapter = getGame("fm-2023");
-    expect(adapter.getTrackName(last.TrackOrdinal)).toBe("Road America - East Route");
-    expect(adapter.getCarName(last.CarOrdinal)).toBe("2022 Aston Martin Valkyrie AMR Pro");
+    expect(adapter.getTrackName(last.trackId)).toBe("Road America - East Route");
+    expect(adapter.getCarName(last.carId)).toBe("2022 Aston Martin Valkyrie AMR Pro");
   });
 
   test("ac-evo-2026-04-15T17-12-25-825Z.bin.gz — dump-mode, AC Evo — REGRESSION-BASELINE ONLY", () => {
@@ -188,10 +183,9 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     // game never populated it). It previously asserted "Monza - GP", but that
     // only passed because unidentified tracks defaulted to ordinal 0, which
     // happens to be Monza — the exact production bug where every unnamed
-    // session imported as Monza. Unidentified must stay unidentified (-1).
-    expect(last.TrackOrdinal).toBe(-1);
-    expect(getAcEvoTrackName(last.TrackOrdinal)).toBe("Unknown Track");
-    expect(getAcEvoCarName(last.CarOrdinal)).toBe("Porsche 992 GT3 R Rennsport");
+    // session imported as Monza. Unidentified must keep an empty identity.
+    expect(last.trackId).toBe("");
+    expect(getAcEvoCarName(last.carId)).toBe("Porsche 992 GT3 R Rennsport");
   }, { timeout: 60000 });
 
   test("iracing-road-america-gt3.bin.gz — iRacing recorder dump import", () => {
@@ -208,8 +202,8 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     const first = adapter.tryParse(frames[0], state);
     expect(first).toMatchObject({
       gameId: "iracing",
-      CarOrdinal: 42,
-      TrackOrdinal: 99,
+      carId: "42",
+      trackId: "99",
     });
     expect(first?.iracing).toMatchObject({
       carName: "GT3 Test Car",
@@ -225,8 +219,8 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     const { packets } = readAccPackets(file);
     expect(packets.length).toBeGreaterThan(0);
     const last = packets[packets.length - 1]!;
-    expect(getAccTrackName(last.TrackOrdinal)).toBe("Brands Hatch - GP");
-    expect(getAccCarName(last.CarOrdinal)).toBe("McLaren 720S GT3 Evo 2023");
+    expect(getAccTrackName(Number(last.trackId))).toBe("Brands Hatch - GP");
+    expect(getAccCarName(Number(last.carId))).toBe("McLaren 720S GT3 Evo 2023");
   });
 
   test("acc-2026-04-10T02-59-28-972Z.bin.gz — dump-mode, ACC — CORROBORATED (packages/game-acc/test/e2e/acc-2026-04-10T02-59-28-972Z.test.ts sector timing)", () => {
@@ -237,8 +231,8 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     const { packets } = readAccPackets(file);
     expect(packets.length).toBeGreaterThan(0);
     const last = packets[packets.length - 1]!;
-    expect(getAccTrackName(last.TrackOrdinal)).toBe("Brands Hatch - GP");
-    expect(getAccCarName(last.CarOrdinal)).toBe("McLaren 720S GT3 Evo 2023");
+    expect(getAccTrackName(Number(last.trackId))).toBe("Brands Hatch - GP");
+    expect(getAccCarName(Number(last.carId))).toBe("McLaren 720S GT3 Evo 2023");
   }, { timeout: 30000 });
 
   test("acc-2026-04-12T21-16-07-841Z.bin.gz — dump-mode, ACC — REGRESSION-BASELINE ONLY (existing e2e test covers lap detection, not sectors)", () => {
@@ -249,8 +243,8 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     const { packets } = readAccPackets(file);
     expect(packets.length).toBeGreaterThan(0);
     const last = packets[packets.length - 1]!;
-    expect(getAccTrackName(last.TrackOrdinal)).toBe("Brands Hatch - GP");
-    expect(getAccCarName(last.CarOrdinal)).toBe("McLaren 720S GT3 Evo 2023");
+    expect(getAccTrackName(Number(last.trackId))).toBe("Brands Hatch - GP");
+    expect(getAccCarName(Number(last.carId))).toBe("McLaren 720S GT3 Evo 2023");
   }, { timeout: 300_000 });
 
   test("acc-2026-04-12T21-44-38-899Z.bin.gz — dump-mode, ACC — CORROBORATED (packages/game-acc/test/e2e/acc-2026-04-12T21-44-38-899Z.test.ts sector timing)", () => {
@@ -261,8 +255,8 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     const { packets } = readAccPackets(file);
     expect(packets.length).toBeGreaterThan(0);
     const last = packets[packets.length - 1]!;
-    expect(getAccTrackName(last.TrackOrdinal)).toBe("Brands Hatch - GP");
-    expect(getAccCarName(last.CarOrdinal)).toBe("McLaren 720S GT3 Evo 2023");
+    expect(getAccTrackName(Number(last.trackId))).toBe("Brands Hatch - GP");
+    expect(getAccCarName(Number(last.carId))).toBe("McLaren 720S GT3 Evo 2023");
   }, { timeout: 300_000 });
 
   // Dump-mode ACCTEST v2 header, but the frame stream is corrupt: readKunosFrames

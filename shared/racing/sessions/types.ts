@@ -1,3 +1,5 @@
+import type { RaceResultOutcomeStatus } from "../results/types";
+
 import type { GameId } from "../../games/ids";
 
 import type { TelemetryVersionIdentity } from "../../telemetry/version";
@@ -18,10 +20,8 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   pi?: number;
   gameId?: GameId;
   // Joined from session
-  carOrdinal?: number;
-  trackOrdinal?: number;
-  carId?: number | string | null;
-  trackId?: number | string | null;
+  carId: string;
+  trackId: string;
   // How the session's telemetry was obtained (migration v43, joined from
   // sessions.source). null/undefined = recorded live from the game. 'motec' =
   // transcoded from a MoTeC .ld, where the racing line is dead-reckoned from
@@ -70,16 +70,15 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
 
 export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
   id: number;
-  carOrdinal: number;
-  trackOrdinal: number;
-  carId: number | string;
-  trackId: number | string;
+  carId: string;
+  trackId: string;
   createdAt: string;
   lapCount?: number;
   bestLapTime?: number;
   sessionType?: string;
   resultClassification?: string | null;
   finishingPosition?: number | null;
+  resultOutcomeStatus?: RaceResultOutcomeStatus | null;
   qualifyingPosition?: number | null;
   isPodium?: boolean | null;
   isFastestLap?: boolean | null;
@@ -93,6 +92,8 @@ export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
    * absolute position matters.
    */
   source?: string;
+  /** Recorded elapsed span in seconds; null/undefined when capture timing is unavailable. */
+  elapsedSeconds?: number | null;
   ownership?: SessionOwnership;
   /** Whether raw telemetry remains available for this session. */
   telemetryAvailable?: boolean;
@@ -102,18 +103,16 @@ export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
 }
 
 export interface RacingIdentityFields {
-  carOrdinal?: number | null;
-  trackOrdinal?: number | null;
-  carId?: number | string | null;
-  trackId?: number | string | null;
+  carId?: string | null;
+  trackId?: string | null;
 }
 
-export function carIdentityKey(identity: RacingIdentityFields): number | string | null {
-  return identity.carId ?? identity.carOrdinal ?? null;
+export function carIdentityKey(identity: RacingIdentityFields): string | null {
+  return identity.carId ?? null;
 }
 
-export function trackIdentityKey(identity: RacingIdentityFields): number | string | null {
-  return identity.trackId ?? identity.trackOrdinal ?? null;
+export function trackIdentityKey(identity: RacingIdentityFields): string | null {
+  return identity.trackId ?? null;
 }
 
 export interface SessionRecap {
@@ -121,9 +120,11 @@ export interface SessionRecap {
   gameId: GameId;
   carName: string;
   trackName: string;
-  carId: number | string;
-  trackId: number | string;
+  carId: string;
+  trackId: string;
   createdAt: string;
+  /** Recorded conditions at the start of the best lap (first lap if no valid best). */
+  weather?: { kind: number | null; rainPercent: number | null } | null;
 
   /** Laps with isValid && lapTime > 0. */
   lapsValid: number;

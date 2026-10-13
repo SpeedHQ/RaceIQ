@@ -5,7 +5,7 @@ import type { TrackSectors, TrackSegment } from "../types";
 
 type Bounds = { s1End: number; s2End: number };
 interface SegmentEditorOptions {
-  trackOrdinal: number;
+  trackId: string;
   gameId?: string;
   sectors: TrackSectors | null;
   setSectors: (value: TrackSectors | null) => void;
@@ -25,7 +25,7 @@ interface SegmentEditorOptions {
 
 export function useTrackSegmentEditor(options: SegmentEditorOptions) {
   const {
-    trackOrdinal,
+    trackId,
     gameId,
     sectors,
     setSectors,
@@ -108,14 +108,14 @@ export function useTrackSegmentEditor(options: SegmentEditorOptions) {
   const saveSegments = useCallback(async () => {
     setSaving(true);
     try {
-      const res = await client.api.tracks[":trackOrdinal"].segments.$put({ param: { trackOrdinal: encodeURIComponent(String(trackOrdinal)) }, query: { gameId }, json: { segments: editSegments } } as never);
+      const res = await client.api.tracks[":trackId"].segments.$put({ param: { trackId: encodeURIComponent(trackId) }, query: { gameId }, json: { segments: editSegments } } as never);
       if (res.ok) {
         setSectors({ segments: editSegments, totalDist: sectors?.totalDist ?? 0 });
         setEditing(false);
       }
     } catch {}
     setSaving(false);
-  }, [editSegments, gameId, sectors, setEditing, setSaving, setSectors, trackOrdinal]);
+  }, [editSegments, gameId, sectors, setEditing, setSaving, setSectors, trackId]);
   const startEditingSectors = useCallback(() => {
     if (sectorBounds) {
       setEditS1(Math.round(sectorBounds.s1End * 1000) / 10);
@@ -126,8 +126,8 @@ export function useTrackSegmentEditor(options: SegmentEditorOptions) {
   const saveSectorBounds = useCallback(async () => {
     setSavingSectors(true);
     try {
-      const res = await client.api["track-sector-boundaries"][":ordinal"].$put({
-        param: { ordinal: encodeURIComponent(String(trackOrdinal)) },
+      const res = await client.api["track-sector-boundaries"][":trackId"].$put({
+        param: { trackId: encodeURIComponent(trackId) },
         query: { gameId },
         json: { s1End: editS1 / 100, s2End: editS2 / 100 },
       } as never);
@@ -137,6 +137,6 @@ export function useTrackSegmentEditor(options: SegmentEditorOptions) {
       }
     } catch {}
     setSavingSectors(false);
-  }, [editS1, editS2, gameId, setEditingSectors, setSavingSectors, setSectorBounds, trackOrdinal]);
+  }, [editS1, editS2, gameId, setEditingSectors, setSavingSectors, setSectorBounds, trackId]);
   return { startEditing, updateSegFrac, toggleSegType, addSegment, removeSegment, saveSegments, startEditingSectors, saveSectorBounds };
 }

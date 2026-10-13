@@ -14,7 +14,7 @@ import { initServerGameAdapters } from "../../src/games/init";
 import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
 import { LiveTelemetryPipeline, stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
 import { isForzaRaceOffPacket, parseForzaPacket } from "@raceiq/game-fm-2023/parser";
-import { iterateSessionFrames } from "@raceiq/backend-core/session-capture/framing";
+import { iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -31,8 +31,8 @@ function pkt(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
     LastLap: 0,
     BestLap: 0,
     DistanceTraveled: 2000,
-    CarOrdinal: 100,
-    TrackOrdinal: 5,
+    carId: "100",
+    trackId: "5",
     Speed: 50,
     PositionX: 0,
     PositionZ: 0,

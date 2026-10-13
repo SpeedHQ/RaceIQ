@@ -7,7 +7,7 @@
 <h1 align="center">RaceIQ</h1>
 
 <p align="center">
-  Real-time racing telemetry dashboard, lap analysis and catalogue for <strong>Forza Motorsport 2023</strong>, <strong>F1 2025</strong>, <strong>Assetto Corsa Competizione</strong>, <strong>Assetto Corsa Evo</strong> and <strong>Le Mans Ultimate</strong>.
+  Sim racer's companion app, real-time racing telemetry dashboard, lap analysis and iterative experiments for car setup and driving</strong>.
 </p>
 
 <p align="center">
@@ -105,7 +105,7 @@ The database is created automatically on first run. No cloud account or external
 
 AI analysis is optional. Add your API key in the RaceIQ settings panel — multiple providers are supported. Analysis is sent directly to the provider's API, no intermediary server.
 
-Want to run AI entirely on your own PC? See the [Local AI setup guide](https://github.com/SpeedHQ/RaceIQ/blob/main/docs/user-guides/local-ai.md).
+Want to run AI entirely on your own PC? See the [Local AI setup guide](docs/user-guides/openai-compatible-ai.md).
 
 ## Sponsorship
 

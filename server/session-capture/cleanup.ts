@@ -11,7 +11,7 @@ import { resolveDataDir } from "../runtime/config/data-dir";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { sql } from "drizzle-orm";
-import { META_FRAME_BYTES } from "./framing";
+import { META_FRAME_BYTES } from "@raceiq/capture-formats/session/framing";
 
 const TINY_ORPHAN_THRESHOLD_BYTES = META_FRAME_BYTES;
 

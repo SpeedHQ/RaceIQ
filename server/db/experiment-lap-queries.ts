@@ -101,8 +101,6 @@ const experimentLapSelection = {
   pi: laps.pi,
   carSetup: laps.carSetup,
   createdAt: laps.createdAt,
-  carOrdinal: sessions.carOrdinal,
-  trackOrdinal: sessions.trackOrdinal,
   carId: sessions.carId,
   trackId: sessions.trackId,
   tuneId: laps.tuneId,
@@ -157,22 +155,19 @@ export async function getLapMetaForExperimentVersion(experimentVersionId: number
 }
 
 /**
- * Candidate unlinked laps matching an experiment's game and car/track.
- * String identities take precedence over discovered ordinals for games such
- * as LMU. Omitted dimensions remain unrestricted for existing callers.
+ * Candidate laps for "Add laps from history": laps matching this tuning session's game + car + track that aren't
+ * already stamped to ANY tuning session. Missing IDs match any for that dimension.
+ * Newest-first, same shape as getLapsForExperiment.
  */
 
 export async function getImportableLapsForExperiment(
   gameId: GameId,
-  carOrdinal: number | null,
-  trackOrdinal: number | null,
-  identity?: { carId?: string | null; trackId?: string | null },
+  carId: string | null,
+  trackId: string | null,
 ): Promise<LapMeta[]> {
   const conds = [eq(sessions.gameId, gameId), isNull(laps.experimentId)];
-  if (identity?.carId != null) conds.push(eq(sessions.carId, identity.carId));
-  else if (carOrdinal != null) conds.push(eq(sessions.carOrdinal, carOrdinal));
-  if (identity?.trackId != null) conds.push(eq(sessions.trackId, identity.trackId));
-  else if (trackOrdinal != null) conds.push(eq(sessions.trackOrdinal, trackOrdinal));
+  if (carId != null) conds.push(eq(sessions.carId, carId));
+  if (trackId != null) conds.push(eq(sessions.trackId, trackId));
 
   const rows = await db
     .select(experimentLapSelection)

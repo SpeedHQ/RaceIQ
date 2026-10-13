@@ -6,8 +6,14 @@
     "./index": "./src/index.ts",
     "./racing/cars/acc": "./src/racing/cars/acc.ts",
     "./racing/cars/acc-specs": "./src/racing/cars/acc-specs.ts",
-    "./racing/tracks/catalogs/acc": "./src/racing/tracks/catalogs/acc.ts"
+    "./racing/tracks/catalogs/acc": "./src/racing/tracks/catalogs/acc.ts",
+    "./parser-data": "./src/parser-data.generated.ts",
+    "./parser-data-resolver": "./src/parser-data-resolver.ts"
   },
   "dependencies": { "@raceiq/shared": "workspace:*" },
-  "scripts": {"typecheck":"bunx tsc --project tsconfig.json --noEmit"}
+  "scripts": {
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "generate:parser-data": "bun scripts/generate-parser-data.ts",
+    "check:parser-data": "bun scripts/generate-parser-data.ts --check"
+  }
 }

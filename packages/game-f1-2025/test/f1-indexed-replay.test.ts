@@ -8,7 +8,7 @@ import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/norma
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { parseRawLapFramesFromBuffer } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { loadSessionCapture } from "@raceiq/backend-core/session-capture/source-loader";
-import { iterateSessionFrameRecords, readFrameStreamStart } from "@raceiq/backend-core/session-capture/framing";
+import { iterateSessionFrameRecords, readFrameStreamStart } from "@raceiq/capture-formats/session/framing";
 import { readSessionPackets } from "@raceiq/backend-core/test-support/recordings/session-frames";
 import { getRecordingFixture } from "@raceiq/backend-core/test-support/recordings/fixtures";
 
@@ -43,8 +43,8 @@ describe("F1 indexed replay parity", () => {
           rawFile: recording,
           source: null,
           gameId: "f1-2025",
-          carOrdinal: 0,
-          trackOrdinal: 0,
+          carId: "",
+          trackId: "",
         });
         const records = [...iterateSessionFrameRecords(
           capture,

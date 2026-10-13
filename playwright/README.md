@@ -55,7 +55,9 @@ Playwright output goes to `playwright/test-results/`. App captures go to `playwr
 
 ## Responsive visual baselines
 
-Pull-request screenshot CI renders every `app-screenshots` case twice in the same runner environment: once from the PR and once from its current base revision. Both renders use the PR's screenshot specs, registry, project configuration, and setup seeds. The base render is the visual baseline. Screenshot-only menu cases use keyboard activation so overlapping controls in the base revision do not prevent capturing visual differences. Pixel differences at or below the shared 1% tolerance are treated as rendering noise.
+Pull-request screenshot CI renders every `app-screenshots` case twice in the same runner environment: once from the PR and once from its current base revision. Both renders use dev mode (Bun backend and Vite client), so no compiled artifact download or base production build is needed. Both renders use the PR's screenshot specs, registry, project configuration, and setup seeds. The base render is the visual baseline. Screenshot-only menu cases use keyboard activation so overlapping controls in the base revision do not prevent capturing visual differences. Pixel differences at or below the shared 1% tolerance are treated as rendering noise; added, removed, resized, or materially changed screenshots fail the `screenshots` check.
+
+App render CI uses four shards (`--shard=1/4` through `--shard=4/4`) for both revisions; the collector merges all four artifacts before comparison.
 
 Failed comparisons still upload the `pr-screenshot-preview` artifact and publish before/after/diff images in the PR UI-change comment. Review those images before accepting a visual change.
 

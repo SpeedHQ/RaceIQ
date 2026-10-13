@@ -20,7 +20,7 @@ import { StatusCheckProcessor } from "../src/processors";
 import type { TripletProcessor } from "@raceiq/backend-core/games/kunos/triplet-pipeline";
 import { GRAPHICS, AC_STATUS } from "@raceiq/capture-formats/acc/structs";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
-import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { parseAccBuffers } from "../src/parser";
 
 registerGame(accServerAdapter);
@@ -130,30 +130,63 @@ describe("ACC lap detector — session re-created on race re-entry", () => {
     expect(frames.length).toBeGreaterThan(0);
     const first = frames[0];
     const packet = parseAccBuffers(first.physics, first.graphics, first.staticData, {
-      carOrdinal: 1,
-      trackOrdinal: 1,
+      carId: "1",
+      trackId: "1",
     });
     expect(packet).not.toBeNull();
 
     const db = new CapturingDbAdapter();
     const detector = new LapDetectorAcc({ db });
+    const originalNow = Date.now, start = originalNow();
+    try {
+      // Race 1
+      Date.now = () => start;
+      await detector.feed(packet!);
+      expect(detector.session).not.toBeNull();
+      const firstSid = detector.session!.sessionId;
 
-    // Race 1
-    await detector.feed(packet!);
+      // User exits to main menu → 10s silence → session finalised
+      Date.now = () => start + 11_000;
+      await detector.flushStaleLap();
+      expect(detector.session).toBeNull();
+      Date.now = originalNow;
+
+      // User enters a new race → detector must create a fresh session on the
+      // very next packet, not leave the app in "Waiting" limbo.
+      await detector.feed(packet!);
+      expect(detector.session).not.toBeNull();
+      expect(detector.session!.sessionId).not.toBe(firstSid);
+      expect(db.sessions.length).toBe(2);
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+  test("session-start callback failure does not create a duplicate session on next packet", async () => {
+    const first = readKunosFrames(ACC_FIXTURE)[0];
+    const packet = parseAccBuffers(first.physics, first.graphics, first.staticData, {
+      carId: "1",
+      trackId: "1",
+    });
+    expect(packet).not.toBeNull();
+
+    const db = new CapturingDbAdapter();
+    let starts = 0;
+    const detector = new LapDetectorAcc({
+      db,
+      callbacks: {
+        onSessionStart: () => {
+          starts++;
+          if (starts === 1) throw new Error("session callback failed");
+        },
+      },
+    });
+
+    await expect(detector.feed(packet!)).rejects.toThrow("session callback failed");
     expect(detector.session).not.toBeNull();
-    const firstSid = detector.session!.sessionId;
-
-    // User exits to main menu → 10s silence → session finalised
-    (detector as any)._lastActivePacketTime = Date.now() - 11_000;
-    await detector.flushStaleLap();
-    expect(detector.session).toBeNull();
-
-    // User enters a new race → detector must create a fresh session on the
-    // very next packet, not leave the app in "Waiting" limbo.
     await detector.feed(packet!);
-    expect(detector.session).not.toBeNull();
-    expect(detector.session!.sessionId).not.toBe(firstSid);
-    expect(db.sessions.length).toBe(2);
+    expect(db.sessions).toHaveLength(1);
+    expect(starts).toBe(1);
+    await detector.finalizeCurrentSession();
   });
 });
 
@@ -168,8 +201,8 @@ describe("ACC lap detector — session lifecycle", () => {
       const graphics = Buffer.from(first.graphics);
       graphics.writeInt32LE(ordinal, GRAPHICS.session.offset);
       const packet = parseAccBuffers(first.physics, graphics, first.staticData, {
-        carOrdinal: 1,
-        trackOrdinal: 1,
+        carId: "1",
+        trackId: "1",
       });
       const db = new CapturingDbAdapter();
       await new LapDetectorAcc({ db }).feed(packet!);
@@ -183,8 +216,8 @@ describe("ACC lap detector — session lifecycle", () => {
       graphics.writeInt32LE(code, GRAPHICS.penalty.offset);
       graphics.writeFloatLE(seconds, GRAPHICS.penaltyTime.offset);
       return parseAccBuffers(first.physics, graphics, first.staticData, {
-        carOrdinal: 1,
-        trackOrdinal: 1,
+        carId: "1",
+        trackId: "1",
       })!.acc!;
     };
 
@@ -221,23 +254,28 @@ describe("ACC lap detector — session lifecycle", () => {
 
     const first = frames[0];
     const packet = parseAccBuffers(first.physics, first.graphics, first.staticData, {
-      carOrdinal: 1,
-      trackOrdinal: 1,
+      carId: "1",
+      trackId: "1",
     });
     expect(packet).not.toBeNull();
 
     const db = new CapturingDbAdapter();
     const detector = new LapDetectorAcc({ db });
+    const originalNow = Date.now, start = originalNow();
+    try {
+      Date.now = () => start;
+      await detector.feed(packet!);
+      expect(detector.session).not.toBeNull();
 
-    await detector.feed(packet!);
-    expect(detector.session).not.toBeNull();
+      Date.now = () => start + 5_000;
+      await detector.flushStaleLap();
+      expect(detector.session).not.toBeNull();
 
-    (detector as any)._lastActivePacketTime = Date.now() - 5_000;
-    await detector.flushStaleLap();
-    expect(detector.session).not.toBeNull();
-
-    (detector as any)._lastActivePacketTime = Date.now() - 11_000;
-    await detector.flushStaleLap();
+      Date.now = () => start + 11_000;
+      await detector.flushStaleLap();
+    } finally {
+      Date.now = originalNow;
+    }
     expect(detector.session).toBeNull();
 
     await detector.feed(packet!);
@@ -246,5 +284,5 @@ describe("ACC lap detector — session lifecycle", () => {
 
     await detector.finalizeCurrentSession();
     expect(detector.session).toBeNull();
-  }, { timeout: 30_000 });
+  });
 });

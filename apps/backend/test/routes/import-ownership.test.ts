@@ -129,8 +129,8 @@ test("imports a MoTeC ZIP directly without staging", async () => {
     new File([readFileSync(MOTEC_ARCHIVE)], "Barcelona-992-MoTeC.zip"),
   );
   form.append("gameId", "acc");
-  form.append("carOrdinal", "33");
-  form.append("trackOrdinal", "8");
+  form.append("carId", "33");
+  form.append("trackId", "8");
   form.append("ownership", "mine");
 
   const response = await transferRoutes.request("/api/laps/import-motec", {

@@ -42,7 +42,7 @@ describe("lap ↔ experiment explicit link", () => {
     createdExperimentIds.push(tsId);
 
     // Race session A. First lap recorded with NO active tuning session → unlinked.
-    const raceA = await insertSession(1, 2, "acc");
+    const raceA = await insertSession("1", "2", "acc");
     createdSessionIds.push(raceA);
     const unlinkedLap = await insertLap(raceA, 1, 90000, true, null, 0);
 
@@ -51,7 +51,7 @@ describe("lap ↔ experiment explicit link", () => {
     expect(getActiveExperiment()).toBe(tsId);
     const linkedA = await insertLap(raceA, 2, 89000, true, null, 0);
 
-    const raceB = await insertSession(1, 2, "acc");
+    const raceB = await insertSession("1", "2", "acc");
     createdSessionIds.push(raceB);
     const linkedB = await insertLap(raceB, 1, 88000, true, null, 0);
 
@@ -75,7 +75,7 @@ describe("lap ↔ experiment explicit link", () => {
   test("serves persisted fuel and tyre metrics without raw telemetry", async () => {
     const experimentId = await createExperiment({ gameId: "acc", name: "Stored metrics" });
     createdExperimentIds.push(experimentId);
-    const sessionId = await insertSession(1, 2, "acc");
+    const sessionId = await insertSession("1", "2", "acc");
     createdSessionIds.push(sessionId);
     setActiveExperiment(experimentId);
     const lapId = await insertLap(sessionId, 1, 90, true, null, 0);
@@ -91,6 +91,8 @@ describe("lap ↔ experiment explicit link", () => {
     const experimentId = await createExperiment({
       gameId: "lmu",
       name: "LMU history",
+      carId: "bmw_m_hybrid_v8_2023",
+      trackId: "monza_2023/monzawec",
       carName: "BMW M Hybrid V8 2023",
       trackName: "Autodromo Nazionale Monza",
     });
@@ -101,9 +103,8 @@ describe("lap ↔ experiment explicit link", () => {
       ["other-car", "monza_2023/monzawec"],
       ["bmw_m_hybrid_v8_2023", "monza_2023/monzawec_grande"],
     ]) {
-      const sessionId = await insertSession(0, 0, "lmu");
+      const sessionId = await insertSession(carId, trackId, "lmu");
       createdSessionIds.push(sessionId);
-      await db.update(sessions).set({ carId, trackId }).where(eq(sessions.id, sessionId)).run();
       ids.push(await insertLap(sessionId, 1, 90, true, null, 0));
     }
     const response = await experimentLapRoutes.request(`/api/experiments/${experimentId}/importable-laps`);

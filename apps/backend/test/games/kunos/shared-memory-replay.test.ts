@@ -6,7 +6,7 @@ import { AcEvoSharedMemoryReader } from "@raceiq/game-ac-evo/shared-memory";
 import { ACEVO_STATUS, GRAPHICS_EVO } from "@raceiq/capture-formats/ac-evo/structs";
 import { AccSharedMemoryReader } from "@raceiq/game-acc/shared-memory";
 import { AC_STATUS, GRAPHICS } from "@raceiq/capture-formats/acc/structs";
-import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { KunosRecorder } from "@raceiq/backend-core/games/kunos/recorder";
 import type { Triplet, TripletProcessor } from "@raceiq/backend-core/games/kunos/triplet-pipeline";
 import { ReplayedKunosMemoryReader } from "@raceiq/backend-core/test-support/recordings/replayed-kunos-memory-reader";

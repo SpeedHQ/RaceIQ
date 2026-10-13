@@ -23,7 +23,7 @@ UDP adapters preserve original source datagrams. ACC and AC Evo pack three share
 
 ## Canonical session file
 
-`server/session-capture/recorder.ts` writes one append-only file per session:
+`packages/capture-formats/src/session/recorder.ts` writes one append-only file per session:
 
 ```text
 [optional 0xFFFFFFFF u32][payload length = 4 u32][total frames u32]
@@ -121,7 +121,7 @@ LMU live capture and committed replay fixtures use native shared-memory source f
 
 ## Replay, import, and reprocessing
 
-`server/session-capture/reprocess.ts` opens the stored capture, gunzips it when needed, walks length-prefixed records, calls the registered game parser, and feeds a fresh lap detector backed by a capturing database adapter. Matching lap counts update raw indexes and metadata in place; changed counts rebuild detected lap rows while preserving eligible user data on matched replacements.
+`server/session-capture/reprocess.ts` opens the stored capture, gunzips it when needed, walks length-prefixed records, calls the registered game parser, and feeds a fresh lap detector backed by a capturing database adapter. Matching lap windows update raw indexes and metadata in place; changed windows rebuild detected lap rows. Replacement matching uses source-window overlap rather than lap numbers, which can repeat for open-route attempts. Matched replacements preserve notes, favorites, and tune links; session identity and user metadata remain intact.
 
 `server/session-capture/import-capture.ts` accepts both full and sparse canonical `.bin` / `.bin.gz` uploads. It gunzips when needed; game detection and `canonicalImportFrames()` inspect each record and reconstruct sparse payloads before parsing. Full payloads pass through unchanged. Segment/context markers and recorded UTC times survive the walk. Accepted input is rewritten as a canonical RaceIQ session capture, so later replay and reprocessing do not depend on the upload's storage encoding. Six-game fixture tests compare restored source bytes and streaming parser output against an independent raw recording. Forza, F1, iRacing, and LMU simulator `TimestampMS` values are compared exactly. Historical ACC and AC Evo packed frames have no UTC capture time, so only their parser-generated wall-clock `TimestampMS` is excluded. Lap ZIP export/import has separate coverage. Direct standalone sparse-file upload follows this reader path but has not been separately smoke-tested.
 
@@ -155,12 +155,12 @@ That trade-off does not imply higher measurement fidelity. Sample cadence, dupli
 
 ## Implementation map
 
-- `server/session-capture/recorder.ts` — canonical append-only writer
+- `packages/capture-formats/src/session/recorder.ts` — canonical append-only writer
 - `server/telemetry/live-pipeline.ts` — raw write ordering and lap offsets
-- `server/games/kunos/pack-triplet.ts` — ACC and AC Evo records
-- `server/session-capture/sparse-recorder.ts` — checkpointed encoder and production writer for all six games
-- `server/session-capture/{lmu-sparse,kunos-sparse,generic-sparse}.ts` — source-byte-preserving delta codecs
-- `server/session-capture/framing.ts` and `source-loader.ts` — bounded seeks and streaming restoration
+- `packages/capture-formats/src/kunos/pack-triplet.ts` — ACC and AC Evo records
+- `packages/capture-formats/src/session/sparse-recorder.ts` — checkpointed encoder and production writer for all six games
+- `packages/capture-formats/src/session/{lmu-sparse,kunos-sparse,generic-sparse}.ts` — source-byte-preserving delta codecs
+- `packages/capture-formats/src/session/framing.ts` and `server/session-capture/source-loader.ts` — bounded seeks and streaming restoration
 - `packages/capture-formats/src/iracing/source-frame.ts` — iRacing records
 - `server/session-capture/import-capture.ts` — capture detection and canonical import entry
 - `server/session-capture/import-pipeline.ts` — parser, detector, and persistence pipeline

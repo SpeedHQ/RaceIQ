@@ -9,7 +9,7 @@ import { readUdpDump } from "@raceiq/backend-core/test-support/recordings/udp";
 import { parseAccBuffers } from "@raceiq/game-acc/parser";
 import { readWString } from "@raceiq/game-acc/utils";
 import { STATIC } from "@raceiq/capture-formats/acc/structs";
-import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { getAccCarByModel } from "@raceiq/game-acc-metadata/racing/cars/acc";
 import { getAccTrackByName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "@raceiq/game-ac-evo/parser";
@@ -65,8 +65,8 @@ if (accFrames.length === 0) throw new Error("No ACC frames found in dump");
 const accCm = readWString(accFrames[0].staticData, STATIC.carModel.offset, STATIC.carModel.size);
 const accTn = readWString(accFrames[0].staticData, STATIC.track.offset, STATIC.track.size);
 const accOpts = {
-  carOrdinal: accCm ? (getAccCarByModel(accCm)?.id ?? 0) : 0,
-  trackOrdinal: accTn ? (getAccTrackByName(accTn)?.id ?? 0) : 0,
+  carId: accCm ? String(getAccCarByModel(accCm)?.id ?? "") : "",
+  trackId: accTn ? String(getAccTrackByName(accTn)?.id ?? "") : "",
 };
 const accPackets = accFrames.map((f) => parseAccBuffers(f.physics, f.graphics, f.staticData, accOpts)).filter((p): p is NonNullable<typeof p> => p !== null);
 console.log(`[bench] acc loaded — ${accPackets.length} packets, car: ${accCm ?? "?"} track: ${accTn ?? "?"} ${elapsed()}`);

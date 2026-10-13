@@ -36,7 +36,7 @@ registerServerGame(iracingServerAdapter);
 import { sampleFrame, sampleFrameV3 } from "./support/games/iracing-sdk";
 
 describe("iRacing raw source frame parser integration", () => {
-  test("persists live source identity once per ordinal for restart hydration", async () => {
+  test("persists live source identity once per ID for restart hydration", async () => {
     const carOrdinal = 900_042;
     const trackOrdinal = 900_099;
 
@@ -56,36 +56,36 @@ describe("iRacing raw source frame parser integration", () => {
         trackName: "Later Track Rename",
       });
 
-      expect(await getDiscoveredCarName("iracing", carOrdinal)).toBe("Persisted GT3");
-      expect(await getDiscoveredTrackName("iracing", trackOrdinal)).toBe("Persisted Raceway");
+      expect(await getDiscoveredCarName("iracing", String(carOrdinal))).toBe("Persisted GT3");
+      expect(await getDiscoveredTrackName("iracing", String(trackOrdinal))).toBe("Persisted Raceway");
       expect(
-        (await listDiscoveredCars("iracing")).filter((row) => row.ordinal === carOrdinal),
+        (await listDiscoveredCars("iracing")).filter((row) => row.carId === String(carOrdinal)),
       ).toHaveLength(1);
       expect(
-        (await listDiscoveredTracks("iracing")).filter((row) => row.ordinal === trackOrdinal),
+        (await listDiscoveredTracks("iracing")).filter((row) => row.trackId === String(trackOrdinal)),
       ).toHaveLength(1);
-      expect(iracingAdapter.getCarName(carOrdinal)).toBe("Persisted GT3");
-      expect(iracingAdapter.getTrackName(trackOrdinal)).toBe("Persisted Raceway");
+      expect(iracingAdapter.getCarName(String(carOrdinal))).toBe("Persisted GT3");
+      expect(iracingAdapter.getTrackName(String(trackOrdinal))).toBe("Persisted Raceway");
 
       injectDiscoveredIRacingIdentity(
         await listDiscoveredCars("iracing"),
         await listDiscoveredTracks("iracing"),
       );
-      expect(iracingAdapter.getCarName(carOrdinal)).toBe("Persisted GT3");
-      expect(iracingAdapter.getTrackName(trackOrdinal)).toBe("Persisted Raceway");
+      expect(iracingAdapter.getCarName(String(carOrdinal))).toBe("Persisted GT3");
+      expect(iracingAdapter.getTrackName(String(trackOrdinal))).toBe("Persisted Raceway");
     } finally {
       await db
         .delete(discoveredCars)
         .where(and(
           eq(discoveredCars.gameId, "iracing"),
-          eq(discoveredCars.ordinal, carOrdinal),
+          eq(discoveredCars.carId, String(carOrdinal)),
         ))
         .run();
       await db
         .delete(discoveredTracks)
         .where(and(
           eq(discoveredTracks.gameId, "iracing"),
-          eq(discoveredTracks.ordinal, trackOrdinal),
+          eq(discoveredTracks.trackId, String(trackOrdinal)),
         ))
         .run();
     }
@@ -100,9 +100,8 @@ describe("iRacing raw source frame parser integration", () => {
     const packet = parsePacket(raw);
     expect(packet?.gameId).toBe("iracing");
     expect(packet?.sessionUID).toBe("456:123:2");
-    expect(packet?.CarOrdinal).toBe(42);
-    expect(packet?.TrackOrdinal).toBe(99);
-    expect(packet?.LapNumber).toBe(3);
+    expect(packet?.carId).toBe("42");
+    expect(packet?.trackId).toBe("99");
     expect(packet?.DistanceTraveled).toBeCloseTo(20745);
     expect(packet?.Speed).toBeCloseTo(72.5);
     expect(packet?.Accel).toBe(191);

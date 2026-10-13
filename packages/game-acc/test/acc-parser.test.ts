@@ -12,7 +12,7 @@ import { parseRawLapFramesFromBuffer } from "@raceiq/backend-core/db/telemetry-r
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
 import { getAccTrackName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc"
 import { getAccCarName } from "@raceiq/game-acc-metadata/racing/cars/acc"
-import { ACC_PACKED_MAGIC, packTriplet, unpackTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
+import { ACC_PACKED_MAGIC, packTriplet, unpackTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 
 registerGame(accServerAdapter);
 registerServerGame(accServerAdapter);
@@ -165,11 +165,11 @@ describe("ACC parser", () => {
       const graphics = makeGraphicsBuf();
       graphics.writeInt32LE(raw, GRAPHICS.isValidLap.offset);
       expect(parseAccBuffers(physics, graphics, stat)?.acc?.isValidLap).toBe(expected);
-      expect(parseAccLapIndex(physics, graphics, stat, 0, 0)?.acc?.isValidLap).toBe(expected);
+      expect(parseAccLapIndex(physics, graphics, stat, "", "")?.acc?.isValidLap).toBe(expected);
     }
     const legacy = makeGraphicsBuf().subarray(0, 1320);
     expect(parseAccBuffers(physics, legacy, stat)?.acc?.isValidLap).toBeNull();
-    expect(parseAccLapIndex(physics, legacy, stat, 0, 0)?.acc?.isValidLap).toBeNull();
+    expect(parseAccLapIndex(physics, legacy, stat, "", "")?.acc?.isValidLap).toBeNull();
   });
 
   test("parseAccBuffers populates ACC extended data", () => {
@@ -310,8 +310,8 @@ describe("parseRawLapFrames — coordinate normalization (standard-xyz)", () => 
     // "brands_hatch"/"mclaren_720s_gt3_evo" though, so tryParse must
     // re-derive from the static struct rather than trust the header,
     // otherwise every re-import of an old recording mislabels the session.
-    expect(getAccTrackName(packet!.TrackOrdinal)).toBe("Brands Hatch - GP");
-    expect(getAccCarName(packet!.CarOrdinal)).toBe("McLaren 720S GT3 Evo 2023");
+    expect(getAccTrackName(Number(packet!.trackId))).toBe("Brands Hatch - GP");
+    expect(getAccCarName(Number(packet!.carId))).toBe("McLaren 720S GT3 Evo 2023");
 
     const rawHeader = unpackTriplet(frame);
     expect(rawHeader?.trackOrdinal).toBe(0);

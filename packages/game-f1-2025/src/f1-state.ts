@@ -1,6 +1,5 @@
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { F1ExtendedData, F1GridEntry } from "@raceiq/shared/telemetry/f1-2025";
-import { getF1CompoundName } from "@raceiq/game-f1-2025-metadata/racing/cars/f1"
 import {
   F1_HEADER_SIZE,
   F1_PACKET_IDS,
@@ -33,6 +32,8 @@ import {
   type F1SessionData,
   type F1SessionHistoryData,
 } from "./f1-packet-decoders";
+import { getF1CompoundName } from "@raceiq/game-f1-2025-metadata/racing/compounds";
+
 
 /**
  * Stateful accumulator for F1 2025 UDP telemetry.
@@ -179,9 +180,9 @@ export class F1StateAccumulator {
     const mx = this.motionEx;
     const sess = this.session;
 
-    const trackOrdinal = sess?.trackId ?? 0;
-    const teamId = this.participants[this.playerCarIndex]?.teamId ?? 0;
-    const carOrdinal = teamId;
+    const trackId = sess?.trackId == null || sess.trackId < 0 ? "" : String(sess.trackId);
+    const player = this.participants[this.playerCarIndex];
+    const carId = player == null || player.teamId < 0 ? "" : String(player.teamId);
 
     // Build grid data
     const grid: F1GridEntry[] = [];
@@ -452,7 +453,7 @@ export class F1StateAccumulator {
       TireWearRL: cd ? cd.tyreWearRL / 100 : -1,
       TireWearRR: cd ? cd.tyreWearRR / 100 : -1,
 
-      CarOrdinal: carOrdinal,
+      carId,
       CarClass: 0, // F1 is single-class
       CarPerformanceIndex: 0,
       DrivetrainType: 2, // AWD (hybrid with MGU-K)
@@ -496,7 +497,7 @@ export class F1StateAccumulator {
       NormDrivingLine: 0,
       NormAIBrakeDiff: 0,
 
-      TrackOrdinal: trackOrdinal,
+      trackId,
 
       // DRS/ERS per-packet tracking
       DrsActive: (cs?.drsAllowed && f1.drsActivated) ? 1 : 0,

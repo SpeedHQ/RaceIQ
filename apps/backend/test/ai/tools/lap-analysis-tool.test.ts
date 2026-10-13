@@ -95,8 +95,8 @@ describe("lap analysis retrieval contract", () => {
   });
   test("does not embed cached analysis in compare prompts", () => {
     const comparePrompt = buildCompareChatSystemPrompt(
-      lap,
-      { ...lap, lapNumber: 5 },
+      { ...lap, carId: "", trackId: "" },
+      { ...lap, lapNumber: 5, carId: "", trackId: "" },
       comparison,
       "metric",
       "C",

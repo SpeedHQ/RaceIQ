@@ -21,7 +21,7 @@ const lap = {
   id: 7,
   lapTime: 91.2,
   gameId: "fm-2023" as const,
-  trackOrdinal: 1,
+  trackId: "1",
   telemetry: [{ DistanceTraveled: 0 }, { DistanceTraveled: 100 }],
 };
 

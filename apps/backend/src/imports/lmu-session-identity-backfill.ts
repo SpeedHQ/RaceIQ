@@ -1,13 +1,13 @@
 import { existsSync, readFileSync } from "node:fs";
-import { and, asc, eq, gt, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, ne, or, sql } from "drizzle-orm";
 import { resolveLMUCar, resolveLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
 import { listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions } from "@raceiq/backend-core/db/schema";
-import { decompressIfGzipSync, iterateSessionFrames } from "@raceiq/backend-core/session-capture/framing";
+import { decompressIfGzipSync, iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
 import { identityFromLMUSourceFrame } from "@raceiq/game-lmu/normalizer";
-import { readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump";
+import { readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump-decoder";
 import { decodeLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
 
 const BATCH_SIZE = 100;
@@ -44,8 +44,10 @@ export async function backfillLMUSessionIdentity(): Promise<LMUSessionIdentityBa
     .from(sessions)
     .where(and(
       eq(sessions.gameId, "lmu"),
-      isNotNull(sessions.carId),
-      isNotNull(sessions.trackId),
+      ne(sessions.carId, ""),
+      ne(sessions.trackId, ""),
+      sql`NOT (${sessions.carId} GLOB '[0-9]*' AND ${sessions.carId} NOT GLOB '*[^0-9]*')`,
+      sql`NOT (${sessions.trackId} GLOB '[0-9]*' AND ${sessions.trackId} NOT GLOB '*[^0-9]*')`,
     ))
     .get();
   result.alreadyFilled = Number(filled?.count ?? 0);
@@ -54,16 +56,14 @@ export async function backfillLMUSessionIdentity(): Promise<LMUSessionIdentityBa
     listDiscoveredCars("lmu"),
     listDiscoveredTracks("lmu"),
   ]);
-  const legacyCarNames = new Map(legacyCars.map((row) => [row.ordinal, row.name]));
-  const legacyTrackNames = new Map(legacyTracks.map((row) => [row.ordinal, row.name]));
+  const legacyCarNames = new Map(legacyCars.map((row) => [row.carId, row.name]));
+  const legacyTrackNames = new Map(legacyTracks.map((row) => [row.trackId, row.name]));
   let afterId = 0;
 
   while (true) {
     const rows = await db
       .select({
         id: sessions.id,
-        carOrdinal: sessions.carOrdinal,
-        trackOrdinal: sessions.trackOrdinal,
         carId: sessions.carId,
         trackId: sessions.trackId,
         rawFile: sessions.rawFile,
@@ -72,7 +72,9 @@ export async function backfillLMUSessionIdentity(): Promise<LMUSessionIdentityBa
       .where(and(
         eq(sessions.gameId, "lmu"),
         gt(sessions.id, afterId),
-        or(isNull(sessions.carId), isNull(sessions.trackId)),
+        or(eq(sessions.carId, ""), eq(sessions.trackId, ""),
+          sql`(${sessions.carId} GLOB '[0-9]*' AND ${sessions.carId} NOT GLOB '*[^0-9]*')`,
+          sql`(${sessions.trackId} GLOB '[0-9]*' AND ${sessions.trackId} NOT GLOB '*[^0-9]*')`),
       ))
       .orderBy(asc(sessions.id))
       .limit(BATCH_SIZE)
@@ -95,18 +97,18 @@ export async function backfillLMUSessionIdentity(): Promise<LMUSessionIdentityBa
         }
       }
 
-      const sourceCarId = captured?.carId ?? legacyCarNames.get(row.carOrdinal) ?? "";
-      const sourceTrackId = captured?.trackId ?? legacyTrackNames.get(row.trackOrdinal) ?? "";
-      const carId = row.carId
-        ?? resolveLMUCar(sourceCarId, captured?.carName)?.id
-        ?? sourceCarId;
-      const trackId = row.trackId
-        ?? resolveLMUTrack(sourceTrackId)?.id
-        ?? sourceTrackId;
+      const legacyCar = /^\d+$/.test(row.carId);
+      const legacyTrack = /^\d+$/.test(row.trackId);
+      const sourceCarId = captured?.carId ?? legacyCarNames.get(row.carId) ?? "";
+      const sourceTrackId = captured?.trackId ?? legacyTrackNames.get(row.trackId) ?? "";
+      const carId = row.carId && !legacyCar ? row.carId
+        : resolveLMUCar(sourceCarId, captured?.carName)?.id ?? sourceCarId;
+      const trackId = row.trackId && !legacyTrack ? row.trackId
+        : resolveLMUTrack(sourceTrackId)?.id ?? sourceTrackId;
 
       const updates = {
-        ...(row.carId === null && carId ? { carId } : {}),
-        ...(row.trackId === null && trackId ? { trackId } : {}),
+        ...((!row.carId || legacyCar) && carId ? { carId } : {}),
+        ...((!row.trackId || legacyTrack) && trackId ? { trackId } : {}),
       };
       if (Object.keys(updates).length > 0) {
         await db.update(sessions).set(updates).where(eq(sessions.id, row.id)).run();

@@ -13,8 +13,8 @@ interface ImportedLap {
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
-  carId: number | string;
-  trackId: number | string;
+  carId: string;
+  trackId: string;
 }
 
 interface ImportResult {
@@ -46,7 +46,7 @@ export function ImportDumpPanel() {
     });
   };
 
-  const hasIdentity = (value: number | string) => typeof value === "string" ? value.length > 0 : value > 0;
+  const hasIdentity = (value: string) => value.length > 0;
   const handleSelect = (f: File | null) => {
     setFile(f);
     setResult(null);

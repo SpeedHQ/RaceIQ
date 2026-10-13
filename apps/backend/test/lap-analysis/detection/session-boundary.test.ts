@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { detectSessionBoundary, type SessionSnapshot } from "@raceiq/backend-core/lap-detection/boundaries";
+import { detectSessionBoundary, type SessionSnapshot } from "@raceiq/telemetry-core/processor/boundaries";
 
 function pkt(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
   return {
@@ -12,25 +12,20 @@ function pkt(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
     LastLap: 0,
     BestLap: 0,
     DistanceTraveled: 2000,
-    CarOrdinal: 100,
-    TrackOrdinal: 5,
     Speed: 50,
     PositionX: 0,
     PositionZ: 0,
+    carId: "native-car",
+    trackId: "native-track",
     ...overrides,
   } as TelemetryPacket;
 }
 function lmuPkt(carId: string, trackId: string): TelemetryPacket {
-  return pkt({
-    gameId: "lmu",
-    CarOrdinal: -1,
-    TrackOrdinal: -1,
-    lmu: { carId, trackId } as TelemetryPacket["lmu"],
-  });
+  return pkt({ gameId: "lmu", carId, trackId });
 }
 
 
-const SESSION: SessionSnapshot = { carOrdinal: 100, trackOrdinal: 5 };
+const SESSION: SessionSnapshot = { carId: "native-car", trackId: "native-track" };
 const NOW = 10_000_000; // large enough that NOW - 6min > 0
 
 // ── detectSessionBoundary ─────────────────────────────────────────────────────
@@ -45,53 +40,18 @@ describe("detectSessionBoundary", () => {
   });
 
   test("car changed", () => {
-    expect(
-      detectSessionBoundary(SESSION, 1, 2000, NOW, pkt({ CarOrdinal: 999 }), NOW)
-    ).toBe("car-changed");
+    expect(detectSessionBoundary(SESSION, 1, 2000, NOW, pkt({ carId: "changed-car" }), NOW)).toBe("car-changed");
   });
 
   test("track changed", () => {
-    expect(
-      detectSessionBoundary(SESSION, 1, 2000, NOW, pkt({ TrackOrdinal: 99 }), NOW)
-    ).toBe("track-changed");
+    expect(detectSessionBoundary(SESSION, 1, 2000, NOW, pkt({ trackId: "changed-track" }), NOW)).toBe("track-changed");
   });
-  test("LMU compares raw string identity instead of compatibility ordinals", () => {
-    const session: SessionSnapshot = {
-      carOrdinal: -1,
-      trackOrdinal: -1,
-      carId: "Ferrari 499P",
-      trackId: "LeMansWEC",
-    };
-    expect(
-      detectSessionBoundary(
-        session,
-        1,
-        2000,
-        NOW,
-        lmuPkt("Ferrari 499P", "LeMansWEC"),
-        NOW,
-      ),
-    ).toBeNull();
-    expect(
-      detectSessionBoundary(
-        session,
-        1,
-        2000,
-        NOW,
-        lmuPkt("Peugeot 9x8", "LeMansWEC"),
-        NOW,
-      ),
-    ).toBe("car-changed");
-    expect(
-      detectSessionBoundary(
-        session,
-        1,
-        2000,
-        NOW,
-        lmuPkt("Ferrari 499P", "SpaWEC"),
-        NOW,
-      ),
-    ).toBe("track-changed");
+
+  test("string car/track identity detects changes", () => {
+    const session: SessionSnapshot = { carId: "Ferrari 499P", trackId: "LeMansWEC" };
+    expect(detectSessionBoundary(session, 1, 2000, NOW, lmuPkt("Ferrari 499P", "LeMansWEC"), NOW)).toBeNull();
+    expect(detectSessionBoundary(session, 1, 2000, NOW, lmuPkt("Peugeot 9x8", "LeMansWEC"), NOW)).toBe("car-changed");
+    expect(detectSessionBoundary(session, 1, 2000, NOW, lmuPkt("Ferrari 499P", "SpaWEC"), NOW)).toBe("track-changed");
   });
 
 

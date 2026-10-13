@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { createAcEvoParserCache, parseAcEvoBuffers } from "@raceiq/game-ac-evo/parser";
 import { LiveTelemetryProjector } from "@raceiq/telemetry-core/telemetry/live-projector";
 import { buildLiveTelemetryView } from "client/src/lib/live-telemetry-view";

@@ -84,8 +84,26 @@ const setExperimentVersionNote = mock(async () => null);
 
 function completedPackets(): TelemetryPacket[] {
   return Array.from({ length: 180 }, (_, i) => ({
+    EngineMaxRpm: 0, EngineIdleRpm: 0, CurrentEngineRpm: 0,
+    AccelerationX: 0, AccelerationY: 0, AccelerationZ: 0,
+    AngularVelocityX: 0, AngularVelocityY: 0, AngularVelocityZ: 0,
+    Yaw: 0, Pitch: 0, Roll: 0,
+    WheelRotationSpeedFL: 0, WheelRotationSpeedFR: 0, WheelRotationSpeedRL: 0, WheelRotationSpeedRR: 0,
+    WheelOnRumbleStripFL: 0, WheelOnRumbleStripFR: 0, WheelOnRumbleStripRL: 0, WheelOnRumbleStripRR: 0,
+    WheelInPuddleDepthFL: 0, WheelInPuddleDepthFR: 0, WheelInPuddleDepthRL: 0, WheelInPuddleDepthRR: 0,
+    SurfaceRumbleFL_2: 0, SurfaceRumbleFR_2: 0, SurfaceRumbleRL_2: 0, SurfaceRumbleRR_2: 0,
+    TireSlipCombinedFL_2: 0,
+    TireTempFL: 0, TireTempFR: 0, TireTempRL: 0, TireTempRR: 0,
+    Boost: 0, Fuel: 0, CurrentRaceTime: 0, RacePosition: 0,
+    Clutch: 0, HandBrake: 0, Gear: 0, NormDrivingLine: 0, NormAIBrakeDiff: 0,
+    TireWearFL: 0, TireWearFR: 0, TireWearRL: 0, TireWearRR: 0,
+    SurfaceRumbleFL: 0, SurfaceRumbleFR: 0, SurfaceRumbleRL: 0, SurfaceRumbleRR: 0,
+    TireCombinedSlipFL: 0, TireCombinedSlipFR: 0, TireCombinedSlipRL: 0, TireCombinedSlipRR: 0,
+    SuspensionTravelMFL: 0, SuspensionTravelMFR: 0, SuspensionTravelMRL: 0, SuspensionTravelMRR: 0,
+    CarClass: 0, CarPerformanceIndex: 0, DrivetrainType: 0, NumCylinders: 0,
+    PositionY: 0, Power: 0, Torque: 0,
     gameId: "acc", IsRaceOn: 1, LapNumber: 1, LastLap: 0, BestLap: 0,
-    CarOrdinal: 100, TrackOrdinal: 5, PositionX: 0, PositionZ: 0,
+    carId: "100", trackId: "5", PositionX: 0, PositionZ: 0,
     TimestampMS: i * 16, CurrentLap: i / 60,
     DistanceTraveled: i * 2, Speed: i < 40 ? 50 : 20,
     VelocityX: i < 40 ? 50 : 20, VelocityY: 0, VelocityZ: 0,
@@ -94,7 +112,7 @@ function completedPackets(): TelemetryPacket[] {
     TireSlipRatioFL: 0.3, TireSlipRatioFR: 0.3, TireSlipRatioRL: 0, TireSlipRatioRR: 0,
     NormSuspensionTravelFL: 0.5, NormSuspensionTravelFR: 0.5,
     NormSuspensionTravelRL: 0.5, NormSuspensionTravelRR: 0.5,
-  } as TelemetryPacket));
+  }));
 }
 
 const issueLaps = Array.from({ length: 9 }, (_, i) => ({

@@ -103,9 +103,9 @@ describe("POST /api/tunes/import-file — AC Evo binary uploads", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         gameId: "ac-evo", fileName: "Default-12312.carsetup",
+        carId: audi.name,
         contentBase64: read("Default-12312.carsetup").toString("base64"),
-        carOrdinal: audi.id,
-        trackOrdinal: 7,
+        trackId: "test-track",
       }),
     });
     expect(res.status).toBe(201);
@@ -114,8 +114,8 @@ describe("POST /api/tunes/import-file — AC Evo binary uploads", () => {
       const tune = await getTuneById(body.id);
       expect(tune?.gameId).toBe("ac-evo");
       expect(tune?.name).toBe("Default-12312");
-      expect(tune?.carOrdinal).toBe(audi.id);
-      expect(tune?.trackOrdinal).toBe(7);
+      expect(tune?.carId).toBe(audi.name);
+      expect(tune?.trackId).toBe("test-track");
       const settings = JSON.parse(tune!.settings);
       const source = read("Default-12312.carsetup");
       expect(settings.carSetupBase64).toBe(source.toString("base64"));
@@ -130,7 +130,7 @@ describe("POST /api/tunes/import-file — AC Evo binary uploads", () => {
 
   test("rejects a setup assigned to another car and non-setup bytes", async () => {
     for (const overrides of [
-      { carOrdinal: -1 },
+      { carId: "" },
       { contentBase64: Buffer.from("not a setup").toString("base64") },
       { fileName: "setup.json" },
     ]) {
@@ -138,7 +138,7 @@ describe("POST /api/tunes/import-file — AC Evo binary uploads", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          gameId: "ac-evo", fileName: "Default-12312.carsetup", carOrdinal: audi.id,
+          gameId: "ac-evo", fileName: "Default-12312.carsetup", carId: audi.name,
           contentBase64: read("Default-12312.carsetup").toString("base64"),
           ...overrides,
         }),

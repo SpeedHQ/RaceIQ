@@ -1,4 +1,4 @@
-import { gunzipBuffer, META_FRAME_MAGIC, readFrameStreamStart, iterateSessionFrameRecords } from "./framing";
+import { gunzipBuffer, META_FRAME_MAGIC, readFrameStreamStart, iterateSessionFrameRecords } from "@raceiq/capture-formats/session/framing";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { MOTEC_SESSION_SOURCE } from "@raceiq/shared/integrations/motec";
@@ -7,18 +7,18 @@ import { parseLd } from "../motec/ld";
 import { parseLdxBeacons } from "../motec/ldx";
 import { resolveMotecTarget } from "../motec/targets";
 import { countSourceFrameScanned } from "./test-instrumentation";
-import { SEGMENT_BOUNDARY_MAGIC, SEGMENT_BOUNDARY_VERSION, SEGMENT_CONTEXT_MAGIC, SEGMENT_CONTEXT_VERSION, SEGMENT_CONTEXT_END_MAGIC, readFramePrefix, type SessionCaptureRecord } from "./framing";
-import { decodeLmuSparseFrame, isLmuSparseFrame } from "./lmu-sparse";
+import { SEGMENT_BOUNDARY_MAGIC, SEGMENT_BOUNDARY_VERSION, SEGMENT_CONTEXT_MAGIC, SEGMENT_CONTEXT_VERSION, SEGMENT_CONTEXT_END_MAGIC, readFramePrefix, type SessionCaptureRecord } from "@raceiq/capture-formats/session/framing";
+import { decodeLmuSparseFrame, isLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
 import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
-import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "./kunos-sparse";
-import { decodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } from "./generic-sparse";
+import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "@raceiq/capture-formats/session/kunos-sparse";
+import { decodeGenericSparseFrame, genericFrameIdentity, isGenericSparseFrame } from "@raceiq/capture-formats/session/generic-sparse";
 
 export interface SessionCaptureFrameRecord { readonly offset: number; readonly length: number; readonly frameIndex: number; }
 export interface SessionCaptureFrameIndex {
   readonly records: readonly SessionCaptureFrameRecord[];
   readonly byOffset: ReadonlyMap<number, SessionCaptureFrameRecord>;
 }
-export interface SessionCaptureSource { rawFile: string; source: string | null; gameId: GameId; carOrdinal: number; trackOrdinal: number; }
+export interface SessionCaptureSource { rawFile: string; source: string | null; gameId: GameId; carId: string; trackId: string; }
 export type LoadedSessionSource =
   | { kind: "capture"; buffer: Buffer; frameIndex: SessionCaptureFrameIndex }
   | { kind: "packets"; packets: TelemetryPacket[]; offsetEncoding: MotecOffsetEncoding };
@@ -68,7 +68,7 @@ export function clearSessionCaptureCache(rawFile?: string): void {
 export function setCaptureFileFactoryForTest(factory: CaptureFileFactory | null): void {
   captureFileFactory = factory ?? ((path) => Bun.file(path));
 }
-function key(source: SessionCaptureSource): string { return `${source.rawFile}\0${source.source ?? ""}\0${source.gameId}\0${source.carOrdinal}\0${source.trackOrdinal}`; }
+function key(source: SessionCaptureSource): string { return `${source.rawFile}\0${source.source ?? ""}\0${source.gameId}\0${source.carId}\0${source.trackId}`; }
 /**
  * Iterate capture records without materializing the compressed or decompressed
  * session. Report offsets in the decompressed stream, matching lap metadata.
@@ -233,7 +233,7 @@ export async function loadSessionSource(source: SessionCaptureSource): Promise<L
     const archive = decodeMotecSourceArchive(bytes); const log = parseLd(archive.ldBytes);
     const beacons = archive.ldxBytes ? parseLdxBeacons(archive.ldxBytes.toString("utf8")) : [];
     const target = resolveMotecTarget(source.gameId);
-    const carTrack = target.resolveCarTrack(log, { carOrdinal: source.carOrdinal, trackOrdinal: source.trackOrdinal });
+    const carTrack = target.resolveCarTrack(log, { carId: source.carId, trackId: source.trackId });
     loaded = { kind: "packets", packets: target.convert(log, beacons, carTrack).packets, offsetEncoding: archive.offsetEncoding };
   } else {
     const buffer = bytes[0] === 0x1f && bytes[1] === 0x8b ? await gunzipBuffer(bytes) : bytes;

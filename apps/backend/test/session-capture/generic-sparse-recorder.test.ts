@@ -4,18 +4,18 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
-import { iterateSessionCaptureRecords, iterateSessionFrames, sessionFrameAt } from "@raceiq/backend-core/session-capture/framing";
-import { decodeGenericSparseFrame, encodeGenericSparseFrame, isGenericSparseFrame } from "@raceiq/backend-core/session-capture/generic-sparse";
+import { iterateSessionCaptureRecords, iterateSessionFrames, sessionFrameAt } from "@raceiq/capture-formats/session/framing";
+import { decodeGenericSparseFrame, encodeGenericSparseFrame, isGenericSparseFrame } from "@raceiq/capture-formats/session/generic-sparse";
 import { SparseSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
-import { SessionRecorder } from "@raceiq/backend-core/session-capture/recorder";
-import { SparseSessionRecorder } from "@raceiq/backend-core/session-capture/sparse-recorder";
+import { SessionRecorder } from "@raceiq/capture-formats/session/recorder";
+import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
 import { parseRawLapFrames } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { runInsightScanWithCoverage } from "@raceiq/analysis-core/racing/analysis/laps/insights/scan";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { iterateSessionCaptureFrames } from "@raceiq/backend-core/session-capture/source-loader";
-import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
-import { ACC_PACKED_MAGIC, packTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
+import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
+import { ACC_PACKED_MAGIC, packTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
 import { readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -71,7 +71,7 @@ describe("generic sparse session recorder", () => {
     rawRecorder.start(rawFile); rawRecorder.writeMetaFrame();
     for (const frame of frames) rawRecorder.writeRecord(frame);
     await rawRecorder.stop();
-    const captureSource = (rawFile: string) => ({ rawFile, source: null, gameId, carOrdinal: -1, trackOrdinal: -1 });
+    const captureSource = (rawFile: string) => ({ rawFile, source: null, gameId, carId: "0", trackId: "0" });
     const rawStreamedPackets = await parseRawLapFrames(captureSource(rawFile), 12, frames.length);
     const sparseStreamedPackets = await parseRawLapFrames(captureSource(file), 12, frames.length);
     expect(rawStreamedPackets.length).toBeGreaterThan(0);
@@ -90,12 +90,12 @@ describe("generic sparse session recorder", () => {
       if (index < frames.length) expect(sessionFrameAt(bytes, offsets[index]!)).toEqual(frames[index]);
     }
     const streamed: Buffer[] = [];
-    for await (const record of iterateSessionCaptureFrames({ rawFile: file, source: null, gameId, carOrdinal: -1, trackOrdinal: -1 })) streamed.push(record.frame);
+    for await (const record of iterateSessionCaptureFrames({ rawFile: file, source: null, gameId, carId: "0", trackId: "0" })) streamed.push(record.frame);
     expect(streamed).toEqual(frames);
     const gzFile = join(dir, "capture.bin.gz");
     writeFileSync(gzFile, gzipSync(bytes));
     const gzFrames: Buffer[] = [];
-    for await (const record of iterateSessionCaptureFrames({ rawFile: gzFile, source: null, gameId, carOrdinal: -1, trackOrdinal: -1 })) gzFrames.push(record.frame);
+    for await (const record of iterateSessionCaptureFrames({ rawFile: gzFile, source: null, gameId, carId: "0", trackId: "0" })) gzFrames.push(record.frame);
     expect(gzFrames).toEqual(frames);
     if (gameId === "fm-2023" || gameId === "f1-2025") {
       const deltas = records.filter((record) => record.kind === "frame" && isGenericSparseFrame(bytes.subarray(record.offset + 4, record.offset + 4 + bytes.readUInt32LE(record.offset))));
@@ -136,7 +136,7 @@ describe("generic sparse session recorder", () => {
     for (const index of [0, 1, 127, 128, frames.length - 1]) {
       if (index < frames.length) expect(sessionFrameAt(bytes, offsets[index]!)).toEqual(frames[index]);
     }
-    const source = (rawFile: string) => ({ rawFile, source: null, gameId, carOrdinal: -1, trackOrdinal: -1 });
+    const source = (rawFile: string) => ({ rawFile, source: null, gameId, carId: "0", trackId: "0" });
     const rawPackets = await parseRawLapFrames(source(rawFile), 12, frames.length);
     const sparsePackets = await parseRawLapFrames(source(sparseFile), 12, frames.length);
     expect(sparsePackets.length).toBeGreaterThan(0);

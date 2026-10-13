@@ -1,4 +1,4 @@
-import { readKunosFrames } from "@raceiq/backend-core/games/kunos/frame-reader";
+import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { STATIC } from "@raceiq/capture-formats/acc/structs";
 import { parseAccBuffers } from "./parser";
 import { readWString } from "./utils";
@@ -27,14 +27,14 @@ export async function replayRecording(
   const frames = readKunosFrames(filePath);
   if (frames.length === 0) throw new Error(`Recording file has no frames: ${filePath}`);
 
-  // Resolve car/track ordinals from first frame's static data
+  // Resolve native numeric IDs from first frame's static data for packet identity.
   const firstStatic = frames[0].staticData;
   const carModel = readWString(firstStatic, STATIC.carModel.offset, STATIC.carModel.size);
   const trackName = readWString(firstStatic, STATIC.track.offset, STATIC.track.size);
-  const carOrdinal = getAccCarByModel(carModel)?.id ?? 0;
-  const trackOrdinal = getAccTrackByName(trackName)?.id ?? 0;
-  const overrides = { carOrdinal, trackOrdinal };
-  console.log(`[ACC Replay] Playing ${filePath} — ${frames.length} frames at ${speed}x (car: ${carModel} → #${carOrdinal}, track: ${trackName} → #${trackOrdinal})`);
+  const carId = String(getAccCarByModel(carModel)?.id ?? carModel);
+  const trackId = String(getAccTrackByName(trackName)?.id ?? trackName);
+  const overrides = { carId, trackId };
+  console.log(`[ACC Replay] Playing ${filePath} — ${frames.length} frames at ${speed}x (car: ${carModel} → ${carId}, track: ${trackName} → ${trackId})`);
 
   let cancelled = false;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;

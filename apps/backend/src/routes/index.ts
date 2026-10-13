@@ -3,6 +3,7 @@ import type { BlankEnv, ExtractSchema } from "hono/types";
 import { cors } from "hono/cors";
 import { errorLogger } from "@raceiq/backend-core/runtime/logger";
 import { IS_DEV, IS_E2E } from "@raceiq/backend-core/runtime/config/env";
+import { httpAccess } from "../runtime/http-access";
 
 import { settingsRoutes } from "./settings-routes";
 import { lapRoutes } from "./laps/index";
@@ -20,6 +21,7 @@ import { f125Routes } from "./games/f1-2025";
 import { miscRoutes } from "./system/index";
 import { cacheRoutes } from "./cache-routes";
 import { devRoutes } from "./dev/index";
+import { dashboardRoutes } from "./dashboard-routes";
 
 // Name each already-checked schema so declaration generation does not expand
 // the entire nested route chain. Keep every mounted production route here.
@@ -30,6 +32,7 @@ type AppSchema =
   & ExtractSchema<typeof driverRoutes>
   & ExtractSchema<typeof chatsRoutes>
   & ExtractSchema<typeof chatRunRoutes>
+  & ExtractSchema<typeof dashboardRoutes>
   & ExtractSchema<typeof sessionRoutes>
   & ExtractSchema<typeof trackRoutes>
   & ExtractSchema<typeof carRoutes>
@@ -41,24 +44,19 @@ type AppSchema =
   & ExtractSchema<typeof cacheRoutes>;
 
 const app = new Hono<BlankEnv, AppSchema>()
-  // In dev, Mastra Studio (localhost:3000) probes /studio-api/auth/capabilities
-  // with `credentials: "include"`; browsers reject a wildcard ACAO on
-  // credentialed requests, so reflect the request origin + allow credentials.
-  // Prod keeps the plain wildcard (the desktop client is same-origin).
+  .use("/*", async (c, next) => {
+    const denied = httpAccess.authorize(c.req.raw);
+    if (denied) return denied;
+    await next();
+  })
   .use(
     "/*",
-    IS_DEV
-      ? cors({
-          origin: (origin) => origin ?? "*",
-          credentials: true,
-          // Omit allowHeaders so Hono reflects the browser's
-          // Access-Control-Request-Headers verbatim. Mastra Studio's client
-          // sends its own headers (e.g. x-mastra-client-type) on /studio-api
-          // requests; a static allow-list drops them and the credentialed
-          // preflight fails with "Failed to fetch".
-          allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        })
-      : cors(),
+    cors({
+      origin: (origin, c) => httpAccess.allowsOrigin(origin, c.req.raw) ? origin : "",
+      credentials: true,
+      // Studio needs its own headers; reflect them only for trusted origins.
+      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    }),
   )
   .use("/*", errorLogger());
 
@@ -68,6 +66,7 @@ app.route("/", lapRoutes);
 app.route("/", driverRoutes);
 app.route("/", chatsRoutes);
 app.route("/", chatRunRoutes);
+app.route("/", dashboardRoutes);
 app.route("/", sessionRoutes);
 app.route("/", trackRoutes);
 app.route("/", carRoutes);

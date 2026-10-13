@@ -12,7 +12,7 @@ import { cacheDelete } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { initServerGameAdapters } from "../../src/games/init";
 import { lapRoutes } from "../../src/routes/laps/index";
 import { iterateSessionCaptureFrames, setCaptureFileFactoryForTest } from "@raceiq/backend-core/session-capture/source-loader";
-import { SessionRecorder } from "@raceiq/backend-core/session-capture/recorder";
+import { SessionRecorder } from "@raceiq/capture-formats/session/recorder";
 import { SparseSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
 import { getRecordingFixture } from "@raceiq/backend-core/test-support/recordings/fixtures";
 
@@ -38,7 +38,7 @@ describe("F1 Analyse semantic telemetry integration", () => {
       raw.start(join(tempDir, "raw.bin"));
       raw.writeMetaFrame();
       for await (const record of iterateSessionCaptureFrames({
-        rawFile: fixture, source: null, gameId: "f1-2025", carOrdinal: 41, trackOrdinal: 19,
+        rawFile: fixture, source: null, gameId: "f1-2025", carId: "41", trackId: "19",
       })) {
         sparse.writeRecord(record.frame);
         raw.writeRecord(record.frame);
@@ -94,7 +94,7 @@ describe("F1 Analyse semantic telemetry integration", () => {
       });
       try {
         for (const recording of recordings) {
-          const sessionId = await insertSession(41, 19, "f1-2025");
+          const sessionId = await insertSession("41", "19", "f1-2025");
           sessionIds.push(sessionId);
           const lapId = await insertLap(sessionId, 1, 1, true, recording.offset, 1_000);
           lapIds.push(lapId);
@@ -149,15 +149,15 @@ describe("F1 Analyse semantic telemetry integration", () => {
       rawFile: recording,
       source: null,
       gameId: "f1-2025",
-      carOrdinal: 41,
-      trackOrdinal: 19,
+      carId: "41",
+      trackId: "19",
     })) {
       firstFrameOffset = record.offset;
       break;
     }
     if (firstFrameOffset == null) throw new Error("Recording contains no frames");
 
-    const sessionId = await insertSession(41, 19, "f1-2025");
+    const sessionId = await insertSession("41", "19", "f1-2025");
     const lapId = await insertLap(sessionId, 1, 1, true, firstFrameOffset, 1_000);
     await updateSessionRawFile(sessionId, recording, "test-detector");
 

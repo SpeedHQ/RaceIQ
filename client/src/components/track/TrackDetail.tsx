@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBulkDeleteLaps } from "@/hooks/laps";
 import { queryKeys } from "@/hooks/query-keys";
-import { drawTrack } from "@/lib/canvas/draw-track";
+import { drawTrack, type PitLine } from "@/lib/canvas/draw-track";
 import { countryName } from "@/lib/country-names";
 import { storedLapsSectorCount } from "@/lib/lap-sectors";
 import { client } from "@/lib/rpc";
@@ -46,6 +46,7 @@ export function TrackDetail({
   const gid = gameId ?? undefined;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
+  const [pitLines, setPitLines] = useState<PitLine[]>([]);
   const [flipX, setFlipX] = useState(false);
   const [sectors, setSectors] = useState<TrackSectors | null>(null);
   const [segSource, setSegSource] = useState<string>(""); // "user" | "extracted" | "named" | "shared" | "auto"
@@ -69,7 +70,7 @@ export function TrackDetail({
   const [editS2, setEditS2] = useState(66.6);
   const [savingSectors, setSavingSectors] = useState(false);
   const [selectedDivision, setSelectedDivision] = useState<string | null>(null);
-  const [selectedCars, setSelectedCars] = useState<Set<number>>(new Set());
+  const [selectedCars, setSelectedCars] = useState<Set<string>>(new Set());
   const [selectedLaps, setSelectedLaps] = useState<Set<number>>(new Set());
   const [sortBy, setSortBy] = useState<TrackLapSortKey>("time");
   const [sortAsc, setSortAsc] = useState(true);
@@ -79,13 +80,13 @@ export function TrackDetail({
   const isAcc = gameId === "acc";
   const isAcEvo = gameId === "ac-evo";
   const hideClassCol = isF125 || isAcc || isAcEvo;
-  const trackKey = gameId === "lmu" ? track.id! : track.ordinal;
+  const trackKey = track.id;
 
   const hasForzaTunes = gameId === "fm-2023";
   // Forza + AC-EVO share the catalog-driven master-detail setups panel.
   const hasCatalogSetups = hasForzaTunes || isAcEvo;
   const { startEditing, updateSegFrac, toggleSegType, addSegment, removeSegment, saveSegments, startEditingSectors, saveSectorBounds } = useTrackSegmentEditor({
-    trackOrdinal: track.ordinal,
+    trackId: track.id,
     gameId: gid,
     sectors,
     setSectors,
@@ -124,8 +125,8 @@ export function TrackDetail({
   const { data: sectorData, isFetched: sectorsFetched } = useQuery({
     queryKey: [...queryKeys.trackSectors(trackKey), gameId ?? null],
     queryFn: () =>
-      client.api["track-sectors"][":ordinal"]
-        .$get({ param: { ordinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gid! } })
+      client.api["track-sectors"][":trackId"]
+        .$get({ param: { trackId: encodeURIComponent(trackKey) }, query: { gameId: gid! } })
         .then((r) => r.json() as unknown as (TrackSectors & { source?: string }) | null),
     enabled: !!gameId,
     staleTime: 5 * 60 * 1000,
@@ -134,8 +135,8 @@ export function TrackDetail({
   const { data: boundsData, isFetched: boundsFetched } = useQuery({
     queryKey: [...queryKeys.trackSectorBoundaries(trackKey), gameId ?? null],
     queryFn: () =>
-      client.api["track-sector-boundaries"][":ordinal"]
-        .$get({ param: { ordinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gid! } })
+      client.api["track-sector-boundaries"][":trackId"]
+        .$get({ param: { trackId: encodeURIComponent(trackKey) }, query: { gameId: gid! } })
         .then((r) => r.json() as unknown as { s1End: number; s2End: number } | null),
     enabled: !!gameId,
     staleTime: 5 * 60 * 1000,
@@ -144,9 +145,9 @@ export function TrackDetail({
   const { data: outlineData } = useQuery({
     queryKey: [...queryKeys.trackOutline(trackKey), gameId ?? null],
     queryFn: () =>
-      client.api["track-outline"][":ordinal"]
-        .$get({ param: { ordinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gid ?? undefined } })
-        .then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[]),
+      client.api["track-outline"][":trackId"]
+        .$get({ param: { trackId: encodeURIComponent(trackKey) }, query: { gameId: gid ?? undefined } })
+        .then((r) => r.json() as unknown as { points?: Point[]; pitLines?: PitLine[]; flipX?: boolean } | Point[]),
     // Return lightweight facts before cold outline alignment can block the server.
     enabled: !!gameId && (track.hasOutline || !!track.hasMap) && sectorsFetched && boundsFetched,
     staleTime: 5 * 60 * 1000,
@@ -155,12 +156,15 @@ export function TrackDetail({
   useEffect(() => {
     if (!Array.isArray(outlineData) && outlineData?.points && Array.isArray(outlineData.points)) {
       setOutline(outlineData.points);
+      setPitLines(Array.isArray(outlineData.pitLines) ? outlineData.pitLines : []);
       setFlipX(outlineData.flipX ?? false);
     } else if (Array.isArray(outlineData)) {
       setOutline(outlineData as Point[]);
+      setPitLines([]);
       setFlipX(false);
     } else {
       setOutline(null);
+      setPitLines([]);
       setFlipX(false);
     }
   }, [outlineData]);
@@ -178,8 +182,8 @@ export function TrackDetail({
   const { data: trackLapsData = [], refetch: refetchLaps } = useQuery<TrackLap[]>({
     queryKey: ["track-laps", trackKey, gameId ?? null],
     queryFn: () =>
-      client.api.tracks[":trackOrdinal"]["all-laps"]
-        .$get({ param: { trackOrdinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gameId ?? undefined } } as never)
+      client.api.tracks[":trackId"]["all-laps"]
+        .$get({ param: { trackId: encodeURIComponent(trackKey) }, query: { gameId: gameId ?? undefined } } as never)
         .then((r) => r.json() as unknown as TrackLap[] | null)
         .then((data) => data ?? []),
     staleTime: 30 * 1000,
@@ -200,8 +204,8 @@ export function TrackDetail({
     // While editing, every turn of a complex gets its own label so the row
     // being edited is identifiable on the map; otherwise the complex is
     // labelled once under its group name.
-    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX, undefined, editing, previewSegment, previewSector);
-  }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX, editing, hoveredSegments, hoveredSector]);
+    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX, undefined, editing, previewSegment, previewSector, pitLines);
+  }, [outline, pitLines, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX, editing, hoveredSegments, hoveredSector]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -244,9 +248,9 @@ export function TrackDetail({
 
   // Lap manager: unique cars, filtered & sorted laps
   const uniqueCars = useMemo(() => {
-    const map = new Map<number, { carOrdinal: number; carName: string; carClass: string }>();
+    const map = new Map<string, { carId: string; carName: string; carClass: string }>();
     for (const l of trackLaps) {
-      if (!map.has(l.carOrdinal)) map.set(l.carOrdinal, { carOrdinal: l.carOrdinal, carName: l.carName, carClass: l.carClass });
+      if (!map.has(l.carId)) map.set(l.carId, { carId: l.carId, carName: l.carName, carClass: l.carClass });
     }
     return Array.from(map.values()).sort((a, b) => a.carName.localeCompare(b.carName));
   }, [trackLaps]);
@@ -266,7 +270,7 @@ export function TrackDetail({
   }, [isF125, trackLaps]);
   const filteredLaps = useMemo(() => {
     return trackLaps
-      .filter((l) => selectedCars.size === 0 || selectedCars.has(l.carOrdinal))
+      .filter((l) => selectedCars.size === 0 || selectedCars.has(l.carId))
       .filter((l) => !selectedDivision || l.division === selectedDivision)
       .sort((a, b) => {
         let cmp: number;
@@ -302,7 +306,7 @@ export function TrackDetail({
     return vals.some((c) => c > 1) && vals.some((c) => c === 1);
   }, [isF125, sessionLapCounts]);
 
-  const toggleCar = useCallback((ord: number) => {
+  const toggleCar = useCallback((ord: string) => {
     setSelectedCars((prev) => {
       const next = new Set(prev);
       if (next.has(ord)) next.delete(ord);
@@ -396,7 +400,7 @@ export function TrackDetail({
         <div className="flex shrink-0 flex-col gap-4 @3xl/workspace:min-h-0 @3xl/workspace:flex-1 @3xl/workspace:shrink @3xl/workspace:flex-row @3xl/workspace:overflow-hidden">
           <div className="min-w-0 @3xl/workspace:min-h-0 @3xl/workspace:flex-1 @3xl/workspace:overflow-auto @5xl/workspace:overflow-hidden">
             <TrackDebugPanel
-              trackOrdinal={track.ordinal}
+              trackId={track.id}
               outline={outline}
               mapUrl={track.mapUrl}
               flipX={flipX}
@@ -475,20 +479,20 @@ export function TrackDetail({
               {/* Setups tab — no outer scroll, component handles its own */}
               {activeTab === "setups" && (
                 <div className="flex-1 min-h-0">
-                  {isF125 && <F125SetupsWithGuide trackOrdinal={track.ordinal} trackName={track.name} />}
-                  {isAcc && <AccTrackSetups trackOrdinal={track.ordinal} />}
-                  {hasCatalogSetups && gameId && <CatalogTrackSetups gameId={gameId} trackName={track.name} trackVariant={track.variant} trackOrdinal={track.ordinal} />}
+                  {isF125 && <F125SetupsWithGuide trackId={track.id} trackName={track.name} />}
+                  {isAcc && <AccTrackSetups trackId={track.id} />}
+                  {hasCatalogSetups && gameId && <CatalogTrackSetups gameId={gameId} trackName={track.name} trackVariant={track.variant} trackId={track.id} />}
                 </div>
               )}
 
               {activeTab === "guide" && isAcc && (
                 <div className="flex-1 min-h-0">
-                  <AccTrackGuide trackOrdinal={track.ordinal} trackName={track.name} />
+                  <AccTrackGuide trackId={track.id} trackName={track.name} />
                 </div>
               )}
               {activeTab === "guide" && isF125 && (
                 <div className="flex-1 min-h-0 p-2">
-                  <F125TrackGuide trackOrdinal={track.ordinal} />
+                  <F125TrackGuide trackId={track.id} />
                 </div>
               )}
 

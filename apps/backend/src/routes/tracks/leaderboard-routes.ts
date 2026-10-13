@@ -4,27 +4,17 @@ import { getLapSummariesByTrack } from "@raceiq/backend-core/db/lap-read-queries
 import { fmCarSpecsCatalog } from "@raceiq/game-fm-2023-metadata/racing/cars/fm";
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { tryGetServerGame } from "@raceiq/backend-core/games/registry";
-import type { GameId } from "@raceiq/shared/games/ids";
-import { getLMUCar } from "@raceiq/game-lmu-metadata/catalog";
-import { decodeTrackKey, TrackKeyParamSchema } from "./support";
+import { TrackIdParamSchema, requireGameId } from "./support";
 
 export const trackLeaderboardRoutes = new Hono()
 
-  // GET /api/tracks/:trackOrdinal/leaderboard — fastest laps grouped by PI class
-  .get("/api/tracks/:trackOrdinal/leaderboard",
-    zValidator("param", TrackKeyParamSchema),
+  // GET /api/tracks/:trackId/leaderboard — fastest laps grouped by PI class
+  .get("/api/tracks/:trackId/leaderboard",
+    zValidator("param", TrackIdParamSchema),
     async (c) => {
-      const rawTrackKey = decodeTrackKey(c.req.valid("param").trackOrdinal);
-      const gameId = c.req.query("gameId") as GameId | undefined;
-      if (!gameId) {
-        return c.json({ error: "gameId query parameter is required" }, 400);
-      }
-      const trackKey = gameId === "lmu" ? rawTrackKey : Number(rawTrackKey);
-      if (gameId !== "lmu" && !Number.isInteger(trackKey)) {
-        return c.json({ error: "trackOrdinal must be an integer" }, 400);
-      }
-      const trackLaps = await getLapSummariesByTrack(trackKey, gameId);
-
+      const { trackId } = c.req.valid("param");
+      const gameId = requireGameId(c);
+      const trackLaps = await getLapSummariesByTrack(trackId, gameId);
       // Derive class letter from PI value
       const piClass = (pi: number): string => {
         if (pi >= 999) return "X";
@@ -44,11 +34,8 @@ export const trackLeaderboardRoutes = new Hono()
           lapId: lap.lapId,
           lapNumber: lap.lapNumber,
           lapTime: lap.lapTime,
-          carOrdinal: lap.carOrdinal,
-          carId: lap.carId ?? lap.carOrdinal,
-          carName: lap.gameId === "lmu"
-            ? getLMUCar(lap.carId ?? "")?.name ?? lap.carId ?? "Unknown car"
-            : (tryGetServerGame(lap.gameId)?.getCarName(lap.carOrdinal) ?? resolveCarName(lap.carOrdinal, lap.gameId)),
+          carId: lap.carId,
+          carName: tryGetServerGame(lap.gameId)?.getCarName(lap.carId) ?? resolveCarName(lap.carId, lap.gameId),
           carClass: piClass(pi),
           pi,
           createdAt: lap.createdAt,
@@ -75,17 +62,13 @@ export const trackLeaderboardRoutes = new Hono()
     }
   )
 
-  // GET /api/tracks/:trackOrdinal/all-laps — all laps for a track (ungrouped, for detail view)
-  .get("/api/tracks/:trackOrdinal/all-laps",
-    zValidator("param", TrackKeyParamSchema),
+  // GET /api/tracks/:trackId/all-laps — all laps for a track (ungrouped, for detail view)
+  .get("/api/tracks/:trackId/all-laps",
+    zValidator("param", TrackIdParamSchema),
     async (c) => {
-      const rawTrackKey = decodeTrackKey(c.req.valid("param").trackOrdinal);
-      const gameId = c.req.query("gameId") as GameId | undefined;
-      const trackKey = gameId === "lmu" ? rawTrackKey : Number(rawTrackKey);
-      if (gameId !== "lmu" && !Number.isInteger(trackKey)) {
-        return c.json({ error: "trackOrdinal must be an integer" }, 400);
-      }
-      const trackLaps = await getLapSummariesByTrack(trackKey, gameId);
+      const { trackId } = c.req.valid("param");
+      const gameId = requireGameId(c);
+      const trackLaps = await getLapSummariesByTrack(trackId, gameId);
 
       const piClass = (pi: number): string => {
         if (pi >= 999) return "X";
@@ -105,11 +88,8 @@ export const trackLeaderboardRoutes = new Hono()
           lapId: lap.lapId,
           lapNumber: lap.lapNumber,
           lapTime: lap.lapTime,
-          carOrdinal: lap.carOrdinal,
-          carId: lap.carId ?? lap.carOrdinal,
-          carName: lap.gameId === "lmu"
-            ? getLMUCar(lap.carId ?? "")?.name ?? lap.carId ?? "Unknown car"
-            : (tryGetServerGame(lap.gameId)?.getCarName(lap.carOrdinal) ?? resolveCarName(lap.carOrdinal, lap.gameId)),
+          carId: lap.carId,
+          carName: tryGetServerGame(lap.gameId)?.getCarName(lap.carId) ?? resolveCarName(lap.carId, lap.gameId),
           carClass: piClass(pi),
           pi,
           createdAt: lap.createdAt,
@@ -117,7 +97,7 @@ export const trackLeaderboardRoutes = new Hono()
           sectorTimes: lap.sectorTimes,
           isValid: lap.isValid,
           invalidReason: lap.invalidReason,
-          division: fmCarSpecsCatalog.get(lap.carOrdinal)?.division ?? null,
+          division: lap.gameId === "fm-2023" ? fmCarSpecsCatalog.get(Number(lap.carId))?.division ?? null : null,
           notes: lap.notes,
         };
       });

@@ -2,13 +2,14 @@
   "name": "@raceiq/game-ac-evo",
   "private": true,
   "type": "module",
-  "exports": {".":"./src/index.ts","./carsetup-wire":"./src/carsetup-wire.ts","./carsetup-writer":"./src/carsetup-writer.ts","./carsetup":"./src/carsetup.ts","./lap-detector":"./src/lap-detector.ts","./motec":"./src/motec.ts","./parser":"./src/parser.ts","./shared-memory":"./src/shared-memory.ts","./utils":"./src/utils.ts","./test-support/recordings":"./test/support/recordings.ts"},
+  "exports": {".":"./src/index.ts","./carsetup-wire":"./src/carsetup-wire.ts","./carsetup-writer":"./src/carsetup-writer.ts","./carsetup":"./src/carsetup.ts","./lap-detector":"./src/lap-detector.ts","./motec":"./src/motec.ts","./parser":"./src/parser.ts","./game-parser":"./src/game-parser.ts","./shared-memory":"./src/shared-memory.ts","./utils":"./src/utils.ts","./test-support/recordings":"./test/support/recordings.ts"},
   "dependencies": {
     "@raceiq/shared": "workspace:*",
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
     "@raceiq/game-catalogs": "workspace:*",
-    "@raceiq/game-ac-evo-metadata": "workspace:*"
+    "@raceiq/game-ac-evo-metadata": "workspace:*",
+    "@raceiq/telemetry-core": "workspace:*"
   },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit",

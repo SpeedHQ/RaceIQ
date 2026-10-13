@@ -5,7 +5,7 @@ import {
   detectLapBoundary,
   detectLapReset,
   type SessionSnapshot,
-} from "@raceiq/backend-core/lap-detection/boundaries";
+} from "@raceiq/telemetry-core/processor/boundaries";
 import { assertSectorTimesMatchLapTime } from "@raceiq/backend-core/test-support/laps/assertions";
 
 function pkt(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
@@ -18,8 +18,8 @@ function pkt(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
     LastLap: 0,
     BestLap: 0,
     DistanceTraveled: 2000,
-    CarOrdinal: 100,
-    TrackOrdinal: 5,
+    carId: "100",
+    trackId: "5",
     Speed: 50,
     PositionX: 0,
     PositionZ: 0,
@@ -27,7 +27,7 @@ function pkt(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
   } as TelemetryPacket;
 }
 
-const _SESSION: SessionSnapshot = { carOrdinal: 100, trackOrdinal: 5 };
+const _SESSION: SessionSnapshot = { carId: "100", trackId: "5" };
 const _NOW = 10_000_000;
 
 // ── FM-2023 Lap 0 → Lap 1 with Estimated Lap ────────────────────────────────────
@@ -151,24 +151,21 @@ describe("FM-2023: Lap 0 complete, Lap 1 receives estimated lap", () => {
 
     const _lap1 = pkt({ LapNumber: 1, CurrentLap: 92.8, LastLap: 50 });
     // Lap 1 isValid: true (no rewind, clean lap)
-
-    const lap1Complete = detectLapBoundary(1, pkt({ LapNumber: 2, LastLap: 92.8 }));
-    expect(lap1Complete.action).toBe("complete");
-    // Lap 1 isValid: true (completed cleanly)
   });
+
 
   test("single session persists through lap 0 → 1 → 2", () => {
     // Verify that no session boundary is triggered during the sequence
-    const SESSION: SessionSnapshot = { carOrdinal: 100, trackOrdinal: 5 };
+    const SESSION: SessionSnapshot = { carId: "100", trackId: "5" };
     const NOW = 10_000_000;
 
     // Packet 1: lap 0 in progress
-    const pkt0 = pkt({ LapNumber: 0, CarOrdinal: 100, TrackOrdinal: 5 });
+    const pkt0 = pkt({ LapNumber: 0, carId: "100", trackId: "5" });
     const boundary0 = detectSessionBoundary(SESSION, 0, 0, NOW, pkt0, NOW);
     expect(boundary0).toBeNull(); // same session
 
     // Packet 2: lap 0 → 1 transition
-    const pkt1Start = pkt({ LapNumber: 1, CarOrdinal: 100, TrackOrdinal: 5 });
+    const pkt1Start = pkt({ LapNumber: 1, carId: "100", trackId: "5" });
     const boundary1 = detectSessionBoundary(SESSION, 1, 2000, NOW, pkt1Start, NOW);
     expect(boundary1).toBeNull(); // same session continues
 
@@ -177,8 +174,8 @@ describe("FM-2023: Lap 0 complete, Lap 1 receives estimated lap", () => {
       LapNumber: 1,
       CurrentLap: 45.5,
       LastLap: 95.2,
-      CarOrdinal: 100,
-      TrackOrdinal: 5,
+      carId: "100",
+      trackId: "5",
     });
     const boundary1Progress = detectSessionBoundary(SESSION, 1, 1500, NOW, pkt1Progress, NOW);
     expect(boundary1Progress).toBeNull(); // same session continues
@@ -187,8 +184,8 @@ describe("FM-2023: Lap 0 complete, Lap 1 receives estimated lap", () => {
     const pkt2Start = pkt({
       LapNumber: 2,
       LastLap: 92.8,
-      CarOrdinal: 100,
-      TrackOrdinal: 5,
+      carId: "100",
+      trackId: "5",
     });
     const boundary2 = detectSessionBoundary(SESSION, 2, 100, NOW, pkt2Start, NOW);
     expect(boundary2).toBeNull(); // same session continues

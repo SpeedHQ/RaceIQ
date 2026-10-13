@@ -4,15 +4,14 @@
  * Reuses Kunos BufferedKunosMemoryReader + TripletAssembler + TripletPipeline
  * infrastructure (same shared memory format). Key differences:
  *   - Uses acEvoProcessChecker (watches AssettoCorsaEVO.exe)
- *   - Uses AcEvoParsingProcessor which resolves car/track ordinals from
- *     STATIC display names via the AC Evo CSV lookups
+ *   - Uses native car/track identities from shared-memory names
  *   - Live capture accepts AC_LIVE/AC_PAUSE; recording writes raw buffers only
  */
 
 import { processPacket } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { BufferedKunosMemoryReader } from "@raceiq/backend-core/games/kunos/buffered-memory-reader";
 import type { IRealtimeKunosMemoryReader } from "@raceiq/backend-core/games/kunos/memory-reader";
-import { ACEVO_PACKED_MAGIC, packTriplet } from "@raceiq/backend-core/games/kunos/pack-triplet";
+import { ACEVO_PACKED_MAGIC, packTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { TripletAssembler } from "@raceiq/backend-core/games/kunos/triplet-assembler";
 import {
   createKunosTripletPipeline,
@@ -55,11 +54,9 @@ class AcEvoParsingProcessor implements TripletProcessor {
 
   async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer; frameTimeMs?: number }): Promise<undefined> {
     try {
-      const packet = parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, this.cache);
+      const packet = parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, this.cache, triplet.frameTimeMs ?? Date.now());
       if (packet) {
-        // -1 sentinel = unresolved. Never default to 0: ordinal 0 is a real
-        // car/track (Ferrari SF90 Stradale / Monza GP).
-        const sourceFrame = packTriplet(ACEVO_PACKED_MAGIC, packet.CarOrdinal, packet.TrackOrdinal ?? -1, triplet.physics, triplet.graphics, triplet.staticData);
+        const sourceFrame = packTriplet(ACEVO_PACKED_MAGIC, 0, 0, triplet.physics, triplet.graphics, triplet.staticData);
         await processPacket(packet, sourceFrame, triplet.frameTimeMs);
       }
     } catch (err) {

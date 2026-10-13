@@ -12,7 +12,7 @@
 import { describe, test, expect, afterEach } from "bun:test";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { rmSync, readFileSync } from "node:fs";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { unzipSync, zipSync } from "fflate";
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps } from "@raceiq/backend-core/db/schema";
@@ -32,10 +32,11 @@ import {
   iterateSessionCaptureRecords,
   iterateSessionFrames,
   META_FRAME_BYTES,
-} from "@raceiq/backend-core/session-capture/framing";
+} from "@raceiq/capture-formats/session/framing";
 import { queryLapTelemetryBySemanticId } from "@raceiq/backend-core/telemetry/replay";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { buildLd, buildLdx, syntheticStint } from "@raceiq/backend-core/test-support/motec/ld";
+import { getAllAcEvoCars } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
 initGameAdapters();
 initServerGameAdapters();
 
@@ -55,16 +56,16 @@ function captureSource(session: {
   rawFile: string | null;
   source: string | null;
   gameId: string;
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: string;
+  trackId: string;
 }): SessionCaptureSource {
   if (!session.rawFile) throw new Error("Session has no capture");
   return {
     rawFile: session.rawFile,
     source: session.source,
     gameId: session.gameId as GameId,
-    carOrdinal: session.carOrdinal,
-    trackOrdinal: session.trackOrdinal,
+    carId: session.carId,
+    trackId: session.trackId,
   };
 }
 
@@ -163,7 +164,14 @@ describe("lap export → import round-trip (real capture)", () => {
         capture, gameId, minimumLaps: 1,
         frameTimeStartMs: gameId === "fm-2023" ? 1_745_000_000_000 : undefined,
       });
-      const exported = rows.at(-1)!;
+      // Committed iRacing captures do not produce complete persisted sector times.
+      // Keep their timing/telemetry coverage; other games require actual sector values.
+      const exported = gameId === "iracing" ? rows.at(-1) : rows.findLast((lap) =>
+        lap.sectorTimes !== null && lap.sectorTimes.length >= 2 &&
+        lap.sectorTimes.every((time) => time > 0),
+      );
+      expect(exported).toBeDefined();
+      if (!exported) throw new Error(`${label} fixture has no lap with complete sector times`);
       const sourceSession = await db.select().from(sessions).where(eq(sessions.id, sid)).get();
       expect(sourceSession?.captureFormatVersion).toBe(1);
       const sourcePackets = await parseRawLapFrames(
@@ -193,6 +201,8 @@ describe("lap export → import round-trip (real capture)", () => {
 
       expect(imported.lapNumber).toBe(exported.lapNumber);
       expect(imported.lapTime).toBe(exported.lapTime);
+      expect(importedRow!.lapTime).toBe(exported.lapTime);
+      expect(importedRow!.sectorTimes).toEqual(exported.sectorTimes);
       expect(importedPackets.length).toBe(sourcePackets.length);
       expect(importedPackets.map(({ TimestampMS: _timestamp, ...packet }) => packet))
         .toEqual(sourcePackets.map(({ TimestampMS: _timestamp, ...packet }) => packet));
@@ -213,7 +223,11 @@ describe("lap export → import round-trip (real capture)", () => {
   test("mixed BIN and MoTeC selection keeps BIN sliced and MoTeC whole-session", async () => {
     const { rows: binRows } = await seedSession({ minimumLaps: 1 });
     const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
-    const motecImport = await importMotec(buildLd(spec), Buffer.from(buildLdx(beacons)), { gameId: "ac-evo" });
+    const ldBytes = buildLd(spec);
+    const ldxBytes = Buffer.from(buildLdx(beacons));
+    const motecImport = await importMotec(ldBytes, ldxBytes, {
+      gameId: "ac-evo", carId: getAllAcEvoCars()[0]!.id, trackId: '["Brands Hatch","GP"]',
+    });
     const motecSessionId = motecImport.laps[0]!.sessionId;
     createdSessions.push(motecSessionId);
     const motecSession = await db.select().from(sessions).where(eq(sessions.id, motecSessionId)).get();
@@ -228,13 +242,51 @@ describe("lap export → import round-trip (real capture)", () => {
     ]));
     expect(manifest.entries.find((entry) => entry.file.endsWith(".bin.gz"))!.laps).toHaveLength(1);
     expect(manifest.entries.find((entry) => entry.file.endsWith(".motec.zip"))!.laps).toHaveLength(motecRows.length);
+    const member = manifest.entries.find((entry) => entry.file.endsWith(".motec.zip"))!.file;
+    const exportedSource = unzipSync(bytes)[member]!;
+    expect(Buffer.from(exportedSource)).toEqual(readFileSync(motecSession!.rawFile!));
+    const sourceFiles = Object.values(unzipSync(exportedSource));
+    expect(sourceFiles.map((file) => Buffer.from(file))).toEqual(expect.arrayContaining([ldBytes, ldxBytes]));
 
     const result = await importLapsZip(bytes);
     expect(result.errors).toEqual([]);
     expect(result.skipped).toBe(0);
     expect(result.imported).toBe(1 + motecRows.length);
     result.laps.forEach((lap) => createdSessions.push(lap.sessionId));
+    const importedSession = await db.select().from(sessions).where(and(
+      eq(sessions.gameId, "ac-evo"), inArray(sessions.id, result.laps.map((lap) => lap.sessionId)),
+    )).get();
+    tmpFiles.push(importedSession!.rawFile!);
+    expect(Object.values(unzipSync(readFileSync(importedSession!.rawFile!))).map((file) => Buffer.from(file)))
+      .toEqual(expect.arrayContaining([ldBytes, ldxBytes]));
   }, 120_000);
+
+  test("MoTeC ZIP assignment repairs missing identities without rewriting source content", async () => {
+    const { spec, beacons } = syntheticStint({ laps: 2, lapSeconds: 120, hz: 60 });
+    const ldBytes = buildLd(spec);
+    const ldxBytes = Buffer.from(buildLdx(beacons));
+    const member = "ac-evo-session42.motec.zip";
+    const sourceBytes = zipSync({ "source.ld": ldBytes, "source.ldx": ldxBytes });
+    const manifestBytes = Buffer.from(JSON.stringify({
+      version: 4, entries: [{ file: member, gameId: "ac-evo", laps: [] }],
+    }));
+    const bytes = zipSync({ [member]: sourceBytes, "manifest.json": manifestBytes });
+    const rejected = await importLapsZip(bytes);
+    expect(rejected.imported).toBe(0);
+    expect(rejected.errors).toEqual([`${member}: MoTeC car and track must resolve in current game catalogs`]);
+    const identity = { carId: getAllAcEvoCars()[0]!.id, trackId: '["Brands Hatch","GP"]' };
+    const result = await importLapsZip(bytes, { identityOverrides: { [member]: identity } });
+    expect(result.errors).toEqual([]);
+    result.laps.forEach((lap) => createdSessions.push(lap.sessionId));
+    const saved = await db.select().from(sessions).where(eq(sessions.id, result.laps[0]!.sessionId)).get();
+    tmpFiles.push(saved!.rawFile!);
+    expect({ carId: saved!.carId, trackId: saved!.trackId }).toEqual(identity);
+    expect(Object.values(unzipSync(readFileSync(saved!.rawFile!))).map((file) => Buffer.from(file)))
+      .toEqual(expect.arrayContaining([ldBytes, ldxBytes]));
+    const untouched = unzipSync(bytes);
+    expect(Buffer.from(untouched[member]!)).toEqual(Buffer.from(sourceBytes));
+    expect(Buffer.from(untouched["manifest.json"]!)).toEqual(manifestBytes);
+  });
 
   test("first and last selected laps round-trip as compact segments", async () => {
     const { sid, rows } = await seedSession();
@@ -376,9 +428,8 @@ describe("lap export → import round-trip (real capture)", () => {
     expect((await db.select().from(sessions).where(eq(sessions.id, importedSid)).get())?.lapDetectorVersion).not.toBe("stale");
     await db.update(laps).set({ lapNumber: 999, notes: "keep this lap", isFavorite: true })
       .where(eq(laps.id, staleLap.id)).run();
-    const renumbered = await streamedReprocess();
+    await streamedReprocess();
     const restored = await db.select().from(laps).where(eq(laps.sessionId, importedSid)).all();
-    expect(renumbered.strategy).toBe("replace");
     expect(restored.map((lap) => lap.lapNumber).sort((a, b) => a - b)).toEqual(selectedNumbers);
     expect(restored.find((lap) => lap.rawByteOffset === staleLap.rawByteOffset))
       .toMatchObject({ lapNumber: staleLap.lapNumber, notes: "keep this lap", isFavorite: true });

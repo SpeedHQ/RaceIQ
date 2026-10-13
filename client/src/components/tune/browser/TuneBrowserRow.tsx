@@ -9,6 +9,7 @@ import { rpcJson } from "@/lib/rpc-json";
 import { parseUtcTimestamp } from "@/lib/utc-date";
 import { getLocale } from "@/paraglide/runtime";
 import { m } from "@/paraglide/messages";
+import { SessionTypeBadge } from "@/components/sessions/SessionTypeBadge";
 import type { TuneRow } from "./types";
 
 // Resolve at render time — calling m.*() at module scope would freeze the locale.
@@ -41,7 +42,7 @@ export function TuneBrowserRow({ row, rank, showLapTime, carName, trackName, isO
   const [isDeleting, setIsDeleting] = useState(false);
   const { data: usage, isFetching: usageLoading, error: usageError } = useQuery({
     queryKey: ["tune-usage", row.dbId],
-    queryFn: async () => rpcJson<{ sessions: Array<{sessionId:number; gameId:string; createdAt:string; laps:Array<{id:number; lapNumber:number}>}>; assignments: Array<{gameId:string;carOrdinal:number;trackOrdinal:number}> }>(await client.api.tunes[":id"].usage.$get({ param: { id: String(row.dbId) } })),
+    queryFn: async () => rpcJson<{ sessions: Array<{sessionId:number; gameId:string; createdAt:string; laps:Array<{id:number; lapNumber:number}>}>; assignments: Array<{gameId:string;carId:string;trackId:string}> }>(await client.api.tunes[":id"].usage.$get({ param: { id: String(row.dbId) } })),
     enabled: confirmDelete && row.dbId != null && !isDeleting,
     staleTime: 0,
     retry: false,
@@ -102,7 +103,12 @@ export function TuneBrowserRow({ row, rank, showLapTime, carName, trackName, isO
         <TRow className="relative transition-colors">
           <TD colSpan={showLapTime ? 8 : 7} className="px-3 py-2 text-app-text">
             <div className="px-1 pb-2 pt-1 @3xl/workspace:px-8">
-              {row.description && <p className="text-xs text-app-text-muted leading-relaxed whitespace-pre-line mb-3.5 max-w-[70ch]">{row.description}</p>}
+              {(row.sessionType || row.description) && (
+                <div className="mb-3.5 flex flex-wrap items-center gap-2">
+                  {row.sessionType && <SessionTypeBadge type={row.sessionType} />}
+                  {row.description && <p className="text-xs text-app-text-muted leading-relaxed whitespace-pre-line max-w-[70ch]">{row.description}</p>}
+                </div>
+              )}
               {renderSettings(row)}
               {!readOnly && (
                 <div className="mt-3.5 flex flex-wrap gap-2">

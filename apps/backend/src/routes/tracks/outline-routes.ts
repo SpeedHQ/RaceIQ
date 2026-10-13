@@ -1,11 +1,11 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { OrdinalParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
+import { TrackIdParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
 import { getLaps, getLapById, getLapSummariesByTrack } from "@raceiq/backend-core/db/lap-read-queries";
 import {
-  deleteRecordedOutline,
+  deleteRecordedOutlineById,
   getStartYaw,
-  recordLapTrace,
+  recordLapTraceById,
 } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { getTrackAltitudeByOrdinal } from "@raceiq/game-catalogs/racing/tracks/geometry/extracted";
 import {
@@ -15,23 +15,21 @@ import {
   smoothOutline,
 } from "@raceiq/backend-core/lap-detection/detector";
 import type { GameId } from "@raceiq/shared/games/ids";
-import { computeLapSectors } from "@raceiq/backend-core/lap-analysis/sectors";
+import { computeLapSectors } from "@raceiq/telemetry-core/processor/sectors";
+import { resolveTrack } from "@raceiq/backend-core/tracks/info";
 import { getLMUTrackOutline } from "@raceiq/game-lmu-metadata/track-boundaries";
 import {
-  decodeTrackKey,
-  OrdinalKeyParamSchema,
   requireGameId,
   resolveTrackOutline,
-  TrackOrdinalParamSchema,
 } from "./support";
 
 export const trackRecomputeOutlineRoutes = new Hono()
 
-  // POST /api/tracks/:trackOrdinal/recompute-outline — rebuild outline from stored laps
-  .post("/api/tracks/:trackOrdinal/recompute-outline",
-    zValidator("param", TrackOrdinalParamSchema),
+  // POST /api/tracks/:trackId/recompute-outline — rebuild outline from stored laps
+  .post("/api/tracks/:trackId/recompute-outline",
+    zValidator("param", TrackIdParamSchema),
     async (c) => {
-      const { trackOrdinal } = c.req.valid("param");
+      const { trackId } = c.req.valid("param");
 
       // Check for ?lapId= query param to use a single lap directly
       const lapIdParam = new URL(c.req.url).searchParams.get("lapId");
@@ -57,7 +55,7 @@ export const trackRecomputeOutlineRoutes = new Hono()
         const outline = smoothOutline(raw, 5);
 
         const recomputeGameId = requireGameId(c);
-        recordLapTrace(trackOrdinal, outline, null, null, recomputeGameId);
+        recordLapTraceById(trackId, outline, null, null, recomputeGameId);
         return c.json({
           success: true,
           lapsUsed: 1,
@@ -70,7 +68,7 @@ export const trackRecomputeOutlineRoutes = new Hono()
       // Multi-lap mode — average best laps
       const outlineGameId = c.req.query("gameId") as GameId | undefined;
       const allLaps = (await getLaps(outlineGameId)).filter(
-        (l) => l.trackOrdinal === trackOrdinal && l.lapTime > 0
+        (l) => l.trackId === trackId && l.lapTime > 0
       );
       if (allLaps.length === 0) {
         return c.json({ error: "No laps found for this track" }, 404);
@@ -130,7 +128,7 @@ export const trackRecomputeOutlineRoutes = new Hono()
       }
 
       const recomputeGameId = requireGameId(c);
-      recordLapTrace(trackOrdinal, outline, null, null, recomputeGameId);
+      recordLapTraceById(trackId, outline, null, null, recomputeGameId);
       return c.json({
         success: true,
         lapsUsed: normalized.length,
@@ -142,88 +140,83 @@ export const trackRecomputeOutlineRoutes = new Hono()
 
 export const trackLapSectorRoutes = new Hono()
 
-  // GET /api/tracks/:ordinal/lap-sectors — compute sector times for all laps on a track.
-  .get("/api/tracks/:ordinal/lap-sectors",
-    zValidator("param", OrdinalKeyParamSchema),
+  // GET /api/tracks/:trackId/lap-sectors — compute sector times for all laps on a track.
+  .get("/api/tracks/:trackId/lap-sectors",
+    zValidator("param", TrackIdParamSchema),
     zValidator("query", GameIdQuerySchema),
     async (c) => {
-      const trackKey = decodeTrackKey(c.req.valid("param").ordinal);
+      const { trackId } = c.req.valid("param");
       const gameId = c.req.query("gameId") as GameId | undefined;
       if (gameId === "lmu") {
-        const trackLaps = await getLapSummariesByTrack(trackKey, gameId);
+        const trackLaps = await getLapSummariesByTrack(trackId, gameId);
         return c.json(Object.fromEntries(
           trackLaps
             .filter((lap) => lap.sectorTimes?.length)
             .map((lap) => [lap.lapId, lap.sectorTimes]),
         ));
       }
-      const ordinal = Number(trackKey);
-      if (!Number.isInteger(ordinal)) return c.json({ error: "ordinal must be an integer" }, 400);
-      const trackLaps = (await getLaps(gameId)).filter((l) => l.trackOrdinal === ordinal && l.lapTime > 0);
-
-      const result: Record<number, number[]> = {};
-
-      for (const lapMeta of trackLaps) {
-        const lapData = await getLapById(lapMeta.id);
-        if (!lapData?.telemetry || lapData.telemetry.length < 50) continue;
-        const lapGameId = lapMeta.gameId ?? gameId;
-        if (!lapGameId) continue;
-        const times = await computeLapSectors(
-          ordinal,
-          lapGameId,
-          lapData.telemetry,
-          lapMeta.lapTime,
-        );
-        if (times) result[lapMeta.id] = times;
+      if (gameId !== "iracing") {
+        const trackLaps = (await getLaps(gameId)).filter((l) => l.trackId === trackId && l.lapTime > 0);
+        const result: Record<number, number[]> = {};
+        for (const lapMeta of trackLaps) {
+          const lapData = await getLapById(lapMeta.id);
+          if (!lapData?.telemetry || lapData.telemetry.length < 50) continue;
+          const lapGameId = lapMeta.gameId ?? gameId;
+          if (!lapGameId) continue;
+          const times = await computeLapSectors(
+            trackId,
+            lapGameId,
+            lapData.telemetry,
+            lapMeta.lapTime,
+            { sectors: resolveTrack(lapGameId, trackId).sectors },
+          );
+          if (times) result[lapMeta.id] = times;
+        }
+        return c.json(result);
       }
-
-      return c.json(result);
+      return c.json({});
     }
   );
 
 export const trackOutlineRoutes = new Hono()
 
-  // GET /api/track-outline/:ordinal — track outline coordinates.
-  .get("/api/track-outline/:ordinal",
-    zValidator("param", OrdinalKeyParamSchema),
+  // GET /api/track-outline/:trackId — track outline coordinates.
+  .get("/api/track-outline/:trackId",
+    zValidator("param", TrackIdParamSchema),
     zValidator("query", GameIdQuerySchema),
     async (c) => {
-      const trackKey = decodeTrackKey(c.req.valid("param").ordinal);
+      const { trackId } = c.req.valid("param");
       const gameId = c.req.query("gameId");
       if (gameId === "lmu") {
-        const points = getLMUTrackOutline(trackKey);
+        const points = getLMUTrackOutline(trackId);
         if (!points?.length) return c.json({ error: "No outline available" }, 404);
         // SVG coordinates already use display-space X; disable the canvas telemetry-space mirror.
         return c.json({ points, flipX: true, source: "extracted" });
       }
-      const ordinal = Number(trackKey);
-      if (!Number.isInteger(ordinal)) return c.json({ error: "ordinal must be an integer" }, 400);
-      const startYaw = gameId ? getStartYaw(ordinal, gameId) : null;
-      const altitude = getTrackAltitudeByOrdinal(ordinal);
-      const flipX = gameId === "acc" || gameId === "ac-evo";
-      if (gameId) {
-        const resolved = await resolveTrackOutline(ordinal, gameId);
-        if (resolved) {
-          return c.json({
-            ...resolved,
-            startYaw,
-            flipX,
-            ...(altitude && { altitude }),
-          });
-        }
+      const resolved = gameId ? await resolveTrackOutline(trackId, gameId) : null;
+      if (resolved) {
+        const startYaw = gameId === "iracing" ? null : getStartYaw(trackId, gameId!);
+        const altitude = gameId === "fm-2023" ? getTrackAltitudeByOrdinal(Number(trackId)) : null;
+        return c.json({
+          ...resolved,
+          startYaw,
+          flipX: gameId === "acc" || gameId === "ac-evo",
+          ...(altitude && { altitude }),
+        });
       }
 
       return c.json({ error: "No outline available" }, 404);
     }
   )
 
-  // DELETE /api/track-outline/:ordinal — delete recorded outline for a track
-  .delete("/api/track-outline/:ordinal",
-    zValidator("param", OrdinalParamSchema),
+  // DELETE /api/track-outline/:trackId — delete recorded outline for a track
+  .delete("/api/track-outline/:trackId",
+    zValidator("param", TrackIdParamSchema),
+    zValidator("query", GameIdQuerySchema),
     (c) => {
-      const { ordinal } = c.req.valid("param");
+      const { trackId } = c.req.valid("param");
 
-      const deleted = deleteRecordedOutline(ordinal, requireGameId(c));
+      const deleted = deleteRecordedOutlineById(trackId, requireGameId(c));
       return c.json({ success: true, hadRecorded: deleted });
     }
   );
