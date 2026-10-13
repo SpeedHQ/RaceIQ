@@ -1,11 +1,9 @@
 ## Unreleased
-
-### Breaking
+### Feature
 - New desktop and self-hosted installs restrict dashboard access to this computer until you select additional network interfaces.
 - Password-protected dashboards use a login screen and browser sessions; API clients must sign in and send the session cookie and a CSRF token for writes.
 - Use string car and track IDs across imports and integrations instead of ordinal fields. Existing sessions and setup links migrate automatically; downgrading requires restoring a pre-upgrade database backup.
 
-### Features
 - Open the dashboard on another LAN device using a copied link or QR code in Access & security settings.
 - Choose dashboard password protection during setup or in Access & security settings, sign in across devices, and recover a forgotten password from the terminal.
 - Select dashboard network interfaces and browser domains in Access & security settings without changing UDP telemetry reception.
@@ -21,7 +19,6 @@
 - Inspect AC Evo Tourist layouts with recorded open-route maps and explicit Start/Finish markers.
 - Show Nordschleife track edges along the supported portion of AC Evo Tourist routes without closing the Start/Finish gap.
 
-### Fixes
 - Respect development onboarding overrides when deciding whether to show the setup wizard.
 - Remove saved network interfaces that are no longer available and replace them without losing other selections.
 - Allow development LAN dashboard origins on preserved all-interface listeners when browser-origin whitelisting is enabled.
