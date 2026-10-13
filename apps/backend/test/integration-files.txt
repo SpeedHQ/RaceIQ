@@ -189,3 +189,5 @@ apps/backend/test/tracks/track-coverage.test.ts
 apps/backend/test/tracks/visualization/acc-boundary-viz.test.ts
 apps/backend/test/tracks/visualization/iracing-track-segment-viz.test.ts
 apps/backend/test/tracks/visualization/track-segment-viz.test.ts
+apps/backend/test/lap-analysis/telemetry-replay-running-start.test.ts
+apps/backend/test/lap-analysis/corner-resolution.test.ts

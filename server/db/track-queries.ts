@@ -4,7 +4,11 @@ import { trackCorners, trackOutlines } from "./schema";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { Corner } from "../lap-analysis/corners"
 
-export async function getCorners(trackId: string, gameId: GameId): Promise<Corner[]> {
+export async function getCorners(
+  trackId: string,
+  gameId: GameId,
+  options?: { manualOnly?: boolean },
+): Promise<Corner[]> {
   const rows = await db
     .select({
       cornerIndex: trackCorners.cornerIndex,
@@ -13,7 +17,11 @@ export async function getCorners(trackId: string, gameId: GameId): Promise<Corne
       distanceEnd: trackCorners.distanceEnd,
     })
     .from(trackCorners)
-    .where(and(eq(trackCorners.trackId, trackId), eq(trackCorners.gameId, gameId)))
+    .where(and(
+      eq(trackCorners.trackId, trackId),
+      eq(trackCorners.gameId, gameId),
+      options?.manualOnly ? eq(trackCorners.isAuto, false) : undefined,
+    ))
     .orderBy(trackCorners.cornerIndex)
     .all();
 

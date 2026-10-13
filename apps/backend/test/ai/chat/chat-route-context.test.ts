@@ -1,18 +1,39 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { RequestContext } from "@mastra/core/request-context";
+import type { ProcessLLMRequestArgs } from "@mastra/core/processors";
 import { db } from "@raceiq/backend-core/db/index";
 import { lapAnalyses, laps, sessions, tunes } from "@raceiq/backend-core/db/schema";
 import { getAnalysis, saveAnalysis } from "@raceiq/backend-core/db/analysis-queries";
 import { chatThreadId } from "@raceiq/backend-core/ai/chat-agent";
+import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY } from "@raceiq/backend-core/ai/chat-message-context";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../../src/games/init";
 import { createChatRoutes } from "../../../src/routes/laps/chat-routes";
-import { buildLapChatInstructions } from "../../../src/mastra/agents/lap-chat";
+import { buildLapChatInstructions, lapChatGroundingProcessor, requiresCornerMetricsLookup } from "../../../src/mastra/agents/lap-chat";
 import { setupContextForLap } from "../../../src/ai/lap-setup-context";
 
 initGameAdapters();
 initServerGameAdapters();
+
+test("corner measurement lookup policy follows latest submitted request, not historical telemetry questions", () => {
+  const context = new RequestContext();
+  const cases: Array<[string, boolean]> = [
+    ["For Turn 1, give my measured entry, minimum and exit speeds.", true],
+    ["Give measured speeds for Turn 999.", true],
+    ["Where do I brake for T2?", true],
+    ["How should I adjust the setup for Turn 1?", false],
+    ["Without tools, quote the current verdict and repeat my driver note.", false],
+  ];
+  for (const [text, expected] of cases) {
+    context.set(CHAT_TURN_MESSAGES_KEY, [
+      { role: "user", content: "Give measured speeds for Turn 1." },
+      { role: "assistant", content: "Earlier measurements." },
+      { role: "user", content: text },
+    ]);
+    expect(requiresCornerMetricsLookup(context)).toBe(expected);
+  }
+});
 
 const fixtures: Array<{ id: number; sessionId: number; tuneId: number }> = [];
 
@@ -105,12 +126,13 @@ function lap(fixture: { id: number; lapNumber: number; tuneId: number }) {
 }
 
 describe("lap chat route context and targeted removal", () => {
+
   test("passes current lap, analysis and setup into real lap-chat instructions on each turn", async () => {
     const firstLap = await makeLapFixture(51, "SETUP-41");
     const secondLap = await makeLapFixture(62, "SETUP-52");
     const fixturesById = new Map([[firstLap.id, firstLap], [secondLap.id, secondLap]]);
     const memory = makeMemory();
-    const contexts: RequestContext[] = [];
+    const turns: Array<{ context: string; messages: unknown }> = [];
     const app = createChatRoutes({
       getLapById: async (id) => lap(fixturesById.get(Number(id))!) as never,
       loadSettings: (() => ({ chatProvider: "openai", chatModel: "gpt-4o-mini", unit: "metric", temperatureUnit: "C", language: "en", chatThinkingBudget: 0 })) as never,
@@ -121,8 +143,11 @@ describe("lap chat route context and targeted removal", () => {
       configureAiProviderEnvironment: (async () => {}) as never,
       getChatMemory: (() => memory) as never,
       lapChatAgent: ({
-        stream: async (_messages: unknown, options: { requestContext: RequestContext }) => {
-          contexts.push(options.requestContext);
+        stream: async (messages: unknown, options: { requestContext: RequestContext }) => {
+          turns.push({
+            context: String(options.requestContext.get(CHAT_TURN_CONTEXT_KEY)),
+            messages,
+          });
           return {};
         },
       } as never),
@@ -137,17 +162,18 @@ describe("lap chat route context and targeted removal", () => {
       });
       expect(response.status).toBe(200);
     }
-    expect(contexts).toHaveLength(2);
-    const first = buildLapChatInstructions(contexts[0]);
-    const second = buildLapChatInstructions(contexts[1]);
-    expect(first).toContain(`Current lap: Lap #51 — 91.234s`);
-    expect(first).toContain(`Internal lap reference (for RaceIQ tools only; never ask the driver to look it up): ${firstLap.id}`);
-    expect(first).toContain("Verdict: analysis-SETUP-41");
-    expect(first).toContain("Game-specific setup: setupLabel: SETUP-41");
-    expect(second).toContain(`Current lap: Lap #62 — 91.234s`);
-    expect(second).toContain(`Internal lap reference (for RaceIQ tools only; never ask the driver to look it up): ${secondLap.id}`);
-    expect(second).toContain("Verdict: analysis-SETUP-52");
-    expect(second).toContain("Game-specific setup: setupLabel: SETUP-52");
+    expect(turns).toHaveLength(2);
+    expect(turns[0].context).toContain("Current lap: Lap #51 — 91.234s");
+    expect(turns[0].context).toContain(`Internal lap reference (for RaceIQ tools only; never ask the driver to look it up): ${firstLap.id}`);
+    expect(turns[0].context).toContain("Verdict: analysis-SETUP-41");
+    expect(turns[0].context).toContain("Game-specific setup: setupLabel: SETUP-41");
+    expect(turns[1].context).toContain("Current lap: Lap #62 — 91.234s");
+    expect(turns[1].context).toContain(`Internal lap reference (for RaceIQ tools only; never ask the driver to look it up): ${secondLap.id}`);
+    expect(turns[1].context).toContain("Verdict: analysis-SETUP-52");
+    expect(turns[1].context).toContain("Game-specific setup: setupLabel: SETUP-52");
+    expect(JSON.stringify(turns[0].messages)).toContain("follow up");
+    expect(JSON.stringify(turns[1].messages)).toContain("follow up");
+
   });
 
   test("excludes mismatched and unreadable linked setups without losing lap or analysis context", async () => {
@@ -283,5 +309,62 @@ describe("lap chat route context and targeted removal", () => {
     expect((await postImage()).status).toBe(200);
     expect(providerConfigured).toBe(true);
     expect(streamCalled).toBe(true);
+  });
+});
+
+describe("lap chat provider context precedence", () => {
+  test("current context follows remembered answers and tool results without changing history", async () => {
+    const requestContext = new RequestContext();
+    requestContext.set(CHAT_TURN_CONTEXT_KEY, "Verdict: revised-925");
+    requestContext.set(CHAT_TURN_MESSAGES_KEY, [
+      { role: "user", parts: [{ type: "text", text: "Earlier request" }] },
+      { role: "assistant", parts: [{ type: "text", text: "Earlier answer" }] },
+      { role: "user", parts: [{ type: "text", text: "Look up measured Turn 1 speeds now." }] },
+    ]);
+    const prompt: ProcessLLMRequestArgs["prompt"] = [
+      { role: "system", content: buildLapChatInstructions(requestContext) },
+      { role: "user", content: [{ type: "text", text: "What did my analysis say?" }] },
+      { role: "assistant", content: [{ type: "text", text: "Verdict: obsolete-824" }] },
+      { role: "tool", content: [{
+        type: "tool-result", toolCallId: "old-call", toolName: "get_lap_analysis",
+        output: { type: "json", value: { available: true, analysis: { verdict: "obsolete-824" } } },
+      }] },
+    ];
+    const process = lapChatGroundingProcessor.processLLMRequest;
+    if (!process) throw new Error("Missing lap-chat request processor");
+    const result = await process({ prompt, requestContext } as ProcessLLMRequestArgs);
+    expect(result?.prompt?.slice(1, -1)).toEqual(prompt.slice(1));
+    expect(result?.prompt?.[0]).toMatchObject({ role: "system" });
+    expect(result?.prompt?.[0].content).not.toContain("Verdict: revised-925");
+    const latest = result?.prompt?.at(-1);
+    expect(latest?.role).toBe("user");
+    if (latest?.role !== "user") throw new Error("Current context is not a user-role data message");
+    const text = latest.content.find(part => part.type === "text")?.text;
+    expect(text).toContain("Verdict: revised-925");
+    expect(text).toContain("Look up measured Turn 1 speeds now.");
+    expect(text).not.toContain("Earlier request");
+    expect(prompt[0].role).toBe("system");
+    expect(prompt[0].content).toContain("Verdict: revised-925");
+    expect(prompt[2]).toMatchObject({ role: "assistant", content: [{ type: "text", text: "Verdict: obsolete-824" }] });
+  });
+
+  test("a tool continuation lacking agent instructions still receives current context", async () => {
+    const requestContext = new RequestContext();
+    requestContext.set(CHAT_TURN_CONTEXT_KEY, "Verdict: current-925");
+    requestContext.set(CHAT_TURN_MESSAGES_KEY, [{ role: "user", parts: [{ type: "text", text: "Explain my current verdict." }] }]);
+    const prompt: ProcessLLMRequestArgs["prompt"] = [
+      { role: "system", content: "Workspace instructions" },
+      { role: "assistant", content: [{ type: "text", text: "Earlier verdict: old-824" }] },
+    ];
+    const process = lapChatGroundingProcessor.processLLMRequest;
+    if (!process) throw new Error("Missing lap-chat request processor");
+    const result = await process({ prompt, requestContext } as ProcessLLMRequestArgs);
+    expect(result?.prompt?.slice(0, 2)).toEqual(prompt);
+    const latest = result?.prompt?.at(-1);
+    expect(latest?.role).toBe("user");
+    if (latest?.role !== "user") throw new Error("Current context is not a user-role data message");
+    const text = latest.content.find(part => part.type === "text")?.text;
+    expect(text).toContain("Verdict: current-925");
+    expect(text).not.toContain("old-824");
   });
 });

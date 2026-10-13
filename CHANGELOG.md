@@ -13,7 +13,9 @@
 - Show Nordschleife track edges along the supported portion of AC Evo Tourist routes without closing the Start/Finish gap.
 
 ### Fixes
-- Keep lap-chat follow-ups grounded in the selected lap and its latest analysis without asking drivers for internal lap identifiers.
+- Keep lap-chat follow-ups grounded in the selected lap and its latest analysis, use fresh telemetry for requested corner measurements, and preserve earlier driver notes without asking for internal lap identifiers.
+- Exclude running-start fragments from recorded lap replay and keep corner measurements and highlights aligned with the timed lap.
+- Restore dashboard, driver-profile, and Analyse pages when opening the app.
 - Restrict AI setup recommendations to available adjustments and legal values for the associated car and setup without dropping legal front-wing recommendations; suppress unchanged settings.
 - Show setup values from the lap's linked setup and preserve bump values in older saved AC Evo setups while keeping separate left/right Slow bump settings.
 - Block screenshots for chat models without verified image support and keep text conversations usable.

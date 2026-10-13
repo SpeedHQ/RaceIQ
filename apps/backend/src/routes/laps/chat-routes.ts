@@ -29,7 +29,7 @@ import {
   resolveActiveThread,
 } from "@raceiq/backend-core/ai/chat-agent";
 import { configureAiProviderEnvironment } from "@raceiq/backend-core/ai/openai-compatible-provider";
-import { CHAT_TURN_CONTEXT_KEY } from "@raceiq/backend-core/ai/chat-message-context";
+import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY } from "@raceiq/backend-core/ai/chat-message-context";
 import { ChatBodySchema } from "./support";
 import { parseTuneRow } from "../tune-shared";
 
@@ -188,6 +188,7 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
     try {
       const requestContext = new RequestContext();
       requestContext.set(CHAT_TURN_CONTEXT_KEY, systemPrompt);
+      requestContext.set(CHAT_TURN_MESSAGES_KEY, messages);
       const stream = await agent.stream(
         messages,
         {

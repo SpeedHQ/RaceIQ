@@ -45,7 +45,7 @@
     "i18n:machine-translate": "bunx @inlang/cli machine translate --project ./client/project.inlang",
     "i18n:check-keys": "bun scripts/i18n/check-message-keys.ts",
     "i18n:validate": "bunx @inlang/cli validate --project ./client/project.inlang",
-    "test:ai": "bun test ./apps/backend/test/ai/evals/ai-quality.ai-eval.ts --timeout 120000",
+    "test:ai": "bun test ./apps/backend/test/ai/evals/ai-quality.ai-eval.ts ./apps/backend/test/ai/evals/analyse-chat-tools.ai-eval.ts --timeout 120000",
     "ai:baseline": "bun apps/backend/scripts/quality/ai-baseline.ts",
     "bench": "bun apps/backend/test/benchmarks/pipeline.bench.ts",
     "bench:pipeline-stages": "bun apps/backend/test/benchmarks/pipeline-stages.bench.ts",

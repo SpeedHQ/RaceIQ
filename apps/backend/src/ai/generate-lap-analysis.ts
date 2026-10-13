@@ -2,10 +2,9 @@ import type { Tune } from "@raceiq/shared/racing/tuning/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { setupContextForLap, type LinkedLapTuneSetup } from "./lap-setup-context";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
-import { getCorners } from "@raceiq/backend-core/db/track-queries";
+import { resolveLapCorners } from "../tracks/corner-resolution";
 import { getAnalysis, saveAnalysis } from "@raceiq/backend-core/db/analysis-queries";
 import { getTuneById as getDbTune } from "@raceiq/backend-core/db/tune-queries";
-import { detectCorners, type Corner } from "@raceiq/backend-core/lap-analysis/corners";
 import { getOrComputeLapInsights } from "@raceiq/backend-core/lap-analysis/metrics-store";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { buildAnalystPrompt, type PromptSectors } from "@raceiq/backend-core/ai/analyst-prompt";
@@ -50,11 +49,10 @@ type AgentGenerate = (
 ) => Promise<unknown>;
 export interface GenerateLapAnalysisDeps {
   getLapById?: typeof getLapById;
-  getCorners?: typeof getCorners;
+  resolveLapCorners?: typeof resolveLapCorners;
   getAnalysis?: typeof getAnalysis;
   saveAnalysis?: typeof saveAnalysis;
   getDbTune?: typeof getDbTune;
-  detectCorners?: typeof detectCorners;
   computeLapSectors?: typeof computeLapSectors;
   computeNativeSectorTimeline?: typeof computeNativeSectorTimeline;
   getGame?: typeof getGame;
@@ -87,7 +85,7 @@ export async function generateLapAnalysis(
   deps: GenerateLapAnalysisDeps = {},
 ): Promise<LapAnalysisResult> {
   const findLap = deps.getLapById ?? getLapById;
-  const findCorners = deps.getCorners ?? getCorners;
+  const findCorners = deps.resolveLapCorners ?? resolveLapCorners;
   const readAnalysis = deps.getAnalysis ?? getAnalysis;
   const writeAnalysis = deps.saveAnalysis ?? saveAnalysis;
   const lap = await findLap(lapId);
@@ -133,22 +131,16 @@ export async function generateLapAnalysis(
   const setupContext = setupContextForLap(lap, deps.getGame ?? getGame, linkedTune);
 
   const trackIdentity = lap.trackId;
-  let corners: Corner[] =
-    trackIdentity && lap.gameId
-      ? await findCorners(trackIdentity, lap.gameId)
-      : [];
-  if (corners.length === 0)
-    corners = (deps.detectCorners ?? detectCorners)(lap.telemetry);
+  const corners = await findCorners(trackIdentity, lap.gameId, lap.telemetry);
   const totalDist =
     lap.telemetry.length > 1
       ? lap.telemetry[lap.telemetry.length - 1].DistanceTraveled -
         lap.telemetry[0].DistanceTraveled
       : 1;
-  const firstDist = lap.telemetry[0]?.DistanceTraveled ?? 0;
   const cornerFracs = corners.map((corner) => ({
     label: corner.label,
-    startFrac: Math.max(0, (corner.distanceStart - firstDist) / totalDist),
-    endFrac: Math.min(1, (corner.distanceEnd - firstDist) / totalDist),
+    startFrac: Math.max(0, corner.distanceStart / totalDist),
+    endFrac: Math.min(1, corner.distanceEnd / totalDist),
   }));
   const hasTune = !!lap.tuneId || (lap.gameId === "f1-2025" && !!lap.carSetup);
 

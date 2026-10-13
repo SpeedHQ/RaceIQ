@@ -11,6 +11,7 @@
     "./games/telemetry": "./games/telemetry.ts",
     "./games/types": "./games/types.ts",
     "./integrations/ai/context-window": "./integrations/ai/context-window.ts",
+    "./integrations/ai/driver-profile-summary": "./integrations/ai/driver-profile-summary.ts",
     "./integrations/ai/language": "./integrations/ai/language.ts",
     "./integrations/ai/prompt-snippets": "./integrations/ai/prompt-snippets.ts",
     "./integrations/motec": "./integrations/motec.ts",

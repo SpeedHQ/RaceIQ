@@ -52,8 +52,7 @@ function makeDeps(
     generateCalls,
     saves,
     getLapById: async () => lap as never,
-    getCorners: async () => [],
-    detectCorners: () => [],
+    resolveLapCorners: async () => [],
     getOrComputeLapInsights: async () => [],
     getAnalysis: async () => cached,
     saveAnalysis: async (_lapId, analysis) => {
@@ -119,6 +118,19 @@ describe("generateLapAnalysis", () => {
     const output = JSON.parse(result.analysis!);
     expect(output.setup).toEqual([]);
     expect(output.setupProvenance).toMatchObject({ gameId: "fm-2023", lapId: 7, setupVersion: null });
+  });
+
+  test("later-lap corner highlights use lap-relative fractions", async () => {
+    const deps = makeDeps({ cached: validAnalysis });
+    deps.getLapById = async () => ({
+      ...lap,
+      telemetry: [{ DistanceTraveled: 3520 }, { DistanceTraveled: 4520 }],
+    }) as never;
+    deps.resolveLapCorners = async () => [{
+      index: 1, label: "T1", distanceStart: 200, distanceEnd: 300,
+    }];
+    const result = await generateLapAnalysis(7, { cacheOnly: true }, deps);
+    expect(result.cornerFracs).toEqual([{ label: "T1", startFrac: 0.2, endFrac: 0.3 }]);
   });
 
   test("drops unsupported cached setup recommendations before returning them", async () => {
