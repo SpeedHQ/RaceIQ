@@ -1,5 +1,7 @@
 scripts/test/tests/bench-compare.test.ts
+scripts/test/tests/dev-dashboard-network.test.ts
 scripts/test/tests/paraglide-cache.test.ts
 scripts/test/tests/owner-runner.test.ts
+scripts/test/tests/sqlite-import-ban.test.ts
 scripts/test/tests/test-shards.test.ts
 scripts/test/tests/theme-contract.test.ts

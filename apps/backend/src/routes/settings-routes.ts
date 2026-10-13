@@ -248,7 +248,9 @@ export const settingsRoutes = new Hono()
   // PUT /api/settings
   .put("/api/settings", async (c) => {
     const body = await c.req.json();
-    const parseResult = PartialSettingsSchema.parse(body);
+    const parsed = PartialSettingsSchema.safeParse(body);
+    if (!parsed.success) return c.json({error: "Invalid settings"}, 400);
+    const parseResult = parsed.data;
     const current = loadSettings();
     if (Object.hasOwn(body, "recordingDirectory") && body.recordingDirectory !== current.recordingDirectory) {
       return c.json({ error: "Use recording folder relocation", code: "RELOCATION_REQUIRED" }, 409);

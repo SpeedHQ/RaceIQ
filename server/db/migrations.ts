@@ -1939,16 +1939,43 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       ...dashboardMonthlyRollupSql,
     ],
   },
+  {
+    version: 75,
+    name: "persist dashboard access and login sessions",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS dashboard_access (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        mode TEXT NOT NULL CHECK (mode IN ('pending', 'enabled', 'disabled')),
+        password_hash TEXT,
+        revision INTEGER NOT NULL DEFAULT 0,
+        network_json TEXT,
+        upgrade INTEGER
+      )`,
+      `INSERT INTO dashboard_access (id, mode)
+       SELECT 1, 'pending'
+       WHERE NOT EXISTS (SELECT 1 FROM dashboard_access WHERE id = 1)
+         AND NOT EXISTS (
+           SELECT 1 FROM schema_migrations
+           WHERE version IN (63, 64, 68, 75) AND name = 'persist dashboard access and login sessions'
+         )`,
+      `CREATE TABLE IF NOT EXISTS dashboard_sessions (
+        token_hash TEXT PRIMARY KEY,
+        csrf TEXT NOT NULL,
+        generation TEXT NOT NULL,
+        expires_at INTEGER NOT NULL
+      )`,
+    ],
+  },
 ];
-const dashboardV63CanonicalTriggers = (() => {
-  const v63 = migrations.find((migration) => migration.version === 68);
+const dashboardCanonicalTriggers = (() => {
+  const readModel = migrations.find((migration) => migration.version === 68);
   const latestByName = new Map<string, string>();
-  for (const sql of v63?.sql ?? []) {
+  for (const sql of readModel?.sql ?? []) {
     const match = sql.match(/^\s*CREATE TRIGGER\s+([A-Za-z0-9_]+)/i);
     if (match?.[1].startsWith("dashboard_")) latestByName.set(match[1], sql);
   }
   return [...latestByName].flatMap(([name, sql]) => [`DROP TRIGGER IF EXISTS ${name}`, sql]);
 })();
 
-migrations.find((migration) => migration.version === 74)?.sql.push(...dashboardV63CanonicalTriggers);
+migrations.find((migration) => migration.version === 74)?.sql.push(...dashboardCanonicalTriggers);
 

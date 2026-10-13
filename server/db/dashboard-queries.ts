@@ -1,4 +1,4 @@
-import { Database } from "bun:sqlite";
+import Database from "libsql";
 import { DASHBOARD_PROCESSOR_VERSION } from "./dashboard-summary-queries";
 import { DB_PATH } from "./index";
 import { dashboardCarIdentity, dashboardTrackIdentity, validateDashboardRequest } from "@raceiq/shared/racing/sessions/dashboard";
@@ -13,9 +13,9 @@ type Row = Record<string, unknown>;
 const n = (value: unknown): number => Number(value ?? 0);
 const nullableNumber = (value: unknown): number | null => value == null ? null : Number(value);
 const instant = (value: string): number => Date.parse(value);
-let dashboardDatabase: Database | null = null;
+let dashboardDatabase: InstanceType<typeof Database> | null = null;
 
-function getDashboardDatabase(): Database {
+function getDashboardDatabase(): InstanceType<typeof Database> {
   if (process.env.DB_IN_MEMORY === "1") {
     throw new Error("Dashboard reads require a file-backed SQLite database; DB_IN_MEMORY=1 is unsupported");
   }
@@ -91,9 +91,9 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
   const database = getDashboardDatabase();
   const tx = {
     execute: <T extends Row = Row>({ sql, args = [] }: { sql: string; args?: (string | number | null)[] }): { rows: T[] } => {
-      if (!dashboardQueryObserver) return { rows: database.query<T, (string | number | null)[]>(sql).all(...args) };
+      if (!dashboardQueryObserver) return { rows: database.prepare(sql).all(...args) as T[] };
       const started = performance.now();
-      const rows = database.query<T, (string | number | null)[]>(sql).all(...args);
+      const rows = database.prepare(sql).all(...args) as T[];
       dashboardQueryObserver(sql, args, rows, performance.now() - started);
       return { rows };
     },

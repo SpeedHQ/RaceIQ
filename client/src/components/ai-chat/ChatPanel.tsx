@@ -6,6 +6,7 @@ import type { ThreadProps } from "@/components/assistant-ui/thread";
 import { Button } from "@/components/ui/button";
 import { useSettings } from "@/hooks/settings";
 import { isAiChatConfigured } from "@/lib/is-ai-configured";
+import { authenticatedFetch } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { uiStore } from "@/stores/ui";
 import { type ChatGeneration, fetchChatGenerations, fetchChatRunStatus } from "./chat-history";
@@ -38,7 +39,7 @@ export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, re
 
   const clearChat = async () => {
     try {
-      await fetch(clearChatApi ?? api, { method: "DELETE" });
+      await authenticatedFetch(clearChatApi ?? api, { method: "DELETE" });
       await queryClient.invalidateQueries({ queryKey: historyQueryKey });
     } finally {
       setClearVersion((version) => version + 1);
@@ -82,7 +83,7 @@ export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, re
   const regenerateChat = async (messageId: string, prompt: string) => {
     if (!activeThreadId || !prompt || !window.confirm(m.ai_chat_regenerate_confirmation())) return;
     try {
-      const res = await fetch(`/api/chats/${encodeURIComponent(activeThreadId)}/regenerate`, {
+      const res = await authenticatedFetch(`/api/chats/${encodeURIComponent(activeThreadId)}/regenerate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messageId }),

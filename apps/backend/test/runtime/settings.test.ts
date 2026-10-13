@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 
-import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
+import { loadSettings, saveSettings, PartialSettingsSchema } from "@raceiq/backend-core/runtime/config/settings";
 import { settingsRoutes, shouldCheckCredentialStatus } from "../../src/routes/settings-routes";
 
 // Follows DATA_DIR so this never mutates the real dev settings.json —
@@ -48,6 +48,16 @@ describe("settings with unit system", () => {
     if (originalContent) {
       writeFileSync(SETTINGS_PATH, originalContent);
     }
+  });
+
+  test("persists and clears the HUD hostname without changing other settings", () => {
+    const before = loadSettings();
+    saveSettings({...before, hudHostname: " Race-PC.Example.ts.net "});
+    expect(loadSettings().hudHostname).toBe("race-pc.example.ts.net");
+    expect(loadSettings().udpPort).toBe(before.udpPort);
+    saveSettings({...loadSettings(), hudHostname: ""});
+    expect(loadSettings().hudHostname).toBe("");
+    expect(PartialSettingsSchema.safeParse({hudHostname: "http://pc.ts.net"}).success).toBe(false);
   });
 
   test("loadSettings returns defaults when file has only udpPort (migration)", () => {

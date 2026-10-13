@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { z } from "zod";
+import { normalizeHudHostname } from "@raceiq/shared/platform/network/hud-hostname";
 import { resolveDataDir } from "./data-dir";
 import { isLaunchOnLoginEnabled } from "../platform/launch-on-login";
 import { LOCALE_CODES } from "@raceiq/shared/platform/i18n/locales";
@@ -15,6 +16,7 @@ const AiProviderSchema = z.enum(["", "gemini", "openai", "openai-compatible"]).d
 const AppSettingsSchema = z.object({
   onboardingComplete: z.boolean().default(false),
   driverName: z.string().default(""),
+  hudHostname: z.string().trim().toLowerCase().refine(value => normalizeHudHostname(value) !== null).default(""),
   udpPort: z.number().int().min(1024).max(65535).default(5301),
   unit: z.enum(["metric", "imperial"]).default("metric"),
   temperatureUnit: z.enum(["C", "F"]).default("C"),
@@ -76,7 +78,7 @@ export function isFirstRun(): boolean {
   return !existsSync(SETTINGS_PATH);
 }
 
-export function loadSettings(): AppSettings {
+export function loadSettings(options: { syncLaunchOnLogin?: boolean } = {}): AppSettings {
   ensureSettingsDir();
   if (!existsSync(SETTINGS_PATH)) {
     saveSettings(DEFAULTS);
@@ -132,7 +134,7 @@ export function loadSettings(): AppSettings {
 
     const result = AppSettingsSchema.parse(parsed);
     // Always sync launchOnLogin from the actual registry state
-    result.launchOnLogin = isLaunchOnLoginEnabled();
+    if (options.syncLaunchOnLogin !== false) result.launchOnLogin = isLaunchOnLoginEnabled();
     return result;
   } catch (err) {
     console.error(`[Settings] Failed to load ${SETTINGS_PATH}:`, err instanceof Error ? err.message : err);

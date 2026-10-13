@@ -19,6 +19,7 @@ function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boole
     SERVER_PORT: ports.port,
     UDP_PORT: ports.udpPort,
     NODE_ENV: runtime.devServer ? "test" : "production",
+    PW_ACCESS_MODE: ports === runtime.freshInstall ? "pending" : "disabled",
     RACEIQ_SETUP_HOME: resolve(ports.dataDir, "setup-home"),
     RACEIQ_FEATURE_F1_EXPERIMENTS: "true",
   };

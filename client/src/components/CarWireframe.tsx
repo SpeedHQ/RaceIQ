@@ -44,6 +44,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   toggleOverrides,
   source,
   onRuntime,
+  protectedDataEnabled = true,
 }: {
   gameId?: GameId;
   lmuCarClass?: string;
@@ -57,6 +58,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   tempLabel?: string;
   source: SceneSource;
   onRuntime?: (runtime: SceneRuntime | null) => void;
+  protectedDataEnabled?: boolean;
   showDimensions?: boolean;
   minimal?: boolean;
   hideControls?: boolean;
@@ -65,8 +67,9 @@ export const CarWireframe = React.memo(function CarWireframe({
 }) {
   const [configsLoaded, setConfigsLoaded] = useState(false);
   useEffect(() => {
+    if (!protectedDataEnabled) return;
     loadCarModelConfigs().then(() => setConfigsLoaded(true));
-  }, []);
+  }, [protectedDataEnabled]);
   const storeGameId = useGameId();
   const gameId = gameIdProp ?? storeGameId;
   if (!gameId) {
@@ -92,9 +95,9 @@ export const CarWireframe = React.memo(function CarWireframe({
     return DEMO_CAR;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [carId, configsLoaded, isF1, isLMU, lmuCarClass, carModelProp]);
-  const units = useUnits(gameId);
-  const { displaySettings } = useSettings();
-  const pressureOptimal = useTirePressureOptimal(gameId, carId);
+  const units = useUnits(gameId, { enabled: protectedDataEnabled });
+  const { displaySettings } = useSettings({ enabled: protectedDataEnabled });
+  const pressureOptimal = useTirePressureOptimal(gameId, carId, protectedDataEnabled);
   const adapter = tryGetGame(gameId);
   const suspThresholds = adapter?.suspensionThresholds.values ?? [25, 65, 85];
   const temperatureMetric = resolveAnalysisTelemetry(adapter).tireTemperature;

@@ -11,10 +11,12 @@ mock.module("../src/lib/rpc", () => ({
   },
 }));
 
-const { reportClientError } = await import("../src/lib/report-error");
+// Load after mock.module so the reporter binds the intentionally mocked RPC transport.
+const { reportClientError, setClientErrorReportingEnabled } = await import("../src/lib/report-error");
 
 describe("client reporting", () => {
-  test("forwards first occurrence timestamp through coalescing", async () => {
+  test("queues diagnostics until authorized and preserves first occurrence through coalescing", async () => {
+    setClientErrorReportingEnabled(false);
     const originalNow = Date.now;
     Date.now = () => 1234;
     reportClientError("test", "message", undefined, "info");
@@ -22,7 +24,10 @@ describe("client reporting", () => {
     reportClientError("test", "message", undefined, "info");
     await new Promise<void>((resolve) => setTimeout(resolve, 550));
     Date.now = originalNow;
+    expect(posts).toEqual([]);
+    setClientErrorReportingEnabled(true);
     expect(posts).toHaveLength(1);
     expect(posts[0]).toMatchObject({ level: "info", occurredAtMs: 1234, message: "message [repeated 2 times]" });
+    setClientErrorReportingEnabled(false);
   });
 });

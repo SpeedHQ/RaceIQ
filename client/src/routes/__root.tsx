@@ -1,11 +1,12 @@
 import { RecordingLayoutMigration } from "../components/RecordingLayoutMigration";
 import { getAllGames } from "@raceiq/shared/games/registry"
 import { QueryClientProvider } from "@tanstack/react-query";
-import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
+import { createRootRoute, ErrorComponent, Link, Outlet, redirect, useLocation, useRouter } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { Settings } from "@/components/settings/Settings";
+import { DashboardAuthUnavailable, loadDashboardAuth } from "@/lib/dashboard-auth";
 import { useSettings } from "@/hooks/settings";
 import { applyLocale } from "@/lib/locale";
 import { m } from "@/paraglide/messages";
@@ -39,7 +40,6 @@ function useUpdateCheck() {
 }
 
 function AppShell() {
-  useWebSocket();
   const { displaySettings, settingsLoaded } = useSettings();
 
   // Bootstrap the Paraglide UI locale from the server-persisted `language`
@@ -102,10 +102,6 @@ function AppShell() {
     return <div className="h-screen bg-app-bg" />;
   }
 
-  const forceWelcome = new URLSearchParams(window.location.search).has("welcome");
-  if (forceWelcome || !displaySettings.onboardingComplete) {
-    return <OnboardingModal />;
-  }
 
   if (isPortable) {
     return (
@@ -200,21 +196,62 @@ function AppShell() {
     </>
   );
 }
+function DashboardConnection() {
+  useWebSocket();
+  return null;
+}
 
 function RootLayout() {
+  const router = useRouter();
+  const { auth } = Route.useRouteContext();
   const location = useLocation();
-  const routeGameId = gameIdForPathname(location.pathname);
+  const pathname = location.pathname;
+  const routeGameId = gameIdForPathname(pathname);
   const storedGameId = useGameStore((state) => state.gameId);
-  const gameId = routeGameId ?? (usesStoreGameContext(location.pathname) ? storedGameId : null);
+  const gameId = routeGameId ?? (usesStoreGameContext(pathname) ? storedGameId : null);
+  useEffect(() => {
+    const refresh = () => { void router.invalidate(); };
+    window.addEventListener("raceiq-auth-required", refresh);
+    const timer = window.setInterval(refresh, 60_000);
+    return () => {
+      window.removeEventListener("raceiq-auth-required", refresh);
+      window.clearInterval(timer);
+    };
+  }, [router]);
   return (
     <QueryClientProvider client={queryClient}>
       <GameRouteProvider value={gameId}>
-        <AppShell />
+        {auth.authenticated && <DashboardConnection />}
+        {pathname === "/login" || pathname === "/onboarding" ? <Outlet /> : <AppShell />}
       </GameRouteProvider>
     </QueryClientProvider>
   );
 }
 
 export const Route = createRootRoute({
+  beforeLoad: async ({ location }) => {
+    const auth = await loadDashboardAuth();
+    if (auth.pending && location.pathname !== "/onboarding") {
+      throw redirect({ to: "/onboarding", search: { redirect: location.href, welcome: undefined } });
+    }
+    if (!auth.pending && !auth.authenticated && location.pathname !== "/login") {
+      throw redirect({ to: "/login", search: { redirect: location.href } });
+    }
+    if (auth.authenticated && location.pathname !== "/login" && location.pathname !== "/onboarding" &&
+      (!auth.onboardingComplete || new URLSearchParams(location.searchStr).has("welcome"))) {
+      throw redirect({ to: "/onboarding", search: { redirect: location.href, welcome: true } });
+    }
+    return { auth };
+  },
+  errorComponent: function AccessUnavailable({ error }) {
+    const router = useRouter();
+    if (!(error instanceof DashboardAuthUnavailable)) return <ErrorComponent error={error} />;
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-app-bg p-4 text-app-text">
+        <p className="text-sm text-status-danger" role="alert">{m.access_unavailable()}</p>
+        <Button variant="app-outline" onClick={() => void router.invalidate()}>{m.access_retry()}</Button>
+      </div>
+    );
+  },
   component: RootLayout,
 });

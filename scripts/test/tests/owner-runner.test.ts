@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 
@@ -15,20 +15,22 @@ test("owner suites load database preload and isolate writable paths from inherit
       writeFileSync(resolve(root, "scripts/test", file), readFileSync(resolve(import.meta.dir, "..", file)));
     }
     writeFileSync(resolve(root, "package.json"), JSON.stringify({ private: true, workspaces: ["packages/*"] }));
+    mkdirSync(resolve(root, "node_modules"), { recursive: true });
+    symlinkSync(resolve(import.meta.dir, "../../../node_modules/libsql"), resolve(root, "node_modules/libsql"), "junction");
     mkdirSync(resolve(root, "packages/owner/test"), { recursive: true });
     writeFileSync(resolve(root, "packages/owner/package.json"), JSON.stringify({ name: "@fixture/owner" }));
     mkdirSync(resolve(root, "server/test-support"), { recursive: true });
     writeFileSync(resolve(root, "server/test-support/setup-data-dir.ts"), `
-      import { Database } from "bun:sqlite";
-      const db = new Database(process.env.DATA_DIR + "/app.db", { create: true });
-      db.run("CREATE TABLE laps (id INTEGER PRIMARY KEY, time REAL)");
+      import Database from "libsql";
+      const db = new Database(process.env.DATA_DIR + "/app.db");
+      db.prepare("CREATE TABLE laps (id INTEGER PRIMARY KEY, time REAL)").run();
       db.close();
     `);
     for (const suite of ["unit", "integration"]) {
       writeFileSync(resolve(root, `packages/owner/test/${suite}-files.txt`), `packages/owner/test/${suite}.test.ts\n`);
       writeFileSync(resolve(root, `packages/owner/test/${suite}.test.ts`), `
         import { expect, test } from "bun:test";
-        import { Database } from "bun:sqlite";
+        import Database from "libsql";
         import { appendFileSync, existsSync } from "node:fs";
         test("${suite} database behavior", () => {
           const path = process.env.DATA_DIR + "/app.db";
@@ -37,8 +39,8 @@ test("owner suites load database preload and isolate writable paths from inherit
           expect(existsSync(path)).toBe(${suite === "integration"});
           if (${suite === "integration"}) {
             const db = new Database(path);
-            db.run("INSERT INTO laps (time) VALUES (88.5)");
-            expect(db.query("SELECT time FROM laps").get()).toEqual({ time: 88.5 });
+            db.prepare("INSERT INTO laps (time) VALUES (88.5)").run();
+            expect(db.prepare("SELECT time FROM laps").get()).toHaveProperty("time", 88.5);
             db.close();
           }
           appendFileSync(process.env.RESULT_PATH!, JSON.stringify({ suite: "${suite}", dataDir: process.env.DATA_DIR }) + "\\n");

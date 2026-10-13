@@ -1,9 +1,15 @@
 ## Unreleased
-
-### Breaking
+### Feature
+- New desktop and self-hosted installs restrict dashboard access to this computer until you select additional network interfaces.
+- Password-protected dashboards use a login screen and browser sessions; API clients must sign in and send the session cookie and a CSRF token for writes.
 - Use string car and track IDs across imports and integrations instead of ordinal fields. Existing sessions and setup links migrate automatically; downgrading requires restoring a pre-upgrade database backup.
 
-### Features
+- Open the dashboard on another LAN device using a copied link or QR code in Access & security settings.
+- Choose dashboard password protection during setup or in Access & security settings, sign in across devices, and recover a forgotten password from the terminal.
+- Select dashboard network interfaces and browser domains in Access & security settings without changing UDP telemetry reception.
+- Disable dashboard password protection from the terminal with an explicit exposure confirmation, without changing network access or recordings.
+
+- Allow a saved hostname, including a Tailscale FQDN, for remote HUD links and QR codes.
 - Refresh the dashboard with cleaner session and favourite widgets, clean-rate and podium trends, and seven days of activity by default.
 - Export complete chat history as JSON for developer debugging, including retained chat generations, stored thinking, tool calls and results, and system prompts.
 - Optionally protect dashboard access with a password and configure trusted browser origins independently, while keeping existing local and remote access working without new settings.
@@ -17,13 +23,70 @@
 - Separate recordings into `<game>/own` for live telemetry and imports marked as yours, and `<game>/others` for imports marked as someone else's. Offer an optional, resumable migration for existing recordings in default or custom folders while preserving session history and folder relocation.
 
 ### Fixes
+- Wait for dashboard access setup before checking recording-folder status in the setup wizard.
+- Respect development onboarding overrides when deciding whether to show the setup wizard.
+- Remove saved network interfaces that are no longer available and replace them without losing other selections.
+- Allow development LAN dashboard origins on preserved all-interface listeners when browser-origin whitelisting is enabled.
+- Open Windows tray dashboard and update links on an active selected address when localhost is disabled.
+- Start a development dashboard against an explicit backend proxy target without requiring a local database.
+- Retry dashboard initialization after an authorization-status failure instead of showing a blank page.
+- Make browser-origin whitelisting opt-in and explain how to allow external HUD hostnames when it is enabled.
+- Restore portable dashboard interface selection with interface names and IP addresses, and open access settings when the selected interface is not listening. Generate HUD links and QR codes only for active dashboard addresses and ports.
+- Preserve the original welcome and setup wizard, configure dashboard access within it, and show sign-in only after password protection is configured.
+- Match protected-dashboard sign-in screen to RaceIQ's dark telemetry workspace styling.
+- Refuse to reopen dashboard setup when a previously configured database is lost or replaced.
+- Use the development dashboard port for localhost, LAN, and Tailscale links in settings.
+- Label the confirmation to disable dashboard password protection as “Confirm settings”.
+- Keep localhost dashboard access working after adding browser domains to an existing all-interface configuration.
+- Use tabs to switch password protection options and keep Access & security forms compact within the dialog.
+- Keep the access setup Next button in the wizard footer alongside Back.
+- Show concise, translated password-length guidance inline with the field label and remove the redundant exposure acknowledgement toggle; warn that unprotected dashboard visitors can edit data and settings and use configured AI chat.
+- Restrict development dashboard access to selected network interfaces.
+- Keep live telemetry connected when opening the development dashboard through a LAN link.
+- Open the dashboard instead of a backend status page when using a shared link during development.
+- Restore track edges in AC Evo Tourist replay, including the supported approach section, without joining edges across the missing connector.
+- Preserve car and track selections in numeric-ID bookmarks and native AC Evo venue/layout URLs.
+- Refresh experiment spread and corner results after recorded laps are repaired.
+- Initialize setup-folder imports after the car catalog loads and prevent imports without a valid car.
+- Keep live Tourist route maps open between finish and start.
+- Keep outdated-recording warnings visible until every stale session is repaired.
+- Ask for missing or unresolved car and track identities when importing MoTeC ZIPs or opening saved sessions; retain valid selections and preserve original MoTeC content.
+- Restore history-lap imports for experiments without selected car or track IDs.
+- Persist setup name, author, description, and weakness edits.
+- Show saved lap favorites and telemetry availability in lap details.
+- Resolve session car and track names for display, search, and sorting.
+- Avoid missing-identity lookup errors on Home and live dashboards before a car is known.
+- Preserve all four brake temperatures in ACC and AC Evo MoTeC imports.
+- Keep bundled AC Evo track geometry and setup-folder metadata after discovery.
+- Restore the Any car filter in the AC Evo setup browser.
+- Prevent crafted AI credential requests from running commands on macOS.
+- Reject unrelated browser origins on dashboard and live telemetry requests while preserving same-origin access through reverse proxies.
+- Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
+
+- Keep authenticated imports, cleanup, and dashboard chat working after enabling password protection.
+- Load LMU track boundaries without long stalls on detailed SVG maps.
+- Show unnamed multi-turn sections once in Analyse and track-detail labels.
+- Keep AC Evo venue layouts distinct during import, setup selection, and session repair without losing saved notes, favorites, or setup links.
+- Replay long Tourist laps without chart crashes or closed-circuit map overlays.
+- Show AC Evo source car and layout names immediately after import instead of generated numeric placeholders.
+- Automatically reconcile pre-upgrade recordings with updated car, track, and lap detection, including AC Evo Tourist timed attempts; preserve user annotations on matched laps and report captures that cannot be repaired.
+- Use suitable local network addresses for remote HUD links and let users choose an address when multiple adapters are available.
 
 ### Internal
+- Include the privacy-safe iRacing SessionInfo path manifest in clean checkouts so CI can validate the telemetry catalog.
+- Add `bun clean` to remove repository-local development data without targeting custom `DATA_DIR` locations.
+- Isolate dashboard-authentication tests in subprocesses so Windows releases database handles before cleanup, and verify password recovery through the command in a separate process.
+- Run development-dashboard SQLite assertions in a subprocess so Windows releases native database handles before fixture cleanup.
+- Limit live `ps` resource-sampler tests to supported platforms.
+- Share the application-owned database connection with dashboard authentication to prevent Linux WAL cleanup from discarding imported sessions during upgrade verification.
+- Ban Bun's separate SQLite driver in repository lint and use libSQL for synchronous fixtures and tooling.
+- Preserve dashboard credentials and login sessions from earlier feature builds while applying identity and dashboard read-model migrations.
 - Limit CI test execution to two concurrent Turbo tasks and one Bun unit-test worker per task to reduce resource pressure on constrained runners.
 - Update browser coverage for dashboard periods, session analysis navigation, and persisted onboarding settings without relying on removed headings or recap buttons; enable feature-gated responsive routes in both fresh and seeded test servers.
 - Align responsive Analyse waits with replay readiness and keep session-table browser tests scoped to visible rows after expansion.
 - Report Paraglide development and production compilation stages, a 10-second elapsed-time heartbeat, and total build duration; preserve validated cache reuse.
 - Bound HTTP request/response adapter typing to avoid expanding the full RPC router schema during backend typechecking, preserving existing RPC contracts.
+- Support recorder benchmark CPU/RSS sampling on Windows through PowerShell/CIM, and fail subprocess sampling errors instead of hanging tooling tests.
 - Add a release-seeded startup upgrade regression that verifies historical Tourist sessions are automatically reprocessed into the correct layout and lap times.
 - Remove unused compiled artifact downloads and base production builds from dev-mode dashboard screenshot CI.
 - Split current and base dashboard screenshot renders into four CI shards while retaining the complete screenshot inventory.

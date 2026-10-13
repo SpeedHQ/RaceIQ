@@ -30,6 +30,8 @@ export interface DisplaySettings {
   /** Server-injected canonical active recording directory. */
   resolvedRecordingDirectory?: string;
   udpPort?: number;
+  hudHostname?: string;
+  /** Server-injected: whether a Gemini API key is stored */
   geminiApiKeySet?: boolean;
   /** Server-injected: whether an OpenAI API key is stored */
   openaiApiKeySet?: boolean;

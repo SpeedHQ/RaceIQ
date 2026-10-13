@@ -1,6 +1,7 @@
 import type { RecordingDirectoryMoveStatus } from "@raceiq/backend-core/session-capture/relocate-recordings";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { client } from "@/lib/rpc";
+import { useDashboardAuth } from "@/lib/dashboard-auth";
 import { queryKeys } from "@/hooks/query-keys";
 
 export interface RecordingLayoutMigrationStatus {
@@ -79,8 +80,9 @@ export function useStartRecordingLayoutMigration() {
 
 
 export function useRecordingDirectoryStatus() {
+  const { status } = useDashboardAuth();
   const queryClient = useQueryClient();
-  return useQuery({ queryKey: queryKeys.recordingDirectoryStatus, queryFn: async () => {
+  return useQuery({ queryKey: queryKeys.recordingDirectoryStatus, enabled: !status.pending && status.authenticated, queryFn: async () => {
     const response = await client.api.storage["recording-directory"].$get();
     if (!response.ok) throw new Error("status");
     const next = await response.json();

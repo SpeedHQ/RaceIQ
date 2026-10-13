@@ -14,9 +14,22 @@ import { StartupStep } from "./steps/StartupStep";
 import { StorageStep } from "./steps/StorageStep";
 import { WelcomeStep } from "./steps/WelcomeStep";
 import { WheelStep } from "./steps/WheelStep";
+import { AccessSetupForm } from "@/components/security/AccessSetupForm";
+import { useDashboardAuth } from "@/lib/dashboard-auth";
+import { getLocale } from "@/paraglide/runtime";
+
+function AccessStep() {
+  return (
+    <div className="flex flex-col gap-4">
+      <h2>{m.access_title()}</h2>
+      <p>{m.access_configured()}</p>
+    </div>
+  );
+}
 
 const MODAL_STEPS = [
   { id: "welcome", label: m.step_welcome, Component: WelcomeStep },
+  { id: "access", label: m.access_title, Component: AccessStep },
   { id: "profile", label: m.step_profile, Component: ProfileStep },
   { id: "wheel", label: m.label_wheel, Component: WheelStep },
   { id: "units", label: m.label_units, Component: UnitsStep },
@@ -26,8 +39,10 @@ const MODAL_STEPS = [
   { id: "community", label: m.step_community, Component: CommunityStep },
 ];
 
-export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
-  const [step, setStep] = useState(0);
+export function OnboardingModal({ onClose, onComplete, initialStep = 0 }: { onClose?: () => void; onComplete?: () => Promise<void>; initialStep?: number } = {}) {
+  const { status, refresh } = useDashboardAuth();
+  const [step, setStep] = useState(initialStep);
+  const [accessFooter, setAccessFooter] = useState<HTMLSpanElement | null>(null);
   const saveSettings = useSaveSettings();
   const storageStatus = useRecordingDirectoryStatus();
   const isMovePending = useIsMutating({ mutationKey: queryKeys.recordingDirectoryMove }) > 0;
@@ -37,9 +52,12 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
   const lastUdpAt = useTelemetryStore((s) => s.lastUdpAt);
   const receiving = udpPps > 0 || packetsPerSec > 0 || lastUdpAt > 0;
   const { Component: StepComponent } = MODAL_STEPS[step];
-  function handleFinish() {
+  async function handleFinish() {
     if (onClose) onClose();
-    else saveSettings.mutate({ onboardingComplete: true } as never);
+    else {
+      await saveSettings.mutateAsync({ onboardingComplete: true });
+      await onComplete?.();
+    }
   }
   return (
     <div className="@container/onboarding fixed inset-0 z-50 flex items-center justify-center bg-app-bg p-4">
@@ -52,19 +70,11 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
                 const i = idx + 1;
                 return (
                   <div key={s.id} className="flex items-center gap-2 shrink-0">
-                    <div
-                      className={`flex items-center gap-1.5 text-xs font-medium whitespace-nowrap ${i === step ? "text-app-accent" : i < step ? "text-app-text-secondary" : "text-app-text-muted/50"}`}
-                    >
-                      <span
-                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold border transition-colors ${i === step ? "border-app-accent bg-app-accent/15 text-app-accent" : i < step ? "border-status-success bg-status-success/15 text-status-success" : "border-app-border bg-app-surface-alt text-app-text-muted/50"}`}
-                      >
+                    <div className={`flex items-center gap-1.5 text-xs font-medium whitespace-nowrap ${i === step ? "text-app-accent" : i < step ? "text-app-text-secondary" : "text-app-text-muted/50"}`}>
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold border transition-colors ${i === step ? "border-app-accent bg-app-accent/15 text-app-accent" : i < step ? "border-status-success bg-status-success/15 text-status-success" : "border-app-border bg-app-surface-alt text-app-text-muted/50"}`}>
                         {i < step ? (
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        ) : (
-                          idx + 1
-                        )}
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                        ) : idx + 1}
                       </span>
                       {s.label()}
                     </div>
@@ -76,23 +86,20 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
           </div>
         )}
         <div className="min-h-[280px] flex-1 overflow-y-auto border-t border-app-border px-4 py-5 @3xl/onboarding:px-6">
-          <StepComponent />
+          {step === 0 ? <WelcomeStep setup={status.pending} /> : step === 1 && status.pending ? (
+            <div className="flex flex-col gap-4">
+              <p>{status.upgrade ? m.access_upgrade() : m.access_setup_description()}</p>
+              <AccessSetupForm setup submitContainer={accessFooter} language={getLocale()} onComplete={async () => { await refresh(); setStep((current) => current + 1); }} />
+            </div>
+          ) : <StepComponent />}
         </div>
-        <div className="flex shrink-0 items-center justify-end border-t border-app-border bg-app-surface-alt/30 px-4 py-4 @3xl/onboarding:px-6">
+        <div data-slot="onboarding-footer" className="flex shrink-0 items-center justify-end border-t border-app-border bg-app-surface-alt/30 px-4 py-4 @3xl/onboarding:px-6">
           <div className="flex items-center gap-2">
-            {step > 0 && (
-              <Button variant="outline" size="sm" disabled={storageBusy} onClick={() => setStep((s) => s - 1)}>
-                {m.common_back()}
-              </Button>
-            )}
-            {step < MODAL_STEPS.length - 1 ? (
-              <Button variant="app-primary" size="sm" disabled={storageBusy} onClick={() => setStep((s) => s + 1)}>
-                {step === 0 ? m.common_get_started() : m.common_next()}
-              </Button>
+            {step > 0 && <Button variant="outline" size="sm" disabled={storageBusy} onClick={() => setStep((s) => s - 1)}>{m.common_back()}</Button>}
+            {step === 1 && status.pending ? <span ref={setAccessFooter} /> : step < MODAL_STEPS.length - 1 ? (
+              <Button variant="app-primary" size="sm" disabled={storageBusy} onClick={() => setStep((s) => s + 1)}>{step === 0 ? m.common_get_started() : m.common_next()}</Button>
             ) : (
-              <Button size="sm" variant={receiving ? "default" : "outline"} onClick={handleFinish} disabled={saveSettings.isPending || storageBusy}>
-                {receiving ? m.common_finish() : m.common_next()}
-              </Button>
+              <Button size="sm" variant={receiving ? "default" : "outline"} onClick={handleFinish} disabled={saveSettings.isPending || storageBusy}>{receiving ? m.common_finish() : m.common_next()}</Button>
             )}
           </div>
         </div>

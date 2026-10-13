@@ -8,7 +8,7 @@ import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import { Button } from "@/components/ui/button";
 import { queryKeys } from "@/hooks/query-keys";
 import { bestSectorLapIds } from "@/lib/lap-sectors";
-import { client } from "@/lib/rpc";
+import { authenticatedFetch, client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { exportLapsZip } from "@/lib/lap-export";
 import { useGameRoute } from "@/stores/game";
@@ -148,7 +148,7 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
               title={undefined}
               className="w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover"
               onClick={async () => {
-                const response = await fetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
+                const response = await authenticatedFetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
                 const data = await response.json();
                 console.log("[Recheck]", data);
                 await queryClient.invalidateQueries({ queryKey: queryKeys.laps });
