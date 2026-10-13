@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSaveSettings, useSettings } from "@/hooks/settings";
 import { m } from "@/paraglide/messages";
+import { authenticatedFetch } from "@/lib/rpc";
 import type { AiAnalysisState, AiAutoTuneState, AiChatState, AiDriverProfileState, ProviderSetupState } from "./ai-state";
 import { PROVIDER_KEY_LABELS, PROVIDER_KEY_MAP } from "./ai-state";
 import { isAiProvider, useAiModelData } from "./useAiModelData";
@@ -230,7 +231,7 @@ export function useAiSettings(): AiSettingsState {
   const [providerSetupKeys, setProviderSetupKeys] = useState<Record<string, string>>({});
   const saveProviderKey = useCallback(
     async (providerKeyId: string, apiKey: string) => {
-      const res = await fetch("/api/ai-key", {
+      const res = await authenticatedFetch("/api/ai-key", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider: providerKeyId, apiKey }),
@@ -263,7 +264,7 @@ export function useAiSettings(): AiSettingsState {
 
   const saveApiKey = useMutation({
     mutationFn: async (payload: { provider: string; apiKey: string }) => {
-      const res = await fetch("/api/ai-key", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const res = await authenticatedFetch("/api/ai-key", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       if (!res.ok) throw new Error(m.ai_save_key_failed());
     },
   });

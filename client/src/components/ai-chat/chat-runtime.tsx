@@ -11,6 +11,7 @@ import { DropdownMenu } from "@/components/ui/DropdownMenu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { downloadResponse } from "@/lib/lap-export";
+import { authenticatedFetch } from "@/lib/rpc";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import type { ChatGeneration } from "./chat-history";
@@ -78,7 +79,7 @@ export function ChatPanelThread({
   const [requestError, setRequestError] = useState<unknown>(null);
   const fetchChat = Object.assign(async (input: RequestInfo | URL, init?: RequestInit) => {
     setRequestError(null);
-    const response = await fetch(input, init);
+    const response = await authenticatedFetch(input, init);
     if (response.status === 409 && api.startsWith("/api/experiments/") && api.endsWith("/chat")) {
       const body = await response.clone().json().catch(() => null) as { code?: string } | null;
       if (body?.code === "stale_experiment_head" || body?.code === "experiment_chat_run_branch_conflict") {

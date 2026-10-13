@@ -89,5 +89,8 @@ export async function cleanDisposable(request: APIRequestContext, disposable: Di
 }
 
 export function sessionRows(page: Page) {
-  return page.getByRole("row").filter({ has: page.getByRole("button", { name: "Recap", exact: true }) });
+  // Ignore hidden mobile lap tables when expanded sessions render both layouts.
+  // Restrict rows to the session body, excluding header and nested lap rows.
+  return page.locator("[data-slot='table-container'] table:visible").first().locator(":scope > tbody > tr")
+    .filter({ has: page.getByRole("checkbox") });
 }

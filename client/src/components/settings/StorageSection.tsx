@@ -11,6 +11,7 @@ import { SessionCleanupDialog } from "@/components/SessionCleanupDialog";
 import { queryKeys } from "@/hooks/query-keys";
 import { m } from "@/paraglide/messages";
 import { formatBytes } from "@/lib/format-bytes";
+import { authenticatedFetch } from "@/lib/rpc";
 import { useSaveSettings, useSettings } from "../../hooks/settings";
 interface CacheStatus {
   bytesUsed: number;
@@ -254,7 +255,7 @@ function StorageFilesSection() {
 
   const compress = useMutation({
     mutationFn: async () => {
-      const response = await fetch("/api/storage/compress", { method: "POST" });
+      const response = await authenticatedFetch("/api/storage/compress", { method: "POST" });
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
       return response.json();
     },

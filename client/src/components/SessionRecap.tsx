@@ -1,5 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Cloud, CloudLightning, CloudOff, CloudRain, CloudSun, Flag, Gauge, Sun, Timer } from "lucide-react";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { SessionRecap as SessionRecapDto } from "@raceiq/shared/racing/sessions/types";
@@ -116,9 +117,9 @@ function SectorTrackMap({
 
 function Tile({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
-    <div className="min-w-0 overflow-hidden rounded-lg bg-app-surface-alt/30 p-3">
-      <div className="mb-1 min-h-7 break-normal text-app-caption uppercase leading-tight tracking-wider text-app-text-muted">{label}</div>
-      <div className={`min-w-0 whitespace-nowrap text-xl font-mono font-black tabular-nums leading-none ${color ? "" : "text-app-text/90"}`} style={color ? { color } : undefined}>
+    <div className="min-w-0 overflow-hidden rounded-lg bg-app-surface-alt/30 p-3 group-data-[compact=true]/recap:p-2">
+      <div className="mb-1 min-h-7 break-normal text-app-caption uppercase leading-tight tracking-wider text-app-text-muted group-data-[compact=true]/recap:min-h-0 group-data-[compact=true]/recap:text-app-label">{label}</div>
+      <div className={`min-w-0 whitespace-nowrap text-xl font-mono font-black tabular-nums leading-none group-data-[compact=true]/recap:text-app-heading group-data-[compact=true]/recap:font-semibold group-data-[compact=true]/recap:leading-snug ${color ? "" : "text-app-text/90"}`} style={color ? { color } : undefined}>
         {value}
       </div>
       {sub && <div className="mt-1 text-app-compact leading-tight text-app-text-dim">{sub}</div>}
@@ -137,6 +138,19 @@ function formatDuration(sec: number): string {
   const h = Math.floor(totalMin / 60);
   const min = totalMin % 60;
   return `${h}h ${min}m`;
+}
+function compactTrackPoints(outlineData?: TrackOutlineData): { points: { x: number; z: number }[]; viewBox: string } | null {
+  const points = (Array.isArray(outlineData) ? outlineData : outlineData?.points ?? []).filter(
+    (point) => Number.isFinite(point.x) && Number.isFinite(point.z),
+  );
+  if (points.length < 3) return null;
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (const point of points) {
+    minX = Math.min(minX, point.x); maxX = Math.max(maxX, point.x);
+    minZ = Math.min(minZ, point.z); maxZ = Math.max(maxZ, point.z);
+  }
+  if (maxX <= minX || maxZ <= minZ) return null;
+  return { points, viewBox: `${minX} ${minZ} ${maxX - minX} ${maxZ - minZ}` };
 }
 
 function Sparkline({ laps }: { laps: SessionRecapDto["sparkline"] }) {
@@ -175,41 +189,104 @@ export interface SessionRecapViewProps {
   linkToAnalyse?: boolean;
   finishPosition?: number | null;
   showTrackMap?: boolean;
+  compact?: boolean;
+  sessionType?: string;
+  resultClassification?: string | null;
   copied?: boolean;
-  onCopy: () => void;
+  onCopy?: () => void;
   onAnalyse?: () => void;
   outlineData?: TrackOutlineData;
   bounds?: TrackSectorBounds;
+  carImageUrl?: string;
 }
-export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishPosition, showTrackMap = true, copied = false, onCopy, onAnalyse, outlineData, bounds }: SessionRecapViewProps) {
+export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishPosition, showTrackMap = true, compact = false, sessionType, resultClassification, copied = false, onCopy, onAnalyse, outlineData, bounds, carImageUrl }: SessionRecapViewProps) {
   const canAnalyse = linkToAnalyse && gameId === recap.gameId && recap.bestLapId != null && onAnalyse != null;
-
+  const track = compactTrackPoints(outlineData);
+  const flipX = !Array.isArray(outlineData) && outlineData?.flipX;
+  const typeLabel = sessionType?.trim() && sessionType.trim().toLowerCase() !== "unknown" ? sessionType.trim().replace(/[-_]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) : "—";
+  const isRace = /^(race|sprint)/i.test(sessionType?.trim() ?? "");
+  const classification = resultClassification?.trim().toLowerCase();
+  const finishLabel = classification === "dnf" || classification === "retired" ? "DNF"
+    : classification === "disqualified" ? "DSQ"
+    : finishPosition != null && Number.isInteger(finishPosition) && finishPosition > 0 ? `P${finishPosition}` : "—";
+  const weatherKind = recap.weather?.kind;
+  const rainPercent = recap.weather?.rainPercent;
+  const wetWithoutKind = rainPercent != null && rainPercent > 0 && (weatherKind == null || weatherKind < 3);
+  const weatherLabel = wetWithoutKind ? `${m.f1live_section_weather()} · ${rainPercent}%`
+    : weatherKind != null ? [m.f1live_weather_clear(), m.f1live_weather_light_cloud(), m.f1live_weather_overcast(), m.f1live_weather_light_rain(), m.f1live_weather_heavy_rain(), m.f1live_weather_storm()][weatherKind] ?? m.f1live_weather_unknown()
+    : m.f1live_weather_unknown();
+  const WeatherIcon = wetWithoutKind ? CloudRain : weatherKind === 0 ? Sun : weatherKind === 1 ? CloudSun : weatherKind === 2 ? Cloud : weatherKind === 3 || weatherKind === 4 ? CloudRain : weatherKind === 5 ? CloudLightning : CloudOff;
   return (
-    <div className="@container flex min-w-0 flex-col gap-4">
-      <div className="flex flex-col gap-3 @sm:flex-row @sm:items-start @sm:justify-between">
-        <div className="min-w-0">
-          <div className="break-words text-base font-bold text-app-text/90">
-            {recap.carName} · {recap.trackName}
-          </div>
-          <div className="mt-0.5 text-xs text-app-text-muted">{parseUtcTimestamp(recap.createdAt).toLocaleString(getLocale())}</div>
+    <div data-compact={compact} className={`group/recap @container flex min-w-0 flex-col ${compact ? "recap-cinematic relative isolate gap-3 overflow-hidden" : "gap-4"}`}>
+      {compact && carImageUrl && <img aria-hidden="true" src={carImageUrl} alt="" onError={(event) => { event.currentTarget.style.display = "none"; }} className="pointer-events-none absolute -right-4 top-0 h-32 w-2/3 object-contain object-right [mask-image:linear-gradient(to_right,transparent,black_35%)] @max-sm:opacity-35" />}
+      <div className={`relative flex flex-col gap-3 @sm:flex-row @sm:items-start @sm:justify-between ${compact ? "min-h-20 min-w-0 justify-center @sm:items-center" : ""}`}>
+        <div className={`min-w-0 ${compact ? "relative max-w-[65%] @max-sm:max-w-full" : ""}`}>
+          {compact ? <>
+            <div className="flex items-center gap-3">
+              {track && <svg aria-hidden="true" viewBox={track.viewBox} preserveAspectRatio="xMidYMid meet" className="h-12 w-16 shrink-0 overflow-visible text-app-text">{flipX ? <g transform={`translate(${Number(track.viewBox.split(" ")[0]) * 2 + Number(track.viewBox.split(" ")[2])},0) scale(-1,1)`}><polyline points={track.points.map((point) => `${point.x},${point.z}`).join(" ")} fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" /></g> : <polyline points={track.points.map((point) => `${point.x},${point.z}`).join(" ")} fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" />}</svg>}
+              <div className="min-w-0 break-words text-app-heading font-semibold leading-tight text-app-text">{recap.trackName}</div>
+            </div>
+            <div className="mt-2 flex items-start gap-2 text-app-subtext text-app-text-secondary">
+              <span className="shrink-0 rounded border border-app-accent/30 bg-app-accent/10 px-2 py-0.5 text-app-label font-semibold uppercase text-app-accent">{gameId}</span>
+              <span className="break-words">{recap.carName}</span>
+            </div>
+            <div className="mt-2 text-app-label text-app-text-muted">{parseUtcTimestamp(recap.createdAt).toLocaleString(getLocale())} · {typeLabel}</div>
+          </> : <>
+            <div className="break-words text-base font-bold text-app-text/90">{recap.carName} · {recap.trackName}</div>
+            <div className="mt-0.5 text-xs text-app-text-muted">{parseUtcTimestamp(recap.createdAt).toLocaleString(getLocale())}</div>
+          </>}
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
+        {!compact && <div className="flex shrink-0 flex-wrap items-center gap-2">
           {canAnalyse && (
             <Button variant="app-outline" size="app-sm" onClick={onAnalyse}>
               {m.recap_analyse_best_lap()}
             </Button>
           )}
-          <Button variant="app-outline" size="app-sm" onClick={onCopy}>
-            {copied ? m.recap_copied() : m.recap_copy()}
-          </Button>
-        </div>
+          {onCopy && (
+            <Button variant="app-outline" size="app-sm" onClick={onCopy}>
+              {copied ? m.recap_copied() : m.recap_copy()}
+            </Button>
+          )}
+        </div>}
       </div>
 
-      {recap.lapsTotal === 0 ? (
+      {compact ? (
+        <div className="relative flex min-w-0 flex-col gap-3">
+          <div className="grid min-w-0 gap-2 @md:grid-cols-[1.65fr_3fr]">
+            <div className="recap-best-lap min-w-0 p-2.5">
+              <div className="recap-label">{m.recap_best_lap()}</div>
+              <div className="recap-best-time mt-2 whitespace-nowrap font-mono font-semibold tabular-nums leading-none">{recap.bestLapSec != null ? formatLapTime(recap.bestLapSec) : "—"}</div>
+            </div>
+            <div className="grid min-w-0 grid-cols-3 gap-2">
+              {Array.from({ length: 3 }, (_, index) => {
+                const sector = recap.sectors?.find((candidate) => candidate.index === index + 1);
+                const fastest = sector?.bestLapSec != null && sector.sessionBestSec != null && Math.abs(sector.bestLapSec - sector.sessionBestSec) <= 0.0005;
+                return <div key={index} className="recap-sector min-w-0 p-2">
+                  <div className="recap-label">S{index + 1}</div>
+                  <div className={`mt-2 font-mono text-app-subtext font-semibold tabular-nums @2xl:text-app-heading ${fastest ? "text-[var(--lap-record)]" : "text-app-text"}`}>{sector?.bestLapSec != null ? sector.bestLapSec.toFixed(3) : "—"}</div>
+                </div>;
+              })}
+            </div>
+          </div>
+          <div className="recap-footer flex min-w-0 flex-col gap-3 p-2.5 @lg:flex-row @lg:items-center">
+            <div className={`grid min-w-0 flex-1 grid-cols-2 gap-x-3 gap-y-3 ${isRace ? "@md:grid-cols-4" : "@md:grid-cols-3"}`}>
+              <div className="flex min-w-0 items-center gap-2"><Flag aria-hidden="true" className="size-5 shrink-0 text-app-text-muted" /><div><div className="text-app-label text-app-text-muted">{m.recap_laps()}</div><div className="font-mono text-app-subtext font-semibold tabular-nums text-app-text">{recap.lapsValid} / {recap.lapsTotal}</div></div></div>
+              <div className="flex min-w-0 items-center gap-2"><Gauge aria-hidden="true" className="size-5 shrink-0 text-app-text-muted" /><div><div className="text-app-label text-app-text-muted">{m.recap_distance()}</div><div className="font-mono text-app-subtext font-semibold tabular-nums text-app-text">{recap.distanceM != null ? formatDistance(recap.distanceM) : "—"}</div></div></div>
+              <div className="flex min-w-0 items-center gap-2"><Timer aria-hidden="true" className="size-5 shrink-0 text-app-text-muted" /><div><div className="text-app-label text-app-text-muted">{m.recap_time_on_track()}</div><div className="font-mono text-app-subtext font-semibold tabular-nums text-app-text">{formatDuration(recap.timeOnTrackSec)}</div></div></div>
+              {isRace && <div className="min-w-0"><div className="text-app-label text-app-text-muted">Finish</div><div className={`font-mono text-app-heading font-semibold tabular-nums ${finishLabel === "DNF" || finishLabel === "DSQ" ? "text-status-warning" : "text-app-text"}`}>{finishLabel}</div></div>}
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <span role="img" aria-label={weatherLabel} title={weatherLabel} className="inline-flex shrink-0 items-center justify-center text-app-text-secondary"><WeatherIcon aria-hidden="true" className="size-6" /></span>
+              {rainPercent != null && <span className="font-mono text-app-label tabular-nums text-app-text-secondary">{m.f1weather_rain_label()} {rainPercent}%</span>}
+              {onCopy && <Button variant="app-outline" size="app-md" onClick={onCopy}>{copied ? m.recap_copied() : m.recap_copy()}</Button>}
+            </div>
+          </div>
+        </div>
+      ) : recap.lapsTotal === 0 ? (
         <div className="p-6 text-center text-app-text-dim">{m.recap_no_laps()}</div>
       ) : (
         <div className="flex min-w-0 flex-col gap-4">
-          <div className="grid min-w-0 grid-cols-2 gap-2 @lg:grid-cols-4">
+          <div className="grid min-w-0 grid-cols-2 gap-2 @lg:grid-cols-4 group-data-[compact=true]/recap:@3xl:grid-cols-6">
             <Tile label={m.recap_laps()} value={`${recap.lapsValid}/${recap.lapsTotal}`} />
             {finishPosition != null && <Tile label="Finish" value={`P${finishPosition}`} />}
             {recap.bestLapSec != null && (
@@ -236,7 +313,7 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishP
           </div>
           {showTrackMap && recap.sectors != null && <SectorTrackMap sectors={recap.sectors} sourceStarts={recap.sectorStarts} outlineData={outlineData} bounds={bounds} />}
 
-          {recap.sparkline.length >= 2 && (
+          {!compact && recap.sparkline.length >= 2 && (
             <div>
               <div className="mb-1 text-app-caption uppercase tracking-wider text-app-text-muted">{m.recap_pace()}</div>
               <Sparkline laps={recap.sparkline} />

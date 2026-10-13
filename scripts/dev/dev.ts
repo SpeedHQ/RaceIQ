@@ -69,7 +69,7 @@ const developmentProcesses = Bun.spawn(
     "bunx",
     "concurrently",
     serverCommand.join(" "),
-    "bun scripts/dev/client.ts",
+    "bun --env-file=.env.development scripts/dev/client.ts",
   ],
   {
     env: environment,

@@ -28,6 +28,7 @@ export interface DisplaySettings {
   sessionCleanupAgeDays: 30 | 90 | 180 | 365;
   /** Server-injected: current UDP port */
   udpPort?: number;
+  hudHostname?: string;
   /** Server-injected: whether a Gemini API key is stored */
   geminiApiKeySet?: boolean;
   /** Server-injected: whether an OpenAI API key is stored */

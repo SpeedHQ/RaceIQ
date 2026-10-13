@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { TrackIdParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
 import { getLapCountsByTrack } from "@raceiq/backend-core/db/lap-read-queries";
-import { getTrackOutlineById, hasRecordedOutlineById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
+import { getTrackLengthMetersById, getTrackOutlineById, hasRecordedOutlineById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";
 import { loadSharedOutline } from "@raceiq/shared/racing/tracks/geometry/shared";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
@@ -145,7 +145,7 @@ export const trackCatalogRoutes = new Hono()
             location: "",
             country: "",
             variant: info.variant,
-            lengthKm: Math.round(computeOutlineLength(outline?.points) / 10) / 100,
+            lengthKm: Math.round((getTrackLengthMetersById(id, "ac-evo", info.commonTrackName || undefined) ?? 0) / 10) / 100,
             hasOutline: !!outline?.points.length,
             outlineSource: outline?.points.length ? outline.source : null,
             createdAt: null,

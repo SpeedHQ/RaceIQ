@@ -11,13 +11,14 @@ import { useSaveSettings, useSettings } from "@/hooks/settings";
 import { applyLocale } from "@/lib/locale";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
+import { getLocale } from "@/paraglide/runtime";
 import { useTelemetryStore } from "@/stores/telemetry";
 
 interface DemoFixture {
   frames: SemanticAnalysisFrame[];
 }
 
-function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) {
+function WelcomeViewport({ telemetry, setup }: { telemetry: SemanticAnalysisFrame[]; setup: boolean }) {
   const [cursorIdx, setCursorIdx] = useState(() => Math.floor(telemetry.length * 0.3));
   const rafIdRef = useRef<number>(0);
   const isRunningRef = useRef(false);
@@ -87,7 +88,7 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
       if (Array.isArray(d)) return d as { x: number; z: number }[];
       return null;
     },
-    enabled: !!trackId,
+    enabled: !setup && !!trackId,
     staleTime: Number.POSITIVE_INFINITY,
   });
   const { data: boundaries } = useQuery({
@@ -98,7 +99,7 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
       if (!res.ok) return null;
       return res.json();
     },
-    enabled: !!trackId,
+    enabled: !setup && !!trackId,
     staleTime: Number.POSITIVE_INFINITY,
   });
 
@@ -161,6 +162,7 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
         outline={lapLine}
         boundaries={boundaries ?? undefined}
         carModel={DEMO_CAR}
+        protectedDataEnabled={!setup}
         minimal
         hideControls
         toggleOverrides={{ track: true, wheelInfo: false }}
@@ -170,7 +172,8 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
   );
 }
 
-export function WelcomeStep() {
+export function WelcomeStep({ setup = false }: { setup?: boolean } = {}) {
+  const [setupLanguage, setSetupLanguage] = useState<string>(getLocale);
   const versionInfo = useTelemetryStore((s) => s.versionInfo);
   const { data: demoTelemetry, isLoading } = useQuery({
     queryKey: ["demo-lap"],
@@ -183,16 +186,20 @@ export function WelcomeStep() {
   });
   const telemetry = demoTelemetry ?? [];
   const hasTelemetry = telemetry.length > 0;
-  const { displaySettings } = useSettings();
+  const { displaySettings } = useSettings({ enabled: !setup });
   const saveSettings = useSaveSettings();
-  const currentLang = displaySettings.language ?? "en";
+  const currentLang = setup ? setupLanguage : displaySettings.language ?? "en";
   const langOptions = LOCALES.map((loc) => ({ value: loc.code, label: `${loc.label} (${loc.code})` }));
   async function selectLanguage(code: string) {
     if (code === currentLang) return;
-    try {
-      await saveSettings.mutateAsync({ language: code });
-    } catch {
-      /* best-effort persist; still switch UI locale below */
+    if (setup) {
+      setSetupLanguage(code);
+    } else {
+      try {
+        await saveSettings.mutateAsync({ language: code });
+      } catch {
+        /* best-effort persist; still switch UI locale below */
+      }
     }
     applyLocale(code);
   }
@@ -202,7 +209,7 @@ export function WelcomeStep() {
         <div className="mb-5 w-full h-48 rounded-lg bg-app-surface-alt animate-pulse" />
       ) : hasTelemetry ? (
         <div className="mb-5 w-full">
-          <WelcomeViewport telemetry={telemetry} />
+          <WelcomeViewport telemetry={telemetry} setup={setup} />
         </div>
       ) : (
         <div className="mb-5 relative w-64 h-20">

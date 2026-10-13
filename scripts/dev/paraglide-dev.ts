@@ -66,6 +66,8 @@ async function syncGeneratedFiles(sourceDir: string, destinationDir: string): Pr
 }
 
 async function compile(hash: string): Promise<void> {
+  const startedAt = performance.now();
+  const elapsed = () => `${((performance.now() - startedAt) / 1000).toFixed(1)}s`;
   console.log("[Paraglide] Compiling translation messages...");
   await mkdir(CACHE_DIR, { recursive: true });
   const stagedOutdir = await mkdtemp(resolve(CACHE_DIR, "paraglide-output-"));
@@ -85,13 +87,23 @@ async function compile(hash: string): Promise<void> {
       "baseLocale",
       "--emit-ts-declarations",
     ], { cwd: CLIENT, stdin: "ignore", stdout: "inherit", stderr: "inherit" });
-    const exitCode = await child.exited;
+    const heartbeat = setInterval(() => {
+      console.log(`[Paraglide] Still compiling — ${elapsed()} elapsed`);
+    }, 10_000);
+    let exitCode: number;
+    try {
+      exitCode = await child.exited;
+    } finally {
+      clearInterval(heartbeat);
+    }
     if (exitCode !== 0) throw new Error(`Paraglide compile failed (${exitCode})`);
+    console.log("[Paraglide] Installing generated output...");
     await syncGeneratedFiles(stagedOutdir, OUTDIR);
     await writeFile(CACHE_PATH, JSON.stringify({ hash }, null, 2) + "\n");
   } finally {
     await rm(stagedOutdir, { recursive: true, force: true });
   }
+  console.log(`[Paraglide] Complete — ${elapsed()}`);
 }
 
 async function ensureCompiled(): Promise<void> {

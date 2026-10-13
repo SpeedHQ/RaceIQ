@@ -5,6 +5,7 @@ import { SessionIdentityDialog } from "../import/SessionIdentityDialog";
 import { MotecImportModal, type MotecImportSuccess } from "../analyse/MotecImportModal";
 import { OwnershipChoice } from "../import/OwnershipChoice";
 import { importLapsZip } from "../../lib/lap-export";
+import { authenticatedFetch } from "../../lib/rpc";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { m } from "../../paraglide/messages";
@@ -85,7 +86,7 @@ export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: G
       const body = new FormData();
       body.append("file", nextFile);
       if (nextWalFile) body.append("wal", nextWalFile);
-      const response = await fetch("/api/laps/detect-import", { method: "POST", body });
+      const response = await authenticatedFetch("/api/laps/detect-import", { method: "POST", body });
       const data = (await response.json().catch(() => null)) as DetectionResult | { error?: string } | null;
       if (!response.ok) {
         const message = data && "error" in data ? data.error : null;
@@ -125,7 +126,7 @@ export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: G
         body.append("file", file);
         body.append("ownership", ownership);
         if (walFile) body.append("wal", walFile);
-        const response = await fetch("/api/laps/import", { method: "POST", body });
+        const response = await authenticatedFetch("/api/laps/import", { method: "POST", body });
         const data = (await response.json().catch(() => null)) as ImportResult & { error?: string };
         if (!response.ok) throw new Error(data?.error ?? `Import failed (${response.status})`);
         imported = data;

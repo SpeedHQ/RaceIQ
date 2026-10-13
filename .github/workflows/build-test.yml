@@ -70,6 +70,8 @@ jobs:
       - mars-macos-arm64-2vcpu-10g
       - mars-ubuntu-arm64-2vcpu-10g
       - mars-retry-3
+    env:
+      BUN_TEST_WORKERS: "1"
     steps:
       - uses: actions/checkout@v7
         with:
@@ -119,22 +121,22 @@ jobs:
         env:
           TURBO_SCM_BASE: ${{ github.event.pull_request.base.sha }}
           TURBO_SCM_HEAD: ${{ github.event.pull_request.head.sha }}
-        run: bun scripts/test/run-turbo.ts test:unit --affected --log-order=stream
+        run: bun scripts/test/run-turbo.ts test:unit --affected --log-order=stream --concurrency=2
         if: github.event_name == 'pull_request'
       - name: Run affected tooling tests
         env:
           TURBO_SCM_BASE: ${{ github.event.pull_request.base.sha }}
           TURBO_SCM_HEAD: ${{ github.event.pull_request.head.sha }}
-        run: bun scripts/test/run-turbo.ts test:tooling --affected --log-order=stream
+        run: bun scripts/test/run-turbo.ts test:tooling --affected --log-order=stream --concurrency=2
         if: github.event_name == 'pull_request'
       - name: Run affected integration tests
         env:
           TURBO_SCM_BASE: ${{ github.event.pull_request.base.sha }}
           TURBO_SCM_HEAD: ${{ github.event.pull_request.head.sha }}
-        run: bun scripts/test/run-turbo.ts test:integration --affected --log-order=stream
+        run: bun scripts/test/run-turbo.ts test:integration --affected --log-order=stream --concurrency=2
         if: github.event_name == 'pull_request'
       - name: Run full test suites
-        run: bun scripts/test/run-turbo.ts test:unit test:tooling test:integration
+        run: bun scripts/test/run-turbo.ts test:unit test:tooling test:integration --concurrency=2
         if: github.event_name != 'pull_request'
       - name: Save Turbo task cache
         uses: actions/cache/save@v4

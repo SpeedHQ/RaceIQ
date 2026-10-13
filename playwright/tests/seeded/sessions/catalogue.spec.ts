@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { sessionsFor, sessionRows } from "./helpers";
 
-test("sessions filter, notes, recap, export, and deletion confirmation preserve seeded data", async ({ page, request }) => {
+test("sessions filter, analysis, notes, export, and deletion confirmation preserve seeded data", async ({ page, request }) => {
   const browserErrors = collectBrowserErrors(page);
   const seededBefore = await sessionsFor(request, "fm-2023");
   await page.goto("/fm23/sessions", { waitUntil: "domcontentloaded" });
@@ -16,14 +16,12 @@ test("sessions filter, notes, recap, export, and deletion confirmation preserve 
 
   const firstRow = (await sessionRows(page)).first();
   await expect(firstRow).toBeVisible();
-  await firstRow.getByRole("button", { name: "Recap", exact: true }).click();
-  await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(page.getByRole("dialog").getByText(/Laps|No laps recorded for this session\./)).toBeVisible();
-  await expect(page.getByRole("dialog").getByRole("alert")).toHaveCount(0);
-  await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await firstRow.click();
-
+  await firstRow.getByRole("button", { name: "Analyse Session", exact: true }).click();
+  await expect(page).toHaveURL(/\/fm23\/sessions\/\d+\/analyse(?:\?.*)?$/);
+  await page.goto("/fm23/sessions", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "Sessions" })).toBeVisible();
+  const returnedFirstRow = (await sessionRows(page)).first();
+  await returnedFirstRow.click();
   const exportReplay = page.getByRole("button", { name: "Replay", exact: true }).first();
   await exportReplay.locator("xpath=ancestor::tr[1]").getByRole("checkbox").check();
   const downloadPromise = page.waitForEvent("download");

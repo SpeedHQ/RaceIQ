@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSettings } from "@/hooks/settings";
 import { type ChatStreamError, readChatStream } from "@/lib/chat-stream";
 import { isAiAnalysisConfigured, launchAiFeature } from "@/lib/is-ai-configured";
-import { client } from "@/lib/rpc";
+import { authenticatedFetch, client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { type AnalysisSummary, type InputsAnalysis, summarize } from "./compare-ai-types";
 
@@ -39,7 +39,7 @@ export function useLapAnalysis(lapId: number, panelOpen: boolean) {
       setError(null);
       try {
         const query = regenerate ? "?regenerate=true" : "";
-        const res = await fetch(`/api/laps/${lapId}/analyse${query}`, { method: "POST" });
+        const res = await authenticatedFetch(`/api/laps/${lapId}/analyse${query}`, { method: "POST" });
         if (!res.ok) {
           const data = (await res.json().catch(() => ({ error: m.compare_unknown_error() }))) as { error?: string };
           throw new Error(data.error || `HTTP ${res.status}`);
@@ -77,7 +77,7 @@ export function useLapAnalysis(lapId: number, panelOpen: boolean) {
     setDeleting(true);
     setError(null);
     try {
-      const res = await fetch(`/api/laps/${lapId}/analyse`, { method: "DELETE" });
+      const res = await authenticatedFetch(`/api/laps/${lapId}/analyse`, { method: "DELETE" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setSummary(null);
     } catch (err) {
@@ -133,7 +133,7 @@ export function useInputsAnalysis(lapAId: number, lapBId: number, panelOpen: boo
 
   const loadCached = useCallback(async () => {
     try {
-      const res = await fetch(`/api/laps/${lapAId}/compare/${lapBId}/inputs-analyse?cacheOnly=true`, { method: "POST" });
+      const res = await authenticatedFetch(`/api/laps/${lapAId}/compare/${lapBId}/inputs-analyse?cacheOnly=true`, { method: "POST" });
       if (!res.ok) return;
       const data = (await res.json()) as { analysis: string | object | null; cached: boolean };
       if (!data.cached || !data.analysis) return;
@@ -149,7 +149,7 @@ export function useInputsAnalysis(lapAId: number, lapBId: number, panelOpen: boo
       setError(null);
       try {
         const query = regenerate ? "?regenerate=true" : "";
-        const res = await fetch(`/api/laps/${lapAId}/compare/${lapBId}/inputs-analyse${query}`, { method: "POST" });
+        const res = await authenticatedFetch(`/api/laps/${lapAId}/compare/${lapBId}/inputs-analyse${query}`, { method: "POST" });
         if (!res.ok) {
           const data = (await res.json().catch(() => ({ error: m.compare_unknown_error() }))) as { error?: string };
           throw new Error(data.error || `HTTP ${res.status}`);
@@ -171,7 +171,7 @@ export function useInputsAnalysis(lapAId: number, lapBId: number, panelOpen: boo
     setDeleting(true);
     setError(null);
     try {
-      const res = await fetch(`/api/laps/${lapAId}/compare/${lapBId}/inputs-analyse`, { method: "DELETE" });
+      const res = await authenticatedFetch(`/api/laps/${lapAId}/compare/${lapBId}/inputs-analyse`, { method: "DELETE" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setAnalysis(null);
     } catch (err) {
