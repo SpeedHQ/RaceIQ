@@ -7,7 +7,7 @@
 <h1 align="center">RaceIQ</h1>
 
 <p align="center">
-  Real-time racing telemetry dashboard, lap analysis and catalogue for <strong>Forza Motorsport 2023</strong>, <strong>F1 2025</strong>, <strong>Assetto Corsa Competizione</strong>, <strong>Assetto Corsa Evo</strong> and <strong>Le Mans Ultimate</strong>.
+  Sim racer's companion app, real-time racing telemetry dashboard, lap analysis and iterative experiments for car setup and driving</strong>.
 </p>
 
 <p align="center">
