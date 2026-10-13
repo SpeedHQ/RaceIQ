@@ -15,7 +15,6 @@ import { setupContextForLap } from "../../ai/lap-setup-context";
 import { resolveLapCorners } from "../../tracks/corner-resolution";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { buildChatSystemPrompt } from "@raceiq/backend-core/ai/chat-prompt";
-import { getOrComputeLapInsights } from "@raceiq/backend-core/lap-analysis/metrics-store";
 import { buildGoogleReasoningProviderOptions } from "@raceiq/backend-core/ai/google-provider-options";
 import { streamAgentTurnResponse } from "@raceiq/backend-core/ai/agent-stream";
 import { lapChatAgent } from "../../ai/agents";
@@ -53,7 +52,6 @@ type ChatRouteOverrides = Partial<{
   loadSettings: typeof loadSettings;
   resolveLapCorners: typeof resolveLapCorners;
   buildChatSystemPrompt: typeof buildChatSystemPrompt;
-  getOrComputeLapInsights: typeof getOrComputeLapInsights;
   streamAgentTurnResponse: typeof streamAgentTurnResponse;
   lapChatAgent: LapChatAgentStreamBoundary;
   resolveActiveThread: typeof resolveActiveThread;
@@ -68,7 +66,6 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
   const settingsLoader = overrides.loadSettings ?? loadSettings;
   const resolveCorners = overrides.resolveLapCorners ?? resolveLapCorners;
   const promptBuilder = overrides.buildChatSystemPrompt ?? buildChatSystemPrompt;
-  const loadInsights = overrides.getOrComputeLapInsights ?? getOrComputeLapInsights;
   const streamResponse = overrides.streamAgentTurnResponse ?? streamAgentTurnResponse;
   const agent: LapChatAgentStreamBoundary = overrides.lapChatAgent ?? (lapChatAgent as unknown as LapChatAgentStreamBoundary);
   const activeThread = overrides.resolveActiveThread ?? resolveActiveThread;
@@ -158,11 +155,8 @@ export function createChatRoutes(overrides: ChatRouteOverrides = {}) {
       const sanitized = sanitizeAnalystOutput(analysisJson, setupContext, { requireMatchingProvenance: true });
       analysisJson = sanitized.success ? JSON.stringify(sanitized.data) : undefined;
     }
-    const insights = await loadInsights(id) ?? [];
-
     // Build chat prompt
-    const systemPrompt = promptBuilder(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, analysisJson, settings.language, insights);
-
+    const systemPrompt = promptBuilder(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, analysisJson, settings.language);
     // Provider/key/model plumbing — inlined from the old startChatStream
     // helper (removed, was the NDJSON transport's shared provider setup)
     // since this route now speaks the AI SDK v5 UI-message-stream

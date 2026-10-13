@@ -10,7 +10,6 @@ import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-an
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import { buildCornerData } from "./corner-data";
-import type { LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
 import { aiLanguageInstruction } from "@raceiq/shared/integrations/ai/language";
@@ -50,10 +49,7 @@ export function buildChatSystemPrompt(
   temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
   tune?: Tune,
   analysisJson?: string,
-  /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
   language: string = "en",
-  /** Versioned deterministic insights loaded from the per-lap cache. */
-  insights: LapInsight[] = [],
 ): string {
   const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
   const serverAdapter = tryGetServerGame(gameId);
@@ -65,19 +61,6 @@ export function buildChatSystemPrompt(
 
   const exportText = generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
-
-  // Format versioned deterministic insights supplied by the persistence layer.
-  let insightsText = "";
-  if (insights.length > 0) {
-    insightsText = "\n--- Precomputed Insights ---\n";
-    for (const insight of insights) {
-      const frameIdx = insight.frameIndices[0];
-      const pkt = packets[frameIdx];
-      const timestamp = pkt ? `${pkt.DistanceTraveled.toFixed(0)}m` : "?";
-      insightsText += `[${insight.severity.toUpperCase()}] ${insight.category}: ${insight.label} (at ${timestamp})\n`;
-      insightsText += `  ${insight.detail}\n`;
-    }
-  }
 
   let tuneText = "";
   if (tune) {
@@ -139,5 +122,5 @@ ${tuneText}${analysisContext}
 --- TELEMETRY DATA ---
 ${exportText}
 ${cornerData}
-${insightsText}${extendedContext}`;
+${extendedContext}`;
 }

@@ -10,11 +10,86 @@ import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY } from "@raceiq/backend-c
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../../src/games/init";
 import { createChatRoutes } from "../../../src/routes/laps/chat-routes";
-import { buildLapChatInstructions, lapChatGroundingProcessor, requiresCornerMetricsLookup } from "../../../src/mastra/agents/lap-chat";
+import { buildLapChatInstructions, lapChatGroundingProcessor, lapChatPrepareStep, requiresCornerMetricsLookup, requiresLapInsightsLookup } from "../../../src/mastra/agents/lap-chat";
+import { getLapInsightsToolFor } from "../../../src/mastra/tools/lap-insights";
 import { setupContextForLap } from "../../../src/ai/lap-setup-context";
 
 initGameAdapters();
 initServerGameAdapters();
+
+test("insight retrieval policy requires current-turn retrieval for diagnosis advice", () => {
+  const context = new RequestContext();
+  const prepareStep = lapChatPrepareStep(context);
+  const cases: Array<[string, boolean]> = [
+    ["Analyse my lap", true],
+    ["Where am I losing time?", true],
+    ["How can I improve?", true],
+    ["Why did I spin?", true],
+    ["What should I change in my setup?", true],
+    ["Hi, how are you?", false],
+  ];
+  for (const [text, expected] of cases) {
+    context.set(CHAT_TURN_MESSAGES_KEY, [
+      { role: "user", content: "Analyse my lap" },
+      { role: "assistant", content: "Earlier findings." },
+      { role: "user", content: text },
+    ]);
+    expect(requiresLapInsightsLookup(context)).toBe(expected);
+    expect(prepareStep({ stepNumber: 0 })).toEqual(expected
+      ? { toolChoice: "required", activeTools: ["get_lap_insights"] }
+      : { toolChoice: "auto" });
+  }
+  context.set(CHAT_TURN_MESSAGES_KEY, [
+    { role: "user", content: "Analyse my lap" },
+    { role: "assistant", content: "Earlier findings." },
+    { role: "user", content: "Give measured speeds for T1." },
+  ]);
+  expect(prepareStep({ stepNumber: 0 })).toEqual({
+    toolChoice: "required",
+    activeTools: ["get_corner_metrics"],
+  });
+  context.set(CHAT_TURN_MESSAGES_KEY, [{ role: "user", content: "Analyse my lap" }]);
+  expect(prepareStep({ stepNumber: 1 })).toEqual({ toolChoice: "auto" });
+});
+
+test("lap insights tool returns populated, empty, unavailable, and invalid results correctly", async () => {
+  let requestedLapId = 0;
+  const tool = getLapInsightsToolFor(async (lapId) => {
+    requestedLapId = lapId;
+    return [{
+      id: "driving-brake-release",
+      category: "driving",
+      severity: "warning",
+      label: "Brake release",
+      detail: "Brake release appears abrupt.",
+      frameIndices: [12, 15],
+      evidenceSource: "inferred",
+      timeLossS: 0.2,
+    }];
+  });
+  const populated = await tool.execute!({ lapId: 42 }, {} as never);
+  expect(requestedLapId).toBe(42);
+  expect(populated).toMatchObject({
+    available: true,
+    lapId: 42,
+    findings: [{ id: "driving-brake-release", frameIndices: [12, 15], evidenceSource: "inferred" }],
+    warning: expect.stringContaining("unverified hints"),
+  });
+  const emptyTool = getLapInsightsToolFor(async () => []);
+  expect(await emptyTool.execute!({ lapId: 42 }, {} as never)).toMatchObject({
+    available: true, lapId: 42, findings: [],
+  });
+  const missingTool = getLapInsightsToolFor(async () => null);
+  expect(await missingTool.execute!({ lapId: 42 }, {} as never)).toMatchObject({
+    available: false, lapId: 42, findings: [], reason: expect.any(String),
+  });
+  const errorTool = getLapInsightsToolFor(async () => { throw new Error("analysis unavailable"); });
+  expect(await errorTool.execute!({ lapId: 42 }, {} as never)).toMatchObject({
+    available: false, lapId: 42, findings: [], reason: "analysis unavailable",
+  });
+  const invalid = await tool.inputSchema!["~standard"].validate({ lapId: 0 });
+  expect(invalid.issues).toBeDefined();
+});
 
 test("corner measurement lookup policy follows latest submitted request, not historical telemetry questions", () => {
   const context = new RequestContext();
@@ -137,7 +212,6 @@ describe("lap chat route context and targeted removal", () => {
       getLapById: async (id) => lap(fixturesById.get(Number(id))!) as never,
       loadSettings: (() => ({ chatProvider: "openai", chatModel: "gpt-4o-mini", unit: "metric", temperatureUnit: "C", language: "en", chatThinkingBudget: 0 })) as never,
       resolveLapCorners: (async () => []) as never,
-      getOrComputeLapInsights: (async () => []) as never,
       resolveActiveThread: (async (base: string) => base) as never,
       ensureSystemPrompt: (async () => {}) as never,
       configureAiProviderEnvironment: (async () => {}) as never,
@@ -183,7 +257,6 @@ describe("lap chat route context and targeted removal", () => {
       getLapById: async () => lap(fixture) as never,
       loadSettings: (() => ({ chatProvider: "openai", chatModel: "gpt-4o-mini", unit: "metric", temperatureUnit: "C", language: "en", chatThinkingBudget: 0 })) as never,
       resolveLapCorners: (async () => []) as never,
-      getOrComputeLapInsights: (async () => []) as never,
       resolveActiveThread: (async (base: string) => base) as never,
       ensureSystemPrompt: (async () => {}) as never,
       configureAiProviderEnvironment: (async () => {}) as never,
@@ -237,7 +310,6 @@ describe("lap chat route context and targeted removal", () => {
       resolveActiveThread: (async (base: string) => base) as never,
       loadSettings: (() => ({ chatProvider: "openai", chatModel: "gpt-4o-mini", unit: "metric", temperatureUnit: "C", language: "en", chatThinkingBudget: 0 })) as never,
       resolveLapCorners: (async () => []) as never,
-      getOrComputeLapInsights: (async () => []) as never,
       ensureSystemPrompt: (async () => {}) as never,
       configureAiProviderEnvironment: (async () => {}) as never,
       lapChatAgent: ({
@@ -285,7 +357,6 @@ describe("lap chat route context and targeted removal", () => {
       loadSettings: (() => ({ chatProvider: "openai", chatModel: model, unit: "metric", temperatureUnit: "celsius", language: "en", chatThinkingBudget: 0 })) as never,
       resolveLapCorners: (async () => []) as never,
       buildChatSystemPrompt: (() => "context") as never,
-      getOrComputeLapInsights: (async () => []) as never,
       resolveActiveThread: (async (base: string) => base) as never,
       ensureSystemPrompt: (async () => {}) as never,
       getChatMemory: (() => memory) as never,
