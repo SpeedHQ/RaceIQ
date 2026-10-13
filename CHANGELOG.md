@@ -5,13 +5,18 @@
 
 ### Features
 
+- Find streaming overlay widgets in the Streaming tab on the Portable page, alongside portable dashboards.
+- Add a car damage streaming widget with a color-coded car display and live component readings for F1 25, ACC, and AC Evo, plus a copyable OBS browser-source URL.
+- Add an Inputs streaming widget with a ten-second brake, throttle, and clutch graph, live percentages, and a copyable 640 × 260 OBS browser-source URL. Unavailable inputs remain explicitly missing.
 - Allow a saved hostname, including a Tailscale FQDN, for remote HUD links and QR codes.
 - Refresh the dashboard with cleaner session and favourite widgets, clean-rate and podium trends, and seven days of activity by default.
 - Export complete chat history as JSON for developer debugging, including retained chat generations, stored thinking, tool calls and results, and system prompts.
 - Optionally protect dashboard access with a password and configure trusted browser origins independently, while keeping existing local and remote access working without new settings.
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 
+- Add OBS browser-source overlays for live driving, timing, standings, and nearby race-order data with metric or imperial URLs.
 - Browse enriched iRacing car, car-class, and track catalogs with official car images, offline pit-road maps, and grouped lap sections.
+- Show sample data in streaming overlay previews when live telemetry is unavailable.
 - Inspect AC Evo Tourist layouts with recorded open-route maps and explicit Start/Finish markers.
 - Show Nordschleife track edges along the supported portion of AC Evo Tourist routes without closing the Start/Finish gap.
 
