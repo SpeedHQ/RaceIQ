@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createHttpAccess } from "../../src/runtime/http-access";
+import { availableInterfaces, type DashboardAuth } from "../../src/runtime/dashboard-auth";
 
 const password = "abcdefgh";
 const basic = `Basic ${Buffer.from(`raceiq:${password}`).toString("base64")}`;
@@ -7,6 +8,7 @@ const local = await createHttpAccess({ NODE_ENV: "production" });
 const dev = await createHttpAccess({ NODE_ENV: "development" });
 const lan = await createHttpAccess({ NODE_ENV: "production", SERVER_HOST: "0.0.0.0", SERVER_PASSWORD: password, SERVER_ALLOWED_ORIGINS: "http://192.168.1.10:3117" });
 const request = (path: string, headers: HeadersInit = {}) => new Request(`http://localhost:3117${path}`, { headers });
+const lanInterface = availableInterfaces()[0];
 
 describe("HTTP access policy", () => {
   test("preserves remote listeners without requiring authentication or trusted origins", async () => {
@@ -195,6 +197,19 @@ describe("HTTP access policy", () => {
     const remoteVite = new Request("http://192.168.1.10:3117/ws", { headers: { origin: "http://192.168.1.10:5173" } });
     expect(await dev.authorize(remoteVite)).toBeUndefined();
     expect((await local.authorize(remoteVite))?.status).toBe(403);
+  });
+  test.skipIf(!lanInterface)("expanded wildcard listeners trust development dashboard ports but not explicit origin overrides", async () => {
+    const auth = {
+      getNetwork: async () => ({ hosts: ["0.0.0.0"], origins: [], originsEnabled: true }),
+    } as unknown as DashboardAuth;
+    const origin = `http://${lanInterface!.address}:4118`;
+    const req = request("/api/auth/login", { origin });
+    const wildcard = await createHttpAccess({ NODE_ENV: "development" }, auth);
+    expect(await wildcard.authorize(req)).toBeUndefined();
+    const production = await createHttpAccess({ NODE_ENV: "production" }, auth);
+    expect((await production.authorize(req))?.status).toBe(403);
+    const explicit = await createHttpAccess({ NODE_ENV: "development", SERVER_ALLOWED_ORIGINS: "http://localhost:3117" }, auth);
+    expect((await explicit.authorize(req))?.status).toBe(403);
   });
 
   test("requires LAN credentials even when a client spoofs a loopback Host", async () => {

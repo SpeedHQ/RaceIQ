@@ -83,7 +83,9 @@ Choose optional password protection during setup; protected dashboards use a pas
 
 Browser-origin whitelisting is **off by default**. Turn it on explicitly in Access & security, or supply a nonempty `SERVER_ALLOWED_ORIGINS` in `.env`; the environment list applies even when the saved toggle is off. When using the whitelist, include the exact external origin for any MagicDNS, tunnel, or HUD hostname.
 
-See [dashboard access and security](docs/installation/network-access.md) for passwords, session-authenticated API clients, external access, environment overrides, and forgotten-password recovery.
+Recover a forgotten password with `raceiq auth reset`, or remove password protection with `raceiq auth disable --confirm-exposure`. Use the same data directory as the server. Disabling protection lets anyone who can reach the dashboard read and edit its data and settings; remove `SERVER_PASSWORD` from both server and command environments first.
+
+See [dashboard access and security](docs/installation/network-access.md) for platform-specific commands, session-authenticated API clients, external access, and environment overrides.
 
 ## Updates
 

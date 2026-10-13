@@ -25,9 +25,11 @@ const prepare = Bun.spawn(["bun", "scripts/dev/paraglide-dev.ts", "--once"], {
 });
 const prepareExitCode = await prepare.exited;
 if (prepareExitCode !== 0) process.exit(prepareExitCode);
-
 await waitForServer();
-const dashboardHosts = readDashboardHosts(join(resolveDataDir(), process.env.RACEIQ_TEST_MODE === "1" ? "test.db" : "app.db"), process.env.SERVER_HOST);
+
+const dashboardHosts = process.env.PROXY_TARGET
+  ? ["localhost"]
+  : readDashboardHosts(join(resolveDataDir(), process.env.RACEIQ_TEST_MODE === "1" ? "test.db" : "app.db"), process.env.SERVER_HOST);
 
 const watcher = Bun.spawn(["bun", "scripts/dev/paraglide-dev.ts"], {
   cwd: process.cwd(),

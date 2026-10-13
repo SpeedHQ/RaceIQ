@@ -146,7 +146,13 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   startSyncAndStaleSessionJobs();
 
   nativeSources = startNativeSourceSupervisor(recordingGameId);
-  startTray(httpPort);
+  const trayCandidates = httpAccess.hosts
+    .map((host) => host === "0.0.0.0" || host === "::" ? "localhost" : host)
+    .map((host) => `http://${host.includes(":") ? `[${host}]` : host}:${httpPort}`);
+  const trayUrl = trayCandidates.find((url) => httpAccess.allowsOrigin(url, new Request(url)))
+    ?? process.env.SERVER_ALLOWED_ORIGINS?.split(",").map((origin) => origin.trim()).find(Boolean)
+    ?? trayCandidates[0];
+  startTray(trayUrl);
 
   if (firstRun) {
     openFirstRunDashboard(httpPort);

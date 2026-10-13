@@ -9,6 +9,7 @@
 - Open the dashboard on another LAN device using a copied link or QR code in Access & security settings.
 - Choose dashboard password protection during setup or in Access & security settings, sign in across devices, and recover a forgotten password from the terminal.
 - Select dashboard network interfaces and browser domains in Access & security settings without changing UDP telemetry reception.
+- Disable dashboard password protection from the terminal with an explicit exposure confirmation, without changing network access or recordings.
 
 - Allow a saved hostname, including a Tailscale FQDN, for remote HUD links and QR codes.
 - Refresh the dashboard with cleaner session and favourite widgets, clean-rate and podium trends, and seven days of activity by default.
@@ -21,6 +22,12 @@
 - Show Nordschleife track edges along the supported portion of AC Evo Tourist routes without closing the Start/Finish gap.
 
 ### Fixes
+- Respect development onboarding overrides when deciding whether to show the setup wizard.
+- Remove saved network interfaces that are no longer available and replace them without losing other selections.
+- Allow development LAN dashboard origins on preserved all-interface listeners when browser-origin whitelisting is enabled.
+- Open Windows tray dashboard and update links on an active selected address when localhost is disabled.
+- Start a development dashboard against an explicit backend proxy target without requiring a local database.
+- Retry dashboard initialization after an authorization-status failure instead of showing a blank page.
 - Make browser-origin whitelisting opt-in and explain how to allow external HUD hostnames when it is enabled.
 - Use active dashboard-sharing addresses and the dashboard port for HUD links and QR codes, without offering inactive interfaces.
 - Preserve the original welcome and setup wizard, configure dashboard access within it, and show sign-in only after password protection is configured.

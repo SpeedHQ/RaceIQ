@@ -12,7 +12,25 @@ Open dashboard by clicking RaceIQ tray icon, or visit <http://localhost:3117> in
 
 New installations listen only on localhost and ask you to choose password protection during setup. Protected dashboards use password-only sign-in; no username is required. Select LAN or Tailscale interfaces in **Settings → Access & security**, save, and restart before using another device. Existing all-interface listeners are preserved during upgrades until you change them.
 
-Browser-origin whitelisting is off by default. Enable it in Access & security, or supply a nonempty `SERVER_ALLOWED_ORIGINS` environment setting. If enabled, include the exact external origin for MagicDNS, tunnel, or HUD hostname links. See [dashboard access and security](network-access.md) for configuration and forgotten-password recovery.
+Browser-origin whitelisting is off by default. Enable it in Access & security, or supply a nonempty `SERVER_ALLOWED_ORIGINS` environment setting. If enabled, include the exact external origin for MagicDNS, tunnel, or HUD hostname links. See [dashboard access and security](network-access.md) for configuration.
+
+## Manage password protection from the terminal
+
+From the directory containing `raceiq.exe`, recover a forgotten dashboard password:
+
+```powershell
+.\raceiq.exe auth reset
+```
+
+The command prompts for a new password and confirmation without echoing input. To remove password protection instead, without knowing the current password:
+
+```powershell
+.\raceiq.exe auth disable --confirm-exposure
+```
+
+**Warning:** After disabling protection, anyone who can reach the dashboard can read and edit its data and settings and use configured AI chat. The required `--confirm-exposure` flag acknowledges that exposure.
+
+Both commands invalidate stored sessions and preserve recordings, settings, and network choices. Use the same data directory as the running server; if you use a custom location, set `$env:DATA_DIR` to that directory before running the command. Remove `SERVER_PASSWORD` from both the running server and command environment first, and restart after removing that override. See [password recovery](network-access.md#password-recovery) and [terminal auth removal](network-access.md#disable-password-protection-from-the-terminal) for details.
 
 ## Telemetry
 

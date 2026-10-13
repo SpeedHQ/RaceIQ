@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
+import { withOnboardingOverride } from "@raceiq/backend-core/runtime/options";
 import { LOCALE_CODES } from "@raceiq/shared/platform/i18n/locales";
 import { AccessError, availableInterfaces, getDashboardAuth, NetworkSchema } from "../runtime/dashboard-auth";
 import { httpAccess } from "../runtime/http-access";
@@ -27,7 +28,7 @@ export const authRoutes = new Hono()
     const status = await auth.status(c.req.raw);
     // Authentication polling must not synchronously query the Windows registry
     // and stall telemetry processing. Launch-on-login is unrelated to auth.
-    const settings = loadSettings({ syncLaunchOnLogin: false });
+    const settings = withOnboardingOverride(loadSettings({ syncLaunchOnLogin: false }));
     const network = status.authenticated ? await auth.getNetwork() : null;
     return c.json({
       ...status,

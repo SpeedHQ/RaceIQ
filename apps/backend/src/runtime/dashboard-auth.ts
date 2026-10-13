@@ -280,10 +280,16 @@ export class DashboardAuth {
   async reset(password: string) {
     if (this.envPassword) throw new AccessError("environment_override", 409);
     PasswordSchema.parse(password);
-    const hash = await this.hashPassword(password);
+    await this.replaceProtection(await this.hashPassword(password));
+  }
+  async disable() {
+    if (this.envPassword) throw new AccessError("environment_override", 409);
+    await this.replaceProtection(null);
+  }
+  private async replaceProtection(hash: string | null) {
     const tx = await this.database.transaction("write");
     try {
-      const result = await tx.execute({ sql: "UPDATE dashboard_access SET mode = 'enabled', password_hash = ?, revision = revision + 1 WHERE id = 1 AND network_json IS NOT NULL", args: [hash] });
+      const result = await tx.execute({ sql: "UPDATE dashboard_access SET mode = ?, password_hash = ?, revision = revision + 1 WHERE id = 1 AND network_json IS NOT NULL", args: [hash === null ? "disabled" : "enabled", hash] });
       if (Number(result.rowsAffected) !== 1) throw new AccessError("restore_configuration", 409);
       markDashboardAccessConfigured(this.path);
       await tx.execute("DELETE FROM dashboard_sessions");

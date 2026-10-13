@@ -13,6 +13,7 @@ import { startHttpServer } from "../../src/runtime/http-server";
 import { dashboardAccessMarkerPath } from "@raceiq/backend-core/runtime/config/dashboard-access-state";
 import { client as applicationDb } from "@raceiq/backend-core/db/index";
 import type { WSData } from "@raceiq/backend-core/runtime/websocket-manager";
+import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
 
 // The parent owns fixture files; only child processes open their databases.
 // libSQL close() can leave native handles alive until process exit on Windows.
@@ -289,6 +290,26 @@ describe("persistent dashboard authentication", () => {
       await f.close();
     }
   });
+  test("auth status applies development onboarding overrides without changing saved progress", async () => {
+    const f = await fixture();
+    const args = process.argv;
+    try {
+      await f.auth.initialize(false);
+      await f.auth.setup(null, true);
+      setDashboardAuth(f.auth);
+      for (const onboarding of [false, true]) {
+        saveSettings({ ...loadSettings({ syncLaunchOnLogin: false }), onboardingComplete: onboarding });
+        process.argv = [...args.slice(0, 2), "--onboarding", String(onboarding)];
+        const response = await authRoutes.fetch(request("/api/auth/status"));
+        expect(response.status).toBe(200);
+        expect((await response.json()).onboardingComplete).toBe(!onboarding);
+        expect(loadSettings({ syncLaunchOnLogin: false }).onboardingComplete).toBe(onboarding);
+      }
+    } finally {
+      process.argv = args;
+      await f.close();
+    }
+  });
   test("fresh setup blocks application data, defaults to loopback and saves explicit disabled protection", async () => {
     const f = await fixture();
     try {
@@ -375,6 +396,52 @@ describe("persistent dashboard authentication", () => {
       await expect(f.auth.changePassword("qrstuvwx", null, false)).rejects.toThrow("confirm_exposure");
       await f.auth.changePassword("qrstuvwx", null, true);
       expect(await f.auth.isProtected()).toBe(false);
+    } finally {
+      await f.close();
+    }
+  });
+
+  test("CLI disable requires exposure confirmation, refuses overrides and preserves network configuration", async () => {
+    const f = await fixture();
+    try {
+      await f.auth.initialize(true);
+      await f.auth.setup("abcdefgh", false);
+      const network = await f.auth.getNetwork();
+      const session = await f.auth.login("abcdefgh", request());
+      const run = async (args: string[], override = "") => {
+        const child = Bun.spawn([process.execPath, join(import.meta.dir, "../../src/index.ts"), "auth", "disable", ...args], {
+          env: { ...process.env, DATA_DIR: dirname(f.path), RACEIQ_TEST_MODE: "0", SERVER_PASSWORD: override },
+          stdout: "pipe",
+          stderr: "pipe",
+        });
+        try {
+          const [code, stdout, stderr] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
+          return { code, output: `${stdout}\n${stderr}` };
+        } finally {
+          child.kill();
+          await child.exited;
+        }
+      };
+      const unconfirmed = await run([]);
+      expect(unconfirmed.code).not.toBe(0);
+      expect(unconfirmed.output).toContain("--confirm-exposure");
+      expect(await f.auth.isProtected()).toBe(true);
+      const overridden = await run(["--confirm-exposure"], "abcdefgh");
+      expect(overridden.code).not.toBe(0);
+      expect(overridden.output).toContain("Remove SERVER_PASSWORD");
+      expect(await f.auth.session(cookieRequest(session.cookie))).not.toBeNull();
+      const disabled = await run(["--confirm-exposure"]);
+      expect(disabled.code).toBe(0);
+      expect(disabled.output).toContain("Dashboard password protection disabled");
+      expect(await f.auth.isProtected()).toBe(false);
+      expect(await f.auth.isPending()).toBe(false);
+      expect(await f.auth.session(cookieRequest(session.cookie))).toBeNull();
+      expect(await f.auth.getNetwork()).toEqual(network);
+      const row = await f.db.execute("SELECT password_hash FROM dashboard_access WHERE id = 1");
+      expect(row.rows[0]!.password_hash).toBeNull();
+      const policy = await createHttpAccess({ NODE_ENV: "production" }, f.auth);
+      expect(await policy.authorize(request("/api/laps"))).toBeUndefined();
+      expect(await (await DashboardAuth.create(f.db, f.path, {})).isProtected()).toBe(false);
     } finally {
       await f.close();
     }

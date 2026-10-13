@@ -22,6 +22,11 @@ export function AccessSection() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const addresses = [{ name: m.access_localhost(), address: "127.0.0.1", tailnet: false }, ...status.interfaces];
+  const knownAddresses = new Set(addresses.map((value) => value.address));
+  const selectedUnavailableHosts = hosts
+    .filter((host) => host !== "127.0.0.1" && host !== "0.0.0.0" && host !== "::" && !knownAddresses.has(host))
+    .map((address) => ({ name: address, address, tailnet: false, unavailable: true }));
+  const selectableAddresses = [...addresses, ...selectedUnavailableHosts];
   const port = dashboardPort(status.port);
   const urls = [
     ...new Set([
@@ -104,7 +109,7 @@ export function AccessSection() {
                 <AlertDescription>{m.access_legacy()}</AlertDescription>
               </Alert>
             )}
-            {addresses.map((value) => (
+            {selectableAddresses.map((value) => (
               <Field key={value.address} orientation="horizontal">
                 <Switch
                   id={`bind-${value.address}`}
@@ -116,7 +121,7 @@ export function AccessSection() {
                 />
                 <FieldLabel htmlFor={`bind-${value.address}`}>
                   {value.name} · {value.address}
-                  {value.address !== "127.0.0.1" && (value.tailnet ? ` (${m.access_tailnet()})` : ` (${m.access_lan()})`)}
+                  {value.address !== "127.0.0.1" && !("unavailable" in value) && (value.tailnet ? ` (${m.access_tailnet()})` : ` (${m.access_lan()})`)}
                 </FieldLabel>
               </Field>
             ))}

@@ -68,7 +68,7 @@ export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, aut
       const url = new URL(origin);
       if (url.origin !== origin || !["http:", "https:"].includes(url.protocol)) return false;
       // An explicit list replaces compatibility rules, independently of auth.
-      if (origins.size > 0) return origins.has(origin) || (!env.SERVER_ALLOWED_ORIGINS && development && (localHost(url.hostname) || hosts.includes(url.hostname)));
+      if (origins.size > 0) return origins.has(origin) || (!env.SERVER_ALLOWED_ORIGINS && development && (localHost(url.hostname) || listenerHosts.has(url.hostname)));
       const target = new URL(request.url);
       const forwardedHost = request.headers.get("x-forwarded-host");
       const forwardedProtocol = request.headers.get("x-forwarded-proto") || target.protocol.slice(0, -1);

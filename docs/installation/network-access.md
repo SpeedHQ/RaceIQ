@@ -91,6 +91,31 @@ The command prompts for **New password** and **Confirm new password** without ec
 
 Remove `SERVER_PASSWORD` from both the running server and recovery process first. Restart after removing environment overrides. A missing database/access row requires restoring a trusted backup rather than resetting a password.
 
+## Disable password protection from the terminal
+
+Use the same data directory as the server. This local administration command does not require the current dashboard password:
+
+```powershell
+$env:DATA_DIR = 'C:\path\to\RaceIQ-data'
+.\raceiq.exe auth disable --confirm-exposure
+```
+
+For source development or self-hosting:
+
+```sh
+DATA_DIR=/path/to/data bun apps/backend/src/index.ts auth disable --confirm-exposure
+```
+
+For Docker:
+
+```sh
+docker exec raceiq ./raceiq auth disable --confirm-exposure
+```
+
+**Warning:** Anyone who can reach the dashboard can read and edit its data and settings and use configured AI chat after protection is disabled. The required `--confirm-exposure` flag acknowledges this exposure; without it, the command leaves protection unchanged.
+
+The command removes the stored password hash and invalidates stored sessions while preserving recordings, settings, network choices, and recorder credentials. A running server reads the change immediately. Remove `SERVER_PASSWORD` from both the running server and command environment first, and restart after removing that override. Missing access configuration still requires restoring a trusted backup.
+
 ## Environment overrides and Docker
 
 | Variable | Effect |

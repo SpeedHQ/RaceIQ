@@ -74,4 +74,22 @@ docker run --detach --name raceiq \
 
 The image defaults are `SERVER_HOST=0.0.0.0`, `SERVER_PORT=3117`, `UDP_PORT=5301`, and `DATA_DIR=/data`. The bind override controls interfaces inside the container; Docker's published address controls host exposure. Keep port mappings and browser origins aligned when changing ports. The health check probes the public login/setup shell and does not require a browser session. Keep optional `--env-file .env` arguments when replacing the container.
 
-Password hashes, explicit disabled protection, and sessions persist in the database on `/data`. Recover a forgotten UI-managed password with `docker exec -it raceiq ./raceiq auth reset`; input is hidden and previous sessions are invalidated. Remove `SERVER_PASSWORD` by recreating the container with the same volume before recovering a password managed through the UI.
+Password hashes, explicit disabled protection, and sessions persist in the database on `/data`.
+
+## Manage password protection
+
+Recover a forgotten UI-managed password with an interactive prompt:
+
+```sh
+docker exec -it raceiq ./raceiq auth reset
+```
+
+Input is hidden. To remove password protection instead, without knowing the current password:
+
+```sh
+docker exec raceiq ./raceiq auth disable --confirm-exposure
+```
+
+The disable command does not require an interactive terminal. **Warning:** Anyone who can reach the dashboard can read and edit its data and settings and use configured AI chat after protection is disabled. The required `--confirm-exposure` flag acknowledges that exposure.
+
+Both commands invalidate stored sessions and preserve recordings, settings, and network choices. Run them inside the existing container so they use its `/data` volume. If `SERVER_PASSWORD` is set, recreate the container without it, retaining the same volume, before running either command. See [password recovery](network-access.md#password-recovery) and [terminal auth removal](network-access.md#disable-password-protection-from-the-terminal) for details.

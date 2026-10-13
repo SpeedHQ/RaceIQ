@@ -47,3 +47,14 @@ export async function resetDashboardPassword(args: string[]) {
   await auth.reset(password);
   console.log("Dashboard password replaced. Previous sessions are invalid. A running server reads the replacement immediately; restart after removing environment overrides.");
 }
+
+export async function disableDashboardProtection(args: string[]) {
+  if (args.length !== 3 || args[0] !== "auth" || args[1] !== "disable" || args[2] !== "--confirm-exposure") {
+    throw new Error("Disabling protection lets anyone who can reach the dashboard read and edit its data and settings. To confirm, run: raceiq auth disable --confirm-exposure");
+  }
+  if (process.env.SERVER_PASSWORD) throw new Error("Remove SERVER_PASSWORD from the server and command environment before disabling dashboard protection.");
+  await initDb();
+  const auth = await DashboardAuth.create(client, DB_PATH, process.env, true);
+  await auth.disable();
+  console.log("Dashboard password protection disabled. Previous sessions are invalid. Anyone who can reach the dashboard can read and edit its data and settings. Network access is unchanged; restart after removing environment overrides.");
+}
