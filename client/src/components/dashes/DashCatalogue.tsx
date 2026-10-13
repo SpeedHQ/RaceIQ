@@ -11,6 +11,7 @@ import { dashboardPort } from "@/components/security/dashboard-port";
 import { dashboardShareTargets } from "@/components/security/dashboard-share";
 import { m } from "@/paraglide/messages";
 import { useDashboardAuth } from "@/lib/dashboard-auth";
+import { uiStore } from "@/stores/ui";
 import { ComboDash } from "./ComboDash";
 import { ComboDash2 } from "./ComboDash2";
 import { fakeF1SemanticFixture, fakePit, fakeSectors, generateFakeSessionLaps } from "@/stories/fakeData";
@@ -52,11 +53,13 @@ export function DashCatalogue() {
   }
   const [selectedIp, setSelectedIp] = useState<string | null>(null);
   const shareTargets = dashboardShareTargets(authStatus);
-  const lanIps = shareTargets.map(({ address }) => address);
+  const lanInterfaces = authStatus.interfaces.filter(({ tailnet }) => !tailnet);
   const currentHost = typeof window === "undefined" ? undefined : window.location.hostname;
-  const lanTarget = (selectedIp ? shareTargets.find(({ address }) => address === selectedIp) : undefined)
-    ?? shareTargets.find(({ address }) => address === currentHost)
-    ?? shareTargets[0];
+  const selectedInterface = lanInterfaces.find(({ address }) => address === selectedIp)
+    ?? lanInterfaces.find(({ address }) => address === currentHost)
+    ?? lanInterfaces.find(({ address }) => shareTargets.some((target) => target.address === address))
+    ?? lanInterfaces[0];
+  const lanTarget = shareTargets.find(({ address }) => address === selectedInterface?.address);
   const host = hostname || lanTarget?.address;
   const port = dashboardPort(authStatus.port);
   const hostnameOrigin = hostname && port ? new URL(hudUrl(hostname, port)!).origin : null;
@@ -111,11 +114,19 @@ export function DashCatalogue() {
             {normalized === null ? m.dash_hostname_invalid() : saveError ? m.label_failed_to_save() : ""}
           </p>
         </div>
-        {!hostname && lanIps.length > 1 && (
-          <div className="mb-6 flex items-center gap-3 text-sm">
-            <label htmlFor="hud-lan-address">{m.dash_lan_address()}</label>
-            <SearchSelect id="hud-lan-address" value={lanTarget?.address ?? ""} onChange={setSelectedIp}
-              ariaLabel={m.dash_lan_address()} options={lanIps.map((ip) => ({ value: ip, label: ip }))} />
+        {!hostname && (
+          <div className="mb-6 max-w-lg space-y-2">
+            {lanInterfaces.length > 0 && (
+              <div className="flex flex-wrap items-center gap-3 text-sm">
+                <Label htmlFor="hud-lan-address">{m.dash_lan_address()}</Label>
+                <SearchSelect id="hud-lan-address" value={selectedInterface?.address ?? ""} onChange={setSelectedIp}
+                  ariaLabel={m.dash_lan_address()} options={lanInterfaces.map(({ name, address }) => ({ value: address, label: `${name} — ${address}` }))} />
+              </div>
+            )}
+            {!lanTarget && <p className="text-xs text-app-text-muted">{m.access_interfaces_help()}</p>}
+            <Button variant="app-outline" size="app-sm" onClick={() => uiStore.actions.openSettings("access")}>
+              {m.access_open_settings()}
+            </Button>
           </div>
         )}
         <ul className="grid grid-cols-1 gap-6 @5xl/workspace:grid-cols-2">
@@ -139,7 +150,7 @@ export function DashCatalogue() {
                   </div>
                   {url && (
                     <div className="hidden shrink-0 rounded bg-app-text p-2 @5xl/workspace:block">
-                      <QRCodeSVG value={url} size={96} />
+                      <QRCodeSVG value={url} size={96} role="img" aria-label={m.access_qr_label({ url })} />
                     </div>
                   )}
                 </div>

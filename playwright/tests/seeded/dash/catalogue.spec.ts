@@ -6,7 +6,7 @@ import { assertNoHorizontalOverflow } from "../../support/responsive/assertions"
 
 test.describe.configure({ mode: "serial" });
 
-test("dashboard catalogue uses active dashboard interfaces and hostname override without LAN targets", async ({ page }) => {
+test("dashboard catalogue selects detected interfaces but shares only active listeners", async ({ page }) => {
   test.setTimeout(80_000);
   const browserErrors = collectBrowserErrors(page);
   let authFixture: {
@@ -41,16 +41,31 @@ test("dashboard catalogue uses active dashboard interfaces and hostname override
   const lanAddress = page.getByRole("combobox", { name: "Local network address" });
   await expect(lanAddress).toBeVisible();
   await lanAddress.click();
-  await expect(page.getByRole("option", { name: "192.0.2.15" })).toBeVisible();
-  await expect(page.getByRole("option", { name: "192.0.2.17" })).toBeVisible();
-  await expect(page.getByRole("option", { name: "192.0.2.16" })).toHaveCount(0);
-  await page.getByRole("option", { name: "192.0.2.17" }).click();
+  await expect(page.getByRole("option", { name: "Active LAN — 192.0.2.15", exact: true })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Other active LAN — 192.0.2.17", exact: true })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Inactive LAN — 192.0.2.16", exact: true })).toBeVisible();
+  await expect(page.getByRole("option", { name: /100\.64\.0\.2/ })).toHaveCount(0);
+  await page.getByRole("option", { name: "Inactive LAN — 192.0.2.16", exact: true }).click();
+  await expect(servingStatus).toHaveAttribute("data-network-state", "no-data");
+  await expect(page.getByRole("button", { name: "Open access settings" })).toBeVisible();
+  await expect(page.getByRole("img", { name: /QR code for/ })).toHaveCount(0);
+  await lanAddress.click();
+  await page.getByRole("option", { name: "Other active LAN — 192.0.2.17", exact: true }).click();
   await expect(servingStatus).toContainText("192.0.2.17");
+  await expect(page.getByRole("img", { name: /QR code for http:\/\/192\.0\.2\.17:\d+\/portable\/combo-/ })).toHaveCount(2);
 
-  authFixture = { ...authFixture, activeHosts: [], interfaces: [] };
+  authFixture = { ...authFixture, activeHosts: ["127.0.0.1"] };
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(servingStatus).toHaveAttribute("data-network-state", "no-data");
   await expect(servingStatus).toContainText("LAN IP unavailable");
+  await expect(lanAddress).toBeVisible();
+  await page.getByRole("button", { name: "Open access settings" }).click();
+  await expect(page.getByRole("heading", { name: "Access & security", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  authFixture = { ...authFixture, interfaces: [] };
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(lanAddress).toHaveCount(0);
 
   await page.locator("#hud-hostname").fill("race-pc.example.ts.net");
   await page.getByRole("button", { name: "Save" }).click();

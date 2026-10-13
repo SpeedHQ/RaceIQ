@@ -29,7 +29,7 @@
 - Start a development dashboard against an explicit backend proxy target without requiring a local database.
 - Retry dashboard initialization after an authorization-status failure instead of showing a blank page.
 - Make browser-origin whitelisting opt-in and explain how to allow external HUD hostnames when it is enabled.
-- Use active dashboard-sharing addresses and the dashboard port for HUD links and QR codes, without offering inactive interfaces.
+- Restore portable dashboard interface selection with interface names and IP addresses, and open access settings when the selected interface is not listening. Generate HUD links and QR codes only for active dashboard addresses and ports.
 - Preserve the original welcome and setup wizard, configure dashboard access within it, and show sign-in only after password protection is configured.
 - Match protected-dashboard sign-in screen to RaceIQ's dark telemetry workspace styling.
 - Refuse to reopen dashboard setup when a previously configured database is lost or replaced.
