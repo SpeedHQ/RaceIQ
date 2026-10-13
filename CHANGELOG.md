@@ -9,6 +9,8 @@
 - Open the dashboard on another LAN device using a copied link or QR code in Access & security settings.
 - Choose dashboard password protection during setup or in Access & security settings, sign in across devices, and recover a forgotten password from the terminal.
 - Select dashboard network interfaces and browser domains in Access & security settings without changing UDP telemetry reception.
+
+- Allow a saved hostname, including a Tailscale FQDN, for remote HUD links and QR codes.
 - Refresh the dashboard with cleaner session and favourite widgets, clean-rate and podium trends, and seven days of activity by default.
 - Export complete chat history as JSON for developer debugging, including retained chat generations, stored thinking, tool calls and results, and system prompts.
 - Optionally protect dashboard access with a password and configure trusted browser origins independently, while keeping existing local and remote access working without new settings.
@@ -57,6 +59,7 @@
 - Replay long Tourist laps without chart crashes or closed-circuit map overlays.
 - Show AC Evo source car and layout names immediately after import instead of generated numeric placeholders.
 - Automatically reconcile pre-upgrade recordings with updated car, track, and lap detection, including AC Evo Tourist timed attempts; preserve user annotations on matched laps and report captures that cannot be repaired.
+- Use suitable local network addresses for remote HUD links and let users choose an address when multiple adapters are available.
 
 ### Internal
 - Include the privacy-safe iRacing SessionInfo path manifest in clean checkouts so CI can validate the telemetry catalog.
@@ -72,6 +75,7 @@
 - Align responsive Analyse waits with replay readiness and keep session-table browser tests scoped to visible rows after expansion.
 - Report Paraglide development and production compilation stages, a 10-second elapsed-time heartbeat, and total build duration; preserve validated cache reuse.
 - Bound HTTP request/response adapter typing to avoid expanding the full RPC router schema during backend typechecking, preserving existing RPC contracts.
+- Support recorder benchmark CPU/RSS sampling on Windows through PowerShell/CIM, and fail subprocess sampling errors instead of hanging tooling tests.
 - Add a release-seeded startup upgrade regression that verifies historical Tourist sessions are automatically reprocessed into the correct layout and lap times.
 - Remove unused compiled artifact downloads and base production builds from dev-mode dashboard screenshot CI.
 - Split current and base dashboard screenshot renders into four CI shards while retaining the complete screenshot inventory.

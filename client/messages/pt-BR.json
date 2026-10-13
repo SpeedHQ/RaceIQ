@@ -2493,5 +2493,9 @@
   "access_copy_link_label": "Copiar link de {url}",
   "access_link_copied": "Link copiado.",
   "access_copy_failed": "Não foi possível copiar o link. Selecione o endereço e copie-o manualmente.",
-  "access_qr_label": "Código QR de {url}"
+  "access_qr_label": "Código QR de {url}",
+  "dash_lan_address": "Endereço de rede local",
+  "dash_hostname_label": "Nome de host personalizado (opcional)",
+  "dash_hostname_help": "Use um nome de host, como um FQDN do Tailscale, nos links HUD e códigos QR. Deixe vazio para usar um IP local. O dispositivo deve conseguir acessar esse host.",
+  "dash_hostname_invalid": "Digite apenas o nome de host, sem http://, porta ou caminho."
 }

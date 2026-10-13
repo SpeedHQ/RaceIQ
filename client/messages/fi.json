@@ -2493,5 +2493,9 @@
   "access_copy_link_label": "Kopioi osoitteen {url} linkki",
   "access_link_copied": "Linkki kopioitu.",
   "access_copy_failed": "Linkkiä ei voitu kopioida. Valitse osoite ja kopioi se käsin.",
-  "access_qr_label": "Osoitteen {url} QR-koodi"
+  "access_qr_label": "Osoitteen {url} QR-koodi",
+  "dash_lan_address": "Paikallisverkon osoite",
+  "dash_hostname_label": "Korvaava isäntänimi (valinnainen)",
+  "dash_hostname_help": "Käytä esimerkiksi Tailscale-isäntänimeä HUD-linkeissä ja QR-koodeissa. Tyhjä kenttä käyttää paikallista IP-osoitetta. Katselulaitteen on voitava tavoittaa isäntänimi.",
+  "dash_hostname_invalid": "Anna vain isäntänimi ilman http://-alkua, porttia tai polkua."
 }

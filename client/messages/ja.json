@@ -2494,5 +2494,9 @@
   "access_copy_link_label": "{url} のリンクをコピー",
   "access_link_copied": "リンクをコピーしました。",
   "access_copy_failed": "リンクをコピーできませんでした。アドレスを選択して手動でコピーしてください。",
-  "access_qr_label": "{url} のQRコード"
+  "access_qr_label": "{url} のQRコード",
+  "dash_lan_address": "ローカルネットワークアドレス",
+  "dash_hostname_label": "ホスト名の上書き（任意）",
+  "dash_hostname_help": "HUDリンクとQRコードにTailscaleのFQDNなどのホスト名を使用します。空欄の場合はローカルIPアドレスを使用します。表示端末からこのホスト名に接続できる必要があります。",
+  "dash_hostname_invalid": "http://、ポート、パスを含めず、ホスト名のみ入力してください。"
 }

@@ -2493,5 +2493,9 @@
   "access_copy_link_label": "Kopiuj link do {url}",
   "access_link_copied": "Link skopiowany.",
   "access_copy_failed": "Nie udało się skopiować linku. Zaznacz adres i skopiuj go ręcznie.",
-  "access_qr_label": "Kod QR dla {url}"
+  "access_qr_label": "Kod QR dla {url}",
+  "dash_lan_address": "Adres sieci lokalnej",
+  "dash_hostname_label": "Własna nazwa hosta (opcjonalnie)",
+  "dash_hostname_help": "Użyj nazwy hosta, np. FQDN Tailscale, w linkach HUD i kodach QR. Pozostaw puste, aby użyć lokalnego IP. Urządzenie musi mieć dostęp do tego hosta.",
+  "dash_hostname_invalid": "Wpisz tylko nazwę hosta, bez http://, portu ani ścieżki."
 }

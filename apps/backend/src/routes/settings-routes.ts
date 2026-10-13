@@ -246,7 +246,9 @@ export const settingsRoutes = new Hono()
   // PUT /api/settings
   .put("/api/settings", async (c) => {
     const body = await c.req.json();
-    const parseResult = PartialSettingsSchema.parse(body);
+    const parsed = PartialSettingsSchema.safeParse(body);
+    if (!parsed.success) return c.json({error: "Invalid settings"}, 400);
+    const parseResult = parsed.data;
     const current = loadSettings();
     // Only merge keys explicitly sent in the request body (Zod partial applies defaults for missing fields)
     const provided: Record<string, unknown> = {};

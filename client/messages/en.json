@@ -2493,5 +2493,9 @@
   "access_copy_link_label": "Copy link for {url}",
   "access_link_copied": "Link copied.",
   "access_copy_failed": "Could not copy the link. Select the address and copy it manually.",
-  "access_qr_label": "QR code for {url}"
+  "access_qr_label": "QR code for {url}",
+  "dash_lan_address": "Local network address",
+  "dash_hostname_label": "Hostname override (optional)",
+  "dash_hostname_help": "Use a hostname such as a Tailscale FQDN for HUD links and QR codes. Leave blank to use a local IP address. The viewing device must be able to reach this hostname.",
+  "dash_hostname_invalid": "Enter a hostname only, without http://, a port or a path."
 }
