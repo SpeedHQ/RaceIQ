@@ -31,8 +31,8 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       },
     },
     {
-      name: "mobile-screenshots",
-      testMatch: "responsive/mobile-screenshots.spec.ts",
+      name: "app-screenshots",
+      testMatch: ["responsive/desktop-screenshots.spec.ts", "responsive/lmu-screenshots.spec.ts", "responsive/mobile-dashboard-screenshots.spec.ts"],
       use: { baseURL: seededBaseURL },
     },
     {

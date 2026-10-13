@@ -21,7 +21,7 @@ export async function captureResponsive(
 
   try {
     await run(
-      [nodePath, playwrightCli, "test", "--project=mobile-screenshots"],
+      [nodePath, playwrightCli, "test", "--project=app-screenshots"],
       {
         cwd: join(repoRoot, "playwright"),
         env: {

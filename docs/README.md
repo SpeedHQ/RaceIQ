@@ -5,6 +5,7 @@ Documentation is organized by audience. Start with a user guide; use contributor
 ## Users
 
 - [OpenAI-compatible AI setup](user-guides/openai-compatible-ai.md) — connect RaceIQ to LM Studio, Ollama, OpenRouter, LiteLLM, or another compatible provider.
+- [LMU setup advice](user-guides/lmu-setup-advice.md) — read official facts and community heuristics, understand their limits, and maintain the reviewed source corpus.
 
 ## Installation
 

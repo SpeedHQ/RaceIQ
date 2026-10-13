@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { BlankEnv, ExtractSchema } from "hono/types";
 import { cors } from "hono/cors";
 import { errorLogger } from "@raceiq/backend-core/runtime/logger";
 import { IS_DEV, IS_E2E } from "@raceiq/backend-core/runtime/config/env";
@@ -15,13 +16,34 @@ import { carRoutes } from "./car-routes";
 import { tuneRoutes } from "./tune-routes";
 import { accRoutes } from "./games/acc";
 import { acEvoRoutes } from "./games/ac-evo";
+import { lmuSetupRoutes } from "./games/lmu-setups";
 import { f125Routes } from "./games/f1-2025";
 import { miscRoutes } from "./system/index";
 import { cacheRoutes } from "./cache-routes";
 import { devRoutes } from "./dev/index";
 import { dashboardRoutes } from "./dashboard-routes";
 
-const app = new Hono()
+// Name each already-checked schema so declaration generation does not expand
+// the entire nested route chain. Keep every mounted production route here.
+type AppSchema =
+  & ExtractSchema<typeof lmuSetupRoutes>
+  & ExtractSchema<typeof settingsRoutes>
+  & ExtractSchema<typeof lapRoutes>
+  & ExtractSchema<typeof driverRoutes>
+  & ExtractSchema<typeof chatsRoutes>
+  & ExtractSchema<typeof chatRunRoutes>
+  & ExtractSchema<typeof dashboardRoutes>
+  & ExtractSchema<typeof sessionRoutes>
+  & ExtractSchema<typeof trackRoutes>
+  & ExtractSchema<typeof carRoutes>
+  & ExtractSchema<typeof tuneRoutes>
+  & ExtractSchema<typeof accRoutes>
+  & ExtractSchema<typeof acEvoRoutes>
+  & ExtractSchema<typeof f125Routes>
+  & ExtractSchema<typeof miscRoutes>
+  & ExtractSchema<typeof cacheRoutes>;
+
+const app = new Hono<BlankEnv, AppSchema>()
   .use("/*", async (c, next) => {
     const denied = httpAccess.authorize(c.req.raw);
     if (denied) return denied;
@@ -36,22 +58,24 @@ const app = new Hono()
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     }),
   )
-  .use("/*", errorLogger())
-  .route("/", settingsRoutes)
-  .route("/", lapRoutes)
-  .route("/", driverRoutes)
-  .route("/", chatsRoutes)
-.route("/", chatRunRoutes)
-  .route("/", dashboardRoutes)
-  .route("/", sessionRoutes)
-  .route("/", trackRoutes)
-  .route("/", carRoutes)
-  .route("/", tuneRoutes)
-  .route("/", accRoutes)
-  .route("/", acEvoRoutes)
-  .route("/", f125Routes)
-  .route("/", miscRoutes)
-  .route("/", cacheRoutes);
+  .use("/*", errorLogger());
+
+app.route("/", lmuSetupRoutes);
+app.route("/", settingsRoutes);
+app.route("/", lapRoutes);
+app.route("/", driverRoutes);
+app.route("/", chatsRoutes);
+app.route("/", chatRunRoutes);
+app.route("/", dashboardRoutes);
+app.route("/", sessionRoutes);
+app.route("/", trackRoutes);
+app.route("/", carRoutes);
+app.route("/", tuneRoutes);
+app.route("/", accRoutes);
+app.route("/", acEvoRoutes);
+app.route("/", f125Routes);
+app.route("/", miscRoutes);
+app.route("/", cacheRoutes);
 
 // Fixture import/replay routes stay unavailable in normal production. Compiled
 // Playwright runs opt in explicitly so they exercise the packaged server too.

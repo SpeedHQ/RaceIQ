@@ -5,7 +5,7 @@
     "test": "playwright test --workers=1",
     "test:ui": "bunx turbo run test --filter=raceiq-e2e -- --ui",
     "screenshots": "playwright test --project=marketing",
-    "screenshots:mobile": "bunx turbo run test --filter=raceiq-e2e -- --project=mobile-screenshots",
+    "screenshots:app": "bunx turbo run test --filter=raceiq-e2e -- --project=app-screenshots",
     "test:tooling": "bun ../scripts/test/run-suite.ts tooling --package raceiq-e2e"
   },
   "devDependencies": {
@@ -18,6 +18,7 @@
     "sharp": "^0.35.4",
     "zod": "^4.6.5",
     "@raceiq/tooling-data": "workspace:*",
+    "@raceiq/game-lmu-metadata": "workspace:*",
     "@raceiq/analysis-core": "workspace:*"
   }
 }

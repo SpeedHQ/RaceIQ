@@ -1,7 +1,5 @@
 import type { GameId } from "@raceiq/shared/games/ids";
 export const RESPONSIVE_VIEWPORTS = [
-  { name: "mobile", width: 390, height: 844 },
-  { name: "tablet", width: 768, height: 1024 },
   { name: "desktop", width: 1280, height: 800 },
 ] as const;
 
@@ -61,6 +59,11 @@ export const RESPONSIVE_PAGES: readonly ResponsivePage[] = [
   { name: "iracing-track-detail", path: "/iracing/tracks/18/info", viewports: DESKTOP_ONLY, readyText: "Road America" },
   { name: "f125-setups", path: "/f125/setups", viewports: DESKTOP_ONLY },
   { name: "ac-evo-setups", path: "/ac-evo/setups", viewports: DESKTOP_ONLY },
+  { name: "lmu-landing", path: "/lmu", viewports: DESKTOP_ONLY },
+  { name: "lmu-setups", path: "/lmu/setups", viewports: DESKTOP_ONLY },
+  { name: "lmu-experiments", path: "/lmu/experiments", viewports: DESKTOP_ONLY },
+  { name: "lmu-cars", path: "/lmu/cars", viewports: DESKTOP_ONLY },
+  { name: "lmu-tracks", path: "/lmu/tracks", viewports: DESKTOP_ONLY },
 
   // Seeded data states. These cover real lap-heavy and experiment detail
   // compositions for every game.
@@ -82,41 +85,30 @@ interface ResponsiveInteractionCase {
   name: string;
   path: string;
   kind: string;
-  mobileOnly: boolean;
   viewports?: readonly ResponsiveViewportName[];
 }
 
 export const RESPONSIVE_INTERACTION_CASES: readonly ResponsiveInteractionCase[] = [
   {
-    name: "nav-drawer-open",
-    path: "/fm23",
-    kind: "nav-drawer",
-    mobileOnly: true,
-  },
-  {
     name: "settings-modal",
     path: "/",
     kind: "settings",
-    mobileOnly: false,
   },
   {
     name: "settings-language-menu",
     path: "/",
     kind: "settings-language",
-    mobileOnly: false,
   },
   {
     name: "analyse-data-panel-loaded",
     path: "/f125/sessions/analyse",
     kind: "analyse-data-panel-loaded",
-    mobileOnly: false,
     viewports: DESKTOP_ONLY,
   },
   {
     name: "analyse-actions-menu",
     path: "/fm23/sessions/analyse",
     kind: "analyse-actions",
-    mobileOnly: false,
   },
 ] as const;
 
@@ -139,4 +131,4 @@ export type ResponsiveDeviceCase = (typeof RESPONSIVE_DEVICE_CASES)[number];
 
 export const RESPONSIVE_SCREENSHOT_COUNT =
   RESPONSIVE_VIEWPORTS.reduce((count, viewport) => count + RESPONSIVE_PAGES.filter((page) => !page.viewports || page.viewports.includes(viewport.name)).length, 0) +
-  RESPONSIVE_VIEWPORTS.reduce((count, viewport) => count + RESPONSIVE_INTERACTION_CASES.filter((screenshotCase) => (!screenshotCase.viewports || screenshotCase.viewports.includes(viewport.name)) && (!screenshotCase.mobileOnly || viewport.width < 768)).length, 0);
+  RESPONSIVE_VIEWPORTS.reduce((count, viewport) => count + RESPONSIVE_INTERACTION_CASES.filter((screenshotCase) => !screenshotCase.viewports || screenshotCase.viewports.includes(viewport.name)).length, 0);

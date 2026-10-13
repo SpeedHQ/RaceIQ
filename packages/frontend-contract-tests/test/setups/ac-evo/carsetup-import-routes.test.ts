@@ -105,6 +105,7 @@ describe("POST /api/tunes/import-file — AC Evo binary uploads", () => {
         gameId: "ac-evo", fileName: "Default-12312.carsetup",
         carId: audi.name,
         contentBase64: read("Default-12312.carsetup").toString("base64"),
+        trackId: "test-track",
       }),
     });
     expect(res.status).toBe(201);
@@ -112,7 +113,9 @@ describe("POST /api/tunes/import-file — AC Evo binary uploads", () => {
     try {
       const tune = await getTuneById(body.id);
       expect(tune?.gameId).toBe("ac-evo");
+      expect(tune?.name).toBe("Default-12312");
       expect(tune?.carId).toBe(audi.name);
+      expect(tune?.trackId).toBe("test-track");
       const settings = JSON.parse(tune!.settings);
       const source = read("Default-12312.carsetup");
       expect(settings.carSetupBase64).toBe(source.toString("base64"));

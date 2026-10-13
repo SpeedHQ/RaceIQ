@@ -1,3 +1,4 @@
 packages/game-lmu/test/duckdb-import-security.test.ts
 packages/game-lmu/test/lmu-adapter.test.ts
 packages/game-lmu/test/track-boundaries.test.ts
+packages/game-lmu/test/setup-directory.test.ts

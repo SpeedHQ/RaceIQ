@@ -45,13 +45,13 @@ switch (operation) {
     run(["git", "worktree", "add", "--detach", join(env.RUNNER_TEMP!, "raceiq-base"), env.BASE_SHA!]);
     break;
   case "screenshot-current": {
-    const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--project=mobile-screenshots", `--shard=${env.SHARD}/4`], {
+    const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--project=app-screenshots", `--shard=${env.SHARD}/4`], {
       cwd: "playwright",
       env: { ...env, E2E_SERVER_MODE: "dev", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1" },
       stdout: "inherit",
       stderr: "inherit",
     }).exitCode;
-    const screenshots = join("playwright", "screenshots", "mobile");
+    const screenshots = join("playwright", "screenshots", "app");
     const output = join(env.RUNNER_TEMP!, "current-responsive");
     rmSync(output, { recursive: true, force: true });
     if (existsSync(screenshots)) {
@@ -66,11 +66,20 @@ switch (operation) {
     if (!existsSync(base)) throw new Error(`Base comparison worktree is missing: ${base}`);
     run(["bun", "install"], base);
     // Compare both revisions with the same screenshot cases and selectors.
-    cpSync(join(env.GITHUB_WORKSPACE!, "playwright/tests/responsive/mobile-screenshots.spec.ts"), join(base, "playwright/tests/responsive/mobile-screenshots.spec.ts"));
-    const output = join(env.GITHUB_WORKSPACE!, "playwright/screenshots/mobile");
+    for (const file of ["desktop-screenshots.spec.ts", "lmu-screenshots.spec.ts", "mobile-dashboard-screenshots.spec.ts"]) {
+      cpSync(join(env.GITHUB_WORKSPACE!, "playwright/tests/responsive", file), join(base, "playwright/tests/responsive", file));
+    }
+    cpSync(join(env.GITHUB_WORKSPACE!, "playwright/tests/support/responsive/cases.ts"), join(base, "playwright/tests/support/responsive/cases.ts"));
+    cpSync(join(env.GITHUB_WORKSPACE!, "playwright/config/projects.ts"), join(base, "playwright/config/projects.ts"));
+    cpSync(join(env.GITHUB_WORKSPACE!, "playwright/support/server/seed-screenshot-data.ts"), join(base, "playwright/support/server/seed-screenshot-data.ts"));
+    cpSync(join(env.GITHUB_WORKSPACE!, "playwright/config/web-servers.ts"), join(base, "playwright/config/web-servers.ts"));
+    cpSync(join(env.GITHUB_WORKSPACE!, "playwright/support/server/start-dev-server.ts"), join(base, "playwright/support/server/start-dev-server.ts"));
+    cpSync(join(env.GITHUB_WORKSPACE!, "playwright/package.json"), join(base, "playwright/package.json"));
+    run(["bun", "install"], base);
+    const output = join(env.GITHUB_WORKSPACE!, "playwright/screenshots/app");
     rmSync(output, { recursive: true, force: true });
     mkdirSync(output, { recursive: true });
-    const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--project=mobile-screenshots", `--shard=${env.SHARD}/4`], {
+    const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--project=app-screenshots", `--shard=${env.SHARD}/4`], {
       cwd: join(base, "playwright"),
       env: { ...env, RACEIQ_SCREENSHOT_DIR: output, E2E_SERVER_MODE: "dev", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1" },
       stdout: "inherit",

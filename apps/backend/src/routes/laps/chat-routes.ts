@@ -112,9 +112,11 @@ export const chatRoutes = new Hono()
     try {
       const requestContext = new RequestContext();
       requestContext.set(CHAT_TURN_CONTEXT_KEY, systemPrompt);
+      requestContext.set("gameId", lap.gameId);
       const stream = await lapChatAgent.stream(
         messages,
         {
+          requestContext,
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
           providerOptions: {
             openai: { reasoningEffort: "medium" },

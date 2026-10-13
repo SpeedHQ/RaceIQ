@@ -14,7 +14,7 @@ resetTestDatabase(dir);
 mkdirSync(dir, { recursive: true });
 writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort: Number(udpPort), onboardingComplete: process.env.RACEIQ_E2E === "1" }));
 seedScreenshotData(repoDir, dir);
-if (process.env.RACEIQ_SEED_SETUP_DATA === "1") seedE2ESetupData(repoDir, dir);
+if (process.env.PW_SEED_SETUP_DATA === "1") seedE2ESetupData(repoDir, dir);
 
 const paraglide = spawnSync("bun", ["scripts/dev/paraglide-dev.ts", "--once"], {
   cwd: repoDir,

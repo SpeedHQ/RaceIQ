@@ -1,9 +1,14 @@
+import { resolveLMUCar } from "@raceiq/game-lmu-metadata/catalog";
+import { useQuery } from "@tanstack/react-query";
+import { client } from "@/lib/rpc";
+import { errorFromResponse } from "@/lib/rpc-error";
 import { m } from "@/paraglide/messages";
 import { useState } from "react";
 import { AppInput } from "@/components/ui/AppInput";
 import { useAddBase } from "../../hooks/experiments";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
+import { SearchSelect } from "../ui/SearchSelect";
 import { SetupFilePicker, type SetupFilePickerValue } from "./SetupFilePicker";
 
 /**
@@ -19,7 +24,7 @@ export function AddBaseModal({
   lockedCar,
   onClose,
 }: {
-  gameId: "acc" | "ac-evo";
+  gameId: "acc" | "ac-evo" | "lmu";
   sessionId: number;
   /** The session's car model slug — Add base is always for the same car (a base
    *  from another track), so the car is fixed and not pickable. */
@@ -31,6 +36,21 @@ export function AddBaseModal({
   const [label, setLabel] = useState("");
   const [setHead, setSetHead] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const lmuListing = useQuery({
+    queryKey: ["lmu-setup-files"],
+    queryFn: async () => {
+      const response = await client.api.lmu.setups.$get();
+      if (!response.ok) throw await errorFromResponse(response);
+      return response.json();
+    },
+    enabled: gameId === "lmu",
+    staleTime: 30_000,
+  });
+  const lmuCar = lockedCar ? resolveLMUCar(lockedCar) : undefined;
+  const lmuOptions = (lmuListing.data?.files ?? [])
+    .filter((file) => !file.error && (!lockedCar || file.carId === lmuCar?.id || file.carName === lmuCar?.name || file.carId === lockedCar || file.carName === lockedCar))
+    .map((file) => ({ value: file.path, label: `${file.trackName} · ${file.carName ?? file.carId ?? m.label_car()} · ${file.fileName}` }));
+  const lmuSetupPath = picked.setupPath;
 
   const submit = async () => {
     if (!picked.setupPath) return;
@@ -38,8 +58,8 @@ export function AddBaseModal({
     try {
       await addBase.mutateAsync({ sessionId, setupPath: picked.setupPath, label: label.trim() || undefined, setHead });
       onClose();
-    } catch (err: any) {
-      setError(err?.message ?? m.tunes_add_base_error());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : m.tunes_add_base_error());
     }
   };
 
@@ -52,7 +72,15 @@ export function AddBaseModal({
             {m.tunes_add_base_description()}
           </DialogDescription>
         </DialogHeader>
-        <SetupFilePicker gameId={gameId} value={picked} onChange={setPicked} lockedCar={lockedCar} />
+        {gameId === "lmu" ? (
+          <div className="flex flex-col gap-1">
+            <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{m.experiment_base_setup()}</span>
+            <SearchSelect value={lmuSetupPath} onChange={(setupPath) => setPicked((current) => ({ ...current, setupPath }))} options={lmuOptions} placeholder={m.experiment_search_setups()} />
+            {lmuListing.isError && <div role="alert" className="text-xs text-status-danger">Could not load LMU setups.</div>}
+          </div>
+        ) : (
+          <SetupFilePicker gameId={gameId} value={picked} onChange={setPicked} lockedCar={lockedCar} />
+        )}
 
         <label className="flex flex-col gap-1">
           <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{m.tunes_optional_label()}</span>

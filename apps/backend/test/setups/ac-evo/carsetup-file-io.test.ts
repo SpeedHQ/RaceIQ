@@ -79,7 +79,7 @@ describe("writeAppliedSetup .carsetup", () => {
     const original = await readCarSetupFile(join(setupsDir, "Default-12312.carsetup"));
     const knobs = carSetupToKnobValues(original!);
 
-    const written = writeAppliedSetup("ac-evo", {
+    const written = await writeAppliedSetup("ac-evo", {
       baseDir: setupsDir,
       realPath: join(setupsDir, "Default-12312.carsetup"),
       setup: { ...knobs, brakeBias: (knobs.brakeBias ?? 50) + 1 },
@@ -101,7 +101,7 @@ describe("writeAppliedSetup .carsetup", () => {
 
   it("falls back to an advisory snapshot branch when the base has no realPath", async () => {
     const { writeAppliedSetup } = await import("../../../src/setups/io");
-    const written = writeAppliedSetup("ac-evo", {
+    const written = await writeAppliedSetup("ac-evo", {
       baseDir: null,
       realPath: null,
       setup: { frontARB: 3 },
@@ -132,7 +132,7 @@ describe("writeAppliedSetup .carsetup", () => {
     expect(applied[0]!.component).toBe("Brake Bias");
 
     // Same write path apply_changes uses to create the new branch's file.
-    const written = writeAppliedSetup("ac-evo", {
+    const written = await writeAppliedSetup("ac-evo", {
       baseDir: guarded.baseDir,
       realPath: guarded.realPath,
       setup,

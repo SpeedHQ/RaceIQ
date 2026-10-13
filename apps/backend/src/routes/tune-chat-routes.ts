@@ -137,10 +137,9 @@ export const tuneChatRoutes = new Hono()
 
       const session = await getExperiment(id);
       if (!session) return c.json({ error: "Tuning session not found" }, 404);
-
       const gameId = session.gameId as GameId;
-      if (gameId !== "acc" && gameId !== "ac-evo" && gameId !== "f1-2025") {
-        return c.json({ error: "The setup engineer only supports ACC, AC-EVO and F1 2025" }, 400);
+      if (gameId !== "acc" && gameId !== "ac-evo" && gameId !== "lmu" && gameId !== "f1-2025") {
+        return c.json({ error: "The setup engineer only supports ACC, AC-EVO, LMU and F1 2025" }, 400);
       }
 
       // Which specialist answers is decided by the experiment's focus column —

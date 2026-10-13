@@ -7,6 +7,7 @@ import { useExperiments } from "@/hooks/experiments";
 import { ExperimentGuideModal } from "../ExperimentGuideModal";
 import { ExperimentTable } from "./ExperimentTable";
 import { NewExperimentModal } from "./NewExperimentModal";
+import { NewLmuExperimentModal } from "./NewLmuExperimentModal";
 import { NewF1ExperimentModal } from "./NewF1ExperimentModal";
 
 export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; onOpen: (id: number) => void }) {
@@ -49,6 +50,14 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
       {creating &&
         (gameId === "f1-2025" ? (
           <NewF1ExperimentModal
+            onClose={() => setCreating(false)}
+            onCreated={(id) => {
+              setCreating(false);
+              onOpen(id);
+            }}
+          />
+        ) : gameId === "lmu" ? (
+          <NewLmuExperimentModal
             onClose={() => setCreating(false)}
             onCreated={(id) => {
               setCreating(false);

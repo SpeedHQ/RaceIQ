@@ -72,7 +72,7 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
     );
   }
 
-  if (gameId !== "acc" && gameId !== "ac-evo") {
+  if (gameId === "f1-2025") {
     return (
       <div role="alert" className="p-8 text-sm text-app-text-muted">
         {m.review_unavailable_for_game()}
