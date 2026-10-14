@@ -136,6 +136,10 @@ describe("startup stale-session notifications", () => {
   test("counts sessions with non-null outdated detector versions as remaining stale", async () => {
     const old = await insertDetectorSession("test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz", "obsolete-detector");
     sessionIds.push(old.id);
+    await db.update(sessions)
+      .set({ captureFormatVersion: 1 })
+      .where(eq(sessions.id, old.id))
+      .run();
     expect(await countStaleSessions(
       [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID],
       ["fm-2023"],
