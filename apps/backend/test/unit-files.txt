@@ -3,9 +3,9 @@ apps/backend/test/ai/tools/generate-lap-analysis.test.ts
 apps/backend/test/archive/bounded-unzip.test.ts
 apps/backend/test/games/shared/parser.test.ts
 apps/backend/test/lap-analysis/clean-lap-aggregate.test.ts
+apps/backend/test/ai/setup-output-contract.test.ts
 apps/backend/test/lap-analysis/comparison.test.ts
 apps/backend/test/lap-analysis/corner-data.test.ts
-apps/backend/test/lap-analysis/corner-resolution.test.ts
 apps/backend/test/lap-analysis/detection/game-compat.test.ts
 apps/backend/test/lap-analysis/detection/lap-boundary-reset.test.ts
 apps/backend/test/lap-analysis/detection/session-boundary.test.ts
@@ -28,3 +28,4 @@ apps/backend/test/laps/archive-detection.test.ts
 apps/backend/test/runtime/diagnostic-log-store.test.ts
 apps/backend/test/runtime/hud-hostname.test.ts
 apps/backend/test/runtime/http-access.test.ts
+apps/backend/test/ai/chat/chat-vision.test.ts

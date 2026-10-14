@@ -30,14 +30,10 @@ import { z } from "zod";
 import { describeKnobs } from "@raceiq/backend-core/setups/rules/engine";
 import { formatSymptoms } from "@raceiq/backend-core/ai/tune-chat-prompt";
 import { formatTrackConditions } from "@raceiq/backend-core/ai/track-conditions";
-import { loadActiveExperimentContext } from "../../experiments/setup-lineage";
-import {
-  loadCleanLapAggregate,
-  baselineFallbackNote,
-} from "../../experiments/lap-evidence/aggregate";
+import { loadCleanLapAggregate } from "../../experiments/lap-evidence/aggregate";
 import { formatLapObservations } from "@raceiq/backend-core/ai/lap-observations";
 import { getOrComputeLapMetricsBatch } from "@raceiq/backend-core/lap-analysis/metrics-store";
-import { listExperimentVersions } from "@raceiq/backend-core/db/experiment-version-queries";
+import { readSetupEngineerContext, type RequestContextLike } from "../tools/setup-engineer-request-context";
 
 const InputSchema = z.object({
   sessionId: z.number().int().positive().describe("The tuning session id to gather context for."),
@@ -53,12 +49,14 @@ const gatherPrereqs = createStep({
     "history) deterministically so the engineer always reasons from grounded, current data.",
   inputSchema: InputSchema,
   outputSchema: OutputSchema,
-  execute: async ({ inputData }) => {
+  execute: async ({ inputData, requestContext }) => {
     const { sessionId } = inputData;
+    const { branch } = readSetupEngineerContext(requestContext as RequestContextLike | undefined);
+    if (branch.sessionId !== sessionId) throw new Error("Experiment branch context does not match workflow session.");
+    const ctx = branch.setupContext;
     const sections: string[] = [];
 
     // Current setup — the exact tunable knobs + values (the model's action space).
-    const ctx = await loadActiveExperimentContext(sessionId);
     if (ctx.ok) {
       const knobs = describeKnobs(ctx.gameId, ctx.setup);
       const tunable = knobs.filter((k) => k.current != null);
@@ -78,7 +76,11 @@ const gatherPrereqs = createStep({
     // Clean-lap evidence bundle: confidence, per-lap breakdown, per-corner
     // consistency, aggregated symptoms, and track conditions — all reduced
     // from the session/branch's statistically clean lap pool in one call.
-    const agg = await loadCleanLapAggregate(sessionId);
+    const agg = await loadCleanLapAggregate(sessionId, {
+      versionId: branch.headVersionId,
+      lapIds: branch.lapIds,
+      strictBranch: true,
+    });
     const { consistency } = agg;
 
     const confidenceLines = [
@@ -91,14 +93,7 @@ const gatherPrereqs = createStep({
       `fallback to single lap: ${agg.fallbackSingleLap}`,
       `source: ${agg.sourceScope}`,
     ];
-    if (agg.sourceScope === "session-baseline") {
-      confidenceLines.push("(session baseline pool — laps may mix setups; confidence capped at medium)");
-    }
-    // The current setup version has never been driven: the lap pool below is
-    // earlier versions' laps, and the model must not judge this version by it.
-    const fallbackNote = baselineFallbackNote(agg);
-    if (fallbackNote) confidenceLines.push(fallbackNote);
-    if (agg.fallbackSingleLap) {
+    if (agg.fallbackSingleLap && agg.lapIds.length === 1) {
       confidenceLines.push(
         "(only <2 clean laps — reasoning from the single fastest lap; treat suggestions as low-confidence)",
       );
@@ -111,7 +106,7 @@ const gatherPrereqs = createStep({
           ? agg.lapBreakdown
               .map((r) => `lap ${r.lapId}: ${r.lapTimeSec.toFixed(3)}s — ${r.reason}${r.imported ? " (imported)" : ""}`)
               .join("\n")
-          : "No laps recorded for this session yet."),
+          : "No laps attached to the active branch."),
     );
 
     sections.push(
@@ -146,7 +141,7 @@ const gatherPrereqs = createStep({
 
     sections.push(
       `--- SYMPTOMS (aggregate over ${consistency.cleanLapCount} clean laps) ---\n` +
-        (agg.symptoms ? formatSymptoms(agg.symptoms) : "No analysable lap yet — reason from the driver's description."),
+        (agg.symptoms ? formatSymptoms(agg.symptoms) : "No analysable lap on the active branch — no telemetry-backed verdict is available."),
     );
 
     // Raw driving observations over the same clean pool. Deliberately separate
@@ -161,7 +156,7 @@ const gatherPrereqs = createStep({
 
     sections.push(
       "--- TRACK CONDITIONS ---\n" +
-        (agg.trackConditions ? formatTrackConditions(agg.trackConditions) : "No conditions data for this session yet."),
+        (agg.trackConditions ? formatTrackConditions(agg.trackConditions) : "No conditions data on the active branch."),
     );
 
     // What's already been tried this session, so the model doesn't repeat it.
@@ -169,7 +164,7 @@ const gatherPrereqs = createStep({
     // and what the driver concluded) belongs to a version, unlike the
     // observations above which are properties of a lap. A verdict is only ever
     // present because a human recorded it.
-    const tests = ctx.ok ? ctx.tests : await listExperimentVersions(sessionId);
+    const tests = branch.versions;
     sections.push(
       "--- VERSION HISTORY (oldest first) ---\n" +
         (tests.length

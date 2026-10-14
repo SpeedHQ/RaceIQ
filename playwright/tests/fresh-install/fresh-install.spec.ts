@@ -1,16 +1,31 @@
-import { test, expect, type Page } from "@playwright/test";
+import { createClient } from "@libsql/client";
 import { readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { test, expect, type Page } from "@playwright/test";
 import { runtime } from "../../config/runtime";
 import { collectBrowserErrors } from "../support/browser-errors";
 
 const SETTINGS_PATH = resolve(runtime.freshInstall.dataDir, "settings.json");
 
-// Reset settings.json to the same seed start-server.ts writes at boot, so the
-// wizard test is idempotent across retries (server re-reads settings on every
-// GET /api/settings, so a file reset is enough — no server restart needed).
-function resetSettingsFile() {
+// A retry reuses the server process, but dashboard access is persisted separately
+// from settings. Reset both stores inside this isolated E2E data directory.
+async function resetFreshInstallState() {
+  const { dataDir } = runtime.freshInstall;
+  if (!dataDir.split(/[\\/]+/).some((part) => part.includes("test-data"))) {
+    throw new Error(`Refusing to reset fresh-install state outside test-data: "${dataDir}"`);
+  }
   writeFileSync(SETTINGS_PATH, JSON.stringify({ udpPort: Number(runtime.freshInstall.udpPort) }));
+  rmSync(resolve(dataDir, "app.db.dashboard-access"), { force: true });
+  const database = createClient({ url: `file:${resolve(dataDir, "app.db")}` });
+  try {
+    const [result] = await database.batch([
+      "UPDATE dashboard_access SET mode = 'pending', password_hash = NULL, revision = revision + 1 WHERE id = 1",
+      "DELETE FROM dashboard_sessions",
+    ], "write");
+    if (Number(result.rowsAffected) !== 1) throw new Error("Fresh-install dashboard access fixture is missing");
+  } finally {
+    database.close();
+  }
 }
 const GAME_ROUTE_PREFIXES = ["fm23", "f125", "acc", "ac-evo"] as const;
 
@@ -41,7 +56,7 @@ test.describe
   .serial("fresh install", () => {
     test.setTimeout(140_000);
     test("user steps through wizard and lands on home page", async ({ page, request }) => {
-      resetSettingsFile();
+      await resetFreshInstallState();
       const { errors } = collectBrowserErrors(page, [/THREE\.GLTFLoader: Couldn't load texture/]);
 
       await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -119,8 +134,8 @@ test.describe
         if (response.request().method() !== "PUT" || !response.url().endsWith("/api/settings")) return false;
         const body = response.request().postDataJSON() as { onboardingComplete?: boolean } | null;
         return body?.onboardingComplete === true;
-      });
-      await page.getByRole("button", { name: "Next" }).click();
+      }, { timeout: 60_000 });
+      await page.getByRole("button", { name: /^(Next|Finish)$/ }).click();
       expect((await saveSettings).ok(), "onboarding settings save").toBe(true);
 
       // Onboarding modal closes after settings mutation invalidates cached settings.
@@ -129,7 +144,7 @@ test.describe
 
       // Server persisted driver name + onboardingComplete to settings.json
       await page.reload({ waitUntil: "domcontentloaded" });
-      const persistedResponse = await request.get("/api/settings");
+      const persistedResponse = await request.get(`http://127.0.0.1:${runtime.freshInstall.port}/api/settings`);
       expect(persistedResponse.ok()).toBe(true);
       expect(await persistedResponse.json()).toMatchObject({
         recordingDirectory: realpathSync(destination),
@@ -140,14 +155,14 @@ test.describe
 
       await assertImagesLoaded(page);
       rmSync(destination, { recursive: true, force: true });
-      resetSettingsFile();
       expect(errors, `unexpected browser errors:\n${errors.join("\n")}`).toEqual([]);
     });
 
     test("replaying the wizard keeps the default recording folder", async ({ page }) => {
-      resetSettingsFile();
+      await resetFreshInstallState();
       await page.goto("/", { waitUntil: "domcontentloaded" });
       await page.getByRole("button", { name: "Get Started" }).click();
+      await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Continue without a password" }).click();
       await expect(page.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
       await page.getByRole("button", { name: "Next", exact: true }).click();
       for (const heading of ["What's your name?", "Choose the steering wheel displayed during live telemetry.", "Units", "Sound", "Launch on Login"]) {
@@ -265,7 +280,7 @@ test.describe
       await page.getByRole("button", { name: "Access & security", exact: true }).click();
     }
     await openAccess();
-    await expect(page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Enable password protection", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Enable password protection", exact: true }).click();
     const passwordForm = page.locator("form").filter({ has: page.getByLabel("Password", { exact: true }) });
     const formBounds = await passwordForm.boundingBox();
     const dialogBounds = await page.locator('[class~="@container/settings"]').boundingBox();
@@ -453,7 +468,7 @@ test.describe
 
 test("setup wizard applies native recording-folder choices immediately and safely", async ({ page, request }) => {
   test.setTimeout(120_000);
-  resetSettingsFile();
+  await resetFreshInstallState();
   const access = await request.get("/api/auth/status");
   expect(access.ok()).toBe(true);
   if ((await access.json() as { pending: boolean }).pending) {
@@ -522,6 +537,6 @@ test("setup wizard applies native recording-folder choices immediately and safel
   } finally {
     releasePicker();
     releaseMove();
-    resetSettingsFile();
+    writeFileSync(SETTINGS_PATH, JSON.stringify({ udpPort: Number(runtime.freshInstall.udpPort) }));
   }
 });

@@ -5,6 +5,7 @@ import {
   deleteTestSubtree,
   getExperimentVersion,
   listExperimentVersions,
+  restoreTestSubtree,
   setExperimentVersionNotes,
 } from "@raceiq/backend-core/db/experiment-version-queries";
 import { recordAction, listActions } from "@raceiq/backend-core/db/experiment-action-queries";
@@ -61,7 +62,8 @@ describe("undoLastAction", () => {
     await recordAction(sid, "delete", {
       rootTestId: v2,
       testIds: delResult.deletedIds,
-      prevHeadTestId: delResult.headMoved ? delResult.prevHeadTestId : null,
+      headChanged: delResult.headMoved,
+      ...(delResult.headMoved ? { prevHeadTestId: delResult.prevHeadTestId } : {}),
     });
 
     // v2 is gone from the active list, head moved back to v1 (nearest surviving ancestor).
@@ -81,6 +83,48 @@ describe("undoLastAction", () => {
     const second = await undoLastAction(sid);
     expect(second.ok).toBe(true);
     expect(second.undone).toBe(false);
+  });
+
+  test("undoing sibling delete preserves unchanged head", async () => {
+    const sid = await createExperiment({ gameId: "acc", name: "undo-sibling-delete" });
+    const a = await createExperimentVersion({ experimentId: sid, version: 1, label: "a", parentVersionId: null });
+    const b = await createExperimentVersion({ experimentId: sid, version: 2, label: "b", parentVersionId: null });
+    await setSessionHead(sid, a);
+    const delResult = await deleteTestSubtree(sid, b, a);
+    await recordAction(sid, "delete", {
+      rootTestId: b, testIds: delResult.deletedIds, headChanged: delResult.headMoved,
+    });
+    await undoLastAction(sid);
+    expect((await getExperiment(sid))!.headVersionId).toBe(a);
+    expect((await getExperimentVersion(b))!.status).toBe("active");
+  });
+
+  test("undoing partial restore deletes only restored IDs and relocates restored head", async () => {
+    const sid = await createExperiment({ gameId: "acc", name: "undo-partial-restore" });
+    const parent = await createExperimentVersion({ experimentId: sid, version: 1, label: "parent", parentVersionId: null });
+    const child = await createExperimentVersion({ experimentId: sid, version: 2, label: "child", parentVersionId: parent });
+    await deleteTestSubtree(sid, parent, child);
+    const restoredChildIds = await restoreTestSubtree(sid, child);
+    await recordAction(sid, "restore", { rootTestId: child, testIds: restoredChildIds });
+    const restoredParentIds = await restoreTestSubtree(sid, parent);
+    await recordAction(sid, "restore", { rootTestId: parent, testIds: restoredParentIds });
+    await setSessionHead(sid, parent);
+
+    await undoLastAction(sid);
+
+    expect((await getExperimentVersion(parent))!.status).toBe("deleted");
+    expect((await getExperimentVersion(child))!.status).toBe("active");
+    expect((await getExperiment(sid))!.headVersionId).toBeNull();
+  });
+
+  test("undo of restore with empty recorded IDs changes nothing", async () => {
+    const sid = await createExperiment({ gameId: "acc", name: "undo-empty-restore" });
+    const v1 = await createExperimentVersion({ experimentId: sid, version: 1, label: "v1", parentVersionId: null });
+    await recordAction(sid, "restore", { rootTestId: v1, testIds: [] });
+
+    await undoLastAction(sid);
+
+    expect((await getExperimentVersion(v1))!.status).toBe("active");
   });
 
   test("newest-first: undoing twice reverses actions in reverse chronological order", async () => {
@@ -109,5 +153,18 @@ describe("undoLastAction", () => {
 
     const third = await undoLastAction(sid);
     expect(third.undone).toBe(false);
+  });
+  test("stale branch head leaves inverse effects and action log untouched", async () => {
+    const sid = await createExperiment({ gameId: "acc", name: "undo-stale-head" });
+    const v1 = await createExperimentVersion({ experimentId: sid, version: 1, label: "v1" });
+    const v2 = await createExperimentVersion({ experimentId: sid, version: 2, label: "v2", parentVersionId: v1 });
+    await setSessionHead(sid, v2);
+    await recordAction(sid, "set-head", { prevHeadTestId: v1 });
+
+    const result = await undoLastAction(sid, v1);
+    expect(result.ok).toBe(false);
+    expect(result.undone).toBe(false);
+    expect((await getExperiment(sid))!.headVersionId).toBe(v2);
+    expect((await listActions(sid, true))).toHaveLength(1);
   });
 });

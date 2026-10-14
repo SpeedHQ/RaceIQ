@@ -9,11 +9,12 @@ import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-fr
 import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/normalization";
 import type { LapSetAlignmentIndex } from "@raceiq/analysis-core/racing/laps/alignment/build";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
-import { loadSessionSource, iterateSessionCaptureFrames, iterateSessionCaptureRecordsFromSource, indexCaptureFrames, clearSessionCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
-import { readFramePrefix } from "@raceiq/capture-formats/session/framing";
+import { loadSessionSource, iterateSessionCaptureFrames, iterateSessionCaptureRecordsFromSource, clearSessionCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
+import { iterateSessionFrameRecords } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "../session-capture/frame-time";
 import { legacyMotecOffsetToPacketIndex } from "../motec/source-archive";
 import { countFullPacketMaterialized, countParserStatePrime, countSourceFrameScanned } from "../session-capture/test-instrumentation";
+import { runningStartPacketIndex } from "@raceiq/telemetry-core/processor/ordinal-engine";
 
 // Rough per-packet byte estimate. TelemetryPacket has ~50–80 numeric fields
 // plus optional game-specific extensions (f1/acc/setup). Sniffing the first
@@ -293,6 +294,15 @@ function appendDelayedFinishPacket(packets: TelemetryPacket[], trailing: Telemet
   });
 }
 
+function trimRunningStartPackets(packets: TelemetryPacket[]): void {
+  const start = runningStartPacketIndex(packets);
+  if (start > 0) {
+    packets.copyWithin(0, start);
+    packets.length -= start;
+  }
+}
+
+
 function replayCanonicalLap(
   sourcePackets: TelemetryPacket[],
   start: number,
@@ -307,6 +317,7 @@ function replayCanonicalLap(
   const trailingSource = sourcePackets[start + frameCount];
   const trailing = trailingSource ? freshReplayPacket(trailingSource) : null;
   if (trailing) normalizeReplayPacket(trailing, game);
+  trimRunningStartPackets(packets);
   appendDelayedFinishPacket(packets, trailing, game);
   return packets;
 }
@@ -406,6 +417,7 @@ async function parseRawLapFramesFromSource(
   const packets: TelemetryPacket[] = [];
   let found = false;
   let targetCount = 0;
+  let trailingPacket: TelemetryPacket | null = null;
   for await (const { offset, frame, frameTimeMs } of iterateSessionCaptureFrames(source)) {
     fileSize = Math.max(fileSize, offset + (frameTimeMs === undefined ? 4 : 12) + frame.length);
     if (!found) {
@@ -428,7 +440,7 @@ async function parseRawLapFramesFromSource(
       targetCount++;
       continue;
     }
-    appendDelayedFinishPacket(packets, packet, serverGame);
+    trailingPacket = packet;
     break;
   }
   if (!found || targetCount < rawFrameCount) {
@@ -446,6 +458,8 @@ async function parseRawLapFramesFromSource(
       rawFile: source.rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: 0, reason: "no-packets-parsed",
     });
   }
+  trimRunningStartPackets(packets);
+  appendDelayedFinishPacket(packets, trailingPacket, serverGame);
   return packets;
 }
 
@@ -465,92 +479,53 @@ export async function parseRawLapFrames(source: SessionCaptureSource, rawByteOff
 }
 export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, rawFrameCount: number, gameId: GameId, rawFile = "<preloaded capture>"): TelemetryPacket[] {
   const serverGame = getServerGame(gameId);
-  let state = serverGame.createParserState?.() ?? null;
+  const state = serverGame.createParserState?.() ?? null;
   const fileSize = buf.length;
-
-  // rawByteOffset past EOF means the lap row was written before the
-  // corresponding bytes made it to disk (old bug), or something stomped
-  // the file. Fail loudly so the client can surface a useful message.
   if (rawByteOffset >= fileSize) {
     throw new LapParseError(`Lap raw byte offset ${rawByteOffset} is past EOF (file is ${fileSize} bytes) in ${rawFile}`, {
-      rawFile,
-      rawByteOffset,
-      rawFrameCount,
-      fileSize,
-      framesParsed: 0,
-      reason: "offset-past-eof",
+      rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: 0, reason: "offset-past-eof",
     });
   }
-
-  const frameIndex = indexCaptureFrames(buf);
-  const startRecord = frameIndex.byOffset.get(rawByteOffset);
-  const warmupRecords = startRecord
-    ? frameIndex.records.slice(0, startRecord.frameIndex)
-    : frameIndex.records.filter((record) => record.offset < rawByteOffset);
-  if (state != null) for (const record of warmupRecords) {
-    const prefix = readFramePrefix(buf, record.offset);
-    if (!prefix) continue;
-    const wBuf = buf.subarray(record.offset + prefix.prefixBytes, record.offset + prefix.prefixBytes + prefix.length);
-    try {
-      countParserStatePrime();
-      serverGame.primeParserState(wBuf, state);
-    } catch { /* warmup best-effort */ }
-  }
-  let offset = rawByteOffset;
   const packets: TelemetryPacket[] = [];
-  // returned to the caller.
-  const readCount = rawFrameCount + 1;
-
-  for (let i = 0; i < readCount; i++) {
-    const prefix = readFramePrefix(buf, offset);
-    if (!prefix) {
-      if (i >= rawFrameCount) break;
-      throw new LapParseError(`Truncated or invalid frame prefix at offset ${offset} (file ${fileSize} bytes, wanted frame ${i + 1}/${rawFrameCount})`, {
-        rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: packets.length, reason: "truncated-frame",
-      });
+  let found = false;
+  let targetCount = 0;
+  let trailingPacket: TelemetryPacket | null = null;
+  for (const { offset, frame, frameTimeMs } of iterateSessionFrameRecords(buf, state == null ? rawByteOffset : undefined)) {
+    if (!found) {
+      if (offset < rawByteOffset) {
+        if (state != null && serverGame.primeParserState) {
+          try { countParserStatePrime(); serverGame.primeParserState(frame, state); } catch {}
+        }
+        continue;
+      }
+      if (offset !== rawByteOffset) {
+        throw new LapParseError(`Lap raw byte offset ${rawByteOffset} is not aligned to a capture frame in ${rawFile}`, {
+          rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: 0, reason: "truncated-frame",
+        });
+      }
+      found = true;
     }
-    // NOTE: we do not check for META_FRAME_MAGIC here — the meta frame only
-    // exists at file offset 0, which laps never start at. Treating any
-    // mid-lap 0xFFFFFFFF as a meta frame would false-positive on legitimate
-    // packet data containing that byte pattern and drift the frame reader
-    // out of alignment.
-    const frameOffset = offset + prefix.prefixBytes;
-    if (frameOffset + prefix.length > buf.length) {
-      if (i >= rawFrameCount) break;
-      throw new LapParseError(`Frame ${i + 1}/${rawFrameCount} at offset ${frameOffset} claims ${prefix.length} bytes but only ${buf.length - frameOffset} remain`, {
-        rawFile,
-        rawByteOffset,
-        rawFrameCount,
-        fileSize,
-        framesParsed: packets.length,
-        reason: "truncated-frame",
-      });
+    const packet = parseReplayFrame(frame, serverGame, state, frameTimeMs);
+    if (targetCount < rawFrameCount) {
+      if (packet) packets.push(packet);
+      targetCount++;
+      continue;
     }
-    const sourceFrame = buf.subarray(frameOffset, frameOffset + prefix.length);
-    offset = frameOffset + prefix.length;
-    const packet = parseReplayFrame(sourceFrame, serverGame, state);
-    if (!packet) continue;
-    applyFrameTime(packet, prefix.frameTimeMs);
-    if (i < rawFrameCount) {
-      packets.push(packet);
-    } else {
-      appendDelayedFinishPacket(packets, packet, serverGame);
-    }
+    trailingPacket = packet;
+    break;
   }
-
-  // Parsed every frame successfully but the game adapter rejected all of
-  // them — the state accumulator never built a complete packet. Surface it.
+  if (!found || targetCount < rawFrameCount) {
+    throw new LapParseError(`Capture ended before ${rawFrameCount} lap frames were read`, {
+      rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: packets.length, reason: "truncated-frame",
+    });
+  }
   if (packets.length === 0 && rawFrameCount > 0) {
     throw new LapParseError(`Parsed ${rawFrameCount} frames but produced 0 telemetry packets (gameId=${gameId})`, {
-      rawFile,
-      rawByteOffset,
-      rawFrameCount,
-      fileSize,
-      framesParsed: 0,
-      reason: "no-packets-parsed",
+      rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: 0, reason: "no-packets-parsed",
     });
   }
-
+  trimRunningStartPackets(packets);
+  appendDelayedFinishPacket(packets, trailingPacket, serverGame);
   return packets;
 }
 
@@ -663,7 +638,7 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
   const active: Array<{ meta: (typeof lapMetas)[number]; packets: TelemetryPacket[]; end: number }> = [];
   let nextMeta = 0;
   let frameIndex = 0;
-  for await (const { offset, frame } of iterateSessionCaptureFrames(source)) {
+  for await (const { offset, frame, frameTimeMs } of iterateSessionCaptureFrames(source)) {
     countSourceFrameScanned();
     while (nextMeta < metas.length && metas[nextMeta]!.rawByteOffset < offset) nextMeta++;
     while (nextMeta < metas.length && metas[nextMeta]!.rawByteOffset === offset) {
@@ -682,9 +657,7 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
         state = serverGame.createParserState?.() ?? null;
       }
       if (needsFull) {
-        countFullPacketMaterialized();
-        packet = serverGame.tryParse(frame, state);
-        if (packet) normalizeReplayPacket(packet, serverGame);
+        packet = parseReplayFrame(frame, serverGame, state, frameTimeMs);
       } else {
         countParserStatePrime();
         serverGame.primeParserState(frame, state);
@@ -694,6 +667,7 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
       if (frameIndex < lap.end) {
         if (packet) lap.packets.push(packet);
       } else if (frameIndex === lap.end) {
+        trimRunningStartPackets(lap.packets);
         appendDelayedFinishPacket(lap.packets, packet, serverGame);
       }
     }
@@ -706,6 +680,9 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
     }
     frameIndex++;
   }
-  for (const lap of active) if (lap.packets.length > 0) out.set(lap.meta.id, lap.packets);
+  for (const lap of active) {
+    trimRunningStartPackets(lap.packets);
+    if (lap.packets.length > 0) out.set(lap.meta.id, lap.packets);
+  }
   return out;
 }

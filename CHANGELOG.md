@@ -12,6 +12,8 @@
 - Add OBS streaming overlays in the Portable page for live driving, timing, standings, nearby race order, car damage (F1 25, ACC, AC Evo), brake/throttle inputs, and distance driven, with sample previews when telemetry is unavailable and copyable metric or imperial browser-source URLs.
 - Allow a saved hostname, including a Tailscale FQDN, for remote HUD links and QR codes.
 - Refresh the dashboard with cleaner session and favourite widgets, clean-rate and podium trends, and seven days of activity by default.
+### Features
+- Retrieve automated lap insights on demand in Analyse chat before diagnosis and improvement advice, with visible tool activity and clear distinctions between missing data and no detected findings.
 - Export complete chat history as JSON for developer debugging, including retained chat generations, stored thinking, tool calls and results, and system prompts.
 - Optionally protect dashboard access with a password and configure trusted browser origins independently, while keeping existing local and remote access working without new settings.
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
@@ -20,6 +22,19 @@
 - Choose a recording folder, safely relocate existing recordings, and optionally migrate recordings into per-game `own` and `others` folders.
 
 ### Fixes
+- Keep experiment lap counts and review analysis tied to the selected test when importing historical laps or returning to an older setup, and preserve test membership during live updates.
+- Keep lap-chat follow-ups grounded in the selected lap and its latest analysis, use fresh telemetry for requested corner measurements, and preserve earlier driver notes without asking for internal lap identifiers.
+- Exclude running-start fragments from recorded lap replay and keep corner measurements and highlights aligned with the timed lap.
+- Restore dashboard, driver-profile, and Analyse pages when opening the app.
+- Restrict AI setup recommendations to available adjustments and legal values for the associated car and setup without dropping legal front-wing recommendations; suppress unchanged settings.
+- Show setup values from the lap's linked setup and preserve bump values in older saved AC Evo setups while keeping separate left/right Slow bump settings.
+- Block screenshots for chat models without verified image support and keep text conversations usable.
+- Remove failed screenshot messages without losing unrelated conversation or saved lap analysis.
+- Keep experiment AI chat tied to the selected version and its own laps; ask drivers to refresh when the version changes during a reply.
+- Create multiple confirmed setup alternatives in the same experiment chat reply without incorrectly asking drivers to refresh.
+- Preserve the selected experiment branch when undoing an unrelated branch deletion or partial restoration.
+- Prevent simultaneous saves of new setups from overwriting existing files.
+- Preserve saved lap analysis when clearing chat history.
 - Respect development onboarding overrides when deciding whether to show the setup wizard.
 - Remove saved network interfaces that are no longer available and replace them without losing other selections.
 - Allow development LAN dashboard origins on preserved all-interface listeners when browser-origin whitelisting is enabled.
@@ -74,6 +89,8 @@
 ### Internal
 - Verify setup navigation and recording-folder changes without depending on the optional Welcome 3D demo, and avoid startup-maintenance import cycles.
 - Document the reusable confirmation-dialog-to-background-progress pattern from sparse recording conversion, including state ownership, recovery, accessibility, and operation precedence.
+- Keep seeded Playwright discovery independent of server-only catalog imports, and reset persisted dashboard access between fresh-install wizard attempts with an explicit loopback settings check.
+- Recreate the database and dashboard access setup when seeding with `--clean`.
 - Wait for dashboard metadata and loading panels to finish before generating the Home marketing screenshot.
 - Include the privacy-safe iRacing SessionInfo path manifest in clean checkouts so CI can validate the telemetry catalog.
 - Add `bun clean` to remove repository-local development data without targeting custom `DATA_DIR` locations.

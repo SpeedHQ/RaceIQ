@@ -7,7 +7,7 @@ Database and lap-file maintenance commands. Run from repository root; `DATA_DIR`
 | Command | Inputs / flags | Outputs / side effects |
 | --- | --- | --- |
 | `bun run apps/backend/scripts/data/seed-db.ts` | Optional `--games=fm-2023,f1-2025,acc,ac-evo,iracing,lmu` (or `--games <list>`) | Imports checked-in session fixtures, creates demo profile/tunes/experiments/analyses, marks onboarding complete, writes captured sessions under `DATA_DIR` |
-| `bun run apps/backend/scripts/data/seed-db.ts --clean` | Optional `--games` | Deletes all database rows and referenced captured-session files, preserves schema migrations, then recreates seed data; destructive |
+| `bun run apps/backend/scripts/data/seed-db.ts --clean` | Optional `--games`; stop the server first | Deletes the database, SQLite sidecars, and dashboard access marker before recreating schema and seed data; resets dashboard passwords, network settings, and login sessions; leaves other files in `DATA_DIR` intact; destructive |
 | `bun run apps/backend/scripts/data/seed-db.ts --reset` | Optional `--games`, `--force` | Deletes rows/files marked by seed marker, then recreates seed data; `--reset` is destructive |
 | `bun run apps/backend/scripts/data/seed-db.ts --force` | Optional `--games` | Allows seeding database containing non-seed rows; use disposable `DATA_DIR` instead when possible |
 | `bun run db:seed --legacy-recordings` | Optional `--games`, `--reset`, `--force` | Places seed-owned recordings in the old `<recording-root>/<game>/` layout and updates session references so the recording-location migration prompt appears; also works with existing seed rows |

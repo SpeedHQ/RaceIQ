@@ -39,6 +39,10 @@ Storybook screenshot tests create missing baselines on first run and compare the
 
 Launchers and screenshot database seeding live together in `support/server/`. They resolve repository root from their deeper location before starting application processes.
 
+Fresh-install wizard attempts reset both `settings.json` and the isolated database's dashboard access state, including login sessions and the configured-access marker. Resetting settings alone does not restore the pending password choice after a completed attempt. The persisted-settings assertion uses the fixture's explicit IPv4 loopback listener instead of relying on `localhost` address selection.
+
+Specs that validate analyst output import the pure schema from `@raceiq/backend-core/ai/output-schema`. The server's `ai/schemas` module also owns setup-catalog validation and must not be loaded by the Node-based Playwright discovery process.
+
 Migration E2E imports all six complete game fixtures first via `POST /api/laps/import` with multipart `file`, `ownership=mine`, and `captureStorage=raw`. This stores full canonical records without direct database/file seeding. The test then opens the mandatory conversion dialog, presses Convert, and verifies replay before/after. Omit `captureStorage` for ordinary UI imports; those continue using sparse storage immediately. Raw storage is supported only for `.bin` and `.bin.gz` uploads, including native iRacing and LMU dumps.
 
 Recording-location migration coverage lives in `tests/fresh-install/recording-location-migration.spec.ts`. It imports a real capture with `bun run apps/backend/scripts/data/seed-db.ts --games=fm-2023 --fixtures=test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz --legacy-recordings`, creating DB-referenced captures in the legacy folder layout. The test verifies initial file/session counts, rejects occupied destinations without touching source files, then retries through the migration API and verifies byte-preserving organization under `<game>/own`, DB/session migration, source removal, and persisted recording-directory settings. It restores settings and removes disposable files and folders afterward.

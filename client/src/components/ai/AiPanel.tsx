@@ -541,7 +541,6 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           <ChatPanel
             key={chatRemountKey}
             api={`/api/laps/${lapId}/chat`}
-            clearChatApi={`/api/laps/${lapId}/chat?keepAnalysis=true`}
             fetchHistory={(gen) => fetchLapChatHistory(lapId, gen)}
             historyQueryKey={["lap-chat-history", lapId, chatRemountKey]}
             remountKey={`${lapId}:${chatRemountKey}`}

@@ -7,7 +7,7 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Composer } from "./thread-composer";
-import { EMPTY_COMPONENTS, InputDisabledContext, RegenerateContext, type ThreadComponents, ThreadComponentsContext, type ThreadGroupPart, type ThreadProps } from "./thread-context";
+import { EMPTY_COMPONENTS, ImageDisabledContext, ImageNoticeContext, InputDisabledContext, RegenerateContext, RemoveFailedTurnContext, type ThreadComponents, ThreadComponentsContext, type ThreadGroupPart, type ThreadProps } from "./thread-context";
 import { ThreadMessage } from "./thread-message";
 
 import { m } from "@/paraglide/messages";
@@ -15,14 +15,20 @@ export type { ThreadComponents, ThreadGroupPart, ThreadProps };
 
 const isNewChatView = (s: AssistantState) => s.thread.messages.length === 0 && (!s.thread.isLoading || s.threads.isLoading);
 
-export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS, inputDisabled = false, onRegenerate }) => {
+export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS, inputDisabled = false, imageDisabled = false, imageNotice, onRegenerate, onRemoveFailedTurn }) => {
   const isEmpty = useAuiState(isNewChatView);
   return (
     <ThreadComponentsContext.Provider value={components}>
       <RegenerateContext.Provider value={onRegenerate}>
-        <InputDisabledContext.Provider value={inputDisabled}>
-          <ThreadRoot isEmpty={isEmpty} />
-        </InputDisabledContext.Provider>
+        <RemoveFailedTurnContext.Provider value={onRemoveFailedTurn}>
+          <ImageDisabledContext.Provider value={imageDisabled}>
+            <ImageNoticeContext.Provider value={imageNotice}>
+              <InputDisabledContext.Provider value={inputDisabled}>
+                <ThreadRoot isEmpty={isEmpty} />
+              </InputDisabledContext.Provider>
+            </ImageNoticeContext.Provider>
+          </ImageDisabledContext.Provider>
+        </RemoveFailedTurnContext.Provider>
       </RegenerateContext.Provider>
     </ThreadComponentsContext.Provider>
   );

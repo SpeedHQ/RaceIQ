@@ -1,4 +1,5 @@
-import type { SetupContentRow, SetupContentSection } from "./content";
+import type { SetupCapabilityRange, SetupContentRow, SetupContentSection } from "./content";
+import { normalizeAcEvoTuneSettings } from "./ac-evo-schema";
 
 interface KnobDescriptor {
   title: string;
@@ -7,6 +8,7 @@ interface KnobDescriptor {
   scale?: number;
   unit?: string;
   step?: number;
+  rangeKey?: string;
 }
 
 /** Verified flat-knob to source-summary mapping. Scale converts canonical values to displayed values. */
@@ -26,8 +28,10 @@ const KNOBS: readonly KnobDescriptor[] = [
   { title: "Rear left", label: "Camber", knob: "rearCamber", unit: "°", step: 0.1 },
   { title: "Front left", label: "Wheel rate", knob: "frontSpringRate", scale: 0.001, unit: " kN/m" },
   { title: "Rear left", label: "Wheel rate", knob: "rearSpringRate", scale: 0.001, unit: " kN/m" },
-  { title: "Front left", label: "Slow bump", knob: "frontBump", step: 1 },
-  { title: "Rear left", label: "Slow bump", knob: "rearBump", step: 1 },
+  { title: "Front left", label: "Slow bump", knob: "frontLeftBump", rangeKey: "frontBump", unit: " clicks", step: 1 },
+  { title: "Front right", label: "Slow bump", knob: "frontRightBump", rangeKey: "frontBump", unit: " clicks", step: 1 },
+  { title: "Rear left", label: "Slow bump", knob: "rearLeftBump", rangeKey: "rearBump", unit: " clicks", step: 1 },
+  { title: "Rear right", label: "Slow bump", knob: "rearRightBump", rangeKey: "rearBump", unit: " clicks", step: 1 },
   { title: "Front left", label: "Slow rebound", knob: "frontRebound", step: 1 },
   { title: "Rear left", label: "Slow rebound", knob: "rearRebound", step: 1 },
   { title: "Electronics", label: "TC", knob: "tc", step: 1 },
@@ -50,7 +54,7 @@ const format = (value: number): string => Number.isInteger(value) ? String(value
 export function annotateAcEvoSections(
   sections: readonly SetupContentSection[],
   knobs: Record<string, number>,
-  ranges?: Record<string, { min: number; max: number; step: number } | null> | null,
+  ranges?: Record<string, SetupCapabilityRange> | null,
 ): SetupContentSection[] {
   return sections.map((section) => ({
     ...section,
@@ -58,9 +62,8 @@ export function annotateAcEvoSections(
       if (row.fixed) return row;
       const descriptor = descriptorByRow[`${section.title}\0${row.label}`];
       if (!descriptor || !Number.isFinite(knobs[descriptor.knob])) return row;
-      if (ranges && Object.hasOwn(ranges, descriptor.knob) && ranges[descriptor.knob] === null) {
-        return { ...row, fixed: true };
-      }
+      const capability = ranges?.[descriptor.rangeKey ?? descriptor.knob];
+      if (ranges && (!capability || "status" in capability)) return { ...row, knob: undefined, fixed: true };
       const scale = descriptor.scale ?? 1;
       const displayNum = row.num != null ? row.num * scale : Number.parseFloat(row.value);
       return {
@@ -78,9 +81,10 @@ export function annotateAcEvoSections(
 }
 /** Render known editable rows from flat/manual tune values without inventing missing numbers. */
 export function summarizeAcEvoKnobs(settings: Record<string, unknown>): SetupContentSection[] {
+  const normalized = normalizeAcEvoTuneSettings(settings);
   const sections: SetupContentSection[] = [];
   for (const descriptor of KNOBS) {
-    const raw = settings[descriptor.knob];
+    const raw = normalized[descriptor.knob];
     let section = sections.find((candidate) => candidate.title === descriptor.title);
     if (!section) {
       section = { title: descriptor.title, rows: [] };

@@ -86,9 +86,42 @@ describe("setup source catalog", () => {
     expect(unavailable[0].rows[0].knob).toBeUndefined();
 
     const unknown = annotateAcEvoSections(sections, knobs, {});
-    expect(unknown[0].rows[0]).toMatchObject({ value: "-2.5°", num: -2.5, knob: "frontCamber" });
+    expect(unknown[0].rows[0]).toMatchObject({ value: "-2.5°", num: -2.5, fixed: true });
+    expect(unknown[0].rows[0].knob).toBeUndefined();
+    const fixed = annotateAcEvoSections(sections, knobs, { frontCamber: { status: "fixed" } });
+    expect(fixed[0].rows[0]).toMatchObject({ value: "-2.5°", num: -2.5, fixed: true });
+    expect(fixed[0].rows[0].knob).toBeUndefined();
     const available = annotateAcEvoSections(sections, knobs, { frontCamber: { min: -5, max: 5, step: 0.1 } });
     expect(available[0].rows[0]).toMatchObject({ value: "-2.5°", num: -2.5, knob: "frontCamber" });
+  });
+
+  test("preserves individual Slow bump controls and shares only their legal axle ranges", () => {
+    const knobs = { frontLeftBump: 7, frontRightBump: 8, rearLeftBump: 9, rearRightBump: 10 };
+    const rows = annotateAcEvoSections(summarizeAcEvoKnobs(knobs), knobs, {
+      frontBump: { min: 1, max: 20, step: 1 },
+      rearBump: { min: 1, max: 20, step: 1 },
+    }).flatMap((section) => section.rows).filter((row) => row.label === "Slow bump");
+    expect(rows.map((row) => ({ knob: row.knob, num: row.num, unit: row.unit }))).toEqual([
+      { knob: "frontLeftBump", num: 7, unit: " clicks" },
+      { knob: "frontRightBump", num: 8, unit: " clicks" },
+      { knob: "rearLeftBump", num: 9, unit: " clicks" },
+      { knob: "rearRightBump", num: 10, unit: " clicks" },
+    ]);
+  });
+
+  test("migrates legacy axle bump values while retaining explicit per-wheel values", () => {
+    const settings = { frontBump: 0, rearBump: 6, frontRightBump: 3, rearLeftBump: 8 };
+    const rows = summarizeAcEvoKnobs(settings).flatMap((section) => section.rows);
+    expect(rows.filter((row) => row.label === "Slow bump").map((row) => [row.knob, row.num])).toEqual([
+      ["frontLeftBump", 0], ["frontRightBump", 3], ["rearLeftBump", 8], ["rearRightBump", 6],
+    ]);
+    const dampers = getSchemaForGame("ac-evo").find((section) => section.key === "dampers")!;
+    expect(dampers.fields.map((field) => [field.path, readSetupField(settings, field)])).toContainEqual(["frontLeftBump", 0]);
+    expect(readSetupField(settings, dampers.fields.find((field) => field.path === "rearRightBump")!)).toBe(6);
+    const editable = { frontBump: 4 };
+    writeSetupField(editable, dampers.fields.find((field) => field.path === "frontRightBump")!, 9);
+    expect(readSetupField(editable, dampers.fields.find((field) => field.path === "frontLeftBump")!)).toBe(4);
+    expect(readSetupField(editable, dampers.fields.find((field) => field.path === "frontRightBump")!)).toBe(9);
   });
 
   test("exposes known iRacing CarSetup metadata as read-only sources", () => {
