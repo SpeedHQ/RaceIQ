@@ -2,7 +2,7 @@ import { useIsMutating } from "@tanstack/react-query";
 import { queryKeys } from "@/hooks/query-keys";
 import { UnitsStep } from "./steps/UnitsStep";
 import { useRecordingDirectoryStatus, useRecordingLayoutMigration } from "@/hooks/recording-storage";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useSaveSettings } from "@/hooks/settings";
 import { m } from "@/paraglide/messages";
@@ -43,6 +43,29 @@ export function OnboardingModal({ onClose, onComplete, initialStep = 0 }: { onCl
   const { status, refresh } = useDashboardAuth();
   const [step, setStep] = useState(initialStep);
   const [accessFooter, setAccessFooter] = useState<HTMLSpanElement | null>(null);
+  const stepStripRef = useRef<HTMLDivElement>(null);
+  const activeStepRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const strip = stepStripRef.current;
+    const activeStep = activeStepRef.current;
+    if (!strip || !activeStep) return;
+
+    const keepActiveStepVisible = () => {
+      const stripBounds = strip.getBoundingClientRect();
+      const stepBounds = activeStep.getBoundingClientRect();
+      const offset = stepBounds.left < stripBounds.left
+        ? stepBounds.left - stripBounds.left
+        : Math.max(0, stepBounds.right - stripBounds.right);
+      if (offset) strip.scrollBy({ left: offset, behavior: "instant" });
+    };
+
+    keepActiveStepVisible();
+    const observer = new ResizeObserver(keepActiveStepVisible);
+    observer.observe(strip);
+    observer.observe(activeStep);
+    return () => observer.disconnect();
+  }, [step]);
   const saveSettings = useSaveSettings();
   const storageStatus = useRecordingDirectoryStatus();
   const isMovePending = useIsMutating({ mutationKey: queryKeys.recordingDirectoryMove }) > 0;
@@ -69,12 +92,12 @@ export function OnboardingModal({ onClose, onComplete, initialStep = 0 }: { onCl
         {step > 0 && (
           <div className="shrink-0 px-4 pt-4 pb-4 @3xl/onboarding:px-6 @3xl/onboarding:pt-6">
             <h1 className="text-app-heading font-semibold text-app-text @3xl/onboarding:text-app-title">{m.ob_configure_title()}</h1>
-            <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-1">
+            <div ref={stepStripRef} className="flex items-center gap-2 mt-4 overflow-x-auto pb-1">
               {MODAL_STEPS.slice(1).map((s, idx) => {
                 const i = idx + 1;
                 return (
                   <div key={s.id} className="flex items-center gap-2 shrink-0">
-                    <div className={`flex items-center gap-1.5 text-xs font-medium whitespace-nowrap ${i === step ? "text-app-accent" : i < step ? "text-app-text-secondary" : "text-app-text-muted/50"}`}>
+                    <div ref={i === step ? activeStepRef : undefined} aria-current={i === step ? "step" : undefined} className={`flex items-center gap-1.5 text-xs font-medium whitespace-nowrap ${i === step ? "text-app-accent" : i < step ? "text-app-text-secondary" : "text-app-text-muted/50"}`}>
                       <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold border transition-colors ${i === step ? "border-app-accent bg-app-accent/15 text-app-accent" : i < step ? "border-status-success bg-status-success/15 text-status-success" : "border-app-border bg-app-surface-alt text-app-text-muted/50"}`}>
                         {i < step ? (
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
