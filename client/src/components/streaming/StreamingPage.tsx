@@ -52,6 +52,7 @@ const WIDGETS: readonly { widget: OverlayWidget; width: number; height: number; 
   { widget: "standings", width: 420, height: 900, title: () => m.streaming_standings_title(), explain: () => m.streaming_standings_description() },
   { widget: "nearby", width: 420, height: 220, title: () => m.streaming_nearby_title(), explain: () => m.streaming_nearby_description() },
   { widget: "damage", width: 420, height: 360, title: () => m.streaming_damage_title(), explain: () => m.streaming_damage_description() },
+  { widget: "distance", width: 420, height: 160, title: () => m.streaming_distance_title(), explain: () => m.streaming_distance_description() },
 ];
 
 function OverlayPreview({ config }: { config: OverlayConfig }) {

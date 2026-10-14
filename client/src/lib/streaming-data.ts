@@ -15,6 +15,7 @@ export interface OverlayDamageRow { semanticId: string; labelKey: string; pct?: 
 export interface OverlayData {
   status: "live" | "waiting" | "disconnected" | "stale";
   damage: readonly OverlayDamageRow[];
+  distanceDrivenM?: number;
   damageDataStatus: "available" | "unsupported" | "waiting";
   speed?: number;
   speedUnit: "km/h" | "mph";

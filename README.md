@@ -50,7 +50,7 @@ Check out the [screenshots](assets/screenshots/) to see it in action.
 - **Track mapping and guides** — see your live position, map new tracks automatically, and use turn numbers, sectors, and track guides
 - **Race results** — review qualifying, podiums, fastest laps, pit stops, strategies, and position timelines
 - **Data portability** — import MoTeC logs and saved session captures; export individual laps or complete sessions
-- **Multi-game support** — use RaceIQ with Forza Motorsport 2023, F1 2025, Assetto Corsa Competizione, Assetto Corsa Evo, iRacing, and Le Mans Ultimate
+- **Streaming widgets** — transparent OBS and Streamlabs browser-source widgets for driving, inputs, timing, standings, nearby cars, damage, and distance driven
 
 ## Supported Games
 
@@ -76,6 +76,7 @@ Grab the latest installer from the [releases page](https://github.com/SpeedHQ/Ra
 For Forza and F1, configure the game's telemetry settings to send UDP data to `127.0.0.1:5301`. ACC, AC Evo, iRacing, and LMU are detected automatically from native Windows telemetry. For LMU, enable **Gameplay > Enable Plugins**. Start driving and telemetry will appear automatically. LMU `.duckdb` files from `UserData/Telemetry` can also be uploaded from Sessions.
 
 > **Already forwarding telemetry to a wheel base or other app?** Use [UDP Forwarder](https://github.com/SpeedHQ/udp-forwarder) to send telemetry to multiple destinations at once.
+
 
 ## Updates
 

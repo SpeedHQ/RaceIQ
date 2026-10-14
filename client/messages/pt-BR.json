@@ -2468,6 +2468,8 @@
   "streaming_standings_description": "Ordem da corrida no F1 25 com diferenças para o líder.",
   "streaming_nearby_title": "Próximos na ordem da corrida",
   "streaming_nearby_description": "Linha do jogador e até duas posições à frente e atrás no F1 25.",
+  "streaming_distance_title": "Distância percorrida",
+  "streaming_distance_description": "Distância acumulada com base na telemetria enquanto este widget está conectado.",
   "streaming_recommended_size": "{width} × {height}px",
   "streaming_fps": "30 FPS",
   "streaming_source_url": "URL da fonte do navegador",

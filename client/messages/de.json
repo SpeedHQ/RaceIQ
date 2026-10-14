@@ -2492,6 +2492,8 @@
   "streaming_standings_description": "Rennreihenfolge in F1 25 mit Abständen zum Führenden.",
   "streaming_nearby_title": "Nachbarn in Rennreihenfolge",
   "streaming_nearby_description": "Spielerzeile und bis zu zwei Positionen davor und dahinter in F1 25.",
+  "streaming_distance_title": "Gefahrene Distanz",
+  "streaming_distance_description": "Während dieses Widget verbunden ist, anhand der Telemetrie erfasste Distanz.",
   "streaming_recommended_size": "{width} × {height}px",
   "streaming_fps": "30 FPS",
   "streaming_source_url": "Browserquellen-URL",

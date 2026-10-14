@@ -2469,6 +2469,8 @@
   "streaming_standings_description": "リーダーとの差を含むF1 25のレース順位。",
   "streaming_nearby_title": "レース順位で近くの車",
   "streaming_nearby_description": "F1 25でプレイヤー行と前後最大2台を表示します。",
+  "streaming_distance_title": "走行距離",
+  "streaming_distance_description": "このウィジェットの接続中にテレメトリーから累積した距離です。",
   "streaming_recommended_size": "{width} × {height}px",
   "streaming_fps": "30 FPS",
   "streaming_source_url": "ブラウザーソースURL",

@@ -1,4 +1,4 @@
-export const OVERLAY_WIDGETS = ["driving", "inputs", "timing", "standings", "nearby", "damage"] as const;
+export const OVERLAY_WIDGETS = ["driving", "inputs", "timing", "standings", "nearby", "damage", "distance"] as const;
 export type OverlayWidget = (typeof OVERLAY_WIDGETS)[number];
 export type OverlayConfig = { widget: OverlayWidget; unit: "metric" | "imperial" };
 

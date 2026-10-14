@@ -2468,6 +2468,8 @@
   "streaming_standings_description": "F1 25:n kilpailujärjestys ja erot johtajaan.",
   "streaming_nearby_title": "Lähellä kilpailujärjestyksessä",
   "streaming_nearby_description": "Pelaaja sekä enintään kaksi edellä ja takana F1 25:ssä.",
+  "streaming_distance_title": "Ajettu matka",
+  "streaming_distance_description": "Telemetriasta tämän widgetin yhteyden aikana kertynyt matka.",
   "streaming_recommended_size": "{width} × {height}px",
   "streaming_fps": "30 FPS",
   "streaming_source_url": "Selainlähteen URL-osoite",

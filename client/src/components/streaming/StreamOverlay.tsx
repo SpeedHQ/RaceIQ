@@ -12,6 +12,7 @@ const WIDGET_SIZES = {
   standings: { width: 420, height: 900 },
   nearby: { width: 420, height: 220 },
   damage: { width: 420, height: 360 },
+  distance: { width: 420, height: 160 },
 } as const;
 
 export function StreamOverlay({ config, data }: { config: OverlayConfig; data: OverlayData }) {
@@ -58,6 +59,14 @@ export function StreamOverlay({ config, data }: { config: OverlayConfig; data: O
   </section></div>);
 
   if (config.widget === "inputs") return canvas(<div className="flex h-full w-full items-start justify-start overflow-hidden p-2 text-app-text"><InputGraph data={data} /></div>);
+  if (config.widget === "distance") {
+    const value = data.distanceDrivenM;
+    const imperial = config.unit === "imperial";
+    const amount = value === undefined ? "—" : imperial
+      ? `${(value / 1609.344).toFixed(2)} mi`
+      : `${(value / 1000).toFixed(2)} km`;
+    return canvas(<div className="flex h-full w-full items-start justify-start overflow-hidden p-2 text-app-text"><section className={`${panel} flex w-full items-center justify-between`}><div><div className="text-app-caption uppercase tracking-wide text-app-text-muted">{m.streaming_distance_title()}</div><div className="mt-1 text-4xl font-semibold tabular-nums">{amount}</div></div></section></div>);
+  }
   const damagePct = (semanticId: string) => data.damage.find((row) => row.semanticId === semanticId)?.pct;
   if (config.widget === "damage") return canvas(<div className="flex h-full w-full items-start justify-start overflow-hidden p-2 text-app-text"><section className={`${panel} w-full p-0`}>
     <header className="border-b border-app-border/60 px-3 py-2 text-sm font-semibold">{m.streaming_damage_title()}</header>

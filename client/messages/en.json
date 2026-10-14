@@ -2468,6 +2468,8 @@
   "streaming_standings_description": "F1 25 race order with gaps to the leader.",
   "streaming_nearby_title": "Nearby in race order",
   "streaming_nearby_description": "F1 25 player row plus up to two positions ahead and behind.",
+  "streaming_distance_title": "Distance driven",
+  "streaming_distance_description": "Distance accumulated from telemetry while this widget is connected.",
   "streaming_recommended_size": "{width} × {height}px",
   "streaming_fps": "30 FPS",
   "streaming_source_url": "Browser source URL",

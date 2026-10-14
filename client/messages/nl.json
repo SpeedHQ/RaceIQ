@@ -2468,6 +2468,8 @@
   "streaming_standings_description": "Racevolgorde in F1 25 met verschillen tot de leider.",
   "streaming_nearby_title": "Nabij in racevolgorde",
   "streaming_nearby_description": "Spelersrij en maximaal twee posities voor en achter in F1 25.",
+  "streaming_distance_title": "Afgelegde afstand",
+  "streaming_distance_description": "Afstand die is opgebouwd uit telemetrie zolang deze widget verbonden is.",
   "streaming_recommended_size": "{width} × {height}px",
   "streaming_fps": "30 FPS",
   "streaming_source_url": "Browserbron-URL",

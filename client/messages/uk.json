@@ -2468,6 +2468,8 @@
   "streaming_standings_description": "Порядок гонки у F1 25 із відривами від лідера.",
   "streaming_nearby_title": "Сусіди за порядком гонки",
   "streaming_nearby_description": "Рядок гравця та до двох позицій попереду й позаду у F1 25.",
+  "streaming_distance_title": "Пройдена відстань",
+  "streaming_distance_description": "Відстань, накопичена за телеметрією, поки віджет підключений.",
   "streaming_recommended_size": "{width} × {height}px",
   "streaming_fps": "30 FPS",
   "streaming_source_url": "URL джерела браузера",
