@@ -1,24 +1,36 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { unzipSync, zipSync } from "fflate";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { eq } from "drizzle-orm";
+import { zipSync, unzipSync } from "fflate";
+import { db } from "@raceiq/backend-core/db/index";
+import { sessions } from "@raceiq/backend-core/db/schema";
+import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
+import { decodeMotecSourceArchive } from "@raceiq/backend-core/motec/source-archive";
+import { deleteSession } from "@raceiq/backend-core/db/session-queries";
+import { decompressIfGzipSync, iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
+import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
 import { initServerGameAdapters } from "../../src/games/init";
 import { initMotecTargets } from "../../src/games/motec-init";
 import { transferRoutes } from "../../src/routes/laps/transfer-routes";
 import { stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
-import { dirname, join } from "node:path";
-import { eq } from "drizzle-orm";
-import { db } from "@raceiq/backend-core/db/index";
-import { sessions } from "@raceiq/backend-core/db/schema";
-import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
-import { decodeMotecSourceArchive } from "@raceiq/backend-core/motec/source-archive";
+import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
+const importedSessionIds: number[] = [];
+const temporaryDirectories: string[] = [];
 
 const MOTEC_ARCHIVE = "test/artifacts/motec/acc-barcelona-porsche-992.zip";
 
 initGameAdapters();
 initServerGameAdapters();
 initMotecTargets();
-afterAll(stopMaintenanceTasks);
+registerDriverProfileLapNotifier(() => {});
+afterAll(async () => {
+  for (const id of importedSessionIds.splice(0)) await deleteSession(id);
+  for (const directory of temporaryDirectories.splice(0)) rmSync(directory, { recursive: true, force: true });
+  stopMaintenanceTasks();
+});
 
 describe("ZIP import ownership validation", () => {
   test.each([
@@ -78,24 +90,62 @@ test("rejects malformed gzip imports as bad requests", async () => {
   });
 });
 
-test("rejects unsupported capture storage before importing a bin", async () => {
+test.each(["mine", "others"] as const)("imports sparse RaceIQ captures as %s into its ownership folder", async (ownership) => {
+  const name = "fm-2023-2026-04-09T21-55-03-186Z.bin.gz";
+  const source = decompressIfGzipSync(readFileSync(`test/artifacts/sessions/${name}`));
+  const directory = mkdtempSync(join(tmpdir(), "raceiq-sparse-upload-"));
+  temporaryDirectories.push(directory);
+  const sparsePath = join(directory, "capture.bin");
+  const recorder = new SparseSessionRecorder("fm-2023");
+  recorder.start(sparsePath);
+  recorder.writeMetaFrame();
+  for (const frame of iterateSessionFrames(source)) recorder.writeRecord(frame);
+  await recorder.stop();
+  const existingIds = new Set(
+    (await db.select({ id: sessions.id }).from(sessions).all()).map((row) => row.id),
+  );
   const form = new FormData();
-  form.append("file", new File([new Uint8Array()], "capture.bin"));
-  form.append("ownership", "mine");
-  form.append("captureStorage", "unknown");
+  form.append("file", new File([readFileSync(sparsePath)], name));
+  form.append("ownership", ownership);
   const response = await transferRoutes.request("/api/laps/import", { method: "POST", body: form });
-  expect(response.status).toBe(400);
-  expect(await response.json()).toEqual({ error: "captureStorage must be raw when provided" });
+  expect(response.status).toBe(200);
+  const result = await response.json() as { ok: boolean; gameId: string; packetCount: number; imported: number };
+  expect(result).toMatchObject({ ok: true, gameId: "fm-2023" });
+  expect(result.packetCount).toBeGreaterThan(0);
+  expect(result.imported).toBeGreaterThan(0);
+  const newSessions = (await db.select().from(sessions).all()).filter((session) => !existingIds.has(session.id));
+  for (const session of newSessions) {
+    expect(session.ownership).toBe(ownership);
+    expect(dirname(session.rawFile!)).toBe(join(resolveRecordingDirectory(), "fm-2023", ownership === "others" ? "others" : "own"));
+  }
+  importedSessionIds.push(
+    ...(await db.select({ id: sessions.id }).from(sessions).all())
+      .map((row) => row.id)
+      .filter((id) => !existingIds.has(id)),
+  );
 });
 
-test("limits raw capture storage to bin uploads", async () => {
-  const form = new FormData();
-  form.append("file", new File([new Uint8Array([1])], "capture.duckdb"));
-  form.append("ownership", "mine");
-  form.append("captureStorage", "raw");
-  const response = await transferRoutes.request("/api/laps/import", { method: "POST", body: form });
+test("rejects legacy full-frame recordings", async () => {
+  const name = "fm-2023-2026-04-09T21-55-03-186Z.bin.gz";
+  const bytes = readFileSync(`test/artifacts/sessions/${name}`);
+  const detectForm = new FormData();
+  detectForm.append("file", new File([bytes], name));
+  const detection = await transferRoutes.request("/api/laps/detect-import", { method: "POST", body: detectForm });
+  expect(detection.status).toBe(200);
+  expect(await detection.json()).toMatchObject({
+    format: "bin",
+    supported: false,
+    message: "Only sparse RaceIQ captures are supported.",
+  });
+
+  const importForm = new FormData();
+  importForm.append("file", new File([bytes], name));
+  importForm.append("ownership", "mine");
+  const response = await transferRoutes.request("/api/laps/import", { method: "POST", body: importForm });
   expect(response.status).toBe(400);
-  expect(await response.json()).toEqual({ error: "Raw capture storage requires a .bin or .bin.gz file" });
+  expect(await response.json()).toMatchObject({
+    error: `Could not detect a sparse RaceIQ capture from "${name}".`,
+  });
 });
 
 test("staged MoTeC names are safe display-only basenames", async () => {
@@ -158,22 +208,3 @@ test.each(["mine", "others"] as const)("imports a MoTeC ZIP as %s into its owner
   const ldEntry = Object.entries(uploaded).find(([name]) => name.endsWith(".ld"))!;
   expect(source.ldBytes).toEqual(Buffer.from(ldEntry[1]));
 }, 30_000);
-
-test.each([
-  ["mine", "sparse"],
-  ["others", "sparse"],
-  ["mine", "raw"],
-  ["others", "raw"],
-] as const)("imports %s binary telemetry with %s storage into its ownership folder", async (ownership, storage) => {
-  const form = new FormData();
-  form.append("file", new File([readFileSync("test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz")], "capture.bin.gz"));
-  form.append("gameId", "fm-2023");
-  form.append("ownership", ownership);
-  if (storage === "raw") form.append("captureStorage", "raw");
-  const response = await transferRoutes.request("/api/laps/import", { method: "POST", body: form });
-  expect(response.status).toBe(200);
-  const result = await response.json() as { laps: { sessionId: number }[] };
-  const session = await db.select().from(sessions).where(eq(sessions.id, result.laps[0]!.sessionId)).get();
-  expect(session?.ownership).toBe(ownership);
-  expect(dirname(session!.rawFile!)).toBe(join(resolveRecordingDirectory(), "fm-2023", ownership === "others" ? "others" : "own"));
-}, 60_000);

@@ -14,12 +14,10 @@ import { getLocale, isLocale } from "@/paraglide/runtime";
 import { AppSidebar } from "../components/AppSidebar";
 import { RaceResultStatus } from "../components/RaceResultStatus";
 import { ResponsiveWorkspace } from "../components/ResponsiveWorkspace";
-import { CaptureMigration } from "../components/CaptureMigration";
 import { StaleLapReprocessing } from "../components/StaleLapReprocessing";
 import { UpdateModal } from "../components/UpdateModal";
 import { Button } from "../components/ui/button";
 import { useLocalStorage } from "../hooks/useLocalStorage";
-import { useRecordingLayoutMigration } from "../hooks/recording-storage";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { queryClient } from "../lib/queryClient";
 import { useTelemetryStore } from "../stores/telemetry";
@@ -84,11 +82,6 @@ function AppShell() {
   const showSettings = useUiStore((s) => s.settingsOpen);
   const settingsSection = useUiStore((s) => s.settingsSection);
   const onboardingOpen = useUiStore((s) => s.onboardingOpen);
-  const [layoutSuccessDismissed, setLayoutSuccessDismissed] = useState(false);
-  const layoutMigration = useRecordingLayoutMigration();
-  useEffect(() => {
-    if (layoutMigration.data?.progress.status === "running") setLayoutSuccessDismissed(false);
-  }, [layoutMigration.data?.progress.status]);
   const { openSettings, closeSettings, closeOnboarding } = uiStore.actions;
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useLocalStorage<boolean>("raceiq-sidebar-collapsed", false);
@@ -211,8 +204,7 @@ function AppShell() {
         {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? updateAvailable ?? "?"} currentVersion={updateState?.current ?? "?"} newReleases={updateState?.newReleases ?? []} fullReleaseNotes={updateState?.fullReleaseNotes ?? null} currentReleaseNotes={updateState?.currentReleaseNotes ?? null} currentReleaseDate={updateState?.currentReleaseDate ?? null} updatesDisabled={updateState?.updatesDisabled} onClose={() => setShowUpdateModal(false)} />}
         {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
       </div>
-      <RecordingLayoutMigration onSuccessDismissed={() => setLayoutSuccessDismissed(true)} />
-      <CaptureMigration suppressed={Boolean(layoutMigration.data?.fileCount) || layoutMigration.data?.progress.status === "running" || layoutMigration.data?.progress.status === "partial" || layoutMigration.data?.progress.status === "error" || (layoutMigration.data?.progress.status === "success" && !layoutSuccessDismissed)} />
+      <RecordingLayoutMigration />
       <StaleLapReprocessing />
       <RaceResultStatus compact />
     </>

@@ -91,7 +91,6 @@ apps/backend/test/race-results/race-results-derive.test.ts
 apps/backend/test/race-results/race-results-source.test.ts
 apps/backend/test/race-results/race-results-storage.test.ts
 apps/backend/test/race-results/raw-capture-identity.test.ts
-apps/backend/test/routes/capture-migration-consent.test.ts
 apps/backend/test/routes/car-routes-game-id.test.ts
 apps/backend/test/routes/diagnostics-routes.test.ts
 apps/backend/test/routes/import-ownership.test.ts
@@ -120,9 +119,7 @@ apps/backend/test/runtime/tray.test.ts
 apps/backend/test/runtime/update-check.test.ts
 apps/backend/test/runtime/update-github.integration.test.ts
 apps/backend/test/runtime/websocket-manager.test.ts
-apps/backend/test/session-capture/all-game-import-migration.test.ts
 apps/backend/test/session-capture/automatic-cleanup.test.ts
-apps/backend/test/session-capture/capture-migration.test.ts
 apps/backend/test/session-capture/context-markers.test.ts
 apps/backend/test/session-capture/dashboard-processing.test.ts
 apps/backend/test/session-capture/elapsed-duration.test.ts

@@ -19,7 +19,7 @@ graph LR
   Replay --> Adapter
 ```
 
-UDP adapters preserve original source datagrams. ACC and AC Evo pack three shared-memory pages with adapter magic and resolved ordinals. iRacing preserves versioned session/value-delta source frames. Production uses `SparseSessionRecorderAdapter` for all six games; `RealSessionRecorderAdapter` remains an independent raw baseline.
+UDP adapters preserve original source datagrams. ACC and AC Evo pack three shared-memory pages with adapter magic and resolved ordinals. iRacing preserves versioned session/value-delta source frames. Production uses `SparseSessionRecorderAdapter` for all six games.
 
 ## Canonical session file
 
@@ -42,7 +42,9 @@ The sparse adapter writes full source frames at session start, after context bou
 
 Every telemetry record begins with a four-byte little-endian **stored payload length**; bit 31 flags an eight-byte UTC capture timestamp before the payload in new live recordings. The game source-frame bytes are unchanged. A full record's payload is the unchanged game source frame, including any game-specific header or source-frame schema version. A sparse record's payload starts with a storage-codec magic:
 
-Capture times preserve pauses and acquisition gaps through gzip, export, import, migration, and replay across all six games. Replay uses recorded UTC when available; simulator `TimestampMS` remains independent for games with native session clocks. ACC/AC Evo replay derives packet wall-clock time from recorded UTC; historical captures without it cannot recover original capture times. Opt-in migration preserves the absence of timestamps in historical frames; it never substitutes conversion time or a zero sentinel. Existing UTC timestamps survive migration unchanged. Inter-frame gaps indicate missing or delayed acquisition, not proof of slow disk writes; identifying recorder latency requires measuring capture-to-write or flush timing separately. Timestamped records add eight bytes per stored frame and are incompatible with older readers.
+Capture times preserve pauses and acquisition gaps through gzip, export, import, and replay across all six games. Replay uses recorded UTC when available; simulator `TimestampMS` remains independent for games with native session clocks. ACC/AC Evo replay derives packet wall-clock time from recorded UTC; sparse captures without it cannot recover original capture times. Readers preserve missing timestamps on sparse and imported records and never invent them. Existing UTC timestamps survive import unchanged. Inter-frame gaps indicate missing or delayed acquisition, not proof of slow disk writes; identifying recorder latency requires measuring capture-to-write or flush timing separately. Timestamped records add eight bytes per stored frame and are incompatible with older readers.
+
+`SparseSessionRecorder` and `buildLapsZip` write a separate `RSP1` version-1 meta record after the first telemetry frame. This distinguishes captures produced in sparse format even when no delta is smaller than the source frame; readers skip the marker. Playback, reprocessing, and imports accept captures identified by `RSP1` or a known sparse codec record; unmarked full-frame legacy captures are unsupported. Seed migration converts checked-in legacy fixtures to sparse captures before shared import.
 
 | Payload starts with | Meaning |
 |---|---|
@@ -72,7 +74,7 @@ sparse: 0f 00 00 00 | 52 51 53 44 | 01 | 4f 01 00 00 | 4b 01 00 00 | 00 00
 
 Here `335 = 4 + 331` bytes from sparse record prefix back to full record prefix. Eleven 32-byte blocks cover 331 bytes; their two-byte zero bitmap means no blocks changed. Decoder reproduces the complete 331-byte source frame. With optional meta header, the same two records start 12 bytes later; their relative back-distance remains 335.
 
-Codec magic/version select **stored-payload decoding**. They are separate from game source-frame schema versions (for example, LMU/iRacing) and from `sessions.capture_format_version = 1`, a DB eligibility marker. The DB marker does not select decoder; readers inspect each payload's magic and validate supported codec layout/checkpoint before forwarding reconstructed frames to game parser.
+Codec magic/version select **stored-payload decoding**. They are separate from game source-frame schema versions (for example, LMU/iRacing) and from `sessions.capture_format_version = 1`, a DB storage-format marker. The DB marker does not select decoder; readers inspect each payload's magic and validate supported codec layout/checkpoint before forwarding reconstructed frames to game parser.
 
 Before each write, `Pipeline.processPacket()` snapshots the recorder byte offset and passes it to the active lap detector. Completed lap rows identify the first record and frame count; sparse lap seeks restore from its nearest checkpoint (at most 128 prior records).
 
@@ -80,20 +82,20 @@ Session rotation can occur while a detector handles a packet. `Pipeline` compare
 
 ### Replay time and Analyse behavior
 
-All **new live recordings in all six supported games** carry `frameTimeMs` on each accepted source frame. Optionality exists for backward compatibility: older canonical recordings and imported records may lack acquisition time. `frameTimeMs` is acquisition UTC on the capture record, not a value encoded by the sparse codec or a simulator lap timer. `parseRawLapFramesFromSource()` restores the full source frame, parses it, and attaches the stored time to the packet. Sparse and full records use the same path. Imports, exports, gzip, and historical conversion retain the timestamp when present; they cannot invent one for older records.
+All **new live recordings in all six supported games** carry `frameTimeMs` on each accepted source frame. Optionality exists for backward compatibility: older canonical recordings and imported records may lack acquisition time. `frameTimeMs` is acquisition UTC on the capture record, not a value encoded by the sparse codec or a simulator lap timer. `parseRawLapFramesFromSource()` restores the full source frame, parses it, and attaches the stored time to the packet. Sparse and full records use the same path. Imports, exports, and gzip retain timestamps when present; they cannot invent one for older records.
 
 `resolveTelemetryReplay()` sets each semantic envelope's `observedAt` from that packet:
 
 | Capture record | `observedAt` | Parsed packet time |
 |---|---|---|
 | New live frame (all six games), or any record with `frameTimeMs` | Actual acquisition UTC; `wall-clock` domain | `frameTimeMs` attached; ACC/AC Evo also set `TimestampMS` to this UTC value |
-| Legacy/imported frame without `frameTimeMs`: FM/F1/iRacing/LMU | Simulator `TimestampMS`; `session` domain, if finite | Native simulator time remains unchanged |
-| Legacy/imported frame without `frameTimeMs`: ACC/AC Evo | Lap persistence time; `wall-clock` domain, same fallback for each frame | Parser generates `TimestampMS` at replay time; original acquisition time is unrecoverable |
-| Legacy/imported frame without `frameTimeMs`: other game with non-finite `TimestampMS` | Lap persistence time; `wall-clock` domain | Native packet time remains unchanged |
+| Sparse/imported frame without `frameTimeMs`: FM/F1/iRacing/LMU | Simulator `TimestampMS`; `session` domain, if finite | Native simulator time remains unchanged |
+| Sparse/imported frame without `frameTimeMs`: ACC/AC Evo | Lap persistence time; `wall-clock` domain, same fallback for each frame | Parser generates `TimestampMS` at replay time; original acquisition time is unrecoverable |
+| Sparse/imported frame without `frameTimeMs`: other game with non-finite `TimestampMS` | Lap persistence time; `wall-clock` domain | Native packet time remains unchanged |
 
 `receivedAt` is **lap-row persistence time**, not per-frame receipt time; adding `frameTimeMs` does not change it. The semantic resolver also uses `observedAt` for observation provenance and time-based freshness calculations. Do not subtract times from different domains or interpret a legacy lap's constant fallback as recorded sample cadence.
 
-Current Analyse client copies `observedAt.milliseconds` into its frame model but does not display acquisition UTC or use it as a chart axis. Users should not expect a new time graph or changed lap boundaries/metrics. Recorded UTC makes replay timing metadata accurate; ACC/AC Evo `TimestampMS` and time-sensitive semantic values/freshness can differ from legacy replay, whose parser used the current clock.
+Current Analyse client copies `observedAt.milliseconds` into its frame model but does not display acquisition UTC or use it as a chart axis. Users should not expect a new time graph or changed lap boundaries/metrics. Recorded UTC makes replay timing metadata accurate; ACC/AC Evo `TimestampMS` and time-sensitive semantic values/freshness can differ for sparse captures without recorded UTC, whose parser uses replay time.
 
 ## Source records by game
 
@@ -121,17 +123,19 @@ LMU live capture and committed replay fixtures use native shared-memory source f
 
 ## Replay, import, and reprocessing
 
-`server/session-capture/reprocess.ts` opens the stored capture, gunzips it when needed, walks length-prefixed records, calls the registered game parser, and feeds a fresh lap detector backed by a capturing database adapter. Matching lap windows update raw indexes and metadata in place; changed windows rebuild detected lap rows. Replacement matching uses source-window overlap rather than lap numbers, which can repeat for open-route attempts. Matched replacements preserve notes, favorites, and tune links; session identity and user metadata remain intact.
+`server/session-capture/reprocess.ts` opens a supported sparse capture, gunzips it when needed, walks length-prefixed records, calls the registered game parser, and feeds a fresh lap detector backed by a capturing database adapter. Matching lap windows update raw indexes and metadata in place; changed windows rebuild detected lap rows. Replacement matching uses source-window overlap rather than lap numbers, which can repeat for open-route attempts. Matched replacements preserve notes, favorites, and tune links; session identity and user metadata remain intact.
 
-`server/session-capture/import-capture.ts` accepts both full and sparse canonical `.bin` / `.bin.gz` uploads. It gunzips when needed; game detection and `canonicalImportFrames()` inspect each record and reconstruct sparse payloads before parsing. Full payloads pass through unchanged. Segment/context markers and recorded UTC times survive the walk. Accepted input is rewritten as a canonical RaceIQ session capture, so later replay and reprocessing do not depend on the upload's storage encoding. Six-game fixture tests compare restored source bytes and streaming parser output against an independent raw recording. Forza, F1, iRacing, and LMU simulator `TimestampMS` values are compared exactly. Historical ACC and AC Evo packed frames have no UTC capture time, so only their parser-generated wall-clock `TimestampMS` is excluded. Lap ZIP export/import has separate coverage. Direct standalone sparse-file upload follows this reader path but has not been separately smoke-tested.
+`server/session-capture/import-capture.ts` accepts sparse RaceIQ `.bin` / `.bin.gz` uploads, identified by the `RSP1` marker or a known sparse codec record. It gunzips input, reconstructs checkpointed payloads before parsing, and preserves segment markers and recorded UTC times. Full-frame legacy uploads and simulator dump containers are rejected. `buildLapsZip` re-encodes selected session windows as sparse captures so exported `.bin.gz` members remain importable even when no codec delta is smaller. Seed scripts alone decode checked-in legacy fixtures, convert them to sparse captures, then pass those captures through the shared importer.
 
 Development dump files are different, adapter-specific capture formats. Use [Telemetry recordings](../contributing/telemetry-recordings.md) for fixture capture and import commands; do not treat those dump containers as production session framing.
 
+Developer fixture playback and live UDP benchmarks continue to read original raw recordings so parser and recording coverage matches acquisition. Only HTTP import payloads and seeded database captures are converted to sparse format; checked-in source fixtures remain unchanged.
+
 ## Compression and cleanup
 
-`server/session-capture/compressor.ts` gzips inactive `.bin` files older than 24 hours and updates `sessions.rawFile` to the `.bin.gz` path. Reprocess and import readers restore the same byte stream transparently. User-triggered compression may also sweep unreferenced `.bin` files.
+`server/session-capture/compressor.ts` gzips inactive `.bin` files older than 24 hours and updates `sessions.rawFile` to the `.bin.gz` path. Reprocess and import readers restore the same sparse capture byte stream transparently. User-triggered compression may also sweep unreferenced `.bin` files.
 
-Historical canonical `.bin` and `.bin.gz` files with unknown capture-storage version are offered for explicit conversion. Startup and reconnect report eligibility only; conversion never starts until user clicks Convert. Maintenance holds one capture lock, streams decoded records into a staged output of the same compression type, preserves the presence or absence of the optional canonical meta header, verifies every restored frame and marker byte-for-byte, and remaps lap prefix offsets in one transaction without modifying lap IDs or metrics. Every verified eligible capture is replaced, even when the output does not save space; failures retain the original path and lap offsets. `sessions.capture_format_version = 1` marks new sparse recordings or verified historical files; source-frame schema versions remain unchanged.
+Unmarked legacy canonical `.bin` and `.bin.gz` files are unsupported for playback, reprocessing, and uploads. Seed scripts convert checked-in source fixtures into new sparse captures. `sessions.capture_format_version = 1` marks newly created sparse recordings; source-frame schema versions remain unchanged.
 
 See [Session storage](../operations/session-storage.md) for lifecycle, orphan handling, and operational constraints.
 
@@ -150,7 +154,7 @@ That trade-off does not imply higher measurement fidelity. Sample cadence, dupli
 - Graceful shutdown flushes the session recorder and native readers before exit.
 - Lap byte offsets always point to the length prefix of a canonical raw record.
 - Parser and replay state are isolated per import/reprocess operation.
-- Stored sparse deltas reconstruct source-format bytes before normalization; legacy records are already raw source bytes.
+- Seed conversion parses legacy source frames and writes sparse captures; application replay and reprocessing accept sparse captures only.
 - Compressed and uncompressed files must decode to the same record stream.
 
 ## Implementation map
@@ -166,4 +170,3 @@ That trade-off does not imply higher measurement fidelity. Sample cadence, dupli
 - `server/session-capture/import-pipeline.ts` — parser, detector, and persistence pipeline
 - `server/session-capture/reprocess.ts` — detector replay and index refresh
 - `server/session-capture/compressor.ts` — background gzip
-- `server/session-capture/migrate-captures.ts` — required, user-initiated streamed capture rewrite with verification and transactional lap offset updates

@@ -18,6 +18,7 @@ Database and lap-file maintenance commands. Run from repository root; `DATA_DIR`
 | `bun run packages/tooling-data/src/data/reprocess-today-f1.ts` | Optional `SERVER` URL (default `http://localhost:3117`) | POSTs reprocess requests for today's F1 2025 sessions with raw captures |
 
 Seed fixtures are listed explicitly in `seed-db-options.ts`, including LMU split recordings under `test/artifacts/laps/`. Seed initialization order remains explicit: `initDb()`, shared game adapters, server game adapters. Seed cleanup always stops telemetry maintenance and closes database client, including failures.
+Seed imports source fixtures through `SparseSessionRecorderAdapter`, writing sparse canonical captures instead of preserving the fixture's legacy storage format.
 
 To exercise the recording-location migration prompt, stop the app, run `bun run db:seed --legacy-recordings`, then start RaceIQ. The flag uses the configured recording root (including a custom folder), preserves capture bytes, and refuses to overwrite existing files. Existing seed rows are reused; no `--reset` is needed. Normal seeding and Playwright setup continue using the organized `<recording-root>/<game>/own/` layout.
 

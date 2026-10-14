@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { eq } from "drizzle-orm";
 import { registerGame } from "@raceiq/shared/games/registry";
-import { decompressIfGzipSync } from "@raceiq/capture-formats/session/framing";
+import { decompressIfGzipSync, iterateSessionCaptureRecords, SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END } from "@raceiq/capture-formats/session/framing";
+import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
 import { forzaServerAdapter } from "@raceiq/game-fm-2023";
 import { db } from "@raceiq/backend-core/db/index";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
@@ -17,9 +18,23 @@ describe("FM running-start lap replay", () => {
     const recording = new URL("../../../../test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz", import.meta.url);
     registerGame(forzaServerAdapter);
     registerServerGame(forzaServerAdapter);
-
-    const compressed = readFileSync(recording);
-    const imported = await importSessionBin(compressed, "fm-2023", {
+    const source = decompressIfGzipSync(readFileSync(recording));
+    const converted = await convertSeedFramesToSparse("fm-2023", (function* () {
+      for (const record of iterateSessionCaptureRecords(source)) {
+        if (record.kind === "frame") {
+          yield record.frameTimeMs === undefined
+            ? record.frame
+            : { frame: record.frame, frameTimeMs: record.frameTimeMs };
+        } else if (record.kind === "segment-boundary") {
+          yield SESSION_SEGMENT_BOUNDARY;
+        } else if (record.kind === "segment-context") {
+          yield SESSION_SEGMENT_CONTEXT;
+        } else if (record.kind === "segment-context-end") {
+          yield SESSION_SEGMENT_CONTEXT_END;
+        }
+      }
+    })());
+    const imported = await importSessionBin(readFileSync(converted.path), "fm-2023", {
       requireLaps: true,
       notifyDriverProfile: false,
     });
@@ -84,6 +99,7 @@ describe("FM running-start lap replay", () => {
       for (const sessionId of ownedSessionIds) {
         await deleteSession(sessionId);
       }
+      converted.cleanup();
     }
   }, { timeout: 180_000 });
 });
