@@ -12,15 +12,13 @@
 - Select dashboard network interfaces and browser domains in Access & security settings without changing UDP telemetry reception.
 - Disable dashboard password protection from the terminal with an explicit exposure confirmation, without changing network access or recordings.
 
+- Add OBS streaming overlays in the Portable page for live driving, timing, standings, nearby race order, car damage (F1 25, ACC, AC Evo), brake/throttle inputs, and distance driven, with sample previews when telemetry is unavailable and copyable metric or imperial browser-source URLs.
 - Allow a saved hostname, including a Tailscale FQDN, for remote HUD links and QR codes.
 - Refresh the dashboard with cleaner session and favourite widgets, clean-rate and podium trends, and seven days of activity by default.
 - Export complete chat history as JSON for developer debugging, including retained chat generations, stored thinking, tool calls and results, and system prompts.
 - Optionally protect dashboard access with a password and configure trusted browser origins independently, while keeping existing local and remote access working without new settings.
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 
-- Browse enriched iRacing car, car-class, and track catalogs with official car images, offline pit-road maps, and grouped lap sections.
-- Inspect AC Evo Tourist layouts with recorded open-route maps and explicit Start/Finish markers.
-- Show Nordschleife track edges along the supported portion of AC Evo Tourist routes without closing the Start/Finish gap.
 
 - Choose a recording folder; existing telemetry recordings move safely to the new location.
 - Separate recordings into `<game>/own` for live telemetry and imports marked as yours, and `<game>/others` for imports marked as someone else's. Offer an optional, resumable migration for existing recordings in default or custom folders while preserving session history and folder relocation.
@@ -84,45 +82,13 @@
 - Automatically reconcile pre-upgrade recordings with updated car, track, and lap detection, including AC Evo Tourist timed attempts; preserve user annotations on matched laps and report captures that cannot be repaired.
 - Use suitable local network addresses for remote HUD links and let users choose an address when multiple adapters are available.
 
+### Fixes
+- Keep racing, throttle, and braking lines sharp when zooming into the replay map.
+
 ### Internal
 - Verify setup navigation and recording-folder changes without depending on the optional Welcome 3D demo, and avoid startup-maintenance import cycles.
 - Document the reusable confirmation-dialog-to-background-progress pattern from sparse recording conversion, including state ownership, recovery, accessibility, and operation precedence.
-- Include the privacy-safe iRacing SessionInfo path manifest in clean checkouts so CI can validate the telemetry catalog.
-- Add `bun clean` to remove repository-local development data without targeting custom `DATA_DIR` locations.
-- Isolate dashboard-authentication tests in subprocesses so Windows releases database handles before cleanup, and verify password recovery through the command in a separate process.
-- Run development-dashboard SQLite assertions in a subprocess so Windows releases native database handles before fixture cleanup.
-- Limit live `ps` resource-sampler tests to supported platforms.
-- Share the application-owned database connection with dashboard authentication to prevent Linux WAL cleanup from discarding imported sessions during upgrade verification.
-- Ban Bun's separate SQLite driver in repository lint and use libSQL for synchronous fixtures and tooling.
-- Preserve dashboard credentials and login sessions from earlier feature builds while applying identity and dashboard read-model migrations.
-- Limit CI test execution to two concurrent Turbo tasks and one Bun unit-test worker per task to reduce resource pressure on constrained runners.
-- Update browser coverage for dashboard periods, session analysis navigation, and persisted onboarding settings without relying on removed headings or recap buttons; enable feature-gated responsive routes in both fresh and seeded test servers.
-- Align responsive Analyse waits with replay readiness and keep session-table browser tests scoped to visible rows after expansion.
-- Report Paraglide development and production compilation stages, a 10-second elapsed-time heartbeat, and total build duration; preserve validated cache reuse.
-- Bound HTTP request/response adapter typing to avoid expanding the full RPC router schema during backend typechecking, preserving existing RPC contracts.
-- Support recorder benchmark CPU/RSS sampling on Windows through PowerShell/CIM, and fail subprocess sampling errors instead of hanging tooling tests.
-- Add a release-seeded startup upgrade regression that verifies historical Tourist sessions are automatically reprocessed into the correct layout and lap times.
-- Remove unused compiled artifact downloads and base production builds from dev-mode dashboard screenshot CI.
-- Split current and base dashboard screenshot renders into four CI shards while retaining the complete screenshot inventory.
-- Document new-game integration, lossless sparse recording, lap correctness checks, and gzip fixture splitting without Git LFS; align capture and architecture guides with current implementation.
-- Avoid per-packet serialization and hashing during race-result reconciliation while retaining raw capture identity and processing provenance.
-- Add Bun-only parser/pipeline, retained-heap, import, and recording benchmarks with isolated workloads and explicit measurement scopes.
-- Move capture formats and parser contracts into reusable packages; place portable lap engines, policies, and sectors in telemetry-core, with batch orchestration and explicit parser routing in telemetry-processor.
-- Expose a complete-payload Bun batch API with caller-supplied capture bytes and explicit segment context/boundary markers.
-- Preserve copied benchmark harness compatibility with pre-extraction base checkouts and retain Forza's required backend dependency.
-- Preserve lap-quality rejection assertions and caller feature flags in relocated tests; keep portable detector constructors compatible with erasable TypeScript and remove unused host-detector remnants.
-- Correct Linux benchmark CPU/RSS sampling and run iRacing parser/import benchmarks independently of production release flags.
-- Skip build, test, browser, snapshot, and benchmark PR jobs for automated release version bump branches.
-- Declare the frontend contract tests' backend-core dependency so clean CI installs resolve setup-import test modules.
-- Add revision-checked SQLite dashboard summaries and indexed UTC projections; expose a bounded, snapshot-consistent dashboard API with explicit pending coverage.
-- Add the version-5 SQLite dashboard processor with durable capture readiness, revision-checked publication, resumable backfill, retry state, and ingest-pass capture facts; keep dashboard recap separate from generic analysis.
-- Add isolated Bun/SQLite dashboard scale assertion, timing, and recording/backfill contention runners.
-- Read timestamped recorder dumps correctly in contention checks, preserve failed-scenario evidence, fix duplicate-lap SQL, and close child input after the final command.
-- Maintain revision-safe monthly dashboard entity rollups for older complete months, preserving recent daily detail and exact boundaries; backfill existing summaries without changing source data.
-- Separate realistic active-user dashboard benchmarks from archive stress, report actual period membership and SQL Promise timings, and preserve incomplete/failed-scope measurements without weakening budgets.
-- Reuse a read-only SQLite connection and cached statements for synchronous dashboard snapshots; measure those queries directly and apply the active-user recorder fixture profile.
-- Upgrade the runtime and tooling to Bun 1.4.3.
-
+- Wait for dashboard metadata and loading panels to finish before generating the Home marketing screenshot.
 ## v0.19.2 - 2026-10-04
 
 ### Features

@@ -23,7 +23,10 @@
 > **Alpha software** — expect bugs, rough edges, and AI analysis that's still being fine-tuned for accuracy. Some features aren't obvious yet, so poke around and join the [Discord](https://discord.gg/ZNXKyYPumT) if you get stuck.
 
 <p align="center">
-  <video src="https://github.com/user-attachments/assets/9200c90d-b039-4616-9b27-9c8e7c53a8ca" autoplay loop muted playsinline width="70%"></video>
+  <img src="assets/screenshots/home.png" width="100%" />
+</p>
+<p align="center">
+  <video src="https://github.com/user-attachments/assets/9200c90d-b039-4616-9b27-9c8e7c53a8ca" autoplay loop muted playsinline width="100%"></video>
 </p>
 
 ---
@@ -50,7 +53,7 @@ Check out the [screenshots](assets/screenshots/) to see it in action.
 - **Track mapping and guides** — see your live position, map new tracks automatically, and use turn numbers, sectors, and track guides
 - **Race results** — review qualifying, podiums, fastest laps, pit stops, strategies, and position timelines
 - **Data portability** — import MoTeC logs and saved session captures; export individual laps or complete sessions
-- **Multi-game support** — use RaceIQ with Forza Motorsport 2023, F1 2025, Assetto Corsa Competizione, Assetto Corsa Evo, iRacing, and Le Mans Ultimate
+- **Streaming widgets** — transparent OBS and Streamlabs browser-source widgets for driving, inputs, timing, standings, nearby cars, damage, and distance driven
 
 ## Supported Games
 
