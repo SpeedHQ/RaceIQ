@@ -233,6 +233,8 @@ export async function startLayoutMigration(directory?: string): Promise<void> {
   let admit!: () => void;
   let rejectAdmission!: (error: unknown) => void;
   let admitted = false;
+  let admissionError: unknown;
+  let admissionFailed = false;
   const admission = new Promise<void>((resolveAdmission, reject) => { admit = resolveAdmission; rejectAdmission = reject; });
   progress = { status: "running", phase: "organizing", done: 0, total: progress.total, migrated: 0, failed: 0, error: null };
   void withSessionCaptureMaintenanceLock(async () => {
@@ -311,9 +313,23 @@ export async function startLayoutMigration(directory?: string): Promise<void> {
   }).catch(async (error) => {
     progress.status = "error";
     progress.error = error instanceof Error ? error.message : "Layout migration failed";
-    const journal = await readJournal().catch(() => null);
-    if (journal) { journal.progress = { ...progress }; await saveJournal(journal); }
-    if (!admitted) rejectAdmission(error);
-  }).finally(() => { release(); active = false; });
+    if (!admitted) {
+      admissionError = error;
+      admissionFailed = true;
+    }
+    try {
+      const journal = await readJournal();
+      if (journal) {
+        journal.progress = { ...progress };
+        await saveJournal(journal);
+      }
+    } catch {
+      // Admission rejection must not depend on failure-state persistence.
+    }
+  }).finally(() => {
+    release();
+    active = false;
+    if (admissionFailed) rejectAdmission(admissionError);
+  });
   await admission;
 }

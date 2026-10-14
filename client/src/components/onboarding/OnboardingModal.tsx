@@ -1,6 +1,7 @@
 import { useIsMutating } from "@tanstack/react-query";
 import { queryKeys } from "@/hooks/query-keys";
 import { UnitsStep } from "./steps/UnitsStep";
+import { RecordingLayoutMigration } from "@/components/RecordingLayoutMigration";
 import { useRecordingDirectoryStatus, useRecordingLayoutMigration } from "@/hooks/recording-storage";
 import { useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -72,7 +73,7 @@ export function OnboardingModal({ onClose, onComplete, initialStep = 0 }: { onCl
   const layoutMigration = useRecordingLayoutMigration();
   const isLayoutPending = useIsMutating({ mutationKey: queryKeys.recordingLayoutMigrationStart }) > 0;
   const isSelectPending = useIsMutating({ mutationKey: queryKeys.recordingDirectorySelect }) > 0;
-  const layoutBusy = layoutMigration.data?.progress.status === "running" || Boolean(layoutMigration.data?.destinationDirectory && layoutMigration.data.progress.status !== "success");
+  const layoutBusy = layoutMigration.data?.progress.status === "running" || Boolean(layoutMigration.data?.destinationDirectory && layoutMigration.data.progress.status !== "success") || isLayoutPending;
   const storageBusy = isMovePending || isLayoutPending || isSelectPending || storageStatus.data?.state === "moving" || layoutBusy;
   const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
   const udpPps = useTelemetryStore((s) => s.udpPps);
@@ -119,6 +120,7 @@ export function OnboardingModal({ onClose, onComplete, initialStep = 0 }: { onCl
               <AccessSetupForm setup submitContainer={accessFooter} language={getLocale()} onComplete={async () => { await refresh(); setStep((current) => current + 1); }} />
             </div>
           ) : <StepComponent />}
+          {layoutMigration.data?.destinationDirectory && layoutMigration.data.progress.status !== "success" && step !== MODAL_STEPS.findIndex((item) => item.id === "storage") && <div className="mt-4"><RecordingLayoutMigration compact /></div>}
         </div>
         <div data-slot="onboarding-footer" className="flex shrink-0 items-center justify-end border-t border-app-border bg-app-surface-alt/30 px-4 py-4 @3xl/onboarding:px-6">
           <div className="flex items-center gap-2">

@@ -1,4 +1,7 @@
 ## Unreleased
+### Breaking
+- Recording-folder relocation now requires a filesystem that supports hard links. Choose a supported folder, such as one on NTFS or APFS; exFAT and FAT32 destinations are rejected before recordings move.
+
 ### Feature
 - New desktop and self-hosted installs restrict dashboard access to this computer until you select additional network interfaces.
 - Password-protected dashboards use a login screen and browser sessions; API clients must sign in and send the session cookie and a CSRF token for writes.
@@ -23,13 +26,16 @@
 - Separate recordings into `<game>/own` for live telemetry and imports marked as yours, and `<game>/others` for imports marked as someone else's. Offer an optional, resumable migration for existing recordings in default or custom folders while preserving session history and folder relocation.
 
 ### Fixes
+- Recover failed recording organization directly from setup, including after restarting the wizard, without changing the previously selected destination.
+- Preserve recordings during interrupted folder moves, failed imports, cleanup, and concurrent session deletion; retry safely after resolving conflicts.
+- Copy recording-folder paths on HTTP LAN dashboards, including when the Clipboard API is unavailable or denied.
 - Keep the current setup wizard step visible in the horizontal step strip when navigating forward, going back, or resizing the window.
 - Allow recording folders that already contain files, with a warning before proceeding and protection against overwriting existing recordings.
 - Save recording-folder changes directly from the setup wizard's native folder picker, without extra confirmation or Apply buttons.
 - Allow an empty recording folder inside the current recording folder while preserving recordings and interrupted-move recovery.
 - Choose recording folders with your operating system's native folder picker instead of browsing folders inside RaceIQ.
 - Show recording-folder examples relative to the selected folder instead of repeating its full path for your recordings and others' recordings.
-- Wait for dashboard access setup before checking recording-folder status in the setup wizard.
+- Wait for dashboard access setup before checking recording-folder and recording-organization status in the setup wizard.
 - Respect development onboarding overrides when deciding whether to show the setup wizard.
 - Remove saved network interfaces that are no longer available and replace them without losing other selections.
 - Allow development LAN dashboard origins on preserved all-interface listeners when browser-origin whitelisting is enabled.
@@ -79,6 +85,7 @@
 - Use suitable local network addresses for remote HUD links and let users choose an address when multiple adapters are available.
 
 ### Internal
+- Verify setup navigation and recording-folder changes without depending on the optional Welcome 3D demo, and avoid startup-maintenance import cycles.
 - Document the reusable confirmation-dialog-to-background-progress pattern from sparse recording conversion, including state ownership, recovery, accessibility, and operation precedence.
 - Include the privacy-safe iRacing SessionInfo path manifest in clean checkouts so CI can validate the telemetry catalog.
 - Add `bun clean` to remove repository-local development data without targeting custom `DATA_DIR` locations.

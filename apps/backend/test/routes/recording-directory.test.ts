@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { copyFile as fsCopyFile, lstat, mkdir, mkdtemp, readFile, realpath, readdir, rm, symlink, unlink as fsUnlink, writeFile } from "node:fs/promises";
+import { copyFile as fsCopyFile, link as fsLink, lstat, mkdir, mkdtemp, readFile, realpath, readdir, rm, symlink, unlink as fsUnlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { eq } from "drizzle-orm";
@@ -320,6 +320,12 @@ describe("recording-directory relocation", () => {
       await expect(readFile(target)).rejects.toMatchObject({ code: "ENOENT" });
       await mkdir(dirname(target), { recursive: true });
       await writeFile(target, bytes);
+      const targetInfo = await lstat(target);
+      await writeFile(journalPath, JSON.stringify({ ...journal, entries: [{ source: capture, destination: target, size: bytes.length, sha256: digest, published: false, publication: { dev: String(targetInfo.dev), ino: String(targetInfo.ino) } }] }));
+      await recoverRecordingDirectoryMove();
+      await expect(readFile(target)).rejects.toMatchObject({ code: "ENOENT" });
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, bytes);
       await writeFile(journalPath, JSON.stringify({ ...journal, entries: [{ source: capture, destination: target, size: bytes.length, sha256: digest, published: false }] }));
       await recoverRecordingDirectoryMove();
       expect(await readFile(target)).toEqual(bytes);
@@ -402,6 +408,41 @@ describe("recording-directory relocation", () => {
       saveSettings({ ...loadSettings(), recordingDirectory: originalDirectory ?? null });
     }
   });
+  test("retries after recovering an owned unpublished destination", async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), "raceiq-publication-retry-")));
+    const source = join(root, "source");
+    const destination = join(root, "destination");
+    const capture = join(source, "capture.bin");
+    const target = join(destination, "capture.bin");
+    const journalPath = join(resolveDataDir(), "recording-directory-move.json");
+    const bytes = Buffer.from("publication retry");
+    await mkdir(source, { recursive: true });
+    await mkdir(destination, { recursive: true });
+    await writeFile(capture, bytes);
+    saveSettings({ ...loadSettings(), recordingDirectory: source });
+    try {
+      const temporary = `${target}.move-11111111-1111-4111-8111-111111111111.tmp`;
+      await writeFile(temporary, bytes);
+      await fsLink(temporary, target);
+      const info = await lstat(temporary, { bigint: true });
+      await writeFile(journalPath, JSON.stringify({
+        version: 1, operationId: "11111111-1111-4111-8111-111111111111",
+        oldDirectory: source, newDirectory: destination, oldSetting: source,
+        entries: [{ source: capture, destination: target, size: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex"), published: false, publication: { dev: String(info.dev), ino: String(info.ino) } }],
+        references: [],
+      }));
+      await recoverRecordingDirectoryMove();
+      await expect(readFile(temporary)).rejects.toMatchObject({ code: "ENOENT" });
+      await startRecordingDirectoryMove(destination);
+      await waitForMove();
+      expect(await readFile(target)).toEqual(bytes);
+      expect(loadSettings().recordingDirectory).toBe(destination);
+    } finally {
+      saveSettings({ ...loadSettings(), recordingDirectory: originalDirectory ?? null });
+      await rm(journalPath, { force: true });
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 
   test("rolls back source and destination when copying reports insufficient space", async () => {
     const root = await mkdtemp(join(tmpdir(), "raceiq-copy-failure-"));
@@ -417,7 +458,7 @@ describe("recording-directory relocation", () => {
     try {
       await startRecordingDirectoryMove(destination, {
         copyFile: async (from, to, mode) => {
-          if (to === target) throw Object.assign(new Error("disk full"), { code: "ENOSPC" });
+          if (String(to).includes(".move-") && String(to).endsWith(".tmp")) throw Object.assign(new Error("disk full"), { code: "ENOSPC" });
           return fsCopyFile(from, to, mode);
         },
       });

@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { constants } from "node:fs";
-import { copyFile, lstat, mkdir, open, readFile, realpath, rename, rm, readdir, unlink, rmdir } from "node:fs/promises";
+import { copyFile, lstat, mkdir, open, readFile, realpath, rename, rm, readdir, unlink, rmdir, link } from "node:fs/promises";
 import { basename, dirname, isAbsolute, parse, relative, resolve, sep } from "node:path";
 import { eq } from "drizzle-orm";
 import { cacheDelete } from "../db/telemetry-replay-storage";
@@ -18,7 +18,7 @@ import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { hasPendingLayoutMigration } from "./layout-migration";
 
 export type RecordingDirectoryMoveStatus = { operationId: string | null; state: "idle" | "moving" | "complete" | "error"; phase: "copying" | "committing" | "removing-sources" | null; completedFiles: number; totalFiles: number; directory: string; code: string | null; error: string | null };
-type Entry = { source: string; destination: string; size: number; sha256: string; published: boolean };
+type Entry = { source: string; destination: string; size: number; sha256: string; published: boolean; publication?: { dev: string; ino: string } };
 type Journal = { version: 1; operationId: string; oldDirectory: string; newDirectory: string; oldSetting: string | null; entries: Entry[]; references: { sessionId: number; oldPath: string; newPath: string }[] };
 type MoveTestHooks = Partial<{ copyFile: typeof copyFile; saveSettings: typeof saveSettings; unlink: typeof unlink; isSessionActive: typeof isSessionActive }>;
 const defaultMoveHooks: Required<MoveTestHooks> = { copyFile, saveSettings, unlink, isSessionActive };
@@ -89,11 +89,13 @@ async function isValidJournal(value: unknown): Promise<boolean> {
     || isContained(newRoot, dataRoot)) return false;
   const entrySources = new Set<string>(), entryDestinations = new Set<string>();
   for (const entry of journal.entries) {
-    if (!entry || typeof entry !== "object") return false;
     const legacyEntry = hasExactKeys(entry, ["source", "destination", "size", "sha256"]);
     const currentEntry = hasExactKeys(entry, ["source", "destination", "size", "sha256", "published"]);
-    if ((!legacyEntry && !currentEntry) || typeof entry.source !== "string" || typeof entry.destination !== "string"
-      || (currentEntry && typeof entry.published !== "boolean")
+    const ownedEntry = hasExactKeys(entry, ["source", "destination", "size", "sha256", "published", "publication"]);
+    if ((!legacyEntry && !currentEntry && !ownedEntry) || typeof entry.source !== "string" || typeof entry.destination !== "string"
+      || (!legacyEntry && typeof entry.published !== "boolean")
+      || (ownedEntry && (!entry.publication || typeof entry.publication !== "object"
+        || !hasExactKeys(entry.publication, ["dev", "ino"]) || typeof entry.publication.dev !== "string" || typeof entry.publication.ino !== "string"))
       || !isAbsolute(entry.source) || !isAbsolute(entry.destination) || !isContained(oldRoot, resolve(entry.source))
       || isContained(newRoot, resolve(entry.source)) || !isContained(newRoot, resolve(entry.destination))
       || resolve(entry.destination) !== resolve(newRoot, relative(oldRoot, resolve(entry.source)))
@@ -148,10 +150,25 @@ async function validateDirectory(input: string): Promise<string> {
   const dataDir = await realpath(resolveDataDir());
   const current = await realpath(resolveRecordingDirectory()).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? resolve(resolveRecordingDirectory()) : Promise.reject(error));
   const nestedDataDestination = isContained(current, canonical) && isContained(dataDir, current);
-  if (canonical === parse(canonical).root || canonical === dataDir || isContained(canonical, dataDir) || isContained(dataDir, canonical) && !nestedDataDestination) throw Object.assign(new Error("Directory is reserved"), { code: "INVALID_DIRECTORY" });
-  const probe = resolve(canonical, `.raceiq-write-${randomUUID()}`);
-  const handle = await open(probe, "wx");
-  try { await handle.sync(); } finally { await handle.close(); await unlink(probe); }
+  if (canonical === parse(canonical).root || canonical === dataDir || canonical !== current && (isContained(canonical, dataDir) || isContained(dataDir, canonical) && !nestedDataDestination)) throw Object.assign(new Error("Directory is reserved"), { code: "INVALID_DIRECTORY" });
+  if (canonical !== current) {
+    const probe = resolve(canonical, `.raceiq-link-probe-${randomUUID()}`);
+    const linkedProbe = `${probe}.link`;
+    const handle = await open(probe, "wx");
+    try {
+      await handle.sync();
+      await link(probe, linkedProbe);
+    } catch (error) {
+      if (["ENOTSUP", "EOPNOTSUPP", "EXDEV", "EPERM", "EACCES", "ENOSYS"].includes((error as NodeJS.ErrnoException).code ?? "")) {
+        throw Object.assign(new Error("Destination filesystem does not support hard links required for safe recording relocation"), { code: "UNSUPPORTED_FILESYSTEM" });
+      }
+      throw error;
+    } finally {
+      await handle.close();
+      await rm(linkedProbe, { force: true });
+      await rm(probe, { force: true });
+    }
+  }
   return canonical;
 }
 export async function preflightRecordingDirectoryMove(directory: string): Promise<{ current: string; destination: string; containsFiles: boolean }> {
@@ -240,6 +257,19 @@ async function cleanupSources(journal: Journal, removeSource: typeof unlink = un
   await removeEmptySourceDirs(journal.oldDirectory, journal.entries);
   await rm(journalPath, { force: true });
 }
+async function cleanupOwnedTemporary(entry: Entry, operationId: string, root: string): Promise<void> {
+  if (!entry.publication) return;
+  const temporary = `${entry.destination}.move-${operationId}.tmp`;
+  if (await hasSymlinkDirectory(root, temporary)) return;
+  const info = await lstat(temporary, { bigint: true }).catch((error) => {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  });
+  if (!info || !info.isFile() || String(info.dev) !== entry.publication.dev || String(info.ino) !== entry.publication.ino) return;
+  const digest = await hashFile(temporary);
+  if (digest.size !== entry.size || digest.sha256 !== entry.sha256) return;
+  await rm(temporary);
+}
 async function executeMove(directory: string, operationId: string, hooks: Required<MoveTestHooks>): Promise<void> {
   const setting = loadSettings().recordingDirectory;
   const rawOld = resolveRecordingDirectory();
@@ -288,17 +318,20 @@ async function executeMove(directory: string, operationId: string, hooks: Requir
       const out = await open(temporary, "r+"); try { await out.sync(); } finally { await out.close(); }
       const digest = await hashFile(temporary);
       if (digest.size !== entry.size || digest.sha256 !== entry.sha256) throw Object.assign(new Error("Copied recording verification failed"), { code: "STORAGE_IO_ERROR" });
-      try { await hooks.copyFile(temporary, entry.destination, constants.COPYFILE_EXCL); }
+      const stagedInfo = await lstat(temporary, { bigint: true });
+      entry.publication = { dev: String(stagedInfo.dev), ino: String(stagedInfo.ino) };
+      await persistJournal(journal);
+      try { await link(temporary, entry.destination); }
       catch (error) {
         if ((error as NodeJS.ErrnoException).code === "EEXIST") throw Object.assign(new Error(`Destination recording already exists: ${entry.destination}`), { code: "DESTINATION_CONFLICT" });
         throw error;
       }
+      await unlink(temporary);
+      temporaryFiles.pop();
       entry.published = true;
       await persistJournal(journal);
       const finalFile = await open(entry.destination, "r+");
       try { await finalFile.sync(); } finally { await finalFile.close(); }
-      await unlink(temporary);
-      temporaryFiles.pop();
       status = { ...status, completedFiles: status.completedFiles + 1 };
     }
     status = { ...status, phase: "committing" };
@@ -311,11 +344,14 @@ async function executeMove(directory: string, operationId: string, hooks: Requir
       if (referencesUpdated) await updateReferences(references, "oldPath");
       for (const temporary of temporaryFiles) await rm(temporary, { force: true });
       for (const entry of entries) {
-        if (!entry.published || await hasSymlinkDirectory(newDirectory, entry.destination)) continue;
+        if ((!entry.published && !entry.publication) || await hasSymlinkDirectory(newDirectory, entry.destination)) continue;
         try {
-          if (!(await lstat(entry.destination)).isFile()) continue;
+          const info = await lstat(entry.destination, { bigint: true });
+          if (!info.isFile()) continue;
+          if (entry.publication && (String(info.dev) !== entry.publication.dev || String(info.ino) !== entry.publication.ino)) continue;
           const digest = await hashFile(entry.destination);
-          if (digest.size === entry.size && digest.sha256 === entry.sha256) await rm(entry.destination);
+          if (digest.size !== entry.size || digest.sha256 !== entry.sha256) continue;
+          await rm(entry.destination);
         } catch (cleanupError) {
           if ((cleanupError as NodeJS.ErrnoException).code !== "ENOENT") throw cleanupError;
         }
@@ -405,7 +441,7 @@ export async function startRecordingDirectoryMove(directory: string, overrides?:
         status = { ...status, state: "complete", phase: null, directory: resolveRecordingDirectory() };
       } catch (error) {
         const rawCode = error instanceof Error && "code" in error ? String(error.code) : "STORAGE_IO_ERROR";
-        const known = ["INVALID_DIRECTORY", "DESTINATION_CONFLICT", "SOURCE_CLEANUP_FAILED", "INSUFFICIENT_SPACE"];
+        const known = ["INVALID_DIRECTORY", "DESTINATION_CONFLICT", "SOURCE_CLEANUP_FAILED", "INSUFFICIENT_SPACE", "UNSUPPORTED_FILESYSTEM"];
         status = { ...status, state: "error", phase: null, code: rawCode === "ENOSPC" ? "INSUFFICIENT_SPACE" : known.includes(rawCode) ? rawCode : "STORAGE_IO_ERROR", error: error instanceof Error ? error.message : String(error), directory: resolveRecordingDirectory() };
       }
     } catch (error) {
@@ -442,17 +478,21 @@ export async function recoverRecordingDirectoryMove(): Promise<void> {
     try {
       await updateReferences(journal.references, "oldPath");
       for (const entry of journal.entries) {
-        if (entry.published !== false) {
-          const info = await lstat(entry.destination).catch((error) => {
+        if (entry.published !== false || entry.publication) {
+          const info = await lstat(entry.destination, { bigint: true }).catch((error) => {
             if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
             throw error;
           });
-          if (!info) continue;
-          if (!info.isFile()) throw new Error("Published destination is not a regular file");
-          const digest = await hashFile(entry.destination);
-          if (digest.size !== entry.size || digest.sha256 !== entry.sha256) throw new Error("Published destination changed");
-          await rm(entry.destination);
+          if (info) {
+            if (!info.isFile()) throw new Error("Published destination is not a regular file");
+            if (!entry.publication || String(info.dev) === entry.publication.dev && String(info.ino) === entry.publication.ino) {
+              const digest = await hashFile(entry.destination);
+              if (digest.size !== entry.size || digest.sha256 !== entry.sha256) throw new Error("Published destination changed");
+              await rm(entry.destination);
+            }
+          }
         }
+        await cleanupOwnedTemporary(entry, journal.operationId, journal.newDirectory);
       }
       await removeEmptyDestinationDirs(journal);
       await rm(journalPath, { force: true });
@@ -464,6 +504,7 @@ export async function recoverRecordingDirectoryMove(): Promise<void> {
       if (!(await lstat(entry.destination)).isFile()) throw new Error("Destination is not a regular file");
       const digest = await hashFile(entry.destination);
       if (digest.size !== entry.size || digest.sha256 !== entry.sha256) throw new Error("Destination verification failed");
+      await cleanupOwnedTemporary(entry, journal.operationId, journal.newDirectory);
     }
     await updateReferences(journal.references, "newPath");
   } catch { throw new Error("[RecordingStorage] Recovery required: committed destination verification failed"); }

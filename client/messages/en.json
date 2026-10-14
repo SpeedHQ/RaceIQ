@@ -2448,6 +2448,7 @@
   "recording_layout_migration_checking": "Checking recording folder…",
   "recording_layout_migration_check_error": "Could not check recording layout. Refresh to try again.",
   "recording_layout_migration_retry_error": "Organization could not start. Retry.",
+  "recording_layout_migration_unsupported_filesystem": "This folder is on a filesystem that does not support hard links. Choose a hard-link-supporting filesystem; exFAT and FAT32 are unsupported.",
   "recording_layout_migration_busy": "Another storage operation is running. Wait for it to finish, then retry.",
   "recording_layout_migration_pending": "Recording layout recovery is pending. Finish or retry that organization before changing folders.",
   "recording_layout_migration_partial": "Organized {migrated} files; {failed} failed. Retry to continue.",

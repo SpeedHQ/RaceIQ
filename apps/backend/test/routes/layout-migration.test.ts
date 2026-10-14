@@ -14,6 +14,7 @@ import { miscRoutes } from "../../src/routes/system/index";
 import { startRecordingDirectoryMove, getRecordingDirectoryMoveStatus } from "@raceiq/backend-core/session-capture/relocate-recordings";
 import { beginRecordingStorageImport } from "@raceiq/backend-core/session-capture/storage-activity";
 import { withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
+import { cleanupOrphanSessionFiles } from "@raceiq/backend-core/session-capture/cleanup";
 
 initGameAdapters();
 const inserted: number[] = [];
@@ -176,23 +177,30 @@ describe("recording layout migration", () => {
     temporary.push(root);
     saveSettings({ ...loadSettings(), recordingDirectory: root });
     const source = join(root, "fm-2023", "collision.bin");
-    const destination = join(root, "fm-2023", "own", "collision.bin");
+    const ownDestination = join(root, "fm-2023", "own", "collision.bin");
+    const otherDestination = join(root, "fm-2023", "others", "collision.bin");
     const unrelated = join(root, "fm-2023", "notes.txt");
-    await mkdir(join(root, "fm-2023"), { recursive: true });
     await mkdir(join(root, "fm-2023", "own"), { recursive: true });
+    await mkdir(join(root, "fm-2023", "others"), { recursive: true });
     await writeFile(source, "original capture");
-    await writeFile(destination, "pre-existing data");
+    await writeFile(otherDestination, "pre-existing data");
     await writeFile(unrelated, "unrelated");
+    await addSession(source, "mine");
+    await addSession(source, "others");
     expect((await startMigration()).status).toBe(202);
     expect((await waitForMigration()).status).toBe("partial");
     expect(await readFile(source, "utf8")).toBe("original capture");
-    expect(await readFile(destination, "utf8")).toBe("pre-existing data");
+    expect(await readFile(ownDestination, "utf8")).toBe("original capture");
+    expect(await readFile(otherDestination, "utf8")).toBe("pre-existing data");
+    expect(await cleanupOrphanSessionFiles()).toBe(0);
+    expect(await readFile(ownDestination, "utf8")).toBe("original capture");
 
-    await rm(destination);
+    await rm(otherDestination);
     expect((await startMigration()).status).toBe(202);
     expect((await waitForMigration()).status).toBe("success");
     expect(await Bun.file(source).exists()).toBe(false);
-    expect(await readFile(destination, "utf8")).toBe("original capture");
+    expect(await readFile(ownDestination, "utf8")).toBe("original capture");
+    expect(await readFile(otherDestination, "utf8")).toBe("original capture");
     expect(await readFile(unrelated, "utf8")).toBe("unrelated");
   });
 

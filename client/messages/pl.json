@@ -2448,6 +2448,7 @@
   "recording_layout_migration_checking": "Sprawdzanie folderu nagrań…",
   "recording_layout_migration_check_error": "Nie można sprawdzić układu. Odśwież i spróbuj ponownie.",
   "recording_layout_migration_retry_error": "Nie można rozpocząć. Spróbuj ponownie.",
+  "recording_layout_migration_unsupported_filesystem": "Ten system plików nie obsługuje dowiązań twardych. Wybierz obsługujący je system; exFAT i FAT32 nie są obsługiwane.",
   "recording_layout_migration_pending": "Oczekuje odzyskiwanie układu nagrań. Dokończ porządkowanie lub ponów próbę przed zmianą folderu.",
   "recording_layout_migration_busy": "Trwa inna operacja pamięci. Spróbuj ponownie później.",
   "recording_layout_migration_partial": "Uporządkowano {migrated} plików; błędów: {failed}. Ponów próbę.",

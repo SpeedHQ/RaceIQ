@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { runtime } from "../../config/runtime";
 import { collectBrowserErrors } from "../support/browser-errors";
@@ -37,9 +37,6 @@ async function assertImagesLoaded(page: Page) {
 
 // Serial: wizard runs first and flips server-side onboardingComplete=true,
 // so later tests can navigate straight to game routes without the modal.
-// The compiled binary starts a WebGL demo on the welcome step. On the
-// 2-vCPU CI runner that startup can consume the default 30-second test budget
-// before the wizard reaches its final step.
 test.describe
   .serial("fresh install", () => {
     test.setTimeout(140_000);
@@ -49,13 +46,8 @@ test.describe
 
       await page.goto("/", { waitUntil: "domcontentloaded" });
 
-      // Step 1: Welcome — demo 3D render (R3F canvas) should mount from demo-lap.csv
+      // Step 1: Welcome — navigation must not depend on the optional 3D demo.
       await expect(page.getByRole("button", { name: "Get Started" })).toBeVisible({ timeout: 15_000 });
-      const demoCanvas = page.locator("canvas").first();
-      await expect(demoCanvas).toBeVisible({ timeout: 15_000 });
-      const canvasBox = await demoCanvas.boundingBox();
-      expect(canvasBox?.width ?? 0).toBeGreaterThan(0);
-      expect(canvasBox?.height ?? 0).toBeGreaterThan(0);
       await page.getByRole("button", { name: "Get Started" }).click();
 
       // Step 2: Access — require explicit password-protection choice.
@@ -109,9 +101,8 @@ test.describe
         await expect(page.getByRole("button", { name: "Use this folder", exact: true })).toHaveCount(0);
         await expect(page.getByRole("button", { name: "Next", includeHidden: true })).toBeDisabled();
         const backButtons = page.getByRole("button", { name: "Back", includeHidden: true });
-        await expect(backButtons).toHaveCount(2);
-        await expect(backButtons.nth(0)).toBeDisabled();
-        await expect(backButtons.nth(1)).toBeDisabled();
+        await expect(backButtons).toHaveCount(1);
+        await expect(backButtons).toBeDisabled();
       } finally {
         releaseMoveRequest();
       }
@@ -503,6 +494,9 @@ test("setup wizard applies native recording-folder choices immediately and safel
     const changeFolder = page.getByRole("button", { name: "Change folder", exact: true });
     await changeFolder.click();
     await expect(page.getByRole("button", { name: "Next", includeHidden: true })).toBeDisabled();
+    const backButton = page.getByRole("button", { name: "Back", exact: true });
+    await expect(backButton).toHaveCount(1);
+    await expect(backButton).toBeDisabled();
     releasePicker();
     await expect(page.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
     expect(moveRequests).toBe(0);
@@ -524,7 +518,7 @@ test("setup wizard applies native recording-folder choices immediately and safel
       return status.state === "complete" && status.directory === realpathSync(nestedDestination);
     }, { timeout: 60_000 }).toBe(true);
     expect(moveRequests).toBe(1);
-    await expect(page.getByText(realpathSync(nestedDestination), { exact: true })).toBeVisible();
+    await expect(page.getByTitle(realpathSync(nestedDestination))).toBeVisible();
   } finally {
     releasePicker();
     releaseMove();

@@ -2449,6 +2449,7 @@
   "recording_layout_migration_check_error": "Impossible de vérifier le dossier. Actualisez pour réessayer.",
   "recording_layout_migration_pending": "Une récupération de l’organisation est en attente. Terminez ou relancez l’organisation avant de changer de dossier.",
   "recording_layout_migration_retry_error": "Impossible de démarrer. Réessayez.",
+  "recording_layout_migration_unsupported_filesystem": "Ce système de fichiers ne prend pas en charge les liens physiques. Choisissez-en un compatible ; exFAT et FAT32 ne sont pas pris en charge.",
   "recording_layout_migration_busy": "Une autre opération de stockage est en cours. Réessayez ensuite.",
   "recording_layout_migration_partial": "{migrated} fichiers organisés ; {failed} échecs. Réessayez.",
   "recording_layout_migration_success_title": "Enregistrements organisés",

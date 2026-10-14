@@ -16,6 +16,7 @@ export function RecordingDirectoryControl({ disabled = false, inline = false }: 
   const layoutMigration = useRecordingLayoutMigration();
   const layoutStart = useStartRecordingLayoutMigration();
   const preflight = usePreflightRecordingDirectory();
+  const [copyError, setCopyError] = useState(false);
   const [pickerError, setPickerError] = useState(false);
   const [open, setOpen] = useState(false);
   const [path, setPath] = useState("");
@@ -43,6 +44,7 @@ export function RecordingDirectoryControl({ disabled = false, inline = false }: 
   const errorMessage = (() => {
     switch (errorCode) {
       case "INVALID_DIRECTORY": return m.storage_directory_error_invalid_directory();
+      case "UNSUPPORTED_FILESYSTEM": return m.recording_layout_migration_unsupported_filesystem();
       case "DESTINATION_CONFLICT": return m.storage_directory_error_destination_conflict();
       case "RECORDING_ACTIVE": return m.storage_directory_error_recording_active();
       case "IMPORT_ACTIVE": return m.storage_directory_error_import_active();
@@ -120,7 +122,8 @@ export function RecordingDirectoryControl({ disabled = false, inline = false }: 
       </div>
   </>;
   return <div className="space-y-3 rounded-lg border border-app-border bg-app-surface-alt/50 p-4">
-    <div className="flex flex-wrap items-center justify-between gap-3"><div className="min-w-0 w-full sm:w-auto sm:flex-1"><Label>{m.storage_directory_active()}</Label><p className="mt-1 break-all font-mono text-sm text-app-text" title={activePath}>{activePath || m.common_loading()}</p></div><div className="flex w-full justify-end gap-2 sm:w-auto"><Button variant="outline" disabled={!activePath} onClick={() => { void navigator.clipboard.writeText(activePath); }}>{m.storage_directory_copy_path()}</Button><Button variant="outline" disabled={disabled || !settingsLoaded || !status.isSuccess || transitionLocked || selectDirectory.isPending} onClick={() => { if (inline) selectFolder(); else { setPath(activePath); setConfirm(false); setOccupiedSelection(false); preflight.reset(); move.reset(); layoutStart.reset(); setOpen(true); } }}>{m.storage_directory_change()}</Button></div></div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><div className="min-w-0 w-full sm:w-auto sm:flex-1"><Label>{m.storage_directory_active()}</Label><p className="mt-1 break-all font-mono text-sm text-app-text" title={activePath}>{activePath || m.common_loading()}</p></div><div className="flex w-full justify-end gap-2 sm:w-auto"><Button variant="outline" disabled={!activePath} onClick={async () => { setCopyError(false); try { if (navigator.clipboard) await navigator.clipboard.writeText(activePath); else throw new Error("clipboard_unavailable"); } catch { const previousFocus = document.activeElement; const input = document.createElement("textarea"); input.value = activePath; input.readOnly = true; input.style.position = "fixed"; input.style.opacity = "0"; document.body.append(input); try { input.focus({ preventScroll: true }); input.select(); if (!document.execCommand("copy")) throw new Error("copy_failed"); } catch { setCopyError(true); } finally { input.remove(); if (previousFocus instanceof HTMLElement) previousFocus.focus(); } } }}>{m.storage_directory_copy_path()}</Button><Button variant="outline" disabled={disabled || !settingsLoaded || !status.isSuccess || transitionLocked || selectDirectory.isPending} onClick={() => { if (inline) selectFolder(); else { setPath(activePath); setConfirm(false); setOccupiedSelection(false); preflight.reset(); move.reset(); layoutStart.reset(); setOpen(true); } }}>{m.storage_directory_change()}</Button></div></div>
+    {copyError && <p role="alert" className="text-sm text-status-danger">{m.access_copy_failed()}</p>}
     {moving && <p aria-live="polite" className="text-sm text-app-text-dim">{m.storage_directory_progress({ phase: phaseLabel, completed: status.data?.completedFiles ?? 0, total: status.data?.totalFiles ?? 0 })}</p>}
     {inline && occupiedSelection && <div role="alert" className="space-y-2 rounded border border-status-warning/30 bg-status-warning/5 px-3 py-2 text-sm text-status-warning"><p>{m.storage_directory_occupied_warning()}</p><p className="break-all font-mono text-xs">{path}</p><div className="flex gap-2"><Button variant="outline" disabled={transitionLocked} onClick={() => setOccupiedSelection(false)}>{m.common_cancel()}</Button><Button disabled={transitionLocked} onClick={() => { setOccupiedSelection(false); applyDirectory(path); }}>{m.storage_directory_continue()}</Button></div></div>}
     {inline && pickerError && <p role="alert" className="text-sm text-status-danger">{m.storage_directory_browse_error()}</p>}

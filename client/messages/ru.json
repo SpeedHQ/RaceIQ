@@ -2448,6 +2448,7 @@
   "recording_layout_migration_checking": "Проверка папки записей…",
   "recording_layout_migration_check_error": "Не удалось проверить структуру. Обновите и повторите попытку.",
   "recording_layout_migration_retry_error": "Не удалось запустить. Повторите попытку.",
+  "recording_layout_migration_unsupported_filesystem": "Эта файловая система не поддерживает жесткие ссылки. Выберите файловую систему с поддержкой жестких ссылок; exFAT и FAT32 не поддерживаются.",
   "recording_layout_migration_pending": "Ожидается восстановление структуры записей. Завершите упорядочивание или повторите попытку перед сменой папки.",
   "recording_layout_migration_busy": "Выполняется другая операция с хранилищем. Повторите позже.",
   "recording_layout_migration_partial": "Упорядочено файлов: {migrated}; ошибок: {failed}. Повторите попытку.",

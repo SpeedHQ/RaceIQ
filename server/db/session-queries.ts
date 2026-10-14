@@ -228,24 +228,27 @@ async function unlinkOwnedSessionRawFile(rawFile: string | null): Promise<void> 
  */
 
 export async function deleteSession(sessionId: number): Promise<number> {
-  const session = await db
-    .select({ rawFile: sessions.rawFile })
-    .from(sessions)
-    .where(eq(sessions.id, sessionId))
-    .get();
-  const sessionLaps = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
-  let count = 0;
-  for (const lap of sessionLaps) {
-    if (await deleteLap(lap.id)) count++;
-  }
-  await db.delete(sessions).where(eq(sessions.id, sessionId)).run();
-  await unlinkOwnedSessionRawFile(session?.rawFile ?? null);
-  return count;
+  return withSessionCaptureMaintenanceLock(async () => {
+    const session = await db
+      .select({ rawFile: sessions.rawFile })
+      .from(sessions)
+      .where(eq(sessions.id, sessionId))
+      .get();
+    const sessionLaps = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
+    let count = 0;
+    for (const lap of sessionLaps) {
+      if (await deleteLap(lap.id)) count++;
+    }
+    await db.delete(sessions).where(eq(sessions.id, sessionId)).run();
+    await unlinkOwnedSessionRawFile(session?.rawFile ?? null);
+    return count;
+  });
 }
 
 /** Get all lap metadata needed to preserve rows during reprocessing. */
 
 export async function deleteEmptySessions(activeSessionId?: number): Promise<number> {
+  return withSessionCaptureMaintenanceLock(async () => {
   const empties = await db
     .select({ id: sessions.id, rawFile: sessions.rawFile })
     .from(sessions)
@@ -269,6 +272,7 @@ export async function deleteEmptySessions(activeSessionId?: number): Promise<num
   const ids = filtered.map(r => r.id);
   await db.delete(sessions).where(inArray(sessions.id, ids)).run();
   return ids.length;
+  });
 }
 
 /**

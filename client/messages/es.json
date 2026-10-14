@@ -2448,6 +2448,7 @@
   "recording_layout_migration_checking": "Comprobando carpeta…",
   "recording_layout_migration_check_error": "No se pudo comprobar la carpeta. Actualiza para volver a intentarlo.",
   "recording_layout_migration_retry_error": "No se pudo iniciar. Inténtalo de nuevo.",
+  "recording_layout_migration_unsupported_filesystem": "Este sistema de archivos no admite enlaces duros. Elige uno compatible; exFAT y FAT32 no son compatibles.",
   "recording_layout_migration_pending": "Hay una recuperación pendiente del formato. Termina o reintenta la organización antes de cambiar la carpeta.",
   "recording_layout_migration_busy": "Hay otra operación de almacenamiento activa. Espera y vuelve a intentarlo.",
   "recording_layout_migration_partial": "{migrated} archivos organizados; {failed} fallaron. Reintenta.",

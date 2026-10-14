@@ -60,9 +60,11 @@ export interface RecordingLayoutMigrationStatus {
 }
 
 export function useRecordingLayoutMigration() {
+  const { status } = useDashboardAuth();
   const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: queryKeys.recordingLayoutMigration,
+    enabled: !status.pending && status.authenticated,
     queryFn: async (): Promise<RecordingLayoutMigrationStatus> => {
       const response = await client.api.storage["layout-migration"].$get();
       if (!response.ok) throw new Error("layout-migration-status");

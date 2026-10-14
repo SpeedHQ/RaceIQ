@@ -94,6 +94,12 @@ export async function cleanupOrphanSessionFiles(
       console.log("[Cleanup] Session active — skipping orphan sweep");
       return 0;
     }
+    // Migration imports the live pipeline, which also imports this maintenance lock.
+    const { hasPendingLayoutMigration } = await import("./layout-migration");
+    if (await hasPendingLayoutMigration()) {
+      console.log("[Cleanup] Layout migration pending — skipping orphan sweep");
+      return 0;
+    }
     const sessionsDir = resolveRecordingDirectory();
     if (!existsSync(sessionsDir)) return 0;
 

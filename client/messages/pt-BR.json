@@ -2448,6 +2448,7 @@
   "recording_layout_migration_checking": "Verificando pasta…",
   "recording_layout_migration_check_error": "Não foi possível verificar a pasta. Atualize para tentar novamente.",
   "recording_layout_migration_retry_error": "Não foi possível iniciar. Tente novamente.",
+  "recording_layout_migration_unsupported_filesystem": "Este sistema de arquivos não oferece suporte a links físicos. Escolha um sistema compatível; exFAT e FAT32 não são compatíveis.",
   "recording_layout_migration_pending": "A recuperação da organização está pendente. Conclua ou tente novamente antes de alterar a pasta.",
   "recording_layout_migration_busy": "Outra operação de armazenamento está em andamento. Tente depois.",
   "recording_layout_migration_partial": "{migrated} arquivos organizados; {failed} falharam. Tente novamente.",

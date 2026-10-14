@@ -2448,6 +2448,7 @@
   "recording_layout_migration_checking": "Opnamemap controleren…",
   "recording_layout_migration_check_error": "Map kon niet worden gecontroleerd. Vernieuw om opnieuw te proberen.",
   "recording_layout_migration_retry_error": "Starten mislukt. Probeer opnieuw.",
+  "recording_layout_migration_unsupported_filesystem": "Dit bestandssysteem ondersteunt geen harde koppelingen. Kies een bestandssysteem dat dit wel ondersteunt; exFAT en FAT32 worden niet ondersteund.",
   "recording_layout_migration_pending": "Herstel van de mapindeling is in behandeling. Rond het ordenen af of probeer opnieuw voordat je de map wijzigt.",
   "recording_layout_migration_busy": "Een andere opslagbewerking is bezig. Probeer later opnieuw.",
   "recording_layout_migration_partial": "{migrated} bestanden geordend; {failed} mislukt. Probeer opnieuw.",

@@ -2449,6 +2449,7 @@
   "recording_layout_migration_check_error": "Tallenteiden rakennetta ei voitu tarkistaa. Yritä päivittää.",
   "recording_layout_migration_pending": "Tallenteiden järjestelyn palautus odottaa. Viimeistele järjestäminen tai yritä uudelleen ennen kansion vaihtamista.",
   "recording_layout_migration_retry_error": "Järjestämistä ei voitu aloittaa. Yritä uudelleen.",
+  "recording_layout_migration_unsupported_filesystem": "Tämä tiedostojärjestelmä ei tue kovia linkkejä. Valitse niitä tukeva tiedostojärjestelmä; exFAT ja FAT32 eivät ole tuettuja.",
   "recording_layout_migration_busy": "Toinen tallennustoiminto on käynnissä. Yritä myöhemmin uudelleen.",
   "recording_layout_migration_partial": "{migrated} tiedostoa järjestetty; {failed} epäonnistui. Yritä uudelleen.",
   "recording_layout_migration_success_title": "Tallenteet järjestetty",

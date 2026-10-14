@@ -2472,6 +2472,7 @@
   "recording_layout_migration_checking": "Aufnahmeordner wird geprüft…",
   "recording_layout_migration_check_error": "Aufnahmestruktur konnte nicht geprüft werden. Aktualisieren und erneut versuchen.",
   "recording_layout_migration_retry_error": "Ordnen konnte nicht gestartet werden. Erneut versuchen.",
+  "recording_layout_migration_unsupported_filesystem": "Dieses Dateisystem unterstützt keine Hardlinks. Wählen Sie ein Dateisystem mit Hardlink-Unterstützung; exFAT und FAT32 werden nicht unterstützt.",
   "recording_layout_migration_busy": "Ein anderer Speichervorgang läuft. Danach erneut versuchen.",
   "recording_layout_migration_pending": "Wiederherstellung des Aufnahmeformats ausstehend. Ordnen Sie die Dateien erst fertig oder versuchen Sie es erneut, bevor Sie den Ordner ändern.",
   "recording_layout_migration_partial": "{migrated} Dateien geordnet; {failed} fehlgeschlagen. Erneut versuchen.",

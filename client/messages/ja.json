@@ -2450,6 +2450,7 @@
   "recording_layout_migration_check_error": "録画構成を確認できません。更新して再試行してください。",
   "recording_layout_migration_pending": "録画レイアウトの復旧が保留中です。フォルダーを変更する前に整理を完了するか、再試行してください。",
   "recording_layout_migration_retry_error": "開始できませんでした。再試行してください。",
+  "recording_layout_migration_unsupported_filesystem": "このファイルシステムはハードリンクに対応していません。対応するファイルシステムを選択してください。exFAT と FAT32 は非対応です。",
   "recording_layout_migration_busy": "別のストレージ処理中です。完了後に再試行してください。",
   "recording_layout_migration_partial": "{migrated} ファイルを整理、{failed} 件失敗。再試行してください。",
   "recording_layout_migration_success_title": "録画を整理しました",

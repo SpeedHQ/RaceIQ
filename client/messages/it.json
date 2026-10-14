@@ -2449,6 +2449,7 @@
   "recording_layout_migration_check_error": "Impossibile controllare la cartella. Aggiorna e riprova.",
   "recording_layout_migration_pending": "È in attesa il ripristino dell’organizzazione. Completa o riprova l’organizzazione prima di cambiare cartella.",
   "recording_layout_migration_retry_error": "Impossibile avviare. Riprova.",
+  "recording_layout_migration_unsupported_filesystem": "Questo file system non supporta i collegamenti fisici. Scegline uno compatibile; exFAT e FAT32 non sono supportati.",
   "recording_layout_migration_busy": "È in corso un’altra operazione di archiviazione. Riprova dopo.",
   "recording_layout_migration_partial": "{migrated} file organizzati; {failed} non riusciti. Riprova.",
   "recording_layout_migration_success_title": "Registrazioni organizzate",

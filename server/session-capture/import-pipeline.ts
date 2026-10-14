@@ -302,9 +302,9 @@ async function importTelemetrySource<T>(
     }
   }
 
-  if (failure) return rollbackImport(db, failure);
+  if (failure) await rollbackImport(db, failure);
   if (options.requireLaps && db.laps.length === 0) {
-    return rollbackImport(
+    await rollbackImport(
       db,
       new Error("No complete, importable laps were found"),
     );
@@ -317,7 +317,7 @@ async function importTelemetrySource<T>(
     }
     await pipeline.finalizeDashboardCaptureFacts([...db.sessionIds]);
   } catch (error) {
-    return rollbackImport(db, error);
+    await rollbackImport(db, error);
   }
 
 
