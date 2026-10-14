@@ -2,7 +2,7 @@ import { lstat } from "node:fs/promises";
 import { join } from "node:path";
 import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
 import { getLayoutMigrationStatus, startLayoutMigration } from "@raceiq/backend-core/session-capture/layout-migration";
-import { getRecordingDirectoryMoveStatus, startRecordingDirectoryMove } from "@raceiq/backend-core/session-capture/relocate-recordings";
+import { getRecordingDirectoryMoveStatus, preflightRecordingDirectoryMove, startRecordingDirectoryMove } from "@raceiq/backend-core/session-capture/relocate-recordings";
 import { existsSync, type Dirent } from "node:fs";
 import { readdir, statfs } from "node:fs/promises";
 import { Hono } from "hono";
@@ -39,12 +39,23 @@ export const storageRoutes = new Hono()
     } catch (error) {
       const code = error instanceof Error && "code" in error ? String(error.code) : "STORAGE_IO_ERROR";
       const busy = ["MIGRATION_ACTIVE", "IMPORT_ACTIVE", "MOVE_ACTIVE", "RECORDING_ACTIVE", "LAYOUT_MIGRATION_PENDING", "STORAGE_OPERATION_BUSY"].includes(code);
-      const invalid = ["INVALID_DIRECTORY", "DESTINATION_NOT_EMPTY"].includes(code);
+      const invalid = ["INVALID_DIRECTORY", "DESTINATION_CONFLICT"].includes(code);
       const http = busy ? 409 : invalid ? 400 : 500;
       return c.json({ code, error: error instanceof Error ? error.message : "Layout migration failed" }, http);
     }
   })
   .get("/api/storage/recording-directory", (c) => c.json(getRecordingDirectoryMoveStatus()))
+  .post("/api/storage/recording-directory/preflight", async (c) => {
+    let body: unknown;
+    try { body = await c.req.json(); } catch { return c.json({ code: "INVALID_DIRECTORY", error: "Expected JSON body" }, 400); }
+    const parsed = z.object({ directory: z.string() }).strict().safeParse(body);
+    if (!parsed.success) return c.json({ code: "INVALID_DIRECTORY", error: "Expected absolute directory" }, 400);
+    try { return c.json(await preflightRecordingDirectoryMove(parsed.data.directory)); }
+    catch (error) {
+      const code = error instanceof Error && "code" in error ? String(error.code) : "STORAGE_IO_ERROR";
+      return c.json({ code, error: error instanceof Error ? error.message : "Storage preflight failed" }, 400);
+    }
+  })
   .post("/api/storage/recording-directory", async (c) => {
     let body: unknown;
     try { body = await c.req.json(); } catch { return c.json({ code: "INVALID_DIRECTORY", error: "Expected JSON body" }, 400); }

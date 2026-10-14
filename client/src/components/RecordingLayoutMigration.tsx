@@ -40,7 +40,7 @@ export function RecordingLayoutMigration({ compact = false, onSuccessDismissed }
   const percent = progress && progress.total > 0 ? Math.min(100, Math.round(progress.done / progress.total * 100)) : 0;
   const errorCode = start.error && "code" in start.error ? String(start.error.code) : "";
   const errorText = errorCode === "INVALID_DIRECTORY" ? m.storage_directory_error_invalid_directory()
-    : errorCode === "DESTINATION_NOT_EMPTY" ? m.storage_directory_error_destination_not_empty()
+    : errorCode === "DESTINATION_CONFLICT" ? m.storage_directory_error_destination_conflict()
     : ["MIGRATION_ACTIVE", "MOVE_ACTIVE", "IMPORT_ACTIVE", "RECORDING_ACTIVE"].includes(errorCode) ? m.recording_layout_migration_busy()
     : errorCode === "LAYOUT_MIGRATION_PENDING" ? m.recording_layout_migration_pending()
     : m.recording_layout_migration_retry_error();

@@ -18,7 +18,7 @@ import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { hasPendingLayoutMigration } from "./layout-migration";
 
 export type RecordingDirectoryMoveStatus = { operationId: string | null; state: "idle" | "moving" | "complete" | "error"; phase: "copying" | "committing" | "removing-sources" | null; completedFiles: number; totalFiles: number; directory: string; code: string | null; error: string | null };
-type Entry = { source: string; destination: string; size: number; sha256: string };
+type Entry = { source: string; destination: string; size: number; sha256: string; published: boolean };
 type Journal = { version: 1; operationId: string; oldDirectory: string; newDirectory: string; oldSetting: string | null; entries: Entry[]; references: { sessionId: number; oldPath: string; newPath: string }[] };
 type MoveTestHooks = Partial<{ copyFile: typeof copyFile; saveSettings: typeof saveSettings; unlink: typeof unlink; isSessionActive: typeof isSessionActive }>;
 const defaultMoveHooks: Required<MoveTestHooks> = { copyFile, saveSettings, unlink, isSessionActive };
@@ -80,18 +80,23 @@ async function isValidJournal(value: unknown): Promise<boolean> {
     || (journal.oldSetting !== null && typeof journal.oldSetting !== "string")
     || !Array.isArray(journal.entries) || !Array.isArray(journal.references)) return false;
   const oldRoot = resolve(journal.oldDirectory), newRoot = resolve(journal.newDirectory);
-  if (oldRoot !== journal.oldDirectory || newRoot !== journal.newDirectory || oldRoot === newRoot
-    || isContained(oldRoot, newRoot) || isContained(newRoot, oldRoot)) return false;
+  if (oldRoot !== journal.oldDirectory || newRoot !== journal.newDirectory || oldRoot === newRoot || isContained(newRoot, oldRoot)) return false;
   const dataRoot = await realpath(resolveDataDir()).catch(() => "");
+  const nestedDestination = isContained(oldRoot, newRoot);
   if (!dataRoot || oldRoot === parse(oldRoot).root || newRoot === parse(newRoot).root
     || oldRoot === dataRoot || isContained(oldRoot, dataRoot)
-    || newRoot === dataRoot || isContained(dataRoot, newRoot) || isContained(newRoot, dataRoot)) return false;
+    || newRoot === dataRoot || isContained(dataRoot, newRoot) && !(nestedDestination && isContained(dataRoot, oldRoot))
+    || isContained(newRoot, dataRoot)) return false;
   const entrySources = new Set<string>(), entryDestinations = new Set<string>();
   for (const entry of journal.entries) {
-    if (!entry || typeof entry !== "object" || !hasExactKeys(entry, ["source", "destination", "size", "sha256"])
-      || typeof entry.source !== "string" || typeof entry.destination !== "string"
+    if (!entry || typeof entry !== "object") return false;
+    const legacyEntry = hasExactKeys(entry, ["source", "destination", "size", "sha256"]);
+    const currentEntry = hasExactKeys(entry, ["source", "destination", "size", "sha256", "published"]);
+    if ((!legacyEntry && !currentEntry) || typeof entry.source !== "string" || typeof entry.destination !== "string"
+      || (currentEntry && typeof entry.published !== "boolean")
       || !isAbsolute(entry.source) || !isAbsolute(entry.destination) || !isContained(oldRoot, resolve(entry.source))
-      || !isContained(newRoot, resolve(entry.destination)) || resolve(entry.destination) !== resolve(newRoot, relative(oldRoot, resolve(entry.source)))
+      || isContained(newRoot, resolve(entry.source)) || !isContained(newRoot, resolve(entry.destination))
+      || resolve(entry.destination) !== resolve(newRoot, relative(oldRoot, resolve(entry.source)))
       || !Number.isSafeInteger(entry.size) || entry.size < 0 || typeof entry.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(entry.sha256)) return false;
     const source = resolve(entry.source), destination = resolve(entry.destination);
     if (entrySources.has(source) || entryDestinations.has(destination)) return false;
@@ -124,7 +129,7 @@ async function isValidJournal(value: unknown): Promise<boolean> {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") return false;
       canonicalPath = oldPath;
     }
-    if (!isContained(oldRoot, canonicalPath) || newPath !== resolve(newRoot, relative(oldRoot, canonicalPath))) return false;
+    if (isContained(newRoot, canonicalPath) || !isContained(oldRoot, canonicalPath) || newPath !== resolve(newRoot, relative(oldRoot, canonicalPath))) return false;
     sessionIds.add(ref.sessionId);
   }
   return true;
@@ -141,29 +146,27 @@ async function validateDirectory(input: string): Promise<string> {
   }
   if (!(await lstat(canonical)).isDirectory()) throw Object.assign(new Error("Path is not a directory"), { code: "INVALID_DIRECTORY" });
   const dataDir = await realpath(resolveDataDir());
-  if (canonical === parse(canonical).root || canonical === dataDir || isContained(canonical, dataDir)) throw Object.assign(new Error("Directory is reserved"), { code: "INVALID_DIRECTORY" });
+  const current = await realpath(resolveRecordingDirectory()).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? resolve(resolveRecordingDirectory()) : Promise.reject(error));
+  const nestedDataDestination = isContained(current, canonical) && isContained(dataDir, current);
+  if (canonical === parse(canonical).root || canonical === dataDir || isContained(canonical, dataDir) || isContained(dataDir, canonical) && !nestedDataDestination) throw Object.assign(new Error("Directory is reserved"), { code: "INVALID_DIRECTORY" });
   const probe = resolve(canonical, `.raceiq-write-${randomUUID()}`);
   const handle = await open(probe, "wx");
   try { await handle.sync(); } finally { await handle.close(); await unlink(probe); }
   return canonical;
 }
-export async function preflightRecordingDirectoryMove(directory: string): Promise<{ current: string; destination: string }> {
+export async function preflightRecordingDirectoryMove(directory: string): Promise<{ current: string; destination: string; containsFiles: boolean }> {
   const destination = await validateDirectory(directory);
   const raw = resolveRecordingDirectory();
   const current = await realpath(raw).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? resolve(raw) : Promise.reject(error));
-  if (current === destination || isContained(current, destination) || isContained(destination, current)) {
-    if (current !== destination) throw Object.assign(new Error("Recording folders cannot contain one another"), { code: "INVALID_DIRECTORY" });
-  }
-  if (current !== destination && (await readdir(destination)).length) throw Object.assign(new Error("Destination must be empty"), { code: "DESTINATION_NOT_EMPTY" });
-  return { current, destination };
+  if (isContained(destination, current)) throw Object.assign(new Error("Recording folders cannot contain one another"), { code: "INVALID_DIRECTORY" });
+  return { current, destination, containsFiles: current !== destination && (await readdir(destination)).length > 0 };
 }
 
 export async function relocateRecordingDirectoryUnderReservation(directory: string): Promise<void> {
   const requested = await validateDirectory(directory);
   const current = await realpath(resolveRecordingDirectory()).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? resolve(resolveRecordingDirectory()) : Promise.reject(error));
   if (requested === current) return;
-  if (isContained(current, requested) || isContained(requested, current)) throw Object.assign(new Error("Recording folders cannot contain one another"), { code: "INVALID_DIRECTORY" });
-  if ((await readdir(requested)).length) throw Object.assign(new Error("Destination must be empty"), { code: "DESTINATION_NOT_EMPTY" });
+  if (isContained(requested, current)) throw Object.assign(new Error("Recording folders cannot contain one another"), { code: "INVALID_DIRECTORY" });
   const operationId = randomUUID();
   status = { operationId, state: "moving", phase: "copying", completedFiles: 0, totalFiles: 0, directory: current, code: null, error: null };
   try {
@@ -175,11 +178,13 @@ export async function relocateRecordingDirectoryUnderReservation(directory: stri
     throw error;
   }
 }
-async function enumerate(root: string): Promise<string[]> {
+async function enumerate(root: string, excluded?: string): Promise<string[]> {
   const found: string[] = [];
   async function visit(directory: string): Promise<void> {
     for (const name of await readdir(directory)) {
-      const path = resolve(directory, name); const info = await lstat(path);
+      const path = resolve(directory, name);
+      if (excluded && (path === excluded || isContained(excluded, path))) continue;
+      const info = await lstat(path);
       if (info.isDirectory()) await visit(path);
       else if (info.isFile() && (name.endsWith(".bin") || name.endsWith(".bin.gz") || name.endsWith(".motec.zip"))) found.push(path);
     }
@@ -241,50 +246,59 @@ async function executeMove(directory: string, operationId: string, hooks: Requir
   const oldDirectory = await realpath(rawOld).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? resolve(rawOld) : Promise.reject(error));
   const newDirectory = await validateDirectory(directory);
   if (oldDirectory === newDirectory) return;
-  if (isContained(oldDirectory, newDirectory) || isContained(newDirectory, oldDirectory)) throw Object.assign(new Error("Recording folders cannot contain one another"), { code: "INVALID_DIRECTORY" });
-  if ((await readdir(newDirectory)).length) throw Object.assign(new Error("Destination must be empty"), { code: "DESTINATION_NOT_EMPTY" });
   const lexicalOldDirectory = resolve(rawOld);
   const rows = await db.select({ id: sessions.id, rawFile: sessions.rawFile }).from(sessions).all();
-  const files = new Set(await enumerate(oldDirectory)); const references: Journal["references"] = [];
+  const files = new Set(await enumerate(oldDirectory, newDirectory)); const references: Journal["references"] = [];
   for (const row of rows) {
     if (!row.rawFile) continue;
     const rawPath = resolve(row.rawFile);
-    if (!isContained(lexicalOldDirectory, rawPath) && !isContained(oldDirectory, rawPath)) continue;
+    if (isContained(newDirectory, rawPath)) continue;
     const aliasBase = isContained(lexicalOldDirectory, rawPath) ? lexicalOldDirectory : oldDirectory;
     if (await hasSymlinkDirectory(aliasBase, rawPath)) continue;
     try {
       const sourceInfo = await lstat(rawPath);
       if (!sourceInfo.isFile()) continue;
       const canonicalSource = await realpath(rawPath);
-      if (!isContained(oldDirectory, canonicalSource)) continue;
+      if (!isContained(oldDirectory, canonicalSource) || isContained(newDirectory, canonicalSource)) continue;
       references.push({ sessionId: row.id, oldPath: row.rawFile, newPath: resolve(newDirectory, relative(oldDirectory, canonicalSource)) });
       files.add(canonicalSource);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-      if (!isContained(lexicalOldDirectory, rawPath)) continue;
+      if (!isContained(lexicalOldDirectory, rawPath) || isContained(newDirectory, rawPath)) continue;
       references.push({ sessionId: row.id, oldPath: row.rawFile, newPath: resolve(newDirectory, relative(lexicalOldDirectory, rawPath)) });
     }
   }
   const entries: Entry[] = [];
-  for (const source of files) { const digest = await hashFile(source); entries.push({ source, destination: resolve(newDirectory, relative(oldDirectory, source)), ...digest }); }
+  for (const source of files) {
+    const digest = await hashFile(source);
+    entries.push({ source, destination: resolve(newDirectory, relative(oldDirectory, source)), ...digest, published: false });
+  }
   const journal: Journal = { version: 1, operationId, oldDirectory, newDirectory, oldSetting: setting, entries, references };
   await persistJournal(journal);
   status = { ...status, phase: "copying", totalFiles: entries.length, completedFiles: 0 };
-  const published: string[] = [];
+  const temporaryFiles: string[] = [];
   let referencesUpdated = false;
   try {
     for (const entry of entries) {
+      if (await hasSymlinkDirectory(newDirectory, entry.destination)) throw Object.assign(new Error(`Destination path contains a symbolic link: ${entry.destination}`), { code: "DESTINATION_CONFLICT" });
       await mkdir(dirname(entry.destination), { recursive: true });
       const temporary = `${entry.destination}.move-${operationId}.tmp`;
       await hooks.copyFile(entry.source, temporary, constants.COPYFILE_EXCL);
+      temporaryFiles.push(temporary);
       const out = await open(temporary, "r+"); try { await out.sync(); } finally { await out.close(); }
       const digest = await hashFile(temporary);
       if (digest.size !== entry.size || digest.sha256 !== entry.sha256) throw Object.assign(new Error("Copied recording verification failed"), { code: "STORAGE_IO_ERROR" });
-      await hooks.copyFile(temporary, entry.destination, constants.COPYFILE_EXCL);
-      published.push(entry.destination);
+      try { await hooks.copyFile(temporary, entry.destination, constants.COPYFILE_EXCL); }
+      catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "EEXIST") throw Object.assign(new Error(`Destination recording already exists: ${entry.destination}`), { code: "DESTINATION_CONFLICT" });
+        throw error;
+      }
+      entry.published = true;
+      await persistJournal(journal);
       const finalFile = await open(entry.destination, "r+");
       try { await finalFile.sync(); } finally { await finalFile.close(); }
       await unlink(temporary);
+      temporaryFiles.pop();
       status = { ...status, completedFiles: status.completedFiles + 1 };
     }
     status = { ...status, phase: "committing" };
@@ -295,8 +309,17 @@ async function executeMove(directory: string, operationId: string, hooks: Requir
   } catch (error) {
     if (resolveRecordingDirectory() !== newDirectory) {
       if (referencesUpdated) await updateReferences(references, "oldPath");
-      for (const entry of entries) await rm(`${entry.destination}.move-${operationId}.tmp`, { force: true });
-      for (const path of published) await rm(path, { force: true });
+      for (const temporary of temporaryFiles) await rm(temporary, { force: true });
+      for (const entry of entries) {
+        if (!entry.published || await hasSymlinkDirectory(newDirectory, entry.destination)) continue;
+        try {
+          if (!(await lstat(entry.destination)).isFile()) continue;
+          const digest = await hashFile(entry.destination);
+          if (digest.size === entry.size && digest.sha256 === entry.sha256) await rm(entry.destination);
+        } catch (cleanupError) {
+          if ((cleanupError as NodeJS.ErrnoException).code !== "ENOENT") throw cleanupError;
+        }
+      }
       await removeEmptyDestinationDirs(journal);
       await rm(journalPath, { force: true });
     } else {
@@ -316,10 +339,14 @@ async function removeEmptyDestinationDirs(journal: Journal): Promise<void> {
     }
   }
   for (const directory of [...directories].sort((a, b) => b.length - a.length)) {
-    await rmdir(directory).catch((error) => {
+    if (await hasSymlinkDirectory(journal.newDirectory, resolve(directory, ".cleanup-probe"))) continue;
+    try {
+      if (!(await lstat(directory)).isDirectory()) continue;
+      await rmdir(directory);
+    } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
-      if (code !== "ENOENT" && code !== "ENOTEMPTY") throw error;
-    });
+      if (code !== "ENOENT" && code !== "ENOTEMPTY" && code !== "ENOTDIR") throw error;
+    }
   }
 }
 export function getRecordingDirectoryMoveStatus(): RecordingDirectoryMoveStatus { return { ...status, directory: resolveRecordingDirectory() }; }
@@ -370,8 +397,7 @@ export async function startRecordingDirectoryMove(directory: string, overrides?:
     try {
       if (hooks.isSessionActive()) throw Object.assign(new Error("Recording is active"), { code: "RECORDING_ACTIVE" });
       const lockedOld = await realpath(resolveRecordingDirectory()).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? resolve(resolveRecordingDirectory()) : Promise.reject(error));
-      if (isContained(lockedOld, requested) || isContained(requested, lockedOld)) throw Object.assign(new Error("Recording folders cannot contain one another"), { code: "INVALID_DIRECTORY" });
-      if ((await readdir(requested)).length) throw Object.assign(new Error("Destination must be empty"), { code: "DESTINATION_NOT_EMPTY" });
+      if (isContained(requested, lockedOld)) throw Object.assign(new Error("Recording folders cannot contain one another"), { code: "INVALID_DIRECTORY" });
       status = { operationId, state: "moving", phase: "copying", completedFiles: 0, totalFiles: 0, directory: current, code: null, error: null };
       admit();
       try {
@@ -379,7 +405,7 @@ export async function startRecordingDirectoryMove(directory: string, overrides?:
         status = { ...status, state: "complete", phase: null, directory: resolveRecordingDirectory() };
       } catch (error) {
         const rawCode = error instanceof Error && "code" in error ? String(error.code) : "STORAGE_IO_ERROR";
-        const known = ["INVALID_DIRECTORY", "DESTINATION_NOT_EMPTY", "SOURCE_CLEANUP_FAILED", "INSUFFICIENT_SPACE"];
+        const known = ["INVALID_DIRECTORY", "DESTINATION_CONFLICT", "SOURCE_CLEANUP_FAILED", "INSUFFICIENT_SPACE"];
         status = { ...status, state: "error", phase: null, code: rawCode === "ENOSPC" ? "INSUFFICIENT_SPACE" : known.includes(rawCode) ? rawCode : "STORAGE_IO_ERROR", error: error instanceof Error ? error.message : String(error), directory: resolveRecordingDirectory() };
       }
     } catch (error) {
@@ -416,8 +442,17 @@ export async function recoverRecordingDirectoryMove(): Promise<void> {
     try {
       await updateReferences(journal.references, "oldPath");
       for (const entry of journal.entries) {
-        await rm(`${entry.destination}.move-${journal.operationId}.tmp`, { force: true });
-        try { if ((await lstat(entry.destination)).isFile()) { const digest = await hashFile(entry.destination); if (digest.size === entry.size && digest.sha256 === entry.sha256) await rm(entry.destination); } } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+        if (entry.published !== false) {
+          const info = await lstat(entry.destination).catch((error) => {
+            if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+            throw error;
+          });
+          if (!info) continue;
+          if (!info.isFile()) throw new Error("Published destination is not a regular file");
+          const digest = await hashFile(entry.destination);
+          if (digest.size !== entry.size || digest.sha256 !== entry.sha256) throw new Error("Published destination changed");
+          await rm(entry.destination);
+        }
       }
       await removeEmptyDestinationDirs(journal);
       await rm(journalPath, { force: true });

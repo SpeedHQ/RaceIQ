@@ -95,7 +95,7 @@ describe("recording layout migration", () => {
 
   test("organizes legacy captures then relocates root to selected destination", async () => {
     const root = await mkdtemp(join(tmpdir(), "raceiq-layout-source-"));
-    const destination = join(tmpdir(), `raceiq-layout-destination-${Date.now()}`);
+    const destination = join(root, "raceiq");
     temporary.push(root, destination);
     saveSettings({ ...loadSettings(), recordingDirectory: root });
     const source = join(root, "fm-2023", "selected.bin");
@@ -108,18 +108,23 @@ describe("recording layout migration", () => {
     expect(await readFile(join(destination, "fm-2023", "own", "selected.bin"), "utf8")).toBe("selected capture");
   });
 
-  test("rejects occupied destination before modifying current recordings", async () => {
+  test("migrates into an occupied destination and preserves unrelated files", async () => {
     const root = await mkdtemp(join(tmpdir(), "raceiq-layout-invalid-source-"));
     const destination = await mkdtemp(join(tmpdir(), "raceiq-layout-invalid-target-"));
     temporary.push(root, destination);
     saveSettings({ ...loadSettings(), recordingDirectory: root });
     const source = join(root, "fm-2023", "unchanged.bin");
+    const organized = join(destination, "fm-2023", "own", "unchanged.bin");
+    const preserved = Buffer.from([0, 1, 255, 4]);
     await mkdir(join(root, "fm-2023"), { recursive: true });
     await writeFile(source, "keep source");
-    await writeFile(join(destination, "unrelated.txt"), "keep target");
-    expect((await startMigration(destination)).status).toBe(400);
-    expect(await readFile(source, "utf8")).toBe("keep source");
-    expect(await readFile(join(destination, "unrelated.txt"), "utf8")).toBe("keep target");
+    await writeFile(join(destination, "unrelated.txt"), preserved);
+    expect((await startMigration(destination)).status).toBe(202);
+    expect((await waitForMigration()).status).toBe("success");
+    expect(resolveRecordingDirectory()).toBe(await realpath(destination));
+    expect(await readFile(organized, "utf8")).toBe("keep source");
+    expect(await Bun.file(source).exists()).toBe(false);
+    expect(await readFile(join(destination, "unrelated.txt"))).toEqual(preserved);
   });
 
   test.each(["before-commit", "after-commit"] as const)("resumes chosen-root migration %s after legacy files are already organized", async (phase) => {

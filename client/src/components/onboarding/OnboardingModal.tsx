@@ -1,7 +1,7 @@
 import { useIsMutating } from "@tanstack/react-query";
 import { queryKeys } from "@/hooks/query-keys";
 import { UnitsStep } from "./steps/UnitsStep";
-import { useRecordingDirectoryStatus } from "@/hooks/recording-storage";
+import { useRecordingDirectoryStatus, useRecordingLayoutMigration } from "@/hooks/recording-storage";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useSaveSettings } from "@/hooks/settings";
@@ -46,7 +46,11 @@ export function OnboardingModal({ onClose, onComplete, initialStep = 0 }: { onCl
   const saveSettings = useSaveSettings();
   const storageStatus = useRecordingDirectoryStatus();
   const isMovePending = useIsMutating({ mutationKey: queryKeys.recordingDirectoryMove }) > 0;
-  const storageBusy = isMovePending || storageStatus.data?.state === "moving";
+  const layoutMigration = useRecordingLayoutMigration();
+  const isLayoutPending = useIsMutating({ mutationKey: queryKeys.recordingLayoutMigrationStart }) > 0;
+  const isSelectPending = useIsMutating({ mutationKey: queryKeys.recordingDirectorySelect }) > 0;
+  const layoutBusy = layoutMigration.data?.progress.status === "running" || Boolean(layoutMigration.data?.destinationDirectory && layoutMigration.data.progress.status !== "success");
+  const storageBusy = isMovePending || isLayoutPending || isSelectPending || storageStatus.data?.state === "moving" || layoutBusy;
   const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
   const udpPps = useTelemetryStore((s) => s.udpPps);
   const lastUdpAt = useTelemetryStore((s) => s.lastUdpAt);

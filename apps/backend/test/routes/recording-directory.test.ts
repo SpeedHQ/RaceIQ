@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { copyFile as fsCopyFile, mkdir, mkdtemp, readFile, realpath, readdir, rm, symlink, unlink as fsUnlink, writeFile } from "node:fs/promises";
+import { copyFile as fsCopyFile, lstat, mkdir, mkdtemp, readFile, realpath, readdir, rm, symlink, unlink as fsUnlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { eq } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
 import { insertSession, deleteSession } from "@raceiq/backend-core/db/session-queries";
@@ -10,7 +10,7 @@ import { sessions } from "@raceiq/backend-core/db/schema";
 import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { beginRecordingStorageImport } from "@raceiq/backend-core/session-capture/storage-activity";
-import { startRecordingDirectoryMove, getRecordingDirectoryMoveStatus, recoverRecordingDirectoryMove } from "@raceiq/backend-core/session-capture/relocate-recordings";
+import { preflightRecordingDirectoryMove, startRecordingDirectoryMove, getRecordingDirectoryMoveStatus, recoverRecordingDirectoryMove } from "@raceiq/backend-core/session-capture/relocate-recordings";
 
 async function waitForMove(): Promise<void> {
   // The move runs on real filesystem I/O in a detached background task; fake timers cannot advance that work.
@@ -34,23 +34,70 @@ describe("recording-directory relocation", () => {
     if (sandbox) await rm(sandbox, { recursive: true, force: true });
   });
 
-  test("rejects a nonempty destination without changing source or selected directory", async () => {
+  test("moves into occupied child destination and preserves unrelated bytes", async () => {
     sandbox = await mkdtemp(join(tmpdir(), "raceiq-recording-move-"));
     const source = join(sandbox, "occupied-source");
-    const destination = join(sandbox, "occupied-destination");
+    const destination = join(source, "raceiq");
     const capture = join(source, "test-game", "capture.bin");
     const unrelated = join(destination, "keep.txt");
     const bytes = Buffer.from("source remains available");
+    const preserved = Buffer.from([0, 1, 255, 4]);
     await mkdir(join(source, "test-game"), { recursive: true });
     await mkdir(destination);
     await writeFile(capture, bytes);
-    await writeFile(unrelated, "unrelated destination data");
+    await writeFile(unrelated, preserved);
     saveSettings({ ...loadSettings(), recordingDirectory: source });
 
-    await expect(startRecordingDirectoryMove(destination)).rejects.toMatchObject({ code: "DESTINATION_NOT_EMPTY" });
+    expect(await preflightRecordingDirectoryMove(destination)).toMatchObject({
+      current: await realpath(source),
+      destination: await realpath(destination),
+      containsFiles: true,
+    });
+    await startRecordingDirectoryMove(destination);
+    await waitForMove();
+    expect(loadSettings().recordingDirectory).toBe(await realpath(destination));
+    expect(await readFile(join(destination, "test-game", "capture.bin"))).toEqual(bytes);
+    expect(await readFile(unrelated)).toEqual(preserved);
+  });
+  test("fails recording path collisions without changing source or destination", async () => {
+    const source = join(sandbox!, "collision-source");
+    const destination = join(sandbox!, "collision-destination");
+    const capture = join(source, "test-game", "capture.bin");
+    const existing = join(destination, "test-game", "capture.bin");
+    const sourceBytes = Buffer.from("source bytes");
+    const existingBytes = Buffer.from("source bytes");
+    await mkdir(dirname(capture), { recursive: true });
+    await mkdir(dirname(existing), { recursive: true });
+    await writeFile(capture, sourceBytes);
+    await writeFile(existing, existingBytes);
+    saveSettings({ ...loadSettings(), recordingDirectory: source });
+
+    await startRecordingDirectoryMove(destination);
+    await waitForMoveError("DESTINATION_CONFLICT");
+    expect(loadSettings().recordingDirectory).toBe(source);
+    expect(await readFile(capture)).toEqual(sourceBytes);
+    expect(await readFile(existing)).toEqual(existingBytes);
+  });
+
+  test("does not follow symlink destination directories", async () => {
+    const source = join(sandbox!, "symlink-source");
+    const destination = join(sandbox!, "symlink-destination");
+    const outside = join(sandbox!, "symlink-outside");
+    const capture = join(source, "test-game", "capture.bin");
+    const bytes = Buffer.from("source preserved");
+    await mkdir(join(source, "test-game"), { recursive: true });
+    await mkdir(destination);
+    await mkdir(outside);
+    await writeFile(capture, bytes);
+    await symlink(outside, join(destination, "test-game"));
+    saveSettings({ ...loadSettings(), recordingDirectory: source });
+
+    await startRecordingDirectoryMove(destination);
+    await waitForMoveError("DESTINATION_CONFLICT");
     expect(loadSettings().recordingDirectory).toBe(source);
     expect(await readFile(capture)).toEqual(bytes);
-    expect(await readFile(unrelated, "utf8")).toBe("unrelated destination data");
+    expect(await readdir(outside)).toEqual([]);
+    expect((await lstat(join(destination, "test-game"))).isSymbolicLink()).toBe(true);
   });
 
   test("selecting current canonical root is a no-op", async () => {
@@ -72,7 +119,7 @@ describe("recording-directory relocation", () => {
 
   test("copies capture bytes, commits selected directory, then removes source", async () => {
     const source = join(sandbox!, "old");
-    const destination = join(sandbox!, "new");
+    const destination = join(source, "raceiq");
     const captureDir = join(source, "test-game");
     const capture = join(captureDir, "capture.bin");
     const bytes = Buffer.from("recording relocation integration fixture");
@@ -94,7 +141,7 @@ describe("recording-directory relocation", () => {
   });
   test("rebases shared DB references, preserves metadata, leaves missing and external references correctly scoped", async () => {
     const source = join(sandbox!, "references-old");
-    const destination = join(sandbox!, "references-new");
+    const destination = join(source, "raceiq");
     const capture = join(source, "test-game", "shared.bin");
     const missing = join(source, "test-game", "missing.bin");
     const external = join(sandbox!, "external", "capture.bin");
@@ -144,7 +191,7 @@ describe("recording-directory relocation", () => {
   test("does not rebase or copy DB references through file or directory symlinks", async () => {
     const root = await mkdtemp(join(tmpdir(), "raceiq-recording-symlink-"));
     const source = join(root, "source");
-    const destination = join(root, "destination");
+    const destination = join(source, "raceiq");
     const gameDirectory = join(source, "test-game");
     const externalDirectory = join(root, "external");
     const externalFile = join(externalDirectory, "capture.bin");
@@ -225,7 +272,7 @@ describe("recording-directory relocation", () => {
   test("recovers both sides of the settings commit marker idempotently", async () => {
     const root = await realpath(await mkdtemp(join(tmpdir(), "raceiq-recording-recovery-")));
     const source = join(root, "source");
-    const destination = join(root, "destination");
+    const destination = join(source, "raceiq");
     const capture = join(source, "game", "capture.bin");
     const target = join(destination, "game", "capture.bin");
     const unrelatedSource = join(source, "keep.txt");
@@ -249,7 +296,7 @@ describe("recording-directory relocation", () => {
       oldDirectory: await realpath(source),
       newDirectory: await realpath(destination),
       oldSetting: source,
-      entries: [{ source: capture, destination: target, size: bytes.length, sha256: digest }],
+      entries: [{ source: capture, destination: target, size: bytes.length, sha256: digest, published: true }],
       references: [{ sessionId, oldPath: capture, newPath: target }, { sessionId: 999999999, oldPath: join(source, "missing-parent", "nested", "deleted.bin"), newPath: join(destination, "missing-parent", "nested", "deleted.bin") }],
     };
     try {
@@ -266,6 +313,17 @@ describe("recording-directory relocation", () => {
       expect(await readFile(capture)).toEqual(bytes);
       expect(await readFile(unrelatedSource, "utf8")).toBe("preserve source");
       expect(await readFile(unrelatedDestination, "utf8")).toBe("preserve destination");
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, bytes);
+      await writeFile(journalPath, JSON.stringify({ ...journal, entries: [{ source: capture, destination: target, size: bytes.length, sha256: digest }] }));
+      await recoverRecordingDirectoryMove();
+      await expect(readFile(target)).rejects.toMatchObject({ code: "ENOENT" });
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, bytes);
+      await writeFile(journalPath, JSON.stringify({ ...journal, entries: [{ source: capture, destination: target, size: bytes.length, sha256: digest, published: false }] }));
+      await recoverRecordingDirectoryMove();
+      expect(await readFile(target)).toEqual(bytes);
+      await fsUnlink(target);
 
       await mkdir(join(destination, "game"), { recursive: true });
       await writeFile(target, bytes);
@@ -377,7 +435,7 @@ describe("recording-directory relocation", () => {
   test("restores references and removes verified copies when settings commit fails", async () => {
     const root = await mkdtemp(join(tmpdir(), "raceiq-settings-failure-"));
     const source = join(root, "source");
-    const destination = join(root, "destination");
+    const destination = join(source, "raceiq");
     const capture = join(source, "game", "capture.bin");
     const bytes = Buffer.from("settings rollback source");
     let sessionId: number | undefined;

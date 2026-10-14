@@ -91,27 +91,27 @@ test.describe
       await expect(page.getByRole("heading", { name: "Launch on Login" })).toBeVisible();
       await page.getByRole("button", { name: "Next" }).click();
 
-      // Step 7: Choose recording folder through server-backed browser.
+      // Step 7: Native chooser selection applies immediately without a dialog.
       await expect(page.getByRole("heading", { name: "Storage" })).toBeVisible();
-      await page.getByRole("button", { name: "Change folder" }).click();
-      const destination = mkdtempSync(resolve(__dirname, "..", "..", "test-data", "recordings-e2e-"));
-      await page.getByLabel("Folder path").fill(destination);
-      await page.getByRole("button", { name: "Use this folder" }).click();
+      const initialDirectory = await (await page.request.get("/api/storage/recording-directory")).json() as { directory: string };
+      const destination = resolve(initialDirectory.directory, "raceiq");
       let releaseMoveRequest!: () => void;
       const moveRequestGate = new Promise<void>((resolve) => { releaseMoveRequest = resolve; });
+      await page.route("**/api/storage/select-directory", (route) => route.fulfill({ json: { directory: destination } }));
       await page.route("**/api/storage/recording-directory", async (route) => {
         if (route.request().method() === "POST") await moveRequestGate;
         await route.continue();
       });
       try {
-        await page.getByRole("dialog").getByRole("button", { name: "Apply", exact: true }).click();
+        await page.getByRole("button", { name: "Change folder" }).click();
+        await expect(page.getByRole("dialog")).toHaveCount(0);
+        await expect(page.getByRole("button", { name: "Apply", exact: true })).toHaveCount(0);
+        await expect(page.getByRole("button", { name: "Use this folder", exact: true })).toHaveCount(0);
         await expect(page.getByRole("button", { name: "Next", includeHidden: true })).toBeDisabled();
         const backButtons = page.getByRole("button", { name: "Back", includeHidden: true });
         await expect(backButtons).toHaveCount(2);
         await expect(backButtons.nth(0)).toBeDisabled();
         await expect(backButtons.nth(1)).toBeDisabled();
-        await page.keyboard.press("Escape");
-        await expect(page.getByRole("dialog")).toBeVisible();
       } finally {
         releaseMoveRequest();
       }
@@ -458,4 +458,76 @@ test.describe
     await expect(page.getByRole("img", { name: /QR code for/ })).toHaveCount(2);
     await expect(page.getByText("Connect to the same network, then scan the QR code or open the link and sign in with your dashboard password.", { exact: true })).toBeVisible();
   });
+});
+
+test("setup wizard applies native recording-folder choices immediately and safely", async ({ page, request }) => {
+  test.setTimeout(120_000);
+  resetSettingsFile();
+  const access = await request.get("/api/auth/status");
+  expect(access.ok()).toBe(true);
+  if ((await access.json() as { pending: boolean }).pending) {
+    const setup = await request.post("/api/auth/setup", { data: { password: null, exposureConfirmed: true } });
+    expect(setup.ok()).toBe(true);
+  }
+  await page.goto("/onboarding?welcome=true", { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "Get Started", exact: true }).click();
+  for (let step = 0; step < 6; step++) await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Storage", exact: true })).toBeVisible();
+  const initialStatus = await (await page.request.get("/api/storage/recording-directory")).json() as { directory: string };
+  const nestedDestination = resolve(initialStatus.directory, "raceiq");
+  let selectionCount = 0;
+  let releasePicker!: () => void;
+  let pickerGate = new Promise<void>((resolve) => { releasePicker = resolve; });
+  let releaseMove!: () => void;
+  let moveGate = new Promise<void>((resolve) => { releaseMove = resolve; });
+  let moveRequests = 0;
+  await page.route("**/api/storage/select-directory", async (route) => {
+    selectionCount++;
+    if (selectionCount === 1) {
+      await pickerGate;
+      await route.fulfill({ json: { directory: null } });
+    } else if (selectionCount === 2) {
+      await route.fulfill({ json: { directory: SETTINGS_PATH } });
+    } else {
+      await route.fulfill({ json: { directory: nestedDestination } });
+    }
+  });
+  await page.route("**/api/storage/recording-directory", async (route) => {
+    if (route.request().method() === "POST") {
+      moveRequests++;
+      if (moveRequests > 1) await moveGate;
+    }
+    await route.continue();
+  });
+  try {
+    const changeFolder = page.getByRole("button", { name: "Change folder", exact: true });
+    await changeFolder.click();
+    await expect(page.getByRole("button", { name: "Next", includeHidden: true })).toBeDisabled();
+    releasePicker();
+    await expect(page.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
+    expect(moveRequests).toBe(0);
+
+    await changeFolder.click();
+    await expect(page.getByRole("alert")).toHaveText("Choose a valid folder.");
+    expect(moveRequests).toBe(0);
+    await expect(page.getByRole("button", { name: "Apply", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Use this folder", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Move recordings?", exact: true })).toHaveCount(0);
+
+    await changeFolder.click();
+    await expect(page.getByRole("button", { name: "Next", includeHidden: true })).toBeDisabled();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect.poll(() => moveRequests).toBe(1);
+    releaseMove();
+    await expect.poll(async () => {
+      const status = await (await page.request.get("/api/storage/recording-directory")).json() as { state: string; directory: string };
+      return status.state === "complete" && status.directory === realpathSync(nestedDestination);
+    }, { timeout: 60_000 }).toBe(true);
+    expect(moveRequests).toBe(1);
+    await expect(page.getByText(realpathSync(nestedDestination), { exact: true })).toBeVisible();
+  } finally {
+    releasePicker();
+    releaseMove();
+    resetSettingsFile();
+  }
 });

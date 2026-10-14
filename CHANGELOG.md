@@ -23,6 +23,9 @@
 - Separate recordings into `<game>/own` for live telemetry and imports marked as yours, and `<game>/others` for imports marked as someone else's. Offer an optional, resumable migration for existing recordings in default or custom folders while preserving session history and folder relocation.
 
 ### Fixes
+- Allow recording folders that already contain files, with a warning before proceeding and protection against overwriting existing recordings.
+- Save recording-folder changes directly from the setup wizard's native folder picker, without extra confirmation or Apply buttons.
+- Allow an empty recording folder inside the current recording folder while preserving recordings and interrupted-move recovery.
 - Choose recording folders with your operating system's native folder picker instead of browsing folders inside RaceIQ.
 - Show recording-folder examples relative to the selected folder instead of repeating its full path for your recordings and others' recordings.
 - Wait for dashboard access setup before checking recording-folder status in the setup wizard.

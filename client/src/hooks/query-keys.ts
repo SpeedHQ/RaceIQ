@@ -6,6 +6,7 @@ export const queryKeys = {
   storageSessions: ["storage", "sessions"] as const,
   recordingDirectoryStatus: ["storage", "recording-directory", "status"] as const,
   recordingLayoutMigration: ["storage", "layout-migration"] as const,
+  recordingDirectorySelect: ["storage", "recording-directory", "select"] as const,
   recordingLayoutMigrationStart: ["storage", "layout-migration", "start"] as const,
   recordingDirectoryMove: ["storage", "recording-directory", "move"] as const,
   cacheStatus: ["cache", "status"] as const,

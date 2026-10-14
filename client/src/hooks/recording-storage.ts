@@ -5,8 +5,31 @@ import { client } from "@/lib/rpc";
 import { useDashboardAuth } from "@/lib/dashboard-auth";
 import { queryKeys } from "@/hooks/query-keys";
 
+export interface RecordingDirectoryPreflight {
+  current: string;
+  destination: string;
+  containsFiles: boolean;
+}
+
+export function usePreflightRecordingDirectory() {
+  return useMutation({
+    mutationKey: [...queryKeys.recordingDirectoryMove, "preflight"],
+    mutationFn: async (directory: string): Promise<RecordingDirectoryPreflight> => {
+      const response = await client.api.storage["recording-directory"].preflight.$post({ json: { directory } });
+      const body: unknown = await response.json();
+      if (!response.ok) {
+        const code = body && typeof body === "object" && "code" in body && typeof body.code === "string" ? body.code : undefined;
+        throw Object.assign(new Error("recording-directory-preflight"), { code });
+      }
+      if (!body || typeof body !== "object" || !("current" in body) || typeof body.current !== "string" || !("destination" in body) || typeof body.destination !== "string" || !("containsFiles" in body) || typeof body.containsFiles !== "boolean") throw new Error("recording-directory-preflight-response");
+      return body as RecordingDirectoryPreflight;
+    },
+  });
+}
+
 export function useSelectRecordingDirectory() {
   return useMutation({
+    mutationKey: queryKeys.recordingDirectorySelect,
     mutationFn: async (directory?: string) => {
       const response = await client.api.storage["select-directory"].$post({ json: directory ? { directory } : {} });
       const body: unknown = await response.json();
