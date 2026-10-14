@@ -1,3 +1,4 @@
+import type { SceneBuilder } from "./track-map/scene";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef } from "react";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
@@ -31,7 +32,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
   const pulseRef = useRef<HTMLCanvasElement>(null);
   const carPosRef = useRef<{ x: number; y: number; w: number; h: number; angle?: number } | null>(null);
   const transformRef = useRef<TrackTransform | null>(null);
-  const bufferCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const sceneRef = useRef<SceneBuilder | null>(null);
   const resolvedPositions = useMemo(() => resolveTrackPositions(telemetry, outline), [telemetry, outline]);
   const displayBoundaries = useMemo(
     () => gameId === "lmu" ? alignTrackBoundariesToPositions(boundaries, resolvedPositions) : boundaries,
@@ -44,7 +45,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
     if (!canvas) return;
     const result = drawStaticTrack({
       canvas,
-      bufferCanvas: bufferCanvasRef.current,
+      previousScene: sceneRef.current,
       telemetry,
       gameId,
       resolvedPositions,
@@ -64,7 +65,20 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       zoomBehavior,
     });
     transformRef.current = result.transform;
-    bufferCanvasRef.current = result.bufferCanvas;
+    sceneRef.current = result.scene;
+    if (!result.transform) {
+      carPosRef.current = null;
+      for (const overlay of [carCanvasRef.current, pulseRef.current]) {
+        if (!overlay) continue;
+        const ctx = getSemanticCanvasContext(overlay);
+        if (!ctx) continue;
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, overlay.width, overlay.height);
+        ctx.restore();
+      }
+      return;
+    }
     if (rotateWithCar && carCanvasRef.current) {
       const ctx = getSemanticCanvasContext(carCanvasRef.current);
       ctx?.clearRect(0, 0, carCanvasRef.current.width, carCanvasRef.current.height);
@@ -75,7 +89,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
     () => ({
       canvas: canvasRef.current!,
       carCanvas: carCanvasRef.current!,
-      bufferCanvas: bufferCanvasRef.current,
+      scene: sceneRef.current,
       telemetry,
       resolvedPositions,
       resolvedDirections,

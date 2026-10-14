@@ -67,6 +67,9 @@
 - Automatically reconcile pre-upgrade recordings with updated car, track, and lap detection, including AC Evo Tourist timed attempts; preserve user annotations on matched laps and report captures that cannot be repaired.
 - Use suitable local network addresses for remote HUD links and let users choose an address when multiple adapters are available.
 
+### Fixes
+- Keep racing, throttle, and braking lines sharp when zooming into the replay map.
+
 ### Internal
 - Wait for dashboard metadata and loading panels to finish before generating the Home marketing screenshot.
 - Include the privacy-safe iRacing SessionInfo path manifest in clean checkouts so CI can validate the telemetry catalog.

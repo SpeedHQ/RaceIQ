@@ -1,3 +1,4 @@
+import { SceneBuilder } from "./scene";
 import { drawPitLines, type PitLine } from "@/lib/canvas/draw-track";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
@@ -25,7 +26,7 @@ const HIGHLIGHT_COLORS: Record<TrackHighlight["color"], { stroke: string; width:
 
 export interface StaticTrackOptions {
   canvas: HTMLCanvasElement;
-  bufferCanvas: HTMLCanvasElement | null;
+  previousScene?: SceneBuilder | null;
   telemetry: SemanticAnalysisFrame[];
   gameId?: GameId;
   resolvedPositions: Point[];
@@ -44,7 +45,9 @@ export interface StaticTrackOptions {
   zoom: number;
   zoomBehavior?: TrackZoomBehavior;
 }
-export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HTMLCanvasElement | null; transform: TrackTransform | null } {
+
+
+export function drawStaticTrack(options: StaticTrackOptions): { scene: SceneBuilder | null; transform: TrackTransform | null } {
   const {
     canvas,
     telemetry,
@@ -66,10 +69,18 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     zoomBehavior = "default",
   } = options;
   const rect = canvas.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) return { bufferCanvas: options.bufferCanvas, transform: null };
+  if (rect.width <= 0 || rect.height <= 0) return { scene: null, transform: null };
   const w = rect.width;
   const h = rect.height;
   syncCanvasSize(canvas, w, h, window.devicePixelRatio || 1, false);
+  const initialContext = getSemanticCanvasContext(canvas);
+  if (initialContext) {
+    initialContext.save();
+    initialContext.setTransform(1, 0, 0, 1, 0, 0);
+    initialContext.clearRect(0, 0, canvas.width, canvas.height);
+    initialContext.restore();
+  }
+
 
   const telemetryPointsWithIdx = resolvedPositions.map((point, idx) => ({ ...point, idx })).filter((point, index) => index === 0 || point.x !== 0 || point.z !== 0);
   const telemetryPoints = telemetryPointsWithIdx as Point[];
@@ -82,7 +93,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
       ? telemetryPoints
       : (hasReferenceOutline ? displayTrackOutline! : []);
   const drawingReferenceOutline = closed && hasReferenceOutline && displayOutline === displayTrackOutline;
-  if (displayOutline.length === 0) return { bufferCanvas: options.bufferCanvas, transform: null };
+  if (displayOutline.length === 0) return { scene: null, transform: null };
   const flippedLeft = flip && boundaries?.leftEdge ? flipPoints(boundaries.leftEdge) : boundaries?.leftEdge;
   const flippedRight = flip && boundaries?.rightEdge ? flipPoints(boundaries.rightEdge) : boundaries?.rightEdge;
   const additionalSections = boundaries?.additionalSections?.map((section) => ({
@@ -127,13 +138,10 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const offsetZ = (offH - rangeZ * scale) / 2;
   const transform: TrackTransform = { w, h, offsetX, offsetZ, scale, maxX, minZ, displayOutline, offW, offH };
   const toCanvas = (x: number, z: number): [number, number] => [offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
-
-  const bufferCanvas = options.bufferCanvas ?? document.createElement("canvas");
-  syncCanvasSize(bufferCanvas, offW, offH, window.devicePixelRatio || 1, false);
-  const ctx = getSemanticCanvasContext(bufferCanvas)!;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, bufferCanvas.width, bufferCanvas.height);
-  ctx.setTransform(bufferCanvas.width / offW, 0, 0, bufferCanvas.height / offH, 0, 0);
+  const metrics = getSemanticCanvasContext(canvas);
+  if (!metrics) return { scene: null, transform };
+  const scene = new SceneBuilder(metrics, rotateWithCar ? options.previousScene : null);
+  const ctx = scene;
 
   function drawBoundary(left: Point[], right: Point[]): void {
     if (left.length < 2 || right.length < 2) return;
@@ -383,18 +391,18 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
       }
     }
   }
+  if (rotateWithCar) scene.cacheNativeRaster(offW, offH, Math.min(window.devicePixelRatio || 1, 2));
   if (!rotateWithCar) {
     const mainCtx = getSemanticCanvasContext(canvas);
     if (mainCtx) {
       mainCtx.save();
       mainCtx.setTransform(1, 0, 0, 1, 0, 0);
       mainCtx.clearRect(0, 0, canvas.width, canvas.height);
-      mainCtx.restore();
-      mainCtx.save();
       mainCtx.setTransform(canvas.width / w, 0, 0, canvas.height / h, 0, 0);
-      mainCtx.drawImage(bufferCanvas, 0, 0, w, h);
+      mainCtx.scale(w / offW, h / offH);
+      scene.render(mainCtx, 0, 0, w, h, w / offW, h / offH);
       mainCtx.restore();
     }
   }
-  return { bufferCanvas, transform };
+  return { scene, transform };
 }
