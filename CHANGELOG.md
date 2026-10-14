@@ -22,6 +22,7 @@
 - Show Nordschleife track edges along the supported portion of AC Evo Tourist routes without closing the Start/Finish gap.
 
 ### Fixes
+- Keep experiment lap counts and review analysis tied to the selected test when importing historical laps or returning to an older setup, and preserve test membership during live updates.
 - Keep lap-chat follow-ups grounded in the selected lap and its latest analysis, use fresh telemetry for requested corner measurements, and preserve earlier driver notes without asking for internal lap identifiers.
 - Exclude running-start fragments from recorded lap replay and keep corner measurements and highlights aligned with the timed lap.
 - Restore dashboard, driver-profile, and Analyse pages when opening the app.
