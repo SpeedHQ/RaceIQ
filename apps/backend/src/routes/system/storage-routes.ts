@@ -1,15 +1,14 @@
-import { lstat, realpath } from "node:fs/promises";
-import { dirname, isAbsolute, resolve as resolvePath } from "node:path";
-import os from "node:os";
+import { lstat } from "node:fs/promises";
+import { join } from "node:path";
 import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
 import { getLayoutMigrationStatus, startLayoutMigration } from "@raceiq/backend-core/session-capture/layout-migration";
 import { getRecordingDirectoryMoveStatus, startRecordingDirectoryMove } from "@raceiq/backend-core/session-capture/relocate-recordings";
 import { existsSync, type Dirent } from "node:fs";
 import { readdir, statfs } from "node:fs/promises";
-import { join } from "node:path";
 import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
+import { pickRecordingFolder, RecordingFolderPickerError } from "../../runtime/platform/recording-folder-picker";
 import { previewSessionCleanup, executeSessionCleanup, SessionCleanupBusyError } from "@raceiq/backend-core/session-capture/session-cleanup";
 import type { SessionCleanupRequest } from "@raceiq/shared/racing/sessions/cleanup";
 
@@ -60,31 +59,17 @@ export const storageRoutes = new Hono()
       return c.json({ code, error: error instanceof Error ? error.message : "Storage operation failed" }, http);
     }
   })
-  .get("/api/storage/directories", async (c) => {
-    const requested = c.req.query("path");
-    let directory = requested ?? resolveRecordingDirectory();
-    if (!isAbsolute(directory) || directory.includes("\0")) return c.json({ code: "INVALID_DIRECTORY", error: "Path must be absolute" }, 400);
+  .post("/api/storage/select-directory", async (c) => {
+    let body: unknown;
+    try { body = await c.req.json(); } catch { return c.json({ code: "INVALID_DIRECTORY", error: "Expected JSON body" }, 400); }
+    const parsed = z.object({ directory: z.string().optional() }).strict().safeParse(body);
+    if (!parsed.success) return c.json({ code: "INVALID_DIRECTORY", error: "Invalid folder picker request" }, 400);
     try {
-      if (!requested) {
-        while (!existsSync(directory) && dirname(directory) !== directory) directory = dirname(directory);
-      }
-      directory = await realpath(directory);
-      if (!(await lstat(directory)).isDirectory()) return c.json({ code: "INVALID_DIRECTORY", error: "Path is not a directory" }, 400);
-      const directories: { name: string; path: string }[] = [];
-      for (const name of await readdir(directory)) {
-        try {
-          const path = resolvePath(directory, name);
-          if ((await lstat(path)).isDirectory()) directories.push({ name, path: await realpath(path) });
-        } catch { /* Skip inaccessible entries and symlinks. */ }
-      }
-      directories.sort((a, b) => a.name.localeCompare(b.name));
-      const roots = process.platform === "win32"
-        ? Array.from({ length: 26 }, (_, index) => `${String.fromCharCode(65 + index)}:\\`).filter(existsSync)
-        : ["/", os.homedir()];
-      return c.json({ directory, parent: dirname(directory) === directory ? null : dirname(directory), roots, directories });
+      return c.json({ directory: await pickRecordingFolder(parsed.data.directory ?? resolveRecordingDirectory()) });
     } catch (error) {
-      const code = error instanceof Error && "code" in error ? String(error.code) : "";
-      return c.json({ code: code === "ENOENT" ? "DIRECTORY_NOT_FOUND" : code === "EACCES" ? "DIRECTORY_FORBIDDEN" : "STORAGE_IO_ERROR", error: code === "ENOENT" ? "Directory not found" : "Directory cannot be read" }, code === "ENOENT" ? 404 : code === "EACCES" ? 403 : 400);
+      const code = error instanceof RecordingFolderPickerError ? error.code : "PICKER_FAILED";
+      const status = code === "PICKER_ACTIVE" ? 409 : code === "INVALID_DIRECTORY" ? 400 : 500;
+      return c.json({ code, error: error instanceof Error ? error.message : "Folder picker failed" }, status);
     }
   })
   // GET /api/storage/sessions — recording file stats

@@ -1,8 +1,24 @@
+
 import type { RecordingDirectoryMoveStatus } from "@raceiq/backend-core/session-capture/relocate-recordings";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { client } from "@/lib/rpc";
 import { useDashboardAuth } from "@/lib/dashboard-auth";
 import { queryKeys } from "@/hooks/query-keys";
+
+export function useSelectRecordingDirectory() {
+  return useMutation({
+    mutationFn: async (directory?: string) => {
+      const response = await client.api.storage["select-directory"].$post({ json: directory ? { directory } : {} });
+      const body: unknown = await response.json();
+      if (!response.ok) {
+        const code = body && typeof body === "object" && "code" in body && typeof body.code === "string" ? body.code : undefined;
+        throw Object.assign(new Error("select-directory"), { code });
+      }
+      if (!body || typeof body !== "object" || !("directory" in body) || !(typeof body.directory === "string" || body.directory === null)) throw new Error("select-directory-response");
+      return { directory: body.directory };
+    },
+  });
+}
 
 export interface RecordingLayoutMigrationStatus {
   directory: string;
@@ -101,13 +117,6 @@ export function useRecordingDirectoryStatus() {
   }, refetchInterval: (query) => query.state.data?.state === "moving" ? 500 : false });
 }
 
-export function useRecordingDirectories(path: string | undefined, enabled: boolean) {
-  return useQuery({ queryKey: [...queryKeys.recordingDirectories, path ?? ""], enabled, queryFn: async () => {
-    const response = await client.api.storage.directories.$get({ query: path ? { path } : {} });
-    if (!response.ok) throw new Error("browse");
-    return response.json();
-  } });
-}
 
 export function useMoveRecordingDirectory() {
   const queryClient = useQueryClient();

@@ -8,7 +8,6 @@ export const queryKeys = {
   recordingLayoutMigration: ["storage", "layout-migration"] as const,
   recordingLayoutMigrationStart: ["storage", "layout-migration", "start"] as const,
   recordingDirectoryMove: ["storage", "recording-directory", "move"] as const,
-  recordingDirectories: ["storage", "recording-directories"] as const,
   cacheStatus: ["cache", "status"] as const,
   trackName: (key: number | string) => ["track-name", key] as const,
   trackSectors: (key: number | string) => ["track-sectors", key] as const,

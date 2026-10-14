@@ -39,6 +39,12 @@ Launchers and screenshot database seeding live together in `support/server/`. Th
 
 Migration E2E imports all six complete game fixtures first via `POST /api/laps/import` with multipart `file`, `ownership=mine`, and `captureStorage=raw`. This stores full canonical records without direct database/file seeding. The test then opens the mandatory conversion dialog, presses Convert, and verifies replay before/after. Omit `captureStorage` for ordinary UI imports; those continue using sparse storage immediately. Raw storage is supported only for `.bin` and `.bin.gz` uploads, including native iRacing and LMU dumps.
 
+Recording-location prompt coverage lives in `tests/fresh-install/recording-location-migration.spec.ts`. It places a real, unreferenced capture in a disposable legacy folder, verifies that Later leaves files untouched and reload shows the prompt again, checks current-folder selection and destination previews, rejects an occupied destination, then retries into an empty folder. The test verifies byte-preserving organization under `<game>/own`, removal of the legacy source, and persisted recording-directory settings against the real server; it restores settings and removes its disposable folders afterward.
+
+```sh
+E2E_SERVER_MODE=dev PW_SERVER_SET=fresh bunx playwright test tests/fresh-install/recording-location-migration.spec.ts --project=fresh-install --workers=1
+```
+
 ## Known seeded coverage gaps
 
 Confirmed unresolved coverage gaps live in [Test Coverage Gaps](../docs/project-status/test-gaps.md), including AC Evo valid-session telemetry reuse. The seeded AC Evo invalid-session check remains active; no case is skipped for that fixture limitation.

@@ -32,6 +32,10 @@ Start with an existing primitive in `client/src/components/ui/`. Add or extend a
 - Preserve keyboard behavior, focus styles, localization, and responsive layout.
 - Complete migrations cleanly; do not leave compatibility aliases or parallel primitives.
 
+### Background operation flow
+
+Use the [confirmation dialog → background progress pattern](background-operation-flow.md) when an operation needs an informed decision, then runs while the user continues using the app. Sparse recording conversion is the reference: centered modal confirmation → non-modal bottom-right progress → explicit result dismissal or retry, with an inline maintenance entry point. The guide records state ownership, visibility rules, accessibility, operation precedence, and reuse through existing dialog primitives.
+
 ## Styling ownership
 
 Shared primitives own their reusable appearance through semantic variants and sizes. Variant names describe intent, not Tailwind fragments.

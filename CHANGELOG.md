@@ -23,6 +23,8 @@
 - Separate recordings into `<game>/own` for live telemetry and imports marked as yours, and `<game>/others` for imports marked as someone else's. Offer an optional, resumable migration for existing recordings in default or custom folders while preserving session history and folder relocation.
 
 ### Fixes
+- Choose recording folders with your operating system's native folder picker instead of browsing folders inside RaceIQ.
+- Show recording-folder examples relative to the selected folder instead of repeating its full path for your recordings and others' recordings.
 - Wait for dashboard access setup before checking recording-folder status in the setup wizard.
 - Respect development onboarding overrides when deciding whether to show the setup wizard.
 - Remove saved network interfaces that are no longer available and replace them without losing other selections.
@@ -73,6 +75,7 @@
 - Use suitable local network addresses for remote HUD links and let users choose an address when multiple adapters are available.
 
 ### Internal
+- Document the reusable confirmation-dialog-to-background-progress pattern from sparse recording conversion, including state ownership, recovery, accessibility, and operation precedence.
 - Include the privacy-safe iRacing SessionInfo path manifest in clean checkouts so CI can validate the telemetry catalog.
 - Add `bun clean` to remove repository-local development data without targeting custom `DATA_DIR` locations.
 - Isolate dashboard-authentication tests in subprocesses so Windows releases database handles before cleanup, and verify password recovery through the command in a separate process.
