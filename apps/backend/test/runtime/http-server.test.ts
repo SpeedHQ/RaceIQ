@@ -24,9 +24,16 @@ describe("HTTP listener access controls", () => {
     let calls = 0;
     const password = "abcdefgh";
     const server = startHttpServer({
-      port: 0, staticDir: null, devPublicDir: null,
-      access: createHttpAccess({ NODE_ENV: "production", SERVER_PASSWORD: password }),
-      app: { fetch: () => { calls++; return new Response("allowed"); } },
+      port: 0,
+      staticDir: null,
+      devPublicDir: null,
+      access: await createHttpAccess({ NODE_ENV: "production", SERVER_PASSWORD: password }),
+      app: {
+        fetch: () => {
+          calls++;
+          return new Response("allowed");
+        },
+      },
     });
     try {
       const base = `http://127.0.0.1:${server.port}`;
@@ -40,17 +47,25 @@ describe("HTTP listener access controls", () => {
       expect((await fetch(`${base}/api/status`, { headers })).status).toBe(200);
       expect(calls).toBe(1);
       await new Promise<void>((resolve, reject) => {
-        const req = httpRequest(`${base}/ws`, { headers: {
-          ...headers, Connection: "Upgrade", Upgrade: "websocket",
-          "Sec-WebSocket-Version": "13", "Sec-WebSocket-Key": "dGhlIHNhbXBsZSBub25jZQ==",
-        } });
+        const req = httpRequest(`${base}/ws`, {
+          headers: {
+            ...headers,
+            Connection: "Upgrade",
+            Upgrade: "websocket",
+            "Sec-WebSocket-Version": "13",
+            "Sec-WebSocket-Key": "dGhlIHNhbXBsZSBub25jZQ==",
+          },
+        });
         req.setTimeout(3000, () => req.destroy(new Error("WebSocket did not open")));
         req.on("upgrade", (response, socket) => {
           socket.destroy();
           if (response.statusCode === 101) resolve();
           else reject(new Error("WebSocket rejected valid credentials"));
         });
-        req.on("response", (response) => { response.resume(); reject(new Error(`Expected upgrade, got ${response.statusCode}`)); });
+        req.on("response", (response) => {
+          response.resume();
+          reject(new Error(`Expected upgrade, got ${response.statusCode}`));
+        });
         req.on("error", reject);
         req.end();
       });
@@ -62,13 +77,24 @@ describe("HTTP listener access controls", () => {
 
 function upgrade(base: string, headers: Record<string, string>): Promise<number> {
   return new Promise((resolve, reject) => {
-    const req = httpRequest(`${base}/ws`, { headers: {
-      ...headers, Connection: "Upgrade", Upgrade: "websocket",
-      "Sec-WebSocket-Version": "13", "Sec-WebSocket-Key": "dGhlIHNhbXBsZSBub25jZQ==",
-    } });
+    const req = httpRequest(`${base}/ws`, {
+      headers: {
+        ...headers,
+        Connection: "Upgrade",
+        Upgrade: "websocket",
+        "Sec-WebSocket-Version": "13",
+        "Sec-WebSocket-Key": "dGhlIHNhbXBsZSBub25jZQ==",
+      },
+    });
     req.setTimeout(3000, () => req.destroy(new Error("WebSocket handshake timed out")));
-    req.on("upgrade", (response, socket) => { socket.destroy(); resolve(response.statusCode ?? 0); });
-    req.on("response", (response) => { response.resume(); resolve(response.statusCode ?? 0); });
+    req.on("upgrade", (response, socket) => {
+      socket.destroy();
+      resolve(response.statusCode ?? 0);
+    });
+    req.on("response", (response) => {
+      response.resume();
+      resolve(response.statusCode ?? 0);
+    });
     req.on("error", reject);
     req.end();
   });
@@ -78,8 +104,10 @@ test("existing unprotected deployments serve dashboard, API and WebSockets at re
   const directory = mkdtempSync(join(tmpdir(), "raceiq-access-dashboard-"));
   writeFileSync(join(directory, "index.html"), "<h1>RaceIQ dashboard fixture</h1>");
   const server = startHttpServer({
-    port: 0, staticDir: directory, devPublicDir: null,
-    access: createHttpAccess({ NODE_ENV: "production" }),
+    port: 0,
+    staticDir: directory,
+    devPublicDir: null,
+    access: await createHttpAccess({ NODE_ENV: "production" }),
     app: { fetch: () => Response.json({ ok: true }) },
   });
   try {
@@ -119,15 +147,19 @@ test("Docker healthcheck works with and without an opt-in password", async () =>
   const [, ...args] = JSON.parse(healthcheck.slice(healthcheck.indexOf("CMD ") + 4)) as string[];
   for (const password of ["", "abcdefgh"]) {
     const server = startHttpServer({
-      port: 0, staticDir: null, devPublicDir: null,
-      access: createHttpAccess({ NODE_ENV: "production", SERVER_PASSWORD: password }),
+      port: 0,
+      staticDir: null,
+      devPublicDir: null,
+      access: await createHttpAccess({ NODE_ENV: "production", SERVER_PASSWORD: password }),
       app: { fetch: () => new Response("ok") },
     });
     try {
-      const check = (suppliedPassword: string) => Bun.spawn([process.execPath, ...args], {
-        env: { ...process.env, SERVER_PORT: String(server.port), SERVER_PASSWORD: suppliedPassword },
-        stdout: "pipe", stderr: "pipe",
-      }).exited;
+      const check = (suppliedPassword: string) =>
+        Bun.spawn([process.execPath, ...args], {
+          env: { ...process.env, SERVER_PORT: String(server.port), SERVER_PASSWORD: suppliedPassword },
+          stdout: "pipe",
+          stderr: "pipe",
+        }).exited;
       expect(await check(password)).toBe(0);
       if (password) expect(await check("wrong-password")).toBe(1);
     } finally {

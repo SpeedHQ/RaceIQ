@@ -78,7 +78,7 @@ export function isFirstRun(): boolean {
   return !existsSync(SETTINGS_PATH);
 }
 
-export function loadSettings(): AppSettings {
+export function loadSettings(options: { syncLaunchOnLogin?: boolean } = {}): AppSettings {
   ensureSettingsDir();
   if (!existsSync(SETTINGS_PATH)) {
     saveSettings(DEFAULTS);
@@ -134,7 +134,7 @@ export function loadSettings(): AppSettings {
 
     const result = AppSettingsSchema.parse(parsed);
     // Always sync launchOnLogin from the actual registry state
-    result.launchOnLogin = isLaunchOnLoginEnabled();
+    if (options.syncLaunchOnLogin !== false) result.launchOnLogin = isLaunchOnLoginEnabled();
     return result;
   } catch (err) {
     console.error(`[Settings] Failed to load ${SETTINGS_PATH}:`, err instanceof Error ? err.message : err);

@@ -98,6 +98,7 @@
         "drizzle-orm": "^0.45.2",
         "fflate": "^0.8.3",
         "hono": "4.13.8",
+        "libsql": "^0.5.29",
         "meshoptimizer": "1.2.0",
         "mitata": "^1.0.34",
         "zod": "^4.6.5",
@@ -428,6 +429,7 @@
       "dependencies": {
         "@raceiq/analysis-core": "workspace:*",
         "@raceiq/tooling-data": "workspace:*",
+        "libsql": "^0.5.29",
         "sharp": "^0.35.4",
         "zod": "^4.6.5",
       },
@@ -444,6 +446,7 @@
         "@raceiq/backend-core": "workspace:*",
         "@raceiq/tooling-build": "workspace:*",
         "@raceiq/tooling-release": "workspace:*",
+        "libsql": "^0.5.29",
       },
     },
     "server": {

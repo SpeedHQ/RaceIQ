@@ -7,7 +7,7 @@ import { injectDiscoveredIRacingIdentity } from "@raceiq/game-iracing-metadata/i
 import { injectDiscoveredLMUIdentity } from "@raceiq/game-lmu-metadata/index";
 import app from "../routes/index";
 import { initServerGameAdapters } from "../games/init";
-import { initDb } from "@raceiq/backend-core/db/index";
+import { initDb, DB_PATH, client } from "@raceiq/backend-core/db/index";
 import { listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
 import { hydrateDiscoveredAcEvoTracks, listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
 import { setCacheMaxBytes } from "@raceiq/backend-core/db/telemetry-replay-storage";
@@ -27,6 +27,8 @@ import { startTray } from "@raceiq/backend-core/runtime/platform/tray";
 import { initMotecTargets } from "../games/motec-init";
 import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
 import { notifyDriverProfileLap } from "../driver-profile/runner";
+import { DashboardAuth, setDashboardAuth } from "./dashboard-auth";
+import { configureHttpAccess, httpAccess } from "./http-access";
 
 export interface BootOptions {
   httpPort?: number;
@@ -42,18 +44,17 @@ export interface RunningServer {
 
 function recordingGameIdFromArgs(args: readonly string[]): string | null {
   const arg = args.find((value) => value.startsWith("--record="));
-  return arg ? arg.split("=")[1] ?? null : null;
+  return arg ? (arg.split("=")[1] ?? null) : null;
 }
 
 export async function bootServer(options: BootOptions = {}): Promise<RunningServer> {
+  const upgradingAccess = !isFirstRun();
   initGameAdapters(serverReleaseFeatures);
   initServerGameAdapters(serverReleaseFeatures);
   initMotecTargets();
   registerDriverProfileLapNotifier(notifyDriverProfileLap);
 
-  const staticDir = IS_COMPILED && existsSync(resolve(PUBLIC_DIR, "index.html"))
-    ? PUBLIC_DIR
-    : null;
+  const staticDir = IS_COMPILED && existsSync(resolve(PUBLIC_DIR, "index.html")) ? PUBLIC_DIR : null;
   if (staticDir) {
     console.log(`[Server] Serving static assets from ${staticDir}`);
   }
@@ -67,26 +68,22 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     console.log(`[Server] Development onboarding override: ${onboardingOverride ? "show" : "skip"}`);
   }
 
-  const recordingGameId = options.recordingGameId === undefined
-    ? recordingGameIdFromArgs(process.argv)
-    : options.recordingGameId;
+  const recordingGameId = options.recordingGameId === undefined ? recordingGameIdFromArgs(process.argv) : options.recordingGameId;
   if (recordingGameId) {
     console.log(`[Server] Recording mode enabled for game: ${recordingGameId}`);
   }
 
   await initDb();
+  const auth = await DashboardAuth.create(client, DB_PATH, process.env);
+  await auth.initialize(upgradingAccess);
+  setDashboardAuth(auth);
+  await configureHttpAccess(auth, httpPort);
   await hydrateDiscoveredAcEvoCars();
   await hydrateDiscoveredAcEvoTracks();
 
-  const [iracingCars, iracingTracks] = await Promise.all([
-    listDiscoveredCars("iracing"),
-    listDiscoveredTracks("iracing"),
-  ]);
+  const [iracingCars, iracingTracks] = await Promise.all([listDiscoveredCars("iracing"), listDiscoveredTracks("iracing")]);
   injectDiscoveredIRacingIdentity(iracingCars, iracingTracks);
-  const [lmuCars, lmuTracks] = await Promise.all([
-    listDiscoveredCars("lmu"),
-    listDiscoveredTracks("lmu"),
-  ]);
+  const [lmuCars, lmuTracks] = await Promise.all([listDiscoveredCars("lmu"), listDiscoveredTracks("lmu")]);
   injectDiscoveredLMUIdentity(lmuCars, lmuTracks);
 
   const firstRun = IS_COMPILED && isFirstRun();
@@ -115,8 +112,12 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     staticDir,
     devPublicDir,
   });
-  console.log(`[Server] HTTP/WS server listening on http://localhost:${httpPort}`);
-
+  for (const hostname of httpAccess.hosts.slice(1)) {
+    startHttpServer({ app, port: httpPort, staticDir, devPublicDir, access: { ...httpAccess, hostname } });
+  }
+  for (const host of httpAccess.hosts) {
+    console.log(`[Server] HTTP/WS server listening on http://${host.includes(":") ? `[${host}]` : host}:${httpPort}`);
+  }
 
   if (recordingGameId === "fm-2023" || recordingGameId === "f1-2025") {
     udpListener.setRecordingGameId(recordingGameId);
@@ -139,14 +140,19 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     () => wsManager.setStaleSessionsNotification(null),
   );
 
-  const udpPort = options.udpPort
-    ?? (Number(process.env.RACEIQ_DEV_UDP_PORT) || settings.udpPort || Number(process.env.UDP_PORT) || 5301);
+  const udpPort = options.udpPort ?? (Number(process.env.RACEIQ_DEV_UDP_PORT) || settings.udpPort || Number(process.env.UDP_PORT) || 5301);
   void udpListener.start(udpPort);
 
   startSyncAndStaleSessionJobs();
 
   nativeSources = startNativeSourceSupervisor(recordingGameId);
-  startTray(httpPort);
+  const trayCandidates = httpAccess.hosts
+    .map((host) => host === "0.0.0.0" || host === "::" ? "localhost" : host)
+    .map((host) => `http://${host.includes(":") ? `[${host}]` : host}:${httpPort}`);
+  const trayUrl = trayCandidates.find((url) => httpAccess.allowsOrigin(url, new Request(url)))
+    ?? process.env.SERVER_ALLOWED_ORIGINS?.split(",").map((origin) => origin.trim()).find(Boolean)
+    ?? trayCandidates[0];
+  startTray(trayUrl);
 
   if (firstRun) {
     openFirstRunDashboard(httpPort);

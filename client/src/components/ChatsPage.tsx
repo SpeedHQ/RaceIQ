@@ -9,6 +9,7 @@ import { Button } from "./ui/button";
 import { useLaps } from "@/hooks/laps";
 
 import { parseUtcTimestamp } from "@/lib/utc-date";
+import { authenticatedFetch } from "@/lib/rpc";
 interface LapSummary {
   id: number;
   sessionId: number;
@@ -88,7 +89,7 @@ export function ChatsPage() {
   const handleDelete = useCallback(async (threadId: string) => {
     if (!confirm(m.chats_delete_confirm())) return;
     try {
-      const response = await fetch(`/api/chats/${encodeURIComponent(threadId)}`, { method: "DELETE" });
+      const response = await authenticatedFetch(`/api/chats/${encodeURIComponent(threadId)}`, { method: "DELETE" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       setRows((prev) => prev.filter((r) => r.threadId !== threadId));
     } catch (err: unknown) {

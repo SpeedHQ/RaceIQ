@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { Database } from "bun:sqlite";
+import Database from "libsql";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -67,7 +67,7 @@ test("current startup reprocesses release-seeded Tourist sessions into correct l
   mkdirSync(releaseDir);
   mkdirSync(dataDir);
   let backend: ReturnType<typeof startBranch> | undefined;
-  let database: Database | undefined;
+  let database: InstanceType<typeof Database> | undefined;
   try {
     const tags = (await command(["git", "tag", "--sort=-version:refname"])).trim().split(/\r?\n/);
     const tag = tags.find((value) => /^v\d+\.\d+\.\d+$/.test(value));
@@ -87,22 +87,22 @@ test("current startup reprocesses release-seeded Tourist sessions into correct l
     await command([process.execPath, "run", "db:seed", "--games=ac-evo", `--fixtures=${fixture}`], releaseDir, environment(dataDir));
     database = new Database(join(dataDir, "app.db"));
     database.exec("PRAGMA busy_timeout=5000;");
-    const before = database.query<{ id: number; lap_detector_version: string | null }, []>("SELECT id,lap_detector_version FROM sessions ORDER BY id").all();
+    const before = database.prepare("SELECT id,lap_detector_version FROM sessions ORDER BY id").all() as Array<{ id: number; lap_detector_version: string | null }>;
     expect(before.every((session) => session.lap_detector_version !== null)).toBe(true);
     // Deliberately stale results distinguish replay from a marker-only migration.
     database.exec("UPDATE laps SET lap_time=999; UPDATE sessions SET track_id='obsolete layout';");
 
     backend = startBranch(dataDir);
     await backend.ready();
-    const after = database.query<Session, []>("SELECT id,track_id,lap_detector_version FROM sessions ORDER BY id").all();
+    const after = database.prepare("SELECT id,track_id,lap_detector_version FROM sessions ORDER BY id").all() as Session[];
     expect(after.map((session) => session.id)).toEqual(before.map((session) => session.id));
     for (const session of after) {
       expect(session.track_id).toBe('["Nurburgring","Touristenfahrten"]');
       expect(session.lap_detector_version).not.toBeNull();
     }
-    const finishes = database.query<{ lap_time: number }, []>("SELECT lap_time FROM laps WHERE is_valid=1 AND invalid_reason IS NULL ORDER BY lap_time").all();
-    expect(finishes).toEqual([{ lap_time: 398.781 }, { lap_time: 401.277 }]);
-    expect(database.query("SELECT id FROM laps WHERE lap_time=999").all()).toEqual([]);
+    const finishes = database.prepare("SELECT lap_time FROM laps WHERE is_valid=1 AND invalid_reason IS NULL ORDER BY lap_time").all() as Array<{ lap_time: number }>;
+    expect(finishes.map((lap) => lap.lap_time)).toEqual([398.781, 401.277]);
+    expect(database.prepare("SELECT id FROM laps WHERE lap_time=999").all()).toEqual([]);
   } finally {
     await backend?.stop();
     database?.close();

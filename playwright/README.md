@@ -33,6 +33,8 @@ PW_SERVER_SET=fresh bunx playwright test --project=fresh-install
 ```
 
 `E2E_SERVER_MODE` is `compiled` by default and accepts `dev` or `compiled`. Compiled mode launches `dist/raceiq` (`raceiq.exe` on Windows); build first. Dev mode launches Bun server and Vite client. `PW_SERVER_SET` accepts `all`, `fresh`, `tunes`, or `seeded` and limits web-server instances. `PW_SCREENSHOT_ONLY=1` omits tunes server; pair with `PW_SEED_SCREENSHOTS=1` for read-only parallel screenshot capture. Port and data overrides are `PW_FRESH_INSTALL_*`, `PW_TUNES_*`, and `PW_SEEDED_E2E_*` (`PORT`, `CLIENT_PORT`, `UDP_PORT`, `DATA_DIR`). `RACEIQ_APP_ROOT` overrides repository root for dev launcher subprocesses. `CI` controls retry/reporter defaults; `PW_SCREENSHOT_WORKERS` controls screenshot worker count.
+
+Generate committed marketing images in `assets/screenshots/` with `E2E_SERVER_MODE=dev PW_SERVER_SET=seeded PW_SCREENSHOT_ONLY=1 PW_SEED_SCREENSHOTS=1 bun run screenshots` from `playwright/`. To refresh Home only, append `--grep 'screenshot: home$'`. The Home capture waits for dashboard metadata and loading panels to finish; it fails instead of saving a loading or error state. The root-level `bun run screenshots` command generates responsive evidence, not these marketing assets.
 Storybook screenshot tests create missing baselines on first run and compare them on later runs.
 
 Launchers and screenshot database seeding live together in `support/server/`. They resolve repository root from their deeper location before starting application processes.

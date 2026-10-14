@@ -198,7 +198,8 @@ export function useWebSocket() {
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
+        if (event.code === 1008) window.dispatchEvent(new Event("raceiq-auth-required"));
         abortVersionRequest();
         const s = telemetryStore.get();
         telemetryStore.actions.setConnected(false);

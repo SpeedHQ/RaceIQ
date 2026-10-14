@@ -23,7 +23,10 @@
 > **Alpha software** — expect bugs, rough edges, and AI analysis that's still being fine-tuned for accuracy. Some features aren't obvious yet, so poke around and join the [Discord](https://discord.gg/ZNXKyYPumT) if you get stuck.
 
 <p align="center">
-  <video src="https://github.com/user-attachments/assets/9200c90d-b039-4616-9b27-9c8e7c53a8ca" autoplay loop muted playsinline width="70%"></video>
+  <img src="assets/screenshots/home.png" width="100%" />
+</p>
+<p align="center">
+  <video src="https://github.com/user-attachments/assets/9200c90d-b039-4616-9b27-9c8e7c53a8ca" autoplay loop muted playsinline width="100%"></video>
 </p>
 
 ---
@@ -77,6 +80,15 @@ For Forza and F1, configure the game's telemetry settings to send UDP data to `1
 
 > **Already forwarding telemetry to a wheel base or other app?** Use [UDP Forwarder](https://github.com/SpeedHQ/udp-forwarder) to send telemetry to multiple destinations at once.
 
+### Dashboard access and security
+
+Choose optional password protection during setup; protected dashboards use a password-only sign-in and browser sessions. New desktop installs listen only on localhost. Enable individual LAN or Tailscale interfaces in **Settings → Access & security**, save, and restart before sharing links or QR codes.
+
+Browser-origin whitelisting is **off by default**. Turn it on explicitly in Access & security, or supply a nonempty `SERVER_ALLOWED_ORIGINS` in `.env`; the environment list applies even when the saved toggle is off. When using the whitelist, include the exact external origin for any MagicDNS, tunnel, or HUD hostname.
+
+Recover a forgotten password with `raceiq auth reset`, or remove password protection with `raceiq auth disable --confirm-exposure`. Use the same data directory as the server. Disabling protection lets anyone who can reach the dashboard read and edit its data and settings; remove `SERVER_PASSWORD` from both server and command environments first.
+
+See [dashboard access and security](docs/installation/network-access.md) for platform-specific commands, session-authenticated API clients, external access, and environment overrides.
 
 ## Updates
 

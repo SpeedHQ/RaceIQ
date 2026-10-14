@@ -6,6 +6,7 @@ import { pendingMigrations } from "./migration-plan";
 import { existsSync, mkdirSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
+import { assertDashboardDatabasePresent } from "../runtime/config/dashboard-access-state";
 
 // Always resolve the data dir, even when the DB itself lives in memory: the
 // call doubles as the safety net that throws if a test run somehow reaches
@@ -37,6 +38,9 @@ export const DB_PATH = join(
   DB_DIR,
   process.env.RACEIQ_TEST_MODE === "1" ? "test.db" : "app.db",
 );
+
+// Check before libSQL can create a replacement or migrate an older database.
+assertDashboardDatabasePresent(DB_PATH);
 
 function migrateLegacyDatabase(): void {
   const legacyPath = join(DB_DIR, "forza-telemetry.db");
@@ -90,6 +94,33 @@ await client.execute(`
 `);
 
 async function runMigrations() {
+  // Unreleased feature builds used IDs now owned by main. Move only their
+  // named ledger entries; preserve their tables, credentials, and sessions.
+  const legacy = await client.execute(`SELECT version, name FROM schema_migrations
+    WHERE version IN (63, 64, 68) AND name = 'persist dashboard access and login sessions'
+       OR version = 63 AND name = 'persist live session bookmarks'`);
+  if (legacy.rows.length) {
+    const tx = await client.transaction("write");
+    try {
+      const authRows = legacy.rows.filter((row) => row.name === "persist dashboard access and login sessions");
+      if (authRows.length) {
+        const existing = await tx.execute("SELECT name FROM schema_migrations WHERE version = 75");
+        if (existing.rows.length && existing.rows[0]!.name !== "persist dashboard access and login sessions") {
+          throw new Error("Dashboard access migration conflicts with the recorded database history");
+        }
+        await tx.execute(`INSERT OR IGNORE INTO schema_migrations (version, name, applied_at)
+          SELECT 75, name, applied_at FROM schema_migrations
+          WHERE version IN (63, 64, 68) AND name = 'persist dashboard access and login sessions'
+          ORDER BY version DESC LIMIT 1`);
+        await tx.execute("DELETE FROM schema_migrations WHERE version IN (63, 64, 68) AND name = 'persist dashboard access and login sessions'");
+      }
+      await tx.execute("DELETE FROM schema_migrations WHERE version = 63 AND name = 'persist live session bookmarks'");
+      await tx.commit();
+    } catch (error) {
+      await tx.rollback();
+      throw error;
+    }
+  }
   const appliedRows = await client.execute("SELECT version, name FROM schema_migrations");
   const pending = pendingMigrations(migrations, appliedRows.rows.map((row) => ({
     version: Number(row.version), name: String(row.name),

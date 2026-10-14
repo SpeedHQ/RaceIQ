@@ -1,4 +1,4 @@
-import { Database } from "bun:sqlite";
+import Database from "libsql";
 import { createHash } from "node:crypto";
 import { realpath, stat } from "node:fs/promises";
 import { isAbsolute, join, relative } from "node:path";
@@ -126,22 +126,28 @@ export async function validateFileImport(dataDir: string, gameId: string, respon
   if (count(response.imported, "response imported count") !== response.laps.length) throw Error("Import response count differs from returned laps");
 
   const root = await realpath(dataDir);
-  using db = new Database(join(root, "app.db"), { readonly: true });
-  const sessions = db.query<SessionRow, []>(`
-    SELECT id, game_id AS gameId, ownership, source, car_id AS carId, track_id AS trackId,
-      session_type AS sessionType, raw_file AS rawFile FROM sessions
-  `).all();
-  if (sessions.length === 0) throw Error("Import persisted no sessions");
-  if (sessions.some((session) => session.gameId !== gameId || session.ownership !== "mine")) throw Error("Import persisted unexpected game or ownership in isolated database");
-  const laps = db.query<LapRow, []>(`
-    SELECT l.id, l.session_id AS sessionId, l.lap_number AS lapNumber,
-      l.lap_time AS lapTime, l.is_valid AS isValid, l.invalid_reason AS invalidReason,
-      l.sector_times AS sectorTimes, l.raw_byte_offset AS rawByteOffset,
-      l.raw_frame_count AS rawFrameCount, l.fuel_per_lap AS fuelPerLap,
-      l.tyre_wear AS tyreWear, l.car_setup AS carSetup,
-      m.insights, m.segment_stats AS segmentStats
-    FROM laps l LEFT JOIN lap_metrics m ON m.lap_id = l.id
-  `).all();
+  const db = new Database(join(root, "app.db"), { readonly: true });
+  let sessions: SessionRow[];
+  let laps: LapRow[];
+  try {
+    sessions = db.prepare(`
+      SELECT id, game_id AS gameId, ownership, source, car_id AS carId, track_id AS trackId,
+        session_type AS sessionType, raw_file AS rawFile FROM sessions
+    `).all() as SessionRow[];
+    if (sessions.length === 0) throw Error("Import persisted no sessions");
+    if (sessions.some((session) => session.gameId !== gameId || session.ownership !== "mine")) throw Error("Import persisted unexpected game or ownership in isolated database");
+    laps = db.prepare(`
+      SELECT l.id, l.session_id AS sessionId, l.lap_number AS lapNumber,
+        l.lap_time AS lapTime, l.is_valid AS isValid, l.invalid_reason AS invalidReason,
+        l.sector_times AS sectorTimes, l.raw_byte_offset AS rawByteOffset,
+        l.raw_frame_count AS rawFrameCount, l.fuel_per_lap AS fuelPerLap,
+        l.tyre_wear AS tyreWear, l.car_setup AS carSetup,
+        m.insights, m.segment_stats AS segmentStats
+      FROM laps l LEFT JOIN lap_metrics m ON m.lap_id = l.id
+    `).all() as LapRow[];
+  } finally {
+    db.close();
+  }
   if (laps.length !== response.imported) throw Error(`Import reported ${response.imported} laps but persisted ${laps.length}`);
   const sessionById = new Map(sessions.map((session) => [session.id, session]));
   const lapById = new Map(laps.map((lap) => [lap.id, lap]));

@@ -11,7 +11,7 @@ import { formatBytes } from "@/lib/format-bytes";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
 import { parseUtcTimestamp } from "@/lib/utc-date";
-
+import { authenticatedFetch } from "@/lib/rpc";
 type Props = {
   request: SessionCleanupRequest | null;
   onClose: () => void;
@@ -118,7 +118,7 @@ export function SessionCleanupDialog({ request, onClose, onCompleted }: Props) {
     setResult(null);
     setError(null);
     setLoading(true);
-    void fetch("/api/storage/session-cleanup/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(cleanupRequest) })
+    void authenticatedFetch("/api/storage/session-cleanup/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(cleanupRequest) })
       .then(async (response) => {
         const data = (await response.json().catch(() => null)) as SessionCleanupPreview | { error?: string } | null;
         if (!response.ok) throw new Error((data && "error" in data ? data.error : undefined) ?? `${response.status} ${response.statusText}`);
@@ -140,7 +140,7 @@ export function SessionCleanupDialog({ request, onClose, onCompleted }: Props) {
     setExecuting(true);
     setError(null);
     try {
-      const response = await fetch("/api/storage/session-cleanup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(cleanupRequest) });
+      const response = await authenticatedFetch("/api/storage/session-cleanup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(cleanupRequest) });
       const data = (await response.json().catch(() => null)) as SessionCleanupResult | { error?: string } | null;
       if (response.status === 409) throw new Error(m.sessions_cleanup_active_recording());
       if (!response.ok) throw new Error((data && "error" in data ? data.error : undefined) ?? `${response.status} ${response.statusText}`);

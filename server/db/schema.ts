@@ -19,6 +19,23 @@ export const profiles = sqliteTable("profiles", {
 	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });
 
+// Server-only credentials. Never include these tables in dashboard exports.
+export const dashboardAccess = sqliteTable("dashboard_access", {
+  id: integer("id").primaryKey(),
+  mode: text("mode", { enum: ["pending", "enabled", "disabled"] }).notNull(),
+  passwordHash: text("password_hash"),
+  revision: integer("revision").notNull().default(0),
+  networkJson: text("network_json"),
+  upgrade: integer("upgrade", { mode: "boolean" }),
+});
+
+export const dashboardSessions = sqliteTable("dashboard_sessions", {
+  tokenHash: text("token_hash").primaryKey(),
+  csrf: text("csrf").notNull(),
+  generation: text("generation").notNull(),
+  expiresAt: integer("expires_at").notNull(),
+});
+
 export const tunes = sqliteTable(
 	"tunes",
 	{

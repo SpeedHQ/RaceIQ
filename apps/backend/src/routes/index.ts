@@ -5,6 +5,7 @@ import { IS_DEV, IS_E2E } from "@raceiq/backend-core/runtime/config/env";
 import { httpAccess } from "../runtime/http-access";
 
 import { settingsRoutes } from "./settings-routes";
+import { authRoutes } from "./auth-routes";
 import { lapRoutes } from "./laps/index";
 import { driverRoutes } from "./driver-routes";
 import { chatsRoutes } from "./chats-routes";
@@ -23,25 +24,28 @@ import { dashboardRoutes } from "./dashboard-routes";
 
 const app = new Hono()
   .use("/*", async (c, next) => {
-    const denied = httpAccess.authorize(c.req.raw);
+    const denied = await httpAccess.authorize(c.req.raw);
     if (denied) return denied;
+    if (httpAccess.usesSessions) c.header("Cache-Control", "no-store");
     await next();
   })
   .use(
     "/*",
     cors({
-      origin: (origin, c) => httpAccess.allowsOrigin(origin, c.req.raw) ? origin : "",
+      origin: (origin, c) => (httpAccess.allowsOrigin(origin, c.req.raw) ? origin : ""),
       credentials: true,
+      exposeHeaders: ["X-RaceIQ-CSRF"],
       // Studio needs its own headers; reflect them only for trusted origins.
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     }),
   )
   .use("/*", errorLogger())
+  .route("/", authRoutes)
   .route("/", settingsRoutes)
   .route("/", lapRoutes)
   .route("/", driverRoutes)
   .route("/", chatsRoutes)
-.route("/", chatRunRoutes)
+  .route("/", chatRunRoutes)
   .route("/", dashboardRoutes)
   .route("/", sessionRoutes)
   .route("/", trackRoutes)

@@ -8,6 +8,7 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import { OwnershipChoice } from "../import/OwnershipChoice";
 import { useMotecTargets, useCarsFromEndpoint, useTracksForGame } from "../../hooks/catalog-queries";
 import type { MotecTargetInfo } from "../../hooks/catalog-queries";
+import { authenticatedFetch } from "@/lib/rpc";
 import { useUserTunes } from "../../hooks/tunes";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -231,7 +232,7 @@ export function MotecImportModal({
 
   async function cancelStagedToken(token: string) {
     if (!token) return;
-    await fetch("/api/laps/cancel-motec", {
+    await authenticatedFetch("/api/laps/cancel-motec", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
@@ -250,7 +251,7 @@ export function MotecImportModal({
     try {
       const body = new FormData();
       body.append("file", file);
-      const response = await fetch("/api/laps/stage-motec", { method: "POST", body });
+      const response = await authenticatedFetch("/api/laps/stage-motec", { method: "POST", body });
       const data = (await response.json().catch(() => null)) as { token?: string; ldName?: string; ldxName?: string; error?: string } | null;
       if (!response.ok || !data?.token || !data.ldName || !data.ldxName) {
         throw new Error(data?.error ?? `Archive extraction failed (${response.status})`);
@@ -344,7 +345,7 @@ export function MotecImportModal({
       body.append("ownership", ownership);
       // Multipart upload — no RPC binding for form bodies, same as
       // /api/laps/import and /api/laps/import-zip.
-      const res = await fetch("/api/laps/import-motec", { method: "POST", body });
+      const res = await authenticatedFetch("/api/laps/import-motec", { method: "POST", body });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         setError(data?.error ? `${data.error}${data.details ? `: ${data.details}` : ""}` : `Import failed (${res.status})`);
