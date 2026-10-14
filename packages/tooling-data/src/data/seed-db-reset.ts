@@ -1,30 +1,10 @@
 import { existsSync, unlinkSync } from "node:fs";
 import { eq, inArray, like } from "drizzle-orm";
-import { db, client } from "@raceiq/backend-core/db/index";
+import { db } from "@raceiq/backend-core/db/index";
 import { chatThreadId, compareChatThreadId, getChatMemory, listThreadGenerations, tuneSessionThreadId } from "@raceiq/backend-core/ai/chat-agent";
 import { sessions, laps, profiles, tunes, tuneAssignments, experiments, experimentVersions, experimentFocusEvents, lapAnalyses, compareAnalyses } from "@raceiq/backend-core/db/schema";
 import { deleteSession } from "@raceiq/backend-core/db/session-queries";
 import { PROFILE_NAME, SEED_MARKER } from "./seed-db-options";
-
-export async function cleanDatabase(): Promise<void> {
-  const rawFiles = (await client.execute("SELECT raw_file FROM sessions WHERE raw_file IS NOT NULL")).rows
-    .map((row) => String(row.raw_file))
-    .filter((path) => path.length > 0);
-  const tables = (await client.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT IN ('schema_migrations', 'sqlite_sequence')")).rows
-    .map((row) => String(row.name));
-
-  await client.execute("PRAGMA foreign_keys = OFF");
-  try {
-    for (const table of tables) await client.execute(`DELETE FROM "${table.replaceAll('"', '""')}"`);
-    await db.delete(sessions).run();
-  } finally {
-    await client.execute("PRAGMA foreign_keys = ON");
-  }
-  for (const path of rawFiles) {
-    if (existsSync(path)) unlinkSync(path);
-  }
-  console.log("[DB Seed] Cleaned database; preserving schema migrations.");
-}
 
 export async function removeSeedData(): Promise<void> {
   const sessionRows = await db.select({ id: sessions.id, rawFile: sessions.rawFile })

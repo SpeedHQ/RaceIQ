@@ -1,10 +1,9 @@
-import { Hono } from "hono";
+import { getActiveRun, reserveChatRun, buildReplayStream, finishRun } from "@raceiq/backend-core/ai/chat-run-registry";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
-import { getExperiment } from "@raceiq/backend-core/db/experiment-queries";
 import { telemetryToSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
 import { resolveLapCorners } from "../tracks/corner-resolution";
 import { symptomsToIssues } from "@raceiq/backend-core/ai/tune-issues";
@@ -26,7 +25,6 @@ import {
 import { buildGoogleReasoningProviderOptions } from "@raceiq/backend-core/ai/google-provider-options";
 import { startDetachedAgentTurn } from "@raceiq/backend-core/ai/agent-stream";
 import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY, sanitizeChatHistoryMessages } from "@raceiq/backend-core/ai/chat-message-context";
-import { reserveChatRun, buildReplayStream, finishRun } from "@raceiq/backend-core/ai/chat-run-registry";
 import { createUIMessageStreamResponse } from "ai";
 import { sessionAgentForFocus } from "../ai/agents";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@raceiq/shared/racing/experiments/focus";
@@ -34,7 +32,11 @@ import { buildSetupEngineerSystemPrompt } from "../mastra/agents/setup-engineer"
 import { RequestContext } from "@mastra/core/request-context";
 import { configureAiProviderEnvironment } from "@raceiq/backend-core/ai/openai-compatible-provider";
 import { setupEngineerTurnWorkflow } from "../mastra/workflows/setup-engineer-turn";
+import { resolveExperimentChatBranch } from "../experiments/chat-branch-context";
+import { Hono } from "hono";
+import { EXPERIMENT_CHAT_BRANCH_CONTEXT_KEY } from "../mastra/tools/setup-engineer-request-context";
 
+const chatRunHeads = new WeakMap<object, number | null>();
 
 const LiveAnalysisSchema = z.object({
   enabled: z.boolean(),
@@ -43,12 +45,10 @@ const LiveAnalysisSchema = z.object({
 
 const TuneChatBodySchema = z.object({
   messages: z.array(z.any()),
+  headVersionId: z.number().int().positive().nullable(),
   // Compact text summary of whatever lap review the driver currently has open
-  // in the Review Laps dashboard (client's TuneReviewDashboard), rebuilt on
-  // every lap switch and resent with every turn — lets the agent see exactly
-  // what the driver is looking at without a tool round-trip. Capped well
-  // above the builder's realistic output (a handful of sectors/corners/issues
-  // renders to a few hundred bytes) as a defensive payload-size guard.
+  // in the Review Laps dashboard. It is explicitly supplementary to branch
+  // evidence and cannot redefine the active version or its attached laps.
   extendedContext: z.string().max(8000).optional(),
 });
 
@@ -127,16 +127,25 @@ export const tuneChatRoutes = new Hono()
     zValidator("json", TuneChatBodySchema),
     async (c) => {
       const { id } = c.req.valid("param");
-      const { messages, extendedContext } = c.req.valid("json");
+      const { messages, extendedContext, headVersionId } = c.req.valid("json");
 
-      // Resolved once, up front, before the early-persist block below creates
-      // the base thread — resolving after it would materialize the base and
-      // defeat the active-generation probe. Reused for early-persist,
-      // reserveChatRun, memory, and the detached agent turn.
+      // Resolve UI's checked-out branch before thread creation, persistence,
+      // provider selection, or agent startup.
+      const resolved = await resolveExperimentChatBranch(id, headVersionId);
+      if (!resolved.ok) return c.json({ error: resolved.error, code: resolved.code }, resolved.status);
+      const branch = resolved.branch;
+      const session = branch.session;
       const threadId = await resolveActiveThread(tuneSessionThreadId(id));
-
-      const session = await getExperiment(id);
-      if (!session) return c.json({ error: "Tuning session not found" }, 404);
+      const activeRun = getActiveRun(threadId);
+      if (activeRun) {
+        const activeHead = chatRunHeads.get(activeRun);
+        if (!chatRunHeads.has(activeRun) || activeHead !== headVersionId) {
+          return c.json({
+            error: "A chat turn is still running for a different or unknown experiment version. Wait for it to finish before changing branches.",
+            code: "experiment_chat_run_branch_conflict",
+          }, 409);
+        }
+      }
 
       const gameId = session.gameId as GameId;
       if (gameId !== "acc" && gameId !== "ac-evo" && gameId !== "f1-2025") {
@@ -153,6 +162,15 @@ export const tuneChatRoutes = new Hono()
       // the engineer has apply_changes, only the coach has record_drill.
       const focus = (session.focus as ExperimentFocus | null) ?? DEFAULT_EXPERIMENT_FOCUS;
       const agent = sessionAgentForFocus(focus);
+      // Bind admission before any awaited persistence/workflow work can race another head.
+      const { run, isNew } = reserveChatRun(threadId);
+      if (!isNew) {
+        const response = createUIMessageStreamResponse({ stream: buildReplayStream(run) });
+        response.headers.set("x-resumable-stream-id", run.runId);
+        return response;
+      }
+      chatRunHeads.set(run, headVersionId);
+      try {
       // Persist the incoming user message NOW, not at turn end. Mastra's
       // memory only writes the turn's messages when the stream finishes, so a
       // reload mid-turn made the just-sent user message vanish from history
@@ -203,13 +221,20 @@ export const tuneChatRoutes = new Hono()
       const reqCtx = new RequestContext();
       reqCtx.set("gameId", gameId);
       reqCtx.set("sessionId", id);
-      let gatheredContext = "";
+      reqCtx.set(EXPERIMENT_CHAT_BRANCH_CONTEXT_KEY, branch);
+      let gatheredContext: string;
       try {
         const prereqRun = await setupEngineerTurnWorkflow.createRun();
         const prereqResult = await prereqRun.start({ inputData: { sessionId: id }, requestContext: reqCtx });
-        if (prereqResult.status === "success") gatheredContext = prereqResult.result.context;
-      } catch (err: any) {
-        console.error("[SetupEngineer] prereq workflow failed:", err?.message);
+        if (prereqResult.status !== "success") {
+          finishRun(run);
+          return c.json({ error: "Could not gather grounded experiment context. Refresh and retry.", code: "branch_context_unavailable" }, 500);
+        }
+        gatheredContext = prereqResult.result.context;
+      } catch (err: unknown) {
+        console.error("[SetupEngineer] prereq workflow failed:", err instanceof Error ? err.message : String(err));
+        finishRun(run);
+        return c.json({ error: "Could not gather grounded experiment context. Refresh and retry.", code: "branch_context_unavailable" }, 500);
       }
 
       // Provider/key/model plumbing — inlined from startChatStream (see
@@ -219,7 +244,10 @@ export const tuneChatRoutes = new Hono()
       // the provider matrix changes.
       const settings = loadSettings();
       const chatProvider = settings.chatProvider;
-      if (!chatProvider) return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
+      if (!chatProvider) {
+        finishRun(run);
+        return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
+      }
       await configureAiProviderEnvironment(chatProvider, settings.localEndpoint || "http://localhost:1234/v1");
 
       // Same model-label fallback chain chat-stream.ts uses, so thinking support
@@ -238,34 +266,31 @@ export const tuneChatRoutes = new Hono()
       const turnStartedAt = Date.now();
 
       // Keep route context server-side; Mastra agent owns system instructions.
-      const turnContext = [sessionSystemPrompt, gatheredContext, extendedContext]
+      const branchEvidenceScope =
+        `CURRENT EVIDENCE BRANCH: ${branch.headVersionId == null
+          ? "base/unversioned setup (no checked-out version)"
+          : `version ${branch.activeVersion?.version ?? "?"} (id ${branch.headVersionId}, "${branch.activeVersion?.label ?? "unlabeled"}")`}.
+Exact attached lap IDs: ${branch.lapIds.length ? branch.lapIds.join(", ") : "none"}.
+Only these IDs are current evidence. Empty/undriven branches have no attached evidence laps; never substitute baseline, ancestor, sibling, or session laps. Historical versions are history only.`;
+      const turnContext = [
+        sessionSystemPrompt,
+        branchEvidenceScope,
+        gatheredContext,
+        extendedContext ? `SUPPLEMENTAL LAP REVIEW (does not change current branch evidence):\n${extendedContext}` : null,
+      ]
         .filter(Boolean)
         .join("\n\n");
       reqCtx.set(CHAT_TURN_CONTEXT_KEY, turnContext);
       reqCtx.set(CHAT_TURN_MESSAGES_KEY, messages);
-      const { run, isNew } = reserveChatRun(threadId);
-
-      // Reserve (or re-attach to) this thread's detached run BEFORE calling
-      // the agent — the double-start guard lives in the registry: if a turn
-      // is already active for this thread (e.g. a duplicate POST fired while
-      // one is in flight), `isNew` is false and we skip starting a second
-      // agent call entirely, just attaching to the existing run's stream.
-      if (isNew) {
-        let stream: Awaited<ReturnType<typeof agent.stream>>;
-        try {
-          stream = await agent.stream(messages, {
-            ...chatMemoryOptions(threadId),
-            requestContext: reqCtx,
-            abortSignal: run.abortController.signal,
-            providerOptions: {
-              openai: { reasoningEffort: "medium" },
-              google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
-            },
-          });
-        } catch (err) {
-          finishRun(run);
-          throw err;
-        }
+      const stream = await agent.stream(messages, {
+        ...chatMemoryOptions(threadId),
+        requestContext: reqCtx,
+        abortSignal: run.abortController.signal,
+        providerOptions: {
+          openai: { reasoningEffort: "medium" },
+          google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
+        },
+      });
 
         startDetachedAgentTurn(run, {
           agentStream: stream,
@@ -275,7 +300,6 @@ export const tuneChatRoutes = new Hono()
           turnStartedAt,
           abortSignal: run.abortController.signal,
         });
-      }
 
       // Same replay-then-live-tail stream the reconnect endpoint serves —
       // identical code path, so a fresh POST and a later reconnect are
@@ -283,6 +307,10 @@ export const tuneChatRoutes = new Hono()
       const response = createUIMessageStreamResponse({ stream: buildReplayStream(run) });
       response.headers.set("x-resumable-stream-id", run.runId);
       return response;
+      } catch (error) {
+        finishRun(run);
+        throw error;
+      }
     }
   )
 

@@ -11,7 +11,7 @@ import {
   getDriverProfileSummaryJsonSchema,
   parseDriverProfileSummary,
   type DriverProfileSummary,
-} from "@raceiq/backend-core/ai/schemas";
+} from "@raceiq/shared/integrations/ai/driver-profile-summary";
 import { buildGoogleProviderOptions } from "@raceiq/backend-core/ai/google-provider-options";
 import type { DriverFingerprint } from "./fingerprint";
 import { loadDriverProfile } from "./load";

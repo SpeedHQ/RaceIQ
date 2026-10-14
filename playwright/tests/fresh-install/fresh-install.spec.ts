@@ -1,16 +1,31 @@
-import { test, expect, type Page } from "@playwright/test";
-import { writeFileSync } from "node:fs";
+import { createClient } from "@libsql/client";
+import { rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { test, expect, type Page } from "@playwright/test";
 import { runtime } from "../../config/runtime";
 import { collectBrowserErrors } from "../support/browser-errors";
 
 const SETTINGS_PATH = resolve(runtime.freshInstall.dataDir, "settings.json");
 
-// Reset settings.json to the same seed start-server.ts writes at boot, so the
-// wizard test is idempotent across retries (server re-reads settings on every
-// GET /api/settings, so a file reset is enough — no server restart needed).
-function resetSettingsFile() {
+// A retry reuses the server process, but dashboard access is persisted separately
+// from settings. Reset both stores inside this isolated E2E data directory.
+async function resetFreshInstallState() {
+  const { dataDir } = runtime.freshInstall;
+  if (!dataDir.split(/[\\/]+/).some((part) => part.includes("test-data"))) {
+    throw new Error(`Refusing to reset fresh-install state outside test-data: "${dataDir}"`);
+  }
   writeFileSync(SETTINGS_PATH, JSON.stringify({ udpPort: Number(runtime.freshInstall.udpPort) }));
+  rmSync(resolve(dataDir, "app.db.dashboard-access"), { force: true });
+  const database = createClient({ url: `file:${resolve(dataDir, "app.db")}` });
+  try {
+    const [result] = await database.batch([
+      "UPDATE dashboard_access SET mode = 'pending', password_hash = NULL, revision = revision + 1 WHERE id = 1",
+      "DELETE FROM dashboard_sessions",
+    ], "write");
+    if (Number(result.rowsAffected) !== 1) throw new Error("Fresh-install dashboard access fixture is missing");
+  } finally {
+    database.close();
+  }
 }
 const GAME_ROUTE_PREFIXES = ["fm23", "f125", "acc", "ac-evo"] as const;
 
@@ -43,7 +58,7 @@ async function assertImagesLoaded(page: Page) {
 test.describe.serial("fresh install", () => {
   test.setTimeout(140_000);
   test("user steps through wizard and lands on home page", async ({ page, request }) => {
-    resetSettingsFile();
+    await resetFreshInstallState();
     const { errors } = collectBrowserErrors(page, [/THREE\.GLTFLoader: Couldn't load texture/]);
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.getByText("RaceIQ", { exact: true })).toBeVisible({ timeout: 15_000 });
@@ -92,7 +107,7 @@ test.describe.serial("fresh install", () => {
     await expect(page.getByRole("heading", { name: "You're all set!" })).toBeHidden({ timeout: 15_000 });
     await expect(page.getByRole("link", { name: "Home" })).toBeVisible();
     await page.reload({ waitUntil: "domcontentloaded" });
-    const persistedResponse = await request.get("/api/settings");
+    const persistedResponse = await request.get(`http://127.0.0.1:${runtime.freshInstall.port}/api/settings`);
     expect(persistedResponse.ok()).toBe(true);
     expect(await persistedResponse.json()).toMatchObject({ driverName: "TestDriver", onboardingComplete: true });
     await assertImagesLoaded(page);
@@ -195,7 +210,7 @@ test.describe.serial("fresh install", () => {
       await page.getByRole("button", { name: "Access & security", exact: true }).click();
     }
     await openAccess();
-    await expect(page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Enable password protection", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Enable password protection", exact: true }).click();
     const passwordForm = page.locator("form").filter({ has: page.getByLabel("Password", { exact: true }) });
     const formBounds = await passwordForm.boundingBox();
     const dialogBounds = await page.locator('[class~="@container/settings"]').boundingBox();

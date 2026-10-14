@@ -134,10 +134,11 @@ describe("applyIntents — multi-path FieldDef (ride height, dampers, diff prelo
     expect(components).toContain("Diff Preload");
   });
 
-  test("ac-evo table does not include ride height / dampers (unverified shape)", () => {
+  test("ac-evo table includes verified ride height and per-wheel dampers", () => {
     const components = knownComponents("ac-evo");
-    expect(components).not.toContain("Front Ride Height");
-    expect(components).not.toContain("Front Bump");
+    expect(components).toContain("Front Ride Height");
+    expect(components).toContain("Front Left Slow Bump");
+    expect(components).toContain("Front Right Slow Bump");
   });
 });
 

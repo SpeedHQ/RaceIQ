@@ -427,6 +427,7 @@
     "playwright": {
       "name": "raceiq-e2e",
       "dependencies": {
+        "@libsql/client": "^0.18.0",
         "@raceiq/analysis-core": "workspace:*",
         "@raceiq/tooling-data": "workspace:*",
         "libsql": "^0.5.29",

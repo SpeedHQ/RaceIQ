@@ -29,6 +29,7 @@
     "./ai/provider-error": "./ai/provider-error.ts",
     "./ai/providers": "./ai/providers.ts",
     "./ai/schemas": "./ai/schemas.ts",
+    "./ai/output-schema": "./ai/output-schema.ts",
     "./ai/track-conditions": "./ai/track-conditions.ts",
     "./ai/track-guides": "./ai/track-guides.ts",
     "./ai/tune-chat-prompt": "./ai/tune-chat-prompt.ts",

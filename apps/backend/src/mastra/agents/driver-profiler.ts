@@ -6,7 +6,7 @@
  */
 import { Agent } from "@mastra/core/agent";
 import { getModel } from "../../ai/model-provider";
-import { renderDriverProfileSummarySchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
+import { renderDriverProfileSummarySchemaForPrompt } from "@raceiq/shared/integrations/ai/driver-profile-summary";
 
 const DRIVER_PROFILER_INSTRUCTIONS = `You are a concise driver trend analyst. The prompt contains a deterministic global trend for the selected game, including window counts, normalized relative pace, consistency, spread, clean rate, directions, and deterministic advice.
 
