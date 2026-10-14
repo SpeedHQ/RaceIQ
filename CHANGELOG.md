@@ -17,7 +17,7 @@
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 
 
-- Let users choose where telemetry recordings are stored and move existing recordings there.
+- Choose a recording folder, safely relocate existing recordings, and optionally migrate recordings into per-game `own` and `others` folders.
 
 ### Fixes
 - Respect development onboarding overrides when deciding whether to show the setup wizard.
