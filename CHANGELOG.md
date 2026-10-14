@@ -88,6 +88,7 @@
 - Keep racing, throttle, and braking lines sharp when zooming into the replay map.
 
 ### Internal
+- Package organized recording paths in seeded Playwright databases while rejecting unsafe capture paths.
 - Verify setup navigation and recording-folder changes without depending on the optional Welcome 3D demo, and avoid startup-maintenance import cycles.
 - Document the reusable confirmation-dialog-to-background-progress pattern from sparse recording conversion, including state ownership, recovery, accessibility, and operation precedence.
 - Keep seeded Playwright discovery independent of server-only catalog imports, and reset persisted dashboard access between fresh-install wizard attempts with an explicit loopback settings check.

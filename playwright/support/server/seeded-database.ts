@@ -8,7 +8,7 @@ type CaptureRow = { id: number; game_id: string; raw_file: string | null };
 
 export function portableCapturePath(path: string): string {
   const normalized = path.replaceAll("\\", "/");
-  if (!/^sessions\/(?:fm-2023|f1-2025|acc|ac-evo|iracing|lmu)\/[^/]+\.bin(?:\.gz)?$/.test(normalized)) {
+  if (!/^sessions\/(?:fm-2023|f1-2025|acc|ac-evo|iracing|lmu)\/(?:(?:own|others)\/)?[^/]+\.bin(?:\.gz)?$/.test(normalized)) {
     throw new Error(`Invalid seeded capture path: ${path}`);
   }
   return normalized;
