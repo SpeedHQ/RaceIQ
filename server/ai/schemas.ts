@@ -13,6 +13,7 @@
  */
 import { z } from "zod";
 import type { GameId } from "@raceiq/shared/games/ids";
+import { AnalystOutputSchema, AnalystModelOutputSchema, AnalystSetupItemSchema, type AnalystOutput, type AnalystSetupProvenance } from "./output-schema";
 import { getAcEvoCarRanges, getRuleTable, getSetupCapabilities } from "../setups/rules/catalog";
 
 export interface SetupValidationContext {
@@ -41,26 +42,6 @@ function setupValue(snapshot: unknown, path: string): number | undefined {
 
 
 export type AnalystOutputParseResult = z.ZodSafeParseResult<AnalystOutput>;
-
-export interface AnalystSetupProvenance {
-  gameId: GameId | null;
-  gameVersion: string | null;
-  carModel: string | null;
-  carVersion: string | null;
-  trackName: string | null;
-  setupVersion: string | null;
-  lapId: number | null;
-}
-
-const AnalystSetupProvenanceSchema = z.object({
-  gameId: z.string().nullable(),
-  gameVersion: z.string().nullish(),
-  carModel: z.string().nullable(),
-  carVersion: z.string().nullish(),
-  trackName: z.string().nullable(),
-  setupVersion: z.string().nullable(),
-  lapId: z.number().int().nullable(),
-}).strict();
 /** Keep only exact numeric recommendations supported by this car's rules and parsed setup. */
 export function validateSetupRecommendations(recs: unknown, context: SetupValidationContext): AnalystOutput["setup"] {
   if (!Array.isArray(recs) || !context.gameId || !context.setupSnapshot) return [];
@@ -70,7 +51,7 @@ export function validateSetupRecommendations(recs: unknown, context: SetupValida
   const capabilities = getSetupCapabilities(context.gameId, context.carModel);
   const accepted: AnalystOutput["setup"] = [];
   for (const raw of recs) {
-    const parsed = SetupItem.safeParse(raw);
+    const parsed = AnalystSetupItemSchema.safeParse(raw);
     if (!parsed.success) continue;
     const item = parsed.data;
     const rule = table[item.component];
@@ -141,51 +122,6 @@ export function sanitizeAnalystOutput(
   });
 }
 
-const AssessmentEnum = z.enum(["good", "warning", "critical"]);
-const SeverityEnum = z.enum(["minor", "moderate", "major"]);
-
-const MetricItem = z.object({
-  label: z.string(),
-  value: z.string(),
-  assessment: AssessmentEnum,
-  detail: z.string(),
-});
-
-const CornerIssue = z.object({
-  name: z.string(),
-  issue: z.string(),
-  fix: z.string(),
-  severity: SeverityEnum,
-});
-
-const TechniqueTip = z.object({
-  tip: z.string(),
-  detail: z.string(),
-});
-
-const SetupItem = z.object({
-  component: z.string(),
-  symptom: z.string(),
-  fix: z.string(),
-  current: z.string(),
-  target: z.string(),
-  direction: z.enum(["increase", "decrease", "adjust"]),
-});
-
-export const AnalystOutputSchema = z.object({
-  verdict: z.string(),
-  pace: z.array(MetricItem),
-  handling: z.array(MetricItem),
-  corners: z.array(CornerIssue),
-  technique: z.array(TechniqueTip),
-  setup: z.array(SetupItem),
-  setupProvenance: AnalystSetupProvenanceSchema.optional(),
-});
-
-/** Model output excludes provenance, which is attached only by the server. */
-export const AnalystModelOutputSchema = AnalystOutputSchema.omit({ setupProvenance: true });
-
-export type AnalystOutput = z.infer<typeof AnalystOutputSchema>;
 
 /**
  * JSON Schema for model-authored analysis, excluding server-owned provenance.

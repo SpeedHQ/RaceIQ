@@ -84,6 +84,7 @@
 - Use suitable local network addresses for remote HUD links and let users choose an address when multiple adapters are available.
 
 ### Internal
+- Keep seeded Playwright discovery independent of server-only catalog imports, and reset persisted dashboard access between fresh-install wizard attempts with an explicit loopback settings check.
 - Recreate the database and dashboard access setup when seeding with `--clean`.
 - Wait for dashboard metadata and loading panels to finish before generating the Home marketing screenshot.
 - Include the privacy-safe iRacing SessionInfo path manifest in clean checkouts so CI can validate the telemetry catalog.
