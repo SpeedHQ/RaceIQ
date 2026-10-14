@@ -14,6 +14,7 @@ import { sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { applyFrameTime } from "./frame-time";
+import { notifyOnlineSync } from "@raceiq/online/sync-events";
 export interface ReprocessResult {
   sessionId: number;
   lapsDetected: number;
@@ -57,6 +58,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
   if (!session) {
     throw new SessionNotFoundError(sessionId);
   }
+  if (session.source === "cloud-import") throw new Error("Cloud-imported laps use committed processing metadata and cannot be reprocessed");
   if (!session.rawFile) {
     throw new SessionRawFileMissingError(sessionId);
   }
@@ -220,6 +222,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
   }
 
   await updateSessionRawFile(sessionId, session.rawFile, detector.detectorId, versionIdentity);
+  notifyOnlineSync();
 
   return { sessionId, lapsDetected: detectedLaps.length, lapsUpdated, strategy };
 }

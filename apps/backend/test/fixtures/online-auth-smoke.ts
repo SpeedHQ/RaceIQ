@@ -1,32 +1,31 @@
-import { mock } from 'bun:test';
 import { strict as assert } from 'node:assert';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import * as sdk from '@speedhq/live-client';
-import type { OnlineState } from '@raceiq/shared/integrations/raceiq-online';
-type SmokeSession = sdk.DesktopAuthSession;
-let resolveSession: (value: SmokeSession) => void;
+import { createRaceIqOnlineService, type OnlineAuthPort, type OnlineAuthSession } from '@raceiq/online/service';
+import { OnlineStateStorage } from '@raceiq/online/state-storage';
+import type { OnlineState } from '@raceiq/online/contracts';
+let resolveSession: (value: OnlineAuthSession) => void;
 let secret = '';
 let holdSecret = false;
 let releaseSecret: (() => void) | undefined;
 let refreshFailure = false;
 let refreshedUserId = 'user-1';
-mock.module('@speedhq/live-client', () => ({ ...sdk, createDesktopAuth: () => ({
-  beginSignIn: async () => ({ authorizationUrl: 'https://auth.example/auth/v1/authorize', cancel() {}, complete: () => { const gate = Promise.withResolvers<SmokeSession>(); resolveSession = gate.resolve; return gate.promise; } }),
+const auth: OnlineAuthPort = {
+  beginSignIn: async () => ({ authorizationUrl: 'https://auth.example/auth/v1/authorize', expiresAt: Date.now() + 10 * 60_000, cancel() {}, complete: () => { const gate = Promise.withResolvers<OnlineAuthSession>(); resolveSession = gate.resolve; return gate.promise; } }),
   refreshSession: async () => {
     if (refreshFailure) throw new Error('temporary refresh outage');
     return { accessToken: 'refreshed-access', refreshToken: secret, userId: refreshedUserId, expiresAt: Date.now() / 1000 + 3600, discordAccountName: 'Discord Driver' };
   },
-}) }));
-mock.module('@raceiq/backend-core/runtime/platform/keystore', () => ({
+};
+const keystore = {
   getSecret: async () => secret,
   setSecret: async (_key: string, value: string) => { secret = value; if (holdSecret && value) { const gate = Promise.withResolvers<void>(); releaseSecret = gate.resolve; await gate.promise; } },
-}));
-// Load service after module mocks: this smoke intentionally exercises its module boundary.
-const { createRaceIqOnlineService } = await import('@raceiq/backend-core/integrations/raceiq-online/service');
-const { OnlineStateStorage } = await import('@raceiq/backend-core/db/online-state-storage');
+};
 const dirs: string[] = [];
+const outboxDir = mkdtempSync(join(tmpdir(), 'raceiq-auth-outbox-smoke-'));
+dirs.push(outboxDir);
+process.env.DATA_DIR = outboxDir;
 let consentCalls = 0;
 let preferenceCalls = 0;
 let leaderboardCalls = 0;
@@ -50,7 +49,7 @@ const serverPreferences: Record<string, { visibility: 'public' | 'private'; setu
 const versions = { termsVersion: 'terms-1', privacyVersion: 'privacy-1' };
 function setup(dir = mkdtempSync(join(tmpdir(), 'raceiq-auth-smoke-'))) {
   if (!dirs.includes(dir)) dirs.push(dir);
-  return createRaceIqOnlineService({ storage: new OnlineStateStorage(dir), adapter: {
+  return createRaceIqOnlineService({ storage: new OnlineStateStorage(dir), keystore, auth, adapter: {
     async getPolicy() {
       if (policyFailure) throw new Error('temporary policy outage');
       return { available: true, ...versions, termsUrl: 'https://raceiq.example/terms', privacyUrl: 'https://raceiq.example/privacy' };
@@ -92,7 +91,7 @@ function setup(dir = mkdtempSync(join(tmpdir(), 'raceiq-auth-smoke-'))) {
       leaderboardCalls++;
       if (leaderboardGate) await leaderboardGate;
       if (leaderboardFailure) throw new Error('leaderboard offline');
-      return { status: 'ready', rows: [{ rank: 1, lapId: 'shared-lap', driver: { userId: 'user-1', displayName: 'Driver', avatarUrl: null }, lapTimeMs: 90_000 }], fetchedAt: new Date().toISOString(), stale: false };
+      return { status: 'ready', rows: [{ rank: 1, lapId: 'shared-lap', driver: { userId: 'user-1', displayName: 'Driver', avatarUrl: null }, lapTimeMs: 90_000, importAvailable: true }], fetchedAt: new Date().toISOString(), stale: false };
     },
     async setDisplayName(name) {
       if (profileGate) await profileGate;
@@ -134,6 +133,7 @@ try {
   assert.equal(leaderboardCalls, 0, 'unconfirmed preferences must deny before adapter read');
   const prefs = await service.setPreferences({ ...ctx(consent.state), preferences: { visibility: 'public', setupUploads: false } });
   assert.equal(prefs.ok, true); assert.equal(prefs.state.uploadAllowed, true);
+  assert.equal(await service.getUploadContext(), null, 'public sharing permission must not activate recording dispatch without a per-lap producer');
   const publicBoard = await service.getLeaderboard(boardKey);
   assert.equal(publicBoard.status, 'ready');
   assert.equal(publicBoard.rows[0]?.lapId, 'shared-lap');

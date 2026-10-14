@@ -1966,6 +1966,40 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       )`,
     ],
   },
+  {
+    version: 76,
+    name: "retain cloud lap import attribution",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN source_author_user_id TEXT`,
+      `ALTER TABLE sessions ADD COLUMN source_author_display_name TEXT`,
+      `ALTER TABLE sessions ADD COLUMN cloud_import_origin TEXT`,
+      `ALTER TABLE sessions ADD COLUMN cloud_import_lap_id TEXT`,
+      `ALTER TABLE sessions ADD COLUMN cloud_import_session_key INTEGER`,
+      `ALTER TABLE sessions ADD COLUMN cloud_import_session_uid TEXT`,
+      `ALTER TABLE sessions ADD COLUMN cloud_import_source_lap_index INTEGER`,
+      `ALTER TABLE sessions ADD COLUMN cloud_import_source_session_key INTEGER`,
+      `ALTER TABLE sessions ADD COLUMN source_frame_format TEXT`,
+      `ALTER TABLE sessions ADD COLUMN source_frame_version TEXT`,
+      `CREATE UNIQUE INDEX idx_sessions_cloud_import ON sessions(cloud_import_origin, cloud_import_lap_id) WHERE cloud_import_origin IS NOT NULL`,
+      `ALTER TABLE laps ADD COLUMN recorded_at TEXT`,
+    ],
+  },
+  {
+    version: 77,
+    name: "preserve cloud lap millisecond values",
+    sql: [
+      `ALTER TABLE laps ADD COLUMN total_time_ms INTEGER`,
+      `ALTER TABLE laps ADD COLUMN sector_times_ms TEXT`,
+    ],
+  },
+  {
+    version: 78,
+    name: "retain cloud lap setup attachment",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN cloud_import_setup_path TEXT`,
+      `ALTER TABLE sessions ADD COLUMN cloud_import_setup_file_name TEXT`,
+    ],
+  },
 ];
 const dashboardCanonicalTriggers = (() => {
   const readModel = migrations.find((migration) => migration.version === 68);

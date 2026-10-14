@@ -13,6 +13,7 @@ import { NullWsAdapter, RealDbAdapter, type DbAdapter, type SessionRecorderAdapt
 import { reconcileSessionResult } from "../race-results/reconcile";
 
 import { countIndexSampleMaterialized, countSourceFrameScanned } from "./test-instrumentation";
+import { notifyOnlineSync } from "@raceiq/online/sync-events";
 
 
 
@@ -313,6 +314,7 @@ async function importTelemetrySource<T>(
       await reconcileSessionResult(sessionId, gameId);
     }
     await pipeline.finalizeDashboardCaptureFacts([...db.sessionIds]);
+    notifyOnlineSync();
   } catch (error) {
     return rollbackImport(db, error);
   }

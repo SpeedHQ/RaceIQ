@@ -21,6 +21,7 @@ graph LR
 - `shared/` holds neutral telemetry types, game identities, adapter contracts, and mutable registries, with no concrete metadata dependency.
 - `server/` (`@raceiq/backend-core`) owns neutral telemetry pipelines, authoritative session computation, persistence, and shared runtime services.
 - `packages/capture-formats/` owns persisted capture layouts and codecs without live-reader dependencies.
+- `packages/online/` (`@raceiq/online`) owns browser-safe Online contracts plus backend account/auth policy, leaderboard adapter, upload delivery and separate Online storage. It has no backend-core or application dependency; the backend app injects host platform services.
 - Six `packages/game-<id>/` workspaces own backend adapters, parsers, native sources, recorders, and game-local replay helpers.
 - Six `packages/game-<id>-metadata/` workspaces own browser-safe adapters, static metadata, and separate Node car/track catalog leaves.
 - `packages/game-catalogs/` owns cross-game adapter registration, name/geometry composition, and assembled setup catalogs.
@@ -55,6 +56,17 @@ Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, c
 ## Persistence and API
 
 `server/db/schema.ts` is the typed schema reference. Runtime migrations are embedded in `server/db/migrations.ts` and applied at startup. `apps/backend/src/routes/index.ts` composes feature route modules under `/api`; the client uses `client/src/lib/rpc.ts` rather than untyped fetch calls.
+
+## RaceIQ Online lap imports
+
+`@raceiq/online/contracts` is the browser-safe DTO/port export. The service and SDK-facing adapter live in `packages/online/src`; `apps/backend/src/integrations/online.ts` owns the singleton and injects the data-directory resolver, OS keystore and callback URI. Hono routes and local recording/import publication remain app-owned. The app reads authenticated, car-specific leaderboards using exact native catalog selectors. The existing public-sharing consent gate controls in-app leaderboard access; authenticated cloud imports use the app's own current bearer token. Browser consumers never import Online service, storage, SDK or Effect runtime modules.
+
+`apps/backend/src/routes/cloud-lap-import-routes.ts` owns queued activation intents and progress. Windows protocol activation and the leaderboard action share this controller. `server/session-capture/cloud-lap-import.ts` bounds and streams ZIP downloads, rejects redirects, validates manifest v2 and archive/container safety, and deduplicates by configured service origin and cloud lap ID. Publication shares the capture-maintenance lock and uses a durable recovery journal; boot recovers interrupted publication before accepting imports.
+
+The authenticated service manifest is authoritative for the committed lap identity, integer-millisecond timing, validity, timestamps, and original selectors. Structural admission validates retained frame windows and decoder-context boundaries without running lap detection or deriving new timing. The current capture format has no independent processed-lap selector table; container validation does not independently certify the service's logical-lap claim. Manually supplied ZIPs do not enter this trusted path.
+
+Imported sources store author identity, service provenance, and optional opaque setup attachments with `ownership='others'`. They are excluded from own statistics and stale-capture reprocessing. The client polls global import state, resumes authentication-bound intents, and opens the exact registered replay once per activation.
+
 
 ## SQLite dashboard read model
 

@@ -1,7 +1,7 @@
 import { getRecordedElapsedSeconds } from "../session-capture/elapsed-duration";
 import { deleteLap } from "./lap-mutation-queries";
 import { getLapById } from "./lap-read-queries";
-import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
+import { eq, desc, and, or, sql, inArray, notInArray, isNull, ne } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, sessionResults, pitEvents } from "./schema";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
@@ -102,6 +102,7 @@ async function getAvailableStaleSessionRows(
       and(
         sql`${sessions.rawFile} IS NOT NULL`,
         inArray(sessions.gameId, reprocessableGameIds),
+        or(isNull(sessions.source), ne(sessions.source, "cloud-import")),
         or(isNull(sessions.lapDetectorVersion), notInArray(sessions.lapDetectorVersion, ids))
       )
     )

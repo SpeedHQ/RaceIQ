@@ -87,6 +87,11 @@ export async function getLaps(gameId?: GameId, limit: number = 200, sessionId?: 
       tuneId: laps.tuneId,
       tuneName: tunes.name,
       gameId: sessions.gameId,
+      sourceAuthorUserId: sessions.sourceAuthorUserId,
+      sourceAuthorDisplayName: sessions.sourceAuthorDisplayName,
+      recordedAt: laps.recordedAt,
+      totalTimeMs: laps.totalTimeMs,
+      sectorTimesMs: laps.sectorTimesMs,
       sectorTimes: laps.sectorTimes,
       isFavorite: laps.isFavorite,
       rawByteOffset: laps.rawByteOffset,
@@ -159,7 +164,12 @@ export async function getReviewLaps(
       carId: sessions.carId,
       trackId: sessions.trackId,
       gameId: sessions.gameId,
+      sourceAuthorUserId: sessions.sourceAuthorUserId,
+      sourceAuthorDisplayName: sessions.sourceAuthorDisplayName,
+      recordedAt: laps.recordedAt,
+      totalTimeMs: laps.totalTimeMs,
       sectorTimes: laps.sectorTimes,
+      sectorTimesMs: laps.sectorTimesMs,
       isFavorite: laps.isFavorite,
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
@@ -222,7 +232,12 @@ export async function getLapMetaForProfileScope(gameId: GameId, carId?: string, 
       tuneId: laps.tuneId,
       tuneName: tunes.name,
       gameId: sessions.gameId,
+      sourceAuthorUserId: sessions.sourceAuthorUserId,
+      sourceAuthorDisplayName: sessions.sourceAuthorDisplayName,
+      recordedAt: laps.recordedAt,
+      totalTimeMs: laps.totalTimeMs,
       sectorTimes: laps.sectorTimes,
+      sectorTimesMs: laps.sectorTimesMs,
       isFavorite: laps.isFavorite,
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
@@ -325,7 +340,12 @@ type LapMetadataRow = {
   rawByteOffset: number | null;
   rawFrameCount: number | null;
   rawFile?: string | null;
+  sourceAuthorUserId?: string | null;
   source?: string | null;
+  sourceAuthorDisplayName?: string | null;
+  recordedAt?: string | null;
+  totalTimeMs?: number | null;
+  sectorTimesMs?: number[] | null;
   carId: string;
   trackId: string;
   tuneId: number | null;
@@ -349,6 +369,9 @@ async function getLapMetadataRow(id: number): Promise<LapMetadataRow | undefined
       isValid: laps.isValid, isFavorite: laps.isFavorite, createdAt: laps.createdAt, rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount, rawFile: sessions.rawFile, source: sessions.source,
       carId: sessions.carId, trackId: sessions.trackId,
+      sourceAuthorUserId: sessions.sourceAuthorUserId, sourceAuthorDisplayName: sessions.sourceAuthorDisplayName,
+      recordedAt: laps.recordedAt,
+      totalTimeMs: laps.totalTimeMs, sectorTimesMs: laps.sectorTimesMs,
       tuneId: laps.tuneId, tuneName: tunes.name, gameId: sessions.gameId,
       ownership: sessions.ownership, carSetup: laps.carSetup,
       sectorTimes: laps.sectorTimes, catalogVersion: laps.catalogVersion, catalogHash: laps.catalogHash,
@@ -420,6 +443,11 @@ type LapResultRow = {
   rawByteOffset?: number | null;
   rawFrameCount?: number | null;
   source?: string | null;
+  sourceAuthorUserId?: string | null;
+  sourceAuthorDisplayName?: string | null;
+  recordedAt?: string | null;
+  totalTimeMs?: number | null;
+  sectorTimesMs?: number[] | null;
 };
 
 function buildLapResult(
@@ -437,7 +465,13 @@ function buildLapResult(
     carId: row.carId,
     trackId: row.trackId,
     createdAt: row.createdAt,
+    sourceAuthorDisplayName: row.sourceAuthorDisplayName ?? null,
+    recordedAt: row.recordedAt ?? null,
+    totalTimeMs: row.totalTimeMs ?? null,
+    sectorTimesMs: row.sectorTimesMs ?? null,
+    sourceAuthorUserId: row.sourceAuthorUserId ?? null,
     ownership: row.ownership === "others" ? "others" : "mine",
+    source: (row.source as "motec" | "cloud-import" | null) ?? null,
     tuneId: row.tuneId ?? undefined,
     tuneName: row.tuneName ?? undefined,
     gameId: row.gameId as GameId,
@@ -484,12 +518,17 @@ export async function getLapsByIds(
       rawFrameCount: laps.rawFrameCount,
       rawFile: sessions.rawFile,
       source: sessions.source,
+      sourceAuthorDisplayName: sessions.sourceAuthorDisplayName,
+      sourceAuthorUserId: sessions.sourceAuthorUserId,
+      recordedAt: laps.recordedAt,
       tuneId: laps.tuneId,
       tuneName: tunes.name,
       gameId: sessions.gameId,
       ownership: sessions.ownership,
       carSetup: laps.carSetup,
+      totalTimeMs: laps.totalTimeMs,
       sectorTimes: laps.sectorTimes,
+      sectorTimesMs: laps.sectorTimesMs,
       catalogVersion: laps.catalogVersion,
       catalogHash: laps.catalogHash,
       catalogSchemaVersion: laps.catalogSchemaVersion,
@@ -627,7 +666,7 @@ export async function getLapCountsByTrack(gameId: GameId): Promise<Map<string, n
     .select({ trackId: sessions.trackId, count: sql<number>`count(*)` })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
-    .where(and(eq(sessions.gameId, gameId), sql`${sessions.trackId} != ''`))
+    .where(and(eq(sessions.gameId, gameId), sql`COALESCE(${sessions.ownership}, 'mine') != 'others'`, sql`${sessions.trackId} != ''`))
     .groupBy(sessions.trackId)
     .all();
   return new Map(rows.map((r) => [r.trackId, Number(r.count)]));

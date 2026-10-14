@@ -1,5 +1,5 @@
 import { raceIqAuthConfig } from "@speedhq/live-client";
-import type { OnlineState, OnlineLeaderboard, OnlineCommandResult, RaceIqOnlinePort, OnlineError, OnlinePreferences, DisplayNameInput } from "@raceiq/shared/integrations/raceiq-online";
+import type { OnlineState, OnlineLeaderboard, OnlineCommandResult, RaceIqOnlinePort, OnlineError, OnlinePreferences, DisplayNameInput } from "@raceiq/online/contracts";
 
 // Presentation fixtures only. Never imported by production components or adapters.
 export const fixturePolicy = { termsVersion: "preview-terms-1", privacyVersion: "preview-privacy-1" };
@@ -56,8 +56,8 @@ export const preferencesWithoutProfileFixture: OnlineState = {
 export const fixtureBoard: OnlineLeaderboard = {
   key: { gameId: "f1-2025", trackId: "preview-track", carId: "preview-car" }, status: "ready", stale: false,
   fetchedAt: "2026-10-12T12:00:00Z", error: null,
-  rows: [{ rank: 1, lapId: "preview-lap-1", driver: { userId: "preview-driver-1", displayName: "Apex Driver", avatarUrl: null }, lapTimeMs: 91234 },
-    { rank: 2, lapId: "preview-lap-2", driver: { userId: "preview-driver-2", displayName: "Long display name for responsive preview", avatarUrl: null }, lapTimeMs: 92567 }],
+  rows: [{ rank: 1, lapId: "preview-lap-1", driver: { userId: "preview-driver-1", displayName: "Apex Driver", avatarUrl: null }, lapTimeMs: 91234, importAvailable: true },
+    { rank: 2, lapId: "preview-lap-2", driver: { userId: "preview-driver-2", displayName: "Long display name for responsive preview", avatarUrl: null }, lapTimeMs: 92567, importAvailable: true }],
 };
 export interface FixtureOnlinePort extends RaceIqOnlinePort { completeSignIn(): OnlineState; }
 export function createOnlineFixturePort(initial: OnlineState, options: { board?: OnlineLeaderboard; transportFailure?: boolean; commandFailure?: OnlineError; pending?: boolean; stateDelayMs?: number; onCall?: (method: keyof RaceIqOnlinePort, input?: unknown) => void } = {}): FixtureOnlinePort {

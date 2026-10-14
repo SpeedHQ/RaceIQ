@@ -1,6 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useEffect, useState } from "react";
-import type { OnlinePreferences, OnlineSyncBlock, OnlineVisibility } from "@raceiq/shared/integrations/raceiq-online";
+import type { OnlinePreferences, OnlineState, OnlineSyncBlock, OnlineVisibility } from "@raceiq/online/contracts";
+import { getLocale } from "@/paraglide/runtime";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -144,6 +145,7 @@ export function OnlineSection({ onboarding = false, stage = "permissions", onSki
   if (!onboarding && accountHidden) {
     return <section className="max-w-2xl" aria-busy={pending}>
       <h2 className="mb-1 text-lg font-semibold text-app-text">{title}</h2>
+      <UploadQueuePanel state={undefined} stale={false} pending={online.isPending} unavailable={true} />
       {online.signOutPending && <p role="status" className="mb-3 text-sm text-app-text-muted">{m.online_signout_pending()}</p>}
       {(online.transportError || online.commandError) && <p role="alert" className="mb-3 text-sm text-status-danger">{m.online_signout_unknown()}</p>}
       <Button variant="outline" disabled={online.isMutating} onClick={() => void signOut()}>{m.online_retry_signout()}</Button>
@@ -153,6 +155,7 @@ export function OnlineSection({ onboarding = false, stage = "permissions", onSki
     return <section className="max-w-2xl" aria-busy={pending}>
       <h2 className="mb-1 text-lg font-semibold text-app-text">{title}</h2>
       <p className="mb-4 text-sm text-app-text-muted">{m.online_intro()}</p>
+      {!onboarding && <UploadQueuePanel state={state} stale={online.isCachedState} pending={online.isPending} unavailable={!!online.transportError} />}
       {online.isPending && !state && <p role="status">{m.online_loading()}</p>}
       {failure && !online.transportError && <p role="alert" className="mb-3 text-sm text-status-danger">{failure}</p>}
       {!online.transportError && state?.service !== "available" && state && <p role="status" className="mb-3 text-sm text-app-text-muted">{m.online_service_unavailable()}</p>}
@@ -194,6 +197,7 @@ export function OnlineSection({ onboarding = false, stage = "permissions", onSki
     <section className="max-w-2xl" aria-busy={pending}>
       <h2 className="text-lg font-semibold text-app-text mb-1">{title}</h2>
       <p className="text-sm text-app-text-muted mb-4">{m.online_intro()}</p>
+        <UploadQueuePanel state={state} stale={online.isCachedState || !!online.transportError} pending={online.isPending} unavailable={!!online.transportError} />
       <>
         {online.signOutPending && <p role="status" className="mb-3 text-sm text-app-text-muted">{m.online_signout_pending()}</p>}
         {accountHidden && (online.transportError || online.commandError) && <p role="alert" className="mb-3 text-sm text-status-danger">{m.online_signout_unknown()} <Button variant="outline" size="sm" disabled={online.isMutating} onClick={() => void signOut()}>{m.online_retry_signout()}</Button></p>}
@@ -235,13 +239,54 @@ export function OnlineSection({ onboarding = false, stage = "permissions", onSki
         </div>}
         {!accountHidden && policy && <div className="my-4 flex gap-4 text-sm"><a className="text-app-accent underline" href={policy.termsUrl} target="_blank" rel="noopener noreferrer">{m.online_terms()}</a><a className="text-app-accent underline" href={policy.privacyUrl} target="_blank" rel="noopener noreferrer">{m.online_privacy()}</a></div>}
         {state && state.publicationWithdrawal.status !== "none" && <p role="status" className="mt-4 text-sm text-app-text-muted">{state.publicationWithdrawal.status === "pending" ? m.online_withdrawal_pending() : state.publicationWithdrawal.status === "failed" ? m.online_withdrawal_failed() : state.publicationWithdrawal.status === "unavailable" ? m.online_withdrawal_limited() : m.online_withdrawal_complete()}</p>}
-        {state?.sync.status === "running" && <p role="status" className="mt-3 text-sm text-app-text-muted">{m.online_sync_running({ count: state.sync.queued })}</p>}
-        {state?.sync.blockedBy && <p role="status" className="mt-3 text-sm text-app-text-muted">{m.online_sync_blocked({ reason: syncBlockMessages[state.sync.blockedBy]() })}</p>}
-        {state?.sync.lastError && <p role="alert" className="mt-3 text-sm text-status-danger">{onlineErrorMessage(state.sync.lastError.code)}</p>}
         {!accountHidden && draftReady && (settingsDirty || !connected || online.isMutating || state?.preferencePersistence !== "confirmed" || !!online.transportError) && <p role="status" className="mt-2 text-sm text-app-text-muted">{m.online_draft_only()} {visibilityLabels[draft.visibility]()} · {m.online_setup_title()}: {draft.setupUploads ? m.common_on() : m.common_off()}</p>}
       </>
     </section>
   );
+}
+
+function UploadQueuePanel({ state, stale, pending, unavailable }: { state?: OnlineState; stale: boolean; pending: boolean; unavailable: boolean }) {
+  const sync = state?.sync;
+  const connected = state?.connection.status === "connected";
+  const locale = getLocale();
+  const status = unavailable || stale
+    ? m.online_queue_unavailable()
+    : !sync
+      ? pending ? m.online_queue_checking() : m.online_queue_unavailable()
+      : sync.status === "running" ? m.online_queue_uploading()
+        : sync.status === "paused" ? m.online_queue_paused()
+          : sync.status === "blocked" ? m.online_queue_blocked() : m.online_queue_idle();
+  const syncError = sync?.lastError ? onlineErrorMessage(sync.lastError.code) : null;
+  const block = sync?.blockedBy ? m.online_sync_blocked({ reason: syncBlockMessages[sync.blockedBy]() }) : null;
+  const lastSynced = connected && sync?.lastSyncedAt
+    ? new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(sync.lastSyncedAt))
+    : null;
+  return <section className="my-4 rounded-md border border-app-border bg-app-surface p-3 text-sm" aria-label={m.online_queue_title()}>
+    <h3 className="font-medium text-app-text">{m.online_queue_title()}</h3>
+    <div role="status" className="mt-2 text-app-text-muted" aria-atomic="true">
+      <p>{status}</p>
+      {stale && <p className="mt-1">{m.online_queue_stale()}</p>}
+      {connected && sync && <>
+        <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-4">
+          <QueueValue label={m.online_queue_queued()} value={String(sync.queued)} />
+          <QueueValue label={m.online_queue_in_flight()} value={String(sync.inFlight)} />
+          <QueueValue label={m.online_queue_rejected()} value={String(sync.rejected)} />
+          <div><dt>{m.online_queue_last_synced()}</dt><dd>{lastSynced
+            ? <time dateTime={sync.lastSyncedAt!} title={sync.lastSyncedAt!}>{lastSynced}</time>
+            : !stale && !unavailable ? m.online_queue_never_synced() : m.online_queue_unknown()}</dd></div>
+        </dl>
+        {sync.queued === 0 && sync.inFlight === 0 && <p className="mt-2">{m.online_queue_empty()}</p>}
+        {syncError && <p className="mt-2 text-status-danger">{syncError}</p>}
+      </>}
+      {block && <p className="mt-2">{block}</p>}
+      {(!connected || !sync) && !pending && !unavailable && <p className="mt-2">{m.online_queue_unknown()}</p>}
+    </div>
+    <p className="mt-2 text-app-text-muted">{m.online_queue_acceptance_note()}</p>
+  </section>;
+}
+
+function QueueValue({ label, value }: { label: string; value: string }) {
+  return <div><dt>{label}</dt><dd className="font-medium text-app-text">{value}</dd></div>;
 }
 
 function PreferenceControl({ title, description, checked, disabled, onChange }: { title: string; description: string; checked: boolean; disabled: boolean; onChange?: (checked: boolean) => void }) {

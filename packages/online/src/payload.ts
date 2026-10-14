@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 export const UPLOAD_GAME_IDS = ["acc", "ac-evo", "f1-2025", "iracing", "lmu"] as const;
 
 export type UploadGame = (typeof UPLOAD_GAME_IDS)[number];
@@ -14,9 +16,39 @@ export type PayloadGateResult =
 export interface VerifiedRecordingCodec {
   readonly recordingFormatId: string;
   supportsSetupAttachment(gameId: UploadGame): boolean;
-  isServiceCompatible(recording: Uint8Array): boolean;
+  isServiceCompatible(recording: Uint8Array, gameId: UploadGame): boolean;
   stripF1SetupTelemetry(recording: Uint8Array): Uint8Array | null;
   hasF1SetupTelemetry(recording: Uint8Array): boolean;
+}
+
+/** Prepared bytes are supplied by the per-lap recording producer, never a session slicer. */
+export interface PreparedOnlineLapUpload {
+  gameId: UploadGame;
+  trackId: string;
+  carId: string;
+  lapId: number;
+  lapTimeMs: number;
+  recording: Uint8Array<ArrayBuffer>;
+  setup: Uint8Array<ArrayBuffer> | null;
+  filename: string;
+  fingerprint: string;
+  codec: VerifiedRecordingCodec;
+}
+
+export function uploadPayloadFingerprint(recording: Uint8Array, setup: Uint8Array | null): string {
+  const hash = createHash("sha256");
+  const length = Buffer.allocUnsafe(8);
+  hash.update("raceiq-online-upload-payload-v1\0");
+  length.writeBigUInt64LE(BigInt(recording.byteLength));
+  hash.update(length);
+  hash.update(recording);
+  hash.update(setup === null ? "\x00" : "\x01");
+  if (setup !== null) {
+    length.writeBigUInt64LE(BigInt(setup.byteLength));
+    hash.update(length);
+    hash.update(setup);
+  }
+  return hash.digest("hex");
 }
 
 export type UploadPayloadInput = {
@@ -56,12 +88,12 @@ export function prepareUploadPayload(input: UploadPayloadInput): PayloadGateResu
     if (isF1) {
       const sanitized = codec.stripF1SetupTelemetry(sourceCopy);
       if (!sanitized || sanitized.buffer === input.recording.buffer ||
-          codec.hasF1SetupTelemetry(sanitized) || !codec.isServiceCompatible(sanitized)) {
+          codec.hasF1SetupTelemetry(sanitized) || !codec.isServiceCompatible(sanitized, input.gameId)) {
         return { ok: false, reason: "f1_sanitization_failed" };
       }
       recording = new Uint8Array(sanitized);
     } else {
-      if (!codec.isServiceCompatible(sourceCopy)) return { ok: false, reason: blockedReason };
+      if (!codec.isServiceCompatible(sourceCopy, input.gameId)) return { ok: false, reason: blockedReason };
       recording = sourceCopy;
     }
 

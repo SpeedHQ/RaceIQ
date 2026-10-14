@@ -1,10 +1,4 @@
 import { UPLOAD_GAME_IDS, type UploadGame } from "./payload";
-export type CanonicalEligibility = {
-  readonly status: "eligible";
-  readonly authority: "raceiq-online-canonical";
-  readonly proofId: string;
-};
-
 export type EligibleLapCandidate = {
   readonly lapId: number;
   readonly lapTimeMs: number;
@@ -12,30 +6,19 @@ export type EligibleLapCandidate = {
   readonly trackId: string;
   readonly carId: string;
   readonly valid: true;
-  readonly eligibility: CanonicalEligibility;
 };
 
 export type CandidateSelection = {
   readonly selected: EligibleLapCandidate[];
-  readonly rejected: { lapId: number | null; reason: "unknown_eligibility" | "invalid_lap" | "unknown_identity" | "invalid_time" }[];
+  readonly rejected: { lapId: number | null; reason: "invalid_lap" | "unknown_identity" | "invalid_time" }[];
 };
 
-/**
- * Select fastest canonical-eligible lap for each service leaderboard key.
- * The caller must obtain eligibility from authoritative canonical service
- * rules; local parser validity or a local catalog match is not a substitute.
- */
+/** Select fastest locally admissible lap per game/track; server remains authoritative. */
 export function selectFastestEligibleLaps(candidates: readonly Partial<EligibleLapCandidate>[]): CandidateSelection {
   const fastest = new Map<string, EligibleLapCandidate>();
   const rejected: CandidateSelection["rejected"] = [];
   for (const candidate of candidates) {
     const lapId = Number.isSafeInteger(candidate.lapId) && Number(candidate.lapId) > 0 ? Number(candidate.lapId) : null;
-    if (!candidate.eligibility || candidate.eligibility.status !== "eligible" ||
-        candidate.eligibility.authority !== "raceiq-online-canonical" ||
-        typeof candidate.eligibility.proofId !== "string" || candidate.eligibility.proofId.trim().length === 0) {
-      rejected.push({ lapId, reason: "unknown_eligibility" });
-      continue;
-    }
     if (candidate.valid !== true) {
       rejected.push({ lapId, reason: "invalid_lap" });
       continue;

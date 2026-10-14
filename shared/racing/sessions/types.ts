@@ -22,13 +22,13 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   // Joined from session
   carId: string;
   trackId: string;
-  // How the session's telemetry was obtained (migration v43, joined from
-  // sessions.source). null/undefined = recorded live from the game. 'motec' =
-  // transcoded from a MoTeC .ld, where the racing line is dead-reckoned from
-  // speed and yaw rather than logged. Anything reading a POSITION off a lap
-  // must degrade for 'motec'; measured channels (speed, brake, throttle, gear,
-  // steering) are exact and need no caveat. See MOTEC_IMPORT_LIMITATIONS.
-  source?: "motec" | null;
+  // How session telemetry was obtained, joined from sessions.source. null means
+  // captured locally; 'motec' is transcoded telemetry with estimated position;
+  // 'cloud-import' is an attributed third-party processed lap capture.
+  source?: "motec" | "cloud-import" | null;
+  sourceAuthorUserId?: string | null;
+  sourceAuthorDisplayName?: string | null;
+  recordedAt?: string | null;
   ownership?: SessionOwnership;
   // Car setup snapshot (JSON string of F1CarSetup)
   carSetup?: string;
@@ -36,6 +36,10 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   tuneId?: number;
   tuneName?: string;
   // Ordered sector times from the session's source-defined layout (#134).
+  /** Exact source duration in milliseconds, when supplied by the lap source. */
+  totalTimeMs?: number | null;
+  /** Exact source sector durations in milliseconds, when supplied. */
+  sectorTimesMs?: number[] | null;
   sectorTimes?: number[];
   // Explicit experiment link (migration v25). Stamped at insert from the
   // active experiment; null for laps recorded outside an experiment.

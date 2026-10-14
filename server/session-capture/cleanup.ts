@@ -1,8 +1,8 @@
 /**
  * Session file cleanup for startup and scheduled maintenance.
  *
- * Removes tiny `.bin` captures (at most the 12-byte metadata header) and
- * `.bin`, `.bin.gz`, and `.motec.zip` captures not referenced by `sessions.rawFile`.
+ * Removes tiny `.bin` captures and orphaned `.bin`, `.bin.gz`, `.motec.zip`,
+ * and cloud-import setup attachments not referenced by session rows.
  */
 import { readdir, stat, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -10,7 +10,6 @@ import { resolve, join } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
-import { sql } from "drizzle-orm";
 import { META_FRAME_BYTES } from "@raceiq/capture-formats/session/framing";
 
 const TINY_ORPHAN_THRESHOLD_BYTES = META_FRAME_BYTES;
@@ -30,13 +29,13 @@ export function withSessionCaptureMaintenanceLock<T>(
 
 async function loadReferencedRawFiles(): Promise<Set<string>> {
   const rows = await db
-    .select({ rawFile: sessions.rawFile })
+    .select({ rawFile: sessions.rawFile, setupPath: sessions.cloudImportSetupPath })
     .from(sessions)
-    .where(sql`${sessions.rawFile} IS NOT NULL`)
     .all();
   const referenced = new Set<string>();
-  for (const { rawFile } of rows) {
+  for (const { rawFile, setupPath } of rows) {
     if (rawFile != null) referenced.add(rawFile);
+    if (setupPath != null) referenced.add(setupPath);
   }
   return referenced;
 }
@@ -59,7 +58,7 @@ export async function listSessionCaptureFiles(): Promise<string[]> {
       continue;
     }
     for (const file of await readdir(dirPath)) {
-      if (file.endsWith(".bin") || file.endsWith(".bin.gz") || file.endsWith(".motec.zip")) {
+      if (file.endsWith(".bin") || file.endsWith(".bin.gz") || file.endsWith(".motec.zip") || /^cloud-[0-9a-f-]{36}\.setup$/.test(file)) {
         captureFiles.push(join(dirPath, file));
       }
     }

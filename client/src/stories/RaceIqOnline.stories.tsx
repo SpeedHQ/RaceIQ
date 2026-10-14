@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { OnlineErrorCode, OnlineLeaderboard, OnlineState } from "@raceiq/shared/integrations/raceiq-online";
+import type { OnlineErrorCode, OnlineLeaderboard, OnlineState } from "@raceiq/online/contracts";
 import { RaceIqOnlineProvider } from "../hooks/raceiq-online";
 import { OnlineSection } from "../components/settings/OnlineSection";
 import { Settings } from "../components/settings/Settings";

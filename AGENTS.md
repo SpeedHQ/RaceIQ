@@ -19,6 +19,10 @@ may be stale or unavailable. Fall back to repository search when needed.
 
 Always run `bun run typecheck` before handing work back to user as complete.
 
+## Working with Effect
+
+Before adding, changing, debugging, or reviewing Effect-based code, read [Working with Effect](docs/contributing/effect.md) and the relevant [Effect Solutions](https://www.effect.solutions/quick-start) topics. Target the repository's pinned Effect v4 APIs; verify version-specific behavior against upstream references and preserve existing subsystem boundaries.
+
 ## Commands
 
 ```bash

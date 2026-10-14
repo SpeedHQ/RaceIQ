@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { LeaderboardInput, OnlineErrorCode } from "@raceiq/shared/integrations/raceiq-online";
+import type { LeaderboardInput, OnlineErrorCode } from "@raceiq/online/contracts";
 import { useOnlineLeaderboard, useRaceIqOnline } from "@/hooks/raceiq-online";
 import { onlineErrorMessage } from "@/components/online/messages";
 import { OnlineTransportFailure } from "@/lib/raceiq-online";
 import { getLocale } from "@/paraglide/runtime";
-
+import { useCloudLapImport, startCloudLapImport, retryCloudLapImport, cloudImportStatusMessage } from "@/hooks/cloud-lap-import";
 const errorMessage = (code: OnlineErrorCode) => {
   switch (code) {
     case "unsupported_game": return m.online_community_laps_unknown_game();
@@ -24,6 +24,9 @@ export function OnlineCommunityLaps({ gameId, trackId, carId }: { gameId: string
   const online = useRaceIqOnline();
   const input: LeaderboardInput | null = gameId && trackId && carId ? { gameId, trackId, carId } : null;
   const query = useOnlineLeaderboard(input);
+  const importQuery = useCloudLapImport();
+  const importingLap = ["awaiting_sign_in", "downloading", "validating", "registering"].includes(importQuery.data?.status ?? "");
+  const [openError, setOpenError] = useState<string | null>(null);
   const retryAfter = query.data?.error?.retryAfter;
   const [retryDelayElapsed, setRetryDelayElapsed] = useState(true);
   useEffect(() => {
@@ -56,35 +59,31 @@ export function OnlineCommunityLaps({ gameId, trackId, carId }: { gameId: string
   const canRetry = retryAllowed && retryDelayElapsed && (!retryAt || Date.now() >= retryAt);
   const staleRows = board?.rows.length ? board.rows : [];
   const errorText = error ? errorMessage(error.code) : transportFailure ? m.online_transport_error() : null;
-
-  return (
-    <section aria-label={m.online_community_laps_title()} aria-live="polite" className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <h2 className="px-3 pt-3 text-app-detail font-semibold text-app-text">{m.online_onboarding_title()}</h2>
-      {online.state?.service === "offline" && <p className="px-3 pt-3 text-sm text-app-text-dim">{m.online_community_laps_offline()}</p>}
-      {online.state?.service === "unavailable" && <p className="px-3 pt-3 text-sm text-app-text-dim">{m.online_community_laps_unavailable()}</p>}
-      {online.accountHidden && <p role="status" className="p-4 text-sm text-app-text-dim">{online.signOutPending ? m.online_signout_pending() : m.online_signout_unknown()}</p>}
-      {query.isPending && !board && !online.accountHidden && !transportFailure && <p className="p-4 text-sm text-app-text-dim">{m.online_community_laps_loading()}</p>}
-      {errorText && <div role="alert" className="flex flex-wrap items-center gap-2 p-3 text-sm text-app-text-dim">
-        <span>{errorText}</span>
-        {canRetry && <Button type="button" variant="outline" size="sm" onClick={() => void query.refetch()}>{m.online_community_laps_retry()}</Button>}
-      </div>}
-      {board?.stale && staleRows.length > 0 && board.fetchedAt && <p className="px-3 pb-2 text-xs text-app-text-muted">{m.online_community_laps_stale({ timestamp: new Date(board.fetchedAt).toLocaleString(getLocale()) })}</p>}
-      {board?.status === "unavailable" && staleRows.length === 0 && !errorText && <p className="p-4 text-sm text-app-text-dim">{m.online_community_laps_unavailable()}</p>}
-      {board?.status === "empty" && <p className="p-4 text-sm text-app-text-dim">{m.online_community_laps_empty()}</p>}
-      {staleRows.length > 0 && <div className="min-h-0 flex-1 overflow-auto">
-        <Table className="w-full text-app-detail [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-app-surface [&_thead>tr]:border-b [&_thead>tr]:border-app-border [&_thead>tr]:text-app-label [&_thead>tr]:uppercase [&_thead>tr]:tracking-wider [&_thead>tr]:text-app-text-muted [&_tbody]:divide-y [&_tbody]:divide-app-border/40">
-          <TableHeader><TableRow><TableHead>{m.online_community_laps_rank()}</TableHead><TableHead>{m.online_community_laps_driver()}</TableHead><TableHead className="text-right">{m.online_community_laps_time()}</TableHead></TableRow></TableHeader>
-          <TableBody>{staleRows.map((row) => <TableRow key={row.lapId}>
-            <TableCell className="px-3 py-2 font-mono tabular-nums">{row.rank}</TableCell>
-            <TableCell className="max-w-64 whitespace-normal break-words px-3 py-2 font-semibold text-app-text">{row.driver.displayName}</TableCell>
-            <TableCell className="px-3 py-2 text-right font-mono tabular-nums text-app-accent">{formatMilliseconds(row.lapTimeMs)}</TableCell>
-          </TableRow>)}</TableBody>
-        </Table>
-      </div>}
-    </section>
-  );
+  const importState = importQuery.data;
+  return <section aria-label={m.online_community_laps_title()} aria-live="polite" className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <h2 className="px-3 pt-3 text-app-detail font-semibold text-app-text">{m.online_onboarding_title()}</h2>
+    {online.state?.service === "offline" && <p className="px-3 pt-3 text-sm text-app-text-dim">{m.online_community_laps_offline()}</p>}
+    {online.state?.service === "unavailable" && <p className="px-3 pt-3 text-sm text-app-text-dim">{m.online_community_laps_unavailable()}</p>}
+    {online.accountHidden && <p role="status" className="p-4 text-sm text-app-text-dim">{online.signOutPending ? m.online_signout_pending() : m.online_signout_unknown()}</p>}
+    {query.isPending && !board && !online.accountHidden && !transportFailure && <p className="p-4 text-sm text-app-text-dim">{m.online_community_laps_loading()}</p>}
+    {errorText && <div role="alert" className="flex flex-wrap items-center gap-2 p-3 text-sm text-app-text-dim"><span>{errorText}</span>{canRetry && <Button type="button" variant="outline" size="sm" onClick={() => void query.refetch()}>{m.online_community_laps_retry()}</Button>}</div>}
+    {importState && importState.status !== "idle" && <div role={importState.status === "error" ? "alert" : "status"} className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm text-app-text-dim">
+      <span>{cloudImportStatusMessage(importState)}</span>
+      {importState.status === "error" && importState.error?.retryable && <Button type="button" variant="outline" size="sm" onClick={() => { void retryCloudLapImport().catch(() => setOpenError(m.online_community_laps_import_error())); }}>{m.online_community_laps_retry()}</Button>}
+      {importState.status === "awaiting_sign_in" && <Button type="button" variant="outline" size="sm" onClick={() => void online.connect()}>{m.online_community_laps_sign_in_resume()}</Button>}
+      {importState.status === "error" && importState.error?.code === "auth_required" && <Button type="button" variant="outline" size="sm" onClick={() => void online.connect()}>{m.online_community_laps_sign_in_resume()}</Button>}
+      {importState.status === "error" && importState.error?.code === "recording_unavailable" && <Button type="button" variant="outline" size="sm" onClick={() => void query.refetch()}>{m.online_community_laps_refresh()}</Button>}
+      {importState.status === "error" && importState.error && !importState.error.retryable && importState.error.code !== "auth_required" && importState.error.code !== "recording_unavailable" && <span>{m.online_community_laps_import_invalid()}</span>}
+    </div>}
+    {openError && <p role="alert" className="px-3 py-2 text-sm text-status-danger">{openError}</p>}
+    {board?.stale && staleRows.length > 0 && board.fetchedAt && <p className="px-3 pb-2 text-xs text-app-text-muted">{m.online_community_laps_stale({ timestamp: new Date(board.fetchedAt).toLocaleString(getLocale()) })}</p>}
+    {(board?.status === "unavailable" || board?.status === "empty") && staleRows.length === 0 && <div className="flex items-center gap-2 p-4 text-sm text-app-text-dim"><span>{board.status === "empty" ? m.online_community_laps_empty() : m.online_community_laps_unavailable()}</span>{board.status === "unavailable" && <Button type="button" variant="outline" size="sm" onClick={() => void query.refetch()}>{m.online_community_laps_retry()}</Button>}</div>}
+    {staleRows.length > 0 && <div className="min-h-0 flex-1 overflow-auto"><Table className="w-full text-app-detail [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-app-surface [&_thead>tr]:border-b [&_thead>tr]:border-app-border [&_thead>tr]:text-app-label [&_thead>tr]:uppercase [&_thead>tr]:tracking-wider [&_thead>tr]:text-app-text-muted [&_tbody]:divide-y [&_tbody]:divide-app-border/40">
+      <TableHeader><TableRow><TableHead>{m.online_community_laps_rank()}</TableHead><TableHead>{m.online_community_laps_driver()}</TableHead><TableHead className="text-right">{m.online_community_laps_time()}</TableHead><TableHead className="text-right">{m.online_community_laps_action()}</TableHead></TableRow></TableHeader>
+      <TableBody>{staleRows.map((row) => <TableRow key={row.lapId}><TableCell className="px-3 py-2 font-mono tabular-nums">{row.rank}</TableCell><TableCell className="max-w-64 whitespace-normal break-words px-3 py-2 font-semibold text-app-text">{row.driver.displayName}</TableCell><TableCell className="px-3 py-2 text-right font-mono tabular-nums text-app-accent">{formatMilliseconds(row.lapTimeMs)}</TableCell><TableCell className="px-3 py-2 text-right">{row.importAvailable && <Button type="button" variant="outline" size="sm" disabled={importingLap} onClick={() => { setOpenError(null); void startCloudLapImport(row.lapId).catch(() => { setOpenError(m.online_community_laps_import_error()); void query.refetch(); }); }}>{m.online_community_laps_open_lap()}</Button>}</TableCell></TableRow>)}</TableBody>
+    </Table></div>}
+  </section>;
 }
-
 function formatMilliseconds(value: number): string {
   const minutes = Math.floor(value / 60_000);
   const seconds = (value % 60_000) / 1_000;

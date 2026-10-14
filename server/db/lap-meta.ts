@@ -37,6 +37,9 @@ type StoredLapMetaRow = {
   isFavorite?: boolean | number | null;
   telemetryAvailable?: boolean | number | null;
   ownership?: string | null;
+  sourceAuthorDisplayName?: string | null;
+  sourceAuthorUserId?: string | null;
+  recordedAt?: string | null;
 };
 /** Normalize nullable SQLite fields into the public LapMeta representation. */
 export function toLapMeta(row: StoredLapMetaRow): LapMeta {
@@ -108,7 +111,7 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
     tuneName: tuneName ?? undefined,
     gameId: gameId as GameId,
     sectorTimes: sectorTimes ?? undefined,
-    source: (source as "motec" | null) ?? null,
+    source: (source as "motec" | "cloud-import" | null) ?? null,
     ownership: ownership === "others" ? "others" : "mine",
     experimentId: experimentId ?? null,
     experimentVersionId: experimentVersionId ?? null,

@@ -17,7 +17,7 @@
         "@mastra/evals": "^1.10.2",
         "@mastra/libsql": "^1.23.0",
         "@mastra/memory": "^1.30.0",
-        "@speedhq/live-client": "0.1.9",
+        "@speedhq/live-client": "0.1.13",
         "ai": "7.0.105",
         "drizzle-orm": "^0.45.2",
         "fflate": "^0.8.3",
@@ -76,7 +76,6 @@
         "@mastra/observability": "^1.17.8",
         "@raceiq/analysis-core": "workspace:*",
         "@raceiq/backend-core": "workspace:*",
-        "@raceiq/capture-formats": "workspace:*",
         "@raceiq/game-ac-evo": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-acc": "workspace:*",
@@ -90,6 +89,7 @@
         "@raceiq/game-iracing-metadata": "workspace:*",
         "@raceiq/game-lmu": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/online": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
         "@raceiq/tooling-catalog": "workspace:*",
@@ -122,6 +122,7 @@
         "@raceiq/frontend-pure": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/online": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
         "@raceiq/tooling-data": "workspace:*",
         "@raceiq/tooling-ui": "workspace:*",
@@ -333,6 +334,21 @@
         "@raceiq/shared": "workspace:*",
       },
     },
+    "packages/online": {
+      "name": "@raceiq/online",
+      "dependencies": {
+        "@effect/sql-sqlite-bun": "4.0.4",
+        "@libsql/client": "^0.18.0",
+        "@raceiq/game-ac-evo-metadata": "workspace:*",
+        "@raceiq/game-acc-metadata": "workspace:*",
+        "@raceiq/game-f1-2025-metadata": "workspace:*",
+        "@raceiq/game-iracing-metadata": "workspace:*",
+        "@raceiq/game-lmu-metadata": "workspace:*",
+        "@speedhq/live-client": "0.1.13",
+        "effect": "4.0.4",
+        "zod": "^4.6.5",
+      },
+    },
     "packages/telemetry-core": {
       "name": "@raceiq/telemetry-core",
       "dependencies": {
@@ -459,16 +475,17 @@
         "@mastra/core": "^1.67.0",
         "@mastra/libsql": "^1.23.0",
         "@mastra/memory": "^1.30.0",
-        "@raceiq/analysis-core": "workspace:*",
-        "@raceiq/capture-formats": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
+        "@raceiq/game-acc-metadata": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
+        "@raceiq/game-f1-2025-metadata": "workspace:*",
         "@raceiq/game-fm-2023-metadata": "workspace:*",
         "@raceiq/game-iracing-metadata": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/online": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
-        "@speedhq/live-client": "0.1.9",
+        "@speedhq/live-client": "0.1.13",
         "ai": "7.0.105",
         "drizzle-orm": "^0.45.2",
         "fflate": "^0.8.3",
@@ -650,6 +667,8 @@
     "@duckdb/node-bindings-win32-arm64": ["@duckdb/node-bindings-win32-arm64@1.5.2-r.2", "", { "os": "win32", "cpu": "arm64" }, "sha512-g5ZWK07c0Qh7UFhJC37iC5y8oW8ZqxEgpNM2vTFD3ShM9Rn1NDXkxA7zjcheHRI+My5T1JpE9kNpCvhzItJrgw=="],
 
     "@duckdb/node-bindings-win32-x64": ["@duckdb/node-bindings-win32-x64@1.5.2-r.2", "", { "os": "win32", "cpu": "x64" }, "sha512-VUMbdeXQHWKHEXVWtfVaOSu7Mb4jR9gT56Yzu9FHyLyP9ogY/D6wpeohY5gAHZS9PHQGGq24qRtCn5g6vUolqA=="],
+
+    "@effect/sql-sqlite-bun": ["@effect/sql-sqlite-bun@4.0.4", "", { "peerDependencies": { "effect": "^4.0.4" } }, "sha512-Ae1qfvi7t7xmuP8EmuwgJ8IINNcgy7caF9dNndBYGOlKeuBTub8xeHnP16nZRhUyn2/h42oB3uyP/trSdaRlIQ=="],
 
     "@emnapi/core": ["@emnapi/core@1.9.2", "", { "dependencies": { "@emnapi/wasi-threads": "1.2.1", "tslib": "^2.4.0" } }, "sha512-UC+ZhH3XtczQYfOlu3lNEkdW/p4dsJ1r/bP7H8+rhao3TTTMO1ATq/4DdIi23XuGoFY+Cz0JmCbdVl0hz9jZcA=="],
 
@@ -1169,6 +1188,8 @@
 
     "@raceiq/game-lmu-metadata": ["@raceiq/game-lmu-metadata@workspace:packages/game-lmu-metadata"],
 
+    "@raceiq/online": ["@raceiq/online@workspace:packages/online"],
+
     "@raceiq/shared": ["@raceiq/shared@workspace:shared"],
 
     "@raceiq/telemetry-core": ["@raceiq/telemetry-core@workspace:packages/telemetry-core"],
@@ -1391,7 +1412,7 @@
 
     "@solid-primitives/utils": ["@solid-primitives/utils@6.4.1", "", { "peerDependencies": { "solid-js": "^1.6.12" } }, "sha512-ISSB5QX1qP2ynrheIpYwc4oKR5Ny4siNuUyf1qZniy+Il+p/PtDB0QK1Dnle8noiHpwRD3gpPdubOC3qI/Zamg=="],
 
-    "@speedhq/live-client": ["@speedhq/live-client@0.1.9", "", {}, "sha512-1366vTeJOEIBc7McHnJhvZo9LTanC7htNBUxH847WuRSHLjWtbk8A8J+hOkIfA7vDTGY72AuIsTvAwJbgQB7tQ=="],
+    "@speedhq/live-client": ["@speedhq/live-client@0.1.13", "", {}, "sha512-nqcHYh2koJDb4kvpe+Gqwmz/W/fs99F+at/R+rDgRK4bdkS/uNLuriWNB6v/pcj+GK+nXzIc5QEHxpdvFsfS7w=="],
 
     "@standard-community/standard-json": ["@standard-community/standard-json@0.3.6", "", { "dependencies": { "quansync": "^0.2.11" }, "peerDependencies": { "@standard-schema/spec": "^1.0.0", "@types/json-schema": "^7.0.15", "@valibot/to-json-schema": "^1.3.0", "arktype": "^2.1.20", "effect": "^3.20.0", "sury": "^10.0.0", "typebox": "^1.0.17", "valibot": "^1.4.2", "zod": "^3.25.0 || ^4.0.0", "zod-to-json-schema": "^3.24.5" }, "optionalPeers": ["@valibot/to-json-schema", "arktype", "effect", "sury", "typebox", "valibot", "zod", "zod-to-json-schema"] }, "sha512-tuXKz1Ps4al0W4xhfwii7v4lskKtOv3QE7mcouRVThrBdOR6JzY4Vea3nsxcEnte84bOJvMvXGmOMWE3IBbHyA=="],
 
@@ -1878,6 +1899,8 @@
     "dunder-proto": ["dunder-proto@1.0.1", "", { "dependencies": { "call-bind-apply-helpers": "^1.0.1", "es-errors": "^1.3.0", "gopd": "^1.2.0" } }, "sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A=="],
 
     "ee-first": ["ee-first@1.1.1", "", {}, "sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow=="],
+
+    "effect": ["effect@4.0.4", "", {}, "sha512-Sr50OeVSC3M5UkoUYUhFf3EULryhGaZZUf6OzDHTvaznOw7HRlxOKdF3/4nvQXHL22StOyMG3Cvo8Bt7xUp+Ng=="],
 
     "efrt": ["efrt@2.7.0", "", {}, "sha512-/RInbCy1d4P6Zdfa+TMVsf/ufZVotat5hCw3QXmWtjU+3pFEOvOQ7ibo3aIxyCJw2leIeAMjmPj+1SLJiCpdrQ=="],
 

@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { resolveDataDir } from "../runtime/config/data-dir";
+import { resolveOnlineDataDir } from "./runtime";
 
 const PreferencesSchema = z.object({ visibility: z.enum(["private", "public"]), setupUploads: z.boolean() }).strict();
 const AccountProfileSchema = z.object({ userId: z.string().min(1), displayName: z.string(), avatarUrl: z.string().nullable(), discordUsername: z.string().min(1).nullable().optional() }).strict();
@@ -26,7 +26,7 @@ function initial(): PersistedOnlineState {
 
 export class OnlineStateStorage {
   private readonly path: string;
-  constructor(dataDir = resolveDataDir()) { this.path = join(dataDir, "raceiq-online-state.db"); }
+  constructor(dataDir = resolveOnlineDataDir()) { this.path = join(dataDir, "raceiq-online-state.db"); }
 
   private open() {
     mkdirSync(dirname(this.path), { recursive: true });

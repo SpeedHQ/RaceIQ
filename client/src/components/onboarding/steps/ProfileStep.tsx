@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { OnlineCommandResult, OnlineState } from "@raceiq/shared/integrations/raceiq-online";
+import type { OnlineCommandResult, OnlineState } from "@raceiq/online/contracts";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSaveSettings, useSettings } from "@/hooks/settings";

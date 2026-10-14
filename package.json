@@ -96,7 +96,7 @@
     "@mastra/evals": "^1.10.2",
     "@mastra/libsql": "^1.23.0",
     "@mastra/memory": "^1.30.0",
-    "@speedhq/live-client": "0.1.9",
+    "@speedhq/live-client": "0.1.13",
     "ai": "7.0.105",
     "drizzle-orm": "^0.45.2",
     "fflate": "^0.8.3",

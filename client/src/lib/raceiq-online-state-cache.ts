@@ -1,4 +1,4 @@
-import type { OnlineState } from "@raceiq/shared/integrations/raceiq-online";
+import type { OnlineState } from "@raceiq/online/contracts";
 import { isOnlineState } from "./raceiq-online";
 
 const ONLINE_STATE_CACHE_KEY = "raceiq-online-state-v1";

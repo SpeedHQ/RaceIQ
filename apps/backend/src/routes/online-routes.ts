@@ -3,8 +3,8 @@ import { HTTPException } from "hono/http-exception";
 import { IS_DEV } from "@raceiq/backend-core/runtime/config/env";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import type { RaceIqOnlinePort, OnlineErrorCode, OnlineCommandResult } from "@raceiq/shared/integrations/raceiq-online";
-import { getOnlineService } from "@raceiq/backend-core/integrations/raceiq-online/service";
+import type { RaceIqOnlinePort, OnlineErrorCode, OnlineCommandResult } from "@raceiq/online/contracts";
+import { getOnlineService } from "../integrations/online";
 import { onlineAuthPage } from "./online-auth-page";
 
 const id = z.string().min(1).max(512);

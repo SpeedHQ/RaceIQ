@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { OnlineCommandResult, OnlineState } from "@raceiq/shared/integrations/raceiq-online";
+import type { OnlineCommandResult, OnlineState } from "@raceiq/online/contracts";
 import { clearOnlineStateCache, readOnlineStateCache, writeOnlineStateCache } from "../src/lib/raceiq-online-state-cache";
 import { isCurrentOnlineGeneration, isOnlineLeaderboard, isOnlineState, isOnlineStateRevisionCurrent, OnlineTransportFailure, receiveOnlineResponse } from "../src/lib/raceiq-online";
 
@@ -36,7 +36,7 @@ describe("RaceIQ Online DTO and response validation", () => {
   });
 
   it("validates board identities, integer lap fields, and status-row consistency", () => {
-    const board = { key: { gameId: "f1-2025", trackId: "track", carId: "car" }, status: "ready", rows: [{ rank: 1, lapId: "lap", driver: { userId: "public-user", displayName: "Driver", avatarUrl: null }, lapTimeMs: 91_234 }], fetchedAt: "2026-10-12T10:00:00Z", stale: false, error: null };
+    const board = { key: { gameId: "f1-2025", trackId: "track", carId: "car" }, status: "ready", rows: [{ rank: 1, lapId: "lap", driver: { userId: "public-user", displayName: "Driver", avatarUrl: null }, lapTimeMs: 91_234, importAvailable: true }], fetchedAt: "2026-10-12T10:00:00Z", stale: false, error: null };
     expect(isOnlineLeaderboard(board)).toBe(true);
     expect(isOnlineLeaderboard({ ...board, rows: [{ ...board.rows[0], rank: 1.5 }] })).toBe(false);
     expect(isOnlineLeaderboard({ ...board, rows: [], status: "ready" })).toBe(false);

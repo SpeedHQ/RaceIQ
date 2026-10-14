@@ -63,6 +63,7 @@
     "@raceiq/game-lmu-metadata": "workspace:*",
     "@raceiq/game-catalogs": "workspace:*",
     "@raceiq/analysis-core": "workspace:*",
+    "@raceiq/online": "workspace:*",
     "@raceiq/telemetry-core": "workspace:*",
     "@raceiq/frontend-pure": "workspace:*"
   },

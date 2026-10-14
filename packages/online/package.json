@@ -1,0 +1,38 @@
+{
+  "name": "@raceiq/online",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./contracts": "./src/contracts.ts",
+    "./service": "./src/service.ts",
+    "./adapter": "./src/adapter.ts",
+    "./coordinator": "./src/coordinator.ts",
+    "./sync-events": "./src/sync-events.ts",
+    "./payload": "./src/payload.ts",
+    "./selection": "./src/selection.ts",
+    "./identifiers": "./src/identifiers.ts",
+    "./outbox": "./src/outbox.ts",
+    "./upload-dispatch": "./src/upload-dispatch.ts",
+    "./state-storage": "./src/state-storage.ts",
+    "./outbox-storage": "./src/outbox-storage.ts",
+    "./runtime": "./src/runtime.ts"
+  },
+  "scripts": {
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/online",
+    "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/online",
+    "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/online"
+  },
+  "dependencies": {
+    "@effect/sql-sqlite-bun": "4.0.4",
+    "@libsql/client": "^0.18.0",
+    "@raceiq/game-ac-evo-metadata": "workspace:*",
+    "@raceiq/game-acc-metadata": "workspace:*",
+    "@raceiq/game-f1-2025-metadata": "workspace:*",
+    "@raceiq/game-iracing-metadata": "workspace:*",
+    "@raceiq/game-lmu-metadata": "workspace:*",
+    "@speedhq/live-client": "0.1.13",
+    "effect": "4.0.4",
+    "zod": "^4.6.5"
+  }
+}

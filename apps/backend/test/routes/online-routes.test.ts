@@ -3,11 +3,11 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createOnlineRoutes, type OnlineRoutes } from "../../src/routes/online-routes";
-import { createRaceIqOnlineService } from "@raceiq/backend-core/integrations/raceiq-online/service";
-import { OnlineStateStorage } from "@raceiq/backend-core/db/online-state-storage";
-import { OnlineAdapterError } from "@raceiq/backend-core/integrations/raceiq-online/adapter";
-import type { OnlineState, OnlineCommandResult } from "@raceiq/shared/integrations/raceiq-online";
-import { createRaceIqOnlineAdapter } from "@raceiq/backend-core/integrations/raceiq-online/adapter";
+import { createRaceIqOnlineService } from "@raceiq/online/service";
+import { OnlineStateStorage } from "@raceiq/online/state-storage";
+import { OnlineAdapterError } from "@raceiq/online/adapter";
+import type { OnlineState, OnlineCommandResult } from "@raceiq/online/contracts";
+import { createRaceIqOnlineAdapter } from "@raceiq/online/adapter";
 
 const directories: string[] = [];
 afterEach(() => { for (const path of directories.splice(0)) rmSync(path, { recursive: true, force: true }); });

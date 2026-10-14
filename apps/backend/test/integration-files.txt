@@ -89,6 +89,7 @@ apps/backend/test/race-results/race-results-storage.test.ts
 apps/backend/test/race-results/raw-capture-identity.test.ts
 apps/backend/test/routes/capture-migration-consent.test.ts
 apps/backend/test/routes/car-routes-game-id.test.ts
+apps/backend/test/routes/cloud-lap-import-controller.test.ts
 apps/backend/test/routes/diagnostics-routes.test.ts
 apps/backend/test/routes/import-ownership.test.ts
 apps/backend/test/routes/lap-analysis-integration.test.ts
@@ -97,6 +98,7 @@ apps/backend/test/routes/laps-issues-route.test.ts
 apps/backend/test/routes/lmu-string-identity.test.ts
 apps/backend/test/routes/online-routes.test.ts
 apps/backend/test/routes/online-auth.test.ts
+apps/backend/test/routes/online-queue-status.test.ts
 apps/backend/test/routes/place-setup-sanitise.test.ts
 apps/backend/test/routes/recording-support.test.ts
 apps/backend/test/routes/runtime-features.test.ts
@@ -136,6 +138,7 @@ apps/backend/test/session-capture/session-cleanup.test.ts
 apps/backend/test/session-capture/session-compressor.test.ts
 apps/backend/test/session-capture/session-recorder.test.ts
 apps/backend/test/session-capture/source-loader-stream.test.ts
+apps/backend/test/session-capture/cloud-lap-import.test.ts
 apps/backend/test/setups/ac-evo/carsetup-file-io.test.ts
 apps/backend/test/setups/ac-evo/place-setup-carsetup.test.ts
 apps/backend/test/setups/ac-evo/setup-file-formats.test.ts

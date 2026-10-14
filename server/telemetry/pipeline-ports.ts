@@ -28,6 +28,7 @@ import { SessionRecorder } from "@raceiq/capture-formats/session/recorder";
 import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { timestampForFilename } from "../session-capture/filename";
+import { notifyOnlineSync } from "@raceiq/online/sync-events";
 
 export function currentTelemetryVersionIdentity(gameId: GameId): TelemetryVersionIdentity {
   return {
@@ -176,6 +177,7 @@ export class RealDbAdapter implements DbAdapter {
     const scope = this.sessionScopes.get(sessionId);
     const lapId = await insertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity ?? scope?.versionIdentity);
     if (scope && this.options.notifyDriverProfile !== false) notifyDriverProfileLap(scope.gameId);
+    notifyOnlineSync();
     return lapId;
   }
   async deleteLap(lapId: number): Promise<void> {
@@ -193,6 +195,7 @@ export class RealDbAdapter implements DbAdapter {
   async updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string, sparseCapture = false): Promise<void> {
     await updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
     if (sparseCapture) await markSessionCaptureFormatCurrent(sessionId);
+    notifyOnlineSync();
   }
   async updateSessionCarTrack(sessionId: number, carId: string, trackId: string): Promise<void> {
     await updateSessionCarTrack(sessionId, carId, trackId);
@@ -365,7 +368,10 @@ export class RealSessionRecorderAdapter implements SessionRecorderAdapter {
   async stop(): Promise<void> {
     const inner = this._inner;
     this._inner = null;
-    if (inner) await inner.stop();
+    if (inner) {
+      await inner.stop();
+      notifyOnlineSync();
+    }
   }
 }
 
@@ -395,7 +401,10 @@ export class SparseSessionRecorderAdapter implements SessionRecorderAdapter {
   async stop(): Promise<void> {
     const recorder = this.inner;
     this.inner = null;
-    if (recorder) await recorder.stop();
+    if (recorder) {
+      await recorder.stop();
+      notifyOnlineSync();
+    }
   }
 }
 

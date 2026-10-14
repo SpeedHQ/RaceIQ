@@ -1,4 +1,8 @@
 export type OnlineVisibility = "private" | "public";
+export interface OnlineKeystore {
+  getSecret(key: string): Promise<string>;
+  setSecret(key: string, value: string): Promise<void>;
+}
 export type OnlinePreferences = { visibility: OnlineVisibility; setupUploads: boolean };
 export type PolicyVersions = { termsVersion: string; privacyVersion: string };
 export type OnlineErrorCode =
@@ -79,6 +83,7 @@ export type OnlineLeaderboardRow = {
   lapId: string;
   driver: { userId: string; displayName: string; avatarUrl: string | null };
   lapTimeMs: number;
+  importAvailable: boolean;
 };
 export type OnlineLeaderboard = {
   key: LeaderboardInput;

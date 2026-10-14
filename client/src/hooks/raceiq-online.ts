@@ -1,7 +1,7 @@
 import { raceIqAuthConfig } from "@speedhq/live-client";
 import { createContext, createElement, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
 import { CancelledError, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import type { CancelSignInInput, ConnectInput, ConnectResult, ConsentInput, DisplayNameInput, LeaderboardInput, OnlineCommandResult, OnlineError, OnlineLeaderboard, OnlineMutationContext, OnlinePreferences, OnlineState, RaceIqOnlinePort } from "@raceiq/shared/integrations/raceiq-online";
+import type { CancelSignInInput, ConnectInput, ConnectResult, ConsentInput, DisplayNameInput, LeaderboardInput, OnlineCommandResult, OnlineError, OnlineLeaderboard, OnlineMutationContext, OnlinePreferences, OnlineState, RaceIqOnlinePort } from "@raceiq/online/contracts";
 import { clearOnlineStateCache, readOnlineStateCache, writeOnlineStateCache } from "../lib/raceiq-online-state-cache";
 import { isCurrentOnlineGeneration, isOnlineStateRevisionCurrent, OnlineTransportFailure, raceIqOnlinePort } from "../lib/raceiq-online";
 import { queryKeys } from "./query-keys";

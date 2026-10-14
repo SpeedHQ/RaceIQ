@@ -115,9 +115,22 @@ export const sessions = sqliteTable(
 		resolverVersion: text("resolver_version"),
 		derivationVersion: text("derivation_version"),
 		captureFormatVersion: integer("capture_format_version"),
+		// Cloud lap imports retain archive attribution independently of local account.
+		sourceAuthorUserId: text("source_author_user_id"),
+		sourceAuthorDisplayName: text("source_author_display_name"),
+		cloudImportOrigin: text("cloud_import_origin"),
+		cloudImportLapId: text("cloud_import_lap_id"),
+		cloudImportSessionKey: integer("cloud_import_session_key"),
+		cloudImportSessionUid: text("cloud_import_session_uid"),
+		cloudImportSourceLapIndex: integer("cloud_import_source_lap_index"),
+		cloudImportSourceSessionKey: integer("cloud_import_source_session_key"),
+		sourceFrameFormat: text("source_frame_format"),
+		sourceFrameVersion: text("source_frame_version"),
+		cloudImportSetupPath: text("cloud_import_setup_path"),
+		cloudImportSetupFileName: text("cloud_import_setup_file_name"),
 		// How this session's telemetry was obtained (migration v43). NULL = recorded
 		// live from the game. 'motec' = transcoded from a MoTeC .ld export, where the
-		// racing line is dead-reckoned rather than logged — see server/motec/.
+		// racing line is dead-reckoned rather than logged — see MOTEC_IMPORT_LIMITATIONS.
 		source: text("source"),
 		ownership: text("ownership").$type<SessionOwnership>().notNull().default("mine"),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
@@ -125,6 +138,7 @@ export const sessions = sqliteTable(
 	(table) => [
 		index("idx_sessions_game_car_id").on(table.gameId, table.carId),
 		index("idx_sessions_game_track_id").on(table.gameId, table.trackId),
+		uniqueIndex("idx_sessions_cloud_import").on(table.cloudImportOrigin, table.cloudImportLapId).where(sql`${table.cloudImportOrigin} IS NOT NULL`),
 	],
 );
 export const sessionResults = sqliteTable(
@@ -209,6 +223,8 @@ export const laps = sqliteTable(
 		// Ordered, source-defined sector times. Sector count is session/layout
 		// data and is deliberately not constrained to three (GitHub #134).
 		sectorTimes: text("sector_times", { mode: "json" }).$type<number[]>(),
+		totalTimeMs: integer("total_time_ms"),
+		sectorTimesMs: text("sector_times_ms", { mode: "json" }).$type<number[]>(),
 		rawByteOffset: integer("raw_byte_offset"),
 		rawFrameCount: integer("raw_frame_count"),
 		catalogVersion: text("catalog_version"),
@@ -242,6 +258,7 @@ export const laps = sqliteTable(
 		// (lazily filled on first read) or no usable telemetry channel.
 		fuelPerLap: real("fuel_per_lap"),
 		tyreWear: real("tyre_wear"),
+		recordedAt: text("recorded_at"),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(table) => ({

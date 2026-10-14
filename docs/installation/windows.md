@@ -14,6 +14,15 @@ New installations listen only on localhost and ask you to choose password protec
 
 Browser-origin whitelisting is off by default. Enable it in Access & security, or supply a nonempty `SERVER_ALLOWED_ORIGINS` environment setting. If enabled, include the exact external origin for MagicDNS, tunnel, or HUD hostname links. See [dashboard access and security](network-access.md) for configuration.
 
+## Open a RaceIQ Online lap
+
+In a track's **Community Laps** tab, select **Open lap** beside a downloadable result. RaceIQ downloads and registers that exact cloud-processed lap, then opens its replay. Imported laps retain the original driver's name and are kept separate from your own laps and personal-best statistics. An unavailable capture timestamp is shown as **Recording time unavailable**, not the upload time.
+
+The Windows installer registers the `raceiq://` protocol. A website's **Continue in RaceIQ** action can start the app or forward a selected lap to the running instance. The link contains only the selected recording URL; the app uses its own Online sign-in, never website credentials. If sign-in is required, the pending request resumes after you connect.
+
+Downloads show **Downloading**, **Validating**, and **Registering lap**. Transient failures offer retry; an unavailable recording offers a leaderboard refresh. Reopening the same cloud lap reuses its local import. Optional setup attachments are retained as opaque files and are never applied automatically.
+
+
 ## Manage password protection from the terminal
 
 From the directory containing `raceiq.exe`, recover a forgotten dashboard password:

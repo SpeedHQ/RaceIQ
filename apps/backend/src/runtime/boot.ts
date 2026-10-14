@@ -8,6 +8,7 @@ import { injectDiscoveredLMUIdentity } from "@raceiq/game-lmu-metadata/index";
 import app from "../routes/index";
 import { initServerGameAdapters } from "../games/init";
 import { initDb, DB_PATH, client } from "@raceiq/backend-core/db/index";
+import { recoverCloudLapImports } from "@raceiq/backend-core/session-capture/cloud-lap-import";
 import { listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
 import { hydrateDiscoveredAcEvoTracks, listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
 import { setCacheMaxBytes } from "@raceiq/backend-core/db/telemetry-replay-storage";
@@ -21,6 +22,8 @@ import { clearHttpPort, startHttpServer } from "./http-server";
 import { startNativeSourceSupervisor, type NativeSourceSupervisor } from "./native-sources";
 import { installShutdown } from "./shutdown";
 import { startStartupWorker, type StartupWorkerHandle } from "./startup-worker";
+import { startOnlineUploadCoordinator, type OnlineUploadCoordinator } from "@raceiq/online/coordinator";
+import { getOnlineService } from "../integrations/online";
 import { startMaintenanceJobs, startSyncAndStaleSessionJobs } from "./startup-jobs";
 import { setDashboardPublicationNotifier } from "@raceiq/backend-core/db/dashboard-summary-queries";
 import { startTray } from "@raceiq/backend-core/runtime/platform/tray";
@@ -40,6 +43,7 @@ export interface RunningServer {
   httpServer: Bun.Server<WSData>;
   httpPort: number;
   udpPort: number;
+  dashboardUrl: string;
 }
 
 function recordingGameIdFromArgs(args: readonly string[]): string | null {
@@ -74,6 +78,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   }
 
   await initDb();
+  await recoverCloudLapImports();
   const auth = await DashboardAuth.create(client, DB_PATH, process.env);
   await auth.initialize(upgradingAccess);
   setDashboardAuth(auth);
@@ -125,9 +130,11 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
 
   let nativeSources: NativeSourceSupervisor | null = null;
   let startupWorker: StartupWorkerHandle | null = null;
+  let onlineUploadCoordinator: OnlineUploadCoordinator | null = null;
   installShutdown({
     getNativeSources: () => nativeSources,
     getStartupWorker: () => startupWorker,
+    getOnlineUploadCoordinator: () => onlineUploadCoordinator,
     clearDashboardPublicationNotifications: () => {
       setDashboardPublicationNotifier(null);
       wsManager.clearDashboardUpdateNotification();
@@ -144,6 +151,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   void udpListener.start(udpPort);
 
   startSyncAndStaleSessionJobs();
+  onlineUploadCoordinator = startOnlineUploadCoordinator(getOnlineService());
 
   nativeSources = startNativeSourceSupervisor(recordingGameId);
   const trayCandidates = httpAccess.hosts
@@ -163,5 +171,5 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   console.log("[Server] RaceIQ Server is ready!");
   console.log(`[Server] Listening for UDP on port ${udpPort}`);
 
-  return { httpServer, httpPort, udpPort };
+  return { httpServer, httpPort, udpPort, dashboardUrl: trayUrl };
 }

@@ -3,22 +3,26 @@ import { stopSessionCompressor } from "@raceiq/backend-core/session-capture/comp
 import { udpListener } from "./udp-listener";
 import type { NativeSourceSupervisor } from "./native-sources";
 import type { StartupWorkerHandle } from "./startup-worker";
+import type { OnlineUploadCoordinator } from "@raceiq/online/coordinator";
 
 export interface ShutdownOptions {
   getNativeSources(): NativeSourceSupervisor | null;
   getStartupWorker(): StartupWorkerHandle | null;
+  getOnlineUploadCoordinator(): OnlineUploadCoordinator | null;
   clearDashboardPublicationNotifications(): void;
 }
 
 export function installShutdown({
   getNativeSources,
   getStartupWorker,
+  getOnlineUploadCoordinator,
   clearDashboardPublicationNotifications,
 }: ShutdownOptions): void {
   const gracefulShutdown = async (signal: NodeJS.Signals) => {
     console.log(`[Server] Received ${signal} — flushing session recorder...`);
     stopSessionCompressor();
     try {
+      await getOnlineUploadCoordinator()?.stop();
       const ingressStops: Promise<unknown>[] = [udpListener.stop()];
       const nativeSources = getNativeSources();
       if (nativeSources) ingressStops.push(nativeSources.stop());

@@ -1,4 +1,4 @@
-import type { OnlineErrorCode } from "@raceiq/shared/integrations/raceiq-online";
+import type { OnlineErrorCode } from "@raceiq/online/contracts";
 import { m } from "@/paraglide/messages";
 
 const errorMessages: Record<OnlineErrorCode, () => string> = {

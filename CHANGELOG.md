@@ -1,5 +1,7 @@
 ## Unreleased
 ### Feature
+- Open downloadable Community Laps directly in RaceIQ for replay and comparison, with the original driver's name and recording time.
+- Open website lap links in the installed Windows app, resume downloads after sign-in, and reuse already imported laps.
 - New desktop and self-hosted installs restrict dashboard access to this computer until you select additional network interfaces.
 - Password-protected dashboards use a login screen and browser sessions; API clients must sign in and send the session cookie and a CSRF token for writes.
 - Use string car and track IDs across imports and integrations instead of ordinal fields. Existing sessions and setup links migrate automatically; downgrading requires restoring a pre-upgrade database backup.
@@ -21,6 +23,7 @@
 - Use your Discord-linked Online name as the onboarding placeholder; enter a new leaderboard display name or leave it blank to keep your current name. Offline names remain local.
 - Require public lap sharing for RaceIQ Online leaderboard integration in the app, encouraging drivers to share their fastest laps; website leaderboards remain available with sharing off.
 - Show your Discord account name and profile picture alongside your chosen leaderboard name in General settings.
+- Inspect Online upload status, queue counts, and the last successful sync time in a persistent Upload queue panel; distinguish stale cached status from live data when the backend is unreachable.
 
 
 - Browse enriched iRacing car, car-class, and track catalogs with official car images, offline pit-road maps, and grouped lap sections.
@@ -28,6 +31,10 @@
 - Show Nordschleife track edges along the supported portion of AC Evo Tourist routes without closing the Start/Finish gap.
 
 ### Fixes
+- Report Online queue counts and the last successful upload from durable account-owned outcomes, preserving sync history across restarts without advancing it after failures or status refreshes.
+- Keep cloud lap import polling off login and setup screens, and acknowledge opened laps so new dashboard tabs do not reopen old imports.
+- Reject malformed protocol links and truncated cloud recordings, isolate activation socket failures, and recover already accepted Online uploads.
+- Load RaceIQ Online leaderboards for the selected game, track, and car using your signed-in account.
 - Remember your Online policy acceptance on your account so signing in again does not ask you to accept unchanged terms.
 - Sync Online sharing preferences from your Live account after sign-in and during account refresh, without requiring you to save them again; keep unsaved privacy restrictions in place.
 - Use your Discord account display name in Online settings, keeping it separate from your editable leaderboard name.
@@ -89,9 +96,12 @@
 - Use suitable local network addresses for remote HUD links and let users choose an address when multiple adapters are available.
 
 ### Internal
+- Replace custom Online queue delivery with pinned Effect PersistedQueue and SQLite, retaining account-owned request identity and sync history; defer recording integration to the per-lap BIN producer.
+- Harden deferred Online upload delivery against pre-transfer interruptions and exhausted reconciliation retries; enforce queue capacity on outstanding work rather than lifetime upload history.
+- Extract RaceIQ Online contracts, account service, adapter, upload delivery and storage into a dedicated workspace with injected host dependencies and package-owned tests.
 - Isolate Online route-test credentials from the OS keystore so sign-out checks cannot remove saved account credentials.
-- Add the typed local RaceIQ Online API and durable fail-closed transfer boundaries; authenticated transfers remain disabled until service authentication, eligibility, recording sanitization, and replay contracts are verified.
-- Upgrade the RaceIQ Online client to `@speedhq/live-client@0.1.9` and use its documented Supabase desktop-auth contract and session-provided Discord account name.
+- Add the typed local RaceIQ Online API and durable fail-closed transfer boundaries; automatic uploads remain disabled until service eligibility and recording sanitization are verified.
+- Upgrade RaceIQ Online to `@speedhq/live-client@0.1.13`, including authenticated leaderboards, reserved-upload headers, and manifest-v2 lap imports.
 - Align RaceIQ Online with native car and track IDs, dashboard access setup, the libSQL storage driver, and current typed HTTP responses.
 - Include the privacy-safe iRacing SessionInfo path manifest in clean checkouts so CI can validate the telemetry catalog.
 - Add `bun clean` to remove repository-local development data without targeting custom `DATA_DIR` locations.
