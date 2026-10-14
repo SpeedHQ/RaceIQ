@@ -220,7 +220,8 @@ async function publish(source: string, target: string, digest: string): Promise<
     await chmod(temp, metadata.mode & 0o777);
     await utimes(temp, metadata.atime, metadata.mtime);
     if (await fileHash(source) !== digest || await fileHash(temp) !== digest) throw new Error("Copied recording failed verification");
-    const file = await open(temp, "r"); try { await file.sync(); } finally { await file.close(); }
+    // Windows requires write access when flushing file buffers.
+    const file = await open(temp, "r+"); try { await file.sync(); } finally { await file.close(); }
     await link(temp, target);
     try { const dir = await open(dirname(target), "r"); try { await dir.sync(); } finally { await dir.close(); } } catch { /* Directory fsync may be unsupported. */ }
   } finally { await unlink(temp).catch(() => undefined); }

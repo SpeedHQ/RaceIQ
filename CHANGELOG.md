@@ -22,6 +22,7 @@
 - Choose a recording folder, safely relocate existing recordings, and optionally migrate recordings into per-game `own` and `others` folders.
 
 ### Fixes
+- Restore migration of existing recordings into organized folders on Windows.
 - Keep experiment lap counts and review analysis tied to the selected test when importing historical laps or returning to an older setup, and preserve test membership during live updates.
 - Keep lap-chat follow-ups grounded in the selected lap and its latest analysis, use fresh telemetry for requested corner measurements, and preserve earlier driver notes without asking for internal lap identifiers.
 - Exclude running-start fragments from recorded lap replay and keep corner measurements and highlights aligned with the timed lap.
