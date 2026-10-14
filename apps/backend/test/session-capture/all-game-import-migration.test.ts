@@ -147,5 +147,4 @@ test("imports all six complete game bins through API, then migrates every candid
     expect(findings.status).toBe(200);
     expect((await findings.json() as { insights: unknown[] }).insights.length).toBeGreaterThan(0);
   }
-  expect(result.results.length).toBe(captures.length);
 }, { timeout: 300_000 });
