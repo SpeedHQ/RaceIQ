@@ -37,7 +37,7 @@ async function persistJournal(journal: Journal): Promise<void> {
     const handle = await open(temporary, "wx");
     try { await handle.writeFile(JSON.stringify(journal)); await handle.sync(); } finally { await handle.close(); }
     await rename(temporary, journalPath);
-    try { const directory = await open(dirname(journalPath), "r"); await directory.sync(); await directory.close(); } catch { /* Directory fsync is not supported on every platform. */ }
+    try { const directory = await open(dirname(journalPath), "r"); try { await directory.sync(); } finally { await directory.close(); } } catch { /* Directory fsync is not supported on every platform. */ }
   } catch (error) {
     await rm(temporary, { force: true });
     throw error;

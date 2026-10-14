@@ -24,6 +24,8 @@
 - Separate recordings into `<game>/own` for live telemetry and imports marked as yours, and `<game>/others` for imports marked as someone else's. Offer an optional, resumable migration for existing recordings in default or custom folders while preserving session history and folder relocation.
 
 ### Fixes
+- Close directory handles when directory syncing fails, preventing Windows file-handle leaks during recording migration and relocation.
+
 - Recover failed recording organization directly from setup, including after restarting the wizard, without changing the previously selected destination.
 - Preserve recordings during interrupted folder moves, failed imports, cleanup, and concurrent session deletion; retry safely after resolving conflicts.
 - Copy recording-folder paths on HTTP LAN dashboards, including when the Clipboard API is unavailable or denied.

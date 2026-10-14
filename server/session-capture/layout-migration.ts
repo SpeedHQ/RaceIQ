@@ -122,7 +122,7 @@ async function saveJournal(journal: Journal): Promise<void> {
   const handle = await open(temp, "wx", 0o600);
   try { await handle.writeFile(JSON.stringify(journal)); await handle.sync(); } finally { await handle.close(); }
   await rename(temp, journalFile);
-  try { const directory = await open(dirname(journalFile), "r"); await directory.sync(); await directory.close(); } catch { /* Directory sync unavailable on some platforms. */ }
+  try { const directory = await open(dirname(journalFile), "r"); try { await directory.sync(); } finally { await directory.close(); } } catch { /* Directory sync unavailable on some platforms. */ }
 }
 async function findLegacyFiles(root: string): Promise<string[]> {
   const knownGames = new Set<string>(getAllGames().map((game) => game.id));
