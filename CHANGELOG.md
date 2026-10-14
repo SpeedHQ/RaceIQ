@@ -71,6 +71,7 @@
 - Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.
 
 ### Internal
+- Update live iRacing browser checks to expect the Tires section to be absent in Driver and Pit Crew views.
 - Wait for dashboard metadata and loading panels to finish before generating the Home marketing screenshot.
 - Include the privacy-safe iRacing SessionInfo path manifest in clean checkouts so CI can validate the telemetry catalog.
 - Add `bun clean` to remove repository-local development data without targeting custom `DATA_DIR` locations.
