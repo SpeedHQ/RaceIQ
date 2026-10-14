@@ -24,6 +24,28 @@ import { useTelemetryStore } from "../stores/telemetry";
 import { gameIdForPathname } from "../lib/game-routes";
 import { uiStore, useUiStore } from "../stores/ui";
 import { GameRouteProvider, gameStore, usesStoreGameContext, useGameStore } from "../stores/game";
+function OverlayShell() {
+  useWebSocket();
+  const { displaySettings, settingsLoaded } = useSettings();
+  const settingsLanguage = displaySettings.language;
+
+  useEffect(() => {
+    if (!settingsLoaded || !settingsLanguage || !isLocale(settingsLanguage)) return;
+    if (getLocale() !== settingsLanguage) applyLocale(settingsLanguage);
+  }, [settingsLoaded, settingsLanguage]);
+
+  useLayoutEffect(() => {
+    document.documentElement.classList.add("overlay-source");
+    return () => document.documentElement.classList.remove("overlay-source");
+  }, []);
+
+  return <Outlet />;
+}
+
+function isOverlayPath(pathname: string) {
+  return pathname === "/overlay" || pathname === "/overlay/";
+}
+
 
 let _gamePrefixes: string[] | null = null;
 function getGamePrefixes() {
@@ -214,7 +236,7 @@ function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <GameRouteProvider value={gameId}>
         {auth.authenticated && <DashboardConnection />}
-        {pathname === "/login" || pathname === "/onboarding" ? <Outlet /> : <AppShell />}
+        {isOverlayPath(location.pathname) ? <OverlayShell /> : pathname === "/login" || pathname === "/onboarding" ? <Outlet /> : <AppShell />}
       </GameRouteProvider>
     </QueryClientProvider>
   );

@@ -53,7 +53,7 @@ Check out the [screenshots](assets/screenshots/) to see it in action.
 - **Track mapping and guides** — see your live position, map new tracks automatically, and use turn numbers, sectors, and track guides
 - **Race results** — review qualifying, podiums, fastest laps, pit stops, strategies, and position timelines
 - **Data portability** — import MoTeC logs and saved session captures; export individual laps or complete sessions
-- **Multi-game support** — use RaceIQ with Forza Motorsport 2023, F1 2025, Assetto Corsa Competizione, Assetto Corsa Evo, iRacing, and Le Mans Ultimate
+- **Streaming widgets** — transparent OBS and Streamlabs browser-source widgets for driving, inputs, timing, standings, nearby cars, damage, and distance driven
 
 ## Supported Games
 
