@@ -1,4 +1,8 @@
 ## Unreleased
+
+### Breaking
+- Legacy full-frame RaceIQ captures are no longer supported for import and replay. Ensure any remaining legacy recordings are migrated when prompted before updating.
+
 ### Feature
 - New desktop and self-hosted installs restrict dashboard access to this computer until you select additional network interfaces.
 - Password-protected dashboards use a login screen and browser sessions; API clients must sign in and send the session cookie and a CSRF token for writes.
@@ -8,15 +12,12 @@
 - Choose dashboard password protection during setup or in Access & security settings, sign in across devices, and recover a forgotten password from the terminal.
 - Select dashboard network interfaces and browser domains in Access & security settings without changing UDP telemetry reception.
 - Disable dashboard password protection from the terminal with an explicit exposure confirmation, without changing network access or recordings.
-
 - Add OBS streaming overlays in the Portable page for live driving, timing, standings, nearby race order, car damage (F1 25, ACC, AC Evo), brake/throttle inputs, and distance driven, with sample previews when telemetry is unavailable and copyable metric or imperial browser-source URLs.
 - Allow a saved hostname, including a Tailscale FQDN, for remote HUD links and QR codes.
 - Refresh the dashboard with cleaner session and favourite widgets, clean-rate and podium trends, and seven days of activity by default.
 - Export complete chat history as JSON for developer debugging, including retained chat generations, stored thinking, tool calls and results, and system prompts.
 - Optionally protect dashboard access with a password and configure trusted browser origins independently, while keeping existing local and remote access working without new settings.
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
-
-
 - Respect development onboarding overrides when deciding whether to show the setup wizard.
 - Remove saved network interfaces that are no longer available and replace them without losing other selections.
 - Allow development LAN dashboard origins on preserved all-interface listeners when browser-origin whitelisting is enabled.
@@ -79,6 +80,8 @@
 - Ban Bun's separate SQLite driver in repository lint and use libSQL for synchronous fixtures and tooling.
 - Preserve dashboard credentials and login sessions from earlier feature builds while applying identity and dashboard read-model migrations.
 - Limit CI test execution to two concurrent Turbo tasks and one Bun unit-test worker per task to reduce resource pressure on constrained runners.
+- Write seed-imported session captures in sparse canonical format.
+- Preserve raw-fixture developer playback and live UDP benchmarks; retain segment boundaries and acquisition timestamps during seed conversion.
 - Update browser coverage for dashboard periods, session analysis navigation, and persisted onboarding settings without relying on removed headings or recap buttons; enable feature-gated responsive routes in both fresh and seeded test servers.
 - Align responsive Analyse waits with replay readiness and keep session-table browser tests scoped to visible rows after expansion.
 - Report Paraglide development and production compilation stages, a 10-second elapsed-time heartbeat, and total build duration; preserve validated cache reuse.

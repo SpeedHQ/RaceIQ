@@ -19,9 +19,6 @@ function ReprocessStatusIcon({ status }: { status: "submitting" | "progressing" 
 
 export function StaleLapReprocessing() {
   const staleLapDetection = useTelemetryStore((state) => state.staleLapDetection);
-  const captureMigration = useTelemetryStore((state) => state.captureMigration);
-  const captureMigrationStatusReady = useTelemetryStore((state) => state.captureMigrationStatusReady);
-  const captureMigrationState = useTelemetryStore((state) => state.captureMigrationState);
   const reprocessState = useTelemetryStore((state) => state.reprocessState);
   const dismissReprocess = telemetryStore.actions.dismissReprocess;
 
@@ -43,9 +40,8 @@ export function StaleLapReprocessing() {
     }
   };
 
-  const migrationPending = Boolean(captureMigration?.captureCount) || captureMigrationState.status === "running";
-  const showNotification = captureMigrationStatusReady && !migrationPending && staleLapDetection && reprocessState.status === "idle";
-  const showDialog = captureMigrationStatusReady && !migrationPending && reprocessState.open;
+  const showNotification = Boolean(staleLapDetection) && reprocessState.status === "idle";
+  const showDialog = reprocessState.open;
   if (!showNotification && !showDialog) return null;
 
   const title =
@@ -61,7 +57,7 @@ export function StaleLapReprocessing() {
 
   return (
     <>
-      {showNotification && (
+      {showNotification && staleLapDetection && (
         <div role="status" className="fixed right-4 bottom-4 z-50 w-72 rounded-lg border border-status-info/30 bg-app-surface p-4 shadow-xl">
           <div className="mb-2 flex items-center gap-2">
             <RefreshCw aria-hidden="true" className="size-4 shrink-0 text-status-info" />

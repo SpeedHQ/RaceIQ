@@ -3,10 +3,9 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { GameIdQuerySchema, IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
 import { GameIdSchema } from "@raceiq/shared/games/ids";
-import { getSessions, deleteSession, updateSession, updateSessionCarTrack, countStaleSessions, getStaleSessions, getSessionRecapData, setSessionFavorite, getCaptureMigrationCandidates } from "@raceiq/backend-core/db/session-queries";
-import { getSessionResult, getStaleRaceResultSessionIds } from "@raceiq/backend-core/db/session-result-queries";
+import { getSessions, deleteSession, updateSession, updateSessionCarTrack, countStaleSessions, getStaleSessions, getSessionRecapData, setSessionFavorite } from "@raceiq/backend-core/db/session-queries";
 import { reprocessSession, SessionNotFoundError, SessionRawFileMissingError } from "@raceiq/backend-core/session-capture/reprocess";
-import { getCaptureMigrationProgress, migrateCaptures } from "@raceiq/backend-core/session-capture/migrate-captures";
+import { getSessionResult, getStaleRaceResultSessionIds } from "@raceiq/backend-core/db/session-result-queries";
 import { LAP_DETECTOR_ID } from "@raceiq/backend-core/lap-detection/detector";
 import { LAP_DETECTOR_ACC_ID } from "@raceiq/game-acc/lap-detector";
 import { LAP_DETECTOR_AC_EVO_ID } from "@raceiq/game-ac-evo/lap-detector";
@@ -29,27 +28,6 @@ import { isSessionIdentityInCatalog } from "../games/session-identity";
 const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID];
 
 export const sessionRoutes = new Hono()
-  .get("/api/sessions/capture-migration-status", async (c) => c.json({
-    ...await getCaptureMigrationCandidates(),
-    migrationProgress: getCaptureMigrationProgress(),
-  }))
-  .post("/api/sessions/migrate-captures", async (c) => {
-    const result = await migrateCaptures((done, total, progress) => {
-      wsManager.broadcastCaptureMigrationProgress({ done, total, status: progress.status, ...(progress.error ? { error: progress.error } : {}) });
-    });
-    const remaining = await getCaptureMigrationCandidates();
-    wsManager.setCaptureMigrationNotification(remaining.sessionCount, remaining.captureCount);
-    const progress = getCaptureMigrationProgress();
-    wsManager.broadcastCaptureMigrationProgress({
-      done: progress.done,
-      total: progress.total,
-      status: progress.status === "partial" ? "partial" : "success",
-      migrated: progress.migrated,
-      failed: progress.failed,
-      ...(progress.error ? { error: progress.error } : {}),
-    });
-    return c.json(result);
-  })
   .get("/api/sessions", zValidator("query", GameIdQuerySchema), async (c) => {
     const { gameId } = c.req.valid("query");
     return c.json(await getSessions(gameId));

@@ -7,7 +7,14 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame } from "@raceiq/capture-formats/session/framing";
+import {
+  encodeFrameLength,
+  encodeMetaFrame,
+  encodeSegmentBoundaryFrame,
+  encodeSegmentContextFrame,
+  encodeSegmentContextEndFrame,
+  encodeSparseCaptureFormatFrame,
+} from "@raceiq/capture-formats/session/framing";
 import { getRecordedElapsedSeconds } from "@raceiq/backend-core/session-capture/elapsed-duration";
 beforeAll(() => initServerGameAdapters(developmentReleaseFeatures));
 
@@ -35,6 +42,7 @@ test("recovers timestamped duration across segments while excluding context and 
       encodeMetaFrame(5), captureFrame(1_000), captureFrame(11_000),
       encodeSegmentBoundaryFrame(), encodeSegmentContextFrame(), captureFrame(99_000),
       encodeSegmentContextEndFrame(), captureFrame(200_000), captureFrame(205_000),
+      encodeSparseCaptureFormatFrame(),
     ]);
     const rawFile = join(directory, "session.bin.gz");
     writeFileSync(rawFile, gzipSync(capture));
@@ -68,6 +76,7 @@ test("prefers embedded LMU acquisition UTC over simulator elapsed clock", async 
     const last = lmuSourceFrame(1_790_112_004_402, 2);
     writeFileSync(rawFile, Buffer.concat([
       encodeMetaFrame(2), encodeFrameLength(first.length), first, encodeFrameLength(last.length), last,
+      encodeSparseCaptureFormatFrame(),
     ]));
     expect(await getRecordedElapsedSeconds({
       rawFile, source: null, gameId: "lmu", carId: "", trackId: "",
@@ -82,7 +91,7 @@ test("invalidates cached duration when capture grows", async () => {
   try {
     const rawFile = join(directory, "growing.bin");
     const writeCapture = (times: number[]) => writeFileSync(rawFile, Buffer.concat([
-      encodeMetaFrame(times.length), ...times.map((time) => captureFrame(time)),
+      encodeMetaFrame(times.length), ...times.map((time) => captureFrame(time)), encodeSparseCaptureFormatFrame(),
     ]));
     writeCapture([1_000, 2_000]);
     const source = { rawFile, source: null, gameId: "fm-2023" as const, carId: "7", trackId: "8" };

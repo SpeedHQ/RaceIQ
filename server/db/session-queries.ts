@@ -1,4 +1,5 @@
 import { getRecordedElapsedSeconds } from "../session-capture/elapsed-duration";
+import { MOTEC_SESSION_SOURCE } from "@raceiq/shared/integrations/motec";
 import { deleteLap } from "./lap-mutation-queries";
 import { getLapById } from "./lap-read-queries";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
@@ -102,6 +103,7 @@ async function getAvailableStaleSessionRows(
       and(
         sql`${sessions.rawFile} IS NOT NULL`,
         inArray(sessions.gameId, reprocessableGameIds),
+        or(eq(sessions.captureFormatVersion, 1), eq(sessions.source, MOTEC_SESSION_SOURCE)),
         or(isNull(sessions.lapDetectorVersion), notInArray(sessions.lapDetectorVersion, ids))
       )
     )
@@ -146,54 +148,6 @@ export async function getUncompressedSessions(olderThanMs: number): Promise<{ id
     )
     .all();
   return rows.filter((r): r is { id: number; rawFile: string } => r.rawFile !== null);
-}
-/**
- * Candidate captures are grouped by canonical path so shared recordings are
- * migrated once. Any legacy sibling makes the whole shared capture eligible.
- */
-export async function listCaptureMigrationCandidates(): Promise<{ rawFile: string; gameId: GameId; sessionIds: number[] }[]> {
-  const candidates = await db
-    .select({ rawFile: sessions.rawFile })
-    .from(sessions)
-    .where(and(isNull(sessions.captureFormatVersion), sql`${sessions.rawFile} IS NOT NULL`))
-    .orderBy(desc(sessions.createdAt), desc(sessions.id))
-    .all();
-  const supported = new Set<GameId>(["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu"]);
-  const paths = new Set<string>();
-  for (const candidate of candidates) {
-    if (!candidate.rawFile || !isOwnedSessionRawFile(candidate.rawFile)) continue;
-    if (!candidate.rawFile.endsWith(".bin") && !candidate.rawFile.endsWith(".bin.gz")) continue;
-    if (existsSync(candidate.rawFile)) paths.add(candidate.rawFile);
-  }
-  const result: { rawFile: string; gameId: GameId; sessionIds: number[] }[] = [];
-  for (const rawFile of paths) {
-    const shared = await db
-      .select({
-        id: sessions.id,
-        gameId: sessions.gameId,
-        ownership: sessions.ownership,
-        source: sessions.source,
-      })
-      .from(sessions)
-      .where(eq(sessions.rawFile, rawFile))
-      .all();
-    const gameId = shared[0]?.gameId;
-    if (
-      !gameId ||
-      !supported.has(gameId as GameId) ||
-      shared.some((row) => row.ownership !== "mine" || row.source !== null || row.gameId !== gameId)
-    ) continue;
-    result.push({ rawFile, gameId: gameId as GameId, sessionIds: shared.map((row) => row.id) });
-  }
-  return result;
-}
-
-export async function getCaptureMigrationCandidates(): Promise<{ sessionCount: number; captureCount: number }> {
-  const captures = await listCaptureMigrationCandidates();
-  return {
-    sessionCount: captures.reduce((count, capture) => count + capture.sessionIds.length, 0),
-    captureCount: captures.length,
-  };
 }
 
 /** Mark only freshly-created sparse recordings current. */

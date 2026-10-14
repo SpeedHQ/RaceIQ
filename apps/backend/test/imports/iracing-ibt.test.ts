@@ -20,6 +20,7 @@ import { previewIbtFile } from "@raceiq/game-iracing/ibt-preview";
 import { initServerGameAdapters } from "../../src/games/init";
 import { iracingAdapter } from "@raceiq/game-iracing-metadata/index";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
 import {
   createRecording,
   drivenRows,
@@ -28,6 +29,7 @@ import type { SyntheticIdentity } from "@raceiq/game-iracing/test-support/games/
 
 initGameAdapters();
 initServerGameAdapters();
+registerDriverProfileLapNotifier(() => {});
 
 describe("IRacingIbt import workflow", () => {
   test("previews a driven recording without writing it to the database", async () => {

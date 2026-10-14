@@ -17,6 +17,7 @@ Database and lap-file maintenance commands. Run from repository root; `DATA_DIR`
 | `bun run packages/tooling-data/src/data/reprocess-today-f1.ts` | Optional `SERVER` URL (default `http://localhost:3117`) | POSTs reprocess requests for today's F1 2025 sessions with raw captures |
 
 Seed fixtures are listed explicitly in `seed-db-options.ts`, including LMU split recordings under `test/artifacts/laps/`. Seed initialization order remains explicit: `initDb()`, shared game adapters, server game adapters. Seed cleanup always stops telemetry maintenance and closes database client, including failures.
+Seed imports source fixtures through `SparseSessionRecorderAdapter`, writing sparse canonical captures instead of preserving the fixture's legacy storage format.
 
 Playwright uses the same six-game seed list for local servers and CI artifact production. `playwright/support/server/prepare-seeded-database.ts` validates replayable captures and saved Analyse/Compare chat histories, then checkpoints both SQLite databases. Seed artifacts contain `app.db`, `chat-memory.db`, and `sessions/`; every seeded shard restores its own copies. Runtime settings and setup-home fixtures remain owned by the server launcher.
 

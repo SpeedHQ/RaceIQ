@@ -47,6 +47,9 @@ async function runDbStartup(dataDir: string, importRecording = false, configureP
       importRecording
         ? `
     import { readFileSync } from "node:fs";
+    import { join } from "node:path";
+    import { readIRacingFrames } from ${JSON.stringify(pathToFileURL(join(REPO_ROOT, "packages/capture-formats/src/iracing/dump.ts")).href)};
+    import { SparseSessionRecorder } from ${JSON.stringify(pathToFileURL(join(REPO_ROOT, "packages/capture-formats/src/session/sparse-recorder.ts")).href)};
     import { initGameAdapters } from ${JSON.stringify(pathToFileURL(join(REPO_ROOT, "packages/game-catalogs/src/games/init.ts")).href)};
     import { initServerGameAdapters } from ${JSON.stringify(pathToFileURL(join(REPO_ROOT, "apps/backend/src/games/init.ts")).href)};
     import { importSessionBin } from ${JSON.stringify(pathToFileURL(join(REPO_ROOT, "server/session-capture/import-capture.ts")).href)};
@@ -60,8 +63,16 @@ async function runDbStartup(dataDir: string, importRecording = false, configureP
       if (${importRecording}) {
         initGameAdapters();
         initServerGameAdapters();
+        const sparsePath = join(process.env.DATA_DIR!, "sparse-import.bin");
+        const recorder = new SparseSessionRecorder("iracing");
+        recorder.start(sparsePath);
+        recorder.writeMetaFrame();
+        for (const frame of readIRacingFrames("test/artifacts/sessions/iracing-road-america-gt3.bin.gz")) {
+          recorder.writeRecord(frame);
+        }
+        await recorder.stop();
         await importSessionBin(
-          readFileSync("test/artifacts/sessions/iracing-road-america-gt3.bin.gz"),
+          readFileSync(sparsePath),
           "iracing",
           { notifyDriverProfile: false },
         );

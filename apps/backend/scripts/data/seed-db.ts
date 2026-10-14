@@ -4,8 +4,15 @@ import { resolve } from "node:path";
 import { createGunzip } from "node:zlib";
 import { db, client, initDb } from "@raceiq/backend-core/db/index";
 import { importSessionBin } from "@raceiq/backend-core/session-capture/import-capture";
-import { RealSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
-import { importSessionFrames } from "@raceiq/backend-core/session-capture/import-pipeline";
+import {
+  decompressIfGzipSync,
+  iterateSessionCaptureRecords,
+  SESSION_SEGMENT_BOUNDARY,
+  SESSION_SEGMENT_CONTEXT,
+  SESSION_SEGMENT_CONTEXT_END,
+} from "@raceiq/capture-formats/session/framing";
+import { SparseSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
+import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
 import { LMU_DUMP_MAGIC, LMU_DUMP_VERSION } from "@raceiq/capture-formats/lmu/dump-decoder";
 import { LMU_MAX_SOURCE_FRAME_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
@@ -64,6 +71,24 @@ async function* streamLMUSeedFrames(path: string): AsyncGenerator<Buffer> {
   }
 }
 
+function* seedCaptureFrames(path: string) {
+  const bytes = decompressIfGzipSync(readFileSync(path));
+  for (const record of iterateSessionCaptureRecords(bytes)) {
+    if (record.kind === "frame") {
+      yield record.frameTimeMs === undefined
+        ? record.frame
+        : { frame: record.frame, frameTimeMs: record.frameTimeMs };
+    } else if (record.kind === "segment-boundary") {
+      yield SESSION_SEGMENT_BOUNDARY;
+    } else if (record.kind === "segment-context") {
+      yield SESSION_SEGMENT_CONTEXT;
+    } else {
+      yield SESSION_SEGMENT_CONTEXT_END;
+    }
+  }
+}
+
+
 async function main(): Promise<void> {
   const options = parseOptions();
   await initDb();
@@ -109,24 +134,28 @@ async function main(): Promise<void> {
         const existingSessionIds = new Set(
           (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, game)).all()).map((row) => row.id),
         );
-        const result = game === "lmu"
-          ? await importSessionFrames(streamLMUSeedFrames(fixturePath), game, {
-              notifyDriverProfile: false,
-              ...(process.env.PW_SEED_SCREENSHOTS === "1" ? {} : { recorder: new RealSessionRecorderAdapter() }),
-            })
-          : await importSessionBin(readFileSync(fixturePath), game, {
-              notifyDriverProfile: false,
-              ...(process.env.PW_SEED_SCREENSHOTS === "1" ? {} : { recorder: new RealSessionRecorderAdapter() }),
-            });
-        const seededSessionIds = (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, game)).all())
-          .map((row) => row.id)
-          .filter((id) => !existingSessionIds.has(id));
-        if (seededSessionIds.length === 0) {
-          throw new Error(`No ${game} telemetry imported from ${fixturePath}`);
+        // Checked-in legacy sources are converted before the shared importer sees them.
+        const converted = await convertSeedFramesToSparse(
+          game,
+          game === "lmu" ? streamLMUSeedFrames(fixturePath) : seedCaptureFrames(fixturePath),
+        );
+        try {
+          const result = await importSessionBin(readFileSync(converted.path), game, {
+            notifyDriverProfile: false,
+            recorder: new SparseSessionRecorderAdapter(),
+          });
+          const seededSessionIds = (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, game)).all())
+            .map((row) => row.id)
+            .filter((id) => !existingSessionIds.has(id));
+          if (seededSessionIds.length === 0) {
+            throw new Error(`No ${game} telemetry imported from ${fixturePath}`);
+          }
+          await db.update(sessions).set({ notes: SEED_MARKER }).where(inArray(sessions.id, seededSessionIds)).run();
+          importedLapIds.push(...result.laps.filter((lap) => lap.isValid).map((lap) => lap.lapId));
+          console.log(`[DB Seed] ${game}: ${result.laps.length} laps from ${fixture}`);
+        } finally {
+          converted.cleanup();
         }
-        await db.update(sessions).set({ notes: SEED_MARKER }).where(inArray(sessions.id, seededSessionIds)).run();
-        importedLapIds.push(...result.laps.filter((lap) => lap.isValid).map((lap) => lap.lapId));
-        console.log(`[DB Seed] ${game}: ${result.laps.length} laps from ${fixture}`);
       } finally {
         combined?.cleanup();
       }

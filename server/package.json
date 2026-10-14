@@ -152,7 +152,6 @@
     "./session-capture/import-pipeline": "./session-capture/import-pipeline.ts",
     "./session-capture/kunos-sparse": "./session-capture/kunos-sparse.ts",
     "./session-capture/lmu-sparse": "./session-capture/lmu-sparse.ts",
-    "./session-capture/migrate-captures": "./session-capture/migrate-captures.ts",
     "./session-capture/recorder": "./session-capture/recorder.ts",
     "./session-capture/reprocess": "./session-capture/reprocess.ts",
     "./session-capture/reconcile": "./session-capture/reconcile.ts",

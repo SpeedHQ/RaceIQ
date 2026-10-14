@@ -30,7 +30,7 @@ test/artifacts/sessions/iracing-<timestamp>.bin
 test/artifacts/laps/lmu-<timestamp>.bin
 ```
 
-Keep the game identifier in the filename. Import uses it to select the adapter.
+When seeding checked-in source fixtures, convert each with its declared game ID to a sparse RaceIQ capture before passing it to the importer. Do not upload historical full-frame recordings; `/api/laps/import` accepts sparse RaceIQ captures only.
 
 ## Replay a dump
 
