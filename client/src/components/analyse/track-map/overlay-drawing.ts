@@ -1,3 +1,4 @@
+import type { SceneBuilder } from "./scene";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { resolveFrameDirection } from "./path";
@@ -6,61 +7,68 @@ import type { Point, SemanticAnalysisFrame, TrackTransform } from "./types";
 export interface OverlayOptions {
   canvas: HTMLCanvasElement;
   carCanvas: HTMLCanvasElement;
-  bufferCanvas: HTMLCanvasElement | null;
+  scene: SceneBuilder | null;
   telemetry: SemanticAnalysisFrame[];
   resolvedPositions: Point[];
   resolvedDirections: ([number, number] | null)[];
   transform: TrackTransform | null;
 }
 
+
 const direction = (frame: SemanticAnalysisFrame, path: [number, number] | null): [number, number] | null => resolveFrameDirection(frame, path);
 
 export function compositeTrack(options: OverlayOptions, idx: number): void {
-  const { canvas, telemetry, resolvedPositions, resolvedDirections, transform: t, bufferCanvas } = options;
-  if (!bufferCanvas || !t) return;
+  const { canvas, telemetry, resolvedPositions, resolvedDirections, transform: t, scene } = options;
+  if (!scene || !t) return;
   const ctx = getSemanticCanvasContext(canvas);
   if (!ctx) return;
   ctx.save();
   ctx.setTransform(canvas.width / t.w, 0, 0, canvas.height / t.h, 0, 0);
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, t.w, t.h);
   const frame = telemetry[idx],
     position = resolvedPositions[idx],
     path = resolvedDirections[idx];
+  let cx = 0, cy = 0, heading = 0;
   if (frame && position) {
     const resolvedDirection = direction(frame, path);
-    const heading = resolvedDirection ? Math.atan2(resolvedDirection[0], resolvedDirection[1]) : 0;
-    const cx = t.offsetX + (t.maxX - position.x) * t.scale,
-      cy = t.offsetZ + (position.z - t.minZ) * t.scale;
+    heading = resolvedDirection ? Math.atan2(resolvedDirection[0], resolvedDirection[1]) : 0;
+    cx = t.offsetX + (t.maxX - position.x) * t.scale;
+    cy = t.offsetZ + (position.z - t.minZ) * t.scale;
     ctx.translate(t.w / 2, t.h / 2);
     ctx.rotate(Math.PI - heading);
     ctx.translate(-cx, -cy);
   }
-  ctx.drawImage(bufferCanvas, 0, 0, t.offW, t.offH);
+  const sin = Math.abs(Math.sin(heading)), cos = Math.abs(Math.cos(heading));
+  const extentX = (cos * t.w + sin * t.h) / 2;
+  const extentY = (sin * t.w + cos * t.h) / 2;
+  scene.renderView(
+    ctx,
+    frame && position ? cx - extentX : 0,
+    frame && position ? cy - extentY : 0,
+    frame && position ? cx + extentX : t.w,
+    frame && position ? cy + extentY : t.h,
+  );
   if (frame && position) {
-    const cx = t.offsetX + (t.maxX - position.x) * t.scale,
-      cy = t.offsetZ + (position.z - t.minZ) * t.scale;
     const resolvedDirection = direction(frame, path);
-    if (!resolvedDirection) {
+    if (resolvedDirection) {
+      const [dx, dz] = resolvedDirection,
+        fx = t.offsetX + (t.maxX - (position.x + dx)) * t.scale,
+        fy = t.offsetZ + (position.z + dz - t.minZ) * t.scale;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(Math.atan2(fy - cy, fx - cx));
+      ctx.beginPath();
+      ctx.moveTo(8, 0);
+      ctx.lineTo(-4.8, -4.8);
+      ctx.lineTo(-4.8, 4.8);
+      ctx.closePath();
+      ctx.fillStyle = "var(--app-accent)";
+      ctx.fill();
+      ctx.strokeStyle = "var(--track-label-background)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
       ctx.restore();
-      return;
     }
-    const [dx, dz] = resolvedDirection,
-      fx = t.offsetX + (t.maxX - (position.x + dx)) * t.scale,
-      fy = t.offsetZ + (position.z + dz - t.minZ) * t.scale;
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(Math.atan2(fy - cy, fx - cx));
-    ctx.beginPath();
-    ctx.moveTo(8, 0);
-    ctx.lineTo(-4.8, -4.8);
-    ctx.lineTo(-4.8, 4.8);
-    ctx.closePath();
-    ctx.fillStyle = "var(--app-accent)";
-    ctx.fill();
-    ctx.strokeStyle = "var(--track-label-background)";
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    ctx.restore();
   }
   ctx.restore();
 }

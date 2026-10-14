@@ -1,7 +1,7 @@
 // Keeps frequently-redrawn overlays below 16 MiB of RGBA backing pixels each
 // while retaining full 2x rendering on typical analyse panes.
 const MAX_CANVAS_DPR = 2;
-const DEFAULT_CANVAS_PIXEL_AREA = 4_000_000;
+export const DEFAULT_CANVAS_PIXEL_AREA = 4_000_000;
 
 function getClampedScale(width: number, height: number, dpr: number, maxDpr: number, maxPixelArea: number): number {
   const requestedDpr = Number.isFinite(dpr) ? Math.max(0, dpr) : 1;

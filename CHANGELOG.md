@@ -12,15 +12,13 @@
 - Select dashboard network interfaces and browser domains in Access & security settings without changing UDP telemetry reception.
 - Disable dashboard password protection from the terminal with an explicit exposure confirmation, without changing network access or recordings.
 
+- Add OBS streaming overlays in the Portable page for live driving, timing, standings, nearby race order, car damage (F1 25, ACC, AC Evo), brake/throttle inputs, and distance driven, with sample previews when telemetry is unavailable and copyable metric or imperial browser-source URLs.
 - Allow a saved hostname, including a Tailscale FQDN, for remote HUD links and QR codes.
 - Refresh the dashboard with cleaner session and favourite widgets, clean-rate and podium trends, and seven days of activity by default.
 - Export complete chat history as JSON for developer debugging, including retained chat generations, stored thinking, tool calls and results, and system prompts.
 - Optionally protect dashboard access with a password and configure trusted browser origins independently, while keeping existing local and remote access working without new settings.
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 
-- Browse enriched iRacing car, car-class, and track catalogs with official car images, offline pit-road maps, and grouped lap sections.
-- Inspect AC Evo Tourist layouts with recorded open-route maps and explicit Start/Finish markers.
-- Show Nordschleife track edges along the supported portion of AC Evo Tourist routes without closing the Start/Finish gap.
 
 - Choose a recording folder; existing telemetry recordings move safely to the new location.
 - Separate recordings into `<game>/own` for live telemetry and imports marked as yours, and `<game>/others` for imports marked as someone else's. Offer an optional, resumable migration for existing recordings in default or custom folders while preserving session history and folder relocation.
@@ -83,6 +81,9 @@
 - Show AC Evo source car and layout names immediately after import instead of generated numeric placeholders.
 - Automatically reconcile pre-upgrade recordings with updated car, track, and lap detection, including AC Evo Tourist timed attempts; preserve user annotations on matched laps and report captures that cannot be repaired.
 - Use suitable local network addresses for remote HUD links and let users choose an address when multiple adapters are available.
+
+### Fixes
+- Keep racing, throttle, and braking lines sharp when zooming into the replay map.
 
 ### Internal
 - Verify setup navigation and recording-folder changes without depending on the optional Welcome 3D demo, and avoid startup-maintenance import cycles.
