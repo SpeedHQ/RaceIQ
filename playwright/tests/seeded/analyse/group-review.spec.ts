@@ -98,11 +98,11 @@ for (const game of REVIEW_GAMES) {
     const lapsResponse = await request.get(`/api/laps?gameId=${game.gameId}`);
     expect(lapsResponse.ok()).toBe(true);
     const targetLap = ((await lapsResponse.json()) as LapMeta[]).find((lap) => lap.id === target.id);
-    if (!targetLap || targetLap.sessionId == null || targetLap.trackOrdinal == null || targetLap.carOrdinal == null) {
+    if (!targetLap || targetLap.sessionId == null || !targetLap.trackId || !targetLap.carId) {
       throw new Error(`Seeded target lap ${target.id} has incomplete route metadata`);
     }
 
-    await page.goto(`/${game.prefix}/sessions/${targetLap.sessionId}/analyse?track=${targetLap.trackOrdinal}&car=${targetLap.carOrdinal}&lap=${targetLap.id}`, { waitUntil: "domcontentloaded" });
+    await page.goto(`/${game.prefix}/sessions/${targetLap.sessionId}/analyse?track=${encodeURIComponent(targetLap.trackId)}&car=${encodeURIComponent(targetLap.carId)}&lap=${targetLap.id}`, { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Actions", exact: true }).click();
     await page.getByRole("menuitem", { name: "Analyse Session", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/${game.prefix}/sessions/${targetLap.sessionId}/analyse(?:\\?|$)`));

@@ -18,8 +18,8 @@ export interface DriverProfileRun {
   id: number;
   scopeKey: string;
   gameId: GameId;
-  carOrdinal: number | null;
-  trackOrdinal: number | null;
+  carId: string | null;
+  trackId: string | null;
   poolKey: string;
   status: DriverProfileRunStatus;
   fingerprint: string | null;

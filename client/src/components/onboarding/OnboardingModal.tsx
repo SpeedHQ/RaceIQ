@@ -12,11 +12,24 @@ import { UnitsStep } from "./steps/UnitsStep";
 import { WelcomeStep } from "./steps/WelcomeStep";
 import { OnlineStep } from "./steps/OnlineStep";
 import { WheelStep } from "./steps/WheelStep";
+import { AccessSetupForm } from "@/components/security/AccessSetupForm";
+import { useDashboardAuth } from "@/lib/dashboard-auth";
+import { getLocale } from "@/paraglide/runtime";
+
+function AccessStep() {
+  return (
+    <div className="flex flex-col gap-4">
+      <h2>{m.access_title()}</h2>
+      <p>{m.access_configured()}</p>
+    </div>
+  );
+}
 
 import { OnlineChoiceStep } from "./steps/OnlineChoiceStep";
 import { ProfileStep, type ProfileStepHandle } from "./steps/ProfileStep";
 const MODAL_STEPS = [
   { id: "welcome", label: m.step_welcome },
+  { id: "access", label: m.access_title },
   { id: "online-choice", label: m.ob_online_choice_title },
   { id: "online-auth", label: m.online_settings_title },
   { id: "online-permissions", label: m.online_onboarding_title },
@@ -37,10 +50,13 @@ function restoredStep(): string {
   return "welcome";
 }
 
-export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
-  const [stepId, setStepId] = useState(restoredStep);
-  const [choice, setChoice] = useState<"welcome" | "discord" | "offline">(() => restoredStep() === "welcome" ? "welcome" : "discord");
+export function OnboardingModal({ onClose, onComplete, initialStep = 0 }: { onClose?: () => void; onComplete?: () => Promise<void>; initialStep?: number } = {}) {
+  const { status, refresh } = useDashboardAuth();
+  const restored = restoredStep();
+  const [stepId, setStepId] = useState(() => initialStep === 1 ? "access" : restored);
+  const [choice, setChoice] = useState<"welcome" | "discord" | "offline">(() => restored === "welcome" ? "welcome" : "discord");
   const [cancelError, setCancelError] = useState(false);
+  const [accessFooter, setAccessFooter] = useState<HTMLSpanElement | null>(null);
   const profileHandle = useRef<ProfileStepHandle | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
   const onlineFlow = stepId === "online-auth" || stepId === "online-permissions" || (stepId === "profile" && choice === "discord");
@@ -53,13 +69,17 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
   const step = MODAL_STEPS.findIndex(({ id }) => id === stepId);
   const current = MODAL_STEPS[step]!;
   const StepComponent = "Component" in current ? current.Component : undefined;
-  const progressSteps = MODAL_STEPS.filter(({ id }) => id !== "welcome" && id !== "online-choice" && (choice === "discord" || (id !== "online-auth" && id !== "online-permissions")));
+  const progressSteps = MODAL_STEPS.filter(({ id }) => id !== "welcome" && id !== "access" && id !== "online-choice" && (choice === "discord" || (id !== "online-auth" && id !== "online-permissions")));
   const activeProgressIndex = progressSteps.findIndex(({ id }) => id === stepId);
   async function navigateTo(id: string) {
     if (stepId === "profile" && !(await profileHandle.current?.save())) return;
     setStepId(id);
   }
   function setProfileHandle(handle: ProfileStepHandle | null) { profileHandle.current = handle; }
+  useEffect(() => {
+    if (status.pending && stepId !== "welcome" && stepId !== "access") setStepId("access");
+    else if (!status.pending && stepId === "access") setStepId("online-choice");
+  }, [status.pending, stepId]);
   useEffect(() => {
     if (stepId !== "online-auth" || online.state?.connection.status !== "connected") return;
     setStepId("online-permissions");
@@ -101,10 +121,13 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
     try { sessionStorage.removeItem(FLOW_KEY); } catch { /* storage optional */ }
     setStepId("profile");
   }
-  function handleFinish() {
+  async function handleFinish() {
     try { sessionStorage.removeItem(FLOW_KEY); } catch { /* storage optional */ }
     if (onClose) onClose();
-    else saveSettings.mutate({ onboardingComplete: true } as never);
+    else {
+      await saveSettings.mutateAsync({ onboardingComplete: true });
+      await onComplete?.();
+    }
   }
   return (
     <div className="@container/onboarding fixed inset-0 z-50 flex items-center justify-center bg-app-bg p-4">
@@ -126,7 +149,15 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
           </div>
         </div>}
         <div className="min-h-[280px] flex-1 overflow-y-auto border-t border-app-border px-4 py-5 @3xl/onboarding:px-6">
-          {stepId === "welcome" ? <WelcomeStep />
+          {stepId === "welcome" ? <WelcomeStep setup={status.pending} />
+            : stepId === "access" && status.pending ? <div className="flex flex-col gap-4">
+              <p>{status.upgrade ? m.access_upgrade() : m.access_setup_description()}</p>
+              <AccessSetupForm setup submitContainer={accessFooter} language={getLocale()} onComplete={async () => {
+                await refresh();
+                setStepId("online-choice");
+              }} />
+            </div>
+            : stepId === "access" ? <AccessStep />
             : stepId === "online-choice" ? <OnlineChoiceStep selected={choice === "welcome" ? null : choice} onSelect={setChoice} />
               : stepId === "online-auth" ? <OnlineStep stage="auth" onSkip={() => void chooseOffline()} />
                 : stepId === "online-permissions" ? <OnlineStep stage="permissions" onComplete={finishPermissions} onSkip={() => void chooseOffline()} />
@@ -134,16 +165,17 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
                     : StepComponent ? <StepComponent /> : null}
         </div>
         {stepId === "welcome" && <footer className="flex shrink-0 justify-end border-t border-app-border bg-app-surface-alt/30 px-4 py-4 @3xl/onboarding:px-6">
-          <Button className="min-h-11 w-full sm:w-auto" variant="app-primary" onClick={() => setStepId("online-choice")}>{m.common_get_started()}</Button>
+          <Button className="min-h-11 w-full sm:w-auto" variant="app-primary" onClick={() => setStepId(status.pending ? "access" : "online-choice")}>{m.common_get_started()}</Button>
         </footer>}
         {stepId === "online-choice" && <footer className="flex shrink-0 flex-col gap-3 border-t border-app-border bg-app-surface-alt/30 px-4 py-4 sm:flex-row sm:items-center sm:justify-between @3xl/onboarding:px-6">
-          <Button className="min-h-11 self-start" variant="outline" onClick={() => setStepId("welcome")}>{m.common_back()}</Button>
+          <Button className="min-h-11 self-start" variant="outline" onClick={() => setStepId(status.pending ? "access" : "welcome")}>{m.common_back()}</Button>
           <Button className="min-h-11" variant="app-primary" disabled={choice === "welcome"} onClick={() => { if (choice === "discord") chooseDiscord(); else if (choice === "offline") void chooseOffline(); }}>
             {choice === "discord" && <SiDiscord className="h-4 w-4 shrink-0" aria-hidden="true" />}
             {choice === "discord" ? m.ob_continue_discord() : choice === "offline" ? m.ob_continue_offline() : m.common_next()}
           </Button>
         </footer>}
-        {stepId !== "welcome" && stepId !== "online-choice" && stepId !== "online-auth" && stepId !== "online-permissions" && <div className="flex shrink-0 items-center justify-end border-t border-app-border bg-app-surface-alt/30 px-4 py-4 @3xl/onboarding:px-6">
+        {stepId === "access" && status.pending ? <div data-slot="onboarding-footer" className="flex shrink-0 items-center justify-end border-t border-app-border bg-app-surface-alt/30 px-4 py-4 @3xl/onboarding:px-6"><div className="flex items-center gap-2"><Button variant="outline" size="sm" onClick={() => setStepId("welcome")}>{m.common_back()}</Button><span ref={setAccessFooter} /></div></div>
+          : stepId !== "welcome" && stepId !== "online-choice" && stepId !== "online-auth" && stepId !== "online-permissions" && <div className="flex shrink-0 items-center justify-end border-t border-app-border bg-app-surface-alt/30 px-4 py-4 @3xl/onboarding:px-6">
           <div className="flex items-center gap-2">
             {step > 0 && <Button variant="outline" size="sm" disabled={profileSaving} onClick={() => void navigateTo(progressSteps[activeProgressIndex - 1]?.id ?? "online-choice")}>{m.common_back()}</Button>}
             {step < MODAL_STEPS.length - 1

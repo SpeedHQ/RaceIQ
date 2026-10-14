@@ -64,7 +64,8 @@ function isConnect(v: unknown): v is ConnectResult { return isRecord(v) && typeo
 export function isOnlineLeaderboard(v: unknown): v is OnlineLeaderboard {
   return isRecord(v) && hasExactKeys(v, ["key", "status", "rows", "fetchedAt", "stale", "error"]) && isRecord(v.key) && hasExactKeys(v.key, ["gameId", "trackId", "carId"]) && isString(v.key.gameId) && isString(v.key.trackId) && isString(v.key.carId) && isEnum(v.status, ["ready", "empty", "unavailable"] as const) && Array.isArray(v.rows) && v.rows.every((row: unknown) => isRecord(row) && hasExactKeys(row, ["rank", "lapId", "driver", "lapTimeMs"]) && Number.isSafeInteger(row.rank) && Number(row.rank) > 0 && isString(row.lapId) && isRecord(row.driver) && hasExactKeys(row.driver, ["userId", "displayName", "avatarUrl"]) && isString(row.driver.userId) && isString(row.driver.displayName) && isNullableString(row.driver.avatarUrl) && Number.isSafeInteger(row.lapTimeMs) && Number(row.lapTimeMs) > 0) && (v.fetchedAt === null || isIso(v.fetchedAt)) && typeof v.stale === "boolean" && (v.error === null || isError(v.error)) && (v.status === "ready" ? v.rows.length > 0 : v.status === "empty" ? v.rows.length === 0 : true);
 }
-export async function receiveOnlineResponse<T>(response: Response, validate: (value: unknown) => value is T, expected: readonly number[]): Promise<T> {
+type OnlineResponse = Pick<Response, "status" | "json">;
+export async function receiveOnlineResponse<T>(response: OnlineResponse, validate: (value: unknown) => value is T, expected: readonly number[]): Promise<T> {
   let value: unknown;
   try { value = await response.json(); } catch { throw new OnlineTransportFailure("invalid_response"); }
   if (!expected.includes(response.status) || !validate(value)) throw new OnlineTransportFailure("invalid_response");
@@ -73,8 +74,8 @@ export async function receiveOnlineResponse<T>(response: Response, validate: (va
   }
   return value;
 }
-async function call<T>(request: Promise<Response>, validate: (value: unknown) => value is T, expected: readonly number[]): Promise<T> {
-  let response: Response;
+async function call<T>(request: Promise<OnlineResponse>, validate: (value: unknown) => value is T, expected: readonly number[]): Promise<T> {
+  let response: OnlineResponse;
   try { response = await request; } catch { throw new OnlineTransportFailure("backend_unreachable"); }
   return receiveOnlineResponse(response, validate, expected);
 }

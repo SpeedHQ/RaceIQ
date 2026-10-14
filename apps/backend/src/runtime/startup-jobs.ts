@@ -12,7 +12,7 @@ import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import { startSessionCompressor } from "@raceiq/backend-core/session-capture/compressor";
 import { startUpdateCheckSchedule } from "@raceiq/backend-core/runtime/update/check";
 
-const ALL_DETECTOR_IDS = [
+export const ALL_DETECTOR_IDS = [
   LAP_DETECTOR_ID,
   LAP_DETECTOR_ACC_ID,
   LAP_DETECTOR_AC_EVO_ID,

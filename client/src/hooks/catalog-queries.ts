@@ -2,6 +2,7 @@ import { tryGetGame } from "@raceiq/shared/games/registry"
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
+import type { TrackInfo } from "../components/track/types";
 import { client } from "../lib/rpc";
 import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
@@ -10,7 +11,27 @@ import { queryKeys } from "./query-keys";
 export function useTracksForGame(gameId: GameId | null) {
   return useQuery({
     queryKey: ["tracks", gameId ?? null],
-    queryFn: async () => rpcJson<{ ordinal: number; name: string; variant?: string }[]>(await client.api.tracks.$get({ query: { gameId: gameId! } })),
+    queryFn: async () => rpcJson<{ id: string; name: string; variant?: string }[]>(await client.api.tracks.$get({ query: { gameId: gameId! } })),
+    enabled: !!gameId,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+}
+export function useCarsForGame(gameId: GameId | null) {
+  return useQuery({
+    queryKey: ["cars", gameId ?? null],
+    queryFn: async () => {
+      if (gameId === "acc") {
+        const response = await client.api.acc.cars.$get();
+        return rpcJson<Array<{ id: number | string; name: string }>>(response).then((rows) => rows.map((row) => ({ id: String(row.id), name: row.name })));
+      }
+      if (gameId === "ac-evo") {
+        const response = await fetch("/api/ac-evo/cars");
+        if (!response.ok) throw new Error(`Failed to load car catalog (${response.status})`);
+        return (await response.json() as Array<{ id: string; name: string }>).map(({ id, name }) => ({ id, name }));
+      }
+      const response = await client.api.cars.$get({ header: { "X-Game-Id": gameId! } });
+      return rpcJson<{ id: string; name: string }[]>(response);
+    },
     enabled: !!gameId,
     staleTime: Number.POSITIVE_INFINITY,
   });
@@ -38,8 +59,7 @@ export function useCarsFromEndpoint(endpoint: string | null) {
     queryFn: async () => {
       const res = await fetch(endpoint!);
       if (!res.ok) throw new Error(`Failed to load cars (${res.status})`);
-      const cars = (await res.json()) as { ordinal?: number; id?: number; name: string; class?: string }[];
-      return cars.map((car) => ({ ordinal: car.ordinal ?? car.id!, name: car.name, class: car.class }));
+      return (await res.json()) as { id: string; name: string; class?: string }[];
     },
     enabled: !!endpoint,
     staleTime: Number.POSITIVE_INFINITY,
@@ -49,7 +69,7 @@ export function useCarsFromEndpoint(endpoint: string | null) {
 export function useAcEvoCars(enabled = true) {
   return useQuery({
     queryKey: ["ac-evo-cars"],
-    queryFn: async () => rpcJson<{ ordinal: number; name: string; class: string }[]>(await client.api["ac-evo"].cars.$get()),
+    queryFn: async () => rpcJson<{ id: string; name: string; class: string }[]>(await client.api["ac-evo"].cars.$get()),
     enabled,
     staleTime: Number.POSITIVE_INFINITY,
   });
@@ -59,39 +79,39 @@ export function useTracks() {
   const gameId = useGameId();
   return useQuery({
     queryKey: ["tracks", gameId ?? null],
-    queryFn: async () => rpcJson(await client.api.tracks.$get({ query: { gameId: gameId! } })),
+    queryFn: async () => rpcJson<TrackInfo[]>(await client.api.tracks.$get({ query: { gameId: gameId! } })),
     enabled: !!gameId,
   });
 }
-export function useResolveNames(trackOrdinals: number[], carOrdinals: number[]) {
+export function useResolveNames(trackIds: string[], carIds: string[]) {
   const gameId = useGameId();
-  const trackKey = trackOrdinals.slice().sort().join(",");
-  const carKey = carOrdinals.slice().sort().join(",");
+  const trackKey = JSON.stringify(trackIds.slice().sort());
+  const carKey = JSON.stringify(carIds.slice().sort());
   return useQuery({
     queryKey: ["resolve-names", gameId ?? null, trackKey, carKey],
     queryFn: async () => {
       const res = await client.api["resolve-names"].$get({
         query: {
           gameId: gameId!,
-          tracks: trackOrdinals.length > 0 ? trackOrdinals.join(",") : undefined,
-          cars: carOrdinals.length > 0 ? carOrdinals.join(",") : undefined,
+          tracks: trackIds.length > 0 ? JSON.stringify(trackIds) : undefined,
+          cars: carIds.length > 0 ? JSON.stringify(carIds) : undefined,
         },
       });
       return rpcJson<{ trackNames: Record<string, string>; carNames: Record<string, string> }>(res);
     },
-    enabled: !!gameId && (trackOrdinals.length > 0 || carOrdinals.length > 0),
+    enabled: !!gameId && (trackIds.length > 0 || carIds.length > 0),
   });
 }
 
-export function useCarName(ord: number | string | undefined) {
+export function useCarName(carId: string | undefined) {
   const gameId = useGameId();
   return useQuery({
-    queryKey: [...queryKeys.carName(ord!), gameId ?? null],
+    queryKey: [...queryKeys.carName(carId!), gameId ?? null],
     queryFn: async () => {
-      const res = await client.api["car-name"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ord!)) }, query: { gameId: gameId! } });
+      const res = await client.api["car-name"][":carId"].$get({ param: { carId: encodeURIComponent(carId!) }, query: { gameId: gameId! } });
       return res.ok ? res.text() : "";
     },
-    enabled: ord != null && (typeof ord === "string" || ord > 0) && gameId != null,
+    enabled: !!carId && !!gameId,
   });
 }
 
@@ -107,16 +127,16 @@ export function useAccCarName() {
   }, [cars]);
 }
 
-function useAccCarClass(ordinal: number | undefined) {
+function useAccCarClass(carId: string | undefined) {
   return useQuery({
-    queryKey: ["acc-car-class", ordinal],
+    queryKey: ["acc-car-class", carId],
     queryFn: async () => {
-      const res = await client.api.acc.cars[":ordinal"].class.$get({ param: { ordinal: encodeURIComponent(String(ordinal!)) } });
+      const res = await client.api.acc.cars[":carId"].class.$get({ param: { carId: encodeURIComponent(carId!) } });
       if (!res.ok) return null;
       const body = (await res.json()) as { class: string | null };
       return body.class;
     },
-    enabled: ordinal != null && ordinal >= 0,
+    enabled: !!carId,
     staleTime: Number.POSITIVE_INFINITY,
   });
 }
@@ -130,8 +150,9 @@ const ACC_PRESSURE_BY_CLASS: Record<string, { min: number; max: number }> = {
   TCX: { min: 30.0, max: 32.0 },
 };
 
-export function useTirePressureOptimal(gameId: GameId, ordinal: number | undefined): { min: number; max: number } | undefined {
-  const { data: accClass } = useAccCarClass(gameId === "acc" ? ordinal : undefined);
+export function useTirePressureOptimal(gameId: GameId, carId: string | undefined, enabled = true): { min: number; max: number } | undefined {
+  const { data: accClass } = useAccCarClass(enabled && gameId === "acc" ? carId : undefined);
+  if (!enabled) return tryGetGame(gameId)?.tirePressureOptimal;
   if (gameId === "acc") return accClass ? ACC_PRESSURE_BY_CLASS[accClass] : undefined;
   return tryGetGame(gameId)?.tirePressureOptimal;
 }

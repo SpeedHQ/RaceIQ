@@ -51,6 +51,8 @@ describe("repeatabilityStats", () => {
 const lap = (overrides: Partial<LapMeta> = {}): LapMeta => ({
   id: 1,
   sessionId: 1,
+  carId: "",
+  trackId: "",
   lapNumber: 1,
   lapTime: 100,
   isValid: true,

@@ -3,7 +3,7 @@
 Car domain normalizes vehicle identity lookups across games.
 
 ## Purpose
-- Convert game ordinals into display names and metadata.
+- Resolve game-native string IDs into display names and metadata.
 - Keep cross-game name composition separate from metadata-owner catalog primitives.
 - Keep lookups deterministic and cheap by loading CSV catalogs once into module maps.
 
@@ -39,7 +39,7 @@ Car domain normalizes vehicle identity lookups across games.
 ## Add/extend safely
 - Treat each metadata-owner CSV as the committed runtime catalog; restart after changing it because loaders cache module-level maps.
 - Add a dedicated game module when a new catalog shape is required, then wire its display-name resolver through the game adapter or `resolve-name.ts` as appropriate.
-- Inject AC Evo database discoveries through `injectDiscoveredAcEvoCars(...)`; do not add discovered rows to bundled iteration in memory.
+- Inject AC Evo database discoveries through `injectDiscoveredAcEvoCars(...)`; native source names identify both bundled and discovered entries without generated ordinals.
 - Import explicit leaves; this directory has no barrel contract.
 
 ## Unknown values

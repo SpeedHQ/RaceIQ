@@ -509,7 +509,7 @@ export function normalizeLMUSourceFrame(
     SuspensionTravelMFR: wheels.FR.suspensionTravelM,
     SuspensionTravelMRL: wheels.RL.suspensionTravelM,
     SuspensionTravelMRR: wheels.RR.suspensionTravelM,
-    CarOrdinal: -1,
+    carId: identity.carId,
     CarClass: vehicleClass,
     CarPerformanceIndex: 0,
     DrivetrainType: 1,
@@ -526,7 +526,7 @@ export function normalizeLMUSourceFrame(
       engineTorque * engineRpm * TWO_PI_PER_MINUTE +
       motorTorque * motorRpm * TWO_PI_PER_MINUTE,
     Torque: engineTorque + motorTorque,
-    TrackOrdinal: -1,
+    trackId: identity.trackId,
     BrakeTempFrontLeft: wheels.FL.brakeTemperatureC,
     BrakeTempFrontRight: wheels.FR.brakeTemperatureC,
     BrakeTempRearLeft: wheels.RL.brakeTemperatureC,

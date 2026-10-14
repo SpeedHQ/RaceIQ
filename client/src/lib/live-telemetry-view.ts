@@ -29,7 +29,7 @@ export interface LiveTelemetryView {
   sessionId: number | null;
   sequence: number;
   observedAtMs: number;
-  identity: { carId?: number | string; trackId?: number | string; carOrdinal?: number; trackOrdinal?: number; carClass?: number; performanceIndex?: number; drivetrainType?: number };
+  identity: { carId?: string; trackId?: string; carClass?: number; performanceIndex?: number; drivetrainType?: number };
   motion: {
     speedMps?: number;
     acceleration?: { x: number; z: number };
@@ -125,13 +125,17 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
     const candidate = value(semanticId);
     return typeof candidate === "number" && Number.isFinite(candidate) ? candidate : undefined;
   };
+  const numberOrString = (semanticId: string): number | string | undefined => {
+    const candidate = value(semanticId);
+    return typeof candidate === "string" || (typeof candidate === "number" && Number.isFinite(candidate)) ? candidate : undefined;
+  };
   const boolean = (semanticId: string): boolean | undefined => {
     const candidate = value(semanticId);
     return typeof candidate === "boolean" ? candidate : undefined;
   };
-  const numberOrString = (semanticId: string): number | string | undefined => {
+  const stringId = (semanticId: string): string | undefined => {
     const candidate = value(semanticId);
-    return typeof candidate === "string" || (typeof candidate === "number" && Number.isFinite(candidate)) ? candidate : undefined;
+    return typeof candidate === "string" ? candidate : undefined;
   };
   const wheel = (semanticId: string): WheelValues<number> | undefined => {
     const candidate = value(semanticId);
@@ -214,10 +218,8 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
     sequence: frame.sequence,
     observedAtMs: frame.observedAt.milliseconds,
     identity: {
-      carId: schema.simulator === "lmu" ? numberOrString("identity.car-id") : number("identity.car-ordinal"),
-      trackId: schema.simulator === "lmu" ? numberOrString("identity.track-id") : number("identity.track-ordinal"),
-      carOrdinal: number("identity.car-ordinal"),
-      trackOrdinal: number("identity.track-ordinal"),
+      carId: stringId("identity.car-id"),
+      trackId: stringId("identity.track-id"),
       carClass: number("identity.car-class"),
       performanceIndex: number("identity.car-performance-index"),
       drivetrainType: number("identity.drivetrain-type"),

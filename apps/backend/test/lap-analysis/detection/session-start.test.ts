@@ -6,20 +6,14 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 function packet(timestamp: number): TelemetryPacket {
   return {
     gameId: "lmu",
-    CarOrdinal: -1,
-    TrackOrdinal: -1,
-    CarPerformanceIndex: 0,
-    CarClass: 0,
+    carId: "ferrari_499p_2023",
+    trackId: "lemans_2023/lemanswec",
     IsRaceOn: 1,
     TimestampMS: timestamp,
     LapNumber: 1,
     CurrentLap: timestamp / 1000,
     LastLap: 0,
     DistanceTraveled: timestamp / 10,
-    lmu: {
-      carId: "ferrari_499p_2023",
-      trackId: "lemans_2023/lemanswec",
-    },
   } as TelemetryPacket;
 }
 

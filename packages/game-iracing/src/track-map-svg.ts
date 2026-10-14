@@ -8,10 +8,197 @@ export interface IRacingMapPoint {
 export interface IRacingMapLabel extends IRacingMapPoint {
   text: string;
 }
+export type IRacingPitLineKind = "pit-road" | "merge-line";
+
+export interface IRacingPitLine {
+  kind: IRacingPitLineKind;
+  points: IRacingMapPoint[];
+}
 
 export interface IRacingSvgTrackMap {
   points: IRacingMapPoint[];
   labels: IRacingMapLabel[];
+  pitLines: IRacingPitLine[];
+}
+type PitPathHint = IRacingPitLineKind | "ignore" | null;
+
+function svgAttribute(tag: string, name: string): string | null {
+  const match = tag.match(new RegExp(`\\b${name}=(["'])([\\s\\S]*?)\\1`, "i"));
+  return match?.[2] ?? null;
+}
+
+function pitPathHintFromName(value: string | null): PitPathHint {
+  if (!value) return null;
+  const normalized = value.toLowerCase().replace(/[^a-z]+/g, "");
+  if (normalized.includes("joker")) return "ignore";
+  if (normalized.includes("merge")) return "merge-line";
+  if (normalized.includes("pit")) return "pit-road";
+  return null;
+}
+
+function pitPathHintFromColor(value: string | null): PitPathHint {
+  switch (value?.toLowerCase()) {
+    case "#016699":
+    case "#0089ba": return "merge-line";
+    case "#d82520":
+    case "#d32222": return "pit-road";
+    case "#ff9100": return "ignore";
+    default: return null;
+  }
+}
+
+function pitPathContours(svg: string): Record<IRacingPitLineKind, SvgPoint[][]> {
+  const classFills = new Map<string, string>();
+  for (const match of svg.matchAll(/\.([\w-]+)\s*\{([^}]*)\}/gi)) {
+    const fill = match[2].match(/\bfill\s*:\s*(#[\da-f]{6})/i)?.[1];
+    if (fill) classFills.set(match[1], fill);
+  }
+  const contours: Record<IRacingPitLineKind, SvgPoint[][]> = { "pit-road": [], "merge-line": [] };
+  const groupHints: PitPathHint[] = [];
+  for (const match of svg.matchAll(/<\/?g\b[^>]*>|<path\b[^>]*>/gi)) {
+    const tag = match[0];
+    if (/^<\/g/i.test(tag)) { groupHints.pop(); continue; }
+    if (/^<g\b/i.test(tag)) {
+      const ownHint = pitPathHintFromName(svgAttribute(tag, "id"));
+      groupHints.push(ownHint ?? groupHints.at(-1) ?? null);
+      continue;
+    }
+    const pathData = svgAttribute(tag, "d");
+    if (!pathData) continue;
+    const ownHint = pitPathHintFromName(svgAttribute(tag, "id"));
+    const groupHint = groupHints.at(-1) ?? null;
+    const directFill = svgAttribute(tag, "fill") ?? svgAttribute(tag, "style")?.match(/\bfill\s*:\s*(#[\da-f]{6})/i)?.[1] ?? null;
+    const classHint = (svgAttribute(tag, "class") ?? "").split(/\s+/)
+      .map((className) => pitPathHintFromColor(classFills.get(className) ?? null))
+      .find((hint) => hint !== null) ?? null;
+    const hint = ownHint ?? groupHint ?? pitPathHintFromColor(directFill) ?? classHint ?? "pit-road";
+    if (hint !== "ignore") contours[hint].push(...parsePathData(pathData).contours.filter((points) => points.length >= 3 && closedPerimeter(points) > 0));
+  }
+  return contours;
+}
+
+interface PitMarker {
+  center: SvgPoint;
+  diagonal: number;
+  elongation: number;
+}
+
+function pitMarker(contour: readonly SvgPoint[]): PitMarker {
+  let minX = Number.POSITIVE_INFINITY, maxX = Number.NEGATIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY, maxY = Number.NEGATIVE_INFINITY;
+  for (const point of contour) {
+    minX = Math.min(minX, point.x); maxX = Math.max(maxX, point.x);
+    minY = Math.min(minY, point.y); maxY = Math.max(maxY, point.y);
+  }
+  const center = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+  let xx = 0, xy = 0, yy = 0;
+  for (const point of contour) {
+    const dx = point.x - center.x, dy = point.y - center.y;
+    xx += dx * dx; xy += dx * dy; yy += dy * dy;
+  }
+  const discriminant = Math.hypot(xx - yy, 2 * xy);
+  const major = Math.max(0, (xx + yy + discriminant) / 2);
+  const minor = Math.max(0, (xx + yy - discriminant) / 2);
+  return { center, diagonal: Math.hypot(maxX - minX, maxY - minY), elongation: minor > 0 ? Math.sqrt(major / minor) : Number.POSITIVE_INFINITY };
+}
+
+function median(values: readonly number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = sorted.length >> 1;
+  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+}
+
+function connectPitMarkers(markersValue: readonly PitMarker[]): SvgPoint[][] {
+  if (markersValue.length < 2) return [];
+  const medianDiagonal = median(markersValue.map((marker) => marker.diagonal));
+  const markers = markersValue.filter((marker) => markersValue.length < 4 || marker.elongation >= 2 || marker.diagonal <= medianDiagonal * 1.3);
+  if (markers.length < 2) return [];
+  const nearestDistances = markers.map((marker, index) => {
+    let nearest = Number.POSITIVE_INFINITY;
+    for (let other = 0; other < markers.length; other++) {
+      if (other !== index) nearest = Math.min(nearest, Math.hypot(marker.center.x - markers[other].center.x, marker.center.y - markers[other].center.y));
+    }
+    return nearest;
+  });
+  const maxGap = median(nearestDistances) * 2.5;
+  const remaining = new Set(markers.map((_, index) => index));
+  const lines: SvgPoint[][] = [];
+  while (remaining.size > 0) {
+    let seed = -1, seedNeighbors = Number.POSITIVE_INFINITY;
+    for (const candidate of remaining) {
+      let neighbors = 0;
+      for (const index of remaining) {
+        if (index !== candidate && Math.hypot(markers[candidate].center.x - markers[index].center.x, markers[candidate].center.y - markers[index].center.y) <= maxGap) neighbors++;
+      }
+      if (neighbors < seedNeighbors || (neighbors === seedNeighbors && (seed < 0 ||
+        markers[candidate].center.x < markers[seed].center.x ||
+        (markers[candidate].center.x === markers[seed].center.x && markers[candidate].center.y < markers[seed].center.y)))) {
+        seed = candidate; seedNeighbors = neighbors;
+      }
+    }
+    remaining.delete(seed);
+    const line = [markers[seed].center];
+    while (remaining.size > 0) {
+      let bestIndex = -1, bestAtStart = false, bestDistance = Number.POSITIVE_INFINITY;
+      for (const index of remaining) {
+        const toStart = Math.hypot(line[0].x - markers[index].center.x, line[0].y - markers[index].center.y);
+        const toEnd = Math.hypot(line.at(-1)!.x - markers[index].center.x, line.at(-1)!.y - markers[index].center.y);
+        const distance = Math.min(toStart, toEnd);
+        if (distance < bestDistance) { bestIndex = index; bestAtStart = toStart < toEnd; bestDistance = distance; }
+      }
+      if (bestIndex < 0 || bestDistance > maxGap) break;
+      remaining.delete(bestIndex);
+      if (bestAtStart) line.unshift(markers[bestIndex].center);
+      else line.push(markers[bestIndex].center);
+    }
+    if (line.length >= 2) lines.push(line);
+  }
+  return lines;
+}
+
+function medianLineStep(points: readonly IRacingMapPoint[]): number {
+  const lengths: number[] = [];
+  for (let index = 1; index < points.length; index++) lengths.push(Math.hypot(points[index].x - points[index - 1].x, points[index].z - points[index - 1].z));
+  return median(lengths);
+}
+
+function connectPitLineKinds(linesValue: readonly IRacingPitLine[]): IRacingPitLine[] {
+  const lines = linesValue.map((line) => ({ ...line, points: [...line.points] }));
+  const roads = lines.filter((line) => line.kind === "pit-road");
+  const merges = lines.filter((line) => line.kind === "merge-line");
+  const candidates: Array<{ road: IRacingPitLine; merge: IRacingPitLine; roadAtStart: boolean; mergeAtStart: boolean; distance: number }> = [];
+  for (const road of roads) for (const merge of merges) {
+    const maxGap = Math.max(medianLineStep(road.points), medianLineStep(merge.points)) * 1.75;
+    for (const roadAtStart of [true, false]) for (const mergeAtStart of [true, false]) {
+      const roadPoint = roadAtStart ? road.points[0] : road.points.at(-1)!;
+      const mergePoint = mergeAtStart ? merge.points[0] : merge.points.at(-1)!;
+      const distance = Math.hypot(roadPoint.x - mergePoint.x, roadPoint.z - mergePoint.z);
+      if (distance <= maxGap) candidates.push({ road, merge, roadAtStart, mergeAtStart, distance });
+    }
+  }
+  candidates.sort((left, right) => left.distance - right.distance);
+  const connectedRoads = new Set<IRacingPitLine>(), connectedMerges = new Set<IRacingPitLine>();
+  for (const candidate of candidates) {
+    if (connectedRoads.has(candidate.road) || connectedMerges.has(candidate.merge)) continue;
+    const roadPoint = candidate.roadAtStart ? candidate.road.points[0] : candidate.road.points.at(-1)!;
+    const mergePoint = candidate.mergeAtStart ? candidate.merge.points[0] : candidate.merge.points.at(-1)!;
+    const junction = { x: (roadPoint.x + mergePoint.x) / 2, z: (roadPoint.z + mergePoint.z) / 2 };
+    if (candidate.roadAtStart) candidate.road.points.unshift(junction); else candidate.road.points.push(junction);
+    if (candidate.mergeAtStart) candidate.merge.points.unshift(junction); else candidate.merge.points.push(junction);
+    connectedRoads.add(candidate.road); connectedMerges.add(candidate.merge);
+  }
+  return lines;
+}
+
+/** Reconstruct solid, arrowless centerlines from iRacing's dashed pit markers. */
+export function parseIRacingPitRoadSvg(svg: string): IRacingPitLine[] {
+  const contours = pitPathContours(svg);
+  return connectPitLineKinds((["pit-road", "merge-line"] as const).flatMap((kind) =>
+    connectPitMarkers(contours[kind].map(pitMarker)).map((points) => ({
+      kind, points: points.map((point) => ({ x: -point.x, z: point.y })),
+    })),
+  ));
 }
 
 /**
@@ -574,22 +761,22 @@ export function parseIRacingTurnLabels(svg: string): IRacingMapLabel[] {
     const text = decodeXmlText(match[2].replace(/<[^>]+>/g, ""));
     if (!text) continue;
 
-    const transform = attributes.match(
-      /\btransform=(["'])matrix\(([^)]+)\)\1/i,
-    );
-    const matrix = transform ? numberTokens(transform[2]) : [];
+    const matrixTransform = attributes.match(/\btransform=(["'])matrix\(([^)]+)\)\1/i);
+    const translateTransform = attributes.match(/\btransform=(["'])translate\(([^)]+)\)\1/i);
+    const matrix = matrixTransform ? numberTokens(matrixTransform[2]) : [];
+    const translation = translateTransform ? numberTokens(translateTransform[2]) : [];
     const xMatch = attributes.match(/\bx=(["'])(.*?)\1/i);
     const yMatch = attributes.match(/\by=(["'])(.*?)\1/i);
     const x = matrix.length >= 6
       ? matrix[4]
-      : xMatch
-        ? numberTokens(xMatch[2])[0]
-        : Number.NaN;
+      : translation.length >= 2
+        ? translation[0]
+        : xMatch ? numberTokens(xMatch[2])[0] : Number.NaN;
     const y = matrix.length >= 6
       ? matrix[5]
-      : yMatch
-        ? numberTokens(yMatch[2])[0]
-        : Number.NaN;
+      : translation.length >= 2
+        ? translation[1]
+        : yMatch ? numberTokens(yMatch[2])[0] : Number.NaN;
     if (Number.isFinite(x) && Number.isFinite(y)) {
       labels.push({ text, x: -x, z: y });
     }
@@ -606,6 +793,7 @@ export function parseIRacingActiveSvg(
   activeSvg: string,
   startFinishSvg?: string | null,
   turnsSvg?: string | null,
+  pitRoadSvg?: string | null,
 ): IRacingSvgTrackMap | null {
   const contours = allContours(activeSvg)
     .filter((points) => points.length >= 4)
@@ -655,5 +843,6 @@ export function parseIRacingActiveSvg(
     // pixels. Negating SVG X here preserves iRacing's published orientation.
     points: centerline.map((point) => ({ x: -point.x, z: point.y })),
     labels: rawLabels,
+    pitLines: pitRoadSvg ? parseIRacingPitRoadSvg(pitRoadSvg) : [],
   };
 }

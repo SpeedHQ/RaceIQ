@@ -20,8 +20,9 @@ import { SessionRecorder } from "@raceiq/capture-formats/session/recorder";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { timestampForFilename } from "@raceiq/backend-core/session-capture/filename";
 
+
 const MIN_PACKET_LENGTH = 29; // Minimum: F1 header size
-const PACKETS_PER_SEC_WINDOW = 1000; // 1-second sliding window for rate display
+const PACKETS_PER_SEC_WINDOW = 1000;
 
 class UdpListener {
   private _droppedPackets = 0;
@@ -174,10 +175,8 @@ class UdpListener {
         currentSession: session
           ? {
               id: session.sessionId,
-              carOrdinal: session.carOrdinal,
-              trackOrdinal: session.trackOrdinal,
-              carId: session.carId ?? session.carOrdinal,
-              trackId: session.trackId ?? session.trackOrdinal,
+              carId: session.carId,
+              trackId: session.trackId,
             }
           : null,
       });

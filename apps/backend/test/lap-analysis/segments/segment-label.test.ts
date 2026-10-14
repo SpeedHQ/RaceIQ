@@ -5,6 +5,7 @@ import {
   segmentGroupLabels,
   segmentPromptLabels,
   segmentPromptNames,
+  lapWrappedSegmentGroup,
 } from "@raceiq/shared/racing/tracks/segment-label";
 const corner = (name: string, numbers?: number[], group?: string) => ({
   type: "corner" as const,
@@ -93,6 +94,30 @@ describe("numbered corner with no name", () => {
   });
 });
 
+describe("synthesized multi-turn names", () => {
+  test("renders ranges and lists once in map and prompt labels", () => {
+    const segments = [
+      corner("T1-2", [1, 2]),
+      corner("T3-4", [3, 4]),
+      corner("T2-3-4", [2, 3, 4]),
+      corner("T2-4", [2, 4]),
+      corner("T2,4", [2, 4]),
+      corner("T2/4", [2, 4]),
+    ];
+    const expected = ["T1-2", "T3-4", "T2-4", "T2,4", "T2,4", "T2,4"];
+    expect(segmentDisplayNames(segments)).toEqual(expected);
+    expect(segmentGroupLabels(segments)).toEqual(expected);
+    expect(segmentPromptNames(segments)).toEqual(expected);
+    expect(segmentPromptLabels(segments)).toEqual(expected);
+  });
+
+  test("preserves real names that start with a turn range", () => {
+    const segments = [corner("T1-2 Complex", [1, 2]), corner("Turn Two", [2])];
+    expect(segmentDisplayNames(segments)).toEqual(["T1-2 T1-2 Complex", "T2 Turn Two"]);
+    expect(segmentPromptNames(segments)).toEqual(["T1-2 Complex (1-2)", "Turn Two (2)"]);
+  });
+});
+
 describe("prompt labels", () => {
   test("names first, numbering in parentheses", () => {
     expect(segmentPromptNames([corner("Piscine", [14, 15])])).toEqual(["Piscine (14-15)"]);
@@ -142,5 +167,27 @@ describe("prompt labels", () => {
     const segs = [straight("", "Wheatcroft Straight"), straight("Wheatcroft Straight", "Wheatcroft Straight")];
     expect(segmentGroupLabels(segs)).toEqual(["Wheatcroft Straight", ""]);
     expect(segmentPromptLabels(segs)).toEqual(["Wheatcroft Straight", ""]);
+  });
+});
+
+describe("lapWrappedSegmentGroup", () => {
+  test("joins matching edge segments into one logical group", () => {
+    expect(lapWrappedSegmentGroup([
+      { type: "straight", group: "start-finish" },
+      { type: "corner", group: "T1" },
+      { type: "straight", group: "start-finish" },
+    ])).toEqual({ group: "start-finish", firstIndex: 0, lastIndex: 2 });
+  });
+
+  test("does not join edge segments with different groups or types", () => {
+    expect(lapWrappedSegmentGroup([
+      { type: "straight", group: "start-finish" },
+      { type: "corner", group: "T1" },
+      { type: "straight", group: "back-straight" },
+    ])).toBeNull();
+    expect(lapWrappedSegmentGroup([
+      { type: "straight", group: "start-finish" },
+      { type: "corner", group: "start-finish" },
+    ])).toBeNull();
   });
 });

@@ -10,7 +10,7 @@
  *
  * Scope:
  *   - Requires the lap to have telemetry (`rawByteOffset`/`rawFrameCount`) and a
- *     resolvable `trackOrdinal`. Laps that predate telemetry capture, failed to
+ *     resolvable `trackId`. Laps that predate telemetry capture, failed to
  *     parse, or belong to a track with no saved corner definitions return
  *     `available: false` with a `reason`.
  *   - `cornerId` (1-based, matching the `T{n}` labels) optionally narrows the
@@ -89,9 +89,9 @@ export const getCornerMetricsTool = createTool({
       return emptyResult(lapId, "lap not found");
     }
 
-    const trackOrdinal = lap.trackOrdinal;
-    if (trackOrdinal === undefined || trackOrdinal === null) {
-      return emptyResult(lapId, "lap has no trackOrdinal");
+    const trackIdentity = lap.trackId;
+    if (trackIdentity === undefined || trackIdentity === null) {
+      return emptyResult(lapId, "lap has no track identity");
     }
     if (lap.parseError) {
       return emptyResult(lapId, `lap telemetry failed to parse: ${lap.parseError}`);
@@ -100,9 +100,9 @@ export const getCornerMetricsTool = createTool({
       return emptyResult(lapId, "lap has no telemetry");
     }
 
-    let corners = await getCorners(trackOrdinal, lap.gameId as Parameters<typeof getCorners>[1]);
+    let corners = await getCorners(trackIdentity, lap.gameId as Parameters<typeof getCorners>[1]);
     if (corners.length === 0) {
-      return emptyResult(lapId, `no corner definitions saved for track ordinal ${trackOrdinal}`);
+      return emptyResult(lapId, `no corner definitions saved for track identity ${trackIdentity}`);
     }
 
     // Optional narrowing to a single corner. `cornerId` is the 1-based ordinal,

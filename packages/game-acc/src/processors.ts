@@ -35,35 +35,36 @@ export class StatusCheckProcessor implements TripletProcessor {
 
 /** Parses ACC buffers and feeds normalized packets to the application pipeline. */
 export class ParsingProcessor implements TripletProcessor {
-  private carOrdinal: number;
-  private trackOrdinal: number;
+  private carId: string;
+  private trackId: string;
+  private readonly sourceCarId: number;
+  private readonly sourceTrackId: number;
 
-  constructor(
-    carOrdinal: number,
-    trackOrdinal: number,
-  ) {
-    this.carOrdinal = carOrdinal;
-    this.trackOrdinal = trackOrdinal;
+  constructor(sourceCarId: number, sourceTrackId: number) {
+    this.sourceCarId = sourceCarId;
+    this.sourceTrackId = sourceTrackId;
+    this.carId = sourceCarId < 0 ? "" : String(sourceCarId);
+    this.trackId = sourceTrackId < 0 ? "" : String(sourceTrackId);
   }
 
   async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer; frameTimeMs?: number }): Promise<undefined> {
     try {
-      if (this.carOrdinal === -1 && triplet.staticData.length >= STATIC.SIZE) {
+      if (!this.carId && triplet.staticData.length >= STATIC.SIZE) {
         const cm = readWString(triplet.staticData, STATIC.carModel.offset, STATIC.carModel.size);
-        if (cm) this.carOrdinal = getAccCarByModel(cm)?.id ?? -1;
+        if (cm) this.carId = String(getAccCarByModel(cm)?.id ?? cm);
       }
-      if (this.trackOrdinal === -1 && triplet.staticData.length >= STATIC.SIZE) {
+      if (!this.trackId && triplet.staticData.length >= STATIC.SIZE) {
         const tn = readWString(triplet.staticData, STATIC.track.offset, STATIC.track.size);
-        if (tn) this.trackOrdinal = getAccTrackByName(tn)?.id ?? -1;
+        if (tn) this.trackId = String(getAccTrackByName(tn)?.id ?? tn);
       }
       const packet = parseAccBuffers(triplet.physics, triplet.graphics, triplet.staticData, {
-        carOrdinal: this.carOrdinal,
-        trackOrdinal: this.trackOrdinal,
+        carId: this.carId,
+        trackId: this.trackId,
         gameId: "acc",
         timestampMs: triplet.frameTimeMs ?? Date.now(),
       });
       if (packet) {
-        const sourceFrame = packTriplet(ACC_PACKED_MAGIC, this.carOrdinal, this.trackOrdinal, triplet.physics, triplet.graphics, triplet.staticData);
+        const sourceFrame = packTriplet(ACC_PACKED_MAGIC, this.sourceCarId, this.sourceTrackId, triplet.physics, triplet.graphics, triplet.staticData);
         await processPacket(packet, sourceFrame, triplet.frameTimeMs);
       }
     } catch (err) {
@@ -73,3 +74,4 @@ export class ParsingProcessor implements TripletProcessor {
     return undefined;
   }
 }
+

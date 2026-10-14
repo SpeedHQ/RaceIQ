@@ -4,7 +4,7 @@ import { createReadStream } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { Database } from "bun:sqlite";
+import Database from "libsql";
 import { decompressIfGzipSync, iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
 import { IRACING_DUMP_MAGIC, readIRacingFramesFromBuffer } from "@raceiq/capture-formats/iracing/dump-decoder";
 import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump-decoder";
@@ -28,7 +28,7 @@ type ImportResult = {
   packetCount: number;
   importedLapCount: number;
   outcomeSha256: string;
-  outcome: { packetCount: number; identity: unknown; laps: Record<string, unknown>[] };
+  outcome: { packetCount: number; session: MemoryImportResult["session"]; laps: Record<string, unknown>[] };
   outputStorage: "memory";
   resourceMethod: string;
 };
@@ -49,9 +49,9 @@ function outcomeSignature(result: MemoryImportResult): {
   packetCount: number;
   importedLapCount: number;
   outcomeSha256: string;
-  outcome: { packetCount: number; identity: unknown; laps: Record<string, unknown>[] };
+  outcome: { packetCount: number; session: MemoryImportResult["session"]; laps: Record<string, unknown>[] };
 } {
-  const { packetCount, identity, laps } = result;
+  const { packetCount, session, laps } = result;
   const normalizedLaps = laps.map((lap) => ({
     lapNumber: lap.lapNumber,
     lapTime: lap.lapTime,
@@ -59,7 +59,7 @@ function outcomeSignature(result: MemoryImportResult): {
     car: lap.carId,
     track: lap.trackId,
   }));
-  const outcome = { packetCount, identity, laps: normalizedLaps };
+  const outcome = { packetCount, session, laps: normalizedLaps };
   return {
     packetCount,
     importedLapCount: laps.length,
@@ -88,7 +88,6 @@ async function runMemoryImport(testCase: typeof GAMES[number]): Promise<ImportRe
   const cpu = process.cpuUsage(cpuBefore);
   const processCpuSeconds = (cpu.user + cpu.system) / 1e6;
   const peakRssBytes = Math.max(rssBefore, process.memoryUsage().rss);
-  const result = { packetCount: imported.packetCount, laps: imported.laps, identity: imported.identity };
   const resourceMethod = "Bun process CPU delta; RSS sampled before/after each trial";
   return {
     fixture,
@@ -98,7 +97,7 @@ async function runMemoryImport(testCase: typeof GAMES[number]): Promise<ImportRe
     elapsedSeconds,
     processCpuSeconds,
     peakRssBytes,
-    ...outcomeSignature(result),
+    ...outcomeSignature(imported),
     outputStorage: "memory",
     resourceMethod,
   };
@@ -271,19 +270,28 @@ async function launchIsolatedBackend(dataDir: string, serverPort: number, udpPor
 }
 
 function persistedSessions(dataDir: string) {
-  using db = new Database(join(dataDir, "app.db"), { readonly: true });
-  return db.query<{ id: number; gameId: string; rawFile: string | null; ownership: string }, []>(
-    "SELECT id, game_id AS gameId, raw_file AS rawFile, ownership FROM sessions",
-  ).all();
+  const db = new Database(join(dataDir, "app.db"), { readonly: true });
+  try {
+    return db.prepare(
+      "SELECT id, game_id AS gameId, raw_file AS rawFile, ownership FROM sessions",
+    ).all() as Array<{ id: number; gameId: string; rawFile: string | null; ownership: string }>;
+  } finally {
+    db.close();
+  }
 }
 
 async function finalizedLiveCapture(dataDir: string, gameId: string) {
   const sessions = persistedSessions(dataDir).filter((session) => session.gameId === gameId && session.ownership === "mine");
   const liveIds = new Set(sessions.map((session) => session.id));
-  using db = new Database(join(dataDir, "app.db"), { readonly: true });
-  const liveLapRowsAfterShutdown = db.query<{ sessionId: number }, []>(
-    "SELECT session_id AS sessionId FROM laps",
-  ).all().filter((lap) => liveIds.has(lap.sessionId)).length;
+  const db = new Database(join(dataDir, "app.db"), { readonly: true });
+  let liveLapRowsAfterShutdown: number;
+  try {
+    liveLapRowsAfterShutdown = (db.prepare(
+      "SELECT session_id AS sessionId FROM laps",
+    ).all() as Array<{ sessionId: number }>).filter((lap) => liveIds.has(lap.sessionId)).length;
+  } finally {
+    db.close();
+  }
   let liveRecords = 0, liveCaptureBytes = 0;
   for (const rawFile of new Set(sessions.flatMap((session) => session.rawFile ? [session.rawFile] : []))) {
     const bytes = await readFile(rawFile);

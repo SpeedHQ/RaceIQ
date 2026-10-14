@@ -6,6 +6,7 @@ import {
 	blob,
 	index,
 	unique,
+	uniqueIndex,
 	primaryKey,
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
@@ -18,6 +19,23 @@ export const profiles = sqliteTable("profiles", {
 	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });
 
+// Server-only credentials. Never include these tables in dashboard exports.
+export const dashboardAccess = sqliteTable("dashboard_access", {
+  id: integer("id").primaryKey(),
+  mode: text("mode", { enum: ["pending", "enabled", "disabled"] }).notNull(),
+  passwordHash: text("password_hash"),
+  revision: integer("revision").notNull().default(0),
+  networkJson: text("network_json"),
+  upgrade: integer("upgrade", { mode: "boolean" }),
+});
+
+export const dashboardSessions = sqliteTable("dashboard_sessions", {
+  tokenHash: text("token_hash").primaryKey(),
+  csrf: text("csrf").notNull(),
+  generation: text("generation").notNull(),
+  expiresAt: integer("expires_at").notNull(),
+});
+
 export const tunes = sqliteTable(
 	"tunes",
 	{
@@ -25,9 +43,9 @@ export const tunes = sqliteTable(
 		gameId: text("game_id").notNull(),
 		name: text("name").notNull(),
 		author: text("author").notNull(),
-		carOrdinal: integer("car_ordinal").notNull(),
+		carId: text("car_id").notNull(),
 		category: text("category").notNull(),
-		trackOrdinal: integer("track_ordinal"),
+		trackId: text("track_id"),
 		description: text("description").notNull().default(""),
 		strengths: text("strengths"),
 		weaknesses: text("weaknesses"),
@@ -41,59 +59,48 @@ export const tunes = sqliteTable(
 		updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(table) => ({
-		carIdx: index("idx_tunes_car").on(table.carOrdinal),
-		gameCarIdx: index("idx_tunes_game_car").on(table.gameId, table.carOrdinal),
+		carIdx: index("idx_tunes_car").on(table.carId),
+		gameCarIdx: index("idx_tunes_game_car").on(table.gameId, table.carId),
 	}),
 );
 
-/**
- * Cars seen in telemetry that aren't in the per-game CSV data. AC Evo keys
- * cars by name (no stable ordinal), so unknown names get a generated ordinal
- * (>= 100000) here instead of importing as -1/"Unknown Car". Rows are
- * promoted to canonical CSV ids on startup once the name exists in cars.csv
- * (see reconcileDiscoveredCars).
- */
+/** Game-native identities and names discovered at runtime. */
 export const discoveredCars = sqliteTable(
 	"discovered_cars",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
 		gameId: text("game_id").notNull(),
-		ordinal: integer("ordinal").notNull(),
+		carId: text("car_id").notNull(),
 		name: text("name").notNull(),
 		model: text("model").notNull().default(""),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
-	(table) => [unique().on(table.gameId, table.ordinal)],
+	(table) => [unique().on(table.gameId, table.carId)],
 );
 
-/**
- * Tracks whose identity is supplied by runtime telemetry rather than a bundled
- * catalogue. The native ordinal is the durable identity; names are hydrated
- * into the relevant game adapter at startup.
- */
+/** Tracks discovered at runtime, including native layout metadata. */
 export const discoveredTracks = sqliteTable(
 	"discovered_tracks",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
 		gameId: text("game_id").notNull(),
-		ordinal: integer("ordinal").notNull(),
+		trackId: text("track_id").notNull(),
 		name: text("name").notNull(),
+		trackName: text("track_name"),
+		trackConfiguration: text("track_configuration"),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
-	(table) => [
-		unique().on(table.gameId, table.ordinal),
-	],
+	(table) => [unique().on(table.gameId, table.trackId)],
 );
+
 
 export const sessions = sqliteTable(
 	"sessions",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
-		carOrdinal: integer("car_ordinal").notNull(),
-		trackOrdinal: integer("track_ordinal").notNull(),
+		carId: text("car_id").notNull(),
+		trackId: text("track_id").notNull(),
 		gameId: text("game_id").notNull(),
-		carId: text("car_id"),
-		trackId: text("track_id"),
 		sessionType: text("session_type"),
 		notes: text("notes"),
 		rawFile: text("raw_file"),
@@ -248,14 +255,14 @@ export const tuneAssignments = sqliteTable(
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
 		gameId: text("game_id").notNull(),
-		carOrdinal: integer("car_ordinal").notNull(),
-		trackOrdinal: integer("track_ordinal").notNull(),
+		carId: text("car_id").notNull(),
+		trackId: text("track_id").notNull(),
 		tuneId: integer("tune_id")
 			.notNull()
 			.references(() => tunes.id, { onDelete: "cascade" }),
 	},
 	(table) => ({
-		gameCarTrackUnique: unique().on(table.gameId, table.carOrdinal, table.trackOrdinal),
+		gameCarTrackUnique: uniqueIndex("idx_assignments_identity").on(table.gameId, table.carId, table.trackId).where(sql`${table.carId} != '' AND ${table.trackId} != ''`),
 		tuneIdx: index("idx_assignments_tune").on(table.tuneId),
 	}),
 );
@@ -264,14 +271,14 @@ export const trackOutlines = sqliteTable(
 	"track_outlines",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
-		trackOrdinal: integer("track_ordinal").notNull(),
+		trackId: text("track_id").notNull(),
 		gameId: text("game_id").notNull(),
 		outline: blob("outline", { mode: "buffer" }).notNull(), // gzip'd JSON array of {x,z,speed}
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(table) => ({
-		trackIdx: index("idx_outlines_track").on(table.trackOrdinal),
-		trackGameUnique: unique().on(table.trackOrdinal, table.gameId),
+		trackIdx: index("idx_outlines_track").on(table.trackId),
+		trackGameUnique: uniqueIndex("idx_outlines_identity").on(table.trackId, table.gameId).where(sql`${table.trackId} != ''`),
 	}),
 );
 
@@ -279,7 +286,7 @@ export const trackCorners = sqliteTable(
 	"track_corners",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
-		trackOrdinal: integer("track_ordinal").notNull(),
+		trackId: text("track_id").notNull(),
 		gameId: text("game_id").notNull(),
 		cornerIndex: integer("corner_index").notNull(),
 		label: text("label").notNull(),
@@ -288,12 +295,8 @@ export const trackCorners = sqliteTable(
 		isAuto: integer("is_auto", { mode: "boolean" }).notNull().default(true),
 	},
 	(table) => ({
-		trackIdx: index("idx_corners_track").on(table.trackOrdinal),
-		trackCornerUnique: unique().on(
-			table.trackOrdinal,
-			table.gameId,
-			table.cornerIndex,
-		),
+		trackIdx: index("idx_corners_track").on(table.trackId),
+		trackCornerUnique: uniqueIndex("idx_corners_identity").on(table.trackId, table.gameId, table.cornerIndex).where(sql`${table.trackId} != ''`),
 	}),
 );
 
@@ -347,8 +350,8 @@ export const communityTunes = sqliteTable(
 	{
 		id: text("id").primaryKey(),
 		gameId: text("game_id").notNull(),
-		carOrdinal: integer("car_ordinal").notNull(),
-		trackOrdinal: integer("track_ordinal"),
+		carId: text("car_id").notNull(),
+		trackId: text("track_id"),
 		name: text("name").notNull(),
 		author: text("author").notNull(),
 		category: text("category").notNull(),
@@ -365,11 +368,8 @@ export const communityTunes = sqliteTable(
  * session is the parent container for the Setup IQ loop: it owns the base
  * setup, the stints driven, and (later phases) the setup versions v1..vN.
  *
- * Car/track are stored two ways because the two seed paths supply different
- * identifiers: seeding from an ACC/AC-Evo saved setup file gives the car/track
- * folder *names* (carName/trackName + baseSetupPath), while seeding from a live
- * or recorded telemetry session gives numeric ordinals. Both are nullable; a
- * session uses whichever its origin provided.
+ * Car/track identities use native string IDs. Names and baseSetupPath retain
+ * the labels and source setup path supplied by the session's origin.
  */
 export const experiments = sqliteTable(
 	"experiments",
@@ -380,8 +380,8 @@ export const experiments = sqliteTable(
 		seq: integer("seq").notNull().default(1),
 		gameId: text("game_id").notNull(),
 		name: text("name").notNull(),
-		carOrdinal: integer("car_ordinal"),
-		trackOrdinal: integer("track_ordinal"),
+		carId: text("car_id"),
+		trackId: text("track_id"),
 		carName: text("car_name"),
 		trackName: text("track_name"),
 		baseSetupPath: text("base_setup_path"),
@@ -582,7 +582,7 @@ export const lapMetrics = sqliteTable("lap_metrics", {
 /**
  * Cached Driver Profile summary snapshots, one row per profile scope.
  *
- * `scopeKey` (`gameId|carOrdinal|trackOrdinal`, with `*` for an unset ordinal)
+ * `scopeKey` (JSON tuple of gameId, carId and trackId, with null for unset IDs)
  * carries the uniqueness rather than a composite index over the three columns,
  * because SQLite's UNIQUE constraint treats NULLs as distinct.
  *
@@ -599,8 +599,8 @@ export const driverProfiles = sqliteTable(
 		id: integer("id").primaryKey({ autoIncrement: true }),
 		scopeKey: text("scope_key").notNull(),
 		gameId: text("game_id").notNull(),
-		carOrdinal: integer("car_ordinal"),
-		trackOrdinal: integer("track_ordinal"),
+		carId: text("car_id"),
+		trackId: text("track_id"),
 		poolKey: text("pool_key").notNull(),
 		/** JSON — DriverFingerprint from server/driver-profile/fingerprint.ts. */
 		fingerprint: text("fingerprint").notNull(),
@@ -623,8 +623,8 @@ export const driverProfileRuns = sqliteTable(
 		id: integer("id").primaryKey({ autoIncrement: true }),
 		scopeKey: text("scope_key").notNull(),
 		gameId: text("game_id").notNull(),
-		carOrdinal: integer("car_ordinal"),
-		trackOrdinal: integer("track_ordinal"),
+		carId: text("car_id"),
+		trackId: text("track_id"),
 		poolKey: text("pool_key").notNull(),
 		status: text("status", { enum: ["queued", "running", "succeeded", "failed"] }).notNull().default("queued"),
 		/** JSON — deterministic DriverFingerprint snapshot, when available. */
@@ -646,3 +646,210 @@ export const driverProfileRuns = sqliteTable(
 		index("driver_profile_runs_scope_created_idx").on(table.scopeKey, table.createdAt, table.id),
 	],
 );
+/** Trigger-owned source revisions; publication state is independent of source rows. */
+export const dashboardSummaryState = sqliteTable("dashboard_summary_state", {
+	sessionId: integer("session_id").primaryKey(),
+	sourceRevision: integer("source_revision").notNull().default(1),
+	publishedRevision: integer("published_revision").notNull().default(0),
+	processorVersion: integer("processor_version").notNull().default(0),
+	metadataDirty: integer("metadata_dirty").notNull().default(1),
+	captureDirty: integer("capture_dirty").notNull().default(1),
+	captureReady: integer("capture_ready").notNull().default(1),
+	deleted: integer("deleted").notNull().default(0),
+	retryCount: integer("retry_count").notNull().default(0),
+	nextRetryAt: text("next_retry_at"),
+	lastSuccessAt: text("last_success_at"),
+	lastErrorCode: text("last_error_code"),
+	updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
+}, (table) => [index("dashboard_state_work_idx").on(table.metadataDirty, table.sourceRevision, table.sessionId), index("dashboard_state_retry_idx").on(table.nextRetryAt, table.sessionId)]);
+
+/** One exact, replaceable publication per source session. */
+export const dashboardSessionSummaries = sqliteTable("dashboard_session_summaries", {
+	sessionId: integer("session_id").primaryKey(),
+	sourceRevision: integer("source_revision").notNull(),
+	processorVersion: integer("processor_version").notNull(),
+	gameId: text("game_id").notNull(),
+	createdAtMs: integer("created_at_ms").notNull(),
+	carKey: text("car_key"),
+	trackKey: text("track_key"),
+	carId: text("car_id"),
+	trackId: text("track_id"),
+	sessionType: text("session_type"),
+	lapCount: integer("lap_count").notNull(),
+	positiveLaps: integer("positive_laps").notNull(),
+	validLaps: integer("valid_laps").notNull(),
+	drivenSeconds: real("driven_seconds").notNull(),
+	validSeconds: real("valid_seconds").notNull(),
+	validMeanSeconds: real("valid_mean_seconds"),
+	validM2Seconds: real("valid_m2_seconds"),
+	bestLapSeconds: real("best_lap_seconds"),
+	firstLapAtMs: integer("first_lap_at_ms"),
+	lastLapAtMs: integer("last_lap_at_ms"),
+	favouriteLaps: integer("favourite_laps").notNull().default(0),
+	favouriteSeconds: real("favourite_seconds").notNull().default(0),
+	distanceLaps: integer("distance_laps").notNull().default(0),
+	distanceMeters: real("distance_meters"),
+	trackLengthMeters: real("track_length_meters"),
+	elapsedSeconds: real("elapsed_seconds"),
+	durationStatus: text("duration_status").notNull().default("pending"),
+	podiumStatus: text("podium_status").notNull().default("unavailable"),
+	sectorLayoutKey: text("sector_layout_key"),
+	sectorCount: integer("sector_count"),
+	sourceSectorStartsJson: text("source_sector_starts_json"),
+	sectorStatus: text("sector_status").notNull().default("pending"),
+	podiumPosition: integer("podium_position").notNull().default(0),
+	captureRevision: text("capture_revision"),
+	weatherRevision: text("weather_revision"),
+	weatherStatus: text("weather_status").notNull().default("pending"),
+	weatherConditionsJson: text("weather_conditions_json"),
+	evidenceVersion: integer("evidence_version").notNull().default(0),
+}, (table) => [
+	index("dashboard_summary_game_time_idx").on(table.gameId, table.createdAtMs, table.sessionId),
+	index("dashboard_summary_time_idx").on(table.createdAtMs, table.sessionId),
+]);
+
+/** Derived dashboard session identity and indexed UTC timestamp; never mutates source sessions. */
+export const dashboardSessionIndex = sqliteTable("dashboard_session_index", {
+	sessionId: integer("session_id").primaryKey(),
+	createdAtMs: integer("created_at_ms").notNull(),
+	gameId: text("game_id").notNull(),
+	ownership: text("ownership").notNull(),
+	carId: text("car_id"),
+	sessionType: text("session_type"),
+}, (table) => [
+	index("dashboard_session_time_idx").on(table.createdAtMs, table.sessionId),
+	index("dashboard_session_game_time_idx").on(table.gameId, table.createdAtMs, table.sessionId),
+]);
+
+export const dashboardSessionDays = sqliteTable("dashboard_session_days", {
+	sessionId: integer("session_id").notNull(),
+	utcDay: text("utc_day").notNull(),
+	gameId: text("game_id").notNull(),
+	carKey: text("car_key").notNull().default(""),
+	trackKey: text("track_key").notNull().default(""),
+	lapCount: integer("lap_count").notNull(),
+	positiveLaps: integer("positive_laps").notNull(),
+	validLaps: integer("valid_laps").notNull(),
+	drivenSeconds: real("driven_seconds").notNull(),
+	validSeconds: real("valid_seconds").notNull(),
+	bestLapSeconds: real("best_lap_seconds"),
+	meanLapSeconds: real("mean_lap_seconds"),
+	m2LapSeconds: real("m2_lap_seconds"),
+	favouriteLaps: integer("favourite_laps").notNull().default(0),
+	favouriteSeconds: real("favourite_seconds").notNull().default(0),
+	distanceLaps: integer("distance_laps").notNull().default(0),
+	distanceMeters: real("distance_meters"),
+	podiumFirst: integer("podium_first").notNull().default(0),
+	podiumSecond: integer("podium_second").notNull().default(0),
+	podiumThird: integer("podium_third").notNull().default(0),
+}, (table) => [
+	primaryKey({ columns: [table.sessionId, table.utcDay, table.gameId, table.carKey, table.trackKey] }),
+	index("dashboard_days_game_day_idx").on(table.gameId, table.utcDay, table.sessionId),
+	index("dashboard_days_track_idx").on(table.gameId, table.trackKey, table.utcDay),
+	index("dashboard_days_car_idx").on(table.gameId, table.carKey, table.utcDay),
+]);
+
+export const dashboardSessionSectors = sqliteTable("dashboard_session_sectors", {
+	sessionId: integer("session_id").notNull(),
+	layoutKey: text("layout_key").notNull(),
+	sectorIndex: integer("sector_index").notNull(),
+	bestSeconds: real("best_seconds").notNull(),
+}, (table) => [primaryKey({ columns: [table.sessionId, table.layoutKey, table.sectorIndex] })]);
+
+export const dashboardSessionTimeBuckets = sqliteTable("dashboard_session_time_buckets", {
+	sessionId: integer("session_id").notNull(),
+	bucketStartMs: integer("bucket_start_ms").notNull(),
+	gameId: text("game_id").notNull(),
+	validLaps: integer("valid_laps").notNull(),
+	positiveLaps: integer("positive_laps").notNull(),
+	drivenSeconds: real("driven_seconds").notNull(),
+	validSeconds: real("valid_seconds").notNull().default(0),
+	podiumFirst: integer("podium_first").notNull().default(0),
+	podiumSecond: integer("podium_second").notNull().default(0),
+	podiumThird: integer("podium_third").notNull().default(0),
+}, (table) => [primaryKey({ columns: [table.sessionId, table.bucketStartMs, table.gameId] })]);
+export const dashboardDayEntities = sqliteTable("dashboard_day_entities", {
+	utcDay: text("utc_day").notNull(),
+	gameId: text("game_id").notNull(),
+	carKey: text("car_key").notNull(),
+	trackKey: text("track_key").notNull(),
+	lapCount: integer("lap_count").notNull(),
+	positiveLaps: integer("positive_laps").notNull(),
+	validLaps: integer("valid_laps").notNull(),
+	drivenSeconds: real("driven_seconds").notNull(),
+	validSeconds: real("valid_seconds").notNull(),
+	validMeanSeconds: real("valid_mean_seconds"),
+	validM2Seconds: real("valid_m2_seconds"),
+	favouriteLaps: integer("favourite_laps").notNull(),
+	favouriteSeconds: real("favourite_seconds").notNull(),
+	distanceLaps: integer("distance_laps").notNull(),
+	distanceMeters: real("distance_meters").notNull(),
+	podiumFirst: integer("podium_first").notNull(),
+	podiumSecond: integer("podium_second").notNull(),
+	podiumThird: integer("podium_third").notNull(),
+}, (table) => [
+	primaryKey({ columns: [table.utcDay, table.gameId, table.carKey, table.trackKey] }),
+	index("dashboard_day_entities_scope_idx").on(table.gameId, table.utcDay),
+	index("dashboard_day_entities_track_idx").on(table.gameId, table.trackKey, table.utcDay),
+	index("dashboard_day_entities_car_idx").on(table.gameId, table.carKey, table.utcDay),
+]);
+export const dashboardMonthEntities = sqliteTable("dashboard_month_entities", {
+	utcMonth: text("utc_month").notNull(),
+	gameId: text("game_id").notNull(),
+	carKey: text("car_key").notNull(),
+	trackKey: text("track_key").notNull(),
+	lapCount: integer("lap_count").notNull(),
+	positiveLaps: integer("positive_laps").notNull(),
+	validLaps: integer("valid_laps").notNull(),
+	drivenSeconds: real("driven_seconds").notNull(),
+	validSeconds: real("valid_seconds").notNull(),
+	validMeanSeconds: real("valid_mean_seconds"),
+	validM2Seconds: real("valid_m2_seconds"),
+	favouriteLaps: integer("favourite_laps").notNull(),
+	favouriteSeconds: real("favourite_seconds").notNull(),
+	distanceLaps: integer("distance_laps").notNull(),
+	distanceMeters: real("distance_meters").notNull(),
+	podiumFirst: integer("podium_first").notNull(),
+	podiumSecond: integer("podium_second").notNull(),
+	podiumThird: integer("podium_third").notNull(),
+}, (table) => [
+	primaryKey({ columns: [table.utcMonth, table.gameId, table.carKey, table.trackKey] }),
+	index("dashboard_month_entities_scope_idx").on(table.gameId, table.utcMonth),
+	index("dashboard_month_entities_track_idx").on(table.gameId, table.trackKey, table.utcMonth),
+	index("dashboard_month_entities_car_idx").on(table.gameId, table.carKey, table.utcMonth),
+]);
+
+export const dashboardTimeBuckets = sqliteTable("dashboard_time_buckets", {
+	bucketStartMs: integer("bucket_start_ms").notNull(),
+	gameId: text("game_id").notNull(),
+	validLaps: integer("valid_laps").notNull(),
+	positiveLaps: integer("positive_laps").notNull(),
+	drivenSeconds: real("driven_seconds").notNull(),
+	validSeconds: real("valid_seconds").notNull(),
+	podiumFirst: integer("podium_first").notNull(),
+	podiumSecond: integer("podium_second").notNull(),
+	podiumThird: integer("podium_third").notNull(),
+}, (table) => [
+	primaryKey({ columns: [table.bucketStartMs, table.gameId] }),
+	index("dashboard_time_buckets_game_time_idx").on(table.gameId, table.bucketStartMs),
+]);
+
+export const dashboardBackfillCursor = sqliteTable("dashboard_backfill_cursor", {
+	id: integer("id").primaryKey(),
+	lastSessionId: integer("last_session_id").notNull().default(0),
+	updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
+});
+
+export const dashboardLapIndex = sqliteTable("dashboard_lap_index", {
+	lapId: integer("lap_id").primaryKey(),
+	sessionId: integer("session_id").notNull(),
+	createdAtMs: integer("created_at_ms").notNull(),
+	lapTime: real("lap_time").notNull(),
+	isValid: integer("is_valid").notNull(),
+	invalidReason: text("invalid_reason"),
+	sectorTimes: text("sector_times"),
+}, (table) => [
+	index("dashboard_lap_session_time_idx").on(table.sessionId, table.lapTime, table.lapId),
+	index("dashboard_lap_session_created_idx").on(table.sessionId, table.createdAtMs, table.lapId),
+	index("dashboard_lap_created_idx").on(table.createdAtMs, table.sessionId, table.lapId),
+]);

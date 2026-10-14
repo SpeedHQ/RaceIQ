@@ -22,15 +22,15 @@ interface LapManagementProps {
   gameId: string | null;
   trackLaps: TrackLap[];
   filteredLaps: TrackLap[];
-  uniqueCars: { carOrdinal: number; carName: string; carClass: string }[];
+  uniqueCars: { carId: string; carName: string; carClass: string }[];
   uniqueDivisions: string[];
   hasForzaTunes: boolean;
   hideClassCol: boolean;
   selectedDivision: string | null;
   setSelectedDivision: (value: string | null) => void;
-  selectedCars: Set<number>;
-  setSelectedCars: (value: Set<number>) => void;
-  toggleCar: (ordinal: number) => void;
+  selectedCars: Set<string>;
+  setSelectedCars: (value: Set<string>) => void;
+  toggleCar: (carId: string) => void;
   selectedLaps: Set<number>;
   setSelectedLaps: (value: Set<number>) => void;
   toggleLapSelect: (lapId: number) => void;
@@ -110,14 +110,14 @@ export function LapManagement(props: LapManagementProps) {
     return () => carouselEl.removeEventListener("scroll", onScroll);
   }, [carouselEl]);
   const selectedCarNames = useMemo(
-    () => uniqueCars.filter((car) => selectedCars.has(car.carOrdinal)).map((car) => car.carName),
+    () => uniqueCars.filter((car) => selectedCars.has(car.carId)).map((car) => car.carName),
     [uniqueCars, selectedCars],
   );
   const leaderboard = isF125
-    ? <F125Leaderboard trackOrdinal={track.ordinal} />
+    ? <F125Leaderboard trackId={track.id} />
     : <CommunityLeaderboard trackName={track.name} trackVariant={track.variant} selectedCarNames={selectedCarNames} />;
-  const trackId = track.id ?? String(track.ordinal);
-  const onlineCarId = onlineCarSelection?.gameId === gameId && onlineCarSelection.trackId === trackId && uniqueCars.some((car) => String(car.carOrdinal) === onlineCarSelection.carId) ? onlineCarSelection.carId : "";
+  const trackId = track.id;
+  const onlineCarId = onlineCarSelection?.gameId === gameId && onlineCarSelection.trackId === trackId && uniqueCars.some((car) => car.carId === onlineCarSelection.carId) ? onlineCarSelection.carId : "";
   const referenceContent = (
     <>
       <TabsContent value="stats" className="min-h-0 @3xl/workspace:flex-1 @3xl/workspace:overflow-hidden">
@@ -129,9 +129,9 @@ export function LapManagement(props: LapManagementProps) {
       <TabsContent value="community-laps" className="flex h-[400px] min-h-0 flex-col overflow-hidden @3xl/workspace:h-auto @3xl/workspace:flex-1">
         <label className="flex shrink-0 items-center gap-2 p-2 text-sm text-app-text-muted">
           <span>{m.online_community_laps_car()}</span>
-          <select className="min-w-0 rounded border border-app-border bg-app-surface px-2 py-1 text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent" value={onlineCarId} onChange={(event) => setOnlineCarSelection(gameId && event.target.value ? { gameId, trackId, carId: event.target.value } : null)}>
+          <select className="min-w-0 rounded border border-app-border bg-app-surface px-2 py-1 text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent" value={onlineCarId} onChange={(event) => setOnlineCarSelection(gameId && trackId && event.target.value ? { gameId, trackId, carId: event.target.value } : null)}>
             <option value="">{m.online_community_laps_select_car()}</option>
-            {uniqueCars.map((car) => <option key={car.carOrdinal} value={String(car.carOrdinal)}>{car.carName}</option>)}
+            {uniqueCars.map((car) => <option key={car.carId} value={car.carId}>{car.carName}</option>)}
           </select>
           {uniqueCars.length === 0 && <span className="text-xs text-app-text-dim">{m.online_community_laps_no_cars()}</span>}
         </label>
@@ -168,11 +168,11 @@ export function LapManagement(props: LapManagementProps) {
                             navTo({
                               to: `${getGameRoute(gameId ?? "")}/compare`,
                               search: {
-                                track: track.ordinal,
+                                track: track.id,
                                 lapA,
                                 lapB,
-                                carA: trackLaps.find((l) => l.lapId === lapA)?.carOrdinal,
-                                carB: trackLaps.find((l) => l.lapId === lapB)?.carOrdinal,
+                                carA: trackLaps.find((l) => l.lapId === lapA)?.carId,
+                                carB: trackLaps.find((l) => l.lapId === lapB)?.carId,
                               },
                             })
                           }
@@ -226,9 +226,9 @@ export function LapManagement(props: LapManagementProps) {
                   menuWidthClass="w-56"
                 />
               )}
-              <SearchMultiSelect<number>
+              <SearchMultiSelect<string>
                 buttonLabel={selectedCars.size === 0 ? m.track_detail_all_cars() : `${selectedCars.size} ${selectedCars.size > 1 ? m.label_cars() : m.label_car()}`}
-                options={uniqueCars.map((c) => ({ key: c.carOrdinal, label: c.carName, search: c.carName }))}
+                options={uniqueCars.map((c) => ({ key: c.carId, label: c.carName, search: c.carName }))}
                 isSelected={(k) => selectedCars.has(k)}
                 onSelect={(k) => toggleCar(k)}
                 onClear={
@@ -242,7 +242,7 @@ export function LapManagement(props: LapManagementProps) {
                 searchPlaceholder={m.trackdetail_search_cars_placeholder()}
                 menuAlign="right"
                 renderItem={(opt) => {
-                  const car = uniqueCars.find((c) => c.carOrdinal === opt.key);
+                  const car = uniqueCars.find((c) => c.carId === opt.key);
                   return (
                     <>
                       {!hideClassCol && car && (

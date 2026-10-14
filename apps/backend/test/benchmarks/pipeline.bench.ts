@@ -65,8 +65,8 @@ if (accFrames.length === 0) throw new Error("No ACC frames found in dump");
 const accCm = readWString(accFrames[0].staticData, STATIC.carModel.offset, STATIC.carModel.size);
 const accTn = readWString(accFrames[0].staticData, STATIC.track.offset, STATIC.track.size);
 const accOpts = {
-  carOrdinal: accCm ? (getAccCarByModel(accCm)?.id ?? 0) : 0,
-  trackOrdinal: accTn ? (getAccTrackByName(accTn)?.id ?? 0) : 0,
+  carId: accCm ? String(getAccCarByModel(accCm)?.id ?? "") : "",
+  trackId: accTn ? String(getAccTrackByName(accTn)?.id ?? "") : "",
 };
 const accPackets = accFrames.map((f) => parseAccBuffers(f.physics, f.graphics, f.staticData, accOpts)).filter((p): p is NonNullable<typeof p> => p !== null);
 console.log(`[bench] acc loaded — ${accPackets.length} packets, car: ${accCm ?? "?"} track: ${accTn ?? "?"} ${elapsed()}`);

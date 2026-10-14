@@ -9,6 +9,7 @@ import { Button } from "./ui/button";
 import { useLaps } from "@/hooks/laps";
 
 import { parseUtcTimestamp } from "@/lib/utc-date";
+import { authenticatedFetch } from "@/lib/rpc";
 interface LapSummary {
   id: number;
   sessionId: number;
@@ -88,7 +89,7 @@ export function ChatsPage() {
   const handleDelete = useCallback(async (threadId: string) => {
     if (!confirm(m.chats_delete_confirm())) return;
     try {
-      const response = await fetch(`/api/chats/${encodeURIComponent(threadId)}`, { method: "DELETE" });
+      const response = await authenticatedFetch(`/api/chats/${encodeURIComponent(threadId)}`, { method: "DELETE" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       setRows((prev) => prev.filter((r) => r.threadId !== threadId));
     } catch (err: unknown) {
@@ -113,9 +114,9 @@ export function ChatsPage() {
         navigate({
           to: `${routePrefix}/compare` as never,
           search: {
-            track: allLaps.find((lap) => lap.id === a.id)?.trackOrdinal ?? allLaps.find((lap) => lap.id === b.id)?.trackOrdinal,
-            carA: allLaps.find((lap) => lap.id === a.id)?.carOrdinal,
-            carB: allLaps.find((lap) => lap.id === b.id)?.carOrdinal,
+            track: allLaps.find((lap) => lap.id === a.id)?.trackId ?? allLaps.find((lap) => lap.id === b.id)?.trackId,
+            carA: allLaps.find((lap) => lap.id === a.id)?.carId,
+            carB: allLaps.find((lap) => lap.id === b.id)?.carId,
             lapA: a.id,
             lapB: b.id,
             ai: 1,

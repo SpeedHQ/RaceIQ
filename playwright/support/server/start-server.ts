@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { resetTestDatabase } from "./reset-test-database";
 import { seedE2ESetupData, seedScreenshotData } from "./seed-screenshot-data";
 
@@ -34,6 +34,8 @@ mkdirSync(dir, { recursive: true });
 writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort, onboardingComplete: process.env.RACEIQ_E2E === "1" }));
 if (process.env.PW_SEED_SETUP_DATA === "1") seedE2ESetupData(repoDir, dir);
 seedScreenshotData(repoDir, dir);
+const access = spawnSync("bun", [resolve(repoDir, "playwright/support/server/initialize-access.ts")], { cwd: repoDir, env: { ...process.env, DATA_DIR: dir }, stdio: "inherit" });
+if (access.status !== 0) throw new Error("Failed to initialize dashboard access fixture");
 
 // cwd = dist/ so the binary resolves its native libsql addon from
 // dist/node_modules/@libsql/<target> — native .node modules can't be embedded

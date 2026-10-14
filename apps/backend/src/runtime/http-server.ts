@@ -1,12 +1,14 @@
 import { execSync } from "node:child_process";
 import { resolve, sep } from "node:path";
 import { wsManager, type WSData } from "@raceiq/backend-core/runtime/websocket-manager";
-import type { AppType } from "../routes/index";
 import { MAX_IBT_BYTES } from "../imports/iracing-ibt";
 import { IS_WINDOWS } from "@raceiq/backend-core/runtime/platform/shell";
 import { gameAssetsDir } from "@raceiq/shared/platform/runtime/data-paths";
+import { beginRequestAuthorization, endRequestAuthorization, httpAccess, type HttpAccess } from "./http-access";
 
-type HttpApp = Pick<AppType, "fetch">;
+type HttpApp = {
+  fetch: (request: Request) => Response | Promise<Response>;
+};
 
 export function staticAssetHeaders(filePath: string): HeadersInit | undefined {
   if (!filePath.endsWith(".gz")) return undefined;
@@ -17,21 +19,21 @@ export function staticAssetHeaders(filePath: string): HeadersInit | undefined {
   };
 }
 
-
 export interface HttpServerOptions {
   app: HttpApp;
   port: number;
   staticDir: string | null;
   devPublicDir: string | null;
+  access?: HttpAccess;
 }
 
 export function clearHttpPort(port: number): void {
   try {
     if (IS_WINDOWS) {
-      execSync(
-        `powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort ${port} -State Listen -EA 0 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -EA 0 }"`,
-        { stdio: "ignore", windowsHide: true },
-      );
+      execSync(`powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort ${port} -State Listen -EA 0 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -EA 0 }"`, {
+        stdio: "ignore",
+        windowsHide: true,
+      });
     } else {
       execSync(`lsof -ti:${port} | xargs kill -9`, { stdio: "ignore" });
     }
@@ -40,19 +42,35 @@ export function clearHttpPort(port: number): void {
   }
 }
 
-export function startHttpServer({
-  app,
-  port,
-  staticDir,
-  devPublicDir,
-}: HttpServerOptions): Bun.Server<WSData> {
-  return Bun.serve<WSData>({
+export function startHttpServer({ app, port, staticDir, devPublicDir, access = httpAccess }: HttpServerOptions): Bun.Server<WSData> {
+  // Also disconnect already-open sockets after logout/password replacement,
+  // including resets performed by another process against the shared DB.
+  const sockets = new Map<Bun.ServerWebSocket<WSData>, Request>();
+  const sessionCheck = setInterval(() => {
+    if (!access.usesSessions) return;
+    for (const [socket, request] of sockets) {
+      endRequestAuthorization(request);
+      void access
+        .authorize(request)
+        .then((denied) => {
+          if (denied) socket.close(1008, "Authentication required");
+        })
+        .catch(() => socket.close(1008, "Authentication unavailable"));
+    }
+  }, 1000);
+  sessionCheck.unref();
+  const requests = new WeakMap<WSData, Request>();
+  const server = Bun.serve<WSData>({
     port,
+    hostname: access.hostname,
     idleTimeout: 255,
     // Bun otherwise terminates uploads above its 128 MiB default before Hono
     // can stream them to disk or return the route's structured size error.
     maxRequestBodySize: MAX_IBT_BYTES,
     async fetch(req, server) {
+      beginRequestAuthorization(req);
+      const denied = await access.authorize(req);
+      if (denied) return denied;
       const url = new URL(req.url);
       // Online account/transfer controls are local-only, even when telemetry
       // endpoints intentionally listen on LAN interfaces.
@@ -63,9 +81,9 @@ export function startHttpServer({
         }
       }
       if (url.pathname === "/ws") {
-        const upgraded = server.upgrade(req, {
-          data: { createdAt: Date.now(), devTelemetrySubscribed: false },
-        });
+        const data = { createdAt: Date.now(), devTelemetrySubscribed: false };
+        requests.set(data, req);
+        const upgraded = server.upgrade(req, { data });
         if (upgraded) return undefined as unknown as Response;
       }
 
@@ -86,13 +104,16 @@ export function startHttpServer({
       }
 
       if (process.env.NODE_ENV !== "production" && url.pathname === "/") {
-        const origin = req.headers.get("origin") ?? "*";
+        const origin = req.headers.get("origin");
         return new Response("ok", {
           status: 200,
-          headers: {
-            "access-control-allow-origin": origin,
-            "access-control-allow-credentials": "true",
-          },
+          headers: origin
+            ? {
+                "access-control-allow-origin": origin,
+                "access-control-allow-credentials": "true",
+                vary: "Origin",
+              }
+            : undefined,
         });
       }
 
@@ -129,9 +150,12 @@ export function startHttpServer({
     },
     websocket: {
       open(ws) {
+        const request = requests.get(ws.data);
+        if (request) sockets.set(ws, request);
         wsManager.addClient(ws);
       },
       close(ws) {
+        sockets.delete(ws);
         wsManager.removeClient(ws);
       },
       message(ws, msg) {
@@ -139,4 +163,10 @@ export function startHttpServer({
       },
     },
   });
+  const stop = server.stop.bind(server);
+  server.stop = (closeActiveConnections) => {
+    clearInterval(sessionCheck);
+    return stop(closeActiveConnections);
+  };
+  return server;
 }

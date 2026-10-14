@@ -11,13 +11,14 @@ import { useSaveSettings, useSettings } from "@/hooks/settings";
 import { applyLocale } from "@/lib/locale";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
+import { getLocale } from "@/paraglide/runtime";
 import { useTelemetryStore } from "@/stores/telemetry";
 
 interface DemoFixture {
   frames: SemanticAnalysisFrame[];
 }
 
-function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) {
+function WelcomeViewport({ telemetry, setup }: { telemetry: SemanticAnalysisFrame[]; setup: boolean }) {
   const [cursorIdx, setCursorIdx] = useState(() => Math.floor(telemetry.length * 0.3));
   const rafIdRef = useRef<number>(0);
   const isRunningRef = useRef(false);
@@ -47,7 +48,7 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
     return generation;
   }, []);
   telemetryLengthRef.current = telemetry.length;
-  const trackOrdinal = telemetry[0]?.values["identity.track-ordinal"];
+  const trackId = typeof telemetry[0]?.values["identity.track-id"] === "string" ? telemetry[0].values["identity.track-id"] : undefined;
   const pauseAnimation = useCallback(() => {
     if (!isRunningRef.current) return;
     setPlaying(false);
@@ -77,26 +78,28 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
   }, [seek]);
 
   useQuery({
-    queryKey: ["track-outline", trackOrdinal],
+    queryKey: ["track-outline", trackId],
     queryFn: async () => {
-      const res = await client.api["track-outline"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(trackOrdinal)) }, query: { gameId: "fm-2023" } });
+      if (!trackId) return null;
+      const res = await client.api["track-outline"][":trackId"].$get({ param: { trackId: encodeURIComponent(trackId) }, query: { gameId: "fm-2023" } });
       if (!res.ok) return null;
       const d = (await res.json()) as Record<string, unknown>;
       if (d?.points && Array.isArray(d.points)) return d.points as { x: number; z: number }[];
       if (Array.isArray(d)) return d as { x: number; z: number }[];
       return null;
     },
-    enabled: !!trackOrdinal,
+    enabled: !setup && !!trackId,
     staleTime: Number.POSITIVE_INFINITY,
   });
   const { data: boundaries } = useQuery({
-    queryKey: ["track-boundaries", trackOrdinal],
+    queryKey: ["track-boundaries", trackId],
     queryFn: async () => {
-      const res = await client.api["track-boundaries"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(trackOrdinal)) }, query: { gameId: "fm-2023" } });
+      if (!trackId) return null;
+      const res = await client.api["track-boundaries"][":trackId"].$get({ param: { trackId: encodeURIComponent(trackId) }, query: { gameId: "fm-2023" } });
       if (!res.ok) return null;
       return res.json();
     },
-    enabled: !!trackOrdinal,
+    enabled: !setup && !!trackId,
     staleTime: Number.POSITIVE_INFINITY,
   });
 
@@ -147,7 +150,6 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
   }, [telemetry]);
   const packet = telemetry[cursorIdx] ?? telemetry[0];
   if (!packet) return null;
-  const carOrdinal = packet.values["identity.car-ordinal"];
   return (
     <div className="w-full h-48 rounded-lg overflow-hidden border border-app-border bg-app-bg">
       <CarWireframe
@@ -159,8 +161,8 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
         onRuntime={handleRuntime}
         outline={lapLine}
         boundaries={boundaries ?? undefined}
-        carOrdinal={typeof carOrdinal === "number" ? carOrdinal : undefined}
         carModel={DEMO_CAR}
+        protectedDataEnabled={!setup}
         minimal
         hideControls
         toggleOverrides={{ track: true, wheelInfo: false }}
@@ -170,7 +172,8 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
   );
 }
 
-export function WelcomeStep() {
+export function WelcomeStep({ setup = false }: { setup?: boolean } = {}) {
+  const [setupLanguage, setSetupLanguage] = useState<string>(getLocale);
   const versionInfo = useTelemetryStore((s) => s.versionInfo);
   const { data: demoTelemetry, isLoading } = useQuery({
     queryKey: ["demo-lap"],
@@ -183,16 +186,20 @@ export function WelcomeStep() {
   });
   const telemetry = demoTelemetry ?? [];
   const hasTelemetry = telemetry.length > 0;
-  const { displaySettings } = useSettings();
+  const { displaySettings } = useSettings({ enabled: !setup });
   const saveSettings = useSaveSettings();
-  const currentLang = displaySettings.language ?? "en";
+  const currentLang = setup ? setupLanguage : displaySettings.language ?? "en";
   const langOptions = LOCALES.map((loc) => ({ value: loc.code, label: `${loc.label} (${loc.code})` }));
   async function selectLanguage(code: string) {
     if (code === currentLang) return;
-    try {
-      await saveSettings.mutateAsync({ language: code });
-    } catch {
-      /* best-effort persist; still switch UI locale below */
+    if (setup) {
+      setSetupLanguage(code);
+    } else {
+      try {
+        await saveSettings.mutateAsync({ language: code });
+      } catch {
+        /* best-effort persist; still switch UI locale below */
+      }
     }
     applyLocale(code);
   }
@@ -202,7 +209,7 @@ export function WelcomeStep() {
         <div className="mb-5 w-full h-48 rounded-lg bg-app-surface-alt animate-pulse" />
       ) : hasTelemetry ? (
         <div className="mb-5 w-full">
-          <WelcomeViewport telemetry={telemetry} />
+          <WelcomeViewport telemetry={telemetry} setup={setup} />
         </div>
       ) : (
         <div className="mb-5 relative w-64 h-20">

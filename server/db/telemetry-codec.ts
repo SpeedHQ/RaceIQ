@@ -34,8 +34,8 @@ const TELEMETRY_FIELDS: (keyof TelemetryPacket)[] = [
   "TireSlipAngleFL","TireSlipAngleFR","TireSlipAngleRL","TireSlipAngleRR",
   "TireCombinedSlipFL","TireCombinedSlipFR","TireCombinedSlipRL","TireCombinedSlipRR",
   "SuspensionTravelMFL","SuspensionTravelMFR","SuspensionTravelMRL","SuspensionTravelMRR",
-  "CarOrdinal","CarClass","CarPerformanceIndex","DrivetrainType","NumCylinders",
-  "PositionX","PositionY","PositionZ","Speed","Power","Torque","TrackOrdinal",
+  "CarClass","CarPerformanceIndex","DrivetrainType","NumCylinders",
+  "PositionX","PositionY","PositionZ","Speed","Power","Torque",
   "DrsActive","ErsStoreEnergy","ErsDeployMode","ErsDeployed","ErsHarvested",
   "WeatherType","TrackTemp","AirTemp","RainPercent",
   "BrakeTempFrontLeft","BrakeTempFrontRight","BrakeTempRearLeft","BrakeTempRearRight",
@@ -61,6 +61,8 @@ function buildMeta(packets: TelemetryPacket[]): Record<string, unknown> | null {
   if (packets.length === 0) return null;
   const first = packets[0];
   const meta: Record<string, unknown> = {};
+  meta.carId = first.carId;
+  meta.trackId = first.trackId;
   if (first.gameId) meta.gameId = first.gameId;
   if (first.acc) meta.acc = first.acc;
   if (first.f1) {
@@ -117,19 +119,28 @@ export function decompressTelemetry(blob: Buffer): TelemetryPacket[] {
 
   const headerEnd = text.indexOf("\n", headerStart);
   if (headerEnd === -1) return [];
-  const fields = text.slice(headerStart, headerEnd).split(",") as (keyof TelemetryPacket)[];
+  const fields = text.slice(headerStart, headerEnd).split(",");
   const body = text.slice(headerEnd + 1);
   const lines = body.split("\n");
   const result: TelemetryPacket[] = new Array(lines.length);
   for (let i = 0; i < lines.length; i++) {
     const vals = lines[i].split(",");
-    const p = {} as TelemetryPacket;
+    const p = { carId: "", trackId: "" } as TelemetryPacket;
     for (let j = 0; j < fields.length; j++) {
       if (vals[j] === "") continue;
-      (p as any)[fields[j]] = Number(vals[j]);
+      // Historical numeric CSV identity columns are source data, not packet fields.
+      if (fields[j] === "CarOrdinal" || fields[j] === "TrackOrdinal") {
+        if (meta?.gameId !== "ac-evo") {
+          p[fields[j] === "CarOrdinal" ? "carId" : "trackId"] = vals[j];
+        }
+      } else {
+        (p as unknown as Record<string, unknown>)[fields[j]] = Number(vals[j]);
+      }
     }
     if (meta) {
       if (meta.gameId) p.gameId = meta.gameId as GameId;
+      if (typeof meta.carId === "string") p.carId = meta.carId;
+      if (typeof meta.trackId === "string") p.trackId = meta.trackId;
       if (meta.acc) p.acc = meta.acc as TelemetryPacket["acc"];
       if (meta.f1) p.f1 = meta.f1 as TelemetryPacket["f1"];
     }

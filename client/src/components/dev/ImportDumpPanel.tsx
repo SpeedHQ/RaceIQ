@@ -7,14 +7,15 @@ import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
 import { Button } from "../ui/button";
 import { queryKeys } from "@/hooks/query-keys";
+import { authenticatedFetch } from "@/lib/rpc";
 interface ImportedLap {
   lapId: number;
   sessionId: number;
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
-  carId: number | string;
-  trackId: number | string;
+  carId: string;
+  trackId: string;
 }
 
 interface ImportResult {
@@ -46,7 +47,7 @@ export function ImportDumpPanel() {
     });
   };
 
-  const hasIdentity = (value: number | string) => typeof value === "string" ? value.length > 0 : value > 0;
+  const hasIdentity = (value: string) => value.length > 0;
   const handleSelect = (f: File | null) => {
     setFile(f);
     setResult(null);
@@ -62,7 +63,7 @@ export function ImportDumpPanel() {
       const form = new FormData();
       form.append("file", file);
       form.append("ownership", ownership);
-      const res = await fetch("/api/dev/import-dump", {
+      const res = await authenticatedFetch("/api/dev/import-dump", {
         method: "POST",
         body: form,
       });

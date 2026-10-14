@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 
-import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
+import { loadSettings, saveSettings, PartialSettingsSchema } from "@raceiq/backend-core/runtime/config/settings";
 import { settingsRoutes, shouldCheckCredentialStatus } from "../../src/routes/settings-routes";
 
 // Follows DATA_DIR so this never mutates the real dev settings.json —
@@ -13,6 +13,25 @@ describe("E2E settings behavior", () => {
   test("skips credential status checks in E2E mode", () => {
     expect(shouldCheckCredentialStatus({ RACEIQ_E2E: "1" })).toBe(false);
     expect(shouldCheckCredentialStatus({ RACEIQ_E2E: "0" })).toBe(true);
+  });
+});
+
+describe("credential request validation", () => {
+  test("rejects unsupported providers and malformed keys before accessing the OS store", async () => {
+    for (const body of [
+      { provider: 'gemini"; printf unexpected', apiKey: "test" },
+      { provider: "../other-account", apiKey: "test" },
+      { provider: "gemini", apiKey: 123 },
+      { provider: "gemini", apiKey: null },
+      { provider: "gemini" },
+      { provider: "gemini", apiKey: "test\0key" },
+      { provider: "gemini", apiKey: "x".repeat(8193) },
+    ]) {
+      const response = await settingsRoutes.request("/api/ai-key", {
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      expect(response.status).toBe(400);
+    }
   });
 });
 
@@ -29,6 +48,16 @@ describe("settings with unit system", () => {
     if (originalContent) {
       writeFileSync(SETTINGS_PATH, originalContent);
     }
+  });
+
+  test("persists and clears the HUD hostname without changing other settings", () => {
+    const before = loadSettings();
+    saveSettings({...before, hudHostname: " Race-PC.Example.ts.net "});
+    expect(loadSettings().hudHostname).toBe("race-pc.example.ts.net");
+    expect(loadSettings().udpPort).toBe(before.udpPort);
+    saveSettings({...loadSettings(), hudHostname: ""});
+    expect(loadSettings().hudHostname).toBe("");
+    expect(PartialSettingsSchema.safeParse({hudHostname: "http://pc.ts.net"}).success).toBe(false);
   });
 
   test("loadSettings returns defaults when file has only udpPort (migration)", () => {

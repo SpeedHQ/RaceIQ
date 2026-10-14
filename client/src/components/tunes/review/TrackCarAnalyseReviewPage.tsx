@@ -12,24 +12,24 @@ import { useTrackName } from "@/hooks/track-queries";
 import { getGameRoute } from "@/stores/game";
 import { SessionReviewDashboard } from "./SessionReviewDashboard";
 
-export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, sessionId }: { gameId: GameId; trackOrdinal?: number; carOrdinal?: number; sessionId?: number }) {
+export function TrackCarAnalyseReviewPage({ gameId, trackId, carId, sessionId }: { gameId: GameId; trackId?: string; carId?: string; sessionId?: number }) {
   const navigate = useNavigate();
   const search = useSearch({ strict: false }) as { laps?: string; view?: string; tab?: string };
   const { data: sessions = [], isLoading: sessionsLoading, isError: sessionsError } = useSessions();
   const selectedSession = sessionId == null ? undefined : sessions.find((session) => session.id === sessionId);
-  const resolvedTrackOrdinal = trackOrdinal ?? selectedSession?.trackOrdinal;
-  const resolvedCarOrdinal = carOrdinal ?? selectedSession?.carOrdinal;
+  const resolvedTrackId = trackId ?? selectedSession?.trackId;
+  const resolvedCarId = carId ?? selectedSession?.carId;
   const groupSessions = useMemo(
-    () => sessions.filter((session) => session.trackOrdinal === resolvedTrackOrdinal && session.carOrdinal === resolvedCarOrdinal),
-    [resolvedCarOrdinal, resolvedTrackOrdinal, sessions],
+    () => sessions.filter((session) => session.trackId === resolvedTrackId && session.carId === resolvedCarId),
+    [resolvedCarId, resolvedTrackId, sessions],
   );
-  const groupQuery = useReviewLaps(resolvedTrackOrdinal ?? null, resolvedCarOrdinal ?? null);
+  const groupQuery = useReviewLaps(resolvedTrackId ?? null, resolvedCarId ?? null);
   const sessionQuery = useSessionLaps(sessionId ?? null);
   const reviewLaps = sessionId != null ? (sessionQuery.data ?? []) : (groupQuery.data ?? []);
   const lapsLoading = sessionId != null ? sessionQuery.isLoading : groupQuery.isLoading;
-  const { data: trackName, isLoading: trackLoading } = useTrackName(resolvedTrackOrdinal ?? undefined);
-  const { data: resolvedNames, isLoading: namesLoading } = useResolveNames(resolvedTrackOrdinal != null ? [resolvedTrackOrdinal] : [], resolvedCarOrdinal != null ? [resolvedCarOrdinal] : []);
-  const { data: carName, isLoading: carLoading } = useCarName(resolvedCarOrdinal ?? undefined);
+  const { data: trackName, isLoading: trackLoading } = useTrackName(resolvedTrackId ?? undefined);
+  const { data: resolvedNames, isLoading: namesLoading } = useResolveNames(resolvedTrackId != null ? [resolvedTrackId] : [], resolvedCarId != null ? [resolvedCarId] : []);
+  const { data: carName, isLoading: carLoading } = useCarName(resolvedCarId ?? undefined);
   const comparisonCandidates = useMemo(() => {
     const requestedLapIds = parseAnalyseLapIds(search.laps);
     if (!requestedLapIds) return reviewLaps;
@@ -48,8 +48,8 @@ export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, se
     if (sessionRedirectId == null) return;
     void navigate({ search: { session: sessionRedirectId } } as never);
   }, [navigate, sessionRedirectId]);
-  const resolvedTrackName = trackName ?? (resolvedTrackOrdinal != null ? resolvedNames?.trackNames[String(resolvedTrackOrdinal)] : undefined) ?? m.review_track_fallback({ ordinal: resolvedTrackOrdinal ?? "?" });
-  const resolvedCarName = carName ?? (resolvedCarOrdinal != null ? resolvedNames?.carNames[String(resolvedCarOrdinal)] : undefined) ?? m.review_car_fallback({ ordinal: resolvedCarOrdinal ?? "?" });
+  const resolvedTrackName = trackName ?? (resolvedTrackId != null ? resolvedNames?.trackNames[resolvedTrackId] : undefined) ?? m.review_track_fallback({ ordinal: resolvedTrackId ?? "?" });
+  const resolvedCarName = carName ?? (resolvedCarId != null ? resolvedNames?.carNames[resolvedCarId] : undefined) ?? m.review_car_fallback({ ordinal: resolvedCarId ?? "?" });
   const sessionLabel = `${resolvedTrackName} · ${resolvedCarName} · ${m.review_selected_session()} · ${m.review_laps_count({ count: selectedSession?.lapCount ?? evaluationLaps.length })}`;
   const backToSession = () => void navigate({ to: sessionId != null ? "../.." : ".." } as never);
   if (sessionsLoading || lapsLoading || trackLoading || carLoading || namesLoading)

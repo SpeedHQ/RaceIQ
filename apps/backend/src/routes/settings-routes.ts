@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import { existsSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { PUBLIC_DIR, IS_COMPILED } from "@raceiq/backend-core/runtime/config/paths";
@@ -60,10 +61,8 @@ export const settingsRoutes = new Hono()
       currentSession: session
         ? {
             id: session.sessionId,
-            carOrdinal: session.carOrdinal,
-            trackOrdinal: session.trackOrdinal,
-            carId: session.carId ?? session.carOrdinal,
-            trackId: session.trackId ?? session.trackOrdinal,
+            carId: session.carId,
+            trackId: session.trackId,
             createdAt: "",
           }
         : null,
@@ -230,21 +229,26 @@ export const settingsRoutes = new Hono()
   })
 
   // PUT /api/ai-key — store or clear an AI provider API key
-  .put("/api/ai-key", async (c) => {
-    const body = await c.req.json() as { provider: string; apiKey: string };
+  .put("/api/ai-key", zValidator("json", z.object({
+    provider: z.enum(["gemini", "openai", "openai-compatible", "anthropic", "local"]),
+    apiKey: z.string().max(8192).refine((value) => !value.includes("\0")),
+  }).strict()), async (c) => {
+    const body = c.req.valid("json");
     try {
-      await setSecret(`${body.provider}-api-key`, body.apiKey ?? "");
+      await setSecret(`${body.provider}-api-key`, body.apiKey);
       return c.json({ ok: true });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to store API key";
-      return c.json({ ok: false, error: message }, 500);
+    } catch {
+      // OS helper errors may contain credential-bearing command arguments.
+      return c.json({ ok: false, error: "Failed to store API key" }, 500);
     }
   })
 
   // PUT /api/settings
   .put("/api/settings", async (c) => {
     const body = await c.req.json();
-    const parseResult = PartialSettingsSchema.parse(body);
+    const parsed = PartialSettingsSchema.safeParse(body);
+    if (!parsed.success) return c.json({error: "Invalid settings"}, 400);
+    const parseResult = parsed.data;
     const current = loadSettings();
     // Only merge keys explicitly sent in the request body (Zod partial applies defaults for missing fields)
     const provided: Record<string, unknown> = {};

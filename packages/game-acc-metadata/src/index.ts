@@ -51,16 +51,15 @@ export const accAdapter: GameAdapter = {
   },
 
   // Stubs — server adapter overrides with real CSV-backed lookups
-  getCarName(ordinal: number): string {
-    return `Car #${ordinal}`;
+  getCarName(carId: string): string {
+    return `Car #${carId}`;
   },
 
-  getTrackName(ordinal: number): string {
-    return `Track #${ordinal}`;
+  getTrackName(trackId: string): string {
+    return `Track #${trackId}`;
   },
 
-  // Stub — server adapter overrides with real CSV-backed lookup
-  getSharedTrackName(_ordinal: number): string | undefined {
+  getSharedTrackName(_trackId: string): string | undefined {
     return undefined;
   },
 

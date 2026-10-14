@@ -70,15 +70,15 @@ function SetupVideo({ url }: { url: string }) {
   }
 }
 
-export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
+export function AccTrackSetups({ trackId }: { trackId: string }) {
   const search = useSearch({ strict: false }) as { setup?: string };
   const navigate = useNavigate();
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [filterCar, setFilterCar] = useState("");
 
   const { data: setups = [] } = useQuery<AccSetup[]>({
-    queryKey: ["acc-setups-by-track", trackOrdinal],
-    queryFn: () => client.api.acc["setups-by-track"].$get({ query: { ordinal: encodeURIComponent(String(trackOrdinal)) } }).then((r) => r.json() as any),
+    queryKey: ["acc-setups-by-track", trackId],
+    queryFn: () => client.api.acc["setups-by-track"].$get({ query: { trackId } }).then((r) => r.json() as any),
   });
 
   const { data: cars = [] } = useQuery<AccCar[]>({
@@ -342,14 +342,14 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
   );
 }
 
-/* ── Track guide videos by ordinal ── */
+/* ── Track guide videos keyed by native track ID ── */
 
-const ACC_GUIDE_VIDEOS: Record<number, string> = {
-  6: "https://www.youtube.com/embed/8eNe6VacNbQ", // Spa-Francorchamps
+const ACC_GUIDE_VIDEOS: Record<string, string> = {
+  "6": "https://www.youtube.com/embed/8eNe6VacNbQ", // Spa-Francorchamps
 };
 
-export function AccTrackGuide({ trackOrdinal, trackName }: { trackOrdinal: number; trackName: string }) {
-  const embedUrl = ACC_GUIDE_VIDEOS[trackOrdinal];
+export function AccTrackGuide({ trackId, trackName }: { trackId: string; trackName: string }) {
+  const embedUrl = ACC_GUIDE_VIDEOS[trackId];
 
   if (!embedUrl) {
     return <div className="text-app-text-dim text-sm py-4 text-center">{m.f1setup_no_guide()}</div>;

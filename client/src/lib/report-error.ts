@@ -14,6 +14,7 @@ const coalescingReports = new Map<string, PendingReport>();
 const reportQueue: PendingReport[] = [];
 let flushScheduled = false;
 let inFlightReports = 0;
+let reportingEnabled = false;
 let reportingInstalled = false;
 const rawConsoleError = typeof console === "undefined" ? undefined : console.error.bind(console);
 const rawConsoleWarn = typeof console === "undefined" ? undefined : console.warn.bind(console);
@@ -55,10 +56,16 @@ function enqueueReport(report: PendingReport): void {
   reportQueue.push(report); pumpReportQueue();
 }
 function pumpReportQueue(): void {
-  while (inFlightReports < MAX_IN_FLIGHT_REPORTS && reportQueue.length > 0) {
+  while (reportingEnabled && inFlightReports < MAX_IN_FLIGHT_REPORTS && reportQueue.length > 0) {
     const report = reportQueue.shift(); if (!report) return;
     inFlightReports++; sendReport(report).catch(reportReporterFailure).finally(() => { inFlightReports--; pumpReportQueue(); });
   }
+}
+
+/** Enable server delivery only after dashboard authorization is established. */
+export function setClientErrorReportingEnabled(enabled: boolean): void {
+  reportingEnabled = enabled;
+  if (enabled) pumpReportQueue();
 }
 async function sendReport(report: PendingReport): Promise<void> {
   const repeatSuffix = report.repeatCount > 1 ? ` [repeated ${report.repeatCount} times]` : "";

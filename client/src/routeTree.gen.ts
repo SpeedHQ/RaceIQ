@@ -19,6 +19,8 @@ import { Route as Fm23RouteImport } from './routes/fm23'
 import { Route as IracingRouteImport } from './routes/iracing'
 import { Route as LiveRouteImport } from './routes/live'
 import { Route as LmuRouteImport } from './routes/lmu'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as GameidCarsRouteImport } from './routes/$gameid/cars'
 import { Route as GameidChatsRouteImport } from './routes/$gameid/chats'
 import { Route as GameidCompareRouteImport } from './routes/$gameid/compare'
@@ -55,14 +57,14 @@ import { Route as AccSetupsImportRouteImport } from './routes/acc/setups/import'
 import { Route as AccSetupsNewRouteImport } from './routes/acc/setups/new'
 import { Route as F125SetupsIndexRouteImport } from './routes/f125/setups/index'
 import { Route as F125TunesIndexRouteImport } from './routes/f125/tunes/index'
-import { Route as Fm23CarsCarOrdinalRouteImport } from './routes/fm23/cars_.$carOrdinal'
+import { Route as Fm23CarsCarIdRouteImport } from './routes/fm23/cars_.$carId'
 import { Route as Fm23SetupsIndexRouteImport } from './routes/fm23/setups/index'
 import { Route as Fm23SetupsCatalogRouteImport } from './routes/fm23/setups/catalog'
 import { Route as Fm23SetupsNewRouteImport } from './routes/fm23/setups/new'
 import { Route as GameidExperimentsExperimentIdReviewRouteImport } from './routes/$gameid/experiments.$experimentId_.review'
 import { Route as GameidSessionsSessionIdAnalyseRouteImport } from './routes/$gameid/sessions/$sessionId/analyse'
-import { Route as GameidTracksTrackOrdinalIndexRouteImport } from './routes/$gameid/tracks.$trackOrdinal.index'
-import { Route as GameidTracksTrackOrdinalTabRouteImport } from './routes/$gameid/tracks.$trackOrdinal.$tab'
+import { Route as GameidTracksTrackIdIndexRouteImport } from './routes/$gameid/tracks.$trackId.index'
+import { Route as GameidTracksTrackIdTabRouteImport } from './routes/$gameid/tracks.$trackId.$tab'
 import { Route as AcEvoSetupsEditTuneIdRouteImport } from './routes/ac-evo/setups/edit.$tuneId'
 import { Route as AccSetupsEditTuneIdRouteImport } from './routes/acc/setups/edit.$tuneId'
 import { Route as Fm23SetupsEditTuneIdRouteImport } from './routes/fm23/setups/edit.$tuneId'
@@ -116,6 +118,16 @@ const LiveRoute = LiveRouteImport.update({
 const LmuRoute = LmuRouteImport.update({
   id: '/lmu',
   path: '/lmu',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GameidCarsRoute = GameidCarsRouteImport.update({
@@ -299,9 +311,9 @@ const F125TunesIndexRoute = F125TunesIndexRouteImport.update({
   path: '/',
   getParentRoute: () => F125TunesRoute,
 } as any)
-const Fm23CarsCarOrdinalRoute = Fm23CarsCarOrdinalRouteImport.update({
-  id: '/cars_/$carOrdinal',
-  path: '/cars/$carOrdinal',
+const Fm23CarsCarIdRoute = Fm23CarsCarIdRouteImport.update({
+  id: '/cars_/$carId',
+  path: '/cars/$carId',
   getParentRoute: () => Fm23Route,
 } as any)
 const Fm23SetupsIndexRoute = Fm23SetupsIndexRouteImport.update({
@@ -331,18 +343,17 @@ const GameidSessionsSessionIdAnalyseRoute =
     path: '/$sessionId/analyse',
     getParentRoute: () => GameidSessionsRoute,
   } as any)
-const GameidTracksTrackOrdinalIndexRoute =
-  GameidTracksTrackOrdinalIndexRouteImport.update({
-    id: '/$trackOrdinal/',
-    path: '/$trackOrdinal/',
+const GameidTracksTrackIdIndexRoute =
+  GameidTracksTrackIdIndexRouteImport.update({
+    id: '/$trackId/',
+    path: '/$trackId/',
     getParentRoute: () => GameidTracksRoute,
   } as any)
-const GameidTracksTrackOrdinalTabRoute =
-  GameidTracksTrackOrdinalTabRouteImport.update({
-    id: '/$trackOrdinal/$tab',
-    path: '/$trackOrdinal/$tab',
-    getParentRoute: () => GameidTracksRoute,
-  } as any)
+const GameidTracksTrackIdTabRoute = GameidTracksTrackIdTabRouteImport.update({
+  id: '/$trackId/$tab',
+  path: '/$trackId/$tab',
+  getParentRoute: () => GameidTracksRoute,
+} as any)
 const AcEvoSetupsEditTuneIdRoute = AcEvoSetupsEditTuneIdRouteImport.update({
   id: '/edit/$tuneId',
   path: '/edit/$tuneId',
@@ -376,6 +387,8 @@ export interface FileRoutesByFullPath {
   '/iracing': typeof IracingRouteWithChildren
   '/live': typeof LiveRouteWithChildren
   '/lmu': typeof LmuRouteWithChildren
+  '/login': typeof LoginRoute
+  '/onboarding': typeof OnboardingRoute
   '/$gameid/cars': typeof GameidCarsRoute
   '/$gameid/chats': typeof GameidChatsRoute
   '/$gameid/compare': typeof GameidCompareRoute
@@ -405,7 +418,7 @@ export interface FileRoutesByFullPath {
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
   '/acc/setups/import': typeof AccSetupsImportRoute
   '/acc/setups/new': typeof AccSetupsNewRoute
-  '/fm23/cars/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
+  '/fm23/cars/$carId': typeof Fm23CarsCarIdRoute
   '/fm23/setups/catalog': typeof Fm23SetupsCatalogRoute
   '/fm23/setups/new': typeof Fm23SetupsNewRoute
   '/$gameid/experiments/': typeof GameidExperimentsIndexRoute
@@ -418,11 +431,11 @@ export interface FileRoutesByFullPath {
   '/fm23/setups/': typeof Fm23SetupsIndexRoute
   '/$gameid/experiments/$experimentId/review': typeof GameidExperimentsExperimentIdReviewRoute
   '/$gameid/sessions/$sessionId/analyse': typeof GameidSessionsSessionIdAnalyseRoute
-  '/$gameid/tracks/$trackOrdinal/$tab': typeof GameidTracksTrackOrdinalTabRoute
+  '/$gameid/tracks/$trackId/$tab': typeof GameidTracksTrackIdTabRoute
   '/ac-evo/setups/edit/$tuneId': typeof AcEvoSetupsEditTuneIdRoute
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
-  '/$gameid/tracks/$trackOrdinal/': typeof GameidTracksTrackOrdinalIndexRoute
+  '/$gameid/tracks/$trackId/': typeof GameidTracksTrackIdIndexRoute
   '/$gameid/sessions/$sessionId/replay/$lapId': typeof GameidSessionsSessionIdReplayLapIdRoute
 }
 export interface FileRoutesByTo {
@@ -430,6 +443,8 @@ export interface FileRoutesByTo {
   '/$gameid': typeof GameidRouteWithChildren
   '/dev': typeof DevRoute
   '/live': typeof LiveRouteWithChildren
+  '/login': typeof LoginRoute
+  '/onboarding': typeof OnboardingRoute
   '/$gameid/cars': typeof GameidCarsRoute
   '/$gameid/chats': typeof GameidChatsRoute
   '/$gameid/compare': typeof GameidCompareRoute
@@ -451,7 +466,7 @@ export interface FileRoutesByTo {
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
   '/acc/setups/import': typeof AccSetupsImportRoute
   '/acc/setups/new': typeof AccSetupsNewRoute
-  '/fm23/cars/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
+  '/fm23/cars/$carId': typeof Fm23CarsCarIdRoute
   '/fm23/setups/catalog': typeof Fm23SetupsCatalogRoute
   '/fm23/setups/new': typeof Fm23SetupsNewRoute
   '/$gameid/experiments': typeof GameidExperimentsIndexRoute
@@ -464,11 +479,11 @@ export interface FileRoutesByTo {
   '/fm23/setups': typeof Fm23SetupsIndexRoute
   '/$gameid/experiments/$experimentId/review': typeof GameidExperimentsExperimentIdReviewRoute
   '/$gameid/sessions/$sessionId/analyse': typeof GameidSessionsSessionIdAnalyseRoute
-  '/$gameid/tracks/$trackOrdinal/$tab': typeof GameidTracksTrackOrdinalTabRoute
+  '/$gameid/tracks/$trackId/$tab': typeof GameidTracksTrackIdTabRoute
   '/ac-evo/setups/edit/$tuneId': typeof AcEvoSetupsEditTuneIdRoute
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
-  '/$gameid/tracks/$trackOrdinal': typeof GameidTracksTrackOrdinalIndexRoute
+  '/$gameid/tracks/$trackId': typeof GameidTracksTrackIdIndexRoute
   '/$gameid/sessions/$sessionId/replay/$lapId': typeof GameidSessionsSessionIdReplayLapIdRoute
 }
 export interface FileRoutesById {
@@ -483,6 +498,8 @@ export interface FileRoutesById {
   '/iracing': typeof IracingRouteWithChildren
   '/live': typeof LiveRouteWithChildren
   '/lmu': typeof LmuRouteWithChildren
+  '/login': typeof LoginRoute
+  '/onboarding': typeof OnboardingRoute
   '/$gameid/cars': typeof GameidCarsRoute
   '/$gameid/chats': typeof GameidChatsRoute
   '/$gameid/compare': typeof GameidCompareRoute
@@ -512,7 +529,7 @@ export interface FileRoutesById {
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
   '/acc/setups/import': typeof AccSetupsImportRoute
   '/acc/setups/new': typeof AccSetupsNewRoute
-  '/fm23/cars_/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
+  '/fm23/cars_/$carId': typeof Fm23CarsCarIdRoute
   '/fm23/setups/catalog': typeof Fm23SetupsCatalogRoute
   '/fm23/setups/new': typeof Fm23SetupsNewRoute
   '/$gameid/experiments/': typeof GameidExperimentsIndexRoute
@@ -525,11 +542,11 @@ export interface FileRoutesById {
   '/fm23/setups/': typeof Fm23SetupsIndexRoute
   '/$gameid/experiments/$experimentId_/review': typeof GameidExperimentsExperimentIdReviewRoute
   '/$gameid/sessions/$sessionId/analyse': typeof GameidSessionsSessionIdAnalyseRoute
-  '/$gameid/tracks/$trackOrdinal/$tab': typeof GameidTracksTrackOrdinalTabRoute
+  '/$gameid/tracks/$trackId/$tab': typeof GameidTracksTrackIdTabRoute
   '/ac-evo/setups/edit/$tuneId': typeof AcEvoSetupsEditTuneIdRoute
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
-  '/$gameid/tracks/$trackOrdinal/': typeof GameidTracksTrackOrdinalIndexRoute
+  '/$gameid/tracks/$trackId/': typeof GameidTracksTrackIdIndexRoute
   '/$gameid/sessions/$sessionId/replay/$lapId': typeof GameidSessionsSessionIdReplayLapIdRoute
 }
 export interface FileRouteTypes {
@@ -545,6 +562,8 @@ export interface FileRouteTypes {
     | '/iracing'
     | '/live'
     | '/lmu'
+    | '/login'
+    | '/onboarding'
     | '/$gameid/cars'
     | '/$gameid/chats'
     | '/$gameid/compare'
@@ -574,7 +593,7 @@ export interface FileRouteTypes {
     | '/ac-evo/setups/new'
     | '/acc/setups/import'
     | '/acc/setups/new'
-    | '/fm23/cars/$carOrdinal'
+    | '/fm23/cars/$carId'
     | '/fm23/setups/catalog'
     | '/fm23/setups/new'
     | '/$gameid/experiments/'
@@ -587,11 +606,11 @@ export interface FileRouteTypes {
     | '/fm23/setups/'
     | '/$gameid/experiments/$experimentId/review'
     | '/$gameid/sessions/$sessionId/analyse'
-    | '/$gameid/tracks/$trackOrdinal/$tab'
+    | '/$gameid/tracks/$trackId/$tab'
     | '/ac-evo/setups/edit/$tuneId'
     | '/acc/setups/edit/$tuneId'
     | '/fm23/setups/edit/$tuneId'
-    | '/$gameid/tracks/$trackOrdinal/'
+    | '/$gameid/tracks/$trackId/'
     | '/$gameid/sessions/$sessionId/replay/$lapId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -599,6 +618,8 @@ export interface FileRouteTypes {
     | '/$gameid'
     | '/dev'
     | '/live'
+    | '/login'
+    | '/onboarding'
     | '/$gameid/cars'
     | '/$gameid/chats'
     | '/$gameid/compare'
@@ -620,7 +641,7 @@ export interface FileRouteTypes {
     | '/ac-evo/setups/new'
     | '/acc/setups/import'
     | '/acc/setups/new'
-    | '/fm23/cars/$carOrdinal'
+    | '/fm23/cars/$carId'
     | '/fm23/setups/catalog'
     | '/fm23/setups/new'
     | '/$gameid/experiments'
@@ -633,11 +654,11 @@ export interface FileRouteTypes {
     | '/fm23/setups'
     | '/$gameid/experiments/$experimentId/review'
     | '/$gameid/sessions/$sessionId/analyse'
-    | '/$gameid/tracks/$trackOrdinal/$tab'
+    | '/$gameid/tracks/$trackId/$tab'
     | '/ac-evo/setups/edit/$tuneId'
     | '/acc/setups/edit/$tuneId'
     | '/fm23/setups/edit/$tuneId'
-    | '/$gameid/tracks/$trackOrdinal'
+    | '/$gameid/tracks/$trackId'
     | '/$gameid/sessions/$sessionId/replay/$lapId'
   id:
     | '__root__'
@@ -651,6 +672,8 @@ export interface FileRouteTypes {
     | '/iracing'
     | '/live'
     | '/lmu'
+    | '/login'
+    | '/onboarding'
     | '/$gameid/cars'
     | '/$gameid/chats'
     | '/$gameid/compare'
@@ -680,7 +703,7 @@ export interface FileRouteTypes {
     | '/ac-evo/setups/new'
     | '/acc/setups/import'
     | '/acc/setups/new'
-    | '/fm23/cars_/$carOrdinal'
+    | '/fm23/cars_/$carId'
     | '/fm23/setups/catalog'
     | '/fm23/setups/new'
     | '/$gameid/experiments/'
@@ -693,11 +716,11 @@ export interface FileRouteTypes {
     | '/fm23/setups/'
     | '/$gameid/experiments/$experimentId_/review'
     | '/$gameid/sessions/$sessionId/analyse'
-    | '/$gameid/tracks/$trackOrdinal/$tab'
+    | '/$gameid/tracks/$trackId/$tab'
     | '/ac-evo/setups/edit/$tuneId'
     | '/acc/setups/edit/$tuneId'
     | '/fm23/setups/edit/$tuneId'
-    | '/$gameid/tracks/$trackOrdinal/'
+    | '/$gameid/tracks/$trackId/'
     | '/$gameid/sessions/$sessionId/replay/$lapId'
   fileRoutesById: FileRoutesById
 }
@@ -712,6 +735,8 @@ export interface RootRouteChildren {
   IracingRoute: typeof IracingRouteWithChildren
   LiveRoute: typeof LiveRouteWithChildren
   LmuRoute: typeof LmuRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  OnboardingRoute: typeof OnboardingRoute
   PortableCombo1Route: typeof PortableCombo1Route
   PortableCombo2Route: typeof PortableCombo2Route
   PortableIndexRoute: typeof PortableIndexRoute
@@ -787,6 +812,20 @@ declare module '@tanstack/react-router' {
       path: '/lmu'
       fullPath: '/lmu'
       preLoaderRoute: typeof LmuRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$gameid/cars': {
@@ -1041,11 +1080,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof F125TunesIndexRouteImport
       parentRoute: typeof F125TunesRoute
     }
-    '/fm23/cars_/$carOrdinal': {
-      id: '/fm23/cars_/$carOrdinal'
-      path: '/cars/$carOrdinal'
-      fullPath: '/fm23/cars/$carOrdinal'
-      preLoaderRoute: typeof Fm23CarsCarOrdinalRouteImport
+    '/fm23/cars_/$carId': {
+      id: '/fm23/cars_/$carId'
+      path: '/cars/$carId'
+      fullPath: '/fm23/cars/$carId'
+      preLoaderRoute: typeof Fm23CarsCarIdRouteImport
       parentRoute: typeof Fm23Route
     }
     '/fm23/setups/': {
@@ -1083,18 +1122,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GameidSessionsSessionIdAnalyseRouteImport
       parentRoute: typeof GameidSessionsRoute
     }
-    '/$gameid/tracks/$trackOrdinal/': {
-      id: '/$gameid/tracks/$trackOrdinal/'
-      path: '/$trackOrdinal'
-      fullPath: '/$gameid/tracks/$trackOrdinal/'
-      preLoaderRoute: typeof GameidTracksTrackOrdinalIndexRouteImport
+    '/$gameid/tracks/$trackId/': {
+      id: '/$gameid/tracks/$trackId/'
+      path: '/$trackId'
+      fullPath: '/$gameid/tracks/$trackId/'
+      preLoaderRoute: typeof GameidTracksTrackIdIndexRouteImport
       parentRoute: typeof GameidTracksRoute
     }
-    '/$gameid/tracks/$trackOrdinal/$tab': {
-      id: '/$gameid/tracks/$trackOrdinal/$tab'
-      path: '/$trackOrdinal/$tab'
-      fullPath: '/$gameid/tracks/$trackOrdinal/$tab'
-      preLoaderRoute: typeof GameidTracksTrackOrdinalTabRouteImport
+    '/$gameid/tracks/$trackId/$tab': {
+      id: '/$gameid/tracks/$trackId/$tab'
+      path: '/$trackId/$tab'
+      fullPath: '/$gameid/tracks/$trackId/$tab'
+      preLoaderRoute: typeof GameidTracksTrackIdTabRouteImport
       parentRoute: typeof GameidTracksRoute
     }
     '/ac-evo/setups/edit/$tuneId': {
@@ -1165,14 +1204,14 @@ const GameidSessionsRouteWithChildren = GameidSessionsRoute._addFileChildren(
 
 interface GameidTracksRouteChildren {
   GameidTracksIndexRoute: typeof GameidTracksIndexRoute
-  GameidTracksTrackOrdinalTabRoute: typeof GameidTracksTrackOrdinalTabRoute
-  GameidTracksTrackOrdinalIndexRoute: typeof GameidTracksTrackOrdinalIndexRoute
+  GameidTracksTrackIdTabRoute: typeof GameidTracksTrackIdTabRoute
+  GameidTracksTrackIdIndexRoute: typeof GameidTracksTrackIdIndexRoute
 }
 
 const GameidTracksRouteChildren: GameidTracksRouteChildren = {
   GameidTracksIndexRoute: GameidTracksIndexRoute,
-  GameidTracksTrackOrdinalTabRoute: GameidTracksTrackOrdinalTabRoute,
-  GameidTracksTrackOrdinalIndexRoute: GameidTracksTrackOrdinalIndexRoute,
+  GameidTracksTrackIdTabRoute: GameidTracksTrackIdTabRoute,
+  GameidTracksTrackIdIndexRoute: GameidTracksTrackIdIndexRoute,
 }
 
 const GameidTracksRouteWithChildren = GameidTracksRoute._addFileChildren(
@@ -1323,13 +1362,13 @@ const Fm23SetupsRouteWithChildren = Fm23SetupsRoute._addFileChildren(
 interface Fm23RouteChildren {
   Fm23SetupsRoute: typeof Fm23SetupsRouteWithChildren
   Fm23IndexRoute: typeof Fm23IndexRoute
-  Fm23CarsCarOrdinalRoute: typeof Fm23CarsCarOrdinalRoute
+  Fm23CarsCarIdRoute: typeof Fm23CarsCarIdRoute
 }
 
 const Fm23RouteChildren: Fm23RouteChildren = {
   Fm23SetupsRoute: Fm23SetupsRouteWithChildren,
   Fm23IndexRoute: Fm23IndexRoute,
-  Fm23CarsCarOrdinalRoute: Fm23CarsCarOrdinalRoute,
+  Fm23CarsCarIdRoute: Fm23CarsCarIdRoute,
 }
 
 const Fm23RouteWithChildren = Fm23Route._addFileChildren(Fm23RouteChildren)
@@ -1376,6 +1415,8 @@ const rootRouteChildren: RootRouteChildren = {
   IracingRoute: IracingRouteWithChildren,
   LiveRoute: LiveRouteWithChildren,
   LmuRoute: LmuRouteWithChildren,
+  LoginRoute: LoginRoute,
+  OnboardingRoute: OnboardingRoute,
   PortableCombo1Route: PortableCombo1Route,
   PortableCombo2Route: PortableCombo2Route,
   PortableIndexRoute: PortableIndexRoute,

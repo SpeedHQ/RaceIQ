@@ -5,7 +5,8 @@
   "exports": {
     "./speed": "./src/speed.ts",
     "./temperature": "./src/temperature.ts",
-    "./parse-lap-time": "./src/parse-lap-time.ts"
+    "./parse-lap-time": "./src/parse-lap-time.ts",
+    "./iracing-car-sort": "./src/iracing-car-sort.ts"
   },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit",

@@ -202,7 +202,7 @@ const ANALYSE_BASE_SEMANTIC_IDS = [
   "fuel.ers-harvested",
   "fuel.fuel-capacity",
   "brakes.brake-bias",
-  "identity.car-ordinal",
+  "identity.car-id",
   "identity.player-track-surface",
   "tires.tire-radius",
   "tire.temperature.surface.representative",
@@ -215,7 +215,7 @@ const ANALYSE_BASE_SEMANTIC_IDS = [
 
 /** Semantic channels consumed by Analyse for one game's adapter. */
 export function analyseSemanticIds(
-  adapter: import("./types").GameAdapter,
+  adapter: GameAdapter,
 ): readonly TelemetryVariableId[] {
   return [...new Set([
     ...ANALYSE_BASE_SEMANTIC_IDS,

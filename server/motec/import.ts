@@ -73,13 +73,9 @@ export interface MotecImportResult {
 export interface MotecImportOptions {
   /** Which game's transcoder to run the log through. */
   gameId: GameId;
-  /**
-   * Car and track the log was driven on, as chosen by the user. Takes priority
-   * over the log header — see `resolveMotecCarTrack` for why the header is only
-   * a hint.
-   */
-  carOrdinal?: number;
-  trackOrdinal?: number;
+  /** Native or game-normalized string IDs chosen by the user. */
+  carId?: string;
+  trackId?: string;
   /**
    * Optional setup the stint was run on, as a `tunes` row id. Stamped onto every
    * imported lap so the laps sit in the same comparison scope as recorded laps
@@ -102,7 +98,7 @@ export async function importMotec(
   const target = resolveMotecTarget(options.gameId);
   const log = parseLd(ldBytes);
   const beacons = parseLdxBeacons(ldxBytes.toString("utf8"));
-  const carTrack = target.resolveCarTrack(log, { carOrdinal: options.carOrdinal, trackOrdinal: options.trackOrdinal });
+  const carTrack = target.resolveCarTrack(log, { carId: options.carId, trackId: options.trackId });
   const adapter = getServerGame(target.gameId);
   const semanticIds = analyseSemanticIds(adapter);
   const conversion = target.convert(log, beacons, carTrack);

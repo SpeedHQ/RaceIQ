@@ -6,24 +6,27 @@ import {
   test,
 } from "bun:test";
 import { and, eq } from "drizzle-orm";
-import { getAllIRacingTracks,
-getIRacingSharedTrackName,
-getIRacingTrackName,
-getIRacingTrackOrdinalByName, } from "@raceiq/game-iracing-metadata/racing/tracks/catalogs/iracing"
+import {
+  getAllIRacingTracks,
+  getIRacingOvalDirection,
+  getIRacingSharedTrackName,
+  getIRacingTrackName,
+  getIRacingTrackOrdinalByName,
+} from "@raceiq/game-iracing-metadata/racing/tracks/catalogs/iracing";
 import { getTrackOutlineByOrdinal } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { registerDiscoveredTrack } from "@raceiq/backend-core/db/discovered-tracks";
 import { db } from "@raceiq/backend-core/db/index";
 import { discoveredTracks } from "@raceiq/backend-core/db/schema";
 import { trackRoutes } from "../../../src/routes/tracks/index";
 
-const FUTURE_TRACK_ID = 987_654_322;
+const FUTURE_TRACK_ID = "future-test-circuit";
 
 async function cleanup(): Promise<void> {
   await db
     .delete(discoveredTracks)
     .where(
       and(
-        eq(discoveredTracks.ordinal, FUTURE_TRACK_ID),
+        eq(discoveredTracks.trackId, FUTURE_TRACK_ID),
         eq(discoveredTracks.gameId, "iracing"),
       ),
     )
@@ -72,6 +75,30 @@ describe("iRacing track catalog", () => {
     expect(getTrackOutlineByOrdinal(8, "iracing")).toBeNull();
   });
 
+  test("projects layout specifications and map-layer URLs", () => {
+    const track = getAllIRacingTracks().find((entry) => entry.ordinal === 523);
+    expect(track).toMatchObject({
+      cornersPerLap: 21,
+      pitRoadSpeedLimitMph: 45,
+      numberPitStalls: 25,
+      maxCars: 60,
+      nightLighting: true,
+      rainEnabled: true,
+      latitude: 50.4369118,
+      longitude: 5.969856,
+      timeZone: "Europe/Brussels",
+      pitMapUrl: "https://members-assets.iracing.com/public/track-maps/tracks_spa/523-spa-2024-up/pitroad.svg",
+      startFinishMapUrl: "https://members-assets.iracing.com/public/track-maps/tracks_spa/523-spa-2024-up/start-finish.svg",
+      turnsMapUrl: "https://members-assets.iracing.com/public/track-maps/tracks_spa/523-spa-2024-up/turns.svg",
+    });
+  });
+
+  test("exposes physical direction only for oval maps", () => {
+    expect(getIRacingOvalDirection(243)).toBe("right");
+    expect(getIRacingOvalDirection(245)).toBe("left");
+    expect(getIRacingOvalDirection(18)).toBeUndefined();
+  });
+
   test("serves every official SVG as a renderable outline source", async () => {
     await registerDiscoveredTrack(
       "iracing",
@@ -84,29 +111,43 @@ describe("iRacing track catalog", () => {
 
     expect(response.status).toBe(200);
     const tracks = (await response.json()) as Array<{
-      ordinal: number;
+      id: string;
       hasOutline: boolean;
       hasMap: boolean;
       mapUrl: string | null;
       commonTrackName: string | null;
+      cornersPerLap: number | null;
+      pitRoadSpeedLimitMph: number | null;
+      maxCars: number | null;
+      rainEnabled: boolean | null;
     }>;
     expect(tracks).toHaveLength(426);
-    expect(tracks.find((track) => track.ordinal === 18)).toMatchObject({
+    expect(tracks.find((track) => track.id === "18")).toMatchObject({
       hasOutline: true,
       hasMap: true,
       commonTrackName: "road-america",
     });
-    expect(tracks.find((track) => track.ordinal === 8)).toMatchObject({
+    expect(tracks.find((track) => track.id === "523")).toMatchObject({
+      cornersPerLap: 21,
+      pitRoadSpeedLimitMph: 45,
+      maxCars: 60,
+      rainEnabled: true,
+    });
+    expect(tracks.find((track) => track.id === "8")).toMatchObject({
       hasOutline: true,
       hasMap: true,
       commonTrackName: null,
     });
     expect(
-      tracks.find((track) => track.ordinal === FUTURE_TRACK_ID),
+      tracks.find((track) => track.id === FUTURE_TRACK_ID),
     ).toMatchObject({
       hasOutline: false,
       hasMap: false,
       mapUrl: null,
+      cornersPerLap: null,
+      pitRoadSpeedLimitMph: null,
+      maxCars: null,
+      rainEnabled: null,
     });
   });
 });

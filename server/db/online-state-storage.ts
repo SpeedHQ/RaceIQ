@@ -1,4 +1,4 @@
-import { Database } from "bun:sqlite";
+import Database from "libsql";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -28,9 +28,9 @@ export class OnlineStateStorage {
   private readonly path: string;
   constructor(dataDir = resolveDataDir()) { this.path = join(dataDir, "raceiq-online-state.db"); }
 
-  private open(): Database {
+  private open() {
     mkdirSync(dirname(this.path), { recursive: true });
-    const db = new Database(this.path, { create: true, strict: true });
+    const db = new Database(this.path);
     try {
       db.exec("PRAGMA busy_timeout = 5000; PRAGMA synchronous = FULL;");
       db.exec("CREATE TABLE IF NOT EXISTS online_state (id INTEGER PRIMARY KEY CHECK (id = 1), payload TEXT NOT NULL)");
@@ -44,7 +44,7 @@ export class OnlineStateStorage {
   load(): PersistedOnlineState {
     const db = this.open();
     try {
-      const row = db.query<{ payload: string }, []>("SELECT payload FROM online_state WHERE id = 1").get();
+      const row = db.prepare("SELECT payload FROM online_state WHERE id = 1").get() as { payload: string } | undefined;
       if (!row) return initial();
       const parsed = StateSchema.safeParse(JSON.parse(row.payload) as unknown);
       if (!parsed.success) return initial();
@@ -61,7 +61,7 @@ export class OnlineStateStorage {
     try {
       // SQLite's synchronous commit is portable to the packaged Windows runtime;
       // POSIX-only directory fsync must not be a privacy persistence prerequisite.
-      db.query("INSERT INTO online_state(id, payload) VALUES(1, ?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload").run(payload);
+      db.prepare("INSERT INTO online_state(id, payload) VALUES(1, ?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload").run(payload);
     } finally { db.close(); }
   }
 }

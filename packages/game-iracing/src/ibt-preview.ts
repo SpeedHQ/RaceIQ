@@ -27,9 +27,9 @@ export interface IbtImportPreview {
   recordCount: number;
   durationSeconds: number;
   sessionStartDate: string;
-  trackId: number;
+  trackId: string;
   trackName: string;
-  carId: number;
+  carId: string;
   carName: string;
   carClassName: string;
   missingRaceIQVariables: string[];
@@ -196,9 +196,9 @@ export async function previewIbtFile(
       recordCount: metadata.recordCount,
       durationSeconds,
       sessionStartDate: metadata.sessionStartDate.toISOString(),
-      trackId: identity?.trackId ?? -1,
+      trackId: identity?.trackId == null || identity.trackId < 0 ? "" : String(identity.trackId),
       trackName: identity?.trackName ?? "Unknown iRacing track",
-      carId: identity?.carId ?? -1,
+      carId: identity?.carId == null || identity.carId < 0 ? "" : String(identity.carId),
       carName: identity?.carName ?? "Unknown iRacing car",
       carClassName: identity?.carClassName ?? "Unknown class",
       missingRaceIQVariables: [...metadata.missingRaceIQVariables],

@@ -60,7 +60,7 @@ function capture(frames: Buffer[]): Buffer {
   return Buffer.concat(parts);
 }
 async function insertSession(rawFile: string, gameId = "fm-2023"): Promise<number> {
-  const row = await db.insert(sessions).values({ gameId, carOrdinal: 1, trackOrdinal: 1, rawFile, captureFormatVersion: null }).returning({ id: sessions.id }).get();
+  const row = await db.insert(sessions).values({ gameId, carId: "1", trackId: "1", rawFile, captureFormatVersion: null }).returning({ id: sessions.id }).get();
   owned.add(row.id);
   return row.id;
 }
@@ -76,14 +76,14 @@ function tempCaptureDir(): string {
 }
 async function records(path: string, gameId = "fm-2023"): Promise<Buffer[]> {
   const result: Buffer[] = [];
-  for await (const record of iterateSessionCaptureRecordsFromSource({ rawFile: path, gameId: gameId as "fm-2023", source: null, carOrdinal: -1, trackOrdinal: -1 }, { strict: true })) {
+  for await (const record of iterateSessionCaptureRecordsFromSource({ rawFile: path, gameId: gameId as "fm-2023", source: null, carId: "0", trackId: "0" }, { strict: true })) {
     if (record.kind === "frame") result.push(record.frame);
   }
   return result;
 }
 async function recordsWithOffsets(path: string, gameId: "fm-2023" | "lmu" = "fm-2023"): Promise<Array<{ offset: number; frame: Buffer; frameTimeMs?: number }>> {
   const result: Array<{ offset: number; frame: Buffer; frameTimeMs?: number }> = [];
-  for await (const record of iterateSessionCaptureRecordsFromSource({ rawFile: path, gameId, source: null, carOrdinal: -1, trackOrdinal: -1 }, { strict: true })) {
+  for await (const record of iterateSessionCaptureRecordsFromSource({ rawFile: path, gameId, source: null, carId: "0", trackId: "0" }, { strict: true })) {
     if (record.kind === "frame") result.push({ offset: record.offset, frame: record.frame, frameTimeMs: record.frameTimeMs });
   }
   return result;
@@ -297,7 +297,7 @@ describe("historical capture migration", () => {
     writeFileSync(originalPath, Buffer.concat(parts));
     const sessionId = await insertSession(originalPath);
     const lap = await insertLap(sessionId, lapOffset, 1);
-    const source = (path: string) => ({ rawFile: path, gameId: "fm-2023" as const, source: null, carOrdinal: -1, trackOrdinal: -1 });
+    const source = (path: string) => ({ rawFile: path, gameId: "fm-2023" as const, source: null, carId: "0", trackId: "0" });
     const readAll = async (path: string) => {
       const records: Array<{ kind: string; frame?: Buffer }> = [];
       for await (const record of iterateSessionCaptureRecordsFromSource(source(path), { strict: true })) {

@@ -4,9 +4,9 @@ import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
 import { getLapSummariesByTrack, getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { getTrackOutline as getDbTrackOutline } from "@raceiq/backend-core/db/track-queries";
 import {
-  getTrackOutlineByOrdinal,
-  getRecordedOutlineByOrdinal,
-  recordLapTrace,
+  getTrackOutlineById,
+  getRecordedOutlineById,
+  recordLapTraceById,
 } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { loadLabelledSegments } from "@raceiq/shared/racing/tracks/storage/meta";
 import { loadSharedOutline } from "@raceiq/shared/racing/tracks/geometry/shared";
@@ -14,34 +14,15 @@ import { tryGetServerGame } from "@raceiq/backend-core/games/registry";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { GameIdSchema, type GameId } from "@raceiq/shared/games/ids";
 import { getIRacingSvgTrackMap } from "@raceiq/game-iracing/track-map";
+import { applyAlignment, computeAlignment } from "@raceiq/shared/racing/tracks/geometry/points";
+import type { IRacingPitLine } from "@raceiq/game-iracing/track-map-svg";
 import { alignIRacingAutoSegmentsToTurnLabels, type IRacingMapLabel } from "@raceiq/game-iracing/track-map-svg";
 import { lapPath } from "@raceiq/shared/racing/tracks/path";
 import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { getLMUTrackOutline } from "@raceiq/game-lmu-metadata/track-boundaries";
+import { isAcEvoTouristLayout, parseAcEvoTrackId } from "@raceiq/game-ac-evo-metadata/identity";
 
-// ─── Param schemas ──────────────────────────────────────────────────────────
-
-export const TrackOrdinalParamSchema = z.object({
-  trackOrdinal: z.string().transform((val) => parseInt(val, 10)),
-});
-
-export const TrackKeyParamSchema = z.object({
-  trackOrdinal: z.string().min(1),
-});
-
-export const OrdinalKeyParamSchema = z.object({
-  ordinal: z.string().min(1),
-});
-
-export function decodeTrackKey(value: string): string {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
-}
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
+export const TrackIdParamSchema = z.object({ trackId: z.string().min(1) });
 
 /** Extract gameId, throwing if missing. Use for endpoints that require game context. */
 export function requireGameId(c: { req: { query: (key: string) => string | undefined } }): GameId {
@@ -51,11 +32,8 @@ export function requireGameId(c: { req: { query: (key: string) => string | undef
   return result.data;
 }
 
-/** Sum dx/dz along an outline's points to get its total length in meters.
- *  Same computation used by GET /api/track-sector-boundaries/:ordinal. */
-export function computeOutlineLength(
-  outline: { x: number; z: number }[] | null | undefined,
-): number {
+/** Sum dx/dz along an outline's points to get its total length in meters. */
+export function computeOutlineLength(outline: { x: number; z: number }[] | null | undefined): number {
   if (!outline || outline.length < 2) return 0;
   let length = 0;
   for (let i = 1; i < outline.length; i++) {
@@ -66,25 +44,34 @@ export function computeOutlineLength(
   return length;
 }
 
-/** Resolve the shared track name for a given ordinal + gameId.
- *  Returns the shared outline file name (e.g. "silverstone") or undefined. */
-export function getSharedTrackName(ordinal: number, gameId?: string): string | undefined {
-  if (gameId) {
-    const serverAdapter = tryGetServerGame(gameId);
-    if (serverAdapter?.getSharedTrackName) {
-      return serverAdapter.getSharedTrackName(ordinal);
-    }
-    const adapter = tryGetGame(gameId);
-    if (adapter?.getSharedTrackName) return adapter.getSharedTrackName(ordinal);
-  }
-  return undefined;
+export function getSharedTrackName(trackId: string, gameId?: string): string | undefined {
+  const serverAdapter = gameId ? tryGetServerGame(gameId) : undefined;
+  if (serverAdapter?.getSharedTrackName) return serverAdapter.getSharedTrackName(trackId);
+  const adapter = gameId ? tryGetGame(gameId) : undefined;
+  return adapter?.getSharedTrackName?.(trackId);
 }
 
 export interface ResolvedTrackOutline {
   points: { x: number; z: number }[];
   labels: IRacingMapLabel[];
   recorded: boolean;
-  source: "shared" | "official-svg" | "generated" | "bundled" | "recorded";
+  source: "shared" | "official-svg" | "generated" | "bundled" | "recorded" | "none";
+  pitLines: IRacingPitLine[];
+  closed: boolean;
+}
+
+function resolveTouristOutline(trackId: string): ResolvedTrackOutline {
+  // Tourist has no closed-circuit fallback; missing telemetry means no map.
+  const outline = getRecordedOutlineById(trackId, "ac-evo");
+  return {
+    // Restore raw game coordinates; replay mirrors outline and boundaries together.
+    points: outline ? outline.map(({ x, z }) => ({ x: -x, z })) : [],
+    labels: [],
+    pitLines: [],
+    recorded: !!outline,
+    source: outline ? "recorded" : "none",
+    closed: false,
+  };
 }
 
 /**
@@ -93,70 +80,89 @@ export interface ResolvedTrackOutline {
  * official SVG, then a trace generated by RaceIQ's existing lap recorder.
  */
 export async function resolveTrackOutline(
-  ordinal: number,
+  trackId: string,
   gameId: string,
 ): Promise<ResolvedTrackOutline | null> {
-  const sharedName = getSharedTrackName(ordinal, gameId);
+  if (gameId === "ac-evo") {
+    const source = parseAcEvoTrackId(trackId);
+    if (!source) return null;
+    if (isAcEvoTouristLayout(source)) return resolveTouristOutline(trackId);
+  }
+  const official = gameId === "iracing" ? await getIRacingSvgTrackMap(Number(trackId)) : null;
+  const sharedName = getSharedTrackName(trackId, gameId);
 
   if (gameId === "iracing") {
     if (sharedName) {
       const shared = loadSharedOutline(sharedName);
       const labelledSegments = loadLabelledSegments(sharedName, "iracing");
       if (shared && labelledSegments.length > 0) {
+        const alignment = official ? computeAlignment(official.points, shared) : null;
         return {
           points: shared,
           labels: [],
+          pitLines: official && alignment
+            ? (official.pitLines ?? []).map((line) => ({
+                ...line,
+                points: line.points.map((point) => applyAlignment(point, alignment)),
+              }))
+            : [],
           recorded: false,
           source: "shared",
+          closed: true,
         };
       }
     }
-
-    const official = await getIRacingSvgTrackMap(ordinal);
     if (official) {
       return {
         ...official,
         recorded: false,
         source: "official-svg",
+        closed: true,
       };
     }
 
-    const generated = getRecordedOutlineByOrdinal(ordinal, gameId);
+    const generated = getRecordedOutlineById(trackId, gameId);
     if (generated) {
       return {
         points: generated,
         labels: [],
+        pitLines: [],
         recorded: true,
         source: "generated",
+        closed: true,
       };
     }
   } else {
-    const outline = getTrackOutlineByOrdinal(ordinal, gameId, sharedName);
+    const outline = getTrackOutlineById(trackId, gameId, sharedName);
     if (outline) {
       return {
         points: outline,
         labels: [],
+        pitLines: [],
         recorded: true,
         source: "bundled",
+        closed: true,
       };
     }
   }
 
-  const dbOutline = await getDbTrackOutline(ordinal, gameId as GameId);
+  const dbOutline = await getDbTrackOutline(trackId, gameId as GameId);
   if (dbOutline) {
     return {
       points: dbOutline,
       labels: [],
+      pitLines: [],
       recorded: true,
       source: "recorded",
+      closed: true,
     };
   }
 
   // Backfill the generated fallback for recordings made before iRacing live
-  // map support landed. This still goes through recordLapTrace(), the same
+  // map support landed. This still goes through recordLapTraceById(), the same
   // existing generator used at live lap completion.
   if (gameId === "iracing") {
-    const laps = await getLapSummariesByTrack(ordinal, "iracing");
+    const laps = await getLapSummariesByTrack(trackId, "iracing");
     for (const lap of laps) {
       if (!lap.isValid) continue;
       const saved = await getLapById(lap.lapId);
@@ -166,20 +172,22 @@ export async function resolveTrackOutline(
         x,
         z: path.z[index],
       }));
-      recordLapTrace(
-        ordinal,
+      recordLapTraceById(
+        trackId,
         trace,
         trace[0] ?? null,
         saved.telemetry[0]?.Yaw ?? null,
         "iracing",
       );
-      const generated = getRecordedOutlineByOrdinal(ordinal, "iracing");
+      const generated = getRecordedOutlineById(trackId, "iracing");
       if (generated) {
         return {
           points: generated,
           labels: [],
+          pitLines: [],
           recorded: true,
           source: "generated",
+          closed: true,
         };
       }
     }
@@ -193,17 +201,17 @@ export async function resolveTrackOutline(
 /**
  * The one place segment fractions come from. Curated shared-meta segments win;
  * otherwise the outline is run through the same auto-detector. Both
- * GET /api/track-sectors/:ordinal (track detail) and
- * GET /api/tracks/:trackOrdinal/corners (review dashboard / track focus) go
+ * GET /api/track-sectors/:trackId (track detail) and
+ * GET /api/tracks/:trackId/corners (review dashboard / track focus) go
  * through here, so the two pages can never disagree about where a corner
  * starts and ends.
  */
 export async function resolveTrackSegments(
-  trackKey: number | string,
+  trackId: string,
   gameId: string | undefined,
 ): Promise<{ segments: NamedSegment[]; totalDist: number; source: "shared" | "auto" | "none" }> {
   if (gameId === "lmu") {
-    const track = getLMUTrack(String(trackKey));
+    const track = getLMUTrack(trackId);
     const metaSegments = track?.commonTrackName ? loadLabelledSegments(track.commonTrackName, gameId) : [];
     if (track && metaSegments.length > 0) {
       return { segments: metaSegments, totalDist: track.lengthKm * 1_000, source: "shared" };
@@ -214,14 +222,13 @@ export async function resolveTrackSegments(
     return { ...result, source: "auto" };
   }
 
-  const ordinal = Number(trackKey);
-  const slug = getSharedTrackName(ordinal, gameId);
-  const metaSegments = slug && gameId ? loadLabelledSegments(slug, gameId) : [];
+  const resolved = gameId ? await resolveTrackOutline(trackId, gameId) : null;
+  const slug = getSharedTrackName(trackId, gameId);
+  const metaSegments = resolved?.closed !== false && slug && gameId ? loadLabelledSegments(slug, gameId) : [];
   if (metaSegments.length > 0) {
     return { segments: metaSegments, totalDist: 0, source: "shared" };
   }
 
-  const resolved = gameId ? await resolveTrackOutline(ordinal, gameId) : null;
   const outline = resolved?.points ?? null;
   if (!outline || outline.length < 20) return { segments: [], totalDist: 0, source: "none" };
 

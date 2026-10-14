@@ -5,6 +5,7 @@ import { pointForLiveTrackSample, type LiveTrackSample } from "./live-track-samp
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 
+import { drawPitLines, type PitLine } from "@/lib/canvas/draw-track";
 export interface Point {
   x: number;
   z: number;
@@ -22,8 +23,10 @@ export function drawLiveTrack({
   canvasRef,
   sample,
   outline,
+  closed = true,
   noOutline,
   isRecorded,
+  pitLines,
   startYaw,
   sectors,
   boundaries,
@@ -35,9 +38,11 @@ export function drawLiveTrack({
   canvasRef: RefObject<HTMLCanvasElement | null>;
   sample: LiveTrackSample | null;
   outline: Point[] | null;
+  closed?: boolean;
   noOutline: boolean;
   isRecorded: boolean;
   startYaw: number | null;
+  pitLines: PitLine[];
   sectors: { s1End: number; s2End: number } | null;
   boundaries: TrackBoundaryData | null;
   issues?: TuneIssue[];
@@ -111,6 +116,7 @@ export function drawLiveTrack({
   function toCanvas(x: number, z: number): [number, number] {
     return [offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
   }
+  drawPitLines(ctx, pitLines, toCanvas);
 
   // Compute jump threshold: skip segments where world-space distance is abnormally large.
   // Use the 90th percentile * 3 to avoid breaking at normal sparse sections (straights).
@@ -182,7 +188,7 @@ export function drawLiveTrack({
       if (isJump(i)) ctx.moveTo(px, py);
       else ctx.lineTo(px, py);
     }
-    if (!isLiveTrace) ctx.lineTo(sx, sy);
+    if (!isLiveTrace && closed) ctx.lineTo(sx, sy);
     ctx.stroke();
 
     // Thinner highlight
@@ -196,7 +202,7 @@ export function drawLiveTrack({
       if (isJump(i)) ctx.moveTo(px, py);
       else ctx.lineTo(px, py);
     }
-    if (!isLiveTrace) ctx.lineTo(sx, sy);
+    if (!isLiveTrace && closed) ctx.lineTo(sx, sy);
     ctx.stroke();
     ctx.globalAlpha = 1;
   } else {

@@ -228,6 +228,7 @@ ran v39 before the `car`/`driver` rename.
 - Database file: `<DATA_DIR>/app.db` (SQLite)
 - Settings persisted to: `data/settings.json`
 - UI components use shadcn (in `client/src/components/ui/`) with Tailwind CSS v4
+- Prioritise reusing existing components in `client/src/components/`, including shared controls in `client/src/components/ui/`, before creating new components or custom markup.
 - **Translations:** all user-facing client copy must use Paraglide messages from `client/messages/`; add or update every supported locale before using new text.
 - Client uses TanStack React Query for server state management
 - 3D visualizations use React Three Fiber (Three.js wrapper for React)

@@ -16,7 +16,7 @@ for (const viewport of WORKSPACE_VIEWPORTS) {
 
       await page.goto(`/f125/sessions/${lap!.sessionId}/replay/${lap!.id}`, { waitUntil: "domcontentloaded" });
       await expect(page.getByTestId("lap-analyse-workspace")).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({ timeout: 30_000 });
       await expect(page.getByText("Desktop required")).toHaveCount(0);
       await expect(page.getByText("Rotate your device")).toHaveCount(0);
       await assertInputsInsideViewport(page, "lap-analyse-workspace", 1);

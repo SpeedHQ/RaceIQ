@@ -44,7 +44,7 @@ describe("LMU sparse session recorder", () => {
       if (index + 1 < offsets.length) expect(advanceSessionFrames(bytes, offsets[index]!, 1)).toBe(offsets[index + 1]);
     }
     const streamed: Buffer[] = [];
-    for await (const record of iterateSessionCaptureFrames({ rawFile: file, source: null, gameId: "lmu", carOrdinal: -1, trackOrdinal: -1 })) {
+    for await (const record of iterateSessionCaptureFrames({ rawFile: file, source: null, gameId: "lmu", carId: "ferrari_499p_2023", trackId: "lemans_2023/lemanswec" })) {
       streamed.push(record.frame);
     }
     expect(streamed).toEqual(expected);

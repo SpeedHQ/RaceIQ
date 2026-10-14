@@ -5,6 +5,9 @@ dist/
 !/data/diagnostics/
 /data/diagnostics/*
 !/data/diagnostics/iracing-all-vars-2026-07-29T02-06-39-162Z.json
+!/data/diagnostics/iracing-session-info/
+/data/diagnostics/iracing-session-info/*
+!/data/diagnostics/iracing-session-info/racinginsights-v1-6d9873a-paths.json
 /.data-test/
 /.data-test-*/
 *.db
@@ -71,5 +74,9 @@ raceiq-home.png
 test/e2e/output/
 
 # Local agent checkpoints and verification evidence
+/.omp/checkpoint/
 /.omp/checkpoints/
 /.omp/evidence/
+
+# Oversized Tourist fixture is committed as ordered gzip parts.
+/test/artifacts/sessions/ac-evo-tourist-2026-10-10.bin.gz

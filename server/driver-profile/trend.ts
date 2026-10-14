@@ -47,7 +47,7 @@ export interface DriverTrend {
 }
 
 function trendContextKey(lap: LapMeta): string {
-  return `${lap.gameId ?? "?"}|${lap.carOrdinal ?? "?"}|${lap.trackOrdinal ?? "?"}`;
+  return JSON.stringify([lap.gameId ?? null, lap.carId ?? null, lap.trackId ?? null]);
 }
 
 function direction(delta: number | null, improveAt: number, declineAt: number): TrendDirection {

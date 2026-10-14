@@ -64,20 +64,21 @@ export const accServerAdapter: ServerGameAdapter = {
     ];
   },
 
-  getCarName(ordinal: number): string {
-    return getAccCarName(ordinal);
+  getCarName(carId: string): string {
+    return getAccCarName(Number(carId));
   },
 
-  getTrackName(ordinal: number): string {
-    return getAccTrackName(ordinal);
+  getTrackName(trackId: string): string {
+    return getAccTrackName(Number(trackId));
   },
 
-  getSharedTrackName(ordinal: number): string | undefined {
-    return getAccSharedTrackName(ordinal);
+  getSharedTrackName(trackId: string): string | undefined {
+    return getAccSharedTrackName(Number(trackId));
   },
 
-  getTrackOrdinalByName(name: string): number | undefined {
-    return getAccTrackBySetupFolder(name)?.id ?? getAccTrackByName(name)?.id;
+  getTrackIdByName(name: string): string | undefined {
+    const track = getAccTrackBySetupFolder(name) ?? getAccTrackByName(name);
+    return track ? String(track.id) : undefined;
   },
 
   canHandle: accParser.canHandle,

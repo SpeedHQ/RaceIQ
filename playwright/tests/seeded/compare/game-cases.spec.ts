@@ -19,7 +19,7 @@ for (const game of SEEDED_GAME_CASES) {
     if (game.gameId === "f1-2025") expect(Buffer.byteLength(body, "utf8"), "F1 comparison response size").toBeLessThan(5_000_000);
     expect(set).not.toBeNull();
 
-    await page.goto(`/${game.prefix}/compare?track=${pair.trackOrdinal}&carA=${pair.carOrdinal}&carB=${pair.carOrdinal}&lapA=${pair.lapA.id}&lapB=${pair.lapB.id}`, { waitUntil: "domcontentloaded" });
+    await page.goto(`/${game.prefix}/compare?track=${encodeURIComponent(pair.trackId)}&carA=${encodeURIComponent(pair.carId)}&carB=${encodeURIComponent(pair.carId)}&lapA=${pair.lapA.id}&lapB=${pair.lapB.id}`, { waitUntil: "domcontentloaded" });
 
     expect(set!.laps[0]!.elapsedTimeS.length).toBe(set!.distanceMeters.length);
     await expect(page.getByTestId("lap-compare-workspace")).toBeVisible({ timeout: 30_000 });
@@ -35,7 +35,7 @@ for (const game of SEEDED_GAME_CASES) {
       return;
     }
 
-    await page.goto(`/${game.prefix}/compare?track=${lap.trackOrdinal}&carA=${lap.carOrdinal}&lapA=${lap.id}`, { waitUntil: "domcontentloaded" });
+    await page.goto(`/${game.prefix}/compare?track=${encodeURIComponent(lap.trackId)}&carA=${encodeURIComponent(lap.carId)}&lapA=${lap.id}`, { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Select two laps above to compare")).toBeVisible({ timeout: 30_000 });
     expect(browserErrors.errors, `no route errors in ${game.name} incomplete compare state`).toEqual([]);
   });
@@ -46,7 +46,7 @@ test("Compare ignores a stale URL lap before selecting another F1 lap", async ({
   const fm = SEEDED_GAME_CASES.find((game) => game.gameId === "fm-2023")!;
   const laps = await getSeededLaps(request, f1.gameId);
   const f1Lap = getFirstSeededLap(laps)!;
-  const nextLap = laps.find((lap) => lap.id !== f1Lap.id && lap.trackOrdinal === f1Lap.trackOrdinal && lap.carOrdinal === f1Lap.carOrdinal)!;
+  const nextLap = laps.find((lap) => lap.id !== f1Lap.id && lap.trackId === f1Lap.trackId && lap.carId === f1Lap.carId)!;
   const staleLap = getFirstSeededLap(await getSeededLaps(request, fm.gameId))!;
   const alignmentRequests: number[][] = [];
   page.on("request", (req) => {
@@ -55,7 +55,7 @@ test("Compare ignores a stale URL lap before selecting another F1 lap", async ({
     if (body && typeof body === "object" && "ids" in body && Array.isArray(body.ids)) alignmentRequests.push(body.ids);
   });
 
-  await page.goto(`/${f1.prefix}/compare?track=${f1Lap.trackOrdinal}&carA=${f1Lap.carOrdinal}&carB=${f1Lap.carOrdinal}&lapA=${staleLap.id}&lapB=${f1Lap.id}`);
+  await page.goto(`/${f1.prefix}/compare?track=${encodeURIComponent(f1Lap.trackId)}&carA=${encodeURIComponent(f1Lap.carId)}&carB=${encodeURIComponent(f1Lap.carId)}&lapA=${staleLap.id}&lapB=${f1Lap.id}`);
   await expect(page.getByTestId("lap-compare-workspace").getByText("Select two laps above to compare")).toBeVisible();
   await expect(page.getByLabel("Lap A")).toHaveValue("");
   expect(alignmentRequests).toEqual([]);
