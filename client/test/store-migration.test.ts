@@ -104,6 +104,32 @@ describe("TanStack store contracts", () => {
     }
   });
 
+  it("requires conversion again when new raw captures follow a completed migration", () => {
+    const previous = telemetryStore.get();
+    const completed = { status: "success", done: 2, total: 2, migrated: 2, failed: 0, error: null } as const;
+    try {
+      telemetryStore.actions.setCaptureMigration({ sessionCount: 0, captureCount: 0 });
+      telemetryStore.actions.restoreCaptureMigrationProgress(completed);
+      expect(telemetryStore.get().captureMigrationState.status).toBe("success");
+      telemetryStore.actions.setCaptureMigration({ sessionCount: 1, captureCount: 1 });
+      expect(telemetryStore.get().captureMigrationState.status).toBe("idle");
+      telemetryStore.actions.restoreCaptureMigrationProgress(completed);
+      expect(telemetryStore.get().captureMigrationState).toEqual({ status: "idle", done: 0, total: 0, migrated: 0, failed: 0, error: null });
+      telemetryStore.actions.beginCaptureMigration(1);
+      telemetryStore.actions.restoreCaptureMigrationProgress(completed);
+      expect(telemetryStore.get().captureMigrationState.status).toBe("running");
+      telemetryStore.actions.restoreCaptureMigrationProgress({ status: "running", done: 0, total: 1, migrated: 0, failed: 0, error: null });
+      expect(telemetryStore.get().captureMigrationState.status).toBe("running");
+      telemetryStore.actions.restoreCaptureMigrationProgress({ status: "partial", done: 1, total: 1, migrated: 0, failed: 1, error: "failed capture" });
+      expect(telemetryStore.get().captureMigrationState.status).toBe("partial");
+      telemetryStore.actions.setCaptureMigration({ sessionCount: 0, captureCount: 0 });
+      telemetryStore.actions.restoreCaptureMigrationProgress(completed);
+      expect(telemetryStore.get().captureMigrationState.status).toBe("success");
+    } finally {
+      telemetryStore.setState(() => previous);
+    }
+  });
+
   it("exposes game and telemetry instances with actions", () => {
     gameStore.actions.setGameId("acc");
     expect(gameStore.get().gameId).toBe("acc");

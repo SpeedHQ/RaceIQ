@@ -114,6 +114,8 @@ export interface CaptureMigrationState {
   error: string | null;
 }
 
+const initialCaptureMigrationState: CaptureMigrationState = { status: "idle", done: 0, total: 0, migrated: 0, failed: 0, error: null };
+
 export interface TelemetryState {
   connected: boolean;
   telemetrySchema: LiveTelemetrySchemaMessageV1 | null;
@@ -194,7 +196,7 @@ const initialTelemetryState = {
   reprocessState: initialReprocessState,
   captureMigration: null,
   captureMigrationStatusReady: false,
-  captureMigrationState: { status: "idle", done: 0, total: 0, migrated: 0, failed: 0, error: null },
+  captureMigrationState: initialCaptureMigrationState,
   liveIssues: [],
   devState: null,
   devStatePaused: false,
@@ -269,8 +271,19 @@ export const telemetryStore = createStore(initialTelemetryState, (store): Teleme
   setRaceResultReprocessProgress: (progress) => store.setState((prev) => ({ ...prev, raceResultReprocessProgress: progress })),
   setRaceResultReprocessError: (error) => store.setState((prev) => ({ ...prev, raceResultReprocessError: error })),
   setStaleLapDetection: (data) => store.setState((prev) => ({ ...prev, staleLapDetection: data })),
-  setCaptureMigration: (data) => store.setState((prev) => ({ ...prev, captureMigration: data, captureMigrationStatusReady: true })),
-  restoreCaptureMigrationProgress: (captureMigrationState) => store.setState((prev) => ({ ...prev, captureMigrationState })),
+  setCaptureMigration: (data) => store.setState((prev) => ({
+    ...prev,
+    captureMigration: data,
+    captureMigrationStatusReady: true,
+    captureMigrationState: data && data.captureCount > 0 && prev.captureMigrationState.status === "success"
+      ? initialCaptureMigrationState : prev.captureMigrationState,
+  })),
+  restoreCaptureMigrationProgress: (captureMigrationState) => store.setState((prev) => {
+    if (captureMigrationState.status === "success" && prev.captureMigration && prev.captureMigration.captureCount > 0) {
+      return prev.captureMigrationState.status === "running" ? prev : { ...prev, captureMigrationState: initialCaptureMigrationState };
+    }
+    return { ...prev, captureMigrationState };
+  }),
   setCaptureMigrationStatusReady: () => store.setState((prev) => ({ ...prev, captureMigrationStatusReady: true })),
   beginCaptureMigration: (total) =>
     store.setState((prev) => ({ ...prev, captureMigrationState: { status: "running", done: 0, total, migrated: 0, failed: 0, error: null } })),
