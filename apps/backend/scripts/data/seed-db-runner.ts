@@ -129,6 +129,7 @@ async function main(): Promise<void> {
         const existingSessionIds = new Set(
           (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, game)).all()).map((row) => row.id),
         );
+        console.log(`[DB Seed] ${game}: converting ${fixture} to sparse format...`);
         const converted = await convertSeedFramesToSparse(
           game,
           game === "lmu" ? streamLMUSeedFrames(fixturePath) : seedCaptureFrames(fixturePath),

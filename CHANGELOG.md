@@ -93,6 +93,8 @@
 - Wait for dashboard metadata and loading panels to finish before generating the Home marketing screenshot.
 - Include the privacy-safe iRacing SessionInfo path manifest in clean checkouts so CI can validate the telemetry catalog.
 - Add `bun clean` to remove repository-local development data without targeting custom `DATA_DIR` locations.
+- Log legacy fixture conversion to sparse format during database seeding.
+
 - Isolate dashboard-authentication tests in subprocesses so Windows releases database handles before cleanup, and verify password recovery through the command in a separate process.
 - Run development-dashboard SQLite assertions in a subprocess so Windows releases native database handles before fixture cleanup.
 - Limit live `ps` resource-sampler tests to supported platforms.

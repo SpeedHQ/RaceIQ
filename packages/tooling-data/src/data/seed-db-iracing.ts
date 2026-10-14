@@ -34,6 +34,7 @@ export async function seedIRacingSession(fixturePath: string): Promise<void> {
     }
   }
 
+  console.log(`[DB Seed] iracing: converting ${fixturePath} to sparse format...`);
   const converted = await convertSeedFramesToSparse("iracing", sourceFrames());
   try {
     const result = await importSessionBin(readFileSync(converted.path), "iracing", {
