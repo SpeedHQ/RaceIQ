@@ -53,6 +53,9 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     selectedLapId,
     setSelectedLapId,
     outline,
+    trackProjection,
+    trackGeometryLoading,
+    trackGeometryError,
     closed,
     mapLabels,
     pitLines,
@@ -159,7 +162,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     for (const p of semanticFrames) {
       const x = semanticNumber(p, "motion.position-x");
       const z = semanticNumber(p, "motion.position-z");
-      if (x != null || z != null) pts.push({ x: x ?? 0, z: z ?? 0 });
+      if (x !== null && z !== null) pts.push({ x, z });
     }
     return pts.length > 2 ? pts : null;
   }, [semanticFrames]);
@@ -521,6 +524,9 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
             pitLines,
             sceneSource,
             onRuntime: handleRuntime,
+            trackProjection,
+            trackGeometryLoading,
+            trackGeometryError,
             boundaries,
             sectors,
             segments,

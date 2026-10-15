@@ -67,6 +67,19 @@ The 29 repaired track/game lists use native CSV arc length and circuit-map landm
 
 Map correspondence matters beyond counts: Montréal T10 is the main hairpin and T11 its weak exit bend; Imola T16 is the right-hand kink before the two Rivazza left-handers; Red Bull Ring T7 is left and T8 right. Spa T15 is Paul Frère, while T16/T17 are Blanchimont. Shanghai T15 uses the secondary hairpin-exit curvature peak, not the nearly straight run to T16.
 
+## iRacing replay placement
+
+- Native iRacing `LapDistPct` is authoritative lap progress, not world position. The 3D replay keeps derived `ScenePose` values separate from semantic telemetry.
+- IBT-backed replays expose recorded `Lat`, `Lon`, `Alt`, and `YawNorth` as geographic semantic channels. Existing v3 imports retain these raw channels; live-only captures cannot recover disk-only data retroactively. Archiving an IBT alone does not import it or attach it to an existing session.
+- Measured replay poses project latitude/longitude into local east/north metres, using the retained track origin when available. The heading is compass `YawNorth`, not simulator-local `Yaw`; the 3D trajectory retains altitude relative to the cursor. Missing, stale, out-of-range, and startup `(0, 0)` positions remain gaps. Track-origin metadata alone does not imply a measured vehicle position.
+- Only the official reference geometry is fitted to the measured trajectory. The measured path is never snapped or scaled to the map. Outline, labels, pit lanes, and ribbon sections share the reference transform; the UI labels them approximate, not surveyed. Geographic poses do not enable native-coordinate tire trails or a fabricated optimal racing line.
+- The outline API provides a separate `projection` only for the exact native layout with proven start/finish alignment, forward direction, and catalog length. Official SVG coordinates are uniformly scaled to metres and explicitly closed at start/finish; curated outline points remain unchanged.
+- Legacy map caches without alignment evidence or ribbon edges reload the official layers. Offline caches still serve existing centerlines; unavailable edge geometry is not replaced with an invented road width.
+- `createLapFractionProjector` compiles cumulative distances once. Projection uses the geometry tangent, not vehicle yaw from another coordinate frame. Fractions outside `[0, 1]`, invalid geometry, missing values, and stale continuous evidence remain unavailable.
+- Derived centerline placement is labeled and is not a measured racing line. Pedal evidence may be drawn on that placement; measured tire trails and racing-line overlays require native positions.
+- The official SVG ribbon's two contours are retained, start-aligned and reversed together with the centerline, and scaled by the same transform. `projection.boundaries` and the runtime `boundarySpace` keep these edges in the derived position frame. They are map geometry, not surveyed track widths; neither ribbon edges nor positions overwrite native telemetry or curated geometry.
+- Wheel cards preserve pit-snapshot temperature/health and cold setup-pressure semantics. Aged snapshot/setup values remain visible only as explicitly labeled historical observations, including a stale/not-live note. Stale continuous channels remain unavailable. Missing or invalid values never imply zero temperature/pressure or full tire health; brake temperatures, wheel slip, and tire forces remain unavailable when the source lacks them.
+
 ## Browser vs Node boundary
 ### Browser-safe imports
 - `facts.ts`, `geometry.ts`, `keys.ts`, `named-segments.ts`, `segment-label.ts`, `projection.ts`, `coords.ts`, `sectors.ts`, `path.ts`, `geometry/points.ts`, `geometry/types.ts`, `curation/join.ts`, `curation/segment-align-detect.ts`, and `curation/segment-align-match.ts`.

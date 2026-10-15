@@ -17,6 +17,7 @@ import { tuneRoutes } from "./tune-routes";
 import { accRoutes } from "./games/acc";
 import { acEvoRoutes } from "./games/ac-evo";
 import { f125Routes } from "./games/f1-2025";
+import { iracingRoutes } from "./games/iracing";
 import { miscRoutes } from "./system/index";
 import { cacheRoutes } from "./cache-routes";
 import { devRoutes } from "./dev/index";
@@ -52,6 +53,7 @@ const app = new Hono()
   .route("/", carRoutes)
   .route("/", tuneRoutes)
   .route("/", accRoutes)
+  .route("/", iracingRoutes)
   .route("/", acEvoRoutes)
   .route("/", f125Routes)
   .route("/", miscRoutes)

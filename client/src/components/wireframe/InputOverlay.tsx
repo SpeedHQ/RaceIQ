@@ -2,12 +2,13 @@ import * as THREE from "three/webgpu";
 import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
 import { buildTrackIndex, filterByDistanceIndexed, threeColor, type TrackIndex } from "../../lib/wireframe-utils";
 import { createRibbonPool, disposeRibbonPool, updateRibbonPool, type RibbonPool } from "./LineResources";
+import type { ScenePose } from "./ScenePlacement";
 
 export type InputRun = { id: number; pts: [number, number, number][]; values: number[] };
-export function buildInputOverlayRuns(telemetry: SemanticAnalysisFrame[], index: TrackIndex, packet: SemanticAnalysisFrame): { throttleRuns: InputRun[]; brakeRuns: InputRun[] } {
-  const cx = semanticNumber(packet, "motion.position-x") ?? 0;
-  const cz = semanticNumber(packet, "motion.position-z") ?? 0;
-  const yaw = semanticNumber(packet, "motion.yaw") ?? 0;
+export function buildInputOverlayRuns(telemetry: SemanticAnalysisFrame[], index: TrackIndex, packet: SemanticAnalysisFrame, pose?: ScenePose, poses?: (ScenePose | null)[]): { throttleRuns: InputRun[]; brakeRuns: InputRun[] } {
+  const cx = pose?.x ?? semanticNumber(packet, "motion.position-x") ?? 0;
+  const cz = pose?.z ?? semanticNumber(packet, "motion.position-z") ?? 0;
+  const yaw = pose?.yaw ?? semanticNumber(packet, "motion.yaw") ?? 0;
   const segments = filterByDistanceIndexed(index, cx, cz, yaw, -0.44, 60, 20, 30);
   const throttleRuns: InputRun[] = [], brakeRuns: InputRun[] = [];
   for (const segment of segments) {
@@ -22,8 +23,13 @@ export function buildInputOverlayRuns(telemetry: SemanticAnalysisFrame[], index:
       const sourceIndex = segment.sourceStartIndex + i;
       const frame = telemetry[sourceIndex];
       const point = segment.points[i];
-      const throttle = semanticNumber(frame, "inputs.accel") ?? 0;
-      const brake = (semanticNumber(frame, "inputs.brake") ?? 0) / 255;
+      const valid = (id: "inputs.accel" | "inputs.brake") => {
+        const state = frame?.states[id], freshness = frame?.freshness[id];
+        return (state === undefined || state === "ok") && (freshness === undefined || freshness === "fresh") ? semanticNumber(frame, id) : null;
+      };
+      const positioned = !poses || poses[sourceIndex] !== null;
+      const throttle = positioned ? valid("inputs.accel") ?? 0 : 0;
+      const brake = positioned ? (valid("inputs.brake") ?? 0) / 255 : 0;
       const prev = segment.points[Math.max(0, i - 1)], next = segment.points[Math.min(segment.points.length - 1, i + 1)];
       const df = next[0] - prev[0], dl = next[2] - prev[2], length = Math.hypot(df, dl) || 1;
       const nf = -dl / length, nl = df / length;
@@ -46,7 +52,7 @@ type InputRibbonPoint = { x: number; y: number; z: number; color: THREE.Color; a
 export type InputOverlayResource = {
   throttle: RibbonPool; brake: RibbonPool;
   throttleRuns: InputRibbonPoint[][]; brakeRuns: InputRibbonPoint[][];
-  indexSource: { telemetry: SemanticAnalysisFrame[]; index: TrackIndex } | null;
+  indexSource: { telemetry: SemanticAnalysisFrame[]; poses?: (ScenePose | null)[]; index: TrackIndex } | null;
 };
 export function createInputOverlayResource(scene: THREE.Scene): InputOverlayResource {
   const throttle = createRibbonPool({ opacity: 0.9 }); const brake = createRibbonPool({ opacity: 0.9 });
@@ -66,12 +72,12 @@ function fillRibbonRuns(items: InputRun[], target: InputRibbonPoint[][], inactiv
   }
   target.length = items.length;
 }
-export function updateInputOverlayResource(resource: InputOverlayResource, camera: THREE.PerspectiveCamera, telemetry: SemanticAnalysisFrame[], packet: SemanticAnalysisFrame, viewportHeight: number): void {
-  if (resource.indexSource?.telemetry !== telemetry) {
-    const points = telemetry.map((frame) => ({ x: semanticNumber(frame, "motion.position-x") ?? 0, z: semanticNumber(frame, "motion.position-z") ?? 0 }));
-    resource.indexSource = { telemetry, index: buildTrackIndex(points) };
+export function updateInputOverlayResource(resource: InputOverlayResource, camera: THREE.PerspectiveCamera, telemetry: SemanticAnalysisFrame[], packet: SemanticAnalysisFrame, viewportHeight: number, pose?: ScenePose, poses?: (ScenePose | null)[]): void {
+  if (resource.indexSource?.telemetry !== telemetry || resource.indexSource?.poses !== poses) {
+    const points = poses ? poses.map((value) => ({ x: value?.x ?? 0, z: value?.z ?? 0 })) : telemetry.map((frame) => ({ x: semanticNumber(frame, "motion.position-x") ?? 0, z: semanticNumber(frame, "motion.position-z") ?? 0 }));
+    resource.indexSource = { telemetry, poses, index: buildTrackIndex(points) };
   }
-  const runs = buildInputOverlayRuns(telemetry, resource.indexSource.index, packet);
+  const runs = buildInputOverlayRuns(telemetry, resource.indexSource.index, packet, pose, poses);
   const inactive = threeColor("var(--app-bg)"), throttleColor = threeColor("var(--ch-throttle)"), brakeColor = threeColor("var(--ch-brake)");
   fillRibbonRuns(runs.throttleRuns, resource.throttleRuns, inactive, throttleColor, 1);
   fillRibbonRuns(runs.brakeRuns, resource.brakeRuns, inactive, brakeColor, 255);

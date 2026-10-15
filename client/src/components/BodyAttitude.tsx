@@ -3,8 +3,9 @@ import type { SemanticAnalysisFrame } from "./analyse/track-map/types";
 const toDeg = 180 / Math.PI;
 
 const numeric = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => {
-  const value = frame.values[id];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+  const value = frame.values[id], state = frame.states[id], freshness = frame.freshness[id];
+  return typeof value === "number" && Number.isFinite(value) && (state === undefined || state === "ok") &&
+    (freshness === undefined || freshness === "fresh") ? value : null;
 };
 
 /**
@@ -14,9 +15,10 @@ const numeric = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["
  * 3. Compass: arrow rotates with yaw heading
  */
 export function BodyAttitude({ frame }: { frame: SemanticAnalysisFrame }) {
-  const roll = (numeric(frame, "motion.roll") ?? 0) * toDeg;
-  const pitch = (numeric(frame, "motion.pitch") ?? 0) * toDeg;
-  const yaw = (numeric(frame, "motion.yaw") ?? 0) * toDeg;
+  const rollValue = numeric(frame, "motion.roll"), pitchValue = numeric(frame, "motion.pitch"), yawValue = numeric(frame, "motion.yaw");
+  const roll = (rollValue ?? 0) * toDeg;
+  const pitch = (pitchValue ?? 0) * toDeg;
+  const yaw = (yawValue ?? 0) * toDeg;
   const clampedVehicleRoll = Math.max(-25, Math.min(25, roll));
   // Fixed vehicle reference, moving horizon: scenery rotates opposite vehicle roll.
   const horizonRoll = -clampedVehicleRoll;
@@ -87,10 +89,10 @@ export function BodyAttitude({ frame }: { frame: SemanticAnalysisFrame }) {
           <polygon points="25,3 23,6 27,6" fill="var(--app-text)" fillOpacity={0.5} />
           {/* Yaw heading at top */}
           <text x={25} y={2.5} textAnchor="middle" fill="var(--app-text-dim)" fontSize={5} fontFamily="var(--font-mono)">
-            {yaw.toFixed(0)}°
+            {yawValue == null ? "—" : `${yaw.toFixed(0)}°`}
           </text>
           <text x={25} y={48} textAnchor="middle" fill="var(--app-text-dim)" fontSize={7} fontFamily="var(--font-mono)">
-            R{roll.toFixed(0)}° P{pitch.toFixed(0)}°
+            R{rollValue == null ? "—" : `${roll.toFixed(0)}°`} P{pitchValue == null ? "—" : `${pitch.toFixed(0)}°`}
           </text>
         </svg>
       </div>

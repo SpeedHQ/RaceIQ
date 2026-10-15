@@ -2,13 +2,14 @@ import { expect, test } from "bun:test";
 import { buildInputOverlayRuns } from "../src/components/wireframe/InputOverlay";
 import { buildTrackIndex } from "../src/lib/wireframe-utils";
 import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
+import { resolveScenePoses, type TrackProjection } from "../src/components/wireframe/ScenePlacement";
 
 function frame(x: number, z: number, throttle = 0, brake = 0): SemanticAnalysisFrame {
-  return { values: { "motion.position-x": x, "motion.position-z": z, "inputs.accel": throttle, "inputs.brake": brake } } as SemanticAnalysisFrame;
+  return { values: { "motion.position-x": x, "motion.position-z": z, "inputs.accel": throttle, "inputs.brake": brake }, states: {}, freshness: {} };
 }
 
 function build(telemetry: SemanticAnalysisFrame[], yaw = 0): SemanticAnalysisFrame {
-  return { values: { "motion.position-x": 0, "motion.position-z": 0, "motion.yaw": yaw } } as SemanticAnalysisFrame;
+  return { values: { "motion.position-x": 0, "motion.position-z": 0, "motion.yaw": yaw }, states: {}, freshness: {} };
 }
 
 test("indexes nearby input runs and preserves source ids and intensities", () => {
@@ -50,4 +51,23 @@ test("splits pedal-off gaps and drops runs shorter than five points", () => {
   expect(result.throttleRuns).toHaveLength(1);
   expect(result.throttleRuns[0]?.id).toBe(3);
   expect(result.throttleRuns[0]?.values).toHaveLength(6);
+});
+
+test("places supported pedal evidence on derived geometry without writing native positions", () => {
+  const projection: TrackProjection = {
+    points: [{ x: 100, z: 100 }, { x: 100, z: 200 }, { x: 200, z: 200 }, { x: 200, z: 100 }, { x: 100, z: 100 }],
+    source: "official-svg", units: "m", start: "start-finish", direction: "forward",
+  };
+  const samples: SemanticAnalysisFrame[] = Array.from({ length: 8 }, (_, index) => ({
+    values: { "timing.lap-fraction": index / 200, "inputs.accel": 128 },
+    states: { "inputs.accel": "ok" }, freshness: { "inputs.accel": "fresh" },
+  }));
+  const poses = resolveScenePoses("iracing", samples, projection);
+  const index = buildTrackIndex(poses.map((pose) => ({ x: pose!.x, z: pose!.z })));
+  const result = buildInputOverlayRuns(samples, index, samples[0], poses[0]!, poses);
+  expect(result.throttleRuns[0]?.values).toEqual(Array(8).fill(128));
+  expect(result.throttleRuns[0]?.pts[0]).toEqual([0, -0.44, 0.1]);
+  expect(samples[0].values["motion.position-x"]).toBeUndefined();
+  const stale = samples.map((sample) => ({ ...sample, freshness: { "inputs.accel": "stale" } }));
+  expect(buildInputOverlayRuns(stale, index, stale[0], poses[0]!, poses).throttleRuns).toEqual([]);
 });

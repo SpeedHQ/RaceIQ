@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.19.2",
-      "sourceHash": "6d2c986924a834bd68c7cb38aed405849a1982efcf2164166f43babcd0837b83"
+      "sourceHash": "25c24ddb9556ead2ab7d4f884b27f0b7ec824d25ec0459f91b46e6c7252a6ce8"
     },
     "sourceHashes": {
       "packages/game-ac-evo/src/parser.ts": "1b8e588159a7e3e1cd37a882f57a961d501ef034d75fc54d84859920501cbd20",
@@ -14,13 +14,13 @@
       "packages/game-f1-2025/src/f1-state.ts": "6a15c7fe6b10f2630daaa3d88a1a9000f10c93b7fe51be76706f1be3face9a59",
       "packages/game-fm-2023/src/parser.ts": "71c348b894f84f6086c9582d0cce473bac75a3c85896010a0e5762854718b835",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
-      "packages/game-iracing/src/normalizer.ts": "76462dd0d2ab42538627c54e1a3962e00fab7935b3ba74548cf152b43b46bfa7",
+      "packages/game-iracing/src/normalizer.ts": "4522216ef75d86bd7db12a3e2c5b7c58b825e52894d5d10d9db0e9c114db0565",
       "packages/game-lmu/src/normalizer.ts": "1c2d9c9bd1a9b1bdae8f587f009ee6d087dcddf821c7ce56c14a4301bc4789e9",
       "packages/tooling-catalog/src/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "11040a6a0d84ebdf7c9367303a563bb04e17891237b1a3e8d1fde58047419265"
     },
-    "contentHash": "37c7c55ded91317d6132a5d12b918ed24217ab244f2761998188b7901d67e0e3"
+    "contentHash": "827ac229e3af5d3dabecaab0cde1c03199cf32fd370e16ffc326a9859af1f6a1"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -459,13 +459,16 @@
         "motion.acceleration-x",
         "motion.acceleration-y",
         "motion.acceleration-z",
+        "motion.altitude",
         "motion.angular-velocity-x",
         "motion.angular-velocity-y",
         "motion.angular-velocity-z",
         "motion.front-axle-roll-angle",
         "motion.lat-accel-st",
+        "motion.latitude",
         "motion.local-velocity",
         "motion.long-accel-st",
+        "motion.longitude",
         "motion.pitch",
         "motion.pitch-rate-st",
         "motion.position-x",
@@ -20593,7 +20596,7 @@
             "iRacing.LatAccel"
           ],
           "freshness": "continuous",
-          "normalization": "-scalar(values, \"LatAccel\", 0)",
+          "normalization": "-scalar(values, \"LatAccel\", Number.NaN)",
           "description": "iracing maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -20609,7 +20612,7 @@
               "iRacing.LatAccel"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "f0f98ad961f18eb09463fee5021114b72077202223e1f60fdafe2cac533fa1e4"
+            "codeHash": "2e04ad06d6edac70f00d75f36dc8d9527748cf30cf13a61f28e77343d7d632cf"
           }
         },
         "lmu": {
@@ -20927,6 +20930,63 @@
       "dimensions": [
         "length",
         "time^-2"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "motion.altitude",
+      "label": "Altitude",
+      "description": "Recorded geographic altitude of vehicle position.",
+      "parentId": "motion",
+      "canonicalUnit": "m",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source value is currently identified for this parser."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source value is currently identified for this parser."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source value is currently identified for this parser."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source value is currently identified for this parser."
+        },
+        "iracing": {
+          "kind": "direct",
+          "nativeUnit": "m",
+          "sources": [
+            "iRacing.Alt"
+          ],
+          "freshness": "continuous",
+          "description": "Native iRacing disk-only variable; available when the replay source contains IBT data.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-iracing/src/normalizer.ts"
+          },
+          "limitations": []
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source value is currently identified for this parser."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "length"
       ],
       "cardinality": {
         "kind": "scalar"
@@ -21602,6 +21662,63 @@
       "limitations": []
     },
     {
+      "id": "motion.latitude",
+      "label": "Latitude",
+      "description": "Recorded geographic latitude of vehicle position.",
+      "parentId": "motion",
+      "canonicalUnit": "deg",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source value is currently identified for this parser."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source value is currently identified for this parser."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source value is currently identified for this parser."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source value is currently identified for this parser."
+        },
+        "iracing": {
+          "kind": "direct",
+          "nativeUnit": "deg",
+          "sources": [
+            "iRacing.Lat"
+          ],
+          "freshness": "continuous",
+          "description": "Native iRacing disk-only variable; available when the replay source contains IBT data.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-iracing/src/normalizer.ts"
+          },
+          "limitations": []
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source value is currently identified for this parser."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "angle"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "motion.local-velocity",
       "label": "Local Velocity",
       "description": "Local Velocity source value reported by ac-evo in m/s.",
@@ -21731,6 +21848,63 @@
       "ordering": [
         "source-order"
       ],
+      "limitations": []
+    },
+    {
+      "id": "motion.longitude",
+      "label": "Longitude",
+      "description": "Recorded geographic longitude of vehicle position.",
+      "parentId": "motion",
+      "canonicalUnit": "deg",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source value is currently identified for this parser."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source value is currently identified for this parser."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source value is currently identified for this parser."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source value is currently identified for this parser."
+        },
+        "iracing": {
+          "kind": "direct",
+          "nativeUnit": "deg",
+          "sources": [
+            "iRacing.Lon"
+          ],
+          "freshness": "continuous",
+          "description": "Native iRacing disk-only variable; available when the replay source contains IBT data.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-iracing/src/normalizer.ts"
+          },
+          "limitations": []
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source value is currently identified for this parser."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "angle"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
       "limitations": []
     },
     {
@@ -23528,7 +23702,7 @@
             "iRacing.Yaw"
           ],
           "freshness": "continuous",
-          "normalization": "-scalar(values, \"Yaw\", 0)",
+          "normalization": "-scalar(values, \"Yaw\", Number.NaN)",
           "description": "iracing maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -23544,7 +23718,7 @@
               "iRacing.Yaw"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "8232e10b88746ead613f9bf4ee2321f4a69b9345eeb1648c887b98da3cde7e2c"
+            "codeHash": "d8f91e1489caa90de50330529d40f5c8ce777754763d1a8899682b0fdc3c2f4d"
           }
         },
         "lmu": {
@@ -70761,6 +70935,18 @@
         "retention": "exact"
       },
       {
+        "path": "Alt",
+        "label": "Alt",
+        "unit": "m",
+        "dataType": "float",
+        "count": 1,
+        "description": "Recorded vehicle altitude; available only in native IBT telemetry.",
+        "semanticId": "motion.altitude",
+        "sourceKind": "sdk",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "Brake",
         "label": "Brake",
         "unit": "%",
@@ -72321,6 +72507,18 @@
         "retention": "not-recorded"
       },
       {
+        "path": "Lat",
+        "label": "Lat",
+        "unit": "deg",
+        "dataType": "double",
+        "count": 1,
+        "description": "Recorded vehicle latitude; available only in native IBT telemetry.",
+        "semanticId": "motion.latitude",
+        "sourceKind": "sdk",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "LatAccel",
         "label": "Lat Accel",
         "unit": "m/s^2",
@@ -72379,6 +72577,18 @@
         "sourceKind": "sdk",
         "recordedByRaceIQ": false,
         "retention": "not-recorded"
+      },
+      {
+        "path": "Lon",
+        "label": "Lon",
+        "unit": "deg",
+        "dataType": "double",
+        "count": 1,
+        "description": "Recorded vehicle longitude; available only in native IBT telemetry.",
+        "semanticId": "motion.longitude",
+        "sourceKind": "sdk",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
       },
       {
         "path": "LongAccel",
@@ -84109,7 +84319,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 150,
-    "semanticVariables": 773,
+    "semanticVariables": 776,
     "sourceCounts": {
       "fm-2023": {
         "total": 96,
@@ -84148,13 +84358,13 @@
         "recorded": 226
       },
       "iracing": {
-        "total": 952,
+        "total": 955,
         "packet": 115,
         "extension": 18,
-        "sdk": 324,
+        "sdk": 327,
         "yaml": 495,
         "setup": 0,
-        "recorded": 702
+        "recorded": 705
       },
       "lmu": {
         "total": 172,

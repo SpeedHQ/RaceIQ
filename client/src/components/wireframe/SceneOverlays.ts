@@ -3,10 +3,11 @@ import { getGame } from "@raceiq/shared/games/registry"
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
 import * as THREE from "three/webgpu";
 import type { Line2 } from "three/addons/lines/webgpu/Line2.js";
+import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
 import { normalizeSuspensionTravel } from "../../lib/suspension";
 import { steeringAngleRadians, THREE_COLORS, visualWheelRotationSpeed } from "../../lib/wireframe-utils";
 import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
-import { tireTemperatureReadings } from "../analyse/tire-temperature-profile";
+import { tireTemperatureReadings, type TireTemperatureReading } from "../analyse/tire-temperature-profile";
 import { buildLoadTrail } from "./CarScene";
 import { createCurbMarkerResource, disposeCurbMarkerResource, updateCurbMarkerResource, type CurbMarkerResource } from "./CurbMarkers";
 import { createDimensionLineResource, disposeDimensionLineResource, updateDimensionLineResource, type DimensionLineResource } from "./DimensionLines";
@@ -23,10 +24,33 @@ const wheelValue = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFram
   const values = frame.values[id];
   return Array.isArray(values) && typeof values[index] === "number" && Number.isFinite(values[index]) ? values[index] : 0;
 };
-const optionalWheelValue = (values: unknown, index: number): number | null => {
-  const value = Array.isArray(values) ? values[index] : undefined;
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+export type SceneReadingPolicy = "continuous" | "pit-snapshot" | "static";
+
+/** Only snapshot/setup channels may retain an aged observation, with historical labeling. */
+export const validSceneReading = (frame: SemanticAnalysisFrame, id: string, value: number | null, policy: SceneReadingPolicy = "continuous"): number | null => {
+  const state = frame.states[id], freshness = frame.freshness[id];
+  if (value == null || !Number.isFinite(value) || (state !== undefined && state !== "ok" && state !== "stale")) return null;
+  if (freshness !== undefined && freshness !== "fresh" && freshness !== "stale") return null;
+  if (policy === "continuous" && (state === "stale" || freshness === "stale")) return null;
+  return value;
 };
+
+export const readSceneWheelValue = (frame: SemanticAnalysisFrame, id: string, index: number, policy: SceneReadingPolicy = "continuous"): number | null => {
+  const values = frame.values[id], value = Array.isArray(values) ? values[index] : undefined;
+  return validSceneReading(frame, id, typeof value === "number" ? value : null, policy);
+};
+
+export function sceneTemperatureReadings(frame: SemanticAnalysisFrame, index: number, side: "left" | "right", primaryId: TelemetryVariableId, policy: SceneReadingPolicy): TireTemperatureReading[] {
+  const kind = primaryId === "tire.temperature.core" ? "core" : primaryId.includes("carcass") ? "carcass" : "surface";
+  return tireTemperatureReadings(frame, index, side, primaryId, kind).map((reading) => {
+    const semanticId = reading.kind === "inner" || reading.kind === "middle" || reading.kind === "outer"
+      ? `tire.temperature.surface.${reading.kind}`
+      : reading.kind === "core" ? "tire.temperature.core"
+      : reading.kind === "carcass" && !primaryId.includes("carcass") ? "tire.temperature.carcass.representative"
+      : primaryId;
+    return { ...reading, value: validSceneReading(frame, semanticId, reading.value, semanticId.includes("carcass") ? policy : "continuous") };
+  });
+}
 
 /** Persistent visual resources. One update handles same frame/history/camera snapshot as render. */
 export class SceneOverlays {
@@ -43,6 +67,7 @@ export class SceneOverlays {
   private springs: SuspensionSpringResource[] = [];
   private dimensions: DimensionLineResource | null = null;
   private track: TrackLineResource | null = null;
+  private measuredTrack: TrackLineResource | null = null;
   private racingLine: TrackLineResource | null = null;
   private boundaries: TrackBoundaryResource[] = [];
   private curbs: CurbMarkerResource | null = null;
@@ -129,8 +154,10 @@ export class SceneOverlays {
   update(frame: SemanticAnalysisFrame, frames: SemanticAnalysisFrame[], cursorIdx: number, config: SceneRuntimeConfig, source: SceneSource | null, now: number, elapsed: number, generation: number, viewportHeight: number): void {
     if (this.wheelModel !== config.carModel) this.replaceWheels(config);
     this.updateHistory(frames, source?.seekGeneration ?? 0);
-    const yaw = semanticNumber(frame, "motion.yaw") ?? 0;
-    const px = semanticNumber(frame, "motion.position-x") ?? 0, pz = semanticNumber(frame, "motion.position-z") ?? 0;
+    const nativeX = semanticNumber(frame, "motion.position-x"), nativeZ = semanticNumber(frame, "motion.position-z"), nativeYaw = semanticNumber(frame, "motion.yaw");
+    const pose = config.poses ? config.poses[cursorIdx] : nativeX !== null && nativeZ !== null && nativeYaw !== null ? { x: nativeX, z: nativeZ, yaw: nativeYaw, source: "native" as const } : null;
+    const yaw = pose?.yaw ?? 0;
+    const px = pose?.x ?? 0, pz = pose?.z ?? 0;
     this.grid.group.visible = config.toggles.grid;
     if (config.toggles.grid) this.grid.updatePose(px, pz, yaw);
     else this.grid.resetPose();
@@ -149,10 +176,9 @@ export class SceneOverlays {
     const states = resolveWheelStates(frame, analysis.traction);
     const measured = frame.values["tires.wheel-rotation-speed"];
     const speed = semanticNumber(frame, "motion.speed") ?? 0;
-    const brakeTemps = frame.values["brakes.brake-temp"];
-    const carcassLeft = frame.values["tire.temperature.carcass.left"];
-    const carcassMiddle = frame.values["tire.temperature.carcass.middle"];
-    const carcassRight = frame.values["tire.temperature.carcass.right"];
+    const temperaturePolicy = analysis.tireTemperature.source === "direct" ? analysis.tireTemperature.freshness : "continuous";
+    const wearPolicy = analysis.tireHealth.source === "direct" ? analysis.tireHealth.freshness : "continuous";
+    const pressurePolicy = analysis.tirePressure.source === "direct" ? analysis.tirePressure.freshness : "continuous";
     const labelNow = !source?.playing || source.recording || now - this.lastLabelUpdate >= 100 || generation !== this.lastLabelGeneration;
     if (labelNow) { this.lastLabelUpdate = now; this.lastLabelGeneration = generation; }
     const stroke = config.carModel.suspStroke ?? 0.08;
@@ -160,29 +186,36 @@ export class SceneOverlays {
       const isRear = index >= 2, side: "left" | "right" = index % 2 === 0 ? "left" : "right";
       const radius = isRear ? rRadius : fRadius, width = isRear ? rWidth : fWidth;
       const x = isRear ? -wb : wb, z = (side === "left" ? -1 : 1) * (isRear ? rt : ft);
-      const readings = tireTemperatureReadings(frame, index, side, config.temperatureSemanticId, config.temperatureSemanticId === "tire.temperature.core" ? "core" : config.temperatureSemanticId.includes("carcass") ? "carcass" : "surface");
-      const brakeTemp = wheelValue(frame, "brakes.brake-temp", index);
-      const wear = wheelValue(frame, "tires.tire-wear", index);
+      const temperatureMetric = analysis.tireTemperature;
+      const readings = temperatureMetric.source === "unavailable" ? [] : sceneTemperatureReadings(frame, index, side, config.temperatureSemanticId, temperaturePolicy);
+      const brakeTemp = readSceneWheelValue(frame, "brakes.brake-temp", index);
+      const rawWear = analysis.tireHealth.source === "unavailable" ? null : readSceneWheelValue(frame, "tires.tire-wear", index, wearPolicy);
+      const wear = rawWear != null && rawWear >= 0 && rawWear <= 1 ? rawWear : null;
       const timestamp = semanticNumber(frame, "diagnostics.timestamp-ms") ?? 0;
       if (this.previousSample !== frame) {
         const dt = (timestamp - this.previousTimestamp) / 1000;
-        if (dt > 0 && dt < 1) this.wearRates[index] = this.wearRates[index] * 0.9 + (this.previousWear[index] - wear) / dt * 0.1;
-        this.previousWear[index] = wear;
+        if (analysis.tireWearRate.source === "direct" && analysis.tireWearRate.freshness === "continuous" && dt > 0 && dt < 1 && wear != null && Number.isFinite(this.previousWear[index])) this.wearRates[index] = this.wearRates[index] * 0.9 + (this.previousWear[index] - wear) / dt * 0.1;
+        else this.wearRates[index] = 0;
+        if (wear != null) this.previousWear[index] = wear;
       }
       const wheel = this.wheels[index];
-      updateWheelResource(wheel, { position: [x, 0, z], steerAngle: isRear ? 0 : steering, rimColor: "var(--app-accent)", temperatureReadings: readings, temperatureThresholds: config.temperatureThresholds, brakeTemp, side, isRear, onCurb: false, puddleDepth: wheelValue(frame, "tires.wheel-in-puddle-depth", index), tireRadius: radius, tireWidth: width });
+      updateWheelResource(wheel, { position: [x, 0, z], steerAngle: isRear ? 0 : steering, rimColor: "var(--app-accent)", temperatureReadings: readings, temperatureThresholds: config.temperatureThresholds, brakeTemp: brakeTemp ?? 0, side, isRear, onCurb: false, puddleDepth: wheelValue(frame, "tires.wheel-in-puddle-depth", index), tireRadius: radius, tireWidth: width });
       const lockup = states[index]?.state === "lockup";
       const rotationSpeed = lockup ? 0 : visualWheelRotationSpeed(Array.isArray(measured) ? measured[index] : undefined, speed, radius, analysis.wheelRotation.source !== "unavailable");
       setWheelSpin(wheel, rotationSpeed, elapsed, source?.playbackSpeed ?? 1, !!source?.playing);
-      if (config.toggles.wheelInfo && readings.length) {
+      if (config.toggles.wheelInfo) {
         const carcassBands = [
-          optionalWheelValue(carcassLeft, index),
-          optionalWheelValue(carcassMiddle, index),
-          optionalWheelValue(carcassRight, index),
+          readSceneWheelValue(frame, "tire.temperature.carcass.left", index, temperaturePolicy),
+          readSceneWheelValue(frame, "tire.temperature.carcass.middle", index, temperaturePolicy),
+          readSceneWheelValue(frame, "tire.temperature.carcass.right", index, temperaturePolicy),
         ] as const;
+        const pressure = analysis.tirePressure.source === "unavailable" ? null : readSceneWheelValue(frame, "tires.tire-pressure", index, pressurePolicy);
+        const historicalSnapshot = (temperaturePolicy !== "continuous" && readings.some(({ value }) => value != null) && (frame.states[config.temperatureSemanticId] === "stale" || frame.freshness[config.temperatureSemanticId] === "stale"))
+          || (wearPolicy !== "continuous" && wear != null && (frame.states["tires.tire-wear"] === "stale" || frame.freshness["tires.tire-wear"] === "stale"))
+          || (pressurePolicy !== "continuous" && pressure != null && (frame.states["tires.tire-pressure"] === "stale" || frame.freshness["tires.tire-pressure"] === "stale"));
         const labelConfig = { temperatureReadings: readings, carcassBands, fmtTemp: config.fmtTemp, temperatureThresholds: config.temperatureThresholds,
-          displayBrakeTemp: config.toggles.wheelInfo && Array.isArray(brakeTemps) && typeof brakeTemps[index] === "number" ? config.fmtTemp(brakeTemps[index] as number) : null,
-          wear, wearRate: this.wearRates[index], brakeTemp, pressurePsi: wheelValue(frame, "tires.tire-pressure", index), pressureOptimal: config.pressureOptimal, side, isRear };
+          displayBrakeTemp: brakeTemp != null ? config.fmtTemp(brakeTemp) : null,
+          wear, wearRate: analysis.tireWearRate.source === "direct" && analysis.tireWearRate.freshness === "continuous" ? this.wearRates[index] : 0, brakeTemp: brakeTemp ?? 0, pressurePsi: pressure != null && pressure > 0 ? pressure : null, coldPressure: analysis.tirePressure.source !== "unavailable" && analysis.tirePressure.display === "cold-pressure", pitHealth: analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot", pitTemperature: temperatureMetric.source === "direct" && temperatureMetric.freshness === "pit-snapshot", pressureOptimal: config.pressureOptimal, historicalSnapshot, side, isRear };
         let label = this.labels[index];
         if (!label) {
           label = createWheelLabelResource(this.scene, labelConfig);
@@ -229,40 +262,45 @@ export class SceneOverlays {
       (this.drivetrain.children[3] as THREE.Mesh).position.x = wb;
       (this.drivetrain.children[4] as THREE.Mesh).position.x = -wb;
     }
-    if (config.toggles.track && config.outline?.length) {
+    if (config.toggles.track && config.outline?.length && pose) {
       if (!this.track) this.track = createTrackLineResource(this.scene);
-      updateTrackLineResource(this.track, this.camera, config.outline, frame, viewportHeight, config.autoOrbit ? 80 : undefined);
+      updateTrackLineResource(this.track, this.camera, config.outline, pose, viewportHeight, config.autoOrbit ? 80 : undefined);
       this.track.pool.group.visible = true;
     } else if (this.track) this.track.pool.group.visible = false;
-    if (config.toggles.racingLine && config.boundaries?.raceLine?.length) {
+    if (config.toggles.track && config.measuredPath?.length && pose?.source === "measured") {
+      if (!this.measuredTrack) this.measuredTrack = createTrackLineResource(this.scene, THREE_COLORS.trackRacingLine, 2, 0.95, -0.42);
+      updateTrackLineResource(this.measuredTrack, this.camera, config.measuredPath, pose, viewportHeight, config.autoOrbit ? 80 : undefined);
+      this.measuredTrack.pool.group.visible = true;
+    } else if (this.measuredTrack) this.measuredTrack.pool.group.visible = false;
+    if (config.toggles.racingLine && config.boundaries?.raceLine?.length && pose?.source === "native") {
       if (!this.racingLine) this.racingLine = createTrackLineResource(this.scene, THREE_COLORS.trackRacingLine, 4, 1, -0.435);
-      updateTrackLineResource(this.racingLine, this.camera, config.boundaries.raceLine, frame, viewportHeight, config.autoOrbit ? 80 : undefined);
+      updateTrackLineResource(this.racingLine, this.camera, config.boundaries.raceLine, pose, viewportHeight, config.autoOrbit ? 80 : undefined);
       this.racingLine.pool.group.visible = true;
     } else if (this.racingLine) this.racingLine.pool.group.visible = false;
     for (const resource of this.boundaries) { resource.left.visible = false; resource.right.visible = false; }
-    if (config.toggles.track && config.boundaries) {
+    if (config.toggles.track && config.boundaries && pose && pose.source === (config.boundarySpace ?? "native")) {
       const count = 1 + (config.boundaries.additionalSections?.length ?? 0);
       for (let index = 0; index < count; index++) {
         const section = index === 0 ? config.boundaries : config.boundaries.additionalSections![index - 1];
         const resource = this.boundaries[index] ??= createTrackBoundaryResource(this.scene);
-        updateTrackBoundaryResource(resource, section, frame, config.carModel.tireRadius, config.autoOrbit ? 80 : undefined);
+        updateTrackBoundaryResource(resource, section, pose, config.carModel.tireRadius, config.autoOrbit ? 80 : undefined);
         resource.left.visible = true;
         resource.right.visible = true;
       }
     }
-    if (config.toggles.track && frames.length) {
+    if (config.toggles.track && frames.length && pose?.source === "native") {
       if (!this.curbs) this.curbs = createCurbMarkerResource(this.scene);
       updateCurbMarkerResource(this.curbs, this.curbPoints, this.puddlePoints, frame, -config.carModel.tireRadius);
       this.curbs.curb.mesh.visible = true; this.curbs.puddle.mesh.visible = true;
     } else if (this.curbs) { this.curbs.curb.mesh.visible = false; this.curbs.puddle.mesh.visible = false; }
-    if (config.toggles.trails) {
+    if (config.toggles.trails && pose?.source === "native") {
       if (!this.trail) this.trail = createTireTrailResource(this.scene, config.carModel);
       updateTireTrailResource(this.trail, frames, cursorIdx, config.gameId);
       this.trail.mesh.visible = true;
     } else if (this.trail) this.trail.mesh.visible = false;
-    if (config.toggles.inputs && frames.length) {
+    if (config.toggles.inputs && frames.length && pose) {
       if (!this.inputs) this.inputs = createInputOverlayResource(this.scene);
-      updateInputOverlayResource(this.inputs, this.camera, frames, frame, viewportHeight);
+      updateInputOverlayResource(this.inputs, this.camera, frames, frame, viewportHeight, pose, config.poses);
       this.inputs.throttle.group.visible = true; this.inputs.brake.group.visible = true;
     } else if (this.inputs) { this.inputs.throttle.group.visible = false; this.inputs.brake.group.visible = false; }
     if (config.toggles.dimensions) {
@@ -293,6 +331,7 @@ export class SceneOverlays {
     if (this.dimensions) disposeDimensionLineResource(this.dimensions);
     if (this.track) disposeTrackLineResource(this.track);
     if (this.racingLine) disposeTrackLineResource(this.racingLine);
+    if (this.measuredTrack) disposeTrackLineResource(this.measuredTrack);
     for (const resource of this.boundaries) disposeTrackBoundaryResource(resource);
     if (this.curbs) disposeCurbMarkerResource(this.curbs);
     if (this.trail) disposeTireTrailResource(this.trail);

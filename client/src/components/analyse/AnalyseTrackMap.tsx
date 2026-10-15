@@ -3,7 +3,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffec
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { compositeTrack, drawCarOverlay } from "./track-map/overlay-drawing";
-import { alignTrackBoundariesToPositions, pathForwardOffsets, resolveTrackPositions } from "./track-map/path";
+import { alignOfficialReferenceToPositions, alignTrackBoundariesToPositions, pathForwardOffsets, resolveTrackPositions } from "./track-map/path";
 import { drawStaticTrack } from "./track-map/static-drawing";
 import type { TrackMapHandle, TrackMapProps, TrackTransform } from "./track-map/types";
 
@@ -33,12 +33,24 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
   const carPosRef = useRef<{ x: number; y: number; w: number; h: number; angle?: number } | null>(null);
   const transformRef = useRef<TrackTransform | null>(null);
   const sceneRef = useRef<SceneBuilder | null>(null);
-  const resolvedPositions = useMemo(() => resolveTrackPositions(telemetry, outline), [telemetry, outline]);
-  const displayBoundaries = useMemo(
-    () => gameId === "lmu" ? alignTrackBoundariesToPositions(boundaries, resolvedPositions) : boundaries,
-    [boundaries, gameId, resolvedPositions],
-  );
+  const resolvedPositions = useMemo(() => resolveTrackPositions(telemetry, outline, gameId), [telemetry, outline, gameId]);
   const resolvedDirections = useMemo(() => pathForwardOffsets(resolvedPositions), [resolvedPositions]);
+  const measuredGeo = gameId === "iracing" && telemetry.some((frame) => {
+    const latitude = frame.values["motion.latitude"], longitude = frame.values["motion.longitude"];
+    return typeof latitude === "number" && typeof longitude === "number" && Number.isFinite(latitude) && Number.isFinite(longitude) && !(latitude === 0 && longitude === 0)
+      && (frame.states["motion.latitude"] === undefined || frame.states["motion.latitude"] === "ok")
+      && (frame.freshness["motion.latitude"] === undefined || frame.freshness["motion.latitude"] === "fresh")
+      && (frame.states["motion.longitude"] === undefined || frame.states["motion.longitude"] === "ok")
+      && (frame.freshness["motion.longitude"] === undefined || frame.freshness["motion.longitude"] === "fresh");
+  });
+  const reference = useMemo(() => {
+    const layers = { outline, mapLabels, pitLines, boundaries };
+    return measuredGeo ? alignOfficialReferenceToPositions(layers, resolvedPositions) : layers;
+  }, [measuredGeo, outline, mapLabels, pitLines, boundaries, resolvedPositions]);
+  const displayBoundaries = useMemo(
+    () => gameId === "lmu" ? alignTrackBoundariesToPositions(boundaries, resolvedPositions) : reference.boundaries,
+    [boundaries, gameId, reference, resolvedPositions],
+  );
 
   const drawStatic = useCallback(() => {
     const canvas = canvasRef.current;
@@ -50,10 +62,10 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       gameId,
       resolvedPositions,
       closed,
-      outline,
-      mapLabels,
+      outline: reference.outline,
+      mapLabels: reference.mapLabels,
       boundaries: displayBoundaries,
-      pitLines,
+      pitLines: reference.pitLines,
       sectors,
       segments,
       highlights,
@@ -83,7 +95,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       const ctx = getSemanticCanvasContext(carCanvasRef.current);
       ctx?.clearRect(0, 0, carCanvasRef.current.width, carCanvasRef.current.height);
     }
-  }, [gameId, telemetry, resolvedPositions, outline, closed, mapLabels, pitLines, displayBoundaries, sectors, segments, highlights, showInputs, showRaceLine, showTrace, rotateWithCar, zoom, zoomBehavior]);
+  }, [gameId, telemetry, resolvedPositions, reference, closed, displayBoundaries, sectors, segments, highlights, showInputs, showRaceLine, showTrace, rotateWithCar, zoom, zoomBehavior]);
 
   const renderOverlayOptions = useCallback(
     () => ({

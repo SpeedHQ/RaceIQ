@@ -1,3 +1,4 @@
+import type { TrackProjection } from "../components/wireframe/ScenePlacement";
 import { useQuery } from "@tanstack/react-query";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { PitLine } from "../lib/canvas/draw-track";
@@ -60,8 +61,9 @@ export function useTrackOutline(trackId: string | undefined, gameIdOverride?: Ga
   return useQuery({
     queryKey: [...queryKeys.trackOutline(trackId!), gameId ?? null],
     queryFn: async () => {
-      const res = await trackIdRoutes["track-outline"][":trackId"].$get({ param: { trackId: encodeURIComponent(trackId!) }, query: { gameId: gameId! } });
-      return rpcJson<{ points?: { x: number; z: number }[]; labels?: { text: string; x: number; z: number }[]; flipX?: boolean; recorded?: boolean; source?: string; pitLines?: PitLine[]; closed?: boolean } | { x: number; z: number }[]>(
+      const res = await client.api["track-outline"][":trackId"].$get({ param: { trackId: encodeURIComponent(trackId!) }, query: { gameId: gameId! } });
+      if (res.status === 404) return null;
+      return rpcJson<{ points?: { x: number; z: number }[]; projection?: TrackProjection | null; labels?: { text: string; x: number; z: number }[]; flipX?: boolean; recorded?: boolean; source?: string; pitLines?: PitLine[]; closed?: boolean } | { x: number; z: number }[]>(
         res,
       );
     },

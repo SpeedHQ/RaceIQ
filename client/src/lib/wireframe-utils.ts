@@ -275,8 +275,9 @@ interface TrackChunk {
   maxZ: number;
 }
 
+export interface TrackPoint3D { x: number; z: number; y?: number }
 export interface TrackIndex {
-  pts: ReadonlyArray<{ x: number; z: number }>;
+  pts: ReadonlyArray<TrackPoint3D>;
   chunks: ReadonlyArray<TrackChunk>;
 }
 
@@ -290,7 +291,7 @@ export interface TrackIndex {
  * = more points scanned inside). 64 is a good default for track-scale
  * data sampled every few meters.
  */
-export function buildTrackIndex(pts: ReadonlyArray<{ x: number; z: number }>, chunkSize = 64): TrackIndex {
+export function buildTrackIndex(pts: ReadonlyArray<TrackPoint3D>, chunkSize = 64): TrackIndex {
   const chunks: TrackChunk[] = [];
   if (!Array.isArray(pts) || pts.length === 0) return { pts, chunks };
   const size = Math.max(1, chunkSize);
@@ -322,7 +323,7 @@ export function buildTrackIndex(pts: ReadonlyArray<{ x: number; z: number }>, ch
  * (invariant of yaw, since chunks are fixed), then falls through to the
  * exact rotated-window check per point.
  */
-export function filterByDistanceIndexed(index: TrackIndex, cx: number, cz: number, yaw: number, y: number, ahead = DIST_AHEAD, behind = DIST_BEHIND, lateral = DIST_LATERAL): FilteredTrackSegment[] {
+export function filterByDistanceIndexed(index: TrackIndex, cx: number, cz: number, yaw: number, y: number, ahead = DIST_AHEAD, behind = DIST_BEHIND, lateral = DIST_LATERAL, referenceY = 0): FilteredTrackSegment[] {
   const pts = index.pts;
   if (!Array.isArray(pts) || pts.length === 0) return [];
 
@@ -363,7 +364,7 @@ export function filterByDistanceIndexed(index: TrackIndex, cx: number, cz: numbe
       const inRange = dist2 <= maxDist && localFwd >= -behind && localFwd <= ahead && Math.abs(localLat) <= lateral;
       if (inRange) {
         if (current.length === 0) currentStartIndex = i;
-        current.push([localFwd, y, localLat]);
+        current.push([localFwd, y + (p.y === undefined ? 0 : p.y - referenceY), localLat]);
       } else if (current.length > 1) {
         segments.push({ sourceStartIndex: currentStartIndex, points: current });
         current = [];

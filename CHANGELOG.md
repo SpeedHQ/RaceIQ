@@ -1,5 +1,7 @@
 ## Unreleased
 ### Feature
+- Connect to iRacing on Windows to automatically save completed native .ibt recordings while leaving original files untouched.
+- Replay recorded iRacing .ibt driving lines and elevation, with the official map retained as an approximate reference and map-based placement for recordings without GPS data.
 - New desktop and self-hosted installs restrict dashboard access to this computer until you select additional network interfaces.
 - Password-protected dashboards use a login screen and browser sessions; API clients must sign in and send the session cookie and a CSRF token for writes.
 - Use string car and track IDs across imports and integrations instead of ordinal fields. Existing sessions and setup links migrate automatically; downgrading requires restoring a pre-upgrade database backup.
@@ -67,6 +69,7 @@
 
 ### Fixes
 - Keep racing, throttle, and braking lines sharp when zooming into the replay map.
+- Restore track edges and tyre details in iRacing 3D replays while labeling map-based positions and historical pit readings.
 
 ### Internal
 - Wait for dashboard metadata and loading panels to finish before generating the Home marketing screenshot.

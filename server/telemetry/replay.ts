@@ -8,6 +8,7 @@ import { getLapById } from "../db/lap-read-queries";
 import { getLapReplaySource, type LapReplaySource } from "../db/telemetry-replay-storage";
 import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, type IRacingValue } from "@raceiq/capture-formats/iracing/source-frame";
 import { iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
+import { parseIRacingTrackGeography } from "@raceiq/capture-formats/iracing/session-info";
 import { loadRawCaptureIdentity, type RawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
 export interface QueryLapTelemetryOptions {
   readonly rawCaptureRequirement?: "provenance" | "native-values";
@@ -27,10 +28,16 @@ function* iterateIRacingNativeFrames(source: LapReplaySource, capture: Buffer | 
   if (source.gameId !== "iracing" || !capture || source.rawByteOffset == null || source.rawFrameCount == null) return undefined;
   let decoderState = createIRacingSourceDecoderState();
   let replayFrames = 0;
+  let sessionInfo = "";
+  let sessionInfoUpdate = -1;
+  let trackGeography: Readonly<Record<string, number>> = {};
   for (const record of iterateSessionCaptureRecords(capture)) {
     if (record.kind === "segment-boundary") {
       decoderState = createIRacingSourceDecoderState();
       replayFrames = 0;
+      sessionInfo = "";
+      sessionInfoUpdate = -1;
+      trackGeography = {};
       continue;
     }
     if (record.kind !== "frame") continue;
@@ -41,7 +48,23 @@ function* iterateIRacingNativeFrames(source: LapReplaySource, capture: Buffer | 
     if (replayFrames >= source.rawFrameCount) break;
     const decoded = decodeIRacingSourceFrame(record.frame, decoderState);
     replayFrames += 1;
-    if (decoded) yield decoded.values;
+    if (decoded && "sessionInfo" in decoded && (
+      decoded.sessionInfo !== sessionInfo ||
+      decoded.sessionInfoUpdate !== sessionInfoUpdate
+    )) {
+      for (const sourcePath of Object.keys(trackGeography)) {
+        delete decoded.values[sourcePath];
+      }
+      sessionInfo = decoded.sessionInfo;
+      sessionInfoUpdate = decoded.sessionInfoUpdate;
+      trackGeography = parseIRacingTrackGeography(sessionInfo);
+    }
+    if (decoded) {
+      for (const [sourcePath, value] of Object.entries(trackGeography)) {
+        decoded.values[sourcePath] = value;
+      }
+      yield decoded.values;
+    }
   }
   return undefined;
 }

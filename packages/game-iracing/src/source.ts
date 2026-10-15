@@ -26,6 +26,7 @@ export interface IRacingTelemetrySourceOptions {
   reader?: IRacingFrameReader;
   dispatchRawFrame?: (rawFrame: Buffer, frameTimeMs?: number) => Promise<void>;
   registerIdentity?: (session: IRacingSessionSnapshot) => Promise<void>;
+  onSnapshot?: (snapshot: IRacingSdkSnapshot, frameTimeMs: number) => void;
   pollIntervalMs?: number;
   recordingEnabled?: boolean;
   recordingDir?: string;
@@ -57,6 +58,9 @@ function numeric(values: Record<string, IRacingValue>, name: string, fallback = 
  */
 export class IRacingTelemetrySource {
   private readonly reader: IRacingFrameReader;
+  private readonly onSnapshot:
+    | ((snapshot: IRacingSdkSnapshot, frameTimeMs: number) => void)
+    | undefined;
   private readonly dispatchRawFrame: (rawFrame: Buffer, frameTimeMs?: number) => Promise<void>;
   private readonly registerIdentity:
     | ((session: IRacingSessionSnapshot) => Promise<void>)
@@ -82,8 +86,9 @@ export class IRacingTelemetrySource {
   private drainPromise: Promise<void> | null = null;
   constructor(options: IRacingTelemetrySourceOptions = {}) {
     this.reader = options.reader ?? new IRacingSdkReader();
-    this.dispatchRawFrame = options.dispatchRawFrame ?? dispatchThroughParser;
     this.registerIdentity = options.registerIdentity;
+    this.onSnapshot = options.onSnapshot;
+    this.dispatchRawFrame = options.dispatchRawFrame ?? dispatchThroughParser;
     // Poll above the SDK's 60Hz rate so timer phase and brief processing overlap cannot miss ticks.
     // IRacingSdkReader deduplicates unchanged tick counts.
     this.pollIntervalMs = options.pollIntervalMs ?? 1000 / 240;
@@ -144,7 +149,11 @@ export class IRacingTelemetrySource {
       const snapshot = this.reader.readLatest();
       if (!snapshot) return false;
       const frameTimeMs = Date.now();
-
+      try {
+        this.onSnapshot?.(snapshot, frameTimeMs);
+      } catch (error) {
+        this.logSourceError(error);
+      }
       const sessionNum = Math.trunc(numeric(snapshot.values, "SessionNum", 0));
       let identity: IRacingSessionSnapshot | undefined;
       if (

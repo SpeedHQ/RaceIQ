@@ -1,3 +1,4 @@
+import type { TrackProjection } from "../wireframe/ScenePlacement";
 import type { SceneRuntime, SceneSource } from "../wireframe/SceneRuntime";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { type CSSProperties, type RefObject, useEffect, useRef } from "react";
@@ -24,6 +25,9 @@ interface AnalyseTopSectionProps {
   semanticFrames: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: Point[] | null;
+  trackProjection?: TrackProjection | null;
+  trackGeometryLoading?: boolean;
+  trackGeometryError?: boolean;
   closed?: boolean;
   mapLabels?: TrackMapLabel[] | null;
   pitLines?: PitLine[] | null;
@@ -70,6 +74,9 @@ export function AnalyseTopSection({
   semanticFrames,
   cursorIdx,
   outline,
+  trackProjection,
+  trackGeometryLoading,
+  trackGeometryError,
   closed = true,
   mapLabels,
   pitLines,
@@ -240,6 +247,9 @@ export function AnalyseTopSection({
         onRuntime={onRuntime}
         cursorIdx={cursorIdx}
         lapLine={lapLine}
+        trackProjection={trackProjection}
+        trackGeometryLoading={trackGeometryLoading}
+        trackGeometryError={trackGeometryError}
         boundaries={boundaries}
         lmuCarClass={lmuCarClass}
         gameId={gameId}

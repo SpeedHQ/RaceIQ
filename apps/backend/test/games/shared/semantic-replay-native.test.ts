@@ -7,7 +7,7 @@ import { deleteSession, insertSession, updateSessionRawFile } from "@raceiq/back
 import type { LapReplaySource } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { cacheDelete, cacheSet } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { initServerGameAdapters } from "../../../src/games/init";
-import { IRacingSourceFrameEncoder, type IRacingSourceFrameV2 } from "@raceiq/capture-formats/iracing/source-frame";
+import { IRacingSourceFrameEncoder, type IRacingSourceFrameV3 } from "@raceiq/capture-formats/iracing/source-frame";
 import { META_FRAME_MAGIC } from "@raceiq/capture-formats/session/framing";
 import { iterateIRacingNativeFramesForTest, queryLapTelemetryBySemanticId } from "@raceiq/backend-core/telemetry/replay";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
@@ -17,9 +17,9 @@ import { packet } from "@raceiq/telemetry-core/test-support/telemetry/resolver";
 initGameAdapters();
 initServerGameAdapters();
 
-function frame(sessionTick: number, sessionState: number): IRacingSourceFrameV2 {
+function frame(sessionTick: number, sessionState: number): IRacingSourceFrameV3 {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     session: {
       sessionId: 202,
       subSessionId: 205,
@@ -47,7 +47,12 @@ function frame(sessionTick: number, sessionState: number): IRacingSourceFrameV2 
       Lap: 1,
       LapDist: 100,
       LapDistPct: 0.02,
+      Lat: 52.123456,
+      Lon: -2.987654,
+      Alt: 143.25,
     },
+    sessionInfo: "WeekendInfo:\n  TrackLatitude: 52.5 m\n  TrackLongitude: -2.5 m\n  TrackAltitude: 140 m\n",
+    sessionInfoUpdate: 1,
   };
 }
 
@@ -147,16 +152,18 @@ test("semantic replay aligns native session frames and hashes decompressed captu
     await updateSessionRawFile(sessionId, rawFile, "test-detector");
     const lapId = await insertLap(sessionId, 1, 1, true, rawByteOffset, 2);
 
-    const replay = await queryLapTelemetryBySemanticId(lapId, ["session.session-state", "motion.speed"], { rawCaptureRequirement: "native-values" });
+    const replay = await queryLapTelemetryBySemanticId(lapId, ["session.session-state", "motion.speed", "motion.latitude", "motion.longitude", "motion.altitude", "identity.track.latitude", "identity.track.longitude", "identity.track.altitude"], { rawCaptureRequirement: "native-values" });
     expect(replay?.envelopes).toHaveLength(2);
     expect(replay?.envelopes.map((envelope) => envelope.values.find((value) => value.semanticId === "session.session-state")?.value)).toEqual([2, 4]);
     expect(replay?.envelopes[0].values).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          semanticId: "motion.speed",
-          value: 72.5,
-          state: "ok",
-        }),
+        expect.objectContaining({ semanticId: "motion.speed", value: 72.5, state: "ok" }),
+        expect.objectContaining({ semanticId: "motion.latitude", value: 52.123456, state: "ok" }),
+        expect.objectContaining({ semanticId: "motion.longitude", value: -2.987654, state: "ok" }),
+        expect.objectContaining({ semanticId: "motion.altitude", value: 143.25, state: "ok" }),
+        expect.objectContaining({ semanticId: "identity.track.latitude", value: 52.5, state: "ok" }),
+        expect.objectContaining({ semanticId: "identity.track.longitude", value: -2.5, state: "ok" }),
+        expect.objectContaining({ semanticId: "identity.track.altitude", value: 140, state: "ok" }),
       ]),
     );
     const expectedHash = `sha256:${createHash("sha256").update(capture).digest("hex")}`;

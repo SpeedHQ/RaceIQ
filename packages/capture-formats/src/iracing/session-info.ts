@@ -163,3 +163,25 @@ export function parseIRacingSessionInfo(
     engineCylinderCount: toNumber(findScalar(lines, "DriverCarEngCylinderCount"), 0),
   };
 }
+
+/** Extract numeric geographic track origin values retained verbatim in v3 frames. */
+export function parseIRacingTrackGeography(
+  yaml: string,
+): Readonly<Record<string, number>> {
+  const lines = yaml.split(/\r?\n/);
+  const fields = [
+    ["TrackLatitude", "SessionInfo.WeekendInfo.TrackLatitude"],
+    ["TrackLongitude", "SessionInfo.WeekendInfo.TrackLongitude"],
+    ["TrackAltitude", "SessionInfo.WeekendInfo.TrackAltitude"],
+  ] as const;
+  const result: Record<string, number> = {};
+  for (const [field, sourcePath] of fields) {
+    // iRacing writes track latitude/longitude in degrees with a misleading "m" suffix.
+    const raw = findScalar(lines, field);
+    const match = raw?.match(/^([+-]?(?:\d+(?:\.\d*)?|\.\d+))(?:\s+(?:m|deg))?$/i);
+    if (!match) continue;
+    const value = Number(match[1]);
+    if (Number.isFinite(value)) result[sourcePath] = value;
+  }
+  return result;
+}

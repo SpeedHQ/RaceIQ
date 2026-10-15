@@ -12,6 +12,7 @@ import { semanticNumber } from "../analyse/track-map/types";
 import { createCarBody, type CarBodyInstance } from "./CarBody";
 import { SceneOverlays } from "./SceneOverlays";
 import type { SemanticAnalysisFrame, TrackMapBoundaries } from "../analyse/track-map/types";
+import type { ScenePose } from "./ScenePlacement";
 
 export interface SceneSource {
   framesRef: RefObject<SemanticAnalysisFrame[]>;
@@ -28,7 +29,11 @@ export interface SceneRuntimeConfig {
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: { x: number; z: number }[] | null;
+  measuredPath?: { x: number; z: number; y?: number }[] | null;
+  poses?: (ScenePose | null)[];
   boundaries: Pick<TrackMapBoundaries, "leftEdge" | "rightEdge" | "raceLine" | "additionalSections"> | null;
+  /** Boundary geometry must share the position frame, not merely the same game. */
+  boundarySpace?: ScenePose["source"];
   toggles: ViewToggles;
   viewPreset: ViewPreset;
   carModel: CarModelEnrichment & { hasModel: boolean };
@@ -355,7 +360,7 @@ export class SceneRuntime {
     this.bodyMotion.position.set(-0.065, -((fl + fr + rl + rr) / 4 - 0.5) * stroke, 0);
     this.bodyMotion.rotation.set(((fr + rr - fl - rl) / 2) * 0.1, 0, ((fl + fr - rl - rr) / 2) * 0.06);
     if (config.autoOrbit) {
-      const yaw = semanticNumber(frame, "motion.yaw") ?? 0;
+      const yaw = config.poses?.[cursorIdx]?.yaw ?? semanticNumber(frame, "motion.yaw") ?? 0;
       if (!Number.isFinite(this.smoothYaw) || !this.source?.playing) this.smoothYaw = yaw;
       else {
         let difference = yaw - this.smoothYaw;

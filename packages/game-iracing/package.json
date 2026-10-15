@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./ibt-preview": "./src/ibt-preview.ts",
+    "./disk-logging": "./src/disk-logging.ts",
     "./ibt-reader": "./src/ibt-reader.ts",
     "./identity": "./src/identity.ts",
     "./lap-detector": "./src/lap-detector.ts",

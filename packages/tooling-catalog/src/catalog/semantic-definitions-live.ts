@@ -239,6 +239,27 @@ const SEMANTIC_DEFINITIONS_LIVE: Record<string, SemanticDefinition> = {
     canonicalUnit: "id",
     shape: "scalar",
   },
+  "motion.latitude": {
+    label: "Latitude",
+    description: "Recorded geographic latitude of vehicle position.",
+    parentId: "motion",
+    canonicalUnit: "deg",
+    shape: "scalar",
+  },
+  "motion.longitude": {
+    label: "Longitude",
+    description: "Recorded geographic longitude of vehicle position.",
+    parentId: "motion",
+    canonicalUnit: "deg",
+    shape: "scalar",
+  },
+  "motion.altitude": {
+    label: "Altitude",
+    description: "Recorded geographic altitude of vehicle position.",
+    parentId: "motion",
+    canonicalUnit: "m",
+    shape: "scalar",
+  },
   "identity.track-name": {
     label: "Track name",
     description: "Source-provided display name for current track configuration.",

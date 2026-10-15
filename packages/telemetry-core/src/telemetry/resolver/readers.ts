@@ -92,9 +92,21 @@ export function trustedNativeExecutor(variable: TelemetryVariableDefinition, map
     return (frame, context) => {
       for (const source of sourcePaths) {
         const value = sourceValue(frame, source);
-        if (typeof value === "number" && Number.isFinite(value)) {
-          return setReading(reading, context, mapping, source, value, Math.max(0, Math.min(1, value)));
+        if (typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1) {
+          return setReading(reading, context, mapping, source, value);
         }
+      }
+      return undefined;
+    };
+  }
+  if (variable.id === "identity.track.altitude" && canonicalUnit === "m" && nativeUnit === "value-with-unit") {
+    return (frame, context) => {
+      for (const source of sourcePaths) {
+        const raw = sourceValue(frame, source);
+        const value = typeof raw === "number" ? raw
+          : typeof raw === "string" && /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)\s+m$/i.test(raw.trim())
+            ? Number.parseFloat(raw) : Number.NaN;
+        if (Number.isFinite(value)) return setReading(reading, context, mapping, source, raw, value);
       }
       return undefined;
     };
