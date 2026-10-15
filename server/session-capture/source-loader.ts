@@ -132,14 +132,14 @@ async function hasSparseCaptureFormat(file: SessionCaptureFile): Promise<boolean
  */
 export async function* iterateSessionCaptureRecordsFromSource(
   source: SessionCaptureSource,
-  options: { strict?: boolean } = {},
+  options: { strict?: boolean; allowLegacyFullFrames?: boolean } = {},
 ): AsyncGenerator<SessionCaptureRecord> {
   if (source.rawFile.endsWith(".motec.zip")) {
     throw new Error("Motec source archives expose canonical packets, not BIN frames");
   }
 
   const file = captureFileFactory(source.rawFile);
-  if (!await hasSparseCaptureFormat(file)) {
+  if (!options.allowLegacyFullFrames && !await hasSparseCaptureFormat(file)) {
     throw new Error("Legacy full-frame captures are not supported; provide a sparse RaceIQ capture.");
   }
   const prefix = Buffer.from(await file.slice(0, 2).arrayBuffer());

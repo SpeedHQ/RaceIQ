@@ -1,9 +1,10 @@
+import { isPaceLap, type LapClassification } from "@raceiq/shared/racing/lap-classification";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
 import { client } from "../lib/rpc";
 import { telemetryStore } from "../stores/telemetry";
 
-type DemoLap = { id: number; gameId: string; trackId?: string; isValid?: boolean; lapTime?: number };
+type DemoLap = { id: number; gameId: string; trackId?: string; isValid?: boolean; lapTime?: number; classification?: LapClassification | null; experimentExcluded?: boolean };
 type ReplayResponse = { schema?: LiveTelemetrySchemaMessageV1; frames?: LiveTelemetryFrameMessageV1[] };
 
 export function useDemoMode(preferGameId?: string) {
@@ -53,7 +54,7 @@ export function useDemoMode(preferGameId?: string) {
     try {
       const response = await client.api.laps.$get({ query: {} });
       const laps = (await response.json()) as DemoLap[];
-      const valid = laps.filter((lap) => lap.isValid && (lap.lapTime ?? 0) > 0);
+      const valid = laps.filter((lap) => lap.isValid && Number.isFinite(lap.lapTime) && (lap.lapTime ?? 0) > 0 && isPaceLap(lap.classification) && !lap.experimentExcluded);
       const preferred = preferGameId ? valid.filter((lap) => lap.gameId === preferGameId) : [];
       const spa = valid.filter((lap) => lap.trackId === "530");
       const pool = preferred.length ? preferred : spa.length ? spa : valid;

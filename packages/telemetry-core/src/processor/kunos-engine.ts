@@ -58,7 +58,7 @@ export class KunosDetectorEngine {
       this.sessionKey = ++this.sessionSequence;
       this.currentLapNumber = this.options.isOpenRoute?.(packet) ? 1 : (packet.LapNumber ?? 0) > 0 ? packet.LapNumber! : 1;
       this.firstLapIsPartial = kunosFirstPacketIsMidLap(packet);
-      this.lapByteOffset = this.currentRawByteOffset; this.lapFrameCount = 0;
+      this.lapByteOffset = this.currentRawByteOffset; this.lapFrameCount = this.currentRawByteOffset === null ? 0 : 1;
       await this.options.onSessionStarted?.(packet);
     }
     const backfill = this.options.backfillSessionIdentifiers(packet);

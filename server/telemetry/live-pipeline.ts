@@ -294,6 +294,7 @@ export class LiveTelemetryPipeline {
             lapNumber: event.lapNumber,
             lapTime: event.lapTime,
             isValid: event.isValid,
+            classification: event.classification,
             createdAt: new Date().toISOString(),
             gameId: session.gameId,
             carId: session.carId,

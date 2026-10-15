@@ -1,3 +1,5 @@
+import { classifyLapCategory } from "@raceiq/analysis-core/racing/laps/classification";
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 import { lapPath } from "@raceiq/shared/racing/tracks/path";
 import { recordOpenLapTraceById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { KunosDetectorEngine, type KunosLapCapture } from "@raceiq/telemetry-core/processor/kunos-engine";
@@ -97,16 +99,18 @@ export class KunosLapDetector implements ILapDetector {
     const openRoute = packets[0] !== undefined && this.isOpenRoute(packets[0]);
     let isValid: boolean;
     let invalidReason: string | null = null;
+    let classification: LapClassification | null = null;
+    const pitReason = openRoute ? null : classifyPitCycleLap(packets);
+    classification = classifyLapCategory(packets, pitReason, capture.trigger);
     if (capture.invalidReason) { isValid = false; invalidReason = capture.invalidReason; }
     else if (capture.silent) { isValid = false; invalidReason = "incomplete"; }
     else {
       const recordedValidity = session.gameId === "acc" ? resolveAccRecordedLapValidity(packets, capture.trigger !== undefined) : null;
-      if (recordedValidity !== null) { isValid = recordedValidity; invalidReason = recordedValidity ? null : "game reported invalid"; }
-      else {
-        const quality = assessLapRecording(packets, lapTime, { closed: !openRoute }), pitReason = openRoute ? null : classifyPitCycleLap(packets);
-        isValid = !pitReason && quality.valid; invalidReason = pitReason ?? quality.reason;
-        if (isValid) { const cutReason = this.classifyTrackLimits(packets); if (cutReason) { isValid = false; invalidReason = cutReason; } }
-      }
+      const quality = assessLapRecording(packets, lapTime, { closed: !openRoute && !pitReason });
+      classification = classifyLapCategory(packets, pitReason, capture.trigger, quality.valid);
+      isValid = recordedValidity !== false && quality.valid;
+      invalidReason = recordedValidity === false ? "game reported invalid" : quality.valid ? null : quality.reason;
+      if (isValid) { const cutReason = this.classifyTrackLimits(packets); if (cutReason) { isValid = false; invalidReason = cutReason; } }
     }
     const trackIdentity = session.trackId;
     if (isValid && openRoute) {
@@ -118,7 +122,7 @@ export class KunosLapDetector implements ILapDetector {
     const sectors = await computeLapSectors(session.trackId, session.gameId, packets, lapTime, { sectors: resolveTrack(session.gameId, session.trackId).sectors });
     traceStageAt = performance.now();
     if (isValid && (session.bestLapTime === 0 || lapTime < session.bestLapTime)) session.bestLapTime = lapTime;
-    const lapId = await this.db.insertLap(session.sessionId, lapNum, lapTime, isValid, lapByteOffset, lapFrameCount, null, null, invalidReason, sectors);
+    const lapId = await this.db.insertLap(session.sessionId, lapNum, lapTime, isValid, lapByteOffset, lapFrameCount, null, null, invalidReason, sectors, classification);
     traceLap(traceGameId, "lap-boundary-stage", { sessionId: traceSessionId, lapNumber: lapNum, lapId, stage: "insert", durationMs: performance.now() - traceStageAt });
     traceStageAt = performance.now();
     await persistLapMetrics(this.db, lapId, packets);
@@ -128,8 +132,8 @@ export class KunosLapDetector implements ILapDetector {
     traceLap(traceGameId, "lap-boundary-stage", { sessionId: traceSessionId, lapNumber: lapNum, lapId, stage: "auto-exclusion", durationMs: performance.now() - traceStageAt });
     traceStageAt = performance.now();
     if (!capture.silent) {
-      this.onLapSaved?.({ type: "lap-saved", lapId, lapNumber: lapNum, lapTime, isValid, sectors, estimatedBestLapTime: session.bestLapTime });
-      this.onLapComplete_?.({ packets, lapDistStart: packets[0]?.DistanceTraveled ?? 0, lapTime, isValid, sectors });
+      this.onLapSaved?.({ type: "lap-saved", lapId, lapNumber: lapNum, lapTime, isValid, classification, sectors, estimatedBestLapTime: session.bestLapTime });
+      this.onLapComplete_?.({ packets, lapDistStart: packets[0]?.DistanceTraveled ?? 0, lapTime, isValid, classification, sectors });
     }
     traceLap(traceGameId, "lap-boundary-stage", { sessionId: traceSessionId, lapNumber: lapNum, stage: "callbacks", durationMs: performance.now() - traceStageAt });
     traceLap(traceGameId, "lap-boundary-end", { sessionId: traceSessionId, lapNumber: lapNum, totalMs: performance.now() - traceStartedAt });

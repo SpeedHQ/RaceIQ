@@ -13,6 +13,7 @@ export function lap(id: number, over: Partial<LapMeta> = {}): LapMeta {
     lapNumber: id,
     lapTime: 90 + (id % 5) * 0.1,
     isValid: true,
+    classification: null,
     createdAt: "2026-01-01T00:00:00.000Z",
     gameId: "fm-2023",
     carId: "100",

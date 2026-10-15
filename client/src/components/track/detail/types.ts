@@ -1,3 +1,4 @@
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 export interface TrackLap {
   lapId: number;
   lapNumber: number;
@@ -10,6 +11,7 @@ export interface TrackLap {
   sessionId?: number | null;
   sectorTimes?: number[] | null;
   isValid?: boolean;
+  classification: LapClassification | null;
   invalidReason?: string | null;
   division?: string | null;
   notes?: string | null;

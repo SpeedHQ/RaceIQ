@@ -1,5 +1,5 @@
-import { isPitCycleLap } from "@raceiq/analysis-core/racing/laps/pit-cycle"
 import { useEffect, useMemo, useRef, useState } from "react";
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import { lapPaceColor } from "@/lib/colors";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
@@ -31,7 +31,7 @@ export function LapTimeChart({
 }) {
   const laps = useMemo(() => {
     return [...sessionLaps]
-      .filter((lap) => lap.lapTime > 0 && !isPitCycleLap(lap))
+      .filter((lap) => lap.isValid && Number.isFinite(lap.lapTime) && lap.lapTime > 0 && isPaceLap(lap.classification) && !lap.experimentExcluded)
       .sort((a, b) => a.id - b.id)
       .slice(-maxLaps)
       .map((l) => ({ lap: l.lapNumber, time: l.lapTime }));

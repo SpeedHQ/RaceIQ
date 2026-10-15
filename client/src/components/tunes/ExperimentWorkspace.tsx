@@ -1,3 +1,4 @@
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification"
 import { m } from "@/paraglide/messages";
 import { getGame } from "@raceiq/shared/games/registry"
 import { isPitCycleLap } from "@raceiq/analysis-core/racing/laps/pit-cycle"
@@ -119,7 +120,7 @@ export function ExperimentWorkspace({ gameId, experimentId, manageActivation = t
   // Test membership follows the server stamp, not creation time or current HEAD.
   // Outlaps/inlaps/pit laps carry no tuning signal — excluded outright from
   // grouping, counts, and aggregates below.
-  const experimentLapPool = useMemo(() => sessionLapPool.filter((l) => !isPitCycleLap(l)), [sessionLapPool]);
+  const experimentLapPool = useMemo(() => sessionLapPool.filter((l) => isPaceLap(l.classification) && !isPitCycleLap(l)), [sessionLapPool]);
 
   const lapsByTest = useMemo(() => groupExperimentLaps(experimentLapPool, tests), [experimentLapPool, tests]);
 
@@ -146,7 +147,7 @@ export function ExperimentWorkspace({ gameId, experimentId, manageActivation = t
   }, [tests, lapsByTest]);
 
   // Live stint summary (right panel) straight from the telemetry store.
-  const liveValid = useMemo(() => liveSessionLaps.filter((l) => l.isValid && l.lapTime > 0), [liveSessionLaps]);
+  const liveValid = useMemo(() => liveSessionLaps.filter((l) => l.isValid && isPaceLap(l.classification) && l.lapTime > 0), [liveSessionLaps]);
   const liveBest = liveValid.length ? Math.min(...liveValid.map((l) => l.lapTime)) : null;
   const liveAvg = liveValid.length ? liveValid.reduce((s, l) => s + l.lapTime, 0) / liveValid.length : null;
   // Both ACC and AC-Evo populate acc.fuelPerLap; live-only (per-lap fuel for

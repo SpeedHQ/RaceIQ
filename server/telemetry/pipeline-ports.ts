@@ -1,3 +1,4 @@
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 import { resolve } from "node:path";
 import { mkdirSync } from "node:fs";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -64,6 +65,7 @@ export interface CapturedLap {
   profileId: number | null;
   tuneId: number | null;
   invalidReason: string | null;
+  classification: LapClassification | null;
   sectors: number[] | null;
   /** Populated by parseDump helpers for test assertions only — not present in production. */
   packets?: TelemetryPacket[];
@@ -90,6 +92,7 @@ export interface DbAdapter {
     tuneId: number | null,
     invalidReason: string | null,
     sectors: number[] | null,
+    classification: LapClassification | null,
     versionIdentity?: TelemetryVersionIdentity,
   ): Promise<number>;
   deleteLap(lapId: number): Promise<void>;
@@ -172,9 +175,9 @@ export class RealDbAdapter implements DbAdapter {
     return sessionId;
   }
 
-  async insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null, versionIdentity?: TelemetryVersionIdentity): Promise<number> {
+  async insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null, classification: LapClassification | null, versionIdentity?: TelemetryVersionIdentity): Promise<number> {
     const scope = this.sessionScopes.get(sessionId);
-    const lapId = await insertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity ?? scope?.versionIdentity);
+    const lapId = await insertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, versionIdentity ?? scope?.versionIdentity);
     if (scope && this.options.notifyDriverProfile !== false) notifyDriverProfileLap(scope.gameId);
     return lapId;
   }
@@ -226,10 +229,9 @@ export class CapturingDbAdapter implements DbAdapter {
     return Promise.resolve(++this._sessionId);
   }
 
-  insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null, versionIdentity?: TelemetryVersionIdentity): Promise<number> {
-    this.laps.push({ sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity });
+  insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null, classification: LapClassification | null, versionIdentity?: TelemetryVersionIdentity): Promise<number> {
+    this.laps.push({ sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, classification, sectors, versionIdentity });
     const id = ++this._lapId;
-    this._lapIds.push(id);
     return Promise.resolve(id);
   }
 
@@ -300,7 +302,7 @@ export class NullDbAdapter implements DbAdapter {
   insertSession(_carId: string, _trackId: string, _gameId: GameId, _sessionType?: string, _versionIdentity?: TelemetryVersionIdentity, _ownership?: SessionOwnership): Promise<number> {
     return Promise.resolve(1);
   }
-  insertLap(_sessionId: number, _lapNumber: number, _lapTime: number, _isValid: boolean, _rawByteOffset: number | null, _rawFrameCount: number, _profileId: number | null, _tuneId: number | null, _invalidReason: string | null, _sectors: number[] | null, _versionIdentity?: TelemetryVersionIdentity): Promise<number> {
+  insertLap(_sessionId: number, _lapNumber: number, _lapTime: number, _isValid: boolean, _rawByteOffset: number | null, _rawFrameCount: number, _profileId: number | null, _tuneId: number | null, _invalidReason: string | null, _sectors: number[] | null, _classification: LapClassification | null, _versionIdentity?: TelemetryVersionIdentity): Promise<number> {
     return Promise.resolve(1);
   }
   setLapMetrics(_lapId: number, _fuelPerLap: number | null, _tyreWear: number | null): Promise<void> {

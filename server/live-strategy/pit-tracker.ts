@@ -1,3 +1,4 @@
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LivePitData } from "@raceiq/shared/racing/live/types";
@@ -91,7 +92,7 @@ export class PitTracker {
     try {
       const allLaps = await getLaps(gameId, 200);
       const matching = allLaps
-        .filter((l: LapMeta) => l.trackId === trackIdentity && l.carId === carIdentity && l.pi === currentCarPI && l.isValid && l.lapTime > 10)
+        .filter((l: LapMeta) => l.trackId === trackIdentity && l.carId === carIdentity && l.pi === currentCarPI && l.isValid && isPaceLap(l.classification) && l.lapTime > 10)
         .sort((a: LapMeta, b: LapMeta) => b.id - a.id)
         .slice(0, 5);
 

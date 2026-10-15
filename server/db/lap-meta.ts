@@ -7,6 +7,7 @@ type StoredLapMetaRow = {
   lapNumber: number;
   lapTime: number;
   isValid: boolean | number;
+  classification: LapMeta["classification"];
   invalidReason: string | null;
   notes: string | null;
   pi: number | null;
@@ -42,6 +43,7 @@ type StoredLapMetaRow = {
 export function toLapMeta(row: StoredLapMetaRow): LapMeta {
   const {
     isValid,
+    classification,
     invalidReason,
     notes,
     pi,
@@ -100,6 +102,7 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
     ...versionIdentity,
     ...frameCount,
     isValid: Boolean(isValid),
+    classification: classification ?? null,
     invalidReason: invalidReason ?? undefined,
     notes: notes ?? undefined,
     pi: pi ?? 0,

@@ -85,6 +85,6 @@ export function resolveLMULapTime(packets: readonly TelemetryPacket[], firstPack
 export function resolveLMUInvalidReason(packets: readonly TelemetryPacket[]): string | null {
   return packets.some(packet => packet.lmu?.lapInvalidated) ? "game-invalidated" : null;
 }
-export function classifyLMUPitCycle(packets: readonly TelemetryPacket[], completedLapCount: number): PitCycleReason | null {
-  return classifyPitCycleLap(packets) ?? (completedLapCount === 0 ? "outlap" : null);
+export function classifyLMUPitCycle(packets: readonly TelemetryPacket[]): PitCycleReason | null {
+  return classifyPitCycleLap(packets);
 }

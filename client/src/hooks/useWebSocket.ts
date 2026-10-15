@@ -8,6 +8,8 @@ import { devTelemetryStore } from "../stores/dev-telemetry";
 import { queryKeys } from "./query-keys";
 import { buildWebSocketUrl, type DevWebSocketTarget } from "./websocket-url";
 import { invalidateDashboardQueries } from "./dashboard";
+import { refreshClassificationMigration, acceptClassificationMigrationSnapshot } from "@/lib/classification-migration";
+import type { ClassificationMigrationStatus } from "@raceiq/shared/racing/laps/classification-migration";
 
 declare const __RACEIQ_DEV_WS_TARGET__: DevWebSocketTarget;
 
@@ -89,6 +91,12 @@ export function useWebSocket() {
       ws.onopen = () => {
         telemetryStore.actions.setConnected(true);
         startVersionRequest();
+        void refreshClassificationMigration();
+        queryClient.invalidateQueries({ queryKey: queryKeys.laps });
+        queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
+        queryClient.invalidateQueries({ queryKey: ["session-laps"] });
+        queryClient.invalidateQueries({ queryKey: ["review-laps"] });
+        invalidateDashboard();
         if (devTelemetryStore.get().subscriptionWanted) {
           ws.send(JSON.stringify({ type: "subscribe", channel: "dev-telemetry" }));
         }
@@ -115,6 +123,9 @@ export function useWebSocket() {
             invalidateDashboard();
           } else if (data.type === "session-laps") {
             telemetryStore.actions.setSessionLaps(data.laps);
+          } else if (data.type === "classification-migration-status") {
+            const { type: __ignored, ...status } = data;
+            acceptClassificationMigrationSnapshot(status as ClassificationMigrationStatus);
           } else if (data.type === "dev-state") {
             telemetryStore.actions.setDevState(data);
           } else if (data.type === "lap-saved") {
@@ -143,9 +154,12 @@ export function useWebSocket() {
             queryClient.invalidateQueries({ queryKey: queryKeys.raceResultSummaries });
             queryClient.invalidateQueries({ queryKey: queryKeys.raceResultRecents });
           } else if (data.type === "lap-reprocessed") {
-            queryClient.invalidateQueries({ queryKey: ["laps"] });
-            queryClient.invalidateQueries({ queryKey: ["sessions"] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.laps });
+            queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
+            queryClient.invalidateQueries({ queryKey: ["session-laps"] });
+            queryClient.invalidateQueries({ queryKey: ["review-laps"] });
             queryClient.invalidateQueries({ queryKey: queryKeys.userTunes });
+            invalidateDashboard();
             telemetryStore.actions.incrementReprocessProgress();
           } else if (data.type === "experiment-updated") {
             const sid = data.sessionId as number;
@@ -190,6 +204,7 @@ export function useWebSocket() {
         ws.send(JSON.stringify({ type: state.subscriptionWanted ? "subscribe" : "unsubscribe", channel: "dev-telemetry" }));
       }
     });
+    void refreshClassificationMigration();
     const telemetry = telemetryStore.get();
     let previousDevStateWanted = telemetry.devStateConsumers > 0 && !telemetry.devStatePaused;
     const unsubscribeDevState = telemetryStore.subscribe((state) => {

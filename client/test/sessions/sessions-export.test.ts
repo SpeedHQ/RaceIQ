@@ -7,8 +7,8 @@ const sessions: SessionMeta[] = [
   { id: 2, carOrdinal: 1, trackOrdinal: 1, createdAt: "2026-01-02", source: undefined },
 ];
 const laps: LapMeta[] = [
-  { id: 11, sessionId: 1, lapNumber: 1, lapTime: 90, isValid: true, createdAt: "2026-01-01" },
-  { id: 22, sessionId: 2, lapNumber: 1, lapTime: 91, isValid: true, createdAt: "2026-01-02" },
+  { id: 11, sessionId: 1, lapNumber: 1, lapTime: 90, isValid: true, classification: null, createdAt: "2026-01-01" },
+  { id: 22, sessionId: 2, lapNumber: 1, lapTime: 91, isValid: true, classification: null, createdAt: "2026-01-02" },
 ];
 
 describe("Sessions MoTeC export selection", () => {

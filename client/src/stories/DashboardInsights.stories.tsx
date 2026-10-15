@@ -26,7 +26,7 @@ function lap(id: number, dayOffset: number, sessionId: number, lapTime: number, 
   const date = new Date("2026-09-30T12:00:00Z");
   date.setUTCDate(date.getUTCDate() - dayOffset);
   date.setUTCHours(16, id % 60, 0, 0);
-  return { id, sessionId, lapNumber: id, lapTime, isValid, createdAt: date.toISOString(), gameId: game, carId: "201", trackId: "1641", ownership: "mine", invalidReason: undefined };
+  return { id, sessionId, lapNumber: id, lapTime, isValid, classification: null, createdAt: date.toISOString(), gameId: game, carId: "201", trackId: "1641", ownership: "mine", invalidReason: undefined };
 }
 function session(id: number, game: typeof gameId | typeof otherGameId, position: number, type = "Race"): SessionMeta {
   return { id, carId: String(200 + id), trackId: String(1600 + id), createdAt: "2026-09-29T12:00:00Z", lapCount: 0, bestLapTime: null, sessionType: type, elapsedSeconds: id === 106 ? null : 1800 + id * 60, resultClassification: "finished", resultOutcomeStatus: "confirmed", finishingPosition: position, gameId: game, ownership: "mine" };

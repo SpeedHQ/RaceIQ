@@ -124,7 +124,7 @@ export function SessionReviewDashboard({
   const game = tryGetGame(gameId);
   const units = useUnits(gameId);
   const tireHealthAvailable = telemetry.some((sample) => wheelValue(sample, "tireWearFraction", 0) != null);
-  const reviewStats = useMemo(() => stintStats(displayedLaps, { dropOutLap: false }), [displayedLaps]);
+  const reviewStats = useMemo(() => stintStats(displayedLaps), [displayedLaps]);
   const metrics = useMemo(() => tuneMetricsFor(telemetry), [telemetry]);
   const [metricKey, setMetricKey] = useState<MetricKey>("tireSurfaceTemp");
   const metric = metrics.find((candidate) => candidate.key === metricKey) ?? metrics[0] ?? METRICS[0];

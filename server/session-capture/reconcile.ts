@@ -1,6 +1,6 @@
-import { and, eq, gt, isNull, lte, or, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, lte, notExists, or, sql } from "drizzle-orm";
 import { db } from "../db/index";
-import { sessions } from "../db/schema";
+import { classificationMigrationMeta, classificationMigrationRecordings, sessions } from "../db/schema";
 import { MOTEC_SESSION_SOURCE } from "@raceiq/shared/integrations/motec";
 import { SessionRawFileMissingError, reprocessSession } from "./reprocess";
 import type { ReprocessResult } from "./reprocess";
@@ -28,6 +28,9 @@ export async function reconcileHistoricalSessions(onReprocessed?: (reprocessed: 
     failed: 0,
     errors: [],
   };
+  const migrationMeta = await db.select({ cutoffSessionId: classificationMigrationMeta.cutoffSessionId })
+    .from(classificationMigrationMeta).where(eq(classificationMigrationMeta.id, 1)).get();
+  const historicalCutoff = migrationMeta?.cutoffSessionId ?? 0;
   const upperBoundRow = await db
     .select({ id: sql<number>`coalesce(max(${sessions.id}), 0)` })
     .from(sessions)
@@ -41,11 +44,19 @@ export async function reconcileHistoricalSessions(onReprocessed?: (reprocessed: 
       .from(sessions)
       .where(and(
         isNull(sessions.lapDetectorVersion),
+        gt(sessions.id, historicalCutoff),
         gt(sessions.id, afterSessionId),
         lte(sessions.id, upperSessionId),
         or(
           eq(sessions.captureFormatVersion, 1),
           eq(sessions.source, MOTEC_SESSION_SOURCE),
+        ),
+        notExists(
+          db.select({ value: sql`1` }).from(classificationMigrationRecordings)
+            .where(eq(
+              classificationMigrationRecordings.sourceKey,
+              sql`CASE WHEN ${sessions.rawFile} IS NULL THEN 'session:' || ${sessions.id} ELSE 'file:' || ${sessions.rawFile} END`,
+            )),
         ),
       ))
       .orderBy(sessions.id)

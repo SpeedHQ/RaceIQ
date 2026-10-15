@@ -4,6 +4,7 @@
 - Legacy full-frame RaceIQ captures are no longer supported for import and replay. Ensure any remaining legacy recordings are migrated when prompted before updating.
 
 ### Feature
+- Automatically check existing recordings for non-pace laps after upgrades, with progress, source limitations, and retry controls in Settings → Updates.
 - New desktop and self-hosted installs restrict dashboard access to this computer until you select additional network interfaces.
 - Password-protected dashboards use a login screen and browser sessions; API clients must sign in and send the session cookie and a CSRF token for writes.
 - Use string car and track IDs across imports and integrations instead of ordinal fields. Existing sessions and setup links migrate automatically; downgrading requires restoring a pre-upgrade database backup.

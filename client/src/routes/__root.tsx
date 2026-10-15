@@ -17,6 +17,7 @@ import { ResponsiveWorkspace } from "../components/ResponsiveWorkspace";
 import { StaleLapReprocessing } from "../components/StaleLapReprocessing";
 import { UpdateModal } from "../components/UpdateModal";
 import { Button } from "../components/ui/button";
+import { ClassificationMigrationDock } from "../components/ClassificationMigration";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { queryClient } from "../lib/queryClient";
@@ -84,6 +85,7 @@ function AppShell() {
   const onboardingOpen = useUiStore((s) => s.onboardingOpen);
   const { openSettings, closeSettings, closeOnboarding } = uiStore.actions;
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [layoutDockVisible, setLayoutDockVisible] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useLocalStorage<boolean>("raceiq-sidebar-collapsed", false);
   const [showUpdateModal, setShowUpdateModal] = useState(() => {
     const params = new URLSearchParams(window.location.search);
@@ -204,9 +206,10 @@ function AppShell() {
         {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? updateAvailable ?? "?"} currentVersion={updateState?.current ?? "?"} newReleases={updateState?.newReleases ?? []} fullReleaseNotes={updateState?.fullReleaseNotes ?? null} currentReleaseNotes={updateState?.currentReleaseNotes ?? null} currentReleaseDate={updateState?.currentReleaseDate ?? null} updatesDisabled={updateState?.updatesDisabled} onClose={() => setShowUpdateModal(false)} />}
         {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
       </div>
-      <RecordingLayoutMigration />
+      <RecordingLayoutMigration onDockVisibilityChange={setLayoutDockVisible} />
       <StaleLapReprocessing />
       <RaceResultStatus compact />
+      <ClassificationMigrationDock suppressed={layoutDockVisible} />
     </>
   );
 }

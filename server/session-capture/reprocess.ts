@@ -183,6 +183,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
         detected.isValid,
         detected.invalidReason,
         sectors,
+        detected.classification,
         versionIdentity,
       );
       lapsUpdated++;
@@ -212,6 +213,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
         notes: preserved?.notes ?? null,
         invalidReason: detected.invalidReason,
         sectors: detected.sectors ? [...detected.sectors] : null,
+        classification: detected.classification,
         versionIdentity,
       };
     });

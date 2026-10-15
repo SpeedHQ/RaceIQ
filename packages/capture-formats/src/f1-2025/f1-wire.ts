@@ -19,6 +19,7 @@ export const F1_PACKET_IDS = {
   MOTION: 0,
   SESSION: 1,
   LAP_DATA: 2,
+  EVENT: 3,
   PARTICIPANTS: 4,
   CAR_SETUP: 5,
   CAR_TELEMETRY: 6,

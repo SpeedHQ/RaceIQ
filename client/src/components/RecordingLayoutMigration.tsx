@@ -8,7 +8,7 @@ import { useRecordingLayoutMigration, useSelectRecordingDirectory, useStartRecor
 import { m } from "@/paraglide/messages";
 import { previewRecordingDirectories } from "@/lib/recording-storage-paths";
 
-export function RecordingLayoutMigration({ compact = false, onSuccessDismissed }: { compact?: boolean; onSuccessDismissed?: () => void }) {
+export function RecordingLayoutMigration({ compact = false, onSuccessDismissed, onDockVisibilityChange }: { compact?: boolean; onSuccessDismissed?: () => void; onDockVisibilityChange?: (visible: boolean) => void }) {
   const status = useRecordingLayoutMigration();
   const start = useStartRecordingLayoutMigration();
   const startCount = useIsMutating({ mutationKey: queryKeys.recordingLayoutMigrationStart, exact: true });
@@ -45,6 +45,10 @@ export function RecordingLayoutMigration({ compact = false, onSuccessDismissed }
     : ["MIGRATION_ACTIVE", "MOVE_ACTIVE", "IMPORT_ACTIVE", "RECORDING_ACTIVE"].includes(errorCode) ? m.recording_layout_migration_busy()
     : errorCode === "LAYOUT_MIGRATION_PENDING" ? m.recording_layout_migration_pending()
     : m.recording_layout_migration_retry_error();
+  useEffect(() => {
+    if (!compact) onDockVisibilityChange?.(dialogOpen);
+    return () => { if (!compact) onDockVisibilityChange?.(false); };
+  }, [compact, dialogOpen, onDockVisibilityChange]);
   useEffect(() => {
     if (progress?.status === "running") { setDeferred(false); setSuccessDismissed(false); }
   }, [progress?.status]);

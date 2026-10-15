@@ -11,7 +11,7 @@ import { PHYSICS, GRAPHICS, STATIC, FLAG_STATUS } from "@raceiq/capture-formats/
 import { readWString } from "./utils";
 
 // ACC shared-memory AC_SESSION_TYPE (distinct from AC Evo's session enum).
-const SESSION_TYPE_NAMES: Record<number, string> = {
+export const SESSION_TYPE_NAMES: Record<number, string> = {
   0: "practice",
   1: "qualifying",
   2: "race",

@@ -19,6 +19,10 @@ may be stale or unavailable. Fall back to repository search when needed.
 
 Always run `bun run typecheck` before handing work back to user as complete.
 
+## Cross-layer implementation plans
+
+When a feature plan includes both UI and backend changes, split implementation into separate UI and backend plans so the work can proceed in parallel. Both plans MUST reference the same agreed contract Markdown document defining their shared API and data behavior. Agree on that contract before implementation; make each plan's dependencies and acceptance criteria explicit against it.
+
 ## Commands
 
 ```bash

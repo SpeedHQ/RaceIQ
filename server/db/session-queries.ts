@@ -1,3 +1,5 @@
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
+import { paceLapCondition } from "./lap-eligibility";
 import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
 import { getRecordedElapsedSeconds } from "../session-capture/elapsed-duration";
 import { MOTEC_SESSION_SOURCE } from "@raceiq/shared/integrations/motec";
@@ -10,6 +12,7 @@ import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import type { SessionMeta, SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
+import { invalidateClassificationMigrationSource } from "../session-capture/classification-migration";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { existsSync, unlinkSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
@@ -78,11 +81,16 @@ export async function updateSessionRawFile(
   lapDetectorVersion: string,
   versionIdentity?: TelemetryVersionIdentity,
 ): Promise<void> {
+  const previous = await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get();
   await db
     .update(sessions)
     .set({ rawFile, lapDetectorVersion, ...versionIdentity })
     .where(eq(sessions.id, sessionId))
     .run();
+  if (previous?.rawFile && previous.rawFile !== rawFile) {
+    await invalidateClassificationMigrationSource(previous.rawFile);
+  }
+  await invalidateClassificationMigrationSource(rawFile);
 }
 
 /**
@@ -288,11 +296,11 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
   const result: SessionMeta[] = [];
   for (const session of rows) {
     const lapRows = await db
-      .select({ id: laps.id, lapTime: laps.lapTime, isValid: laps.isValid })
+      .select({ id: laps.id, lapTime: laps.lapTime, isValid: laps.isValid, classification: laps.classification })
       .from(laps)
       .where(eq(laps.sessionId, session.id))
       .all();
-    const validLapTimes = lapRows.filter((lap) => Boolean(lap.isValid)).map((lap) => lap.lapTime);
+    const validLapTimes = lapRows.filter((lap) => Boolean(lap.isValid) && isPaceLap(lap.classification)).map((lap) => lap.lapTime);
     const bestLapTime = validLapTimes.length > 0 ? Math.min(...validLapTimes) : 0;
 
     const { capturePath: _capturePath, ...sessionMetadata } = session;
@@ -392,6 +400,7 @@ export async function getSessionRecapData(
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      classification: laps.classification,
       sectorTimes: laps.sectorTimes,
       invalidReason: laps.invalidReason,
     })
@@ -442,6 +451,7 @@ export async function getSessionRecapData(
         eq(sessions.gameId, gameId),
         sql`${sessions.id} != ${id}`,
         eq(laps.isValid, true),
+        paceLapCondition(),
         sql`${laps.lapTime} > 0`,
       ),
     )
@@ -459,6 +469,7 @@ export async function getSessionRecapData(
         eq(sessions.gameId, gameId),
         sql`${sessions.id} != ${id}`,
         eq(laps.isValid, true),
+        paceLapCondition(),
         sql`${laps.lapTime} > 0`,
         sql`${laps.sectorTimes} IS NOT NULL`,
       ),

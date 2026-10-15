@@ -10,8 +10,9 @@ import {
 	primaryKey,
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
-import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance } from "@raceiq/shared/racing/results/types";
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
+import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance } from "@raceiq/shared/racing/results/types";
 
 export const profiles = sqliteTable("profiles", {
 	id: integer("id").primaryKey({ autoIncrement: true }),
@@ -198,6 +199,7 @@ export const laps = sqliteTable(
 		lapTime: real("lap_time").notNull(),
 		isValid: integer("is_valid", { mode: "boolean" }).notNull().default(true),
 		isFavorite: integer("is_favorite", { mode: "boolean" }).notNull().default(false),
+		classification: text("classification").$type<LapClassification | null>(),
 		invalidReason: text("invalid_reason"),
 		notes: text("notes"),
 		profileId: integer("profile_id").references(() => profiles.id),
@@ -678,8 +680,10 @@ export const dashboardSessionSummaries = sqliteTable("dashboard_session_summarie
 	lapCount: integer("lap_count").notNull(),
 	positiveLaps: integer("positive_laps").notNull(),
 	validLaps: integer("valid_laps").notNull(),
+	paceLaps: integer("pace_laps").notNull().default(0),
 	drivenSeconds: real("driven_seconds").notNull(),
 	validSeconds: real("valid_seconds").notNull(),
+	paceSeconds: real("pace_seconds").notNull().default(0),
 	validMeanSeconds: real("valid_mean_seconds"),
 	validM2Seconds: real("valid_m2_seconds"),
 	bestLapSeconds: real("best_lap_seconds"),
@@ -730,8 +734,10 @@ export const dashboardSessionDays = sqliteTable("dashboard_session_days", {
 	lapCount: integer("lap_count").notNull(),
 	positiveLaps: integer("positive_laps").notNull(),
 	validLaps: integer("valid_laps").notNull(),
+	paceLaps: integer("pace_laps").notNull().default(0),
 	drivenSeconds: real("driven_seconds").notNull(),
 	validSeconds: real("valid_seconds").notNull(),
+	paceSeconds: real("pace_seconds").notNull().default(0),
 	bestLapSeconds: real("best_lap_seconds"),
 	meanLapSeconds: real("mean_lap_seconds"),
 	m2LapSeconds: real("m2_lap_seconds"),
@@ -762,9 +768,11 @@ export const dashboardSessionTimeBuckets = sqliteTable("dashboard_session_time_b
 	gameId: text("game_id").notNull(),
 	validLaps: integer("valid_laps").notNull(),
 	positiveLaps: integer("positive_laps").notNull(),
+	paceLaps: integer("pace_laps").notNull().default(0),
 	drivenSeconds: real("driven_seconds").notNull(),
 	validSeconds: real("valid_seconds").notNull().default(0),
 	podiumFirst: integer("podium_first").notNull().default(0),
+	paceSeconds: real("pace_seconds").notNull().default(0),
 	podiumSecond: integer("podium_second").notNull().default(0),
 	podiumThird: integer("podium_third").notNull().default(0),
 }, (table) => [primaryKey({ columns: [table.sessionId, table.bucketStartMs, table.gameId] })]);
@@ -777,9 +785,11 @@ export const dashboardDayEntities = sqliteTable("dashboard_day_entities", {
 	positiveLaps: integer("positive_laps").notNull(),
 	validLaps: integer("valid_laps").notNull(),
 	drivenSeconds: real("driven_seconds").notNull(),
+	paceLaps: integer("pace_laps").notNull().default(0),
 	validSeconds: real("valid_seconds").notNull(),
 	validMeanSeconds: real("valid_mean_seconds"),
 	validM2Seconds: real("valid_m2_seconds"),
+	paceSeconds: real("pace_seconds").notNull().default(0),
 	favouriteLaps: integer("favourite_laps").notNull(),
 	favouriteSeconds: real("favourite_seconds").notNull(),
 	distanceLaps: integer("distance_laps").notNull(),
@@ -802,9 +812,11 @@ export const dashboardMonthEntities = sqliteTable("dashboard_month_entities", {
 	positiveLaps: integer("positive_laps").notNull(),
 	validLaps: integer("valid_laps").notNull(),
 	drivenSeconds: real("driven_seconds").notNull(),
+	paceLaps: integer("pace_laps").notNull().default(0),
 	validSeconds: real("valid_seconds").notNull(),
 	validMeanSeconds: real("valid_mean_seconds"),
 	validM2Seconds: real("valid_m2_seconds"),
+	paceSeconds: real("pace_seconds").notNull().default(0),
 	favouriteLaps: integer("favourite_laps").notNull(),
 	favouriteSeconds: real("favourite_seconds").notNull(),
 	distanceLaps: integer("distance_laps").notNull(),
@@ -825,9 +837,11 @@ export const dashboardTimeBuckets = sqliteTable("dashboard_time_buckets", {
 	validLaps: integer("valid_laps").notNull(),
 	positiveLaps: integer("positive_laps").notNull(),
 	drivenSeconds: real("driven_seconds").notNull(),
+	paceLaps: integer("pace_laps").notNull().default(0),
 	validSeconds: real("valid_seconds").notNull(),
 	podiumFirst: integer("podium_first").notNull(),
 	podiumSecond: integer("podium_second").notNull(),
+	paceSeconds: real("pace_seconds").notNull().default(0),
 	podiumThird: integer("podium_third").notNull(),
 }, (table) => [
 	primaryKey({ columns: [table.bucketStartMs, table.gameId] }),
@@ -847,9 +861,30 @@ export const dashboardLapIndex = sqliteTable("dashboard_lap_index", {
 	lapTime: real("lap_time").notNull(),
 	isValid: integer("is_valid").notNull(),
 	invalidReason: text("invalid_reason"),
+	classification: text("classification"),
 	sectorTimes: text("sector_times"),
 }, (table) => [
 	index("dashboard_lap_session_time_idx").on(table.sessionId, table.lapTime, table.lapId),
 	index("dashboard_lap_session_created_idx").on(table.sessionId, table.createdAtMs, table.lapId),
 	index("dashboard_lap_created_idx").on(table.createdAtMs, table.sessionId, table.lapId),
 ]);
+export const classificationMigrationRecordings = sqliteTable("classification_migration_recordings", {
+	recordingId: text("recording_id").primaryKey(),
+	sourceKey: text("source_key").notNull(),
+	version: integer("version").notNull(),
+	sourceRevision: integer("source_revision").notNull().default(1),
+	resultRevision: integer("result_revision").notNull().default(0),
+	attempt: integer("attempt").notNull().default(0),
+	state: text("state").notNull(),
+	sourceSignature: text("source_signature"),
+	reason: text("reason"),
+}, (table) => [
+	unique().on(table.sourceKey),
+]);
+
+export const classificationMigrationMeta = sqliteTable("classification_migration_meta", {
+	id: integer("id").primaryKey(),
+	version: integer("version").notNull(),
+	revision: integer("revision").notNull().default(0),
+	cutoffSessionId: integer("cutoff_session_id").notNull().default(0),
+});

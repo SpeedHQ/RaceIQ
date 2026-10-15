@@ -186,18 +186,18 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
           SELECT * FROM dashboard_day_entities WHERE utc_day>=? AND utc_day<?
         ),
         day_rollup AS (
-          SELECT m.utc_month||'-01' utc_day,m.game_id,m.car_key,m.track_key,m.lap_count,m.positive_laps,m.valid_laps,
-            m.driven_seconds,m.valid_seconds,m.favourite_laps,m.favourite_seconds,m.distance_laps,m.distance_meters,
+          SELECT m.utc_month||'-01' utc_day,m.game_id,m.car_key,m.track_key,m.lap_count,m.positive_laps,m.valid_laps,m.pace_laps,
+            m.driven_seconds,m.valid_seconds,m.pace_seconds,m.favourite_laps,m.favourite_seconds,m.distance_laps,m.distance_meters,
             m.podium_first,m.podium_second,m.podium_third,0 podium_evidence
           FROM dashboard_month_entities m WHERE m.utc_month>=? AND m.utc_month<?
           UNION ALL
-          SELECT d.utc_day,d.game_id,d.car_key,d.track_key,d.lap_count,d.positive_laps,d.valid_laps,
-            d.driven_seconds,d.valid_seconds,d.favourite_laps,d.favourite_seconds,d.distance_laps,d.distance_meters,
+          SELECT d.utc_day,d.game_id,d.car_key,d.track_key,d.lap_count,d.positive_laps,d.valid_laps,d.pace_laps,
+            d.driven_seconds,d.valid_seconds,d.pace_seconds,d.favourite_laps,d.favourite_seconds,d.distance_laps,d.distance_meters,
             d.podium_first,d.podium_second,d.podium_third,0 podium_evidence
           FROM daily_entities d
           UNION ALL
-          SELECT old.utc_day,old.game_id,old.car_key,old.track_key,-old.lap_count,-old.positive_laps,-old.valid_laps,
-            -old.driven_seconds,-old.valid_seconds,-old.favourite_laps,-old.favourite_seconds,-old.distance_laps,
+          SELECT old.utc_day,old.game_id,old.car_key,old.track_key,-old.lap_count,-old.positive_laps,-old.valid_laps,-old.pace_laps,
+            -old.driven_seconds,-old.valid_seconds,-old.pace_seconds,-old.favourite_laps,-old.favourite_seconds,-old.distance_laps,
             -COALESCE(old.distance_meters,0),-old.podium_first,-old.podium_second,-old.podium_third,0 podium_evidence
           FROM dashboard_session_days old JOIN dirty x ON x.session_id=old.session_id
           WHERE old.utc_day>=? AND old.utc_day<?
@@ -206,8 +206,10 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
             CASE WHEN si.car_id IS NULL OR si.car_id IN ('','-1') THEN '' ELSE json_array(si.game_id,si.car_id) END car_key,
             CASE WHEN si.track_id IS NULL OR si.track_id IN ('','-1') THEN '' ELSE json_array(si.game_id,si.track_id) END track_key,
             COUNT(*) lap_count,SUM(l.lap_time>0) positive_laps,SUM(l.is_valid=1 AND l.lap_time>0) valid_laps,
+            SUM(l.is_valid=1 AND l.lap_time>0 AND l.lap_time<=${Number.MAX_VALUE} AND (l.classification IS NULL OR l.classification='pace')) pace_laps,
             SUM(CASE WHEN l.lap_time>0 THEN l.lap_time ELSE 0 END) driven_seconds,
             SUM(CASE WHEN l.is_valid=1 AND l.lap_time>0 THEN l.lap_time ELSE 0 END) valid_seconds,
+            SUM(CASE WHEN l.is_valid=1 AND l.lap_time>0 AND l.lap_time<=${Number.MAX_VALUE} AND (l.classification IS NULL OR l.classification='pace') THEN l.lap_time ELSE 0 END) pace_seconds,
             SUM(l.lap_time>0 AND COALESCE(l.invalid_reason,'')!='incomplete') favourite_laps,
             SUM(CASE WHEN l.lap_time>0 AND COALESCE(l.invalid_reason,'')!='incomplete' THEN l.lap_time ELSE 0 END) favourite_seconds,
             SUM(l.lap_time>0 AND COALESCE(l.invalid_reason,'')!='incomplete' AND p.track_length_meters>0
@@ -230,7 +232,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
           SELECT date(si.created_at_ms/1000,'unixepoch') utc_day,si.game_id,
             CASE WHEN si.car_id IS NULL OR si.car_id IN ('','-1') THEN '' ELSE json_array(si.game_id,si.car_id) END car_key,
             CASE WHEN si.track_id IS NULL OR si.track_id IN ('','-1') THEN '' ELSE json_array(si.game_id,si.track_id) END track_key,
-            0 lap_count,0 positive_laps,0 valid_laps,0 driven_seconds,0 valid_seconds,
+            0 lap_count,0 positive_laps,0 valid_laps,0 pace_laps,0 driven_seconds,0 valid_seconds,0 pace_seconds,
             0 favourite_laps,0 favourite_seconds,0 distance_laps,0 distance_meters,
             SUM(r.finishing_position=1) podium_first,SUM(r.finishing_position=2) podium_second,SUM(r.finishing_position=3) podium_third,0 podium_evidence
           FROM session_results r JOIN dashboard_session_index si ON si.session_id=r.session_id
@@ -241,7 +243,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
           GROUP BY si.session_id
         ), result_evidence AS (
           SELECT date(si.created_at_ms/1000,'unixepoch') utc_day,si.game_id,p.car_key,p.track_key,
-            0 lap_count,0 positive_laps,0 valid_laps,0 driven_seconds,0 valid_seconds,
+            0 lap_count,0 positive_laps,0 valid_laps,0 pace_laps,0 driven_seconds,0 valid_seconds,0 pace_seconds,
             0 favourite_laps,0 favourite_seconds,0 distance_laps,0 distance_meters,
             0 podium_first,0 podium_second,0 podium_third,COUNT(DISTINCT si.session_id) podium_evidence
           FROM session_results r JOIN dashboard_session_index si ON si.session_id=r.session_id
@@ -256,7 +258,8 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
           GROUP BY utc_day,si.game_id,p.car_key,p.track_key
         )
         SELECT f.game_id,f.car_key,f.track_key,SUM(f.lap_count) lap_count,SUM(f.positive_laps) positive_laps,
-          SUM(f.valid_laps) valid_laps,SUM(f.driven_seconds) driven_seconds,SUM(f.valid_seconds) valid_seconds,
+          SUM(f.valid_laps) valid_laps,SUM(f.pace_laps) pace_laps,SUM(f.driven_seconds) driven_seconds,
+          SUM(f.valid_seconds) valid_seconds,SUM(f.pace_seconds) pace_seconds,
           SUM(f.favourite_laps) favourite_laps,SUM(f.favourite_seconds) favourite_seconds,
           SUM(f.distance_laps) distance_laps,SUM(f.distance_meters) distance_meters,
           SUM(f.podium_first) podium_first,SUM(f.podium_second) podium_second,SUM(f.podium_third) podium_third,
@@ -341,7 +344,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
           SELECT p.best_lap_seconds FROM dashboard_session_summaries p
           JOIN dashboard_session_index si ON si.session_id=p.session_id
           JOIN dashboard_summary_state st ON st.session_id=p.session_id
-          WHERE si.ownership='mine' AND p.best_lap_seconds>0 AND p.valid_laps>0
+          WHERE si.ownership='mine' AND p.best_lap_seconds>0 AND p.pace_laps>0
             AND p.first_lap_at_ms>=? AND p.last_lap_at_ms<?
             AND st.metadata_dirty=0 AND st.deleted=0
             AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
@@ -351,7 +354,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
           JOIN dashboard_session_index si ON si.session_id=l.session_id
           LEFT JOIN dashboard_session_summaries p ON p.session_id=si.session_id
           WHERE si.ownership='mine' AND l.created_at_ms>=? AND l.created_at_ms<?
-            AND l.is_valid=1 AND l.lap_time>0
+            AND l.is_valid=1 AND l.lap_time>0 AND l.lap_time<=${Number.MAX_VALUE} AND (l.classification IS NULL OR l.classification='pace')
             AND (l.session_id IN (${dirtyIn}) OR p.session_id IS NULL
               OR COALESCE(p.processor_version,-1)!=${DASHBOARD_PROCESSOR_VERSION}
               OR p.first_lap_at_ms<? OR p.last_lap_at_ms>=?)${request.gameId ? " AND si.game_id=?" : ""}
@@ -387,7 +390,9 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
       tracks: [...selectedTracks.values()].filter((laps) => laps > 0).length,
       cars: [...selectedCars.values()].filter((laps) => laps > 0).length, sessions: n(periodRow?.sessions),
     };
-    response.totals.averageLapSeconds = response.totals.validLaps ? response.totals.validSeconds / response.totals.validLaps : null;
+    const totalPaceLaps = selectedRows.reduce((sum, raw) => sum + n((raw as Row).pace_laps), 0);
+    const totalPaceSeconds = selectedRows.reduce((sum, raw) => sum + n((raw as Row).pace_seconds), 0);
+    response.totals.averageLapSeconds = totalPaceLaps ? totalPaceSeconds / totalPaceLaps : null;
     const rankedTracks = [...tracks.values()].sort((a, b) => b.seconds - a.seconds || a.gameId.localeCompare(b.gameId) || a.identity.localeCompare(b.identity));
     const totalTrackSeconds = rankedTracks.reduce((sum, entity) => sum + entity.seconds, 0);
     const otherTrackSeconds = rankedTracks.slice(5).reduce((sum, entity) => sum + entity.seconds, 0);
@@ -540,12 +545,12 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     });
     const consistencyResult = tx.execute({
       sql: `WITH RECURSIVE moments(session_id,n,mean,m2) AS (
-        SELECT p.session_id,p.valid_laps,p.valid_mean_seconds,p.valid_m2_seconds
+        SELECT p.session_id,p.pace_laps,p.valid_mean_seconds,p.valid_m2_seconds
         FROM dashboard_session_summaries p JOIN dashboard_session_index si ON si.session_id=p.session_id
         JOIN dashboard_summary_state st ON st.session_id=p.session_id
         WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<?
           AND p.first_lap_at_ms>=? AND p.last_lap_at_ms<?
-          AND p.valid_laps>=2 AND p.valid_mean_seconds IS NOT NULL AND p.valid_m2_seconds IS NOT NULL
+          AND p.pace_laps>=2 AND p.valid_mean_seconds IS NOT NULL AND p.valid_m2_seconds IS NOT NULL
           AND p.car_key IS NOT NULL AND p.car_key!='' AND p.track_key IS NOT NULL AND p.track_key!=''
           AND st.metadata_dirty=0 AND st.deleted=0
           AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
@@ -557,12 +562,14 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
         JOIN (SELECT l.session_id,AVG(l.lap_time) mean FROM dashboard_lap_index l
           LEFT JOIN dashboard_session_summaries p ON p.session_id=l.session_id
           WHERE l.created_at_ms>=? AND l.created_at_ms<? AND l.is_valid=1 AND l.lap_time>0
+            AND (l.classification IS NULL OR l.classification='pace') AND l.lap_time<=${Number.MAX_VALUE}
             AND (l.session_id IN (${dirtyIn}) OR p.session_id IS NULL
               OR COALESCE(p.processor_version,-1)!=${DASHBOARD_PROCESSOR_VERSION}
               OR p.first_lap_at_ms<? OR p.last_lap_at_ms>=?)
           GROUP BY l.session_id) avg_time ON avg_time.session_id=l.session_id
         WHERE si.ownership='mine' AND si.created_at_ms>=? AND si.created_at_ms<?
           AND l.created_at_ms>=? AND l.created_at_ms<? AND l.is_valid=1 AND l.lap_time>0
+          AND (l.classification IS NULL OR l.classification='pace') AND l.lap_time<=${Number.MAX_VALUE}
           AND (l.session_id IN (${dirtyIn}) OR p.session_id IS NULL
             OR COALESCE(p.processor_version,-1)!=${DASHBOARD_PROCESSOR_VERSION}
             OR p.first_lap_at_ms<? OR p.last_lap_at_ms>=?)
@@ -605,7 +612,7 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
           AND st.processor_version=${DASHBOARD_PROCESSOR_VERSION} AND p.processor_version=${DASHBOARD_PROCESSOR_VERSION}
           AND st.published_revision=st.source_revision AND p.source_revision=st.source_revision THEN p.best_lap_seconds
           ELSE (SELECT MIN(l.lap_time) FROM dashboard_lap_index l WHERE l.session_id=si.session_id
-            AND l.is_valid=1 AND l.lap_time>0) END best_lap_seconds
+            AND l.is_valid=1 AND l.lap_time>0 AND l.lap_time<=${Number.MAX_VALUE} AND (l.classification IS NULL OR l.classification='pace')) END best_lap_seconds
         FROM dashboard_session_index si
         LEFT JOIN dashboard_summary_state st ON st.session_id=si.session_id
         LEFT JOIN dashboard_session_summaries p ON p.session_id=si.session_id

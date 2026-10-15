@@ -1,7 +1,8 @@
 import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
-import { PHYSICS as ACC_PHYSICS, GRAPHICS as ACC_GRAPHICS, STATIC as ACC_STATIC } from "@raceiq/capture-formats/acc/structs";
+import { PHYSICS as ACC_PHYSICS, GRAPHICS as ACC_GRAPHICS, STATIC as ACC_STATIC, FLAG_STATUS } from "@raceiq/capture-formats/acc/structs";
 import { readWString } from "./utils";
 import { getAccParserCarByModel, getAccParserTrackByName } from "@raceiq/game-acc-metadata/parser-data-resolver";
+import { SESSION_TYPE_NAMES } from "./parser";
 
 /** Direct detector projection for packed ACC frames. No TelemetryPacket allocation. */
 export function parseAccLapIndex(physics: Buffer, graphics: Buffer, stat: Buffer, carId: string, trackId: string, timestampMs = 0): LapIndexPacket | null {
@@ -23,6 +24,8 @@ export function parseAccLapIndex(physics: Buffer, graphics: Buffer, stat: Buffer
   const last = i(ACC_GRAPHICS.iLastTime.offset);
   const best = i(ACC_GRAPHICS.iBestTime.offset);
   const coord = ACC_GRAPHICS.carCoordinatesBase.offset + slot * 12;
+  const sessionType = i(ACC_GRAPHICS.session.offset);
+  const flagStatus = i(ACC_GRAPHICS.flag.offset);
   const packet: LapIndexPacket = {
     gameId: "acc", IsRaceOn: i(ACC_GRAPHICS.status.offset) === 2 ? 1 : 0, TimestampMS: timestampMs,
     carId, trackId, CarPerformanceIndex: 0, CarClass: 0, LapNumber: i(ACC_GRAPHICS.completedLaps.offset) + 1,
@@ -32,7 +35,7 @@ export function parseAccLapIndex(physics: Buffer, graphics: Buffer, stat: Buffer
     Yaw: f(ACC_PHYSICS.heading.offset), Fuel: f(ACC_PHYSICS.fuel.offset),
     TireWearFL: f(ACC_PHYSICS.tyreWearFL.offset), TireWearFR: f(ACC_PHYSICS.tyreWearFR.offset), TireWearRL: f(ACC_PHYSICS.tyreWearRL.offset), TireWearRR: f(ACC_PHYSICS.tyreWearRR.offset),
     RacePosition: i(ACC_GRAPHICS.position.offset), WheelOnRumbleStripFL: 0, WheelOnRumbleStripFR: 0, WheelOnRumbleStripRL: 0, WheelOnRumbleStripRR: 0,
-    acc: { pitStatus: i(ACC_GRAPHICS.isInPit.offset) ? "in_pit" : i(ACC_GRAPHICS.isInPitLane.offset) ? "pit_lane" : "out", currentSectorIndex: i(ACC_GRAPHICS.currentSectorIndex.offset), lastSectorTime: i(ACC_GRAPHICS.lastSectorTime.offset), isValidLap: graphics.length >= ACC_GRAPHICS.isValidLap.offset + 4 ? (i(ACC_GRAPHICS.isValidLap.offset) === 1 ? true : i(ACC_GRAPHICS.isValidLap.offset) === 0 ? false : null) : null } as never,
+    acc: { sessionType: SESSION_TYPE_NAMES[sessionType] ?? "unknown", flagStatus: FLAG_STATUS[flagStatus] ?? "none", pitStatus: i(ACC_GRAPHICS.isInPit.offset) ? "in_pit" : i(ACC_GRAPHICS.isInPitLane.offset) ? "pit_lane" : "out", currentSectorIndex: i(ACC_GRAPHICS.currentSectorIndex.offset), lastSectorTime: i(ACC_GRAPHICS.lastSectorTime.offset), isValidLap: graphics.length >= ACC_GRAPHICS.isValidLap.offset + 4 ? (i(ACC_GRAPHICS.isValidLap.offset) === 1 ? true : i(ACC_GRAPHICS.isValidLap.offset) === 0 ? false : null) : null } as never,
   };
   return packet;
 }
