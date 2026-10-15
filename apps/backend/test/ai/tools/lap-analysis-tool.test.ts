@@ -5,6 +5,7 @@ import {
   parseCachedLapAnalysis,
 } from "../../../src/mastra/tools/lap-analysis";
 import { buildCompareChatSystemPrompt } from "@raceiq/backend-core/ai/compare-chat-prompt";
+import { setupContextForLap } from "../../../src/ai/lap-setup-context";
 
 const lap = {
   id: 1,
@@ -75,14 +76,19 @@ describe("lap analysis retrieval contract", () => {
       "[]",
       JSON.stringify({ verdict: "missing required fields" }),
     ]) {
-      const tool = getLapAnalysisToolFor(async () => ({
-        analysis,
-        inputTokens: 1,
-        outputTokens: 1,
-        costUsd: 0,
-        durationMs: 1,
-        model: "test-model",
-      }));
+      const tool = getLapAnalysisToolFor(
+        async () => ({
+          analysis,
+          inputTokens: 1,
+          outputTokens: 1,
+          costUsd: 0,
+          durationMs: 1,
+          model: "test-model",
+        }),
+        async () => ({ ...lap, carId: "0", trackId: null, tuneId: null, telemetry: [] }) as never,
+        async () => null,
+        (() => ({})) as never,
+      );
       const execute = tool.execute;
       if (!execute) throw new Error("Lap analysis tool has no execute function");
       const rawResult = await execute({ lapId: 4 }, {} as never);
@@ -92,6 +98,94 @@ describe("lap analysis retrieval contract", () => {
       expect(result.analysis).toBeUndefined();
       expect(result.error).toContain("schema");
     }
+  });
+  test("sanitizes cached setup against lap-linked snapshot and capabilities", async () => {
+    const toolLap = {
+      id: 4,
+      gameId: "ac-evo" as const,
+      carId: "1",
+      trackId: "2",
+      tuneId: 5,
+      telemetry: [],
+    };
+    const tune = {
+      id: 5,
+      gameId: "ac-evo",
+      carId: "1",
+      trackId: "2",
+      settings: { frontRideHeight: 56 },
+    };
+    const resolveGame = (() => ({
+      getCarName: () => "Audi R8 LMS GT3 Evo II",
+    })) as never;
+    const context = setupContextForLap(toolLap, resolveGame, tune);
+    const analysis = {
+      ...JSON.parse(validAnalysis),
+      setup: [
+        {
+          component: "Front Ride Height",
+          symptom: "grounding",
+          fix: "increase ride height",
+          current: "999 mm",
+          target: "57 mm",
+          direction: "increase",
+        },
+        {
+          component: "Front Ride Height",
+          symptom: "grounding",
+          fix: "increase ride height",
+          current: "999 mm",
+          target: "58",
+          direction: "increase",
+        },
+        {
+          component: "Differential Power",
+          symptom: "traction",
+          fix: "change power",
+          current: "999",
+          target: "1",
+          direction: "increase",
+        },
+      ],
+      setupProvenance: {
+        gameId: context.gameId ?? null,
+        gameVersion: null,
+        carModel: context.carModel ?? null,
+        carVersion: null,
+        trackName: context.trackName ?? null,
+        setupVersion: context.setupVersion == null ? null : String(context.setupVersion),
+        lapId: context.lapId ?? null,
+      },
+    };
+    const tool = getLapAnalysisToolFor(
+      async () => ({
+        analysis: JSON.stringify(analysis),
+        inputTokens: 1,
+        outputTokens: 1,
+        costUsd: 0,
+        durationMs: 1,
+        model: "test-model",
+      }),
+      async () => toolLap as never,
+      async () => tune as never,
+      resolveGame,
+    );
+    const execute = tool.execute;
+    if (!execute) throw new Error("Lap analysis tool has no execute function");
+    const rawResult = await execute({ lapId: 4 }, {} as never);
+    if (!isLapResult(rawResult)) throw new Error("Unexpected lap analysis tool result");
+    expect(rawResult.available).toBe(true);
+    const output = rawResult.analysis;
+    if (!output || typeof output !== "object" || !("setup" in output)) {
+      throw new Error("Sanitized analysis setup missing");
+    }
+    expect(output.setup).toEqual([
+      expect.objectContaining({
+        component: "Front Ride Height",
+        current: "56 mm",
+        target: "57 mm",
+      }),
+    ]);
   });
   test("does not embed cached analysis in compare prompts", () => {
     const comparePrompt = buildCompareChatSystemPrompt(

@@ -9,6 +9,7 @@ import {
 } from "../../../src/mastra/tools/driver-coach";
 import { createExperiment, getExperiment, setSessionHead } from "@raceiq/backend-core/db/experiment-queries";
 import { createExperimentVersion, getExperimentVersion, listExperimentVersions } from "@raceiq/backend-core/db/experiment-version-queries";
+import { getLapMetaForExperimentVersion } from "@raceiq/backend-core/db/experiment-lap-queries";
 import type { DrillChange } from "@raceiq/shared/racing/experiments/types";
 
 /**
@@ -31,16 +32,25 @@ async function runDrill(
   sessionId: number,
 ): Promise<RecordDrillResult> {
   return recordDrillOutputSchema.parse(
-    await executeDrill(input, ctx(sessionId)),
+    await executeDrill(input, await ctx(sessionId)),
   );
 }
 
 /** The route sets these per turn; tools read them instead of taking a sessionId
  *  argument (weak models kept dropping the arg). */
-function ctx(sessionId: number) {
+async function ctx(sessionId: number) {
   const requestContext = new RequestContext();
+  const session = await getExperiment(sessionId);
+  const versions = await listExperimentVersions(sessionId);
+  const headVersionId = session?.headVersionId ?? null;
+  const activeVersion = versions.find((version) => version.id === headVersionId) ?? null;
+  const laps = activeVersion ? await getLapMetaForExperimentVersion(activeVersion.id) : [];
   requestContext.set("gameId", "acc");
   requestContext.set("sessionId", sessionId);
+  requestContext.set("raceiq.experimentChatBranch", {
+    sessionId, headVersionId, session: session!, versions, activeVersion, laps, lapIds: laps.map((lap) => lap.id),
+    setupContext: { ok: false, status: 400, error: "No setup context in drill fixture" },
+  });
   return { requestContext, observe: noopObserve };
 }
 
@@ -91,6 +101,19 @@ describe("record_drill", () => {
     const res = await runDrill(drill, id);
     const created = (await listExperimentVersions(id)).find((v) => v.label === res.label)!;
     expect((await getExperiment(id))!.headVersionId).toBe(created.id);
+  });
+
+  test("stale branch cannot overwrite a newly selected head", async () => {
+    const id = await createExperiment({ gameId: "acc", name: "drill-stale-head", focus: "driver" });
+    const v1 = await createExperimentVersion({ experimentId: id, version: 1, label: "v1", kind: "setup" });
+    await setSessionHead(id, v1);
+    const staleContext = await ctx(id);
+    await setSessionHead(id, null);
+
+    const result = recordDrillOutputSchema.parse(await executeDrill(drill, staleContext));
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/changed/i);
+    expect((await getExperiment(id))!.headVersionId).toBeNull();
   });
 
   test("branches from an explicit target instead of the head", async () => {

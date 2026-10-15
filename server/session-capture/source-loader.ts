@@ -1,4 +1,4 @@
-import { gunzipBuffer, META_FRAME_MAGIC, readFrameStreamStart, iterateSessionFrameRecords } from "@raceiq/capture-formats/session/framing";
+import { gunzipSync } from "node:zlib";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { MOTEC_SESSION_SOURCE } from "@raceiq/shared/integrations/motec";
@@ -7,7 +7,21 @@ import { parseLd } from "../motec/ld";
 import { parseLdxBeacons } from "../motec/ldx";
 import { resolveMotecTarget } from "../motec/targets";
 import { countSourceFrameScanned } from "./test-instrumentation";
-import { SEGMENT_BOUNDARY_MAGIC, SEGMENT_BOUNDARY_VERSION, SEGMENT_CONTEXT_MAGIC, SEGMENT_CONTEXT_VERSION, SEGMENT_CONTEXT_END_MAGIC, readFramePrefix, type SessionCaptureRecord } from "@raceiq/capture-formats/session/framing";
+import {
+  containsSparseCaptureFrames,
+  META_FRAME_MAGIC,
+  iterateSessionFrameRecords,
+  readFrameStreamStart,
+  SEGMENT_BOUNDARY_MAGIC,
+  SEGMENT_BOUNDARY_VERSION,
+  SEGMENT_CONTEXT_MAGIC,
+  SEGMENT_CONTEXT_VERSION,
+  SEGMENT_CONTEXT_END_MAGIC,
+  SPARSE_CAPTURE_FORMAT_MAGIC,
+  SPARSE_CAPTURE_FORMAT_VERSION,
+  readFramePrefix,
+  type SessionCaptureRecord,
+} from "@raceiq/capture-formats/session/framing";
 import { decodeLmuSparseFrame, isLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
 import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "@raceiq/capture-formats/session/kunos-sparse";
@@ -69,6 +83,49 @@ export function setCaptureFileFactoryForTest(factory: CaptureFileFactory | null)
   captureFileFactory = factory ?? ((path) => Bun.file(path));
 }
 function key(source: SessionCaptureSource): string { return `${source.rawFile}\0${source.source ?? ""}\0${source.gameId}\0${source.carId}\0${source.trackId}`; }
+async function hasSparseCaptureFormat(file: SessionCaptureFile): Promise<boolean> {
+  const prefix = Buffer.from(await file.slice(0, 2).arrayBuffer());
+  let stream = file.stream();
+  if (prefix[0] === 0x1f && prefix[1] === 0x8b) {
+    const decompressor = new DecompressionStream("gzip");
+    stream = stream.pipeThrough(decompressor as unknown as ReadableWritablePair<Uint8Array, Uint8Array>);
+  }
+  const reader = stream.getReader();
+  let pending = Buffer.alloc(0);
+  try {
+    while (true) {
+      while (pending.length >= 4) {
+        if (pending.readUInt32LE(0) === META_FRAME_MAGIC) {
+          if (pending.length < 8) break;
+          const length = pending.readUInt32LE(4);
+          assertCaptureRecordLength(length);
+          if (pending.length < 8 + length) break;
+          if (length === 8 &&
+              pending.readUInt32LE(8) === SPARSE_CAPTURE_FORMAT_MAGIC &&
+              pending.readUInt32LE(12) === SPARSE_CAPTURE_FORMAT_VERSION) return true;
+          pending = pending.subarray(8 + length);
+          continue;
+        }
+        const framePrefix = readFramePrefix(pending, 0);
+        if (!framePrefix || framePrefix.length === 0) return false;
+        assertCaptureRecordLength(framePrefix.length);
+        if (pending.length < framePrefix.prefixBytes + framePrefix.length) break;
+        const frame = pending.subarray(framePrefix.prefixBytes, framePrefix.prefixBytes + framePrefix.length);
+        if (isLmuSparseFrame(frame) || isKunosSparseFrame(frame) || isGenericSparseFrame(frame)) return true;
+        pending = pending.subarray(framePrefix.prefixBytes + framePrefix.length);
+      }
+      const next = await reader.read();
+      if (next.done) return false;
+      pending = Buffer.concat([pending, Buffer.from(next.value)]);
+    }
+  } finally {
+    try {
+      await reader.cancel();
+    } finally {
+      reader.releaseLock();
+    }
+  }
+}
 /**
  * Iterate capture records without materializing the compressed or decompressed
  * session. Report offsets in the decompressed stream, matching lap metadata.
@@ -82,6 +139,9 @@ export async function* iterateSessionCaptureRecordsFromSource(
   }
 
   const file = captureFileFactory(source.rawFile);
+  if (!await hasSparseCaptureFormat(file)) {
+    throw new Error("Legacy full-frame captures are not supported; provide a sparse RaceIQ capture.");
+  }
   const prefix = Buffer.from(await file.slice(0, 2).arrayBuffer());
   let stream = file.stream() as ReadableStream<Uint8Array>;
   if (prefix[0] === 0x1f && prefix[1] === 0x8b) {
@@ -142,7 +202,9 @@ export async function* iterateSessionCaptureRecordsFromSource(
               checkpointIdentity = null;
               yield { kind: "segment-context-end", offset };
             }
-            else if (options.strict) throw new Error(`Unknown capture segment marker at ${offset}`);
+            else if (magic === SPARSE_CAPTURE_FORMAT_MAGIC && version === SPARSE_CAPTURE_FORMAT_VERSION) {
+              // Format marker is metadata, not a segment event.
+            }
           }
           else if (options.strict) throw new Error(`Unknown capture metadata at ${offset}`);
           pending = pending.subarray(8 + metaLength);
@@ -227,7 +289,10 @@ export async function loadSessionSource(source: SessionCaptureSource): Promise<L
   const file = captureFileFactory(source.rawFile); const size = file.size; const mtimeMs = file.lastModified; const cacheKey = key(source);
   const hit = cache.get(cacheKey); if (hit && hit.size === size && hit.mtimeMs === mtimeMs) return hit.loaded;
   let loaded: LoadedSessionSource;
-  const bytes = Buffer.from(await file.arrayBuffer());
+  const storedBytes = Buffer.from(await file.arrayBuffer());
+  const bytes = storedBytes[0] === 0x1f && storedBytes[1] === 0x8b
+    ? gunzipSync(storedBytes)
+    : storedBytes;
   if (source.rawFile.endsWith(".motec.zip")) {
     if (source.source !== MOTEC_SESSION_SOURCE) throw new Error("Session source archive requires source 'motec'");
     const archive = decodeMotecSourceArchive(bytes); const log = parseLd(archive.ldBytes);
@@ -236,8 +301,10 @@ export async function loadSessionSource(source: SessionCaptureSource): Promise<L
     const carTrack = target.resolveCarTrack(log, { carId: source.carId, trackId: source.trackId });
     loaded = { kind: "packets", packets: target.convert(log, beacons, carTrack).packets, offsetEncoding: archive.offsetEncoding };
   } else {
-    const buffer = bytes[0] === 0x1f && bytes[1] === 0x8b ? await gunzipBuffer(bytes) : bytes;
-    loaded = { kind: "capture", buffer, frameIndex: indexCaptureFrames(buffer) };
+    if (!containsSparseCaptureFrames(bytes)) {
+      throw new Error("Legacy full-frame captures are not supported; provide a sparse RaceIQ capture.");
+    }
+    loaded = { kind: "capture", buffer: bytes, frameIndex: indexCaptureFrames(bytes) };
   }
   cache.set(cacheKey, { size, mtimeMs, loaded }); while (cache.size > MAX_ENTRIES) { const oldest = cache.keys().next().value; if (oldest) cache.delete(oldest); }
   return loaded;

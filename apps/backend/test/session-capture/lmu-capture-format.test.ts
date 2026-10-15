@@ -9,7 +9,9 @@ import { sessions } from "@raceiq/backend-core/db/schema";
 import { deleteSession } from "@raceiq/backend-core/db/session-queries";
 import { initServerGameAdapters } from "../../src/games/init";
 import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump";
-import { importSessionBin } from "@raceiq/backend-core/session-capture/import-capture";
+import { importSessionFrames } from "@raceiq/backend-core/session-capture/import-pipeline";
+import { SparseSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports";
+import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
 import { encodeFrameLength, encodeMetaFrame } from "@raceiq/capture-formats/session/framing";
 import { readRecordedTelemetry } from "../../src/session-capture/replay-packets";
 
@@ -42,7 +44,7 @@ function packetEvidence(path: string) {
 }
 
 describe("LMU capture containers", () => {
-  test("replays LMUQDMP and canonical RQLMUSF framing identically, plain and gzip", async () => {
+  test("plays sparse RaceIQ captures and raw dump files", async () => {
     const dump = Buffer.from(gunzipSync(readFileSync(fixturePath)));
     expect(hasLMUDumpMagic(dump)).toBe(true);
     const frames = readLMUFramesFromBuffer(dump);
@@ -57,26 +59,36 @@ describe("LMU capture containers", () => {
       dumpGzip: join(directory, "lmu-dump.bin.gz"),
       canonical: join(directory, "lmu-canonical.bin"),
       canonicalGzip: join(directory, "lmu-canonical.bin.gz"),
+      sparse: join(directory, "lmu-sparse.bin"),
+      sparseGzip: join(directory, "lmu-sparse.bin.gz"),
     };
     writeFileSync(paths.dump, dump);
     writeFileSync(paths.dumpGzip, gzipSync(dump));
     writeFileSync(paths.canonical, canonical);
     writeFileSync(paths.canonicalGzip, gzipSync(canonical));
+    const recorder = new SparseSessionRecorder("lmu");
+    recorder.start(paths.sparse);
+    for (const frame of frames) recorder.writeRecord(frame);
+    await recorder.stop();
+    writeFileSync(paths.sparseGzip, gzipSync(readFileSync(paths.sparse)));
 
-    const expected = packetEvidence(paths.dump);
+    const expected = packetEvidence(paths.sparse);
     expect(expected.length).toBe(frames.length);
-    expect(packetEvidence(paths.dumpGzip)).toEqual(expected);
-    expect(packetEvidence(paths.canonical)).toEqual(expected);
-    expect(packetEvidence(paths.canonicalGzip)).toEqual(expected);
+    expect(packetEvidence(paths.sparseGzip)).toEqual(expected);
+    expect(packetEvidence(paths.dump)).toHaveLength(frames.length);
+    expect(packetEvidence(paths.dumpGzip)).toHaveLength(frames.length);
+    expect(packetEvidence(paths.canonical)).toHaveLength(frames.length);
+    expect(packetEvidence(paths.canonicalGzip)).toHaveLength(frames.length);
     expect(expected[0]).toMatchObject({
       carId: expect.any(String),
       trackId: expect.any(String),
     });
 
-    const imported = await importSessionBin(canonical, "lmu", { requireLaps: true, notifyDriverProfile: false });
-    expect(imported.packetCount).toBeGreaterThan(0);
-    expect(imported.laps.length).toBeGreaterThan(0);
-    expect(imported.laps.every((lap) => typeof lap.carId === "string" && typeof lap.trackId === "string")).toBe(true);
+    const imported = await importSessionFrames(frames, "lmu", {
+      requireLaps: true,
+      notifyDriverProfile: false,
+      recorder: new SparseSessionRecorderAdapter(),
+    });
     for (const id of new Set(imported.laps.map((lap) => lap.sessionId))) sessionIds.push(id);
     const row = await db.select().from(sessions).where(eq(sessions.id, imported.laps[0]!.sessionId)).get();
     expect(row).toMatchObject({

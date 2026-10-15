@@ -29,9 +29,19 @@ interface LapAnalystConsult {
   summary: string;
 }
 
-export async function consultLapAnalystForSession(sessionId: number): Promise<LapAnalystConsult> {
-  const lap = await loadRepresentativeLap(sessionId);
-  if (!lap) return { available: false, summary: "No analysable lap yet for this session." };
+export async function consultLapAnalystForSession(
+  sessionId: number,
+  opts?: { lapIds?: readonly number[] },
+): Promise<LapAnalystConsult> {
+  const lap = await loadRepresentativeLap(sessionId, opts);
+  if (!lap) {
+    return {
+      available: false,
+      summary: opts?.lapIds == null
+        ? "No analysable lap yet for this session."
+        : "No analysable lap yet in this experiment branch.",
+    };
+  }
 
   const trackIdentity = lap.trackId;
   const segments = await resolveLapSegments(trackIdentity, lap.gameId);

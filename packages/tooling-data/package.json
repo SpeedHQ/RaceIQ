@@ -5,6 +5,7 @@
   "exports": {
     "./data/seed-db-demo": "./src/data/seed-db-demo.ts",
     "./data/seed-db-iracing": "./src/data/seed-db-iracing.ts",
+    "./data/seed-capture-conversion": "./src/data/seed-capture-conversion.ts",
     "./data/seed-db-options": "./src/data/seed-db-options.ts",
     "./data/seed-db-reset": "./src/data/seed-db-reset.ts",
     "./data/seed-db-safety": "./src/data/seed-db-safety.ts",

@@ -1,7 +1,6 @@
 import { m } from "@/paraglide/messages";
 import { getGame } from "@raceiq/shared/games/registry"
 import { isPitCycleLap } from "@raceiq/analysis-core/racing/laps/pit-cycle"
-import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -13,7 +12,7 @@ import { useExperiment, useExperimentLapMetrics, useExperimentVersions, useAddBa
 import { useLaps } from "@/hooks/laps";
 import { formatLapTime } from "@/lib/format";
 import { client } from "@/lib/rpc";
-import { parseUtcTimestamp } from "@/lib/utc-date";
+import { groupExperimentLaps, mergeExperimentLaps } from "@/lib/experiment-laps";
 import { useTelemetryStore } from "@/stores/telemetry";
 import { AddBaseModal } from "./AddBaseModal";
 import { BackButton } from "./BackButton";
@@ -106,31 +105,8 @@ export function ExperimentWorkspace({ gameId, experimentId, manageActivation = t
   // IDs resolve names for older rows without labels.
   const { data: names } = useResolveNames(session?.trackId != null ? [session.trackId] : [], session?.carId != null ? [session.carId] : []);
 
-  // The session's lap pool: persisted laps explicitly linked to this tuning
-  // session (experimentId stamped server-side, spanning any number of race
-  // sessions) merged with the live stint. Live laps belong to this session by
-  // definition — the workspace activated it on mount, so the server is stamping
-  // them — and are included even before the persisted query refetches. Laps
-  // recorded before this feature have experimentId = null and won't appear.
-  const sessionLapPool = useMemo<LapMeta[]>(() => {
-    const byId = new Map<number, LapMeta>();
-    for (const l of allLaps) {
-      if (l.experimentId === experimentId) byId.set(l.id, l);
-    }
-    for (const l of liveSessionLaps) {
-      // Live lap objects from the telemetry pipeline never carry the exclusion
-      // fields (server/telemetry/live-pipeline.ts builds them without them), so keep the
-      // persisted lap's flag AND its source when both exist — otherwise the
-      // exclude toggle looks dead for laps of the current stint.
-      // The source must survive: selectEvaluationLaps only reads a lap as
-      // manually excluded when experimentExcludedSource === "manual", so dropping
-      // it leaves the lap ranked in the fastest-N (stale "Eval" badge, no
-      // replacement lap promoted).
-      const persisted = byId.get(l.id);
-      byId.set(l.id, persisted ? { ...l, experimentExcluded: persisted.experimentExcluded, experimentExcludedSource: persisted.experimentExcludedSource } : l);
-    }
-    return [...byId.values()];
-  }, [allLaps, liveSessionLaps, experimentId]);
+  // Persisted membership is authoritative when live metadata overlaps it.
+  const sessionLapPool = useMemo(() => mergeExperimentLaps(allLaps, liveSessionLaps, experimentId), [allLaps, liveSessionLaps, experimentId]);
 
   // Server-derived per-lap metrics (fuel/lap + worst-tyre wear),
   // keyed by lap id for the table + the session Fuel/lap card.
@@ -140,37 +116,12 @@ export function ExperimentWorkspace({ gameId, experimentId, manageActivation = t
     return m;
   }, [lapMetrics]);
 
-  // Group the pool by tuning test using the createdAt window (plan §2):
-  // a lap belongs to the newest test created at/before it; live laps land on the
-  // latest (active) test.
+  // Test membership follows the server stamp, not creation time or current HEAD.
   // Outlaps/inlaps/pit laps carry no tuning signal — excluded outright from
   // grouping, counts, and aggregates below.
   const experimentLapPool = useMemo(() => sessionLapPool.filter((l) => !isPitCycleLap(l)), [sessionLapPool]);
 
-  const lapsByTest = useMemo(() => {
-    const sorted = [...tests].sort((a, b) => a.version - b.version);
-    const testForLap = (lap: LapMeta): number | null => {
-      let match: number | null = sorted[0]?.id ?? null;
-      const lapMs = parseUtcTimestamp(lap.createdAt).getTime();
-      for (const t of sorted) {
-        if (parseUtcTimestamp(t.createdAt).getTime() <= lapMs) match = t.id;
-        else break;
-      }
-      return match;
-    };
-    const map = new Map<number, LapMeta[]>();
-    for (const l of experimentLapPool) {
-      const tid = testForLap(l);
-      if (tid == null) continue;
-      const arr = map.get(tid);
-      if (arr) arr.push(l);
-      else map.set(tid, [l]);
-    }
-    // Laps imported from several driving sessions restart lapNumber at 1, so
-    // order by source session id first, then lap number within that session.
-    for (const arr of map.values()) arr.sort((a, b) => a.sessionId - b.sessionId || a.lapNumber - b.lapNumber);
-    return map;
-  }, [experimentLapPool, tests]);
+  const lapsByTest = useMemo(() => groupExperimentLaps(experimentLapPool, tests), [experimentLapPool, tests]);
 
   // Session-wide stat rollups (hide a card when its value is unavailable).
   const validLaps = useMemo(() => experimentLapPool.filter((l) => l.isValid && l.lapTime > 0), [experimentLapPool]);

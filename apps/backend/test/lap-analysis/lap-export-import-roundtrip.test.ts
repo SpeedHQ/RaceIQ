@@ -37,8 +37,12 @@ import { queryLapTelemetryBySemanticId } from "@raceiq/backend-core/telemetry/re
 import type { GameId } from "@raceiq/shared/games/ids";
 import { buildLd, buildLdx, syntheticStint } from "@raceiq/backend-core/test-support/motec/ld";
 import { getAllAcEvoCars } from "@raceiq/game-ac-evo-metadata/racing/cars/ac-evo";
+import { registerDriverProfileLapNotifier } from "@raceiq/backend-core/driver-profile/lap-notifier";
+import { initMotecTargets } from "../../src/games/motec-init";
 initGameAdapters();
 initServerGameAdapters();
+initMotecTargets();
+registerDriverProfileLapNotifier(() => {});
 
 /** Complete laps from committed capture with valid raw windows. */
 const MIN_FRAMES = 0;
