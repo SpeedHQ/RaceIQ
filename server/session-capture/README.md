@@ -9,7 +9,7 @@ Owns RaceIQ raw-session persistence: length-prefixed frame recording, gzip stora
 - `framing.ts` defines capture framing and gzip helpers. `recorder.ts` appends frames and patches the final frame count.
 - `import-capture.ts` detects canonical uploads and feeds them to `import-pipeline.ts`, which captures imported database identities and rolls failed imports back.
 - `reprocess.ts` streams canonical `.bin`/`.bin.gz` frames (including sparse records) through the current lap detector, resets it at segment boundaries, and preserves lap-owned metadata where possible. MoTeC `.motec.zip` archives still require decoded channel arrays.
-- `reconcile.ts` replays pending historical sessions in bounded, ascending pages after HTTP startup. Database migration v67 marks every pre-upgrade session pending, including AC Evo sessions with already-filled identities.
+- `reconcile.ts` replays pending sparse RaceIQ captures and MoTeC archives in bounded, ascending pages after HTTP startup. Database migration v67 marks pre-upgrade sessions pending, but legacy full-frame captures are excluded from playback and reprocessing.
 - `identity.ts` hashes decompressed capture content so raw and gzip storage represent the same input.
 - `compressor.ts` and `cleanup.ts` maintain recorded files after sessions finish.
 

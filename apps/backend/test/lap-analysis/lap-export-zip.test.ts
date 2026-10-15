@@ -1,8 +1,8 @@
 /**
  * buildLapsZip — the export half of the lap/session ZIP feature.
  *
- * The zip is a *slice of the session's raw capture*, not a re-encoded blob, so
- * what matters here is the byte maths: which frames land in the slice, that
+ * The ZIP stores selected session frames as a sparse RaceIQ capture, not a byte-for-byte slice.
+ * What matters here is the byte maths: which frames land in the slice, that
  * the 12-byte meta frame is re-prepended, that the +1 trigger frame needed to
  * complete each selected lap on replay is included, and that the manifest
  * lists only selected laps.
@@ -20,7 +20,7 @@ import { sessions, laps } from "@raceiq/backend-core/db/schema";
 import { eq } from "drizzle-orm";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
-import { iterateSessionCaptureRecords, META_FRAME_MAGIC, SEGMENT_BOUNDARY_MAGIC } from "@raceiq/capture-formats/session/framing";
+import { encodeSparseCaptureFormatFrame, iterateSessionCaptureRecords, META_FRAME_MAGIC, SEGMENT_BOUNDARY_MAGIC } from "@raceiq/capture-formats/session/framing";
 import { buildLapsZip, LAPS_ZIP_VERSION, type LapsZipManifest } from "../../src/laps/archive";
 import {
   createIRacingSourceDecoderState,
@@ -52,7 +52,7 @@ function makeCapture(frameCount: number): Buffer {
     buf.writeUInt32LE(PAYLOAD, at);
     buf.writeUInt8(i, at + 4);
   }
-  return buf;
+  return Buffer.concat([buf, encodeSparseCaptureFormatFrame()]);
 }
 
 function makeF1Capture(frameCount: number): Buffer {
@@ -85,7 +85,7 @@ function makeF1Capture(frameCount: number): Buffer {
     buf.writeBigUInt64LE(1n, at + 11);
     buf.writeUInt8(0, at + 31);
   }
-  return buf;
+  return Buffer.concat([buf, encodeSparseCaptureFormatFrame()]);
 }
 
 /** Frame indices present in exported ordinary records; tagged boundaries skipped. */
@@ -94,13 +94,11 @@ function frameIndices(slice: Buffer): number[] {
   let at = META;
   while (at + 4 <= slice.length) {
     const len = slice.readUInt32LE(at);
-    if (
-      slice.readUInt32LE(at) === META_FRAME_MAGIC &&
-      slice.readUInt32LE(at + 4) === 8 &&
-      at + 16 <= slice.length &&
-      slice.readUInt32LE(at + 8) === SEGMENT_BOUNDARY_MAGIC
-    ) {
-      at += 16;
+    if (len === META_FRAME_MAGIC) {
+      if (at + 8 > slice.length) break;
+      const payloadLength = slice.readUInt32LE(at + 4);
+      if (at + 8 + payloadLength > slice.length) break;
+      at += 8 + payloadLength;
       continue;
     }
     if (len <= 0 || at + 4 + len > slice.length) break;
@@ -298,7 +296,7 @@ describe("buildLapsZip", () => {
     });
     const meta = makeCapture(0).subarray(0, META);
     const path = `${process.env.DATA_DIR ?? "."}/zip-test-iracing-${Date.now()}.bin`;
-    await Bun.write(path, Buffer.concat([meta, ...records]));
+    await Bun.write(path, Buffer.concat([meta, ...records, encodeSparseCaptureFormatFrame()]));
     tmpFiles.push(path);
 
     const sid = await insertSession(path, "iracing");

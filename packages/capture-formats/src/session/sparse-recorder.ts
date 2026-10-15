@@ -5,6 +5,7 @@ import { encodeKunosSparseFrame } from "./kunos-sparse";
 import { encodeLmuSparseFrame } from "./lmu-sparse";
 import { encodeGenericSparseFrame, genericFrameIdentity } from "./generic-sparse";
 import { SessionRecorder } from "./recorder";
+import { encodeSparseCaptureFormatFrame } from "./framing";
 
 const CHECKPOINT_INTERVAL = 128;
 
@@ -73,15 +74,21 @@ export class SparseSessionRecorder extends SessionRecorder {
     super();
     this.encoder = new SparseCaptureEncoder(gameId);
   }
+  private sparseFormatMarkerWritten = false;
 
   override start(path: string): string {
     this.encoder.reset();
+    this.sparseFormatMarkerWritten = false;
     return super.start(path);
   }
 
   override writeRecord(frame: Buffer, frameTimeMs?: number): void {
     if (!this.recording) return;
     super.writeRecord(this.encoder.encode(frame, this.getCurrentByteOffset()), frameTimeMs);
+    if (!this.sparseFormatMarkerWritten) {
+      super.writeRawCaptureBytes(encodeSparseCaptureFormatFrame());
+      this.sparseFormatMarkerWritten = true;
+    }
   }
 
   override writeRawCaptureBytes(bytes: Buffer): void {

@@ -37,11 +37,7 @@ export function TuneSetupChat({
 }: {
   sessionId: number;
   headVersionId: number | null;
-  /** Compact text summary of whatever lap review is currently open in the
-   *  Review Laps dashboard next to this chat (see TuneReviewDashboard's
-   *  `onOpenLapContextChange`) — re-read on every message send, so switching
-   *  the focused lap updates what the agent sees without needing a new chat
-   *  turn or a runtime remount. Omitted/undefined when no review is open. */
+  /** Supplemental review detail; server branch evidence remains authoritative. */
   extendedContext?: string | null;
 }) {
   const queryClient = useQueryClient();
@@ -53,7 +49,7 @@ export function TuneSetupChat({
       historyQueryKey={["experiment-chat-history", sessionId]}
       remountKey={`${sessionId}:${headVersionId ?? "none"}`}
       compactThreadId={`tune-session-${sessionId}`}
-      extraBody={extendedContext ? { extendedContext } : undefined}
+      extraBody={{ headVersionId, ...(extendedContext ? { extendedContext } : {}) }}
       onFinish={() => {
         queryClient.invalidateQueries({ queryKey: ["experiment-tests", sessionId] });
         queryClient.invalidateQueries({ queryKey: ["experiment", sessionId] });

@@ -62,10 +62,12 @@ export const AC_EVO_SETUP_SCHEMA: readonly SectionDef[] = [
     ],
   },
   {
-    key: "dampers", label: "Dampers", description: "Bump and rebound use the first decoded corner on each axle.", tab: "Dampers", storage: "flat",
+    key: "dampers", label: "Dampers", description: "Per-wheel bump and axle rebound settings.", tab: "Dampers", storage: "flat",
     fields: [
-      knob("frontBump", "Front bump", "level", "setup.dampers.compression"),
-      knob("rearBump", "Rear bump", "level", "setup.dampers.compression"),
+      knob("frontLeftBump", "Front left bump", "level", "setup.dampers.compression"),
+      knob("frontRightBump", "Front right bump", "level", "setup.dampers.compression"),
+      knob("rearLeftBump", "Rear left bump", "level", "setup.dampers.compression"),
+      knob("rearRightBump", "Rear right bump", "level", "setup.dampers.compression"),
       knob("frontRebound", "Front rebound", "level", "setup.dampers.rebound"),
       knob("rearRebound", "Rear rebound", "level", "setup.dampers.rebound"),
     ],
@@ -80,3 +82,19 @@ export const AC_EVO_SETUP_SCHEMA: readonly SectionDef[] = [
     ],
   },
 ];
+/** Expand legacy axle bump values without overwriting explicitly saved wheel values. */
+export function normalizeAcEvoTuneSettings(settings: Record<string, unknown>): Record<string, unknown> {
+  const normalized = { ...settings };
+  for (const [axle, left, right] of [
+    ["frontBump", "frontLeftBump", "frontRightBump"],
+    ["rearBump", "rearLeftBump", "rearRightBump"],
+  ] as const) {
+    const value = settings[axle];
+    if (typeof value !== "number" || !Number.isFinite(value)) continue;
+    if (!(typeof normalized[left] === "number" && Number.isFinite(normalized[left]))) normalized[left] = value;
+    if (!(typeof normalized[right] === "number" && Number.isFinite(normalized[right]))) normalized[right] = value;
+  }
+  delete normalized.frontBump;
+  delete normalized.rearBump;
+  return normalized;
+}

@@ -17,6 +17,8 @@ export const SEGMENT_BOUNDARY_VERSION = 1;
 export const SEGMENT_CONTEXT_MAGIC = 0x58544753;
 export const SEGMENT_CONTEXT_VERSION = 1;
 export const SEGMENT_CONTEXT_END_MAGIC = 0x454e4353;
+export const SPARSE_CAPTURE_FORMAT_MAGIC = 0x31505352;
+export const SPARSE_CAPTURE_FORMAT_VERSION = 1;
 export const SESSION_SEGMENT_BOUNDARY = Symbol("session-segment-boundary");
 export const SESSION_SEGMENT_CONTEXT = Symbol("session-segment-context");
 export const SESSION_SEGMENT_CONTEXT_END = Symbol("session-segment-context-end");
@@ -60,6 +62,14 @@ export function encodeSegmentContextEndFrame(): Buffer {
   frame.writeUInt32LE(SEGMENT_CONTEXT_VERSION, 12);
   return frame;
 }
+export function encodeSparseCaptureFormatFrame(): Buffer {
+  const frame = Buffer.alloc(16);
+  frame.writeUInt32LE(META_FRAME_MAGIC, 0);
+  frame.writeUInt32LE(8, 4);
+  frame.writeUInt32LE(SPARSE_CAPTURE_FORMAT_MAGIC, 8);
+  frame.writeUInt32LE(SPARSE_CAPTURE_FORMAT_VERSION, 12);
+  return frame;
+}
 const TIMESTAMPED_LENGTH_FLAG = 0x80000000;
 const MAX_FRAME_LENGTH = 16 * 1024 * 1024;
 const MAX_SAFE_FRAME_TIME_MS = BigInt(Number.MAX_SAFE_INTEGER);
@@ -100,6 +110,32 @@ function readRecorderFrameStreamStart(bytes: Buffer): number {
 }
 interface SessionFrameRecord { offset: number; frame: Buffer; frameTimeMs?: number }
 interface SessionFrameIterationOptions { skipMetaFrames?: boolean; allowEmptyFrames?: boolean; }
+
+/** True when capture carries the sparse format marker or a checkpointed delta record. */
+export function containsSparseCaptureFrames(bytes: Buffer): boolean {
+  let offset = readRecorderFrameStreamStart(bytes);
+  while (offset + 4 <= bytes.length) {
+    if (bytes.readUInt32LE(offset) === META_FRAME_MAGIC) {
+      if (offset + 8 > bytes.length) return false;
+      const payloadBytes = bytes.readUInt32LE(offset + 4);
+      if (offset + 8 + payloadBytes > bytes.length) return false;
+      if (payloadBytes === 8 &&
+          bytes.readUInt32LE(offset + 8) === SPARSE_CAPTURE_FORMAT_MAGIC &&
+          bytes.readUInt32LE(offset + 12) === SPARSE_CAPTURE_FORMAT_VERSION) return true;
+      offset += 8 + payloadBytes;
+      continue;
+    }
+    const prefix = readFramePrefix(bytes, offset);
+    if (!prefix || prefix.length === 0) return false;
+    const payloadOffset = offset + prefix.prefixBytes;
+    if (payloadOffset + prefix.length > bytes.length) return false;
+    const payload = bytes.subarray(payloadOffset, payloadOffset + prefix.length);
+    if (isLmuSparseFrame(payload) || isKunosSparseFrame(payload) || isGenericSparseFrame(payload)) return true;
+    offset = payloadOffset + prefix.length;
+  }
+  return false;
+}
+
 
 export function* iterateSessionCaptureRecords(bytes: Buffer, requestedOffset = readRecorderFrameStreamStart(bytes)): Generator<SessionCaptureRecord> {
   let offset = readRecorderFrameStreamStart(bytes);
@@ -221,12 +257,31 @@ export function sessionFrameAt(bytes: Buffer, offset: number): Buffer | null {
 }
 export function advanceSessionFrames(bytes: Buffer, offset: number, count: number): number {
   let at = offset;
-  for (let i = 0; i < count; i++) {
-    if (at < 0 || at + 4 > bytes.length) break;
+  let advanced = 0;
+  while (advanced < count && at + 4 <= bytes.length) {
+    if (
+      at + 16 <= bytes.length &&
+      bytes.readUInt32LE(at) === META_FRAME_MAGIC &&
+      bytes.readUInt32LE(at + 4) === 8 &&
+      bytes.readUInt32LE(at + 8) === SPARSE_CAPTURE_FORMAT_MAGIC &&
+      bytes.readUInt32LE(at + 12) === SPARSE_CAPTURE_FORMAT_VERSION
+    ) {
+      at += 16;
+      continue;
+    }
     const prefix = readFramePrefix(bytes, at);
     if (!prefix || prefix.length === 0 || at + prefix.prefixBytes + prefix.length > bytes.length) break;
     at += prefix.prefixBytes + prefix.length;
+    advanced++;
   }
+  while (
+    advanced === count &&
+    at + 16 <= bytes.length &&
+    bytes.readUInt32LE(at) === META_FRAME_MAGIC &&
+    bytes.readUInt32LE(at + 4) === 8 &&
+    bytes.readUInt32LE(at + 8) === SPARSE_CAPTURE_FORMAT_MAGIC &&
+    bytes.readUInt32LE(at + 12) === SPARSE_CAPTURE_FORMAT_VERSION
+  ) at += 16;
   return at;
 }
 export function isGzip(bytes: Uint8Array): boolean { return bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b; }

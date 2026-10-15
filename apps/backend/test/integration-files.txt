@@ -18,6 +18,7 @@ apps/backend/test/ai/prompts/tune-chat-intent-prompt.test.ts
 apps/backend/test/ai/prompts/tune-chat-prompt.test.ts
 apps/backend/test/ai/providers/analysis-provider-binding.test.ts
 apps/backend/test/ai/providers/google-provider-options.test.ts
+apps/backend/test/ai/chat/chat-route-context.test.ts
 apps/backend/test/ai/providers/lm-studio-context.test.ts
 apps/backend/test/ai/providers/lm-studio-e2e.test.ts
 apps/backend/test/ai/providers/local-provider-auth.test.ts
@@ -65,6 +66,9 @@ apps/backend/test/experiments/drills/focus.test.ts
 apps/backend/test/experiments/drills/record.test.ts
 apps/backend/test/experiments/drills/setup-lineage.test.ts
 apps/backend/test/experiments/drills/undo.test.ts
+apps/backend/test/experiments/chat-branch-context.test.ts
+apps/backend/test/experiments/chat-branch-evidence.test.ts
+apps/backend/test/experiments/drills/atomic-chat-mutations.test.ts
 apps/backend/test/experiments/drills/versions.test.ts
 apps/backend/test/games/kunos/shared-memory-replay.test.ts
 apps/backend/test/games/shared/release-game-registration.test.ts
@@ -87,7 +91,6 @@ apps/backend/test/race-results/race-results-derive.test.ts
 apps/backend/test/race-results/race-results-source.test.ts
 apps/backend/test/race-results/race-results-storage.test.ts
 apps/backend/test/race-results/raw-capture-identity.test.ts
-apps/backend/test/routes/capture-migration-consent.test.ts
 apps/backend/test/routes/car-routes-game-id.test.ts
 apps/backend/test/routes/diagnostics-routes.test.ts
 apps/backend/test/routes/import-ownership.test.ts
@@ -114,9 +117,7 @@ apps/backend/test/runtime/tray.test.ts
 apps/backend/test/runtime/update-check.test.ts
 apps/backend/test/runtime/update-github.integration.test.ts
 apps/backend/test/runtime/websocket-manager.test.ts
-apps/backend/test/session-capture/all-game-import-migration.test.ts
 apps/backend/test/session-capture/automatic-cleanup.test.ts
-apps/backend/test/session-capture/capture-migration.test.ts
 apps/backend/test/session-capture/context-markers.test.ts
 apps/backend/test/session-capture/dashboard-processing.test.ts
 apps/backend/test/session-capture/elapsed-duration.test.ts
@@ -138,6 +139,7 @@ apps/backend/test/setups/ac-evo/carsetup-file-io.test.ts
 apps/backend/test/setups/ac-evo/place-setup-carsetup.test.ts
 apps/backend/test/setups/ac-evo/setup-file-formats.test.ts
 apps/backend/test/setups/catalog.test.ts
+apps/backend/test/setups/engineer/setup-artifact-ownership.test.ts
 apps/backend/test/setups/engineer/setup-engineer-apply-guard.test.ts
 apps/backend/test/setups/engineer/setup-engineer-confirmation.test.ts
 apps/backend/test/setups/engineer/setup-engineer-tools.test.ts
@@ -193,3 +195,5 @@ apps/backend/test/tracks/track-coverage.test.ts
 apps/backend/test/tracks/visualization/acc-boundary-viz.test.ts
 apps/backend/test/tracks/visualization/iracing-track-segment-viz.test.ts
 apps/backend/test/tracks/visualization/track-segment-viz.test.ts
+apps/backend/test/lap-analysis/telemetry-replay-running-start.test.ts
+apps/backend/test/lap-analysis/corner-resolution.test.ts

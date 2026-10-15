@@ -7,7 +7,7 @@ Database and lap-file maintenance commands. Run from repository root; `DATA_DIR`
 | Command | Inputs / flags | Outputs / side effects |
 | --- | --- | --- |
 | `bun run apps/backend/scripts/data/seed-db.ts` | Optional `--games=fm-2023,f1-2025,acc,ac-evo,iracing,lmu` (or `--games <list>`) | Imports checked-in session fixtures, creates demo profile/tunes/experiments/analyses, marks onboarding complete, writes captured sessions under `DATA_DIR` |
-| `bun run apps/backend/scripts/data/seed-db.ts --clean` | Optional `--games` | Deletes all database rows and referenced captured-session files, preserves schema migrations, then recreates seed data; destructive |
+| `bun run apps/backend/scripts/data/seed-db.ts --clean` | Optional `--games`; stop the server first | Deletes the database, SQLite sidecars, and dashboard access marker before recreating schema and seed data; resets dashboard passwords, network settings, and login sessions; leaves other files in `DATA_DIR` intact; destructive |
 | `bun run apps/backend/scripts/data/seed-db.ts --reset` | Optional `--games`, `--force` | Deletes rows/files marked by seed marker, then recreates seed data; `--reset` is destructive |
 | `bun run apps/backend/scripts/data/seed-db.ts --force` | Optional `--games` | Allows seeding database containing non-seed rows; use disposable `DATA_DIR` instead when possible |
 | `bun run apps/backend/scripts/data/backfill-unknown-cars.ts` | AC Evo sessions with raw captures in `DATA_DIR` | Re-reads captures and updates unresolved car ordinals; skips unresolved/corrupt captures |
@@ -17,6 +17,7 @@ Database and lap-file maintenance commands. Run from repository root; `DATA_DIR`
 | `bun run packages/tooling-data/src/data/reprocess-today-f1.ts` | Optional `SERVER` URL (default `http://localhost:3117`) | POSTs reprocess requests for today's F1 2025 sessions with raw captures |
 
 Seed fixtures are listed explicitly in `seed-db-options.ts`, including LMU split recordings under `test/artifacts/laps/`. Seed initialization order remains explicit: `initDb()`, shared game adapters, server game adapters. Seed cleanup always stops telemetry maintenance and closes database client, including failures.
+Seed imports source fixtures through `SparseSessionRecorderAdapter`, writing sparse canonical captures instead of preserving the fixture's legacy storage format.
 
 Playwright uses the same six-game seed list for local servers and CI artifact production. `playwright/support/server/prepare-seeded-database.ts` validates replayable captures and saved Analyse/Compare chat histories, then checkpoints both SQLite databases. Seed artifacts contain `app.db`, `chat-memory.db`, and `sessions/`; every seeded shard restores its own copies. Runtime settings and setup-home fixtures remain owned by the server launcher.
 
