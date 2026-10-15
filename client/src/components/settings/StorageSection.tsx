@@ -14,7 +14,7 @@ import { RecordingDirectoryControl } from "./RecordingDirectoryControl";
 import { RecordingLayoutMigration } from "@/components/RecordingLayoutMigration";
 import { m } from "@/paraglide/messages";
 import { formatBytes } from "@/lib/format-bytes";
-import { authenticatedFetch } from "@/lib/rpc";
+import { authenticatedFetch, client } from "@/lib/rpc";
 import { useSaveSettings, useSettings } from "../../hooks/settings";
 interface CacheStatus {
   bytesUsed: number;
@@ -50,69 +50,6 @@ function StatRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function DonutChart({ binCount, gzCount }: { binCount: number; gzCount: number }) {
-  const total = binCount + gzCount;
-  if (total === 0) return null;
-
-  const r = 40;
-  const cx = 60;
-  const cy = 60;
-  const circumference = 2 * Math.PI * r;
-  const gzFraction = gzCount / total;
-  const binFraction = binCount / total;
-
-  const gzDash = gzFraction * circumference;
-  const binDash = binFraction * circumference;
-  const binOffset = -(gzFraction * circumference);
-
-  return (
-    <div className="flex items-center gap-6">
-      <svg width="120" height="120" viewBox="0 0 120 120">
-        <circle
-          cx={cx}
-          cy={cy}
-          r={r}
-          fill="none"
-          stroke="var(--storage-compressed)"
-          strokeWidth="16"
-          strokeDasharray={`${gzDash} ${circumference - gzDash}`}
-          strokeDashoffset={circumference / 4}
-          strokeLinecap="butt"
-        />
-        <circle
-          cx={cx}
-          cy={cy}
-          r={r}
-          fill="none"
-          stroke="var(--app-text)"
-          strokeOpacity={0.13}
-          strokeWidth="16"
-          strokeDasharray={`${binDash} ${circumference - binDash}`}
-          strokeDashoffset={circumference / 4 + binOffset}
-          strokeLinecap="butt"
-        />
-        <text x={cx} y={cy - 6} textAnchor="middle" fill="var(--app-text)" fontSize="18" fontWeight="var(--font-weight-semibold)">
-          {total}
-        </text>
-        <text x={cx} y={cy + 10} textAnchor="middle" fill="var(--app-text)" fillOpacity={0.4} fontSize="10">
-          {m.storage_files()}
-        </text>
-      </svg>
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="size-3 rounded-sm flex-shrink-0" style={{ backgroundColor: "var(--storage-compressed)" }} />
-          <span className="text-xs text-app-text-secondary">{m.storage_compressed()}</span>
-          <span className="text-xs font-medium text-app-text ml-auto pl-4">{gzCount}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="size-3 rounded-sm bg-app-text/20 flex-shrink-0" />
-          <span className="text-xs text-app-text-secondary">{m.storage_uncompressed()}</span>
-          <span className="text-xs font-medium text-app-text ml-auto pl-4">{binCount}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function GameBreakdown({ gameId, stats }: { gameId: string; stats: GameStorageStats }) {
   const total = stats.binCount + stats.gzCount;
@@ -243,7 +180,7 @@ function CacheSection() {
 function StorageFilesSection() {
   const { data, isLoading, isError, refetch } = useQuery<SessionStorageStats>({
     queryFn: async () => {
-      const response = await fetch("/api/storage/sessions");
+      const response = await client.api.storage.sessions.$get();
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
       return response.json() as Promise<SessionStorageStats>;
     },
@@ -277,7 +214,9 @@ function StorageFilesSection() {
     if (result.failed.length === 0) setCleanupRequest(null);
   };
 
-  const gameEntries = data?.byGame ? Object.entries(data.byGame) : [];
+  const gameEntries = data?.byGame
+    ? Object.entries(data.byGame).filter(([, stats]) => stats.binCount + stats.gzCount > 0)
+    : [];
 
   return (
     <section className="space-y-6">
@@ -287,62 +226,16 @@ function StorageFilesSection() {
             <HardDrive className="size-4 text-app-text-dim" aria-hidden="true" />
             {m.storage_recording_files_title()}
           </h3>
-          <Button variant="app-outline" size="app-sm" disabled={movingDirectory} onClick={() => setCleanupRequest({ mode: "older-than", olderThanDays: 30 })}>
-            {m.sessions_cleanup_free_space()}
-          </Button>
         </div>
+        {data && !isLoading && <p className="mb-4 text-sm font-medium text-app-text">{m.storage_recording_summary({ files: data.total, size: formatBytes(data.totalBytes) })}</p>}
         <RecordingDirectoryControl disabled={isLoading || isError || !settingsLoaded} />
+        <p className="my-3 text-sm text-app-text-secondary">{m.storage_recording_files_desc_suffix()}</p>
         <RecordingLayoutMigration compact />
-        <p className="text-xs text-app-text-dim mb-4">
-          {m.storage_recording_files_desc_prefix()} <code className="break-all font-mono">{displaySettings.resolvedRecordingDirectory ?? ""}</code>. {m.storage_recording_files_desc_suffix()}
-        </p>
         {isLoading && <p className="text-sm text-app-text-dim">{m.common_loading()}</p>}
         {isError && (
           <p className="text-sm text-status-danger" role="alert">
             {m.storage_load_failed()}
           </p>
-        )}
-        <div className="mb-5 space-y-3 rounded-lg border border-app-border bg-app-surface-alt/50 p-4">
-          <div className="flex items-center gap-3">
-            <Switch
-              id="automatic-session-cleanup"
-              checked={displaySettings.sessionCleanupEnabled}
-              disabled={saveSettings.isPending}
-              onCheckedChange={(checked) => {
-                setCleanupSettingsError("");
-                saveSettings.mutate({ sessionCleanupEnabled: checked }, {
-                  onError: () => setCleanupSettingsError(m.storage_save_failed()),
-                });
-              }}
-            />
-            <Label htmlFor="automatic-session-cleanup">{m.storage_auto_cleanup_label()}</Label>
-          </div>
-          <p className="text-xs text-app-text-dim">{m.storage_auto_cleanup_desc()}</p>
-          <div className="flex items-center gap-3">
-            <Label htmlFor="automatic-session-cleanup-age">{m.storage_auto_cleanup_age()}</Label>
-            <select
-              id="automatic-session-cleanup-age"
-              value={displaySettings.sessionCleanupAgeDays}
-              disabled={saveSettings.isPending}
-              onChange={(event) => {
-                setCleanupSettingsError("");
-                saveSettings.mutate({ sessionCleanupAgeDays: Number(event.target.value) as CleanupAgeDays }, {
-                  onError: () => setCleanupSettingsError(m.storage_save_failed()),
-                });
-              }}
-              className="h-8 rounded-md border border-app-border-input bg-app-surface px-2 text-sm text-app-text"
-            >
-              {([30, 90, 180, 365] as const).map((days) => (
-                <option key={days} value={days}>{m.sessions_cleanup_age_option({ days })}</option>
-              ))}
-            </select>
-          </div>
-          {cleanupSettingsError && <p role="alert" className="text-xs text-status-danger">{cleanupSettingsError}</p>}
-        </div>
-        {data && data.total > 0 && (
-          <div className="mb-5">
-            <DonutChart binCount={data.binCount} gzCount={data.gzCount} />
-          </div>
         )}
         {data && (
           <div className="rounded-lg border border-app-border bg-app-surface-alt/50 px-4 divide-y divide-app-border/50 mb-4">
@@ -381,6 +274,48 @@ function StorageFilesSection() {
             {compress.isSuccess && <p className="text-xs text-status-success mt-2">{m.storage_compress_complete()}</p>}
           </div>
         )}
+        <div className="mt-6 space-y-3 border-t border-app-border pt-5">
+          <div className="flex justify-end">
+            <Button variant="app-outline" size="app-sm" disabled={movingDirectory} onClick={() => setCleanupRequest({ mode: "older-than", olderThanDays: 30 })}>
+              {m.sessions_cleanup_free_space()}
+            </Button>
+          </div>
+          <div className="flex items-center gap-3">
+            <Switch
+              id="automatic-session-cleanup"
+              checked={displaySettings.sessionCleanupEnabled}
+              disabled={saveSettings.isPending}
+              onCheckedChange={(checked) => {
+                setCleanupSettingsError("");
+                saveSettings.mutate({ sessionCleanupEnabled: checked }, {
+                  onError: () => setCleanupSettingsError(m.storage_save_failed()),
+                });
+              }}
+            />
+            <Label htmlFor="automatic-session-cleanup">{m.storage_auto_cleanup_label()}</Label>
+          </div>
+          <p className="text-xs text-app-text-dim">{m.storage_auto_cleanup_desc()}</p>
+          <div className="flex items-center gap-3">
+            <Label htmlFor="automatic-session-cleanup-age">{m.storage_auto_cleanup_age()}</Label>
+            <select
+              id="automatic-session-cleanup-age"
+              value={displaySettings.sessionCleanupAgeDays}
+              disabled={saveSettings.isPending}
+              onChange={(event) => {
+                setCleanupSettingsError("");
+                saveSettings.mutate({ sessionCleanupAgeDays: Number(event.target.value) as CleanupAgeDays }, {
+                  onError: () => setCleanupSettingsError(m.storage_save_failed()),
+                });
+              }}
+              className="h-8 rounded-md border border-app-border-input bg-app-surface px-2 text-sm text-app-text"
+            >
+              {([30, 90, 180, 365] as const).map((days) => (
+                <option key={days} value={days}>{m.sessions_cleanup_age_option({ days })}</option>
+              ))}
+            </select>
+          </div>
+          {cleanupSettingsError && <p role="alert" className="text-xs text-status-danger">{cleanupSettingsError}</p>}
+        </div>
       </div>
     </section>
   );

@@ -99,15 +99,17 @@ export function RecordingLayoutMigration({ compact = false, onSuccessDismissed }
       </DialogFooter>}
     </DialogContent>
   </Dialog>;
+  if (compact && status.isSuccess && !running && !completed && !retryable && !hasWork && !pendingTarget && !selecting) return null;
   if (!compact) return dialog;
   return <section className="space-y-3 rounded-lg border border-app-border bg-app-surface-alt/50 p-4" aria-labelledby="recording-layout-migration-maintenance-title">
     <div className="flex flex-wrap items-center justify-between gap-3"><h3 id="recording-layout-migration-maintenance-title" className="text-sm font-semibold">{m.recording_layout_migration_title()}</h3><Button type="button" variant="app-outline" size="app-sm" disabled={status.isFetching} onClick={() => void status.refetch()}>{m.recording_layout_migration_refresh()}</Button></div>
-    <p className="break-all font-mono text-xs text-app-text-muted">{pendingTarget ?? status.data?.directory}</p>
-    {status.data && <p className="text-xs text-app-text-secondary">{m.recording_layout_migration_count({ files: status.data.fileCount, sessions: status.data.sessionCount })}</p>}
+    {status.isPending && <p role="status" className="text-sm text-app-text-secondary">{m.recording_layout_migration_checking()}</p>}
+    {pendingTarget && <p className="break-all font-mono text-xs text-app-text-muted">{pendingTarget}</p>}
+    {status.data && status.data.fileCount > 0 && !running && !completed && <p className="text-sm text-app-text-secondary">{m.recording_layout_migration_count({ files: status.data.fileCount, sessions: status.data.sessionCount })}</p>}
     {errors}
     {running && <Progress done={progress?.done ?? 0} total={progress?.total ?? 0} percent={percent} />}
     {completed && <p role="status" className="text-xs text-status-success">{m.recording_layout_migration_success({ migrated: progress.migrated })}</p>}
-    {!running && hasWork && !completed && <Button type="button" variant="app-primary" onClick={() => setChoiceOpen(true)}>{retryable ? m.recording_layout_migration_retry() : m.common_apply()}</Button>}
+    {!running && hasWork && !completed && <Button type="button" variant="app-primary" onClick={() => setChoiceOpen(true)}>{retryable ? m.recording_layout_migration_retry() : m.recording_layout_migration_action()}</Button>}
     {dialog}
   </section>;
 }
