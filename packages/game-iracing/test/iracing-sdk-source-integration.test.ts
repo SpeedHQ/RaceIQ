@@ -59,6 +59,46 @@ class CapturingIRacingRecorder extends IRacingRecorder {
 }
 
 describe("iRacing source ownership integration", () => {
+  test("repeated start owns one polling loop and stop releases it", async () => {
+    const callbacks = new Map<number, () => void>();
+    let nextTimerId = 0;
+    let starts = 0;
+    let reads = 0;
+    const timerSpy = spyOn(globalThis, "setInterval").mockImplementation(((callback: TimerHandler, ..._args: unknown[]) => {
+      const id = ++nextTimerId;
+      callbacks.set(id, callback as () => void);
+      return id as never;
+    }) as typeof setInterval);
+    const clearSpy = spyOn(globalThis, "clearInterval").mockImplementation((id) => {
+      callbacks.delete(Number(id));
+    });
+    const initialRefCount = timerResolutionRefCount();
+    const source = new IRacingTelemetrySource({
+      reader: {
+        start() { starts++; },
+        async stop() {},
+        readLatest() { reads++; return null; },
+      },
+    });
+    try {
+      source.start();
+      source.start();
+      for (const callback of callbacks.values()) callback();
+      expect(starts).toBe(1);
+      expect(reads).toBe(1);
+      if (process.platform === "win32") expect(timerResolutionRefCount()).toBe(initialRefCount + 1);
+      await source.stop();
+      for (const callback of callbacks.values()) callback();
+      expect(reads).toBe(1);
+      expect(callbacks.size).toBe(0);
+      expect(timerResolutionRefCount()).toBe(initialRefCount);
+    } finally {
+      await source.stop();
+      timerSpy.mockRestore();
+      clearSpy.mockRestore();
+    }
+  });
+
   test.skipIf(process.platform !== "win32")("holds high-resolution timer while polling iRacing", async () => {
     const initialRefCount = timerResolutionRefCount();
     const reader: IRacingFrameReader = { start() {}, async stop() {}, readLatest: () => null };

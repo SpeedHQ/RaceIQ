@@ -1,14 +1,27 @@
-import { afterEach, expect, test } from "bun:test";
-import { relative, resolve } from "node:path";
+import { afterEach, beforeAll, expect, test } from "bun:test";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { dirname, relative, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { gunzipSync } from "node:zlib";
 import { eq, inArray } from "drizzle-orm";
-import { db } from "@raceiq/backend-core/db/index";
+import { db, client } from "@raceiq/backend-core/db/index";
 import { commitSessionDownsample, commitSessionDownsampleCap } from "@raceiq/backend-core/db/lap-reprocessing-queries";
 import { compareAnalyses, dashboardSummaryState, experiments, lapAnalyses, lapMetrics, laps, lineSpreadCache, sessions } from "@raceiq/backend-core/db/schema";
-
+import { iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
+import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
+import { initServerGameAdapters } from "../../src/games/init";
+import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
+import { deleteSession } from "@raceiq/backend-core/db/session-queries";
+import { processDashboardSession } from "@raceiq/backend-core/session-capture/dashboard-processor";
 const trackedSessions: number[] = [];
 const trackedLaps: number[] = [];
 const trackedExperiments: number[] = [];
 const path = resolve("recording-publication-test.bin");
+const fixture = resolve(import.meta.dir, "../../../../test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz");
+const tempDirs: string[] = [];
+
+beforeAll(() => initServerGameAdapters(developmentReleaseFeatures));
+
 const newPath = resolve("recording-publication-test-downsample.bin");
 
 async function seedSession(rawFile = path, cap: number | null = null) {
@@ -58,15 +71,49 @@ async function clean() {
   }
   if (trackedSessions.length) {
     await db.delete(dashboardSummaryState).where(inArray(dashboardSummaryState.sessionId, trackedSessions));
-    await db.delete(sessions).where(inArray(sessions.id, trackedSessions));
-    trackedSessions.length = 0;
+    for (const id of trackedSessions.splice(0)) await deleteSession(id);
   }
   if (trackedExperiments.length) {
-    await db.delete(lineSpreadCache).where(inArray(lineSpreadCache.experimentId, trackedExperiments));
-    await db.delete(experiments).where(inArray(experiments.id, trackedExperiments.splice(0)));
+    const experimentIds = trackedExperiments.splice(0);
+    await db.delete(lineSpreadCache).where(inArray(lineSpreadCache.experimentId, experimentIds));
+    await db.delete(experiments).where(inArray(experiments.id, experimentIds));
   }
+  for (const dir of tempDirs.splice(0)) await rm(dir, { recursive: true, force: true });
 }
 afterEach(clean);
+
+test("validated publication makes capture facts processable without postcommit finalization", async () => {
+  const dir = await mkdtemp(resolve(tmpdir(), "downsample-publication-"));
+  tempDirs.push(dir);
+  const converted = await convertSeedFramesToSparse("acc", iterateSessionFrames(gunzipSync(await readFile(fixture))));
+  tempDirs.push(dirname(converted.path));
+  const replacement = resolve(dir, "replacement.bin");
+  await writeFile(replacement, await readFile(converted.path));
+  const session = await db.insert(sessions).values({
+    gameId: "acc", carId: "7", trackId: "8", ownership: "mine",
+    createdAt: "2026-04-23T16:42:16.158Z", sessionType: "practice", rawFile: converted.path,
+  }).returning({ id: sessions.id }).get();
+  trackedSessions.push(session.id);
+  await commitSessionDownsample({
+    oldRawFile: converted.path, newRawFile: replacement, sessionIds: [session.id], targetHz: 50, lapIndexes: [],
+  });
+  expect(await db.select().from(dashboardSummaryState).where(eq(dashboardSummaryState.sessionId, session.id)).get())
+    .toMatchObject({ captureDirty: 1, captureReady: 1 });
+  expect(await processDashboardSession(session.id)).toBe(true);
+  const summary = await client.execute({
+    sql: `SELECT st.capture_dirty, st.source_revision, st.published_revision,
+      p.duration_status, p.sector_status, p.weather_status
+      FROM dashboard_summary_state st JOIN dashboard_session_summaries p ON p.session_id=st.session_id
+      WHERE st.session_id=?`,
+    args: [session.id],
+  });
+  const facts = summary.rows[0];
+  expect(facts?.capture_dirty).toBe(0);
+  expect(facts?.published_revision).toBe(facts?.source_revision);
+  expect(facts?.duration_status).toMatch(/^(available|unavailable)$/);
+  expect(facts?.sector_status).toMatch(/^(available|unavailable)$/);
+  expect(facts?.weather_status).toMatch(/^(available|unavailable)$/);
+});
 
 test("full publication atomically updates shared aliases and indexes while preserving user metadata and invalidating derived data", async () => {
   const first = await seedSession(path, 90);
@@ -126,7 +173,7 @@ test("full publication atomically updates shared aliases and indexes while prese
       .from(dashboardSummaryState)
       .where(inArray(dashboardSummaryState.sessionId, [first, second]))
       .all(),
-  ).toEqual(expect.arrayContaining([expect.objectContaining({ captureDirty: 1, captureReady: 0 })]));
+  ).toEqual(expect.arrayContaining([expect.objectContaining({ captureDirty: 1, captureReady: 1 })]));
 });
 
 test("cap-only publication preserves lower caps and leaves indexes and derived caches intact", async () => {

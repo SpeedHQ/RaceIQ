@@ -16,7 +16,6 @@ import { cacheDelete } from "../db/telemetry-replay-storage";
 import { isSessionActive } from "../telemetry/live-pipeline";
 import { hasPendingLayoutMigration } from "./layout-migration";
 import { listSessionCaptureFiles, withSessionCaptureMaintenanceLock } from "./cleanup";
-import { releaseDashboardCaptureCheckpoint } from "./dashboard-processor";
 import { loadSettings } from "../runtime/config/settings";
 import { isRecordingRetentionPolicyValid } from "@raceiq/shared/platform/runtime/recording-frequency";
 import { Cause, Deferred, Effect, Fiber, Ref } from "effect";
@@ -529,7 +528,6 @@ export async function executeSessionDownsampleGroup(request: SessionDownsampleRe
       for (const path of new Set([group.path, newPath, ...group.rows.flatMap((row) => (row.rawFile ? [row.rawFile] : []))])) {
         clearSessionCaptureCache(path);
       }
-      for (const id of sessionIds) await releaseDashboardCaptureCheckpoint(id);
       const refs = await db.select({ rawFile: sessions.rawFile }).from(sessions).where(isNotNull(sessions.rawFile)).all();
       if (refs.some((row) => row.rawFile !== null && resolve(row.rawFile) === group.path)) {
         return { kind: "converted", sessionIds, freedBytes: 0, warning: "Original recording remains referenced; source was not removed" };

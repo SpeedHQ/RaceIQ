@@ -75,7 +75,7 @@ type StreamState = {
   previousTime: number | null;
   fmWrap: number;
 };
-type LapState = { start: number; end: number; first: TelemetryPoint | null; last: TelemetryPoint | null; f1EndpointTelemetry: Map<number, { first: TelemetryPoint; last: TelemetryPoint }> };
+type LapState = { start: number; end: number; first: TelemetryPoint | null; last: TelemetryPoint | null; f1EndpointTelemetry: Map<string, { first: TelemetryPoint; last: TelemetryPoint }> };
 
 /** Strictly inspects streamed canonical records; retained planning data is O(laps + streams). */
 export async function inspectDownsampleRecording(input: DownsampleRecordingInput): Promise<DownsampleRecordingInspection> {
@@ -106,6 +106,8 @@ export async function inspectDownsampleRecording(input: DownsampleRecordingInput
   const contexts: { startOrdinal: number; endOrdinal: number }[] = [],
     markers: { kind: "segment-boundary" | "segment-context" | "segment-context-end"; ordinal: number }[] = [],
     f1TelemetryCounts: Record<number, number> = {};
+  const latestF1Telemetry = new Map<string, TelemetryPoint>();
+  let currentF1UID: bigint | null = null;
   let latest: TelemetryPoint | null = null,
     ordinal = 0,
     segment = 0,
@@ -116,12 +118,23 @@ export async function inspectDownsampleRecording(input: DownsampleRecordingInput
     telemetryFound = false;
   for await (const record of input.records()) {
     recordsSeen++;
+    if (record.kind === "frame" && input.gameId === "f1-2025") {
+      if (record.frame.length < 29) throw new DownsampleRecordingError("unsupported-format", "Truncated F1 packet");
+      const h = parseF1Header(record.frame);
+      if (h.packetFormat !== 2025) throw new DownsampleRecordingError("unsupported-format", "Invalid F1 packet header");
+      if (currentF1UID !== h.sessionUID) {
+        latestF1Telemetry.clear();
+        currentF1UID = h.sessionUID;
+      }
+    }
     if (record.kind === "segment-boundary") {
       markers.push({ kind: record.kind, ordinal });
       if (inContext) {
         contexts.push({ startOrdinal: contextStart, endOrdinal: ordinal });
         inContext = false;
       }
+      latestF1Telemetry.clear();
+      currentF1UID = null;
       segment++;
       parser.reset();
       iracing = createIRacingSourceDecoderState();
@@ -150,7 +163,15 @@ export async function inspectDownsampleRecording(input: DownsampleRecordingInput
       active.delete(lap);
     }
     for (const index of starts.get(record.offset) ?? []) {
-      const state: LapState = { start: current, end: current + index.rawFrameCount!, first: null, last: null, f1EndpointTelemetry: new Map() };
+      const state: LapState = {
+        start: current,
+        end: current + index.rawFrameCount!,
+        first: null,
+        last: null,
+        f1EndpointTelemetry: new Map(
+          [...latestF1Telemetry].map(([family, point]) => [family, { first: point, last: point }]),
+        ),
+      };
       if (!Number.isSafeInteger(state.end)) throw new DownsampleRecordingError("unsupported-format", `Lap ${index.lapId} frame window is invalid`);
       lapStates.set(index.lapId, state);
       active.add(state);
@@ -187,10 +208,12 @@ export async function inspectDownsampleRecording(input: DownsampleRecordingInput
       const packetId = parseF1Header(record.frame).packetId;
       if (F1_THROTTLED[packetId]) {
         const endpoint = { ordinal: current, timeMs: gameTime };
+        const familyKey = `${currentF1UID}:${packetId}`;
+        latestF1Telemetry.set(familyKey, endpoint);
         for (const lap of active) {
-          const family = lap.f1EndpointTelemetry.get(packetId);
+          const family = lap.f1EndpointTelemetry.get(familyKey);
           if (family) family.last = endpoint;
-          else lap.f1EndpointTelemetry.set(packetId, { first: endpoint, last: endpoint });
+          else lap.f1EndpointTelemetry.set(familyKey, { first: endpoint, last: endpoint });
         }
       }
     }

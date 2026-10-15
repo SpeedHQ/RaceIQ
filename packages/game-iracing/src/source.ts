@@ -101,6 +101,7 @@ export class IRacingTelemetrySource {
   }
 
   start(): void {
+    if (this.running) return;
     this.captureRateLimiter.reset();
     this.pendingSnapshot = null;
     if (this.recordingEnabled && !this.recorder.recording) {

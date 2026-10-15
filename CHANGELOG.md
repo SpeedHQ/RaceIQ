@@ -25,8 +25,10 @@
 
 ### Fixes
 - Keep the selected iRacing capture rate stable despite telemetry arrival jitter without recording duplicate frames.
-- Preserve position, speed, and other lap-endpoint telemetry when downsampling F1 recordings.
+- Preserve position, speed, and other lap-start and lap-end telemetry when downsampling F1 recordings.
 - Show busy-storage conflicts when selecting Compress instead of failing silently.
+- Keep dashboard recording facts available after downsampling, even if final cleanup fails.
+- Prevent repeated iRacing source starts from leaving telemetry polling active after shutdown.
 - Restore migration of existing recordings into organized folders on Windows.
 - Keep experiment lap counts and review analysis tied to the selected test when importing historical laps or returning to an older setup, and preserve test membership during live updates.
 - Keep lap-chat follow-ups grounded in the selected lap and its latest analysis, use fresh telemetry for requested corner measurements, and preserve earlier driver notes without asking for internal lap identifiers.

@@ -96,7 +96,7 @@ export async function commitSessionDownsample(input: {
     for (const experimentId of new Set(checked.lapRows.flatMap((row) => row.experimentId === null ? [] : [row.experimentId]))) {
       await tx.delete(lineSpreadCache).where(eq(lineSpreadCache.experimentId, experimentId));
     }
-    await tx.update(dashboardSummaryState).set({ captureDirty: 1, captureReady: 0 })
+    await tx.update(dashboardSummaryState).set({ captureDirty: 1, captureReady: 1 })
       .where(inArray(dashboardSummaryState.sessionId, checked.sessionIds));
   });
 }

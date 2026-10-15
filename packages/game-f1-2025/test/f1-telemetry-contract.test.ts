@@ -130,6 +130,70 @@ describe("F1 telemetry contract", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+  test("downsample seeds first retained F1 lap sample from its preceding telemetry state", async () => {
+    const root = mkdtempSync(join(tmpdir(), "f1-downsample-lap-seed-"));
+    try {
+      const sourceFrames: Buffer[] = [];
+      const telemetryData = (speed: number) => {
+        const data = Buffer.alloc(60);
+        data.writeUInt16LE(speed, 0);
+        return data;
+      };
+      const add = (id: number, time: number, tick: number, data: Buffer) =>
+        sourceFrames.push(wireFrame(id, time, tick, data));
+      add(0, 0, 0, Buffer.alloc(60));
+      add(1, 0, 0, Buffer.alloc(9));
+      add(2, 0, 0, Buffer.alloc(57));
+      add(6, 0, 0, telemetryData(100));
+      add(6, 0.01, 1, telemetryData(200));
+      add(2, 0.011, 2, Buffer.alloc(57));
+      add(6, 0.02, 3, telemetryData(300));
+      add(2, 0.021, 4, Buffer.alloc(57));
+      add(6, 0.03, 5, telemetryData(400));
+      add(2, 0.031, 6, Buffer.alloc(57));
+      const lapOffset = sourceFrames.slice(0, 5).reduce((offset, value) =>
+        offset + encodeFrameLength(value.length).length + value.length, 0);
+      const source = {
+        gameId: "f1-2025" as const,
+        records: async function* () {
+          let offset = 0;
+          for (const frame of sourceFrames) {
+            yield { kind: "frame" as const, offset, frame };
+            offset += encodeFrameLength(frame.length).length + frame.length;
+          }
+        },
+        createTelemetryParser: () => {
+          const state = f1Parser.createParserState();
+          return {
+            parse(frame: Buffer) {
+              f1Parser.tryParse(frame, state);
+              return f1Parser.canHandle(frame);
+            },
+            reset() { state.reset(); },
+          };
+        },
+        lapIndexes: [{ lapId: 1, rawByteOffset: lapOffset, rawFrameCount: 5 }],
+      };
+      const outputPath = join(root, "replayed.bin");
+      const inspection = await inspectDownsampleRecording(source);
+      const result = await rewriteDownsampleRecording(source, inspection, { targetHz: 50, outputPath, gzip: false });
+      const replayState = f1Parser.createParserState();
+      const lap = result.lapIndexes[0]!;
+      let firstSample: TelemetryPacket | null = null;
+      for (const record of iterateSessionCaptureRecords(decompressIfGzipSync(readFileSync(outputPath)))) {
+        if (record.kind !== "frame") continue;
+        if (record.offset < lap.rawByteOffset) {
+          f1Parser.primeParserState(record.frame, replayState);
+          continue;
+        }
+        firstSample = f1Parser.tryParse(record.frame, replayState) ?? firstSample;
+        if (firstSample) break;
+      }
+      expect(firstSample?.Speed).toBeCloseTo(200 / 3.6);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
   test("normalizes fuel to a fraction and preserves power in watts", () => {
     const accumulator = new F1StateAccumulator();
 

@@ -45,6 +45,68 @@ test("retains each F1 telemetry family state at an interior lap endpoint", async
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("retains latest F1 family update immediately before indexed lap start", async () => {
+  const root = mkdtempSync(join(tmpdir(), "capture-downsample-f1-prelap-"));
+  try {
+    const frame = (packetId: number, time: number, marker: number) => {
+      const value = Buffer.alloc(29);
+      value.writeUInt16LE(2025, 0);
+      value[6] = packetId;
+      value.writeBigUInt64LE(1n, 7);
+      value.writeFloatLE(time, 15);
+      value.writeUInt32LE(marker, 19);
+      return value;
+    };
+    const frames = [
+      frame(6, 0, 100),
+      frame(6, 0.01, 200),
+      frame(2, 0.011, 201),
+      frame(6, 0.02, 300),
+      frame(2, 0.021, 301),
+      frame(6, 0.03, 400),
+      frame(2, 0.031, 401),
+    ];
+    const lapOffset = frames.slice(0, 2).reduce((offset, value) => offset + encodeFrameLength(value.length).length + value.length, 0);
+    const source = {
+      gameId: "f1-2025" as const,
+      records: records(frames),
+      createTelemetryParser: parser,
+      lapIndexes: [{ lapId: 1, rawByteOffset: lapOffset, rawFrameCount: 5 }],
+    };
+    const inspection = await inspectDownsampleRecording(source);
+    expect(inspection.laps[0]?.f1EndpointTelemetry.map(({ first, last }) => [first.ordinal, last.ordinal])).toEqual([[1, 5]]);
+    const outputPath = join(root, "f1-prelap.bin");
+    await rewriteDownsampleRecording(source, inspection, { targetHz: 50, outputPath, gzip: false });
+    const outputFrames = [...iterateSessionCaptureRecords(decompressIfGzipSync(readFileSync(outputPath)))]
+      .filter((record) => record.kind === "frame")
+      .map((record) => record.frame);
+    expect(outputFrames.some((value) => value[6] === 6 && value.readUInt32LE(19) === 200)).toBe(true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+test("does not seed an indexed F1 lap with telemetry from preceding session UID", async () => {
+  const frame = (uid: bigint, packetId: number, time: number) => {
+    const value = Buffer.alloc(29);
+    value.writeUInt16LE(2025, 0);
+    value[6] = packetId;
+    value.writeBigUInt64LE(uid, 7);
+    value.writeFloatLE(time, 15);
+    return value;
+  };
+  const frames = [frame(1n, 6, 0), frame(2n, 6, 0.01), frame(2n, 2, 0.02)];
+  const lapOffset = frames[0]!.length + encodeFrameLength(frames[0]!.length).length;
+  const source = {
+    gameId: "f1-2025" as const,
+    records: records(frames),
+    createTelemetryParser: parser,
+    lapIndexes: [{ lapId: 1, rawByteOffset: lapOffset, rawFrameCount: 2 }],
+  };
+  const inspection = await inspectDownsampleRecording(source);
+  expect(inspection.laps[0]?.f1EndpointTelemetry.map(({ first, last }) => [first.ordinal, last.ordinal])).toEqual([[1, 1]]);
+});
+
 function fmFrame(tick: number): Buffer {
   const frame = Buffer.alloc(324);
   frame.writeUInt32LE(tick, 4);

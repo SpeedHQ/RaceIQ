@@ -11,6 +11,11 @@ import { runSessionCaptureMaintenanceNow } from "@raceiq/backend-core/session-ca
 import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+import { initServerGameAdapters } from "../../src/games/init";
+
+initGameAdapters();
+initServerGameAdapters();
 
 const settingsPath = join(resolveDataDir(), "settings.json");
 const originalSettings = existsSync(settingsPath) ? readFileSync(settingsPath, "utf8") : null;
