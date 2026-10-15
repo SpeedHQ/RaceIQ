@@ -3,11 +3,25 @@ import { gzipSync } from "node:zlib";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame, iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
-import { iterateSessionCaptureFrames, iterateSessionCaptureRecordsFromSource, setCaptureFileFactoryForTest } from "@raceiq/backend-core/session-capture/source-loader";
+import {
+  encodeFrameLength,
+  encodeMetaFrame,
+  encodeSegmentBoundaryFrame,
+  encodeSegmentContextFrame,
+  encodeSegmentContextEndFrame,
+  encodeSparseCaptureFormatFrame,
+  iterateSessionCaptureRecords,
+} from "@raceiq/capture-formats/session/framing";
+import {
+  iterateSessionCaptureFrames,
+  iterateSessionCaptureRecordsFromSource,
+  loadSessionSource,
+  setCaptureFileFactoryForTest,
+} from "@raceiq/backend-core/session-capture/source-loader";
 import { encodeKunosSparseFrame } from "@raceiq/capture-formats/session/kunos-sparse";
 import { packTriplet, ACC_PACKED_MAGIC } from "@raceiq/capture-formats/kunos/pack-triplet";
-import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
+import { encodeLMUSourcePayload, LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_SIZE, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
+import { LMU_SCORING_INFO_SIZE, LMU_TELEMETRY_INFO_SIZE } from "@raceiq/capture-formats/lmu/layout";
 import { encodeLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
 
 const directories: string[] = [];
@@ -28,6 +42,7 @@ for (const compressed of [false, true]) {
       encodeMetaFrame(2),
       encodeFrameLength(first.length),
       first,
+      encodeSparseCaptureFormatFrame(),
       encodeFrameLength(second.length),
       second,
     ]);
@@ -47,7 +62,7 @@ for (const compressed of [false, true]) {
 
     expect(records).toEqual([
       { offset: 12, frame: [1, 2, 3] },
-      { offset: 19, frame: [4, 5] },
+      { offset: 35, frame: [4, 5] },
     ]);
   });
 }
@@ -59,6 +74,7 @@ for (const compressed of [false, true]) {
     const frame = Buffer.alloc(128 * 1024, 7);
     const capture = Buffer.concat([
       encodeMetaFrame(2), encodeFrameLength(frame.length), frame,
+      encodeSparseCaptureFormatFrame(),
       encodeSegmentBoundaryFrame(), encodeSegmentContextFrame(),
       encodeFrameLength(2), Buffer.from([8, 9]), encodeSegmentContextEndFrame(),
     ]);
@@ -96,7 +112,11 @@ for (const malformed of [
     const directory = mkdtempSync(join(tmpdir(), "raceiq-source-stream-"));
     directories.push(directory);
     const rawFile = join(directory, "malformed.bin");
-    writeFileSync(rawFile, malformed.bytes);
+    writeFileSync(rawFile, Buffer.concat([
+      encodeMetaFrame(1),
+      encodeSparseCaptureFormatFrame(),
+      malformed.bytes,
+    ]));
 
     const consume = async () => {
       for await (const _record of iterateSessionCaptureFrames({
@@ -113,6 +133,22 @@ for (const malformed of [
     await expect(consume()).rejects.toThrow(/record length .* exceeds 16 MiB limit/);
   });
 }
+test("rejects unmarked full-frame captures from playback and source loading", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "raceiq-legacy-playback-"));
+  directories.push(directory);
+  const rawFile = join(directory, "legacy.bin");
+  writeFileSync(rawFile, Buffer.concat([
+    encodeMetaFrame(1),
+    encodeFrameLength(3),
+    Buffer.from([1, 2, 3]),
+  ]));
+  const source = { rawFile, source: null, gameId: "f1-2025" as const, carId: "0", trackId: "0" };
+  const consume = async () => {
+    for await (const _record of iterateSessionCaptureFrames(source)) {}
+  };
+  await expect(consume()).rejects.toThrow(/Legacy full-frame captures are not supported/);
+  await expect(loadSessionSource(source)).rejects.toThrow(/Legacy full-frame captures are not supported/);
+});
 test("rejects sparse deltas backed by same-size cross-format checkpoints in both readers", async () => {
   const directory = mkdtempSync(join(tmpdir(), "raceiq-cross-format-"));
   directories.push(directory);
@@ -133,4 +169,100 @@ test("rejects sparse deltas backed by same-size cross-format checkpoints in both
       for await (const _record of iterateSessionCaptureRecordsFromSource({ rawFile, source: null, gameId: "lmu", carId: "ferrari_499p_2023", trackId: "lemans_2023/lemanswec" })) {}
     }).toThrow(/checkpoint/);
   }
+});
+for (const compressed of [false, true]) {
+  test(`loads released checkpoint-only ${compressed ? "gzip" : "plain"} captures with converted-session provenance`, async () => {
+    const directory = mkdtempSync(join(tmpdir(), "raceiq-released-capture-"));
+    directories.push(directory);
+    const frame = Buffer.alloc(324, 7);
+    frame.writeUInt16LE(2025, 0);
+    const capture = Buffer.concat([encodeMetaFrame(1), encodeFrameLength(frame.length), frame]);
+    const rawFile = join(directory, "released.bin");
+    writeFileSync(rawFile, compressed ? gzipSync(capture) : capture);
+    const source = { rawFile, source: null, gameId: "fm-2023" as const, carId: "0", trackId: "0", captureFormatVersion: 1 };
+
+    const records = [];
+    for await (const record of iterateSessionCaptureRecordsFromSource(source)) records.push(record);
+    expect(records).toEqual([{ kind: "frame", offset: 12, frame }]);
+    const loaded = await loadSessionSource(source);
+    expect(loaded.kind).toBe("capture");
+    if (loaded.kind !== "capture") throw new Error("Expected capture source");
+    expect(loaded.buffer).toEqual(capture);
+    expect(loaded.frameIndex.records).toEqual([{ offset: 12, length: frame.length, frameIndex: 0 }]);
+  });
+}
+
+test("rejects checkpoint-only standalone captures without version-1 provenance", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "raceiq-no-provenance-"));
+  directories.push(directory);
+  const frame = Buffer.alloc(324, 7);
+  frame.writeUInt16LE(2025, 0);
+  const rawFile = join(directory, "released.bin");
+  writeFileSync(rawFile, Buffer.concat([encodeMetaFrame(1), encodeFrameLength(frame.length), frame]));
+  for (const captureFormatVersion of [undefined, 0]) {
+    const source = { rawFile, source: null, gameId: "fm-2023" as const, carId: "0", trackId: "0", captureFormatVersion };
+    await expect(loadSessionSource(source)).rejects.toThrow(/Legacy full-frame captures are not supported/);
+    await expect(async () => {
+      for await (const _record of iterateSessionCaptureRecordsFromSource(source)) {}
+    }).toThrow(/Legacy full-frame captures are not supported/);
+  }
+});
+
+test("cache cannot transfer converted-capture provenance to an unconverted source", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "raceiq-provenance-cache-"));
+  directories.push(directory);
+  const frame = Buffer.alloc(324, 7);
+  frame.writeUInt16LE(2025, 0);
+  const rawFile = join(directory, "released.bin");
+  writeFileSync(rawFile, Buffer.concat([encodeMetaFrame(1), encodeFrameLength(frame.length), frame]));
+  await loadSessionSource({ rawFile, source: null, gameId: "fm-2023", carId: "0", trackId: "0", captureFormatVersion: 1 });
+  await expect(loadSessionSource({ rawFile, source: null, gameId: "fm-2023", carId: "0", trackId: "0" }))
+    .rejects.toThrow(/Legacy full-frame captures are not supported/);
+});
+test("accepts released LMU source checkpoint-only captures with version-1 provenance", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "raceiq-released-lmu-"));
+  directories.push(directory);
+  const frame = encodeLMUSourcePayload({
+    gameVersion: 1,
+    sessionEvent: 1,
+    captureTimestampMs: 1_000,
+    telemetry: Buffer.alloc(LMU_TELEMETRY_INFO_SIZE),
+    scoringInfo: Buffer.alloc(LMU_SCORING_INFO_SIZE),
+  });
+  expect(frame.length).toBe(LMU_SOURCE_FRAME_SIZE);
+  const capture = Buffer.concat([encodeMetaFrame(1), encodeFrameLength(frame.length), frame]);
+  const rawFile = join(directory, "lmu-spa-iron-lynx-gte.bin.gz");
+  writeFileSync(rawFile, gzipSync(capture));
+  const source = { rawFile, source: null, gameId: "lmu" as const, carId: "ferrari_499p_2023", trackId: "lemans_2023/lemanswec", captureFormatVersion: 1 };
+  const records = [];
+  for await (const record of iterateSessionCaptureRecordsFromSource(source)) records.push(record);
+  expect(records).toEqual([{ kind: "frame", offset: 12, frame }]);
+  const loaded = await loadSessionSource(source);
+  expect(loaded.kind).toBe("capture");
+  if (loaded.kind !== "capture") throw new Error("Expected capture source");
+  expect(loaded.buffer).toEqual(capture);
+});
+test("loads and indexes gzip sparse captures from decompressed bytes", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "raceiq-gzip-load-"));
+  directories.push(directory);
+  const frame = Buffer.from([1, 2, 3]);
+  const capture = Buffer.concat([
+    encodeMetaFrame(1),
+    encodeFrameLength(frame.length),
+    frame,
+    encodeSparseCaptureFormatFrame(),
+  ]);
+  const rawFile = join(directory, "capture.bin.gz");
+  writeFileSync(rawFile, gzipSync(capture));
+  const loaded = await loadSessionSource({
+    rawFile,
+    source: null,
+    gameId: "f1-2025",
+    carId: "0",
+    trackId: "0",
+  });
+  expect(loaded.kind).toBe("capture");
+  if (loaded.kind !== "capture") throw new Error("Expected capture source");
+  expect(loaded.buffer).toEqual(capture);
+  expect(loaded.frameIndex.records).toEqual([{ offset: 12, length: frame.length, frameIndex: 0 }]);
 });

@@ -1,5 +1,6 @@
 import { createScorer } from "@mastra/core/evals";
-import { type AnalystOutput, parseAnalystOutput } from "@raceiq/backend-core/ai/schemas";
+import { parseAnalystOutput } from "@raceiq/backend-core/ai/schemas";
+import type { AnalystOutput } from "@raceiq/backend-core/ai/output-schema";
 
 /**
  * Fraction of the fixture's expected slowest corners that the analyst

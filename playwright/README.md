@@ -39,11 +39,40 @@ Storybook screenshot tests create missing baselines on first run and compare the
 
 Launchers and screenshot database seeding live together in `support/server/`. They resolve repository root from their deeper location before starting application processes.
 
-Migration E2E imports all six complete game fixtures first via `POST /api/laps/import` with multipart `file`, `ownership=mine`, and `captureStorage=raw`. This stores full canonical records without direct database/file seeding. The test then opens the mandatory conversion dialog, presses Convert, and verifies replay before/after. Omit `captureStorage` for ordinary UI imports; those continue using sparse storage immediately. Raw storage is supported only for `.bin` and `.bin.gz` uploads, including native iRacing and LMU dumps.
+Seed scripts decode checked-in source fixtures and store sparse captures before seeded E2E servers start. Legacy full-frame recordings are rejected by `POST /api/laps/import`; disposable import tests use sparse captures exported from the seeded database.
+Fresh-install wizard attempts reset both `settings.json` and the isolated database's dashboard access state, including login sessions and the configured-access marker. Resetting settings alone does not restore the pending password choice after a completed attempt. The persisted-settings assertion uses the fixture's explicit IPv4 loopback listener instead of relying on `localhost` address selection.
+
+Specs that validate analyst output import the pure schema from `@raceiq/backend-core/ai/output-schema`. The server's `ai/schemas` module also owns setup-catalog validation and must not be loaded by the Node-based Playwright discovery process.
+
+
+Recording-location migration coverage lives in `tests/fresh-install/recording-location-migration.spec.ts`. It converts a real capture in an isolated offline database with `bun run apps/backend/scripts/data/seed-db.ts --games=fm-2023 --fixtures=test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz --legacy-recordings`, imports the sparse capture through the running app's API, then prepares the returned sessions in the legacy folder layout. The test verifies initial file/session counts, required consent, byte-preserving organization under `<game>/own` in a selected folder, preservation of unrelated destination files, source removal, and persisted recording-directory settings. It deletes imported sessions, restores settings, and removes disposable files and folders afterward.
+
+```sh
+E2E_SERVER_MODE=dev PW_SERVER_SET=fresh bunx playwright test tests/fresh-install/recording-location-migration.spec.ts --project=fresh-install --workers=1
+```
+
+## Release-tag to main upgrade smoke
+
+`bun run test:upgrade` builds an Ubuntu Playwright image and runs one smoke scenario inside Docker, with a twenty-minute test ceiling. It checks out the last published stable release tag, installs dependencies, and runs that version's `db:seed` with its default all-game fixtures: FM2023, F1 2025, ACC, AC Evo, iRacing, and LMU. Seeding has a ten-minute deadline; capture conversion and recording organization each allow up to five minutes for the full dataset. Playwright starts the released dev app and completes outstanding onboarding and capture-conversion dialogs before updating. It then checks out freshly fetched `origin/main`, reinstalls dependencies, and starts the new code against the same user-data directory. The caller's working tree and application data are never switched, reset, or mounted.
+
+Docker and Bun are required on the launcher host. `RACEIQ_UPGRADE_PREVIOUS_TAG` optionally pins the baseline; otherwise GitHub's latest published release is used. `RACEIQ_UPGRADE_REPOSITORY` optionally supplies an HTTPS clone URL; otherwise the current repository's origin is used, with GitHub SSH origins normalized to HTTPS. `GH_REPO` selects release metadata. `GH_TOKEN` or `GITHUB_TOKEN` authenticates GitHub; the launcher can reuse the host's `gh auth token` without mounting host credentials. Only diagnostics are bind-mounted out, to `RACEIQ_UPGRADE_ARTIFACTS_DIR` (default `playwright/test-results/source-upgrade`).
+
+The running container is named `raceiq-upgrade-smoke-<launcher-pid>` (printed by the launcher). Open its **Logs** tab in OrbStack, or use `docker logs -f <container-name>`, to follow checkout commands, resolved release/main SHAs, dependency installation, seed/database migrations, backend/client output, and `START`/`DONE` markers for browser-driven setup, conversion, organization, and data-preservation checks. Output is also saved in `docker-run.log` and timestamped source logs in the artifact directory. The container is removed when the run exits; use those files for completed-run diagnostics.
+
+Run `bun run test:upgrade --replay` to retain trace and video recordings even when the test passes, then open the recordings in the local Playwright Trace Viewer after Docker exits. The viewer serves on loopback and opens your default browser; inspect screenshots, DOM snapshots, actions, network traffic, and logs step by step. Press Ctrl+C when finished. Failed tests also open their available recordings and retain their failing exit status after the viewer closes. If the run produces no trace, the launcher reports that instead of opening an earlier run's recording. Other arguments still pass through to Playwright. Local dependencies must be installed (`bun install`) for the viewer; no host browser download is required.
+
+Both resolved commit IDs are recorded before the transition. The image includes only the smoke harness, never host dependencies, fixtures, or secrets; seed inputs come from the released checkout. Playwright requires pending dialogs, presses their real controls, waits for success, closes them, and reaches the usable application. The smoke also waits for the main startup worker to finish reconciliation before declaring success; a failed stage fails the smoke instead of being hidden by successful database and recording-layout migrations. Each of the six games must have seeded sessions before updating, and its session IDs must survive so missing game fixtures or an accidental database reset cannot pass. It does not compare lap timing, telemetry, or capture bytes; those remain separate regression tests. No offline capture conversion, manual database repair, or reset is allowed between refs.
+
+Before switching refs, the smoke stops the released servers and reads the released database in read-only mode. Every recording must exist, have `capture_format_version = 1`, and pass the released strict frame decoder. Logs identify game, session, file, and whether the converted output contains deltas, a format marker, or only checkpoints. Released checkpoint-only output is valid with version-1 provenance; no recording is rewritten or decorated with a marker by the test.
+
+CI runs this test only in the release workflow, in a dedicated Ubuntu job. Draft-release creation requires its success even when the broad Playwright suite is skipped. Source-server logs, ref metadata, and browser evidence are uploaded on failure. This proves the specified source-checkout transition in Ubuntu Docker, not operating-system installer behavior.
+
 
 ## Known seeded coverage gaps
 
 Confirmed unresolved coverage gaps live in [Test Coverage Gaps](../docs/project-status/test-gaps.md), including AC Evo valid-session telemetry reuse. The seeded AC Evo invalid-session check remains active; no case is skipped for that fixture limitation.
+
+Track catalog checks cover the Debug tab in dev mode and assert its absence in compiled production mode. Cleanup fixtures inspect captures under `<game>/own`; setup deletion teardown removes the setup before deleting its disposable sessions and their laps.
 
 ## Data safety and generated output
 

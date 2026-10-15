@@ -15,6 +15,7 @@ type WebServerDefinition = {
 function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boolean, seedSetups = false): WebServerDefinition {
   const command = runtime.devServer ? "bun support/server/start-dev-server.ts" : "bun support/server/start-server.ts";
   const env: Record<string, string> = {
+    RACEIQ_E2E: "1",
     DATA_DIR: ports.dataDir,
     SERVER_PORT: ports.port,
     UDP_PORT: ports.udpPort,
@@ -29,7 +30,6 @@ function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boole
   }
   if (seeded) {
     env.PW_SEED_SCREENSHOTS = "1";
-    env.RACEIQ_E2E = "1";
     env.RACEIQ_FEATURE_IRACING_ADAPTER = "true";
     env.PW_SEED_GAMES = DEFAULT_GAMES.join(",");
     if (seedSetups) env.PW_SEED_SETUP_DATA = "1";

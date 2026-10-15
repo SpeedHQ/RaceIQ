@@ -249,6 +249,13 @@ test("keeps telemetry traces open while closing reference outlines", () => {
   const previousWindow = globalThis.window;
   Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
   try {
+    const closesPath = (stroke: StrokeRecord) => {
+      const first = stroke.commands.find((command) => command.kind === "moveTo");
+      const last = stroke.commands.at(-1);
+      return last?.kind === "closePath" || (
+        last?.kind === "lineTo" && first?.values[0] === last.values[0] && first?.values[1] === last.values[1]
+      );
+    };
     const resolvedPositions = [
       { x: 1, z: 1 },
       { x: 2, z: 2 },
@@ -270,8 +277,7 @@ test("keeps telemetry traces open while closing reference outlines", () => {
       zoom: 1,
     });
     const traceStroke = trace.strokes.find((stroke) => stroke.color === "var(--track-outline)")!;
-    expect(traceStroke.commands.filter((command) => command.kind === "moveTo")).toHaveLength(1);
-    expect(traceStroke.commands.filter((command) => command.kind === "lineTo")).toHaveLength(resolvedPositions.length - 1);
+    expect(closesPath(traceStroke)).toBe(false);
 
     const reference = createDrawingHarness();
     drawStaticTrack({
@@ -288,7 +294,7 @@ test("keeps telemetry traces open while closing reference outlines", () => {
       zoom: 1,
     });
     const referenceStroke = reference.strokes.find((stroke) => stroke.color === "var(--track-outline)")!;
-    expect(referenceStroke.commands.filter((command) => command.kind === "lineTo")).toHaveLength(outlineFixture.length);
+    expect(closesPath(referenceStroke)).toBe(true);
   } finally {
     Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
   }

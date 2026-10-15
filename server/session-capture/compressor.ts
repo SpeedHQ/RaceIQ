@@ -19,6 +19,7 @@ import { cleanupExpiredStagedMotec } from "../motec/import-staging";
 import { loadSettings } from "../runtime/config/settings";
 import { executeSessionCleanup, SessionCleanupBusyError } from "./session-cleanup";
 import { releaseDashboardCaptureCheckpoint, republishPersistedDashboardCaptureFacts } from "./dashboard-processor";
+import { hasPendingLayoutMigration } from "./layout-migration";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const INTERVAL_MS = 5 * 60 * 1000;
@@ -101,6 +102,7 @@ async function runCompression(userTriggered = false): Promise<void> {
   await withSessionCaptureMaintenanceLock(async () => {
     // Recording may have started while this pass waited for maintenance.
     if (isSessionActive()) return;
+    if (await hasPendingLayoutMigration()) return;
 
     const ageMs = userTriggered ? 0 : ONE_DAY_MS;
     const candidates = await getUncompressedSessions(ageMs);

@@ -184,6 +184,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { scene: SceneBuil
     if (penDown) ctx.lineTo(x, y);
     else { ctx.moveTo(x, y); penDown = true; }
   }
+  if (drawingReferenceOutline) ctx.closePath();
   ctx.stroke();
   if (gameId === "iracing" && hasReferenceOutline && displayOutline === telemetryPoints) {
     ctx.beginPath();

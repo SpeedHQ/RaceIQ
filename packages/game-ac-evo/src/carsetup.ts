@@ -21,7 +21,7 @@
  */
 import { readFile } from "node:fs/promises";
 import { parseCarSetup, type CarSetupFile, type WireField } from "./carsetup-wire";
-import type { SetupContentRow, SetupContentSection } from "@raceiq/shared/racing/setups/content";
+import type { SetupCapabilityRange, SetupContentRow, SetupContentSection } from "@raceiq/shared/racing/setups/content";
 
 /**
  * The car slug embedded in a preset id, or null.
@@ -154,7 +154,10 @@ function genericRows(
       rows.push({ label, value: f.value, fixed });
     } else {
       const v = num(f);
-      if (v != null) rows.push({ label, value: fmt(v), fixed });
+      if (v != null) {
+        const clicks = !fixed && (label === "Slow bump" || label === "Slow rebound");
+        rows.push({ label, value: `${fmt(v)}${clicks ? " clicks" : ""}`, fixed });
+      }
     }
   }
   return rows;
@@ -213,14 +216,14 @@ const MECH_GUESSES: Record<string, string> = {
  */
 export function summarizeCarSetup(
   setup: CarSetupFile,
-  ranges?: Record<string, { min: number; max: number; step: number } | null> | null,
+  ranges?: Record<string, SetupCapabilityRange> | null,
 ): SetupContentSection[] {
   const sections: SetupContentSection[] = [];
   const msgs = (no: number) => setup.raw.filter((f): f is Extract<WireField, { type: "message" }> => f.no === no && f.type === "message");
-  /** Attach a real extracted per-car range to a numeric row when one exists. */
   const withRange = (row: SetupContentRow, n: number, key: string): SetupContentRow => {
     const r = ranges?.[key];
-    return r ? { ...row, num: n, min: r.min, max: r.max } : row;
+    if (!r || "status" in r) return row;
+    return { ...row, num: n, min: r.min, max: r.max };
   };
 
   // #1 — mechanical/brakes/diff (verified against a Ferrari SF25 "F1 default"
@@ -418,8 +421,6 @@ export function carSetupToKnobValues(setup: CarSetupFile): Record<string, number
     put("brakeBias", num(field(msg(mech.fields, 3), 1)));
     put("steerRatio", num(field(mech.fields, 2)));
     const diff = msg(mech.fields, 4);
-    put("diffPower", num(field(diff, 1)));
-    put("diffCoast", num(field(diff, 2)));
     put("diffPreload", num(field(diff, 3)));
   }
 
@@ -439,8 +440,11 @@ export function carSetupToKnobValues(setup: CarSetupFile): Record<string, number
       if (out[`${axle}Camber`] === undefined) put(`${axle}Camber`, num(field(align.fields, 2)));
     }
     if (out[`${axle}SpringRate`] === undefined) put(`${axle}SpringRate`, num(field(springs[i]?.fields, 1)));
+    const corner = ["frontLeft", "frontRight", "rearLeft", "rearRight"][i]!;
     const damper = dampers[i];
     if (damper) {
+      put(`${corner}Bump`, num(field(damper.fields, 1)));
+      put(`${corner}Rebound`, num(field(damper.fields, 3)));
       if (out[`${axle}Bump`] === undefined) put(`${axle}Bump`, num(field(damper.fields, 1)));
       if (out[`${axle}Rebound`] === undefined) put(`${axle}Rebound`, num(field(damper.fields, 3)));
     }

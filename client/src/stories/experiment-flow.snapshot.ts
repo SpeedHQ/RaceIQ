@@ -1,5 +1,6 @@
 import { expect, test } from "./snapshot-test";
 import { openStory } from "./storybook-ready";
+import type { Page } from "@playwright/test";
 
 /**
  * Render smoke-test for the experiment flow stories (list → workspace →
@@ -112,5 +113,70 @@ for (const story of stories) {
     }
 
     expect(errors, `uncaught errors in ${story.name}:\n${errors.join("\n")}`).toEqual([]);
+  });
+}
+
+function collectAnalysisRequests(page: Page) {
+  const bodies: { ids: number[]; step: number }[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && new URL(request.url()).pathname === "/api/laps/aligned-telemetry") {
+      bodies.push(request.postDataJSON());
+    }
+  });
+  return bodies;
+}
+
+test("reviews only the selected older test after returning to its setup", async ({ page }) => {
+  const analysisBodies = collectAnalysisRequests(page);
+  await openStory(page, "/iframe.html?id=dashboards-experiments-flow--returned-to-base-review&viewMode=story", 90_000);
+  const base = page.locator("summary").filter({ has: page.getByText("Base setup", { exact: true }) });
+  const newer = page.locator("summary").filter({ has: page.getByText("Softer rear ARB", { exact: true }) });
+  await expect(base).toContainText("5/8");
+  await expect(newer).toContainText("5/9");
+  await base.getByRole("button", { name: "Review", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Session", exact: true })).toBeVisible();
+  await expect.poll(() => analysisBodies).toEqual([{ ids: [1000, 1002, 1007, 1004, 1005], step: 1 }]);
+  await page.getByRole("button", { name: "Session", exact: true }).click();
+  await newer.getByRole("button", { name: "Review", exact: true }).click();
+  await expect.poll(() => analysisBodies).toEqual([
+    { ids: [1000, 1002, 1007, 1004, 1005], step: 1 },
+    { ids: [1100, 1102, 1107, 1108, 1104], step: 1 },
+  ]);
+});
+
+for (const scenario of [
+  {
+    name: "test selection overrides conflicting stint and focus-lap IDs",
+    story: "review-version-overrides-lap-list",
+    ids: [1000, 1002, 1007, 1004, 1005],
+  },
+  {
+    name: "explicit stint ignores duplicate, unknown, and other-experiment lap IDs",
+    story: "review-explicit-lap-list",
+    ids: [1002, 1004],
+  },
+]) {
+  test(scenario.name, async ({ page }) => {
+    const analysisBodies = collectAnalysisRequests(page);
+    await openStory(page, `/iframe.html?id=dashboards-experiments-flow--${scenario.story}&viewMode=story`, 90_000);
+    await expect(page.getByRole("button", { name: "Session", exact: true })).toBeVisible();
+    await expect.poll(() => analysisBodies).toEqual([{ ids: scenario.ids, step: 1 }]);
+  });
+}
+
+for (const scenario of [
+  { name: "unknown test does not fall back to HEAD or explicit lap IDs", story: "review-unknown-test" },
+  { name: "missing selection does not fall back to HEAD", story: "review-without-selection" },
+]) {
+  test(scenario.name, async ({ page }) => {
+    const analysisBodies = collectAnalysisRequests(page);
+    await openStory(page, `/iframe.html?id=dashboards-experiments-flow--${scenario.story}&viewMode=story`, 90_000);
+    // Return to the workspace, then select a populated test. The single request
+    // proves the empty review never submitted another branch's laps.
+    await page.getByRole("button", { name: "Session", exact: true }).click();
+    const base = page.locator("summary").filter({ has: page.getByText("Base setup", { exact: true }) });
+    await expect(base).toContainText("5/8");
+    await base.getByRole("button", { name: "Review", exact: true }).click();
+    await expect.poll(() => analysisBodies).toEqual([{ ids: [1000, 1002, 1007, 1004, 1005], step: 1 }]);
   });
 }

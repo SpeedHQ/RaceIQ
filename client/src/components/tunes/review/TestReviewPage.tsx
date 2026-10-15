@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import type { ExperimentGameId } from "@/hooks/experiments";
 import { useExperiment, useExperimentVersions } from "@/hooks/experiments";
 import { useLaps } from "@/hooks/laps";
+import { mergeExperimentLaps } from "@/lib/experiment-laps";
+import { useTelemetryStore } from "@/stores/telemetry";
 import { SessionReviewDashboard } from "./SessionReviewDashboard";
 
 /**
@@ -23,6 +25,7 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
   const navigate = useNavigate();
   const { data: session, isLoading: sessionLoading, isError: sessionMissing } = useExperiment(experimentId);
   const { data: allLaps = [] } = useLaps();
+  const liveLaps = useTelemetryStore((state) => state.sessionLaps);
   const tests = useExperimentVersions(experimentId);
   // Compact summary of whatever lap review is open in the dashboard below,
   // rebuilt by TuneReviewDashboard on every lap switch and piped into the
@@ -31,10 +34,11 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
 
   // Prefer deriving the reviewed laps from the test id (URL-clean path). Fall
   // back to the explicit lapIds list only when no versionId is given (live stint).
+  const lapPool = useMemo(() => mergeExperimentLaps(allLaps, liveLaps, experimentId), [allLaps, liveLaps, experimentId]);
   const laps = useMemo(() => {
-    const selected = versionId != null ? allLaps.filter((l) => l.experimentVersionId === versionId) : allLaps.filter((l) => (lapIds ?? []).includes(l.id));
-    return [...selected].sort((a, b) => a.lapNumber - b.lapNumber);
-  }, [allLaps, lapIds, versionId]);
+    const selected = versionId != null ? lapPool.filter((l) => l.experimentVersionId === versionId) : lapPool.filter((l) => (lapIds ?? []).includes(l.id));
+    return [...selected].sort((a, b) => a.sessionId - b.sessionId || a.lapNumber - b.lapNumber);
+  }, [lapPool, lapIds, versionId]);
 
   const activeTest = tests.data?.find((t) => t.id === versionId) ?? tests.data?.find((t) => t.id === session?.headVersionId) ?? undefined;
 

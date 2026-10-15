@@ -26,7 +26,7 @@ import type { ExclusionScopeLap } from "../experiments/auto-exclude";
 import { getTuneAssignment } from "../db/tune-queries";
 import { SessionRecorder } from "@raceiq/capture-formats/session/recorder";
 import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
-import { resolveDataDir } from "../runtime/config/data-dir";
+import { resolveRecordingGameDirectory } from "../runtime/config/recording-directory";
 import { timestampForFilename } from "../session-capture/filename";
 
 export function currentTelemetryVersionIdentity(gameId: GameId): TelemetryVersionIdentity {
@@ -335,51 +335,22 @@ export class NullDbAdapter implements DbAdapter {
   }
 }
 
-/** Real session recorder — writes telemetry records to `<DATA_DIR>/sessions/<game>/<timestamp>.bin`. */
-export class RealSessionRecorderAdapter implements SessionRecorderAdapter {
-  private _inner: SessionRecorder | null = null;
-  private _epoch = 0;
-
-  get active(): boolean { return this._inner?.recording ?? false; }
-  get path(): string | null { return this._inner?.path ?? null; }
-  get epoch(): number { return this._epoch; }
-
-  start(gameId: GameId): void {
-    const dataDir = resolveDataDir();
-    const timestamp = timestampForFilename();
-    const sessionDir = resolve(dataDir, "sessions", gameId);
-    mkdirSync(sessionDir, { recursive: true });
-    const filePath = resolve(sessionDir, `${timestamp}.bin`);
-    this._inner = new SessionRecorder();
-    this._inner.start(filePath);
-    this._epoch++;
-  }
-
-  writeMetaFrame(): void { this._inner?.writeMetaFrame(); }
-
-  writeSegmentBoundary(): void { this._inner?.writeSegmentBoundary(); }
-  writeRecord(buf: Buffer, frameTimeMs?: number): void { this._inner?.writeRecord(buf, frameTimeMs); }
-  writeRawCaptureBytes(buf: Buffer): void { this._inner?.writeRawCaptureBytes(buf); }
-  getCurrentByteOffset(): number { return this._inner?.getCurrentByteOffset() ?? 0; }
-  flush(): void { this._inner?.flush(); }
-  async stop(): Promise<void> {
-    const inner = this._inner;
-    this._inner = null;
-    if (inner) await inner.stop();
-  }
-}
-
 /** Production recorder; all supported games use sparse checkpoints where beneficial. */
 export class SparseSessionRecorderAdapter implements SessionRecorderAdapter {
+  private readonly ownership: SessionOwnership;
+
+  constructor(ownership: SessionOwnership = "mine") {
+    this.ownership = ownership;
+  }
+
   private inner: SessionRecorder | null = null;
   private currentEpoch = 0;
-
   get active(): boolean { return this.inner?.recording ?? false; }
   get path(): string | null { return this.inner?.path ?? null; }
   get epoch(): number { return this.currentEpoch; }
 
   start(gameId: GameId): void {
-    const sessionDir = resolve(resolveDataDir(), "sessions", gameId);
+    const sessionDir = resolveRecordingGameDirectory(gameId, this.ownership);
     mkdirSync(sessionDir, { recursive: true });
     this.inner = new SparseSessionRecorder(gameId);
     this.inner.start(resolve(sessionDir, `${timestampForFilename()}.bin`));
