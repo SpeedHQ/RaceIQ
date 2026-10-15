@@ -105,8 +105,13 @@ test.describe("onboarding recording-layout recovery", () => {
     const fixture = await startOnboarding(page, false);
     try {
       await reachStorage(page);
+      await page.getByRole("button", { name: "Back", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "Launch on Login" })).toBeVisible();
       fixture.exposeFailure();
-      await page.getByRole("button", { name: "Refresh", exact: true }).click();
+      // Expire cached layout status before reopening Storage without a wall-clock wait.
+      await page.clock.setFixedTime(new Date(Date.now() + 60_000));
+      await page.getByRole("button", { name: "Next", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "Storage", exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: /^Retry/ })).toBeVisible();
       await expect(page.getByRole("button", { name: "Back" })).toBeDisabled();
       await expect(page.getByRole("button", { name: "Next", exact: true })).toBeDisabled();

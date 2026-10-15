@@ -3,7 +3,7 @@
 ### Breaking
 - Legacy full-frame RaceIQ captures are no longer supported for import and replay. Ensure any remaining legacy recordings are migrated when prompted before updating.
 
-### Feature
+### Features
 - New desktop and self-hosted installs restrict dashboard access to this computer until you select additional network interfaces.
 - Password-protected dashboards use a login screen and browser sessions; API clients must sign in and send the session cookie and a CSRF token for writes.
 - Use string car and track IDs across imports and integrations instead of ordinal fields. Existing sessions and setup links migrate automatically; downgrading requires restoring a pre-upgrade database backup.
@@ -20,6 +20,8 @@
 - Optionally protect dashboard access with a password and configure trusted browser origins independently, while keeping existing local and remote access working without new settings.
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 - Choose a recording folder, safely relocate existing recordings, and optionally migrate recordings into per-game `own` and `others` folders.
+- Choose a 50–100 Hz recording frequency for ACC, AC Evo, iRacing, or LMU during setup to reduce recording size. Live UDP recording is unchanged.
+- Downsample saved recordings manually or with an opt-in age policy in Storage settings; track progress and retry failed files. Favorites and MoTeC imports stay unchanged.
 
 ### Fixes
 - Restore migration of existing recordings into organized folders on Windows.
@@ -88,6 +90,8 @@
 - Keep racing, throttle, and braking lines sharp when zooming into the replay map.
 
 ### Internal
+- Verify onboarding migration recovery through Storage re-entry with deterministic cache expiry, without relying on a hidden no-work Refresh control.
+- Manage recording maintenance with Effect, ordered downsampling and deletion, and awaited shutdown.
 - Package organized recording paths in seeded Playwright databases while rejecting unsafe capture paths.
 - Verify setup navigation and recording-folder changes without depending on the optional Welcome 3D demo, and avoid startup-maintenance import cycles.
 - Document the reusable confirmation-dialog-to-background-progress pattern from sparse recording conversion, including state ownership, recovery, accessibility, and operation precedence.

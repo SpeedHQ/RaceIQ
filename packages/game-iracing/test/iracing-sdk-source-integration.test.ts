@@ -1,7 +1,7 @@
 import { registerGame } from "@raceiq/shared/games/registry";
 import { iracingServerAdapter } from "../src/index";
 import { registerServerGame } from "@raceiq/backend-core/games/registry";
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -27,6 +27,7 @@ import {
   iracingAdapter,
   rememberIRacingIdentity,
 } from "@raceiq/game-iracing-metadata/index";
+import { getRecordingFrequencyHz, setRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/recording-frequency";
 
 registerGame(iracingServerAdapter);
 registerServerGame(iracingServerAdapter);
@@ -194,6 +195,10 @@ DriverInfo:
   });
 
   test("replays a healthy recording through the SDK source and recorder", async () => {
+    const previousFrequency = getRecordingFrequencyHz();
+    let nowMs = 0;
+    const clockSpy = spyOn(performance, "now").mockImplementation(() => nowMs);
+    setRecordingFrequencyHz(100);
     const dir = mkdtempSync(join(tmpdir(), "iracing-source-replay-"));
     const input = readIRacingFrames(IRACING_FIXTURE, 12);
     const reader = new ReplayedIRacingFrameReader(
@@ -210,9 +215,10 @@ DriverInfo:
       dispatchRawFrame: async () => {},
     });
 
-    source.start();
     try {
+      source.start();
       for (let index = 0; index < reader.frameCount; index++) {
+        nowMs = index * 10;
         expect(await source.pollOnce()).toBe(true);
       }
       await source.stop();
@@ -229,6 +235,8 @@ DriverInfo:
       }
     } finally {
       await source.stop();
+      setRecordingFrequencyHz(previousFrequency);
+      clockSpy.mockRestore();
       rmSync(dir, { recursive: true, force: true });
     }
   });
@@ -328,6 +336,110 @@ DriverInfo:
       ),
     ).toEqual([7530, 7531, 7532]);
     expect(recorder.stopped).toBe(true);
+  });
+
+  test("running capture gates before encoding and rephases live rate changes", async () => {
+    const previousFrequency = getRecordingFrequencyHz();
+    let nowMs = 0;
+    let timerCallback: (() => void) | null = null;
+    const timerSpy = spyOn(globalThis, "setInterval").mockImplementation(((callback: TimerHandler, ..._args: unknown[]) => {
+      timerCallback = callback as () => void;
+      return 1 as never;
+    }) as typeof setInterval);
+    const clearSpy = spyOn(globalThis, "clearInterval").mockImplementation(() => {});
+    const clockSpy = spyOn(performance, "now").mockImplementation(() => nowMs);
+    const values = sampleFrame().values;
+    const sessionInfo = `
+WeekendInfo:
+  TrackID: 99
+  TrackLength: 6.515 km
+  TrackDisplayName: Road America
+  SessionID: 123
+DriverInfo:
+  DriverCarIdx: 7
+  Drivers:
+  - CarIdx: 7
+    CarID: 42
+    CarScreenName: GT3 Test Car
+`;
+    let tick = 0;
+    let reads = 0;
+    const reader: IRacingFrameReader = {
+      start() {},
+      async stop() {},
+      readLatest() {
+        reads++;
+        const current = tick++;
+        return {
+          tick: current,
+          sessionInfoUpdate: 1,
+          sessionInfo,
+          values: { ...values, SessionTick: current, SessionTime: current / 100 },
+        };
+      },
+    };
+    const delivered: Buffer[] = [];
+    const capturedTimes: number[] = [];
+    const recorder = new CapturingIRacingRecorder();
+    const source = new IRacingTelemetrySource({
+      reader,
+      pollIntervalMs: 1000 / 240,
+      recordingEnabled: true,
+      recorder,
+      dispatchRawFrame: async (raw, frameTimeMs) => {
+        delivered.push(raw);
+        capturedTimes.push(frameTimeMs!);
+      },
+    });
+    try {
+      setRecordingFrequencyHz(50);
+      source.start();
+      for (let i = 0; i < 10; i++) {
+        nowMs = i * 10;
+        timerCallback!();
+        await Promise.resolve();
+        await Promise.resolve();
+      }
+      expect(reads).toBe(10);
+
+      setRecordingFrequencyHz(100);
+      nowMs = 100;
+      timerCallback!();
+      await Promise.resolve();
+      await Promise.resolve();
+      for (let i = 11; i < 15; i++) {
+        nowMs = i * 10;
+        timerCallback!();
+        await Promise.resolve();
+        await Promise.resolve();
+      }
+      expect(reads).toBe(15);
+
+      await source.stop();
+      expect(delivered).toHaveLength(10);
+      const decoder = createIRacingSourceDecoderState();
+      const decodedTicks: number[] = [];
+      const decodedTracks: string[] = [];
+      for (const raw of delivered) {
+        const frame = decodeIRacingSourceFrame(raw, decoder);
+        if (frame) {
+          decodedTicks.push(frame.values.SessionTick as number);
+          decodedTracks.push(frame.session.trackName);
+        }
+      }
+      expect(decodedTicks).toEqual([0, 2, 4, 6, 8, 10, 11, 12, 13, 14]);
+      expect(decodedTracks).toEqual(Array(10).fill("Road America"));
+      expect(recorder.frames).toHaveLength(10);
+      expect(recorder.stopped).toBe(true);
+      expect(capturedTimes).toHaveLength(10);
+      expect(capturedTimes.every((time, index) => index === 0 || time >= capturedTimes[index - 1]!)).toBe(true);
+    } finally {
+      await source.stop();
+      setRecordingFrequencyHz(previousFrequency);
+      timerSpy.mockRestore();
+      clearSpy.mockRestore();
+      clockSpy.mockRestore();
+    }
   });
 
   test("reparses session YAML when raw content or revision changes", async () => {

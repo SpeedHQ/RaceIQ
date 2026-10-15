@@ -10,6 +10,10 @@ import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { pickRecordingFolder, RecordingFolderPickerError } from "../../runtime/platform/recording-folder-picker";
 import { previewSessionCleanup, executeSessionCleanup, SessionCleanupBusyError } from "@raceiq/backend-core/session-capture/session-cleanup";
+import { runUserCompressionNow } from "@raceiq/backend-core/session-capture/compressor";
+import { getSessionDownsampleStatus, previewSessionDownsample, startSessionDownsample } from "@raceiq/backend-core/session-capture/session-downsample";
+import { RecordingMaintenanceBusyError, RecordingMaintenanceValidationError } from "@raceiq/backend-core/session-capture/maintenance-runtime";
+import type { SessionDownsampleRequest } from "@raceiq/shared/racing/sessions/downsample";
 import type { SessionCleanupRequest } from "@raceiq/shared/racing/sessions/cleanup";
 
 import { getAllGames } from "@raceiq/shared/games/registry";
@@ -24,6 +28,11 @@ interface GameStorageStats {
 const sessionCleanupRequestSchema: z.ZodType<SessionCleanupRequest> = z.union([
   z.object({ mode: z.literal("older-than"), olderThanDays: z.union([z.literal(7), z.literal(30), z.literal(90), z.literal(180), z.literal(365)]) }).strict(),
   z.object({ mode: z.literal("selected"), sessionIds: z.array(z.number().int().positive()) }).strict(),
+]);
+
+const sessionDownsampleRequestSchema: z.ZodType<SessionDownsampleRequest> = z.union([
+  z.object({ mode: z.literal("all"), targetHz: z.union([z.literal(50), z.literal(60), z.literal(70), z.literal(80), z.literal(90), z.literal(100)]) }).strict(),
+  z.object({ mode: z.literal("older-than"), olderThanDays: z.union([z.literal(30), z.literal(90), z.literal(180), z.literal(365)]), targetHz: z.union([z.literal(50), z.literal(60), z.literal(70), z.literal(80), z.literal(90), z.literal(100)]) }).strict(),
 ]);
 
 
@@ -178,10 +187,45 @@ export const storageRoutes = new Hono()
   // POST /api/storage/compress — trigger immediate compression of eligible sessions
   .post("/api/storage/compress", async (c) => {
     console.log("[Compressor] User triggered compression");
-    const { runUserCompressionNow } = await import("@raceiq/backend-core/session-capture/compressor");
     await runUserCompressionNow();
     return c.json({ ok: true });
   })
+  .post("/api/storage/session-downsample/preview", async (c) => {
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "Invalid downsample request" }, 400);
+    }
+    const parsed = sessionDownsampleRequestSchema.safeParse(body);
+    if (!parsed.success) return c.json({ error: "Invalid downsample request" }, 400);
+    try {
+      return c.json(await previewSessionDownsample(parsed.data));
+    } catch (error) {
+      if (error instanceof RecordingMaintenanceValidationError) return c.json({ code: error._tag, error: error.message }, 400);
+      if (error instanceof RecordingMaintenanceBusyError) return c.json({ code: error.code, error: error.message }, 409);
+      return c.json({ code: "STORAGE_IO_ERROR", error: error instanceof Error ? error.message : "Downsample preview failed" }, 500);
+    }
+  })
+  .post("/api/storage/session-downsample", async (c) => {
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "Invalid downsample request" }, 400);
+    }
+    const parsed = sessionDownsampleRequestSchema.safeParse(body);
+    if (!parsed.success) return c.json({ error: "Invalid downsample request" }, 400);
+    try {
+      await startSessionDownsample(parsed.data);
+      return c.json({ accepted: true }, 202);
+    } catch (error) {
+      if (error instanceof RecordingMaintenanceValidationError) return c.json({ code: error._tag, error: error.message }, 400);
+      if (error instanceof RecordingMaintenanceBusyError) return c.json({ code: error.code, error: error.message }, 409);
+      return c.json({ code: "STORAGE_IO_ERROR", error: error instanceof Error ? error.message : "Downsample admission failed" }, 500);
+    }
+  })
+  .get("/api/storage/session-downsample", (c) => c.json(getSessionDownsampleStatus()))
   .post("/api/storage/session-cleanup/preview", async (c) => {
     const parsed = sessionCleanupRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) return c.json({ error: "Invalid cleanup request" }, 400);

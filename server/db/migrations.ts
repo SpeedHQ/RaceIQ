@@ -1966,6 +1966,11 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       )`,
     ],
   },
+  {
+    version: 76,
+    name: "persist archival recording frequency caps",
+    sql: [`ALTER TABLE sessions ADD COLUMN downsampled_frequency_hz INTEGER`],
+  },
 ];
 const dashboardCanonicalTriggers = (() => {
   const readModel = migrations.find((migration) => migration.version === 68);

@@ -6,8 +6,10 @@ import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@raceiq/shared/telemetry/live/contracts";
 import type { LiveTelemetryView } from "../lib/live-telemetry-view";
 import { buildLiveTelemetryView } from "../lib/live-telemetry-view";
+import { DEFAULT_RECORDING_FREQUENCY_HZ, type RecordingFrequencyHz } from "@raceiq/shared/platform/runtime/recording-frequency";
 export interface DisplaySettings {
   recordingDirectory: string | null;
+  recordingFrequencyHz: RecordingFrequencyHz;
   unit: "metric" | "imperial";
   temperatureUnit: "C" | "F";
   aiProvider: "gemini" | "openai" | "openai-compatible";
@@ -27,6 +29,9 @@ export interface DisplaySettings {
   /** Opt-in background removal of old raw session captures. */
   sessionCleanupEnabled: boolean;
   sessionCleanupAgeDays: 30 | 90 | 180 | 365;
+  sessionDownsampleEnabled: boolean;
+  sessionDownsampleAgeDays: 30 | 90 | 180 | 365;
+  sessionDownsampleFrequencyHz: RecordingFrequencyHz;
   /** Server-injected canonical active recording directory. */
   resolvedRecordingDirectory?: string;
   udpPort?: number;
@@ -55,6 +60,7 @@ export interface DisplaySettings {
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   recordingDirectory: null,
+  recordingFrequencyHz: DEFAULT_RECORDING_FREQUENCY_HZ,
   unit: "metric",
   temperatureUnit: "C",
   aiProvider: "gemini",
@@ -71,6 +77,9 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   cacheMaxMB: 256,
   sessionCleanupEnabled: false,
   sessionCleanupAgeDays: 90,
+  sessionDownsampleEnabled: false,
+  sessionDownsampleAgeDays: 30,
+  sessionDownsampleFrequencyHz: 50,
   language: "en",
 };
 

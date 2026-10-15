@@ -61,5 +61,8 @@
     "@raceiq/game-f1-2025-metadata": "workspace:*",
     "@raceiq/analysis-core": "workspace:*",
     "@raceiq/telemetry-core": "workspace:*"
+  },
+  "devDependencies": {
+    "effect": "^4.0.5"
   }
 }

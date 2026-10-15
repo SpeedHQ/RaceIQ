@@ -9,6 +9,8 @@ import {
   type IRacingValue,
 } from "@raceiq/capture-formats/iracing/source-frame";
 import { iracingRecorder, type IRacingRecorder } from "./recorder";
+import { NativeCaptureRateLimiter } from "@raceiq/backend-core/games/shared/native-capture-rate-limiter";
+import { getRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/recording-frequency";
 import {
   DumpToBinProcessor,
   IRacingFramePipeline,
@@ -67,6 +69,7 @@ export class IRacingTelemetrySource {
   private readonly recorder: IRacingRecorder;
   private readonly frameEncoder = new IRacingSourceFrameEncoder();
   private readonly framePipeline = new IRacingFramePipeline();
+  private readonly captureRateLimiter = new NativeCaptureRateLimiter();
   private timer: ReturnType<typeof setInterval> | null = null;
   private running = false;
   private lastErrorLogAt = 0;
@@ -98,6 +101,7 @@ export class IRacingTelemetrySource {
 
   start(): void {
     if (this.running) return;
+    this.captureRateLimiter.reset();
     if (this.recordingEnabled && !this.recorder.recording) {
       const recordPath = this.recorder.start(this.recordingDir);
       console.log(`[iRacing] Recording mode: bin file created at ${recordPath}`);
@@ -112,6 +116,7 @@ export class IRacingTelemetrySource {
 
   async stop(): Promise<void> {
     this.running = false;
+    this.captureRateLimiter.reset();
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
@@ -143,6 +148,12 @@ export class IRacingTelemetrySource {
     try {
       const snapshot = this.reader.readLatest();
       if (!snapshot) return false;
+      if (
+        this.running &&
+        !this.captureRateLimiter.shouldCapture(performance.now(), getRecordingFrequencyHz())
+      ) {
+        return false;
+      }
       const frameTimeMs = Date.now();
 
       const sessionNum = Math.trunc(numeric(snapshot.values, "SessionNum", 0));

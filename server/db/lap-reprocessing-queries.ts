@@ -1,8 +1,121 @@
+import { and, eq, isNotNull, or, inArray, sql } from "drizzle-orm";
+import { resolve } from "node:path";
 import { cacheDelete } from "./telemetry-replay-storage";
-import { and, eq, isNotNull, or, inArray } from "drizzle-orm";
 import { db } from "./index";
-import { laps, sessions, lapMetrics, lapAnalyses, compareAnalyses, lineSpreadCache } from "./schema";
+import { laps, sessions, lapMetrics, lapAnalyses, compareAnalyses, lineSpreadCache, dashboardSummaryState } from "./schema";
+import type { RecordingFrequencyHz } from "@raceiq/shared/platform/runtime/recording-frequency";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
+
+type DownsampleLapIndex = {
+  lapId: number;
+  expectedRawByteOffset: number;
+  expectedRawFrameCount: number;
+};
+type DownsampleLapRewrite = DownsampleLapIndex & { rawByteOffset: number; rawFrameCount: number };
+
+async function validateDownsampleReferences(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  oldRawFile: string,
+  sessionIds: number[],
+  expectedIndexes: readonly DownsampleLapIndex[],
+): Promise<{ sessionIds: number[]; lapRows: Array<{ id: number; sessionId: number; rawByteOffset: number | null; rawFrameCount: number | null; isFavorite: boolean; experimentId: number | null }> }> {
+  const resolvedOldPath = resolve(oldRawFile);
+  const allSessions = await tx.select({
+    id: sessions.id, rawFile: sessions.rawFile, isFavorite: sessions.isFavorite,
+  }).from(sessions).where(isNotNull(sessions.rawFile)).all();
+  const references = allSessions.filter((row) => row.rawFile !== null && resolve(row.rawFile) === resolvedOldPath);
+  const actualIds = references.map(({ id }) => id).sort((a, b) => a - b);
+  const requestedIds = [...sessionIds].sort((a, b) => a - b);
+  if (actualIds.length === 0 || new Set(requestedIds).size !== requestedIds.length || actualIds.length !== requestedIds.length ||
+      actualIds.some((id, index) => id !== requestedIds[index])) {
+    throw new Error("Downsample publication references changed");
+  }
+  const lapRows = await tx.select({
+    id: laps.id, sessionId: laps.sessionId, rawByteOffset: laps.rawByteOffset,
+    rawFrameCount: laps.rawFrameCount, isFavorite: laps.isFavorite, experimentId: laps.experimentId,
+  }).from(laps).where(inArray(laps.sessionId, actualIds)).all();
+  if (references.some(({ isFavorite }) => isFavorite) || lapRows.some(({ isFavorite }) => isFavorite)) {
+    throw new Error("Downsample publication includes favorite recording");
+  }
+  const indexedRows = lapRows.filter((row) => row.rawByteOffset !== null);
+  if (indexedRows.some((row) => row.rawFrameCount === null || !Number.isSafeInteger(row.rawByteOffset) ||
+      !Number.isSafeInteger(row.rawFrameCount) || row.rawByteOffset! < 0 || row.rawFrameCount! <= 0)) {
+    throw new Error("Downsample publication found invalid lap index");
+  }
+  const actualIndexes = indexedRows.map((row) => [row.id, row.rawByteOffset!, row.rawFrameCount!]).sort((a, b) => a[0]! - b[0]!);
+  const wantedIndexes = expectedIndexes.map((row) => [row.lapId, row.expectedRawByteOffset, row.expectedRawFrameCount]).sort((a, b) => a[0]! - b[0]!);
+  if (expectedIndexes.some((row) => !Number.isSafeInteger(row.expectedRawByteOffset) || row.expectedRawByteOffset < 0 ||
+      !Number.isSafeInteger(row.expectedRawFrameCount) || row.expectedRawFrameCount <= 0) ||
+      new Set(wantedIndexes.map(([id]) => id)).size !== wantedIndexes.length ||
+      actualIndexes.length !== wantedIndexes.length ||
+      actualIndexes.some((row, index) => row.some((value, column) => value !== wantedIndexes[index]![column]))) {
+    throw new Error("Downsample publication lap indexes changed");
+  }
+  return { sessionIds: actualIds, lapRows };
+}
+
+export async function commitSessionDownsample(input: {
+  oldRawFile: string;
+  newRawFile: string;
+  sessionIds: number[];
+  targetHz: RecordingFrequencyHz;
+  lapIndexes: ReadonlyArray<DownsampleLapRewrite>;
+}): Promise<void> {
+  await db.transaction(async (tx) => {
+    const checked = await validateDownsampleReferences(tx, input.oldRawFile, input.sessionIds, input.lapIndexes);
+    const rewriteById = new Map(input.lapIndexes.map((index) => [index.lapId, index]));
+    if (rewriteById.size !== input.lapIndexes.length ||
+        checked.lapRows.some((row) => (row.rawByteOffset !== null) !== rewriteById.has(row.id)) ||
+        input.lapIndexes.some((index) => !Number.isSafeInteger(index.rawByteOffset) || index.rawByteOffset < 0 ||
+          !Number.isSafeInteger(index.rawFrameCount) || index.rawFrameCount <= 0)) {
+      throw new Error("Downsample publication lap set changed");
+    }
+    const newResolvedPath = resolve(input.newRawFile);
+    const allPaths = await tx.select({ id: sessions.id, rawFile: sessions.rawFile }).from(sessions).where(isNotNull(sessions.rawFile)).all();
+    if (allPaths.some(({ id, rawFile }) => rawFile !== null && resolve(rawFile) === newResolvedPath &&
+        !checked.sessionIds.includes(id)) || resolve(input.oldRawFile) === newResolvedPath) {
+      throw new Error("Downsample publication target conflicts");
+    }
+    for (const id of checked.sessionIds) {
+      await tx.update(sessions).set({
+        rawFile: input.newRawFile,
+        downsampledFrequencyHz: sql`CASE WHEN ${sessions.downsampledFrequencyHz} IS NULL OR ${sessions.downsampledFrequencyHz} > ${input.targetHz} THEN ${input.targetHz} ELSE ${sessions.downsampledFrequencyHz} END`,
+      }).where(eq(sessions.id, id));
+    }
+    for (const index of input.lapIndexes) {
+      await tx.update(laps).set({ rawByteOffset: index.rawByteOffset, rawFrameCount: index.rawFrameCount })
+        .where(and(eq(laps.id, index.lapId), eq(laps.rawByteOffset, index.expectedRawByteOffset), eq(laps.rawFrameCount, index.expectedRawFrameCount)));
+    }
+    const ids = checked.lapRows.map(({ id }) => id);
+    if (ids.length) {
+      await tx.update(laps).set({ fuelPerLap: null, tyreWear: null }).where(inArray(laps.id, ids));
+      await tx.delete(lapMetrics).where(inArray(lapMetrics.lapId, ids));
+      await tx.delete(lapAnalyses).where(inArray(lapAnalyses.lapId, ids));
+      await tx.delete(compareAnalyses).where(or(inArray(compareAnalyses.lapAId, ids), inArray(compareAnalyses.lapBId, ids)));
+    }
+    for (const experimentId of new Set(checked.lapRows.flatMap((row) => row.experimentId === null ? [] : [row.experimentId]))) {
+      await tx.delete(lineSpreadCache).where(eq(lineSpreadCache.experimentId, experimentId));
+    }
+    await tx.update(dashboardSummaryState).set({ captureDirty: 1, captureReady: 0 })
+      .where(inArray(dashboardSummaryState.sessionId, checked.sessionIds));
+  });
+}
+
+export async function commitSessionDownsampleCap(input: {
+  oldRawFile: string;
+  sessionIds: number[];
+  targetHz: RecordingFrequencyHz;
+  lapIndexes: ReadonlyArray<DownsampleLapIndex>;
+}): Promise<void> {
+  await db.transaction(async (tx) => {
+    const checked = await validateDownsampleReferences(tx, input.oldRawFile, input.sessionIds, input.lapIndexes);
+    for (const id of checked.sessionIds) {
+      await tx.update(sessions).set({
+        downsampledFrequencyHz: sql`CASE WHEN ${sessions.downsampledFrequencyHz} IS NULL OR ${sessions.downsampledFrequencyHz} > ${input.targetHz} THEN ${input.targetHz} ELSE ${sessions.downsampledFrequencyHz} END`,
+      }).where(eq(sessions.id, id));
+    }
+  });
+}
 
 export async function getLapsForSession(sessionId: number): Promise<Array<{
   id: number; lapNumber: number; lapTime: number; isValid: boolean; isFavorite: boolean;

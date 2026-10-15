@@ -133,7 +133,12 @@ apps/backend/test/session-capture/lmu-sparse-recorder.test.ts
 apps/backend/test/session-capture/parse-bin-vs-gz.test.ts
 apps/backend/test/session-capture/parse-dump.test.ts
 apps/backend/test/session-capture/raw-binary-storage.test.ts
+apps/backend/test/session-capture/recording-maintenance-lifecycle.test.ts
 apps/backend/test/session-capture/session-cleanup.test.ts
+apps/backend/test/session-capture/session-downsample.test.ts
+apps/backend/test/session-capture/session-downsample-publication.test.ts
+apps/backend/test/session-capture/session-downsample-rewrite.test.ts
+apps/backend/test/session-capture/session-downsample-routes.test.ts
 apps/backend/test/session-capture/session-compressor.test.ts
 apps/backend/test/session-capture/session-recorder.test.ts
 apps/backend/test/session-capture/source-loader-stream.test.ts

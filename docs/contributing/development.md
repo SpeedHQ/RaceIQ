@@ -65,4 +65,37 @@ bun run test:all
 
 Backend type checking uses `bun run --cwd apps/backend typecheck`. It forces a full composite check rather than trusting incremental state: TypeScript 7.0.2 produced a locationless TS2589 on incremental runs while fresh checks passed. No diagnostics are disabled.
 
+## Effect scheduled work
+
+Effect 4 is used by backend-core for scheduled recording maintenance and by backend tests for virtual-clock coverage. Dependencies are declared in the workspace: `effect` in `server` (runtime), `effect` in `apps/backend` (test-only `TestClock` usage), and root `@effect/tsgo` for compiler diagnostics. Install or refresh workspace dependencies with:
+
+```bash
+bun install
+```
+
+The workspace dependency commands used to introduce or update this setup are:
+
+```bash
+bun add --cwd server effect
+bun add --cwd apps/backend --dev effect
+bun add --dev @effect/tsgo
+```
+
+Review the resolved versions and lockfile when updating; examples must match the installed major version.
+
+Installed versions: Effect 4.0.5, TypeScript 7.0.2, and `@effect/tsgo` 0.53.0. The inherited `tsconfig.base.json` plugin entry `{ "name": "@effect/language-service" }` is the plugin identifier consumed by `@effect/tsgo`; it is not the legacy language-service package.
+
+Run both Effect diagnostics and the repository's native TypeScript checks:
+
+```bash
+bun run effect:check
+bun run typecheck
+```
+
+The compiler patch integration was not retained: patched TypeScript 7 build mode produced TS2589. `effect:check` uses standalone `effect-tsgo diagnostics --project server/tsconfig.json`; native typecheck remains enabled. Root `postinstall` continues to run `lefthook install`.
+
+Do not treat the old Effect language-service compiler patcher or the local v4-beta reference checkout as installed API authority. Check examples against dependencies resolved by this repository. Optional editor integration is documented in the [official tsgo guide](https://github.com/Effect-TS/tsgo); no editor-specific configuration is required here.
+
+For scheduler ownership, retention ordering, and rewrite invariants, see [Scheduled recording maintenance](scheduled-recording-maintenance.md).
+
 For telemetry captures and imports, see [Telemetry recordings](telemetry-recordings.md). For test-process leaks, see [Test troubleshooting](test-troubleshooting.md).

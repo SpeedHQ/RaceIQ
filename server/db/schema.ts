@@ -104,6 +104,7 @@ export const sessions = sqliteTable(
 		sessionType: text("session_type"),
 		notes: text("notes"),
 		rawFile: text("raw_file"),
+		downsampledFrequencyHz: integer("downsampled_frequency_hz"),
 		isFavorite: integer("is_favorite", { mode: "boolean" }).notNull().default(false),
 		lapDetectorVersion: text("lap_detector_version"),
 		// Runtime telemetry identity snapshot attached at first persisted capture (migration v54).

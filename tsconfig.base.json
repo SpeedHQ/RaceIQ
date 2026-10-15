@@ -6,6 +6,7 @@
     "jsx": "react-jsx",
     "types": ["bun"],
     "strict": true,
+    "plugins": [{ "name": "@effect/language-service" }],
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
