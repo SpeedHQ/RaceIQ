@@ -1,5 +1,13 @@
 ## Unreleased
 
+### Features
+
+### Fixes
+
+### Internal
+
+## v0.20.0 - 2026-10-15
+
 ### Breaking
 - Legacy full-frame RaceIQ captures are no longer supported for import and replay. Migrate remaining legacy recordings when prompted before updating.
 - Imports and integrations now use string car and track IDs instead of ordinal fields. Existing sessions and setup links migrate automatically; downgrading requires a pre-upgrade database backup.
