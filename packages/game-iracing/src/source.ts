@@ -82,6 +82,7 @@ export class IRacingTelemetrySource {
   // SDK retains only its newest row. Capture and encode on every timer tick;
   // serialize slower persistence and pipeline work behind this in-memory queue.
   private readonly frameQueue: QueuedIRacingFrame[] = [];
+  private pendingSnapshot: IRacingSdkSnapshot | null = null;
   private drainPromise: Promise<void> | null = null;
   constructor(options: IRacingTelemetrySourceOptions = {}) {
     this.reader = options.reader ?? new IRacingSdkReader();
@@ -100,8 +101,8 @@ export class IRacingTelemetrySource {
   }
 
   start(): void {
-    if (this.running) return;
     this.captureRateLimiter.reset();
+    this.pendingSnapshot = null;
     if (this.recordingEnabled && !this.recorder.recording) {
       const recordPath = this.recorder.start(this.recordingDir);
       console.log(`[iRacing] Recording mode: bin file created at ${recordPath}`);
@@ -117,6 +118,7 @@ export class IRacingTelemetrySource {
   async stop(): Promise<void> {
     this.running = false;
     this.captureRateLimiter.reset();
+    this.pendingSnapshot = null;
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
@@ -146,7 +148,9 @@ export class IRacingTelemetrySource {
 
   async pollOnce(): Promise<boolean> {
     try {
-      const snapshot = this.reader.readLatest();
+      const latest = this.reader.readLatest();
+      if (latest) this.pendingSnapshot = latest;
+      const snapshot = this.pendingSnapshot;
       if (!snapshot) return false;
       if (
         this.running &&
@@ -154,6 +158,7 @@ export class IRacingTelemetrySource {
       ) {
         return false;
       }
+      this.pendingSnapshot = null;
       const frameTimeMs = Date.now();
 
       const sessionNum = Math.trunc(numeric(snapshot.values, "SessionNum", 0));

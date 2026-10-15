@@ -205,7 +205,13 @@ function StorageFilesSection() {
   const compress = useMutation({
     mutationFn: async () => {
       const response = await authenticatedFetch("/api/storage/compress", { method: "POST" });
-      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+      if (!response.ok) {
+        const body: unknown = await response.json().catch(() => null);
+        const message = typeof body === "object" && body !== null && "error" in body && typeof body.error === "string"
+          ? body.error
+          : `${response.status} ${response.statusText}`;
+        throw new Error(message);
+      }
       return response.json();
     },
     onSuccess: () => void refetch(),
@@ -294,6 +300,7 @@ function StorageFilesSection() {
               {m.storage_compress_now()}
             </Button>
             {compress.isSuccess && <p className="text-xs text-status-success mt-2">{m.storage_compress_complete()}</p>}
+            {compress.isError && <p role="alert" className="text-xs text-status-danger mt-2">{compress.error.message}</p>}
           </div>
         )}
         <div className="mt-6 flex flex-wrap justify-end gap-2 border-t border-app-border pt-5">

@@ -187,8 +187,13 @@ export const storageRoutes = new Hono()
   // POST /api/storage/compress — trigger immediate compression of eligible sessions
   .post("/api/storage/compress", async (c) => {
     console.log("[Compressor] User triggered compression");
-    await runUserCompressionNow();
-    return c.json({ ok: true });
+    try {
+      await runUserCompressionNow();
+      return c.json({ ok: true });
+    } catch (error) {
+      if (error instanceof RecordingMaintenanceBusyError) return c.json({ code: error.code, error: error.message }, 409);
+      throw error;
+    }
   })
   .post("/api/storage/session-downsample/preview", async (c) => {
     let body: unknown;

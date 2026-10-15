@@ -11,6 +11,7 @@ import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
 import { withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
 import { disposeRecordingMaintenanceRuntime } from "@raceiq/backend-core/session-capture/maintenance-runtime";
+import { admitMaintenance, getRecordingMaintenanceController, releaseMaintenance } from "@raceiq/backend-core/session-capture/maintenance-runtime";
 import { beginRecordingStorageImport, reserveRecordingStorageOperation } from "@raceiq/backend-core/session-capture/storage-activity";
 import { buildSessionDownsamplePlan } from "@raceiq/backend-core/session-capture/session-downsample";
 import type { SessionDownsampleStatus } from "@raceiq/shared/racing/sessions/downsample";
@@ -240,6 +241,35 @@ describe("session downsample storage routes", () => {
     });
   }
 
+
+  test("compression admission conflict returns actionable 409", async () => {
+    const release = reserveRecordingStorageOperation("directory-move");
+    try {
+      const response = await post("/api/storage/compress", "{}");
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({
+        code: "MOVE_ACTIVE",
+        error: "Recording storage operation is active",
+      });
+    } finally {
+      release();
+    }
+  });
+
+  test("compression maintenance admission conflict returns actionable 409", async () => {
+    const runtime = getRecordingMaintenanceController();
+    expect(await runtime.managed.runPromise(admitMaintenance(runtime, "maintenance"))).toBe(true);
+    try {
+      const response = await post("/api/storage/compress", "{}");
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({
+        code: "MOVE_ACTIVE",
+        error: "Recording storage operation is active",
+      });
+    } finally {
+      await runtime.managed.runPromise(releaseMaintenance(runtime));
+    }
+  });
   test("duplicate admission returns 409 without resetting an active job", async () => {
     const fixture = await createCapture();
     await insertFixture(fixture.path, fixture.rawByteOffset);

@@ -12,6 +12,7 @@ import {
   type IRacingFrameReader,
   IRacingTelemetrySource,
 } from "../src/source";
+import type { IRacingSdkSnapshot } from "../src/sdk-reader";
 import {
   createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,
@@ -193,6 +194,87 @@ DriverInfo:
       iracing: { sectorStarts: [0, 0.34, 0.67] },
     });
   });
+  test("retains newest rate-limited snapshot through empty polls without duplicates", async () => {
+    const previousFrequency = getRecordingFrequencyHz();
+    let nowMs = 0;
+    let latest: IRacingSdkSnapshot | null = null;
+    const delivered: Buffer[] = [];
+    const clockSpy = spyOn(performance, "now").mockImplementation(() => nowMs);
+    setRecordingFrequencyHz(60);
+    const reader: IRacingFrameReader = {
+      start() {},
+      async stop() {},
+      readLatest: () => {
+        const snapshot = latest;
+        latest = null;
+        return snapshot;
+      },
+    };
+    const source = new IRacingTelemetrySource({
+      reader,
+      pollIntervalMs: 60_000,
+      dispatchRawFrame: async (raw) => { delivered.push(Buffer.from(raw)); },
+    });
+    const snapshot = (tick: number) => ({
+      tick,
+      sessionInfoUpdate: 1,
+      sessionInfo: "WeekendInfo:\n  TrackDisplayName: Road America\n",
+      values: { ...sampleFrame().values, SessionTick: tick, Speed: tick },
+    });
+
+    try {
+      source.start();
+      latest = snapshot(1);
+      nowMs = 0;
+      expect(await source.pollOnce()).toBe(true);
+      latest = snapshot(2);
+      nowMs = 16;
+      expect(await source.pollOnce()).toBe(false);
+      nowMs = 17;
+      expect(await source.pollOnce()).toBe(true);
+      nowMs = 18;
+      expect(await source.pollOnce()).toBe(false);
+      latest = snapshot(3);
+      nowMs = 33;
+      expect(await source.pollOnce()).toBe(false);
+      latest = snapshot(4);
+      nowMs = 34;
+      expect(await source.pollOnce()).toBe(true);
+      latest = snapshot(5);
+      nowMs = 51;
+      expect(await source.pollOnce()).toBe(true);
+      latest = snapshot(6);
+      nowMs = 66;
+      expect(await source.pollOnce()).toBe(false);
+
+      const decoder = createIRacingSourceDecoderState();
+      expect(delivered.map((raw) => decodeIRacingSourceFrame(raw, decoder)?.values.SessionTick))
+        .toEqual([1, 2, 4, 5]);
+      await source.stop();
+      await source.start();
+      latest = null;
+      nowMs = 53;
+      expect(await source.pollOnce()).toBe(false);
+      delivered.length = 0;
+
+      let nextTick = 1;
+      let nextFrameAt = 0;
+      for (nowMs = 0; nowMs <= 10_000; nowMs += 1000 / 240) {
+        if (nowMs >= nextFrameAt) {
+          latest = snapshot(nextTick++);
+          nextFrameAt += 1000 / 60 + (nextTick % 2 === 0 ? 1 : -1);
+        }
+        await source.pollOnce();
+      }
+      expect(nextTick).toBe(601);
+      expect(delivered.length).toBeGreaterThanOrEqual(550);
+    } finally {
+      await source.stop();
+      setRecordingFrequencyHz(previousFrequency);
+      clockSpy.mockRestore();
+    }
+  });
+
 
   test("replays a healthy recording through the SDK source and recorder", async () => {
     const previousFrequency = getRecordingFrequencyHz();

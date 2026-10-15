@@ -1,3 +1,10 @@
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { decompressIfGzipSync, encodeFrameLength, iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
+import { inspectDownsampleRecording, rewriteDownsampleRecording } from "@raceiq/capture-formats/session/downsample";
+import { parseF1Header } from "@raceiq/capture-formats/f1-2025/f1-wire";
+import { f1Parser } from "../src/game-parser";
 import { registerGame } from "@raceiq/shared/games/registry";
 import { f1ServerAdapter } from "../src/index";
 import { describe, expect, test } from "bun:test";
@@ -31,7 +38,98 @@ function frame(data: Buffer): Buffer {
   return Buffer.concat([Buffer.alloc(F1_HEADER_SIZE), data]);
 }
 
+function wireFrame(packetId: number, sessionTime: number, frameId: number, data: Buffer): Buffer {
+  const buf = frame(data);
+  buf.writeUInt16LE(2025, 0);
+  buf[2] = 25;
+  buf[3] = 1;
+  buf[5] = 1;
+  buf[6] = packetId;
+  buf.writeBigUInt64LE(1n, 7);
+  buf.writeFloatLE(sessionTime, 15);
+  buf.writeUInt32LE(frameId, 19);
+  buf.writeUInt32LE(frameId, 23);
+  buf[27] = 0;
+  buf[28] = 255;
+  return buf;
+}
+
 describe("F1 telemetry contract", () => {
+  test("downsample replay preserves F1 lap endpoint family state", async () => {
+    const root = mkdtempSync(join(tmpdir(), "f1-downsample-replay-"));
+    try {
+      const sourceFrames: Buffer[] = [];
+      const motionData = (position: number) => {
+        const data = Buffer.alloc(60);
+        data.writeFloatLE(position, 0);
+        return data;
+      };
+      const telemetryData = (speed: number) => {
+        const data = Buffer.alloc(60);
+        data.writeUInt16LE(speed, 0);
+        return data;
+      };
+      const motionExData = (angle: number) => {
+        const data = Buffer.alloc(224);
+        data.writeFloatLE(angle, 168);
+        return data;
+      };
+      const add = (id: number, time: number, tick: number, data: Buffer) =>
+        sourceFrames.push(wireFrame(id, time, tick, data));
+      add(0, 0, 0, motionData(0));
+      add(1, 0, 0, Buffer.alloc(9));
+      add(2, 0, 0, Buffer.alloc(57));
+      add(6, 0, 0, telemetryData(100));
+      add(13, 0, 0, motionExData(0));
+      for (let tick = 1; tick <= 11; tick++) {
+        const time = tick * 0.011;
+        add(0, time, tick, motionData(tick));
+        add(6, time, tick, telemetryData(100 + tick));
+        add(13, time, tick, motionExData(tick));
+      }
+      const source = {
+        gameId: "f1-2025" as const,
+        records: async function* () {
+          let offset = 0;
+          for (const frame of sourceFrames) {
+            yield { kind: "frame" as const, offset, frame };
+            offset += encodeFrameLength(frame.length).length + frame.length;
+          }
+        },
+        createTelemetryParser: () => {
+          const state = f1Parser.createParserState();
+          return {
+            parse(frame: Buffer) {
+              f1Parser.tryParse(frame, state);
+              return f1Parser.canHandle(frame) && [0, 1, 2, 6, 13].includes(parseF1Header(frame).packetId);
+            },
+            reset() { state.reset(); },
+          };
+        },
+        lapIndexes: [{ lapId: 1, rawByteOffset: 0, rawFrameCount: 35 }],
+      };
+      const outputPath = join(root, "replayed.bin");
+      const inspection = await inspectDownsampleRecording(source);
+      const result = await rewriteDownsampleRecording(source, inspection, { targetHz: 50, outputPath, gzip: false });
+
+      const replayState = f1Parser.createParserState();
+      let endpoint: TelemetryPacket | null = null;
+      const lap = result.lapIndexes[0]!;
+      let replayedLapFrames = 0;
+      for (const record of iterateSessionCaptureRecords(decompressIfGzipSync(readFileSync(outputPath)))) {
+        if (record.kind !== "frame" || record.offset < lap.rawByteOffset) continue;
+        const packet = f1Parser.tryParse(record.frame, replayState);
+        if (packet) endpoint = packet;
+        if (++replayedLapFrames === lap.rawFrameCount) break;
+      }
+
+      expect(endpoint?.PositionX).toBe(-10);
+      expect(endpoint?.Speed).toBeCloseTo(110 / 3.6);
+      expect(endpoint?.f1?.motionEx?.frontWheelsAngle).toBe(10);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
   test("normalizes fuel to a fraction and preserves power in watts", () => {
     const accumulator = new F1StateAccumulator();
 

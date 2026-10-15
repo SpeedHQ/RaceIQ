@@ -43,6 +43,7 @@ export type DownsampleLapWindow = {
   lastFrameOrdinal: number;
   firstTelemetry: TelemetryPoint;
   lastTelemetry: TelemetryPoint;
+  f1EndpointTelemetry: readonly { first: TelemetryPoint; last: TelemetryPoint }[];
 };
 export type DownsampleStreamPlan = { segment: number; stream: string; clock: "recorder" | "fm-timestamp" | "f1-session-time"; firstTelemetry: TelemetryPoint; lastTelemetry: TelemetryPoint; sampleRateHz: number | null };
 export type DownsampleRecordingInspection = {
@@ -74,7 +75,7 @@ type StreamState = {
   previousTime: number | null;
   fmWrap: number;
 };
-type LapState = { start: number; end: number; first: TelemetryPoint | null; last: TelemetryPoint | null };
+type LapState = { start: number; end: number; first: TelemetryPoint | null; last: TelemetryPoint | null; f1EndpointTelemetry: Map<number, { first: TelemetryPoint; last: TelemetryPoint }> };
 
 /** Strictly inspects streamed canonical records; retained planning data is O(laps + streams). */
 export async function inspectDownsampleRecording(input: DownsampleRecordingInput): Promise<DownsampleRecordingInspection> {
@@ -149,7 +150,7 @@ export async function inspectDownsampleRecording(input: DownsampleRecordingInput
       active.delete(lap);
     }
     for (const index of starts.get(record.offset) ?? []) {
-      const state: LapState = { start: current, end: current + index.rawFrameCount!, first: null, last: null };
+      const state: LapState = { start: current, end: current + index.rawFrameCount!, first: null, last: null, f1EndpointTelemetry: new Map() };
       if (!Number.isSafeInteger(state.end)) throw new DownsampleRecordingError("unsupported-format", `Lap ${index.lapId} frame window is invalid`);
       lapStates.set(index.lapId, state);
       active.add(state);
@@ -182,6 +183,17 @@ export async function inspectDownsampleRecording(input: DownsampleRecordingInput
     if (!replayable) continue;
     if (inContext) continue;
     if (!eligible) continue;
+    if (input.gameId === "f1-2025") {
+      const packetId = parseF1Header(record.frame).packetId;
+      if (F1_THROTTLED[packetId]) {
+        const endpoint = { ordinal: current, timeMs: gameTime };
+        for (const lap of active) {
+          const family = lap.f1EndpointTelemetry.get(packetId);
+          if (family) family.last = endpoint;
+          else lap.f1EndpointTelemetry.set(packetId, { first: endpoint, last: endpoint });
+        }
+      }
+    }
     telemetryFound = true;
     const key = `${segment}:${stream}`;
     let state = streams.get(key);
@@ -246,6 +258,7 @@ export async function inspectDownsampleRecording(input: DownsampleRecordingInput
       lastFrameOrdinal: state.end - 1,
       firstTelemetry: state.first,
       lastTelemetry: state.last,
+      f1EndpointTelemetry: [...state.f1EndpointTelemetry.values()],
     });
   }
   const streamPlans: DownsampleStreamPlan[] = [];
@@ -405,6 +418,10 @@ export async function rewriteDownsampleRecording(
       forcedOrdinals.add(lap.lastFrameOrdinal);
       forcedOrdinals.add(lap.firstTelemetry.ordinal);
       forcedOrdinals.add(lap.lastTelemetry.ordinal);
+      for (const endpoints of lap.f1EndpointTelemetry) {
+        forcedOrdinals.add(endpoints.first.ordinal);
+        forcedOrdinals.add(endpoints.last.ordinal);
+      }
     }
 
     type LapProgress = {

@@ -7,6 +7,44 @@ import { ACC_PACKED_MAGIC, packTriplet } from "../src/kunos/pack-triplet";
 import { inspectDownsampleRecording, DownsampleRecordingError, rewriteDownsampleRecording, validateDownsampleRecording } from "../src/session/downsample";
 import { decompressIfGzipSync, encodeFrameLength, iterateSessionCaptureRecords } from "../src/session/framing";
 
+test("retains each F1 telemetry family state at an interior lap endpoint", async () => {
+  const root = mkdtempSync(join(tmpdir(), "capture-downsample-f1-lap-endpoint-"));
+  try {
+    const frames: Buffer[] = [];
+    for (let tick = 0; tick < 12; tick++) {
+      for (const packetId of [0, 6, 13]) {
+        const frame = Buffer.alloc(29);
+        frame.writeUInt16LE(2025, 0);
+        frame[6] = packetId;
+        frame.writeBigUInt64LE(1n, 7);
+        frame.writeFloatLE(tick * 0.011, 15);
+        frame.writeUInt32LE(tick * 3 + packetId, 19);
+        frames.push(frame);
+      }
+    }
+    const lapIndexes = [{ lapId: 1, rawByteOffset: 0, rawFrameCount: 32 }];
+    const source = { gameId: "f1-2025" as const, records: records(frames), createTelemetryParser: parser, lapIndexes };
+    const inspection = await inspectDownsampleRecording(source);
+    expect(inspection.laps[0]?.f1EndpointTelemetry.map(({ first, last }) => [first.ordinal, last.ordinal])).toEqual([
+      [0, 30],
+      [1, 31],
+      [2, 29],
+    ]);
+    const outputPath = join(root, "f1-lap-endpoint.bin");
+    await rewriteDownsampleRecording(source, inspection, { targetHz: 50, outputPath, gzip: false });
+    const outputFrames = [...iterateSessionCaptureRecords(decompressIfGzipSync(readFileSync(outputPath)))]
+      .filter((record) => record.kind === "frame")
+      .map((record) => record.frame);
+    for (const packetId of [0, 6, 13]) {
+      const expectedValue = packetId === 13 ? 40 : 30 + packetId;
+      const endpointPacket = outputFrames.find((frame) => frame[6] === packetId && frame.readUInt32LE(19) === expectedValue);
+      expect(endpointPacket).toBeDefined();
+      expect(endpointPacket?.readUInt32LE(19)).toBe(expectedValue);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 function fmFrame(tick: number): Buffer {
   const frame = Buffer.alloc(324);
   frame.writeUInt32LE(tick, 4);
