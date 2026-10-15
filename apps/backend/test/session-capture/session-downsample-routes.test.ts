@@ -12,6 +12,7 @@ import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/r
 import { withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
 import { disposeRecordingMaintenanceRuntime } from "@raceiq/backend-core/session-capture/maintenance-runtime";
 import { beginRecordingStorageImport, reserveRecordingStorageOperation } from "@raceiq/backend-core/session-capture/storage-activity";
+import { buildSessionDownsamplePlan } from "@raceiq/backend-core/session-capture/session-downsample";
 import type { SessionDownsampleStatus } from "@raceiq/shared/racing/sessions/downsample";
 import { iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
 import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
@@ -46,8 +47,8 @@ async function createCapture(sampleIntervalMs = 10): Promise<{ path: string; raw
   const rawByteOffset = recorder.getCurrentByteOffset();
   for (let index = 0; index < 1_000; index++) {
     const frame = Buffer.from(baseline);
-    frame.writeUInt32LE(index * sampleIntervalMs, 4);
-    recorder.writeRecord(frame, BASE_TIMESTAMP + index * sampleIntervalMs);
+    frame.writeUInt32LE(Math.round(index * sampleIntervalMs), 4);
+    recorder.writeRecord(frame, BASE_TIMESTAMP + Math.round(index * sampleIntervalMs));
   }
   await recorder.stop();
   return { path, rawByteOffset, sourceBytes: statSync(path).size };
@@ -147,9 +148,23 @@ describe("session downsample storage routes", () => {
       expect(preview.candidateSessionIds).not.toContain(id);
       expect(preview.skipped).toContainEqual({ sessionIds: [id], reason: "already-at-or-below-target" });
     }
-
     expect(readFileSync(fixture.path)).toEqual(beforeFile);
     expect((await db.select({ cap: sessions.downsampledFrequencyHz }).from(sessions).where(eq(sessions.id, id)).get())?.cap).toBeNull();
+  });
+  test("preview applies 3 Hz source-rate tolerance", async () => {
+    for (const sourceHz of [81, 83] as const) {
+      const fixture = await createCapture(1000 / sourceHz);
+      const id = await insertFixture(fixture.path, fixture.rawByteOffset);
+      const plan = await buildSessionDownsamplePlan({ mode: "all", targetHz: 80 });
+      expect(plan.groups.some((group) => group.rows.some((row) => row.id === id))).toBe(false);
+
+      const response = await post("/api/storage/session-downsample/preview", JSON.stringify({ mode: "all", targetHz: 80 }));
+
+      expect(response.status).toBe(200);
+      const preview = (await response.json()) as { candidateSessionIds: number[]; skipped: { sessionIds: number[]; reason: string }[] };
+      expect(preview.candidateSessionIds).not.toContain(id);
+      expect(preview.skipped).toContainEqual({ sessionIds: [id], reason: "already-at-or-below-target" });
+    }
   });
   test("preview reads real timestamped recording without changing source, indexes, or settings", async () => {
     const fixture = await createCapture();

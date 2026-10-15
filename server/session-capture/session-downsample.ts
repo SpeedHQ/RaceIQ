@@ -265,7 +265,7 @@ export type SessionDownsamplePlan = { preview: SessionDownsamplePreview; groups:
 
 const DAY_MS = 86_400_000;
 const MOTEC_SOURCE = "motec";
-const RATE_COMPARISON_TOLERANCE = 1.01;
+const RATE_COMPARISON_TOLERANCE_HZ = 3;
 
 function skip(rows: SessionDownsampleRow[], reason: SessionDownsampleSkip["reason"]): SessionDownsampleSkip {
   return { sessionIds: rows.map((row) => row.id).sort((a, b) => a - b), reason };
@@ -368,7 +368,7 @@ export async function buildSessionDownsamplePlan(request: SessionDownsampleReque
         skipped.push(skip(refs, "unreliable-time"));
         continue;
       }
-      if (inspection.streams.every((stream) => stream.sampleRateHz! <= request.targetHz * RATE_COMPARISON_TOLERANCE)) {
+      if (inspection.streams.every((stream) => Math.round(stream.sampleRateHz!) <= request.targetHz + RATE_COMPARISON_TOLERANCE_HZ)) {
         skipped.push(skip(refs, "already-at-or-below-target"));
         continue;
       }
