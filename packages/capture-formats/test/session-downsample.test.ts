@@ -274,6 +274,26 @@ describe("inspectDownsampleRecording", () => {
       [3, 1, 4, 328, 3],
     ]);
   });
+  test("measures observed telemetry frequency from recorded sample timestamps", async () => {
+    const result = await inspectDownsampleRecording({
+      gameId: "fm-2023",
+      records: records([fmFrame(0), fmFrame(20), fmFrame(40)], [0, 20, 40]),
+      createTelemetryParser: parser,
+      lapIndexes: [],
+    });
+    expect(result.streams[0]?.sampleRateHz).toBe(50);
+  });
+  test("measures the first 1000 stream samples and ignores later pauses", async () => {
+    const frames = Array.from({ length: 1001 }, (_, index) => fmFrame(index));
+    const times = Array.from({ length: 1001 }, (_, index) => index < 1000 ? index * 20 : 100_000);
+    const result = await inspectDownsampleRecording({
+      gameId: "fm-2023",
+      records: records(frames, times),
+      createTelemetryParser: parser,
+      lapIndexes: [],
+    });
+    expect(result.streams[0]?.sampleRateHz).toBe(50);
+  });
   test("unwraps FM rollover and uses recorder time only for complete streams", async () => {
     const rollover = await inspectDownsampleRecording({
       gameId: "fm-2023",

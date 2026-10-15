@@ -15,8 +15,12 @@ import { beginRecordingStorageImport, reserveRecordingStorageOperation } from "@
 import type { SessionDownsampleStatus } from "@raceiq/shared/racing/sessions/downsample";
 import { iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
 import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+import { initServerGameAdapters } from "../../src/games/init";
 import { storageRoutes } from "../../src/routes/system/storage-routes";
 
+initGameAdapters();
+initServerGameAdapters();
 const app = new Hono().route("/", storageRoutes);
 const insertedSessions: number[] = [];
 const insertedLaps: number[] = [];
@@ -31,7 +35,7 @@ function createOwnedDirectory(): string {
   return directory;
 }
 
-async function createCapture(): Promise<{ path: string; rawByteOffset: number; sourceBytes: number }> {
+async function createCapture(sampleIntervalMs = 10): Promise<{ path: string; rawByteOffset: number; sourceBytes: number }> {
   const sourceFrames = [...iterateSessionFrames(gunzipSync(readFileSync(fixturePath)))].slice(0, 520);
   const baseline = sourceFrames.find(frame => frame.readInt32LE(0) === 1);
   if (!baseline) throw new Error("FM route fixture has no active telemetry frame");
@@ -42,8 +46,8 @@ async function createCapture(): Promise<{ path: string; rawByteOffset: number; s
   const rawByteOffset = recorder.getCurrentByteOffset();
   for (let index = 0; index < 1_000; index++) {
     const frame = Buffer.from(baseline);
-    frame.writeUInt32LE(index * 10, 4);
-    recorder.writeRecord(frame, BASE_TIMESTAMP + index * 10);
+    frame.writeUInt32LE(index * sampleIntervalMs, 4);
+    recorder.writeRecord(frame, BASE_TIMESTAMP + index * sampleIntervalMs);
   }
   await recorder.stop();
   return { path, rawByteOffset, sourceBytes: statSync(path).size };
@@ -131,6 +135,22 @@ describe("session downsample storage routes", () => {
     }
   });
 
+  test("preview skips 50 Hz recordings for 50 Hz and 80 Hz targets", async () => {
+    const fixture = await createCapture(20);
+    const id = await insertFixture(fixture.path, fixture.rawByteOffset);
+    const beforeFile = readFileSync(fixture.path);
+
+    for (const targetHz of [50, 80] as const) {
+      const response = await post("/api/storage/session-downsample/preview", JSON.stringify({ mode: "all", targetHz }));
+      expect(response.status).toBe(200);
+      const preview = (await response.json()) as { candidateSessionIds: number[]; skipped: { sessionIds: number[]; reason: string }[] };
+      expect(preview.candidateSessionIds).not.toContain(id);
+      expect(preview.skipped).toContainEqual({ sessionIds: [id], reason: "already-at-or-below-target" });
+    }
+
+    expect(readFileSync(fixture.path)).toEqual(beforeFile);
+    expect((await db.select({ cap: sessions.downsampledFrequencyHz }).from(sessions).where(eq(sessions.id, id)).get())?.cap).toBeNull();
+  });
   test("preview reads real timestamped recording without changing source, indexes, or settings", async () => {
     const fixture = await createCapture();
     const id = await insertFixture(fixture.path, fixture.rawByteOffset);

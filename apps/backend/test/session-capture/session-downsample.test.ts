@@ -29,22 +29,25 @@ function ownedPath(name: string): string {
   return join(dir, name);
 }
 
-async function writeSparseFixture(path: string, gameId: GameId): Promise<void> {
+async function writeSparseFixture(path: string, gameId: GameId, frameIntervalMs?: number): Promise<void> {
   const fixture = gameId === "fm-2023"
     ? "test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz"
     : "test/artifacts/sessions/acc-2026-04-10T02-55-22-777Z.bin.gz";
   const recorder = new SparseSessionRecorder(gameId);
   recorder.start(path);
   recorder.writeMetaFrame();
+  let count = 0;
   if (gameId === "acc") {
     const frames = readKunosFrames(fixture).slice(0, 520).map(({ physics, graphics, staticData }) =>
       packTriplet(ACC_PACKED_MAGIC, 1, 1, physics, graphics, staticData));
-    for (const frame of frames) recorder.writeRecord(frame);
+    for (const frame of frames) {
+      recorder.writeRecord(frame, frameIntervalMs === undefined ? undefined : count * frameIntervalMs);
+      count++;
+    }
   } else {
     const data = gunzipSync(readFileSync(fixture));
-    let count = 0;
     for (const frame of iterateSessionFrames(data)) {
-      recorder.writeRecord(frame);
+      recorder.writeRecord(frame, frameIntervalMs === undefined ? undefined : count * frameIntervalMs);
       if (++count === 520) break;
     }
   }
@@ -86,6 +89,20 @@ afterEach(async () => {
 });
 
 describe("session downsample preview", () => {
+  test("skips source recordings already at or below requested frequency", async () => {
+    const path = ownedPath("source-50hz.bin");
+    await writeSparseFixture(path, "fm-2023", 20);
+    const id = await addSession({ path });
+    const beforeBytes = readFileSync(path);
+
+    for (const targetHz of [50, 80] as const) {
+      const preview = await previewSessionDownsample({ mode: "all", targetHz });
+      expect(preview.candidateSessionIds).not.toContain(id);
+      expect(preview.skipped).toContainEqual({ sessionIds: [id], reason: "already-at-or-below-target" });
+    }
+    expect(readFileSync(path)).toEqual(beforeBytes);
+    expect((await db.select({ cap: sessions.downsampledFrequencyHz }).from(sessions).where(eq(sessions.id, id)).get())?.cap).toBeNull();
+  });
   test("returns eligible canonical file bytes and leaves file and DB metadata unchanged", async () => {
     const path = ownedPath("canonical.bin");
     await writeSparseFixture(path, "fm-2023");

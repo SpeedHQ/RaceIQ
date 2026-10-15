@@ -265,6 +265,7 @@ export type SessionDownsamplePlan = { preview: SessionDownsamplePreview; groups:
 
 const DAY_MS = 86_400_000;
 const MOTEC_SOURCE = "motec";
+const RATE_COMPARISON_TOLERANCE = 1.01;
 
 function skip(rows: SessionDownsampleRow[], reason: SessionDownsampleSkip["reason"]): SessionDownsampleSkip {
   return { sessionIds: rows.map((row) => row.id).sort((a, b) => a - b), reason };
@@ -363,6 +364,14 @@ export async function buildSessionDownsamplePlan(request: SessionDownsampleReque
       .map(({ lapId, rawByteOffset, rawFrameCount }) => ({ lapId, rawByteOffset, rawFrameCount }));
     try {
       const inspection = await inspectDownsampleRecording(createSessionDownsampleRecordingInput(source, groupLapIndexes));
+      if (inspection.streams.some((stream) => stream.sampleRateHz === null)) {
+        skipped.push(skip(refs, "unreliable-time"));
+        continue;
+      }
+      if (inspection.streams.every((stream) => stream.sampleRateHz! <= request.targetHz * RATE_COMPARISON_TOLERANCE)) {
+        skipped.push(skip(refs, "already-at-or-below-target"));
+        continue;
+      }
       candidates.push({ path, rows: refs, source, inspection, size });
     } catch (error) {
       if (error instanceof DownsampleRecordingError) {

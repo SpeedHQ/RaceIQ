@@ -44,7 +44,7 @@ export type DownsampleLapWindow = {
   firstTelemetry: TelemetryPoint;
   lastTelemetry: TelemetryPoint;
 };
-export type DownsampleStreamPlan = { segment: number; stream: string; clock: "recorder" | "fm-timestamp" | "f1-session-time"; firstTelemetry: TelemetryPoint; lastTelemetry: TelemetryPoint };
+export type DownsampleStreamPlan = { segment: number; stream: string; clock: "recorder" | "fm-timestamp" | "f1-session-time"; firstTelemetry: TelemetryPoint; lastTelemetry: TelemetryPoint; sampleRateHz: number | null };
 export type DownsampleRecordingInspection = {
   gameId: GameId;
   frameCount: number;
@@ -55,6 +55,7 @@ export type DownsampleRecordingInspection = {
   laps: readonly DownsampleLapWindow[];
   f1TelemetryCounts: Readonly<Record<number, number>>;
 };
+const RATE_SAMPLE_FRAME_LIMIT = 1000;
 const F1_THROTTLED: Record<number, true> = { [F1_PACKET_IDS.MOTION]: true, [F1_PACKET_IDS.CAR_TELEMETRY]: true, [F1_PACKET_IDS.MOTION_EX]: true };
 type StreamState = {
   segment: number;
@@ -65,6 +66,11 @@ type StreamState = {
   last: TelemetryPoint | null;
   recorderFirst: TelemetryPoint | null;
   recorderLast: TelemetryPoint | null;
+  rateSampleCount: number;
+  rateFirst: TelemetryPoint | null;
+  rateLast: TelemetryPoint | null;
+  rateRecorderFirst: TelemetryPoint | null;
+  rateRecorderLast: TelemetryPoint | null;
   previousTime: number | null;
   fmWrap: number;
 };
@@ -180,7 +186,7 @@ export async function inspectDownsampleRecording(input: DownsampleRecordingInput
     const key = `${segment}:${stream}`;
     let state = streams.get(key);
     if (!state) {
-      state = { segment, stream, allRecorder: true, fallbackValid: true, first: null, last: null, recorderFirst: null, recorderLast: null, previousTime: null, fmWrap: 0 };
+      state = { segment, stream, allRecorder: true, fallbackValid: true, first: null, last: null, recorderFirst: null, recorderLast: null, rateSampleCount: 0, rateFirst: null, rateLast: null, rateRecorderFirst: null, rateRecorderLast: null, previousTime: null, fmWrap: 0 };
       streams.set(key, state);
     }
     if (record.frameTimeMs === undefined || !Number.isFinite(record.frameTimeMs)) state.allRecorder = false;
@@ -206,6 +212,16 @@ export async function inspectDownsampleRecording(input: DownsampleRecordingInput
     const point = { ordinal: current, timeMs: time };
     state.first ??= point;
     state.last = point;
+    if (state.rateSampleCount < RATE_SAMPLE_FRAME_LIMIT) {
+      state.rateFirst ??= point;
+      state.rateLast = point;
+      if (record.frameTimeMs !== undefined && Number.isFinite(record.frameTimeMs)) {
+        const recorderPoint = { ordinal: current, timeMs: record.frameTimeMs };
+        state.rateRecorderFirst ??= recorderPoint;
+        state.rateRecorderLast = recorderPoint;
+      }
+      state.rateSampleCount++;
+    }
     latest = point;
     for (const lap of pending) lap.first = point;
     pending.clear();
@@ -237,12 +253,20 @@ export async function inspectDownsampleRecording(input: DownsampleRecordingInput
     if (!state.first || !state.last) continue;
     if (!state.allRecorder && !state.fallbackValid) throw new DownsampleRecordingError("unreliable-time", "Selected stream clock contains invalid timestamps");
     if (!state.allRecorder && input.gameId !== "fm-2023" && input.gameId !== "f1-2025") throw new DownsampleRecordingError("unreliable-time", "Native stream lacks complete recorder timestamps");
+    const firstTelemetry = state.allRecorder ? state.recorderFirst! : state.first;
+    const lastTelemetry = state.allRecorder ? state.recorderLast! : state.last;
+    const rateFirst = state.allRecorder ? state.rateRecorderFirst! : state.rateFirst!;
+    const rateLast = state.allRecorder ? state.rateRecorderLast! : state.rateLast!;
+    const rateElapsedMs = rateLast.timeMs - rateFirst.timeMs;
     streamPlans.push({
       segment: state.segment,
       stream: state.stream,
       clock: state.allRecorder ? "recorder" : input.gameId === "fm-2023" ? "fm-timestamp" : "f1-session-time",
-      firstTelemetry: state.allRecorder ? state.recorderFirst! : state.first,
-      lastTelemetry: state.allRecorder ? state.recorderLast! : state.last,
+      firstTelemetry,
+      lastTelemetry,
+      sampleRateHz: state.rateSampleCount > 1 && rateElapsedMs > 0
+        ? (state.rateSampleCount - 1) * 1000 / rateElapsedMs
+        : null,
     });
   }
   return { gameId: input.gameId, frameCount: ordinal, segmentCount: segment + 1, contextRanges: contexts, markers, streams: streamPlans, laps, f1TelemetryCounts };

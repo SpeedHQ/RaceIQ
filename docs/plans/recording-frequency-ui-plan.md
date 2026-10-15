@@ -5,7 +5,7 @@ Follow [shared contract](recording-frequency-contract.md) and [approved detailed
 ## Tasks and acceptance
 - U1/C1: StorageStep six server-backed buttons, immediate separate live-frequency save; loading/pending disables choices, failure retains saved choice plus alert.
 - U2/C2: StorageSection adjacent automatic retention controls use one local five-field draft and explicit Save; incompatible ages disabled, invalid toggle shows validation, no silent age correction; failure preserves draft.
-- U3/C3: SessionDownsampleDialog uses existing preview-confirm patterns, both scopes/default30/50, truthful counts/source bytes, favorite/MoTeC skip summaries and explicit irreversible confirmation. Zero candidates disables start.
+- U3/C3/C4: SessionDownsampleDialog uses existing preview-confirm patterns, both scopes/default30/50, truthful counts/source bytes, favorite/MoTeC skip summaries and explicit irreversible confirmation. Zero candidates disables start; measured-at-or-below-target skip appears in preview summaries. Backend owns the timestamp measurement and eligibility decision.
 - U4/C3/C5: feature-owned RPC/query hooks and inline Storage status restore on navigation, poll only while running, invalidate affected queries on terminal transitions; disable duplicate/conflicting actions, Retry partial/error.
 - U5: localized messages and existing design tokens/primitives; responsive wrapping, keyboard access, aria-pressed/alerts.
 
