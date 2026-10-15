@@ -1,3 +1,4 @@
+import { recoverRecordingDirectoryMove } from "@raceiq/backend-core/session-capture/relocate-recordings";
 import { existsSync } from "node:fs";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { resolve } from "node:path";
@@ -74,6 +75,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   }
 
   await initDb();
+  await recoverRecordingDirectoryMove();
   const auth = await DashboardAuth.create(client, DB_PATH, process.env);
   await auth.initialize(upgradingAccess);
   setDashboardAuth(auth);

@@ -5,12 +5,13 @@ import { tmpdir } from "node:os";
 import { eq, inArray } from "drizzle-orm";
 import { db, client } from "@raceiq/backend-core/db/index";
 import { laps, sessions } from "@raceiq/backend-core/db/schema";
-import { executeSessionCleanup, previewSessionCleanup } from "@raceiq/backend-core/session-capture/session-cleanup";
+import { executeSessionCleanup, previewSessionCleanup, SessionCleanupBusyError } from "@raceiq/backend-core/session-capture/session-cleanup";
 import { reprocessSession, SessionRawFileMissingError } from "@raceiq/backend-core/session-capture/reprocess";
 import { setSessionFavorite, setLapFavorite } from "@raceiq/backend-core/db/session-queries";
 import { runUserCompressionNow } from "@raceiq/backend-core/session-capture/compressor";
 import { withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
+import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
 
 const OLD_DATE = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString();
 const RECENT_DATE = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
@@ -69,10 +70,28 @@ afterEach(async () => {
     await db.delete(sessions).where(inArray(sessions.id, createdSessionIds)).run();
     createdSessionIds.length = 0;
   }
+  rmSync(join(resolveDataDir(), "recording-layout-migration.json"), { force: true });
   for (const directory of temporaryDirectories.splice(0)) rmSync(directory, { recursive: true, force: true });
 });
 
 describe("session cleanup edge cases", () => {
+  test("does not delete capture while layout migration is pending", async () => {
+    const path = capturePath("migration-pending.bin");
+    writeFileSync(path, Buffer.from("pending migration capture"));
+    const sessionId = await createSession({ rawFile: path });
+    writeFileSync(join(resolveDataDir(), "recording-layout-migration.json"), JSON.stringify({
+      version: 1,
+      root: resolveRecordingDirectory(),
+      destination: resolveRecordingDirectory(),
+      phase: "organizing",
+      entries: [],
+      progress: { status: "running", done: 0, total: 0, migrated: 0, failed: 0, error: null },
+    }));
+
+    await expect(executeSessionCleanup({ mode: "selected", sessionIds: [sessionId] })).rejects.toBeInstanceOf(SessionCleanupBusyError);
+    expect(existsSync(path)).toBe(true);
+    expect((await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get())?.rawFile).toBe(path);
+  });
   test("age mode excludes recent sessions and preview does not mutate files or metadata", async () => {
     const oldPath = capturePath("old.bin");
     const recentPath = capturePath("recent.bin");

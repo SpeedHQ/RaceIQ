@@ -1,10 +1,13 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { zipSync } from "fflate";
+import { dirname, join } from "node:path";
+import { eq } from "drizzle-orm";
+import { zipSync, unzipSync } from "fflate";
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions } from "@raceiq/backend-core/db/schema";
+import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
+import { decodeMotecSourceArchive } from "@raceiq/backend-core/motec/source-archive";
 import { deleteSession } from "@raceiq/backend-core/db/session-queries";
 import { decompressIfGzipSync, iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
 import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
@@ -87,7 +90,7 @@ test("rejects malformed gzip imports as bad requests", async () => {
   });
 });
 
-test("imports sparse RaceIQ captures through the upload route", async () => {
+test.each(["mine", "others"] as const)("imports sparse RaceIQ captures as %s into its ownership folder", async (ownership) => {
   const name = "fm-2023-2026-04-09T21-55-03-186Z.bin.gz";
   const source = decompressIfGzipSync(readFileSync(`test/artifacts/sessions/${name}`));
   const directory = mkdtempSync(join(tmpdir(), "raceiq-sparse-upload-"));
@@ -103,13 +106,18 @@ test("imports sparse RaceIQ captures through the upload route", async () => {
   );
   const form = new FormData();
   form.append("file", new File([readFileSync(sparsePath)], name));
-  form.append("ownership", "mine");
+  form.append("ownership", ownership);
   const response = await transferRoutes.request("/api/laps/import", { method: "POST", body: form });
   expect(response.status).toBe(200);
   const result = await response.json() as { ok: boolean; gameId: string; packetCount: number; imported: number };
   expect(result).toMatchObject({ ok: true, gameId: "fm-2023" });
   expect(result.packetCount).toBeGreaterThan(0);
   expect(result.imported).toBeGreaterThan(0);
+  const newSessions = (await db.select().from(sessions).all()).filter((session) => !existingIds.has(session.id));
+  for (const session of newSessions) {
+    expect(session.ownership).toBe(ownership);
+    expect(dirname(session.rawFile!)).toBe(join(resolveRecordingDirectory(), "fm-2023", ownership === "others" ? "others" : "own"));
+  }
   importedSessionIds.push(
     ...(await db.select({ id: sessions.id }).from(sessions).all())
       .map((row) => row.id)
@@ -170,7 +178,7 @@ test("staged MoTeC names are safe display-only basenames", async () => {
   });
 });
 
-test("imports a MoTeC ZIP directly without staging", async () => {
+test.each(["mine", "others"] as const)("imports a MoTeC ZIP as %s into its ownership folder", async (ownership) => {
   const form = new FormData();
   form.append(
     "file",
@@ -179,16 +187,24 @@ test("imports a MoTeC ZIP directly without staging", async () => {
   form.append("gameId", "acc");
   form.append("carId", "33");
   form.append("trackId", "8");
-  form.append("ownership", "mine");
+  form.append("ownership", ownership);
 
   const response = await transferRoutes.request("/api/laps/import-motec", {
     method: "POST",
     body: form,
   });
   expect(response.status).toBe(200);
-  expect(await response.json()).toMatchObject({
+  const result = await response.json() as { laps: { sessionId: number }[] };
+  expect(result).toMatchObject({
     ok: true,
     gameId: "acc",
     imported: 1,
   });
+  const session = await db.select().from(sessions).where(eq(sessions.id, result.laps[0]!.sessionId)).get();
+  expect(session?.ownership).toBe(ownership);
+  expect(dirname(session!.rawFile!)).toBe(join(resolveRecordingDirectory(), "acc", ownership === "others" ? "others" : "own"));
+  const source = decodeMotecSourceArchive(readFileSync(session!.rawFile!));
+  const uploaded = unzipSync(readFileSync(MOTEC_ARCHIVE));
+  const ldEntry = Object.entries(uploaded).find(([name]) => name.endsWith(".ld"))!;
+  expect(source.ldBytes).toEqual(Buffer.from(ldEntry[1]));
 }, 30_000);

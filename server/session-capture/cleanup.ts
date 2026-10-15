@@ -1,13 +1,13 @@
+import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
 /**
  * Session file cleanup for startup and scheduled maintenance.
  *
  * Removes tiny `.bin` captures (at most the 12-byte metadata header) and
  * `.bin`, `.bin.gz`, and `.motec.zip` captures not referenced by `sessions.rawFile`.
  */
-import { readdir, stat, unlink } from "node:fs/promises";
+import { readdir, lstat, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { resolve, join } from "node:path";
-import { resolveDataDir } from "../runtime/config/data-dir";
+import { join } from "node:path";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { sql } from "drizzle-orm";
@@ -47,20 +47,39 @@ async function loadReferencedRawFiles(): Promise<Set<string>> {
  * and extension rules.
  */
 export async function listSessionCaptureFiles(): Promise<string[]> {
-  const sessionsDir = resolve(resolveDataDir(), "sessions");
-  if (!existsSync(sessionsDir)) return [];
-
+  const sessionsDir = resolveRecordingDirectory();
   const captureFiles: string[] = [];
-  for (const gameDir of await readdir(sessionsDir)) {
-    const dirPath = join(sessionsDir, gameDir);
+  let games;
+  try {
+    games = await readdir(sessionsDir, { withFileTypes: true });
+  } catch {
+    return captureFiles;
+  }
+  for (const game of games) {
+    if (!game.isDirectory() || game.name === "own" || game.name === "others") continue;
+    const gamePath = join(sessionsDir, game.name);
+    let entries;
     try {
-      if (!(await stat(dirPath)).isDirectory()) continue;
+      entries = await readdir(gamePath, { withFileTypes: true });
     } catch {
       continue;
     }
-    for (const file of await readdir(dirPath)) {
-      if (file.endsWith(".bin") || file.endsWith(".bin.gz") || file.endsWith(".motec.zip")) {
-        captureFiles.push(join(dirPath, file));
+    for (const entry of entries) {
+      if (entry.isFile() && (entry.name.endsWith(".bin") || entry.name.endsWith(".bin.gz") || entry.name.endsWith(".motec.zip"))) {
+        captureFiles.push(join(gamePath, entry.name));
+      } else if (entry.isDirectory() && (entry.name === "own" || entry.name === "others")) {
+        const ownershipPath = join(gamePath, entry.name);
+        let captures;
+        try {
+          captures = await readdir(ownershipPath, { withFileTypes: true });
+        } catch {
+          continue;
+        }
+        for (const file of captures) {
+          if (file.isFile() && (file.name.endsWith(".bin") || file.name.endsWith(".bin.gz") || file.name.endsWith(".motec.zip"))) {
+            captureFiles.push(join(ownershipPath, file.name));
+          }
+        }
       }
     }
   }
@@ -75,7 +94,13 @@ export async function cleanupOrphanSessionFiles(
       console.log("[Cleanup] Session active — skipping orphan sweep");
       return 0;
     }
-    const sessionsDir = resolve(resolveDataDir(), "sessions");
+    // Migration imports the live pipeline, which also imports this maintenance lock.
+    const { hasPendingLayoutMigration } = await import("./layout-migration");
+    if (await hasPendingLayoutMigration()) {
+      console.log("[Cleanup] Layout migration pending — skipping orphan sweep");
+      return 0;
+    }
+    const sessionsDir = resolveRecordingDirectory();
     if (!existsSync(sessionsDir)) return 0;
 
     const referenced = await loadReferencedRawFiles();
@@ -84,8 +109,9 @@ export async function cleanupOrphanSessionFiles(
     for (const filePath of captureFiles) {
       if (sessionActive()) break;
       try {
-        const { size } = await stat(filePath);
-        const isTiny = filePath.endsWith(".bin") && size <= TINY_ORPHAN_THRESHOLD_BYTES;
+        const info = await lstat(filePath);
+        if (!info.isFile()) continue;
+        const isTiny = filePath.endsWith(".bin") && info.size <= TINY_ORPHAN_THRESHOLD_BYTES;
         if (!isTiny && referenced.has(filePath)) continue;
         await unlink(filePath);
         removed++;

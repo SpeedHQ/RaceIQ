@@ -468,15 +468,9 @@ export function DashboardInsights({ response, gameId, periodStart, trackNames = 
 
   return (
     <div className="@container/insights min-w-0 space-y-4">
-      {response.coverage.status !== "complete" && (
+      {response.coverage.status === "unavailable" && (
         <p role="status" className="rounded-lg border border-app-border bg-app-surface px-3 py-2 text-app-detail text-app-text-muted">
-          {response.coverage.status === "pending"
-            ? m.home_dashboard_coverage_pending({
-                ready: response.coverage.readySessions,
-                mine: response.coverage.mineSessions,
-                pending: response.coverage.pendingSessions,
-              })
-            : m.home_dashboard_coverage_unavailable()}
+          {m.home_dashboard_coverage_unavailable()}
         </p>
       )}
       {favouritesRow}

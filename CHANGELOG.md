@@ -15,14 +15,14 @@
 - Add OBS streaming overlays in the Portable page for live driving, timing, standings, nearby race order, car damage (F1 25, ACC, AC Evo), brake/throttle inputs, and distance driven, with sample previews when telemetry is unavailable and copyable metric or imperial browser-source URLs.
 - Allow a saved hostname, including a Tailscale FQDN, for remote HUD links and QR codes.
 - Refresh the dashboard with cleaner session and favourite widgets, clean-rate and podium trends, and seven days of activity by default.
-### Features
 - Retrieve automated lap insights on demand in Analyse chat before diagnosis and improvement advice, with visible tool activity and clear distinctions between missing data and no detected findings.
 - Export complete chat history as JSON for developer debugging, including retained chat generations, stored thinking, tool calls and results, and system prompts.
 - Optionally protect dashboard access with a password and configure trusted browser origins independently, while keeping existing local and remote access working without new settings.
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
-
+- Choose a recording folder, safely relocate existing recordings, and optionally migrate recordings into per-game `own` and `others` folders.
 
 ### Fixes
+- Restore migration of existing recordings into organized folders on Windows.
 - Keep experiment lap counts and review analysis tied to the selected test when importing historical laps or returning to an older setup, and preserve test membership during live updates.
 - Keep lap-chat follow-ups grounded in the selected lap and its latest analysis, use fresh telemetry for requested corner measurements, and preserve earlier driver notes without asking for internal lap identifiers.
 - Exclude running-start fragments from recorded lap replay and keep corner measurements and highlights aligned with the timed lap.
@@ -92,6 +92,9 @@
 ### Internal
 - Update live iRacing browser checks to expect the Tires section to be absent in Driver and Pit Crew views.
 - Seed selectable ACC and AC Evo setup files consistently in development and compiled E2E servers.
+- Package organized recording paths in seeded Playwright databases while rejecting unsafe capture paths.
+- Verify setup navigation and recording-folder changes without depending on the optional Welcome 3D demo, and avoid startup-maintenance import cycles.
+- Document the reusable confirmation-dialog-to-background-progress pattern from sparse recording conversion, including state ownership, recovery, accessibility, and operation precedence.
 - Keep seeded Playwright discovery independent of server-only catalog imports, and reset persisted dashboard access between fresh-install wizard attempts with an explicit loopback settings check.
 - Recreate the database and dashboard access setup when seeding with `--clean`.
 - Wait for dashboard metadata and loading panels to finish before generating the Home marketing screenshot.
@@ -134,7 +137,6 @@
 - Separate realistic active-user dashboard benchmarks from archive stress, report actual period membership and SQL Promise timings, and preserve incomplete/failed-scope measurements without weakening budgets.
 - Reuse a read-only SQLite connection and cached statements for synchronous dashboard snapshots; measure those queries directly and apply the active-user recorder fixture profile.
 - Upgrade the runtime and tooling to Bun 1.4.3.
-
 ## v0.19.2 - 2026-10-04
 
 ### Features
