@@ -78,14 +78,15 @@ export async function importDisposableLap(request: APIRequestContext, gameId: Ga
 
 export async function cleanDisposable(request: APIRequestContext, disposable: DisposableImport | undefined, gameId: GameId = "fm-2023"): Promise<void> {
   if (!disposable) return;
-  const lapsCleanup = await request.post("/api/laps/bulk-delete", { data: { ids: disposable.lapIds } });
-  expect(lapsCleanup.ok(), "cleanup disposable laps").toBe(true);
   const sessionsCleanup = await request.post("/api/sessions/bulk-delete", { data: { ids: disposable.sessionIds } });
-  expect(sessionsCleanup.ok(), "cleanup disposable sessions").toBe(true);
+  if (!sessionsCleanup.ok()) {
+    const body = await sessionsCleanup.text();
+    expect(sessionsCleanup.ok(), `cleanup disposable sessions: status ${sessionsCleanup.status()}, body: ${body}`).toBe(true);
+  }
   const remaining = await sessionsFor(request, gameId);
   const remainingLaps = await lapsFor(request, gameId);
-  for (const id of disposable.sessionIds) expect(remaining.some((session) => session.id === id)).toBe(false);
-  for (const id of disposable.lapIds) expect(remainingLaps.some((lap) => lap.id === id)).toBe(false);
+  for (const id of disposable.sessionIds) expect(remaining.some((session) => session.id === id), `disposable session ${id} should be absent after cleanup`).toBe(false);
+  for (const id of disposable.lapIds) expect(remainingLaps.some((lap) => lap.id === id), `disposable lap ${id} should be absent after cleanup`).toBe(false);
 }
 
 export function sessionRows(page: Page) {

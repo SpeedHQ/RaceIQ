@@ -86,6 +86,7 @@ export const resourceRoutes = new Hono()
       const source = {
         id: meta.id, sessionId: meta.sessionId, createdAt: meta.createdAt, gameId: meta.gameId,
         rawFile: meta.rawFile, rawByteOffset: meta.rawByteOffset, rawFrameCount: meta.rawFrameCount,
+        captureFormatVersion: meta.captureFormatVersion,
         versionIdentity: meta.catalogVersion && meta.catalogHash && meta.catalogSchemaVersion && meta.parserVersion && meta.resolverVersion && meta.derivationVersion
           ? { catalogVersion: meta.catalogVersion, catalogHash: meta.catalogHash, catalogSchemaVersion: meta.catalogSchemaVersion, parserVersion: meta.parserVersion, resolverVersion: meta.resolverVersion, derivationVersion: meta.derivationVersion }
           : undefined,
@@ -284,7 +285,7 @@ export const resourceRoutes = new Hono()
     try {
       const loaded = await loadSessionSource({
         rawFile: row.rawFile, source: row.source ?? null, gameId: row.gameId as GameId,
-        carId: row.carId, trackId: row.trackId,
+        carId: row.carId, trackId: row.trackId, captureFormatVersion: row.captureFormatVersion,
       });
       if (loaded.kind === "packets") {
         return c.json({ error: "MoTeC sessions use canonical packets and have no BIN capture" }, 409);

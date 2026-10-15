@@ -12,5 +12,5 @@
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true
   },
-  "include": ["config/**/*.ts", "support/**/*.ts", "tests/**/*.ts"]
+  "include": ["config/**/*.ts", "support/**/*.ts", "tests/**/*.ts", "upgrade-smoke.config.ts"]
 }

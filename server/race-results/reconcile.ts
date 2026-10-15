@@ -225,28 +225,49 @@ export async function backfillStaleRaceResults(options: {
   );
   return backfillRaceResults({ ...options, eligibleSessionIds });
 }
-export async function backfillAllRaceResults(): Promise<void> {
+export interface BackfillAllRaceResultsResult {
+  processed: number;
+  enriched: number;
+  unchanged: number;
+  skipped: number;
+  ambiguous: number;
+  errors: number;
+  failedGames: { gameId: GameId; error: string }[];
+}
+
+export async function backfillAllRaceResults(): Promise<BackfillAllRaceResultsResult> {
+  const totals: BackfillAllRaceResultsResult = {
+    processed: 0,
+    enriched: 0,
+    unchanged: 0,
+    skipped: 0,
+    ambiguous: 0,
+    errors: 0,
+    failedGames: [],
+  };
   for (const game of getAllServerGames()) {
     let afterSessionId: number | undefined;
-    let totals = { processed: 0, enriched: 0, unchanged: 0, ambiguous: 0, errors: 0 };
+    const gameTotals = { processed: 0, enriched: 0, unchanged: 0, skipped: 0, ambiguous: 0, errors: 0 };
     try {
       while (true) {
         const report = await backfillStaleRaceResults({ gameId: game.id, limit: 100, afterSessionId });
-        totals = {
-          processed: totals.processed + report.processed,
-          enriched: totals.enriched + report.enriched,
-          unchanged: totals.unchanged + report.unchanged,
-          ambiguous: totals.ambiguous + report.ambiguous,
-          errors: totals.errors + report.errors,
-        };
+        for (const key of Object.keys(gameTotals) as (keyof typeof gameTotals)[]) {
+          gameTotals[key] += report[key];
+        }
         const lastSessionId = report.results.at(-1)?.sessionId;
         if (lastSessionId != null) afterSessionId = lastSessionId;
         if (report.processed < 100 || lastSessionId == null) break;
         await Bun.sleep(0);
       }
-      console.log(`[RaceResults] Backfill ${game.id}: ${JSON.stringify(totals)}`);
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      totals.failedGames.push({ gameId: game.id, error: message });
       console.error(`[RaceResults] Backfill failed for ${game.id}:`, error);
     }
+    for (const key of Object.keys(gameTotals) as (keyof typeof gameTotals)[]) {
+      totals[key] += gameTotals[key];
+    }
+    console.log(`[RaceResults] Backfill ${game.id}: ${JSON.stringify(gameTotals)}`);
   }
+  return totals;
 }
