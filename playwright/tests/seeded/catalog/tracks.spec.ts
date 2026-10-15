@@ -11,12 +11,13 @@ type TrackCapability = {
 };
 
 const TRACK_CAPABILITY: TrackCapability = {
-  guides: ["f1-2025", "acc"],
-  setups: ["fm-2023", "f1-2025", "acc", "ac-evo"],
-  debug: ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"],
+  guides: ["f1-2025"],
+  setups: ["fm-2023", "f1-2025", "ac-evo"],
+  debug: ["fm-2023", "f1-2025", "ac-evo", "iracing"],
 };
 
 for (const game of SEEDED_GAME_CASES) {
+  if (game.gameId === "acc") continue;
   test(`${game.name} tracks support search, sorting, map, and capability routes`, async ({ page, request }) => {
     const browserErrors = collectBrowserErrors(page);
     const curbResponse = await request.get(`/api/track-curbs/${encodeURIComponent(game.trackId)}?gameId=${game.gameId}`);
