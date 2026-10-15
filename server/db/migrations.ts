@@ -1966,6 +1966,41 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       )`,
     ],
   },
+  {
+    version: 76,
+    name: "add lossless lap capture bundle references",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN capture_layout_version INTEGER`,
+      `ALTER TABLE sessions ADD COLUMN capture_manifest_file TEXT`,
+      `ALTER TABLE laps ADD COLUMN capture_chunk_id TEXT`,
+      `ALTER TABLE laps ADD COLUMN source_frame_start INTEGER`,
+      `ALTER TABLE laps ADD COLUMN source_frame_count INTEGER`,
+      `CREATE TABLE IF NOT EXISTS session_capture_split_jobs (
+        session_id INTEGER PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+        job_id TEXT NOT NULL UNIQUE,
+        attempt_id INTEGER NOT NULL DEFAULT 1,
+        pending_source_revision TEXT NOT NULL,
+        source_path TEXT NOT NULL,
+        staging_path TEXT,
+        status TEXT NOT NULL CHECK (status IN ('queued', 'splitting', 'verifying', 'publishing', 'ready', 'failed')),
+        error_code TEXT,
+        error_message TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+    ],
+  },
+  {
+    version: 77,
+    name: "persist capture split progress counters",
+    sql: [
+      `ALTER TABLE session_capture_split_jobs ADD COLUMN sequence INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE session_capture_split_jobs ADD COLUMN processed_source_frames INTEGER`,
+      `ALTER TABLE session_capture_split_jobs ADD COLUMN total_source_frames INTEGER`,
+      `ALTER TABLE session_capture_split_jobs ADD COLUMN completed_lap_artifacts INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE session_capture_split_jobs ADD COLUMN total_lap_artifacts INTEGER NOT NULL DEFAULT 0`,
+    ],
+  },
 ];
 const dashboardCanonicalTriggers = (() => {
   const readModel = migrations.find((migration) => migration.version === 68);

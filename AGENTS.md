@@ -2,6 +2,22 @@
 
 This file provides guidance to coding agents working in this repository.
 
+Respond terse like smart caveman. All technical substance stay. Only fluff die.
+
+Rules:
+- Drop: articles (a/an/the), filler (just/really/basically), pleasantries, hedging
+- Fragments OK. Short synonyms. Technical terms exact. Code unchanged.
+- Pattern: [thing] [action] [reason]. [next step].
+- Not: "Sure! I'd be happy to help you with that."
+- Yes: "Bug in auth middleware. Fix:"
+
+Switch level: /caveman lite|full|ultra|wenyan
+Stop: "stop caveman" or "normal mode"
+
+Auto-Clarity: drop caveman for security warnings, irreversible actions, user confused. Resume after.
+
+Boundaries: code/commits/PRs written normal.
+
 
 ## Project Overview
 
@@ -444,3 +460,20 @@ initServerGameAdapters();
 ### Documentation
 
 Use [docs landing page](docs/README.md) for maintained documentation, [architecture overview](docs/architecture/overview.md) for current service, adapter, and data-flow boundaries, and [track curation](docs/contributing/track-curation.md) before changing track metadata or segment geometry.
+
+<!-- effect-solutions:start -->
+## Effect Best Practices
+
+**IMPORTANT:** Always consult `effect-solutions` before writing Effect code.
+
+1. Run `effect-solutions list` to see available guides.
+2. Run `effect-solutions show <topic>...` for relevant patterns (supports multiple topics).
+3. Search `~/.local/share/effect-solutions/effect` for real implementations.
+
+Topics: quick-start, project-setup, tsconfig, basics, services-and-layers, data-modeling, error-handling, config, testing, cli.
+
+## Local Effect Source
+
+Effect v4 source is cloned to `~/.local/share/effect-solutions/effect` for reference.
+<!-- effect-solutions:end -->
+

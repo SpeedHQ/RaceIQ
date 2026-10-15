@@ -11,7 +11,7 @@
 import type { ServerWebSocket } from "bun";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LiveSectorData, LivePitData } from "@raceiq/shared/racing/live/types";
-import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { LapMeta, SessionCaptureSplitStatus } from "@raceiq/shared/racing/sessions/types";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { LiveProjection } from "@raceiq/telemetry-core/telemetry/live-projector";
 import type { DashboardUpdatedMessage } from "@raceiq/shared/racing/sessions/dashboard";
@@ -117,6 +117,9 @@ export class WebSocketManager {
     error?: string;
   }): void {
     this.broadcastNotification({ type: "capture-migration-progress", ...payload });
+  }
+  broadcastSessionCaptureSplitProgress(status: SessionCaptureSplitStatus): void {
+    this.broadcastNotification({ type: "session-capture-split-progress", status });
   }
 
   notifyDashboardUpdated(): void {

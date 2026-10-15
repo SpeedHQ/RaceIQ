@@ -1,0 +1,19 @@
+{
+  "name": "@raceiq/capture-splitting",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./worker": "./src/worker.ts",
+    "./protocol": "./src/protocol.ts"
+  },
+  "dependencies": {
+    "@raceiq/capture-formats": "workspace:*",
+    "effect": "4.0.4"
+  },
+  "scripts": {
+    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "test": "bun run test:unit",
+    "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/capture-splitting"
+  }
+}

@@ -10,7 +10,7 @@ import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/norma
 import type { LapSetAlignmentIndex } from "@raceiq/analysis-core/racing/laps/alignment/build";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
 import { loadSessionSource, iterateSessionCaptureFrames, iterateSessionCaptureRecordsFromSource, indexCaptureFrames, clearSessionCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
-import { readFramePrefix } from "@raceiq/capture-formats/session/framing";
+import { iterateSessionCaptureRecords, PARSER_BOOTSTRAP_VERSION, readFramePrefix } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "../session-capture/frame-time";
 import { legacyMotecOffsetToPacketIndex } from "../motec/source-archive";
 import { countFullPacketMaterialized, countParserStatePrime, countSourceFrameScanned } from "../session-capture/test-instrumentation";
@@ -275,16 +275,21 @@ function normalizeReplayPacket(packet: TelemetryPacket, game: ReplayGame): void 
   normalizeTelemetryPacket(packet, game.coordSystem === "standard-xyz", game.runtime.normSuspensionTravelMm);
 }
 
+type FinishTiming = Pick<TelemetryPacket, "LastLap" | "CurrentLap" | "LapNumber">;
+
+/** Shared replay/export rule: following frames are context only when they expose a delayed finish. */
+export function isDelayedFinishContext(last: FinishTiming, trailing: FinishTiming): boolean {
+  const finishTime = trailing.LastLap ?? 0;
+  const boundaryAdvanced = (trailing.LapNumber ?? 0) > (last.LapNumber ?? 0);
+  return !(finishTime <= (last.CurrentLap ?? 0) || (finishTime === last.LastLap && !boundaryAdvanced));
+}
+
 function appendDelayedFinishPacket(packets: TelemetryPacket[], trailing: TelemetryPacket | null, game: ReplayGame): void {
   const last = packets[packets.length - 1];
   if (!game.appendsDelayedFinishFrame || !trailing || !last) return;
 
   const finishTime = trailing.LastLap ?? 0;
-  const boundaryAdvanced = (trailing.LapNumber ?? 0) > (last.LapNumber ?? 0);
-  if (
-    finishTime <= (last.CurrentLap ?? 0) ||
-    (finishTime === last.LastLap && !boundaryAdvanced)
-  ) return;
+  if (!isDelayedFinishContext(last, trailing)) return;
   packets.push({
     ...trailing,
     CurrentLap: finishTime,
@@ -347,7 +352,7 @@ export async function* iterateSessionTelemetry(sessionId: number, gameId: GameId
     return;
   }
   const serverGame = getServerGame(gameId);
-  let state = serverGame.createParserState?.() ?? null;
+  let state: unknown = serverGame.createParserState?.() ?? null;
   let inContext = false;
   for await (const record of iterateSessionCaptureRecordsFromSource(source)) {
     if (record.kind === "segment-boundary") {
@@ -360,6 +365,15 @@ export async function* iterateSessionTelemetry(sessionId: number, gameId: GameId
       continue;
     }
     if (record.kind === "segment-context-end") {
+      inContext = false;
+      continue;
+    }
+    if (record.kind === "parser-bootstrap") {
+      if (record.gameId !== gameId || record.formatVersion !== PARSER_BOOTSTRAP_VERSION) {
+        throw new Error("Parser bootstrap does not match replay game");
+      }
+      if (!serverGame.restoreParserCheckpoint) throw new Error(`Parser checkpoint restore unavailable for ${gameId}`);
+      state = serverGame.restoreParserCheckpoint(state, record.payload);
       inContext = false;
       continue;
     }
@@ -401,16 +415,49 @@ async function parseRawLapFramesFromSource(
   rawFrameCount: number,
 ): Promise<TelemetryPacket[]> {
   const serverGame = getServerGame(source.gameId);
-  const state = serverGame.createParserState?.() ?? null;
+  let state: unknown = serverGame.createParserState?.() ?? null;
+  let inContext = false;
   let fileSize = source.rawFile.endsWith(".gz") ? 0 : Bun.file(source.rawFile).size;
   const packets: TelemetryPacket[] = [];
   let found = false;
   let targetCount = 0;
-  for await (const { offset, frame, frameTimeMs } of iterateSessionCaptureFrames(source)) {
+  for await (const record of iterateSessionCaptureRecordsFromSource(source)) {
+    if (record.kind === "segment-boundary") {
+      if (found && targetCount < rawFrameCount) {
+        throw new LapParseError("Lap capture window crosses a segment boundary", {
+          rawFile: source.rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: packets.length, reason: "truncated-frame",
+        });
+      }
+      state = serverGame.createParserState?.() ?? null;
+      inContext = false;
+      continue;
+    }
+    if (record.kind === "segment-context") {
+      inContext = true;
+      continue;
+    }
+    if (record.kind === "segment-context-end") {
+      inContext = false;
+      continue;
+    }
+    if (record.kind === "parser-bootstrap") {
+      if (record.gameId !== source.gameId || record.formatVersion !== PARSER_BOOTSTRAP_VERSION) {
+        throw new Error("Parser bootstrap does not match replay game");
+      }
+      if (!serverGame.restoreParserCheckpoint) {
+        throw new Error(`Parser checkpoint restore unavailable for ${source.gameId}`);
+      }
+      state = serverGame.restoreParserCheckpoint(state, record.payload);
+      inContext = false;
+      continue;
+    }
+    const { offset, frame, frameTimeMs } = record;
     fileSize = Math.max(fileSize, offset + (frameTimeMs === undefined ? 4 : 12) + frame.length);
     if (!found) {
       if (offset < rawByteOffset) {
-        if (state != null && serverGame.primeParserState) {
+        if (inContext && state != null) {
+          parseReplayFrame(frame, serverGame, state, frameTimeMs);
+        } else if (state != null && serverGame.primeParserState) {
           try { countParserStatePrime(); serverGame.primeParserState(frame, state); } catch {}
         }
         continue;
@@ -465,7 +512,7 @@ export async function parseRawLapFrames(source: SessionCaptureSource, rawByteOff
 }
 export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, rawFrameCount: number, gameId: GameId, rawFile = "<preloaded capture>"): TelemetryPacket[] {
   const serverGame = getServerGame(gameId);
-  let state = serverGame.createParserState?.() ?? null;
+  let state: unknown = serverGame.createParserState?.() ?? null;
   const fileSize = buf.length;
 
   // rawByteOffset past EOF means the lap row was written before the
@@ -483,10 +530,24 @@ export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, 
   }
 
   const frameIndex = indexCaptureFrames(buf);
-  const startRecord = frameIndex.byOffset.get(rawByteOffset);
-  const warmupRecords = startRecord
-    ? frameIndex.records.slice(0, startRecord.frameIndex)
-    : frameIndex.records.filter((record) => record.offset < rawByteOffset);
+  let parserBootstrapOffset = -1;
+  let parserBootstrap: { gameId: GameId; formatVersion: number; payload: Buffer } | null = null;
+  for (const record of iterateSessionCaptureRecords(buf)) {
+    if (record.kind === "parser-bootstrap" && record.offset < rawByteOffset) {
+      parserBootstrapOffset = record.offset;
+      parserBootstrap = record;
+    }
+  }
+  if (parserBootstrap) {
+    if (parserBootstrap.gameId !== gameId || parserBootstrap.formatVersion !== PARSER_BOOTSTRAP_VERSION) {
+      throw new Error("Parser bootstrap does not match replay game");
+    }
+    if (!serverGame.restoreParserCheckpoint) throw new Error(`Parser checkpoint restore unavailable for ${gameId}`);
+    state = serverGame.restoreParserCheckpoint(state, parserBootstrap.payload);
+  }
+  const warmupRecords = frameIndex.records.filter(
+    (record) => record.offset > parserBootstrapOffset && record.offset < rawByteOffset,
+  );
   if (state != null) for (const record of warmupRecords) {
     const prefix = readFramePrefix(buf, record.offset);
     if (!prefix) continue;
@@ -564,6 +625,9 @@ export interface LapReplaySource {
   rawFile: string | null;
   rawByteOffset: number | null;
   rawFrameCount: number | null;
+  captureManifestFile?: string | null;
+  captureLayoutVersion?: number | null;
+  captureChunkId?: string | null;
   versionIdentity?: TelemetryVersionIdentity;
 }
 
@@ -579,6 +643,9 @@ export async function getLapReplaySource(id: number): Promise<LapReplaySource | 
       rawFile: sessions.rawFile,
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
+      captureManifestFile: sessions.captureManifestFile,
+      captureLayoutVersion: sessions.captureLayoutVersion,
+      captureChunkId: laps.captureChunkId,
       catalogVersion: laps.catalogVersion,
       catalogHash: laps.catalogHash,
       catalogSchemaVersion: laps.catalogSchemaVersion,
@@ -601,6 +668,9 @@ export async function getLapReplaySource(id: number): Promise<LapReplaySource | 
     rawFile: row.rawFile,
     rawByteOffset: row.rawByteOffset,
     rawFrameCount: row.rawFrameCount,
+    captureManifestFile: row.captureManifestFile,
+    captureLayoutVersion: row.captureLayoutVersion,
+    captureChunkId: row.captureChunkId,
     versionIdentity: hasVersionIdentity
       ? {
           catalogVersion: row.catalogVersion!,

@@ -2559,5 +2559,21 @@
   "access_origins_safety": "Зміни мережі потребують перезапуску RaceIQ. Вимкнення не видаляє збережені джерела. Захист same-origin продовжує діяти.",
   "dash_hostname_origin_settings": "Додайте це точне джерело в Налаштування → Доступ і безпека → домени браузера: {origin}. Збереження імені хоста не надає доступ.",
   "dash_hostname_origin_managed": "Додайте це точне джерело до SERVER_ALLOWED_ORIGINS: {origin}. Збереження імені хоста не надає доступ.",
-  "dash_hostname_invalid": "Уведіть лише ім’я хоста без http://, порту та шляху."
+  "dash_hostname_invalid": "Уведіть лише ім’я хоста без http://, порту та шляху.",
+  "sessions_capture_split_queued": "У черзі на експорт кіл без втрат",
+  "sessions_capture_split_splitting": "Запис поділяється на кола",
+  "sessions_capture_split_verifying": "Перевірка записів кіл",
+  "sessions_capture_split_publishing": "Публікація записів кіл",
+  "sessions_capture_split_ready": "Записи кіл без втрат готові",
+  "sessions_capture_split_failed": "Не вдалося поділити запис на кола. Оригінальний запис залишається доступним.",
+  "sessions_capture_split_error_source_io": "Не вдалося прочитати оригінальний запис.",
+  "sessions_capture_split_error_malformed_capture": "Формат оригінального запису неправильний.",
+  "sessions_capture_split_error_bootstrap_failed": "Не вдалося ініціалізувати обробку кіл.",
+  "sessions_capture_split_error_verification_mismatch": "Перевірку запису кола не пройдено.",
+  "sessions_capture_split_error_worker_failed": "Обробка кіл несподівано зупинилася.",
+  "sessions_capture_split_error_stale_publication": "Цей результат замінено новішою спробою обробки.",
+  "sessions_capture_split_error_publication_failed": "Не вдалося опублікувати записи кіл.",
+  "sessions_capture_split_progress": "Оброблено вихідних кадрів",
+  "sessions_capture_split_laps": "Записи кіл",
+  "sessions_export_capture_not_ready": "Експорт сирого ZIP недоступний, доки записи без втрат не будуть готові для всіх вибраних кіл, крім MoTeC."
 }

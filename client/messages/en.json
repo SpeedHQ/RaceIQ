@@ -2559,5 +2559,21 @@
   "access_origins_safety": "Saving network access requires a RaceIQ restart. Turning this off does not erase saved origins. Same-origin protections continue.",
   "dash_hostname_origin_settings": "Include this exact origin in Settings → Access & security → browser domains: {origin}. Saving this hostname does not authorize access.",
   "dash_hostname_origin_managed": "Include this exact origin in SERVER_ALLOWED_ORIGINS: {origin}. Saving this hostname does not authorize access.",
-  "dash_hostname_invalid": "Enter a hostname only, without http://, a port or a path."
+  "dash_hostname_invalid": "Enter a hostname only, without http://, a port or a path.",
+  "sessions_capture_split_queued": "Queued for lossless lap export",
+  "sessions_capture_split_splitting": "Splitting recording into laps",
+  "sessions_capture_split_verifying": "Verifying lap recordings",
+  "sessions_capture_split_publishing": "Publishing lap recordings",
+  "sessions_capture_split_ready": "Lossless lap recordings ready",
+  "sessions_capture_split_failed": "Lap recording split failed. Original recording remains available.",
+  "sessions_capture_split_error_source_io": "Could not read the original recording.",
+  "sessions_capture_split_error_malformed_capture": "Original recording format is invalid.",
+  "sessions_capture_split_error_bootstrap_failed": "Could not initialize lap processing.",
+  "sessions_capture_split_error_verification_mismatch": "Lap recording verification failed.",
+  "sessions_capture_split_error_worker_failed": "Lap processing stopped unexpectedly.",
+  "sessions_capture_split_error_stale_publication": "A newer processing attempt replaced this result.",
+  "sessions_capture_split_error_publication_failed": "Could not publish lap recordings.",
+  "sessions_capture_split_progress": "Source frames processed",
+  "sessions_capture_split_laps": "Lap recordings",
+  "sessions_export_capture_not_ready": "Raw ZIP export is unavailable until lossless recordings are ready for every selected non-MoTeC lap."
 }

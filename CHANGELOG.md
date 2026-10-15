@@ -67,6 +67,11 @@
 
 ### Fixes
 - Keep racing, throttle, and braking lines sharp when zooming into the replay map.
+- Preserve original telemetry and lap boundaries when replaying or exporting individual laps from completed recordings, while retaining source recordings.
+- Keep imported F1 25 and iRacing laps replayable and exportable after restarting RaceIQ, preserve saved ZIP lap timing and validity, and avoid counting completion context as another owned frame.
+- Use corrected telemetry after session reprocessing instead of stale lap recordings.
+- Protect recordings needed by pending processing or other sessions during cleanup and compression, and remove per-lap recordings when session captures are cleaned up.
+- Refresh Sessions processing status and export availability as recordings become ready, after reprocessing, and when the dashboard reconnects.
 
 ### Internal
 - Wait for dashboard metadata and loading panels to finish before generating the Home marketing screenshot.

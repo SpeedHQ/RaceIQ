@@ -42,6 +42,61 @@ import { getF1CompoundName } from "@raceiq/game-f1-2025-metadata/racing/compound
  * rates. This accumulator orders decoded updates, maintains session caches,
  * and assembles a unified TelemetryPacket snapshot.
  */
+export interface F1ParserCheckpointV1 {
+  format: "raceiq:f1-2025-parser";
+  version: 1;
+  sessionUID: string;
+  motion: F1MotionData | null;
+  carTelemetry: F1CarTelemetryData | null;
+  lapData: F1LapData | null;
+  finalClassification: F1FinalClassificationData | null;
+  carStatus: F1CarStatusData | null;
+  carDamage: F1CarDamageData | null;
+  carSetup: F1CarSetupData | null;
+  motionEx: F1MotionExData | null;
+  session: F1SessionData | null;
+  participants: F1ParticipantData[];
+  driverHistory: [number, F1DriverHistoryData][];
+  driverLapSectors: [number, [number, F1LapSectorData][]][];
+  playerCarIndex: number;
+}
+
+function hasFiniteFields(value: unknown, fields: string[], booleanFields: string[] = []): boolean {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return fields.every((field) => typeof record[field] === "number" && Number.isFinite(record[field])) &&
+    booleanFields.every((field) => typeof record[field] === "boolean");
+}
+
+function validF1StateObject(key: string, value: unknown): boolean {
+  if (value === null) return true;
+  const fields: Record<string, string[]> = {
+    motion: ["posX", "posY", "posZ", "velX", "velY", "velZ", "gForceX", "gForceY", "gForceZ", "yaw", "pitch", "roll"],
+    session: ["trackId", "weather", "trackTemp", "airTemp", "sessionType", "totalLaps", "rainPercentage", "safetyCarStatus", "trackLength", "pitSpeedLimit", "formula", "sector2LapDistanceStart", "sector3LapDistanceStart", "pitStopWindowIdealLap", "pitStopWindowLatestLap"],
+    lapData: ["currentLapTime", "lastLapTime", "bestLapTime", "currentLapNum", "position", "totalDistance", "lapDistance", "sector", "sector1Time", "sector2Time", "currentLapInvalid", "penalties", "totalWarnings", "cornerCuttingWarnings", "driverStatus", "resultStatus", "pitLaneTimerActive", "pitLaneTimeInLaneInMS", "speedTrapFastestSpeed", "gridPosition"],
+    finalClassification: ["position", "gridPosition", "resultStatus", "resultReason", "bestLapTime", "numPitStops"],
+    carTelemetry: ["speed", "throttle", "brake", "steer", "gear", "rpm", "clutch", "tyreTempFL", "tyreTempFR", "tyreTempRL", "tyreTempRR", "tyresInnerTempFL", "tyresInnerTempFR", "tyresInnerTempRL", "tyresInnerTempRR", "brakeTempFL", "brakeTempFR", "brakeTempRL", "brakeTempRR", "tyrePressureFL", "tyrePressureFR", "tyrePressureRL", "tyrePressureRR", "engineTemperature", "surfaceTypeFL", "surfaceTypeFR", "surfaceTypeRL", "surfaceTypeRR", "suggestedGear"],
+    carStatus: ["fuelRemaining", "fuelCapacity", "tyreCompound", "tyreVisualCompound", "tyreAge", "ersStore", "ersDeployMode", "ersDeployedThisLap", "ersHarvestedThisLap", "tractionControl", "antiLockBrakes", "fuelMix", "frontBrakeBias", "pitLimiterStatus", "fuelRemainingLaps", "maxRPM", "idleRPM", "maxGears", "drsActivationDistance", "actualTyreCompound", "vehicleFIAFlags", "enginePowerICE", "enginePowerMGUK"],
+    carDamage: ["tyreWearFL", "tyreWearFR", "tyreWearRL", "tyreWearRR", "tyresDamageFL", "tyresDamageFR", "tyresDamageRL", "tyresDamageRR", "brakesDamageFL", "brakesDamageFR", "brakesDamageRL", "brakesDamageRR", "tyreBlistersFL", "tyreBlistsFR", "tyreBlistersRL", "tyreBlistersRR", "frontLeftWingDamage", "frontRightWingDamage", "rearWingDamage", "floorDamage", "diffuserDamage", "sidepodDamage", "drsFault", "ersFault", "gearBoxDamage", "engineDamage", "engineMGUHWear", "engineESWear", "engineCEWear", "engineICEWear", "engineMGUKWear", "engineTCWear"],
+    carSetup: ["frontWing", "rearWing", "onThrottle", "offThrottle", "frontCamber", "rearCamber", "frontToe", "rearToe", "frontSuspension", "rearSuspension", "frontAntiRollBar", "rearAntiRollBar", "frontRideHeight", "rearRideHeight", "brakePressure", "brakeBias", "engineBraking", "rearLeftTyrePressure", "rearRightTyrePressure", "frontLeftTyrePressure", "frontRightTyrePressure", "fuelLoad"],
+    motionEx: ["suspensionPositionRL", "suspensionPositionRR", "suspensionPositionFL", "suspensionPositionFR", "suspensionVelocityRL", "suspensionVelocityRR", "suspensionVelocityFL", "suspensionVelocityFR", "wheelSpeedRL", "wheelSpeedRR", "wheelSpeedFL", "wheelSpeedFR", "wheelSlipRatioRL", "wheelSlipRatioRR", "wheelSlipRatioFL", "wheelSlipRatioFR", "wheelSlipAngleRL", "wheelSlipAngleRR", "wheelSlipAngleFL", "wheelSlipAngleFR", "wheelLatForceRL", "wheelLatForceRR", "wheelLatForceFL", "wheelLatForceFR", "wheelLongForceRL", "wheelLongForceRR", "wheelLongForceFL", "wheelLongForceFR", "wheelVertForceRL", "wheelVertForceRR", "wheelVertForceFL", "wheelVertForceFR", "heightOfCOGAboveGround", "localVelocityX", "localVelocityY", "localVelocityZ", "angularVelocityX", "angularVelocityY", "angularVelocityZ", "angularAccelerationX", "angularAccelerationY", "angularAccelerationZ", "frontWheelsAngle", "frontAeroHeight", "rearAeroHeight", "frontRollAngle", "rearRollAngle", "chassisYaw", "chassisPitch"],
+  };
+  const booleans: Record<string, string[]> = {
+    carTelemetry: ["drs"],
+    carStatus: ["drsAllowed"],
+  };
+  const record = value as Record<string, unknown>;
+  if (!fields[key] || !hasFiniteFields(value, fields[key], booleans[key] ?? [])) return false;
+  if (key === "lapData") return Array.isArray(record.allCars) &&
+    record.allCars.every((car) => hasFiniteFields(car, ["currentLapTime", "lastLapTime", "bestLapTime", "position", "pitStatus", "numPitStops", "totalDistance"]));
+  if (key === "carStatus") return Array.isArray(record.allCars) &&
+    record.allCars.every((car) => hasFiniteFields(car, ["tyreCompound", "tyreVisualCompound", "tyreAge"]));
+  return true;
+}
+
+function validDriverHistory(value: unknown): boolean {
+  return hasFiniteFields(value, ["bestS1", "bestS2", "bestS3", "lastS1", "lastS2", "lastS3", "bestLapTime"]);
+}
 export class F1StateAccumulator {
   private sessionUID: bigint = 0n;
 
@@ -73,6 +128,65 @@ export class F1StateAccumulator {
     this.participants = [];
     this.driverHistory = new Map();
     this.playerCarIndex = 0;
+  }
+
+  captureCheckpoint(): Uint8Array {
+    const checkpoint: F1ParserCheckpointV1 = {
+      format: "raceiq:f1-2025-parser",
+      version: 1,
+      sessionUID: this.sessionUID.toString(10),
+      motion: this.motion, carTelemetry: this.carTelemetry, lapData: this.lapData,
+      finalClassification: this.finalClassification, carStatus: this.carStatus,
+      carDamage: this.carDamage, carSetup: this.carSetup, motionEx: this.motionEx,
+      session: this.session, participants: this.participants.slice(),
+      driverHistory: [...this.driverHistory],
+      driverLapSectors: [...this.driverLapSectors].map(([driver, sectors]) => [driver, [...sectors]]),
+      playerCarIndex: this.playerCarIndex,
+    };
+    return Buffer.from(JSON.stringify(checkpoint), "utf8");
+  }
+
+  restoreCheckpoint(bytes: Uint8Array): void {
+    let checkpoint: F1ParserCheckpointV1;
+    try {
+      checkpoint = JSON.parse(new TextDecoder().decode(bytes)) as F1ParserCheckpointV1;
+    } catch {
+      throw new Error("Invalid or unsupported F1-2025 parser checkpoint");
+    }
+    if (!checkpoint || checkpoint.format !== "raceiq:f1-2025-parser" || checkpoint.version !== 1 ||
+        !Array.isArray(checkpoint.participants) || !checkpoint.participants.every(
+          (participant) => hasFiniteFields(participant, ["driverId", "teamId"]) &&
+            typeof participant.name === "string") ||
+        !Array.isArray(checkpoint.driverHistory) || !checkpoint.driverHistory.every(
+          (entry) => Array.isArray(entry) && entry.length === 2 && Number.isInteger(entry[0]) &&
+            validDriverHistory(entry[1])) ||
+        !Array.isArray(checkpoint.driverLapSectors) || !checkpoint.driverLapSectors.every(
+          (entry) => Array.isArray(entry) && entry.length === 2 && Number.isInteger(entry[0]) &&
+            Array.isArray(entry[1]) && entry[1].every((sector) => Array.isArray(sector) && sector.length === 2 &&
+              Number.isInteger(sector[0]) && hasFiniteFields(sector[1], ["s1", "s2", "s3", "lapTime"]))) ||
+        !Number.isInteger(checkpoint.playerCarIndex) ||
+        !["motion", "carTelemetry", "lapData", "finalClassification", "carStatus", "carDamage", "carSetup", "motionEx", "session"]
+          .every((key) => validF1StateObject(key, checkpoint[key as keyof F1ParserCheckpointV1]))) {
+      throw new Error("Invalid or unsupported F1-2025 parser checkpoint");
+    }
+    let sessionUID: bigint;
+    try {
+      if (typeof checkpoint.sessionUID !== "string" ||
+          checkpoint.sessionUID.length > 20 ||
+          !/^\d+$/.test(checkpoint.sessionUID)) throw new Error();
+      sessionUID = BigInt(checkpoint.sessionUID);
+      if (sessionUID > 0xffff_ffff_ffff_ffffn) throw new Error();
+    } catch {
+      throw new Error("Invalid or unsupported F1-2025 parser checkpoint");
+    }
+    this.sessionUID = sessionUID;
+    this.motion = checkpoint.motion; this.carTelemetry = checkpoint.carTelemetry; this.lapData = checkpoint.lapData;
+    this.finalClassification = checkpoint.finalClassification; this.carStatus = checkpoint.carStatus;
+    this.carDamage = checkpoint.carDamage; this.carSetup = checkpoint.carSetup; this.motionEx = checkpoint.motionEx;
+    this.session = checkpoint.session; this.participants = checkpoint.participants.slice();
+    this.driverHistory = new Map(checkpoint.driverHistory);
+    this.driverLapSectors = new Map(checkpoint.driverLapSectors.map(([driver, sectors]) => [driver, new Map(sectors)]));
+    this.playerCarIndex = checkpoint.playerCarIndex;
   }
 
   /**

@@ -3,11 +3,24 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { MOTEC_SESSION_SOURCE } from "@raceiq/shared/integrations/motec";
 import { decodeMotecSourceArchive, type MotecOffsetEncoding } from "../motec/source-archive";
+import { realpath } from "node:fs/promises";
+import { resolve, dirname, relative, isAbsolute } from "node:path";
+import { ManifestSchema, type Chunk, type Manifest } from "@raceiq/capture-splitting";
+import { Schema } from "effect";
 import { parseLd } from "../motec/ld";
 import { parseLdxBeacons } from "../motec/ldx";
 import { resolveMotecTarget } from "../motec/targets";
 import { countSourceFrameScanned } from "./test-instrumentation";
-import { SEGMENT_BOUNDARY_MAGIC, SEGMENT_BOUNDARY_VERSION, SEGMENT_CONTEXT_MAGIC, SEGMENT_CONTEXT_VERSION, SEGMENT_CONTEXT_END_MAGIC, readFramePrefix, type SessionCaptureRecord } from "@raceiq/capture-formats/session/framing";
+import {
+  SEGMENT_BOUNDARY_MAGIC,
+  SEGMENT_BOUNDARY_VERSION,
+  SEGMENT_CONTEXT_MAGIC,
+  SEGMENT_CONTEXT_VERSION,
+  SEGMENT_CONTEXT_END_MAGIC,
+  decodeParserBootstrapPayload,
+  readFramePrefix,
+  type SessionCaptureRecord,
+} from "@raceiq/capture-formats/session/framing";
 import { decodeLmuSparseFrame, isLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
 import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { decodeKunosSparseFrame, isKunosSparseFrame, kunosSourceMagic } from "@raceiq/capture-formats/session/kunos-sparse";
@@ -44,7 +57,7 @@ export function indexCaptureFrames(buffer: Buffer): SessionCaptureFrameIndex {
   const records: SessionCaptureFrameRecord[] = [];
   const byOffset = new Map<number, SessionCaptureFrameRecord>();
   let frameIndex = 0;
-  for (const { offset } of iterateSessionFrameRecords(buffer, readFrameStreamStart(buffer), { skipMetaFrames: true })) {
+  for (const { offset } of iterateSessionFrameRecords(buffer, readFrameStreamStart(buffer), { skipMetaFrames: true, strict: true })) {
     countSourceFrameScanned();
     const prefix = readFramePrefix(buffer, offset);
     if (!prefix) throw new Error(`Invalid capture frame prefix at ${offset}`);
@@ -133,18 +146,26 @@ export async function* iterateSessionCaptureRecordsFromSource(
               previous = null;
               checkpointOffset = -1;
               checkpointIdentity = null;
-              yield { kind: "segment-boundary", offset };
+              yield { kind: "segment-boundary", offset, endOffset: offset + 8 + metaLength };
             }
-            else if (magic === SEGMENT_CONTEXT_MAGIC && version === SEGMENT_CONTEXT_VERSION) yield { kind: "segment-context", offset };
+            else if (magic === SEGMENT_CONTEXT_MAGIC && version === SEGMENT_CONTEXT_VERSION) yield { kind: "segment-context", offset, endOffset: offset + 8 + metaLength };
             else if (magic === SEGMENT_CONTEXT_END_MAGIC && version === SEGMENT_CONTEXT_VERSION) {
               previous = null;
               checkpointOffset = -1;
               checkpointIdentity = null;
-              yield { kind: "segment-context-end", offset };
+              yield { kind: "segment-context-end", offset, endOffset: offset + 8 + metaLength };
             }
             else if (options.strict) throw new Error(`Unknown capture segment marker at ${offset}`);
           }
-          else if (options.strict) throw new Error(`Unknown capture metadata at ${offset}`);
+          else {
+            const bootstrap = decodeParserBootstrapPayload(pending.subarray(8, 8 + metaLength));
+            if (bootstrap) {
+              previous = null;
+              checkpointOffset = -1;
+              checkpointIdentity = null;
+              yield { ...bootstrap, offset, endOffset: offset + 8 + metaLength };
+            } else if (options.strict) throw new Error(`Unknown capture metadata at ${offset}`);
+          }
           pending = pending.subarray(8 + metaLength);
           offset += 8 + metaLength;
           continue;
@@ -157,10 +178,6 @@ export async function* iterateSessionCaptureRecordsFromSource(
           break;
         }
         const payloadLength = prefix.length;
-        if (payloadLength <= 0) {
-          if (options.strict) throw new Error(`Invalid capture frame length at ${offset}`);
-          break;
-        }
         if (pending.length < prefix.prefixBytes + payloadLength) break;
         const frameOffset = offset;
         const payload = pending.subarray(prefix.prefixBytes, prefix.prefixBytes + payloadLength);
@@ -202,8 +219,8 @@ export async function* iterateSessionCaptureRecordsFromSource(
           checkpointOffset = checkpointIdentity ? frameOffset : -1;
         }
         previous = frame;
-        if (prefix.frameTimeMs === undefined) yield { kind: "frame", offset: frameOffset, frame };
-        else yield { kind: "frame", offset: frameOffset, frame, frameTimeMs: prefix.frameTimeMs };
+        if (prefix.frameTimeMs === undefined) yield { kind: "frame", offset: frameOffset, endOffset: offset, frame };
+        else yield { kind: "frame", offset: frameOffset, endOffset: offset, frame, frameTimeMs: prefix.frameTimeMs };
       }
     }
     if (options.strict && (!initialized || pending.length !== 0)) throw new Error(`Truncated capture record at ${offset}`);
@@ -241,6 +258,49 @@ export async function loadSessionSource(source: SessionCaptureSource): Promise<L
   }
   cache.set(cacheKey, { size, mtimeMs, loaded }); while (cache.size > MAX_ENTRIES) { const oldest = cache.keys().next().value; if (oldest) cache.delete(oldest); }
   return loaded;
+}
+const manifestCache = new Map<string, { size: number; mtimeMs: number; manifest: Manifest }>();
+export function clearCaptureManifestCache(manifestPath?: string): void {
+  if (manifestPath) manifestCache.delete(resolve(manifestPath));
+  else manifestCache.clear();
+}
+export async function loadCaptureManifest(manifestPath: string): Promise<Manifest> {
+  const absoluteManifest = resolve(manifestPath);
+  const file = Bun.file(absoluteManifest);
+  const size = file.size;
+  const mtimeMs = file.lastModified;
+  const cached = manifestCache.get(absoluteManifest);
+  if (cached && cached.size === size && cached.mtimeMs === mtimeMs) return cached.manifest;
+  const manifest = Schema.decodeUnknownSync(ManifestSchema)(JSON.parse(await file.text()));
+  manifestCache.set(absoluteManifest, { size, mtimeMs, manifest });
+  return manifest;
+}
+export async function resolveLapCaptureArtifact(manifestPath: string, chunkId: string, expectedLapId?: number): Promise<{ path: string; manifest: Manifest; chunk: Chunk }> {
+  const absoluteManifest = resolve(manifestPath);
+  const manifest = await loadCaptureManifest(absoluteManifest);
+  const chunk = manifest.chunks.find((candidate) => candidate.id === chunkId && candidate.kind === "lap");
+  if (!chunk) throw new Error(`Capture manifest ${absoluteManifest} has no lap chunk ${chunkId}`);
+  if (expectedLapId != null && chunk.lapId !== String(expectedLapId)) {
+    throw new Error(`Capture chunk ${chunkId} lap ID mismatch: expected ${expectedLapId}, got ${chunk.lapId}`);
+  }
+  if (!chunk.lapId || chunk.ownedFrameByteOffset == null || chunk.ownedFrameCount == null) {
+    throw new Error(`Capture manifest lap chunk ${chunkId} is missing owned frame window`);
+  }
+  if (isAbsolute(chunk.path)) throw new Error(`Capture chunk path must be relative: ${chunk.path}`);
+  const path = resolve(dirname(absoluteManifest), chunk.path);
+  const rel = relative(dirname(absoluteManifest), path);
+  if (rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) || isAbsolute(rel)) {
+    throw new Error(`Capture chunk path escapes manifest directory: ${chunk.path}`);
+  }
+  const file = Bun.file(path);
+  if (!await file.exists()) throw new Error(`Capture chunk ${chunkId} is missing: ${path}`);
+  const [realManifestDir, realChunkPath] = await Promise.all([realpath(dirname(absoluteManifest)), realpath(path)]);
+  const realRelative = relative(realManifestDir, realChunkPath);
+  if (realRelative === ".." || realRelative.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) || isAbsolute(realRelative)) {
+    throw new Error(`Capture chunk path escapes manifest directory: ${chunk.path}`);
+  }
+  if (file.size !== chunk.byteLength) throw new Error(`Capture chunk ${chunkId} size mismatch: expected ${chunk.byteLength}, got ${file.size}`);
+  return { path, manifest, chunk };
 }
 export async function loadSessionCapture(source: SessionCaptureSource): Promise<Buffer> {
   const loaded = await loadSessionSource(source); if (loaded.kind === "packets") throw new Error("Session source contains canonical packets, not BIN frames"); return loaded.buffer;

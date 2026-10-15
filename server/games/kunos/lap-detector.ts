@@ -58,6 +58,9 @@ export class KunosLapDetector implements ILapDetector {
   }
   get session(): SessionState | null { return this.currentSession; }
   setCurrentLapByteOffset(offset: number): void { this.engine.setCurrentLapByteOffset(offset); }
+  shouldCheckpointBeforeWrite(packet: TelemetryPacket): boolean {
+    return this.engine.shouldCheckpoint(packet);
+  }
   async feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void> {
     const identity = packet.gameId === "ac-evo" ? packet.acEvoIdentity : undefined;
     if (identity) {

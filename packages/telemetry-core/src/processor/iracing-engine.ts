@@ -29,6 +29,11 @@ export class IRacingDetectorEngine {
       iracingWaitingForNativeTime: this.deferred.length > 0,
       iracingPendingUnexpectedLap: this.pendingUnexpectedLap?.packet.LapNumber ?? null };
   }
+  shouldCheckpoint(packet: TelemetryPacket): boolean {
+    if (packet.sessionUID !== this.sessionKey) return true;
+    if (this.physicalLap === null || packet.LapNumber !== this.physicalLap) return true;
+    return this.pendingUnexpectedLap?.packet.LapNumber === packet.LapNumber;
+  }
   async feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void> {
     this.lastActivePacketTime = this.options.now();
     if (packet.sessionUID !== this.sessionKey) {

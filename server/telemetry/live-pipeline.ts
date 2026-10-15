@@ -18,10 +18,11 @@ import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/norma
 import { LAP_DETECTOR_ID } from "../lap-detection/detector";
 import { detectLiveIssues } from "../ai/tune-issues";
 import { reconcileSessionResult } from "../race-results/reconcile";
-import { encodeFrameLength, encodeSegmentContextEndFrame, encodeSegmentContextFrame } from "@raceiq/capture-formats/session/framing";
+import { encodeFrameLength, encodeParserBootstrapFrame, encodeSegmentContextEndFrame, encodeSegmentContextFrame } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "../session-capture/frame-time";
 import { wsManager } from "../runtime/websocket-manager";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
+import { enqueueSessionCaptureSplit } from "../db/session-queries";
 
 import { DashboardCaptureObservation } from "../session-capture/dashboard-observation";
 import { markDashboardCaptureCheckpoint, publishObservedDashboardCaptureFacts } from "../session-capture/dashboard-processor";
@@ -50,6 +51,7 @@ export class LiveTelemetryPipeline {
   private _continuingSegment = false;
   private _pendingSessionContextFrames: Buffer[] = [];
   private _expectCompleteLapStart = false;
+  private _enqueueSessionCaptureSplits = true;
   private _onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
   private _finalizedResultSessions = new Set<number>();
   private _resultFinalizations = new Map<number, Promise<void>>();
@@ -90,6 +92,7 @@ export class LiveTelemetryPipeline {
       skipHistorySeeding?: boolean;
       skipDevState?: boolean;
       recorder?: SessionRecorderAdapter;
+      enqueueSessionCaptureSplits?: boolean;
       onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
     },
   ) {
@@ -99,6 +102,7 @@ export class LiveTelemetryPipeline {
     this._bypassPacketRateFilter = options?.bypassPacketRateFilter ?? false;
     this._skipHistorySeeding = options?.skipHistorySeeding ?? false;
     this._skipDevState = options?.skipDevState ?? false;
+    this._enqueueSessionCaptureSplits = options?.enqueueSessionCaptureSplits ?? true;
     this._onSessionFinalized = options?.onSessionFinalized;
   }
 
@@ -126,6 +130,13 @@ export class LiveTelemetryPipeline {
     const pending = this._resultFinalizations.get(session.sessionId);
     if (pending) return pending;
     const finalization = (async () => {
+      try {
+        if (this._enqueueSessionCaptureSplits) {
+          await enqueueSessionCaptureSplit(session.sessionId);
+        }
+      } catch (error) {
+        console.error(`[CaptureSplit] Failed to enqueue closed session ${session.sessionId}:`, error);
+      }
       await this._onSessionFinalized?.(session.sessionId, session.gameId);
       this._finalizedResultSessions.add(session.sessionId);
     })();
@@ -397,11 +408,13 @@ export class LiveTelemetryPipeline {
   private async _processPacket(packet: TelemetryPacket, source: PacketSourceReference | undefined, frameTimeMs?: number): Promise<void> {
     applyFrameTime(packet, frameTimeMs);
     this._totalProcessed++;
+    const detector = this._getOrCreateDetector(packet.gameId);
 
     let rawByteOffset: number | undefined;
     const epochBefore = this.recorder.epoch;
     if (source && this.recorder.active) {
       if (Buffer.isBuffer(source)) {
+        if (detector.shouldCheckpointBeforeWrite(packet)) this.recorder.requestFullCheckpoint?.();
         rawByteOffset = this.recorder.getCurrentByteOffset();
         this.recorder.writeRecord(source, frameTimeMs);
       } else {
@@ -416,7 +429,6 @@ export class LiveTelemetryPipeline {
 
     normalizeTelemetryPacket(packet, adapter.coordSystem === "standard-xyz", adapter.runtime.normSuspensionTravelMm);
 
-    const detector = this._getOrCreateDetector(packet.gameId);
     await detector.feed(packet, rawByteOffset);
 
     // If feed rotates the session, write the triggering source into the new recorder
@@ -494,10 +506,12 @@ export class LiveTelemetryPipeline {
    */
   async processLapIndexPacket(packet: LapIndexPacket, source?: PacketSourceReference, frameTimeMs?: number): Promise<void> {
     this._totalProcessed++;
+    const detector = this._getOrCreateDetector(packet.gameId);
     let rawByteOffset: number | undefined;
     const epochBefore = this.recorder.epoch;
     if (source && this.recorder.active) {
       if (Buffer.isBuffer(source)) {
+        if (detector.shouldCheckpointBeforeWrite(packet as TelemetryPacket)) this.recorder.requestFullCheckpoint?.();
         rawByteOffset = this.recorder.getCurrentByteOffset();
         this.recorder.writeRecord(source, frameTimeMs);
       } else {
@@ -507,7 +521,6 @@ export class LiveTelemetryPipeline {
     const adapter = getServerGame(packet.gameId);
     const telemetryPacket = packet as unknown as TelemetryPacket;
     normalizeTelemetryPacket(telemetryPacket, adapter.coordSystem === "standard-xyz", adapter.runtime.normSuspensionTravelMm);
-    const detector = this._getOrCreateDetector(packet.gameId);
     await detector.feed(telemetryPacket, rawByteOffset);
     if (source && this.recorder.active && this.recorder.epoch !== epochBefore) {
       if (Buffer.isBuffer(source)) {
@@ -536,7 +549,7 @@ export class LiveTelemetryPipeline {
    * telemetry values through the lap detector.
    */
   recordSessionContextFrame(sourceFrame: Buffer, completeLapStart = false, frameTimeMs?: number): void {
-    this._expectCompleteLapStart = completeLapStart;
+    this._expectCompleteLapStart ||= completeLapStart;
     const contextRecord = Buffer.concat([encodeSegmentContextFrame(), encodeFrameLength(sourceFrame.length, frameTimeMs), sourceFrame, encodeSegmentContextEndFrame()]);
     if (this.recorder.active) {
       this.recorder.writeRawCaptureBytes(contextRecord);
@@ -544,6 +557,20 @@ export class LiveTelemetryPipeline {
     }
     this._pendingSessionContextFrames.push(contextRecord);
   }
+  recordParserBootstrap(gameId: GameId, payload: Buffer, completeLapStart = false): void {
+    this._expectCompleteLapStart ||= completeLapStart;
+    const record = encodeParserBootstrapFrame(gameId, payload);
+    if (this.recorder.active) {
+      this.recorder.writeRawCaptureBytes(record);
+      return;
+    }
+    this._pendingSessionContextFrames.push(record);
+  }
+
+  /**
+   * Preserve parser context in imported captures without feeding its stale
+   * telemetry values through the lap detector.
+   */
 
   /**
    * Drop in-memory ownership of a session deleted through the API.

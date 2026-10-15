@@ -27,6 +27,15 @@ Owns RaceIQ raw-session persistence: length-prefixed frame recording, gzip stora
 - Recording paths and names are chosen by telemetry/runtime adapters. This domain must not change their naming, activation, or shutdown order.
 - Game adapters own frame recognition and parsing. Telemetry owns live pipeline behavior. Database modules own session/lap persistence.
 - Import rollback deletes sessions and their newly recorded files. Scheduled maintenance skips active recordings; background compression remains age-gated, while user-triggered compression also includes untracked `.bin` files.
+## Lossless per-lap capture splitting
+
+`@raceiq/capture-formats` owns exact encoded record boundaries and strict decoding. `@raceiq/capture-splitting` owns indexed-window normalization, opaque parser initialization preparation through injected game codecs, sequential artifact writing, and independent conservation verification. Ownership comes only from detector byte offsets/frame counts; lap numbers are labels. A shared boundary frame belongs to the next lap and may appear once as trailing non-owned context in the previous artifact. Source offsets count decompressed encoded bytes; the physical source byte length remains separately recorded.
+
+Preparation and verification may scan independently; artifact writing is one sequential pass. Game codecs create/reset parser state and capture/restore opaque checkpoints. The package does not depend on backend registries or concrete parsers. Workers stage and verify artifacts only. Backend fences attempts/source revisions, renames verified staging, and transactionally publishes DB references; invalidation clears stale publication before readers observe changed ownership. Workers never publish or retire source recordings.
+
+Imported parser bootstraps persist through pending and active recorder paths before dependent frames. ZIP export preserves native payloads and explicitly separates owned records from initialization and trailing completion context. Import can use context to complete a detection without recording it as owned telemetry. Saved timing/validity restores from existing ZIP metadata; lap labels never determine ownership.
+
+Compression protects split-job and published sources. Migration fences unpublished queued/failed jobs atomically with source/index changes and requeues after releasing the maintenance lock; active attempts and published provenance remain protected. Capture cleanup clears session/lap/job references together and restores them on pre-delete failure, including when the monolith is missing but artifacts remain. Full session deletion cancels queued work but rejects active attempts. Shared references protect sources/bundles; partial irreversible deletions report accurate residuals. Post-commit notification failures cannot roll back publication or remove its files. Null-layout legacy exports remain valid; invalid non-null layouts fail explicitly.
 
 ## Testing
 

@@ -34,6 +34,108 @@ export function createIRacingParserState(): IRacingParserState {
   };
 }
 
+export interface IRacingParserCheckpointV1 {
+  format: "raceiq:iracing-parser";
+  version: 1;
+  state: IRacingParserState;
+}
+
+export function captureIRacingParserCheckpoint(state: IRacingParserState): Uint8Array {
+  const source = state.source;
+  const checkpoint: IRacingParserCheckpointV1 = {
+    format: "raceiq:iracing-parser",
+    version: 1,
+    state: {
+      sessionKey: state.sessionKey,
+      rawLap: state.rawLap,
+      lapStartSessionTime: state.lapStartSessionTime,
+      fuelCapacitySessionInfo: state.fuelCapacitySessionInfo,
+      fuelCapacityL: state.fuelCapacityL,
+      source: {
+        session: source.session ? { ...source.session,
+          ...(source.session.sectorStarts ? { sectorStarts: source.session.sectorStarts.slice() } : {}) } : null,
+        variables: source.variables.map((variable) => ({ ...variable })),
+        values: Object.fromEntries(Object.entries(source.values).map(([key, value]) => [
+          key, Array.isArray(value) ? value.slice() : value,
+        ])),
+        schemaVersion: source.schemaVersion,
+        sessionInfo: source.sessionInfo,
+        sessionInfoUpdate: source.sessionInfoUpdate,
+      },
+    },
+  };
+  return Buffer.from(JSON.stringify(checkpoint), "utf8");
+}
+
+export function restoreIRacingParserCheckpoint(bytes: Uint8Array): IRacingParserState {
+  let checkpoint: IRacingParserCheckpointV1;
+  try {
+    checkpoint = JSON.parse(new TextDecoder().decode(bytes)) as IRacingParserCheckpointV1;
+  } catch {
+    throw new Error("Invalid or unsupported iRacing parser checkpoint");
+  }
+  const state = checkpoint?.state;
+  const source = state?.source;
+  const values = source?.values;
+  const validValue = (value: unknown): boolean => typeof value === "number" ?
+    Number.isFinite(value) : typeof value === "boolean" || typeof value === "string" ||
+      (Array.isArray(value) && value.every((entry) =>
+        typeof entry === "boolean" || (typeof entry === "number" && Number.isFinite(entry))));
+  if (checkpoint?.format !== "raceiq:iracing-parser" || checkpoint.version !== 1 ||
+      !state || typeof state !== "object" || Array.isArray(state) ||
+      !source || typeof source !== "object" || Array.isArray(source) ||
+      !Array.isArray(source.variables) || !values ||
+      typeof values !== "object" || Array.isArray(values) ||
+      !Object.entries(values).every(([key, value]) => typeof key === "string" && validValue(value)) ||
+      !(state.sessionKey === null || typeof state.sessionKey === "string") ||
+      !(state.rawLap === null || (Number.isInteger(state.rawLap) && Number.isFinite(state.rawLap))) ||
+      !Number.isFinite(state.lapStartSessionTime) ||
+      !(state.fuelCapacitySessionInfo === null || typeof state.fuelCapacitySessionInfo === "string") ||
+      !(state.fuelCapacityL === undefined || Number.isFinite(state.fuelCapacityL)) ||
+      !(source.session === null || (source.session !== undefined && typeof source.session === "object" &&
+        !Array.isArray(source.session))) ||
+      !(source.schemaVersion === undefined || source.schemaVersion === 2 || source.schemaVersion === 3) ||
+      !(source.sessionInfo === undefined || typeof source.sessionInfo === "string") ||
+      !(source.sessionInfoUpdate === undefined || Number.isInteger(source.sessionInfoUpdate))) {
+    throw new Error("Invalid or unsupported iRacing parser checkpoint");
+  }
+  for (const variable of source.variables) {
+    if (!variable || typeof variable !== "object" || Array.isArray(variable) || typeof variable.name !== "string" ||
+        ![1, 2, 3, 4, 5].includes(variable.type)) {
+      throw new Error("Invalid or unsupported iRacing parser checkpoint");
+    }
+  }
+  if (source.session !== null && source.session !== undefined) {
+    const session = source.session;
+    if (!["sessionId", "subSessionId", "sessionNum", "driverCarIdx", "trackId", "trackLengthM", "carId",
+      "carClassId", "engineIdleRpm", "engineRedlineRpm", "engineCylinderCount"].every(
+        (key) => Number.isFinite(session[key as keyof typeof session])) ||
+        !["trackName", "carName", "carClassName"].every(
+          (key) => typeof session[key as keyof typeof session] === "string") ||
+        !(session.sectorStarts === undefined || (Array.isArray(session.sectorStarts) &&
+          session.sectorStarts.every(Number.isFinite)))) {
+      throw new Error("Invalid or unsupported iRacing parser checkpoint");
+    }
+  }
+  return {
+    sessionKey: state.sessionKey,
+    rawLap: state.rawLap,
+    lapStartSessionTime: state.lapStartSessionTime,
+    fuelCapacitySessionInfo: state.fuelCapacitySessionInfo,
+    fuelCapacityL: state.fuelCapacityL,
+    source: {
+      session: source.session,
+      variables: source.variables.map((variable) => ({ ...variable })),
+      values: Object.fromEntries(Object.entries(values).map(([key, value]) => [
+        key, Array.isArray(value) ? value.slice() : value,
+      ])),
+      schemaVersion: source.schemaVersion,
+      sessionInfo: source.sessionInfo,
+      sessionInfoUpdate: source.sessionInfoUpdate,
+    },
+  };
+}
+
 function scalar(
   values: Record<string, IRacingValue>,
   name: string,

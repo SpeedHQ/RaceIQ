@@ -18,6 +18,8 @@ const NOOP_STARTUP_JOBS = {
   startCommunityTunesSync: () => {},
   startSessionCompressor: () => {},
   startUpdateCheckSchedule: () => {},
+  recoverSessionCaptureSplitJobs: async () => {},
+  startSessionCaptureSplitManager: () => {},
 };
 const provenance: RaceResultProvenance = {
   catalogVersion: "catalog-7",

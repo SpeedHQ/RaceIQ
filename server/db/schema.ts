@@ -115,6 +115,9 @@ export const sessions = sqliteTable(
 		resolverVersion: text("resolver_version"),
 		derivationVersion: text("derivation_version"),
 		captureFormatVersion: integer("capture_format_version"),
+		// Container layout is independent of sparse codec eligibility/version.
+		captureLayoutVersion: integer("capture_layout_version"),
+		captureManifestFile: text("capture_manifest_file"),
 		// How this session's telemetry was obtained (migration v43). NULL = recorded
 		// live from the game. 'motec' = transcoded from a MoTeC .ld export, where the
 		// racing line is dead-reckoned rather than logged — see server/motec/.
@@ -211,6 +214,9 @@ export const laps = sqliteTable(
 		sectorTimes: text("sector_times", { mode: "json" }).$type<number[]>(),
 		rawByteOffset: integer("raw_byte_offset"),
 		rawFrameCount: integer("raw_frame_count"),
+		captureChunkId: text("capture_chunk_id"),
+		sourceFrameStart: integer("source_frame_start"),
+		sourceFrameCount: integer("source_frame_count"),
 		catalogVersion: text("catalog_version"),
 		catalogHash: text("catalog_hash"),
 		catalogSchemaVersion: text("catalog_schema_version"),
@@ -249,6 +255,24 @@ export const laps = sqliteTable(
 		experimentIdx: index("idx_laps_experiment").on(table.experimentId),
 	}),
 );
+export const sessionCaptureSplitJobs = sqliteTable("session_capture_split_jobs", {
+	sessionId: integer("session_id").primaryKey().references(() => sessions.id, { onDelete: "cascade" }),
+	jobId: text("job_id").notNull().unique(),
+	attemptId: integer("attempt_id").notNull().default(1),
+		sequence: integer("sequence").notNull().default(0),
+	pendingSourceRevision: text("pending_source_revision").notNull(),
+	sourcePath: text("source_path").notNull(),
+	stagingPath: text("staging_path"),
+	status: text("status", { enum: ["queued", "splitting", "verifying", "publishing", "ready", "failed"] }).notNull(),
+	errorCode: text("error_code"),
+	errorMessage: text("error_message"),
+		processedSourceFrames: integer("processed_source_frames"),
+		totalSourceFrames: integer("total_source_frames"),
+		completedLapArtifacts: integer("completed_lap_artifacts").notNull().default(0),
+		totalLapArtifacts: integer("total_lap_artifacts").notNull().default(0),
+	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+	updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
+});
 
 export const tuneAssignments = sqliteTable(
 	"tune_assignments",

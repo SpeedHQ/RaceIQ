@@ -47,6 +47,27 @@ export class KunosDetectorEngine {
   setCurrentLapByteOffset(offset: number): void {
     this.lapByteOffset = offset; this.currentRawByteOffset = offset; this.lapFrameCount = 1;
   }
+  shouldCheckpoint(packet: TelemetryPacket): boolean {
+    if (this.sessionKey === null) return true;
+    if (this.options.isOpenRoute?.(packet)) {
+      const previous = this.openRoutePreviousPacket;
+      const timerReset = previous !== null && previous.CurrentLap > 2 && packet.CurrentLap <= 2;
+      const validRunning = packet.IsRaceOn === 1 && packet.acc?.isValidLap === true;
+      const startCandidate = !this.openRouteActive && validRunning && packet.CurrentLap <= 2
+        && (timerReset || previous === null || this.openRouteStartNextPacket);
+      if (startCandidate) return true;
+      if (this.openRoutePendingFinish && packet.LastLap > 0) return true;
+      const previousTimed = this.lapBuffer[this.lapBuffer.length - 1];
+      if (previousTimed && packet.DistanceTraveled < previousTimed.DistanceTraveled - 100) return true;
+      if (this.openRouteActive && previous !== null && packet.LapNumber > previous.LapNumber) return true;
+      return this.openRouteActive && timerReset;
+    }
+    const prev = this.lapBuffer[this.lapBuffer.length - 1];
+    if (!prev) return false;
+    if (packet.DistanceTraveled < prev.DistanceTraveled - 100) return true;
+    const evidence = getKunosLapResetEvidence(prev, packet, this.currentLapNumber);
+    return isKunosPreLapTimerReset(prev, evidence) || isKunosCompletedLapReset(prev, evidence);
+  }
   async feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void> {
     this.lastActivePacketTime = (this.options.now ?? Date.now)();
     if (rawByteOffset !== undefined) {

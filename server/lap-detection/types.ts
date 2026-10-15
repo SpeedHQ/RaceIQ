@@ -67,6 +67,8 @@ export interface ILapDetector {
    * stuck at null.
    */
   setCurrentLapByteOffset?(offset: number): void;
+  /** Whether this source record may begin or reset a lap; queried before recording bytes. */
+  shouldCheckpointBeforeWrite(packet: TelemetryPacket): boolean;
   /** Treat the first observed lap as complete rather than an attach-mid-lap fragment. */
   expectCompleteLapStart?(): void;
   /** Return implementation-specific debug state for the dev panel. */

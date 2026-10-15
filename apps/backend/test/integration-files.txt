@@ -117,6 +117,7 @@ apps/backend/test/runtime/websocket-manager.test.ts
 apps/backend/test/session-capture/all-game-import-migration.test.ts
 apps/backend/test/session-capture/automatic-cleanup.test.ts
 apps/backend/test/session-capture/capture-migration.test.ts
+apps/backend/test/session-capture/capture-splitting.test.ts
 apps/backend/test/session-capture/context-markers.test.ts
 apps/backend/test/session-capture/dashboard-processing.test.ts
 apps/backend/test/session-capture/elapsed-duration.test.ts
@@ -133,7 +134,10 @@ apps/backend/test/session-capture/raw-binary-storage.test.ts
 apps/backend/test/session-capture/session-cleanup.test.ts
 apps/backend/test/session-capture/session-compressor.test.ts
 apps/backend/test/session-capture/session-recorder.test.ts
+apps/backend/test/session-capture/bundle-consumers.test.ts
+apps/backend/test/session-capture/split-lifecycle.test.ts
 apps/backend/test/session-capture/source-loader-stream.test.ts
+apps/backend/test/session-capture/streaming-capture-framing.test.ts
 apps/backend/test/setups/ac-evo/carsetup-file-io.test.ts
 apps/backend/test/setups/ac-evo/place-setup-carsetup.test.ts
 apps/backend/test/setups/ac-evo/setup-file-formats.test.ts

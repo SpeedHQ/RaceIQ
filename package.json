@@ -81,7 +81,8 @@
     "ui:diff": "bun packages/tooling-ui/src/ui/local-ui-diff.ts",
     "ui:diff:storybook": "bun packages/tooling-ui/src/ui/local-ui-diff.ts --storybook-only",
     "render:demo": "ffmpeg -y -framerate 60 -i /tmp/raceiq-demo-frames/frame-%06d.jpg -vf scale=1280:720 -c:v libx264 -pix_fmt yuv420p -crf 30 assets/demo-render.mp4 && ffmpeg -y -framerate 60 -i /tmp/raceiq-demo-frames/frame-%06d.jpg -vf scale=1280:720 -c:v libvpx-vp9 -crf 32 -b:v 0 assets/demo-render.webm",
-    "lighthouse": "lighthouse http://raceiq.localhost:1355/ --only-categories=accessibility,performance,best-practices --chrome-flags=\"--headless=new --no-sandbox --disable-gpu\" --output=html --output-path=./lighthouse-report.html && echo 'Report: lighthouse-report.html'"
+    "lighthouse": "lighthouse http://raceiq.localhost:1355/ --only-categories=accessibility,performance,best-practices --chrome-flags=\"--headless=new --no-sandbox --disable-gpu\" --output=html --output-path=./lighthouse-report.html && echo 'Report: lighthouse-report.html'",
+    "prepare": "effect-tsgo patch --typescript --no-oxlint"
   },
   "dependencies": {
     "@ai-sdk/google": "4.0.74",
@@ -108,6 +109,7 @@
   },
   "devDependencies": {
     "@babel/parser": "^8.0.5",
+    "@effect/tsgo": "0.53.0",
     "@gltf-transform/core": "4.5.0",
     "@gltf-transform/extensions": "4.5.0",
     "@gltf-transform/functions": "4.5.0",
@@ -126,8 +128,8 @@
     "meshoptimizer": "1.2.0",
     "pixelmatch": "^7.2.0",
     "portless": "^0.15.6",
-    "typescript": "^7.0.2",
-    "turbo": "2.11.7"
+    "turbo": "2.11.7",
+    "typescript": "^7.0.2"
   },
   "optionalDependencies": {
     "@libsql/darwin-arm64": "^0.5.29"

@@ -50,6 +50,11 @@ export interface ServerGameAdapter extends GameAdapter {
 
   /** Create per-game parser state (e.g. F1's multi-packet accumulator). null = stateless. */
   createParserState(): unknown;
+  /** Encode compact parser state for independent replay of a later frame window. */
+  captureParserCheckpoint?(state: unknown): Uint8Array | null;
+
+  /** Restore parser state from a game-owned checkpoint payload. */
+  restoreParserCheckpoint?(state: unknown, payload: Uint8Array): unknown;
 
   /** AI analyst system prompt for this game */
   aiSystemPrompt: string;

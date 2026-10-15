@@ -76,6 +76,37 @@ export class OrdinalDetectorEngine {
   }
 
   setBypassPacketRateFilter(value: boolean): void { this.bypassPacketRateFilter = value; }
+  shouldCheckpoint(packet: TelemetryPacket): boolean {
+    const s = this.state;
+    const previous = s.lapBuffer.at(-1);
+    if (!s.session || s.lapNumber < 0) return true;
+
+    const now = this.effects.now();
+    if (detectSessionBoundary(
+      s.session,
+      s.lapNumber,
+      previous?.DistanceTraveled ?? null,
+      s.lastPacketTime,
+      packet,
+      now,
+    )) return true;
+
+    if (s.lapNumber >= 0 && packet.LapNumber !== s.lapNumber) {
+      detectLapBoundary(s.lapNumber, packet);
+      return true;
+    }
+    if (
+      s.lapNumber >= 0 &&
+      s.lapBuffer.length > 30 &&
+      packet.LapNumber === s.lapNumber &&
+      previous &&
+      detectLapReset(previous, s.lastLastLap, packet).action !== "none"
+    ) return true;
+    return s.lastTimestampMS > 0 &&
+      packet.TimestampMS < s.lastTimestampMS &&
+      packet.LapNumber === s.lapNumber;
+  }
+
   setCurrentLapByteOffset(offset: number): void {
     this.state.lapByteOffset = offset;
     this.state.currentRawByteOffset = offset;

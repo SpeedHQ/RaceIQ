@@ -1,4 +1,5 @@
 import { cacheGet, cacheSet, LapParseError, parseRawLapFrames, parseSessionLapsBatched } from "./telemetry-replay-storage";
+import { resolveLapCaptureArtifact } from "../session-capture/source-loader";
 import { toLapMeta } from "./lap-meta";
 import { eq, desc, and, or, sql, inArray } from "drizzle-orm";
 import { db } from "./index";
@@ -106,6 +107,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200, sessionId?: 
       parserVersion: laps.parserVersion,
       resolverVersion: laps.resolverVersion,
       derivationVersion: laps.derivationVersion,
+      standaloneCaptureReady: sql<boolean>`(${sessions.captureLayoutVersion} IS NULL AND ${sessions.rawFile} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 1 AND ${sessions.captureManifestFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL)`,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -178,6 +180,7 @@ export async function getReviewLaps(
       parserVersion: laps.parserVersion,
       resolverVersion: laps.resolverVersion,
       derivationVersion: laps.derivationVersion,
+      standaloneCaptureReady: sql<boolean>`(${sessions.captureLayoutVersion} IS NULL AND ${sessions.rawFile} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 1 AND ${sessions.captureManifestFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL)`,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -235,6 +238,7 @@ export async function getLapMetaForProfileScope(gameId: GameId, carId?: string, 
       experimentExcludedSource: laps.experimentExcludedSource,
       fuelPerLap: laps.fuelPerLap,
       tyreWear: laps.tyreWear,
+      standaloneCaptureReady: sql<boolean>`(${sessions.captureLayoutVersion} IS NULL AND ${sessions.rawFile} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 1 AND ${sessions.captureManifestFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL)`,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -322,10 +326,13 @@ type LapMetadataRow = {
   isValid: number | boolean;
   isFavorite: number | boolean;
   createdAt: string;
+  rawFile: string | null;
   rawByteOffset: number | null;
   rawFrameCount: number | null;
-  rawFile?: string | null;
   source?: string | null;
+  captureManifestFile?: string | null;
+  captureLayoutVersion?: number | null;
+  captureChunkId?: string | null;
   carId: string;
   trackId: string;
   tuneId: number | null;
@@ -340,7 +347,9 @@ type LapMetadataRow = {
   parserVersion: string | null;
   resolverVersion: string | null;
   derivationVersion: string | null;
+  standaloneCaptureReady?: boolean | number | null;
 };
+
 
 async function getLapMetadataRow(id: number): Promise<LapMetadataRow | undefined> {
   return db
@@ -349,11 +358,13 @@ async function getLapMetadataRow(id: number): Promise<LapMetadataRow | undefined
       isValid: laps.isValid, isFavorite: laps.isFavorite, createdAt: laps.createdAt, rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount, rawFile: sessions.rawFile, source: sessions.source,
       carId: sessions.carId, trackId: sessions.trackId,
+      captureManifestFile: sessions.captureManifestFile, captureLayoutVersion: sessions.captureLayoutVersion, captureChunkId: laps.captureChunkId,
       tuneId: laps.tuneId, tuneName: tunes.name, gameId: sessions.gameId,
       ownership: sessions.ownership, carSetup: laps.carSetup,
       sectorTimes: laps.sectorTimes, catalogVersion: laps.catalogVersion, catalogHash: laps.catalogHash,
       catalogSchemaVersion: laps.catalogSchemaVersion, parserVersion: laps.parserVersion,
       resolverVersion: laps.resolverVersion, derivationVersion: laps.derivationVersion,
+      standaloneCaptureReady: sql<boolean>`(${sessions.captureLayoutVersion} IS NULL AND ${sessions.rawFile} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 1 AND ${sessions.captureManifestFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL)`,
     })
     .from(laps).innerJoin(sessions, eq(laps.sessionId, sessions.id)).leftJoin(tunes, eq(laps.tuneId, tunes.id))
     .where(eq(laps.id, id)).get();
@@ -370,10 +381,24 @@ export async function getLapById(
   const row = await getLapMetadataRow(id);
   if (!row) return null;
   const cached = cacheGet(id);
-  if (cached) return buildLapResult(row, cached);
+  const hasPublishedLayout = row.captureLayoutVersion != null;
+  if (hasPublishedLayout && row.captureLayoutVersion !== 1) {
+    return { ...buildLapResult(row, []), parseError: `Unsupported capture layout version: ${row.captureLayoutVersion}` };
+  }
+  if (hasPublishedLayout && (!row.captureManifestFile || !row.captureChunkId)) {
+    return { ...buildLapResult(row, []), parseError: "Incomplete capture bundle references" };
+  }
+  if (cached && !hasPublishedLayout) return buildLapResult(row, cached);
+  
   let telemetry: TelemetryPacket[] = [];
   let parseError: string | undefined;
-  if (row.rawFile != null && row.rawByteOffset != null && row.rawFrameCount != null) {
+  if (row.captureLayoutVersion === 1 && row.captureManifestFile && row.captureChunkId) {
+    try {
+      const { path, chunk } = await resolveLapCaptureArtifact(row.captureManifestFile, row.captureChunkId, row.id);
+      if (cached) return buildLapResult(row, cached);
+      telemetry = await parseRawLapFrames({ rawFile: path, source: null, gameId: row.gameId as GameId, carId: row.carId, trackId: row.trackId }, chunk.ownedFrameByteOffset!, chunk.ownedFrameCount!);
+    } catch (err) { parseError = err instanceof Error ? err.message : String(err); }
+  } else if (row.captureLayoutVersion == null && row.rawFile != null && row.rawByteOffset != null && row.rawFrameCount != null) {
     try {
       telemetry = await parseRawLapFrames(
         { rawFile: row.rawFile, source: row.source === "motec" ? "motec" : null, gameId: row.gameId as GameId, carId: row.carId, trackId: row.trackId },
@@ -390,6 +415,9 @@ export async function getLapById(
     }
   }
   if (telemetry.length > 0) cacheSet(id, telemetry);
+  if (row.captureLayoutVersion != null && telemetry.length === 0 && !parseError) {
+    parseError = "Unable to resolve published capture bundle";
+  }
   const result = buildLapResult(row, telemetry);
   return parseError ? { ...result, parseError } : result;
 }
@@ -420,6 +448,10 @@ type LapResultRow = {
   rawByteOffset?: number | null;
   rawFrameCount?: number | null;
   source?: string | null;
+  captureLayoutVersion?: number | null;
+  captureManifestFile?: string | null;
+  captureChunkId?: string | null;
+  standaloneCaptureReady?: boolean | number | null;
 };
 
 function buildLapResult(
@@ -434,6 +466,7 @@ function buildLapResult(
     isValid: Boolean(row.isValid),
     isFavorite: Boolean(row.isFavorite),
     telemetryAvailable: row.rawFile != null && row.rawByteOffset != null && (row.rawFrameCount ?? 0) > 0,
+    standaloneCaptureReady: row.standaloneCaptureReady == null ? undefined : Boolean(row.standaloneCaptureReady),
     carId: row.carId,
     trackId: row.trackId,
     createdAt: row.createdAt,
@@ -484,6 +517,9 @@ export async function getLapsByIds(
       rawFrameCount: laps.rawFrameCount,
       rawFile: sessions.rawFile,
       source: sessions.source,
+      captureManifestFile: sessions.captureManifestFile,
+      captureLayoutVersion: sessions.captureLayoutVersion,
+      captureChunkId: laps.captureChunkId,
       tuneId: laps.tuneId,
       tuneName: tunes.name,
       gameId: sessions.gameId,
@@ -496,6 +532,7 @@ export async function getLapsByIds(
       parserVersion: laps.parserVersion,
       resolverVersion: laps.resolverVersion,
       derivationVersion: laps.derivationVersion,
+      standaloneCaptureReady: sql<boolean>`(${sessions.captureLayoutVersion} IS NULL AND ${sessions.rawFile} IS NOT NULL) OR (${sessions.captureLayoutVersion} = 1 AND ${sessions.captureManifestFile} IS NOT NULL AND ${laps.captureChunkId} IS NOT NULL)`,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -513,6 +550,26 @@ export async function getLapsByIds(
   const bySession = new Map<string, BatchGroup>();
 
   for (const row of rows) {
+    if (row.captureLayoutVersion != null) {
+      if (row.captureLayoutVersion !== 1 || !row.captureManifestFile || !row.captureChunkId) continue;
+      try {
+        const { path, chunk } = await resolveLapCaptureArtifact(row.captureManifestFile, row.captureChunkId, row.id);
+        const cached = cacheGet(row.id);
+        if (cached) {
+          decoded.set(row.id, cached);
+        } else {
+          const telemetry = await parseRawLapFrames(
+            { rawFile: path, source: null, gameId: row.gameId as GameId, carId: row.carId, trackId: row.trackId },
+            chunk.ownedFrameByteOffset!, chunk.ownedFrameCount!,
+          );
+          cacheSet(row.id, telemetry);
+          decoded.set(row.id, telemetry);
+        }
+      } catch (err) {
+        console.error(`[DB] Bundle decode failed for lap ${row.id}:`, err);
+      }
+      continue;
+    }
     const cached = cacheGet(row.id);
     if (cached) {
       decoded.set(row.id, cached);
@@ -593,6 +650,7 @@ export async function getLapsRaw(ids?: number[]) {
       id: laps.id,
       sessionId: laps.sessionId,
       lapNumber: laps.lapNumber,
+      createdAt: laps.createdAt,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
       pi: laps.pi,
@@ -600,7 +658,9 @@ export async function getLapsRaw(ids?: number[]) {
       rawFrameCount: laps.rawFrameCount,
       rawFile: sessions.rawFile,
       source: sessions.source,
-      createdAt: laps.createdAt,
+      captureManifestFile: sessions.captureManifestFile,
+      captureLayoutVersion: sessions.captureLayoutVersion,
+      captureChunkId: laps.captureChunkId,
       carId: sessions.carId,
       trackId: sessions.trackId,
       gameId: sessions.gameId,

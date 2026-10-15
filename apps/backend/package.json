@@ -43,6 +43,7 @@
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/shared": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
+    "@raceiq/capture-splitting": "workspace:*",
     "@raceiq/game-ac-evo": "workspace:*",
     "@raceiq/game-acc": "workspace:*",
     "@raceiq/game-f1-2025": "workspace:*",

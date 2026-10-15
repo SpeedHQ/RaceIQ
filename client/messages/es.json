@@ -2559,5 +2559,21 @@
   "access_origins_safety": "Los cambios de red requieren reiniciar RaceIQ. Desactivarla no borra los orígenes guardados. Las protecciones del mismo origen continúan.",
   "dash_hostname_origin_settings": "Añade este origen exacto en Ajustes → Acceso y seguridad → dominios del navegador: {origin}. Guardar el nombre de host no autoriza el acceso.",
   "dash_hostname_origin_managed": "Añade este origen exacto a SERVER_ALLOWED_ORIGINS: {origin}. Guardar el nombre de host no autoriza el acceso.",
-  "dash_hostname_invalid": "Introduce solo un nombre de host, sin http://, puerto ni ruta."
+  "dash_hostname_invalid": "Introduce solo un nombre de host, sin http://, puerto ni ruta.",
+  "sessions_capture_split_queued": "En cola para exportar vueltas sin pérdidas",
+  "sessions_capture_split_splitting": "Dividiendo la grabación en vueltas",
+  "sessions_capture_split_verifying": "Verificando grabaciones de vueltas",
+  "sessions_capture_split_publishing": "Publicando grabaciones de vueltas",
+  "sessions_capture_split_ready": "Grabaciones de vueltas sin pérdidas listas",
+  "sessions_capture_split_failed": "No se pudo dividir la grabación en vueltas. La grabación original sigue disponible.",
+  "sessions_capture_split_error_source_io": "No se pudo leer la grabación original.",
+  "sessions_capture_split_error_malformed_capture": "El formato de la grabación original no es válido.",
+  "sessions_capture_split_error_bootstrap_failed": "No se pudo iniciar el procesamiento de vueltas.",
+  "sessions_capture_split_error_verification_mismatch": "Falló la verificación de la grabación de vueltas.",
+  "sessions_capture_split_error_worker_failed": "El procesamiento de vueltas se detuvo inesperadamente.",
+  "sessions_capture_split_error_stale_publication": "Un intento de procesamiento más reciente sustituyó este resultado.",
+  "sessions_capture_split_error_publication_failed": "No se pudieron publicar las grabaciones de vueltas.",
+  "sessions_capture_split_progress": "Fotogramas de origen procesados",
+  "sessions_capture_split_laps": "Grabaciones de vueltas",
+  "sessions_export_capture_not_ready": "La exportación ZIP sin procesar no está disponible hasta que estén listas las grabaciones sin pérdidas de todas las vueltas seleccionadas que no sean MoTeC."
 }

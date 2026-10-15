@@ -8,11 +8,12 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import { loadSessionSource, iterateSessionCaptureRecordsFromSource } from "./source-loader";
 import { packetIndexToLegacyMotecOffset } from "../motec/source-archive";
 import { getLapsForSession, updateLapRawIndex, replaceLapsForSession } from "../db/lap-reprocessing-queries";
-import { updateSessionRawFile } from "../db/session-queries";
+import { updateSessionRawFile, enqueueSessionCaptureSplit } from "../db/session-queries";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
+import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "./frame-time";
 export interface ReprocessResult {
   sessionId: number;
@@ -44,7 +45,9 @@ export class SessionNotFoundError extends Error {
  * Updates lap frame indexes and metadata in the DB.
  */
 export async function reprocessSession(sessionId: number): Promise<ReprocessResult> {
-  return withSessionCaptureMaintenanceLock(() => reprocessSessionUnlocked(sessionId));
+  const result = await withSessionCaptureMaintenanceLock(() => reprocessSessionUnlocked(sessionId));
+  await enqueueSessionCaptureSplit(sessionId);
+  return result;
 }
 
 async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessResult> {
@@ -86,7 +89,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
   } else {
     // Canonical captures, including gzip and sparse records, stream one frame
     // at a time; only MoTeC archives require packet materialization.
-    let parserState = serverGame.createParserState?.() ?? null;
+    let parserState: unknown = serverGame.createParserState?.() ?? null;
     let inContext = false;
     let segmentHasFrames = false;
     for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) {
@@ -106,6 +109,15 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
         continue;
       }
       if (record.kind === "segment-context-end") {
+        inContext = false;
+        continue;
+      }
+      if (record.kind === "parser-bootstrap") {
+        if (record.gameId !== gameId || record.formatVersion !== PARSER_BOOTSTRAP_VERSION) {
+          throw new Error("Parser bootstrap does not match reprocessed game");
+        }
+        if (!serverGame.restoreParserCheckpoint) throw new Error(`Parser checkpoint restore unavailable for ${gameId}`);
+        parserState = serverGame.restoreParserCheckpoint(parserState, record.payload);
         inContext = false;
         continue;
       }
@@ -169,7 +181,10 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
     return candidates[0]?.lap;
   });
   const uniqueInPlaceMatches = new Set(inPlaceMatches.filter(Boolean).map((lap) => lap!.id)).size === inPlaceMatches.length;
-  if (detectedLaps.length === existingLaps.length && uniqueInPlaceMatches && inPlaceMatches.every((lap, index) => lap?.lapNumber === detectedLaps[index]!.lapNumber) && !identityChanged && session.lapDetectorVersion !== null) {
+  if (detectedLaps.length === existingLaps.length && uniqueInPlaceMatches &&
+      inPlaceMatches.every((lap, index) => lap?.lapNumber === detectedLaps[index]!.lapNumber &&
+        lap.rawByteOffset === detectedLaps[index]!.rawByteOffset && lap.rawFrameCount === detectedLaps[index]!.rawFrameCount) &&
+      !identityChanged && session.lapDetectorVersion !== null) {
     strategy = "in-place";
     for (let index = 0; index < detectedLaps.length; index++) {
       const detected = detectedLaps[index]!;

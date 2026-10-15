@@ -1,6 +1,9 @@
 import { describe, test, expect } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { detectLapBoundary, detectLapReset } from "@raceiq/telemetry-core/processor/boundaries";
+import { OrdinalDetectorEngine } from "@raceiq/telemetry-core/processor/ordinal-engine";
+import { KunosDetectorEngine } from "@raceiq/telemetry-core/processor/kunos-engine";
+import { IRacingDetectorEngine } from "@raceiq/telemetry-core/processor/iracing-engine";
 
 function pkt(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
   return {
@@ -93,5 +96,53 @@ describe("detectLapReset", () => {
     expect(
       detectLapReset(last({ CurrentLap: 3 }), 0, pkt({ CurrentLap: 0, DistanceTraveled: 3050 }))
     ).toEqual({ action: "none" });
+  });
+});
+
+describe("pre-write lap checkpoint hints", () => {
+  test("ordinal detector checkpoints lap changes and same-lap resets", () => {
+    const engine = new OrdinalDetectorEngine({
+      now: () => 1_000,
+      createSession: async () => null,
+      finalizeLap: async () => false,
+      finalizeIncompleteLap: async () => {},
+      finalizeStaleLap: async () => {},
+      finalizeSession: async () => {},
+    });
+    Object.assign(engine.state, {
+      session: { sessionKey: 1, carId: "100", trackId: "5", gameId: "fm-2023" },
+      lapNumber: 1,
+      lapBuffer: Array.from({ length: 31 }, () => pkt({ TimestampMS: 10, CurrentLap: 60 })),
+      lastLastLap: 0,
+      lastTimestampMS: 10,
+      lastPacketTime: 900,
+    });
+    expect(engine.shouldCheckpoint(pkt({ LapNumber: 2, CurrentLap: 0 }))).toBe(true);
+    expect(engine.shouldCheckpoint(pkt({ LapNumber: 1, CurrentLap: 0 }))).toBe(true);
+    expect(engine.shouldCheckpoint(pkt({ LapNumber: 1, TimestampMS: 9 }))).toBe(true);
+  });
+
+  test("Kunos and iRacing checkpoint source candidate before boundary confirmation", async () => {
+    const kunos = new KunosDetectorEngine({
+      createSession: async () => {},
+      backfillSessionIdentifiers: () => {},
+      isPitOnly: () => false,
+      emitLap: async () => {},
+    });
+    const kunosPacket = pkt({ gameId: "acc", LapNumber: 1 });
+    expect(kunos.shouldCheckpoint(kunosPacket)).toBe(true);
+    await kunos.feed(kunosPacket);
+    expect(kunos.shouldCheckpoint(pkt({ gameId: "acc", LapNumber: 1, DistanceTraveled: 1_000 }))).toBe(true);
+
+    const iracing = new IRacingDetectorEngine({
+      now: () => 1_000,
+      feed: async () => {},
+      flushStaleLap: async () => {},
+      finalizeCurrentSession: async () => {},
+    });
+    const iracingPacket = pkt({ gameId: "iracing", sessionUID: "session-1", LapNumber: 1 });
+    expect(iracing.shouldCheckpoint(iracingPacket)).toBe(true);
+    await iracing.feed(iracingPacket);
+    expect(iracing.shouldCheckpoint(pkt({ gameId: "iracing", sessionUID: "session-1", LapNumber: 2 }))).toBe(true);
   });
 });

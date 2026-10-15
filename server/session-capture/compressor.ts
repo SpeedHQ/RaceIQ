@@ -7,14 +7,15 @@
  */
 import { createReadStream, createWriteStream, unlinkSync, existsSync } from "node:fs";
 import { rename, rm } from "node:fs/promises";
+import { resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { createGzip } from "node:zlib";
 import { getUncompressedSessions } from "../db/session-queries";
 import { isSessionActive } from "../telemetry/live-pipeline";
 import { db } from "../db/index";
-import { dashboardSummaryState, sessions } from "../db/schema";
-import { eq, inArray } from "drizzle-orm";
-import { cleanupOrphanSessionFiles, listSessionCaptureFiles, withSessionCaptureMaintenanceLock } from "./cleanup";
+import { dashboardSummaryState, sessions, sessionCaptureSplitJobs } from "../db/schema";
+import { and, eq, inArray } from "drizzle-orm";
+import { cleanupOrphanSessionFiles, listSessionCaptureFiles, loadReferencedCapturePaths, withSessionCaptureMaintenanceLock } from "./cleanup";
 import { cleanupExpiredStagedMotec } from "../motec/import-staging";
 import { loadSettings } from "../runtime/config/settings";
 import { executeSessionCleanup, SessionCleanupBusyError } from "./session-cleanup";
@@ -103,11 +104,23 @@ async function runCompression(userTriggered = false): Promise<void> {
     if (isSessionActive()) return;
 
     const ageMs = userTriggered ? 0 : ONE_DAY_MS;
+    const protectedPaths = await loadReferencedCapturePaths();
     const candidates = await getUncompressedSessions(ageMs);
     const groupedCandidates = new Map<string, number[]>();
     for (const { id, rawFile } of candidates) {
+      const rows = await db.select({ id: sessions.id, captureLayoutVersion: sessions.captureLayoutVersion })
+        .from(sessions).where(eq(sessions.rawFile, rawFile)).all();
+      // Published bundles retain their monolith as provenance and legacy fallback input.
+      if (rows.some((row) => row.captureLayoutVersion != null)) continue;
+      const activeJob = await db.select({ sessionId: sessionCaptureSplitJobs.sessionId })
+        .from(sessionCaptureSplitJobs)
+        .where(and(
+          inArray(sessionCaptureSplitJobs.sessionId, rows.map((row) => row.id)),
+          inArray(sessionCaptureSplitJobs.status, ["queued", "splitting", "verifying", "publishing"]),
+        )).limit(1).get();
+      if (activeJob) continue;
       const ids = groupedCandidates.get(rawFile) ?? [];
-      ids.push(id);
+      if (!ids.includes(id)) ids.push(id);
       groupedCandidates.set(rawFile, ids);
     }
     const dbPaths = new Set(groupedCandidates.keys());
@@ -116,7 +129,8 @@ async function runCompression(userTriggered = false): Promise<void> {
     // Background (age-gated) runs stay DB-driven so we don't compress brand-new
     // files still being written by a just-finished session.
     const orphanPaths = userTriggered
-      ? (await listSessionCaptureFiles()).filter((path) => path.endsWith(".bin") && !dbPaths.has(path))
+      ? (await listSessionCaptureFiles()).filter((path) =>
+          path.endsWith(".bin") && !dbPaths.has(path) && !protectedPaths.has(resolve(path)))
       : [];
 
     const total = groupedCandidates.size + orphanPaths.length;

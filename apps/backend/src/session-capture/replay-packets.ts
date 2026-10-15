@@ -12,9 +12,14 @@ import {
 } from "@raceiq/game-ac-evo/parser";
 import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
 import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump-decoder";
-import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
+import { hasKunosDumpMagic, readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
-import { decompressIfGzipSync, iterateSessionCaptureRecords, iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
+import {
+  decompressIfGzipSync,
+  iterateSessionCaptureRecords,
+  iterateSessionFrames,
+  PARSER_BOOTSTRAP_VERSION,
+} from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "@raceiq/backend-core/session-capture/frame-time";
 
 export interface RecordedTelemetry {
@@ -25,11 +30,11 @@ export interface RecordedTelemetry {
 
 function readFramedPackets(gameId: GameId, recordingPath: string): TelemetryPacket[] {
   const game = getServerGame(gameId);
-  let parserState = game.createParserState?.() ?? null;
+  let parserState: unknown = game.createParserState?.() ?? null;
   const bytes = decompressIfGzipSync(readFileSync(recordingPath));
   const packets: TelemetryPacket[] = [];
   let inContext = false;
-  for (const record of iterateSessionCaptureRecords(bytes)) {
+  for (const record of iterateSessionCaptureRecords(bytes, undefined, { strict: false })) {
     if (record.kind === "segment-boundary") {
       parserState = game.createParserState?.() ?? null;
       inContext = false;
@@ -40,6 +45,15 @@ function readFramedPackets(gameId: GameId, recordingPath: string): TelemetryPack
       continue;
     }
     if (record.kind === "segment-context-end") {
+      inContext = false;
+      continue;
+    }
+    if (record.kind === "parser-bootstrap") {
+      if (record.gameId !== gameId || record.formatVersion !== PARSER_BOOTSTRAP_VERSION) {
+        throw new Error("Parser bootstrap does not match recording game");
+      }
+      if (!game.restoreParserCheckpoint) throw new Error(`Parser checkpoint restore unavailable for ${gameId}`);
+      parserState = game.restoreParserCheckpoint(parserState, record.payload);
       inContext = false;
       continue;
     }
@@ -128,7 +142,7 @@ function readAcEvoPackets(recordingPath: string): RecordedTelemetry {
 
 function readIRacingPackets(recordingPath: string): RecordedTelemetry {
   const bytes = decompressIfGzipSync(readFileSync(recordingPath));
-  const records = [...iterateSessionCaptureRecords(bytes)];
+  const records = [...iterateSessionCaptureRecords(bytes, undefined, { strict: false })];
   if (records.some((record) =>
     record.kind === "segment-boundary" ||
     record.kind === "segment-context" ||
@@ -165,7 +179,7 @@ function readLMUPackets(recordingPath: string): RecordedTelemetry {
   const bytes = decompressIfGzipSync(readFileSync(recordingPath));
   const frames = hasLMUDumpMagic(bytes)
     ? readLMUFramesFromBuffer(bytes)
-    : iterateSessionFrames(bytes);
+    : iterateSessionFrames(bytes, undefined, { strict: false });
   for (const frame of frames) {
     const packet = game.tryParse(frame, null);
     if (!packet) continue;
@@ -180,6 +194,14 @@ export function readRecordedTelemetry(
   gameId: GameId,
   recordingPath: string,
 ): RecordedTelemetry {
+  const bytes = decompressIfGzipSync(readFileSync(recordingPath));
+  const nativeKunosDump = (gameId === "acc" || gameId === "ac-evo") && hasKunosDumpMagic(bytes);
+  const nativeLmuDump = gameId === "lmu" && hasLMUDumpMagic(bytes);
+  const hasParserBootstrap = !nativeKunosDump && !nativeLmuDump &&
+    [...iterateSessionCaptureRecords(bytes, undefined, { strict: false })].some((record) => record.kind === "parser-bootstrap");
+  if (hasParserBootstrap) {
+    return { packets: readFramedPackets(gameId, recordingPath), carModel: null, trackName: null };
+  }
   if (gameId === "acc") return readAccPackets(recordingPath);
   if (gameId === "ac-evo") return readAcEvoPackets(recordingPath);
   if (gameId === "iracing") return readIRacingPackets(recordingPath);

@@ -125,6 +125,7 @@ export interface SessionRecorderAdapter {
   start(gameId: GameId): void;
   writeMetaFrame(): void;
   writeRecord(buf: Buffer, frameTimeMs?: number): void;
+  requestFullCheckpoint?(): void;
   writeRawCaptureBytes(buf: Buffer): void;
   writeSegmentBoundary(): void;
   getCurrentByteOffset(): number;
@@ -356,6 +357,7 @@ export class RealSessionRecorderAdapter implements SessionRecorderAdapter {
   }
 
   writeMetaFrame(): void { this._inner?.writeMetaFrame(); }
+  requestFullCheckpoint(): void { this._inner?.requestFullCheckpoint(); }
 
   writeSegmentBoundary(): void { this._inner?.writeSegmentBoundary(); }
   writeRecord(buf: Buffer, frameTimeMs?: number): void { this._inner?.writeRecord(buf, frameTimeMs); }
@@ -387,6 +389,7 @@ export class SparseSessionRecorderAdapter implements SessionRecorderAdapter {
   }
 
   writeMetaFrame(): void { this.inner?.writeMetaFrame(); }
+  requestFullCheckpoint(): void { this.inner?.requestFullCheckpoint(); }
   writeSegmentBoundary(): void { this.inner?.writeSegmentBoundary(); }
   writeRecord(frame: Buffer, frameTimeMs?: number): void { this.inner?.writeRecord(frame, frameTimeMs); }
   writeRawCaptureBytes(bytes: Buffer): void { this.inner?.writeRawCaptureBytes(bytes); }
@@ -406,6 +409,7 @@ export class NullSessionRecorderAdapter implements SessionRecorderAdapter {
   get epoch(): number { return 0; }
   start(_gameId: GameId): void {}
   writeMetaFrame(): void {}
+  requestFullCheckpoint(): void {}
   writeRawCaptureBytes(_buf: Buffer): void {}
   writeRecord(_buf: Buffer, _frameTimeMs?: number): void {}
 

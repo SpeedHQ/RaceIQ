@@ -1,11 +1,10 @@
 /**
  * buildLapsZip — the export half of the lap/session ZIP feature.
  *
- * The zip is a *slice of the session's raw capture*, not a re-encoded blob, so
- * what matters here is the byte maths: which frames land in the slice, that
- * the 12-byte meta frame is re-prepended, that the +1 trigger frame needed to
- * complete each selected lap on replay is included, and that the manifest
- * lists only selected laps.
+ * The ZIP preserves native payloads and separates owned frames from parser
+ * initialization and trailing completion context. Context can complete a
+ * selected lap on replay without becoming another owned frame on import.
+ * The manifest lists only selected laps.
  *
  * Uses the real (test) SQLite DB directly — same convention as
  * laps-issues-route.test.ts — since getLapsRaw joins laps→sessions with no
@@ -14,7 +13,7 @@
 import { describe, test, expect, afterEach } from "bun:test";
 import { unzipSync } from "fflate";
 import { gunzipSync } from "node:zlib";
-import { rmSync } from "node:fs";
+import { mkdirSync, rmSync } from "node:fs";
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps } from "@raceiq/backend-core/db/schema";
 import { eq } from "drizzle-orm";
@@ -88,26 +87,16 @@ function makeF1Capture(frameCount: number): Buffer {
   return buf;
 }
 
-/** Frame indices present in exported ordinary records; tagged boundaries skipped. */
-function frameIndices(slice: Buffer): number[] {
-  const out: number[] = [];
-  let at = META;
-  while (at + 4 <= slice.length) {
-    const len = slice.readUInt32LE(at);
-    if (
-      slice.readUInt32LE(at) === META_FRAME_MAGIC &&
-      slice.readUInt32LE(at + 4) === 8 &&
-      at + 16 <= slice.length &&
-      slice.readUInt32LE(at + 8) === SEGMENT_BOUNDARY_MAGIC
-    ) {
-      at += 16;
-      continue;
-    }
-    if (len <= 0 || at + 4 + len > slice.length) break;
-    out.push(slice.readUInt8(at + 4));
-    at += 4 + len;
+/** Native frame indices, including explicit non-owned context; markers skipped. */
+function frameIndices(slice: Buffer, ownedOnly = false): number[] {
+  const indices: number[] = [];
+  let context = false;
+  for (const record of iterateSessionCaptureRecords(slice, undefined, { strict: true })) {
+    if (record.kind === "segment-context") context = true;
+    else if (record.kind === "segment-context-end" || record.kind === "segment-boundary") context = false;
+    else if (record.kind === "frame" && (!ownedOnly || !context)) indices.push(record.frame.readUInt8(0));
   }
-  return out;
+  return indices;
 }
 
 function readEntry(bytes: Uint8Array, file: string): Buffer {
@@ -183,6 +172,50 @@ describe("buildLapsZip", () => {
     return { sid, lapIds };
   }
 
+  test("published bundle exports selected lap frames without opening the monolithic source", async () => {
+    const base = `${process.env.DATA_DIR ?? "."}/bundle-zip-test-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const chunkPath = `${base}.bin`;
+    const manifestPath = `${base}.json`;
+    const chunkBytes = makeCapture(3);
+    await Bun.write(chunkPath, chunkBytes);
+    tmpFiles.push(chunkPath);
+    const sid = await insertSession(`${base}-source-missing.bin`);
+    await db.update(sessions).set({
+      captureLayoutVersion: 1,
+      captureManifestFile: manifestPath,
+    }).where(eq(sessions.id, sid)).run();
+    const lapId = await insertLap(sid, 1, frameAt(0), 2);
+    await db.update(laps).set({ captureChunkId: "lap-1" }).where(eq(laps.id, lapId)).run();
+    const auxiliaryPath = `${base}-auxiliary.bin`;
+    const auxiliaryBytes = Buffer.concat([chunkBytes.subarray(0, META), chunkBytes.subarray(frameAt(2))]);
+    await Bun.write(auxiliaryPath, auxiliaryBytes);
+    tmpFiles.push(auxiliaryPath);
+    const manifest = {
+      version: 3,
+      gameId: "fm-2023",
+      sourceRevision: "fixture",
+      sourceByteLength: chunkBytes.length,
+      sourceRecordCount: 3,
+      chunks: [{
+        id: "lap-1", kind: "lap", lapId: String(lapId), lapNumber: 1, path: chunkPath.split("/").at(-1)!,
+        byteLength: chunkBytes.length, firstOrdinal: 0, recordCount: 2,
+        sourceStart: 0, sourceEnd: 2, sourceByteStart: frameAt(0), sourceByteEnd: frameAt(2),
+        ownedFrameByteOffset: frameAt(0), ownedFrameCount: 2, trailingContextFrameCount: 1,
+      }, {
+        id: "auxiliary-2", kind: "auxiliary", path: auxiliaryPath.split("/").at(-1)!,
+        byteLength: auxiliaryBytes.length, firstOrdinal: 2, recordCount: 1,
+        sourceStart: 2, sourceEnd: 3, sourceByteStart: frameAt(2), sourceByteEnd: frameAt(3),
+      }],
+    };
+    await Bun.write(manifestPath, JSON.stringify(manifest));
+    tmpFiles.push(manifestPath);
+
+    const { bytes, manifest: exported } = await buildLapsZip([lapId]);
+
+    expect(frameIndices(readEntry(bytes, exported.entries[0]!.file))).toEqual([0, 1, 2]);
+    expect(exported.entries[0]!.laps.map(({ lapNumber }) => lapNumber)).toEqual([1]);
+  });
+
   test("single lap exports its frames plus the trigger frame that completes it", async () => {
     const { lapIds } = await fixture();
     const { bytes, manifest } = await buildLapsZip([lapIds[0]]);
@@ -202,6 +235,7 @@ describe("buildLapsZip", () => {
     expect(manifest.entries[0]!.laps.map((l) => l.lapNumber)).toEqual([1, 3]);
     const slice = readEntry(bytes, manifest.entries[0]!.file);
     expect(frameIndices(slice)).toEqual([0, 1, 2, 4, 5]);
+    expect(frameIndices(slice, true)).toEqual([0, 1, 4]); // Boundary and game-policy finish context never become owned frames.
     expect(slice.indexOf(Buffer.from("SEGM"))).toBeGreaterThanOrEqual(0);
   });
 

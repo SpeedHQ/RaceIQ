@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame, iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
-import { iterateSessionCaptureFrames, iterateSessionCaptureRecordsFromSource, setCaptureFileFactoryForTest } from "@raceiq/backend-core/session-capture/source-loader";
+import { clearCaptureManifestCache, iterateSessionCaptureFrames, iterateSessionCaptureRecordsFromSource, resolveLapCaptureArtifact, setCaptureFileFactoryForTest } from "@raceiq/backend-core/session-capture/source-loader";
 import { encodeKunosSparseFrame } from "@raceiq/capture-formats/session/kunos-sparse";
 import { packTriplet, ACC_PACKED_MAGIC } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
@@ -18,6 +18,29 @@ afterEach(() => {
   }
 });
 
+
+test("rejects published bundle chunk whose byte length disagrees with manifest", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "raceiq-bundle-manifest-"));
+  directories.push(directory);
+  const manifestPath = join(directory, "manifest.json");
+  writeFileSync(join(directory, "lap.bin"), Buffer.from([1, 2, 3]));
+  writeFileSync(manifestPath, JSON.stringify({
+    version: 3,
+    gameId: "fm-2023",
+    sourceRevision: "fixture",
+    sourceByteLength: 3,
+    sourceRecordCount: 1,
+    chunks: [{
+      id: "lap-1", kind: "lap", lapId: "42", lapNumber: 1, path: "lap.bin",
+      byteLength: 4, firstOrdinal: 0, recordCount: 1,
+      sourceStart: 0, sourceEnd: 1, sourceByteStart: 12, sourceByteEnd: 19,
+      ownedFrameByteOffset: 12, ownedFrameCount: 1,
+    }],
+  }));
+  clearCaptureManifestCache(manifestPath);
+
+  await expect(resolveLapCaptureArtifact(manifestPath, "lap-1", 42)).rejects.toThrow(/size mismatch/i);
+});
 for (const compressed of [false, true]) {
   test(`streams ${compressed ? "gzip" : "plain"} capture frames with decompressed offsets`, async () => {
     const directory = mkdtempSync(join(tmpdir(), "raceiq-source-stream-"));
@@ -132,5 +155,20 @@ test("rejects sparse deltas backed by same-size cross-format checkpoints in both
     await expect(async () => {
       for await (const _record of iterateSessionCaptureRecordsFromSource({ rawFile, source: null, gameId: "lmu", carId: "ferrari_499p_2023", trackId: "lemans_2023/lemanswec" })) {}
     }).toThrow(/checkpoint/);
+  }
+});
+
+test("source loader preserves empty payloads and timestamp zero in plain and gzip recordings", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "raceiq-empty-source-"));
+  directories.push(directory);
+  const bytes = Buffer.concat([encodeMetaFrame(2), encodeFrameLength(0), encodeFrameLength(0, 0)]);
+  for (const compressed of [false, true]) {
+    const rawFile = join(directory, compressed ? "capture.bin.gz" : "capture.bin");
+    writeFileSync(rawFile, compressed ? gzipSync(bytes) : bytes);
+    const records = [];
+    for await (const record of iterateSessionCaptureRecordsFromSource({
+      rawFile, source: null, gameId: "fm-2023", carId: "0", trackId: "0",
+    }, { strict: true })) records.push(record);
+    expect(records).toEqual([...iterateSessionCaptureRecords(bytes)]);
   }
 });

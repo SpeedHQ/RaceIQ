@@ -12,6 +12,7 @@ import { iterateSessionFrameRecords, readFrameStreamStart } from "@raceiq/captur
 import { readSessionPackets } from "@raceiq/backend-core/test-support/recordings/session-frames";
 import { getRecordingFixture } from "@raceiq/backend-core/test-support/recordings/fixtures";
 
+import { F1StateAccumulator } from "../src/f1-state";
 function readLegacyPackets(recording: string): TelemetryPacket[] {
   const packets = readSessionPackets(recording, f1ServerAdapter);
   const game = getServerGame("f1-2025");
@@ -60,6 +61,22 @@ describe("F1 indexed replay parity", () => {
           recording,
         );
         expect(replayed).toEqual(legacyPackets);
+        const replayRecords = records.slice(0, 36);
+        expect(replayRecords.length).toBeGreaterThan(24);
+        const split = 12;
+        const continuous = new F1StateAccumulator();
+        const uninterrupted = replayRecords.map((record) =>
+          f1ServerAdapter.tryParse(record.frame, continuous));
+        const prefixState = new F1StateAccumulator();
+        for (const record of replayRecords.slice(0, split)) f1ServerAdapter.tryParse(record.frame, prefixState);
+        const restoredState = new F1StateAccumulator();
+        restoredState.restoreCheckpoint(prefixState.captureCheckpoint());
+        const continuousSuffix = replayRecords.slice(split).map((record) =>
+          f1ServerAdapter.tryParse(record.frame, prefixState));
+        const restoredSuffix = replayRecords.slice(split).map((record) =>
+          f1ServerAdapter.tryParse(record.frame, restoredState));
+        expect(uninterrupted.slice(split)).toEqual(continuousSuffix);
+        expect(restoredSuffix).toEqual(continuousSuffix);
       } finally {
         Date.now = originalNow;
       }

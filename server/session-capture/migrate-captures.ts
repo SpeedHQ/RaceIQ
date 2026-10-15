@@ -4,14 +4,14 @@ import { basename, dirname, join } from "node:path";
 import { once } from "node:events";
 import { finished, pipeline } from "node:stream/promises";
 import { createGunzip, createGzip } from "node:zlib";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db/index";
-import { dashboardSummaryState, laps, sessions } from "../db/schema";
-import { listCaptureMigrationCandidates } from "../db/session-queries";
+import { dashboardSummaryState, laps, sessions, sessionCaptureSplitJobs } from "../db/schema";
+import { enqueueSessionCaptureSplit, listCaptureMigrationCandidates } from "../db/session-queries";
 import { cacheDelete } from "../db/telemetry-replay-storage";
 import { releaseDashboardCaptureCheckpoint, republishPersistedDashboardCaptureFacts } from "./dashboard-processor";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
-import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame } from "@raceiq/capture-formats/session/framing";
+import { encodeFrameLength, encodeMetaFrame, encodeParserBootstrapFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame } from "@raceiq/capture-formats/session/framing";
 import { clearSessionCaptureCache, iterateSessionCaptureRecordsFromSource, type SessionCaptureSource } from "./source-loader";
 import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -47,45 +47,34 @@ export function getCaptureMigrationProgress(): CaptureMigrationProgress {
 }
 
 export async function migrateCaptures(onProgress?: (done: number, total: number, result: Result) => void): Promise<CaptureMigrationResult> {
-  return withSessionCaptureMaintenanceLock(async () => {
-    // Only closed legacy raw captures qualify; live sparse captures are excluded by format version.
+  const requeue = new Set<number>();
+  const result = await withSessionCaptureMaintenanceLock(async () => {
     const candidates = await listCaptureMigrationCandidates();
     const results: Result[] = [];
     let migrated = 0;
     let failed = 0;
-    captureMigrationProgress = {
-      status: "running",
-      done: 0,
-      total: candidates.length,
-      migrated: 0,
-      failed: 0,
-      error: null,
-    };
+    captureMigrationProgress = { status: "running", done: 0, total: candidates.length, migrated: 0, failed: 0, error: null };
     for (const candidate of candidates) {
-      const result = await migrateOne(candidate);
-      results.push(result);
-      if (result.status === "migrated") migrated++;
-      else failed++;
+      const item = await migrateOne(candidate);
+      if (item.status === "migrated") {
+        migrated++;
+        for (const sessionId of candidate.sessionIds) requeue.add(sessionId);
+      } else failed++;
+      results.push(item);
       captureMigrationProgress = {
-        status: "running",
-        done: results.length,
-        total: candidates.length,
-        migrated,
-        failed,
-        error: result.error ?? captureMigrationProgress.error,
+        status: "running", done: results.length, total: candidates.length, migrated, failed,
+        error: item.error ?? captureMigrationProgress.error,
       };
-      onProgress?.(results.length, candidates.length, result);
+      onProgress?.(results.length, candidates.length, item);
     }
     captureMigrationProgress = {
-      ...captureMigrationProgress,
-      status: failed === 0 ? "success" : "partial",
-      done: results.length,
-      total: candidates.length,
-      migrated,
-      failed,
+      ...captureMigrationProgress, status: failed === 0 ? "success" : "partial",
+      done: results.length, total: candidates.length, migrated, failed,
     };
     return { migrated, failed, results };
   });
+  for (const sessionId of requeue) await enqueueSessionCaptureSplit(sessionId);
+  return result;
 }
 
 type LapOffset = { id: number; rawByteOffset: number | null; rawFrameCount: number | null };
@@ -156,6 +145,9 @@ async function writeVerifiedStage(candidate: Candidate, stage: string, lapRows: 
         await append(encodeFrameLength(payload.length, record.frameTimeMs));
         await append(payload);
         accepted++;
+      } else if (record.kind === "parser-bootstrap") {
+        encoder.reset();
+        await append(encodeParserBootstrapFrame(record.gameId, record.payload));
       } else {
         encoder.reset();
         await append(record.kind === "segment-boundary" ? encodeSegmentBoundaryFrame()
@@ -199,7 +191,10 @@ async function verifyStage(candidate: Candidate, stage: string, lapRows: LapOffs
       }
       if (before.value.kind !== after.value.kind ||
           (before.value.kind === "frame" && (after.value.kind !== "frame" || !before.value.frame.equals(after.value.frame) ||
-            before.value.frameTimeMs !== after.value.frameTimeMs))) {
+            before.value.frameTimeMs !== after.value.frameTimeMs)) ||
+          (before.value.kind === "parser-bootstrap" && (after.value.kind !== "parser-bootstrap" ||
+            before.value.gameId !== after.value.gameId || before.value.formatVersion !== after.value.formatVersion ||
+            !before.value.payload.equals(after.value.payload)))) {
         throw new Error(`Migrated capture source-byte mismatch at ${before.value.offset}`);
       }
       if (before.value.kind !== "frame") continue;
@@ -233,6 +228,30 @@ async function verifyStage(candidate: Candidate, stage: string, lapRows: LapOffs
 async function commit(candidate: Candidate, lapRows: LapOffset[], mapped: Map<number, number>, final: string): Promise<void> {
   await db.transaction(async (tx) => {
     const shared = await tx.select({ id: sessions.id }).from(sessions).where(eq(sessions.rawFile, candidate.rawFile)).all();
+    const jobs = await tx.select({ sessionId: sessionCaptureSplitJobs.sessionId, status: sessionCaptureSplitJobs.status })
+      .from(sessionCaptureSplitJobs)
+      .where(or(
+        eq(sessionCaptureSplitJobs.sourcePath, candidate.rawFile),
+        inArray(sessionCaptureSplitJobs.sessionId, candidate.sessionIds),
+      )).all();
+    if (jobs.some((job) => ["splitting", "verifying", "publishing"].includes(job.status))) {
+      throw new Error("Capture has an active split attempt; migration skipped");
+    }
+    if (jobs.some((job) => job.status === "ready")) {
+      throw new Error("Capture has a published split; migration skipped to preserve its provenance");
+    }
+    await tx.update(sessionCaptureSplitJobs).set({
+      status: "failed",
+      attemptId: sql`${sessionCaptureSplitJobs.attemptId} + 1`,
+      sequence: sql`${sessionCaptureSplitJobs.sequence} + 1`,
+      sourcePath: final,
+      stagingPath: null,
+      errorCode: "source-rewritten",
+      errorMessage: "Source capture rewritten; split attempt invalidated",
+    }).where(and(
+      or(eq(sessionCaptureSplitJobs.sourcePath, candidate.rawFile), inArray(sessionCaptureSplitJobs.sessionId, candidate.sessionIds)),
+      inArray(sessionCaptureSplitJobs.status, ["queued", "failed"]),
+    )).run();
     if (shared.length !== candidate.sessionIds.length || shared.some((row) => !candidate.sessionIds.includes(row.id))) {
       throw new Error("Capture sessions changed during migration");
     }
@@ -245,7 +264,11 @@ async function commit(candidate: Candidate, lapRows: LapOffset[], mapped: Map<nu
     }
     const changed = await tx.update(sessions)
       .set({ captureFormatVersion: 1, rawFile: final })
-      .where(inArray(sessions.id, candidate.sessionIds)).run();
+      .where(and(
+        inArray(sessions.id, candidate.sessionIds),
+        eq(sessions.rawFile, candidate.rawFile),
+        isNull(sessions.captureLayoutVersion),
+      )).run();
     if (changed.rowsAffected !== candidate.sessionIds.length) throw new Error("Capture session update incomplete");
     await tx.update(dashboardSummaryState).set({ captureReady: 0 }).where(inArray(dashboardSummaryState.sessionId, candidate.sessionIds)).run();
   });

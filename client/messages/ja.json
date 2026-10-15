@@ -2560,5 +2560,21 @@
   "access_origins_safety": "ネットワーク設定の変更には RaceIQ の再起動が必要です。オフにしても保存済みオリジンは削除されません。同一オリジン保護は継続します。",
   "dash_hostname_origin_settings": "この正確なオリジンを「設定 → アクセスとセキュリティ → ブラウザー ドメイン」に追加してください: {origin}。ホスト名を保存してもアクセスは許可されません。",
   "dash_hostname_origin_managed": "この正確なオリジンを SERVER_ALLOWED_ORIGINS に追加してください: {origin}。ホスト名を保存してもアクセスは許可されません。",
-  "dash_hostname_invalid": "http://、ポート、パスを含めず、ホスト名のみ入力してください。"
+  "dash_hostname_invalid": "http://、ポート、パスを含めず、ホスト名のみ入力してください。",
+  "sessions_capture_split_queued": "ロスレスのラップ出力待ち",
+  "sessions_capture_split_splitting": "記録をラップに分割中",
+  "sessions_capture_split_verifying": "ラップ記録を検証中",
+  "sessions_capture_split_publishing": "ラップ記録を公開中",
+  "sessions_capture_split_ready": "ロスレスのラップ記録が利用可能",
+  "sessions_capture_split_failed": "ラップ記録の分割に失敗しました。元の記録は引き続き利用できます。",
+  "sessions_capture_split_error_source_io": "元の記録を読み込めませんでした。",
+  "sessions_capture_split_error_malformed_capture": "元の記録の形式が無効です。",
+  "sessions_capture_split_error_bootstrap_failed": "ラップ処理を初期化できませんでした。",
+  "sessions_capture_split_error_verification_mismatch": "ラップ記録の検証に失敗しました。",
+  "sessions_capture_split_error_worker_failed": "ラップ処理が予期せず停止しました。",
+  "sessions_capture_split_error_stale_publication": "より新しい処理結果に置き換えられました。",
+  "sessions_capture_split_error_publication_failed": "ラップ記録を公開できませんでした。",
+  "sessions_capture_split_progress": "処理済みソースフレーム",
+  "sessions_capture_split_laps": "ラップ記録",
+  "sessions_export_capture_not_ready": "選択したMoTeC以外のすべてのラップでロスレス記録の準備が完了するまで、元データのZIP出力は利用できません。"
 }

@@ -112,7 +112,7 @@ test("imports all six complete game bins through API, then migrates every candid
   const result = await response.json() as { results: Array<{ rawFile: string; status: "migrated" | "error"; error?: string }> };
   for (const capture of captures) {
     const outcome = result.results.find(({ rawFile }) => rawFile === capture.original);
-    expect(outcome?.status).toBe("migrated");
+    expect(outcome?.status, JSON.stringify({ gameId: capture.gameId, original: capture.original, results: result.results })).toBe("migrated");
     const updated = await db.select().from(sessions).where(inArray(sessions.id, capture.sessionIds)).all();
     expect(updated.every((row) => row.captureFormatVersion === 1)).toBe(true);
     const finalPath = updated[0]!.rawFile!;

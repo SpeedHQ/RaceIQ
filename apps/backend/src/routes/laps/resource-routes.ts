@@ -17,8 +17,8 @@ import { alignLapSet, prepareLapSetAlignmentIndex, type AlignmentLapInput } from
 import { encodeAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/codec";
 import type { EncodedAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/types";
 import { getLaps, getLapMetaById, getLapById, getLapsByIds, getLapsRaw, getReviewLaps, getSessionLaps } from "@raceiq/backend-core/db/lap-read-queries";
-import { alignedTelemetryCacheGet, alignedTelemetryCacheSet, lapSetAlignmentIndexCacheGet, lapSetAlignmentIndexCacheSet } from "@raceiq/backend-core/db/telemetry-replay-storage";
-import { loadSessionSource } from "@raceiq/backend-core/session-capture/source-loader";
+import { getLapReplaySource, alignedTelemetryCacheGet, alignedTelemetryCacheSet, lapSetAlignmentIndexCacheGet, lapSetAlignmentIndexCacheSet } from "@raceiq/backend-core/db/telemetry-replay-storage";
+import { loadSessionSource, resolveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
 import { loadRawCaptureIdentity } from "@raceiq/backend-core/session-capture/identity";
 import { deleteLap, updateLapNotes, updateLapValidity } from "@raceiq/backend-core/db/lap-mutation-queries";
 import { setLapFavorite } from "@raceiq/backend-core/db/session-queries";
@@ -83,15 +83,17 @@ export const resourceRoutes = new Hono()
           sectorStarts: null, insights: [], detectorCoverage: INSIGHT_DETECTORS.map((detector) => ({ ...detector, status: "unavailable" as const, reason: "Lap telemetry could not be parsed" })), parseError: lap.parseError, envelopes: [],
         });
       }
-      const source = {
-        id: meta.id, sessionId: meta.sessionId, createdAt: meta.createdAt, gameId: meta.gameId,
-        rawFile: meta.rawFile, rawByteOffset: meta.rawByteOffset, rawFrameCount: meta.rawFrameCount,
-        versionIdentity: meta.catalogVersion && meta.catalogHash && meta.catalogSchemaVersion && meta.parserVersion && meta.resolverVersion && meta.derivationVersion
-          ? { catalogVersion: meta.catalogVersion, catalogHash: meta.catalogHash, catalogSchemaVersion: meta.catalogSchemaVersion, parserVersion: meta.parserVersion, resolverVersion: meta.resolverVersion, derivationVersion: meta.derivationVersion }
-          : undefined,
-      };
-      const rawCapture = source.gameId === "iracing" && source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined;
-      const replay = resolveTelemetryReplay(id, source, lap.telemetry, semanticReplayIds(meta.gameId), rawCapture);
+      const source = await getLapReplaySource(id);
+      if (!source) return c.json({ error: "Lap not found" }, 404);
+      const artifact = source.captureLayoutVersion === 1 && source.captureManifestFile && source.captureChunkId
+        ? await resolveLapCaptureArtifact(source.captureManifestFile, source.captureChunkId, id)
+        : undefined;
+      const replaySource = artifact
+        ? { ...source, rawByteOffset: artifact.chunk.ownedFrameByteOffset!, rawFrameCount: artifact.chunk.ownedFrameCount! }
+        : source;
+      const capturePath = artifact?.path ?? source.rawFile;
+      const rawCapture = source.gameId === "iracing" && capturePath ? await loadRawCaptureIdentity(capturePath) : undefined;
+      const replay = resolveTelemetryReplay(id, replaySource, lap.telemetry, semanticReplayIds(meta.gameId), rawCapture);
       const nativeLayout = getGame(meta.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
       const processed = processLap(lap.telemetry, meta.gameId);
       const analysis = runInsightScanWithCoverage(processed.packets, meta.gameId, { racingLine: resolveRacingLineReference(meta.gameId, meta.trackId) });
@@ -278,19 +280,33 @@ export const resourceRoutes = new Hono()
     const { id } = c.req.valid("param");
     const [row] = await getLapsRaw([id]);
     if (!row) return c.json({ error: "Lap not found" }, 404);
-    if (!row.rawFile) return c.json({ error: "No raw capture available for this lap" }, 409);
+    if (row.captureLayoutVersion != null && row.captureLayoutVersion !== 1) {
+      return c.json({ error: `Unsupported capture layout version ${row.captureLayoutVersion}` }, 422);
+    }
+    const published = row.captureLayoutVersion != null;
+    const bundled = published && row.captureLayoutVersion === 1;
+    if (published && (!row.captureManifestFile || !row.captureChunkId)) {
+      return c.json({ error: "Published capture layout has incomplete capture references" }, 422);
+    }
+    if (!published && !row.rawFile) return c.json({ error: "No raw capture available for this lap" }, 409);
 
     let bytes: Uint8Array;
     try {
-      const loaded = await loadSessionSource({
-        rawFile: row.rawFile, source: row.source ?? null, gameId: row.gameId as GameId,
-        carId: row.carId, trackId: row.trackId,
-      });
-      if (loaded.kind === "packets") {
-        return c.json({ error: "MoTeC sessions use canonical packets and have no BIN capture" }, 409);
+      if (bundled) {
+        const artifact = await resolveLapCaptureArtifact(row.captureManifestFile!, row.captureChunkId!, row.id);
+        bytes = new Uint8Array(await Bun.file(artifact.path).arrayBuffer());
+      } else {
+        const loaded = await loadSessionSource({
+          rawFile: row.rawFile!, source: row.source ?? null, gameId: row.gameId as GameId,
+          carId: row.carId, trackId: row.trackId,
+        });
+        if (loaded.kind === "packets") {
+          return c.json({ error: "MoTeC sessions use canonical packets and have no BIN capture" }, 409);
+        }
+        bytes = loaded.buffer;
       }
-      bytes = loaded.buffer;
-    } catch {
+    } catch (error) {
+      if (bundled) return c.json({ error: error instanceof Error ? error.message : "Invalid lap capture bundle" }, 422);
       return c.json({ error: "Raw capture file is missing on disk" }, 410);
     }
     bytes = new Uint8Array(await gzipAsync(Buffer.from(bytes)));
@@ -301,7 +317,7 @@ export const resourceRoutes = new Hono()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
     // Filename MUST start with `<gameId>-` so re-import can detect the game.
-    const filename = `${row.gameId}-${slug}-session${row.sessionId}.bin.gz`;
+    const filename = `${row.gameId}-${slug}-session${row.sessionId}${bundled ? `-lap${row.lapNumber}` : ""}.bin.gz`;
 
     c.header("Content-Type", "application/octet-stream");
     c.header("Content-Disposition", `attachment; filename="${filename}"`);

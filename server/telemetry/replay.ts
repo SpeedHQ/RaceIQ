@@ -6,9 +6,11 @@ import type { ResolvedValue, SourceObservation, TelemetryFrameView, TelemetryTim
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { getLapById } from "../db/lap-read-queries";
 import { getLapReplaySource, type LapReplaySource } from "../db/telemetry-replay-storage";
-import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, type IRacingValue } from "@raceiq/capture-formats/iracing/source-frame";
-import { iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
+import { getServerGame } from "../games/registry";
+import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, type IRacingSourceDecoderState, type IRacingValue } from "@raceiq/capture-formats/iracing/source-frame";
+import { PARSER_BOOTSTRAP_VERSION, iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
 import { loadRawCaptureIdentity, type RawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
+import { resolveLapCaptureArtifact } from "../session-capture/source-loader";
 export interface QueryLapTelemetryOptions {
   readonly rawCaptureRequirement?: "provenance" | "native-values";
 }
@@ -23,6 +25,8 @@ interface ReplayNativeFrame {
   nativeValues?: Readonly<Record<string, IRacingValue>>;
 }
 
+type IRacingParserStateWithSource = { source: IRacingSourceDecoderState };
+
 function* iterateIRacingNativeFrames(source: LapReplaySource, capture: Buffer | undefined): Generator<Readonly<Record<string, IRacingValue>>, undefined, void> {
   if (source.gameId !== "iracing" || !capture || source.rawByteOffset == null || source.rawFrameCount == null) return undefined;
   let decoderState = createIRacingSourceDecoderState();
@@ -31,6 +35,21 @@ function* iterateIRacingNativeFrames(source: LapReplaySource, capture: Buffer | 
     if (record.kind === "segment-boundary") {
       decoderState = createIRacingSourceDecoderState();
       replayFrames = 0;
+      continue;
+    }
+    if (record.kind === "parser-bootstrap") {
+      if (record.gameId !== "iracing" || record.formatVersion !== PARSER_BOOTSTRAP_VERSION) {
+        throw new Error("iRacing native replay received an incompatible parser bootstrap");
+      }
+      const game = getServerGame("iracing");
+      if (!game.restoreParserCheckpoint) throw new Error("iRacing parser checkpoint restore unavailable");
+      const state = game.createParserState();
+      if (state == null) throw new Error("iRacing parser state unavailable");
+      const restored = game.restoreParserCheckpoint(state, record.payload);
+      if (typeof restored !== "object" || restored === null || !("source" in restored)) {
+        throw new Error("iRacing parser checkpoint did not restore source decoder state");
+      }
+      decoderState = (restored as IRacingParserStateWithSource).source;
       continue;
     }
     if (record.kind !== "frame") continue;
@@ -52,7 +71,7 @@ export const iterateIRacingNativeFramesForTest = iterateIRacingNativeFrames;
 function resolveRawReference(source: LapReplaySource, capture: RawCaptureIdentity | undefined): TelemetryRawReference | undefined {
   if (capture && source.rawByteOffset != null && source.rawFrameCount != null) {
     return {
-      objectId: rawCaptureObjectId(source.sessionId),
+      objectId: source.captureChunkId ? `session:${source.sessionId}:lap-capture:${source.captureChunkId}` : rawCaptureObjectId(source.sessionId),
       contentHash: capture.contentHash,
       contentEncoding: "identity",
       storageEncoding: capture.storageEncoding,
@@ -166,14 +185,32 @@ export async function queryLapTelemetryBySemanticId(
   const [lap, source] = await Promise.all([getLapById(lapId), getLapReplaySource(lapId)]);
   if (!lap || !source) return null;
   if (lap.parseError) throw new Error(lap.parseError);
+
+  const { rawCaptureRequirement } = { ...defaultQueryLapTelemetryOptions, ...options };
+  const artifact = source.captureLayoutVersion === 1
+    ? await (() => {
+      if (!source.captureManifestFile || !source.captureChunkId) {
+        throw new Error(`Published capture layout for lap ${lapId} has incomplete capture references`);
+      }
+      return resolveLapCaptureArtifact(source.captureManifestFile, source.captureChunkId, lapId);
+    })()
+    : undefined;
+  if (source.captureLayoutVersion != null && source.captureLayoutVersion !== 1) {
+    throw new Error(`Unsupported capture layout version ${source.captureLayoutVersion} for lap ${lapId}`);
+  }
+  if (source.captureLayoutVersion === 1 && !artifact) {
+    throw new Error(`Published capture layout for lap ${lapId} has incomplete capture references`);
+  }
   if (lap.telemetry.length === 0) {
     throw new Error(`Lap ${lapId} has no replayable telemetry`);
   }
-
-  const { rawCaptureRequirement } = { ...defaultQueryLapTelemetryOptions, ...options };
+  const capturePath = artifact?.path ?? (source.captureLayoutVersion == null ? source.rawFile : undefined);
   const needsRawCapture =
-    source.rawFile != null &&
+    capturePath != null &&
     (rawCaptureRequirement === "provenance" || source.gameId === "iracing");
-  const rawCapture = needsRawCapture ? await loadRawCaptureIdentity(source.rawFile as string) : undefined;
-  return resolveTelemetryReplay(lapId, source, lap.telemetry, requestedSemanticIds, rawCapture);
+  const rawCapture = needsRawCapture ? await loadRawCaptureIdentity(capturePath as string) : undefined;
+  const replaySource = artifact
+    ? { ...source, rawByteOffset: artifact.chunk.ownedFrameByteOffset!, rawFrameCount: artifact.chunk.ownedFrameCount! }
+    : source;
+  return resolveTelemetryReplay(lapId, replaySource, lap.telemetry, requestedSemanticIds, rawCapture);
 }

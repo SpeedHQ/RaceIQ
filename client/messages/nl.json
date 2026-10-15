@@ -2559,5 +2559,21 @@
   "access_origins_safety": "Netwerkwijzigingen vereisen een herstart van RaceIQ. Uitschakelen verwijdert opgeslagen origins niet. Same-originbeveiliging blijft actief.",
   "dash_hostname_origin_settings": "Voeg deze exacte origin toe bij Instellingen → Toegang en beveiliging → browserdomeinen: {origin}. De hostnaam opslaan geeft geen toegang.",
   "dash_hostname_origin_managed": "Voeg deze exacte origin toe aan SERVER_ALLOWED_ORIGINS: {origin}. De hostnaam opslaan geeft geen toegang.",
-  "dash_hostname_invalid": "Voer alleen een hostnaam in, zonder http://, poort of pad."
+  "dash_hostname_invalid": "Voer alleen een hostnaam in, zonder http://, poort of pad.",
+  "sessions_capture_split_queued": "In wachtrij voor verliesloze lap-export",
+  "sessions_capture_split_splitting": "Opname wordt in laps gesplitst",
+  "sessions_capture_split_verifying": "Lap-opnamen worden gecontroleerd",
+  "sessions_capture_split_publishing": "Lap-opnamen worden gepubliceerd",
+  "sessions_capture_split_ready": "Verliesloze lap-opnamen gereed",
+  "sessions_capture_split_failed": "Splitsen van de lap-opname mislukt. De oorspronkelijke opname blijft beschikbaar.",
+  "sessions_capture_split_error_source_io": "De oorspronkelijke opname kon niet worden gelezen.",
+  "sessions_capture_split_error_malformed_capture": "De indeling van de oorspronkelijke opname is ongeldig.",
+  "sessions_capture_split_error_bootstrap_failed": "Lapverwerking kon niet worden gestart.",
+  "sessions_capture_split_error_verification_mismatch": "Controle van de lap-opname is mislukt.",
+  "sessions_capture_split_error_worker_failed": "Lapverwerking is onverwacht gestopt.",
+  "sessions_capture_split_error_stale_publication": "Een nieuwere verwerkingspoging heeft dit resultaat vervangen.",
+  "sessions_capture_split_error_publication_failed": "Lap-opnamen konden niet worden gepubliceerd.",
+  "sessions_capture_split_progress": "Verwerkte bronframes",
+  "sessions_capture_split_laps": "Lap-opnamen",
+  "sessions_export_capture_not_ready": "Raw ZIP-export is niet beschikbaar totdat verliesloze opnamen klaar zijn voor alle geselecteerde niet-MoTeC-laps."
 }

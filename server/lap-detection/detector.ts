@@ -217,6 +217,7 @@ export class LapDetector implements ILapDetector {
   get fuelHistory(): LapFuelData[] { return this._fuelHistory; }
   get tireWearHistory(): LapTireWearData[] { return this._tireWearHistory; }
   setCurrentLapByteOffset(offset: number): void { this.engine.setCurrentLapByteOffset(offset); }
+  shouldCheckpointBeforeWrite(packet: TelemetryPacket): boolean { return this.engine.shouldCheckpoint(packet); }
   async snapshotIncompleteLap(): Promise<void> {
     if (this.currentSession?.gameId === "fm-2023") this.engine.markProvisionalSnapshot();
     if (this.pendingIncompleteLapId !== null) return;

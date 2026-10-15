@@ -2559,5 +2559,21 @@
   "access_origins_safety": "Изменения сети требуют перезапуска RaceIQ. Отключение не удаляет сохранённые источники. Защита same-origin продолжает действовать.",
   "dash_hostname_origin_settings": "Добавьте этот точный источник в Настройки → Доступ и безопасность → домены браузера: {origin}. Сохранение имени хоста не разрешает доступ.",
   "dash_hostname_origin_managed": "Добавьте этот точный источник в SERVER_ALLOWED_ORIGINS: {origin}. Сохранение имени хоста не разрешает доступ.",
-  "dash_hostname_invalid": "Введите только имя хоста, без http://, порта и пути."
+  "dash_hostname_invalid": "Введите только имя хоста без http://, порта и пути.",
+  "sessions_capture_split_queued": "В очереди на экспорт кругов без потерь",
+  "sessions_capture_split_splitting": "Запись разделяется на круги",
+  "sessions_capture_split_verifying": "Проверка записей кругов",
+  "sessions_capture_split_publishing": "Публикация записей кругов",
+  "sessions_capture_split_ready": "Записи кругов без потерь готовы",
+  "sessions_capture_split_failed": "Не удалось разделить запись на круги. Исходная запись по-прежнему доступна.",
+  "sessions_capture_split_error_source_io": "Не удалось прочитать исходную запись.",
+  "sessions_capture_split_error_malformed_capture": "Недопустимый формат исходной записи.",
+  "sessions_capture_split_error_bootstrap_failed": "Не удалось запустить обработку кругов.",
+  "sessions_capture_split_error_verification_mismatch": "Проверка записи круга не пройдена.",
+  "sessions_capture_split_error_worker_failed": "Обработка кругов неожиданно остановилась.",
+  "sessions_capture_split_error_stale_publication": "Этот результат заменён более новой попыткой обработки.",
+  "sessions_capture_split_error_publication_failed": "Не удалось опубликовать записи кругов.",
+  "sessions_capture_split_progress": "Обработано исходных кадров",
+  "sessions_capture_split_laps": "Записи кругов",
+  "sessions_export_capture_not_ready": "Экспорт исходных данных в ZIP недоступен, пока записи без потерь не будут готовы для всех выбранных кругов, кроме MoTeC."
 }

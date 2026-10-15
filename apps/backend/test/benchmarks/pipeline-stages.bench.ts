@@ -235,7 +235,9 @@ try {
             inContext = true;
           } else if (record.kind === "segment-context-end") {
             inContext = false;
-          } else {
+          } else if (record.kind === "parser-bootstrap") {
+            continue;
+          } else if (record.kind === "frame") {
             if (!inContext && sourceFrames >= config.frames) break;
             records.push({
               kind: inContext ? "context" : "frame",

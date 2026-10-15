@@ -1,4 +1,4 @@
-import { getCaptureMigrationCandidates } from "@raceiq/backend-core/db/session-queries";
+import { getCaptureMigrationCandidates, recoverSessionCaptureSplitJobs } from "@raceiq/backend-core/db/session-queries";
 import { startCommunityTunesSync } from "@raceiq/backend-core/tunes/community-sync";
 import { countStaleSessions } from "@raceiq/backend-core/db/session-queries";
 import { countStaleRaceResults } from "@raceiq/backend-core/db/session-result-queries";
@@ -11,6 +11,7 @@ import { getAllServerGames } from "@raceiq/backend-core/games/registry";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import { startSessionCompressor } from "@raceiq/backend-core/session-capture/compressor";
 import { startUpdateCheckSchedule } from "@raceiq/backend-core/runtime/update/check";
+import { startSessionCaptureSplitManager } from "../session-capture/split-manager";
 
 export const ALL_DETECTOR_IDS = [
   LAP_DETECTOR_ID,
@@ -25,11 +26,18 @@ export interface StartupJobDependencies {
   startUpdateCheckSchedule?: () => void;
   countStaleSessions?: typeof countStaleSessions;
   countStaleRaceResults?: typeof countStaleRaceResults;
+  recoverSessionCaptureSplitJobs?: typeof recoverSessionCaptureSplitJobs;
+  startSessionCaptureSplitManager?: () => void;
 }
 
 export function startSyncAndStaleSessionJobs(dependencies: StartupJobDependencies = {}): void {
   wsManager.setCaptureMigrationCountProvider(getCaptureMigrationCandidates);
   (dependencies.startCommunityTunesSync ?? startCommunityTunesSync)();
+  void (dependencies.recoverSessionCaptureSplitJobs ?? recoverSessionCaptureSplitJobs)().then(() => {
+    (dependencies.startSessionCaptureSplitManager ?? startSessionCaptureSplitManager)();
+  }).catch((error) => {
+    console.error("[CaptureSplit] Startup recovery failed:", error);
+  });
 
   (dependencies.countStaleSessions ?? countStaleSessions)(
     ALL_DETECTOR_IDS,

@@ -79,6 +79,8 @@ describe("capture migration consent and progress", () => {
         startCommunityTunesSync: () => {},
         startSessionCompressor: () => {},
         startUpdateCheckSchedule: () => {},
+        recoverSessionCaptureSplitJobs: async () => {},
+        startSessionCaptureSplitManager: () => {},
         countStaleSessions: async () => 0,
         countStaleRaceResults: async () => 0,
       });

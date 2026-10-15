@@ -35,6 +35,9 @@ export class LapDetectorIRacing implements ILapDetector {
   get session(): SessionState | null { return this.detector.session; }
   get fuelHistory(): LapFuelData[] { return this.detector.fuelHistory; }
   get tireWearHistory(): LapTireWearData[] { return this.detector.tireWearHistory; }
+  shouldCheckpointBeforeWrite(packet: TelemetryPacket): boolean {
+    return this.engine.shouldCheckpoint(packet);
+  }
   setCurrentLapByteOffset(offset: number): void { this.detector.setCurrentLapByteOffset(offset); }
   expectCompleteLapStart(): void { this.engine.expectCompleteLapStart(); }
   feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void> {
