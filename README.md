@@ -66,6 +66,16 @@ Check out the [screenshots](assets/screenshots/) to see it in action.
 | Assetto Corsa Competizione | Medium | Yes | Yes | No |
 | Forza Motorsport 2023 | Low | No | No | Yes |
 Lower priority means slower turnaround on new features for that title — it does not mean deprecated. All supported games keep working.
+## Supported Languages
+
+RaceIQ's interface is available in 16 languages.
+
+<details>
+<summary>View supported languages</summary>
+
+English, Finnish, French, German, Hindi, Italian, Japanese, Korean, Dutch, Polish, Brazilian Portuguese, European Portuguese, Russian, Simplified Chinese, Spanish, and Ukrainian.
+
+</details>
 
 ## Getting Started
 

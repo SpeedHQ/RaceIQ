@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { runtime } from "../../../config/runtime";
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
 
@@ -36,7 +37,8 @@ for (const game of SEEDED_GAME_CASES) {
     await expect(trackCard).toBeVisible();
     await trackCard.click();
     await expect(page).toHaveURL(new RegExp(`/${game.prefix}/tracks/.+/?$`));
-    await expect(page.getByText(game.trackName, { exact: true }).first()).toBeVisible();
+    const trackHeading = new RegExp(`^${game.trackName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s+-\\s+.+)?$`);
+    await expect(page.getByText(trackHeading).first()).toBeVisible();
 
     const infoTab = page.getByRole("tab", { name: "Info", exact: true });
     await expect(infoTab).toHaveAttribute("aria-selected", "true");
@@ -58,6 +60,9 @@ for (const game of SEEDED_GAME_CASES) {
       await expect(page.getByRole("button", { name: "Compare", exact: true })).toBeVisible();
       await page.getByRole("button", { name: "Compare", exact: true }).click();
       await expect(page).toHaveURL(/\/compare\?/);
+      // Comparison synchronizes its selectors into history after mounting.
+      // Wait for loaded data before exercising Back so that navigation has settled.
+      await expect(page.getByTestId("lap-compare-workspace").getByText("Time Delta")).toBeVisible({ timeout: 30_000 });
       await page.goBack();
       await expect(page).toHaveURL(/\/laps\/?$/);
     }
@@ -71,8 +76,9 @@ for (const game of SEEDED_GAME_CASES) {
       await expect(page).toHaveURL(/\/guide\/?$/);
       await expect(page.getByText(/guide|no data|unavailable/i).first()).toBeVisible();
     }
-    if (TRACK_CAPABILITY.debug.includes(game.gameId)) {
-      await page.getByRole("tab", { name: "Debug", exact: true }).click();
+    const debugTab = page.getByRole("tab", { name: /debug/i });
+    if (runtime.devServer && TRACK_CAPABILITY.debug.includes(game.gameId)) {
+      await debugTab.click();
       const edits = page.getByRole("button", { name: "Edit", exact: true });
       const hasSectorEditor = (await edits.count()) > 1;
       if (await edits.count()) {
@@ -97,6 +103,7 @@ for (const game of SEEDED_GAME_CASES) {
         await page.getByRole("button", { name: "Cancel", exact: true }).first().click();
       }
     }
+    if (!runtime.devServer) await expect(debugTab).toHaveCount(0);
     await page.getByRole("tab", { name: "Info", exact: true }).click();
     await expect(page).not.toHaveURL(/\/(laps|setups|guide|debug)\/?$/);
     const expectedResourceError = "console.error: Failed to load resource: the server responded with a status of 404 (Not Found)";

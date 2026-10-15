@@ -1966,6 +1966,14 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       )`,
     ],
   },
+  {
+    version: 76,
+    name: "reconcile all AC Evo recordings to discover Tourist layouts",
+    sql: [
+      // Stored track IDs can predate native layout identity; discover layouts from captures.
+      `UPDATE sessions SET lap_detector_version = NULL WHERE game_id = 'ac-evo'`,
+    ],
+  },
 ];
 const dashboardCanonicalTriggers = (() => {
   const readModel = migrations.find((migration) => migration.version === 68);

@@ -1,6 +1,7 @@
 "use client";
 
 import { type AssistantState, AuiIf, SuggestionPrimitive, ThreadPrimitive, useAuiState } from "@assistant-ui/react";
+import { ArrowDownIcon } from "lucide-react";
 import { type FC, useContext } from "react";
 import { ThreadFollowupSuggestions } from "@/components/assistant-ui/follow-up-suggestions";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -90,6 +91,8 @@ const ThreadSuggestionItem: FC = () => (
 );
 const ThreadScrollToBottom: FC = () => (
   <ThreadPrimitive.ScrollToBottom
-    render={<TooltipIconButton tooltip={m.ai_chat_scroll_to_bottom()} variant="outline" className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center disabled:invisible" />}
-  />
+    render={<TooltipIconButton tooltip={m.ai_chat_scroll_to_bottom()} variant="default" className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center disabled:invisible" />}
+  >
+    <ArrowDownIcon />
+  </ThreadPrimitive.ScrollToBottom>
 );
