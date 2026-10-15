@@ -13,6 +13,7 @@ import { isOwnedSessionRawFile } from "../db/session-queries";
 import { isSessionActive } from "../telemetry/live-pipeline";
 import { clearSessionCaptureCache } from "./source-loader";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
+import { hasPendingLayoutMigration } from "./layout-migration";
 import { releaseDashboardCaptureCheckpoint, republishPersistedDashboardCaptureFacts } from "./dashboard-processor";
 
 export class SessionCleanupBusyError extends Error {
@@ -290,6 +291,7 @@ export async function executeSessionCleanup(request: SessionCleanupRequest): Pro
   if (isSessionActive()) throw new SessionCleanupBusyError();
   return withSessionCaptureMaintenanceLock(async () => {
     if (isSessionActive()) throw new SessionCleanupBusyError();
+    if (await hasPendingLayoutMigration()) throw new SessionCleanupBusyError();
     const workPlan = await buildPlan(request);
     const cleanedSessionIds: number[] = [];
     const failed: { sessionIds: number[]; message: string }[] = [];

@@ -1,3 +1,4 @@
+import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
 import { getRecordedElapsedSeconds } from "../session-capture/elapsed-duration";
 import { MOTEC_SESSION_SOURCE } from "@raceiq/shared/integrations/motec";
 import { deleteLap } from "./lap-mutation-queries";
@@ -11,8 +12,7 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { existsSync, unlinkSync } from "node:fs";
-import { relative, resolve, sep } from "node:path";
-import { resolveDataDir } from "../runtime/config/data-dir";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import { getTrackLengthMetersById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
 import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
@@ -155,9 +155,9 @@ export async function markSessionCaptureFormatCurrent(sessionId: number): Promis
   await db.update(sessions).set({ captureFormatVersion: 1 }).where(eq(sessions.id, sessionId)).run();
 }
 export function isOwnedSessionRawFile(rawFile: string): boolean {
-  const sessionsDir = resolve(resolveDataDir(), "sessions");
+  const sessionsDir = resolveRecordingDirectory();
   const relativePath = relative(sessionsDir, resolve(rawFile));
-  return relativePath.length > 0 && relativePath !== ".." && !relativePath.startsWith(`..${sep}`);
+  return relativePath.length > 0 && !isAbsolute(relativePath) && relativePath !== ".." && !relativePath.startsWith(`..${sep}`);
 }
 
 async function unlinkOwnedSessionRawFile(rawFile: string | null): Promise<void> {
@@ -182,24 +182,27 @@ async function unlinkOwnedSessionRawFile(rawFile: string | null): Promise<void> 
  */
 
 export async function deleteSession(sessionId: number): Promise<number> {
-  const session = await db
-    .select({ rawFile: sessions.rawFile })
-    .from(sessions)
-    .where(eq(sessions.id, sessionId))
-    .get();
-  const sessionLaps = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
-  let count = 0;
-  for (const lap of sessionLaps) {
-    if (await deleteLap(lap.id)) count++;
-  }
-  await db.delete(sessions).where(eq(sessions.id, sessionId)).run();
-  await unlinkOwnedSessionRawFile(session?.rawFile ?? null);
-  return count;
+  return withSessionCaptureMaintenanceLock(async () => {
+    const session = await db
+      .select({ rawFile: sessions.rawFile })
+      .from(sessions)
+      .where(eq(sessions.id, sessionId))
+      .get();
+    const sessionLaps = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
+    let count = 0;
+    for (const lap of sessionLaps) {
+      if (await deleteLap(lap.id)) count++;
+    }
+    await db.delete(sessions).where(eq(sessions.id, sessionId)).run();
+    await unlinkOwnedSessionRawFile(session?.rawFile ?? null);
+    return count;
+  });
 }
 
 /** Get all lap metadata needed to preserve rows during reprocessing. */
 
 export async function deleteEmptySessions(activeSessionId?: number): Promise<number> {
+  return withSessionCaptureMaintenanceLock(async () => {
   const empties = await db
     .select({ id: sessions.id, rawFile: sessions.rawFile })
     .from(sessions)
@@ -223,6 +226,7 @@ export async function deleteEmptySessions(activeSessionId?: number): Promise<num
   const ids = filtered.map(r => r.id);
   await db.delete(sessions).where(inArray(sessions.id, ids)).run();
   return ids.length;
+  });
 }
 
 /**
