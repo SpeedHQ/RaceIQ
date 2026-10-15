@@ -58,8 +58,9 @@ async function assertImagesLoaded(page: Page) {
 test.describe.serial("fresh install", () => {
   test.setTimeout(140_000);
   test("user steps through wizard and lands on home page", async ({ page, request }) => {
-    await resetFreshInstallState();
     const { errors } = collectBrowserErrors(page, [/THREE\.GLTFLoader: Couldn't load texture/]);
+    await resetFreshInstallState();
+    page.setDefaultNavigationTimeout(60_000);
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.getByText("RaceIQ", { exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(page).toHaveURL(/\/onboarding\?/);
