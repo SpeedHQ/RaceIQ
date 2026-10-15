@@ -1,8 +1,7 @@
 import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
 import { getAllServerGames } from "../games/registry";
-import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump-decoder";
-import { IRACING_DUMP_MAGIC, readIRacingFramesFromBuffer } from "@raceiq/capture-formats/iracing/dump-decoder";
 import {
+  containsSparseCaptureFrames,
   decompressIfGzipSync,
   iterateSessionFrames,
   iterateSessionCaptureRecords,
@@ -28,13 +27,10 @@ export function detectGameIdFromFilename(name: string): GameId | null {
 /** Detect a gameId from actual capture frame content. */
 export function detectGameIdFromBuffer(bytes: Buffer): GameId | null {
   const buf = decompressIfGzipSync(bytes);
-  if (hasKunosDumpMagic(buf)) return null;
+  if (!containsSparseCaptureFrames(buf) || hasKunosDumpMagic(buf)) return null;
   const games = getAllServerGames();
   let checked = 0;
-  const frames = hasLMUDumpMagic(buf) ? readLMUFramesFromBuffer(buf)
-    : buf.subarray(0, IRACING_DUMP_MAGIC.length).equals(IRACING_DUMP_MAGIC)
-      ? readIRacingFramesFromBuffer(buf, 20) : iterateSessionFrames(buf, undefined, { strict: true });
-  for (const frame of frames) {
+  for (const frame of iterateSessionFrames(buf)) {
     for (const game of games) {
       if (game.canHandle(frame)) return game.id;
     }
@@ -63,10 +59,10 @@ export async function importSessionBin(
   options: ImportSessionOptions = {},
 ): Promise<{ packetCount: number; laps: ImportedLap[] }> {
   const buf = decompressIfGzipSync(bytes);
-  const frames = gameId === "lmu" && hasLMUDumpMagic(buf)
-    ? readLMUFramesFromBuffer(buf)
-    : gameId === "iracing" && buf.subarray(0, IRACING_DUMP_MAGIC.length).equals(IRACING_DUMP_MAGIC)
-      ? readIRacingFramesFromBuffer(buf) : canonicalImportFrames(buf);
+  if (!containsSparseCaptureFrames(buf)) {
+    throw new Error("Legacy recording imports are no longer supported; provide a sparse RaceIQ capture.");
+  }
+  const frames = canonicalImportFrames(buf);
   const { packetCount, laps } = await importSessionFrames(
     frames,
     gameId,

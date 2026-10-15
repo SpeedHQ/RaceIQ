@@ -8,7 +8,7 @@
     "./routes/tunes/index": "./src/routes/tunes/index.ts"
   },
   "scripts": {
-    "typecheck": "bunx tsc --build tsconfig.json --noEmit --force",
+    "typecheck": "bun check --build --project tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/backend",
     "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/backend",
     "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/backend",

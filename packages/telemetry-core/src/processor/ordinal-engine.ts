@@ -241,17 +241,29 @@ export class OrdinalDetectorEngine {
   }
   invalidate(reason: string): void { this.state.lapIsValid=false; this.state.invalidReason=reason; }
   trimRunningStartPackets(): void {
-    const p=this.state.lapBuffer; if(p.length<=1)return; let i=0;
-    for(let n=1;n<p.length;n++) if(p[n-1].CurrentLap>5&&p[n].CurrentLap<1)i=n;
-    if(i>0&&i<p.length/2) {
-      this.effects.log?.(`[Lap] Trimmed ${i} pre-start packets (running start), ${p.length - i} remain`);
-      this.state.lapBuffer=p.slice(i);
+    const p=this.state.lapBuffer;
+    const start=runningStartPacketIndex(p);
+    if(start>0) {
+      this.effects.log?.(`[Lap] Trimmed ${start} pre-start packets (running start), ${p.length - start} remain`);
+      p.copyWithin(0, start);
+      p.length -= start;
     }
   }
+
   async finalizeCurrentSession(): Promise<void> {
     const s=this.state; if(!s.session)return;
     await this.effects.finalizeSession(s.session); s.session=null;
   }
+}
+
+export function runningStartPacketIndex(packets: readonly TelemetryPacket[]): number {
+  let start = 0;
+  for (let index = 1; index < packets.length; index++) {
+    if (packets[index - 1]!.CurrentLap > 5 && packets[index]!.CurrentLap < 1) {
+      start = index;
+    }
+  }
+  return start > 0 && start < packets.length / 2 ? start : 0;
 }
 
 function tireWear(packet: TelemetryPacket): { fl: number; fr: number; rl: number; rr: number } {

@@ -9,7 +9,7 @@ Owns RaceIQ raw-session persistence: length-prefixed frame recording, gzip stora
 - `framing.ts` defines capture framing and gzip helpers. `recorder.ts` appends frames and patches the final frame count.
 - `import-capture.ts` detects canonical uploads and feeds them to `import-pipeline.ts`, which captures imported database identities and rolls failed imports back.
 - `reprocess.ts` streams canonical `.bin`/`.bin.gz` frames (including sparse records) through the current lap detector, resets it at segment boundaries, and preserves lap-owned metadata where possible. MoTeC `.motec.zip` archives still require decoded channel arrays.
-- `reconcile.ts` replays pending historical sessions in bounded, ascending pages after HTTP startup. Database migration v67 marks every pre-upgrade session pending, including AC Evo sessions with already-filled identities.
+- `reconcile.ts` replays pending sparse RaceIQ captures and MoTeC archives in bounded, ascending pages after HTTP startup. Database migration v67 marks pre-upgrade sessions pending, but legacy full-frame captures are excluded from playback and reprocessing.
 - `identity.ts` hashes decompressed capture content so raw and gzip storage represent the same input.
 - `compressor.ts` and `cleanup.ts` maintain recorded files after sessions finish.
 
@@ -24,7 +24,7 @@ Owns RaceIQ raw-session persistence: length-prefixed frame recording, gzip stora
 - Frame-overlap matches preserve original lap IDs and user-authored notes, favourites, profiles, setup snapshots, tune links, and experiment associations. Obsolete unmatched detections are removed; newly detected laps receive new IDs. Repaired rows invalidate telemetry, metrics, and analysis caches.
 - A successful replay stores the current detector version; subsequent startup passes skip that session. Missing/corrupt captures and replays that recover no laps from existing history leave the repair marker pending and retain saved rows, with per-session failure logs.
 - The startup pass has a fixed session-ID high-water mark, so newly recorded sessions do not extend it. Race-result and LMU identity backfills run after historical lap reconciliation.
-- Recording paths and names are chosen by telemetry/runtime adapters. This domain must not change their naming, activation, or shutdown order.
+- Recording paths and names are chosen by telemetry/runtime adapters. Split artifacts follow the configured recording directory and session ownership (`own`/`others`); this domain must not change recording naming, activation, or shutdown order.
 - Game adapters own frame recognition and parsing. Telemetry owns live pipeline behavior. Database modules own session/lap persistence.
 - Import rollback deletes sessions and their newly recorded files. Scheduled maintenance skips active recordings; background compression remains age-gated, while user-triggered compression also includes untracked `.bin` files.
 ## Lossless per-lap capture splitting

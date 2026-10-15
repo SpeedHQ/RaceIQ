@@ -9,7 +9,7 @@
     "./ui/lib/process": "./src/ui/lib/process.ts"
   },
   "scripts": {
-    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "typecheck": "bun check --project tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/tooling-ui",
     "test:tooling": "bun ../../scripts/test/run-suite.ts tooling --package @raceiq/tooling-ui"
   },

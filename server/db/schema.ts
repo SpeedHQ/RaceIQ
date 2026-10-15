@@ -409,9 +409,9 @@ export const experiments = sqliteTable(
 		carName: text("car_name"),
 		trackName: text("track_name"),
 		baseSetupPath: text("base_setup_path"),
-		// The checked-out tuning-test the Setup Engineer chat works from.
-		// null → fall back to the mainline tip. Not a hard FK so a test can be
-		// archived independently (mirrors experiment_versions.parentVersionId).
+		// The checked-out version. Chat uses only its attached laps; null means
+		// the base/unversioned scope, never an implicit latest-version selection.
+		// Not a hard FK so versions can be archived independently.
 		headVersionId: integer("head_version_id"),
 		status: text("status").notNull().default("active"), // 'active' | 'archived'
 		// What the experiment is varying RIGHT NOW (migration v39): 'car' or

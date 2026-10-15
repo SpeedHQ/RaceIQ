@@ -40,7 +40,7 @@ bun run db:seed --games fm-2023,acc,ac-evo,iracing
 bun run db:seed --force
 ```
 
-Seed is idempotent. Seeded sessions retain live `source` metadata (`NULL`); seed ownership is tracked in notes for `--reset`. `--clean` deletes all database rows and referenced captured-session files, preserves schema migrations, then reseeds; use disposable `DATA_DIR` because it is destructive. `--reset` replaces seeded rows only. Without `--force`, seed refuses to mix demo data into a database containing captured user data.
+Seed is idempotent. Seeded sessions retain live `source` metadata (`NULL`); seed ownership is tracked in notes for `--reset`. Stop the server before running `--clean`: it deletes the database, SQLite sidecars, and dashboard access marker, then recreates the schema and reseeds. This resets dashboard passwords, network settings, and login sessions; configure dashboard access again on startup. Other files in `DATA_DIR` remain intact. Use a disposable `DATA_DIR` because this is destructive. `--reset` replaces seeded rows only. Without `--force`, seed refuses to mix demo data into a database containing captured user data.
 
 ## Database changes
 

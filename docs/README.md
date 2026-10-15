@@ -17,6 +17,7 @@ Documentation is organized by audience. Start with a user guide; use contributor
 - [Contributing](../CONTRIBUTING.md) — repository entry point and contribution workflow.
 - [Development](contributing/development.md) — install, run, seed data, and manage schema changes.
 - [Frontend development](contributing/frontend.md) — component ownership, live-state boundaries, and routing contracts.
+- [Background operation flow](contributing/background-operation-flow.md) — reuse sparse recording conversion's confirmation dialog, non-modal bottom-right progress, result/retry, and inline maintenance pattern.
 - [Performance benchmarks](contributing/performance-benchmarks.md) — run parser, replay, and process-isolated performance measurements.
 - [Track curation](contributing/track-curation.md) — curate and verify track metadata and geometry.
 - [Telemetry recordings](contributing/telemetry-recordings.md) — capture, import, and preserve development telemetry.

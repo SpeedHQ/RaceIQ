@@ -12,6 +12,6 @@
     "@raceiq/shared": "workspace:*"
   },
   "scripts": {
-    "typecheck": "bunx tsc --project tsconfig.json --noEmit"
+    "typecheck": "bun check --project tsconfig.json"
   }
 }

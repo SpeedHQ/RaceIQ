@@ -44,18 +44,19 @@ export function writeSetupFile(
   // a run never clobbers an existing file.
   const stem = fileName ? sanitizeName(fileName) : `${sourceStem(absSource)}-autotune`;
   let dest = resolve(dir, `${stem}.json`);
-  // Live auto mode overwrites a single fixed file so the driver just reloads it
-  // in-game each lap. Manual saves never clobber — they auto-increment instead.
-  if (!overwrite) {
-    let n = 2;
-    while (existsSync(dest)) {
+  // Manual saves claim a new file atomically; a competing save must not be
+  // overwritten or later deleted as this invocation's artifact.
+  const data = JSON.stringify(setup, null, 2);
+  const options = { encoding: "utf-8", flag: overwrite ? "w" : "wx" } as const;
+  for (let n = 2; ; n++) {
+    try {
+      writeFileSync(dest, data, options);
+      return { path: dest, fileName: dest.split(/[\\/]/).pop() ?? "" };
+    } catch (error) {
+      if (overwrite || (error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
       dest = resolve(dir, `${stem}-${n}.json`);
-      n++;
     }
   }
-
-  writeFileSync(dest, JSON.stringify(setup, null, 2), "utf-8");
-  return { path: dest, fileName: dest.split(/[\\/]/).pop() ?? "" };
 }
 
 function sourceStem(absSource: string): string {

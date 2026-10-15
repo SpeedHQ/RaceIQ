@@ -1,3 +1,4 @@
+import { beginRecordingStorageImport } from "./storage-activity";
 import { existsSync, unlinkSync } from "node:fs";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
@@ -11,7 +12,7 @@ import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-fr
 import { PARSER_BOOTSTRAP_VERSION, SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "./frame-time";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
-import { NullWsAdapter, RealDbAdapter, type DbAdapter, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
+import { NullWsAdapter, RealDbAdapter, SparseSessionRecorderAdapter, type DbAdapter, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
 
 import { countIndexSampleMaterialized, countSourceFrameScanned } from "./test-instrumentation";
@@ -278,6 +279,8 @@ async function importTelemetrySource<T>(
   options: ImportSessionOptions,
   processItem: ImportItemHandler<T>,
 ): Promise<ImportSessionResult> {
+  const releaseStorageImport = beginRecordingStorageImport();
+  try {
   const db = new ImportCaptureAdapter({
     notifyDriverProfile: options.notifyDriverProfile,
     ownership: options.ownership,
@@ -287,7 +290,7 @@ async function importTelemetrySource<T>(
   const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
     bypassPacketRateFilter: true,
     enqueueSessionCaptureSplits: false,
-    recorder: options.recorder,
+    recorder: options.recorder ?? new SparseSessionRecorderAdapter(options.ownership),
   });
 
   let packetCount = 0;
@@ -308,9 +311,9 @@ async function importTelemetrySource<T>(
     }
   }
 
-  if (failure) return rollbackImport(db, failure);
+  if (failure) await rollbackImport(db, failure);
   if (options.requireLaps && db.laps.length === 0) {
-    return rollbackImport(
+    await rollbackImport(
       db,
       new Error("No complete, importable laps were found"),
     );
@@ -323,7 +326,7 @@ async function importTelemetrySource<T>(
     }
     await pipeline.finalizeDashboardCaptureFacts([...db.sessionIds]);
   } catch (error) {
-    return rollbackImport(db, error);
+    await rollbackImport(db, error);
   }
   for (const sessionId of db.sessionIds) {
     await enqueueSessionCaptureSplit(sessionId);
@@ -334,6 +337,9 @@ async function importTelemetrySource<T>(
     laps: db.laps,
     sessionIds: [...db.sessionIds],
   };
+  } finally {
+    releaseStorageImport();
+  }
 }
 
 /**

@@ -21,6 +21,8 @@ export const PARSER_BOOTSTRAP_MAGIC = 0x54425043;
 export const PARSER_BOOTSTRAP_VERSION = 1;
 export type ParserBootstrapGameId = "acc" | "ac-evo" | "f1-2025" | "fm-2023" | "iracing" | "lmu";
 const CAPTURE_GAME_IDS = ["acc", "ac-evo", "f1-2025", "fm-2023", "iracing", "lmu"] as const;
+export const SPARSE_CAPTURE_FORMAT_MAGIC = 0x31505352;
+export const SPARSE_CAPTURE_FORMAT_VERSION = 1;
 export const SESSION_SEGMENT_BOUNDARY = Symbol("session-segment-boundary");
 export const SESSION_SEGMENT_CONTEXT = Symbol("session-segment-context");
 export const SESSION_SEGMENT_CONTEXT_END = Symbol("session-segment-context-end");
@@ -96,6 +98,14 @@ export function decodeParserBootstrapPayload(payload: Buffer): ParserBootstrapPa
   }
   return { kind: "parser-bootstrap", gameId, formatVersion, payload: payload.subarray(12) };
 }
+export function encodeSparseCaptureFormatFrame(): Buffer {
+  const frame = Buffer.alloc(16);
+  frame.writeUInt32LE(META_FRAME_MAGIC, 0);
+  frame.writeUInt32LE(8, 4);
+  frame.writeUInt32LE(SPARSE_CAPTURE_FORMAT_MAGIC, 8);
+  frame.writeUInt32LE(SPARSE_CAPTURE_FORMAT_VERSION, 12);
+  return frame;
+}
 const TIMESTAMPED_LENGTH_FLAG = 0x80000000;
 const MAX_FRAME_LENGTH = 16 * 1024 * 1024;
 const MAX_SAFE_FRAME_TIME_MS = BigInt(Number.MAX_SAFE_INTEGER);
@@ -146,6 +156,29 @@ interface SessionFrameIterationOptions { skipMetaFrames?: boolean; allowEmptyFra
  * `{ strict: false }` explicitly. Pass `{ strict: true }` when the complete
  * capture boundary must be validated.
  */
+/** True when capture carries the sparse format marker or a checkpointed delta record. */
+export function containsSparseCaptureFrames(bytes: Buffer): boolean {
+  let offset = readRecorderFrameStreamStart(bytes);
+  while (offset + 4 <= bytes.length) {
+    if (bytes.readUInt32LE(offset) === META_FRAME_MAGIC) {
+      if (offset + 8 > bytes.length) return false;
+      const payloadBytes = bytes.readUInt32LE(offset + 4);
+      if (offset + 8 + payloadBytes > bytes.length) return false;
+      if (payloadBytes === 8 && bytes.readUInt32LE(offset + 8) === SPARSE_CAPTURE_FORMAT_MAGIC && bytes.readUInt32LE(offset + 12) === SPARSE_CAPTURE_FORMAT_VERSION) return true;
+      offset += 8 + payloadBytes;
+      continue;
+    }
+    const prefix = readFramePrefix(bytes, offset);
+    if (!prefix || prefix.length === 0) return false;
+    const payloadOffset = offset + prefix.prefixBytes;
+    if (payloadOffset + prefix.length > bytes.length) return false;
+    const payload = bytes.subarray(payloadOffset, payloadOffset + prefix.length);
+    if (isLmuSparseFrame(payload) || isKunosSparseFrame(payload) || isGenericSparseFrame(payload)) return true;
+    offset = payloadOffset + prefix.length;
+  }
+  return false;
+}
+
 export function* iterateSessionCaptureRecords(
   bytes: Buffer,
   requestedOffset = readRecorderFrameStreamStart(bytes),
@@ -348,7 +381,9 @@ export async function* iterateSessionCaptureRecordsAsync(
         const endOffset = offset;
         if (size === 8) {
           const magic = payload.readUInt32LE(0), version = payload.readUInt32LE(4);
-          if (magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) {
+          if (magic === SPARSE_CAPTURE_FORMAT_MAGIC && version === SPARSE_CAPTURE_FORMAT_VERSION) {
+            // Format marker does not change checkpoint state.
+          } else if (magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) {
             previous = null; checkpointOffset = -1; checkpointIdentity = null;
             yield { kind: "segment-boundary", offset: recordOffset, endOffset };
           } else if (magic === SEGMENT_CONTEXT_MAGIC && version === SEGMENT_CONTEXT_VERSION) {
@@ -443,12 +478,31 @@ export function sessionFrameAt(bytes: Buffer, offset: number): Buffer | null {
 }
 export function advanceSessionFrames(bytes: Buffer, offset: number, count: number): number {
   let at = offset;
-  for (let i = 0; i < count; i++) {
-    if (at < 0 || at + 4 > bytes.length) break;
+  let advanced = 0;
+  while (advanced < count && at + 4 <= bytes.length) {
+    if (
+      at + 16 <= bytes.length &&
+      bytes.readUInt32LE(at) === META_FRAME_MAGIC &&
+      bytes.readUInt32LE(at + 4) === 8 &&
+      bytes.readUInt32LE(at + 8) === SPARSE_CAPTURE_FORMAT_MAGIC &&
+      bytes.readUInt32LE(at + 12) === SPARSE_CAPTURE_FORMAT_VERSION
+    ) {
+      at += 16;
+      continue;
+    }
     const prefix = readFramePrefix(bytes, at);
     if (!prefix || prefix.length === 0 || at + prefix.prefixBytes + prefix.length > bytes.length) break;
     at += prefix.prefixBytes + prefix.length;
+    advanced++;
   }
+  while (
+    advanced === count &&
+    at + 16 <= bytes.length &&
+    bytes.readUInt32LE(at) === META_FRAME_MAGIC &&
+    bytes.readUInt32LE(at + 4) === 8 &&
+    bytes.readUInt32LE(at + 8) === SPARSE_CAPTURE_FORMAT_MAGIC &&
+    bytes.readUInt32LE(at + 12) === SPARSE_CAPTURE_FORMAT_VERSION
+  ) at += 16;
   return at;
 }
 export function isGzip(bytes: Uint8Array): boolean { return bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b; }

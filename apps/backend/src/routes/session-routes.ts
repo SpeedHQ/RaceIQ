@@ -1,12 +1,11 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { GameIdQuerySchema, IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
 import { GameIdSchema } from "@raceiq/shared/games/ids";
-import { getSessions, deleteSession, SessionCaptureActiveError, updateSession, updateSessionCarTrack, countStaleSessions, getStaleSessions, getSessionRecapData, setSessionFavorite, getCaptureMigrationCandidates } from "@raceiq/backend-core/db/session-queries";
-import { getSessionResult, getStaleRaceResultSessionIds } from "@raceiq/backend-core/db/session-result-queries";
+import { getSessions, deleteSession, updateSession, updateSessionCarTrack, countStaleSessions, getStaleSessions, getSessionRecapData, setSessionFavorite, SessionCaptureActiveError } from "@raceiq/backend-core/db/session-queries";
 import { reprocessSession, SessionNotFoundError, SessionRawFileMissingError } from "@raceiq/backend-core/session-capture/reprocess";
-import { getCaptureMigrationProgress, migrateCaptures } from "@raceiq/backend-core/session-capture/migrate-captures";
+import { getSessionResult, getStaleRaceResultSessionIds } from "@raceiq/backend-core/db/session-result-queries";
 import { LAP_DETECTOR_ID } from "@raceiq/backend-core/lap-detection/detector";
 import { LAP_DETECTOR_ACC_ID } from "@raceiq/game-acc/lap-detector";
 import { LAP_DETECTOR_AC_EVO_ID } from "@raceiq/game-ac-evo/lap-detector";
@@ -28,33 +27,7 @@ import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-na
 import { isSessionIdentityInCatalog } from "../games/session-identity";
 const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID];
 
-async function captureMigrationStatus(c: Context) {
-  return c.json({
-    ...await getCaptureMigrationCandidates(),
-    migrationProgress: getCaptureMigrationProgress(),
-  });
-}
-const captureMigrationRoutes = new Hono()
-  .get("/api/sessions/capture-migration-status", captureMigrationStatus)
-  .post("/api/sessions/migrate-captures", async (c) => {
-    const result = await migrateCaptures((done, total, progress) => {
-      wsManager.broadcastCaptureMigrationProgress({ done, total, status: progress.status, ...(progress.error ? { error: progress.error } : {}) });
-    });
-    const remaining = await getCaptureMigrationCandidates();
-    wsManager.setCaptureMigrationNotification(remaining.sessionCount, remaining.captureCount);
-    const progress = getCaptureMigrationProgress();
-    wsManager.broadcastCaptureMigrationProgress({
-      done: progress.done,
-      total: progress.total,
-      status: progress.status === "partial" ? "partial" : "success",
-      migrated: progress.migrated,
-      failed: progress.failed,
-      ...(progress.error ? { error: progress.error } : {}),
-    });
-    return c.json(result);
-  });
-
-const sessionReadRoutes = new Hono()
+export const sessionRoutes = new Hono()
   .get("/api/sessions", zValidator("query", GameIdQuerySchema), async (c) => {
     const { gameId } = c.req.valid("query");
     return c.json(await getSessions(gameId));
@@ -100,9 +73,7 @@ const sessionReadRoutes = new Hono()
     const result = await getSessionResult(id, gameId);
     if (!result) return c.json({ error: "Session result unavailable", outcomeStatus: "unavailable" as const }, 404);
     return c.json(result);
-  });
-
-const raceResultRoutes = new Hono()
+  })
   .post("/api/race-results/backfill", zValidator("json", z.object({ gameId: GameIdSchema, limit: z.number().int().min(1).max(100).default(25), afterSessionId: z.number().int().optional() })), async (c) => c.json(await backfillRaceResults(c.req.valid("json"))))
   .post("/api/race-results/reconcile-stale", async (c) => {
     const staleIds = await getStaleRaceResultSessionIds(RACE_RESULT_PROCESSOR_ID);
@@ -132,9 +103,7 @@ const raceResultRoutes = new Hono()
     carId: z.string().min(1).optional(),
     trackId: z.string().min(1).optional(),
   })), async (c) => c.json(await getRaceResultAggregate(c.req.valid("query"))))
-  .get("/api/race-results/recent", zValidator("query", z.object({ gameId: GameIdSchema, limit: z.coerce.number().int().min(1).max(50).default(10) })), async (c) => c.json(await getRecentRaceResults(c.req.valid("query").gameId, c.req.valid("query").limit)));
-
-const sessionMutationRoutes = new Hono()
+  .get("/api/race-results/recent", zValidator("query", z.object({ gameId: GameIdSchema, limit: z.coerce.number().int().min(1).max(50).default(10) })), async (c) => c.json(await getRecentRaceResults(c.req.valid("query").gameId, c.req.valid("query").limit)))
   .patch("/api/sessions/:id/identity", zValidator("param", IdParamSchema), zValidator("json", z.object({
     gameId: GameIdSchema,
     carId: z.string().min(1),
@@ -160,9 +129,7 @@ const sessionMutationRoutes = new Hono()
     const { favorite } = c.req.valid("json");
     if (!await setSessionFavorite(id, favorite)) return c.json({ error: "Session not found" }, 404);
     return c.json({ ok: true, sessionId: id, favorite });
-  });
-
-const sessionReprocessingRoutes = new Hono()
+  })
   .post("/api/sessions/:id/reprocess", zValidator("param", IdParamSchema), async (c) => {
     const { id } = c.req.valid("param");
     try {
@@ -223,11 +190,3 @@ const sessionReprocessingRoutes = new Hono()
     }
     return c.json({ deleted: lapCount, sessions: ids.length });
   });
-
-// Compose bounded route groups without expanding one deeply nested Hono chain.
-export const sessionRoutes = new Hono()
-  .route("/", captureMigrationRoutes)
-  .route("/", sessionReadRoutes)
-  .route("/", raceResultRoutes)
-  .route("/", sessionMutationRoutes)
-  .route("/", sessionReprocessingRoutes);

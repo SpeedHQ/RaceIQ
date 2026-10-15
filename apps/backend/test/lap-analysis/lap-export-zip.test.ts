@@ -6,6 +6,7 @@
  * selected lap on replay without becoming another owned frame on import.
  * The manifest lists only selected laps.
  *
+ *
  * Uses the real (test) SQLite DB directly — same convention as
  * laps-issues-route.test.ts — since getLapsRaw joins laps→sessions with no
  * mockable seam. Frames are synthetic: buildLapsZip never parses them.
@@ -19,7 +20,7 @@ import { sessions, laps } from "@raceiq/backend-core/db/schema";
 import { eq } from "drizzle-orm";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
-import { iterateSessionCaptureRecords, META_FRAME_MAGIC, SEGMENT_BOUNDARY_MAGIC } from "@raceiq/capture-formats/session/framing";
+import { encodeSparseCaptureFormatFrame, iterateSessionCaptureRecords, META_FRAME_MAGIC, SEGMENT_BOUNDARY_MAGIC } from "@raceiq/capture-formats/session/framing";
 import { buildLapsZip, LAPS_ZIP_VERSION, type LapsZipManifest } from "../../src/laps/archive";
 import {
   createIRacingSourceDecoderState,
@@ -51,7 +52,7 @@ function makeCapture(frameCount: number): Buffer {
     buf.writeUInt32LE(PAYLOAD, at);
     buf.writeUInt8(i, at + 4);
   }
-  return buf;
+  return Buffer.concat([buf, encodeSparseCaptureFormatFrame()]);
 }
 
 function makeF1Capture(frameCount: number): Buffer {
@@ -84,7 +85,7 @@ function makeF1Capture(frameCount: number): Buffer {
     buf.writeBigUInt64LE(1n, at + 11);
     buf.writeUInt8(0, at + 31);
   }
-  return buf;
+  return Buffer.concat([buf, encodeSparseCaptureFormatFrame()]);
 }
 
 /** Native frame indices, including explicit non-owned context; markers skipped. */
@@ -332,7 +333,7 @@ describe("buildLapsZip", () => {
     });
     const meta = makeCapture(0).subarray(0, META);
     const path = `${process.env.DATA_DIR ?? "."}/zip-test-iracing-${Date.now()}.bin`;
-    await Bun.write(path, Buffer.concat([meta, ...records]));
+    await Bun.write(path, Buffer.concat([meta, ...records, encodeSparseCaptureFormatFrame()]));
     tmpFiles.push(path);
 
     const sid = await insertSession(path, "iracing");

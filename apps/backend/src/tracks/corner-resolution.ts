@@ -60,8 +60,8 @@ export async function resolveLapSegments(
 }
 
 /**
- * Resolve corners once for every stored-lap analysis path.
- * Official-label-aligned segments win, then stored corners, then telemetry detection.
+ * Official-label-aligned segments win, then manually curated corners, then
+ * detection from this lap's telemetry. Persisted auto-detections are ignored.
  */
 export async function resolveLapCorners(
   trackIdentity: string | null | undefined,
@@ -75,10 +75,10 @@ export async function resolveLapCorners(
 
   if (trackIdentity && gameId) {
     try {
-      const stored = await getCorners(trackIdentity, gameId as GameId);
+      const stored = await getCorners(trackIdentity, gameId as GameId, { manualOnly: true });
       if (stored.length > 0) return stored;
     } catch {
-      // Stored corners are optional; telemetry detection remains available.
+      // Manually curated corners are optional; use this lap's detection.
     }
   }
 

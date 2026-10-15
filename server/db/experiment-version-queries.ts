@@ -1,8 +1,8 @@
-import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
-import { db } from "./index";
-import { laps, experiments, experimentVersions } from "./schema";
+import { laps, experiments, experimentVersions, experimentActions } from "./schema";
 import { setSessionHead } from "./experiment-queries";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus, versionKindForFocus, type VersionKind } from "@raceiq/shared/racing/experiments/focus";
+import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { db } from "./index";
 
 interface CreateExperimentVersionData {
   experimentId: number;
@@ -56,6 +56,49 @@ export async function createExperimentVersion(data: CreateExperimentVersionData)
     .returning({ id: experimentVersions.id })
     .get();
   return result.id;
+}
+
+/** Insert a version, move head and append undo record atomically. */
+export async function createExperimentVersionAndSetHead(
+  data: CreateExperimentVersionData,
+  expectedHeadVersionId: number | null,
+  action?: { kind: string; inversePayload: unknown },
+): Promise<number | null> {
+  try {
+    return await db.transaction(async (tx) => {
+      const current = await tx.select({ headVersionId: experiments.headVersionId, focus: experiments.focus })
+        .from(experiments).where(eq(experiments.id, data.experimentId)).get();
+      if (!current || current.headVersionId !== expectedHeadVersionId) throw new Error("stale-experiment-head");
+      const kind = data.kind ?? versionKindForFocus((current.focus as ExperimentFocus | undefined) ?? DEFAULT_EXPERIMENT_FOCUS);
+      const inserted = await tx.insert(experimentVersions).values({
+        kind, experimentId: data.experimentId, version: data.version, label: data.label,
+        setupPath: data.setupPath ?? null, parentVersionId: data.parentVersionId ?? null,
+        appliedChanges: data.appliedChanges ?? null, driverComment: data.driverComment ?? null,
+        notes: data.notes ?? null, engine: data.engine ?? null, setupSnapshot: data.setupSnapshot ?? null,
+      }).returning({ id: experimentVersions.id }).get();
+      const moved = await tx.update(experiments)
+        .set({ headVersionId: inserted.id, updatedAt: sql`(datetime('now'))` })
+        .where(and(
+          eq(experiments.id, data.experimentId),
+          expectedHeadVersionId == null ? isNull(experiments.headVersionId) : eq(experiments.headVersionId, expectedHeadVersionId),
+        )).run();
+      if (moved.rowsAffected === 0) throw new Error("stale-experiment-head");
+      if (action) {
+        const inversePayload = action.inversePayload && typeof action.inversePayload === "object" &&
+          "versionId" in action.inversePayload && action.inversePayload.versionId === "INSERTED_ID"
+          ? { ...action.inversePayload, versionId: inserted.id }
+          : action.inversePayload;
+        await tx.insert(experimentActions).values({
+          experimentId: data.experimentId, kind: action.kind,
+          inversePayload: JSON.stringify(inversePayload),
+        }).run();
+      }
+      return inserted.id;
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "stale-experiment-head") return null;
+    throw error;
+  }
 }
 
 /** Tests for a session, oldest-first (v1 base → latest) so the UI can render
@@ -146,21 +189,60 @@ export async function deleteTestSubtree(
   sessionId: number,
   versionId: number,
   currentHeadTestId: number | null,
+  expectedHeadVersionId?: number | null,
+  action?: { kind: string; inversePayload: unknown },
 ): Promise<DeleteSubtreeResult> {
-  const allTests = await listExperimentVersions(sessionId, { includeDeleted: true });
-  const deletedIds = collectSubtreeIds(allTests, versionId);
-  await setTestsStatus(deletedIds, "deleted");
-
-  const trashedSet = new Set(deletedIds);
-  let headMoved = false;
-  let newHeadTestId = currentHeadTestId;
-  if (currentHeadTestId != null && trashedSet.has(currentHeadTestId)) {
-    newHeadTestId = findNearestSurvivingAncestor(allTests, versionId, trashedSet);
-    await setSessionHead(sessionId, newHeadTestId);
-    headMoved = true;
+  if (expectedHeadVersionId === undefined) {
+    const allTests = await listExperimentVersions(sessionId, { includeDeleted: true });
+    const deletedIds = collectSubtreeIds(allTests, versionId);
+    const trashedSet = new Set(deletedIds);
+    let newHeadTestId = currentHeadTestId;
+    if (currentHeadTestId != null && trashedSet.has(currentHeadTestId)) {
+      newHeadTestId = findNearestSurvivingAncestor(allTests, versionId, trashedSet);
+    }
+    await setTestsStatus(deletedIds, "deleted");
+    let headMoved = false;
+    if (newHeadTestId !== currentHeadTestId) {
+      headMoved = await setSessionHead(sessionId, newHeadTestId, currentHeadTestId);
+      if (!headMoved) newHeadTestId = currentHeadTestId;
+    }
+    return { deletedIds, headMoved, prevHeadTestId: currentHeadTestId, newHeadTestId };
   }
-
-  return { deletedIds, headMoved, prevHeadTestId: currentHeadTestId, newHeadTestId };
+  const result = await db.transaction(async (tx) => {
+    const current = await tx.select({ headVersionId: experiments.headVersionId }).from(experiments).where(eq(experiments.id, sessionId)).get();
+    if (!current || current.headVersionId !== expectedHeadVersionId) return null;
+    const allTests = await tx.select({
+      id: experimentVersions.id, parentVersionId: experimentVersions.parentVersionId, status: experimentVersions.status,
+    }).from(experimentVersions).where(eq(experimentVersions.experimentId, sessionId)).all();
+    const statusById = new Map(allTests.map((test) => [test.id, test.status]));
+    const deletedIds = collectSubtreeIds(allTests, versionId).filter((id) => statusById.get(id) !== "deleted");
+    if (!deletedIds.length) return null;
+    const trashedSet = new Set(deletedIds);
+    let newHeadTestId = currentHeadTestId;
+    if (currentHeadTestId != null && trashedSet.has(currentHeadTestId)) {
+      newHeadTestId = findNearestSurvivingAncestor(allTests, versionId, trashedSet);
+    }
+    if (deletedIds.length) await tx.update(experimentVersions).set({ status: "deleted" })
+      .where(and(eq(experimentVersions.experimentId, sessionId), inArray(experimentVersions.id, deletedIds))).run();
+    if (newHeadTestId !== currentHeadTestId) {
+      const predicates = [eq(experiments.id, sessionId),
+        expectedHeadVersionId == null ? isNull(experiments.headVersionId) : eq(experiments.headVersionId, expectedHeadVersionId)];
+      const moved = await tx.update(experiments).set({ headVersionId: newHeadTestId, updatedAt: sql`(datetime('now'))` })
+        .where(and(...predicates)).run();
+      if (!moved.rowsAffected) throw new Error("stale-experiment-head");
+    }
+    if (action) {
+      const payload = typeof action.inversePayload === "object" && action.inversePayload != null
+        ? action.inversePayload as Record<string, unknown> : {};
+      await tx.insert(experimentActions).values({
+        experimentId: sessionId, kind: action.kind,
+        inversePayload: JSON.stringify({ ...payload, testIds: deletedIds, prevHeadTestId: current.headVersionId }),
+      }).run();
+    }
+    return { deletedIds, newHeadTestId };
+  });
+  return { deletedIds: result?.deletedIds ?? [], headMoved: !!result && result.newHeadTestId !== currentHeadTestId,
+    prevHeadTestId: currentHeadTestId, newHeadTestId: result?.newHeadTestId ?? currentHeadTestId };
 }
 
 /**
@@ -207,6 +289,50 @@ export async function setExperimentVersionNotes(id: number, notes: string | null
   const before = await getExperimentVersion(id);
   await db.update(experimentVersions).set({ notes }).where(eq(experimentVersions.id, id)).run();
   return before?.notes ?? null;
+}
+
+export async function setExperimentVersionNoteGuarded(
+  id: number, note: string | null, sessionId: number, expectedHeadVersionId: number | null,
+  action?: { kind: string; inversePayload: unknown },
+): Promise<{ ok: boolean; previous: string | null }> {
+  return db.transaction(async (tx) => {
+    const current = await tx.select({ headVersionId: experiments.headVersionId })
+      .from(experiments).where(eq(experiments.id, sessionId)).get();
+    if (!current || current.headVersionId !== expectedHeadVersionId) return { ok: false, previous: null };
+    const before = await tx.select({ driverComment: experimentVersions.driverComment })
+      .from(experimentVersions).where(and(eq(experimentVersions.id, id), eq(experimentVersions.experimentId, sessionId))).get();
+    if (!before) return { ok: false, previous: null };
+    await tx.update(experimentVersions).set({ driverComment: note })
+      .where(and(eq(experimentVersions.id, id), eq(experimentVersions.experimentId, sessionId))).run();
+    const previous = before.driverComment ?? null;
+    if (action) await tx.insert(experimentActions).values({
+      experimentId: sessionId, kind: action.kind,
+      inversePayload: JSON.stringify({ ...action.inversePayload as object, prevDriverComment: previous }),
+    }).run();
+    return { ok: true, previous };
+  });
+}
+
+export async function setExperimentVersionNotesGuarded(
+  id: number, notes: string | null, sessionId: number, expectedHeadVersionId: number | null,
+  action?: { kind: string; inversePayload: unknown },
+): Promise<{ ok: boolean; previous: string | null }> {
+  return db.transaction(async (tx) => {
+    const current = await tx.select({ headVersionId: experiments.headVersionId })
+      .from(experiments).where(eq(experiments.id, sessionId)).get();
+    if (!current || current.headVersionId !== expectedHeadVersionId) return { ok: false, previous: null };
+    const before = await tx.select({ notes: experimentVersions.notes })
+      .from(experimentVersions).where(and(eq(experimentVersions.id, id), eq(experimentVersions.experimentId, sessionId))).get();
+    if (!before) return { ok: false, previous: null };
+    await tx.update(experimentVersions).set({ notes })
+      .where(and(eq(experimentVersions.id, id), eq(experimentVersions.experimentId, sessionId))).run();
+    const previous = before.notes ?? null;
+    if (action) await tx.insert(experimentActions).values({
+      experimentId: sessionId, kind: action.kind,
+      inversePayload: JSON.stringify({ ...action.inversePayload as object, prevNotes: previous }),
+    }).run();
+    return { ok: true, previous };
+  });
 }
 
 /** Resolve one session's version node by its user-facing version number — used

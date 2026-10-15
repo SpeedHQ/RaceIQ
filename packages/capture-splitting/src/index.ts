@@ -5,7 +5,7 @@ import { basename, join } from "node:path";
 import { createGunzip } from "node:zlib";
 import { Effect, Schema } from "effect";
 import {
-  encodeFrameLength, encodeMetaFrame, encodeParserBootstrapFrame, encodeSegmentBoundaryFrame,
+  encodeFrameLength, encodeMetaFrame, encodeParserBootstrapFrame, encodeSegmentBoundaryFrame, encodeSparseCaptureFormatFrame,
   encodeSegmentContextEndFrame, encodeSegmentContextFrame, iterateSessionCaptureRecordsAsync,
   type SessionCaptureRecord,
 } from "@raceiq/capture-formats/session/framing";
@@ -155,7 +155,7 @@ export const splitCapture = (options: SplitOptions): Effect.Effect<Manifest, Spl
       const chunk = chunks[index!]!;
       activeHandle = await open(join(options.outputDirectory, chunk.path), isNewChunk ? "w" : "a");
       if (isNewChunk) {
-        const header = encodeMetaFrame(0);
+        const header = Buffer.concat([encodeMetaFrame(0), encodeSparseCaptureFormatFrame()]);
         try { await activeHandle.writeFile(header); }
         catch (error) { throw new SplitFailure("IO", error instanceof Error ? error.message : String(error), { cause: error }); }
         activeLength += header.length; outputBytes += header.length;

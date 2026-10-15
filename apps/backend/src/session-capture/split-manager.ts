@@ -1,9 +1,10 @@
 import type { Manifest, WorkerMessage } from "@raceiq/capture-splitting";
 import { mkdir, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
+import { resolveRecordingGameDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
 import { getQueuedSessionCaptureSplitJobs, claimSessionCaptureSplitJob, setSessionCaptureSplitStagingPath, updateSessionCaptureSplitProgress, failSessionCaptureSplitJob, publishSessionCaptureSplit, validateSessionCaptureSplitRevision, type SessionCaptureSplitWork } from "@raceiq/backend-core/db/session-queries";
 import { withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
+import { beginRecordingStorageImport, getRecordingStorageActivity } from "@raceiq/backend-core/session-capture/storage-activity";
 import { runSessionCaptureSplit } from "./split-runner";
 
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -27,7 +28,7 @@ async function execute(work: SessionCaptureSplitWork): Promise<void> {
     return;
   }
   const attemptKey = `${work.jobId}-${work.attemptId}-${work.sourceRevision}`;
-  const bundleParent = join(resolveDataDir(), "sessions", work.gameId, `session-${work.sessionId}`);
+  const bundleParent = join(resolveRecordingGameDirectory(work.gameId, work.ownership), `session-${work.sessionId}`);
   const staging = join(bundleParent, `${attemptKey}.staging`);
   const final = join(bundleParent, attemptKey);
   let finalPublished = false;
@@ -136,7 +137,8 @@ async function execute(work: SessionCaptureSplitWork): Promise<void> {
 }
 
 export async function runSessionCaptureSplitQueueOnce(): Promise<boolean> {
-  if (running) return false;
+  if (running || getRecordingStorageActivity().relocating) return false;
+  const releaseStorage = beginRecordingStorageImport();
   running = true;
   try {
     if (shutdownRequested) return false;
@@ -148,6 +150,7 @@ export async function runSessionCaptureSplitQueueOnce(): Promise<boolean> {
     return true;
   } finally {
     running = false;
+    releaseStorage();
   }
 }
 

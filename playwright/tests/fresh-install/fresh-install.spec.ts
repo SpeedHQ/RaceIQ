@@ -1,16 +1,31 @@
-import { test, expect, type Page } from "@playwright/test";
-import { writeFileSync } from "node:fs";
+import { createClient } from "@libsql/client";
+import { readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { test, expect, type Page } from "@playwright/test";
 import { runtime } from "../../config/runtime";
 import { collectBrowserErrors } from "../support/browser-errors";
 
 const SETTINGS_PATH = resolve(runtime.freshInstall.dataDir, "settings.json");
 
-// Reset settings.json to the same seed start-server.ts writes at boot, so the
-// wizard test is idempotent across retries (server re-reads settings on every
-// GET /api/settings, so a file reset is enough — no server restart needed).
-function resetSettingsFile() {
+// A retry reuses the server process, but dashboard access is persisted separately
+// from settings. Reset both stores inside this isolated E2E data directory.
+async function resetFreshInstallState() {
+  const { dataDir } = runtime.freshInstall;
+  if (!dataDir.split(/[\\/]+/).some((part) => part.includes("test-data"))) {
+    throw new Error(`Refusing to reset fresh-install state outside test-data: "${dataDir}"`);
+  }
   writeFileSync(SETTINGS_PATH, JSON.stringify({ udpPort: Number(runtime.freshInstall.udpPort) }));
+  rmSync(resolve(dataDir, "app.db.dashboard-access"), { force: true });
+  const database = createClient({ url: `file:${resolve(dataDir, "app.db")}` });
+  try {
+    const [result] = await database.batch([
+      "UPDATE dashboard_access SET mode = 'pending', password_hash = NULL, revision = revision + 1 WHERE id = 1",
+      "DELETE FROM dashboard_sessions",
+    ], "write");
+    if (Number(result.rowsAffected) !== 1) throw new Error("Fresh-install dashboard access fixture is missing");
+  } finally {
+    database.close();
+  }
 }
 const GAME_ROUTE_PREFIXES = ["fm23", "f125", "acc", "ac-evo"] as const;
 
@@ -37,67 +52,137 @@ async function assertImagesLoaded(page: Page) {
 
 // Serial: wizard runs first and flips server-side onboardingComplete=true,
 // so later tests can navigate straight to game routes without the modal.
-// The compiled binary starts a WebGL demo on the welcome step. On the
-// 2-vCPU CI runner that startup can consume the default 30-second test budget
-// before the wizard reaches its final step.
-test.describe.serial("fresh install", () => {
-  test.setTimeout(140_000);
-  test("user steps through wizard and lands on home page", async ({ page, request }) => {
-    resetSettingsFile();
-    const { errors } = collectBrowserErrors(page, [/THREE\.GLTFLoader: Couldn't load texture/]);
-    await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page.getByText("RaceIQ", { exact: true })).toBeVisible({ timeout: 15_000 });
-    await expect(page).toHaveURL(/\/onboarding\?/);
-    await expect(page.locator("canvas")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Sign in", exact: true })).toHaveCount(0);
-    const demoCanvas = page.locator("canvas").first();
-    const canvasBox = await demoCanvas.boundingBox();
-    expect(canvasBox?.width ?? 0).toBeGreaterThan(0);
-    expect(canvasBox?.height ?? 0).toBeGreaterThan(0);
-    await page.getByRole("button", { name: "Get Started" }).click();
-    // Page two requires an explicit protection choice before application access.
-    await expect(page.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
-    await page.getByRole("button", { name: "Back", exact: true }).click();
-    await expect(page.locator("canvas")).toBeVisible();
-    await page.getByRole("button", { name: "Get Started" }).click();
-    await expect(page.locator('[data-slot="onboarding-footer"]').getByRole("button", { name: "Next", exact: true })).toBeDisabled();
-    await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Continue without a password" }).click();
-    await expect(page.getByRole("alert")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
-    await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Enable password protection", exact: true }).click();
-    await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
-    await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Continue without a password" }).click();
-    await page.getByRole("button", { name: "Next", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "What's your name?" })).toBeVisible();
-    await page.getByLabel("Driver name").fill("TestDriver");
-    await page.getByRole("button", { name: "Next" }).click();
-    await expect(page.getByText(/Choose the steering wheel/i)).toBeVisible();
-    await page.getByRole("button", { name: "Next" }).click();
-    await expect(page.getByRole("heading", { name: "Units" })).toBeVisible();
-    await page.getByRole("button", { name: /^Metric/ }).click();
-    await page.getByRole("button", { name: "Next" }).click();
-    await expect(page.getByRole("heading", { name: "Sound" })).toBeVisible();
-    await page.getByRole("switch", { name: "Sector blip" }).click();
-    await page.getByRole("button", { name: "Next" }).click();
-    await expect(page.getByRole("heading", { name: "Launch on Login" })).toBeVisible();
-    await page.getByRole("button", { name: "Next" }).click();
-    await expect(page.getByRole("heading", { name: "You're all set!" })).toBeVisible();
-    const saveSettings = page.waitForResponse((response) => {
-      if (response.request().method() !== "PUT" || !response.url().endsWith("/api/settings")) return false;
-      const body = response.request().postDataJSON() as { onboardingComplete?: boolean } | null;
-      return body?.onboardingComplete === true;
-    }, { timeout: 60_000 });
-    await page.getByRole("button", { name: /^(Next|Finish)$/ }).click();
-    expect((await saveSettings).ok(), "onboarding settings save").toBe(true);
-    await expect(page.getByRole("heading", { name: "You're all set!" })).toBeHidden({ timeout: 15_000 });
-    await expect(page.getByRole("link", { name: "Home" })).toBeVisible();
-    await page.reload({ waitUntil: "domcontentloaded" });
-    const persistedResponse = await request.get("/api/settings");
-    expect(persistedResponse.ok()).toBe(true);
-    expect(await persistedResponse.json()).toMatchObject({ driverName: "TestDriver", onboardingComplete: true });
-    await assertImagesLoaded(page);
-    expect(errors, `unexpected browser errors:\n${errors.join("\n")}`).toEqual([]);
-  });
+test.describe
+  .serial("fresh install", () => {
+    test.setTimeout(140_000);
+    test("user steps through wizard and lands on home page", async ({ page, request }) => {
+      await resetFreshInstallState();
+      const { errors } = collectBrowserErrors(page, [/THREE\.GLTFLoader: Couldn't load texture/]);
+
+      await page.goto("/", { waitUntil: "domcontentloaded" });
+
+      // Step 1: Welcome — navigation must not depend on the optional 3D demo.
+      await expect(page.getByRole("button", { name: "Get Started" })).toBeVisible({ timeout: 15_000 });
+      await page.getByRole("button", { name: "Get Started" }).click();
+
+      // Step 2: Access — require explicit password-protection choice.
+      await expect(page.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
+      await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Continue without a password" }).click();
+      await expect(page.getByRole("alert")).toBeVisible();
+      await expect(page.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
+      await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Enable password protection", exact: true }).click();
+      await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
+      await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Continue without a password" }).click();
+      await page.getByRole("button", { name: "Next", exact: true }).click();
+
+      // Step 3: Profile
+      await expect(page.getByRole("heading", { name: "What's your name?" })).toBeVisible();
+      await page.getByLabel("Driver name").fill("TestDriver");
+      await page.getByRole("button", { name: "Next" }).click();
+
+      // Step 3: Wheel
+      await expect(page.getByText(/Choose the steering wheel/i)).toBeVisible();
+      await page.getByRole("button", { name: "Next" }).click();
+
+      // Step 4: Units
+      await expect(page.getByRole("heading", { name: "Units" })).toBeVisible();
+      await page.getByRole("button", { name: /^Metric/ }).click();
+      await page.getByRole("button", { name: "Next" }).click();
+
+      // Step 5: Sound
+      await expect(page.getByRole("heading", { name: "Sound" })).toBeVisible();
+      await page.getByRole("switch", { name: "Sector blip" }).click();
+      await page.getByRole("button", { name: "Next" }).click();
+
+      // Step 6: Startup (Launch on Login)
+      await expect(page.getByRole("heading", { name: "Launch on Login" })).toBeVisible();
+      await page.getByRole("button", { name: "Next" }).click();
+
+      // Step 7: Native chooser selection applies immediately without a dialog.
+      await expect(page.getByRole("heading", { name: "Storage" })).toBeVisible();
+      const initialDirectory = await (await page.request.get("/api/storage/recording-directory")).json() as { directory: string };
+      const destination = resolve(initialDirectory.directory, "raceiq");
+      let releaseMoveRequest!: () => void;
+      const moveRequestGate = new Promise<void>((resolve) => { releaseMoveRequest = resolve; });
+      await page.route("**/api/storage/select-directory", (route) => route.fulfill({ json: { directory: destination } }));
+      await page.route("**/api/storage/recording-directory", async (route) => {
+        if (route.request().method() === "POST") await moveRequestGate;
+        await route.continue();
+      });
+      try {
+        await page.getByRole("button", { name: "Change folder" }).click();
+        await expect(page.getByRole("dialog")).toHaveCount(0);
+        await expect(page.getByRole("button", { name: "Apply", exact: true })).toHaveCount(0);
+        await expect(page.getByRole("button", { name: "Use this folder", exact: true })).toHaveCount(0);
+        await expect(page.getByRole("button", { name: "Next", includeHidden: true })).toBeDisabled();
+        const backButtons = page.getByRole("button", { name: "Back", includeHidden: true });
+        await expect(backButtons).toHaveCount(1);
+        await expect(backButtons).toBeDisabled();
+      } finally {
+        releaseMoveRequest();
+      }
+      await expect.poll(async () => {
+        const response = await page.request.get("/api/storage/recording-directory");
+        const state = await response.json() as { state: string; directory: string };
+        return state.state === "complete" && state.directory === realpathSync(destination);
+      }, { timeout: 60_000 }).toBe(true);
+      await page.getByRole("button", { name: "Next" }).click();
+
+      // Step 8: Community — final. Button reads "Next" when not receiving telemetry; clicking it finishes.
+      await expect(page.getByRole("heading", { name: "You're all set!" })).toBeVisible();
+      const saveSettings = page.waitForResponse((response) => {
+        if (response.request().method() !== "PUT" || !response.url().endsWith("/api/settings")) return false;
+        const body = response.request().postDataJSON() as { onboardingComplete?: boolean } | null;
+        return body?.onboardingComplete === true;
+      }, { timeout: 60_000 });
+      await page.getByRole("button", { name: /^(Next|Finish)$/ }).click();
+      expect((await saveSettings).ok(), "onboarding settings save").toBe(true);
+
+      // Onboarding modal closes after settings mutation invalidates cached settings.
+      await expect(page.getByRole("heading", { name: "You're all set!" })).toBeHidden({ timeout: 15_000 });
+      await expect(page.getByRole("link", { name: "Home" })).toBeVisible();
+
+      // Server persisted driver name + onboardingComplete to settings.json
+      await page.reload({ waitUntil: "domcontentloaded" });
+      const persistedResponse = await request.get(`http://127.0.0.1:${runtime.freshInstall.port}/api/settings`);
+      expect(persistedResponse.ok()).toBe(true);
+      expect(await persistedResponse.json()).toMatchObject({
+        recordingDirectory: realpathSync(destination),
+        resolvedRecordingDirectory: realpathSync(destination),
+        driverName: "TestDriver",
+        onboardingComplete: true,
+      });
+
+      await assertImagesLoaded(page);
+      rmSync(destination, { recursive: true, force: true });
+      expect(errors, `unexpected browser errors:\n${errors.join("\n")}`).toEqual([]);
+    });
+
+    test("replaying the wizard keeps the default recording folder", async ({ page }) => {
+      await resetFreshInstallState();
+      await page.goto("/", { waitUntil: "domcontentloaded" });
+      await page.getByRole("button", { name: "Get Started" }).click();
+      await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Continue without a password" }).click();
+      await expect(page.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
+      await page.getByRole("button", { name: "Next", exact: true }).click();
+      for (const heading of ["What's your name?", "Choose the steering wheel displayed during live telemetry.", "Units", "Sound", "Launch on Login"]) {
+        await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+        await page.getByRole("button", { name: "Next" }).click();
+      }
+      await expect(page.getByRole("heading", { name: "Storage" })).toBeVisible();
+      const storageResponse = await page.request.get("/api/storage/recording-directory");
+      const storage = await storageResponse.json() as { directory: string };
+      expect(storage.directory.replaceAll("\\", "/")).toMatch(/\/sessions$/);
+      await page.getByRole("button", { name: "Next" }).click();
+      await expect(page.getByRole("heading", { name: "You're all set!" })).toBeVisible();
+      const saveSettings = page.waitForResponse((response) =>
+        response.request().method() === "PUT" && response.url().endsWith("/api/settings")
+        && (response.request().postDataJSON() as { onboardingComplete?: boolean } | null)?.onboardingComplete === true);
+      await page.getByRole("button", { name: "Next" }).click();
+      expect((await saveSettings).ok()).toBe(true);
+      const settings = JSON.parse(readFileSync(SETTINGS_PATH, "utf8"));
+      expect(settings.recordingDirectory ?? null).toBeNull();
+    });
 
   for (const prefix of GAME_ROUTE_PREFIXES) {
     test(`${prefix} tracks page lists tracks`, async ({ page }) => {
@@ -127,7 +212,7 @@ test.describe.serial("fresh install", () => {
     const navigation = page.getByRole("navigation", { name: "Navigation" });
     await expect(navigation).toBeVisible();
     await expect(page.getByRole("combobox", { name: "Games" })).toHaveText("Forza Motorsport 2023");
-    for (const name of ["Live", "Sessions", "Compare", "Driver", "Chats", "Tracks", "Cars", "Setups", "Raw"]) {
+    for (const name of ["Dashboard", "Sessions", "Compare", "Driver", "Chats", "Tracks", "Cars", "Setups", "Raw"]) {
       await expect(navigation.getByRole("link", { name })).toBeVisible();
     }
     await expect(navigation.getByRole("link", { name: "Experiments" })).toHaveCount(0);
@@ -195,7 +280,7 @@ test.describe.serial("fresh install", () => {
       await page.getByRole("button", { name: "Access & security", exact: true }).click();
     }
     await openAccess();
-    await expect(page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Enable password protection", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Enable password protection", exact: true }).click();
     const passwordForm = page.locator("form").filter({ has: page.getByLabel("Password", { exact: true }) });
     const formBounds = await passwordForm.boundingBox();
     const dialogBounds = await page.locator('[class~="@container/settings"]').boundingBox();
@@ -379,4 +464,79 @@ test.describe.serial("fresh install", () => {
     await expect(page.getByRole("img", { name: /QR code for/ })).toHaveCount(2);
     await expect(page.getByText("Connect to the same network, then scan the QR code or open the link and sign in with your dashboard password.", { exact: true })).toBeVisible();
   });
+});
+
+test("setup wizard applies native recording-folder choices immediately and safely", async ({ page, request }) => {
+  test.setTimeout(120_000);
+  await resetFreshInstallState();
+  const access = await request.get("/api/auth/status");
+  expect(access.ok()).toBe(true);
+  if ((await access.json() as { pending: boolean }).pending) {
+    const setup = await request.post("/api/auth/setup", { data: { password: null, exposureConfirmed: true } });
+    expect(setup.ok()).toBe(true);
+  }
+  await page.goto("/onboarding?welcome=true", { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "Get Started", exact: true }).click();
+  for (let step = 0; step < 6; step++) await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Storage", exact: true })).toBeVisible();
+  const initialStatus = await (await page.request.get("/api/storage/recording-directory")).json() as { directory: string };
+  const nestedDestination = resolve(initialStatus.directory, "raceiq");
+  let selectionCount = 0;
+  let releasePicker!: () => void;
+  let pickerGate = new Promise<void>((resolve) => { releasePicker = resolve; });
+  let releaseMove!: () => void;
+  let moveGate = new Promise<void>((resolve) => { releaseMove = resolve; });
+  let moveRequests = 0;
+  await page.route("**/api/storage/select-directory", async (route) => {
+    selectionCount++;
+    if (selectionCount === 1) {
+      await pickerGate;
+      await route.fulfill({ json: { directory: null } });
+    } else if (selectionCount === 2) {
+      await route.fulfill({ json: { directory: SETTINGS_PATH } });
+    } else {
+      await route.fulfill({ json: { directory: nestedDestination } });
+    }
+  });
+  await page.route("**/api/storage/recording-directory", async (route) => {
+    if (route.request().method() === "POST") {
+      moveRequests++;
+      if (moveRequests > 1) await moveGate;
+    }
+    await route.continue();
+  });
+  try {
+    const changeFolder = page.getByRole("button", { name: "Change folder", exact: true });
+    await changeFolder.click();
+    await expect(page.getByRole("button", { name: "Next", includeHidden: true })).toBeDisabled();
+    const backButton = page.getByRole("button", { name: "Back", exact: true });
+    await expect(backButton).toHaveCount(1);
+    await expect(backButton).toBeDisabled();
+    releasePicker();
+    await expect(page.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
+    expect(moveRequests).toBe(0);
+
+    await changeFolder.click();
+    await expect(page.getByRole("alert")).toHaveText("Choose a valid folder.");
+    expect(moveRequests).toBe(0);
+    await expect(page.getByRole("button", { name: "Apply", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Use this folder", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Move recordings?", exact: true })).toHaveCount(0);
+
+    await changeFolder.click();
+    await expect(page.getByRole("button", { name: "Next", includeHidden: true })).toBeDisabled();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect.poll(() => moveRequests).toBe(1);
+    releaseMove();
+    await expect.poll(async () => {
+      const status = await (await page.request.get("/api/storage/recording-directory")).json() as { state: string; directory: string };
+      return status.state === "complete" && status.directory === realpathSync(nestedDestination);
+    }, { timeout: 60_000 }).toBe(true);
+    expect(moveRequests).toBe(1);
+    await expect(page.getByTitle(realpathSync(nestedDestination))).toBeVisible();
+  } finally {
+    releasePicker();
+    releaseMove();
+    writeFileSync(SETTINGS_PATH, JSON.stringify({ udpPort: Number(runtime.freshInstall.udpPort) }));
+  }
 });

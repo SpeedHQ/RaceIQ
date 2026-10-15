@@ -3,7 +3,7 @@ import { createReadStream, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { encodeFrameLength, encodeMetaFrame, iterateSessionCaptureRecordsAsync } from "@raceiq/capture-formats/session/framing";
+import { encodeFrameLength, encodeMetaFrame, encodeSparseCaptureFormatFrame, iterateSessionCaptureRecordsAsync } from "@raceiq/capture-formats/session/framing";
 import type { SessionCaptureRecord } from "@raceiq/capture-formats/session/framing";
 import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { isLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
@@ -267,7 +267,7 @@ test("prepares parser checkpoints from continuous source state before each owned
     offset += record.length;
     return record;
   });
-  writeFileSync(sourcePath, Buffer.concat([encodeMetaFrame(frames.length), ...records]));
+  writeFileSync(sourcePath, Buffer.concat([encodeMetaFrame(frames.length), ...records, encodeSparseCaptureFormatFrame()]));
   const source = { rawFile: sourcePath, source: null, gameId: "f1-2025" as const, carId: "", trackId: "" };
   const isState = (value: unknown): value is { sum: number } =>
     typeof value === "object" && value !== null && "sum" in value && typeof value.sum === "number";
@@ -312,7 +312,7 @@ test("normalizes shared detector frames for stateless ACC windows", async () => 
     offset += record.length;
     return record;
   });
-  writeFileSync(sourcePath, Buffer.concat([encodeMetaFrame(frames.length), ...records]));
+  writeFileSync(sourcePath, Buffer.concat([encodeMetaFrame(frames.length), ...records, encodeSparseCaptureFormatFrame()]));
   const game = {
     id: "acc",
     appendsDelayedFinishFrame: true,
@@ -378,7 +378,7 @@ test("rejects detector overlap larger than one shared frame", async () => {
     offset += record.length;
     return record;
   });
-  writeFileSync(sourcePath, Buffer.concat([encodeMetaFrame(frames.length), ...records]));
+  writeFileSync(sourcePath, Buffer.concat([encodeMetaFrame(frames.length), ...records, encodeSparseCaptureFormatFrame()]));
   const game = {
     id: "acc",
     appendsDelayedFinishFrame: false,

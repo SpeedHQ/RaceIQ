@@ -1,4 +1,4 @@
-import { getCaptureMigrationCandidates, recoverSessionCaptureSplitJobs } from "@raceiq/backend-core/db/session-queries";
+import { recoverSessionCaptureSplitJobs } from "@raceiq/backend-core/db/session-queries";
 import { startCommunityTunesSync } from "@raceiq/backend-core/tunes/community-sync";
 import { countStaleSessions } from "@raceiq/backend-core/db/session-queries";
 import { countStaleRaceResults } from "@raceiq/backend-core/db/session-result-queries";
@@ -31,7 +31,6 @@ export interface StartupJobDependencies {
 }
 
 export function startSyncAndStaleSessionJobs(dependencies: StartupJobDependencies = {}): void {
-  wsManager.setCaptureMigrationCountProvider(getCaptureMigrationCandidates);
   (dependencies.startCommunityTunesSync ?? startCommunityTunesSync)();
   void (dependencies.recoverSessionCaptureSplitJobs ?? recoverSessionCaptureSplitJobs)().then(() => {
     (dependencies.startSessionCaptureSplitManager ?? startSessionCaptureSplitManager)();
@@ -53,14 +52,6 @@ export function startSyncAndStaleSessionJobs(dependencies: StartupJobDependencie
     }
   }).catch((err) => {
     console.error("[Server] Failed to check stale sessions:", err);
-  });
-  getCaptureMigrationCandidates().then(({ sessionCount, captureCount }) => {
-    if (captureCount > 0) {
-      console.log(`[Server] ${captureCount} historical capture(s) can be converted to sparse storage`);
-      wsManager.setCaptureMigrationNotification(sessionCount, captureCount);
-    }
-  }).catch((err) => {
-    console.error("[Server] Failed to check historical captures:", err);
   });
 
   (dependencies.countStaleRaceResults ?? countStaleRaceResults)(RACE_RESULT_PROCESSOR_ID).then((count) => {

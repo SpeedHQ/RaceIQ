@@ -1,7 +1,9 @@
+import { MOTEC_SESSION_SOURCE } from "@raceiq/shared/integrations/motec";
+import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
 import { createHash, randomUUID } from "node:crypto";
 import { rm, stat } from "node:fs/promises";
 import type { Stats } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { getRecordedElapsedSeconds } from "../session-capture/elapsed-duration";
 import { cacheDelete } from "./telemetry-replay-storage";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull, lt, asc } from "drizzle-orm";
@@ -13,8 +15,6 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
-import { relative, resolve, sep } from "node:path";
-import { resolveDataDir } from "../runtime/config/data-dir";
 import { getTrackLengthMetersById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
 import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
@@ -32,6 +32,7 @@ export interface SessionCaptureSplitWork {
   carId: string;
   trackId: string;
   windows: { lapId: string; lapNumber: number; startByteOffset: number; frameCount: number }[];
+  ownership: SessionOwnership;
 }
 
 async function notifySessionCaptureSplitStatus(sessionId: number): Promise<void> {
@@ -289,6 +290,7 @@ export async function getQueuedSessionCaptureSplitJobs(): Promise<SessionCapture
     sessionId: sessionCaptureSplitJobs.sessionId, jobId: sessionCaptureSplitJobs.jobId,
     attemptId: sessionCaptureSplitJobs.attemptId, sourceRevision: sessionCaptureSplitJobs.pendingSourceRevision,
     sourcePath: sessionCaptureSplitJobs.sourcePath, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId,
+    ownership: sessions.ownership,
   }).from(sessionCaptureSplitJobs).innerJoin(sessions, eq(sessions.id, sessionCaptureSplitJobs.sessionId))
     .where(eq(sessionCaptureSplitJobs.status, "queued")).orderBy(asc(sessionCaptureSplitJobs.sessionId)).all();
   const result: SessionCaptureSplitWork[] = [];
@@ -434,6 +436,7 @@ async function getAvailableStaleSessionRows(
       and(
         sql`${sessions.rawFile} IS NOT NULL`,
         inArray(sessions.gameId, reprocessableGameIds),
+        or(eq(sessions.captureFormatVersion, 1), eq(sessions.source, MOTEC_SESSION_SOURCE)),
         or(isNull(sessions.lapDetectorVersion), notInArray(sessions.lapDetectorVersion, ids))
       )
     )
@@ -484,72 +487,14 @@ export async function getUncompressedSessions(olderThanMs: number): Promise<{ id
     .all();
   return rows.filter((r): r is { id: number; rawFile: string } => r.rawFile !== null);
 }
-/**
- * Candidate captures are grouped by canonical path so shared recordings are
- * migrated once. Any legacy sibling makes the whole shared capture eligible.
- */
-export async function listCaptureMigrationCandidates(): Promise<{ rawFile: string; gameId: GameId; sessionIds: number[] }[]> {
-  const candidates = await db
-    .select({ rawFile: sessions.rawFile })
-    .from(sessions)
-    .where(and(isNull(sessions.captureFormatVersion), sql`${sessions.rawFile} IS NOT NULL`))
-    .orderBy(desc(sessions.createdAt), desc(sessions.id))
-    .all();
-  const supported = new Set<GameId>(["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu"]);
-  const paths = new Set<string>();
-  for (const candidate of candidates) {
-    if (!candidate.rawFile || !isOwnedSessionRawFile(candidate.rawFile)) continue;
-    if (!candidate.rawFile.endsWith(".bin") && !candidate.rawFile.endsWith(".bin.gz")) continue;
-    if (existsSync(candidate.rawFile)) paths.add(candidate.rawFile);
-  }
-  const result: { rawFile: string; gameId: GameId; sessionIds: number[] }[] = [];
-  // Published bundle sources are retained; migration never rewrites their provenance/fallback input.
-  for (const rawFile of paths) {
-    const shared = await db
-      .select({
-        id: sessions.id,
-        gameId: sessions.gameId,
-        ownership: sessions.ownership,
-        source: sessions.source,
-        captureLayoutVersion: sessions.captureLayoutVersion,
-        captureManifestFile: sessions.captureManifestFile,
-      })
-      .from(sessions)
-      .where(eq(sessions.rawFile, rawFile))
-      .all();
-    const gameId = shared[0]?.gameId;
-    if (
-      !gameId ||
-      !supported.has(gameId as GameId) ||
-      shared.some((row) => row.ownership !== "mine" || row.source !== null || row.gameId !== gameId ||
-        row.captureLayoutVersion !== null || row.captureManifestFile !== null)
-    ) continue;
-    result.push({ rawFile, gameId: gameId as GameId, sessionIds: shared.map((row) => row.id) });
-  }
-  return result;
-}
-
-export interface CaptureMigrationCandidates {
-  sessionCount: number;
-  captureCount: number;
-}
-
-export async function getCaptureMigrationCandidates(): Promise<CaptureMigrationCandidates> {
-  const captures = await listCaptureMigrationCandidates();
-  return {
-    sessionCount: captures.reduce((count, capture) => count + capture.sessionIds.length, 0),
-    captureCount: captures.length,
-  };
-}
-
 /** Mark only freshly-created sparse recordings current. */
 export async function markSessionCaptureFormatCurrent(sessionId: number): Promise<void> {
   await db.update(sessions).set({ captureFormatVersion: 1 }).where(eq(sessions.id, sessionId)).run();
 }
 export function isOwnedSessionRawFile(rawFile: string): boolean {
-  const sessionsDir = resolve(resolveDataDir(), "sessions");
+  const sessionsDir = resolveRecordingDirectory();
   const relativePath = relative(sessionsDir, resolve(rawFile));
-  return relativePath.length > 0 && relativePath !== ".." && !relativePath.startsWith(`..${sep}`);
+  return relativePath.length > 0 && !isAbsolute(relativePath) && relativePath !== ".." && !relativePath.startsWith(`..${sep}`);
 }
 
 export class SessionCaptureActiveError extends Error {
@@ -644,6 +589,7 @@ export async function deleteSession(sessionId: number): Promise<number> {
 /** Get all lap metadata needed to preserve rows during reprocessing. */
 
 export async function deleteEmptySessions(activeSessionId?: number): Promise<number> {
+  return withSessionCaptureMaintenanceLock(async () => {
   const empties = await db
     .select({ id: sessions.id })
     .from(sessions)
@@ -672,6 +618,7 @@ export async function deleteEmptySessions(activeSessionId?: number): Promise<num
     }
   }
   return deleted;
+  });
 }
 
 /**

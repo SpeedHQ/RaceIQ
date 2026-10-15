@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { mkdtemp, rm, writeFile, readFile, stat } from "node:fs/promises";
 import { eq } from "drizzle-orm";
-import { encodeFrameLength, encodeMetaFrame, iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
+import { encodeFrameLength, encodeMetaFrame, encodeSparseCaptureFormatFrame, iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
 import { db } from "@raceiq/backend-core/db/index";
 import { laps, sessions, sessionCaptureSplitJobs } from "@raceiq/backend-core/db/schema";
 import {
@@ -15,9 +15,10 @@ import {
 } from "@raceiq/backend-core/db/session-queries";
 import { replaceLapsForSession } from "@raceiq/backend-core/db/lap-reprocessing-queries";
 import { runSessionCaptureSplitQueueOnce } from "../../src/session-capture/split-manager";
-import "../support/setup-app";
+import { resolveRecordingGameDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 
+const sourceFrameOffset = encodeMetaFrame(1).length + encodeSparseCaptureFormatFrame().length;
 const splitNotifications: Array<{ sessionId: number; jobId: string; attemptId: number; sequence: number; phase: string }> = [];
 const broadcastSplitProgress = wsManager.broadcastSessionCaptureSplitProgress.bind(wsManager);
 wsManager.broadcastSessionCaptureSplitProgress = (status) => {
@@ -46,7 +47,7 @@ async function makeSession(rawFile: string): Promise<{ id: number; lapId: number
   }).returning({ id: sessions.id }).get();
   sessionIds.push(session.id);
   const lap = await db.insert(laps).values({
-    sessionId: session.id, lapNumber: 1, lapTime: 60, rawByteOffset: encodeMetaFrame(1).length, rawFrameCount: 1,
+    sessionId: session.id, lapNumber: 1, lapTime: 60, rawByteOffset: sourceFrameOffset, rawFrameCount: 1,
   }).returning({ id: laps.id }).get();
   return { id: session.id, lapId: lap.id };
 }
@@ -60,7 +61,7 @@ afterAll(async () => {
 
 test("split lifecycle recovers attempts, rejects stale revisions, uses one worker, and publishes verified bundles", async () => {
   const sourcePath = join(root, "shared.bin");
-  const sourceBytes = Buffer.concat([encodeMetaFrame(1), encodeFrameLength(4), Buffer.from([1, 2, 3, 4])]);
+  const sourceBytes = Buffer.concat([encodeMetaFrame(1), encodeSparseCaptureFormatFrame(), encodeFrameLength(4), Buffer.from([1, 2, 3, 4])]);
   await writeFile(sourcePath, sourceBytes);
   const first = await makeSession(sourcePath);
 
@@ -98,8 +99,8 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   let secondJob = await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, second.id)).get();
   const secondWork = {
     sessionId: second.id, jobId: secondJob!.jobId, attemptId: 1, sourceRevision: secondJob!.pendingSourceRevision,
-    sourcePath: secondSourcePath, gameId: "fm-2023" as const, carId: "test-car", trackId: "test-track",
-    windows: [{ lapId: String(second.lapId), lapNumber: 1, startByteOffset: encodeMetaFrame(1).length, frameCount: 1 }],
+    sourcePath: secondSourcePath, gameId: "fm-2023" as const, ownership: "others" as const, carId: "test-car", trackId: "test-track",
+    windows: [{ lapId: String(second.lapId), lapNumber: 1, startByteOffset: sourceFrameOffset, frameCount: 1 }],
   };
   await db.update(sessions).set({ gameId: "acc" }).where(eq(sessions.id, second.id)).run();
   expect(await validateSessionCaptureSplitRevision(secondWork)).toBe(false);
@@ -121,8 +122,8 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   await db.update(sessionCaptureSplitJobs).set({ status: "splitting" }).where(eq(sessionCaptureSplitJobs.sessionId, third.id)).run();
   const thirdWork = {
     sessionId: third.id, jobId: failed!.jobId, attemptId: 1, sourceRevision: failed!.pendingSourceRevision,
-    sourcePath: retryPath, gameId: "fm-2023" as const, carId: "test-car", trackId: "test-track",
-    windows: [{ lapId: String(third.lapId), lapNumber: 1, startByteOffset: encodeMetaFrame(1).length, frameCount: 1 }],
+    sourcePath: retryPath, gameId: "fm-2023" as const, ownership: "mine" as const, carId: "test-car", trackId: "test-track",
+    windows: [{ lapId: String(third.lapId), lapNumber: 1, startByteOffset: sourceFrameOffset, frameCount: 1 }],
   };
   const sequenceBeforeFailure = failed!.sequence;
   await failSessionCaptureSplitJob(thirdWork, "worker-failed", "deterministic failure");
@@ -167,7 +168,7 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   expect(firstLap?.captureChunkId).toBeTruthy();
   expect(secondLap?.captureChunkId).toBeTruthy();
   expect(firstLap?.sourceFrameStart).toBeNull();
-  expect(firstLap?.rawByteOffset).toBe(encodeMetaFrame(1).length);
+  expect(firstLap?.rawByteOffset).toBe(sourceFrameOffset);
   expect(firstLap?.rawFrameCount).toBe(1);
   const firstSession = await db.select().from(sessions).where(eq(sessions.id, first.id)).get();
   const secondSession = await db.select().from(sessions).where(eq(sessions.id, second.id)).get();
@@ -181,13 +182,15 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as { version: number; chunks: { path: string }[] };
   expect(manifest.version).toBe(3);
   expect(manifest.chunks.length).toBeGreaterThan(0);
+  expect(dirname(dirname(dirname(manifestPath)))).toBe(resolveRecordingGameDirectory("fm-2023", "mine"));
+  expect(dirname(dirname(dirname(secondSession!.captureManifestFile!)))).toBe(resolveRecordingGameDirectory("fm-2023", "others"));
   for (const chunk of manifest.chunks) expect((await stat(join(dirname(manifestPath), chunk.path))).isFile()).toBe(true);
   expect((await stat(manifestPath)).isFile()).toBe(true);
   expect(await readFile(sourcePath)).toEqual(sourceBytes);
   await db.update(laps).set({ isFavorite: true, notes: "preserve" }).where(eq(laps.id, first.lapId)).run();
   await replaceLapsForSession(first.id, [{
     lapId: first.lapId, lapNumber: 1, lapTime: 61, isValid: true, isFavorite: true,
-    rawByteOffset: encodeMetaFrame(1).length, rawFrameCount: 1,
+    rawByteOffset: sourceFrameOffset, rawFrameCount: 1,
     tuneId: null, notes: "preserve", invalidReason: null, sectors: null,
   }]);
   const unchangedLayout = await db.select().from(sessions).where(eq(sessions.id, first.id)).get();
@@ -195,7 +198,7 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   expect((await db.select().from(laps).where(eq(laps.id, first.lapId)).get())?.captureChunkId).toBeTruthy();
   await replaceLapsForSession(first.id, [{
     lapId: first.lapId, lapNumber: 1, lapTime: 61, isValid: true, isFavorite: true,
-    rawByteOffset: encodeMetaFrame(1).length, rawFrameCount: 1,
+    rawByteOffset: sourceFrameOffset, rawFrameCount: 1,
     tuneId: null, notes: "preserve", invalidReason: null, sectors: null,
   }], { carId: "identity-updated", trackId: "test-track" });
   const identityInvalidated = await db.select().from(sessions).where(eq(sessions.id, first.id)).get();
@@ -213,12 +216,12 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   await replaceLapsForSession(first.id, [
     {
       lapId: first.lapId, lapNumber: 1, lapTime: 61, isValid: true, isFavorite: true,
-      rawByteOffset: encodeMetaFrame(1).length, rawFrameCount: 2,
+      rawByteOffset: sourceFrameOffset, rawFrameCount: 2,
       tuneId: null, notes: "preserve", invalidReason: null, sectors: null,
     },
     {
       lapId: null, lapNumber: 2, lapTime: 62, isValid: true, isFavorite: false,
-      rawByteOffset: encodeMetaFrame(1).length + 5, rawFrameCount: 1,
+      rawByteOffset: sourceFrameOffset + 5, rawFrameCount: 1,
       tuneId: null, notes: null, invalidReason: null, sectors: null,
     },
   ]);
@@ -232,14 +235,14 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   expect(await enqueueSessionCaptureSplit(first.id)).toBe(true);
 
   const brokenPath = join(root, "broken.bin");
-  await writeFile(brokenPath, Buffer.concat([encodeMetaFrame(1), Buffer.from([0, 0])]));
+  await writeFile(brokenPath, Buffer.concat([encodeMetaFrame(1), encodeSparseCaptureFormatFrame(), Buffer.from([0, 0])]));
   const broken = await makeSession(brokenPath);
   expect(await enqueueSessionCaptureSplit(broken.id)).toBe(true);
   await drainQueueUntilTerminal(broken.id);
   const workerFailed = await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, broken.id)).get();
   expect(workerFailed?.status).toBe("failed");
   expect(workerFailed?.errorCode).toBe("malformed-capture");
-  expect(await readFile(brokenPath)).toEqual(Buffer.concat([encodeMetaFrame(1), Buffer.from([0, 0])]));
+  expect(await readFile(brokenPath)).toEqual(Buffer.concat([encodeMetaFrame(1), encodeSparseCaptureFormatFrame(), Buffer.from([0, 0])]));
   const brokenSession = await db.select().from(sessions).where(eq(sessions.id, broken.id)).get();
   expect(brokenSession?.captureLayoutVersion).toBeNull();
   expect(brokenSession?.captureManifestFile).toBeNull();
@@ -263,7 +266,7 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
 
 test("post-commit notification failure leaves published bundle readable", async () => {
   const sourcePath = join(root, "notification-failure.bin");
-  const sourceBytes = Buffer.concat([encodeMetaFrame(1), encodeFrameLength(4), Buffer.from([5, 6, 7, 8])]);
+  const sourceBytes = Buffer.concat([encodeMetaFrame(1), encodeSparseCaptureFormatFrame(), encodeFrameLength(4), Buffer.from([5, 6, 7, 8])]);
   await writeFile(sourcePath, sourceBytes);
   const session = await makeSession(sourcePath);
   const send = wsManager.broadcastSessionCaptureSplitProgress;

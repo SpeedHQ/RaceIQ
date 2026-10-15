@@ -4,7 +4,7 @@
   "type": "module",
   "exports": {},
   "scripts": {
-    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "typecheck": "bun check --project tsconfig.json",
     "lint": "bun run --cwd ../client lint:root",
     "test": "bun test/run-suite.ts all --package @raceiq/tooling",
     "test:tooling": "bun test/run-suite.ts tooling --package @raceiq/tooling"

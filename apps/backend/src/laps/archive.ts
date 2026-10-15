@@ -48,6 +48,7 @@ import {
   encodeFrameLength,
   encodeMetaFrame,
   encodeParserBootstrapFrame,
+  encodeSparseCaptureFormatFrame,
   encodeSegmentBoundaryFrame,
   encodeSegmentContextEndFrame,
   encodeSegmentContextFrame,
@@ -338,7 +339,13 @@ function buildParserContextRecords(buf: Buffer, beforeOffset: number): Buffer[] 
 
 
 /** Re-encode lap frames with segment-local checkpoints and source identities. */
-function sparseLapRecords(buf: Buffer, start: number, end: number, gameId: GameId): Buffer[] {
+function sparseLapRecords(
+  buf: Buffer,
+  start: number,
+  end: number,
+  gameId: GameId,
+  includeFormatMarker: boolean,
+): Buffer[] {
   const parts: Buffer[] = [];
   let previous: Buffer | null = null;
   let checkpoint = 0;
@@ -354,9 +361,10 @@ function sparseLapRecords(buf: Buffer, start: number, end: number, gameId: GameI
     const supportsGeneric = gameId === "fm-2023" || gameId === "f1-2025" || gameId === "iracing";
     const identity = supportsGeneric ? genericFrameIdentity(record.frame) : null;
     const canDelta = isLmuV2 || isKunos || identity !== null;
+    const previousLength = previous?.length;
     const sameIdentity = previous !== null && (
-      (isLmuV2 && previous.length === record.frame.length) ||
-      (isKunos && previous.length === record.frame.length) ||
+      (isLmuV2 && previousLength === record.frame.length) ||
+      (isKunos && previousLength === record.frame.length) ||
       (identity !== null && genericFrameIdentity(previous) === identity)
     );
     let frame = record.frame;
@@ -377,6 +385,11 @@ function sparseLapRecords(buf: Buffer, start: number, end: number, gameId: GameI
     const prefix = encodeFrameLength(frame.length, record.frameTimeMs);
     parts.push(prefix, frame);
     outputOffset += prefix.length + frame.length;
+    if (includeFormatMarker && emitted === 0) {
+      const marker = encodeSparseCaptureFormatFrame();
+      parts.push(marker);
+      outputOffset += marker.length;
+    }
     previous = canDelta ? record.frame : null;
     emitted++;
   }
@@ -447,6 +460,7 @@ export async function buildLapsZip(
     if (usable.length === 0) continue;
     const first = usable[0]!;
     const segments: Buffer[] = [];
+    let sparseFormatMarkerWritten = false;
     for (const row of usable) {
       let buf: Buffer | null;
       let start: number;
@@ -491,7 +505,12 @@ export async function buildLapsZip(
       const end = first.gameId === "iracing"
         ? iracingSegmentEnd(buf, start, frameCount, prefix, parserBootstrap)
         : advanceSessionFrames(buf, start, frameCount + trailingContextFrameCount);
-      const trailingContext = end > ownedEnd ? sparseLapRecords(buf, ownedEnd, end, first.gameId as GameId) : [];
+      const trailingContext = end > ownedEnd ? sparseLapRecords(buf, ownedEnd, end, first.gameId as GameId, false) : [];
+      const sparseRecords = first.gameId === "lmu" || first.gameId === "acc" || first.gameId === "ac-evo" ||
+        first.gameId === "fm-2023" || first.gameId === "f1-2025" || first.gameId === "iracing"
+        ? sparseLapRecords(buf, start, ownedEnd, first.gameId as GameId, !sparseFormatMarkerWritten)
+        : [buf.subarray(start, ownedEnd)];
+      if (sparseRecords.length > 0) sparseFormatMarkerWritten = true;
       segments.push(Buffer.concat([
         encodeSegmentBoundaryFrame(),
         ...(parserBootstrap ? [parserBootstrap] : []),
@@ -499,10 +518,7 @@ export async function buildLapsZip(
           ? [encodeSegmentContextFrame(), ...context, encodeSegmentContextEndFrame()]
           : []),
         ...(prefix ? [prefix] : []),
-        ...(first.gameId === "lmu" || first.gameId === "acc" || first.gameId === "ac-evo" ||
-          first.gameId === "fm-2023" || first.gameId === "f1-2025" || first.gameId === "iracing"
-          ? sparseLapRecords(buf, start, ownedEnd, first.gameId)
-          : [buf.subarray(start, ownedEnd)]),
+        ...sparseRecords,
         ...(trailingContext.length > 0
           ? [encodeSegmentContextFrame(), ...trailingContext, encodeSegmentContextEndFrame()]
           : []),

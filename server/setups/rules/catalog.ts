@@ -10,10 +10,10 @@ export interface FieldDef {
   step: Record<TuneMagnitude, number>;
   min: number;
   max: number;
-  /** Values are integer clicks by default. */
+  unit?: string;
+  rangeKey?: string;
   integer?: boolean;
 }
-
 function scaledSteps(step: number): Record<TuneMagnitude, number> {
   return { small: step, medium: step * 2, large: step * 4 };
 }
@@ -71,46 +71,57 @@ const RULES: Record<string, Record<string, FieldDef>> = {
     "Diff Preload": { paths: ["advancedSetup.drivetrain.preload"], step: CLICK_STEP, min: 0, max: 100 },
   },
   "ac-evo": {
-    "Front Anti-Roll Bar": { paths: ["frontARB"], step: CLICK_STEP, min: 0, max: 30 },
-    "Rear Anti-Roll Bar": { paths: ["rearARB"], step: CLICK_STEP, min: 0, max: 30 },
-    "Brake Bias": { paths: ["brakeBias"], step: { small: 0.5, medium: 1, large: 2 }, min: 40, max: 70, integer: false },
-    "Front Wing": { paths: ["frontWing"], step: CLICK_STEP, min: 0, max: 20 },
-    "Rear Wing": { paths: ["rearWing"], step: CLICK_STEP, min: 0, max: 20 },
+    "Front Anti-Roll Bar": { paths: ["frontARB"], step: CLICK_STEP, min: 0, max: 30, unit: "clicks" },
+    "Rear Anti-Roll Bar": { paths: ["rearARB"], step: CLICK_STEP, min: 0, max: 30, unit: "clicks" },
+    "Brake Bias": { paths: ["brakeBias"], step: { small: 0.5, medium: 1, large: 2 }, min: 40, max: 70, integer: false, unit: "%" },
+    "Front Wing": { paths: ["frontWing"], step: CLICK_STEP, min: 0, max: 20, unit: "clicks" },
+    "Front Ride Height": { paths: ["frontRideHeight"], step: CLICK_STEP, min: 50, max: 200, unit: "mm" },
+    "Rear Ride Height": { paths: ["rearRideHeight"], step: CLICK_STEP, min: 50, max: 200, unit: "mm" },
+    "Rear Wing": { paths: ["rearWing"], step: CLICK_STEP, min: 0, max: 20, unit: "clicks" },
+    "Diff Preload": { paths: ["diffPreload"], step: CLICK_STEP, min: 0, max: 300, unit: "Nm" },
+    "Front Left Slow Bump": { paths: ["frontLeftBump"], rangeKey: "frontBump", step: CLICK_STEP, min: 1, max: 20, unit: "clicks" },
+    "Front Right Slow Bump": { paths: ["frontRightBump"], rangeKey: "frontBump", step: CLICK_STEP, min: 1, max: 20, unit: "clicks" },
+    "Rear Left Slow Bump": { paths: ["rearLeftBump"], rangeKey: "rearBump", step: CLICK_STEP, min: 1, max: 20, unit: "clicks" },
+    "Rear Right Slow Bump": { paths: ["rearRightBump"], rangeKey: "rearBump", step: CLICK_STEP, min: 1, max: 20, unit: "clicks" },
   },
   "f1-2025": {
-    "Front Wing": { paths: ["frontWing"], step: CLICK_STEP, min: 0, max: 50 },
-    "Rear Wing": { paths: ["rearWing"], step: CLICK_STEP, min: 0, max: 50 },
-    "On-Throttle Diff": { paths: ["onThrottle"], step: CLICK_STEP, min: 10, max: 100 },
-    "Off-Throttle Diff": { paths: ["offThrottle"], step: CLICK_STEP, min: 10, max: 100 },
-    "Front Camber": { paths: ["frontCamber"], step: { small: 0.1, medium: 0.2, large: 0.4 }, min: -3.5, max: -2.5, integer: false },
-    "Rear Camber": { paths: ["rearCamber"], step: { small: 0.1, medium: 0.2, large: 0.4 }, min: -2, max: -1, integer: false },
-    "Front Toe": { paths: ["frontToe"], step: { small: 0.02, medium: 0.05, large: 0.1 }, min: 0, max: 0.2, integer: false },
-    "Rear Toe": { paths: ["rearToe"], step: { small: 0.02, medium: 0.05, large: 0.1 }, min: 0.1, max: 0.25, integer: false },
-    "Front Suspension": { paths: ["frontSuspension"], step: CLICK_STEP, min: 1, max: 41 },
-    "Rear Suspension": { paths: ["rearSuspension"], step: CLICK_STEP, min: 1, max: 41 },
-    "Front Anti-Roll Bar": { paths: ["frontAntiRollBar"], step: CLICK_STEP, min: 1, max: 21 },
-    "Rear Anti-Roll Bar": { paths: ["rearAntiRollBar"], step: CLICK_STEP, min: 1, max: 21 },
-    "Front Ride Height": { paths: ["frontRideHeight"], step: CLICK_STEP, min: 15, max: 34 },
-    "Rear Ride Height": { paths: ["rearRideHeight"], step: CLICK_STEP, min: 40, max: 60 },
-    "Brake Pressure": { paths: ["brakePressure"], step: CLICK_STEP, min: 90, max: 100 },
-    "Brake Bias": { paths: ["brakeBias"], step: CLICK_STEP, min: 50, max: 60 },
-    "Front Left Tyre Pressure": { paths: ["frontLeftTyrePressure"], step: { small: 0.1, medium: 0.3, large: 0.5 }, min: 22.5, max: 29.5, integer: false },
-    "Front Right Tyre Pressure": { paths: ["frontRightTyrePressure"], step: { small: 0.1, medium: 0.3, large: 0.5 }, min: 22.5, max: 29.5, integer: false },
-    "Rear Left Tyre Pressure": { paths: ["rearLeftTyrePressure"], step: { small: 0.1, medium: 0.3, large: 0.5 }, min: 20.5, max: 26.5, integer: false },
-    "Rear Right Tyre Pressure": { paths: ["rearRightTyrePressure"], step: { small: 0.1, medium: 0.3, large: 0.5 }, min: 20.5, max: 26.5, integer: false },
+    "Front Wing": { paths: ["frontWing"], step: CLICK_STEP, min: 0, max: 50, unit: "clicks" },
+    "Rear Wing": { paths: ["rearWing"], step: CLICK_STEP, min: 0, max: 50, unit: "clicks" },
+    "On-Throttle Diff": { paths: ["onThrottle"], step: CLICK_STEP, min: 10, max: 100, unit: "%" },
+    "Off-Throttle Diff": { paths: ["offThrottle"], step: CLICK_STEP, min: 10, max: 100, unit: "%" },
+    "Front Camber": { paths: ["frontCamber"], step: { small: 0.1, medium: 0.2, large: 0.4 }, min: -3.5, max: -2.5, integer: false, unit: "°" },
+    "Rear Camber": { paths: ["rearCamber"], step: { small: 0.1, medium: 0.2, large: 0.4 }, min: -2, max: -1, integer: false, unit: "°" },
+    "Front Toe": { paths: ["frontToe"], step: { small: 0.02, medium: 0.05, large: 0.1 }, min: 0, max: 0.2, integer: false, unit: "°" },
+    "Rear Toe": { paths: ["rearToe"], step: { small: 0.02, medium: 0.05, large: 0.1 }, min: 0.1, max: 0.25, integer: false, unit: "°" },
+    "Front Suspension": { paths: ["frontSuspension"], step: CLICK_STEP, min: 1, max: 41, unit: "clicks" },
+    "Rear Suspension": { paths: ["rearSuspension"], step: CLICK_STEP, min: 1, max: 41, unit: "clicks" },
+    "Front Anti-Roll Bar": { paths: ["frontAntiRollBar"], step: CLICK_STEP, min: 1, max: 21, unit: "clicks" },
+    "Rear Anti-Roll Bar": { paths: ["rearAntiRollBar"], step: CLICK_STEP, min: 1, max: 21, unit: "clicks" },
+    "Front Ride Height": { paths: ["frontRideHeight"], step: CLICK_STEP, min: 15, max: 34, unit: "clicks" },
+    "Rear Ride Height": { paths: ["rearRideHeight"], step: CLICK_STEP, min: 40, max: 60, unit: "clicks" },
+    "Brake Pressure": { paths: ["brakePressure"], step: CLICK_STEP, min: 90, max: 100, unit: "%" },
+    "Brake Bias": { paths: ["brakeBias"], step: CLICK_STEP, min: 50, max: 60, unit: "%" },
+    "Front Left Tyre Pressure": { paths: ["frontLeftTyrePressure"], step: { small: 0.1, medium: 0.3, large: 0.5 }, min: 22.5, max: 29.5, integer: false, unit: "psi" },
+    "Front Right Tyre Pressure": { paths: ["frontRightTyrePressure"], step: { small: 0.1, medium: 0.3, large: 0.5 }, min: 22.5, max: 29.5, integer: false, unit: "psi" },
+    "Rear Left Tyre Pressure": { paths: ["rearLeftTyrePressure"], step: { small: 0.1, medium: 0.3, large: 0.5 }, min: 20.5, max: 26.5, integer: false, unit: "psi" },
+    "Rear Right Tyre Pressure": { paths: ["rearRightTyrePressure"], step: { small: 0.1, medium: 0.3, large: 0.5 }, min: 20.5, max: 26.5, integer: false, unit: "psi" },
   },
 };
 
-interface CarRange {
+export interface CarRange {
   min: number;
   max: number;
   step: number;
 }
+export interface FixedCarRange {
+  status: "fixed";
+}
+export type AcEvoRange = CarRange | FixedCarRange | null;
 
-const AC_EVO_CAR_RANGES = acEvoRangesJson as unknown as Record<string, Record<string, CarRange | null>>;
+const AC_EVO_CAR_RANGES = acEvoRangesJson as unknown as Record<string, Record<string, AcEvoRange>>;
 
 /** Extracted per-car AC Evo ranges, addressed by slug or display name. */
-export function getAcEvoCarRanges(carModel?: string): Record<string, CarRange | null> | null {
+export function getAcEvoCarRanges(carModel?: string): Record<string, AcEvoRange> | null {
   if (!carModel) return null;
   const direct = AC_EVO_CAR_RANGES[carModel];
   if (direct) return direct;
@@ -118,22 +129,102 @@ export function getAcEvoCarRanges(carModel?: string): Record<string, CarRange | 
   return (car && AC_EVO_CAR_RANGES[car.model]) ?? null;
 }
 
+export type SetupCapabilityStatus = "adjustable" | "fixed" | "unavailable";
+export interface SetupCapability {
+  control: string;
+  status: SetupCapabilityStatus;
+  unit: string | null;
+  min: number | null;
+  max: number | null;
+  step: number | null;
+  gameVersion: string | null;
+  carVersion: string | null;
+  trackConstraints: readonly string[];
+}
+
+/** One authoritative per-game/car capability view; null versions mean unknown. */
+export function getSetupCapabilities(gameId: GameId, carModel?: string): SetupCapability[] {
+  const table = RULES[gameId] ?? {};
+  if (gameId !== "ac-evo") {
+    return Object.entries(table).map(([, def]) => ({
+      control: def.rangeKey ?? def.paths[0]!,
+      status: "adjustable",
+      unit: def.unit ?? null,
+      min: def.min,
+      max: def.max,
+      step: def.step.small,
+      gameVersion: null,
+      carVersion: null,
+      trackConstraints: [],
+    }));
+  }
+  const ranges = getAcEvoCarRanges(carModel);
+  const capabilityFor = (control: string, range: AcEvoRange): SetupCapability => {
+    const def = Object.values(table).find((candidate) =>
+      (candidate.rangeKey ?? candidate.paths[0]) === control,
+    );
+    if (range == null) return {
+      control, status: "unavailable", unit: def?.unit ?? null,
+      min: null, max: null, step: null, gameVersion: null, carVersion: null, trackConstraints: [],
+    };
+    if ("status" in range) return {
+      control, status: "fixed", unit: null,
+      min: null, max: null, step: null, gameVersion: null, carVersion: null, trackConstraints: [],
+    };
+    return {
+      control, status: "adjustable", unit: def?.unit ?? null,
+      min: range.min, max: range.max, step: range.step,
+      gameVersion: null, carVersion: null, trackConstraints: [],
+    };
+  };
+  if (!ranges) {
+    return Object.entries(table).map(([, def]) => ({
+      control: def.rangeKey ?? def.paths[0]!,
+      status: "unavailable",
+      unit: def.unit ?? null,
+      min: null, max: null, step: null, gameVersion: null, carVersion: null, trackConstraints: [],
+    }));
+  }
+  return Object.entries(ranges).map(([control, range]) => capabilityFor(control, range));
+}
+
+/** Prompt-ready capability contract from the same rule/range catalog. */
+export function renderSetupCapabilityBlock(gameId: GameId, carModel?: string): string {
+  const capabilities = getSetupCapabilities(gameId, carModel);
+  const lines = capabilities.map((capability) => {
+    const labels = Object.entries(RULES[gameId] ?? {})
+      .filter(([, def]) => (def.rangeKey ?? def.paths[0]) === capability.control)
+      .map(([label]) => label);
+    const label = labels.length ? labels.join(" / ") : capability.control;
+    const values = capability.status === "adjustable"
+      ? `; ${capability.min}–${capability.max}; step ${capability.step}; unit ${capability.unit ?? "unknown"}`
+      : "";
+    return `  - ${label}: ${capability.status}${values}`;
+  });
+  return [
+    "=== SETUP CAPABILITIES (authoritative; omit fixed/unavailable controls and numeric targets without known units) ===",
+    "Game version: unknown; car version: unknown; track constraints: none established.",
+    ...lines,
+  ].join("\n");
+}
+
 /** Per-game rule table narrowed by extracted AC Evo per-car capabilities. */
 export function getRuleTable(gameId: GameId, carModel?: string): Record<string, FieldDef> | null {
   const base = RULES[gameId] ?? null;
-  if (!base || gameId !== "ac-evo" || !carModel) return base;
-  const car = AC_EVO_CAR_RANGES[carModel];
+  if (!base) return null;
+  if (gameId !== "ac-evo" || !carModel) return base;
+  const car = AC_EVO_CAR_RANGES[carModel] ?? (() => {
+    const car = getAcEvoCarByDisplayName(carModel);
+    return car ? AC_EVO_CAR_RANGES[car.model] : undefined;
+  })();
   if (!car) return base;
 
   const narrowed: Record<string, FieldDef> = {};
   for (const [component, def] of Object.entries(base)) {
-    const key = def.paths[0];
-    if (!(key in car)) {
-      narrowed[component] = def;
-      continue;
-    }
+    const key = def.rangeKey ?? def.paths[0]!;
     const range = car[key];
-    if (range === null) continue;
+    // A matched car's catalog is authoritative: absent/null means unavailable.
+    if (!range || "status" in range) continue;
     narrowed[component] = {
       ...def,
       min: range.min,
@@ -154,7 +245,7 @@ export function knownComponents(gameId: GameId, carModel?: string): string[] {
 /** Prompt block listing hard clamp ranges for a matched AC Evo car. */
 export function renderKnobLimitsBlock(gameId: GameId, carModel?: string): string {
   const header = "=== KNOB LIMITS (hard clamps — intents past these are wasted) ===";
-  const matched = gameId === "ac-evo" && !!carModel && !!AC_EVO_CAR_RANGES[carModel];
+  const matched = gameId === "ac-evo" && !!getAcEvoCarRanges(carModel);
   if (!matched) {
     return `${header}\nTuning ranges unknown for this car — prefer small/medium magnitudes; the engine clamps to real limits.`;
   }
