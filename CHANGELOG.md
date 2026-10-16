@@ -3,8 +3,10 @@
 ### Features
 
 ### Fixes
+- Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.
 
 ### Internal
+- Update live iRacing browser checks to expect the Tires section to be absent in Driver and Pit Crew views.
 
 ## v0.20.0 - 2026-10-15
 
@@ -57,12 +59,10 @@
 - Reconcile older recordings with updated car, track, and lap detection, preserving matched lap annotations and reporting captures that cannot be repaired.
 - Recheck all historical AC Evo recordings for Tourist layout identity and rebuild their laps after recording-folder organization completes; keep dependent startup work blocked when an earlier repair is incomplete.
 - Use suitable local network addresses for remote HUD links and let users choose an address when multiple adapters are available.
-- Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.
 - Preserve recording imports and session deletion while dashboard summaries refresh in the background.
 - Keep racing, throttle, and braking lines sharp when zooming into the replay map.
 
 ### Internal
-- Update live iRacing browser checks to expect the Tires section to be absent in Driver and Pit Crew views.
 - Seed selectable ACC and AC Evo setup files consistently in development and compiled E2E servers.
 - Add a release-only Ubuntu Docker smoke test that seeds the latest published release, completes migration dialogs, upgrades to freshly fetched main, and streams checkout, seed, server, and phase progress to OrbStack container logs.
 - Add `test:upgrade --replay` to retain successful upgrade recordings and open the local Playwright Trace Viewer after Docker exits, including failed runs with available traces.
