@@ -26,6 +26,7 @@
     "./test-support/telemetry/resolver": "./test/support-resolver.ts"
   },
   "scripts": {
+    "lint": "../../client/node_modules/.bin/oxlint .",
     "typecheck": "bun check --project tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/telemetry-core",
     "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/telemetry-core",

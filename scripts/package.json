@@ -5,7 +5,7 @@
   "exports": {},
   "scripts": {
     "typecheck": "bun check --project tsconfig.json",
-    "lint": "bun run --cwd ../client lint:root",
+    "lint": "../client/node_modules/.bin/oxlint .",
     "test": "bun test/run-suite.ts all --package @raceiq/tooling",
     "test:tooling": "bun test/run-suite.ts tooling --package @raceiq/tooling"
   },
