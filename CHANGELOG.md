@@ -3,6 +3,7 @@
 ### Features
 
 ### Fixes
+- Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
 
 ### Internal
 
@@ -23,7 +24,6 @@
 - Choose a recording folder, relocate existing recordings, and organize them into per-game `own` and `others` folders.
 - Support AC Evo Tourist layout.
 - Add Hindi, Korean, European Portuguese, and Simplified Chinese interface translations.
-- Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
 - Retrieve automated lap insights on demand in Analyse chat before diagnosis and improvement advice, with visible tool activity and clear distinctions between missing data and no detected findings.
 - Export complete chat history as JSON for developer debugging, including retained chat generations, stored thinking, tool calls and results, and system prompts.
 - Disable dashboard password protection from the terminal with an explicit exposure confirmation, without changing network access or recordings.
