@@ -41,3 +41,33 @@ jobs:
     with:
       pr: ${{ inputs.pr }}
       paraglide-artifact: ${{ inputs.paraglide-artifact }}
+
+  combine-previews:
+    name: visual-regression/combine-previews
+    needs:
+      - responsive
+      - storybook
+    runs-on:
+      - mars-ubuntu-arm64-2vcpu-10g
+      - mars-retry-3
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4
+      - name: Download comparison previews
+        uses: actions/download-artifact@v7
+        with:
+          pattern: pr-visual-*-preview
+          path: ${{ runner.temp }}/pr-visual-previews
+          merge-multiple: false
+      - name: Combine comparison previews
+        env:
+          PREVIEW_ROOT: ${{ runner.temp }}/pr-visual-previews
+        run: bun scripts/ci/combine-pr-visual-previews.ts
+      - name: Upload combined comparison preview
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-screenshot-preview
+          path: pr-preview/
+          retention-days: 14

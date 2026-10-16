@@ -40,10 +40,9 @@ permissions:
 
 jobs:
   render:
+    name: visual-regression/storybook-snapshots
     timeout-minutes: 30
     runs-on:
-      - mars-any-4vcpu-15g
-      - mars-macos-arm64-2vcpu-10g
       - mars-ubuntu-arm64-2vcpu-10g
       - mars-retry-3
     env:
@@ -217,10 +216,10 @@ jobs:
           PR_SNAPSHOT_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
         run: bun packages/tooling-ui/src/ui/prepare-pr-snapshot-preview.ts
 
-      - name: Upload preview artifact
+      - name: Upload Storybook preview artifact
         uses: actions/upload-artifact@v7
         with:
-          name: pr-screenshot-preview
+          name: pr-visual-storybook-preview
           path: pr-preview/
           retention-days: 14
 

@@ -1,10 +1,9 @@
 name: Comment app screenshot diffs
 
-# Runs after the dashboard screenshot or snapshot workflow completes. Downloads
-# the rendered before/after/diff PNGs, hosts them on the throwaway
-# `pr-previews` branch, and posts (or updates) a sticky PR comment showing
-# every change from the pull request's base branch. Also labels the PR "ui change".
-
+# Runs after the combined visual comparison workflow completes. It downloads the
+# merged responsive and Storybook previews, hosts them on the throwaway
+# `pr-previews` branch, and posts one sticky PR comment. It also labels the PR
+# "ui change".
 #
 # Security: this triggers on workflow_run, so it runs in the BASE repo context
 # with a write token but does NOT check out or execute the PR's code. The PR's
@@ -12,7 +11,7 @@ name: Comment app screenshot diffs
 
 on:
   workflow_run:
-    workflows: ["Build & Test", "Render dashboard screenshots", "Render dashboard snapshots"]
+    workflows: ["Build & Test", "Compare PR visuals", "Render dashboard screenshots", "Render dashboard snapshots"]
     types: [completed]
 
 permissions:
