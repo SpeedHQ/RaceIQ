@@ -8,8 +8,9 @@ import { eq, inArray } from "drizzle-orm";
 import { db, client } from "@raceiq/backend-core/db/index";
 import { sessions, laps } from "@raceiq/backend-core/db/schema";
 import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
-import { buildSessionDownsamplePlan, cleanupInterruptedSessionDownsampleFiles, executeSessionDownsampleGroup } from "@raceiq/backend-core/session-capture/session-downsample";
+import { buildSessionDownsamplePlan, cleanupInterruptedSessionDownsampleFiles, executeSessionDownsampleGroup, runSessionDownsampleNow } from "@raceiq/backend-core/session-capture/session-downsample";
 import { reserveRecordingStorageOperation } from "@raceiq/backend-core/session-capture/storage-activity";
+import { disposeRecordingMaintenanceRuntime } from "@raceiq/backend-core/session-capture/maintenance-runtime";
 import { withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
 import { setSessionFavorite } from "@raceiq/backend-core/db/session-queries";
 import { parseRawLapFrames } from "@raceiq/backend-core/db/telemetry-replay-storage";
@@ -29,11 +30,11 @@ const directories: string[] = [];
 const fixture = readKunosFrames("test/artifacts/sessions/acc-2026-04-10T02-55-22-777Z.bin.gz")[100]!;
 const request = { mode: "all", targetHz: 50 } as const;
 
-async function recording(gzip = false) {
+async function recording(gzip = false, filename = "source.bin") {
   const dir = join(resolveRecordingDirectory(), "acc", "own", `rewrite-test-${crypto.randomUUID()}`);
   mkdirSync(dir, { recursive: true });
   directories.push(dir);
-  const plain = join(dir, "source.bin");
+  const plain = join(dir, filename);
   const recorder = new SparseSessionRecorder("acc");
   recorder.start(plain);
   recorder.writeMetaFrame();
@@ -65,6 +66,7 @@ async function recording(gzip = false) {
 }
 
 afterEach(async () => {
+  await disposeRecordingMaintenanceRuntime();
   await client.execute("DROP TRIGGER IF EXISTS downsample_rewrite_failure");
   if (createdIds.length) {
     await db.delete(laps).where(inArray(laps.sessionId, createdIds));
@@ -99,6 +101,29 @@ describe("session downsample real rewrite", () => {
         expect((await buildSessionDownsamplePlan(request, { onlyPath: source.rawFile })).preview.skipped).toContainEqual({ sessionIds: [original.sessionId], reason: "already-at-or-below-target" });
       } finally {
         release();
+      }
+    });
+
+  for (const gzip of [false, true])
+    test(`successive reductions preserve replayable ${gzip ? "gzip" : "plain"} capture`, async () => {
+      const original = await recording(gzip, "acc-recording-with-a-long-original-filename-2026-10-16T12-00-00-000Z.bin");
+      let previousPath = original.path;
+      let previousFrameCount = 1000;
+      for (const targetHz of [90, 80, 70, 60] as const) {
+        const status = await runSessionDownsampleNow({ mode: "all", targetHz });
+        expect(status).toMatchObject({ status: "success", convertedFiles: 1, failed: [] });
+        const session = await db.select().from(sessions).where(eq(sessions.id, original.sessionId)).get();
+        const lap = await db.select().from(laps).where(eq(laps.id, original.lapId)).get();
+        expect(session!.downsampledFrequencyHz).toBe(targetHz);
+        expect(existsSync(previousPath)).toBe(false);
+        expect(lap!.rawFrameCount!).toBeLessThan(previousFrameCount);
+        const source = { rawFile: session!.rawFile!, source: null, gameId: "acc" as const, carId: "1", trackId: "1" };
+        const telemetry = await parseRawLapFrames(source, lap!.rawByteOffset!, lap!.rawFrameCount!);
+        expect(telemetry[0]!.Speed).toBeCloseTo(100 / 3.6, 3);
+        expect(telemetry.at(-1)!.Speed).toBeCloseTo(109.99 / 3.6, 3);
+        expect(session!.rawFile!.endsWith(gzip ? ".bin.gz" : ".bin")).toBe(true);
+        previousPath = session!.rawFile!;
+        previousFrameCount = lap!.rawFrameCount!;
       }
     });
 

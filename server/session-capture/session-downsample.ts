@@ -477,8 +477,7 @@ export async function executeSessionDownsampleGroup(request: SessionDownsampleRe
       rawFrameCount: lap.expectedRawFrameCount,
     }));
     const gzip = await isGzipCapture(group.path);
-    const stem = group.path.replace(/\.bin(?:\.gz)?$/, "");
-    const newPath = `${stem}.downsample-${randomUUID()}.bin${gzip ? ".gz" : ""}`;
+    const newPath = join(dirname(group.path), `${group.source.gameId}.downsample-${randomUUID()}.bin${gzip ? ".gz" : ""}`);
     let outputCreated = false;
     let committed = false;
     try {

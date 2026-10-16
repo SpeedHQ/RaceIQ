@@ -24,6 +24,7 @@
 - Downsample saved recordings manually or with an opt-in age policy in Storage settings; measure the first 1,000 frame timestamps per stream and skip recordings already at or below the target. Track progress and retry failed files. Favorites and MoTeC imports stay unchanged.
 
 ### Fixes
+- Allow repeated recording downsampling without exceeding filesystem filename limits.
 - Keep the selected iRacing capture rate stable despite telemetry arrival jitter without recording duplicate frames.
 - Preserve position, speed, and other lap-start and lap-end telemetry when downsampling F1 recordings.
 - Show busy-storage conflicts when selecting Compress instead of failing silently.
