@@ -54,7 +54,7 @@ jobs:
           retention-days: 1
         continue-on-error: true
 
-      - name: Upload Windows E2E dist artifact
+      - name: Upload Linux E2E dist artifact
         uses: actions/upload-artifact@v7
         with:
           name: raceiq-dist
@@ -173,6 +173,7 @@ jobs:
     uses: ./.github/workflows/playwright-e2e.yml
     with:
       target-ref: ${{ inputs.target_ref || github.ref }}
+      dist-artifact: raceiq-dist
       paraglide-artifact: raceiq-paraglide
 
   visual-regression:

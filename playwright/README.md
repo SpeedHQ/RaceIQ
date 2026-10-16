@@ -78,6 +78,8 @@ Launchers create configured E2E data directories and delete only their SQLite da
 
 Compiled E2E CI prepares seeded data once in a prerequisite job. Before upload, it checks SQLite integrity and foreign keys, replayable lap coverage for all five seeded games, capture availability, and telemetry readability, then checkpoints the WAL. The artifact contains `app.db` and generated `sessions/` captures; database capture references are portable paths rather than producer-specific absolute paths.
 
+Linux compiled E2E jobs reuse the upstream Linux `raceiq-dist` artifact instead of rebuilding the client and server in every shard. Other platforms build their own binary; callers without an artifact still build locally. CI runs Bun with `BUN_OPTIONS=--smol` so replay allocations are collected sooner within the runner's memory budget.
+
 Seeded shards download that artifact and set `PW_SEEDED_DATABASE` to its database path, resolved relative to the repository root. Both launchers reset their private database, copy the artifact's database and referenced captures into the shard data directory, rebase capture paths, and skip fixture imports. `bun run test` prepares one local snapshot and reuses it for both seeded server sets; standalone local Playwright runs without this override still seed normally. Import and conversion tests continue exercising real imports. Generated `playwright/test-data-*` directories are ignored by Git.
 
 Playwright output goes to `playwright/test-results/`. Responsive captures go to `playwright/screenshots/` (mobile captures under `screenshots/mobile/`). Both are generated artifacts and must not be committed. Seeded data under `test-results/` is disposable.

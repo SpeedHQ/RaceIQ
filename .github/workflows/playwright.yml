@@ -29,7 +29,7 @@ on:
         type: string
         default: all
       dist-artifact:
-        description: "Optional prebuilt dist artifact for compiled-server gate"
+        description: "Optional prebuilt dist artifact for Linux compiled-server gate"
         required: false
         type: string
         default: ""
@@ -81,28 +81,28 @@ jobs:
           name: ${{ inputs.seed-database-artifact }}
           path: playwright/test-data-seed-artifact
 
-      - name: Download dist artifact
-        if: inputs.dist-artifact != ''
+      - name: Download Linux dist artifact
+        if: inputs.server-mode == 'compiled' && inputs.dist-artifact != '' && runner.os == 'Linux'
         uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.dist-artifact }}
           path: dist
       - name: Restore compiled server permissions
-        if: inputs.dist-artifact != '' && runner.os != 'Windows'
+        if: inputs.server-mode == 'compiled' && inputs.dist-artifact != '' && runner.os == 'Linux'
         run: chmod +x dist/raceiq
 
 
       - name: Install workspace dependencies
         run: bun scripts/ci/workflow-ops.ts install-retry
       - name: Download upstream Paraglide
-        if: inputs.server-mode == 'compiled' && inputs.dist-artifact == '' && inputs.paraglide-artifact != ''
+        if: inputs.server-mode == 'compiled' && (inputs.dist-artifact == '' || runner.os != 'Linux') && inputs.paraglide-artifact != ''
         uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.paraglide-artifact }}
           path: client
         continue-on-error: true
       - name: Build local compiled server
-        if: inputs.server-mode == 'compiled' && inputs.dist-artifact == ''
+        if: inputs.server-mode == 'compiled' && (inputs.dist-artifact == '' || runner.os != 'Linux')
         run: bunx turbo run build
 
       - name: Install Chromium
@@ -121,6 +121,8 @@ jobs:
       - name: Run Playwright gate
         working-directory: playwright
         env:
+          # Collect replay allocations sooner inside memory-limited CI runners.
+          BUN_OPTIONS: "--smol"
           E2E_SERVER_MODE: ${{ inputs.server-mode }}
           PW_SERVER_SET: ${{ inputs.server-set }}
           PW_WORKERS: "1"
