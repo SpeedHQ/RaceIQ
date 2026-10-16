@@ -24,7 +24,7 @@ export const ChunkSchema = Schema.Struct({
   id: Schema.String,
   kind: Schema.Literals(["lap", "auxiliary"]),
   lapId: Schema.optional(Schema.String),
-  lapNumber: Schema.optional(PositiveInt),
+  lapNumber: Schema.optional(NonNegativeInt),
   path: Schema.String,
   byteLength: NonNegativeInt,
   firstOrdinal: NonNegativeInt,

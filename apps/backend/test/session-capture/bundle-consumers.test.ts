@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { afterAll, expect, test } from "bun:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { eq } from "drizzle-orm";
 import { gunzipSync } from "node:zlib";
@@ -225,8 +225,16 @@ test("bundle-backed archive export imports with real F1 parser bootstrap intact"
   const publishedLap = await db.select().from(laps).where(eq(laps.id, firstLap.id)).get();
   if (!publishedLap?.captureChunkId) throw new Error("F1 lap bundle was not published");
   const publishedSession = await db.select().from(sessions).where(eq(sessions.id, session.id)).get();
-  expect(publishedSession?.captureLayoutVersion).toBe(2);
-  expect(publishedSession?.captureArchiveFile).toBeTruthy();
+  expect(publishedSession?.captureLayoutVersion).toBe(1);
+  expect(publishedSession?.captureArchiveFile).toBeNull();
+  const publishedManifest = JSON.parse(await readFile(publishedSession!.captureManifestFile!, "utf8"));
+  expect(publishedManifest.version).toBe(3);
+  const physicalLapFiles = publishedManifest.chunks
+    .filter((chunk: { kind: string }) => chunk.kind === "lap")
+    .map((chunk: { path: string }) => join(dirname(publishedSession!.captureManifestFile!), chunk.path));
+  expect(new Set(physicalLapFiles).size).toBe(physicalLapFiles.length);
+  expect(physicalLapFiles.length).toBe(detectedLaps.length);
+  for (const path of physicalLapFiles) expect((await Bun.file(path).stat()).isFile()).toBe(true);
   await rm(sparseFixture);
   cacheDelete(publishedLap.id);
   clearSessionCaptureCache();
@@ -239,7 +247,7 @@ test("bundle-backed archive export imports with real F1 parser bootstrap intact"
   const game = getServerGame("f1-2025");
   if (!game.restoreParserCheckpoint) throw new Error("F1 parser checkpoint restore is unavailable");
   const semanticReplay = await queryLapTelemetryBySemanticId(publishedLap.id, ["motion.speed"]);
-  expect(semanticReplay?.envelopes[0]?.rawReference?.storageEncoding).toBe("gzip");
+  expect(semanticReplay?.envelopes[0]?.rawReference?.storageEncoding).toBe("identity");
   const archive = await buildLapsZip([publishedLap.id]);
   expect(archive.manifest.entries[0]?.laps.map(({ lapNumber }) => lapNumber)).toEqual([publishedLap.lapNumber]);
   const entryName = archive.manifest.entries[0]!.file;

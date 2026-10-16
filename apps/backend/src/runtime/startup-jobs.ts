@@ -11,6 +11,7 @@ import { getAllServerGames } from "@raceiq/backend-core/games/registry";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import { startSessionCompressor } from "@raceiq/backend-core/session-capture/compressor";
 import { startUpdateCheckSchedule } from "@raceiq/backend-core/runtime/update/check";
+import { initializeStartupSplitMigration } from "../session-capture/split-migration";
 import { startSessionCaptureSplitManager } from "../session-capture/split-manager";
 
 export const ALL_DETECTOR_IDS = [
@@ -27,16 +28,19 @@ export interface StartupJobDependencies {
   countStaleSessions?: typeof countStaleSessions;
   countStaleRaceResults?: typeof countStaleRaceResults;
   recoverSessionCaptureSplitJobs?: typeof recoverSessionCaptureSplitJobs;
+  initializeStartupSplitMigration?: typeof initializeStartupSplitMigration;
   startSessionCaptureSplitManager?: () => void;
 }
 
-export function startSyncAndStaleSessionJobs(dependencies: StartupJobDependencies = {}): void {
+export async function startSyncAndStaleSessionJobs(dependencies: StartupJobDependencies = {}): Promise<void> {
   (dependencies.startCommunityTunesSync ?? startCommunityTunesSync)();
-  void (dependencies.recoverSessionCaptureSplitJobs ?? recoverSessionCaptureSplitJobs)().then(() => {
+  try {
+    await (dependencies.recoverSessionCaptureSplitJobs ?? recoverSessionCaptureSplitJobs)();
+    await (dependencies.initializeStartupSplitMigration ?? initializeStartupSplitMigration)();
     (dependencies.startSessionCaptureSplitManager ?? startSessionCaptureSplitManager)();
-  }).catch((error) => {
+  } catch (error) {
     console.error("[CaptureSplit] Startup recovery failed:", error);
-  });
+  }
 
   (dependencies.countStaleSessions ?? countStaleSessions)(
     ALL_DETECTOR_IDS,

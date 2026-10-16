@@ -19,6 +19,7 @@ const NOOP_STARTUP_JOBS = {
   startSessionCompressor: () => {},
   startUpdateCheckSchedule: () => {},
   recoverSessionCaptureSplitJobs: async () => {},
+  initializeStartupSplitMigration: async () => {},
   startSessionCaptureSplitManager: () => {},
 };
 const provenance: RaceResultProvenance = {

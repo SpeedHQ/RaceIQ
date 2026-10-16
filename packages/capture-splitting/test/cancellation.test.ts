@@ -1,13 +1,13 @@
 import { afterEach, expect, test } from "bun:test";
 import { Effect } from "effect";
-import { createWriteStream, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { createReadStream, createWriteStream, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createGzip } from "node:zlib";
 import { encodeFrameLength, encodeMetaFrame, iterateSessionCaptureRecords, iterateSessionCaptureRecordsAsync } from "@raceiq/capture-formats/session/framing";
-import { openCaptureArchive, splitCapture, splitCapturePromise } from "../src/index";
+import { splitCapture, splitCapturePromise } from "../src/index";
 
 const directories: string[] = [];
 afterEach(() => {
@@ -57,12 +57,12 @@ test("rotates large auxiliary ranges into independently decodable bounded member
   await pipeline(input, createGzip(), createWriteStream(sourcePath));
   const outputDirectory = join(root, "archive");
   const manifest = await splitCapturePromise({ sourcePath, outputDirectory, gameId: "fm-2023", sourceRevision: "aux", lapWindows: [] });
-  if (manifest.version !== 4) throw new Error("Expected indexed archive");
-  expect(manifest.chunks.every((chunk) => chunk.kind === "auxiliary" && chunk.byteLength <= 65 * 1024 * 1024)).toBe(true);
-  const archive = await openCaptureArchive(join(outputDirectory, manifest.archiveFile), manifest);
+  if (manifest.version !== 3) throw new Error("Expected directory manifest");
+  expect(manifest.chunks.every((chunk) => chunk.kind === "auxiliary" && chunk.byteLength <= 65 * 1024 * 1024 && existsSync(join(outputDirectory, chunk.path)))).toBe(true);
+  expect(readdirSync(outputDirectory)).not.toContain("capture.bin.gz");
   let ordinal = 0;
   for (const chunk of manifest.chunks) {
-    for await (const record of iterateSessionCaptureRecordsAsync(archive.readEntry(chunk.entryName), { strict: true })) {
+    for await (const record of iterateSessionCaptureRecordsAsync(createReadStream(join(outputDirectory, chunk.path)), { strict: true })) {
       if (record.kind !== "frame") throw new Error("Unexpected auxiliary record kind");
       expect(record.frame).toEqual(Buffer.alloc(frameBytes, ordinal++));
     }
@@ -70,22 +70,23 @@ test("rotates large auxiliary ranges into independently decodable bounded member
   expect(ordinal).toBe(frameCount);
 }, 60_000);
 
-test("a repeated output attempt cannot overwrite a referenced archive or its manifest", async () => {
+test("a repeated output attempt cannot overwrite referenced physical lap files or manifest", async () => {
   const root = directory();
   const sourcePath = join(root, "source.bin");
   const outputDirectory = join(root, "publication");
   writeFileSync(sourcePath, Buffer.concat([encodeMetaFrame(1), encodeRecord(Buffer.from([1]))]));
   const options = { sourcePath, outputDirectory, gameId: "fm-2023" as const, sourceRevision: "first",
-    lapWindows: [{lapId:"lap",lapNumber:1,startByteOffset:12,frameCount:1}] };
+    lapWindows: [{lapId:"lap",lapNumber:0,startByteOffset:12,frameCount:1}] };
   const manifest = await splitCapturePromise(options);
-  if (manifest.version !== 4) throw new Error("Expected indexed archive");
+  expect(manifest.chunks.find((chunk) => chunk.kind === "lap")?.lapNumber).toBe(0);
+  if (manifest.version !== 3) throw new Error("Expected directory manifest");
   const manifestBytes = readFileSync(join(outputDirectory, "manifest.json"));
   writeFileSync(sourcePath, Buffer.concat([encodeMetaFrame(1), encodeRecord(Buffer.from([2]))]));
-  expect(readdirSync(outputDirectory).sort()).toEqual(["capture.bin.gz", "manifest.json"]);
+  expect(readdirSync(outputDirectory).sort()).toEqual([...manifest.chunks.map((chunk) => chunk.path), "manifest.json"].sort());
+  expect(readdirSync(outputDirectory)).not.toContain("capture.bin.gz");
   await expect(splitCapturePromise({...options,sourceRevision:"second"})).rejects.toThrow();
   expect(readFileSync(join(outputDirectory, "manifest.json"))).toEqual(manifestBytes);
-  const archive = await openCaptureArchive(join(outputDirectory,manifest.archiveFile),manifest);
   const chunk = manifest.chunks.find((chunk) => chunk.kind === "lap")!;
-  const restored = [...iterateSessionCaptureRecords(await archive.readEntryBuffer(chunk.entryName,chunk.byteLength))];
+  const restored = [...iterateSessionCaptureRecords(readFileSync(join(outputDirectory, chunk.path)))];
   expect(restored.filter((record) => record.kind === "frame").map((record) => record.frame)).toEqual([Buffer.from([1])]);
 });

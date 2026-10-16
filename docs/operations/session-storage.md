@@ -3,7 +3,7 @@
 RaceIQ keeps retained raw session recordings under the configured recording
 directory, defaulting to `<DATA_DIR>/sessions/<gameId>/`, with `own` and `others`
 ownership folders. `sessions.rawFile` continues to identify the retained source.
-Published lap archives have separate manifest and data references.
+Published per-lap files have a separate manifest reference; historical session bundles also have an archive reference until migrated.
 
 Maintenance has three responsibilities:
 
@@ -33,25 +33,29 @@ startSessionCompressor()
 | Orphan cleanup | Startup and every 5 minutes | `server/session-capture/cleanup.ts` |
 | User compression | Settings **Compress now** | `POST /api/storage/compress` |
 
-## Published lap bundles
+## Published per-lap files
 
-New splits publish an immutable session attempt directory containing a manifest v4
-`manifest.json` and one `capture.bin.gz` file. Independent gzip members permit
-direct selected-lap reads; the JSON index records each member's offset and size.
-Do not gunzip or recompress this file as though it were the retained monolith.
+New splits publish an immutable session attempt directory containing manifest v3
+`manifest.json` and one physical sparse `.bin` file per persisted lap. Auxiliary
+`.bin` files preserve source data outside lap ownership windows. Detector lap
+numbers, including zero, are preserved.
 
-DB layout version 2 stores `captureManifestFile` as the JSON path and
-`captureArchiveFile` as the data-file path. Layout version 1 retains existing v3
-directory bundle reads; null-layout sessions retain historical source reads.
-Publication verifies the closed archive, renames the complete attempt, then
-commits fenced session/lap references. Startup fences interrupted attempts and
-removes unpublished output only when no published reference owns it.
+DB layout version 1 stores `captureManifestFile` as the JSON path and leaves
+`captureArchiveFile` null. Replay/export read the selected physical file, not a
+virtual member of a session archive. Publication syncs and verifies all files,
+renames the complete attempt, then commits fenced session/lap references.
+Startup fences interrupted attempts and removes unpublished output only when
+no published reference owns it.
 
-Deleting one lap does not delete a shared archive. Session cleanup removes files
-only after their final references are cleared, including when a monolith is
-missing or null. Cleanup previews count the shared archive and manifest once.
-Relocation moves both files and updates both DB paths without rewriting member
-offsets or mutating the manifest.
+Historical layout-2 / manifest-v4 bundles remain readable until startup consent
+migrates them from their retained canonical source. The atomic switch preserves
+old references on failure. Missing retained sources prevent rebuilding; server
+diagnostics report the prerequisite and existing bundles remain intact.
+
+Cleanup enumerates physical paths from the manifest and preserves referenced
+files. Relocation moves the complete attempt directory and updates the manifest
+DB path; relative lap paths do not need rewriting. Old archive readers and
+reference-aware cleanup remain available during migration.
 
 
 ## Compression
@@ -77,8 +81,8 @@ database.
 Readers detect `.gz` and decompress the original recorder byte stream before
 parsing. Compression does not change frame layout.
 
-Published bundles and their retained sources, plus queued/active split work, are
-excluded from recompression. Archive publication does not retire or reclaim
+Published lap files and their retained sources, plus queued/active split work, are
+excluded from recompression. Split publication does not retire or reclaim
 the monolithic recording.
 
 

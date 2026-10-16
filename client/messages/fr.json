@@ -2618,7 +2618,6 @@
   "access_origins_safety": "Les modifications réseau nécessitent un redémarrage de RaceIQ. La désactivation ne supprime pas les origines enregistrées. Les protections de même origine restent actives.",
   "dash_hostname_origin_settings": "Ajoutez cette origine exacte dans Paramètres → Accès et sécurité → domaines du navigateur : {origin}. Enregistrer ce nom d’hôte n’autorise pas l’accès.",
   "dash_hostname_origin_managed": "Ajoutez cette origine exacte à SERVER_ALLOWED_ORIGINS : {origin}. Enregistrer ce nom d’hôte n’autorise pas l’accès.",
-  "dash_hostname_invalid": "Saisissez uniquement un nom d’hôte, sans http://, port ni chemin.",
   "sessions_capture_split_queued": "En attente d’export des tours sans perte",
   "sessions_capture_split_splitting": "Découpage de l’enregistrement en tours",
   "sessions_capture_split_verifying": "Vérification des enregistrements de tours",
@@ -2634,5 +2633,18 @@
   "sessions_capture_split_error_publication_failed": "Impossible de publier les enregistrements de tours.",
   "sessions_capture_split_progress": "Images source traitées",
   "sessions_capture_split_laps": "Enregistrements de tours",
-  "sessions_export_capture_not_ready": "L’export ZIP brut est indisponible tant que les enregistrements sans perte de tous les tours sélectionnés hors MoTeC ne sont pas prêts."
+  "sessions_export_capture_not_ready": "L’export ZIP brut est indisponible tant que les enregistrements sans perte de tous les tours sélectionnés hors MoTeC ne sont pas prêts.",
+  "sparse_split_migration_action": "Diviser les enregistrements",
+  "sparse_split_migration_progress": "{done} de {total} sessions traitées",
+  "sparse_split_migration_progress_label": "Progression de la division de l'enregistrement épars",
+  "sparse_split_migration_failure": "{failed} Les sessions n'ont pas pu être divisées. Réessayez pour continuer avec les sessions non terminées.",
+  "sparse_split_migration_retry_error": "Impossible de lancer la division. Réessayez pour continuer.",
+  "sparse_split_migration_description": "Nous devons diviser les enregistrements depuis {sessions} les sessions existantes en fichiers de tour individuels. Ainsi, le tour 60 se charge aussi vite que le tour 1, sans avoir à parcourir les 59 tours précédents. La répartition s'effectue en arrière-plan.",
+  "sparse_split_migration_success": "{migrated} séances fractionnées en enregistrements par tour.",
+  "sparse_split_migration_running": "Découpage des enregistrements éparses",
+  "sparse_split_migration_title": "Diviser les enregistrements pour un chargement plus rapide des tours ?",
+  "sparse_split_migration_status_error": "Impossible de vérifier l'état de la migration scindée. Actualisez pour réessayer.",
+  "sparse_split_migration_refresh": "Rafraîchir le statut",
+  "sparse_split_migration_retry": "Réessayer les sessions non terminées",
+  "sparse_split_migration_success_title": "Enregistrements épars divisés"
 }

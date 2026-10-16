@@ -1,11 +1,13 @@
 ---
-status: proposed
+status: superseded
 ---
 # Indexed gzip storage for split session captures
 
 Plan: [Indexed session lap archive implementation](../plans/indexed-session-lap-archive.md)
 
 Related decision: [Package-owned indexed capture splitting](0011-package-owned-indexed-capture-splitting.md).
+
+Superseded by the explicit physical-per-lap requirement in [ADR 0011](0011-package-owned-indexed-capture-splitting.md) and the [physical-file cutover plan](../plans/sparse-split-migration-backend-plan.md#physical-file-implementation-phase). The content below records the earlier proposal, not the current completed-session output format.
 
 ## Context
 
@@ -27,4 +29,4 @@ Indexed independent gzip members preserve the existing compression implementatio
 
 Independent compression may save less than solid compression. Container aggregation alone does not guarantee savings, especially against already-compressed files; matched measurements must establish actual results. Bounded streaming, checksum validation, safe index validation, legacy reads, publication recovery, and shared-reference cleanup remain release requirements.
 
-This decision remains proposed. Implementation and behavioral verification are complete, with measurement and headless-capture qualifications recorded in the linked plan and progress report. Implementation authorization does not accept this ADR formally or authorize source retirement.
+This proposal was not formally accepted and is now superseded for completed-session storage. Its historical implementation and measurements do not override the current physical-file requirement or authorize source retirement.

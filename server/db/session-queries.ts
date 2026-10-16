@@ -36,6 +36,12 @@ export interface SessionCaptureSplitWork {
   trackId: string;
   windows: { lapId: string; lapNumber: number; startByteOffset: number; frameCount: number }[];
   ownership: SessionOwnership;
+  captureManifestFile?: string | null;
+  captureLayoutVersion?: number | null;
+  captureArchiveFile?: string | null;
+  captureFormatVersion?: number | null;
+  currentRawFile?: string | null;
+
 }
 
 async function notifySessionCaptureSplitStatus(sessionId: number): Promise<void> {
@@ -73,13 +79,17 @@ export async function enqueueSessionCaptureSplit(sessionId: number): Promise<boo
   return withSessionCaptureMaintenanceLock(async () => {
     const row = await db.select({
       rawFile: sessions.rawFile, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId,
-      captureLayoutVersion: sessions.captureLayoutVersion,
+      captureLayoutVersion: sessions.captureLayoutVersion, captureManifestFile: sessions.captureManifestFile,
+      captureArchiveFile: sessions.captureArchiveFile,
     }).from(sessions).where(eq(sessions.id, sessionId)).get();
     const liveCapture = await db.select({ status: liveCaptures.status }).from(liveCaptures)
       .where(eq(liveCaptures.sessionId, sessionId)).get();
     if (liveCapture && ["recording", "finalizing", "recovering"].includes(liveCapture.status)) return false;
-    if (row?.captureLayoutVersion === 3) return false;
-    if (!row?.rawFile || row.captureLayoutVersion != null ||
+    if (row?.captureLayoutVersion === 1 || row?.captureLayoutVersion === 3) return false;
+    if (row?.captureLayoutVersion === 2 && !row.rawFile) {
+      console.warn(`[CaptureSplit] Session ${sessionId} cannot migrate to per-lap files: retained source recording is unavailable; existing bundle is preserved.`);
+    }
+    if (!row?.rawFile || (row.captureLayoutVersion !== null && row.captureLayoutVersion !== 2) ||
         !(row.rawFile.endsWith(".bin") || row.rawFile.endsWith(".bin.gz"))) return false;
     const lapRows = await db.select({
       id: laps.id, lapNumber: laps.lapNumber, rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount,
@@ -96,7 +106,14 @@ export async function enqueueSessionCaptureSplit(sessionId: number): Promise<boo
           (i > 0 && windows[i - 1]!.startByteOffset >= current.startByteOffset)) return false;
     }
     let info: Stats;
-    try { info = await stat(row.rawFile); } catch { return false; }
+    try {
+      info = await stat(row.rawFile);
+    } catch {
+      if (row.captureLayoutVersion === 2) {
+        console.warn(`[CaptureSplit] Session ${sessionId} cannot migrate to per-lap files: retained source recording is unavailable; existing bundle is preserved.`);
+      }
+      return false;
+    }
     if (!info.isFile() || info.size === 0) return false;
     const sourceRevision = revisionForWindows(info, windows, row.gameId);
     const result = await db.insert(sessionCaptureSplitJobs).values({
@@ -113,6 +130,10 @@ export async function enqueueSessionCaptureSplit(sessionId: number): Promise<boo
       },
       where: or(
         and(
+          inArray(sessionCaptureSplitJobs.status, ["failed", "ready", "queued"]),
+          sql`${sessionCaptureSplitJobs.sourcePath} <> ${row.rawFile}`,
+        ),
+        and(
           eq(sessionCaptureSplitJobs.status, "failed"),
           or(
             sql`${sessionCaptureSplitJobs.errorCode} <> 'worker-failed'`,
@@ -123,6 +144,7 @@ export async function enqueueSessionCaptureSplit(sessionId: number): Promise<boo
           or(eq(sessionCaptureSplitJobs.status, "ready"), eq(sessionCaptureSplitJobs.status, "queued")),
           sql`${sessionCaptureSplitJobs.pendingSourceRevision} <> ${sourceRevision}`,
         ),
+        row.captureLayoutVersion === 2 ? eq(sessionCaptureSplitJobs.status, "ready") : undefined,
       ),
     }).run();
     if (result.rowsAffected > 0) await notifySessionCaptureSplitStatus(sessionId);
@@ -168,9 +190,13 @@ export async function failSessionCaptureSplitJob(work: SessionCaptureSplitWork, 
 
 
 export async function validateSessionCaptureSplitRevision(work: SessionCaptureSplitWork): Promise<boolean> {
-  const session = await db.select({ rawFile: sessions.rawFile, gameId: sessions.gameId, captureLayoutVersion: sessions.captureLayoutVersion })
-    .from(sessions).where(eq(sessions.id, work.sessionId)).get();
-  if (session?.rawFile !== work.sourcePath || session.gameId !== work.gameId || session.captureLayoutVersion != null) return false;
+  const session = await db.select({
+    rawFile: sessions.rawFile, gameId: sessions.gameId, captureLayoutVersion: sessions.captureLayoutVersion,
+    captureManifestFile: sessions.captureManifestFile, captureArchiveFile: sessions.captureArchiveFile,
+  }).from(sessions).where(eq(sessions.id, work.sessionId)).get();
+  if (session?.rawFile !== work.sourcePath || session.gameId !== work.gameId ||
+      session.captureLayoutVersion !== work.captureLayoutVersion ||
+      session.captureManifestFile !== work.captureManifestFile || session.captureArchiveFile !== work.captureArchiveFile) return false;
   const rows = await db.select({
     id: laps.id, lapNumber: laps.lapNumber, rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount,
   }).from(laps).where(eq(laps.sessionId, work.sessionId)).all();
@@ -191,13 +217,12 @@ export async function publishSessionCaptureSplit(
   manifest: PublishedManifest,
   signal?: AbortSignal,
 ): Promise<boolean> {
-  if (manifest.version !== 4 || manifest.gameId !== work.gameId || manifest.sourceRevision !== work.sourceRevision) return false;
+  if (manifest.version !== 3 || manifest.gameId !== work.gameId || manifest.sourceRevision !== work.sourceRevision) return false;
   const persisted = await loadCaptureManifest(manifestPath);
   if (JSON.stringify(persisted) !== JSON.stringify(manifest)) return false;
-  const archivePath = join(dirname(manifestPath), manifest.archiveFile);
   const chunks = manifest.chunks;
   const publicationFiles = await Promise.all(
-    [manifestPath, archivePath].map(async (path) => {
+    [manifestPath, ...chunks.map((chunk) => join(dirname(manifestPath), chunk.path))].map(async (path) => {
       try { return (await stat(path)).isFile(); } catch { return false; }
     }),
   );
@@ -210,8 +235,10 @@ export async function publishSessionCaptureSplit(
       eq(sessionCaptureSplitJobs.pendingSourceRevision, work.sourceRevision),
       eq(sessionCaptureSplitJobs.status, "publishing"),
     )).get();
-    const session = await tx.select({ rawFile: sessions.rawFile, gameId: sessions.gameId, captureLayoutVersion: sessions.captureLayoutVersion })
-      .from(sessions).where(eq(sessions.id, work.sessionId)).get();
+    const session = await tx.select({
+      rawFile: sessions.rawFile, gameId: sessions.gameId, captureLayoutVersion: sessions.captureLayoutVersion,
+      captureManifestFile: sessions.captureManifestFile, captureArchiveFile: sessions.captureArchiveFile,
+    }).from(sessions).where(eq(sessions.id, work.sessionId)).get();
     const currentRows = await tx.select({
       id: laps.id, lapNumber: laps.lapNumber, rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount,
     }).from(laps).where(eq(laps.sessionId, work.sessionId)).all();
@@ -219,8 +246,9 @@ export async function publishSessionCaptureSplit(
       .map((lap) => ({ lapId: String(lap.id), lapNumber: lap.lapNumber, startByteOffset: lap.rawByteOffset!, frameCount: lap.rawFrameCount! }))
       .sort((a, b) => a.startByteOffset - b.startByteOffset);
     if (!job || session?.rawFile !== work.sourcePath || session.gameId !== work.gameId ||
-        session.captureLayoutVersion != null || currentWindows.length !== currentRows.length ||
-        JSON.stringify(currentWindows) !== JSON.stringify(work.windows)) return false;
+        session.captureLayoutVersion !== work.captureLayoutVersion ||
+        session.captureManifestFile !== work.captureManifestFile || session.captureArchiveFile !== work.captureArchiveFile ||
+        currentWindows.length !== currentRows.length || JSON.stringify(currentWindows) !== JSON.stringify(work.windows)) return false;
     let sourceInfo: Stats;
     try { sourceInfo = await stat(work.sourcePath); } catch { return false; }
     if (!sourceInfo.isFile() || revisionForWindows(sourceInfo, currentWindows, session.gameId) !== work.sourceRevision) return false;
@@ -233,14 +261,18 @@ export async function publishSessionCaptureSplit(
       const lapId = Number(chunk.lapId);
       if (!Number.isSafeInteger(lapId)) return false;
       const updated = await tx.update(laps).set({
-        captureChunkId: chunk.id, sourceFrameStart: null,
-        sourceFrameCount: chunk.ownedFrameCount,
+        captureChunkId: chunk.id, sourceFrameStart: null, sourceFrameCount: chunk.ownedFrameCount,
       }).where(and(eq(laps.id, lapId), eq(laps.sessionId, work.sessionId))).run();
       if (updated.rowsAffected !== 1) throw new Error(`Lap ${lapId} changed during split publication`);
     }
     const sessionUpdated = await tx.update(sessions).set({
-      captureLayoutVersion: 2, captureManifestFile: manifestPath, captureArchiveFile: archivePath,
-    }).where(and(eq(sessions.id, work.sessionId), eq(sessions.rawFile, work.sourcePath), eq(sessions.gameId, work.gameId))).run();
+      captureLayoutVersion: 1, captureManifestFile: manifestPath, captureArchiveFile: null,
+    }).where(and(eq(sessions.id, work.sessionId), eq(sessions.rawFile, work.sourcePath),
+      eq(sessions.gameId, work.gameId), work.captureLayoutVersion == null
+        ? isNull(sessions.captureLayoutVersion)
+        : eq(sessions.captureLayoutVersion, work.captureLayoutVersion),
+      work.captureManifestFile == null ? isNull(sessions.captureManifestFile) : eq(sessions.captureManifestFile, work.captureManifestFile),
+      work.captureArchiveFile == null ? isNull(sessions.captureArchiveFile) : eq(sessions.captureArchiveFile, work.captureArchiveFile))).run();
     if (sessionUpdated.rowsAffected !== 1) throw new Error("Session source changed during split publication");
     const jobUpdated = await tx.update(sessionCaptureSplitJobs).set({
       status: "ready", sequence: sql`${sessionCaptureSplitJobs.sequence} + 1`, stagingPath: null, completedLapArtifacts: lapChunks.length,
@@ -309,20 +341,26 @@ export async function recoverSessionCaptureSplitJobs(): Promise<void> {
     }
   }
   const candidates = await db.select({ id: sessions.id }).from(sessions)
-    .where(and(isNull(sessions.captureLayoutVersion), isNull(sessions.captureManifestFile)))
+    .where(or(isNull(sessions.captureLayoutVersion), eq(sessions.captureLayoutVersion, 2)))
     .all();
   for (const { id } of candidates) await enqueueSessionCaptureSplit(id);
 }
 
-export async function getQueuedSessionCaptureSplitJobs(): Promise<SessionCaptureSplitWork[]> {
+export async function getQueuedSessionCaptureSplitJobs(includeFailed = false): Promise<SessionCaptureSplitWork[]> {
   const jobs = await db.select({
     sessionId: sessionCaptureSplitJobs.sessionId, jobId: sessionCaptureSplitJobs.jobId,
     attemptId: sessionCaptureSplitJobs.attemptId, sourceRevision: sessionCaptureSplitJobs.pendingSourceRevision,
     sourcePath: sessionCaptureSplitJobs.sourcePath, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId,
-    ownership: sessions.ownership,
+    ownership: sessions.ownership, captureFormatVersion: sessions.captureFormatVersion,
+    captureLayoutVersion: sessions.captureLayoutVersion, captureArchiveFile: sessions.captureArchiveFile,
+    currentRawFile: sessions.rawFile, captureManifestFile: sessions.captureManifestFile,
   }).from(sessionCaptureSplitJobs).innerJoin(sessions, eq(sessions.id, sessionCaptureSplitJobs.sessionId))
-    .where(and(eq(sessionCaptureSplitJobs.status, "queued"), isNull(sessions.captureLayoutVersion)))
-    .orderBy(asc(sessionCaptureSplitJobs.sessionId)).all();
+    .where(and(
+      includeFailed
+        ? inArray(sessionCaptureSplitJobs.status, ["queued", "failed"])
+        : eq(sessionCaptureSplitJobs.status, "queued"),
+      or(isNull(sessions.captureLayoutVersion), eq(sessions.captureLayoutVersion, 2)),
+    )).orderBy(asc(sessionCaptureSplitJobs.sessionId)).all();
   const result: SessionCaptureSplitWork[] = [];
   for (const job of jobs) {
     const lapRows = await db.select({ id: laps.id, lapNumber: laps.lapNumber, rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount })
@@ -331,7 +369,8 @@ export async function getQueuedSessionCaptureSplitJobs(): Promise<SessionCapture
       .map((lap) => ({ lapId: String(lap.id), lapNumber: lap.lapNumber, startByteOffset: lap.rawByteOffset!, frameCount: lap.rawFrameCount! }))
       .sort((a, b) => a.startByteOffset - b.startByteOffset);
     if (windows.length !== lapRows.length || windows.length === 0) continue;
-    result.push({ ...job, gameId: job.gameId as GameId, windows });
+    result.push({ ...job, gameId: job.gameId as GameId, windows, captureLayoutVersion: job.captureLayoutVersion,
+      captureArchiveFile: job.captureArchiveFile });
   }
   return result;
 }

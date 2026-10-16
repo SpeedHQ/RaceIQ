@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
-import { createReadStream, createWriteStream } from "node:fs";
+import { createReadStream } from "node:fs";
 import { mkdir, open, stat } from "node:fs/promises";
-import { pipeline } from "node:stream/promises";
+import type { FileHandle } from "node:fs/promises";
 import { Readable } from "node:stream";
 import { basename, join } from "node:path";
-import { createGunzip, createGzip, type Gzip } from "node:zlib";
+import { createGunzip } from "node:zlib";
 import { Effect, Schema } from "effect";
 import {
   encodeMetaFrame, encodeParserBootstrapFrame, encodeSegmentBoundaryFrame, encodeSparseCaptureFormatFrame,
@@ -12,7 +12,7 @@ import {
   type SessionCaptureRecord,
 } from "@raceiq/capture-formats/session/framing";
 import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
-import { MAX_CAPTURE_MANIFEST_BYTES, ArchiveChunkSchema, ArchiveManifestSchema, PublishedManifestSchema, type ArchiveChunk, type PublishedManifest, type GameId, type LapWindow, type Progress } from "./contract";
+import { MAX_CAPTURE_MANIFEST_BYTES, ChunkSchema, ManifestSchema, PublishedManifestSchema, type Chunk, type PublishedManifest, type GameId, type LapWindow, type Progress } from "./contract";
 import { openCaptureArchive } from "./archive";
 import { encodeStreamingFrame, matchesNativeRecord } from "./streaming";
 const STATEFUL_GAME_IDS = new Set<GameId>(["ac-evo", "f1-2025", "iracing"]);
@@ -102,41 +102,59 @@ export const splitCapture = (options: SplitOptions): Effect.Effect<PublishedMani
       }
       lapIds.add(window.lapId); prior = window.startByteOffset;
     }
-    const chunks: ArchiveChunk[] = [];
-    const archivePath = join(options.outputDirectory, "capture.bin.gz");
-    const initialArchive = await open(archivePath, "wx");
-    await initialArchive.close();
-    let archiveOffset = 0;
+    const chunks: Chunk[] = [];
     const lapChunk = new Map<string, number>();
     let windowIndex = 0, remaining = 0, windowEnd = -1, ordinal = 0, frameCount = 0, outputBytes = 0, decompressedBytes = 0;
     let completedLapArtifacts = 0;
     let activeKey: string | null = null;
-    let activeGzip: Gzip | null = null;
-    let activeCompletion: Promise<void> | null = null;
-    let activeFailure: unknown;
+    let activeHandle: FileHandle | null = null;
     let activeChunkIndex = -1, activeCount = 0, activeLength = 0;
     let activeFirstTimestamp: number | undefined, activeLastTimestamp: number | undefined;
     let pendingTrailingLap: LapWindow | null = null;
     const encoder = new SparseCaptureEncoder(options.gameId);
+    const pendingWrites: Buffer[] = [];
+    let pendingWriteBytes = 0;
+    const flushWrites = async (): Promise<void> => {
+      if (!activeHandle) throw new SplitFailure("IO", "No active capture file");
+      while (pendingWrites.length > 0) {
+        signal.throwIfAborted();
+        const { bytesWritten } = await activeHandle.writev(pendingWrites);
+        if (bytesWritten === 0) throw new SplitFailure("IO", "Capture writer made no write progress");
+        let consumed = 0;
+        let remaining = bytesWritten;
+        while (consumed < pendingWrites.length && remaining >= pendingWrites[consumed]!.length) {
+          remaining -= pendingWrites[consumed]!.length;
+          consumed++;
+        }
+        if (consumed > 0) {
+          pendingWrites.copyWithin(0, consumed);
+          pendingWrites.length -= consumed;
+        }
+        if (remaining > 0) pendingWrites[0] = pendingWrites[0]!.subarray(remaining);
+      }
+      pendingWriteBytes = 0;
+    };
     const writeCaptureBytes = async (bytes: Buffer): Promise<void> => {
       signal.throwIfAborted();
-      if (activeFailure) throw activeFailure;
-      if (!activeGzip) throw new SplitFailure("IO", "No active gzip member");
-      await new Promise<void>((resolve, reject) => {
-        activeGzip!.write(bytes, (error) => error ? reject(error) : resolve());
-      });
+      if (!activeHandle) throw new SplitFailure("IO", "No active capture file");
+      if (bytes.length === 0) return;
+      pendingWrites.push(bytes);
+      pendingWriteBytes += bytes.length;
+      // Bound retained source buffers without copying payloads or issuing one write per prefix.
+      if (pendingWrites.length >= 128 || pendingWriteBytes >= 1024 * 1024) await flushWrites();
     };
     const closeGroup = async () => {
-      if (!activeGzip) return;
-      activeGzip.end();
-      await activeCompletion;
-      activeGzip = null;
-      activeCompletion = null;
-      if (activeFailure) throw activeFailure;
+      if (!activeHandle) return;
+      const handle = activeHandle;
+      try {
+        await flushWrites();
+        await handle.sync();
+      } finally {
+        activeHandle = null;
+        await handle.close();
+      }
       const chunk = chunks[activeChunkIndex]!;
-      const memberStart = archiveOffset;
-      archiveOffset = (await stat(archivePath)).size;
-      chunks[activeChunkIndex] = Schema.decodeSync(ArchiveChunkSchema)({
+      chunks[activeChunkIndex] = Schema.decodeSync(ChunkSchema)({
         ...chunk,
         byteLength: chunk.byteLength + activeLength,
         recordCount: chunk.recordCount + activeCount,
@@ -144,8 +162,6 @@ export const splitCapture = (options: SplitOptions): Effect.Effect<PublishedMani
         sourceByteEnd: decompressedBytes,
         ...(chunk.recordCount === 0 && activeFirstTimestamp !== undefined ? { firstTimestamp: activeFirstTimestamp } : {}),
         lastTimestamp: activeLastTimestamp,
-        memberOffset: memberStart,
-        compressedByteLength: archiveOffset - memberStart,
       });
       if (chunk.kind === "lap") completedLapArtifacts++;
       activeKey = null; activeCount = activeLength = 0;
@@ -166,36 +182,28 @@ export const splitCapture = (options: SplitOptions): Effect.Effect<PublishedMani
           id: name,
           kind: lap ? "lap" : "auxiliary",
           ...(lap ? {
-            lapId: lap.lapId,
-            lapNumber: lap.lapNumber,
-            ownedFrameCount: lap.frameCount,
-            trailingContextFrameCount: 0,
-            ...(parserBootstrapHash ? { parserBootstrapHash } : {}),
+            lapId: lap.lapId, lapNumber: lap.lapNumber, ownedFrameCount: lap.frameCount,
+            trailingContextFrameCount: 0, ...(parserBootstrapHash ? { parserBootstrapHash } : {}),
           } : {}),
-          entryName: name, memberOffset: archiveOffset, compressedByteLength: 0,
-          byteLength: 0, firstOrdinal: ordinal, recordCount: 0, sourceStart: ordinal, sourceEnd: ordinal,
-          sourceByteStart: offset, sourceByteEnd: offset, ...(timestamp === undefined ? {} : { firstTimestamp: timestamp }),
+          path: name, byteLength: 0, firstOrdinal: ordinal, recordCount: 0, sourceStart: ordinal,
+          sourceEnd: ordinal, sourceByteStart: offset, sourceByteEnd: offset,
+          ...(timestamp === undefined ? {} : { firstTimestamp: timestamp }),
         });
         if (lap) lapChunk.set(lap.lapId, index);
       }
       activeChunkIndex = index!; activeKey = key;
       activeFirstTimestamp = timestamp; activeLastTimestamp = timestamp;
-      if (!isNewChunk) throw new SplitFailure("FORMAT", "A completed lap member cannot be reopened");
-      activeFailure = undefined;
-      activeGzip = createGzip();
-      activeCompletion = pipeline(activeGzip, createWriteStream(archivePath, { flags: "a" }), { signal })
-        .catch((error) => { activeFailure = error; });
-      if (isNewChunk) {
-        const header = Buffer.concat([encodeMetaFrame(0), encodeSparseCaptureFormatFrame()]);
-        try { await writeCaptureBytes(header); }
+      if (!isNewChunk) throw new SplitFailure("FORMAT", "A completed lap file cannot be reopened");
+      activeHandle = await open(join(options.outputDirectory, chunks[index!]!.path), "wx");
+      const header = Buffer.concat([encodeMetaFrame(0), encodeSparseCaptureFormatFrame()]);
+      try { await writeCaptureBytes(header); }
+      catch (error) { throw new SplitFailure("IO", error instanceof Error ? error.message : String(error), { cause: error }); }
+      activeLength += header.length; outputBytes += header.length;
+      if (lap?.parserCheckpoint) {
+        const bootstrap = encodeParserBootstrapFrame(options.gameId, lap.parserCheckpoint);
+        try { await writeCaptureBytes(bootstrap); }
         catch (error) { throw new SplitFailure("IO", error instanceof Error ? error.message : String(error), { cause: error }); }
-        activeLength += header.length; outputBytes += header.length;
-        if (lap?.parserCheckpoint) {
-          const bootstrap = encodeParserBootstrapFrame(options.gameId, lap.parserCheckpoint);
-          try { await writeCaptureBytes(bootstrap); }
-          catch (error) { throw new SplitFailure("IO", error instanceof Error ? error.message : String(error), { cause: error }); }
-          activeLength += bootstrap.length; outputBytes += bootstrap.length;
-        }
+        activeLength += bootstrap.length; outputBytes += bootstrap.length;
       }
       if (lap) encoder.requestCheckpoint(); else encoder.reset();
     };
@@ -287,14 +295,12 @@ export const splitCapture = (options: SplitOptions): Effect.Effect<PublishedMani
       }
       await closeGroup();
       if (windowIndex !== windows.length || remaining) throw new SplitFailure("FORMAT", "lap window extends past source");
-      const manifest = Schema.decodeSync(ArchiveManifestSchema)({
-        version: 4, gameId: options.gameId, sourceRevision: options.sourceRevision,
-        sourceByteLength: fileInfo.size, sourceRecordCount: ordinal, archiveFile: "capture.bin.gz", chunks,
+      const manifest = Schema.decodeSync(ManifestSchema)({
+        version: 3, gameId: options.gameId, sourceRevision: options.sourceRevision,
+        sourceByteLength: fileInfo.size, sourceRecordCount: ordinal, chunks,
       });
       const manifestJSON = JSON.stringify(manifest);
       if (Buffer.byteLength(manifestJSON) > MAX_CAPTURE_MANIFEST_BYTES) throw new SplitFailure("VERIFY", "Capture manifest exceeds 16 MiB limit");
-      const archiveHandle = await open(archivePath, "r+");
-      try { await archiveHandle.sync(); } finally { await archiveHandle.close(); }
       await Effect.runPromise(verifyManifest(
         options.sourcePath, options.outputDirectory, manifest,
         { sourceRevision: options.sourceRevision, gameId: options.gameId },
@@ -310,8 +316,9 @@ export const splitCapture = (options: SplitOptions): Effect.Effect<PublishedMani
       } finally { await manifestHandle.close(); }
       return manifest;
     } catch (error) {
-      (activeGzip as Gzip | null)?.destroy();
-      await activeCompletion;
+      // beginGroup assigns the handle through a closure; control-flow narrowing misses that write.
+      const failedHandle = activeHandle as FileHandle | null;
+      await failedHandle?.close();
       throw error instanceof SplitFailure ? error : parseError(error);
     }
   },

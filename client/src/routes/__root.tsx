@@ -1,9 +1,10 @@
+import { SparseSplitMigration } from "../components/SparseSplitMigration";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { RecordingLayoutMigration } from "../components/RecordingLayoutMigration";
 import { getAllGames } from "@raceiq/shared/games/registry"
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createRootRoute, ErrorComponent, Link, Outlet, redirect, useLocation, useRouter } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
-import { useEffect, useLayoutEffect, useState } from "react";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { Settings } from "@/components/settings/Settings";
 import { DashboardAuthUnavailable, loadDashboardAuth } from "@/lib/dashboard-auth";
@@ -60,6 +61,7 @@ function useUpdateCheck() {
 }
 
 function AppShell() {
+  const [layoutMigrationPrecedence, setLayoutMigrationPrecedence] = useState(false);
   const { displaySettings, settingsLoaded } = useSettings();
 
   // Bootstrap the Paraglide UI locale from the server-persisted `language`
@@ -205,8 +207,9 @@ function AppShell() {
         {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? updateAvailable ?? "?"} currentVersion={updateState?.current ?? "?"} newReleases={updateState?.newReleases ?? []} fullReleaseNotes={updateState?.fullReleaseNotes ?? null} currentReleaseNotes={updateState?.currentReleaseNotes ?? null} currentReleaseDate={updateState?.currentReleaseDate ?? null} updatesDisabled={updateState?.updatesDisabled} onClose={() => setShowUpdateModal(false)} />}
         {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
       </div>
-      <RecordingLayoutMigration />
+      <RecordingLayoutMigration onPrecedenceChange={setLayoutMigrationPrecedence} />
       <StaleLapReprocessing />
+      <SparseSplitMigration layoutPrecedence={layoutMigrationPrecedence} />
       <RaceResultStatus compact />
       {liveCaptureError && <div role="alert" className="fixed bottom-4 left-1/2 z-40 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-start gap-3 border border-status-danger/40 bg-app-surface px-4 py-3 text-sm text-app-danger">
         <p className="min-w-0 whitespace-pre-wrap break-words">{liveCaptureError}</p>

@@ -2633,5 +2633,18 @@
   "sessions_capture_split_error_publication_failed": "Could not publish lap recordings.",
   "sessions_capture_split_progress": "Source frames processed",
   "sessions_capture_split_laps": "Lap recordings",
-  "sessions_export_capture_not_ready": "Raw ZIP export is unavailable until lossless recordings are ready for every selected non-MoTeC lap."
+  "sessions_export_capture_not_ready": "Raw ZIP export is unavailable until lossless recordings are ready for every selected non-MoTeC lap.",
+  "sparse_split_migration_action": "रिकॉर्डिंग विभाजित करें",
+  "sparse_split_migration_failure": "{failed} सत्रों को विभाजित नहीं किया जा सका। अधूरे सत्रों के साथ जारी रखने के लिए पुनः प्रयास करें।",
+  "sparse_split_migration_success": "{migrated} सत्रों को प्रत्येक लैप रिकॉर्डिंग में विभाजित किया गया है।",
+  "sparse_split_migration_progress_label": "विरल रिकॉर्डिंग विभाजन प्रगति",
+  "sparse_split_migration_status_error": "स्प्लिट माइग्रेशन स्थिति की जांच नहीं की जा सकी। पुनः प्रयास के लिए रीफ्रेश करें।",
+  "sparse_split_migration_title": "तेज़ लैप लोडिंग के लिए रिकॉर्डिंग विभाजित करें?",
+  "sparse_split_migration_running": "विरल रिकॉर्डिंग को विभाजित करना",
+  "sparse_split_migration_refresh": "स्थिति रीफ्रेश करें",
+  "sparse_split_migration_retry_error": "विभाजन शुरू नहीं किया जा सका। जारी रखने के लिए पुनः प्रयास करें।",
+  "sparse_split_migration_progress": "{done} का {total} सत्र संसाधित किए गए",
+  "sparse_split_migration_retry": "अधूरे सत्रों को दोबारा शुरू करें",
+  "sparse_split_migration_success_title": "विरल रिकॉर्डिंग विभाजन",
+  "sparse_split_migration_description": "हमें रिकॉर्डिंग्स को विभाजित करने की आवश्यकता है {sessions} मौजूदा सत्रों को व्यक्तिगत लैप फ़ाइलों में विभाजित किया जाता है। इससे लैप 60 को लोड करने में उतनी ही तेज़ी होती है जितनी लैप 1 को, बिना पिछले 59 लैप्स को स्कैन किए। बैकग्राउंड में रन को विभाजित किया जाता है।"
 }

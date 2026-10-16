@@ -1,6 +1,6 @@
 # Indexed session lap archive
 
-Status: implemented and behaviorally verified. Measurement scope and headless-capture qualifications are recorded in [progress](../../progress.md#indexed-session-lap-archive).
+Status: superseded by the explicit [physical per-lap file cutover](sparse-split-migration-backend-plan.md#physical-file-implementation-phase). The archive representation below is historical and is no longer the completed-session writer contract. Earlier measurements remain recorded in [progress](../../progress.md#indexed-session-lap-archive).
 
 ADR: [Indexed gzip storage for split session captures](../adr/0012-indexed-session-lap-archive.md)
 

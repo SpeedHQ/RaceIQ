@@ -2618,7 +2618,6 @@
   "access_origins_safety": "Los cambios de red requieren reiniciar RaceIQ. Desactivarla no borra los orígenes guardados. Las protecciones del mismo origen continúan.",
   "dash_hostname_origin_settings": "Añade este origen exacto en Ajustes → Acceso y seguridad → dominios del navegador: {origin}. Guardar el nombre de host no autoriza el acceso.",
   "dash_hostname_origin_managed": "Añade este origen exacto a SERVER_ALLOWED_ORIGINS: {origin}. Guardar el nombre de host no autoriza el acceso.",
-  "dash_hostname_invalid": "Introduce solo un nombre de host, sin http://, puerto ni ruta.",
   "sessions_capture_split_queued": "En cola para exportar vueltas sin pérdidas",
   "sessions_capture_split_splitting": "Dividiendo la grabación en vueltas",
   "sessions_capture_split_verifying": "Verificando grabaciones de vueltas",
@@ -2634,5 +2633,18 @@
   "sessions_capture_split_error_publication_failed": "No se pudieron publicar las grabaciones de vueltas.",
   "sessions_capture_split_progress": "Fotogramas de origen procesados",
   "sessions_capture_split_laps": "Grabaciones de vueltas",
-  "sessions_export_capture_not_ready": "La exportación ZIP sin procesar no está disponible hasta que estén listas las grabaciones sin pérdidas de todas las vueltas seleccionadas que no sean MoTeC."
+  "sessions_export_capture_not_ready": "La exportación ZIP sin procesar no está disponible hasta que estén listas las grabaciones sin pérdidas de todas las vueltas seleccionadas que no sean MoTeC.",
+  "sparse_split_migration_action": "Dividir grabaciones",
+  "sparse_split_migration_progress": "{done} de {total} sesiones procesadas",
+  "sparse_split_migration_success": "{migrated} sesiones divididas en grabaciones por vuelta.",
+  "sparse_split_migration_retry_error": "No se pudo iniciar la división. Reintente para continuar.",
+  "sparse_split_migration_running": "División de grabaciones dispersas",
+  "sparse_split_migration_status_error": "No se pudo comprobar el estado de la migración dividida. Actualice para intentarlo de nuevo.",
+  "sparse_split_migration_failure": "{failed} las sesiones no pudieron dividirse. Reintente para continuar con las sesiones sin finalizar.",
+  "sparse_split_migration_progress_label": "Progreso de división de grabación dispersa",
+  "sparse_split_migration_retry": "Reintentar sesiones no terminadas",
+  "sparse_split_migration_success_title": "Grabaciones dispersas divididas",
+  "sparse_split_migration_title": "¿Dividir grabaciones para cargar vueltas más rápido?",
+  "sparse_split_migration_refresh": "Actualizar estado",
+  "sparse_split_migration_description": "Necesitamos dividir grabaciones de {sessions} sesiones existentes en archivos de vuelta individuales. Esto permite que la vuelta 60 se cargue tan rápido como la vuelta 1, sin tener que examinar las 59 vueltas anteriores. La división se ejecuta en segundo plano."
 }

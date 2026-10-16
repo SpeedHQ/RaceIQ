@@ -21,9 +21,10 @@
 - Optionally protect dashboard access with a password and configure trusted browser origins independently, while keeping existing local and remote access working without new settings.
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 - Choose a recording folder, safely relocate existing recordings, and optionally migrate recordings into per-game `own` and `others` folders.
-- Keep completed-session lap recordings together in one compressed bundle, with direct individual-lap replay and export.
+- Split completed and imported recordings into separate, independently replayable per-lap `.bin` files, with startup migration for existing session bundles.
 
 ### Fixes
+- Prompt to split existing sparse session recordings at startup, including seeded recordings, while automatically splitting newly imported sparse recordings.
 - Keep iRacing lap timing, validity, and pit classification consistent between live telemetry and imported recordings when the native lap timer rolls over late.
 - Preserve telemetry, saved lap times, and validity when reopening imported iRacing lap archives after a restart.
 - Preserve split lap recordings and queued split jobs when moving the recording folder.

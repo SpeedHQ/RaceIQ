@@ -14,12 +14,15 @@ import {
   validateSessionCaptureSplitRevision,
 } from "@raceiq/backend-core/db/session-queries";
 import { replaceLapsForSession } from "@raceiq/backend-core/db/lap-reprocessing-queries";
-import { runSessionCaptureSplitQueueOnce } from "../../src/session-capture/split-manager";
+import { initServerGameAdapters } from "../../src/games/init";
+import { consentToStartupSplitMigration, getStartupSplitMigrationStatus, initializeStartupSplitMigration, isStartupSplitMigrationHeld } from "../../src/session-capture/split-migration";
 import { resolveRecordingGameDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import { splitCapturePromise } from "@raceiq/capture-splitting";
-
 import { loadSessionCapture, resolveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
+
+import { runSessionCaptureSplitQueueOnce } from "../../src/session-capture/split-manager";
+initServerGameAdapters();
 const sourceFrameOffset = encodeMetaFrame(1).length + encodeSparseCaptureFormatFrame().length;
 const splitNotifications: Array<{ sessionId: number; jobId: string; attemptId: number; sequence: number; phase: string }> = [];
 const broadcastSplitProgress = wsManager.broadcastSessionCaptureSplitProgress.bind(wsManager);
@@ -126,6 +129,7 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
     sessionId: third.id, jobId: failed!.jobId, attemptId: 1, sourceRevision: failed!.pendingSourceRevision,
     sourcePath: retryPath, gameId: "fm-2023" as const, ownership: "mine" as const, carId: "test-car", trackId: "test-track",
     windows: [{ lapId: String(third.lapId), lapNumber: 1, startByteOffset: sourceFrameOffset, frameCount: 1 }],
+    captureLayoutVersion: null, captureManifestFile: null, captureArchiveFile: null,
   };
   const sequenceBeforeFailure = failed!.sequence;
   await failSessionCaptureSplitJob(thirdWork, "worker-failed", "deterministic failure");
@@ -175,7 +179,7 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   const firstSession = await db.select().from(sessions).where(eq(sessions.id, first.id)).get();
   const secondSession = await db.select().from(sessions).where(eq(sessions.id, second.id)).get();
   const thirdSession = await db.select().from(sessions).where(eq(sessions.id, third.id)).get();
-  expect(firstSession?.captureLayoutVersion).toBe(2);
+  expect(firstSession?.captureLayoutVersion).toBe(1);
   expect(firstSession?.captureManifestFile).not.toBe(secondSession?.captureManifestFile);
   for (const path of [firstSession?.captureManifestFile, secondSession?.captureManifestFile, thirdSession?.captureManifestFile]) {
     if (path) bundleDirs.add(dirname(path));
@@ -186,7 +190,7 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   expect([...iterateSessionCaptureRecords(restored)].filter((record) => record.kind === "frame").map((record) => record.frame)).toEqual([Buffer.from([1, 2, 3, 4])]);
   expect(dirname(dirname(dirname(manifestPath)))).toBe(resolveRecordingGameDirectory("fm-2023", "mine"));
   expect(dirname(dirname(dirname(secondSession!.captureManifestFile!)))).toBe(resolveRecordingGameDirectory("fm-2023", "others"));
-  expect(firstSession?.captureArchiveFile).toBe(resolved.path);
+  expect(firstSession?.captureArchiveFile).toBeNull();
   expect((await stat(manifestPath)).isFile()).toBe(true);
   expect(await readFile(sourcePath)).toEqual(sourceBytes);
   await db.update(laps).set({ isFavorite: true, notes: "preserve" }).where(eq(laps.id, first.lapId)).run();
@@ -196,7 +200,7 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
     tuneId: null, notes: "preserve", invalidReason: null, sectors: null,
   }]);
   const unchangedLayout = await db.select().from(sessions).where(eq(sessions.id, first.id)).get();
-  expect(unchangedLayout?.captureLayoutVersion).toBe(2);
+  expect(unchangedLayout?.captureLayoutVersion).toBe(1);
   expect((await db.select().from(laps).where(eq(laps.id, first.lapId)).get())?.captureChunkId).toBeTruthy();
   await replaceLapsForSession(first.id, [{
     lapId: first.lapId, lapNumber: 1, lapTime: 61, isValid: true, isFavorite: true,
@@ -215,7 +219,7 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   expect(identityRequeued?.jobId).not.toBe(invalidatedJob?.jobId);
   expect(splitNotifications.at(-1)).toMatchObject({ sessionId: first.id, jobId: identityRequeued!.jobId, phase: "queued" });
   expect(await runSessionCaptureSplitQueueOnce()).toBe(true);
-  expect((await db.select().from(sessions).where(eq(sessions.id, first.id)).get())?.captureLayoutVersion).toBe(2);
+  expect((await db.select().from(sessions).where(eq(sessions.id, first.id)).get())?.captureLayoutVersion).toBe(1);
   await replaceLapsForSession(first.id, [
     {
       lapId: first.lapId, lapNumber: 1, lapTime: 61, isValid: true, isFavorite: true,
@@ -267,6 +271,65 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   expect(stillExhausted?.status).toBe("failed");
   expect(stillExhausted?.jobId).toBe(exhaustedJobId);
 });
+test("startup split jobs wait for consent while newly queued imports split immediately", async () => {
+  const sourceBytes = Buffer.concat([encodeMetaFrame(1), encodeSparseCaptureFormatFrame(), encodeFrameLength(4), Buffer.from([1, 2, 3, 4])]);
+  const startupPath = join(root, "startup-consent.bin");
+  const importedPath = join(root, "current-import.bin");
+  await writeFile(startupPath, sourceBytes);
+  await writeFile(importedPath, sourceBytes);
+  const startup = await makeSession(startupPath);
+  expect(await enqueueSessionCaptureSplit(startup.id)).toBe(true);
+  await initializeStartupSplitMigration();
+  const beforeConsent = await getStartupSplitMigrationStatus();
+  expect(beforeConsent.sessionCount).toBeGreaterThan(0);
+  expect(beforeConsent.progress.status).toBe("idle");
+  expect(isStartupSplitMigrationHeld(startup.id)).toBe(true);
+
+  const imported = await makeSession(importedPath);
+  expect(await enqueueSessionCaptureSplit(imported.id)).toBe(true);
+  expect((await getStartupSplitMigrationStatus()).sessionCount).toBe(beforeConsent.sessionCount);
+  expect(isStartupSplitMigrationHeld(imported.id)).toBe(false);
+  expect(await runSessionCaptureSplitQueueOnce()).toBe(true);
+  expect(isStartupSplitMigrationHeld(imported.id)).toBe(false);
+  expect((await db.select({ status: sessionCaptureSplitJobs.status }).from(sessionCaptureSplitJobs)
+    .where(eq(sessionCaptureSplitJobs.sessionId, imported.id)).get())?.status).toBe("ready");
+  expect((await db.select({ status: sessionCaptureSplitJobs.status }).from(sessionCaptureSplitJobs)
+    .where(eq(sessionCaptureSplitJobs.sessionId, startup.id)).get())?.status).toBe("queued");
+
+  await db.update(sessionCaptureSplitJobs).set({ status: "failed", errorCode: "worker-failed", errorMessage: "retry fixture" })
+    .where(eq(sessionCaptureSplitJobs.sessionId, startup.id)).run();
+  expect((await getStartupSplitMigrationStatus()).progress.failed).toBeGreaterThan(0);
+  expect((await consentToStartupSplitMigration()).progress.status).toBe("running");
+  expect((await db.select({ attemptId: sessionCaptureSplitJobs.attemptId }).from(sessionCaptureSplitJobs)
+    .where(eq(sessionCaptureSplitJobs.sessionId, startup.id)).get())?.attemptId).toBe(2);
+  await drainQueueUntilTerminal(startup.id);
+  expect((await db.select({ status: sessionCaptureSplitJobs.status }).from(sessionCaptureSplitJobs)
+    .where(eq(sessionCaptureSplitJobs.sessionId, startup.id)).get())?.status).toBe("ready");
+  const afterMigration = await getStartupSplitMigrationStatus();
+  expect(afterMigration.progress.migrated).toBeGreaterThan(0);
+  expect(afterMigration.progress.done).toBeGreaterThan(0);
+});
+
+test("startup consent refreshes queued source identity after folder organization", async () => {
+  const sourcePath = join(root, "before-folder-organization.bin");
+  const organizedPath = join(root, "after-folder-organization.bin");
+  await writeFile(sourcePath, Buffer.concat([
+    encodeMetaFrame(1), encodeSparseCaptureFormatFrame(), encodeFrameLength(4), Buffer.from([1, 2, 3, 4]),
+  ]));
+  const session = await makeSession(sourcePath);
+  expect(await enqueueSessionCaptureSplit(session.id)).toBe(true);
+  await initializeStartupSplitMigration();
+  expect(isStartupSplitMigrationHeld(session.id)).toBe(true);
+  await rename(sourcePath, organizedPath);
+  await db.update(sessions).set({ rawFile: organizedPath }).where(eq(sessions.id, session.id)).run();
+  await consentToStartupSplitMigration();
+  expect((await db.select({ sourcePath: sessionCaptureSplitJobs.sourcePath }).from(sessionCaptureSplitJobs)
+    .where(eq(sessionCaptureSplitJobs.sessionId, session.id)).get())?.sourcePath).toBe(organizedPath);
+  await drainQueueUntilTerminal(session.id);
+  expect((await db.select({ captureLayoutVersion: sessions.captureLayoutVersion }).from(sessions)
+    .where(eq(sessions.id, session.id)).get())?.captureLayoutVersion).toBe(1);
+});
+
 
 test("post-commit notification failure leaves published bundle readable", async () => {
   const sourcePath = join(root, "notification-failure.bin");
@@ -282,7 +345,7 @@ test("post-commit notification failure leaves published bundle readable", async 
     expect(await enqueueSessionCaptureSplit(session.id)).toBe(true);
     await drainQueueUntilTerminal(session.id);
     const published = await db.select().from(sessions).where(eq(sessions.id, session.id)).get();
-    expect(published?.captureLayoutVersion).toBe(2);
+    expect(published?.captureLayoutVersion).toBe(1);
     const manifestPath = published!.captureManifestFile!;
     bundleDirs.add(dirname(manifestPath));
     const publishedLap = await db.select().from(laps).where(eq(laps.id, session.lapId)).get();
@@ -303,7 +366,7 @@ test("failed publication transaction removes renamed output, rolls back lap refs
   const session = await makeSession(sourcePath);
   const trigger = `fail_capture_publication_${session.id}`;
   await client.execute(`CREATE TRIGGER ${trigger} BEFORE UPDATE OF capture_layout_version ON sessions
-    WHEN NEW.id = ${session.id} AND NEW.capture_layout_version = 2
+    WHEN NEW.id = ${session.id} AND NEW.capture_layout_version = 1
     BEGIN SELECT RAISE(FAIL, 'Injected split publication failure'); END`);
   try {
     expect(await enqueueSessionCaptureSplit(session.id)).toBe(true);
@@ -325,8 +388,8 @@ test("failed publication transaction removes renamed output, rolls back lap refs
   expect(await enqueueSessionCaptureSplit(session.id)).toBe(true);
   await drainQueueUntilTerminal(session.id);
   const published = await db.select().from(sessions).where(eq(sessions.id, session.id)).get();
-  expect(published?.captureLayoutVersion).toBe(2);
-  expect(await Bun.file(published!.captureArchiveFile!).exists()).toBe(true);
+  expect(published?.captureLayoutVersion).toBe(1);
+  expect(published?.captureArchiveFile).toBeNull();
   bundleDirs.add(dirname(published!.captureManifestFile!));
 });
 
@@ -353,7 +416,7 @@ test.each([false, true])("restart fences a closed unpublished archive; rename co
   expect((await db.select().from(sessions).where(eq(sessions.id,session.id)).get())?.captureLayoutVersion).toBeNull();
   await drainQueueUntilTerminal(session.id);
   const published = await db.select().from(sessions).where(eq(sessions.id,session.id)).get();
-  expect(published?.captureLayoutVersion).toBe(2);
+  expect(published?.captureLayoutVersion).toBe(1);
   expect(published?.captureManifestFile).not.toBe(join(attempt,"manifest.json"));
   bundleDirs.add(dirname(published!.captureManifestFile!));
 });
@@ -369,7 +432,7 @@ test("archive write failure exposes no publication and a fresh attempt can retry
   const queued = (await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId,session.id)).get())!;
   const attempt = `${queued.jobId}-${queued.attemptId}-${queued.pendingSourceRevision}`;
   // The real worker shares this filesystem, not the test process's module mocks.
-  await mkdir(join(parent,`${attempt}.staging`,"capture.bin.gz"),{recursive:true});
+  await mkdir(join(parent, `${attempt}.staging`, "000000-lap-1.bin"), { recursive: true });
   await drainQueueUntilTerminal(session.id);
   const failed = await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, session.id)).get();
   expect(failed?.status).toBe("failed");
@@ -380,11 +443,11 @@ test("archive write failure exposes no publication and a fresh attempt can retry
   expect(row?.captureArchiveFile).toBeNull();
   expect((await db.select().from(laps).where(eq(laps.id, session.lapId)).get())?.captureChunkId).toBeNull();
   expect(await Bun.file(join(parent,attempt,"manifest.json")).exists()).toBe(false);
-  expect(await Bun.file(join(parent,`${attempt}.staging`,"capture.bin.gz")).exists()).toBe(false);
+  expect(await Bun.file(join(parent, `${attempt}.staging`, "000000-lap-1.bin")).exists()).toBe(false);
   expect(await readFile(sourcePath)).toEqual(bytes);
   expect(await enqueueSessionCaptureSplit(session.id)).toBe(true);
   await drainQueueUntilTerminal(session.id);
   const published = await db.select().from(sessions).where(eq(sessions.id,session.id)).get();
-  expect(published?.captureLayoutVersion).toBe(2);
+  expect(published?.captureLayoutVersion).toBe(1);
   bundleDirs.add(dirname(published!.captureManifestFile!));
 });

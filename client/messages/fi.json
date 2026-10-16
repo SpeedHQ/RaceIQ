@@ -2634,5 +2634,18 @@
   "sessions_capture_split_error_publication_failed": "Kierrostallenteita ei voitu julkaista.",
   "sessions_capture_split_progress": "Käsiteltyjä lähdekehyksiä",
   "sessions_capture_split_laps": "Kierrostallenteet",
-  "sessions_export_capture_not_ready": "Raaka ZIP-vienti ei ole käytettävissä ennen kuin häviöttömät tallenteet ovat valmiina kaikille valituille muille kuin MoTeC-kierroksille."
+  "sessions_export_capture_not_ready": "Raaka ZIP-vienti ei ole käytettävissä ennen kuin häviöttömät tallenteet ovat valmiina kaikille valituille muille kuin MoTeC-kierroksille.",
+  "sparse_split_migration_title": "Jaetaanko tallenteet nopeampaa kierrosten lataamista varten?",
+  "sparse_split_migration_description": "Jaamme {sessions} olemassa olevien istuntojen tallenteet erillisiksi kierrostiedostoiksi. Näin kierros 60 latautuu yhtä nopeasti kuin kierros 1 ilman, että edelliset 59 kierrosta täytyy käydä läpi. Jako tapahtuu taustalla.",
+  "sparse_split_migration_action": "Jaa tallenteet",
+  "sparse_split_migration_running": "Harvojen tallenteiden jakaminen",
+  "sparse_split_migration_progress": "{done}/{total} istuntoa käsitelty",
+  "sparse_split_migration_progress_label": "Tallenteiden jaon edistyminen",
+  "sparse_split_migration_success_title": "Tallenteet jaettu",
+  "sparse_split_migration_success": "{migrated} istunnon tallenteet jaettu kierroskohtaisiksi.",
+  "sparse_split_migration_failure": "{failed} istunnon tallenteita ei voitu jakaa. Yritä uudelleen jatkaaksesi keskeneräisiä istuntoja.",
+  "sparse_split_migration_retry": "Yritä keskeneräisiä istuntoja uudelleen",
+  "sparse_split_migration_retry_error": "Jakoa ei voitu käynnistää. Yritä uudelleen.",
+  "sparse_split_migration_status_error": "Jaon tilaa ei voitu tarkistaa. Päivitä ja yritä uudelleen.",
+  "sparse_split_migration_refresh": "Päivitä tila"
 }

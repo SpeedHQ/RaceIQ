@@ -1,3 +1,4 @@
+import type { Stats } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
@@ -122,6 +123,17 @@ async function streamForSource(source: SessionCaptureSource, file: SessionCaptur
     }),
   };
 }
+const sparseEligibilityCache = new Map<string, { signature: string; sparse: boolean }>();
+export async function isSparseCaptureFile(rawFile: string, info?: Stats): Promise<boolean> {
+  const metadata = info ?? await stat(rawFile);
+  const signature = `${metadata.dev}:${metadata.ino}:${metadata.size}:${metadata.mtimeMs}`;
+  const cached = sparseEligibilityCache.get(rawFile);
+  if (cached?.signature === signature) return cached.sparse;
+  const sparse = await hasSparseCaptureFormat(captureFileFactory(rawFile));
+  if (sparseEligibilityCache.size >= 512) sparseEligibilityCache.clear();
+  sparseEligibilityCache.set(rawFile, { signature, sparse });
+  return sparse;
+}
 async function hasSparseCaptureFormat(file: SessionCaptureFile, streamOverride?: ReadableStream<Uint8Array>, compressedOverride?: boolean): Promise<boolean> {
   const prefix = streamOverride ? new Uint8Array() : new Uint8Array(await file.slice(0, 2).arrayBuffer());
   let stream = streamOverride ?? file.stream();
@@ -178,9 +190,12 @@ export async function* iterateSessionCaptureRecordsFromSource(
   }
 
   const file = captureFileFactory(source.rawFile);
-  const first = await streamForSource(source, file);
-  if (!await hasSparseCaptureFormat(file, first.stream, first.gzip)) {
-    throw new Error("Legacy full-frame captures are not supported; provide a sparse RaceIQ capture.");
+  // Persisted converted captures can contain only full checkpoints; match buffered replay eligibility.
+  if (source.captureFormatVersion !== 1) {
+    const first = await streamForSource(source, file);
+    if (!await hasSparseCaptureFormat(file, first.stream, first.gzip)) {
+      throw new Error("Legacy full-frame captures are not supported; provide a sparse RaceIQ capture.");
+    }
   }
   const selected = await streamForSource(source, file);
   let stream = selected.stream as ReadableStream<Uint8Array>;

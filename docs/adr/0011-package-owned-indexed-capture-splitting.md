@@ -19,6 +19,8 @@ Backend retains queue/recovery, source revision and attempt fencing, transaction
 
 Preserve reconstructed native frame bytes, order, and timestamps; independent sparse checkpoint encoding may differ from original storage bytes. Context duplication does not change ownership. Preserve auxiliary source records and existing game-controlled delayed-finish behavior.
 
+Completed-session publications use one physical sparse `.bin` file per persisted lap, with separate auxiliary files and directory manifest v3 / database layout 1. Logical members inside a shared archive do not satisfy this requirement. Historical layout-2 archives remain readable until consent-driven, verified physical-file migration commits; new completed splits and imports do not publish archives. Canonical source retention remains unchanged. This clarification supersedes the completed-session representation proposed in [ADR 0012](0012-indexed-session-lap-archive.md), without activating the separately release-gated live recorder.
+
 ## Rationale and consequences
 
 A small sequential writing loop is sufficient; sparse storage dependency and stateful parser initialization are explicit format requirements, not reasons to redetect laps or introduce a new framework. One writing pass does not require one total source read: existing opaque checkpoint preparation and independent verification may scan separately. Injected codec preparation avoids backend dependencies and per-frame cross-thread RPC.
@@ -32,5 +34,7 @@ Implementation follows this proposed contract. Exact encoded offsets and strict 
 Status remains proposed: this records the architecture contract and its implementation, not formal ADR acceptance.
 
 Plan: [Correction phases and acceptance criteria](../plans/lossless-per-lap-capture-correction.md)
+
+Physical-file cutover plan: [Storage, migration, and verification](../plans/sparse-split-migration-backend-plan.md#physical-file-implementation-phase).
 
 Related: [Lossless sparse canonical recordings](0001-lossless-sparse-canonical-recordings.md)

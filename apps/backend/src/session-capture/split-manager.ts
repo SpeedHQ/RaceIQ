@@ -5,6 +5,7 @@ import { resolveRecordingGameDirectory } from "@raceiq/backend-core/runtime/conf
 import { getQueuedSessionCaptureSplitJobs, claimSessionCaptureSplitJob, setSessionCaptureSplitStagingPath, updateSessionCaptureSplitProgress, failSessionCaptureSplitJob, publishSessionCaptureSplit, validateSessionCaptureSplitRevision, type SessionCaptureSplitWork } from "@raceiq/backend-core/db/session-queries";
 import { withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
 import { beginRecordingStorageImport, getRecordingStorageActivity } from "@raceiq/backend-core/session-capture/storage-activity";
+import { shouldHoldStartupSplitMigration } from "./split-migration";
 import { runSessionCaptureSplit } from "./split-runner";
 
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -147,7 +148,13 @@ export async function runSessionCaptureSplitQueueOnce(): Promise<boolean> {
     if (shutdownRequested) return false;
     const jobs = await getQueuedSessionCaptureSplitJobs();
     if (shutdownRequested) return false;
-    const work = jobs[0];
+    let work: SessionCaptureSplitWork | undefined;
+    for (const candidate of jobs) {
+      if (!await shouldHoldStartupSplitMigration(candidate)) {
+        work = candidate;
+        break;
+      }
+    }
     if (!work || shutdownRequested) return false;
     await execute(work);
     return true;

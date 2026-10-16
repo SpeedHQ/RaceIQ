@@ -2618,7 +2618,6 @@
   "access_origins_safety": "Изменения сети требуют перезапуска RaceIQ. Отключение не удаляет сохранённые источники. Защита same-origin продолжает действовать.",
   "dash_hostname_origin_settings": "Добавьте этот точный источник в Настройки → Доступ и безопасность → домены браузера: {origin}. Сохранение имени хоста не разрешает доступ.",
   "dash_hostname_origin_managed": "Добавьте этот точный источник в SERVER_ALLOWED_ORIGINS: {origin}. Сохранение имени хоста не разрешает доступ.",
-  "dash_hostname_invalid": "Введите только имя хоста без http://, порта и пути.",
   "sessions_capture_split_queued": "В очереди на экспорт кругов без потерь",
   "sessions_capture_split_splitting": "Запись разделяется на круги",
   "sessions_capture_split_verifying": "Проверка записей кругов",
@@ -2634,5 +2633,18 @@
   "sessions_capture_split_error_publication_failed": "Не удалось опубликовать записи кругов.",
   "sessions_capture_split_progress": "Обработано исходных кадров",
   "sessions_capture_split_laps": "Записи кругов",
-  "sessions_export_capture_not_ready": "Экспорт исходных данных в ZIP недоступен, пока записи без потерь не будут готовы для всех выбранных кругов, кроме MoTeC."
+  "sessions_export_capture_not_ready": "Экспорт исходных данных в ZIP недоступен, пока записи без потерь не будут готовы для всех выбранных кругов, кроме MoTeC.",
+  "sparse_split_migration_action": "Разделить записи",
+  "sparse_split_migration_failure": "{failed} Сессии не удалось разделить. Повторите попытку, чтобы продолжить с незавершёнными сессиями.",
+  "sparse_split_migration_success": "{migrated} сессии, разбитые на записи по кругам.",
+  "sparse_split_migration_progress_label": "Прогресс разбиения разреженной записи",
+  "sparse_split_migration_status_error": "Не удалось проверить статус разделённой миграции. Обновите страницу, чтобы повторить попытку.",
+  "sparse_split_migration_title": "Разделить записи для более быстрой загрузки кругов?",
+  "sparse_split_migration_progress": "{done} of {total} обработанные сеансы",
+  "sparse_split_migration_success_title": "Разреженные записи разделены",
+  "sparse_split_migration_running": "Разделение разреженных записей",
+  "sparse_split_migration_retry": "Повторить незавершённые сеансы",
+  "sparse_split_migration_retry_error": "Не удалось начать разделение. Повторите попытку, чтобы продолжить.",
+  "sparse_split_migration_refresh": "Обновить статус",
+  "sparse_split_migration_description": "Нам нужно разделить записи из {sessions} существующие сессии в отдельные файлы кругов. Это позволяет 60-му кругу загружаться так же быстро, как и 1-му, без сканирования предыдущих 59 кругов. Разделение выполняется в фоновом режиме."
 }

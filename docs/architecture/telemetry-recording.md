@@ -17,7 +17,7 @@ graph LR
   Detector --> DB[(sessions and laps)]
   Bin --> Replay[Import or reprocess]
   Bin --> Split[Package-owned split and verification]
-  Split --> Archive[Indexed gzip members and JSON manifest]
+  Split --> Archive[Physical per-lap BIN files and JSON manifest]
   Archive --> LapReplay[Selected-lap replay and export]
   Replay --> Adapter
 ```
@@ -168,28 +168,28 @@ Development dump files are different, adapter-specific capture formats. Use [Tel
 
 Developer fixture playback and live UDP benchmarks continue to read original raw recordings so parser and recording coverage matches acquisition. Only HTTP import payloads and seeded database captures are converted to sparse format; checked-in source fixtures remain unchanged.
 
-### Indexed completed-session lap archives
+### Physical completed-session lap files
 
-New split publications contain `manifest.json` and `capture.bin.gz` in an immutable attempt directory under the session folder. The data file concatenates independent gzip members, one per lap or auxiliary ownership range. The package writes members directly with backpressure; no loose lap files are published. Auxiliary members rotate at 64 MiB of encoded capture data, with at most one capture-record overshoot. Each member retains independent sparse checkpoints, parser bootstrap state, and explicitly non-owned completion context.
+New split publications contain `manifest.json` and one physical sparse `.bin` file per persisted lap in an immutable attempt directory under `session-<sessionId>/`. Filenames identify the detector lap number, including lap 0; invalid and incomplete persisted laps are not dropped. Separate auxiliary `.bin` files conserve source records outside detected laps and rotate at 64 MiB, with at most one capture-record overshoot. Every lap file retains independent sparse checkpoints, parser bootstrap state, and explicitly non-owned completion context.
 
-Manifest v4 records `entryName`, physical `memberOffset`, `compressedByteLength`, and uncompressed `byteLength`. Its source byte ranges remain offsets in the decoded source capture, while `ownedFrameByteOffset` is local to the decoded member. `sourceByteLength` remains the physical source-file size, including gzip input. Detector lap numbers, including zero, are preserved rather than renumbered.
+Directory manifest v3 records each relative `path`, encoded `byteLength`, source ownership ranges, and artifact-local `ownedFrameByteOffset`. Database layout version 1 stores the JSON path in `sessions.captureManifestFile`; `sessions.captureArchiveFile` is null. These layout versions are independent of sparse codec and source-frame versions. The writer buffers at most 128 writes or approximately 1 MiB before a vectored flush, with one-record overshoot, and syncs/closes each file before manifest publication.
 
-Database layout version 2 stores the actual JSON path in `sessions.captureManifestFile` and the gzip data path in `sessions.captureArchiveFile`; migration 78 adds the latter column. Layout version 1 still reads manifest v3 filesystem chunks, and null-layout historical reads retain their existing interpretation. These layout versions are independent of sparse codec and source-frame versions.
+Replay and export resolve the selected physical file, enforce contained relative paths and byte lengths, and include publication/file identity in caches. A missing or corrupt published file fails visibly; readers never silently fall back to the monolith.
 
-`openCaptureArchive()` validates bounded, contiguous, non-overlapping member ranges and controlled unique identities. A selected read seeks only to that member's header, DEFLATE payload, and trailer. Native CRC32, exact compressed-byte consumption, and uncompressed size checks reject corruption, hidden extra members, unsupported flags, and truncation. Offsets must be safe integers; the implementation does not depend on ZIP or 32-bit container offsets. Limits are 16 MiB per JSON manifest, 100,000 members, and 512 MiB per compressed or uncompressed member.
+Historical database layout 2 / manifest v4 bundles remain readable while awaiting startup consent. Migration rebuilds physical files from the retained canonical source, verifies them, and atomically replaces session/lap references. The old publication stays readable until the commit succeeds. A missing retained source leaves the bundle intact and reports the unavailable migration prerequisite in server diagnostics. Current-run sparse imports automatically publish physical files without joining startup consent.
 
-`SessionCaptureSource.artifact` carries the selected archive member explicitly. Replay streams it; buffer-based export/native readers allocate only that member. No entry name is presented as a filesystem path. Streamed lap consumers drain the selected member to EOF before accepting telemetry, so early lap completion cannot bypass its checksum. Metadata and telemetry caches include validated publication/file identity; selected-buffer keys include the member range. Invalid published layouts never fall back to the monolith.
+The historical v4 `capture.bin.gz` reader still validates selected gzip-member framing, CRC, size, and exact compressed-byte consumption. It is not the new completed-session output format. The release-gated incremental live layout 3 described above remains separate.
 
 The package verifies native bytes, order, timestamp presence/absence, source conservation, parser bootstrap, and owned/context windows through the production reader before publication. Closed and synced data and manifest files move together through the existing atomic directory rename and fenced DB transaction. Cancellation, stale attempts, failed writes, and failed transactions do not publish references. Recovery removes only unreferenced attempts.
 
-Semantic artifact hashes cover the decoded selected capture bytes; `storageEncoding` is `gzip`. Retained session-source hashing remains separate. Sources are not retired by archive publication. See the [implementation plan](../plans/indexed-session-lap-archive.md) and [proposed storage decision](../adr/0012-indexed-session-lap-archive.md).
+Semantic artifact hashes cover selected capture bytes; new physical lap files use `storageEncoding: "identity"`. Retained session-source hashing remains separate. Sources are not retired by split publication. See the [physical-file cutover plan](../plans/sparse-split-migration-backend-plan.md#physical-file-implementation-phase) and [package-owned splitting decision](../adr/0011-package-owned-indexed-capture-splitting.md).
 
 
 ## Compression and cleanup
 
 `server/session-capture/compressor.ts` gzips inactive `.bin` files older than 24 hours and updates `sessions.rawFile` to the `.bin.gz` path. Reprocess and import readers restore the same sparse capture byte stream transparently. User-triggered compression may also sweep unreferenced `.bin` files.
 
-Unmarked legacy canonical `.bin` and `.bin.gz` files are unsupported for playback, reprocessing, and uploads. Seed scripts convert checked-in source fixtures into new sparse captures. `sessions.capture_format_version = 1` marks newly created sparse recordings; source-frame schema versions remain unchanged.
+Unmarked legacy canonical `.bin` and `.bin.gz` uploads are unsupported. Seed scripts convert checked-in source fixtures into new sparse captures. `sessions.capture_format_version = 1` marks converted sparse recordings; persisted checkpoint-only converted captures use that provenance consistently in streaming and buffered replay, while untrusted uploads still require sparse markers/codecs. Source-frame schema versions remain unchanged.
 
 See [Session storage](../operations/session-storage.md) for lifecycle, orphan handling, and operational constraints.
 
