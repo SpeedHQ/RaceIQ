@@ -10,6 +10,7 @@
 - Avoid `bun run test` port collisions with running services by selecting available ports for Playwright server sets when overrides are unset, while honoring explicit `PW_*_PORT` values and preserving isolated test databases.
 - Reuse one prepared Playwright database snapshot across seeded server sets to avoid duplicate fixture imports.
 - Update live iRacing browser checks to expect the Tires section to be absent in Driver and Pit Crew views.
+- Run locale generation before frontend contract typechecking so clean CI workspaces resolve Paraglide modules.
 
 ## v0.20.0 - 2026-10-15
 
