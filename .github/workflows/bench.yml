@@ -18,7 +18,6 @@ jobs:
     if: ${{ !startsWith(github.head_ref, 'release/v') }}
     timeout-minutes: 30
     runs-on:
-      - mars-windows-x64-4vcpu-15g
       - mars-macos-arm64-2vcpu-10g
       - mars-ubuntu-arm64-2vcpu-10g
       - mars-retry-3
