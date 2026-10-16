@@ -117,7 +117,7 @@ cd playwright && bun run typecheck
 
 ### Functional E2E gate
 
-Canonical PR-equivalent dev-server gate:
+Local development-server gate:
 
 ```sh
 bun install
@@ -130,26 +130,19 @@ PowerShell:
 $env:E2E_SERVER_MODE='dev'; bun run test:e2e
 ```
 
-Playwright projects are CI boundaries, not individual test files:
+Root commands run input-scoped Turbo tasks serially and reuse cached successes. Use `bun run test:e2e --affected --dry=json` to inspect selection and `bun run test:e2e --affected` to execute it. Set `TURBO_SCM_BASE` and `TURBO_SCM_HEAD` to available Git commits for the intended comparison; unavailable refs conservatively select all suites. Spec changes select their owning suites; shared runtime dependencies select all suites. See [suite ownership and cache behavior](../../playwright/README.md#commands-and-server-modes).
 
-| CI invocation | `PW_SERVER_SET` | Playwright project(s) | Test boundary |
-| --- | --- | --- | --- |
-| Compiled E2E | `all` | `fresh-install`, `tunes`, `seeded-e2e`, `mobile-device`, `tablet-device` | All functional, responsive, and Chromium device projects |
+`.github/workflows/playwright-e2e.yml` plans the PR matrix from affected Turbo tasks. Fresh, tunes, and unseeded tunes have separate lanes. Selected seeded flows, routes, imports, mobile, and tablet coverage run across seven seeded shards. No selected suites means no seed or browser jobs. Release and manual events retain the full matrix and run Playwright directly without browser-success caching.
 
-`.github/workflows/playwright-dev.yml` and the release workflow each invoke
-the reusable workflow once. The invocation starts the `all` server set and
-runs every configured E2E project in one `bunx playwright test` process.
+PR jobs restore GitHub-persisted Turbo successes before a cache probe. Only cache misses require application downloads/builds, Chromium installation, and actual tests. Cache archives are isolated by lane, OS, architecture, and tool versions; successful tasks are saved even when another task fails, so retries can reuse those successes. Task hashes retain source dependencies, runtime environment, actual Bun/Node versions, and shard arguments. No databases or seeded runtime state are restored from the task cache. The shared seed producer still runs when seeded coverage is selected, even if downstream tests later hit cache.
 
-New `.spec.ts` files matching an existing `testMatch` pattern are included
-automatically; no workflow edit is needed. Adding a new Playwright project or
-changing a `testMatch` boundary requires updating the reusable workflow inputs
-and this table. The reusable job runs `bunx playwright test --list` first and
-fails if its project selection discovers zero tests.
+New `.spec.ts` files matching an existing project and task input pattern are included automatically. Keep `playwright/turbo.json` inputs aligned with project `testMatch`/`testIgnore`, especially import exclusions. New projects require updating the planner's project/task mapping and this documentation. Full gates check project discovery before execution.
 
-The reusable `.github/workflows/playwright.yml` accepts project flags, server
-mode, server set, runner, optional `dist` artifact, and result artifact name.
-Both PR and release lanes upload `playwright/test-results/` and
-`playwright/screenshots/` with `if: always()`.
+The reusable `.github/workflows/playwright.yml` accepts project flags, shard,
+server mode/set, runner, optional `dist`/seed artifacts, and an `affected-cache`
+switch. Both PR and release lanes upload `playwright/test-results/` and
+`playwright/screenshots/` with `if: always()`. Actual suite execution uses
+per-suite output directories so a later suite cannot erase an earlier failure trace.
 
 Diagnose only seeded behavior with:
 
@@ -168,11 +161,7 @@ launchers wipe it before each run. Never point seeded E2E at tracked fixtures or
 user data. Tests use committed recordings plus production parser/import paths
 and must restore any note/import/delete mutation in `finally`.
 
-CI reality: non-draft pull requests and release/manual workflows each invoke
-one compiled Playwright job with `raceiq-dist-windows`. Local workflow
-inspection confirms project selection and artifact paths, but only an observed
-GitHub run confirms runner behavior. Mobile/tablet projects use real Playwright
-touch/user-agent emulation in Chromium; they are not physical-device tests.
+Only an observed GitHub run confirms hosted-runner cache restore/save and artifact behavior; local CLI and browser checks do not prove that hosted execution passed. Mobile/tablet projects use real Playwright touch/user-agent emulation in Chromium; they are not physical-device tests.
 
 ### Release database upgrade regression
 

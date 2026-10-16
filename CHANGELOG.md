@@ -6,6 +6,7 @@
 
 ### Internal
 - Make tests package-owned with isolated setup; move pure lap-analysis and experiment comparison/statistics algorithms and tests into analysis-core, filesystem operations into recording-storage, and storage orchestration into the backend package with integration coverage.
+- Run only affected browser suites in pull requests and persist Turbo successes across retries, while keeping release gates uncached and preserving seeded sharding and failure traces.
 
 ## v0.20.0 - 2026-10-15
 

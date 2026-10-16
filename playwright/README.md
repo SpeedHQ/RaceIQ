@@ -16,23 +16,66 @@ This suite owns route-level browser tests and screenshot evidence. It is separat
 
 Config uses `tests/` as `testDir`; no specs belong at `tests/` root. Stateful projects stay ordered on one worker. Only seeded screenshot runs enable parallel screenshot workers.
 
-Root `test:e2e` (including `test:e2e:compiled`) and workspace `test`/`test:ui` force `--workers=1`, overriding `PW_WORKERS`. Root `test:e2e:all` inherits the workspace limit. Capture migration and ordinary seeded projects share one database; per-project worker limits do not prevent cross-project overlap. Keep direct multi-project invocations containing capture migration on `--workers=1`.
+Root `test:e2e` (including `test:e2e:compiled`) runs seven functional Turbo tasks serially, each with one Playwright worker. The launcher checks selection and cached successes before building; a compiled build runs once only when selected tests need execution. Capture migration and ordinary seeded projects share one database, so keep `--workers=1` for direct multi-project Playwright invocations.
 
 ## Commands and server modes
 
+Run functional suites from the repository root:
+
 ```sh
-cd playwright
-bun install
-bun run typecheck
-bun run build
-bun run test                         # build, then full Playwright run
-bunx playwright test --project=seeded-e2e
-bunx playwright test --project=mobile-screenshots
-E2E_SERVER_MODE=dev bunx playwright test --project=seeded-e2e
+bun run test:e2e                       # all functional suites; reuse cached successes
+bun run test:e2e:fresh                 # fresh install and workspace layout
+bun run test:e2e:tunes                 # seeded and unseeded tunes
+bun run test:e2e:seeded                # seeded flows, routes, and imports
+bun run test:e2e --affected --dry=json  # inspect affected selection
+bun run test:e2e --affected            # run only affected suites
+```
+
+Affected selection requires a valid Git comparison and sufficient checkout history. Set both `TURBO_SCM_BASE` and `TURBO_SCM_HEAD` to the intended base and head commits. The launcher conservatively runs the full selection if either ref is missing or unavailable. Browser tasks cache successful executions; failures are not cached. A changed task can reuse an existing success only when its complete input hash matches.
+
+| Turbo task suffix (`test:e2e:`) | Playwright projects |
+| --- | --- |
+| `fresh` | `fresh-install` |
+| `tunes` | `tunes` |
+| `tunes-unseeded` | `tunes-unseeded` |
+| `seeded` | `seeded-e2e` |
+| `routes` | `seeded-routes` |
+| `imports` | `seeded-imports` |
+| `devices` | `mobile-device`, `tablet-device` |
+
+Each task owns its project specs. The two unseeded tunes specs also belong to the seeded tunes task because project grep filters select different tests from those files. Shared helpers, fixtures, configuration, and application dependency changes conservatively affect every functional task. Screenshot, marketing, demo, and upgrade specs do not select functional tasks. Package/runtime boundaries remain conservative: changing application source does not yet provide domain-level browser-test selection.
+
+The shared `e2e-inputs` transit task tracks non-spec Playwright runtime files, root configuration and fixtures, browser workflows, and client/backend/build-tool dependency closures. It has no command and does not execute a build. Keeping source hashing separate from build execution lets a cache hit skip setup without dropping dependency hashes. When adding or moving specs, keep task `inputs` in `turbo.json` aligned with project `testMatch`/`testIgnore` in `config/projects.ts`, especially the import exclusions.
+
+Turbo uses strict environment mode. Functional tasks declare `CI`, `NODE_ENV`, `E2E_SERVER_MODE`, `PW_*`, and `RACEIQ_*`; `PLAYWRIGHT_*` is passed through for browser infrastructure. The launcher hashes the actual OS, architecture, Bun, and Node versions through `RACEIQ_E2E_RUNTIME`. Shard arguments also participate in task hashes. Each task fixes its own server set and writes traces beneath its own `test-results/<suite>/` directory; cached outputs contain task logs, not databases or seeded runtime state.
+
+Direct commands remain available from `playwright/` when a compiled artifact already exists, or when using development mode:
+
+```sh
+E2E_SERVER_MODE=dev PW_SERVER_SET=seeded bunx playwright test --project=seeded-e2e
 PW_SERVER_SET=fresh bunx playwright test --project=fresh-install
 ```
 
-`E2E_SERVER_MODE` is `compiled` by default and accepts `dev` or `compiled`. Compiled mode launches `dist/raceiq` (`raceiq.exe` on Windows); build first. Dev mode launches Bun server and Vite client. `PW_SERVER_SET` accepts `all`, `fresh`, `tunes`, or `seeded` and limits web-server instances. `PW_SCREENSHOT_ONLY=1` omits tunes server; pair with `PW_SEED_SCREENSHOTS=1` for read-only parallel screenshot capture. Port and data overrides are `PW_FRESH_INSTALL_*`, `PW_TUNES_*`, and `PW_SEEDED_E2E_*` (`PORT`, `CLIENT_PORT`, `UDP_PORT`, `DATA_DIR`). `RACEIQ_APP_ROOT` overrides repository root for dev launcher subprocesses. `CI` controls retry/reporter defaults; `PW_SCREENSHOT_WORKERS` controls screenshot worker count.
+Forward Playwright options through the root launcher:
+
+```sh
+bun run test:e2e:fresh --concurrency=1 -- --grep "user steps through wizard"
+bun run test:e2e -- --list
+```
+
+Listings and interactive UI runs bypass the success cache. Explicit local `--only` also disables caching and skips the build; use it only with an existing application artifact. Managed CI execution retains the runtime dependency graph rather than using `--only`, which would omit dependency hashes.
+
+## PR pipeline and retries
+
+`.github/workflows/playwright-e2e.yml` plans affected projects before launching browser jobs. Fresh, tunes, and unseeded tunes retain separate lanes; affected seeded projects retain seven shards. An empty selection schedules no seed or browser jobs. Missing Git refs fall back to the full matrix.
+
+PR jobs restore lane-, OS-, architecture-, and tool-version-scoped `.turbo/cache` archives through GitHub Actions cache, without requiring a Turbo Remote Cache service. A cache probe runs before downloads, builds, and browser installation. Matching successful tasks replay their cached results; failed or newly changed tasks execute. Cache saving uses `always()` and unique run/attempt keys, preserving successes from partially failed jobs for retries. Cache eviction or an unavailable cache safely causes execution, not a skipped test.
+
+The shared seed producer still prepares one database when any seeded project is selected, even if downstream tasks later hit cache. Individual cached jobs skip seed downloads and application/browser setup. Release and manual gates keep the full project matrix and invoke Playwright directly without reusing browser success caches.
+
+`test:e2e:all` retains the broader uncached recording and full Playwright run, including non-functional projects.
+
+`E2E_SERVER_MODE` is `compiled` by default and accepts `dev` or `compiled`. Compiled mode launches `dist/raceiq` (`raceiq.exe` on Windows); direct Playwright commands require an existing build. Dev mode launches Bun server and Vite client. `PW_SERVER_SET` accepts `all`, `fresh`, `tunes`, `tunes-unseeded`, or `seeded` and limits web-server instances. `PW_SCREENSHOT_ONLY=1` omits tunes servers; pair with `PW_SEED_SCREENSHOTS=1` for read-only parallel screenshot capture. Port and data overrides are `PW_FRESH_INSTALL_*`, `PW_TUNES_*`, `PW_TUNES_UNSEEDED_*`, and `PW_SEEDED_E2E_*` (`PORT`, `CLIENT_PORT`, `UDP_PORT`, `DATA_DIR`). `RACEIQ_APP_ROOT` overrides repository root for dev launcher subprocesses. `CI` controls retry/reporter defaults; `PW_SCREENSHOT_WORKERS` controls screenshot worker count.
 
 Generate committed marketing images in `assets/screenshots/` with `E2E_SERVER_MODE=dev PW_SERVER_SET=seeded PW_SCREENSHOT_ONLY=1 PW_SEED_SCREENSHOTS=1 bun run screenshots` from `playwright/`. To refresh Home only, append `--grep 'screenshot: home$'`. The Home capture waits for dashboard metadata and loading panels to finish; it fails instead of saving a loading or error state. The root-level `bun run screenshots` command generates responsive evidence, not these marketing assets.
 Storybook screenshot tests create missing baselines on first run and compare them on later runs.

@@ -4,6 +4,88 @@
   "tasks": {
     "test": {
       "dependsOn": ["@raceiq/tooling-build#build"]
+    },
+    "e2e-inputs": {
+      "dependsOn": ["@raceiq/tooling-build#transit", "client#transit", "@raceiq/backend#transit"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!tests/**/*.spec.ts",
+        "!**/*.md",
+        "!test/**",
+        "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/tsconfig.base.json",
+        "$TURBO_ROOT$/test/artifacts/**",
+        "$TURBO_ROOT$/test/fixtures/**",
+        "$TURBO_ROOT$/assets/raceiq.ico",
+        "$TURBO_ROOT$/.github/workflows/playwright.yml",
+        "$TURBO_ROOT$/.github/workflows/playwright-e2e.yml",
+        "$TURBO_ROOT$/bunfig.toml",
+        "$TURBO_ROOT$/.env.development"
+      ],
+      "outputs": []
+    },
+    "test:e2e:fresh": {
+      "dependsOn": ["e2e-inputs"],
+      "inputs": ["tests/fresh-install/**/*.spec.ts", "tests/responsive/workspaces.spec.ts"],
+      "cache": true,
+      "env": ["CI", "NODE_ENV", "E2E_SERVER_MODE", "PW_*", "RACEIQ_*"],
+      "passThroughEnv": ["PLAYWRIGHT_*"]
+    },
+    "test:e2e:tunes": {
+      "dependsOn": ["e2e-inputs"],
+      "inputs": ["tests/tunes/**/*.spec.ts"],
+      "cache": true,
+      "env": ["CI", "NODE_ENV", "E2E_SERVER_MODE", "PW_*", "RACEIQ_*"],
+      "passThroughEnv": ["PLAYWRIGHT_*"]
+    },
+    "test:e2e:tunes-unseeded": {
+      "dependsOn": ["e2e-inputs"],
+      "inputs": ["tests/tunes/ac-evo.spec.ts", "tests/tunes/acc.spec.ts"],
+      "cache": true,
+      "env": ["CI", "NODE_ENV", "E2E_SERVER_MODE", "PW_*", "RACEIQ_*"],
+      "passThroughEnv": ["PLAYWRIGHT_*"]
+    },
+    "test:e2e:seeded": {
+      "dependsOn": ["e2e-inputs"],
+      "inputs": [
+        "tests/seeded/**/*.spec.ts",
+        "!tests/seeded/routes/**/*.spec.ts",
+        "!tests/seeded/analyse/core-flow.spec.ts",
+        "!tests/seeded/catalog/tracks.spec.ts",
+        "!tests/seeded/dev-tools/server-import.spec.ts",
+        "!tests/seeded/sessions/import.spec.ts",
+        "!tests/seeded/sessions/lifecycle.spec.ts"
+      ],
+      "cache": true,
+      "env": ["CI", "NODE_ENV", "E2E_SERVER_MODE", "PW_*", "RACEIQ_*"],
+      "passThroughEnv": ["PLAYWRIGHT_*"]
+    },
+    "test:e2e:routes": {
+      "dependsOn": ["e2e-inputs"],
+      "inputs": ["tests/seeded/routes/**/*.spec.ts"],
+      "cache": true,
+      "env": ["CI", "NODE_ENV", "E2E_SERVER_MODE", "PW_*", "RACEIQ_*"],
+      "passThroughEnv": ["PLAYWRIGHT_*"]
+    },
+    "test:e2e:imports": {
+      "dependsOn": ["e2e-inputs"],
+      "inputs": [
+        "tests/seeded/analyse/core-flow.spec.ts",
+        "tests/seeded/catalog/tracks.spec.ts",
+        "tests/seeded/dev-tools/server-import.spec.ts",
+        "tests/seeded/sessions/import.spec.ts",
+        "tests/seeded/sessions/lifecycle.spec.ts"
+      ],
+      "cache": true,
+      "env": ["CI", "NODE_ENV", "E2E_SERVER_MODE", "PW_*", "RACEIQ_*"],
+      "passThroughEnv": ["PLAYWRIGHT_*"]
+    },
+    "test:e2e:devices": {
+      "dependsOn": ["e2e-inputs"],
+      "inputs": ["tests/responsive/device.spec.ts"],
+      "cache": true,
+      "env": ["CI", "NODE_ENV", "E2E_SERVER_MODE", "PW_*", "RACEIQ_*"],
+      "passThroughEnv": ["PLAYWRIGHT_*"]
     }
   }
 }

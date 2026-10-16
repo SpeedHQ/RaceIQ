@@ -3,6 +3,13 @@
   "private": true,
   "scripts": {
     "test": "playwright test --workers=1",
+    "test:e2e:fresh": "PW_SERVER_SET=fresh playwright test --workers=1 --project=fresh-install --output=test-results/fresh",
+    "test:e2e:tunes": "PW_SERVER_SET=tunes playwright test --workers=1 --project=tunes --output=test-results/tunes",
+    "test:e2e:tunes-unseeded": "PW_SERVER_SET=tunes-unseeded playwright test --workers=1 --project=tunes-unseeded --output=test-results/tunes-unseeded",
+    "test:e2e:seeded": "PW_SERVER_SET=seeded playwright test --workers=1 --project=seeded-e2e --output=test-results/seeded",
+    "test:e2e:routes": "PW_SERVER_SET=seeded playwright test --workers=1 --project=seeded-routes --output=test-results/routes",
+    "test:e2e:imports": "PW_SERVER_SET=seeded playwright test --workers=1 --project=seeded-imports --output=test-results/imports",
+    "test:e2e:devices": "PW_SERVER_SET=seeded playwright test --workers=1 --project=mobile-device --project=tablet-device --output=test-results/devices",
     "test:ui": "bunx turbo run test --filter=raceiq-e2e -- --ui",
     "screenshots": "playwright test --project=marketing",
     "screenshots:mobile": "bunx turbo run test --filter=raceiq-e2e -- --project=mobile-screenshots",

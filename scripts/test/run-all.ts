@@ -4,7 +4,7 @@ const suites = [
   { name: "unit", args: ["run", "test:unit"] },
   { name: "integration", args: ["run", "test:integration"] },
   { name: "recording E2E", args: ["run", "test:e2e:recordings"] },
-  { name: "Playwright E2E", args: ["scripts/test/run-turbo.ts", "test", "--filter=raceiq-e2e"], env: { E2E_SERVER_MODE: "compiled", PW_SERVER_SET: "all" } },
+  { name: "Playwright E2E", args: ["run", "test:e2e"] },
 ];
 const failures: string[] = [];
 
@@ -12,7 +12,7 @@ for (const suite of suites) {
   console.log(`\n=== Running ${suite.name} tests ===`);
   const result = Bun.spawnSync([process.execPath, ...suite.args], {
     cwd: root,
-    env: { ...process.env, ...suite.env },
+    env: process.env,
     stdout: "inherit",
     stderr: "inherit",
   });

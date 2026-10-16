@@ -14,25 +14,48 @@ on:
         default: ""
 
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      has-tests: ${{ steps.plan.outputs.has-tests }}
+      needs-seed: ${{ steps.plan.outputs.needs-seed }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target-ref || github.ref }}
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Install workspace dependencies
+        run: bun scripts/ci/workflow-ops.ts install-retry
+      - id: plan
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          TURBO_SCM_BASE: ${{ github.event.pull_request.base.sha }}
+          TURBO_SCM_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: bun scripts/ci/playwright-turbo.ts plan
   seed-database:
+    needs: plan
+    if: needs.plan.result == 'success' && needs.plan.outputs.needs-seed == 'true'
     runs-on: mars-windows-x64-4vcpu-15g
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.target-ref || github.ref }}
-
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4
-
+          bun-version: 1.4.3
       - name: Install workspace dependencies
         run: bun scripts/ci/workflow-ops.ts install-retry
-
       - name: Prepare seeded database
         env:
           DATA_DIR: playwright/test-data-seed-producer
         run: bun playwright/support/server/prepare-seeded-database.ts
-
       - name: Upload seeded database
         uses: actions/upload-artifact@v7
         with:
@@ -45,67 +68,21 @@ jobs:
           retention-days: 1
 
   playwright:
-    needs: seed-database
+    needs: [plan, seed-database]
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.has-tests == 'true' && (needs.seed-database.result == 'success' || needs.seed-database.result == 'skipped')
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - name: fresh
-            server_set: fresh
-            projects: --project=fresh-install
-            runs_on: '["mars-windows-x64-2vcpu-15g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
-          - name: tunes
-            server_set: tunes
-            projects: --project=tunes
-            runs_on: '["mars-windows-x64-2vcpu-15g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
-          - name: tunes-unseeded
-            server_set: tunes-unseeded
-            projects: --project=tunes-unseeded
-            runs_on: '["mars-windows-x64-2vcpu-15g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
-          - name: seeded-shard-1
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
-            shard: 1/7
-            runs_on: '["mars-windows-x64-4vcpu-15g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
-          - name: seeded-shard-2
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
-            shard: 2/7
-            runs_on: '["mars-windows-x64-4vcpu-15g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
-          - name: seeded-shard-3
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
-            shard: 3/7
-            runs_on: '["mars-windows-x64-4vcpu-15g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
-          - name: seeded-shard-4
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
-            shard: 4/7
-            runs_on: '["mars-windows-x64-4vcpu-15g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
-          - name: seeded-shard-5
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
-            shard: 5/7
-            runs_on: '["mars-windows-x64-4vcpu-15g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
-          - name: seeded-shard-6
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
-            shard: 6/7
-            runs_on: '["mars-windows-x64-4vcpu-15g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
-          - name: seeded-shard-7
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
-            shard: 7/7
-            runs_on: '["mars-windows-x64-4vcpu-15g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled
       server-set: ${{ matrix.server_set }}
       projects: ${{ matrix.projects }}
-      shard: ${{ matrix.shard }}
+      shard: ${{ matrix.shard || '' }}
       runs-on: ${{ matrix.runs_on }}
       artifact-name: playwright-${{ matrix.name }}
       diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
       target-ref: ${{ inputs.target-ref }}
       seed-database-artifact: ${{ matrix.server_set == 'seeded' && 'playwright-seeded-database' || '' }}
       paraglide-artifact: ${{ inputs.paraglide-artifact }}
+      affected-cache: ${{ github.event_name == 'pull_request' }}
