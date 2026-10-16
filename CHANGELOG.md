@@ -4,6 +4,7 @@
 
 ### Fixes
 - Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.
+- Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
 
 ### Internal
 - Update live iRacing browser checks to expect the Tires section to be absent in Driver and Pit Crew views.
@@ -16,13 +17,19 @@
 
 ### Features
 - New home dashboard with cleaner session and favourite widgets, clean-rate and podium trends.
-- Configure dashboard password protection during setup or in Access & security settings.
+- Configure dashboard password protection during setup or in Access & security settings; sign in across devices and recover a forgotten password from the terminal.
+- New desktop and self-hosted installs restrict dashboard access to this computer until you select additional network interfaces.
+- Password-protected dashboards use browser sessions; API clients sign in and send the session cookie and a CSRF token for writes.
 - Choose dashboard network interfaces and allowed browser domains without changing telemetry reception.
 - Share dashboard and HUD links through copied URLs or QR codes, including saved hostnames such as Tailscale domains.
 - Add OBS overlays for live driving, timing, standings, nearby race order, supported car damage, pedal inputs, and distance driven, with sample previews and metric or imperial units.
 - Choose a recording folder, relocate existing recordings, and organize them into per-game `own` and `others` folders.
 - Support AC Evo Tourist layout.
 - Add Hindi, Korean, European Portuguese, and Simplified Chinese interface translations.
+- Retrieve automated lap insights on demand in Analyse chat before diagnosis and improvement advice, with visible tool activity and clear distinctions between missing data and no detected findings.
+- Export complete chat history as JSON for developer debugging, including retained chat generations, stored thinking, tool calls and results, and system prompts.
+- Disable dashboard password protection from the terminal with an explicit exposure confirmation, without changing network access or recordings.
+- Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 
 ### Fixes
 - Keep converted recordings from older releases readable after updating, including checkpoint-only F1, iRacing, and LMU captures.

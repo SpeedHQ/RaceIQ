@@ -1,3 +1,4 @@
+import { supportsPositionDependentSceneFeature } from "../src/lib/wireframe-capabilities";
 import { describe, expect, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
@@ -769,5 +770,13 @@ describe("telemetry capability UI", () => {
     expect(available).toContain("Est. Lap");
     expect(available).toContain("1:33.500");
     expect(available).toContain("-0.523");
+  });
+});
+describe("position-dependent 3D features", () => {
+  test("disables world-position overlays for iRacing without affecting other games", () => {
+    for (const feature of ["track", "racingLine", "trails", "inputs"] as const) {
+      expect(supportsPositionDependentSceneFeature("iracing", feature)).toBe(false);
+      expect(supportsPositionDependentSceneFeature("ac-evo", feature)).toBe(true);
+    }
   });
 });
