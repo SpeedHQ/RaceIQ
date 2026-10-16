@@ -298,7 +298,7 @@ export const resourceRoutes = new Hono()
       } else {
         const loaded = await loadSessionSource({
           rawFile: row.rawFile!, source: row.source ?? null, gameId: row.gameId as GameId,
-          carId: row.carId, trackId: row.trackId,
+          carId: row.carId, trackId: row.trackId, captureFormatVersion: row.captureFormatVersion,
         });
         if (loaded.kind === "packets") {
           return c.json({ error: "MoTeC sessions use canonical packets and have no BIN capture" }, 409);

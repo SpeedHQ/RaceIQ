@@ -255,8 +255,21 @@ function PercentageTrendChart({ trend, label, periodStart, periodEnd, status = n
   status?: { text: string; error: boolean } | null;
 }) {
   const span = periodEnd - periodStart;
-  const plottedTrend = trend;
-  const x = (time: number) => span <= 0 ? 160 : 8 + (time - periodStart) / span * 304;
+  const monthly = span > 31 * 86_400_000;
+  const monthEnds = new Map<string, (typeof trend)[number]>();
+  if (monthly) {
+    // Bucket endpoints are exclusive: midnight on the first belongs to the preceding month.
+    for (const point of trend.slice(1)) {
+      const date = new Date(point.timestamp - 1);
+      monthEnds.set(`${date.getUTCFullYear()}-${date.getUTCMonth()}`, point);
+    }
+  }
+  const plottedTrend = monthly ? [...monthEnds.values()] : trend;
+  const monthLabels = new Intl.DateTimeFormat(getLocale(), { month: "short", timeZone: "UTC" });
+  const monthDescriptions = new Intl.DateTimeFormat(getLocale(), { month: "long", year: "numeric", timeZone: "UTC" });
+  const x = (time: number, index: number) => monthly
+    ? plottedTrend.length <= 1 ? 160 : 16 + index / (plottedTrend.length - 1) * 288
+    : span <= 0 ? 160 : 8 + (time - periodStart) / span * 304;
   const y = (rate: number) => 88 - rate * 76;
   const sameDay = new Date(periodStart).toDateString() === new Date(periodEnd).toDateString();
   const dates = new Intl.DateTimeFormat(getLocale(), sameDay ? { hour: "numeric", minute: "2-digit" } : {
@@ -269,13 +282,19 @@ function PercentageTrendChart({ trend, label, periodStart, periodEnd, status = n
     <Skeleton loading={status != null && !status.error} shape="chart" className="mt-1 min-h-0 w-full flex-1">
       <svg viewBox="0 0 320 112" preserveAspectRatio="none" className="block h-full w-full" role="group" aria-label={label}>
         <title>{label}</title>
-        {plottedTrend.length > 0 && <polyline points={plottedTrend.map((point) => `${x(point.timestamp)},${y(point.rate)}`).join(" ")} fill="none" stroke="var(--app-accent)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />}
+        {plottedTrend.length > 0 && <polyline points={plottedTrend.map((point, index) => `${x(point.timestamp, index)},${y(point.rate)}`).join(" ")} fill="none" stroke="var(--app-accent)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />}
         {plottedTrend.map((point, index) => {
-          const pointLabel = `${times.format(point.timestamp)} · ${Math.round(point.rate * 100)}% · ${point.valid}/${point.total}`;
-          return <circle key={index} cx={x(point.timestamp)} cy={y(point.rate)} r={plottedTrend.length === 1 ? 3 : 2} fill="var(--app-accent)" role="img" aria-label={pointLabel} tabIndex={0} className="focus-visible:outline-2 focus-visible:outline-app-accent"><title>{pointLabel}</title></circle>;
+          const pointLabel = `${monthly ? monthDescriptions.format(point.timestamp - 1) : times.format(point.timestamp)} · ${Math.round(point.rate * 100)}% · ${point.valid}/${point.total}`;
+          return <circle key={index} cx={x(point.timestamp, index)} cy={y(point.rate)} r={plottedTrend.length === 1 ? 3 : 2} fill="var(--app-accent)" role="img" aria-label={pointLabel} tabIndex={0} className="focus-visible:outline-2 focus-visible:outline-app-accent"><title>{pointLabel}</title></circle>;
         })}
-        <text x={span <= 0 ? 160 : 8} y="106" textAnchor={span <= 0 ? "middle" : "start"} fill="var(--app-text-muted)" className="font-mono text-app-caption">{dates.format(periodStart)}</text>
-        {span > 0 && <text x="312" y="106" textAnchor="end" fill="var(--app-text-muted)" className="font-mono text-app-caption">{dates.format(periodEnd)}</text>}
+        {monthly ? plottedTrend.map((point, index) => (
+          <text key={point.timestamp} x={x(point.timestamp, index)} y="106" textAnchor="middle" fill="var(--app-text-muted)" className="font-mono text-app-caption">{monthLabels.format(point.timestamp - 1)}</text>
+        )) : (
+          <>
+            <text x={span <= 0 ? 160 : 8} y="106" textAnchor={span <= 0 ? "middle" : "start"} fill="var(--app-text-muted)" className="font-mono text-app-caption">{dates.format(periodStart)}</text>
+            {span > 0 && <text x="312" y="106" textAnchor="end" fill="var(--app-text-muted)" className="font-mono text-app-caption">{dates.format(periodEnd)}</text>}
+          </>
+        )}
       </svg>
       {status && <p className={`absolute inset-0 grid place-items-center text-app-detail ${status.error ? "text-status-danger" : "text-app-text-muted"}`}>{status.text}</p>}
       {!status && trend.length === 0 && <EmptyStateOverlay />}

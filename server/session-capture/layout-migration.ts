@@ -23,6 +23,17 @@ type Journal = { version: 1; root: string; destination: string; phase: "organizi
 const journalFile = join(resolveDataDir(), "recording-layout-migration.json");
 let active = false;
 let progress: LayoutMigrationProgress = { status: "idle", done: 0, total: 0, migrated: 0, failed: 0, error: null };
+let migrationGeneration = 0;
+const completionListeners = new Set<() => void>();
+export function subscribeLayoutMigrationComplete(listener: () => void): () => void {
+  completionListeners.add(listener);
+  return () => completionListeners.delete(listener);
+}
+function notifyLayoutMigrationComplete(): void {
+  for (const listener of completionListeners) {
+    try { listener(); } catch (error) { console.error("[LayoutMigration] Completion listener failed:", error); }
+  }
+}
 const extensions = [".bin", ".bin.gz", ".motec.zip"];
 const isCapture = (name: string) => extensions.some((extension) => name.endsWith(extension));
 async function fileHash(path: string): Promise<string> {
@@ -133,7 +144,7 @@ async function findLegacyFiles(root: string): Promise<string[]> {
     if (!game.isDirectory() || game.name === "own" || game.name === "others" || !knownGames.has(game.name)) continue;
     const directory = join(root, game.name);
     let files;
-    try { files = await readdir(directory, { withFileTypes: true }); } catch { continue; }
+    try { files = await readdir(directory, { withFileTypes: true }); } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") continue; throw error; }
     for (const file of files) if (file.isFile() && isCapture(file.name)) result.push(join(directory, file.name));
   }
   return result;
@@ -211,6 +222,32 @@ export async function hasPendingLayoutMigration(): Promise<boolean> {
   const journal = await readJournal();
   return Boolean(journal);
 }
+export async function isLayoutMigrationReadyForStartup(): Promise<boolean> {
+  const generation = migrationGeneration;
+  const blocked = () => active || progress.status === "running" || progress.status === "partial" || progress.status === "error";
+  if (blocked()) return false;
+  if (await readJournal()) return false;
+  const move = getRecordingDirectoryMoveStatus();
+  if (move.state === "moving" || move.state === "error") return false;
+  const root = resolveRecordingDirectory();
+  if ((await findLegacyFiles(root)).length) return false;
+  const knownGames = new Set<string>(getAllGames().map((game) => game.id));
+  const filesystemRoot = await realpath(root).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? root : Promise.reject(error));
+  for (const ref of await db.select({ rawFile: sessions.rawFile }).from(sessions).all()) {
+    if (!ref.rawFile) continue;
+    const rawPath = resolve(ref.rawFile);
+    const rawInfo = await lstat(rawPath).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? null : Promise.reject(error));
+    if (!rawInfo?.isFile() || rawInfo.isSymbolicLink()) continue;
+    const physicalPath = await canonicalFilesystemPath(rawPath).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? null : Promise.reject(error));
+    if (!physicalPath || !inside(filesystemRoot, physicalPath)) continue;
+    const parts = relative(filesystemRoot, physicalPath).split(sep);
+    if (parts.length === 2 && knownGames.has(parts[0]) && await isLegacyCandidateFile(root, join(root, ...parts), false)) return false;
+  }
+  if (generation !== migrationGeneration || blocked()) return false;
+  const journal = await readJournal();
+  return generation === migrationGeneration && !blocked() && !journal
+    && !["moving", "error"].includes(getRecordingDirectoryMoveStatus().state);
+}
 async function publish(source: string, target: string, digest: string): Promise<void> {
   await mkdir(dirname(target), { recursive: true });
   const temp = `${target}.${process.pid}.migration-tmp`;
@@ -230,6 +267,7 @@ export async function startLayoutMigration(directory?: string): Promise<void> {
   if (active) throw Object.assign(new Error("Layout migration is already running"), { code: "MIGRATION_ACTIVE" });
   const release = reserveRecordingStorageOperation("layout-migration");
   if (isSessionActive()) { release(); throw Object.assign(new Error("Recording is active"), { code: "RECORDING_ACTIVE" }); }
+  migrationGeneration++;
   active = true;
   let admit!: () => void;
   let rejectAdmission!: (error: unknown) => void;
@@ -330,6 +368,7 @@ export async function startLayoutMigration(directory?: string): Promise<void> {
   }).finally(() => {
     release();
     active = false;
+    if (progress.status === "success" && !admissionFailed) notifyLayoutMigrationComplete();
     if (admissionFailed) rejectAdmission(admissionError);
   });
   await admission;

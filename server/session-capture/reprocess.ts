@@ -52,7 +52,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
 
 async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessResult> {
   const sessionRows = await db
-    .select({ rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId, lapDetectorVersion: sessions.lapDetectorVersion })
+    .select({ rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId, lapDetectorVersion: sessions.lapDetectorVersion, captureFormatVersion: sessions.captureFormatVersion })
     .from(sessions)
     .where(eq(sessions.id, sessionId))
     .all();
@@ -73,7 +73,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
 
   const source = {
     rawFile: session.rawFile, source: session.source, gameId,
-    carId: session.carId, trackId: session.trackId,
+    carId: session.carId, trackId: session.trackId, captureFormatVersion: session.captureFormatVersion,
   };
   const loaded = session.rawFile.endsWith(".motec.zip") ? await loadSessionSource(source) : null;
   const existingLaps = await getLapsForSession(sessionId);

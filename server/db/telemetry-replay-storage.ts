@@ -345,12 +345,12 @@ export async function getSessionRawFile(sessionId: number, gameId: GameId): Prom
 export async function* iterateSessionTelemetry(sessionId: number, gameId: GameId): AsyncGenerator<TelemetryPacket> {
   const session = await db.select({
     rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId,
-    carId: sessions.carId, trackId: sessions.trackId,
+    carId: sessions.carId, trackId: sessions.trackId, captureFormatVersion: sessions.captureFormatVersion,
   }).from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.gameId, gameId))).get();
   if (!session?.rawFile) return;
   const source = {
     rawFile: session.rawFile, source: session.source, gameId: session.gameId as GameId,
-    carId: session.carId, trackId: session.trackId,
+    carId: session.carId, trackId: session.trackId, captureFormatVersion: session.captureFormatVersion,
   };
   if (session.rawFile.endsWith(".motec.zip")) {
     const loaded = await loadSessionSource(source);
@@ -561,6 +561,7 @@ export interface LapReplaySource {
   captureManifestFile?: string | null;
   captureLayoutVersion?: number | null;
   captureChunkId?: string | null;
+  captureFormatVersion: number | null;
   versionIdentity?: TelemetryVersionIdentity;
 }
 
@@ -579,6 +580,7 @@ export async function getLapReplaySource(id: number): Promise<LapReplaySource | 
       captureManifestFile: sessions.captureManifestFile,
       captureLayoutVersion: sessions.captureLayoutVersion,
       captureChunkId: laps.captureChunkId,
+      captureFormatVersion: sessions.captureFormatVersion,
       catalogVersion: laps.catalogVersion,
       catalogHash: laps.catalogHash,
       catalogSchemaVersion: laps.catalogSchemaVersion,
@@ -604,6 +606,7 @@ export async function getLapReplaySource(id: number): Promise<LapReplaySource | 
     captureManifestFile: row.captureManifestFile,
     captureLayoutVersion: row.captureLayoutVersion,
     captureChunkId: row.captureChunkId,
+    captureFormatVersion: row.captureFormatVersion,
     versionIdentity: hasVersionIdentity
       ? {
           catalogVersion: row.catalogVersion!,

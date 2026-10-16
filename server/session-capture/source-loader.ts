@@ -37,7 +37,7 @@ export interface SessionCaptureFrameIndex {
   readonly records: readonly SessionCaptureFrameRecord[];
   readonly byOffset: ReadonlyMap<number, SessionCaptureFrameRecord>;
 }
-export interface SessionCaptureSource { rawFile: string; source: string | null; gameId: GameId; carId: string; trackId: string; }
+export interface SessionCaptureSource { rawFile: string; source: string | null; gameId: GameId; carId: string; trackId: string; captureFormatVersion?: number | null; }
 export type LoadedSessionSource =
   | { kind: "capture"; buffer: Buffer; frameIndex: SessionCaptureFrameIndex }
   | { kind: "packets"; packets: TelemetryPacket[]; offsetEncoding: MotecOffsetEncoding };
@@ -87,7 +87,7 @@ export function clearSessionCaptureCache(rawFile?: string): void {
 export function setCaptureFileFactoryForTest(factory: CaptureFileFactory | null): void {
   captureFileFactory = factory ?? ((path) => Bun.file(path));
 }
-function key(source: SessionCaptureSource): string { return `${source.rawFile}\0${source.source ?? ""}\0${source.gameId}\0${source.carId}\0${source.trackId}`; }
+function key(source: SessionCaptureSource): string { return `${source.rawFile}\0${source.source ?? ""}\0${source.gameId}\0${source.carId}\0${source.trackId}\0${source.captureFormatVersion ?? ""}`; }
 async function hasSparseCaptureFormat(file: SessionCaptureFile): Promise<boolean> {
   const prefix = Buffer.from(await file.slice(0, 2).arrayBuffer());
   let stream = file.stream();
@@ -144,7 +144,7 @@ export async function* iterateSessionCaptureRecordsFromSource(
   }
 
   const file = captureFileFactory(source.rawFile);
-  if (!await hasSparseCaptureFormat(file)) {
+  if (source.captureFormatVersion !== 1 && !await hasSparseCaptureFormat(file)) {
     throw new Error("Legacy full-frame captures are not supported; provide a sparse RaceIQ capture.");
   }
   const prefix = Buffer.from(await file.slice(0, 2).arrayBuffer());
@@ -310,7 +310,7 @@ export async function loadSessionSource(source: SessionCaptureSource): Promise<L
     const carTrack = target.resolveCarTrack(log, { carId: source.carId, trackId: source.trackId });
     loaded = { kind: "packets", packets: target.convert(log, beacons, carTrack).packets, offsetEncoding: archive.offsetEncoding };
   } else {
-    if (!containsSparseCaptureFrames(bytes)) {
+    if (source.captureFormatVersion !== 1 && !containsSparseCaptureFrames(bytes)) {
       throw new Error("Legacy full-frame captures are not supported; provide a sparse RaceIQ capture.");
     }
     loaded = { kind: "capture", buffer: bytes, frameIndex: indexCaptureFrames(bytes) };

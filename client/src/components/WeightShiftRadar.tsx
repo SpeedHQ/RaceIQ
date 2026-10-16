@@ -122,9 +122,9 @@ export function WeightShiftRadar({ frame }: { frame: SemanticAnalysisFrame }) {
 
   if (!semanticLoads || semanticLoads.length < 4) return null;
   return (
-    <div className="relative flex flex-col items-center">
+    <div className="flex flex-col items-center gap-1">
       <canvas ref={canvasRef} style={{ width: size, height: size }} className="rounded" />
-      <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-app-micro font-mono text-app-text-muted text-center leading-tight">
+      <span className="text-app-micro font-mono text-app-text-muted text-center leading-tight">
         {m.label_load()}
         <br />
         {m.label_distribution()}

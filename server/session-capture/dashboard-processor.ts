@@ -19,7 +19,7 @@ import { iterateSessionCaptureRecordsFromSource, type SessionCaptureSource } fro
 const USES_SESSION_CLOCK: Partial<Record<GameId, true>> = { "fm-2023": true, "f1-2025": true, iracing: true, lmu: true };
 const BATCH_SIZE = 25;
 const checkpointYield = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
-type SessionInfo = { raw_file: string | null; source: string | null; game_id: string; car_id: string | null; track_id: string | null };
+type SessionInfo = { raw_file: string | null; source: string | null; game_id: string; car_id: string | null; track_id: string | null; capture_format_version: number | null };
 
 
 function unavailableCapture(candidate: DashboardPublicationCandidate): DashboardCaptureFacts {
@@ -130,7 +130,7 @@ export async function republishPersistedDashboardCaptureFacts(sessionIds: readon
 async function readCaptureFacts(candidate: DashboardPublicationCandidate): Promise<DashboardCaptureFacts> {
   const session = candidate.session as SessionInfo | null;
   if (!session?.raw_file) return unavailableCapture(candidate);
-  const source: SessionCaptureSource = { rawFile: session.raw_file, source: session.source, gameId: session.game_id as GameId, carId: session.car_id ?? "", trackId: session.track_id ?? "" };
+  const source: SessionCaptureSource = { rawFile: session.raw_file, source: session.source, gameId: session.game_id as GameId, carId: session.car_id ?? "", trackId: session.track_id ?? "", captureFormatVersion: session.capture_format_version };
   const initialStat = await stat(source.rawFile).catch(() => null);
   if (!initialStat) return unavailableCapture(candidate);
   const game = getServerGame(source.gameId);
