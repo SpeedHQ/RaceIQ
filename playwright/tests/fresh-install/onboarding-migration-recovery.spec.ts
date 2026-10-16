@@ -101,7 +101,36 @@ test.describe("onboarding recording-layout recovery", () => {
     }
   });
 
+  test("pending recordings require organization before onboarding can continue", async ({ page }) => {
+    const fixture = await startOnboarding(page, false);
+    let completed = false;
+    await page.route("**/api/storage/layout-migration", async (route) => {
+      if (route.request().method() === "POST") {
+        completed = true;
+        await route.fulfill({ status: 202, json: { accepted: true } });
+      } else {
+        await route.fulfill({ json: completed ? successStatus() : { ...idleStatus(), fileCount: 1, sessionCount: 1 } });
+      }
+    });
+    try {
+      await page.reload({ waitUntil: "domcontentloaded" });
+      const getStarted = page.getByRole("button", { name: "Get Started", exact: true, includeHidden: true });
+      await expect(getStarted).toBeDisabled();
+      await page.getByRole("button", { name: "Organize recordings", exact: true }).click();
+      const dialog = page.getByRole("dialog", { name: "Organize your recordings", exact: true });
+      await expect(dialog).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(dialog).toBeVisible();
+      await expect(getStarted).toBeDisabled();
+      await dialog.getByRole("button", { name: "Organize recordings", exact: true }).click();
+      await expect(getStarted).toBeEnabled();
+    } finally {
+      fixture.restoreSettings();
+    }
+  });
+
   test("Storage step exposes same-destination retry", async ({ page }) => {
+    await page.clock.install();
     const fixture = await startOnboarding(page, false);
     try {
       await reachStorage(page);

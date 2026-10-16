@@ -94,6 +94,28 @@ await client.execute(`
 `);
 
 async function runMigrations() {
+  // Earlier feature builds recorded the frequency-column migration as v76;
+  // move that named ledger entry so upstream can apply its now-canonical v76.
+  const frequencyMigration = await client.execute(`SELECT version FROM schema_migrations
+    WHERE version = 76 AND name = 'persist archival recording frequency caps'`);
+  if (frequencyMigration.rows.length) {
+    const tx = await client.transaction("write");
+    try {
+      const existing = await tx.execute("SELECT name FROM schema_migrations WHERE version = 77");
+      if (existing.rows.length && existing.rows[0]!.name !== "persist archival recording frequency caps") {
+        throw new Error("Recording frequency migration conflicts with the recorded database history");
+      }
+      await tx.execute(`INSERT OR IGNORE INTO schema_migrations (version, name, applied_at)
+        SELECT 77, name, applied_at FROM schema_migrations
+        WHERE version = 76 AND name = 'persist archival recording frequency caps'`);
+      await tx.execute(`DELETE FROM schema_migrations
+        WHERE version = 76 AND name = 'persist archival recording frequency caps'`);
+      await tx.commit();
+    } catch (error) {
+      await tx.rollback();
+      throw error;
+    }
+  }
   // Unreleased feature builds used IDs now owned by main. Move only their
   // named ledger entries; preserve their tables, credentials, and sessions.
   const legacy = await client.execute(`SELECT version, name FROM schema_migrations

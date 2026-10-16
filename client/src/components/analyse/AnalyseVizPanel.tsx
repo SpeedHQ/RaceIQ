@@ -94,7 +94,7 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="2d" className="flex min-h-0 w-full flex-1 flex-col items-center gap-2 overflow-y-auto p-2">
+      <TabsContent value="2d" className="flex min-h-0 w-full flex-1 flex-col items-start gap-2 overflow-auto p-2">
         {visualFrame && gameId && <TireDiagram frame={visualFrame} gameId={gameId} />}
       </TabsContent>
 

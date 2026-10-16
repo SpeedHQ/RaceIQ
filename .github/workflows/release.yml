@@ -12,7 +12,7 @@ on:
           - minor
           - major
       skip_tests:
-        description: "Skip release Playwright tests after local verification"
+        description: "Skip broad Playwright suite; release-to-main upgrade smoke still runs"
         required: false
         type: boolean
         default: false
@@ -138,14 +138,39 @@ jobs:
           SKIP_TESTS: ${{ inputs.skip_tests }}
         run: bun scripts/ci/workflow-ops.ts release-summary
 
+  upgrade-smoke:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+      - name: Verify release-to-main upgrade in Ubuntu Docker
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: bun run test:upgrade
+      - name: Upload source upgrade smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: source-upgrade-smoke
+          path: playwright/test-results/source-upgrade/
+          if-no-files-found: ignore
+          retention-days: 14
+
   playwright-test:
     if: github.event_name == 'workflow_dispatch' && !inputs.skip_tests
     needs: build
     uses: ./.github/workflows/playwright-e2e.yml
   draft-release:
     timeout-minutes: 30
-    if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.compute-version.result == 'success' && needs.build.result == 'success' && (needs.playwright-test.result == 'success' || needs.playwright-test.result == 'skipped') }}
-    needs: [compute-version, build, playwright-test]
+    if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.compute-version.result == 'success' && needs.build.result == 'success' && needs.upgrade-smoke.result == 'success' && (needs.playwright-test.result == 'success' || needs.playwright-test.result == 'skipped') }}
+    needs: [compute-version, build, upgrade-smoke, playwright-test]
     runs-on:
       - mars-windows-x64-4vcpu-15g
       - mars-macos-arm64-2vcpu-10g

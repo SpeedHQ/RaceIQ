@@ -1,9 +1,10 @@
 const root = new URL("../..", import.meta.url).pathname;
 const suites = [
+  { name: "release build", args: ["run", "build"] },
   { name: "unit", args: ["run", "test:unit"] },
   { name: "integration", args: ["run", "test:integration"] },
   { name: "recording E2E", args: ["run", "test:e2e:recordings"] },
-  { name: "Playwright E2E", args: ["scripts/test/run-turbo.ts", "test", "--filter=raceiq-e2e"], env: { PW_SERVER_SET: "all" } },
+  { name: "Playwright E2E", args: ["scripts/test/run-turbo.ts", "test", "--filter=raceiq-e2e"], env: { E2E_SERVER_MODE: "compiled", PW_SERVER_SET: "all" } },
 ];
 const failures: string[] = [];
 
