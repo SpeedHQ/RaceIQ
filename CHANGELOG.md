@@ -66,7 +66,6 @@
 - Reconcile older recordings with updated car, track, and lap detection, preserving matched lap annotations and reporting captures that cannot be repaired.
 - Recheck all historical AC Evo recordings for Tourist layout identity and rebuild their laps after recording-folder organization completes; keep dependent startup work blocked when an earlier repair is incomplete.
 - Use suitable local network addresses for remote HUD links and let users choose an address when multiple adapters are available.
-- Preserve recording imports and session deletion while dashboard summaries refresh in the background.
 - Keep racing, throttle, and braking lines sharp when zooming into the replay map.
 
 ### Internal

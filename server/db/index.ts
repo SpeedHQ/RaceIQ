@@ -7,7 +7,6 @@ import { existsSync, mkdirSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { assertDashboardDatabasePresent } from "../runtime/config/dashboard-access-state";
-import { serializeSqliteClient } from "./serialized-client";
 
 // Always resolve the data dir, even when the DB itself lives in memory: the
 // call doubles as the safety net that throws if a test run somehow reaches
@@ -55,7 +54,7 @@ if (!IN_MEMORY && process.env.RACEIQ_TEST_MODE !== "1") {
   migrateLegacyDatabase();
 }
 
-const client: Client = serializeSqliteClient(createClient({ url: IN_MEMORY ? ":memory:" : `file:${DB_PATH}` }));
+const client: Client = createClient({ url: IN_MEMORY ? ":memory:" : `file:${DB_PATH}` });
 
 // Bindings are created synchronously so importing this module can never block
 // and `db` can never be observed in its temporal dead zone. All async setup
