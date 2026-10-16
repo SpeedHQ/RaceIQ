@@ -8,7 +8,7 @@ import { getRecordedElapsedSeconds } from "../session-capture/elapsed-duration";
 import { cacheDelete } from "./telemetry-replay-storage";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull, lt, asc } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps, sessionResults, pitEvents, sessionCaptureSplitJobs } from "./schema";
+import { sessions, laps, sessionResults, pitEvents, sessionCaptureSplitJobs, liveCaptures } from "./schema";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import type { SessionMeta, SessionOwnership, SessionCaptureSplitPhase, SessionCaptureSplitErrorCode } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -21,6 +21,9 @@ import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { wsManager } from "../runtime/websocket-manager";
 import type { SessionCaptureSplitStatus } from "@raceiq/shared/racing/sessions/types";
 import { getLapById } from "./lap-read-queries";
+import type { PublishedManifest } from "@raceiq/capture-splitting";
+import { clearCaptureManifestCache, loadCaptureManifest } from "../session-capture/source-loader";
+import { recoverLiveCaptureStorage } from "../session-capture/live-recovery";
 
 export interface SessionCaptureSplitWork {
   sessionId: number;
@@ -72,6 +75,10 @@ export async function enqueueSessionCaptureSplit(sessionId: number): Promise<boo
       rawFile: sessions.rawFile, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId,
       captureLayoutVersion: sessions.captureLayoutVersion,
     }).from(sessions).where(eq(sessions.id, sessionId)).get();
+    const liveCapture = await db.select({ status: liveCaptures.status }).from(liveCaptures)
+      .where(eq(liveCaptures.sessionId, sessionId)).get();
+    if (liveCapture && ["recording", "finalizing", "recovering"].includes(liveCapture.status)) return false;
+    if (row?.captureLayoutVersion === 3) return false;
     if (!row?.rawFile || row.captureLayoutVersion != null ||
         !(row.rawFile.endsWith(".bin") || row.rawFile.endsWith(".bin.gz"))) return false;
     const lapRows = await db.select({
@@ -85,7 +92,7 @@ export async function enqueueSessionCaptureSplit(sessionId: number): Promise<boo
       const current = windows[i]!;
       if (!Number.isSafeInteger(current.startByteOffset) || current.startByteOffset < 0 ||
           !Number.isSafeInteger(current.frameCount) || current.frameCount < 1 ||
-          !Number.isSafeInteger(current.lapNumber) || current.lapNumber < 1 ||
+          !Number.isSafeInteger(current.lapNumber) || current.lapNumber < 0 ||
           (i > 0 && windows[i - 1]!.startByteOffset >= current.startByteOffset)) return false;
     }
     let info: Stats;
@@ -181,14 +188,21 @@ function revisionForWindows(info: Stats, windows: SessionCaptureSplitWork["windo
 export async function publishSessionCaptureSplit(
   work: SessionCaptureSplitWork,
   manifestPath: string,
-  chunks: readonly { id: string; lapId?: string; path: string; sourceStart: number; ownedFrameByteOffset?: number; ownedFrameCount?: number }[],
+  manifest: PublishedManifest,
+  signal?: AbortSignal,
 ): Promise<boolean> {
+  if (manifest.version !== 4 || manifest.gameId !== work.gameId || manifest.sourceRevision !== work.sourceRevision) return false;
+  const persisted = await loadCaptureManifest(manifestPath);
+  if (JSON.stringify(persisted) !== JSON.stringify(manifest)) return false;
+  const archivePath = join(dirname(manifestPath), manifest.archiveFile);
+  const chunks = manifest.chunks;
   const publicationFiles = await Promise.all(
-    [manifestPath, ...chunks.map((chunk) => join(dirname(manifestPath), chunk.path))].map(async (path) => {
+    [manifestPath, archivePath].map(async (path) => {
       try { return (await stat(path)).isFile(); } catch { return false; }
     }),
   );
   if (publicationFiles.some((isFile) => !isFile)) return false;
+  signal?.throwIfAborted();
   const published = await db.transaction(async (tx) => {
     const job = await tx.select({ status: sessionCaptureSplitJobs.status }).from(sessionCaptureSplitJobs).where(and(
       eq(sessionCaptureSplitJobs.sessionId, work.sessionId), eq(sessionCaptureSplitJobs.jobId, work.jobId),
@@ -225,7 +239,7 @@ export async function publishSessionCaptureSplit(
       if (updated.rowsAffected !== 1) throw new Error(`Lap ${lapId} changed during split publication`);
     }
     const sessionUpdated = await tx.update(sessions).set({
-      captureLayoutVersion: 1, captureManifestFile: manifestPath,
+      captureLayoutVersion: 2, captureManifestFile: manifestPath, captureArchiveFile: archivePath,
     }).where(and(eq(sessions.id, work.sessionId), eq(sessions.rawFile, work.sourcePath), eq(sessions.gameId, work.gameId))).run();
     if (sessionUpdated.rowsAffected !== 1) throw new Error("Session source changed during split publication");
     const jobUpdated = await tx.update(sessionCaptureSplitJobs).set({
@@ -237,9 +251,11 @@ export async function publishSessionCaptureSplit(
       eq(sessionCaptureSplitJobs.status, "publishing"),
     )).run();
     if (jobUpdated.rowsAffected !== 1) throw new Error("Split job attempt changed during publication");
+    signal?.throwIfAborted();
     return true;
   });
   if (published) {
+    clearCaptureManifestCache(manifestPath);
     for (const window of work.windows) cacheDelete(Number(window.lapId));
     await notifySessionCaptureSplitStatus(work.sessionId);
   }
@@ -248,6 +264,7 @@ export async function publishSessionCaptureSplit(
 
 /** Startup repairs missed close enqueue and fences interrupted attempts with a new identity. */
 export async function recoverSessionCaptureSplitJobs(): Promise<void> {
+  await recoverLiveCaptureStorage();
   const interrupted = await db.select({
     sessionId: sessionCaptureSplitJobs.sessionId, attemptId: sessionCaptureSplitJobs.attemptId,
     stagingPath: sessionCaptureSplitJobs.stagingPath,
@@ -258,8 +275,20 @@ export async function recoverSessionCaptureSplitJobs(): Promise<void> {
   )).all();
   for (const { sessionId, attemptId, stagingPath } of interrupted) {
     if (stagingPath) {
-      await rm(stagingPath, { recursive: true, force: true }).catch(() => undefined);
-      if (stagingPath.endsWith(".staging")) await rm(stagingPath.slice(0, -8), { recursive: true, force: true }).catch(() => undefined);
+      const publications = await db.select({
+        rawFile: sessions.rawFile, manifestFile: sessions.captureManifestFile, archiveFile: sessions.captureArchiveFile,
+      }).from(sessions).all();
+      const references = publications.flatMap((row) => [row.rawFile, row.manifestFile, row.archiveFile])
+        .filter((path): path is string => path != null).map((path) => resolve(path));
+      const candidates = stagingPath.endsWith(".staging") ? [stagingPath, stagingPath.slice(0, -8)] : [stagingPath];
+      for (const candidate of candidates) {
+        if (!isOwnedSessionRawFile(candidate) || references.some((path) => {
+          const rel = relative(resolve(candidate), path);
+          return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+        })) continue;
+        await rm(candidate, { recursive: true, force: true }).catch(() => undefined);
+        clearCaptureManifestCache();
+      }
     }
     const reset = {
       sequence: 0, stagingPath: null, processedSourceFrames: null, totalSourceFrames: null,
@@ -292,7 +321,8 @@ export async function getQueuedSessionCaptureSplitJobs(): Promise<SessionCapture
     sourcePath: sessionCaptureSplitJobs.sourcePath, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId,
     ownership: sessions.ownership,
   }).from(sessionCaptureSplitJobs).innerJoin(sessions, eq(sessions.id, sessionCaptureSplitJobs.sessionId))
-    .where(eq(sessionCaptureSplitJobs.status, "queued")).orderBy(asc(sessionCaptureSplitJobs.sessionId)).all();
+    .where(and(eq(sessionCaptureSplitJobs.status, "queued"), isNull(sessions.captureLayoutVersion)))
+    .orderBy(asc(sessionCaptureSplitJobs.sessionId)).all();
   const result: SessionCaptureSplitWork[] = [];
   for (const job of jobs) {
     const lapRows = await db.select({ id: laps.id, lapNumber: laps.lapNumber, rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount })
@@ -499,7 +529,7 @@ export function isOwnedSessionRawFile(rawFile: string): boolean {
 
 export class SessionCaptureActiveError extends Error {
   constructor() {
-    super("Cannot delete session while its capture split attempt is active");
+    super("Cannot delete session while capture storage is active, recovering, or retains a committed prefix");
     this.name = "SessionCaptureActiveError";
   }
 }
@@ -509,7 +539,9 @@ async function unlinkOwnedSessionRawFile(rawFile: string | null): Promise<void> 
   const stillReferenced = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.rawFile, rawFile)).limit(1).get();
   const jobReference = await db.select({ sessionId: sessionCaptureSplitJobs.sessionId })
     .from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sourcePath, rawFile)).limit(1).get();
-  if (stillReferenced || jobReference) return;
+  const liveReference = await db.select({ sessionId: liveCaptures.sessionId }).from(liveCaptures)
+    .where(eq(liveCaptures.sourcePath, rawFile)).limit(1).get();
+  if (stillReferenced || jobReference || liveReference) return;
   try {
     if (existsSync(rawFile)) unlinkSync(rawFile);
   } catch (error) {
@@ -520,29 +552,42 @@ async function unlinkOwnedSessionRawFile(rawFile: string | null): Promise<void> 
 function manifestMemberPaths(manifestPath: string): string[] {
   try {
     const parsed: unknown = JSON.parse(readFileSync(manifestPath, "utf8"));
-    if (!parsed || typeof parsed !== "object" || !("chunks" in parsed) || !Array.isArray(parsed.chunks)) return [];
-    return parsed.chunks.flatMap((chunk) =>
-      chunk && typeof chunk === "object" && "path" in chunk && typeof chunk.path === "string"
-        ? [resolve(dirname(manifestPath), chunk.path)]
-        : [],
-    );
+    if (!parsed || typeof parsed !== "object" || !("version" in parsed)) return [];
+    if (parsed.version === 4) {
+      return "archiveFile" in parsed && parsed.archiveFile === "capture.bin.gz"
+        ? [resolve(dirname(manifestPath), parsed.archiveFile)] : [];
+    }
+    if (parsed.version !== 3 || !("chunks" in parsed) || !Array.isArray(parsed.chunks)) return [];
+    return parsed.chunks.flatMap((chunk) => {
+      if (!chunk || typeof chunk !== "object" || !("path" in chunk) || typeof chunk.path !== "string" || isAbsolute(chunk.path)) return [];
+      const path = resolve(dirname(manifestPath), chunk.path);
+      const rel = relative(dirname(manifestPath), path);
+      return rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel) ? [] : [path];
+    });
   } catch {
     return [];
   }
 }
 
-async function unlinkUnsharedCaptureBundle(manifestFile: string | null): Promise<void> {
+async function unlinkUnsharedCaptureBundle(manifestFile: string | null, archiveFile: string | null): Promise<void> {
   if (!manifestFile || !isOwnedSessionRawFile(manifestFile)) return;
-  const candidates = new Set([resolve(manifestFile), ...manifestMemberPaths(resolve(manifestFile))]);
-  const remaining = await db.select({ manifestFile: sessions.captureManifestFile }).from(sessions).all();
+  const candidates = new Set([resolve(manifestFile), ...manifestMemberPaths(resolve(manifestFile)), ...(archiveFile ? [resolve(archiveFile)] : [])]);
+  const remaining = await db.select({ manifestFile: sessions.captureManifestFile, archiveFile: sessions.captureArchiveFile }).from(sessions).all();
   const referenced = new Set<string>();
   for (const row of remaining) {
+    if (row.archiveFile) referenced.add(resolve(row.archiveFile));
     if (!row.manifestFile) continue;
     const manifestPath = resolve(row.manifestFile);
     referenced.add(manifestPath);
     for (const path of manifestMemberPaths(manifestPath)) referenced.add(path);
   }
+  const liveRefs = await db.select({ archivePath: liveCaptures.archivePath, sourcePath: liveCaptures.sourcePath }).from(liveCaptures).all();
+  for (const row of liveRefs) {
+    referenced.add(resolve(row.archivePath));
+    referenced.add(resolve(row.sourcePath));
+  }
   for (const path of candidates) {
+    clearCaptureManifestCache(path);
     if (referenced.has(path) || !isOwnedSessionRawFile(path)) continue;
     try {
       if (existsSync(path)) unlinkSync(path);
@@ -561,8 +606,13 @@ export async function deleteSession(sessionId: number): Promise<number> {
       const session = await tx.select({
         rawFile: sessions.rawFile,
         manifestFile: sessions.captureManifestFile,
+        archiveFile: sessions.captureArchiveFile,
       }).from(sessions).where(eq(sessions.id, sessionId)).get();
       if (!session) return null;
+      const liveCapture = await tx.select({ status: liveCaptures.status, committedArchiveLength: liveCaptures.committedArchiveLength })
+        .from(liveCaptures).where(eq(liveCaptures.sessionId, sessionId)).get();
+      if (liveCapture && (["recording", "finalizing", "recovering"].includes(liveCapture.status) ||
+          (liveCapture.status === "failed" && liveCapture.committedArchiveLength > 0))) throw new SessionCaptureActiveError();
       const activeJob = await tx.select({ sessionId: sessionCaptureSplitJobs.sessionId })
         .from(sessionCaptureSplitJobs)
         .where(and(
@@ -581,7 +631,7 @@ export async function deleteSession(sessionId: number): Promise<number> {
     if (!deleted) return 0;
     for (const lapId of deleted.lapIds) cacheDelete(lapId);
     await unlinkOwnedSessionRawFile(deleted.rawFile);
-    await unlinkUnsharedCaptureBundle(deleted.manifestFile);
+    await unlinkUnsharedCaptureBundle(deleted.manifestFile, deleted.archiveFile);
     return deleted.lapIds.length;
   });
 }

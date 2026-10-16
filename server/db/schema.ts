@@ -118,6 +118,8 @@ export const sessions = sqliteTable(
 		// Container layout is independent of sparse codec eligibility/version.
 		captureLayoutVersion: integer("capture_layout_version"),
 		captureManifestFile: text("capture_manifest_file"),
+		// Layout 2 stores independent gzip members; the manifest remains a JSON path.
+		captureArchiveFile: text("capture_archive_file"),
 		// How this session's telemetry was obtained (migration v43). NULL = recorded
 		// live from the game. 'motec' = transcoded from a MoTeC .ld export, where the
 		// racing line is dead-reckoned rather than logged — see server/motec/.
@@ -273,6 +275,48 @@ export const sessionCaptureSplitJobs = sqliteTable("session_capture_split_jobs",
 	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
 });
+
+/** Mutable capture progress; archive members below are immutable after commit. */
+export const liveCaptures = sqliteTable("live_captures", {
+	sessionId: integer("session_id").primaryKey().references(() => sessions.id, { onDelete: "cascade" }),
+	captureEpoch: text("capture_epoch").notNull().unique(),
+	attempt: text("attempt").notNull(),
+	sourcePath: text("source_path").notNull(),
+	sourceDevice: text("source_device"),
+	sourceInode: text("source_inode"),
+	archivePath: text("archive_path").notNull(),
+	generation: integer("generation").notNull().default(0),
+	committedArchiveLength: integer("committed_archive_length").notNull().default(0),
+	sourceByteLength: integer("source_byte_length").notNull().default(0),
+	sourceRecordCount: integer("source_record_count").notNull().default(0),
+	sourceDurableWatermark: integer("source_durable_watermark").notNull().default(0),
+	metadataDurableWatermark: integer("metadata_durable_watermark").notNull().default(0),
+	durableSequence: integer("durable_sequence").notNull().default(0),
+	status: text("status", { enum: ["recording", "finalizing", "sealed", "failed", "recovering"] }).notNull(),
+	error: text("error"),
+});
+
+export const liveCaptureMembers = sqliteTable("live_capture_members", {
+	captureEpoch: text("capture_epoch").notNull().references(() => liveCaptures.captureEpoch, { onDelete: "cascade" }),
+	generation: integer("generation").notNull(),
+	lapId: integer("lap_id").references(() => laps.id, { onDelete: "set null" }),
+	ownershipRevision: integer("ownership_revision").notNull(),
+	descriptor: text("descriptor").notNull(),
+	verification: text("verification").notNull(),
+}, (table) => ({
+	identity: primaryKey({ columns: [table.captureEpoch, table.generation] }),
+	lapIdentity: uniqueIndex("live_capture_member_lap_idx").on(table.lapId),
+}));
+
+/** Recovery journal is persisted before its watermark can enter a publication. */
+export const liveCaptureJournal = sqliteTable("live_capture_journal", {
+	captureEpoch: text("capture_epoch").notNull().references(() => liveCaptures.captureEpoch, { onDelete: "cascade" }),
+	sequence: integer("sequence").notNull(),
+	sourceByteEnd: integer("source_byte_end").notNull(),
+	payload: text("payload").notNull(),
+}, (table) => ({
+	identity: primaryKey({ columns: [table.captureEpoch, table.sequence] }),
+}));
 
 export const tuneAssignments = sqliteTable(
 	"tune_assignments",

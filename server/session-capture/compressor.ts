@@ -11,10 +11,10 @@ import { resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { createGzip } from "node:zlib";
 import { getUncompressedSessions } from "../db/session-queries";
-import { isSessionActive } from "../telemetry/live-pipeline";
 import { db } from "../db/index";
-import { dashboardSummaryState, sessions, sessionCaptureSplitJobs } from "../db/schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { isSessionActive } from "../telemetry/live-pipeline";
+import { and, eq, inArray, or, gt } from "drizzle-orm";
+import { dashboardSummaryState, sessions, sessionCaptureSplitJobs, liveCaptures } from "../db/schema";
 import { cleanupOrphanSessionFiles, listSessionCaptureFiles, loadReferencedCapturePaths, withSessionCaptureMaintenanceLock } from "./cleanup";
 import { cleanupExpiredStagedMotec } from "../motec/import-staging";
 import { loadSettings } from "../runtime/config/settings";
@@ -110,14 +110,35 @@ async function runCompression(userTriggered = false): Promise<void> {
     const candidates = await getUncompressedSessions(ageMs);
     const groupedCandidates = new Map<string, number[]>();
     for (const { id, rawFile } of candidates) {
-      const rows = await db.select({ id: sessions.id, captureLayoutVersion: sessions.captureLayoutVersion })
+      // A session's ordinary raw-file reference is expected; only protect
+      // paths owned by live epochs or pending split work. The shared path set
+      // also includes every sessions.raw_file, so consulting it here would
+      // make every DB-backed capture ineligible for compression.
+      const rows = await db.select({ id: sessions.id, captureLayoutVersion: sessions.captureLayoutVersion, captureArchiveFile: sessions.captureArchiveFile })
         .from(sessions).where(eq(sessions.rawFile, rawFile)).all();
-      // Published bundles retain their monolith as provenance and legacy fallback input.
-      if (rows.some((row) => row.captureLayoutVersion != null)) continue;
+      if (rows.some((row) => row.captureLayoutVersion != null || row.captureArchiveFile != null)) continue;
+      const activeLiveCapture = await db.select({ sessionId: liveCaptures.sessionId })
+        .from(liveCaptures)
+        .where(and(
+          or(
+            inArray(liveCaptures.sessionId, rows.map((row) => row.id)),
+            eq(liveCaptures.sourcePath, rawFile),
+            eq(liveCaptures.archivePath, rawFile),
+          ),
+          or(
+            inArray(liveCaptures.status, ["recording", "finalizing", "recovering"]),
+            and(eq(liveCaptures.status, "failed"), gt(liveCaptures.committedArchiveLength, 0)),
+          ),
+        )).limit(1).get();
+      if (activeLiveCapture) continue;
       const activeJob = await db.select({ sessionId: sessionCaptureSplitJobs.sessionId })
         .from(sessionCaptureSplitJobs)
         .where(and(
-          inArray(sessionCaptureSplitJobs.sessionId, rows.map((row) => row.id)),
+          or(
+            inArray(sessionCaptureSplitJobs.sessionId, rows.map((row) => row.id)),
+            eq(sessionCaptureSplitJobs.sourcePath, rawFile),
+            eq(sessionCaptureSplitJobs.stagingPath, rawFile),
+          ),
           inArray(sessionCaptureSplitJobs.status, ["queued", "splitting", "verifying", "publishing"]),
         )).limit(1).get();
       if (activeJob) continue;

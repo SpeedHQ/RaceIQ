@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./worker": "./src/worker.ts",
+    "./live-worker": "./src/live-worker.ts",
     "./protocol": "./src/protocol.ts"
   },
   "dependencies": {

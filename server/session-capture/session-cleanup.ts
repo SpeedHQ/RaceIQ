@@ -6,7 +6,7 @@ import { tryGetGame } from "@raceiq/shared/games/registry";
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import { db } from "../db/index";
-import { dashboardSummaryState, laps, sessions, sessionCaptureSplitJobs } from "../db/schema";
+import { dashboardSummaryState, laps, sessions, sessionCaptureSplitJobs, liveCaptures } from "../db/schema";
 import { cacheDelete } from "../db/telemetry-replay-storage";
 import { isOwnedSessionRawFile } from "../db/session-queries";
 import { isSessionActive } from "../telemetry/live-pipeline";
@@ -29,6 +29,7 @@ type SessionRow = {
   rawFile: string | null;
   captureLayoutVersion: number | null;
   captureManifestFile: string | null;
+  captureArchiveFile: string | null;
   isFavorite: boolean;
   gameId: SessionCleanupGameSummary["gameId"];
   carId: string;
@@ -75,6 +76,7 @@ async function loadRows(request: SessionCleanupRequest): Promise<{
       rawFile: sessions.rawFile,
       captureLayoutVersion: sessions.captureLayoutVersion,
       captureManifestFile: sessions.captureManifestFile,
+      captureArchiveFile: sessions.captureArchiveFile,
       isFavorite: sessions.isFavorite,
       gameId: sessions.gameId,
       carId: sessions.carId,
@@ -112,22 +114,26 @@ async function fileState(rawFile: string): Promise<{ path: string; missing: bool
 
 async function unsharedBundleFiles(rows: SessionRow[]): Promise<{ files: string[]; bytes: number }> {
   const ids = new Set(rows.map((row) => row.id));
-  const external = (await db.select({ id: sessions.id, manifestFile: sessions.captureManifestFile }).from(sessions).all())
-    .filter((row) => !ids.has(row.id) && row.manifestFile != null);
+  const external = (await db.select({ id: sessions.id, manifestFile: sessions.captureManifestFile, archiveFile: sessions.captureArchiveFile }).from(sessions).all())
+    .filter((row) => !ids.has(row.id) && (row.manifestFile != null || row.archiveFile != null));
   const candidates = new Set<string>();
   const externallyReferenced = new Set<string>();
-  const collect = async (manifestFile: string, target: Set<string>) => {
-    const manifestPath = resolve(manifestFile);
-    target.add(manifestPath);
-    try {
-      const manifest = await loadCaptureManifest(manifestPath);
-      for (const chunk of manifest.chunks) target.add(resolve(dirname(manifestPath), chunk.path));
-    } catch {
-      // Unknown members remain untouched if manifest cannot be parsed.
+  const collect = async (manifestFile: string | null, archiveFile: string | null, target: Set<string>) => {
+    if (manifestFile) {
+      const manifestPath = resolve(manifestFile);
+      target.add(manifestPath);
+      try {
+        const manifest = await loadCaptureManifest(manifestPath);
+        if ("archiveFile" in manifest) target.add(resolve(dirname(manifestPath), manifest.archiveFile));
+        else for (const chunk of manifest.chunks) target.add(resolve(dirname(manifestPath), chunk.path));
+      } catch {
+        // Unknown members remain untouched if manifest cannot be parsed.
+      }
     }
+    if (archiveFile) target.add(resolve(archiveFile));
   };
-  for (const row of rows) if (row.captureManifestFile) await collect(row.captureManifestFile, candidates);
-  for (const row of external) if (row.manifestFile) await collect(row.manifestFile, externallyReferenced);
+  for (const row of rows) await collect(row.captureManifestFile, row.captureArchiveFile, candidates);
+  for (const row of external) await collect(row.manifestFile, row.archiveFile, externallyReferenced);
   const files: string[] = [];
   let bytes = 0;
   for (const path of candidates) {
@@ -202,6 +208,9 @@ async function buildPlan(request: SessionCleanupRequest): Promise<CleanupPlan> {
     .where(inArray(sessionCaptureSplitJobs.status, ["queued", "splitting", "verifying", "publishing"]))
     .all();
   const activeJobIds = new Set(activeJobs.map(({ sessionId }) => sessionId));
+  const liveJobs = await db.select({ sessionId: liveCaptures.sessionId }).from(liveCaptures)
+    .where(sql`${liveCaptures.status} IN ('recording', 'finalizing', 'recovering') OR (${liveCaptures.status} = 'failed' AND ${liveCaptures.committedArchiveLength} > 0)`).all();
+  for (const { sessionId } of liveJobs) activeJobIds.add(sessionId);
   const protectedIds = new Set<number>(requested.filter((row) =>
     favoriteSessions.has(row.id) || activeJobIds.has(row.id),
   ).map((row) => row.id));
@@ -220,7 +229,9 @@ async function buildPlan(request: SessionCleanupRequest): Promise<CleanupPlan> {
       ? resolve(row.rawFile)
       : row.captureManifestFile
         ? `bundle:${resolve(row.captureManifestFile)}`
-        : null;
+        : row.captureArchiveFile
+          ? `archive:${resolve(row.captureArchiveFile)}`
+          : null;
     if (key === null) continue;
     let group = groupsByPath.get(key);
     if (!group) {
@@ -235,17 +246,23 @@ async function buildPlan(request: SessionCleanupRequest): Promise<CleanupPlan> {
   const plannedKeys = new Set<string>();
   for (const row of requested) {
     const isProtected = protectedIds.has(row.id);
-    const state = row.rawFile
-      ? await fileState(row.rawFile)
-      : row.captureManifestFile && isOwnedSessionRawFile(row.captureManifestFile)
-        ? { path: resolve(row.captureManifestFile), missing: true, size: 0 }
-        : null;
+    const rawState = row.rawFile ? await fileState(row.rawFile) : null;
+    const usedBundleFallback = Boolean((!rawState || rawState.missing) && (row.captureManifestFile || row.captureArchiveFile));
+    const state = rawState && !rawState.missing
+      ? rawState
+      : row.captureManifestFile
+        ? await fileState(row.captureManifestFile)
+        : row.captureArchiveFile
+          ? await fileState(row.captureArchiveFile)
+          : rawState;
     if (!state) {
       unavailableIds.add(row.id);
       continue;
     }
     if (isProtected) continue;
-    const key = row.rawFile ? state.path : `bundle:${state.path}`;
+    const key = row.rawFile ? resolve(row.rawFile)
+      : row.captureManifestFile ? `bundle:${resolve(row.captureManifestFile)}`
+        : `archive:${state.path}`;
     const group = groupsByPath.get(key);
     if (!group || group.requested.length !== group.all.length ||
       group.all.some((ref) => favoriteSessions.has(ref.id) || activeJobIds.has(ref.id))) {
@@ -262,14 +279,62 @@ async function buildPlan(request: SessionCleanupRequest): Promise<CleanupPlan> {
       const jobRefs = await db.select().from(sessionCaptureSplitJobs)
         .where(inArray(sessionCaptureSplitJobs.sessionId, group.all.map((session) => session.id))).all();
       const bundle = await unsharedBundleFiles(group.all);
+      const primaryIsBundleFile = group.all.some((session) =>
+        session.captureManifestFile && resolve(session.captureManifestFile) === state.path ||
+        session.captureArchiveFile && resolve(session.captureArchiveFile) === state.path);
+      const primaryIsCountedAsBundle = !usedBundleFallback && !state.missing && primaryIsBundleFile && bundle.files.some((path) => resolve(path) === state.path);
+      const bundleFiles = primaryIsCountedAsBundle ? bundle.files.filter((path) => resolve(path) !== state.path) : bundle.files;
+      const bundleBytes = primaryIsCountedAsBundle ? Math.max(0, bundle.bytes - state.size) : bundle.bytes;
       groups.push({
-        path: state.path, rows: group.all, missing: state.missing, size: state.size, lapRefs, jobRefs,
-        bundleFiles: bundle.files, bundleBytes: bundle.bytes,
+        path: state.path, rows: group.all, missing: state.missing || usedBundleFallback, size: state.size, lapRefs, jobRefs,
+        bundleFiles, bundleBytes,
       });
       plannedKeys.add(key);
     }
   }
-
+  const candidateIds = new Set(groups.flatMap((group) => group.rows.map((row) => row.id)));
+  const sharedBundlePaths = new Map<string, SessionRow[]>();
+  for (const row of all) {
+    for (const path of [row.captureManifestFile, row.captureArchiveFile]) {
+      if (!path) continue;
+      const normalized = resolve(path);
+      const refs = sharedBundlePaths.get(normalized) ?? [];
+      refs.push(row);
+      sharedBundlePaths.set(normalized, refs);
+    }
+  }
+  for (const [archivePath, refs] of sharedBundlePaths) {
+    if (refs.length < 2 || refs.some((row) => !candidateIds.has(row.id)) || !isOwnedSessionRawFile(archivePath)) continue;
+    const targetGroup = [...groups].reverse().find((group) => group.rows.some((row) =>
+      [row.captureManifestFile, row.captureArchiveFile].some((path) => path && resolve(path) === archivePath)));
+    if (!targetGroup || groups.some((group) => group.bundleFiles.includes(archivePath) || (!group.missing && group.path === archivePath))) continue;
+    try {
+      const info = await stat(archivePath);
+      if (!info.isFile()) continue;
+      targetGroup.bundleFiles.push(archivePath);
+      targetGroup.bundleBytes += info.size;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+  }
+  const countedBundleFiles = new Set<string>();
+  for (const group of groups) {
+    const uniqueFiles: string[] = [];
+    let uniqueBytes = 0;
+    for (const path of group.bundleFiles) {
+      const normalized = resolve(path);
+      if (countedBundleFiles.has(normalized)) continue;
+      countedBundleFiles.add(normalized);
+      uniqueFiles.push(path);
+      try {
+        uniqueBytes += (await stat(path)).size;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
+    }
+    group.bundleFiles = uniqueFiles;
+    group.bundleBytes = uniqueBytes;
+  }
   const candidateSessionIds = groups.flatMap((group) => group.rows.map((row) => row.id));
   return {
     candidateSessionIds: candidateSessionIds.sort((a, b) => a - b),
@@ -294,8 +359,8 @@ async function setRawFiles(values: SessionRow[], clear: boolean, lapRefs: LapCap
   await db.transaction(async (tx) => {
     for (const value of values) {
       await tx.update(sessions).set(clear
-        ? { rawFile: null, captureLayoutVersion: null, captureManifestFile: null }
-        : { rawFile: value.rawFile, captureLayoutVersion: value.captureLayoutVersion, captureManifestFile: value.captureManifestFile })
+        ? { rawFile: null, captureLayoutVersion: null, captureManifestFile: null, captureArchiveFile: null }
+        : { rawFile: value.rawFile, captureLayoutVersion: value.captureLayoutVersion, captureManifestFile: value.captureManifestFile, captureArchiveFile: value.captureArchiveFile })
         .where(eq(sessions.id, value.id)).run();
     }
     const ids = values.map(({ id }) => id);

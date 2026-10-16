@@ -1,3 +1,6 @@
+import { Readable } from "node:stream";
+import { openCaptureArchive } from "@raceiq/capture-splitting";
+import type { PublishedManifest } from "@raceiq/capture-splitting";
 import { afterEach, expect, test } from "bun:test";
 import { createReadStream, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
@@ -34,6 +37,18 @@ async function readRecords(path: string) {
   return records;
 }
 
+async function readChunkRecords(manifest: PublishedManifest, outputDirectory: string, chunk: PublishedManifest["chunks"][number]) {
+  const stream = manifest.version === 4
+    ? Readable.from([await (await openCaptureArchive(join(outputDirectory, manifest.archiveFile), manifest)).readEntryBuffer(
+      "entryName" in chunk ? chunk.entryName : "",
+      chunk.byteLength + 1024,
+    )])
+    : createReadStream(join(outputDirectory, "path" in chunk ? chunk.path : ""));
+  const records: SessionCaptureRecord[] = [];
+  for await (const record of iterateSessionCaptureRecordsAsync(stream, { strict: true })) records.push(record);
+  return records;
+}
+
 test("splits exact detector windows from plain and gzip sources with timestamps and auxiliary frames", async () => {
   for (const compressed of [false, true]) {
     const root = directory();
@@ -63,19 +78,20 @@ test("splits exact detector windows from plain and gzip sources with timestamps 
       gameId: "fm-2023",
       sourceRevision: "source-rev-1",
       lapWindows: [
-        { lapId: "lap-1", lapNumber: 1, startByteOffset: sourceOffsets[1]!, frameCount: 2 },
+        { lapId: "lap-1", lapNumber: 0, startByteOffset: sourceOffsets[1]!, frameCount: 2 },
         { lapId: "lap-2", lapNumber: 2, startByteOffset: sourceOffsets[3]!, frameCount: 1 },
       ],
     });
 
     expect(manifest.sourceRecordCount).toBe(sourceFrames.length);
+    expect(manifest.chunks.find((chunk) => chunk.lapId === "lap-1")?.lapNumber).toBe(0);
     expect(manifest.chunks.reduce((count, chunk) => count + chunk.recordCount, 0)).toBe(sourceFrames.length);
     expect(manifest.chunks.filter(({ kind }) => kind === "lap").map(({ lapId, recordCount }) => [lapId, recordCount])).toEqual([
       ["lap-1", 2],
       ["lap-2", 1],
     ]);
     for (const chunk of manifest.chunks) {
-      const outputRecords = await readRecords(join(outputDirectory, chunk.path));
+      const outputRecords = await readChunkRecords(manifest, outputDirectory, chunk);
       expect(outputRecords.filter((record) => record.kind === "frame").slice(0, chunk.recordCount).map((record) => record.kind === "frame" ? [record.frame, record.frameTimeMs] : null)).toEqual(
         sourceFrames.slice(chunk.sourceStart, chunk.sourceEnd).map(({ frame, timestamp }) => [frame, timestamp]),
       );
@@ -113,7 +129,7 @@ test("a lap artifact begins with full sparse checkpoint even when source window 
   });
   const lapChunk = manifest.chunks.find(({ lapId }) => lapId === "lap-2");
   expect(lapChunk).toBeDefined();
-  const records = await readRecords(join(outputDirectory, lapChunk!.path));
+  const records = await readChunkRecords(manifest, outputDirectory, lapChunk!);
   const lapFrames = records.filter((record) => record.kind === "frame");
   expect(lapFrames).toHaveLength(1);
   expect(lapFrames[0]?.kind === "frame" ? lapFrames[0].frame : null).toEqual(second);
@@ -150,9 +166,9 @@ test("duplicates one trailing context frame without transferring ownership", asy
   });
   const firstChunk = manifest.chunks.find(({ lapId }) => lapId === "lap-1")!;
   const secondChunk = manifest.chunks.find(({ lapId }) => lapId === "lap-2")!;
-  const firstFrames = (await readRecords(join(outputDirectory, firstChunk.path)))
+  const firstFrames = (await readChunkRecords(manifest, outputDirectory, firstChunk))
     .filter((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> => record.kind === "frame");
-  const secondFrames = (await readRecords(join(outputDirectory, secondChunk.path)))
+  const secondFrames = (await readChunkRecords(manifest, outputDirectory, secondChunk))
     .filter((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> => record.kind === "frame");
 
   expect(firstChunk.ownedFrameCount).toBe(1);
@@ -191,7 +207,7 @@ test("writes versioned game parser checkpoint before first lap frame", async () 
     }],
   });
   const chunk = manifest.chunks.find(({ lapId }) => lapId === "lap-1")!;
-  const records = await readRecords(join(outputDirectory, chunk.path));
+  const records = await readChunkRecords(manifest, outputDirectory, chunk);
 
   expect(records[0]?.kind).toBe("parser-bootstrap");
   if (records[0]?.kind === "parser-bootstrap") {
@@ -229,7 +245,7 @@ test("does not claim context frames outside the next detector-owned window", asy
     ],
   });
   const firstChunk = manifest.chunks.find(({ lapId }) => lapId === "lap-1")!;
-  const firstFrames = (await readRecords(join(outputDirectory, firstChunk.path)))
+  const firstFrames = (await readChunkRecords(manifest, outputDirectory, firstChunk))
     .filter((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> => record.kind === "frame");
 
   expect(firstChunk.trailingContextFrameCount).toBe(0);
@@ -248,7 +264,7 @@ test("duplicates delayed-finish context from auxiliary source tail", async () =>
     lapWindows: [{ lapId: "lap-1", lapNumber: 1, startByteOffset: encodeMetaFrame(2).length, frameCount: 1, trailingContextFrameCount: 1 }],
   });
   const chunk = manifest.chunks.find(({ lapId }) => lapId === "lap-1")!;
-  const decoded = (await readRecords(join(outputDirectory, chunk.path)))
+  const decoded = (await readChunkRecords(manifest, outputDirectory, chunk))
     .filter((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> => record.kind === "frame");
   expect(chunk.ownedFrameCount).toBe(1);
   expect(chunk.trailingContextFrameCount).toBe(1);
@@ -358,7 +374,7 @@ test("worker stages and verifies a parser-bootstrap lap artifact", async () => {
     }],
   }, ({ sequence }) => progress.push(sequence));
   const chunk = manifest.chunks.find(({ lapId }) => lapId === "lap-1")!;
-  const records = await readRecords(join(outputDirectory, chunk.path));
+  const records = await readChunkRecords(manifest, outputDirectory, chunk);
 
   expect(progress.length).toBeGreaterThan(0);
   expect(chunk.parserBootstrapHash).toMatch(/^[0-9a-f]{64}$/);
@@ -430,8 +446,8 @@ test("direct plain and gzip invocation normalizes a shared sparse boundary exact
     expect(first!.trailingContextFrameCount).toBe(1);
     expect(second!.ownedFrameCount).toBe(2);
     expect(manifest.sourceRecordCount).toBe(3);
-    const firstFrames = (await readRecords(join(outputDirectory, first!.path))).filter((record) => record.kind === "frame");
-    const secondFrames = (await readRecords(join(outputDirectory, second!.path))).filter((record) => record.kind === "frame");
+    const firstFrames = (await readChunkRecords(manifest, outputDirectory, first!)).filter((record) => record.kind === "frame");
+    const secondFrames = (await readChunkRecords(manifest, outputDirectory, second!)).filter((record) => record.kind === "frame");
     expect(firstFrames.map(({ frame, frameTimeMs }) => [frame, frameTimeMs])).toEqual([[frames[0], undefined], [frames[1], 0]]);
     expect(secondFrames.map(({ frame, frameTimeMs }) => [frame, frameTimeMs])).toEqual([[frames[1], 0], [frames[2], undefined]]);
   }

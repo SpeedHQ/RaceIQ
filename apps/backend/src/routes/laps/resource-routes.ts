@@ -18,8 +18,10 @@ import { encodeAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment
 import type { EncodedAlignedLapSet } from "@raceiq/analysis-core/racing/laps/alignment/types";
 import { getLaps, getLapMetaById, getLapById, getLapsByIds, getLapsRaw, getReviewLaps, getSessionLaps } from "@raceiq/backend-core/db/lap-read-queries";
 import { getLapReplaySource, alignedTelemetryCacheGet, alignedTelemetryCacheSet, lapSetAlignmentIndexCacheGet, lapSetAlignmentIndexCacheSet } from "@raceiq/backend-core/db/telemetry-replay-storage";
-import { loadSessionSource, resolveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
-import { loadRawCaptureIdentity } from "@raceiq/backend-core/session-capture/identity";
+import { loadSessionCapture, loadSessionSource, resolveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
+import { createRawCaptureIdentity, loadRawCaptureIdentity } from "@raceiq/backend-core/session-capture/identity";
+import { getLiveLapCaptureSnapshot } from "@raceiq/backend-core/db/live-capture-queries";
+import { resolveLiveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
 import { deleteLap, updateLapNotes, updateLapValidity } from "@raceiq/backend-core/db/lap-mutation-queries";
 import { setLapFavorite } from "@raceiq/backend-core/db/session-queries";
 import { setLapExperimentExcluded } from "@raceiq/backend-core/db/experiment-lap-queries";
@@ -85,14 +87,24 @@ export const resourceRoutes = new Hono()
       }
       const source = await getLapReplaySource(id);
       if (!source) return c.json({ error: "Lap not found" }, 404);
-      const artifact = source.captureLayoutVersion === 1 && source.captureManifestFile && source.captureChunkId
-        ? await resolveLapCaptureArtifact(source.captureManifestFile, source.captureChunkId, id)
-        : undefined;
+      const live = source.captureLayoutVersion === 3 ? await getLiveLapCaptureSnapshot(source.sessionId, id) : null;
+      const artifact = source.captureLayoutVersion === 3
+        ? live ? resolveLiveLapCaptureArtifact(live.archivePath, live.snapshot) : undefined
+        : (source.captureLayoutVersion === 1 || source.captureLayoutVersion === 2) && source.captureManifestFile && source.captureChunkId
+          ? await resolveLapCaptureArtifact(source.captureManifestFile, source.captureChunkId, id, source)
+          : undefined;
+      if (source.captureLayoutVersion === 3 && !artifact) return c.json({ error: "Live lap capture member is not committed" }, 409);
       const replaySource = artifact
         ? { ...source, rawByteOffset: artifact.chunk.ownedFrameByteOffset!, rawFrameCount: artifact.chunk.ownedFrameCount! }
         : source;
-      const capturePath = artifact?.path ?? source.rawFile;
-      const rawCapture = source.gameId === "iracing" && capturePath ? await loadRawCaptureIdentity(capturePath) : undefined;
+      const rawCapture = source.gameId === "iracing"
+        ? artifact
+          ? createRawCaptureIdentity(
+              await loadSessionCapture({ rawFile: artifact.path, artifact: artifact.artifact, source: null, gameId: source.gameId, carId: meta.carId, trackId: meta.trackId }),
+              artifact.artifact ? "gzip" : "identity",
+            )
+          : source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined
+        : undefined;
       const replay = resolveTelemetryReplay(id, replaySource, lap.telemetry, semanticReplayIds(meta.gameId), rawCapture);
       const nativeLayout = getGame(meta.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
       const processed = processLap(lap.telemetry, meta.gameId);
@@ -280,21 +292,36 @@ export const resourceRoutes = new Hono()
     const { id } = c.req.valid("param");
     const [row] = await getLapsRaw([id]);
     if (!row) return c.json({ error: "Lap not found" }, 404);
-    if (row.captureLayoutVersion != null && row.captureLayoutVersion !== 1) {
+    if (row.captureLayoutVersion != null && row.captureLayoutVersion !== 1 && row.captureLayoutVersion !== 2 && row.captureLayoutVersion !== 3) {
       return c.json({ error: `Unsupported capture layout version ${row.captureLayoutVersion}` }, 422);
     }
     const published = row.captureLayoutVersion != null;
-    const bundled = published && row.captureLayoutVersion === 1;
-    if (published && (!row.captureManifestFile || !row.captureChunkId)) {
+    const bundled = published && (row.captureLayoutVersion === 1 || row.captureLayoutVersion === 2 || row.captureLayoutVersion === 3);
+    if (published && row.captureLayoutVersion !== 3 && (!row.captureManifestFile || !row.captureChunkId || (row.captureLayoutVersion === 2 && !row.captureArchiveFile))) {
       return c.json({ error: "Published capture layout has incomplete capture references" }, 422);
     }
     if (!published && !row.rawFile) return c.json({ error: "No raw capture available for this lap" }, 409);
+    if (row.captureLayoutVersion === 3) {
+      const live = await getLiveLapCaptureSnapshot(row.sessionId, row.id);
+      if (!live) return c.json({ error: "Live lap capture member is not committed" }, 409);
+    }
 
     let bytes: Uint8Array;
     try {
-      if (bundled) {
-        const artifact = await resolveLapCaptureArtifact(row.captureManifestFile!, row.captureChunkId!, row.id);
-        bytes = new Uint8Array(await Bun.file(artifact.path).arrayBuffer());
+      if (row.captureLayoutVersion === 3) {
+        const live = await getLiveLapCaptureSnapshot(row.sessionId, row.id);
+        if (!live) return c.json({ error: "Live lap capture member is not committed" }, 409);
+        const artifact = resolveLiveLapCaptureArtifact(live.archivePath, live.snapshot);
+        bytes = await loadSessionCapture({
+          rawFile: artifact.path, artifact: artifact.artifact, source: null, gameId: row.gameId as GameId,
+          carId: row.carId, trackId: row.trackId,
+        });
+      } else if (bundled) {
+        const artifact = await resolveLapCaptureArtifact(row.captureManifestFile!, row.captureChunkId!, row.id, row);
+        bytes = await loadSessionCapture({
+          rawFile: artifact.path, artifact: artifact.artifact, source: null, gameId: row.gameId as GameId,
+          carId: row.carId, trackId: row.trackId,
+        });
       } else {
         const loaded = await loadSessionSource({
           rawFile: row.rawFile!, source: row.source ?? null, gameId: row.gameId as GameId,

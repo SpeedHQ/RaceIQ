@@ -1,8 +1,8 @@
 import { Schema } from "effect";
 import { SplitRequestSchema, WorkerMessageSchema, type SplitRequest, type WorkerMessage } from "./protocol";
 import { SplitFailure } from "./index";
-import type { Manifest } from "./contract";
-export function runSplitWorker(request: SplitRequest, onProgress?: (message: Extract<WorkerMessage, { type: "progress" }>) => void, signal?: AbortSignal): Promise<Manifest> {
+import type { PublishedManifest } from "./contract";
+export function runSplitWorker(request: SplitRequest, onProgress?: (message: Extract<WorkerMessage, { type: "progress" }>) => void, signal?: AbortSignal): Promise<PublishedManifest> {
   const validated = Schema.decodeSync(SplitRequestSchema)(request);
   return new Promise((resolve, reject) => {
     let lastSequence = -1;

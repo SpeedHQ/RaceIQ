@@ -26,8 +26,8 @@ function test(name: string, scenario: () => Promise<void>) {
     const directory = mkdtempSync(join(tmpdir(), "raceiq-dashboard-auth-"));
     try {
       const config = join(directory, "bunfig.toml");
-      writeFileSync(config, `[test]\nroot = ${JSON.stringify(directory.replaceAll("\\", "/"))}\npreload = []\ntimeout = 10000\n`);
-      const child = Bun.spawn([process.execPath, "test", `--config=${config}`, import.meta.path], {
+      writeFileSync(config, `[test]\nroot = ${JSON.stringify(directory.replaceAll("\\", "/"))}\npreload = []\n`);
+      const child = Bun.spawn([process.execPath, "test", "--timeout=10000", `--config=${config}`, import.meta.path], {
         env: {
           ...process.env,
           DATA_DIR: directory,

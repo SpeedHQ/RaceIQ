@@ -220,7 +220,7 @@ describe("completed-lap recording boundary", () => {
       packets: completedPackets(), lapDistStart: 0, lapTime: 90, isValid: true, sectors: null,
     });
     callbacks.onLapSaved!({
-      lapId: 101, lapNumber: 2, lapTime: 90, isValid: true,
+      sessionId: 1, lapId: 101, lapNumber: 2, lapTime: 90, isValid: true,
       sectors: null, estimatedBestLapTime: 90,
     });
     await pipeline.flushIncompleteLap();

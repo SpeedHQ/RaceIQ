@@ -1,10 +1,10 @@
 import { afterAll, expect, test } from "bun:test";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
-import { mkdtemp, rm, writeFile, readFile, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, rename, rm, writeFile, readFile, stat } from "node:fs/promises";
 import { eq } from "drizzle-orm";
 import { encodeFrameLength, encodeMetaFrame, encodeSparseCaptureFormatFrame, iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
-import { db } from "@raceiq/backend-core/db/index";
+import { db, client } from "@raceiq/backend-core/db/index";
 import { laps, sessions, sessionCaptureSplitJobs } from "@raceiq/backend-core/db/schema";
 import {
   enqueueSessionCaptureSplit,
@@ -17,7 +17,9 @@ import { replaceLapsForSession } from "@raceiq/backend-core/db/lap-reprocessing-
 import { runSessionCaptureSplitQueueOnce } from "../../src/session-capture/split-manager";
 import { resolveRecordingGameDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
+import { splitCapturePromise } from "@raceiq/capture-splitting";
 
+import { loadSessionCapture, resolveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
 const sourceFrameOffset = encodeMetaFrame(1).length + encodeSparseCaptureFormatFrame().length;
 const splitNotifications: Array<{ sessionId: number; jobId: string; attemptId: number; sequence: number; phase: string }> = [];
 const broadcastSplitProgress = wsManager.broadcastSessionCaptureSplitProgress.bind(wsManager);
@@ -173,18 +175,18 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   const firstSession = await db.select().from(sessions).where(eq(sessions.id, first.id)).get();
   const secondSession = await db.select().from(sessions).where(eq(sessions.id, second.id)).get();
   const thirdSession = await db.select().from(sessions).where(eq(sessions.id, third.id)).get();
-  expect(firstSession?.captureLayoutVersion).toBe(1);
+  expect(firstSession?.captureLayoutVersion).toBe(2);
   expect(firstSession?.captureManifestFile).not.toBe(secondSession?.captureManifestFile);
   for (const path of [firstSession?.captureManifestFile, secondSession?.captureManifestFile, thirdSession?.captureManifestFile]) {
     if (path) bundleDirs.add(dirname(path));
   }
   const manifestPath = firstSession!.captureManifestFile!;
-  const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as { version: number; chunks: { path: string }[] };
-  expect(manifest.version).toBe(3);
-  expect(manifest.chunks.length).toBeGreaterThan(0);
+  const resolved = await resolveLapCaptureArtifact(manifestPath, firstLap!.captureChunkId!, first.lapId);
+  const restored = await loadSessionCapture({ rawFile: resolved.path, artifact: resolved.artifact, source: null, gameId: "fm-2023", carId: "test-car", trackId: "test-track" });
+  expect([...iterateSessionCaptureRecords(restored)].filter((record) => record.kind === "frame").map((record) => record.frame)).toEqual([Buffer.from([1, 2, 3, 4])]);
   expect(dirname(dirname(dirname(manifestPath)))).toBe(resolveRecordingGameDirectory("fm-2023", "mine"));
   expect(dirname(dirname(dirname(secondSession!.captureManifestFile!)))).toBe(resolveRecordingGameDirectory("fm-2023", "others"));
-  for (const chunk of manifest.chunks) expect((await stat(join(dirname(manifestPath), chunk.path))).isFile()).toBe(true);
+  expect(firstSession?.captureArchiveFile).toBe(resolved.path);
   expect((await stat(manifestPath)).isFile()).toBe(true);
   expect(await readFile(sourcePath)).toEqual(sourceBytes);
   await db.update(laps).set({ isFavorite: true, notes: "preserve" }).where(eq(laps.id, first.lapId)).run();
@@ -194,7 +196,7 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
     tuneId: null, notes: "preserve", invalidReason: null, sectors: null,
   }]);
   const unchangedLayout = await db.select().from(sessions).where(eq(sessions.id, first.id)).get();
-  expect(unchangedLayout?.captureLayoutVersion).toBe(1);
+  expect(unchangedLayout?.captureLayoutVersion).toBe(2);
   expect((await db.select().from(laps).where(eq(laps.id, first.lapId)).get())?.captureChunkId).toBeTruthy();
   await replaceLapsForSession(first.id, [{
     lapId: first.lapId, lapNumber: 1, lapTime: 61, isValid: true, isFavorite: true,
@@ -204,6 +206,7 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   const identityInvalidated = await db.select().from(sessions).where(eq(sessions.id, first.id)).get();
   const invalidatedJob = await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, first.id)).get();
   expect(identityInvalidated?.captureLayoutVersion).toBeNull();
+  expect(identityInvalidated?.captureArchiveFile).toBeNull();
   expect(invalidatedJob?.status).toBe("failed");
   expect(invalidatedJob?.errorCode).toBe("stale-publication");
   expect(await enqueueSessionCaptureSplit(first.id)).toBe(true);
@@ -212,7 +215,7 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   expect(identityRequeued?.jobId).not.toBe(invalidatedJob?.jobId);
   expect(splitNotifications.at(-1)).toMatchObject({ sessionId: first.id, jobId: identityRequeued!.jobId, phase: "queued" });
   expect(await runSessionCaptureSplitQueueOnce()).toBe(true);
-  expect((await db.select().from(sessions).where(eq(sessions.id, first.id)).get())?.captureLayoutVersion).toBe(1);
+  expect((await db.select().from(sessions).where(eq(sessions.id, first.id)).get())?.captureLayoutVersion).toBe(2);
   await replaceLapsForSession(first.id, [
     {
       lapId: first.lapId, lapNumber: 1, lapTime: 61, isValid: true, isFavorite: true,
@@ -229,6 +232,7 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   const replacedLaps = await db.select().from(laps).where(eq(laps.sessionId, first.id)).all();
   expect(invalidatedSession?.captureLayoutVersion).toBeNull();
   expect(invalidatedSession?.captureManifestFile).toBeNull();
+  expect(invalidatedSession?.captureArchiveFile).toBeNull();
   expect(replacedLaps.find(({ id }) => id === first.lapId)).toMatchObject({ isFavorite: true, notes: "preserve" });
   expect(replacedLaps.every(({ captureChunkId }) => captureChunkId === null)).toBe(true);
   expect(replacedLaps.some(({ id }) => id !== first.lapId)).toBe(true);
@@ -278,15 +282,109 @@ test("post-commit notification failure leaves published bundle readable", async 
     expect(await enqueueSessionCaptureSplit(session.id)).toBe(true);
     await drainQueueUntilTerminal(session.id);
     const published = await db.select().from(sessions).where(eq(sessions.id, session.id)).get();
-    expect(published?.captureLayoutVersion).toBe(1);
+    expect(published?.captureLayoutVersion).toBe(2);
     const manifestPath = published!.captureManifestFile!;
     bundleDirs.add(dirname(manifestPath));
-    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-    const chunk = manifest.chunks.find((entry: { lapId?: string }) => entry.lapId === String(session.lapId));
-    const records = [...iterateSessionCaptureRecords(await readFile(join(dirname(manifestPath), chunk.path)), undefined, { strict: true })];
+    const publishedLap = await db.select().from(laps).where(eq(laps.id, session.lapId)).get();
+    const resolved = await resolveLapCaptureArtifact(manifestPath, publishedLap!.captureChunkId!, session.lapId);
+    const bytes = await loadSessionCapture({ rawFile: resolved.path, artifact: resolved.artifact, source: null, gameId: "fm-2023", carId: "test-car", trackId: "test-track" });
+    const records = [...iterateSessionCaptureRecords(bytes, undefined, { strict: true })];
     expect(records.filter((record) => record.kind === "frame").map((record) => record.frame)).toEqual([Buffer.from([5, 6, 7, 8])]);
     expect((await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, session.id)).get())?.status).toBe("ready");
   } finally {
     wsManager.broadcastSessionCaptureSplitProgress = send;
   }
+});
+
+test("failed publication transaction removes renamed output, rolls back lap refs, and retries safely", async () => {
+  const sourcePath = join(root, "transaction-failure.bin");
+  const bytes = Buffer.concat([encodeMetaFrame(1), encodeSparseCaptureFormatFrame(), encodeFrameLength(4), Buffer.from([9, 8, 7, 6])]);
+  await writeFile(sourcePath, bytes);
+  const session = await makeSession(sourcePath);
+  const trigger = `fail_capture_publication_${session.id}`;
+  await client.execute(`CREATE TRIGGER ${trigger} BEFORE UPDATE OF capture_layout_version ON sessions
+    WHEN NEW.id = ${session.id} AND NEW.capture_layout_version = 2
+    BEGIN SELECT RAISE(FAIL, 'Injected split publication failure'); END`);
+  try {
+    expect(await enqueueSessionCaptureSplit(session.id)).toBe(true);
+    await drainQueueUntilTerminal(session.id);
+    const failed = await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, session.id)).get();
+    expect(failed?.status).toBe("failed");
+    expect(failed?.errorCode).toBe("publication-failed");
+    const row = await db.select().from(sessions).where(eq(sessions.id, session.id)).get();
+    expect(row?.captureLayoutVersion).toBeNull();
+    expect(row?.captureManifestFile).toBeNull();
+    expect(row?.captureArchiveFile).toBeNull();
+    expect((await db.select().from(laps).where(eq(laps.id, session.lapId)).get())?.captureChunkId).toBeNull();
+    const parent = join(resolveRecordingGameDirectory("fm-2023", "mine"), `session-${session.id}`);
+    const attempt = `${failed!.jobId}-${failed!.attemptId}-${failed!.pendingSourceRevision}`;
+    expect(await Bun.file(join(parent, attempt, "capture.bin.gz")).exists()).toBe(false);
+    expect(await Bun.file(join(parent, `${attempt}.staging`, "capture.bin.gz")).exists()).toBe(false);
+    expect(await readFile(sourcePath)).toEqual(bytes);
+  } finally { await client.execute(`DROP TRIGGER IF EXISTS ${trigger}`); }
+  expect(await enqueueSessionCaptureSplit(session.id)).toBe(true);
+  await drainQueueUntilTerminal(session.id);
+  const published = await db.select().from(sessions).where(eq(sessions.id, session.id)).get();
+  expect(published?.captureLayoutVersion).toBe(2);
+  expect(await Bun.file(published!.captureArchiveFile!).exists()).toBe(true);
+  bundleDirs.add(dirname(published!.captureManifestFile!));
+});
+
+test.each([false, true])("restart fences a closed unpublished archive; rename completed: %s", async (renamed) => {
+  const sourcePath = join(root, `interrupted-${renamed}.bin`);
+  await writeFile(sourcePath, Buffer.concat([encodeMetaFrame(1), encodeSparseCaptureFormatFrame(), encodeFrameLength(4), Buffer.from([6, 7, 8, 9])]));
+  const session = await makeSession(sourcePath);
+  expect(await enqueueSessionCaptureSplit(session.id)).toBe(true);
+  const job = (await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, session.id)).get())!;
+  const parent = join(resolveRecordingGameDirectory("fm-2023", "mine"), `session-${session.id}`);
+  const attempt = join(parent, `${job.jobId}-${job.attemptId}-${job.pendingSourceRevision}`);
+  const staging = `${attempt}.staging`;
+  await splitCapturePromise({ sourcePath, outputDirectory: staging, gameId: "fm-2023", sourceRevision: job.pendingSourceRevision,
+    lapWindows: [{lapId:String(session.lapId),lapNumber:1,startByteOffset:sourceFrameOffset,frameCount:1}] });
+  if (renamed) await rename(staging, attempt);
+  await db.update(sessionCaptureSplitJobs).set({status:renamed ? "publishing" : "verifying",stagingPath:staging})
+    .where(eq(sessionCaptureSplitJobs.sessionId,session.id)).run();
+  await recoverSessionCaptureSplitJobs();
+  const recovered = await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId,session.id)).get();
+  expect(recovered?.attemptId).toBe(job.attemptId + 1);
+  expect(recovered?.status).toBe("queued");
+  expect(await Bun.file(join(staging,"capture.bin.gz")).exists()).toBe(false);
+  expect(await Bun.file(join(attempt,"capture.bin.gz")).exists()).toBe(false);
+  expect((await db.select().from(sessions).where(eq(sessions.id,session.id)).get())?.captureLayoutVersion).toBeNull();
+  await drainQueueUntilTerminal(session.id);
+  const published = await db.select().from(sessions).where(eq(sessions.id,session.id)).get();
+  expect(published?.captureLayoutVersion).toBe(2);
+  expect(published?.captureManifestFile).not.toBe(join(attempt,"manifest.json"));
+  bundleDirs.add(dirname(published!.captureManifestFile!));
+});
+
+test("archive write failure exposes no publication and a fresh attempt can retry", async () => {
+  const sourcePath = join(root, "archive-write-failure.bin");
+  const bytes = Buffer.concat([encodeMetaFrame(1), encodeSparseCaptureFormatFrame(), encodeFrameLength(4), Buffer.from([4, 3, 2, 1])]);
+  await writeFile(sourcePath, bytes);
+  const session = await makeSession(sourcePath);
+  const parent = join(resolveRecordingGameDirectory("fm-2023", "mine"), `session-${session.id}`);
+  bundleDirs.add(parent);
+  expect(await enqueueSessionCaptureSplit(session.id)).toBe(true);
+  const queued = (await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId,session.id)).get())!;
+  const attempt = `${queued.jobId}-${queued.attemptId}-${queued.pendingSourceRevision}`;
+  // The real worker shares this filesystem, not the test process's module mocks.
+  await mkdir(join(parent,`${attempt}.staging`,"capture.bin.gz"),{recursive:true});
+  await drainQueueUntilTerminal(session.id);
+  const failed = await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, session.id)).get();
+  expect(failed?.status).toBe("failed");
+  expect(failed?.errorCode).toBe("source-io");
+  const row = await db.select().from(sessions).where(eq(sessions.id, session.id)).get();
+  expect(row?.captureLayoutVersion).toBeNull();
+  expect(row?.captureManifestFile).toBeNull();
+  expect(row?.captureArchiveFile).toBeNull();
+  expect((await db.select().from(laps).where(eq(laps.id, session.lapId)).get())?.captureChunkId).toBeNull();
+  expect(await Bun.file(join(parent,attempt,"manifest.json")).exists()).toBe(false);
+  expect(await Bun.file(join(parent,`${attempt}.staging`,"capture.bin.gz")).exists()).toBe(false);
+  expect(await readFile(sourcePath)).toEqual(bytes);
+  expect(await enqueueSessionCaptureSplit(session.id)).toBe(true);
+  await drainQueueUntilTerminal(session.id);
+  const published = await db.select().from(sessions).where(eq(sessions.id,session.id)).get();
+  expect(published?.captureLayoutVersion).toBe(2);
+  bundleDirs.add(dirname(published!.captureManifestFile!));
 });

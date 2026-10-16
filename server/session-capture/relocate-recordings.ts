@@ -3,10 +3,10 @@ import { createReadStream } from "node:fs";
 import { constants } from "node:fs";
 import { copyFile, lstat, mkdir, open, readFile, realpath, rename, rm, readdir, unlink, rmdir, link } from "node:fs/promises";
 import { basename, dirname, isAbsolute, parse, relative, resolve, sep } from "node:path";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { cacheDelete } from "../db/telemetry-replay-storage";
 import { clearSessionCaptureCache } from "./source-loader";
-import { laps, sessions, sessionCaptureSplitJobs } from "../db/schema";
+import { laps, sessions, sessionCaptureSplitJobs, liveCaptures } from "../db/schema";
 import { db } from "../db/index";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { loadSettings, saveSettings } from "../runtime/config/settings";
@@ -18,7 +18,7 @@ import { hasPendingLayoutMigration } from "./layout-migration";
 
 export type RecordingDirectoryMoveStatus = { operationId: string | null; state: "idle" | "moving" | "complete" | "error"; phase: "copying" | "committing" | "removing-sources" | null; completedFiles: number; totalFiles: number; directory: string; code: string | null; error: string | null };
 type Entry = { source: string; destination: string; size: number; sha256: string; published: boolean; publication?: { dev: string; ino: string } };
-type ReferenceField = "rawFile" | "captureManifestFile" | "sourcePath" | "stagingPath";
+type ReferenceField = "rawFile" | "captureManifestFile" | "captureArchiveFile" | "sourcePath" | "stagingPath";
 type JournalReference = { sessionId: number; table?: "sessions" | "sessionCaptureSplitJobs"; field?: ReferenceField; oldPath: string; newPath: string };
 type Journal = { version: 1; operationId: string; oldDirectory: string; newDirectory: string; oldSetting: string | null; entries: Entry[]; references: JournalReference[] };
 type MoveTestHooks = Partial<{ copyFile: typeof copyFile; saveSettings: typeof saveSettings; unlink: typeof unlink; isSessionActive: typeof isSessionActive }>;
@@ -123,7 +123,7 @@ async function isValidJournal(value: unknown): Promise<boolean> {
     const legacyRef = hasExactKeys(rawRef, ["sessionId", "oldPath", "newPath"]);
     const currentRef = hasExactKeys(rawRef, ["sessionId", "table", "field", "oldPath", "newPath"]);
     if ((!legacyRef && !currentRef) || !Number.isSafeInteger(ref.sessionId) || ref.sessionId <= 0
-      || currentRef && !((ref.table === "sessions" && (ref.field === "rawFile" || ref.field === "captureManifestFile"))
+      || currentRef && !((ref.table === "sessions" && (ref.field === "rawFile" || ref.field === "captureManifestFile" || ref.field === "captureArchiveFile"))
         || (ref.table === "sessionCaptureSplitJobs" && (ref.field === "sourcePath" || ref.field === "stagingPath")))
       || typeof ref.oldPath !== "string" || !isAbsolute(ref.oldPath) || typeof ref.newPath !== "string" || !isAbsolute(ref.newPath)) return false;
     const field = legacyRef ? "rawFile" : ref.field;
@@ -289,10 +289,13 @@ async function executeMove(directory: string, operationId: string, hooks: Requir
   const rawOld = resolveRecordingDirectory();
   const oldDirectory = await realpath(rawOld).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? resolve(rawOld) : Promise.reject(error));
   const newDirectory = await validateDirectory(directory);
+  const liveCapture = await db.select({ sessionId: liveCaptures.sessionId }).from(liveCaptures)
+    .where(sql`${liveCaptures.status} IN ('recording', 'finalizing', 'recovering')`).limit(1).get();
+  if (liveCapture) throw Object.assign(new Error("Live capture storage is active or recovering"), { code: "RECORDING_ACTIVE" });
   if (oldDirectory === newDirectory) return;
   const lexicalOldDirectory = resolve(rawOld);
   const [rows, jobs] = await Promise.all([
-    db.select({ id: sessions.id, rawFile: sessions.rawFile, captureManifestFile: sessions.captureManifestFile }).from(sessions).all(),
+    db.select({ id: sessions.id, rawFile: sessions.rawFile, captureManifestFile: sessions.captureManifestFile, captureArchiveFile: sessions.captureArchiveFile }).from(sessions).all(),
     db.select({ sessionId: sessionCaptureSplitJobs.sessionId, sourcePath: sessionCaptureSplitJobs.sourcePath, stagingPath: sessionCaptureSplitJobs.stagingPath }).from(sessionCaptureSplitJobs).all(),
   ]);
   const files = new Set(await enumerate(oldDirectory, newDirectory)); const references: Journal["references"] = [];
@@ -309,7 +312,14 @@ async function executeMove(directory: string, operationId: string, hooks: Requir
       if (!isContained(oldDirectory, canonicalSource) || isContained(newDirectory, canonicalSource)) return;
       references.push({ sessionId, table, field, oldPath: value, newPath: resolve(newDirectory, relative(oldDirectory, canonicalSource)) });
       if (table === "sessions" && field === "captureManifestFile") {
-        const manifest = JSON.parse(await readFile(canonicalSource, "utf8")) as { chunks?: Array<{ path?: unknown }> };
+        const manifest = JSON.parse(await readFile(canonicalSource, "utf8")) as { archiveFile?: unknown; chunks?: Array<{ path?: unknown }> };
+        if (typeof manifest.archiveFile === "string") {
+          const archivePath = resolve(dirname(canonicalSource), manifest.archiveFile);
+          if (isContained(oldDirectory, archivePath) && !await hasSymlinkDirectory(oldDirectory, archivePath)) {
+            try { if ((await lstat(archivePath)).isFile()) files.add(await realpath(archivePath)); }
+            catch (archiveError) { if ((archiveError as NodeJS.ErrnoException).code !== "ENOENT") throw archiveError; }
+          }
+        }
         for (const chunk of manifest.chunks ?? []) {
           if (typeof chunk.path !== "string") continue;
           const chunkPath = resolve(dirname(canonicalSource), chunk.path);
@@ -327,6 +337,7 @@ async function executeMove(directory: string, operationId: string, hooks: Requir
   for (const row of rows) {
     await relocateReference(row.id, "sessions", "rawFile", row.rawFile);
     await relocateReference(row.id, "sessions", "captureManifestFile", row.captureManifestFile);
+    await relocateReference(row.id, "sessions", "captureArchiveFile", row.captureArchiveFile);
   }
   for (const row of jobs) {
     await relocateReference(row.sessionId, "sessionCaptureSplitJobs", "sourcePath", row.sourcePath);

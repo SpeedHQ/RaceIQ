@@ -47,7 +47,7 @@ export async function prepareSplitWindows<State>(input: SplitPreparationInput<St
       !Number.isSafeInteger(window.frameCount) ||
       window.frameCount < 1 ||
       !Number.isSafeInteger(window.lapNumber) ||
-      window.lapNumber < 1
+      window.lapNumber < 0
     ) {
       throw formatFailure("Lap windows must have unique identities, ordered offsets, and valid frame counts");
     }

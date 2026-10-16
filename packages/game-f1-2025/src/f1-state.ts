@@ -143,7 +143,10 @@ export class F1StateAccumulator {
       driverLapSectors: [...this.driverLapSectors].map(([driver, sectors]) => [driver, [...sectors]]),
       playerCarIndex: this.playerCarIndex,
     };
-    return Buffer.from(JSON.stringify(checkpoint), "utf8");
+    // JSON numbers support -0, but stringify normally discards its sign.
+    const json = JSON as typeof JSON & { rawJSON(text: string): unknown };
+    return Buffer.from(json.stringify(checkpoint, (_key, value) =>
+      typeof value === "number" && Object.is(value, -0) ? json.rawJSON("-0") : value), "utf8");
   }
 
   restoreCheckpoint(bytes: Uint8Array): void {

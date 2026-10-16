@@ -8,10 +8,10 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import { loadSessionSource, iterateSessionCaptureRecordsFromSource } from "./source-loader";
 import { packetIndexToLegacyMotecOffset } from "../motec/source-archive";
 import { getLapsForSession, updateLapRawIndex, replaceLapsForSession } from "../db/lap-reprocessing-queries";
-import { updateSessionRawFile, enqueueSessionCaptureSplit } from "../db/session-queries";
-import { db } from "../db/index";
-import { sessions } from "../db/schema";
+import { liveCaptures, sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
+import { db } from "../db/index";
+import { enqueueSessionCaptureSplit, updateSessionRawFile } from "../db/session-queries";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "./frame-time";
@@ -56,6 +56,11 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
     .from(sessions)
     .where(eq(sessions.id, sessionId))
     .all();
+  const liveCapture = await db.select({ status: liveCaptures.status }).from(liveCaptures)
+    .where(eq(liveCaptures.sessionId, sessionId)).get();
+  if (liveCapture && ["recording", "finalizing", "recovering"].includes(liveCapture.status)) {
+    throw new Error(`Session ${sessionId} live capture is ${liveCapture.status}; reprocess after capture recovery/seal`);
+  }
   const session = sessionRows[0];
   if (!session) {
     throw new SessionNotFoundError(sessionId);

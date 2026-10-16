@@ -25,12 +25,13 @@ import { loadRawCaptureIdentity } from "@raceiq/backend-core/session-capture/ide
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import { isSessionIdentityInCatalog } from "../games/session-identity";
+import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
 const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID];
 
 export const sessionRoutes = new Hono()
   .get("/api/sessions", zValidator("query", GameIdQuerySchema), async (c) => {
     const { gameId } = c.req.valid("query");
-    return c.json(await getSessions(gameId));
+    return c.json<SessionMeta[]>(await getSessions(gameId));
   })
   .get("/api/sessions/:id/recap", zValidator("param", IdParamSchema), zValidator("query", GameIdQuerySchema), async (c) => {
     const { id } = c.req.valid("param");

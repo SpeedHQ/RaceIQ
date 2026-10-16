@@ -20,7 +20,7 @@ import { Button } from "../components/ui/button";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { queryClient } from "../lib/queryClient";
-import { useTelemetryStore } from "../stores/telemetry";
+import { telemetryStore, useTelemetryStore } from "../stores/telemetry";
 import { gameIdForPathname } from "../lib/game-routes";
 import { uiStore, useUiStore } from "../stores/ui";
 import { GameRouteProvider, gameStore, usesStoreGameContext, useGameStore } from "../stores/game";
@@ -80,6 +80,7 @@ function AppShell() {
   const updateAvailable = useTelemetryStore((s) => s.updateAvailable);
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const showSettings = useUiStore((s) => s.settingsOpen);
+  const liveCaptureError = useTelemetryStore((s) => s.liveCaptureError);
   const settingsSection = useUiStore((s) => s.settingsSection);
   const onboardingOpen = useUiStore((s) => s.onboardingOpen);
   const { openSettings, closeSettings, closeOnboarding } = uiStore.actions;
@@ -207,6 +208,10 @@ function AppShell() {
       <RecordingLayoutMigration />
       <StaleLapReprocessing />
       <RaceResultStatus compact />
+      {liveCaptureError && <div role="alert" className="fixed bottom-4 left-1/2 z-40 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-start gap-3 border border-status-danger/40 bg-app-surface px-4 py-3 text-sm text-app-danger">
+        <p className="min-w-0 whitespace-pre-wrap break-words">{liveCaptureError}</p>
+        <Button type="button" variant="app-ghost" size="app-sm" aria-label="Dismiss recording failure" onClick={() => telemetryStore.actions.setLiveCaptureError(null)} className="shrink-0">Dismiss</Button>
+      </div>}
     </>
   );
 }

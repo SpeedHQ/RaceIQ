@@ -33,6 +33,7 @@ RULES:
 - Output ONLY valid JSON, nothing else`;
 
 export const forzaServerAdapter: ServerGameAdapter = {
+	parserStateIsFrameLocal: true,
 	...forzaAdapter,
 
 	runtime: {

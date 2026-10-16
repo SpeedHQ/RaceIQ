@@ -1,8 +1,31 @@
 ## Unreleased
 
 ### Features
+### Breaking
+- Legacy full-frame RaceIQ captures are no longer supported for import and replay. Ensure any remaining legacy recordings are migrated when prompted before updating.
+
+### Feature
+- New desktop and self-hosted installs restrict dashboard access to this computer until you select additional network interfaces.
+- Password-protected dashboards use a login screen and browser sessions; API clients must sign in and send the session cookie and a CSRF token for writes.
+- Use string car and track IDs across imports and integrations instead of ordinal fields. Existing sessions and setup links migrate automatically; downgrading requires restoring a pre-upgrade database backup.
+
+- Open the dashboard on another LAN device using a copied link or QR code in Access & security settings.
+- Choose dashboard password protection during setup or in Access & security settings, sign in across devices, and recover a forgotten password from the terminal.
+- Select dashboard network interfaces and browser domains in Access & security settings without changing UDP telemetry reception.
+- Disable dashboard password protection from the terminal with an explicit exposure confirmation, without changing network access or recordings.
+- Add OBS streaming overlays in the Portable page for live driving, timing, standings, nearby race order, car damage (F1 25, ACC, AC Evo), brake/throttle inputs, and distance driven, with sample previews when telemetry is unavailable and copyable metric or imperial browser-source URLs.
+- Allow a saved hostname, including a Tailscale FQDN, for remote HUD links and QR codes.
+- Refresh the dashboard with cleaner session and favourite widgets, clean-rate and podium trends, and seven days of activity by default.
+- Retrieve automated lap insights on demand in Analyse chat before diagnosis and improvement advice, with visible tool activity and clear distinctions between missing data and no detected findings.
+- Export complete chat history as JSON for developer debugging, including retained chat generations, stored thinking, tool calls and results, and system prompts.
+- Optionally protect dashboard access with a password and configure trusted browser origins independently, while keeping existing local and remote access working without new settings.
+- Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
+- Choose a recording folder, safely relocate existing recordings, and optionally migrate recordings into per-game `own` and `others` folders.
+- Keep completed-session lap recordings together in one compressed bundle, with direct individual-lap replay and export.
 
 ### Fixes
+- Keep iRacing lap timing, validity, and pit classification consistent between live telemetry and imported recordings when the native lap timer rolls over late.
+- Preserve telemetry, saved lap times, and validity when reopening imported iRacing lap archives after a restart.
 - Preserve split lap recordings and queued split jobs when moving the recording folder.
 - Restore migration of existing recordings into organized folders on Windows.
 - Keep experiment lap counts and review analysis tied to the selected test when importing historical laps or returning to an older setup, and preserve test membership during live updates.
@@ -75,6 +98,9 @@
 - Refresh Sessions processing status and export availability as recordings become ready, after reprocessing, and when the dashboard reconnects.
 
 ### Internal
+- Add bounded worker-owned source recording, fenced incremental lap publication and restart replay, with incremental runtime activation gated on all-game performance acceptance.
+- Add an isolated source-recorder diagnostic benchmark for memory, worker handoff, write and durability latency, with native-record round-trip verification.
+- Prepare live lap staging files ahead of boundaries and overlap bounded finalization with the next lap while preserving ordered publication and failure cleanup.
 - Use Bun's built-in checker for root and workspace typecheck commands.
 - Add a release-only Ubuntu Docker smoke test that seeds the latest published release, completes migration dialogs, upgrades to freshly fetched main, and streams checkout, seed, server, and phase progress to OrbStack container logs.
 - Add `test:upgrade --replay` to retain successful upgrade recordings and open the local Playwright Trace Viewer after Docker exits, including failed runs with available traces.

@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import { gzipSync } from "node:zlib";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -25,6 +25,7 @@ import { packTriplet, ACC_PACKED_MAGIC } from "@raceiq/capture-formats/kunos/pac
 import { encodeLMUSourcePayload, LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_SIZE, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { LMU_SCORING_INFO_SIZE, LMU_TELEMETRY_INFO_SIZE } from "@raceiq/capture-formats/lmu/layout";
 import { encodeLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
+import type { ArchiveManifest } from "@raceiq/capture-splitting";
 
 const directories: string[] = [];
 
@@ -56,6 +57,49 @@ test("rejects published bundle chunk whose byte length disagrees with manifest",
   clearCaptureManifestCache(manifestPath);
 
   await expect(resolveLapCaptureArtifact(manifestPath, "lap-1", 42)).rejects.toThrow(/size mismatch/i);
+});
+
+test("manifest-only member remapping invalidates selected buffers and rejects mismatched layouts", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "raceiq-indexed-cache-"));
+  directories.push(directory);
+  const manifestPath = join(directory, "manifest.json");
+  const archivePath = join(directory, "capture.bin.gz");
+  const header = Buffer.concat([encodeMetaFrame(1), encodeSparseCaptureFormatFrame()]);
+  const payloads = [1, 2].map((value) => Buffer.concat([header, encodeFrameLength(1), Buffer.from([value])]));
+  const members = payloads.map((payload) => gzipSync(payload));
+  writeFileSync(archivePath, Buffer.concat(members));
+  const manifest: ArchiveManifest = {
+    version: 4, gameId: "fm-2023", sourceRevision: "cache", archiveFile: "capture.bin.gz",
+    sourceByteLength: 0, sourceRecordCount: 2,
+    chunks: members.map((member, index) => ({
+      id: `lap-${index}`, kind: "lap", lapId: String(42 + index), lapNumber: index,
+      entryName: `entry-${index}.bin`, memberOffset: index === 0 ? 0 : members[0]!.length,
+      compressedByteLength: member.length, byteLength: payloads[index]!.length,
+      firstOrdinal: index, recordCount: 1, sourceStart: index, sourceEnd: index + 1,
+      sourceByteStart: index, sourceByteEnd: index + 1, ownedFrameByteOffset: header.length, ownedFrameCount: 1,
+    })),
+  };
+  writeFileSync(manifestPath, JSON.stringify(manifest));
+  const reference = { captureLayoutVersion: 2, captureArchiveFile: archivePath };
+  const first = await resolveLapCaptureArtifact(manifestPath, "lap-0", 42, reference);
+  const source = { rawFile: archivePath, source: null, gameId: "fm-2023" as const, carId: "0", trackId: "0" };
+  const before = await loadSessionSource({ ...source, artifact: first.artifact });
+  expect(before.kind === "capture" ? before.buffer : undefined).toEqual(payloads[0]);
+  const replacement: ArchiveManifest = { ...manifest, chunks: manifest.chunks.map((chunk, index) => ({
+    ...chunk, memberOffset: index === 0 ? members[0]!.length : 0,
+    compressedByteLength: members[1 - index]!.length, byteLength: payloads[1 - index]!.length,
+  })) };
+  writeFileSync(manifestPath, JSON.stringify(replacement));
+  utimesSync(manifestPath, new Date(), new Date(Date.now() + 1000));
+  const second = await resolveLapCaptureArtifact(manifestPath, "lap-0", 42, reference);
+  const after = await loadSessionSource({ ...source, artifact: second.artifact });
+  expect(after.kind === "capture" ? after.buffer : undefined).toEqual(payloads[1]);
+  await expect(resolveLapCaptureArtifact(manifestPath, "lap-0", 42, {
+    captureLayoutVersion: 1, captureArchiveFile: archivePath,
+  })).rejects.toThrow();
+  await expect(resolveLapCaptureArtifact(manifestPath, "lap-0", 42, {
+    captureLayoutVersion: 2, captureArchiveFile: join(directory, "unrelated.bin.gz"),
+  })).rejects.toThrow();
 });
 for (const compressed of [false, true]) {
   test(`streams ${compressed ? "gzip" : "plain"} capture frames with decompressed offsets`, async () => {

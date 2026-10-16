@@ -2009,6 +2009,53 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `UPDATE sessions SET lap_detector_version = NULL WHERE game_id = 'ac-evo'`,
     ],
   },
+  {
+    version: 79,
+    name: "add indexed gzip capture archive reference",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN capture_archive_file TEXT`,
+    ],
+  },
+  {
+    version: 80,
+    name: "persist incremental live capture publication and recovery journal",
+    sql: [
+      `CREATE TABLE live_captures (
+        session_id INTEGER PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+        capture_epoch TEXT NOT NULL UNIQUE, attempt TEXT NOT NULL,
+        source_path TEXT NOT NULL, archive_path TEXT NOT NULL,
+        source_device TEXT, source_inode TEXT,
+        generation INTEGER NOT NULL DEFAULT 0,
+        committed_archive_length INTEGER NOT NULL DEFAULT 0,
+        source_byte_length INTEGER NOT NULL DEFAULT 0,
+        source_record_count INTEGER NOT NULL DEFAULT 0,
+        source_durable_watermark INTEGER NOT NULL DEFAULT 0,
+        metadata_durable_watermark INTEGER NOT NULL DEFAULT 0,
+        durable_sequence INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL CHECK (status IN ('recording','finalizing','sealed','failed','recovering')),
+        error TEXT
+      )`,
+      `CREATE TABLE live_capture_members (
+        capture_epoch TEXT NOT NULL REFERENCES live_captures(capture_epoch) ON DELETE CASCADE,
+        generation INTEGER NOT NULL,
+        lap_id INTEGER REFERENCES laps(id) ON DELETE SET NULL,
+        ownership_revision INTEGER NOT NULL, descriptor TEXT NOT NULL, verification TEXT NOT NULL,
+        PRIMARY KEY(capture_epoch,generation)
+      )`,
+      `CREATE UNIQUE INDEX live_capture_member_lap_idx ON live_capture_members(lap_id)`,
+      `CREATE TABLE live_capture_journal (
+        capture_epoch TEXT NOT NULL REFERENCES live_captures(capture_epoch) ON DELETE CASCADE,
+        sequence INTEGER NOT NULL, source_byte_end INTEGER NOT NULL, payload TEXT NOT NULL,
+        PRIMARY KEY(capture_epoch,sequence)
+      )`,
+      `CREATE INDEX live_capture_journal_effective_idx ON live_capture_journal(
+        capture_epoch, coalesce(cast(json_extract(payload, '$.startByteOffset') as integer), source_byte_end), sequence
+      )`,
+      `CREATE INDEX live_capture_journal_lap_idx ON live_capture_journal(
+        capture_epoch, cast(json_extract(payload, '$.lapId') as integer), sequence
+      )`,
+    ],
+  },
 ];
 const dashboardCanonicalTriggers = (() => {
   const readModel = migrations.find((migration) => migration.version === 68);

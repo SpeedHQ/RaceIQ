@@ -240,6 +240,23 @@ function normalizeSectorStarts(
   return [];
 }
 
+function currentLapTimeFromSession(
+  state: IRacingParserState | null | undefined, sessionKey: string,
+  rawLap: number, sessionTime: number, sdkCurrentLapTime: number,
+): number {
+  if (!state) return sdkCurrentLapTime;
+  if (state.sessionKey !== sessionKey || state.rawLap === null) {
+    state.sessionKey = sessionKey;
+    state.rawLap = rawLap;
+    state.lapStartSessionTime = sessionTime - sdkCurrentLapTime;
+  } else if (state.rawLap !== rawLap) {
+    // The physical lap transition precedes the SDK timer rollover.
+    state.rawLap = rawLap;
+    state.lapStartSessionTime = sessionTime;
+  }
+  return Math.max(0, sessionTime - state.lapStartSessionTime);
+}
+
 export function normalizeIRacingFrame(
   frame: IRacingSourceFrame,
   state?: IRacingParserState | null,
@@ -268,21 +285,7 @@ export function normalizeIRacingFrame(
       fuelCapacityL = state.fuelCapacityL;
     }
   }
-  let currentLapTime = sdkCurrentLapTime;
-  if (state) {
-    if (state.sessionKey !== sessionKey || state.rawLap === null) {
-      state.sessionKey = sessionKey;
-      state.rawLap = rawLap;
-      state.lapStartSessionTime = sessionTime - sdkCurrentLapTime;
-    } else if (state.rawLap !== rawLap) {
-      // iRacing's Lap changes at the physical start/finish line, while
-      // LapCurrentLapTime rolls over roughly two seconds later. SessionTime is
-      // monotonic, so anchor elapsed time at the immediate Lap transition.
-      state.rawLap = rawLap;
-      state.lapStartSessionTime = sessionTime;
-    }
-    currentLapTime = Math.max(0, sessionTime - state.lapStartSessionTime);
-  }
+  const currentLapTime = currentLapTimeFromSession(state, sessionKey, rawLap, sessionTime, sdkCurrentLapTime);
   const sectorStarts = normalizeSectorStarts(session.sectorStarts);
   const steeringAngle = scalar(values, "SteeringWheelAngle", 0);
   const steeringMax = Math.abs(scalar(values, "SteeringWheelAngleMax", 0));
@@ -483,10 +486,35 @@ export function normalizeIRacingFrame(
 }
 export function projectIRacingLapIndex(frame: IRacingSourceFrame, state?: IRacingParserState | null): LapIndexPacket {
   const { session, values } = frame;
-  const n = (name: string, fallback = 0) => typeof values[name] === "number" && Number.isFinite(values[name] as number) ? values[name] as number : fallback;
-  const key = `${session.subSessionId}:${session.sessionId}:${session.sessionNum}`;
-  const lap = Math.max(0, Math.trunc(n("Lap")));
-  if (state && (state.sessionKey !== key || state.rawLap === null)) { state.sessionKey = key; state.rawLap = lap; state.lapStartSessionTime = n("SessionTime"); }
-  const wear = (c: string) => 1 - Math.min(1, Math.max(0, n(`${c}wearL`, 1)));
-  return { gameId: "iracing", sessionUID: key, IsRaceOn: n("PlayerTrackSurface") > 0 ? 1 : 0, TimestampMS: Math.round(n("SessionTime") * 1000), carId: session.carId < 0 ? "" : String(session.carId), trackId: session.trackId < 0 ? "" : String(session.trackId), CarPerformanceIndex: 0, CarClass: Math.max(0, Math.trunc(session.carClassId)), LapNumber: lap, CurrentLap: n("LapCurrentLapTime"), LastLap: n("LapLastLapTime"), BestLap: n("LapBestLapTime"), DistanceTraveled: n("LapDist"), PositionX: 0, PositionZ: 0, Yaw: -n("Yaw"), Fuel: n("FuelLevel"), TireWearFL: wear("LF"), TireWearFR: wear("RF"), TireWearRL: wear("LR"), TireWearRR: wear("RR"), RacePosition: Math.max(0, Math.trunc(n("PlayerCarPosition"))), WheelOnRumbleStripFL: 0, WheelOnRumbleStripFR: 0, WheelOnRumbleStripRL: 0, WheelOnRumbleStripRR: 0 };
+  const rawLap = Math.max(0, Math.trunc(scalar(values, "Lap", 0)));
+  const sessionTime = Math.max(0, scalar(values, "SessionTime", 0));
+  const sdkCurrentLapTime = Math.max(0, scalar(values, "LapCurrentLapTime", 0));
+  const sessionKey = `${session.subSessionId}:${session.sessionId}:${session.sessionNum}`;
+  const currentLapTime = currentLapTimeFromSession(state, sessionKey, rawLap, sessionTime, sdkCurrentLapTime);
+  const trackLengthM = Math.max(0, session.trackLengthM);
+  const lapDistanceM = Math.max(0, scalar(values, "LapDist", 0));
+  return {
+    gameId: "iracing", sessionUID: sessionKey, IsRaceOn: bool(values, "IsOnTrack") ? 1 : 0,
+    TimestampMS: Math.round(sessionTime * 1000),
+    carId: session.carId < 0 ? "" : String(session.carId), trackId: session.trackId < 0 ? "" : String(session.trackId),
+    CarPerformanceIndex: 0, CarClass: Math.max(0, Math.trunc(session.carClassId)),
+    LapNumber: rawLap, CurrentLap: currentLapTime,
+    LastLap: Math.max(0, scalar(values, "LapLastLapTime", 0)), BestLap: Math.max(0, scalar(values, "LapBestLapTime", 0)),
+    DistanceTraveled: trackLengthM > 0 ? rawLap * trackLengthM + lapDistanceM : lapDistanceM,
+    PositionX: 0, PositionZ: 0, Yaw: -scalar(values, "Yaw", 0), Fuel: Math.max(0, scalar(values, "FuelLevel", 0)),
+    TireWearFL: tireWear(values, "LF"), TireWearFR: tireWear(values, "RF"),
+    TireWearRL: tireWear(values, "LR"), TireWearRR: tireWear(values, "RR"),
+    RacePosition: Math.max(0, Math.trunc(scalar(values, "PlayerCarPosition", 0))),
+    WheelOnRumbleStripFL: 0, WheelOnRumbleStripFR: 0, WheelOnRumbleStripRL: 0, WheelOnRumbleStripRR: 0,
+    iracing: {
+      sessionTick: Math.trunc(scalar(values, "SessionTick", 0)), sessionNum: session.sessionNum,
+      driverCarIdx: session.driverCarIdx, trackLengthM, lapDistanceM,
+      lapDistancePct: clamp(scalar(values, "LapDistPct", 0), 0, 1), sdkCurrentLapTime,
+      sectorStarts: normalizeSectorStarts(session.sectorStarts), onPitRoad: bool(values, "OnPitRoad"),
+      playerTrackSurface: Math.trunc(scalar(values, "PlayerTrackSurface", 0)),
+      incidents: Math.trunc(scalar(values, "PlayerIncidents", 0)),
+      trackWetness: Math.trunc(clamp(scalar(values, "TrackWetness", 0), 0, 7)),
+      carName: session.carName, carClassName: session.carClassName, trackName: session.trackName,
+    },
+  };
 }

@@ -128,7 +128,7 @@ export function SessionMobileList({
                   </div>
                   <div className="mt-2">
                     <SessionResultMeta session={session} />
-                    <SessionCaptureSplitStatus status={session.captureSplit} />
+                    <SessionCaptureSplitStatus status={session.captureSplit} sessionId={session.id} />
                   </div>
                   <div className="flex items-center gap-4 mt-2 text-xs">
                     <span className="text-app-text/90">

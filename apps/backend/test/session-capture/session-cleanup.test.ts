@@ -3,17 +3,19 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import * as captureFs from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
+import { gzipSync } from "node:zlib";
 import { eq, inArray } from "drizzle-orm";
 import { db, client } from "@raceiq/backend-core/db/index";
 import { laps, sessions, sessionCaptureSplitJobs } from "@raceiq/backend-core/db/schema";
 import { SessionCaptureActiveError, deleteSession, setSessionFavorite, setLapFavorite } from "@raceiq/backend-core/db/session-queries";
 import { runUserCompressionNow } from "@raceiq/backend-core/session-capture/compressor";
-import { withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
+import { cleanupOrphanSessionFiles, withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { executeSessionCleanup, previewSessionCleanup, SessionCleanupBusyError } from "@raceiq/backend-core/session-capture/session-cleanup";
 import { reprocessSession, SessionRawFileMissingError } from "@raceiq/backend-core/session-capture/reprocess";
 import * as dashboardProcessor from "@raceiq/backend-core/session-capture/dashboard-processor";
 import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
+import { encodeFrameLength, encodeMetaFrame, encodeSparseCaptureFormatFrame } from "@raceiq/capture-formats/session/framing";
 
 const OLD_DATE = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString();
 const RECENT_DATE = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
@@ -419,6 +421,47 @@ describe("session cleanup edge cases", () => {
     expect(await db.select({ captureChunkId: laps.captureChunkId }).from(laps).where(eq(laps.id, lapId)).get()).toEqual({ captureChunkId: null });
     expect(await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, sessionId)).get()).toBeUndefined();
   });
+  test.each([false, true])("clears absent v4 source refs without deleting externally shared files; null source: %s", async (nullSource) => {
+    const directory = dirname(capturePath("shared-v4.bin"));
+    const rawFile = nullSource ? null : join(directory, "missing-source.bin");
+    const manifestFile = join(directory, "manifest.json");
+    const archiveFile = join(directory, "capture.bin.gz");
+    const payload = Buffer.from("published gzip archive");
+    const member = gzipSync(payload);
+    writeFileSync(archiveFile, member);
+    writeFileSync(manifestFile, JSON.stringify({
+      version: 4, gameId: "fm-2023", sourceRevision: "shared", sourceByteLength: 0, sourceRecordCount: 0,
+      archiveFile: "capture.bin.gz",
+      chunks: [{ id: "aux", kind: "auxiliary", entryName: "aux.bin", memberOffset: 0, compressedByteLength: member.length,
+        byteLength: payload.length, firstOrdinal: 0, recordCount: 0, sourceStart: 0, sourceEnd: 0, sourceByteStart: 0, sourceByteEnd: 0 }],
+    }));
+    const selectedId = await createSession({ rawFile });
+    const externalId = await createSession({ rawFile: capturePath("external-source.bin") });
+    await db.update(sessions).set({
+      captureLayoutVersion: 2, captureManifestFile: manifestFile, captureArchiveFile: archiveFile,
+    }).where(inArray(sessions.id, [selectedId, externalId])).run();
+
+    const preview = await previewSessionCleanup({ mode: "selected", sessionIds: [selectedId] });
+    expect(preview.reclaimableBytes).toBe(0);
+    expect(preview.fileCount).toBe(0);
+    const result = await executeSessionCleanup({ mode: "selected", sessionIds: [selectedId] });
+
+    expect(result.cleanedSessionIds).toEqual([selectedId]);
+    expect(result.deletedFiles).toBe(0);
+    expect(existsSync(manifestFile)).toBe(true);
+    expect(existsSync(archiveFile)).toBe(true);
+    expect(await db.select({ manifest: sessions.captureManifestFile, archive: sessions.captureArchiveFile })
+      .from(sessions).where(eq(sessions.id, selectedId)).get()).toEqual({ manifest: null, archive: null });
+    expect(await db.select({ manifest: sessions.captureManifestFile, archive: sessions.captureArchiveFile })
+      .from(sessions).where(eq(sessions.id, externalId)).get()).toEqual({ manifest: manifestFile, archive: archiveFile });
+    const externalPreview = await previewSessionCleanup({ mode: "selected", sessionIds: [externalId] });
+    expect(externalPreview.fileCount).toBe(2);
+    expect(externalPreview.reclaimableBytes).toBe(member.length + readFileSync(manifestFile).length);
+    const externalCleanup = await executeSessionCleanup({ mode: "selected", sessionIds: [externalId] });
+    expect(externalCleanup.deletedFiles).toBe(2);
+    expect(existsSync(archiveFile)).toBe(false);
+    expect(existsSync(manifestFile)).toBe(false);
+  });
   test("reports committed cleanup and accurate bytes when a bundle member cannot be removed", async () => {
     const directory = dirname(capturePath("partial-cleanup.bin"));
     const rawFile = join(directory, "partial-cleanup.bin");
@@ -545,4 +588,47 @@ describe("session cleanup edge cases", () => {
     expect(existsSync(path)).toBe(true);
     expect(await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, sessionId)).get()).toBeTruthy();
   });
+});
+
+test("orphan sweep removes superseded bundles but protects publications and active staging without a monolith", async () => {
+  const gameRoot = dirname(capturePath("missing-source.bin"));
+  const missingSource = join(gameRoot,"missing-source.bin");
+  const publishedId = await createSession({rawFile:missingSource});
+  const activeSource = join(gameRoot,"active.bin");
+  const payload = Buffer.concat([encodeMetaFrame(1),encodeSparseCaptureFormatFrame(),encodeFrameLength(1),Buffer.from([7])]);
+  writeFileSync(activeSource,payload);
+  const activeId = await createSession({rawFile:activeSource});
+  const member = gzipSync(payload);
+  const revision = "a".repeat(64);
+  const writeBundle = (sessionId: number, staging = false) => {
+    const jobId = crypto.randomUUID();
+    const directory = join(gameRoot,"own",`session-${sessionId}`,`${jobId}-1-${revision}${staging ? ".staging" : ""}`);
+    mkdirSync(directory,{recursive:true});
+    const manifestFile = join(directory,"manifest.json");
+    const archiveFile = join(directory,"capture.bin.gz");
+    writeFileSync(archiveFile,member);
+    writeFileSync(manifestFile,JSON.stringify({
+      version:4,gameId:"fm-2023",sourceRevision:revision,sourceByteLength:payload.length,sourceRecordCount:1,archiveFile:"capture.bin.gz",
+      chunks:[{id:"aux",kind:"auxiliary",entryName:"aux.bin",memberOffset:0,compressedByteLength:member.length,byteLength:payload.length,
+        firstOrdinal:0,recordCount:1,sourceStart:0,sourceEnd:1,sourceByteStart:28,sourceByteEnd:payload.length}],
+    }));
+    return {jobId,directory,manifestFile,archiveFile};
+  };
+  const published = writeBundle(publishedId);
+  const superseded = writeBundle(publishedId);
+  const staging = writeBundle(activeId,true);
+  writeFileSync(join(superseded.directory,"keep.me"),"unrelated file");
+  await db.update(sessions).set({captureLayoutVersion:2,captureManifestFile:published.manifestFile,captureArchiveFile:published.archiveFile})
+    .where(eq(sessions.id,publishedId)).run();
+  await db.insert(sessionCaptureSplitJobs).values({sessionId:activeId,jobId:staging.jobId,pendingSourceRevision:revision,
+    sourcePath:activeSource,stagingPath:staging.directory,status:"verifying"}).run();
+  await cleanupOrphanSessionFiles();
+  expect(existsSync(superseded.archiveFile)).toBe(false);
+  expect(existsSync(superseded.manifestFile)).toBe(false);
+  expect(readFileSync(join(superseded.directory,"keep.me"),"utf8")).toBe("unrelated file");
+  expect(readFileSync(published.archiveFile)).toEqual(member);
+  expect(existsSync(published.manifestFile)).toBe(true);
+  expect(readFileSync(staging.archiveFile)).toEqual(member);
+  expect(existsSync(staging.manifestFile)).toBe(true);
+  expect(readFileSync(activeSource)).toEqual(payload);
 });

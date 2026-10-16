@@ -26,6 +26,20 @@ import type {
   LapTireWearData,
 } from "./detector";
 
+import type {
+  DetectorOwnershipState,
+  DetectorOwnershipTransition,
+  DetectorOwnershipWindow,
+} from "@raceiq/telemetry-core/processor/ordinal-engine";
+
+export type { DetectorOwnershipState, DetectorOwnershipTransition, DetectorOwnershipWindow };
+export type LapOwnershipTransition = DetectorOwnershipTransition;
+export interface LapOwnershipSource {
+  getOwnershipState(): DetectorOwnershipState;
+  subscribeOwnership(listener: (transition: LapOwnershipTransition) => void): () => void;
+}
+
+
 /** Optional event callbacks available to every detector implementation. */
 export interface LapDetectorCallbacks {
   onLapSaved?: (event: LapSavedEvent | LapSavedNotification) => void;
@@ -47,7 +61,7 @@ export interface LapDetectorOptions {
 export interface ILapDetector {
   readonly detectorId: string;
   readonly session: SessionState | null;
-  feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void>;
+  feed(packet: TelemetryPacket, rawByteOffset?: number, rawOrdinal?: number): Promise<void>;
   /** Rolling fuel data when the detector tracks per-lap consumption. */
   readonly fuelHistory?: LapFuelData[];
   /** Rolling tire-wear data when the detector tracks per-lap wear. */
@@ -66,7 +80,9 @@ export interface ILapDetector {
    * packet is retroactively written — without this, lap 1's byte offset is
    * stuck at null.
    */
-  setCurrentLapByteOffset?(offset: number): void;
+  setCurrentLapByteOffset?(offset: number, rawOrdinal?: number): void;
+  observeSourceRecord?(offset: number, endOffset: number, ordinal: number): void;
+  drainOwnershipTransitions?(): LapOwnershipTransition[];
   /** Whether this source record may begin or reset a lap; queried before recording bytes. */
   shouldCheckpointBeforeWrite(packet: TelemetryPacket): boolean;
   /** Treat the first observed lap as complete rather than an attach-mid-lap fragment. */

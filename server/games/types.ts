@@ -56,6 +56,12 @@ export interface ServerGameAdapter extends GameAdapter {
   /** Restore parser state from a game-owned checkpoint payload. */
   restoreParserCheckpoint?(state: unknown, payload: Uint8Array): unknown;
 
+  /**
+   * True only when parser state is stateless/frame-local and an empty checkpoint
+   * is an exact pre-frame initialization. Stateful parsers need checkpoint codecs.
+   */
+  readonly parserStateIsFrameLocal?: boolean;
+
   /** AI analyst system prompt for this game */
   aiSystemPrompt: string;
 

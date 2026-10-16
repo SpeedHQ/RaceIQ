@@ -12,7 +12,7 @@ import { enqueueSessionCaptureSplit } from "@raceiq/backend-core/db/session-quer
 import { cacheDelete } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { reprocessSession } from "@raceiq/backend-core/session-capture/reprocess";
 import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
-import { encodeFrameLength, encodeMetaFrame, encodeParserBootstrapFrame, iterateSessionCaptureRecords, PARSER_BOOTSTRAP_VERSION, readFramePrefix } from "@raceiq/capture-formats/session/framing";
+import { encodeFrameLength, encodeMetaFrame, encodeParserBootstrapFrame, encodeSparseCaptureFormatFrame, iterateSessionCaptureRecords, iterateSessionFrames, PARSER_BOOTSTRAP_VERSION, readFramePrefix } from "@raceiq/capture-formats/session/framing";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { unzipSync } from "fflate";
 import { iterateSessionCaptureFrames, clearSessionCaptureCache } from "@raceiq/backend-core/session-capture/source-loader";
@@ -26,13 +26,16 @@ import { buildLapsZip, importLapsZip } from "../../src/laps/archive";
 import { importSessionFrames } from "@raceiq/backend-core/session-capture/import-pipeline";
 import { SESSION_SEGMENT_BOUNDARY } from "@raceiq/capture-formats/session/framing";
 import { queryLapTelemetryBySemanticId } from "@raceiq/backend-core/telemetry/replay";
+import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
 initServerGameAdapters();
 registerDriverProfileLapNotifier(notifyDriverProfileLap);
 const root = await mkdtemp(join(tmpdir(), "raceiq-bundle-consumers-"));
 const sessionIds: number[] = [];
+const sparseFixtureCleanups: Array<() => void> = [];
 afterAll(async () => {
   for (const id of sessionIds) await db.delete(sessions).where(eq(sessions.id, id)).run();
   await rm(root, { recursive: true, force: true });
+  for (const cleanup of sparseFixtureCleanups.splice(0)) cleanup();
 });
 async function drainSplitQueueUntilReady(sessionId: number): Promise<void> {
   for (let attempts = 0; attempts < 100; attempts++) {
@@ -64,18 +67,24 @@ function sourceRecordBytes(capture: Buffer, offset: number): Buffer {
 function encodeFrameRecord(frame: Buffer, frameTimeMs?: number): Buffer {
   return Buffer.concat([encodeFrameLength(frame.length, frameTimeMs), frame]);
 }
-
-test("direct replay reads owned bundle frames and binary export returns lap artifact; legacy rows still replay", async () => {
+async function makeSparseF1Fixture(): Promise<string> {
   const fixture = getRecordingFixture("f1-2025-2026-04-09T21-34-10-190Z.bin.gz");
   if (!fixture) throw new Error("Required F1 recording fixture is missing");
-  const source = gunzipSync(await readFile(fixture));
+  const converted = await convertSeedFramesToSparse("f1-2025", iterateSessionFrames(gunzipSync(await readFile(fixture))));
+  sparseFixtureCleanups.push(converted.cleanup);
+  return converted.path;
+}
+
+test("direct replay reads owned bundle frames and binary export returns lap artifact; legacy rows still replay", async () => {
+  const sparseFixture = await makeSparseF1Fixture();
+  const source = await readFile(sparseFixture);
   const game = getServerGame("f1-2025");
   if (!game.captureParserCheckpoint || !game.restoreParserCheckpoint) throw new Error("F1 parser checkpoint codec is unavailable");
   const parserState = game.createParserState();
   let sourceOrdinal = 0;
   let ownedSource: { offset: number; frame: Buffer; frameTimeMs?: number } | undefined;
   let checkpoint: Uint8Array | undefined;
-  for await (const record of iterateSessionCaptureFrames({ rawFile: fixture, source: null, gameId: "f1-2025", carId: "41", trackId: "19" })) {
+  for await (const record of iterateSessionCaptureFrames({ rawFile: sparseFixture, source: null, gameId: "f1-2025", carId: "41", trackId: "19" })) {
     const checkpointBeforeFrame = game.captureParserCheckpoint(parserState);
     const packet = game.tryParse(record.frame, parserState);
     sourceOrdinal++;
@@ -89,8 +98,9 @@ test("direct replay reads owned bundle frames and binary export returns lap arti
   const ownedSourceBytes = sourceRecordBytes(source, ownedSource.offset);
   const ownedRecord = encodeFrameRecord(ownedSource.frame, ownedSource.frameTimeMs);
   const bootstrap = encodeParserBootstrapFrame("f1-2025", checkpoint);
-  const chunk = Buffer.concat([encodeMetaFrame(1), bootstrap, ownedRecord]);
-  const ownedLocalOffset = 12 + bootstrap.length;
+  const sparseFormat = encodeSparseCaptureFormatFrame();
+  const chunk = Buffer.concat([encodeMetaFrame(1), sparseFormat, bootstrap, ownedRecord]);
+  const ownedLocalOffset = encodeMetaFrame(1).length + sparseFormat.length + bootstrap.length;
   const bundlePath = join(root, "bundle.bin");
   const manifestPath = join(root, "manifest.json");
   await writeFile(bundlePath, chunk);
@@ -139,11 +149,10 @@ test("direct replay reads owned bundle frames and binary export returns lap arti
   cacheDelete(legacy.lapId);
 });
 test("failed segmented import rolls back sessions, captures, and split jobs", async () => {
-  const fixture = getRecordingFixture("f1-2025-2026-04-09T21-34-10-190Z.bin.gz");
-  if (!fixture) throw new Error("Required F1 recording fixture is missing");
+  const sparseFixture = await makeSparseF1Fixture();
   const frames: Buffer[] = [];
   for await (const record of iterateSessionCaptureFrames({
-    rawFile: fixture, source: null, gameId: "f1-2025", carId: "41", trackId: "19",
+    rawFile: sparseFixture, source: null, gameId: "f1-2025", carId: "41", trackId: "19",
   })) frames.push(record.frame);
   const beforeSessions = new Set((await db.select({ id: sessions.id }).from(sessions).all()).map(({ id }) => id));
   const beforeJobs = new Set((await db.select({ sessionId: sessionCaptureSplitJobs.sessionId })
@@ -185,10 +194,9 @@ test("corrupt published bundle references surface parse error without falling ba
 });
 
 test("bundle-backed archive export imports with real F1 parser bootstrap intact", async () => {
-  const fixture = getRecordingFixture("f1-2025-2026-04-09T21-34-10-190Z.bin.gz");
-  if (!fixture) throw new Error("Required F1 recording fixture is missing");
+  const sparseFixture = await makeSparseF1Fixture();
   const session = await db.insert(sessions).values({
-    carId: "41", trackId: "19", gameId: "f1-2025", rawFile: fixture,
+    carId: "41", trackId: "19", gameId: "f1-2025", rawFile: sparseFixture,
   }).returning({ id: sessions.id }).get();
   sessionIds.push(session.id);
 
@@ -198,6 +206,9 @@ test("bundle-backed archive export imports with real F1 parser bootstrap intact"
     .filter(({ rawByteOffset, rawFrameCount }) => rawByteOffset != null && (rawFrameCount ?? 0) > 0)
     .sort((a, b) => a.lapNumber - b.lapNumber)[0];
   if (!firstLap) throw new Error("F1 fixture produced no replayable lap");
+  const sourceReplay = await getLapById(firstLap.id);
+  if (!sourceReplay || sourceReplay.parseError) throw new Error("F1 source lap did not replay");
+  const sourceTelemetry = sourceReplay.telemetry;
 
   const queuedJob = await db.select({ status: sessionCaptureSplitJobs.status })
     .from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, session.id)).get();
@@ -213,12 +224,22 @@ test("bundle-backed archive export imports with real F1 parser bootstrap intact"
   }
   const publishedLap = await db.select().from(laps).where(eq(laps.id, firstLap.id)).get();
   if (!publishedLap?.captureChunkId) throw new Error("F1 lap bundle was not published");
+  const publishedSession = await db.select().from(sessions).where(eq(sessions.id, session.id)).get();
+  expect(publishedSession?.captureLayoutVersion).toBe(2);
+  expect(publishedSession?.captureArchiveFile).toBeTruthy();
+  await rm(sparseFixture);
+  cacheDelete(publishedLap.id);
+  clearSessionCaptureCache();
+  const independentReplay = await getLapById(publishedLap.id);
+  expect(independentReplay?.parseError).toBeUndefined();
+  expect(independentReplay?.telemetry).toEqual(sourceTelemetry);
+  expect(independentReplay?.lapTime).toBe(firstLap.lapTime);
+  expect(independentReplay?.isValid).toBe(firstLap.isValid);
 
   const game = getServerGame("f1-2025");
   if (!game.restoreParserCheckpoint) throw new Error("F1 parser checkpoint restore is unavailable");
-  const sourceReplay = await getLapById(publishedLap.id);
-  if (!sourceReplay || sourceReplay.parseError) throw new Error("F1 source lap did not replay");
-  const sourceTelemetry = sourceReplay.telemetry;
+  const semanticReplay = await queryLapTelemetryBySemanticId(publishedLap.id, ["motion.speed"]);
+  expect(semanticReplay?.envelopes[0]?.rawReference?.storageEncoding).toBe("gzip");
   const archive = await buildLapsZip([publishedLap.id]);
   expect(archive.manifest.entries[0]?.laps.map(({ lapNumber }) => lapNumber)).toEqual([publishedLap.lapNumber]);
   const entryName = archive.manifest.entries[0]!.file;

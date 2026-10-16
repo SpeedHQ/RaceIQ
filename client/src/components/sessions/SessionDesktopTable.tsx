@@ -169,7 +169,7 @@ export function SessionDesktopTable({
                     <TableCell className="text-app-label">{sessionCarName(session, { trackNames, carNames })}</TableCell>
                     <TableCell className="text-app-label">
                       <SessionResultMeta session={session} />
-                      <SessionCaptureSplitStatus status={session.captureSplit} />
+                      <SessionCaptureSplitStatus status={session.captureSplit} sessionId={session.id} />
                     </TableCell>
                     {showSessionType && <TableCell className="text-app-label"><SessionTypeBadge type={session.sessionType} /></TableCell>}
                     <TableCell>

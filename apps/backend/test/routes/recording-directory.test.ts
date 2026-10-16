@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import { copyFile as fsCopyFile, link as fsLink, lstat, mkdir, mkdtemp, readFile, realpath, readdir, rm, symlink, unlink as fsUnlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { gzipSync } from "node:zlib";
+import { openCaptureArchive, type ArchiveManifest } from "@raceiq/capture-splitting";
 import { eq } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
 import { insertSession, deleteSession } from "@raceiq/backend-core/db/session-queries";
@@ -59,25 +61,33 @@ describe("recording-directory relocation", () => {
     expect(await readFile(join(destination, "test-game", "capture.bin"))).toEqual(bytes);
     expect(await readFile(unrelated)).toEqual(preserved);
   });
-  test.each([false, true])("preserves split bundle and job references when relocation rolls back: %s", async (rollback) => {
+  test.each([[false, false], [true, false], [false, true], [true, true]])("preserves bundle/job references through move; rollback=%s archive=%s", async (rollback, archived) => {
     const root = await mkdtemp(join(tmpdir(), "raceiq-split-relocation-"));
     const source = join(root, "source");
     const destination = join(root, "destination");
     const bundle = join(source, "fm-2023", "own", "session-bundle");
     const capture = join(source, "fm-2023", "own", "capture.bin");
     const manifestFile = join(bundle, "manifest.json");
-    const chunkFile = join(bundle, "lap.bin");
+    const chunkFile = join(bundle, archived ? "capture.bin.gz" : "lap.bin");
     const bytes = Buffer.from("lossless lap bytes");
     let sessionId: number | undefined;
     await mkdir(bundle, { recursive: true });
     await mkdir(destination);
     await writeFile(capture, bytes);
-    await writeFile(chunkFile, bytes);
-    await writeFile(manifestFile, JSON.stringify({ chunks: [{ path: "lap.bin" }] }));
+    const member = archived ? gzipSync(bytes) : bytes;
+    await writeFile(chunkFile, member);
+    const manifest = archived ? {
+      version: 4, gameId: "fm-2023", sourceRevision: "split-move", sourceByteLength: bytes.length,
+      sourceRecordCount: 0, archiveFile: "capture.bin.gz",
+      chunks: [{ id: "aux", kind: "auxiliary", entryName: "aux.bin", memberOffset: 0, compressedByteLength: member.length,
+        byteLength: bytes.length, firstOrdinal: 0, recordCount: 0, sourceStart: 0, sourceEnd: 0, sourceByteStart: 0, sourceByteEnd: 0 }],
+    } : { chunks: [{ path: "lap.bin" }] };
+    await writeFile(manifestFile, JSON.stringify(manifest));
     saveSettings({ ...loadSettings(), recordingDirectory: source });
     try {
       sessionId = await insertSession("split-move-car", "track", "fm-2023");
-      await db.update(sessions).set({ rawFile: capture, captureLayoutVersion: 1, captureManifestFile: manifestFile }).where(eq(sessions.id, sessionId)).run();
+      await db.update(sessions).set({ rawFile: capture, captureLayoutVersion: archived ? 2 : 1, captureManifestFile: manifestFile,
+        captureArchiveFile: archived ? chunkFile : null }).where(eq(sessions.id, sessionId)).run();
       await db.insert(sessionCaptureSplitJobs).values({
         sessionId, jobId: crypto.randomUUID(), pendingSourceRevision: "split-move",
         sourcePath: capture, status: "queued",
@@ -95,8 +105,13 @@ describe("recording-directory relocation", () => {
       expect(row?.rawFile).toBe(expectedCapture);
       expect(row?.captureManifestFile).toBe(join(expectedBundle, "manifest.json"));
       expect(job?.sourcePath).toBe(expectedCapture);
-      expect(await readFile(join(expectedBundle, "lap.bin"))).toEqual(bytes);
-      expect(JSON.parse(await readFile(join(expectedBundle, "manifest.json"), "utf8")).chunks).toEqual([{ path: "lap.bin" }]);
+      expect(await readFile(join(expectedBundle, archived ? "capture.bin.gz" : "lap.bin"))).toEqual(member);
+      expect(JSON.parse(await readFile(join(expectedBundle, "manifest.json"), "utf8"))).toEqual(manifest);
+      if (archived) {
+        expect(row?.captureArchiveFile).toBe(join(expectedBundle, "capture.bin.gz"));
+        const archive = await openCaptureArchive(row!.captureArchiveFile!, manifest as ArchiveManifest);
+        expect(await archive.readEntryBuffer("aux.bin", bytes.length)).toEqual(bytes);
+      }
       const removedRoot = rollback ? destination : source;
       await expect(readFile(join(removedRoot, "fm-2023", "own", "session-bundle", "manifest.json"))).rejects.toMatchObject({ code: "ENOENT" });
     } finally {

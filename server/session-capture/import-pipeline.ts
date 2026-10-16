@@ -290,7 +290,7 @@ async function importTelemetrySource<T>(
   const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
     bypassPacketRateFilter: true,
     enqueueSessionCaptureSplits: false,
-    recorder: options.recorder ?? new SparseSessionRecorderAdapter(options.ownership),
+    recorder: options.recorder ?? new SparseSessionRecorderAdapter(options.ownership, {}, "offline"),
   });
 
   let packetCount = 0;
@@ -358,6 +358,7 @@ export function importSessionFrames(
   let completeLapStart = false;
   let inParserContext = false;
   let lastOwnedPacket: LapIndexPacket | null = null;
+  let sourceSequence = 0;
   return importTelemetrySource(
     frames,
     gameId,
@@ -422,6 +423,8 @@ export function importSessionFrames(
       }
       expectsSessionContext = false;
       completeLapStart = false;
+      pipeline.captureParserSource({ gameId, sequence: sourceSequence++, frame, locator: null,
+        ...(frameTimeMs === undefined ? {} : { timestampMs: frameTimeMs }) });
       const packet = serverGame.tryParseLapIndex(frame, state);
       if (!packet) return false;
       lastOwnedPacket = packet;

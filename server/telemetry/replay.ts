@@ -9,8 +9,10 @@ import { getLapReplaySource, type LapReplaySource } from "../db/telemetry-replay
 import { getServerGame } from "../games/registry";
 import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, type IRacingSourceDecoderState, type IRacingValue } from "@raceiq/capture-formats/iracing/source-frame";
 import { PARSER_BOOTSTRAP_VERSION, iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
-import { loadRawCaptureIdentity, type RawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
-import { resolveLapCaptureArtifact } from "../session-capture/source-loader";
+import { createRawCaptureIdentity, loadRawCaptureIdentity, type RawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
+import { loadSessionCapture, resolveLapCaptureArtifact } from "../session-capture/source-loader";
+import { getLiveLapCaptureSnapshot } from "../db/live-capture-queries";
+import { resolveLiveLapCaptureArtifact } from "../session-capture/source-loader";
 export interface QueryLapTelemetryOptions {
   readonly rawCaptureRequirement?: "provenance" | "native-values";
 }
@@ -187,28 +189,37 @@ export async function queryLapTelemetryBySemanticId(
   if (lap.parseError) throw new Error(lap.parseError);
 
   const { rawCaptureRequirement } = { ...defaultQueryLapTelemetryOptions, ...options };
-  const artifact = source.captureLayoutVersion === 1
-    ? await (() => {
-      if (!source.captureManifestFile || !source.captureChunkId) {
-        throw new Error(`Published capture layout for lap ${lapId} has incomplete capture references`);
-      }
-      return resolveLapCaptureArtifact(source.captureManifestFile, source.captureChunkId, lapId);
-    })()
-    : undefined;
-  if (source.captureLayoutVersion != null && source.captureLayoutVersion !== 1) {
+  const live = source.captureLayoutVersion === 3
+    ? await getLiveLapCaptureSnapshot(source.sessionId, lapId)
+    : null;
+  const artifact = source.captureLayoutVersion === 3
+    ? live ? resolveLiveLapCaptureArtifact(live.archivePath, live.snapshot) : undefined
+    : source.captureLayoutVersion === 1 || source.captureLayoutVersion === 2
+      ? await (() => {
+        if (!source.captureManifestFile || !source.captureChunkId) {
+          throw new Error(`Published capture layout for lap ${lapId} has incomplete capture references`);
+        }
+        return resolveLapCaptureArtifact(source.captureManifestFile, source.captureChunkId, lapId, source);
+      })()
+      : undefined;
+  if (source.captureLayoutVersion != null && source.captureLayoutVersion !== 1 && source.captureLayoutVersion !== 2 && source.captureLayoutVersion !== 3) {
     throw new Error(`Unsupported capture layout version ${source.captureLayoutVersion} for lap ${lapId}`);
   }
-  if (source.captureLayoutVersion === 1 && !artifact) {
+  if (source.captureLayoutVersion === 3 && !artifact) throw new Error(`Live lap capture member for lap ${lapId} is not committed`);
+  if ((source.captureLayoutVersion === 1 || source.captureLayoutVersion === 2) && !artifact) {
     throw new Error(`Published capture layout for lap ${lapId} has incomplete capture references`);
   }
-  if (lap.telemetry.length === 0) {
-    throw new Error(`Lap ${lapId} has no replayable telemetry`);
-  }
-  const capturePath = artifact?.path ?? (source.captureLayoutVersion == null ? source.rawFile : undefined);
-  const needsRawCapture =
-    capturePath != null &&
-    (rawCaptureRequirement === "provenance" || source.gameId === "iracing");
-  const rawCapture = needsRawCapture ? await loadRawCaptureIdentity(capturePath as string) : undefined;
+  if (lap.telemetry.length === 0) throw new Error(`Lap ${lapId} has no replayable telemetry`);
+  const capturePath = source.captureLayoutVersion == null ? source.rawFile : undefined;
+  const needsRawCapture = rawCaptureRequirement === "provenance" || source.gameId === "iracing";
+  const rawCapture = needsRawCapture
+    ? artifact
+      ? createRawCaptureIdentity(
+          await loadSessionCapture({ rawFile: artifact.path, artifact: artifact.artifact, source: null, gameId: source.gameId, carId: lap.carId, trackId: lap.trackId }),
+          artifact.artifact ? "gzip" : "identity",
+        )
+      : capturePath ? await loadRawCaptureIdentity(capturePath) : undefined
+    : undefined;
   const replaySource = artifact
     ? { ...source, rawByteOffset: artifact.chunk.ownedFrameByteOffset!, rawFrameCount: artifact.chunk.ownedFrameCount! }
     : source;

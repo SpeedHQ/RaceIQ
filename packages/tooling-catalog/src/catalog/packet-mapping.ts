@@ -398,6 +398,10 @@ function nativeSources(
 
 function specialIRacingSources(field: string): string[] | undefined {
   if (field === "TimestampMS") return ["iRacing.SessionTime"];
+  if (field === "CurrentLap") return [
+    "iRacing.SessionInfo.subSessionId", "iRacing.SessionInfo.sessionId", "iRacing.SessionInfo.sessionNum",
+    "iRacing.Lap", "iRacing.SessionTime", "iRacing.LapCurrentLapTime",
+  ];
   const rawWheel = field.match(
     /(FL|FR|RL|RR|FrontLeft|FrontRight|RearLeft|RearRight)$/,
   )?.[1];

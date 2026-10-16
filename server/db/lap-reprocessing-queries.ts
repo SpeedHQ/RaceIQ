@@ -3,7 +3,7 @@ import { cacheDelete } from "./telemetry-replay-storage";
 import { clearSessionCaptureCache } from "../session-capture/source-loader";
 import { and, eq, isNotNull, or, inArray, sql } from "drizzle-orm";
 import { db } from "./index";
-import { laps, sessions, lapMetrics, lapAnalyses, compareAnalyses, lineSpreadCache, sessionCaptureSplitJobs } from "./schema";
+import { laps, sessions, lapMetrics, lapAnalyses, compareAnalyses, lineSpreadCache, sessionCaptureSplitJobs, liveCaptureMembers } from "./schema";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 
 export async function getLapsForSession(sessionId: number): Promise<Array<{
@@ -88,7 +88,8 @@ export async function replaceLapsForSession(
     const deleted = rows.map(({ id }) => id).filter((id) => !matchedIds.has(id));
     const invalidated = [...matchedIds];
     if (ownershipChanged) {
-      await tx.update(sessions).set({ captureLayoutVersion: null, captureManifestFile: null }).where(eq(sessions.id, sessionId));
+      await tx.delete(liveCaptureMembers).where(inArray(liveCaptureMembers.lapId, rows.map(({ id }) => id)));
+      await tx.update(sessions).set({ captureLayoutVersion: null, captureManifestFile: null, captureArchiveFile: null }).where(eq(sessions.id, sessionId));
       await tx.update(laps).set({ captureChunkId: null, sourceFrameStart: null, sourceFrameCount: null }).where(eq(laps.sessionId, sessionId));
       await tx.update(sessionCaptureSplitJobs).set({
         jobId: randomUUID(), attemptId: sql`${sessionCaptureSplitJobs.attemptId} + 1`,

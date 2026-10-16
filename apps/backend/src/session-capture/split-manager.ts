@@ -1,4 +1,4 @@
-import type { Manifest, WorkerMessage } from "@raceiq/capture-splitting";
+import type { PublishedManifest, WorkerMessage } from "@raceiq/capture-splitting";
 import { mkdir, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { resolveRecordingGameDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
@@ -75,7 +75,7 @@ async function execute(work: SessionCaptureSplitWork): Promise<void> {
         });
         return progressWrite;
       };
-      let manifest: Manifest;
+      let manifest: PublishedManifest;
       try {
         manifest = await runSessionCaptureSplit({
           jobId: work.jobId, attemptId: work.attemptId, sourceRevision: work.sourceRevision,
@@ -104,6 +104,7 @@ async function execute(work: SessionCaptureSplitWork): Promise<void> {
       if (progressFailure) throw progressFailure;
       await flushProgress();
       if (progressFailure) throw progressFailure;
+      activeAbort!.signal.throwIfAborted();
       const publishingSequence = sequence + 1;
       if (!await updateSessionCaptureSplitProgress({
         sessionId: work.sessionId, jobId: work.jobId, attemptId: work.attemptId, sourceRevision: work.sourceRevision,
@@ -111,11 +112,13 @@ async function execute(work: SessionCaptureSplitWork): Promise<void> {
         completedLapArtifacts: manifest.chunks.filter((chunk) => chunk.kind === "lap").length,
         totalLapArtifacts: work.windows.length,
       })) throw Object.assign(new Error("Split attempt was fenced before publication"), { code: "STALE_ATTEMPT" });
+      activeAbort!.signal.throwIfAborted();
       publicationStarted = true;
       await rename(staging, final);
       finalPublished = true;
       if (!await validateSessionCaptureSplitRevision(work)) throw Object.assign(new Error("Source revision changed before publication"), { code: "SOURCE_REVISION" });
-      const published = await publishSessionCaptureSplit(work, join(final, "manifest.json"), manifest.chunks);
+      activeAbort!.signal.throwIfAborted();
+      const published = await publishSessionCaptureSplit(work, join(final, "manifest.json"), manifest, activeAbort!.signal);
       if (!published) throw Object.assign(new Error("Split publication rejected by current job/session state"), { code: "STALE_ATTEMPT" });
     });
   } catch (error) {

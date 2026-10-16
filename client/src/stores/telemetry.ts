@@ -151,6 +151,10 @@ export interface TelemetryState {
   /** Race-result reconciliation error, if the latest attempt failed */
   raceResultReprocessError: string | null;
   staleLapDetection: { sessionCount: number; currentVersion: string } | null;
+  /** Latest live recording lifecycle per session, retained across reconnects. */
+  liveCaptureLifecycles: Record<number, { sessionId: number; gameId: string; captureEpoch: string; phase: "recording" | "finalizing" | "sealed" | "failed"; error?: string }>;
+  /** Failure reported before a recording identity was established. */
+  liveCaptureError: string | null;
   reprocessState: ReprocessState;
   /** Live Tuning Dashboard: transient per-packet issues from the latest broadcast
    *  (only populated while `POST /api/live-analysis {enabled:true}` is active). */
@@ -183,6 +187,8 @@ const initialTelemetryState = {
   reprocessProgress: null,
   raceResultReprocessError: null,
   staleLapDetection: null,
+  liveCaptureLifecycles: {},
+  liveCaptureError: null,
   reprocessState: initialReprocessState,
   liveIssues: [],
   devState: null,
@@ -207,7 +213,7 @@ export interface TelemetryActions extends StoreActionMap {
   setStaleRaceResults: (data: { sessionCount: number; currentVersion: string } | null) => void;
   setRaceResultReprocessProgress: (progress: { done: number; total: number } | null) => void;
   setRaceResultReprocessError: (error: string | null) => void;
-  setStaleLapDetection: (data: { sessionCount: number; currentVersion: string } | null) => void;
+  setLiveCaptureLifecycle: (lifecycle: NonNullable<TelemetryState["liveCaptureLifecycles"][number]>) => void;
   beginReprocess: (total: number) => void;
   completeReprocess: () => void;
   failReprocess: (message: string) => void;
@@ -217,6 +223,7 @@ export interface TelemetryActions extends StoreActionMap {
   toggleDevStatePause: () => void;
   acquireDevState: () => () => void;
   setDisplayUnits: (unit: "metric" | "imperial", temperatureUnit: "C" | "F") => void;
+  setLiveCaptureError: (error: string | null) => void;
 }
 
 export const telemetryStore = createStore(initialTelemetryState, (store): TelemetryActions => ({
@@ -251,6 +258,13 @@ export const telemetryStore = createStore(initialTelemetryState, (store): Teleme
   setStaleRaceResults: (data) => store.setState((prev) => ({ ...prev, staleRaceResults: data })),
   setRaceResultReprocessProgress: (progress) => store.setState((prev) => ({ ...prev, raceResultReprocessProgress: progress })),
   setRaceResultReprocessError: (error) => store.setState((prev) => ({ ...prev, raceResultReprocessError: error })),
+  setLiveCaptureLifecycle: (lifecycle) => store.setState((prev) => {
+    const liveCaptureLifecycles = { ...prev.liveCaptureLifecycles, [lifecycle.sessionId]: lifecycle };
+    const ids = Object.keys(liveCaptureLifecycles);
+    if (ids.length > 128) delete liveCaptureLifecycles[Number(ids[0])];
+    return { ...prev, liveCaptureLifecycles, liveCaptureError: null };
+  }),
+  setLiveCaptureError: (liveCaptureError) => store.setState((prev) => ({ ...prev, liveCaptureError })),
   setStaleLapDetection: (data) => store.setState((prev) => ({ ...prev, staleLapDetection: data })),
   beginReprocess: (total) => store.setState((prev) => ({ ...prev, reprocessState: beginReprocess(prev.reprocessState, total) })),
   completeReprocess: () => store.setState((prev) => ({ ...prev, reprocessState: completeReprocess(prev.reprocessState) })),

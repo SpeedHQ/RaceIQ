@@ -26,6 +26,8 @@ import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import { getLapsRaw } from "@raceiq/backend-core/db/lap-read-queries";
 import { resolveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
 import { loadSessionCapture } from "@raceiq/backend-core/session-capture/source-loader";
+import { getLiveLapCaptureSnapshot } from "@raceiq/backend-core/db/live-capture-queries";
+import { resolveLiveLapCaptureArtifact } from "@raceiq/backend-core/session-capture/source-loader";
 import { encodeLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
 import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC } from "@raceiq/capture-formats/kunos/pack-triplet";
@@ -416,10 +418,10 @@ export async function buildLapsZip(
   const entries: ManifestEntry[] = [];
   for (const [sessionId, rows] of sessions) {
     for (const row of rows) {
-      if (row.captureLayoutVersion != null && row.captureLayoutVersion !== 1) {
+      if (row.captureLayoutVersion != null && row.captureLayoutVersion !== 1 && row.captureLayoutVersion !== 2 && row.captureLayoutVersion !== 3) {
         throw new Error(`Unsupported capture layout version ${row.captureLayoutVersion} for lap ${row.id}`);
       }
-      if (row.captureLayoutVersion === 1 && (!row.captureManifestFile || !row.captureChunkId)) {
+      if ((row.captureLayoutVersion === 1 || row.captureLayoutVersion === 2) && (!row.captureManifestFile || !row.captureChunkId || (row.captureLayoutVersion === 2 && !row.captureArchiveFile))) {
         throw new Error(`Published capture layout for lap ${row.id} has incomplete capture references`);
       }
     }
@@ -467,9 +469,17 @@ export async function buildLapsZip(
       let frameCount: number;
       let parserBootstrap: Buffer | null = null;
       let trailingContextFrameCount = 0;
-      if (row.captureLayoutVersion === 1) {
-        const artifact = await resolveLapCaptureArtifact(row.captureManifestFile!, row.captureChunkId!, row.id);
-        buf = await loadSessionCapture({ rawFile: artifact.path, source: null, gameId: first.gameId as GameId, carId: first.carId, trackId: first.trackId });
+      if (row.captureLayoutVersion === 3) {
+        const live = await getLiveLapCaptureSnapshot(row.sessionId, row.id);
+        if (!live) throw new Error(`Live lap capture member for lap ${row.id} is not committed`);
+        const artifact = resolveLiveLapCaptureArtifact(live.archivePath, live.snapshot);
+        buf = await loadSessionCapture({ rawFile: artifact.path, artifact: artifact.artifact, source: null, gameId: first.gameId as GameId, carId: first.carId, trackId: first.trackId });
+        start = artifact.chunk.ownedFrameByteOffset!;
+        frameCount = artifact.chunk.ownedFrameCount!;
+        trailingContextFrameCount = artifact.chunk.trailingContextFrameCount ?? 0;
+      } else if (row.captureLayoutVersion === 1 || row.captureLayoutVersion === 2) {
+        const artifact = await resolveLapCaptureArtifact(row.captureManifestFile!, row.captureChunkId!, row.id, row);
+        buf = await loadSessionCapture({ rawFile: artifact.path, artifact: artifact.artifact, source: null, gameId: first.gameId as GameId, carId: first.carId, trackId: first.trackId });
         start = artifact.chunk.ownedFrameByteOffset!;
         frameCount = artifact.chunk.ownedFrameCount!;
         trailingContextFrameCount = artifact.chunk.trailingContextFrameCount ?? 0;
