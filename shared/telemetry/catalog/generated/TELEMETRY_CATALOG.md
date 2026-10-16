@@ -4,11 +4,11 @@
 
 ## Manifest
 
-- Catalog version: `0.19.2`
+- Catalog version: `0.20.0`
 - Schema version: `v7`
-- Generator: `RaceIQ telemetry-catalog generator@0.19.2`
+- Generator: `RaceIQ telemetry-catalog generator@0.20.0`
 - Generator source SHA-256: `6d2c986924a834bd68c7cb38aed405849a1982efcf2164166f43babcd0837b83`
-- Content SHA-256: `87438be136e4544aee5444bcbfb07952145ad8cb7bb2cf8e560e28f74528b1ab`
+- Content SHA-256: `48143ababfc859a06496e5fee189bee7fa09187c457f55f2b397da83e6e73b71`
 
 ## Coverage
 

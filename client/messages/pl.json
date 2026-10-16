@@ -1686,6 +1686,7 @@
   "f1live_weather_track": "Tor",
   "analyse_import_motec_title": "Importuj zapis MoTeC",
   "analyse_select_ldx": "Przed importem wybierz plik sygnałów .ldx.",
+  "analyse_motec_unsupported_game": "Import MoTeC nie jest jeszcze obsługiwany dla {game}. Zamiast tego użyj natywnego nagrania RaceIQ.",
   "analyse_search_cars": "Szukaj samochodów...",
   "analyse_search_tracks": "Szukaj torów...",
   "analyse_search_setups": "Szukaj ustawień...",

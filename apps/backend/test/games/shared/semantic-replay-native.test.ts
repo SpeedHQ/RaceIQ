@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { unlinkSync } from "node:fs";
+import { readFileSync, unlinkSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
 import { deleteSession, insertSession, updateSessionRawFile } from "@raceiq/backend-core/db/session-queries";
@@ -12,6 +12,7 @@ import { META_FRAME_MAGIC } from "@raceiq/capture-formats/session/framing";
 import { iterateIRacingNativeFramesForTest, queryLapTelemetryBySemanticId } from "@raceiq/backend-core/telemetry/replay";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { canonicalizeTelemetryScalar } from "@raceiq/telemetry-core/telemetry/replay/canonicalize";
+import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
 
 import { packet } from "@raceiq/telemetry-core/test-support/telemetry/resolver";
 initGameAdapters();
@@ -75,6 +76,7 @@ for (const rawFrameCount of [0, 1, 3]) {
       rawFile: null,
       rawByteOffset: meta.length + preceding.length,
       rawFrameCount,
+      captureFormatVersion: null,
     };
 
     const sessionTicks = Array.from(iterateIRacingNativeFramesForTest(source, capture), (values) => values.SessionTick);
@@ -134,11 +136,10 @@ test("semantic replay aligns native session frames and hashes decompressed captu
   const encoder = new IRacingSourceFrameEncoder();
   const sessionFrame = encoder.encode(frame(1, 2));
   const telemetryFrame = encoder.encode(frame(2, 4));
-  const meta = Buffer.alloc(12);
-  meta.writeUInt32LE(META_FRAME_MAGIC, 0);
-  meta.writeUInt32LE(4, 4);
-  const rawByteOffset = meta.length;
-  const capture = Buffer.concat([meta, record(sessionFrame), record(telemetryFrame)]);
+  const converted = await convertSeedFramesToSparse("iracing", [sessionFrame, telemetryFrame]);
+  const capture = readFileSync(converted.path);
+  const rawByteOffset = 12;
+  expect(capture.readUInt32LE(rawByteOffset)).toBe(sessionFrame.length);
   const rawFile = `${process.env.DATA_DIR ?? "."}/semantic-replay-${Date.now()}.bin.gz`;
   await Bun.write(rawFile, gzipSync(capture));
 
@@ -175,5 +176,6 @@ test("semantic replay aligns native session frames and hashes decompressed captu
     try {
       unlinkSync(rawFile);
     } catch {}
+    converted.cleanup();
   }
 });

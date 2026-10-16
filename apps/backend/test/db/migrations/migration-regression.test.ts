@@ -6,6 +6,35 @@ import {
 } from "@raceiq/backend-core/test-support/db/migrations";
 
 describe("migration regressions", () => {
+  test("AC Evo layout backfill queues every stored layout once without invalidating other games", async () => {
+    const client = newClient();
+    try {
+      await bootstrap(client);
+      await runMigrations(client, 75);
+      await client.execute(`
+        INSERT INTO sessions (game_id, track_id, lap_detector_version, capture_format_version)
+        VALUES
+          ('ac-evo', 'obsolete layout', 'ac_evo_lapdetector_v5', 1),
+          ('ac-evo', '["Nurburgring","Grand Prix"]', 'ac_evo_lapdetector_v4', 1),
+          ('ac-evo', '["Nurburgring","Touristenfahrten"]', 'ac_evo_lapdetector_v5', 1),
+          ('iracing', '123', 'preserve detector', 1)
+      `);
+
+      await runMigrations(client);
+      expect((await client.execute("SELECT lap_detector_version FROM sessions WHERE game_id='ac-evo'")).rows
+        .map((row) => row.lap_detector_version)).toEqual([null, null, null]);
+      expect((await client.execute("SELECT lap_detector_version FROM sessions WHERE game_id='iracing'")).rows
+        .map((row) => row.lap_detector_version)).toEqual(["preserve detector"]);
+
+      await client.execute("UPDATE sessions SET lap_detector_version='ac_evo_lapdetector_v5' WHERE game_id='ac-evo'");
+      expect(await runMigrations(client)).toBe(0);
+      expect((await client.execute("SELECT DISTINCT lap_detector_version FROM sessions WHERE game_id='ac-evo'")).rows
+        .map((row) => row.lap_detector_version)).toEqual(["ac_evo_lapdetector_v5"]);
+    } finally {
+      client.close();
+    }
+  });
+
   test("rejects branch migration collisions before changing stored data", async () => {
     const client = newClient();
     try {

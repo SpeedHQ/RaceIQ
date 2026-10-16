@@ -1688,6 +1688,7 @@
   "f1live_weather_track": "Circuit",
   "analyse_import_motec_title": "MoTeC-logboek importeren",
   "analyse_select_ldx": "Selecteer het .ldx-signaalbestand voordat je importeert.",
+  "analyse_motec_unsupported_game": "MoTeC-import wordt nog niet ondersteund voor {game}. Gebruik in plaats daarvan een native RaceIQ-opname.",
   "analyse_search_cars": "Auto's zoeken...",
   "analyse_search_tracks": "Circuits zoeken...",
   "analyse_search_setups": "Afstellingen zoeken...",

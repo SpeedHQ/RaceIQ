@@ -1686,6 +1686,7 @@
 "f1live_weather_track": "Rata",
 "analyse_import_motec_title": "Tuo MoTeC-loki",
 "analyse_select_ldx": "Valitse .ldx-signaalitiedosto ennen tuontia.",
+  "analyse_motec_unsupported_game": "MoTeC-tuontia ei vielä tueta pelille {game}. Käytä sen sijaan RaceIQ:n omaa tallennetta.",
 "analyse_search_cars": "Hae autoja...",
 "analyse_search_tracks": "Hae ratoja...",
 "analyse_search_setups": "Hae säätöjä...",

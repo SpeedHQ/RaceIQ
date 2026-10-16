@@ -184,6 +184,7 @@ const initialTelemetryState = {
   raceResultReprocessError: null,
   staleLapDetection: null,
   reprocessState: initialReprocessState,
+
   liveIssues: [],
   devState: null,
   devStatePaused: false,
@@ -252,6 +253,7 @@ export const telemetryStore = createStore(initialTelemetryState, (store): Teleme
   setRaceResultReprocessProgress: (progress) => store.setState((prev) => ({ ...prev, raceResultReprocessProgress: progress })),
   setRaceResultReprocessError: (error) => store.setState((prev) => ({ ...prev, raceResultReprocessError: error })),
   setStaleLapDetection: (data) => store.setState((prev) => ({ ...prev, staleLapDetection: data })),
+
   beginReprocess: (total) => store.setState((prev) => ({ ...prev, reprocessState: beginReprocess(prev.reprocessState, total) })),
   completeReprocess: () => store.setState((prev) => ({ ...prev, reprocessState: completeReprocess(prev.reprocessState) })),
   failReprocess: (message) => store.setState((prev) => ({ ...prev, reprocessState: failReprocess(prev.reprocessState, message) })),

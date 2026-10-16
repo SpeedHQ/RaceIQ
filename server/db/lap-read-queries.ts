@@ -334,6 +334,7 @@ type LapMetadataRow = {
   rawFrameCount: number | null;
   rawFile?: string | null;
   source?: string | null;
+  captureFormatVersion: number | null;
   carId: string;
   trackId: string;
   tuneId: number | null;
@@ -357,7 +358,7 @@ async function getLapMetadataRow(id: number): Promise<LapMetadataRow | undefined
       isValid: laps.isValid, isFavorite: laps.isFavorite, createdAt: laps.createdAt, rawByteOffset: laps.rawByteOffset,
       classification: laps.classification,
       rawFrameCount: laps.rawFrameCount, rawFile: sessions.rawFile, source: sessions.source,
-      carId: sessions.carId, trackId: sessions.trackId,
+      carId: sessions.carId, trackId: sessions.trackId, captureFormatVersion: sessions.captureFormatVersion,
       tuneId: laps.tuneId, tuneName: tunes.name, gameId: sessions.gameId,
       ownership: sessions.ownership, carSetup: laps.carSetup,
       sectorTimes: laps.sectorTimes, catalogVersion: laps.catalogVersion, catalogHash: laps.catalogHash,
@@ -368,9 +369,9 @@ async function getLapMetadataRow(id: number): Promise<LapMetadataRow | undefined
     .where(eq(laps.id, id)).get();
 }
 
-export async function getLapMetaById(id: number): Promise<(LapMeta & { telemetry: TelemetryPacket[]; rawFile: string | null; source: "motec" | null; rawByteOffset: number | null; rawFrameCount: number | null }) | null> {
+export async function getLapMetaById(id: number): Promise<(LapMeta & { telemetry: TelemetryPacket[]; rawFile: string | null; source: "motec" | null; rawByteOffset: number | null; rawFrameCount: number | null; captureFormatVersion: number | null }) | null> {
   const row = await getLapMetadataRow(id);
-  return row ? { ...buildLapResult(row, []), rawFile: row.rawFile ?? null, source: row.source === "motec" ? "motec" : null, rawByteOffset: row.rawByteOffset, rawFrameCount: row.rawFrameCount } : null;
+  return row ? { ...buildLapResult(row, []), rawFile: row.rawFile ?? null, source: row.source === "motec" ? "motec" : null, rawByteOffset: row.rawByteOffset, rawFrameCount: row.rawFrameCount, captureFormatVersion: row.captureFormatVersion } : null;
 }
 
 export async function getLapById(
@@ -385,7 +386,7 @@ export async function getLapById(
   if (row.rawFile != null && row.rawByteOffset != null && row.rawFrameCount != null) {
     try {
       telemetry = await parseRawLapFrames(
-        { rawFile: row.rawFile, source: row.source === "motec" ? "motec" : null, gameId: row.gameId as GameId, carId: row.carId, trackId: row.trackId },
+        { rawFile: row.rawFile, source: row.source === "motec" ? "motec" : null, gameId: row.gameId as GameId, carId: row.carId, trackId: row.trackId, captureFormatVersion: row.captureFormatVersion },
         row.rawByteOffset, row.rawFrameCount,
       );
     } catch (err) {
@@ -492,10 +493,11 @@ export async function getLapsByIds(
       createdAt: laps.createdAt,
       carId: sessions.carId,
       trackId: sessions.trackId,
+      rawFile: sessions.rawFile,
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
-      rawFile: sessions.rawFile,
       source: sessions.source,
+      captureFormatVersion: sessions.captureFormatVersion,
       tuneId: laps.tuneId,
       tuneName: tunes.name,
       gameId: sessions.gameId,
@@ -520,7 +522,7 @@ export async function getLapsByIds(
   // Concurrent review queries (line spread + aligned telemetry) often request
   // same raw session/lap set. Share decode promise to avoid duplicate BIN work.
   type BatchMeta = { id: number; rawByteOffset: number; rawFrameCount: number };
-  type BatchGroup = { source: string | null; gameId: GameId; carId: string; trackId: string; metas: BatchMeta[] };
+  type BatchGroup = { source: string | null; gameId: GameId; carId: string; trackId: string; captureFormatVersion: number | null; metas: BatchMeta[] };
   const decoded = new Map<number, TelemetryPacket[]>();
   const bySession = new Map<string, BatchGroup>();
 
@@ -533,7 +535,7 @@ export async function getLapsByIds(
     if (row.rawByteOffset != null && row.rawFrameCount && row.rawFile) {
       let group = bySession.get(row.rawFile);
       if (!group) {
-        group = { source: row.source, gameId: row.gameId as GameId, carId: row.carId, trackId: row.trackId, metas: [] };
+        group = { source: row.source, gameId: row.gameId as GameId, carId: row.carId, trackId: row.trackId, captureFormatVersion: row.captureFormatVersion, metas: [] };
         bySession.set(row.rawFile, group);
       }
       group.metas.push({ id: row.id, rawByteOffset: row.rawByteOffset, rawFrameCount: row.rawFrameCount });
@@ -554,7 +556,7 @@ export async function getLapsByIds(
     const decode = (async () => {
       try {
         const batch = await parseSessionLapsBatched(
-          { rawFile, source: group.source, gameId: group.gameId, carId: group.carId, trackId: group.trackId },
+          { rawFile, source: group.source, gameId: group.gameId, carId: group.carId, trackId: group.trackId, captureFormatVersion: group.captureFormatVersion },
           group.metas,
         );
         for (const [lapId, telemetry] of batch) cacheSet(lapId, telemetry);
@@ -616,6 +618,7 @@ export async function getLapsRaw(ids?: number[]) {
       carId: sessions.carId,
       trackId: sessions.trackId,
       gameId: sessions.gameId,
+      captureFormatVersion: sessions.captureFormatVersion,
       catalogVersion: laps.catalogVersion,
       catalogHash: laps.catalogHash,
       catalogSchemaVersion: laps.catalogSchemaVersion,

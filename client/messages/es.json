@@ -1687,6 +1687,7 @@
   "f1live_weather_track": "Pista",
   "analyse_import_motec_title": "Importar registro de MoTeC",
   "analyse_select_ldx": "Selecciona el archivo de señales .ldx antes de importar.",
+  "analyse_motec_unsupported_game": "La importación de MoTeC aún no es compatible con {game}. Usa una grabación nativa de RaceIQ.",
   "analyse_search_cars": "Buscar coches...",
   "analyse_search_tracks": "Buscar circuitos...",
   "analyse_search_setups": "Buscar configuraciones...",

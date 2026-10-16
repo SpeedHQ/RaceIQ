@@ -57,8 +57,8 @@ test.describe
     test.setTimeout(140_000);
     test("user steps through wizard and lands on home page", async ({ page, request }) => {
       await resetFreshInstallState();
+      page.setDefaultNavigationTimeout(60_000);
       const { errors } = collectBrowserErrors(page, [/THREE\.GLTFLoader: Couldn't load texture/]);
-
       await page.goto("/", { waitUntil: "domcontentloaded" });
 
       // Step 1: Welcome — navigation must not depend on the optional 3D demo.

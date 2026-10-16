@@ -1540,6 +1540,7 @@
   "f1live_weather_track": "Piste",
   "analyse_import_motec_title": "Importer un fichier journal MoTeC",
   "analyse_select_ldx": "Sélectionnez le fichier de signaux .ldx avant l’importation.",
+  "analyse_motec_unsupported_game": "L’importation MoTeC n’est pas encore prise en charge pour {game}. Utilisez plutôt un enregistrement RaceIQ natif.",
   "analyse_search_cars": "Rechercher des voitures...",
   "analyse_search_tracks": "Rechercher des circuits...",
   "analyse_search_setups": "Rechercher des réglages...",

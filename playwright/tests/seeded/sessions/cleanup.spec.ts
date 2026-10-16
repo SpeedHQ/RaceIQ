@@ -9,14 +9,14 @@ import { cleanDisposable, importDisposableLap, lapsFor, sessionRows, sessionsFor
 
 test("confirmed cleanup removes disposable capture while preserving session and laps", async ({ page, request }) => {
   const browserErrors = collectBrowserErrors(page);
-  const capturesDir = join(runtime.seeded.dataDir, "sessions", "fm-2023");
-  const capturesBefore = new Set(readdirSync(capturesDir));
+  const capturesDir = join(runtime.seeded.dataDir, "sessions", "fm-2023", "own");
+  const capturesBefore = new Set(readdirSync(capturesDir).filter((name) => name.endsWith(".bin") || name.endsWith(".bin.gz")));
   let disposable: DisposableImport | undefined;
   try {
     disposable = await importDisposableLap(request, "fm-2023", "sessions-cleanup");
     const sessionIds = disposable.sessionIds;
     const lapIds = disposable.lapIds;
-    const newCaptures = readdirSync(capturesDir).filter((name) => !capturesBefore.has(name));
+    const newCaptures = readdirSync(capturesDir).filter((name) => (name.endsWith(".bin") || name.endsWith(".bin.gz")) && !capturesBefore.has(name));
     expect(newCaptures.length, "import creates disposable capture files").toBeGreaterThan(0);
     const captures = newCaptures.map((name) => join(capturesDir, name));
     const bytes = captures.reduce((total, path) => total + statSync(path).size, 0);
@@ -70,14 +70,14 @@ test("confirmed cleanup removes disposable capture while preserving session and 
 
 for (const favorite of ["session", "lap"] as const) {
   test(`favorited ${favorite} protects capture in real cleanup`, async ({ page, request }) => {
-    const capturesDir = join(runtime.seeded.dataDir, "sessions", "fm-2023");
-    const capturesBefore = new Set(readdirSync(capturesDir));
+    const capturesDir = join(runtime.seeded.dataDir, "sessions", "fm-2023", "own");
+    const capturesBefore = new Set(readdirSync(capturesDir).filter((name) => name.endsWith(".bin") || name.endsWith(".bin.gz")));
     let disposable: DisposableImport | undefined;
     try {
       disposable = await importDisposableLap(request, "fm-2023", `favorite-${favorite}`);
       expect(disposable.sessionIds).toHaveLength(1);
       const sessionId = disposable.sessionIds[0];
-      const capturePaths = readdirSync(capturesDir).filter((name) => !capturesBefore.has(name)).map((name) => join(capturesDir, name));
+      const capturePaths = readdirSync(capturesDir).filter((name) => (name.endsWith(".bin") || name.endsWith(".bin.gz")) && !capturesBefore.has(name)).map((name) => join(capturesDir, name));
       expect(capturePaths.length).toBeGreaterThan(0);
       const favoriteId = favorite === "session" ? sessionId : disposable.lapIds[0];
       const update = await request.patch(`/api/${favorite === "session" ? "sessions" : "laps"}/${favoriteId}/favorite`, { data: { favorite: true } });

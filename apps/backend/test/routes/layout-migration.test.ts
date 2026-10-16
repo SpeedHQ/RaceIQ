@@ -12,9 +12,9 @@ import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/r
 import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { miscRoutes } from "../../src/routes/system/index";
 import { startRecordingDirectoryMove, getRecordingDirectoryMoveStatus } from "@raceiq/backend-core/session-capture/relocate-recordings";
+import { isLayoutMigrationReadyForStartup } from "@raceiq/backend-core/session-capture/layout-migration";
 import { beginRecordingStorageImport } from "@raceiq/backend-core/session-capture/storage-activity";
-import { withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
-import { cleanupOrphanSessionFiles } from "@raceiq/backend-core/session-capture/cleanup";
+import { withSessionCaptureMaintenanceLock, cleanupOrphanSessionFiles } from "@raceiq/backend-core/session-capture/cleanup";
 
 initGameAdapters();
 const inserted: number[] = [];
@@ -55,7 +55,7 @@ describe("recording layout migration", () => {
     const body = await response.json() as { fileCount: number };
     expect(body.fileCount).toBeGreaterThan(0);
     expect(await readFile(source, "utf8")).toBe("legacy recording");
-    expect(await Bun.file(join(root, "fm-2023", "own", basename(source))).exists()).toBe(false);
+    expect(await isLayoutMigrationReadyForStartup()).toBe(false);
   });
 
   test("routes mixed-ownership references under a custom root on explicit consent", async () => {
@@ -85,6 +85,7 @@ describe("recording layout migration", () => {
     expect(otherRows[0]?.rawFile).toBe(otherPath);
     const completed = await miscRoutes.request("/api/storage/layout-migration");
     expect(await completed.json()).toMatchObject({ fileCount: 0 });
+    expect(await isLayoutMigrationReadyForStartup()).toBe(true);
     const movedRoot = await mkdtemp(join(tmpdir(), "raceiq-layout-moved-"));
     temporary.push(movedRoot);
     const move = await startRecordingDirectoryMove(movedRoot);
@@ -217,6 +218,7 @@ describe("recording layout migration", () => {
     await addSession(source, "mine");
     const response = await miscRoutes.request("/api/storage/layout-migration");
     expect((await response.json() as { fileCount: number; sessionCount: number })).toMatchObject({ fileCount: 1, sessionCount: 1 });
+    expect(await isLayoutMigrationReadyForStartup()).toBe(false);
     expect(await readFile(source, "utf8")).toBe("referenced");
     expect(await readFile(unrelated, "utf8")).toBe("unrelated");
   });
@@ -236,8 +238,10 @@ describe("recording layout migration", () => {
       version: 1, root, destination: root, phase: "organizing", entries: [{ source, digest, destinations: [destination], published: [destination], references: [{ sessionId, oldPath: source, newPath: destination }], cutover: false }],
       progress: { status: "running", done: 0, total: 1, migrated: 0, failed: 0, error: null },
     }));
+    expect(await isLayoutMigrationReadyForStartup()).toBe(false);
     expect((await startMigration()).status).toBe(202);
     expect((await waitForMigration()).status).toBe("success");
+    expect(await isLayoutMigrationReadyForStartup()).toBe(true);
     expect(await readFile(destination, "utf8")).toBe(payload);
     expect(await Bun.file(join(resolveDataDir(), "recording-layout-migration.json")).exists()).toBe(false);
   });

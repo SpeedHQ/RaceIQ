@@ -1688,6 +1688,7 @@
   "f1live_weather_track": "Траса",
   "analyse_import_motec_title": "Імпорт журналу MoTeC",
   "analyse_select_ldx": "Перед імпортом виберіть файл сигналів .ldx.",
+  "analyse_motec_unsupported_game": "Імпорт MoTeC для {game} поки не підтримується. Натомість використайте рідний запис RaceIQ.",
   "analyse_search_cars": "Пошук авто...",
   "analyse_search_tracks": "Пошук трас...",
   "analyse_search_setups": "Пошук налаштувань...",

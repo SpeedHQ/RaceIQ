@@ -116,6 +116,7 @@ export async function importMotec(
       rawFile: null,
       rawByteOffset: null,
       rawFrameCount: null,
+      captureFormatVersion: null,
     },
     samplePackets,
     semanticIds,
