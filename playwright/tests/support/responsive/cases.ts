@@ -57,7 +57,7 @@ export const RESPONSIVE_PAGES: readonly ResponsivePage[] = [
   { name: "iracing-tracks", path: "/iracing/tracks", viewports: DESKTOP_ONLY },
   { name: "f125-track-detail", path: "/f125/tracks/19/info", viewports: DESKTOP_ONLY, readyText: "Autodromo Hermanos Rodriguez" },
   { name: "acc-track-detail", path: "/acc/tracks/8/info", viewports: DESKTOP_ONLY, readyText: "Barcelona" },
-  { name: "ac-evo-track-detail", path: "/ac-evo/tracks/14/info", viewports: DESKTOP_ONLY, readyText: "Barcelona" },
+  { name: "ac-evo-track-detail", path: "/ac-evo/tracks/%5B%22Barcelona%22%2C%22GP%22%5D/info", viewports: DESKTOP_ONLY, readyText: "Barcelona" },
   { name: "iracing-track-detail", path: "/iracing/tracks/18/info", viewports: DESKTOP_ONLY, readyText: "Road America" },
   { name: "f125-setups", path: "/f125/setups", viewports: DESKTOP_ONLY },
   { name: "ac-evo-setups", path: "/ac-evo/setups", viewports: DESKTOP_ONLY },

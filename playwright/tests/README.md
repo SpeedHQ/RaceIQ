@@ -23,6 +23,8 @@ Use `getSeededLapMeta` for seeded route/control tests that need lap identity or 
 
 Session-review telemetry reuse requires valid recorded laps. Invalid-only recordings remain useful for replay coverage but cannot satisfy review eligibility; do not change recorded validity or skip review assertions to make those fixtures pass.
 
+Live iRacing coverage verifies the Tires section is absent in Driver and Pit Crew views while the Pit Crew Race panel remains visible, alongside committed-recording channel updates and disconnect/reconnect behavior.
+
 ## Isolation and cleanup
 
 Treat each spec as runnable alone under its project. Use deterministic seeded rows and test-owned disposable records. Never depend on another spec's order unless existing serial/stateful semantics require it. Restore settings, notes, imports, sessions, and deletions in `finally`; cancel destructive UI actions when testing cancellation. Keep server/data paths and generated output locations unchanged.

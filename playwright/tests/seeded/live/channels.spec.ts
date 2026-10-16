@@ -18,10 +18,11 @@ for (const game of SEEDED_GAME_CASES) {
 
     if (game.gameId === "iracing") {
       await expect(page.getByRole("link", { name: "Driver", exact: true })).toBeVisible();
+      await expect(page.getByText("Tires", { exact: true })).toHaveCount(0);
       await page.getByRole("link", { name: "Pit Crew", exact: true }).click();
       await expect(page).toHaveURL(/\/live\/pit$/);
       await expect(page.getByRole("heading", { name: "Race", exact: true })).toBeVisible();
-      await expect(page.getByText(/Tires/).first()).toBeVisible();
+      await expect(page.getByText("Tires", { exact: true })).toHaveCount(0);
     }
 
     await assertDisconnectReconnect(page, request, game.gameId);
