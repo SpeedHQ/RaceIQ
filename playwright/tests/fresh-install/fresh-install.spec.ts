@@ -402,10 +402,11 @@ test.describe
       expect(dashboard.headers()["content-type"]).toContain("text/html");
       expect(await dashboard.text()).toContain('<div id="root">');
     }
-    const url = `http://192.0.2.15:${port ?? "3118"}/`;
+    const dashboardPort = port ?? runtime.freshInstall.port;
+    const url = `http://192.0.2.15:${dashboardPort}/`;
     const dashboardUrls = page.getByRole("group", { name: "Dashboard URLs" });
     for (const address of ["127.0.0.1", "192.0.2.15", "100.64.0.2"]) {
-      await expect(dashboardUrls.getByRole("link", { name: `http://${address}:${port ?? "3118"}`, exact: true })).toBeVisible();
+      await expect(dashboardUrls.getByRole("link", { name: `http://${address}:${dashboardPort}`, exact: true })).toBeVisible();
     }
     if (port) await expect(dashboardUrls.getByRole("link", { name: "http://100.64.0.2:3118", exact: true })).toHaveCount(0);
     await expect(page.getByText("Open on another device", { exact: true })).toBeVisible();

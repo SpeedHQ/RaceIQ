@@ -7,6 +7,8 @@
 - Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
 
 ### Internal
+- Avoid `bun run test` port collisions with running services by selecting available ports for Playwright server sets when overrides are unset, while honoring explicit `PW_*_PORT` values and preserving isolated test databases.
+- Reuse one prepared Playwright database snapshot across seeded server sets to avoid duplicate fixture imports.
 - Update live iRacing browser checks to expect the Tires section to be absent in Driver and Pit Crew views.
 
 ## v0.20.0 - 2026-10-15
