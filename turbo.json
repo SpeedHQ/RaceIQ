@@ -804,10 +804,10 @@
     },
     "i18n:compile": {
       "inputs": [
-        "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/client/messages/**",
-        "$TURBO_ROOT$/client/project.inlang/**",
-        "!$TURBO_ROOT$/client/project.inlang/.cache/**",
+        "messages/**",
+        "project.inlang/settings.json",
+        "package.json",
+        "../bun.lock",
         "$TURBO_ROOT$/scripts/dev/paraglide-build.ts",
         "$TURBO_ROOT$/scripts/dev/paraglide-cache.ts"
       ],
