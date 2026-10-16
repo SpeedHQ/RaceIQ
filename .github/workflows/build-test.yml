@@ -174,7 +174,8 @@ jobs:
       target-ref: ${{ inputs.target_ref || github.ref }}
       paraglide-artifact: raceiq-paraglide
 
-  screenshots:
+  visual-regression:
+    name: visual-regression/compare
     if: github.event_name == 'pull_request' && !github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')
     needs:
       - build
@@ -182,19 +183,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    uses: ./.github/workflows/pr-screenshots.yml
-    with:
-      pr: ${{ github.event.pull_request.number }}
-  snapshots:
-    name: snapshots/compare
-    if: github.event_name == 'pull_request' && !github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')
-    needs:
-      - build
-      - test
-    permissions:
-      contents: read
-      pull-requests: read
-    uses: ./.github/workflows/pr-snapshots.yml
+    uses: ./.github/workflows/pr-visuals.yml
     with:
       pr: ${{ github.event.pull_request.number }}
       paraglide-artifact: raceiq-paraglide

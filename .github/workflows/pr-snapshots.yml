@@ -1,4 +1,4 @@
-name: Render dashboard snapshots
+name: Compare Storybook snapshots
 
 # Renders Storybook snapshots for both the pull request and its base revision
 # in the same runner environment, then compares those renders. It also compares

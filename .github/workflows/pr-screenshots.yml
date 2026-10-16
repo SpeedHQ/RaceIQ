@@ -1,4 +1,4 @@
-name: Render dashboard screenshots
+name: Compare responsive screenshots
 
 # Renders responsive app screenshots on pull requests that change the client
 # and compares them against each pull request's base branch. Any differences produce

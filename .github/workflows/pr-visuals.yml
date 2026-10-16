@@ -1,0 +1,43 @@
+name: Compare PR visuals
+
+on:
+  workflow_call:
+    inputs:
+      pr:
+        description: Pull request number to compare
+        required: true
+        type: number
+      paraglide-artifact:
+        description: Optional compiled Paraglide artifact from upstream build
+        required: false
+        type: string
+        default: ""
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number to compare
+        required: true
+        type: number
+      paraglide-artifact:
+        description: Optional compiled Paraglide artifact from upstream build
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  responsive:
+    name: Responsive base-vs-PR screenshots
+    uses: ./.github/workflows/pr-screenshots.yml
+    with:
+      pr: ${{ inputs.pr }}
+
+  storybook:
+    name: Storybook base-vs-PR snapshots
+    uses: ./.github/workflows/pr-snapshots.yml
+    with:
+      pr: ${{ inputs.pr }}
+      paraglide-artifact: ${{ inputs.paraglide-artifact }}
