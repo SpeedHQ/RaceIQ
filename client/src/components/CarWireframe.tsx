@@ -1,4 +1,4 @@
-import { supportsPositionDependentSceneFeature } from "../lib/iracing-live-capabilities";
+import { supportsPositionDependentSceneFeature } from "../lib/wireframe-capabilities";
 import { tryGetGame } from "@raceiq/shared/games/registry"
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
 import { flipBoundaries, needsTrackFlip } from "@raceiq/shared/racing/tracks/coords"
@@ -134,7 +134,10 @@ export const CarWireframe = React.memo(function CarWireframe({
     supportsPositionDependentSceneFeature(gameId, feature);
   const effectiveToggles = {
     ...toggles,
-    ...(gameId === "iracing" ? { track: false, racingLine: false, trails: false, inputs: false } : {}),
+    track: toggles.track && positionAvailable("track"),
+    racingLine: toggles.racingLine && positionAvailable("racingLine"),
+    trails: toggles.trails && positionAvailable("trails"),
+    inputs: toggles.inputs && positionAvailable("inputs"),
   };
   const viewToggleItems = [
     { key: "trails" as const, label: m.carwire_trails(), available: positionAvailable("trails") },

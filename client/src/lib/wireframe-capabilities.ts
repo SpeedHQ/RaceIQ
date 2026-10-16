@@ -1,11 +1,12 @@
+import { iracingLiveCapabilities } from "@raceiq/game-iracing/live-capabilities";
 import type { GameId } from "@raceiq/shared/games/ids";
 
 export type PositionDependentSceneFeature = "track" | "racingLine" | "trails" | "inputs";
 
-/** Live iRacing SDK samples expose lap distance, not world-space car position. */
+/** Scene overlays requiring world-space car position share the source capability. */
 export function supportsPositionDependentSceneFeature(
   gameId: GameId,
   _feature: PositionDependentSceneFeature,
 ): boolean {
-  return gameId !== "iracing";
+  return gameId === "iracing" ? iracingLiveCapabilities.worldPosition : true;
 }

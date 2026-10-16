@@ -1,4 +1,4 @@
-import { supportsPositionDependentSceneFeature } from "../src/lib/iracing-live-capabilities";
+import { supportsPositionDependentSceneFeature } from "../src/lib/wireframe-capabilities";
 import { describe, expect, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
