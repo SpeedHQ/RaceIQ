@@ -7,6 +7,11 @@ on:
         description: "Branch or ref to test"
         required: false
         type: string
+      dist-artifact:
+        description: "Optional prebuilt dist artifact from the upstream build"
+        required: false
+        type: string
+        default: ""
       paraglide-artifact:
         description: "Optional compiled Paraglide artifact from the upstream build"
         required: false
@@ -109,3 +114,4 @@ jobs:
       target-ref: ${{ inputs.target-ref }}
       seed-database-artifact: ${{ matrix.server_set == 'seeded' && 'playwright-seeded-database' || '' }}
       paraglide-artifact: ${{ inputs.paraglide-artifact }}
+      dist-artifact: ${{ inputs.dist-artifact }}
