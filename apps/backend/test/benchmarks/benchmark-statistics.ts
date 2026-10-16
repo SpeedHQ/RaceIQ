@@ -1,4 +1,4 @@
-import { percentileSorted } from "@raceiq/backend-core/experiments/statistics";
+import { percentileSorted } from "@raceiq/analysis-core/racing/experiments/statistics";
 
 export type HierarchicalPair = {
   base: readonly (readonly number[])[];

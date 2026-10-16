@@ -1,2 +1,1 @@
-/** Fewest telemetry frames an experiment lap needs for evidence or comparison. */
-export const MIN_TELEMETRY_FRAMES = 30;
+export { MIN_TELEMETRY_FRAMES } from "@raceiq/analysis-core/racing/experiments/metrics";

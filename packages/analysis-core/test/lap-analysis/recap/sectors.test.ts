@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
-import { computeRecap } from "@raceiq/backend-core/lap-analysis/recap";
-import { baseSession, lap, run } from "@raceiq/backend-core/test-support/lap-analysis/recap";
+import { computeRecap } from "@raceiq/analysis-core/racing/analysis/laps/recap";
+import { baseSession, lap, run } from "./support";
 
 describe("computeRecap", () => {
   describe("sectors", () => {

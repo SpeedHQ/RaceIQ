@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { analyzeLap } from "@raceiq/analysis-core/racing/analysis/laps/insights/analyze";
 import { runInsightScanWithCoverage } from "@raceiq/analysis-core/racing/analysis/laps/insights/scan";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
 import { MIN_REPORTABLE_LOSS_S } from "@raceiq/analysis-core/racing/analysis/laps/time-loss";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types";
@@ -10,7 +11,7 @@ const RADIUS = 0.33;
 const STEP_MS = 16;
 const STEP_S = STEP_MS / 1000;
 
-initGameAdapters();
+initGameAdapters(developmentReleaseFeatures);
 interface Frame {
   speed: number;
   accel?: number;

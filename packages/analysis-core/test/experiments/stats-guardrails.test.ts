@@ -8,9 +8,32 @@ import {
   mean,
   sampleVariance,
   welchTTest,
-} from "@raceiq/backend-core/experiments/comparison/compare";
-import { OUTCOME_METRICS } from "@raceiq/backend-core/experiments/comparison/metrics";
-import { metadataArm, normals } from "@raceiq/backend-core/test-support/experiments/arms";
+} from "@raceiq/analysis-core/racing/experiments/compare";
+import { OUTCOME_METRICS } from "@raceiq/analysis-core/racing/experiments/metrics";
+
+let nextMetadataId = 1;
+function metadataArm(lapTimes: number[]) {
+  return { laps: lapTimes.map((lapTime) => ({ lap: { id: nextMetadataId++, lapTime, isValid: true, invalidReason: null, experimentExcluded: false, experimentExcludedSource: null }, telemetry: null })) };
+}
+function normals(n: number, mean: number, sd: number, seed: number): number[] {
+  let state = seed >>> 0;
+  const random = () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+  const values: number[] = [];
+  while (values.length < n) {
+    const u1 = Math.max(1e-12, random());
+    const u2 = random();
+    const radius = Math.sqrt(-2 * Math.log(u1));
+    values.push(mean + sd * radius * Math.cos(2 * Math.PI * u2));
+    if (values.length < n) values.push(mean + sd * radius * Math.sin(2 * Math.PI * u2));
+  }
+  return values;
+}
 
 
 // ── stats primitives ────────────────────────────────────────────────────────

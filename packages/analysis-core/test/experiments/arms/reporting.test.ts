@@ -1,7 +1,47 @@
 import { describe, expect, test } from "bun:test";
-import { compareArms, describeComparison, serializeComparison } from "@raceiq/backend-core/experiments/comparison/compare";
-import { OUTCOME_METRICS } from "@raceiq/backend-core/experiments/comparison/metrics";
-import { metadataArm, normals, telemetryArm } from "@raceiq/backend-core/test-support/experiments/arms";
+import { compareArms, describeComparison, serializeComparison } from "@raceiq/analysis-core/racing/experiments/compare";
+import { OUTCOME_METRICS } from "@raceiq/analysis-core/racing/experiments/metrics";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import type { ArmInput } from "@raceiq/analysis-core/racing/experiments/compare";
+import type { ArmLap } from "@raceiq/analysis-core/racing/experiments/metrics";
+
+let nextId = 1;
+function metadataArm(times: number[]): ArmInput {
+  return { laps: times.map((lapTime) => ({ lap: { id: nextId++, lapTime, isValid: true, invalidReason: null, experimentExcluded: false, experimentExcludedSource: null }, telemetry: null })) };
+}
+function normals(n: number, mean: number, sd: number, seed: number): number[] {
+  let state = seed >>> 0;
+  const random = () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+  const values: number[] = [];
+  while (values.length < n) {
+    const u1 = Math.max(1e-12, random());
+    const u2 = random();
+    const radius = Math.sqrt(-2 * Math.log(u1));
+    values.push(mean + sd * radius * Math.cos(2 * Math.PI * u2));
+    if (values.length < n) values.push(mean + sd * radius * Math.sin(2 * Math.PI * u2));
+  }
+  return values;
+}
+const corners = [{ index: 1, label: "T1", distanceStart: 200, distanceEnd: 300 }];
+function telemetryArm(specs: { lateral: number; brakeShift: number }[]): ArmInput {
+  const laps: ArmLap[] = specs.map(({ lateral, brakeShift }, index) => {
+    const step = 600 / 120;
+    const telemetry: TelemetryPacket[] = Array.from({ length: 121 }, (_, i) => {
+      const distance = i * step;
+      const inCorner = distance >= 200 && distance <= 300;
+      const braking = distance >= 220 - brakeShift && distance <= 260 - brakeShift;
+      return { gameId: "f1-2025", IsRaceOn: 1, TimestampMS: i * 100, DistanceTraveled: distance, PositionX: inCorner ? lateral : 0, PositionZ: distance, VelocityX: 0, VelocityY: 0, VelocityZ: step / 0.1, Gear: 3, Accel: braking ? 0 : 1, Brake: braking ? 1 : 0 } as TelemetryPacket;
+    });
+    return { lap: { id: nextId++, lapTime: 90 + index * 0.05, isValid: true, invalidReason: null, experimentExcluded: false, experimentExcludedSource: null }, telemetry };
+  });
+  return { label: "telemetry-arm", laps, corners };
+}
 
 // ── frame-based metrics ─────────────────────────────────────────────────────
 

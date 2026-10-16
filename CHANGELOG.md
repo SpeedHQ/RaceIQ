@@ -5,6 +5,7 @@
 ### Fixes
 
 ### Internal
+- Make tests package-owned with isolated setup; move pure lap-analysis and experiment comparison/statistics algorithms and tests into analysis-core, filesystem operations into recording-storage, and storage orchestration into the backend package with integration coverage.
 
 ## v0.20.0 - 2026-10-15
 

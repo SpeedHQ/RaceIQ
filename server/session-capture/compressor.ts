@@ -19,7 +19,7 @@ import { cleanupExpiredStagedMotec } from "../motec/import-staging";
 import { loadSettings } from "../runtime/config/settings";
 import { executeSessionCleanup, SessionCleanupBusyError } from "./session-cleanup";
 import { releaseDashboardCaptureCheckpoint, republishPersistedDashboardCaptureFacts } from "./dashboard-processor";
-import { hasPendingLayoutMigration } from "./layout-migration";
+import { hasPendingLayoutMigration } from "./storage-activity";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const INTERVAL_MS = 5 * 60 * 1000;

@@ -31,9 +31,9 @@ import {
   type CompareArmsOptions,
   prepareArm,
   type PreparedArm,
-} from "@raceiq/backend-core/experiments/comparison/compare";
+} from "@raceiq/analysis-core/racing/experiments/compare";
 import { type FrameLapMeta, type LapFrameLoader, streamArmSamples } from "@raceiq/backend-core/experiments/comparison/stream";
-import { comparisonFences, getOutcomeMetric, type OutcomeMetricId } from "@raceiq/backend-core/experiments/comparison/metrics";
+import { comparisonFences, getOutcomeMetric, type OutcomeMetricId } from "@raceiq/analysis-core/racing/experiments/metrics";
 
 /**
  * Frames for one lap, through the shared LRU telemetry cache.
@@ -92,7 +92,7 @@ async function resolveCornersFor(
 /**
  * Load both arms' lap pools and compare them on one outcome metric.
  *
- * Curation is the metric's own policy (`server/experiments/comparison/metrics.ts`), applied
+ * Curation is the metric's own policy (`analysis-core` experiment metrics), applied
  * to the RAW pool — this loader never pre-trims by lap time.
  */
 export async function loadArmComparison(

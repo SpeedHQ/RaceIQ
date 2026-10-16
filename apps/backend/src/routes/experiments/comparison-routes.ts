@@ -4,7 +4,7 @@ import { z } from "zod";
 import { IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
 import { getExperimentVersion } from "@raceiq/backend-core/db/experiment-version-queries";
 import { loadArmComparison } from "../../experiments/comparison/load";
-import { OUTCOME_METRIC_IDS } from "@raceiq/backend-core/experiments/comparison/metrics";
+import { OUTCOME_METRIC_IDS } from "@raceiq/analysis-core/racing/experiments/metrics";
 import { serializeComparison } from "@raceiq/backend-core/experiments/comparison/presentation";
 
 const ArmComparisonQuerySchema = z.object({
@@ -24,7 +24,7 @@ export const experimentComparisonRoutes = new Hono()
   //
   // Lap curation is the metric's policy, not the session's: lap time gets the
   // fastest-N pool, the variance metrics get every eligible lap (see
-  // server/experiments/comparison/metrics.ts).
+  // analysis-core experiment metrics).
   .get("/api/experiments/:id/arm-comparison",
     zValidator("param", IdParamSchema),
     zValidator("query", ArmComparisonQuerySchema),

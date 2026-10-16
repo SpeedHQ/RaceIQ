@@ -45,18 +45,18 @@
  * `arm-comparison-load.ts` wires SQLite into it.
  */
 
-import type { Corner } from "../../lap-analysis/corners";
+import type { ConsistencyCorner } from "@raceiq/analysis-core/racing/analysis/laps/consistency";
 import type { EvaluableLap } from "@raceiq/analysis-core/racing/laps/review-selection";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
-import type { PreparedArm } from "./compare";
+import type { PreparedArm } from "@raceiq/analysis-core/racing/experiments/compare";
 import {
   curateLaps,
   MIN_TELEMETRY_FRAMES,
   type MetricSample,
   type PairwiseFramesOutcomeMetric,
   referenceLapPreference,
-} from "./metrics";
+} from "@raceiq/analysis-core/racing/experiments/metrics";
 
 /**
  * Latency budget for one arm, in frames.
@@ -101,7 +101,7 @@ interface StreamArmArgs {
    * from — with streaming there is no longer an arbitrary "some lap" lying
    * around to detect on, and the reference is the honest choice.
    */
-  resolveCorners: (referenceTelemetry: TelemetryPacket[]) => Promise<Corner[]>;
+  resolveCorners: (referenceTelemetry: TelemetryPacket[]) => Promise<ConsistencyCorner[]>;
   frameBudget?: number;
   /**
    * Blunder threshold shared with the other arm (`pooledBlunderFence`). Must be

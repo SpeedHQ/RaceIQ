@@ -1,8 +1,3 @@
-/**
- * Small, dependency-free lap-time statistics shared across the recap and
- * setup-engineer clean-lap aggregate. Pure — no DB, no throwing.
- */
-
 export function populationVariance(values: number[]): number {
   const n = values.length;
   if (n === 0) return 0;

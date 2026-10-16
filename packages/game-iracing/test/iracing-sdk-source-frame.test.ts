@@ -8,7 +8,7 @@ import {
   getDiscoveredTrackName,
   listDiscoveredTracks,
 } from "@raceiq/backend-core/db/discovered-tracks";
-import { db } from "@raceiq/backend-core/db/index";
+import { db, initDb } from "@raceiq/backend-core/db/index";
 import { discoveredCars, discoveredTracks } from "@raceiq/backend-core/db/schema";
 import { registerLiveIRacingIdentity } from "../src/identity";
 import {
@@ -37,6 +37,7 @@ import { sampleFrame, sampleFrameV3 } from "./support/games/iracing-sdk";
 
 describe("iRacing raw source frame parser integration", () => {
   test("persists live source identity once per ID for restart hydration", async () => {
+    await initDb();
     const carOrdinal = 900_042;
     const trackOrdinal = 900_099;
 

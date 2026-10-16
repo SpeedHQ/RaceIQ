@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { compareArmSamples, describeComparison, prepareArm } from "@raceiq/backend-core/experiments/comparison/compare";
+import { compareArmSamples, describeComparison, prepareArm } from "@raceiq/analysis-core/racing/experiments/compare";
 import {
   streamArmSamples,
 } from "@raceiq/backend-core/experiments/comparison/stream";
-import { OUTCOME_METRICS } from "@raceiq/backend-core/experiments/comparison/metrics";
+import { OUTCOME_METRICS } from "@raceiq/analysis-core/racing/experiments/metrics";
 import type { FrameLapMeta } from "@raceiq/backend-core/experiments/comparison/stream";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { buildStreamingArm, CORNERS, type LapSpec, REPEATABLE, SCATTERED, trackingLoader, FRAMES_PER_LAP } from "@raceiq/backend-core/test-support/experiments/arms";

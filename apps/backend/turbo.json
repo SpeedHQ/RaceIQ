@@ -13,8 +13,7 @@
     },
     "test": {
       "dependsOn": [
-        "transit",
-        "client#i18n:compile"
+        "transit"
       ],
       "inputs": [
         "$TURBO_EXTENDS$",
@@ -37,20 +36,26 @@
     },
     "test:unit": {
       "dependsOn": [
-        "transit",
-        "client#i18n:compile"
+        "transit"
+      ],
+      "inputs": [
+        "$TURBO_EXTENDS$",
+        "$TURBO_ROOT$/test/artifacts/carsetup/Default-12312.carsetup"
       ]
     },
     "test:tooling": {
       "dependsOn": [
-        "transit",
-        "client#i18n:compile"
+        "transit"
+      ],
+      "inputs": [
+        "$TURBO_EXTENDS$",
+        "test/support/setup-app.ts",
+        "$TURBO_ROOT$/server/test-support/setup-data-dir.ts"
       ]
     },
     "test:integration": {
       "dependsOn": [
-        "transit",
-        "client#i18n:compile"
+        "transit"
       ],
       "inputs": [
         "$TURBO_EXTENDS$",

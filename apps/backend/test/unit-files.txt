@@ -16,10 +16,6 @@ apps/backend/test/lap-analysis/lap-path.test.ts
 apps/backend/test/lap-analysis/lap-target.test.ts
 apps/backend/test/lap-analysis/racing-line-overshoot.test.ts
 apps/backend/test/lap-analysis/rapid-pressure-loss.test.ts
-apps/backend/test/lap-analysis/recap/consistency-personal-best.test.ts
-apps/backend/test/lap-analysis/recap/core-pace.test.ts
-apps/backend/test/lap-analysis/recap/edge-cases.test.ts
-apps/backend/test/lap-analysis/recap/sectors.test.ts
 apps/backend/test/lap-analysis/report.test.ts
 apps/backend/test/lap-analysis/segments/segment-alignment.test.ts
 apps/backend/test/lap-analysis/segments/segment-label.test.ts

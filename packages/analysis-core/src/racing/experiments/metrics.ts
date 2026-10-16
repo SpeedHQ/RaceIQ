@@ -55,10 +55,12 @@
 
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { type EvaluableLap, type EvaluationReason, REVIEW_LAP_CAP, selectEvaluationLaps } from "@raceiq/analysis-core/racing/laps/review-selection";
-import type { Corner } from "../../lap-analysis/corners";
-import { computeLapConsistencyDelta, LINE_SPREAD_FULL_SCALE_M } from "../../lap-analysis/consistency";
-import { medianSorted, percentileSorted } from "../statistics";
-import { MIN_TELEMETRY_FRAMES } from "../lap-policy";
+import type { ConsistencyCorner } from "@raceiq/analysis-core/racing/analysis/laps/consistency";
+import { computeLapConsistencyDelta, LINE_SPREAD_FULL_SCALE_M } from "@raceiq/analysis-core/racing/analysis/laps/consistency";
+import { medianSorted, percentileSorted } from "@raceiq/analysis-core/racing/experiments/statistics";
+
+/** Minimum usable frame count shared with experiment lap policy. */
+export const MIN_TELEMETRY_FRAMES = 30;
 
 /** Which way is better for a metric. Never used to judge an arm — only to say
  *  which arm a *statistically distinguishable* difference points at. */
@@ -250,7 +252,7 @@ export interface ArmLap {
 /** An arm's curated laps plus the track geometry frame-based metrics need. */
 export interface MetricInput {
   laps: ArmLap[];
-  corners?: Corner[];
+  corners?: ConsistencyCorner[];
 }
 
 export interface MetricSample {
@@ -282,7 +284,7 @@ export interface PairwiseReduceInput {
   telemetry: TelemetryPacket[];
   /** The arm's reference lap's frames (its median-lap-time lap). */
   referenceTelemetry: TelemetryPacket[];
-  corners: Corner[];
+  corners: ConsistencyCorner[];
 }
 
 /**
@@ -317,9 +319,6 @@ export function comparisonFences(
     ? (blunderFencesForArms([aLapTimes, bLapTimes]) as [number | null, number | null])
     : [undefined, undefined];
 }
-
-/** Public comparison alias for the domain-wide analysable-lap threshold. */
-export { MIN_TELEMETRY_FRAMES };
 
 function withTelemetry(input: MetricInput): { lap: EvaluableLap; telemetry: TelemetryPacket[] }[] {
   const out: { lap: EvaluableLap; telemetry: TelemetryPacket[] }[] = [];

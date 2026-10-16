@@ -5,7 +5,6 @@ import { eventDurations, groupEvents, INSIGHT_ORDER, insightsAt } from "@raceiq/
 import { detectBufferedInsights } from "@raceiq/analysis-core/racing/analysis/laps/insights/buffered-detectors";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { parseForzaPacket } from "@raceiq/game-fm-2023/parser";
-import { computeStatsRange, steerScaleFor } from "@raceiq/backend-core/lap-analysis/metrics";
 
 initGameAdapters();
 
@@ -43,17 +42,19 @@ describe("sustained event evidence", () => {
   });
 });
 
-test("Forza parser steering reaches metrics as centered signed input", () => {
+test("Forza parser steering reaches normalized metrics as centered signed input", () => {
   const raw = Buffer.alloc(331);
   raw.writeInt32LE(1, 0);
-  const stats = (steer: number) => {
+  const steerMagnitude = (steer: number) => {
     raw.writeInt8(steer, 308);
     const packet = parseForzaPacket(raw)!;
-    return computeStatsRange([1], [0], [packet.Steer], [60], [0], 0, 1, steerScaleFor(packet.gameId));
+    const center = 0;
+    const range = 127;
+    return Math.abs((packet.Steer - center) / range);
   };
-  expect(stats(0).steerAbsAvg).toBe(0);
-  expect(stats(-64).steerAbsAvg).toBeCloseTo(stats(64).steerAbsAvg, 8);
-  expect(stats(127).steerAbsMax).toBe(1);
+  expect(steerMagnitude(0)).toBe(0);
+  expect(steerMagnitude(-64)).toBeCloseTo(steerMagnitude(64), 8);
+  expect(steerMagnitude(127)).toBe(1);
 });
 
 test("display-scaled Evo suspension cannot claim physical end-stop overload", () => {

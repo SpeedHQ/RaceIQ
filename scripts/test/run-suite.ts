@@ -54,7 +54,10 @@ async function run(owner: (typeof owners)[number], suite: Suite): Promise<number
     const files = readSuiteFiles(root, owner, suite);
     const configPath = resolve(isolatedDir, "bunfig.toml");
     const tomlPath = isolatedDir.replaceAll("\\", "/");
-    const preloads = unit ? [] : [resolve(root, "server/test-support/setup-data-dir.ts")];
+    const backendOwner = ["@raceiq/backend", "@raceiq/frontend-contract-tests"].includes(owner.name);
+    const preloads = unit ? [] : backendOwner
+      ? [resolve(root, "server/test-support/setup-data-dir.ts")]
+      : [resolve(root, "scripts/test/setup-isolated-data-dir.ts")];
     if (!unit && ["@raceiq/backend", "@raceiq/frontend-contract-tests"].includes(owner.name)) {
       preloads.push(resolve(root, "apps/backend/test/support/setup-app.ts"));
     }

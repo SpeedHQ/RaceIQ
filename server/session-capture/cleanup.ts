@@ -12,6 +12,7 @@ import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { sql } from "drizzle-orm";
 import { META_FRAME_BYTES } from "@raceiq/capture-formats/session/framing";
+import { hasPendingLayoutMigration } from "./storage-activity";
 
 const TINY_ORPHAN_THRESHOLD_BYTES = META_FRAME_BYTES;
 
@@ -94,8 +95,6 @@ export async function cleanupOrphanSessionFiles(
       console.log("[Cleanup] Session active — skipping orphan sweep");
       return 0;
     }
-    // Migration imports the live pipeline, which also imports this maintenance lock.
-    const { hasPendingLayoutMigration } = await import("./layout-migration");
     if (await hasPendingLayoutMigration()) {
       console.log("[Cleanup] Layout migration pending — skipping orphan sweep");
       return 0;

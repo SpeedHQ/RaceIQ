@@ -11,8 +11,8 @@ import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
 import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { miscRoutes } from "../../src/routes/system/index";
-import { startRecordingDirectoryMove, getRecordingDirectoryMoveStatus } from "@raceiq/backend-core/session-capture/relocate-recordings";
-import { isLayoutMigrationReadyForStartup } from "@raceiq/backend-core/session-capture/layout-migration";
+import { startRecordingDirectoryMove, getRecordingDirectoryMoveStatus } from "../../src/session-capture/relocate-recordings";
+import { isLayoutMigrationReadyForStartup } from "../../src/session-capture/layout-migration";
 import { beginRecordingStorageImport } from "@raceiq/backend-core/session-capture/storage-activity";
 import { withSessionCaptureMaintenanceLock, cleanupOrphanSessionFiles } from "@raceiq/backend-core/session-capture/cleanup";
 

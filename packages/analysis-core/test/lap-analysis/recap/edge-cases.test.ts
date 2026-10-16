@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { lap, run } from "@raceiq/backend-core/test-support/lap-analysis/recap";
+import { lap, run } from "./support";
 
 describe("computeRecap", () => {
   describe("edge cases", () => {

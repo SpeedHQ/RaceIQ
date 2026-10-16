@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
 import { analyzeLap } from "@raceiq/analysis-core/racing/analysis/laps/insights/analyze";
 import { detectTireOverheat, detectTireSurfaceProfile, detectTireTempSplit } from "@raceiq/analysis-core/racing/analysis/laps/insights/tires";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
-initGameAdapters();
+initGameAdapters(developmentReleaseFeatures);
 
 function packet(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
   return {

@@ -14,7 +14,7 @@ import { tryGetGame } from "@raceiq/shared/games/registry";
 import { existsSync, unlinkSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { getTrackLengthMetersById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
-import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
+import type { RecapLapInput, RecapSessionInput } from "@raceiq/analysis-core/racing/analysis/laps/recap";
 import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 
 export async function insertSession(
@@ -355,7 +355,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
  * Fetch-only data needed for a session recap: the session row, its laps, the
  * track's length (metres, null when no outline), and the best valid lap time
  * for the same track + car + game from every OTHER session. No math here —
- * see server/lap-analysis/recap.ts::computeRecap for the rules.
+ * see @raceiq/analysis-core/racing/analysis/laps/recap::computeRecap for the rules.
  *
  * Returns null when the session doesn't exist or its gameId doesn't match.
  */

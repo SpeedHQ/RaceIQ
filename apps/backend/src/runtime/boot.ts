@@ -1,4 +1,4 @@
-import { recoverRecordingDirectoryMove } from "@raceiq/backend-core/session-capture/relocate-recordings";
+import { recoverRecordingDirectoryMove } from "../session-capture/relocate-recordings";
 import { existsSync } from "node:fs";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { resolve } from "node:path";

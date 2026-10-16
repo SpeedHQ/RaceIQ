@@ -89,6 +89,7 @@
         "@raceiq/game-iracing-metadata": "workspace:*",
         "@raceiq/game-lmu": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
+        "@raceiq/recording-storage": "workspace:*",
         "@raceiq/shared": "workspace:*",
         "@raceiq/telemetry-core": "workspace:*",
         "@raceiq/tooling-catalog": "workspace:*",
@@ -332,6 +333,9 @@
         "@raceiq/shared": "workspace:*",
       },
     },
+    "packages/recording-storage": {
+      "name": "@raceiq/recording-storage",
+    },
     "packages/telemetry-core": {
       "name": "@raceiq/telemetry-core",
       "dependencies": {
@@ -463,7 +467,6 @@
         "@raceiq/capture-formats": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
-        "@raceiq/game-fm-2023-metadata": "workspace:*",
         "@raceiq/game-iracing-metadata": "workspace:*",
         "@raceiq/game-lmu-metadata": "workspace:*",
         "@raceiq/shared": "workspace:*",
@@ -1167,6 +1170,8 @@
     "@raceiq/game-lmu": ["@raceiq/game-lmu@workspace:packages/game-lmu"],
 
     "@raceiq/game-lmu-metadata": ["@raceiq/game-lmu-metadata@workspace:packages/game-lmu-metadata"],
+
+    "@raceiq/recording-storage": ["@raceiq/recording-storage@workspace:packages/recording-storage"],
 
     "@raceiq/shared": ["@raceiq/shared@workspace:shared"],
 

@@ -1,7 +1,7 @@
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { SessionRecap } from "@raceiq/shared/racing/sessions/types";
-import { isPitCycleLap } from "@raceiq/analysis-core/racing/laps/pit-cycle";
-import { stddevPopulation, consistencyRating } from "./stats";
+import { isPitCycleLap } from "../../laps/pit-cycle";
+import { stddevPopulation, consistencyRating } from "./statistics";
 
 /** Plain lap data needed to compute a recap. Null sectors are legacy laps. */
 export interface RecapLapInput {

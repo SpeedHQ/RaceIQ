@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { compareArms } from "@raceiq/backend-core/experiments/comparison/compare";
-import { type CurationSpec, OUTCOME_METRICS } from "@raceiq/backend-core/experiments/comparison/metrics";
-import { metadataArm } from "@raceiq/backend-core/test-support/experiments/arms";
+import { compareArms } from "@raceiq/analysis-core/racing/experiments/compare";
+import { type CurationSpec, OUTCOME_METRICS } from "@raceiq/analysis-core/racing/experiments/metrics";
+
+let nextId = 1;
+function metadataArm(times: number[]) {
+  return { laps: times.map((lapTime) => ({ lap: { id: nextId++, lapTime, isValid: true, invalidReason: null, experimentExcluded: false, experimentExcludedSource: null }, telemetry: null })) };
+}
 
 const FASTEST_5: CurationSpec = { mode: "fastest-n", n: 5, outlierRule: "none" };
 function paceWith(curation: CurationSpec) {

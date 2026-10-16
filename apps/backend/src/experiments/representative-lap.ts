@@ -7,7 +7,7 @@ import { getLapsForExperiment } from "@raceiq/backend-core/db/experiment-lap-que
 import { telemetryToSymptoms, type TuneSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
 import { telemetryToTrackConditions, type TrackConditions } from "@raceiq/backend-core/ai/track-conditions";
 import { MIN_TELEMETRY_FRAMES } from "@raceiq/backend-core/experiments/lap-policy";
-import { medianSorted, percentileSorted } from "@raceiq/backend-core/experiments/statistics";
+import { medianSorted, percentileSorted } from "@raceiq/analysis-core/racing/experiments/statistics";
 
 export type RepresentativeLap = LapMeta & {
   telemetry: TelemetryPacket[];

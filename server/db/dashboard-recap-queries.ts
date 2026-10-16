@@ -1,7 +1,7 @@
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { SessionRecap } from "@raceiq/shared/racing/sessions/types";
 import { dashboardCarIdentity, dashboardTrackIdentity } from "@raceiq/shared/racing/sessions/dashboard";
-import { computeRecap, type RecapLapInput } from "../lap-analysis/recap";
+import { computeRecap, type RecapLapInput } from "@raceiq/analysis-core/racing/analysis/laps/recap";
 import { getLMUCar, getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";

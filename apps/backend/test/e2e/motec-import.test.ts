@@ -7,7 +7,7 @@ import { basename, join, sep } from "node:path";
 import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { deleteSession } from "@raceiq/backend-core/db/session-queries";
 import { parseRawLapFrames } from "@raceiq/backend-core/db/telemetry-replay-storage";
-import { startRecordingDirectoryMove, getRecordingDirectoryMoveStatus } from "@raceiq/backend-core/session-capture/relocate-recordings";
+import { startRecordingDirectoryMove, getRecordingDirectoryMoveStatus } from "../../src/session-capture/relocate-recordings";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { parseLd, findChannel } from "@raceiq/backend-core/motec/ld";

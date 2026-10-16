@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { baseSession, lap, run } from "@raceiq/backend-core/test-support/lap-analysis/recap";
+import { baseSession, lap, run } from "./support";
 
 describe("computeRecap", () => {
   test("bestLapId points at the fastest VALID lap, for deep-linking to analyse", () => {

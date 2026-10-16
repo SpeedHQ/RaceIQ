@@ -39,3 +39,12 @@ export function beginRecordingStorageImport(): () => void {
 export function getRecordingStorageActivity(): { imports: number; relocating: boolean } {
   return { imports, relocating };
 }
+let layoutMigrationPendingCheck: (() => Promise<boolean>) | null = null;
+
+export function registerLayoutMigrationPendingCheck(check: () => Promise<boolean>): void {
+  layoutMigrationPendingCheck = check;
+}
+
+export async function hasPendingLayoutMigration(): Promise<boolean> {
+  return layoutMigrationPendingCheck ? layoutMigrationPendingCheck() : false;
+}

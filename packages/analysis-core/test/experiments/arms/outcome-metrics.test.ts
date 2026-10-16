@@ -9,11 +9,11 @@ import {
   OUTCOME_METRIC_IDS,
   OUTCOME_METRICS,
   pickReferenceLap,
-} from "@raceiq/backend-core/experiments/comparison/metrics";
+} from "@raceiq/analysis-core/racing/experiments/metrics";
 import type { EvaluableLap } from "@raceiq/analysis-core/racing/laps/review-selection";
 
 /** The policy no metric uses any more, kept explicit so its effects stay
- *  measurable. See `lapTimeSec`'s comment in server/experiments/comparison/metrics.ts. */
+ *  measurable. See `lapTimeSec`'s comment in analysis-core experiment metrics. */
 const FASTEST_5: CurationSpec = { mode: "fastest-n", n: 5, outlierRule: "none" };
 
 function lap(overrides: Partial<EvaluableLap> & { id: number }): EvaluableLap {

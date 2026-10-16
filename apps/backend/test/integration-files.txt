@@ -49,14 +49,8 @@ apps/backend/test/driver-profile/runs.test.ts
 apps/backend/test/driver-profile/style.test.ts
 apps/backend/test/driver-profile/trend-provenance.test.ts
 apps/backend/test/experiments/arms/auto-exclude.test.ts
-apps/backend/test/experiments/arms/curation.test.ts
 apps/backend/test/experiments/arms/lap-link.test.ts
 apps/backend/test/experiments/arms/lap-metrics.test.ts
-apps/backend/test/experiments/arms/outcome-metrics.test.ts
-apps/backend/test/experiments/arms/outcomes.test.ts
-apps/backend/test/experiments/arms/reporting.test.ts
-apps/backend/test/experiments/arms/review-fixes.test.ts
-apps/backend/test/experiments/arms/stats-guardrails.test.ts
 apps/backend/test/experiments/arms/stream-degradation.test.ts
 apps/backend/test/experiments/arms/stream-equivalence.test.ts
 apps/backend/test/experiments/arms/stream-memory-budget.test.ts
@@ -75,7 +69,6 @@ apps/backend/test/games/shared/release-game-registration.test.ts
 apps/backend/test/imports/lmu-duckdb.test.ts
 apps/backend/test/lap-analysis/detection/session-start.test.ts
 apps/backend/test/lap-analysis/lap-cache.test.ts
-apps/backend/test/lap-analysis/lap-consistency.test.ts
 apps/backend/test/lap-analysis/lap-export-zip.test.ts
 apps/backend/test/lap-analysis/persist-lap-metrics.test.ts
 apps/backend/test/lap-analysis/recap/dashboard-read.test.ts

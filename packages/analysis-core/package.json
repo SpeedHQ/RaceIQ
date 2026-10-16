@@ -4,6 +4,10 @@
   "type": "module",
   "exports": {
     "./racing/analysis/metric-values": "./src/racing/analysis/metric-values.ts",
+    "./racing/analysis/laps/consistency": "./src/racing/analysis/laps/consistency.ts",
+    "./racing/analysis/laps/input-stats": "./src/racing/analysis/laps/input-stats.ts",
+    "./racing/analysis/laps/statistics": "./src/racing/analysis/laps/statistics.ts",
+    "./racing/analysis/laps/recap": "./src/racing/analysis/laps/recap.ts",
     "./racing/analysis/laps/time-loss": "./src/racing/analysis/laps/time-loss.ts",
     "./racing/analysis/laps/driving-style": "./src/racing/analysis/laps/driving-style.ts",
     "./racing/analysis/laps/frame-time": "./src/racing/analysis/laps/frame-time.ts",
@@ -24,9 +28,12 @@
     "./racing/laps/alignment/build": "./src/racing/laps/alignment/build.ts",
     "./racing/laps/alignment/codec": "./src/racing/laps/alignment/codec.ts",
     "./racing/laps/alignment/types": "./src/racing/laps/alignment/types.ts",
-    "./racing/laps/trace/build": "./src/racing/laps/trace/build.ts",
+    "./racing/laps/trace/types": "./src/racing/laps/trace/types.ts",
     "./racing/laps/trace/codec": "./src/racing/laps/trace/codec.ts",
-    "./racing/laps/trace/types": "./src/racing/laps/trace/types.ts"
+    "./racing/laps/trace/build": "./src/racing/laps/trace/build.ts",
+    "./racing/experiments/compare": "./src/racing/experiments/compare.ts",
+    "./racing/experiments/metrics": "./src/racing/experiments/metrics.ts",
+    "./racing/experiments/statistics": "./src/racing/experiments/statistics.ts"
   },
   "scripts": {
     "typecheck": "bunx tsc --project tsconfig.json --noEmit",

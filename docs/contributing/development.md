@@ -63,6 +63,12 @@ bun run test
 bun run test:all
 ```
 
+## Test suites and ownership
+
+Run `bun run test:unit`, `bun run test:tooling`, or `bun run test:integration` to execute the corresponding Turbo task across test-owning workspaces. `bun run test:shards` validates that each test file has exactly one owner in its package's `test/<suite>-files.txt` manifest.
+
+Workspace tests use their owning package's files and declared workspace dependencies as Turbo inputs. Non-unit suites in pure packages receive isolated test data and feature flags without loading backend DB or live-pipeline setup. Backend and frontend-contract suites retain backend setup because their tests exercise those integrations. Keep new filesystem-only or deterministic algorithm tests in the package that owns the implementation; keep DB, route, settings, and application-flow scenarios with backend.
+
 Backend type checking uses `bun run --cwd apps/backend typecheck`. It forces a full composite check rather than trusting incremental state: TypeScript 7.0.2 produced a locationless TS2589 on incremental runs while fresh checks passed. No diagnostics are disabled.
 
 For telemetry captures and imports, see [Telemetry recordings](telemetry-recordings.md). For test-process leaks, see [Test troubleshooting](test-troubleshooting.md).

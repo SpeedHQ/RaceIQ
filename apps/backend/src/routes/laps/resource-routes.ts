@@ -28,7 +28,7 @@ import { assessLapRecording } from "@raceiq/telemetry-core/processor/lap-policy"
 import { computeNativeSectorTimeline, computeLapSectors } from "@raceiq/telemetry-core/processor/sectors";
 import { generateExport } from "@raceiq/backend-core/lap-analysis/report";
 import { resolveTrack } from "@raceiq/backend-core/tracks/info";
-import { computeLineSpreadTrace } from "@raceiq/backend-core/lap-analysis/consistency";
+import { computeLineSpreadTrace } from "@raceiq/analysis-core/racing/analysis/laps/consistency";
 import { resolveLapCorners } from "../../tracks/corner-resolution";
 import { BulkDeleteSchema, LapsQuerySchema, ReviewLapsQuerySchema, ReviewLineSpreadQuerySchema, AlignedTelemetryRequestSchema, LapInsightBackfillSchema } from "./support";
 import { resolveTelemetryReplay } from "@raceiq/backend-core/telemetry/replay";

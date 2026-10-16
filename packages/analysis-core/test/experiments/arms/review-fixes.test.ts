@@ -6,14 +6,18 @@ import {
   holmAdjust,
   MIN_LAPS_PER_ARM,
   RECOMMENDED_LAPS_PER_ARM,
-} from "@raceiq/backend-core/experiments/comparison/compare";
+} from "@raceiq/analysis-core/racing/experiments/compare";
 import {
   blunderFence,
   blunderFencesForArms,
   type MetadataOutcomeMetric,
   OUTCOME_METRICS,
-} from "@raceiq/backend-core/experiments/comparison/metrics";
-import { metadataArm } from "@raceiq/backend-core/test-support/experiments/arms";
+} from "@raceiq/analysis-core/racing/experiments/metrics";
+
+let nextId = 1;
+function metadataArm(times: number[]) {
+  return { laps: times.map((lapTime) => ({ lap: { id: nextId++, lapTime, isValid: true, invalidReason: null, experimentExcluded: false, experimentExcludedSource: null }, telemetry: null })) };
+}
 
 /**
  * Regression guards for the review findings on PR #137.

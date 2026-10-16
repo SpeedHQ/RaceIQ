@@ -7,6 +7,7 @@ import { resolveRacingLineReference, STATIC_LAP_ANALYSIS_VERSION } from "./insig
 import { analyzeLap } from "@raceiq/analysis-core/racing/analysis/laps/insights/analyze";
 import { processLap, restoreFrameIndices } from "@raceiq/analysis-core/racing/analysis/laps/insights/process";
 import type { LapInsight } from "@raceiq/analysis-core/racing/analysis/laps/insights/types";
+import { computeStatsRange, type InputStats, type SteerScale } from "@raceiq/analysis-core/racing/analysis/laps/input-stats";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import type { NamedSegment } from "@raceiq/shared/racing/tracks/named-segments";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -19,37 +20,10 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
  */
 export const LAP_METRICS_ALGO_VERSION = 4;
 
-const MPH_TO_KMH = 1.609344;
 
 /** Convert one packet's velocity vector from metres per second to miles per hour. */
 export function speedMphFromPacket(packet: TelemetryPacket): number {
   return Math.sqrt(packet.VelocityX ** 2 + packet.VelocityY ** 2 + packet.VelocityZ ** 2) * 2.237;
-}
-
-/** ~20-feature input descriptor for one slice of a lap. */
-export interface InputStats {
-  // Aggregates
-  throttleAvg: number;
-  throttleMax: number;
-  fullThrottlePctDist: number;
-  brakeAvg: number;
-  brakeMax: number;
-  brakingPctDist: number;
-  brakeApplications: number;
-  steerAbsAvg: number;
-  steerAbsMax: number;
-  steeringSmoothness: number;
-  // Event points — distances are meters from the start of the LAP (not segment)
-  brakeOnDist: number | null; // first sample where brake crosses >5%
-  brakeOffDist: number | null; // last sample where brake was >5%
-  peakBrakeValue: number; // 0..1
-  peakBrakeDist: number | null; // distance where peak brake occurred
-  fullThrottleDist: number | null; // first sample where throttle reaches >=95%
-  liftOffThrottleDist: number | null; // first sample (after any full throttle) where throttle drops below 80%
-  minSpeed: number; // km/h equivalent from the raw mph trace
-  minSpeedDist: number | null;
-  maxSpeed: number;
-  maxSpeedDist: number | null;
 }
 
 /**
@@ -81,143 +55,12 @@ export interface LapMetrics {
   computedAt: string;
 }
 
-/**
- * How to read a game's raw `Steer` channel: the value meaning "wheel straight"
- * and the value meaning "full lock".
- *
- * Passed in rather than hardcoded because the two are game-specific and the
- * game adapters already declare them (`steeringCenter` / `steeringRange`).
- * Shared with corner detection, so parser/adapter scale corrections reach
- * both metrics and corner segmentation.
- */
-export interface SteerScale {
-  center: number;
-  range: number;
-}
-
 /** The steering convention declared by a game's adapter. */
 export function steerScaleFor(gameId: string | undefined): SteerScale {
   const adapter = gameId ? tryGetGame(gameId) : undefined;
   return { center: adapter?.steeringCenter ?? 0, range: adapter?.steeringRange ?? 127 };
 }
 
-/**
- * Aggregate + event statistics over `[startIdx, endIdx)` of a set of
- * index-aligned channel arrays.
- *
- * Deliberately index-based rather than distance-based: both callers (the
- * 1-metre resampled compare grid and a raw packet stream) already know their
- * own index bounds, and re-deriving them from distances inside here would make
- * the resampled case do a redundant search.
- */
-export function computeStatsRange(
-  throttle: number[],
-  brake: number[],
-  steer: number[],
-  speedMph: number[],
-  distances: number[],
-  startIdx: number,
-  endIdx: number,
-  steerScale: SteerScale,
-): InputStats {
-  const lo = Math.max(0, Math.min(startIdx, throttle.length - 1));
-  const hi = Math.max(lo + 1, Math.min(endIdx, throttle.length));
-  const n = hi - lo;
-
-  let tSum = 0,
-    tMax = 0,
-    tFull = 0;
-  let bSum = 0,
-    bMax = 0,
-    bOn = 0,
-    bEvents = 0,
-    prevBrake = false;
-  let sAbsSum = 0,
-    sAbsMax = 0;
-  let smoothSum = 0,
-    prev = 0;
-
-  let brakeOnDist: number | null = null;
-  let brakeOffDist: number | null = null;
-  let peakBrakeValue = 0;
-  let peakBrakeDist: number | null = null;
-  let fullThrottleDist: number | null = null;
-  let liftOffThrottleDist: number | null = null;
-  let sawFullThrottle = false;
-  let minSpeed = Infinity,
-    minSpeedDist: number | null = null;
-  let maxSpeed = -Infinity,
-    maxSpeedDist: number | null = null;
-
-  for (let i = lo; i < hi; i++) {
-    const t = throttle[i];
-    tSum += t;
-    if (t > tMax) tMax = t;
-    if (t >= 0.95) {
-      tFull++;
-      if (fullThrottleDist == null) fullThrottleDist = distances[i];
-      sawFullThrottle = true;
-    } else if (sawFullThrottle && t < 0.8 && liftOffThrottleDist == null) {
-      liftOffThrottleDist = distances[i];
-    }
-
-    const b = brake[i];
-    bSum += b;
-    if (b > bMax) bMax = b;
-    if (b > peakBrakeValue) {
-      peakBrakeValue = b;
-      peakBrakeDist = distances[i];
-    }
-    const isBraking = b > 0.05;
-    if (isBraking) {
-      bOn++;
-      if (brakeOnDist == null) brakeOnDist = distances[i];
-      brakeOffDist = distances[i];
-    }
-    if (isBraking && !prevBrake) bEvents++;
-    prevBrake = isBraking;
-
-    const norm = (steer[i] - steerScale.center) / (steerScale.range || 1);
-    const a = Math.abs(norm);
-    sAbsSum += a;
-    if (a > sAbsMax) sAbsMax = a;
-    if (i > lo) smoothSum += Math.abs(norm - prev);
-    prev = norm;
-
-    const speedKmh = speedMph[i] * MPH_TO_KMH;
-    if (speedKmh < minSpeed) {
-      minSpeed = speedKmh;
-      minSpeedDist = distances[i];
-    }
-    if (speedKmh > maxSpeed) {
-      maxSpeed = speedKmh;
-      maxSpeedDist = distances[i];
-    }
-  }
-
-  return {
-    throttleAvg: tSum / n,
-    throttleMax: tMax,
-    fullThrottlePctDist: tFull / n,
-    brakeAvg: bSum / n,
-    brakeMax: bMax,
-    brakingPctDist: bOn / n,
-    brakeApplications: bEvents,
-    steerAbsAvg: sAbsSum / n,
-    steerAbsMax: sAbsMax,
-    steeringSmoothness: n > 1 ? smoothSum / (n - 1) : 0,
-    brakeOnDist,
-    brakeOffDist,
-    peakBrakeValue,
-    peakBrakeDist,
-    fullThrottleDist,
-    liftOffThrottleDist,
-    minSpeed: Number.isFinite(minSpeed) ? minSpeed : 0,
-    minSpeedDist,
-    maxSpeed: Number.isFinite(maxSpeed) ? maxSpeed : 0,
-    maxSpeedDist,
-  };
-}
 
 /** Channel arrays pulled straight off a raw packet stream, index-aligned. */
 interface LapChannels {

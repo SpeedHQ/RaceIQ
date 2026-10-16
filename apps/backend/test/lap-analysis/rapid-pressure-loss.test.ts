@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
+import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
 import { analyzeLap } from "@raceiq/analysis-core/racing/analysis/laps/insights/analyze";
 import { detectRapidPressureLoss, detectTirePressureImbalance } from "@raceiq/analysis-core/racing/analysis/laps/insights/tires";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
-initGameAdapters();
+initGameAdapters(developmentReleaseFeatures);
 
 function pressureRun(values: (time: number) => Partial<TelemetryPacket>, hz = 60, duration = 14): TelemetryPacket[] {
   return Array.from({ length: Math.round(hz * duration) }, (_, index) => ({

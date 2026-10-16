@@ -10,7 +10,8 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import { buildTrackGuideContext } from "./track-guides";
 import { resolveTrack } from "../tracks/info";
 import { segmentPromptNames } from "@raceiq/shared/racing/tracks/segment-label";
-import { computeStatsRange, steerScaleFor, type InputStats } from "../lap-analysis/metrics";
+import { computeStatsRange, type InputStats } from "@raceiq/analysis-core/racing/analysis/laps/input-stats";
+import { steerScaleFor } from "../lap-analysis/metrics";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities";
 

@@ -29,9 +29,9 @@ import { resolveActiveTestId } from "@raceiq/backend-core/db/experiment-version-
 import { telemetryToSymptoms, type TuneSymptoms, type TyreDeltas } from "@raceiq/backend-core/ai/tune-symptoms";
 import { telemetryToTrackConditions, type TrackConditions } from "@raceiq/backend-core/ai/track-conditions";
 import { loadRepresentativeLap } from "../representative-lap";
-import { computeLapConsistencyDelta, computeLineSpreadTrace, type CornerConsistency, type LineSpreadTrace } from "@raceiq/backend-core/lap-analysis/consistency";
-import { stddevPopulation } from "@raceiq/backend-core/lap-analysis/stats";
-import { medianSorted, percentileSorted as percentile } from "@raceiq/backend-core/experiments/statistics";
+import { computeLapConsistencyDelta, computeLineSpreadTrace, type CornerConsistency, type LineSpreadTrace } from "@raceiq/analysis-core/racing/analysis/laps/consistency";
+import { stddevPopulation } from "@raceiq/analysis-core/racing/analysis/laps/statistics";
+import { medianSorted, percentileSorted as percentile } from "@raceiq/analysis-core/racing/experiments/statistics";
 import { MIN_TELEMETRY_FRAMES } from "@raceiq/backend-core/experiments/lap-policy";
 
 /** Overall confidence in the clean-lap pool backing an aggregate. */
@@ -166,7 +166,7 @@ export function selectCleanLaps(laps: LapMeta[]): {
 /**
  * Reduce a clean lap-time pool to a consistency report — spread/stddev plus
  * a coarse confidence band on raw lap-time repeatability (not track-scaled;
- * that's what `consistencyRating` in lap-analysis/stats.ts is for elsewhere).
+ * that's what `consistencyRating` in analysis-core's lap statistics is for elsewhere).
  */
 export function computeConsistency(
   cleanLaps: LapMeta[],

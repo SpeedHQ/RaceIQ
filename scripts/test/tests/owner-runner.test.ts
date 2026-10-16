@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 
-test("owner suites load database preload and isolate writable paths from inherited data", () => {
+test("owner suites isolate paths without loading backend database setup", () => {
   const root = mkdtempSync(resolve(tmpdir(), "raceiq-owner-runner-"));
   try {
     const inherited = resolve(root, "inherited");
@@ -11,42 +11,35 @@ test("owner suites load database preload and isolate writable paths from inherit
     mkdirSync(inherited);
     writeFileSync(resolve(inherited, "keep.txt"), "production sentinel");
     mkdirSync(resolve(root, "scripts/test"), { recursive: true });
-    for (const file of ["run-suite.ts", "check-shards.ts", "owners.ts"]) {
+    for (const file of ["run-suite.ts", "check-shards.ts", "owners.ts", "setup-isolated-data-dir.ts"]) {
       writeFileSync(resolve(root, "scripts/test", file), readFileSync(resolve(import.meta.dir, "..", file)));
     }
+    writeFileSync(resolve(root, ".env.development"), "");
     writeFileSync(resolve(root, "package.json"), JSON.stringify({ private: true, workspaces: ["packages/*"] }));
-    mkdirSync(resolve(root, "node_modules"), { recursive: true });
-    symlinkSync(resolve(import.meta.dir, "../../../node_modules/libsql"), resolve(root, "node_modules/libsql"), "junction");
     mkdirSync(resolve(root, "packages/owner/test"), { recursive: true });
     writeFileSync(resolve(root, "packages/owner/package.json"), JSON.stringify({ name: "@fixture/owner" }));
     mkdirSync(resolve(root, "server/test-support"), { recursive: true });
     writeFileSync(resolve(root, "server/test-support/setup-data-dir.ts"), `
-      import Database from "libsql";
-      const db = new Database(process.env.DATA_DIR + "/app.db");
-      db.prepare("CREATE TABLE laps (id INTEGER PRIMARY KEY, time REAL)").run();
-      db.close();
+      import { writeFileSync } from "node:fs";
+      writeFileSync(process.env.DATA_DIR + "/backend-setup-ran", "");
     `);
     for (const suite of ["unit", "integration"]) {
-      writeFileSync(resolve(root, `packages/owner/test/${suite}-files.txt`), `packages/owner/test/${suite}.test.ts\n`);
       writeFileSync(resolve(root, `packages/owner/test/${suite}.test.ts`), `
         import { expect, test } from "bun:test";
-        import Database from "libsql";
         import { appendFileSync, existsSync } from "node:fs";
-        test("${suite} database behavior", () => {
+        test("${suite} isolated data behavior", () => {
           const path = process.env.DATA_DIR + "/app.db";
           expect(process.env.DATA_DIR).not.toBe(process.env.INHERITED_DATA_DIR);
           expect(process.env.DATA_DIR).toBe(process.env.RACEIQ_TEST_DATA_DIR);
-          expect(existsSync(path)).toBe(${suite === "integration"});
-          if (${suite === "integration"}) {
-            const db = new Database(path);
-            db.prepare("INSERT INTO laps (time) VALUES (88.5)").run();
-            expect(db.prepare("SELECT time FROM laps").get()).toHaveProperty("time", 88.5);
-            db.close();
-          }
+          expect(existsSync(path)).toBe(false);
+          expect(existsSync(process.env.DATA_DIR + "/settings.json")).toBe(${suite === "integration"});
+          expect(existsSync(process.env.DATA_DIR + "/backend-setup-ran")).toBe(false);
           appendFileSync(process.env.RESULT_PATH!, JSON.stringify({ suite: "${suite}", dataDir: process.env.DATA_DIR }) + "\\n");
         });
       `);
     }
+    writeFileSync(resolve(root, "packages/owner/test/unit-files.txt"), "packages/owner/test/unit.test.ts\n");
+    writeFileSync(resolve(root, "packages/owner/test/integration-files.txt"), "packages/owner/test/integration.test.ts\n");
     const child = Bun.spawnSync([process.execPath, "scripts/test/run-suite.ts", "all", "--package", "@fixture/owner"], {
       cwd: root,
       env: { ...process.env, DATA_DIR: inherited, RACEIQ_TEST_DATA_DIR: inherited, INHERITED_DATA_DIR: inherited, RESULT_PATH: result },

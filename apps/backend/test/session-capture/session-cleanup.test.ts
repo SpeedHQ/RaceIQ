@@ -12,6 +12,7 @@ import { runUserCompressionNow } from "@raceiq/backend-core/session-capture/comp
 import { withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
+import "../../src/session-capture/layout-migration";
 
 const OLD_DATE = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString();
 const RECENT_DATE = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();

@@ -1,8 +1,8 @@
 import { lstat } from "node:fs/promises";
 import { join } from "node:path";
 import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
-import { getLayoutMigrationStatus, startLayoutMigration } from "@raceiq/backend-core/session-capture/layout-migration";
-import { getRecordingDirectoryMoveStatus, preflightRecordingDirectoryMove, startRecordingDirectoryMove } from "@raceiq/backend-core/session-capture/relocate-recordings";
+import { getLayoutMigrationStatus, startLayoutMigration } from "../../session-capture/layout-migration";
+import { getRecordingDirectoryMoveStatus, preflightRecordingDirectoryMove, startRecordingDirectoryMove } from "../../session-capture/relocate-recordings";
 import { existsSync, type Dirent } from "node:fs";
 import { readdir, statfs } from "node:fs/promises";
 import { Hono } from "hono";

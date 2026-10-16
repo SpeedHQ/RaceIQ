@@ -1,5 +1,5 @@
 
-import type { RecordingDirectoryMoveStatus } from "@raceiq/backend-core/session-capture/relocate-recordings";
+import type { RecordingDirectoryMoveStatus } from "@raceiq/backend/session-capture/relocate-recordings";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { client } from "@/lib/rpc";
 import { useDashboardAuth } from "@/lib/dashboard-auth";

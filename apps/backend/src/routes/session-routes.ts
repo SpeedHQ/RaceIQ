@@ -12,7 +12,7 @@ import { LAP_DETECTOR_AC_EVO_ID } from "@raceiq/game-ac-evo/lap-detector";
 import { LAP_DETECTOR_IRACING_ID } from "@raceiq/game-iracing/lap-detector";
 import { getAllServerGames } from "@raceiq/backend-core/games/registry";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
-import { computeRecap } from "@raceiq/backend-core/lap-analysis/recap";
+import { computeRecap } from "@raceiq/analysis-core/racing/analysis/laps/recap";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { backfillRaceResults, reconcileSessionResult, RACE_RESULT_PROCESSOR_ID } from "@raceiq/backend-core/race-results/reconcile";
 import { getRaceResultAggregate, getRecentRaceResults } from "@raceiq/backend-core/race-results/aggregates";

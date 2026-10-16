@@ -14,10 +14,18 @@ const COMPLETE = "[SessionRepair] Historical session reconciliation complete:";
 const DEFERRED = "[StartupWorker] Deferred until recording layout migration completes";
 type Session = { id: number; track_id: string; lap_detector_version: string | null; raw_file?: string; ownership?: string };
 
+type LayoutMigrationResult = {
+  directory: string;
+  fileCount: number;
+  sessionCount: number;
+  destinationDirectory: string | null;
+  progress: { status: "success" | "partial" | "error"; total: number; migrated: number; failed: number; error: string | null };
+};
+
 interface StartupBackend {
   ready(): Promise<void>;
   waitFor(marker: string): Promise<void>;
-  organize(): Promise<void>;
+  organize(): Promise<LayoutMigrationResult>;
   output(): string;
   stop(): Promise<void>;
 }
@@ -44,7 +52,7 @@ function startBranch(dataDir: string): StartupBackend {
   const proc = Bun.spawn([process.execPath, "--eval", `
     import { captureConsole } from "./server/runtime/logger";
     import { bootServer } from "./apps/backend/src/runtime/boot";
-    import { getLayoutMigrationStatus, startLayoutMigration } from "./server/session-capture/layout-migration";
+    import { getLayoutMigrationStatus, startLayoutMigration } from "./apps/backend/src/session-capture/layout-migration";
     captureConsole();
     const control = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(request) {
       if (request.method !== "POST") return new Response(null, { status: 405 });
@@ -54,11 +62,11 @@ function startBranch(dataDir: string): StartupBackend {
           const status = await getLayoutMigrationStatus();
           if (status.progress.status === "success") {
             console.log("[E2E] Layout migration success");
-            return new Response(null, { status: 200 });
+            return new Response(JSON.stringify(status), { status: 200, headers: { "content-type": "application/json" } });
           }
           if (status.progress.status === "partial" || status.progress.status === "error") {
             console.log("[E2E] Layout migration failed");
-            return new Response(null, { status: 200 });
+            return new Response(JSON.stringify(status), { status: 200, headers: { "content-type": "application/json" } });
           }
           await Bun.sleep(10);
         }
@@ -100,6 +108,7 @@ function startBranch(dataDir: string): StartupBackend {
       if (!match) throw new Error("Migration control port missing");
       const response = await fetch(`http://127.0.0.1:${match[1]}`, { method: "POST" });
       if (!response.ok) throw new Error(`Migration control returned ${response.status}`);
+      return await response.json() as LayoutMigrationResult;
     },
     output: () => output,
     async stop() {
@@ -181,8 +190,11 @@ test("current startup reprocesses release-seeded Tourist sessions into correct l
     `).run(collision, LAP_DETECTOR_AC_EVO_ID).lastInsertRowid;
     mkdirSync(dirname(collision), { recursive: true });
     writeFileSync(collision, "pre-existing user capture");
-    await backend.organize();
-    await backend.waitFor("[E2E] Layout migration failed");
+    const failedMigration = await backend.organize();
+    expect(failedMigration.directory).toBe(join(dataDir, "sessions"));
+    expect(failedMigration.progress.total).toBeGreaterThan(0);
+    expect(failedMigration.progress.failed).toBeGreaterThan(0);
+    expect(failedMigration.progress.status).toBe("partial");
     expect(readFileSync(collision, "utf8")).toBe("pre-existing user capture");
     expect(readFileSync(legacyPath).length).toBeGreaterThan(0);
     expect(database.prepare("SELECT id FROM sessions WHERE track_id='obsolete layout'").all()).toHaveLength(before.length);
@@ -190,8 +202,7 @@ test("current startup reprocesses release-seeded Tourist sessions into correct l
     expect(backend.output()).not.toContain(COMPLETE);
     database.prepare("DELETE FROM sessions WHERE id=?").run(collisionSessionId);
     await rm(collision);
-    await backend.organize();
-    await backend.waitFor("[E2E] Layout migration success");
+    expect((await backend.organize()).progress.status).toBe("success");
     await backend.ready();
     const after = database.prepare("SELECT id,track_id,lap_detector_version,raw_file,ownership FROM sessions ORDER BY id").all() as Session[];
     expect(after.map((session) => session.id)).toEqual(before.map((session) => session.id));

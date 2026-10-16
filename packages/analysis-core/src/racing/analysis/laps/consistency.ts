@@ -1,7 +1,18 @@
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { lapPath } from "@raceiq/shared/racing/tracks/path";
-import type { Corner } from "./corners";
-import { populationVariance } from "./stats";
+export interface ConsistencyCorner {
+  index?: number;
+  label: string;
+  distanceStart: number;
+  distanceEnd: number;
+}
+
+function populationVariance(values: number[]): number {
+  if (values.length === 0) return 0;
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  return values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length;
+}
+
 
 export const LINE_SPREAD_THRESHOLD_M = 1.5;
 /** Mean lateral spread (metres) at which the line-consistency score hits 0.
@@ -214,7 +225,7 @@ const MIN_LINE_SPREAD_LAPS = 2;
  * Full per-bin racing-line spread trace over every valid resampled lap.
  * One lap produces zero spread; additional laps expose lap-to-lap variation.
  */
-export function computeLineSpreadTrace(laps: TelemetryPacket[][], lapIds: number[], corners: Corner[]): LineSpreadTrace | null {
+export function computeLineSpreadTrace(laps: TelemetryPacket[][], lapIds: number[], corners: ConsistencyCorner[]): LineSpreadTrace | null {
   const resampled = laps.map((packets, i) => resampleLap(packets, lapIds[i])).filter((r): r is ResampledLap => r !== null);
   if (resampled.length < MIN_LINE_SPREAD_LAPS) return null;
 
@@ -290,7 +301,7 @@ const EMPTY_DELTA: LapConsistencyDelta = {
   overall: { lateralSpreadM: 0, brakeVar: 0, throttleVar: 0, lowTrust: false },
 };
 
-export function computeLapConsistencyDelta(laps: TelemetryPacket[][], corners: Corner[]): LapConsistencyDelta {
+export function computeLapConsistencyDelta(laps: TelemetryPacket[][], corners: ConsistencyCorner[]): LapConsistencyDelta {
   if (laps.length < 2 || corners.length < 1) return EMPTY_DELTA;
 
   const resampled = laps.map((packets, i) => resampleLap(packets, i)).filter((r): r is ResampledLap => r !== null);

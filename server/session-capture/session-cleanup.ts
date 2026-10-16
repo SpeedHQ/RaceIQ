@@ -13,7 +13,7 @@ import { isOwnedSessionRawFile } from "../db/session-queries";
 import { isSessionActive } from "../telemetry/live-pipeline";
 import { clearSessionCaptureCache } from "./source-loader";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
-import { hasPendingLayoutMigration } from "./layout-migration";
+import { hasPendingLayoutMigration } from "./storage-activity";
 import { releaseDashboardCaptureCheckpoint, republishPersistedDashboardCaptureFacts } from "./dashboard-processor";
 
 export class SessionCleanupBusyError extends Error {

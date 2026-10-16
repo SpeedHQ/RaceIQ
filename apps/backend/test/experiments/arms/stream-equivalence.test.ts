@@ -12,9 +12,9 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { compareArmSamples, prepareArm } from "@raceiq/backend-core/experiments/comparison/compare";
+import { compareArmSamples, prepareArm } from "@raceiq/analysis-core/racing/experiments/compare";
 import { streamArmSamples } from "@raceiq/backend-core/experiments/comparison/stream";
-import { OUTCOME_METRICS, type PairwiseFramesOutcomeMetric } from "@raceiq/backend-core/experiments/comparison/metrics";
+import { OUTCOME_METRICS, type PairwiseFramesOutcomeMetric } from "@raceiq/analysis-core/racing/experiments/metrics";
 import {
   buildStreamingArm,
   CORNERS,

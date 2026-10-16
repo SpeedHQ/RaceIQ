@@ -1,20 +1,20 @@
-import { createHash, randomUUID } from "node:crypto";
-import { createReadStream } from "node:fs";
+import { persistRecordingJournal, readValidatedRecordingJournal, validateRelocationJournal, cleanupVerifiedRecordingSources, cleanupOwnedRecordingTemporary, verifyRecordingDestinations, cleanupOwnedRecordingDestination, removeEmptyRecordingDirectoryTree } from "@raceiq/recording-storage/operations";
+import { hashRecordingFile, isRecordingPathContained as isContained, hasRecordingSymlinkDirectory as hasSymlinkDirectory, enumerateRecordingFiles as enumerate, validateRecordingDirectory } from "@raceiq/recording-storage/filesystem";
+import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { copyFile, lstat, mkdir, open, readFile, realpath, rename, rm, readdir, unlink, rmdir, link } from "node:fs/promises";
-import { basename, dirname, isAbsolute, parse, relative, resolve, sep } from "node:path";
+import { copyFile, lstat, mkdir, open, readFile, realpath, rm, readdir, unlink, link } from "node:fs/promises";
+import { dirname, relative, resolve } from "node:path";
 import { eq } from "drizzle-orm";
-import { cacheDelete } from "../db/telemetry-replay-storage";
-import { clearSessionCaptureCache } from "./source-loader";
-import { laps } from "../db/schema";
-import { db } from "../db/index";
-import { sessions } from "../db/schema";
-import { resolveDataDir } from "../runtime/config/data-dir";
-import { loadSettings, saveSettings } from "../runtime/config/settings";
-import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
-import { isSessionActive } from "../telemetry/live-pipeline";
-import { reserveRecordingStorageOperation } from "./storage-activity";
-import { withSessionCaptureMaintenanceLock } from "./cleanup";
+import { cacheDelete } from "@raceiq/backend-core/db/telemetry-replay-storage";
+import { clearSessionCaptureCache } from "@raceiq/backend-core/session-capture/source-loader";
+import { laps, sessions } from "@raceiq/backend-core/db/schema";
+import { db } from "@raceiq/backend-core/db/index";
+import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
+import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
+import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
+import { isSessionActive } from "@raceiq/backend-core/telemetry/live-pipeline";
+import { reserveRecordingStorageOperation } from "@raceiq/backend-core/session-capture/storage-activity";
+import { withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
 import { hasPendingLayoutMigration } from "./layout-migration";
 
 export type RecordingDirectoryMoveStatus = { operationId: string | null; state: "idle" | "moving" | "complete" | "error"; phase: "copying" | "committing" | "removing-sources" | null; completedFiles: number; totalFiles: number; directory: string; code: string | null; error: string | null };
@@ -25,151 +25,13 @@ const defaultMoveHooks: Required<MoveTestHooks> = { copyFile, saveSettings, unli
 const journalPath = resolve(resolveDataDir(), "recording-directory-move.json");
 let status: RecordingDirectoryMoveStatus = { operationId: null, state: "idle", phase: null, completedFiles: 0, totalFiles: 0, directory: resolveRecordingDirectory(), code: null, error: null };
 let active = false;
-function isContained(root: string, path: string): boolean { const part = relative(root, path); return part !== "" && part !== ".." && !part.startsWith(`..${sep}`) && !isAbsolute(part); }
-async function hashFile(path: string): Promise<{ size: number; sha256: string }> {
-  const hash = createHash("sha256"); let size = 0;
-  for await (const chunk of createReadStream(path)) { size += chunk.length; hash.update(chunk); }
-  return { size, sha256: hash.digest("hex") };
-}
+
+async function hashFile(path: string): Promise<{ size: number; sha256: string }> { return hashRecordingFile(path); }
 async function persistJournal(journal: Journal): Promise<void> {
-  const temporary = `${journalPath}.${journal.operationId}.tmp`;
-  try {
-    const handle = await open(temporary, "wx");
-    try { await handle.writeFile(JSON.stringify(journal)); await handle.sync(); } finally { await handle.close(); }
-    await rename(temporary, journalPath);
-    try { const directory = await open(dirname(journalPath), "r"); try { await directory.sync(); } finally { await directory.close(); } } catch { /* Directory fsync is not supported on every platform. */ }
-  } catch (error) {
-    await rm(temporary, { force: true });
-    throw error;
-  }
-}
-async function canonicalExistingParent(path: string): Promise<string> {
-  let current = resolve(path);
-  while (true) {
-    try { return await realpath(current); }
-    catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-      const parent = dirname(current);
-      if (parent === current) throw error;
-      current = parent;
-    }
-  }
-}
-async function canonicalizePath(path: string): Promise<string> {
-  let current = resolve(path);
-  const suffix: string[] = [];
-  while (true) {
-    try { return resolve(await realpath(current), ...suffix); }
-    catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-      const parent = dirname(current);
-      if (parent === current) throw error;
-      suffix.unshift(basename(current));
-      current = parent;
-    }
-  }
-}
-async function isValidJournal(value: unknown): Promise<boolean> {
-  if (!value || typeof value !== "object") return false;
-  const journal = value as Journal;
-  const hasExactKeys = (record: object, keys: string[]) => Object.keys(record).length === keys.length && keys.every((key) => Object.hasOwn(record, key));
-  if (!hasExactKeys(journal, ["version", "operationId", "oldDirectory", "newDirectory", "oldSetting", "entries", "references"])
-    || journal.version !== 1 || typeof journal.operationId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(journal.operationId)
-    || typeof journal.oldDirectory !== "string" || typeof journal.newDirectory !== "string"
-    || !isAbsolute(journal.oldDirectory) || !isAbsolute(journal.newDirectory)
-    || (journal.oldSetting !== null && typeof journal.oldSetting !== "string")
-    || !Array.isArray(journal.entries) || !Array.isArray(journal.references)) return false;
-  const oldRoot = resolve(journal.oldDirectory), newRoot = resolve(journal.newDirectory);
-  if (oldRoot !== journal.oldDirectory || newRoot !== journal.newDirectory || oldRoot === newRoot || isContained(newRoot, oldRoot)) return false;
-  const dataRoot = await realpath(resolveDataDir()).catch(() => "");
-  const nestedDestination = isContained(oldRoot, newRoot);
-  if (!dataRoot || oldRoot === parse(oldRoot).root || newRoot === parse(newRoot).root
-    || oldRoot === dataRoot || isContained(oldRoot, dataRoot)
-    || newRoot === dataRoot || isContained(dataRoot, newRoot) && !(nestedDestination && isContained(dataRoot, oldRoot))
-    || isContained(newRoot, dataRoot)) return false;
-  const entrySources = new Set<string>(), entryDestinations = new Set<string>();
-  for (const entry of journal.entries) {
-    const legacyEntry = hasExactKeys(entry, ["source", "destination", "size", "sha256"]);
-    const currentEntry = hasExactKeys(entry, ["source", "destination", "size", "sha256", "published"]);
-    const ownedEntry = hasExactKeys(entry, ["source", "destination", "size", "sha256", "published", "publication"]);
-    if ((!legacyEntry && !currentEntry && !ownedEntry) || typeof entry.source !== "string" || typeof entry.destination !== "string"
-      || (!legacyEntry && typeof entry.published !== "boolean")
-      || (ownedEntry && (!entry.publication || typeof entry.publication !== "object"
-        || !hasExactKeys(entry.publication, ["dev", "ino"]) || typeof entry.publication.dev !== "string" || typeof entry.publication.ino !== "string"))
-      || !isAbsolute(entry.source) || !isAbsolute(entry.destination) || !isContained(oldRoot, resolve(entry.source))
-      || isContained(newRoot, resolve(entry.source)) || !isContained(newRoot, resolve(entry.destination))
-      || resolve(entry.destination) !== resolve(newRoot, relative(oldRoot, resolve(entry.source)))
-      || !Number.isSafeInteger(entry.size) || entry.size < 0 || typeof entry.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(entry.sha256)) return false;
-    const source = resolve(entry.source), destination = resolve(entry.destination);
-    if (entrySources.has(source) || entryDestinations.has(destination)) return false;
-    if (await hasSymlinkDirectory(oldRoot, source) || await hasSymlinkDirectory(newRoot, destination)) return false;
-    for (const path of [source, destination]) {
-      try { if (!(await lstat(path)).isFile()) return false; }
-      catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") return false; }
-    }
-    try {
-      const sourceParent = await canonicalExistingParent(dirname(source));
-      const destinationParent = await canonicalExistingParent(dirname(destination));
-      if (!isContained(oldRoot, sourceParent) && sourceParent !== oldRoot) return false;
-      if (!isContained(newRoot, destinationParent) && destinationParent !== newRoot) return false;
-    } catch { return false; }
-    entrySources.add(source); entryDestinations.add(destination);
-  }
-  const sessionIds = new Set<number>();
-  for (const ref of journal.references) {
-    if (!ref || typeof ref !== "object" || !hasExactKeys(ref, ["sessionId", "oldPath", "newPath"])
-      || !Number.isSafeInteger(ref.sessionId) || ref.sessionId <= 0
-      || typeof ref.oldPath !== "string" || !isAbsolute(ref.oldPath) || typeof ref.newPath !== "string" || !isAbsolute(ref.newPath)) return false;
-    const oldPath = resolve(ref.oldPath), newPath = resolve(ref.newPath);
-    if (sessionIds.has(ref.sessionId) || !isContained(newRoot, newPath)) return false;
-    let canonicalPath: string;
-    try {
-      const rootInfo = await lstat(oldRoot);
-      if (!rootInfo.isDirectory()) return false;
-      canonicalPath = await canonicalizePath(oldPath);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") return false;
-      canonicalPath = oldPath;
-    }
-    if (isContained(newRoot, canonicalPath) || !isContained(oldRoot, canonicalPath) || newPath !== resolve(newRoot, relative(oldRoot, canonicalPath))) return false;
-    sessionIds.add(ref.sessionId);
-  }
-  return true;
+  await persistRecordingJournal(journalPath, journal);
 }
 async function validateDirectory(input: string): Promise<string> {
-  if (typeof input !== "string" || !input.trim() || input.includes("\0") || !isAbsolute(input)) throw Object.assign(new Error("Directory must be an absolute path"), { code: "INVALID_DIRECTORY" });
-  const requested = resolve(input);
-  let canonical: string;
-  try { canonical = await realpath(requested); }
-  catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    await mkdir(requested, { recursive: true });
-    canonical = await realpath(requested);
-  }
-  if (!(await lstat(canonical)).isDirectory()) throw Object.assign(new Error("Path is not a directory"), { code: "INVALID_DIRECTORY" });
-  const dataDir = await realpath(resolveDataDir());
-  const current = await realpath(resolveRecordingDirectory()).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? resolve(resolveRecordingDirectory()) : Promise.reject(error));
-  const nestedDataDestination = isContained(current, canonical) && isContained(dataDir, current);
-  if (canonical === parse(canonical).root || canonical === dataDir || canonical !== current && (isContained(canonical, dataDir) || isContained(dataDir, canonical) && !nestedDataDestination)) throw Object.assign(new Error("Directory is reserved"), { code: "INVALID_DIRECTORY" });
-  if (canonical !== current) {
-    const probe = resolve(canonical, `.raceiq-link-probe-${randomUUID()}`);
-    const linkedProbe = `${probe}.link`;
-    const handle = await open(probe, "wx");
-    try {
-      await handle.sync();
-      await link(probe, linkedProbe);
-    } catch (error) {
-      if (["ENOTSUP", "EOPNOTSUPP", "EXDEV", "EPERM", "EACCES", "ENOSYS"].includes((error as NodeJS.ErrnoException).code ?? "")) {
-        throw Object.assign(new Error("Destination filesystem does not support hard links required for safe recording relocation"), { code: "UNSUPPORTED_FILESYSTEM" });
-      }
-      throw error;
-    } finally {
-      await handle.close();
-      await rm(linkedProbe, { force: true });
-      await rm(probe, { force: true });
-    }
-  }
-  return canonical;
+  return validateRecordingDirectory(input, { dataDirectory: resolveDataDir(), currentDirectory: resolveRecordingDirectory() });
 }
 export async function preflightRecordingDirectoryMove(directory: string): Promise<{ current: string; destination: string; containsFiles: boolean }> {
   const destination = await validateDirectory(directory);
@@ -195,35 +57,6 @@ export async function relocateRecordingDirectoryUnderReservation(directory: stri
     throw error;
   }
 }
-async function enumerate(root: string, excluded?: string): Promise<string[]> {
-  const found: string[] = [];
-  async function visit(directory: string): Promise<void> {
-    for (const name of await readdir(directory)) {
-      const path = resolve(directory, name);
-      if (excluded && (path === excluded || isContained(excluded, path))) continue;
-      const info = await lstat(path);
-      if (info.isDirectory()) await visit(path);
-      else if (info.isFile() && (name.endsWith(".bin") || name.endsWith(".bin.gz") || name.endsWith(".motec.zip"))) found.push(path);
-    }
-  }
-  try { await visit(root); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
-  return found;
-}
-async function hasSymlinkDirectory(root: string, path: string): Promise<boolean> {
-  const parts = relative(root, path).split(sep).slice(0, -1);
-  let current = root;
-  for (const part of parts) {
-    current = resolve(current, part);
-    try {
-      const info = await lstat(current);
-      if (info.isSymbolicLink() || !info.isDirectory()) return true;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
-      throw error;
-    }
-  }
-  return false;
-}
 async function updateReferences(references: Journal["references"], pathKey: "oldPath" | "newPath"): Promise<void> {
   await db.transaction(async (tx) => {
     for (const reference of references) {
@@ -236,39 +69,11 @@ async function updateReferences(references: Journal["references"], pathKey: "old
     for (const row of rows) cacheDelete(row.id);
   }
 }
-async function removeEmptySourceDirs(root: string, entries: Entry[]): Promise<void> {
-  const dirs = new Set(entries.map((entry) => dirname(entry.source)).filter((path) => isContained(root, path)).sort((a, b) => b.length - a.length));
-  for (const dir of dirs) {
-    try { await rmdir(dir); } catch (error) { const code = (error as NodeJS.ErrnoException).code; if (code !== "ENOENT" && code !== "ENOTEMPTY") throw error; }
-  }
-}
 async function cleanupSources(journal: Journal, removeSource: typeof unlink = unlink): Promise<void> {
-  const residual: string[] = [];
-  for (const entry of journal.entries) {
-    try {
-      const digest = await hashFile(entry.source);
-      if (digest.size === entry.size && digest.sha256 === entry.sha256) await removeSource(entry.source);
-      else residual.push(entry.source);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") residual.push(entry.source);
-    }
-  }
-  if (residual.length) throw Object.assign(new Error(`Unable to remove source recordings: ${residual.join(", ")}`), { code: "SOURCE_CLEANUP_FAILED" });
-  await removeEmptySourceDirs(journal.oldDirectory, journal.entries);
-  await rm(journalPath, { force: true });
+  await cleanupVerifiedRecordingSources(journal, journalPath, hashFile, { unlink: removeSource });
 }
 async function cleanupOwnedTemporary(entry: Entry, operationId: string, root: string): Promise<void> {
-  if (!entry.publication) return;
-  const temporary = `${entry.destination}.move-${operationId}.tmp`;
-  if (await hasSymlinkDirectory(root, temporary)) return;
-  const info = await lstat(temporary, { bigint: true }).catch((error) => {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw error;
-  });
-  if (!info || !info.isFile() || String(info.dev) !== entry.publication.dev || String(info.ino) !== entry.publication.ino) return;
-  const digest = await hashFile(temporary);
-  if (digest.size !== entry.size || digest.sha256 !== entry.sha256) return;
-  await rm(temporary);
+  await cleanupOwnedRecordingTemporary(entry, operationId, root, hashFile);
 }
 async function executeMove(directory: string, operationId: string, hooks: Required<MoveTestHooks>): Promise<void> {
   const setting = loadSettings().recordingDirectory;
@@ -346,12 +151,7 @@ async function executeMove(directory: string, operationId: string, hooks: Requir
       for (const entry of entries) {
         if ((!entry.published && !entry.publication) || await hasSymlinkDirectory(newDirectory, entry.destination)) continue;
         try {
-          const info = await lstat(entry.destination, { bigint: true });
-          if (!info.isFile()) continue;
-          if (entry.publication && (String(info.dev) !== entry.publication.dev || String(info.ino) !== entry.publication.ino)) continue;
-          const digest = await hashFile(entry.destination);
-          if (digest.size !== entry.size || digest.sha256 !== entry.sha256) continue;
-          await rm(entry.destination);
+          await cleanupOwnedRecordingDestination(entry, newDirectory, hashFile);
         } catch (cleanupError) {
           if ((cleanupError as NodeJS.ErrnoException).code !== "ENOENT") throw cleanupError;
         }
@@ -366,24 +166,7 @@ async function executeMove(directory: string, operationId: string, hooks: Requir
 }
 
 async function removeEmptyDestinationDirs(journal: Journal): Promise<void> {
-  const directories = new Set<string>();
-  for (const entry of journal.entries) {
-    let directory = dirname(entry.destination);
-    while (directory !== journal.newDirectory && isContained(journal.newDirectory, directory)) {
-      directories.add(directory);
-      directory = dirname(directory);
-    }
-  }
-  for (const directory of [...directories].sort((a, b) => b.length - a.length)) {
-    if (await hasSymlinkDirectory(journal.newDirectory, resolve(directory, ".cleanup-probe"))) continue;
-    try {
-      if (!(await lstat(directory)).isDirectory()) continue;
-      await rmdir(directory);
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      if (code !== "ENOENT" && code !== "ENOTEMPTY" && code !== "ENOTDIR") throw error;
-    }
-  }
+  await removeEmptyRecordingDirectoryTree(journal.newDirectory, journal.entries.map((entry) => entry.destination));
 }
 export function getRecordingDirectoryMoveStatus(): RecordingDirectoryMoveStatus { return { ...status, directory: resolveRecordingDirectory() }; }
 export async function startRecordingDirectoryMove(directory: string, overrides?: MoveTestHooks): Promise<{ operationId: string; noOp?: boolean }> {
@@ -401,14 +184,12 @@ export async function startRecordingDirectoryMove(directory: string, overrides?:
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
       throw Object.assign(new Error("Recording storage recovery is required"), { code: "RECOVERY_REQUIRED" });
     });
-    if (pending && !(await isValidJournal(pending))) throw Object.assign(new Error("Recording storage recovery is required"), { code: "RECOVERY_REQUIRED" });
+    if (pending && !(await validateRelocationJournal(pending, { dataDirectory: resolveDataDir() }))) {
+      throw Object.assign(new Error("Recording storage recovery is required"), { code: "RECOVERY_REQUIRED" });
+    }
     if (pending && (pending.newDirectory !== requested || current !== requested)) throw Object.assign(new Error("Finish recovery for the previous destination first"), { code: "RECOVERY_REQUIRED" });
     if (pending) {
-      for (const entry of pending.entries) {
-        if (!(await lstat(entry.destination)).isFile()) throw new Error("Committed recording is not a regular file");
-        const digest = await hashFile(entry.destination);
-        if (digest.size !== entry.size || digest.sha256 !== entry.sha256) throw new Error("Committed recording verification failed");
-      }
+      await verifyRecordingDestinations(pending.entries, hashFile);
       await cleanupSources(pending, hooks.unlink);
       status = { operationId: pending.operationId, state: "complete", phase: null, completedFiles: pending.entries.length, totalFiles: pending.entries.length, directory: current, code: null, error: null };
       release();
@@ -455,10 +236,11 @@ export async function startRecordingDirectoryMove(directory: string, overrides?:
   return { operationId };
 }
 export async function recoverRecordingDirectoryMove(): Promise<void> {
-  let journal: Journal;
-  try { journal = JSON.parse(await readFile(journalPath, "utf8")) as Journal; }
-  catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return; throw new Error("[RecordingStorage] Recovery required: relocation journal is invalid"); }
-  if (!(await isValidJournal(journal))) throw new Error("[RecordingStorage] Recovery required: relocation journal is invalid");
+  let journal: Journal | null;
+  try {
+    journal = await readValidatedRecordingJournal<Journal>(journalPath, async (value) => validateRelocationJournal(value, { dataDirectory: resolveDataDir() }));
+  } catch { throw new Error("[RecordingStorage] Recovery required: relocation journal is invalid"); }
+  if (!journal) return;
   const configured = resolveRecordingDirectory();
   const selected = await realpath(configured).catch((error) => {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return resolve(configured);

@@ -1,21 +1,19 @@
-import { createHash, randomUUID } from "node:crypto";
-import { createReadStream } from "node:fs";
-import { constants } from "node:fs";
-import { chmod, copyFile, link, lstat, mkdir, open, readFile, readdir, realpath, rename, rmdir, stat, unlink, utimes } from "node:fs/promises";
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { lstat, realpath, unlink } from "node:fs/promises";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
+import { persistRecordingJournal, publishRecordingFile, readValidatedLayoutMigrationJournal, cleanupVerifiedRecordingSource } from "@raceiq/recording-storage/operations";
+import { hashRecordingFile, isRecordingCaptureName as isCapture, isRecordingPathContained as inside, canonicalRecordingPath as canonicalFilesystemPath, isLegacyRecordingCandidate as isLegacyCandidateFile, findLegacyRecordingFiles } from "@raceiq/recording-storage/filesystem";
 import { eq } from "drizzle-orm";
-import { db } from "../db/index";
-import { laps, sessions } from "../db/schema";
-import { resolveDataDir } from "../runtime/config/data-dir";
-import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
+import { db } from "@raceiq/backend-core/db/index";
+import { laps, sessions } from "@raceiq/backend-core/db/schema";
+import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
+import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
 import { getAllGames } from "@raceiq/shared/games/registry";
-import { withSessionCaptureMaintenanceLock } from "./cleanup";
+import { withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
 import { getRecordingDirectoryMoveStatus, preflightRecordingDirectoryMove, recoverRecordingDirectoryMove, relocateRecordingDirectoryUnderReservation } from "./relocate-recordings";
-import { reserveRecordingStorageOperation } from "./storage-activity";
-import { isSessionActive } from "../telemetry/live-pipeline";
-
-import { clearSessionCaptureCache } from "./source-loader";
-import { cacheDelete } from "../db/telemetry-replay-storage";
+import { reserveRecordingStorageOperation, registerLayoutMigrationPendingCheck } from "@raceiq/backend-core/session-capture/storage-activity";
+import { isSessionActive } from "@raceiq/backend-core/telemetry/live-pipeline";
+import { clearSessionCaptureCache } from "@raceiq/backend-core/session-capture/source-loader";
+import { cacheDelete } from "@raceiq/backend-core/db/telemetry-replay-storage";
 export type LayoutMigrationProgress = { status: "idle" | "running" | "success" | "partial" | "error"; done: number; total: number; migrated: number; failed: number; error: string | null; phase?: "organizing" | "relocating" | null };
 type SessionReference = { sessionId: number; oldPath: string; newPath: string };
 type JournalEntry = { source: string; digest: string; destinations: string[]; published: string[]; references: SessionReference[]; cutover: boolean };
@@ -34,124 +32,30 @@ function notifyLayoutMigrationComplete(): void {
     try { listener(); } catch (error) { console.error("[LayoutMigration] Completion listener failed:", error); }
   }
 }
-const extensions = [".bin", ".bin.gz", ".motec.zip"];
-const isCapture = (name: string) => extensions.some((extension) => name.endsWith(extension));
-async function fileHash(path: string): Promise<string> {
-  const hash = createHash("sha256");
-  for await (const chunk of createReadStream(path)) hash.update(chunk);
-  return hash.digest("hex");
-}
+async function fileHash(path: string): Promise<string> { return (await hashRecordingFile(path)).sha256; }
 function expectedDestination(root: string, source: string, owner: string, game: string): string {
   return resolve(join(root, game, owner === "others" ? "others" : "own", basename(source)));
 }
-const inside = (root: string, path: string) => { const rel = relative(root, path); return rel !== "" && rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel); };
-async function validateLegacyPath(root: string, path: string, requireCaptureName = true): Promise<boolean> {
-  const parts = relative(root, path).split(sep);
-  if (!inside(root, path) || parts.length !== 2 || (requireCaptureName && !isCapture(parts[1]))) return false;
-  const rootInfo = await lstat(root).catch(() => null);
-  const parent = await lstat(join(root, parts[0])).catch(() => null);
-  if (rootInfo?.isSymbolicLink() || (rootInfo && !rootInfo.isDirectory()) || parent?.isSymbolicLink() || (parent && !parent.isDirectory())) return false;
-  const file = await lstat(path).catch(() => null);
-  return file === null || (file.isFile() && !file.isSymbolicLink());
-}
-async function canonicalFilesystemPath(path: string): Promise<string> {
-  let current = resolve(path);
-  const suffix: string[] = [];
-  while (true) {
-    try { return resolve(await realpath(current), ...suffix); }
-    catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-      const parent = dirname(current);
-      if (parent === current) throw error;
-      suffix.unshift(basename(current));
-      current = parent;
-    }
-  }
-}
-async function isLegacyCandidateFile(root: string, path: string, requireCaptureName = true): Promise<boolean> {
-  if (!await validateLegacyPath(root, path, requireCaptureName)) return false;
-  const directory = await lstat(dirname(path)).catch(() => null);
-  const file = await lstat(path).catch(() => null);
-  return Boolean(directory?.isDirectory() && !directory.isSymbolicLink() && file?.isFile() && !file.isSymbolicLink());
-}
 
 async function readJournal(): Promise<Journal | null> {
-  const journalInfo = await lstat(journalFile).catch((error) => { if ((error as NodeJS.ErrnoException).code === "ENOENT") return null; throw error; });
-  if (!journalInfo) return null;
-  if (!journalInfo.isFile() || journalInfo.isSymbolicLink()) throw new Error("Unsafe recording migration journal");
-  let value: unknown;
-  try { value = JSON.parse(await readFile(journalFile, "utf8")); }
-  catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return null; throw error; }
-  if (!value || typeof value !== "object") throw new Error("Invalid recording migration journal");
-  const journal = value as Journal;
-  if (typeof journal.root === "string" && journal.destination === undefined) journal.destination = journal.root;
-  if (typeof journal.root === "string" && journal.phase === undefined) journal.phase = "organizing";
-  const knownGames = new Set<string>(getAllGames().map((game) => game.id));
-  if (journal.version !== 1 || typeof journal.root !== "string" || !isAbsolute(journal.root) || resolve(journal.root) !== journal.root ||
-      typeof journal.destination !== "string" || !isAbsolute(journal.destination) || resolve(journal.destination) !== journal.destination ||
-      !["organizing", "relocating"].includes(journal.phase) || !Array.isArray(journal.entries) || !journal.progress ||
-      !["idle", "running", "success", "partial", "error"].includes(journal.progress.status)) throw new Error("Invalid recording migration journal");
-  const currentRoot = await canonicalFilesystemPath(resolveRecordingDirectory());
-  const sourceRoot = await canonicalFilesystemPath(journal.root);
-  const destinationRoot = await canonicalFilesystemPath(journal.destination);
-  if (currentRoot !== sourceRoot && currentRoot !== destinationRoot) throw new Error("Recording migration journal belongs to a different recording root");
-  const relocated = currentRoot === destinationRoot && currentRoot !== sourceRoot;
-  const sources = new Set<string>();
-  for (const entry of journal.entries) {
-    if (!entry || typeof entry.source !== "string" || resolve(entry.source) !== entry.source || !inside(journal.root, entry.source) ||
-      (!relocated && !(await validateLegacyPath(journal.root, entry.source, false))) ||
-      !knownGames.has(relative(journal.root, entry.source).split(sep)[0]) || typeof entry.digest !== "string" || !/^[a-f0-9]{64}$/.test(entry.digest) || !Array.isArray(entry.destinations) || !Array.isArray(entry.published) || !Array.isArray(entry.references) ||
-      typeof entry.cutover !== "boolean" || entry.destinations.length === 0 || new Set(entry.destinations).size !== entry.destinations.length || sources.has(entry.source) ||
-      entry.published.some((path) => !entry.destinations.includes(path))) throw new Error("Unsafe recording migration journal");
-    sources.add(entry.source);
-    for (const destination of entry.destinations) {
-      const parts = relative(journal.root, destination).split(sep);
-      if (!isAbsolute(destination) || !inside(journal.root, destination) || resolve(destination) !== destination ||
-        !knownGames.has(parts[0]) || !["own", "others"].includes(parts[1]) || parts.length !== 3 || parts[2] !== basename(entry.source)) throw new Error("Unsafe recording migration destination");
-    }
-    for (const ref of entry.references) {
-      if (!Number.isSafeInteger(ref.sessionId) || typeof ref.oldPath !== "string" || !isAbsolute(ref.oldPath) || resolve(ref.oldPath) !== ref.oldPath ||
-          !entry.destinations.includes(ref.newPath) || await canonicalFilesystemPath(ref.oldPath) !== await canonicalFilesystemPath(entry.source)) throw new Error("Unsafe recording migration reference");
-      const oldInfo = await lstat(ref.oldPath).catch(() => null);
-      if (oldInfo?.isSymbolicLink()) throw new Error("Unsafe recording migration reference source");
-    }
-  }
-  for (const entry of journal.entries) {
-    let referenced = false;
-    for (const ref of entry.references) {
-      const row = await db.select({ gameId: sessions.gameId, ownership: sessions.ownership, rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, ref.sessionId)).get();
-      if (row && expectedDestination(journal.root, ref.oldPath, row.ownership, row.gameId) !== ref.newPath) throw new Error("Unsafe recording migration reference destination");
-      if (row && (row.rawFile === ref.oldPath || row.rawFile === ref.newPath || row.rawFile === expectedDestination(journal.destination, ref.oldPath, row.ownership, row.gameId))) referenced = true;
-    }
-    if (!isCapture(basename(entry.source)) && !referenced) throw new Error("Unreferenced non-recording file in migration journal");
-    if (!entry.references.length && (entry.destinations.length !== 1 || entry.destinations[0] !== expectedDestination(journal.root, entry.source, "mine", relative(journal.root, entry.source).split(sep)[0]))) throw new Error("Unsafe orphan recording destination");
-  }
-  return journal;
+  return await readValidatedLayoutMigrationJournal(journalFile, {
+    currentDirectory: resolveRecordingDirectory(),
+    knownGames: new Set<string>(getAllGames().map((game) => game.id)),
+    isReferenced: async (reference, entry, parsed) => {
+      const row = await db.select({ gameId: sessions.gameId, ownership: sessions.ownership, rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, reference.sessionId)).get();
+      if (row && expectedDestination(parsed.root, reference.oldPath, row.ownership, row.gameId) !== reference.newPath) return false;
+      if (!isCapture(basename(entry.source)) && row && (row.rawFile === reference.oldPath || row.rawFile === reference.newPath
+        || row.rawFile === expectedDestination(parsed.destination ?? parsed.root, reference.oldPath, row.ownership, row.gameId))) return true;
+      return false;
+    },
+  }) as Journal | null;
 }
 async function saveJournal(journal: Journal): Promise<void> {
-  const temp = `${journalFile}.${process.pid}.${randomUUID()}.tmp`;
-  const handle = await open(temp, "wx", 0o600);
-  try { await handle.writeFile(JSON.stringify(journal)); await handle.sync(); } finally { await handle.close(); }
-  await rename(temp, journalFile);
-  try { const directory = await open(dirname(journalFile), "r"); try { await directory.sync(); } finally { await directory.close(); } } catch { /* Directory sync unavailable on some platforms. */ }
-}
-async function findLegacyFiles(root: string): Promise<string[]> {
-  const knownGames = new Set<string>(getAllGames().map((game) => game.id));
-  const result: string[] = [];
-  let games;
-  try { games = await readdir(root, { withFileTypes: true }); } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return result; throw error; }
-  for (const game of games) {
-    if (!game.isDirectory() || game.name === "own" || game.name === "others" || !knownGames.has(game.name)) continue;
-    const directory = join(root, game.name);
-    let files;
-    try { files = await readdir(directory, { withFileTypes: true }); } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") continue; throw error; }
-    for (const file of files) if (file.isFile() && isCapture(file.name)) result.push(join(directory, file.name));
-  }
-  return result;
+  await persistRecordingJournal(journalFile, journal);
 }
 async function buildEntries(): Promise<JournalEntry[]> {
   const root = resolveRecordingDirectory();
-  const legacy = await findLegacyFiles(root);
+  const legacy = await findLegacyRecordingFiles(root, new Set<string>(getAllGames().map((game) => game.id)));
   const refs = await db.select({ id: sessions.id, gameId: sessions.gameId, ownership: sessions.ownership, rawFile: sessions.rawFile }).from(sessions).all();
   const grouped = new Map<string, typeof refs>();
   const filesystemRoot = await realpath(root).catch(() => root);
@@ -222,6 +126,7 @@ export async function hasPendingLayoutMigration(): Promise<boolean> {
   const journal = await readJournal();
   return Boolean(journal);
 }
+registerLayoutMigrationPendingCheck(hasPendingLayoutMigration);
 export async function isLayoutMigrationReadyForStartup(): Promise<boolean> {
   const generation = migrationGeneration;
   const blocked = () => active || progress.status === "running" || progress.status === "partial" || progress.status === "error";
@@ -230,7 +135,7 @@ export async function isLayoutMigrationReadyForStartup(): Promise<boolean> {
   const move = getRecordingDirectoryMoveStatus();
   if (move.state === "moving" || move.state === "error") return false;
   const root = resolveRecordingDirectory();
-  if ((await findLegacyFiles(root)).length) return false;
+  if ((await findLegacyRecordingFiles(root, new Set<string>(getAllGames().map((game) => game.id)))).length) return false;
   const knownGames = new Set<string>(getAllGames().map((game) => game.id));
   const filesystemRoot = await realpath(root).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? root : Promise.reject(error));
   for (const ref of await db.select({ rawFile: sessions.rawFile }).from(sessions).all()) {
@@ -249,19 +154,7 @@ export async function isLayoutMigrationReadyForStartup(): Promise<boolean> {
     && !["moving", "error"].includes(getRecordingDirectoryMoveStatus().state);
 }
 async function publish(source: string, target: string, digest: string): Promise<void> {
-  await mkdir(dirname(target), { recursive: true });
-  const temp = `${target}.${process.pid}.migration-tmp`;
-  try {
-    await copyFile(source, temp, constants.COPYFILE_EXCL);
-    const metadata = await stat(source);
-    await chmod(temp, metadata.mode & 0o777);
-    await utimes(temp, metadata.atime, metadata.mtime);
-    if (await fileHash(source) !== digest || await fileHash(temp) !== digest) throw new Error("Copied recording failed verification");
-    // Windows requires write access when flushing file buffers.
-    const file = await open(temp, "r+"); try { await file.sync(); } finally { await file.close(); }
-    await link(temp, target);
-    try { const dir = await open(dirname(target), "r"); try { await dir.sync(); } finally { await dir.close(); } } catch { /* Directory fsync may be unsupported. */ }
-  } finally { await unlink(temp).catch(() => undefined); }
+  await publishRecordingFile(source, target, digest, async (path) => (await fileHash(path)));
 }
 export async function startLayoutMigration(directory?: string): Promise<void> {
   if (active) throw Object.assign(new Error("Layout migration is already running"), { code: "MIGRATION_ACTIVE" });
@@ -330,10 +223,9 @@ export async function startLayoutMigration(directory?: string): Promise<void> {
         for (const target of entry.destinations) if (await fileHash(target) !== entry.digest) throw new Error(`Published recording changed: ${target}`);
         for (const reference of entry.references) for (const lap of await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, reference.sessionId)).all()) cacheDelete(lap.id);
         clearSessionCaptureCache();
-        if (sourceExists) await unlink(entry.source);
+        if (sourceExists) await cleanupVerifiedRecordingSource(dirname(dirname(entry.source)), entry.source, entry.digest, fileHash);
         entry.cutover = true;
         progress.migrated++;
-        await rmdir(dirname(entry.source)).catch(() => undefined);
       } catch (error) { progress.failed++; progress.error = error instanceof Error ? error.message : "Layout migration failed"; }
       progress.done++;
       journal.progress = { ...progress };

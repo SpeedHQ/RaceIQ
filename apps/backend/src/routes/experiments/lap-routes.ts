@@ -13,7 +13,7 @@ import { getExperiment, setSessionHead } from "@raceiq/backend-core/db/experimen
 import { createExperimentVersion, getExperimentVersion, listExperimentVersions, nextVersion } from "@raceiq/backend-core/db/experiment-version-queries";
 import { recordAction } from "@raceiq/backend-core/db/experiment-action-queries";
 import { resolveLapCorners } from "../../tracks/corner-resolution";
-import { computeLineSpreadTrace } from "@raceiq/backend-core/lap-analysis/consistency";
+import { computeLineSpreadTrace } from "@raceiq/analysis-core/racing/analysis/laps/consistency";
 import { selectCleanLaps } from "../../experiments/lap-evidence/selection";
 import { fastestLaps } from "@raceiq/analysis-core/racing/laps/review-selection";
 import { deriveFuelPerLap, deriveTyreWear, type LapMetric } from "@raceiq/backend-core/lap-analysis/metrics";

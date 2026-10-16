@@ -1,4 +1,4 @@
-import { computeRecap, type RecapLapInput, type RecapSessionInput } from "../../lap-analysis/recap";
+import { computeRecap, type RecapLapInput, type RecapSessionInput } from "@raceiq/analysis-core/racing/analysis/laps/recap";
 
 export const baseSession: RecapSessionInput = {
   id: 1,

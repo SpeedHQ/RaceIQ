@@ -1,0 +1,13 @@
+{
+  "name": "@raceiq/recording-storage",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./filesystem": "./src/filesystem.ts",
+    "./operations": "./src/operations.ts"
+  },
+  "scripts": {
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/recording-storage",
+    "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/recording-storage"
+  }
+}

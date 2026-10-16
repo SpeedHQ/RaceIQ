@@ -10,7 +10,7 @@ import { sessions } from "@raceiq/backend-core/db/schema";
 import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { beginRecordingStorageImport } from "@raceiq/backend-core/session-capture/storage-activity";
-import { preflightRecordingDirectoryMove, startRecordingDirectoryMove, getRecordingDirectoryMoveStatus, recoverRecordingDirectoryMove } from "@raceiq/backend-core/session-capture/relocate-recordings";
+import { preflightRecordingDirectoryMove, startRecordingDirectoryMove, getRecordingDirectoryMoveStatus, recoverRecordingDirectoryMove } from "../../src/session-capture/relocate-recordings";
 
 async function waitForMove(): Promise<void> {
   // The move runs on real filesystem I/O in a detached background task; fake timers cannot advance that work.

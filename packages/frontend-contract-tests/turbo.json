@@ -8,13 +8,16 @@
     },
     "test": {
       "dependsOn": ["transit", "client#i18n:compile"],
-      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/test/artifacts/carsetup/mustang.carsetup", "$TURBO_ROOT$/test/artifacts/carsetup/Tourist.carsetup", "$TURBO_ROOT$/test/artifacts/carsetup/Default-12312.carsetup"]
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/test/artifacts/carsetup/mustang.carsetup", "$TURBO_ROOT$/test/artifacts/carsetup/Tourist.carsetup", "$TURBO_ROOT$/test/artifacts/carsetup/Default-12312.carsetup", "$TURBO_ROOT$/apps/backend/test/support/setup-app.ts", "$TURBO_ROOT$/server/test-support/setup-data-dir.ts"]
     },
     "test:unit": { "dependsOn": ["transit", "client#i18n:compile"] },
-    "test:tooling": { "dependsOn": ["transit", "client#i18n:compile"] },
+    "test:tooling": {
+      "dependsOn": ["transit", "client#i18n:compile"],
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/apps/backend/test/support/setup-app.ts", "$TURBO_ROOT$/server/test-support/setup-data-dir.ts"]
+    },
     "test:integration": {
       "dependsOn": ["transit", "client#i18n:compile"],
-      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/test/artifacts/carsetup/mustang.carsetup", "$TURBO_ROOT$/test/artifacts/carsetup/Tourist.carsetup", "$TURBO_ROOT$/test/artifacts/carsetup/Default-12312.carsetup"]
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/test/artifacts/carsetup/mustang.carsetup", "$TURBO_ROOT$/test/artifacts/carsetup/Tourist.carsetup", "$TURBO_ROOT$/test/artifacts/carsetup/Default-12312.carsetup", "$TURBO_ROOT$/apps/backend/test/support/setup-app.ts", "$TURBO_ROOT$/server/test-support/setup-data-dir.ts"]
     },
     "test:e2e:recordings": {
       "dependsOn": ["transit", "client#i18n:compile"],

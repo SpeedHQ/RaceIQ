@@ -5,7 +5,8 @@
   "exports": {
     "./driver-profile/fingerprint": "./src/driver-profile/fingerprint.ts",
     "./routes/index": "./src/routes/index.ts",
-    "./routes/tunes/index": "./src/routes/tunes/index.ts"
+    "./routes/tunes/index": "./src/routes/tunes/index.ts",
+    "./session-capture/relocate-recordings": "./src/session-capture/relocate-recordings.ts"
   },
   "scripts": {
     "typecheck": "bunx tsc --build tsconfig.json --noEmit --force",
@@ -60,6 +61,7 @@
     "@raceiq/game-fm-2023-metadata": "workspace:*",
     "@raceiq/game-f1-2025-metadata": "workspace:*",
     "@raceiq/analysis-core": "workspace:*",
+    "@raceiq/recording-storage": "workspace:*",
     "@raceiq/telemetry-core": "workspace:*"
   }
 }

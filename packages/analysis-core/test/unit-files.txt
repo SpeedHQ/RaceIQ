@@ -10,3 +10,16 @@ packages/analysis-core/test/lap-analysis/stint-stats.test.ts
 packages/analysis-core/test/lap-analysis/stint-trace-codec.test.ts
 packages/analysis-core/test/lap-analysis/time-loss.test.ts
 packages/analysis-core/test/lap-analysis/wheel-calibration.test.ts
+packages/analysis-core/test/lap-analysis/consistency.test.ts
+packages/analysis-core/test/lap-analysis/input-stats.test.ts
+packages/analysis-core/test/lap-analysis/statistics.test.ts
+packages/analysis-core/test/experiments/curation.test.ts
+packages/analysis-core/test/experiments/stats-guardrails.test.ts
+packages/analysis-core/test/experiments/arms/outcome-metrics.test.ts
+packages/analysis-core/test/experiments/arms/outcomes.test.ts
+packages/analysis-core/test/experiments/arms/review-fixes.test.ts
+packages/analysis-core/test/experiments/arms/reporting.test.ts
+packages/analysis-core/test/lap-analysis/recap/consistency-personal-best.test.ts
+packages/analysis-core/test/lap-analysis/recap/core-pace.test.ts
+packages/analysis-core/test/lap-analysis/recap/edge-cases.test.ts
+packages/analysis-core/test/lap-analysis/recap/sectors.test.ts

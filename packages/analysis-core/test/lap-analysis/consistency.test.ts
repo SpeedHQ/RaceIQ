@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { computeLapConsistencyDelta, computeLineSpreadTrace, LINE_SPREAD_THRESHOLD_M, INPUT_VAR_THRESHOLD } from "@raceiq/backend-core/lap-analysis/consistency";
-import type { Corner } from "@raceiq/backend-core/lap-analysis/corners";
+import { computeLapConsistencyDelta, computeLineSpreadTrace, LINE_SPREAD_THRESHOLD_M, INPUT_VAR_THRESHOLD } from "@raceiq/analysis-core/racing/analysis/laps/consistency";
+import type { ConsistencyCorner as Corner } from "@raceiq/analysis-core/racing/analysis/laps/consistency";
 
 /**
  * `computeLapConsistencyDelta` is pure math over resampled lap paths — these

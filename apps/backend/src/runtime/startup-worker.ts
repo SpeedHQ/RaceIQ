@@ -1,7 +1,7 @@
 import { Worker } from "node:worker_threads";
 import { IS_COMPILED } from "@raceiq/backend-core/runtime/config/paths";
 import type { ReprocessResult } from "@raceiq/backend-core/session-capture/reprocess";
-import { isLayoutMigrationReadyForStartup, subscribeLayoutMigrationComplete } from "@raceiq/backend-core/session-capture/layout-migration";
+import { isLayoutMigrationReadyForStartup, subscribeLayoutMigrationComplete } from "../session-capture/layout-migration";
 
 type WorkerMessage = { type: "publication" } | { type: "ready" } | { type: "lap-reprocessed"; reprocessed: ReprocessResult } | { type: "clear-stale-sessions" } | { type: "error"; task: string; error: string } | { type: "stopped" };
 export interface StartupWorkerHandle { stop(): Promise<void>; }

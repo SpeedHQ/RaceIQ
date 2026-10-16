@@ -28,7 +28,7 @@
  * always produce the same CI.
  */
 
-import type { Corner } from "../../lap-analysis/corners";
+import type { ConsistencyCorner } from "@raceiq/analysis-core/racing/analysis/laps/consistency";
 import type { EvaluableLap } from "@raceiq/analysis-core/racing/laps/review-selection";
 import {
   type ArmLap,
@@ -41,8 +41,8 @@ import {
   type MetricSample,
   type OutcomeMetric,
   comparisonFences,
-} from "./metrics";
-import { percentileSorted } from "../statistics";
+} from "@raceiq/analysis-core/racing/experiments/metrics";
+import { percentileSorted } from "@raceiq/analysis-core/racing/experiments/statistics";
 
 /**
  * Minimum samples per arm for any confident statement. Three is the point at
@@ -146,7 +146,7 @@ export interface ArmInput {
   label?: string | null;
   /** Raw, UNCURATED laps for this arm — curation is the metric's job. */
   laps: ArmLap[];
-  corners?: Corner[];
+  corners?: ConsistencyCorner[];
 }
 
 export interface CompareArmsOptions {
