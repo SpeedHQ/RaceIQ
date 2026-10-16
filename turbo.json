@@ -773,9 +773,7 @@
       "cache": false
     },
     "lint": {
-      "dependsOn": [
-        "transit"
-      ],
+      "dependsOn": ["transit"],
       "outputs": [],
       "cache": true
     },
@@ -784,6 +782,9 @@
     },
     "client#build": {
       "dependsOn": ["i18n:compile"]
+    },
+    "client#typecheck": {
+      "dependsOn": ["transit", "i18n:compile"]
     },
     "dev": {
       "cache": false,

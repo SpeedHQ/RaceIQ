@@ -39,7 +39,7 @@
     "test:upgrade": "bun scripts/ci/upgrade-smoke.ts",
     "test:all": "bun scripts/test/run-all.ts",
     "test:e2e:all": "bun run build && bun run test:e2e:recordings && E2E_SERVER_MODE=compiled PW_SERVER_SET=all bunx turbo run test --filter=raceiq-e2e",
-    "typecheck": "bunx turbo run i18n:compile --filter=client && bun check --build client/tsconfig.json && bun run typecheck:storybook && bun run --sequential --filter '@raceiq/*' typecheck",
+    "typecheck": "bunx turbo run typecheck",
     "typecheck:storybook": "bun check --project client/tsconfig.stories.json",
     "typecheck:scripts": "bun check --project scripts/tsconfig.json",
     "lint": "bunx turbo run lint",

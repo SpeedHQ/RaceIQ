@@ -8,6 +8,7 @@
     "test": "bun run i18n:compile && bun test ./test",
     "i18n:compile": "bun ../scripts/dev/paraglide-build.ts --client-root .",
     "build": "vite build && bun check --build",
+    "typecheck": "bun check --build tsconfig.json && bun check --project tsconfig.stories.json",
     "lint": "oxlint .",
     "lint:client": "oxlint .",
     "format": "oxfmt --write .",
