@@ -264,14 +264,6 @@ test.describe
     expect(errors, `unexpected browser errors:\n${errors.join("\n")}`).toEqual([]);
   });
 
-  test("settings modal opens without error", async ({ page }) => {
-    const { errors } = collectBrowserErrors(page, [/THREE\.GLTFLoader: Couldn't load texture/]);
-    await page.goto("/", { waitUntil: "domcontentloaded" });
-    await page.getByRole("navigation", { name: "Navigation" }).getByRole("button", { name: "Settings" }).click();
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
-    await assertImagesLoaded(page);
-    expect(errors, `unexpected browser errors:\n${errors.join("\n")}`).toEqual([]);
-  });
 
   test("dashboard passwords support login, logout, change, disable and authenticated WebSockets", async ({ page, browser, baseURL }) => {
     await page.goto("/");

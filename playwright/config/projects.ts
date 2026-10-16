@@ -22,14 +22,6 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       use: { baseURL: freshBaseURL, viewport: { width: 1280, height: 900 } },
     },
     {
-      name: "marketing",
-      testMatch: "marketing/**/*.spec.ts",
-      use: {
-        baseURL: process.env.MARKETING_BASE_URL ?? seededBaseURL,
-        viewport: { width: 1920, height: 1080 },
-      },
-    },
-    {
       name: "mobile-screenshots",
       testMatch: "responsive/mobile-screenshots.spec.ts",
       use: { baseURL: seededBaseURL },

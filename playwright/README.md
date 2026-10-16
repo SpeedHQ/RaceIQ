@@ -7,12 +7,12 @@ This suite owns route-level browser tests and screenshot evidence. It is separat
 | Project | Match | Server/data |
 | --- | --- | --- |
 | `fresh-install` | `fresh-install/**/*.spec.ts`, `responsive/workspaces.spec.ts` | Fresh compiled or dev app |
-| `marketing` | `marketing/**/*.spec.ts` | `MARKETING_BASE_URL` (default `https://raceiq.localhost`) |
 | `mobile-screenshots` | `responsive/mobile-screenshots.spec.ts` | Seeded app |
 | `tunes` | `tunes/**/*.spec.ts` | Tunes app |
 | `mobile-device`, `tablet-device` | `responsive/device.spec.ts` | Seeded app with Chromium device emulation |
 | `seeded-e2e` | `seeded/**/*.spec.ts` | Seeded app |
 | `record-demo` | `recording/demo.spec.ts` | Fresh app with GPU launch flags |
+Marketing screenshot captures live in `tests/marketing/` but run only through `marketing-screenshots.config.ts` and `bun run screenshots`; they are not E2E project coverage.
 
 Config uses `tests/` as `testDir`; no specs belong at `tests/` root. Stateful projects stay ordered on one worker. Only seeded screenshot runs enable parallel screenshot workers.
 
@@ -34,7 +34,7 @@ PW_SERVER_SET=fresh bunx playwright test --project=fresh-install
 
 `E2E_SERVER_MODE` is `compiled` by default and accepts `dev` or `compiled`. Compiled mode launches `dist/raceiq` (`raceiq.exe` on Windows); build first. Dev mode launches Bun server and Vite client. `PW_SERVER_SET` accepts `all`, `fresh`, `tunes`, or `seeded` and limits web-server instances. `PW_SCREENSHOT_ONLY=1` omits tunes server; pair with `PW_SEED_SCREENSHOTS=1` for read-only parallel screenshot capture. Port and data overrides are `PW_FRESH_INSTALL_*`, `PW_TUNES_*`, and `PW_SEEDED_E2E_*` (`PORT`, `CLIENT_PORT`, `UDP_PORT`, `DATA_DIR`). `RACEIQ_APP_ROOT` overrides repository root for dev launcher subprocesses. `CI` controls retry/reporter defaults; `PW_SCREENSHOT_WORKERS` controls screenshot worker count.
 
-Generate committed marketing images in `assets/screenshots/` with `E2E_SERVER_MODE=dev PW_SERVER_SET=seeded PW_SCREENSHOT_ONLY=1 PW_SEED_SCREENSHOTS=1 bun run screenshots` from `playwright/`. To refresh Home only, append `--grep 'screenshot: home$'`. The Home capture waits for dashboard metadata and loading panels to finish; it fails instead of saving a loading or error state. The root-level `bun run screenshots` command generates responsive evidence, not these marketing assets.
+Generate marketing images in `assets/screenshots/` with `E2E_SERVER_MODE=dev PW_SERVER_SET=seeded PW_SCREENSHOT_ONLY=1 PW_SEED_SCREENSHOTS=1 bun run screenshots` from `playwright/`. To refresh Home only, append `--grep 'screenshot: home$'`. The Home capture waits for dashboard metadata and loading panels to finish; it fails instead of saving a loading or error state. This screenshot-capture runner is separate from E2E projects. The root-level `bun run screenshots` command generates responsive evidence, not these marketing assets.
 Storybook screenshot tests create missing baselines on first run and compare them on later runs.
 
 Launchers and screenshot database seeding live together in `support/server/`. They resolve repository root from their deeper location before starting application processes.
