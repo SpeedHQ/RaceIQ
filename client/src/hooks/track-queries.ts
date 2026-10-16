@@ -26,7 +26,7 @@ export function useTrackName(trackId: string | undefined) {
       const res = await trackIdRoutes["track-name"][":trackId"].$get({ param: { trackId: encodeURIComponent(trackId!) }, query: { gameId: gameId! } });
       return res.ok ? res.text() : "";
     },
-    enabled: trackId != null && gameId != null,
+    enabled: trackId != null && trackId.length > 0 && gameId != null,
   });
 }
 

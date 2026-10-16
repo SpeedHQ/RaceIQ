@@ -1,3 +1,4 @@
+import { supportsPositionDependentSceneFeature } from "../lib/wireframe-capabilities";
 import { tryGetGame } from "@raceiq/shared/games/registry"
 import { resolveAnalysisTelemetry } from "@raceiq/shared/racing/analysis/telemetry-capabilities"
 import { flipBoundaries, needsTrackFlip } from "@raceiq/shared/racing/tracks/coords"
@@ -157,11 +158,21 @@ export const CarWireframe = React.memo(function CarWireframe({
     sync();
     return () => cancelAnimationFrame(animationFrame);
   }, [poses, source.cursorRef]);
+  const positionAvailable = (feature: "track" | "racingLine" | "trails" | "inputs") =>
+    supportsPositionDependentSceneFeature(gameId, feature)
+    || (placementSource !== null && (feature === "track" || feature === "inputs" || placementSource === "native"));
+  const effectiveToggles = {
+    ...toggles,
+    track: toggles.track && positionAvailable("track"),
+    racingLine: toggles.racingLine && positionAvailable("racingLine"),
+    trails: toggles.trails && positionAvailable("trails"),
+    inputs: toggles.inputs && positionAvailable("inputs"),
+  };
   const viewToggleItems = [
-    { key: "trails" as const, label: m.carwire_trails(), available: placementSource === "native" },
-    { key: "inputs" as const, label: m.carwire_inputs(), available: true },
-    { key: "track" as const, label: m.carwire_track(), available: true },
-    { key: "racingLine" as const, label: m.overlay_racing_line(), available: placementSource === "native" && Array.isArray(flippedBoundaries?.raceLine) && flippedBoundaries.raceLine.length > 1 },
+    { key: "trails" as const, label: m.carwire_trails(), available: positionAvailable("trails") },
+    { key: "inputs" as const, label: m.carwire_inputs(), available: positionAvailable("inputs") },
+    { key: "track" as const, label: m.carwire_track(), available: positionAvailable("track") },
+    { key: "racingLine" as const, label: m.overlay_racing_line(), available: positionAvailable("racingLine") && Array.isArray(flippedBoundaries?.raceLine) && flippedBoundaries.raceLine.length > 1 },
     { key: "grid" as const, label: m.carwire_grid(), available: true },
     { key: "wheelInfo" as const, label: m.carwire_tire_info(), available: true },
   ]
@@ -198,11 +209,11 @@ export const CarWireframe = React.memo(function CarWireframe({
     runtimeRef.current?.updateConfig({
       gameId, frame, telemetry, cursorIdx, outline: sceneOutline, measuredPath, poses, boundaries: sceneBoundaries,
       boundarySpace: measuredTrack ? "measured" : derivedTrack ? "lap-fraction" : "native",
-      toggles, viewPreset, carModel, modelOffsetX, hideModelWheels: !minimal,
+      toggles: effectiveToggles, viewPreset, carModel, modelOffsetX, hideModelWheels: !minimal,
       autoOrbit: !!autoOrbit, fpsCap: displaySettings.renderFpsCap,
       fmtTemp, suspThresholds, pressureOptimal, temperatureThresholds: units.thresholds, temperatureSemanticId,
     });
-  }, [gameId, frame, telemetry, cursorIdx, sceneOutline, measuredPath, poses, derivedTrack, measuredTrack, sceneBoundaries, toggles, viewPreset, carModel, modelOffsetX, minimal, autoOrbit, displaySettings.renderFpsCap, fmtTemp, suspThresholds, pressureOptimal, units.thresholds, temperatureSemanticId]);
+  }, [gameId, frame, telemetry, cursorIdx, sceneOutline, measuredPath, poses, derivedTrack, measuredTrack, sceneBoundaries, effectiveToggles, viewPreset, carModel, modelOffsetX, minimal, autoOrbit, displaySettings.renderFpsCap, fmtTemp, suspThresholds, pressureOptimal, units.thresholds, temperatureSemanticId]);
 
   return (
     <div className="w-full h-full relative flex-1">
