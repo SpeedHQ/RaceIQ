@@ -26,8 +26,12 @@
 ### Fixes
 - Prompt to split existing sparse session recordings at startup, including seeded recordings, while automatically splitting newly imported sparse recordings.
 - Keep iRacing lap timing, validity, and pit classification consistent between live telemetry and imported recordings when the native lap timer rolls over late.
-- Preserve telemetry, saved lap times, and validity when reopening imported iRacing lap archives after a restart.
+- Preserve telemetry, replay lap clocks, saved lap times, and validity when transferring iRacing lap archives or reopening them after a restart.
 - Preserve split lap recordings and queued split jobs when moving the recording folder.
+- Keep the final timing sample consistent between individual and multi-lap replay of imported recordings.
+- Preserve selected imported laps when reprocessing recordings with separate finish context.
+- Restore command-line recording imports and exports, and report failed or partially imported archives with a failing exit status.
+- Finish recording shutdown cleanly when a background recording worker exits unexpectedly.
 - Restore migration of existing recordings into organized folders on Windows.
 - Keep experiment lap counts and review analysis tied to the selected test when importing historical laps or returning to an older setup, and preserve test membership during live updates.
 - Keep lap-chat follow-ups grounded in the selected lap and its latest analysis, use fresh telemetry for requested corner measurements, and preserve earlier driver notes without asking for internal lap identifiers.
@@ -41,6 +45,7 @@
 - Create multiple confirmed setup alternatives in the same experiment chat reply without incorrectly asking drivers to refresh.
 
 ### Internal
+- Harden release-gated live recording ownership, recovery, relocation, and cancelled staging-reader cleanup.
 
 ## v0.20.0 - 2026-10-15
 

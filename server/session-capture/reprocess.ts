@@ -15,6 +15,8 @@ import { enqueueSessionCaptureSplit, updateSessionRawFile } from "../db/session-
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "./frame-time";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { isDelayedFinishContext } from "../db/telemetry-replay-storage";
 export interface ReprocessResult {
   sessionId: number;
   lapsDetected: number;
@@ -97,6 +99,8 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
     let parserState: unknown = serverGame.createParserState?.() ?? null;
     let inContext = false;
     let segmentHasFrames = false;
+    let lastOwnedPacket: TelemetryPacket | null = null;
+    let sourceOrdinal = 0;
     for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) {
       if (record.kind === "segment-boundary") {
         // Imports start a fresh detector per segment while retaining the same
@@ -106,6 +110,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
         parserState = serverGame.createParserState?.() ?? null;
         segmentHasFrames = false;
         inContext = false;
+        lastOwnedPacket = null;
         continue;
       }
       if (record.kind === "segment-context") {
@@ -127,11 +132,20 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
         continue;
       }
       if (record.kind !== "frame") continue;
-      if (!inContext) segmentHasFrames = true;
+      const ordinal = sourceOrdinal++;
       const packet = serverGame.tryParse(record.frame, parserState);
-      if (packet && !inContext) {
-        applyFrameTime(packet, record.frameTimeMs);
-        await detector.feed(packet, record.offset);
+      if (!packet) continue;
+      applyFrameTime(packet, record.frameTimeMs);
+      if (inContext) {
+        // Completion context may finish the preceding lap, but never owns source records.
+        if (lastOwnedPacket && (packet.LapNumber > lastOwnedPacket.LapNumber ||
+            isDelayedFinishContext(lastOwnedPacket, packet))) {
+          await detector.feed(packet, undefined, ordinal);
+        }
+      } else {
+        segmentHasFrames = true;
+        lastOwnedPacket = packet;
+        await detector.feed(packet, record.offset, ordinal);
       }
     }
   }

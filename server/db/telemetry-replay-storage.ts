@@ -752,7 +752,6 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
       }
       if (needsFull) {
         packet = parseReplayFrame(frame, serverGame, state, frameTimeMs);
-        if (inContext) packet = null;
       } else {
         countParserStatePrime();
         serverGame.primeParserState(frame, state);
@@ -760,7 +759,7 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
     } catch { /* malformed frame */ }
     for (const lap of active) {
       if (frameIndex < lap.end) {
-        if (packet) lap.packets.push(packet);
+        if (packet && !inContext) lap.packets.push(packet);
       } else if (frameIndex === lap.end) {
         trimRunningStartPackets(lap.packets);
         appendDelayedFinishPacket(lap.packets, packet, serverGame);

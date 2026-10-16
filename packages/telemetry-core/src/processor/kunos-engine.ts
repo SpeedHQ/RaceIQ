@@ -215,6 +215,7 @@ export class KunosDetectorEngine {
           this.lapByteOffset = this.currentRawByteOffset;
           this.lapFrameCount = rawByteOffset === undefined ? 0 : 1;
           this.lapStartOrdinal = this.currentFeedRawOrdinal;
+          this.publishOwnership("window-start", this.ownershipWindow("provisional"));
         } else {
           this.lapBuffer = [];
         }
@@ -275,6 +276,10 @@ export class KunosDetectorEngine {
     }
     const evidence = getKunosLapResetEvidence(prev, packet, this.currentLapNumber);
     if (isKunosPreLapTimerReset(prev, evidence)) {
+      const abandoned = this.ownershipWindow("incomplete");
+      this.publishOwnership("window-abandoned", Object.freeze({
+        ...abandoned, frameCount: Math.max(0, abandoned.frameCount - 1),
+      }));
       this.lapBuffer = [packet]; this.peakCurrentLap = packet.CurrentLap; this.firstLapIsPartial = false;
       this.lapByteOffset = this.currentRawByteOffset; this.lapFrameCount = rawByteOffset === undefined ? 0 : 1;
       this.lapStartOrdinal = this.currentFeedRawOrdinal;

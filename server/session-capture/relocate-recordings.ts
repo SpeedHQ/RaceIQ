@@ -18,8 +18,8 @@ import { hasPendingLayoutMigration } from "./layout-migration";
 
 export type RecordingDirectoryMoveStatus = { operationId: string | null; state: "idle" | "moving" | "complete" | "error"; phase: "copying" | "committing" | "removing-sources" | null; completedFiles: number; totalFiles: number; directory: string; code: string | null; error: string | null };
 type Entry = { source: string; destination: string; size: number; sha256: string; published: boolean; publication?: { dev: string; ino: string } };
-type ReferenceField = "rawFile" | "captureManifestFile" | "captureArchiveFile" | "sourcePath" | "stagingPath";
-type JournalReference = { sessionId: number; table?: "sessions" | "sessionCaptureSplitJobs"; field?: ReferenceField; oldPath: string; newPath: string };
+type ReferenceField = "rawFile" | "captureManifestFile" | "captureArchiveFile" | "sourcePath" | "archivePath" | "stagingPath";
+type JournalReference = { sessionId: number; table?: "sessions" | "sessionCaptureSplitJobs" | "liveCaptures"; field?: ReferenceField; oldPath: string; newPath: string };
 type Journal = { version: 1; operationId: string; oldDirectory: string; newDirectory: string; oldSetting: string | null; entries: Entry[]; references: JournalReference[] };
 type MoveTestHooks = Partial<{ copyFile: typeof copyFile; saveSettings: typeof saveSettings; unlink: typeof unlink; isSessionActive: typeof isSessionActive }>;
 const defaultMoveHooks: Required<MoveTestHooks> = { copyFile, saveSettings, unlink, isSessionActive };
@@ -122,10 +122,13 @@ async function isValidJournal(value: unknown): Promise<boolean> {
     const ref = rawRef as JournalReference;
     const legacyRef = hasExactKeys(rawRef, ["sessionId", "oldPath", "newPath"]);
     const currentRef = hasExactKeys(rawRef, ["sessionId", "table", "field", "oldPath", "newPath"]);
+    const validCurrentReference = !currentRef
+      || (ref.table === "sessions" && (ref.field === "rawFile" || ref.field === "captureManifestFile" || ref.field === "captureArchiveFile"))
+      || (ref.table === "sessionCaptureSplitJobs" && (ref.field === "sourcePath" || ref.field === "stagingPath"))
+      || (ref.table === "liveCaptures" && (ref.field === "sourcePath" || ref.field === "archivePath"));
     if ((!legacyRef && !currentRef) || !Number.isSafeInteger(ref.sessionId) || ref.sessionId <= 0
-      || currentRef && !((ref.table === "sessions" && (ref.field === "rawFile" || ref.field === "captureManifestFile" || ref.field === "captureArchiveFile"))
-        || (ref.table === "sessionCaptureSplitJobs" && (ref.field === "sourcePath" || ref.field === "stagingPath")))
-      || typeof ref.oldPath !== "string" || !isAbsolute(ref.oldPath) || typeof ref.newPath !== "string" || !isAbsolute(ref.newPath)) return false;
+      || !validCurrentReference || typeof ref.oldPath !== "string" || !isAbsolute(ref.oldPath)
+      || typeof ref.newPath !== "string" || !isAbsolute(ref.newPath)) return false;
     const field = legacyRef ? "rawFile" : ref.field;
     const table = legacyRef ? "sessions" : ref.table;
     const key = `${table}\0${field}\0${ref.sessionId}`;
@@ -239,8 +242,10 @@ async function updateReferences(references: Journal["references"], pathKey: "old
       const reference = { ...rawReference, table: rawReference.table ?? "sessions", field: rawReference.field ?? "rawFile" };
       if (reference.table === "sessions") {
         await tx.update(sessions).set({ [reference.field]: reference[pathKey] }).where(eq(sessions.id, reference.sessionId)).run();
-      } else {
+      } else if (reference.table === "sessionCaptureSplitJobs") {
         await tx.update(sessionCaptureSplitJobs).set({ [reference.field]: reference[pathKey] }).where(eq(sessionCaptureSplitJobs.sessionId, reference.sessionId)).run();
+      } else {
+        await tx.update(liveCaptures).set({ [reference.field]: reference[pathKey] }).where(eq(liveCaptures.sessionId, reference.sessionId)).run();
       }
     }
   });
@@ -289,17 +294,18 @@ async function executeMove(directory: string, operationId: string, hooks: Requir
   const rawOld = resolveRecordingDirectory();
   const oldDirectory = await realpath(rawOld).catch((error) => (error as NodeJS.ErrnoException).code === "ENOENT" ? resolve(rawOld) : Promise.reject(error));
   const newDirectory = await validateDirectory(directory);
+  const lexicalOldDirectory = resolve(rawOld);
   const liveCapture = await db.select({ sessionId: liveCaptures.sessionId }).from(liveCaptures)
     .where(sql`${liveCaptures.status} IN ('recording', 'finalizing', 'recovering')`).limit(1).get();
   if (liveCapture) throw Object.assign(new Error("Live capture storage is active or recovering"), { code: "RECORDING_ACTIVE" });
   if (oldDirectory === newDirectory) return;
-  const lexicalOldDirectory = resolve(rawOld);
-  const [rows, jobs] = await Promise.all([
+  const [rows, jobs, captures] = await Promise.all([
     db.select({ id: sessions.id, rawFile: sessions.rawFile, captureManifestFile: sessions.captureManifestFile, captureArchiveFile: sessions.captureArchiveFile }).from(sessions).all(),
     db.select({ sessionId: sessionCaptureSplitJobs.sessionId, sourcePath: sessionCaptureSplitJobs.sourcePath, stagingPath: sessionCaptureSplitJobs.stagingPath }).from(sessionCaptureSplitJobs).all(),
+    db.select({ sessionId: liveCaptures.sessionId, sourcePath: liveCaptures.sourcePath, archivePath: liveCaptures.archivePath }).from(liveCaptures).where(eq(liveCaptures.status, "sealed")).all(),
   ]);
   const files = new Set(await enumerate(oldDirectory, newDirectory)); const references: Journal["references"] = [];
-  const relocateReference = async (sessionId: number, table: "sessions" | "sessionCaptureSplitJobs", field: ReferenceField, value: string | null) => {
+  const relocateReference = async (sessionId: number, table: "sessions" | "sessionCaptureSplitJobs" | "liveCaptures", field: ReferenceField, value: string | null) => {
     if (!value) return;
     const rawPath = resolve(value);
     if (isContained(newDirectory, rawPath)) return;
@@ -342,6 +348,10 @@ async function executeMove(directory: string, operationId: string, hooks: Requir
   for (const row of jobs) {
     await relocateReference(row.sessionId, "sessionCaptureSplitJobs", "sourcePath", row.sourcePath);
     await relocateReference(row.sessionId, "sessionCaptureSplitJobs", "stagingPath", row.stagingPath);
+  }
+  for (const row of captures) {
+    await relocateReference(row.sessionId, "liveCaptures", "sourcePath", row.sourcePath);
+    await relocateReference(row.sessionId, "liveCaptures", "archivePath", row.archivePath);
   }
   const entries: Entry[] = [];
   for (const source of files) {

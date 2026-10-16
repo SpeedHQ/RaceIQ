@@ -14,13 +14,13 @@
       "packages/game-f1-2025/src/f1-state.ts": "2c3ad3f21293094cf564b912a4b8ea35d1e16df713f863e47fdf763184e8de79",
       "packages/game-fm-2023/src/parser.ts": "71c348b894f84f6086c9582d0cce473bac75a3c85896010a0e5762854718b835",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
-      "packages/game-iracing/src/normalizer.ts": "1d7949f8eb37960430fcf5f5b956b94cd3ee6e0dfd66f645f6b5311e8c1bc4dd",
+      "packages/game-iracing/src/normalizer.ts": "bcc73bc4805a310f968b9743e6c9c88a688e3216cd28eecc3ee9f6c3d36b0afc",
       "packages/game-lmu/src/normalizer.ts": "1c2d9c9bd1a9b1bdae8f587f009ee6d087dcddf821c7ce56c14a4301bc4789e9",
       "packages/tooling-catalog/src/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "46bedb13ee1694bf2af4fb937366509f990143903ac51e4145cf170871bfd3ef"
+    "contentHash": "8bf22ea63cb8e505d6234aba5765aa5b87f322129d9e058aa798a4639fc8d4f3"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -45277,7 +45277,7 @@
             "iracing.sdkCurrentLapTime"
           ],
           "freshness": "continuous",
-          "normalization": "currentLapTime => currentLapTimeFromSession(state, sessionKey, rawLap, sessionTime, sdkCurrentLapTime)",
+          "normalization": "currentLapTime => updateCurrentLapClock(state, sessionKey, rawLap, sessionTime, sdkCurrentLapTime)",
           "description": "iracing maps 6 native source channels into this value.",
           "provenance": {
             "origin": "yaml",
@@ -45299,7 +45299,7 @@
               "iracing.sdkCurrentLapTime"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "dd119a5753a21c23c3e680a34d067d365d0097bcd915be863d2db60bdcc802c5"
+            "codeHash": "50acf3564a30e2dbe7f3d36848ef7c3340bf05747a20fab2e3bb45a75dcdaca3"
           }
         },
         "lmu": {

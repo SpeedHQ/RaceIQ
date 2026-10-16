@@ -7,6 +7,8 @@ import {
   encodeSegmentContextFrame, iterateSessionCaptureRecords,
 } from "@raceiq/capture-formats/session/framing";
 import { WorkerSessionRecorder } from "@raceiq/capture-formats/session/worker-recorder";
+import { Worker } from "node:worker_threads";
+
 let syncRaceRoot: string | undefined;
 afterAll(async () => { if (syncRaceRoot) await rm(syncRaceRoot, { recursive: true, force: true }); });
 
@@ -98,4 +100,18 @@ test("accepted durability request completes when stop immediately closes admissi
   const records = [...iterateSessionCaptureRecords(bytes, 0, { strict: true })];
   expect(records).toHaveLength(1);
   expect(records[0]).toMatchObject({ kind: "frame", frame, frameTimeMs: 0 });
+});
+test("premature worker exit rejects pending recorder close", async () => {
+  const root = await mkdtemp(join(tmpdir(), "raceiq-live-source-worker-exit-"));
+  const worker = new Worker("const { parentPort } = require('node:worker_threads'); parentPort.on('message', () => {});", { eval: true });
+  const recorder = new WorkerSessionRecorder("fm-2023", { worker });
+  try {
+    recorder.start(join(root, "source.bin"));
+    const closing = recorder.stop();
+    await worker.terminate();
+    await expect(closing).rejects.toThrow(/^Source writer worker exited \(\d+\)$/);
+  } finally {
+    await worker.terminate();
+    await rm(root, { recursive: true, force: true });
+  }
 });

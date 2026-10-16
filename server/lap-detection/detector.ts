@@ -249,7 +249,10 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
   async flushIncompleteLap(): Promise<void> {
     await this.pendingIncompleteLapWrite;
     if (this.pendingIncompleteLapId === null) await this.engine.flushIncompleteLap();
-    else this.engine.discardIncompleteLap();
+    else {
+      this.engine.finalizeRetainedIncompleteOwnership();
+      this.engine.discardIncompleteLap();
+    }
     this.pendingIncompleteLapId = null;
   }
   async feed(packet: TelemetryPacket, rawByteOffset?: number, rawOrdinal?: number): Promise<void> {

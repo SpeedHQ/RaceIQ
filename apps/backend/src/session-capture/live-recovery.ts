@@ -248,8 +248,10 @@ export async function replayLiveCaptureTail(captureEpoch: string): Promise<void>
       void commit.finally(() => memberCommits.delete(commit));
     }
   };
+  const onExit = (code: number) => failReject(new Error(`Live recovery worker exited (${code})`));
   worker.on("message", onMessage);
   worker.on("error", failReject);
+  worker.on("exit", onExit);
   worker.postMessage({ type: "start-live", captureEpoch, attempt, sessionId: capture.sessionId,
     archivePath: capture.archivePath, sourcePath: capture.sourcePath,
     maxQueuedBytes: REPLAY_QUEUE_BYTES, maxUnresolvedBytes: REPLAY_UNRESOLVED_BYTES,
@@ -396,6 +398,8 @@ export async function replayLiveCaptureTail(captureEpoch: string): Promise<void>
     throw error;
   } finally {
     worker.off("message", onMessage);
+    worker.off("error", failReject);
+    worker.off("exit", onExit);
     await worker.terminate();
     if (sourceHandle) await sourceHandle.close();
   }

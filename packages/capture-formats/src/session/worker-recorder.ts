@@ -205,6 +205,7 @@ export class WorkerSessionRecorder {
       const finish = () => {
         this.worker.off("message", onDone);
         this.worker.off("error", onError);
+        this.worker.off("exit", onExit);
         if (this.ownsWorker) void this.worker.terminate();
       };
       const onDone = (message: { type: string; error?: string }) => {
@@ -219,8 +220,15 @@ export class WorkerSessionRecorder {
         }
       };
       const onError = (error: Error) => { finish(); reject(error); };
+      const onExit = (code: number) => {
+        const error = new Error(`Source writer worker exited (${code})`);
+        this.fail(error, true);
+        finish();
+        reject(this.failure ?? error);
+      };
       this.worker.on("message", onDone);
       this.worker.on("error", onError);
+      this.worker.on("exit", onExit);
       try {
         this.worker.postMessage({
           type: "close", sequence, count: this.count, hadMeta: this.metaPending,

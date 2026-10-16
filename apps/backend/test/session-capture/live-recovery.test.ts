@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 import { FileStreamingSplitterHost, LiveArchiveMemberSchema, openLiveCaptureMember, updateNativeRecordDigest, type StreamingMemberDescriptor } from "@raceiq/capture-splitting";
-import { afterAll, expect, test } from "bun:test";
+import { afterAll, expect, spyOn, test } from "bun:test";
 import { appendFile, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -15,6 +15,8 @@ import { recoverLiveCaptureStorage, registerLiveCaptureRecoveryReplay } from "@r
 import { LiveCanonicalSourceReader } from "../../src/session-capture/live-source-reader";
 import { replayLiveCaptureTail } from "../../src/session-capture/live-recovery";
 import { createLiveGameParserCodec, ParserTelemetryDigest, replayLiveParserStage } from "../../src/session-capture/live-game-codecs";
+
+import * as liveWorkerFactory from "../../src/session-capture/live-worker-factory";
 
 const root = await mkdtemp(join(tmpdir(), "raceiq-live-recovery-"));
 const sessionIds: number[] = [];
@@ -308,4 +310,32 @@ test("restart refuses to absorb a persisted unpublished lap without durable auth
     .where(eq(liveCaptureMembers.captureEpoch, identity.captureEpoch)).all()).toEqual([]);
   expect(await db.select({ status: liveCaptures.status }).from(liveCaptures)
     .where(eq(liveCaptures.captureEpoch, identity.captureEpoch)).get()).toEqual({ status: "failed" });
+}, 30_000);
+test("restart rejects when recovery worker exits before live-started and releases recovery state", async () => {
+  const { sourcePath } = await sourcePrefix();
+  const archivePath = join(root, `archive-worker-exit-${randomUUID()}.bin.gz`);
+  const session = await db.insert(sessions).values({ carId: "test-car", trackId: "test-track", gameId: "fm-2023", rawFile: sourcePath })
+    .returning({ id: sessions.id }).get();
+  sessionIds.push(session.id);
+  const identity = { sessionId: session.id, captureEpoch: randomUUID(), attempt: randomUUID() };
+  await beginLiveCapture({ ...identity, sourcePath, archivePath });
+  const info = await stat(sourcePath, { bigint: true });
+  await bindLiveCaptureSourceIdentity(identity, String(info.dev), String(info.ino));
+  await persistLiveCaptureProgress(identity, { sequence: 0, sourceByteLength: Number(info.size), sourceRecordCount: 16,
+    sourceDurableWatermark: Number(info.size), metadataDurableWatermark: Number(info.size) }, []);
+  await setLiveCaptureStatus(identity, "recovering");
+
+  const createWorker = liveWorkerFactory.createLiveCaptureWorker;
+  const createWorkerSpy = spyOn(liveWorkerFactory, "createLiveCaptureWorker").mockImplementation((gameId) => {
+    const worker = createWorker(gameId);
+    queueMicrotask(() => { void worker.terminate(); });
+    return worker;
+  });
+  try {
+    await expect(replayLiveCaptureTail(identity.captureEpoch)).rejects.toThrow();
+    expect(await db.select({ status: liveCaptures.status }).from(liveCaptures)
+      .where(eq(liveCaptures.captureEpoch, identity.captureEpoch)).get()).toEqual({ status: "failed" });
+  } finally {
+    createWorkerSpy.mockRestore();
+  }
 }, 30_000);

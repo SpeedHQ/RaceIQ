@@ -13,7 +13,7 @@ Database and lap-file maintenance commands. Run from repository root; `DATA_DIR`
 | `bun run db:seed --legacy-recordings` | Optional `--games`, `--reset`, `--force` | Places seed-owned recordings in the old `<recording-root>/<game>/` layout and updates session references so the recording-location migration prompt appears; also works with existing seed rows |
 | `bun run apps/backend/scripts/data/backfill-unknown-cars.ts` | AC Evo sessions with raw captures in `DATA_DIR` | Re-reads captures and updates unresolved car ordinals; skips unresolved/corrupt captures |
 | `bun run apps/backend/scripts/data/export-laps.ts` | Optional `--ids 1,2,3`, `-o <zip>` | Writes lap archive ZIP; default `laps-export.zip` in current directory |
-| `bun run apps/backend/scripts/data/import-laps.ts <zip>` | ZIP produced by export command | Replays archive sessions and reports imported/skipped laps |
+| `bun run apps/backend/scripts/data/import-laps.ts <zip>` | ZIP produced by export command | Replays archive sessions, reports each failed member, returns nonzero if any member is skipped or no laps import |
 | `bun run packages/tooling-data/src/data/extract-demo-lap.ts` | Lap `1337` in selected `DATA_DIR` | Writes `client/public/demo-lap.csv` |
 | `bun run packages/tooling-data/src/data/reprocess-today-f1.ts` | Optional `SERVER` URL (default `http://localhost:3117`) | POSTs reprocess requests for today's F1 2025 sessions with raw captures |
 

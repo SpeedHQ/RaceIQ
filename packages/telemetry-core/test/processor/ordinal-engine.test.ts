@@ -92,7 +92,7 @@ describe("ordinal detector source ownership", () => {
     expect(transitions.find((item) => item.kind === "window-finalized")?.window).toMatchObject({ startOrdinal: 10, frameCount: 4, status: "final" });
   });
 
-  test("running-start trim moves persisted and authoritative window start/count together", async () => {
+  test("running-start trim preserves original source window ownership", async () => {
     const { engine, persisted } = engineFixture();
     const transitions: DetectorOwnershipTransition[] = [];
     engine.subscribeOwnership((transition) => transitions.push(transition));
@@ -107,8 +107,8 @@ describe("ordinal detector source ownership", () => {
     await feed(engine, { LapNumber: 2, CurrentLap: 0 }, 2_060, 26);
     engine.drainOwnershipTransitions();
 
-    expect(persisted.at(-1)).toEqual({ offset: 2_020, count: 4 });
-    expect(transitions.find((item) => item.kind === "window-finalized")?.window).toMatchObject({ startOffset: 2_020, startOrdinal: 22, frameCount: 4 });
+    expect(persisted.at(-1)).toEqual({ offset: 2_000, count: 6 });
+    expect(transitions.find((item) => item.kind === "window-finalized")?.window).toMatchObject({ startOffset: 2_000, startOrdinal: 20, frameCount: 6 });
   });
 
   test("rebases active ownership ordinals across capture epoch rotation", async () => {
@@ -149,5 +149,52 @@ describe("ordinal detector source ownership", () => {
     expect(candidates.every((item) => item.window?.preparationOnly === true && item.window.frameCount === 0)).toBe(true);
     expect(engine.getOwnershipState().windows.length).toBeLessThanOrEqual(2);
     expect(engine.getOwnershipState().windows.some((item) => item.preparationOnly)).toBe(false);
+  });
+  test("abandons discarded ownership exactly once on lap rewind", async () => {
+    const { engine } = engineFixture();
+    await feed(engine, { LapNumber: 3, CurrentLap: 4 }, 3_000, 30);
+    engine.drainOwnershipTransitions();
+    await feed(engine, { LapNumber: 2, CurrentLap: 0 }, 3_010, 31);
+    const transitions = engine.drainOwnershipTransitions();
+    expect(transitions.filter((item) => item.kind === "window-abandoned")).toHaveLength(1);
+    expect(transitions.find((item) => item.kind === "window-abandoned")?.window).toMatchObject({
+      lapNumber: 3, startOffset: 3_000, startOrdinal: 30, status: "incomplete",
+    });
+    expect(transitions.some((item) => item.kind === "window-finalized")).toBe(false);
+  });
+
+  test("abandons discarded ownership exactly once on restart", async () => {
+    const { engine } = engineFixture();
+    for (let index = 0; index < 31; index++) {
+      await feed(engine, { LapNumber: 3, CurrentLap: 6 + index, LastLap: 20 }, 4_000 + index * 10, 40 + index);
+    }
+    engine.drainOwnershipTransitions();
+    await feed(engine, { LapNumber: 3, CurrentLap: 0, LastLap: 20 }, 4_310, 71);
+    const transitions = engine.drainOwnershipTransitions();
+    expect(transitions.filter((item) => item.kind === "window-abandoned")).toHaveLength(1);
+    expect(transitions.find((item) => item.kind === "window-abandoned")?.window).toMatchObject({
+      lapNumber: 3, startOffset: 4_000, startOrdinal: 40, status: "incomplete",
+    });
+    expect(transitions.some((item) => item.kind === "window-finalized")).toBe(false);
+  });
+  test("abandons ACC timer-reset ownership when lap, LastLap, and distance stay unchanged", async () => {
+    const { engine } = engineFixture();
+    for (let index = 0; index < 31; index++) {
+      await feed(engine, { gameId: "acc", LapNumber: 10, CurrentLap: 10 + index / 10, LastLap: 0, DistanceTraveled: 1_000 + index }, 5_000 + index * 10, 50 + index);
+    }
+    engine.drainOwnershipTransitions();
+    await feed(engine, { gameId: "acc", LapNumber: 10, CurrentLap: 0, LastLap: 0, DistanceTraveled: 1_031 }, 5_310, 81);
+    const transitions = engine.drainOwnershipTransitions();
+    expect(transitions.filter((item) => item.kind === "window-abandoned")).toHaveLength(1);
+    expect(transitions.some((item) => item.kind === "window-finalized")).toBe(false);
+  });
+  test("never abandons an already completed window", async () => {
+    const { engine } = engineFixture();
+    await feed(engine, { LapNumber: 3, CurrentLap: 80 }, 6_000, 60);
+    engine.drainOwnershipTransitions();
+    await feed(engine, { LapNumber: 4, CurrentLap: 0, LastLap: 80 }, 6_010, 61);
+    const transitions = engine.drainOwnershipTransitions();
+    expect(transitions.some((item) => item.kind === "window-finalized")).toBe(true);
+    expect(transitions.some((item) => item.kind === "window-abandoned")).toBe(false);
   });
 });

@@ -145,4 +145,81 @@ describe("pre-write lap checkpoint hints", () => {
     await iracing.feed(iracingPacket);
     expect(iracing.shouldCheckpoint(pkt({ gameId: "iracing", sessionUID: "session-1", LapNumber: 2 }))).toBe(true);
   });
+  test("open-route activation publishes authoritative start for first timed packet", async () => {
+    const engine = new KunosDetectorEngine({
+      createSession: async () => {},
+      backfillSessionIdentifiers: () => {},
+      isPitOnly: () => false,
+      isOpenRoute: () => true,
+      emitLap: async () => {},
+    });
+    engine.subscribeOwnership(() => {});
+    engine.observeSourceRecord(8_000, 8_100, 80);
+    await engine.feed(pkt({
+      gameId: "ac-evo", IsRaceOn: 1, LapNumber: 1, CurrentLap: 1,
+      DistanceTraveled: 500, acc: { isValidLap: true } as never,
+    }), 8_000, 80);
+    const start = engine.drainOwnershipTransitions().find(item => item.kind === "window-start");
+    expect(start?.window).toMatchObject({
+      startOffset: 8_000, startOrdinal: 80, frameCount: 1, status: "provisional",
+    });
+
+    engine.observeSourceRecord(8_100, 8_200, 81);
+    await engine.feed(pkt({
+      gameId: "ac-evo", IsRaceOn: 1, LapNumber: 1, CurrentLap: 2,
+      DistanceTraveled: 600, acc: { isValidLap: true } as never,
+    }), 8_100, 81);
+    expect(engine.getOwnershipState().windows.at(-1)).toMatchObject({
+      startOffset: 8_000, startOrdinal: 80, frameCount: 2, status: "provisional",
+    });
+  });
+  test("open-route candidate promotion publishes authoritative start on first timed packet", async () => {
+    const engine = new KunosDetectorEngine({
+      createSession: async () => {},
+      backfillSessionIdentifiers: () => {},
+      isPitOnly: () => false,
+      isOpenRoute: (packet) => packet.gameId === "ac-evo",
+      emitLap: async () => {},
+    });
+    engine.subscribeOwnership(() => {});
+    await engine.feed(pkt({ gameId: "acc", LapNumber: 1, CurrentLap: 4 }), 8_000, 80);
+    const timed = pkt({
+      gameId: "ac-evo", IsRaceOn: 1, LapNumber: 1, CurrentLap: 1,
+      DistanceTraveled: 500, acc: { isValidLap: true } as never,
+    });
+    engine.observeSourceRecord(9_000, 9_100, 90);
+    expect(engine.shouldCheckpoint(timed)).toBe(true);
+    expect(engine.drainOwnershipTransitions().some(item => item.kind === "candidate-start")).toBe(true);
+    await engine.feed(timed, 9_000, 90);
+    const start = engine.drainOwnershipTransitions().find(item => item.kind === "window-start");
+    expect(start?.window).toMatchObject({
+      startOffset: 9_000, startOrdinal: 90, frameCount: 1, status: "provisional",
+    });
+  });
+  test("abandons old Kunos window on unchanged-lap prelap timer reset", async () => {
+    const engine = new KunosDetectorEngine({
+      createSession: async () => {},
+      backfillSessionIdentifiers: () => {},
+      isPitOnly: () => false,
+      emitLap: async () => {},
+    });
+    engine.subscribeOwnership(() => {});
+    engine.observeSourceRecord(10_000, 10_100, 100);
+    await engine.feed(pkt({
+      gameId: "acc", LapNumber: 10, CurrentLap: 10, LastLap: 0, DistanceTraveled: 2_000,
+    }), 10_000, 100);
+    engine.drainOwnershipTransitions();
+
+    engine.observeSourceRecord(10_100, 10_200, 101);
+    await engine.feed(pkt({
+      gameId: "acc", LapNumber: 10, CurrentLap: 0, LastLap: 0, DistanceTraveled: 2_010,
+    }), 10_100, 101);
+    const transitions = engine.drainOwnershipTransitions();
+    expect(transitions.filter(item => item.kind === "window-abandoned").map(item => item.window)).toMatchObject([
+      { startOffset: 10_000, startOrdinal: 100, frameCount: 1, status: "incomplete" },
+    ]);
+    expect(transitions.find(item => item.kind === "window-start")?.window).toMatchObject({
+      startOffset: 10_100, startOrdinal: 101, frameCount: 1, status: "provisional",
+    });
+  });
 });

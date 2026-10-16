@@ -295,8 +295,7 @@ export class OrdinalDetectorEngine {
         this.effects.log?.(`[Lap] Final lap completed: LastLap ${s.lastLastLap.toFixed(3)} -> ${packet.LastLap.toFixed(3)}`);
         await this.complete(packet);
       } else if (reset.action === "reset-restart") {
-        this.effects.log?.("[Lap] Race restart detected — discarding buffer");
-        this.reset(packet);
+        this.reset(packet, true);
       }
     }
     if (s.lastTimestampMS > 0 && packet.TimestampMS < s.lastTimestampMS && packet.LapNumber === s.lapNumber) {
@@ -306,8 +305,7 @@ export class OrdinalDetectorEngine {
     if (s.lapNumber >= 0 && packet.LapNumber !== s.lapNumber) {
       const boundary = detectLapBoundary(s.lapNumber, packet);
       if (boundary.action === "reset-rewind") {
-        this.effects.log?.(`[Lap] Rewind across lap boundary: ${s.lapNumber} -> ${packet.LapNumber}. Discarding buffer.`);
-        this.reset(packet);
+        this.reset(packet, true);
       } else {
         if (boundary.action === "complete-skip") { this.effects.log?.(`[Lap] Lap skip: ${s.lapNumber} -> ${packet.LapNumber}. Marking invalid.`); this.invalidate(boundary.invalidReason); }
         await this.complete(packet);
@@ -345,6 +343,10 @@ export class OrdinalDetectorEngine {
     } else {
       this.publishOwnership("window-abandoned", this.activeWindow("incomplete"));
     }
+  }
+  finalizeRetainedIncompleteOwnership(): void {
+    this.processingSourceOrdinal = this.currentSourceOrdinal;
+    this.publishOwnership("final-incomplete", this.activeWindow("incomplete"));
   }
 
   discardIncompleteLap(): void {
@@ -390,8 +392,9 @@ export class OrdinalDetectorEngine {
     this.reset(next);
   }
 
-  reset(packet: TelemetryPacket): void {
+  reset(packet: TelemetryPacket, abandonCurrent = false): void {
     const s=this.state;
+    if (abandonCurrent && s.lapBuffer.length > 0) this.publishOwnership("window-abandoned", this.activeWindow("incomplete", Math.max(0, s.lapFrameCount - 1)));
     s.lapNumber=packet.LapNumber; s.lapBuffer=[]; this.lapFrameOffsets=[]; this.lapFrameOrdinals=[]; s.lapIsValid=true; s.invalidReason=null;
     s.currentPitCycleReason=s.nextPitCycleReason; s.nextPitCycleReason=null; s.lastLastLap=packet.LastLap;
     s.distanceAtLapStart=packet.DistanceTraveled; s.lapByteOffset=this.processingSourceOffset ?? s.currentRawByteOffset; s.lapFrameCount=0;

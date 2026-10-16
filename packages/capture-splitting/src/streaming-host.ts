@@ -22,6 +22,33 @@ export interface FileStreamingHostOptions {
   readonly commit: StreamingArchiveCommit;
 }
 
+
+async function* readStageRecords(path: string, signal?: AbortSignal) {
+  signal?.throwIfAborted();
+  const source = createReadStream(path);
+  const gunzip = createGunzip();
+  const abort = () => {
+    source.destroy();
+    gunzip.destroy();
+  };
+  const forwardSourceError = (error: Error) => gunzip.destroy(error);
+  signal?.addEventListener("abort", abort, { once: true });
+  source.on("error", forwardSourceError);
+  source.pipe(gunzip);
+  try {
+    const records = iterateSessionCaptureRecordsAsync(gunzip, { strict: true });
+    for await (const record of records) {
+      signal?.throwIfAborted();
+      yield record;
+    }
+    signal?.throwIfAborted();
+  } finally {
+    source.removeListener("error", forwardSourceError);
+    signal?.removeEventListener("abort", abort);
+    source.destroy();
+    gunzip.destroy();
+  }
+}
 /** Concrete bounded staging, production-framing semantic verification, and append-only archive writer. */
 export class FileStreamingSplitterHost implements StreamingSplitterHost {
   readonly maxQueuedBytes: number;
@@ -136,16 +163,7 @@ export class FileStreamingSplitterHost implements StreamingSplitterHost {
       append,
       readRecords(signal) {
         if (!closed) throw new Error("Cannot read an open streaming stage");
-        const records = iterateSessionCaptureRecordsAsync(createReadStream(path).pipe(createGunzip()), { strict: true });
-        if (!signal) return records;
-        return {
-          async *[Symbol.asyncIterator]() {
-            for await (const record of records) {
-              signal.throwIfAborted();
-              yield record;
-            }
-          },
-        };
+        return readStageRecords(path, signal);
       },
       close: async () => {
         if (closed) return;
@@ -159,7 +177,7 @@ export class FileStreamingSplitterHost implements StreamingSplitterHost {
         const hash = createHash("sha256");
         const contextHash = createHash("sha256");
         let count = 0;
-        const iterator = iterateSessionCaptureRecordsAsync(createReadStream(path).pipe(createGunzip()), { strict: true })[Symbol.asyncIterator]();
+        const iterator = readStageRecords(path, signal)[Symbol.asyncIterator]();
         try {
           if (expected.lap?.parserCheckpoint?.byteLength) {
             const bootstrap = await iterator.next();
@@ -180,7 +198,7 @@ export class FileStreamingSplitterHost implements StreamingSplitterHost {
             }
             count++;
           }
-        } finally { await iterator.return?.(0); }
+        } finally { await iterator.return?.(); }
         if (count !== expected.recordCount + expected.trailingContextFrameCount || hash.digest("hex") !== expected.nativeDigest ||
             (expected.trailingContextFrameCount > 0 && contextHash.digest("hex") !== expected.trailingContextDigest)) throw new Error(`Staged ${kind} member failed native semantic verification`);
       },

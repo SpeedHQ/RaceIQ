@@ -635,15 +635,15 @@ export async function importLapsZip(zipData: Uint8Array, options: { ownership?: 
       }
       continue;
     }
-    const gameId = parseCaptureGameId(name, bytes, new Map(
-      entry ? [[name, entry.gameId]] : [],
-    ));
-    if (!gameId) {
-      skipped++;
-      errors.push(`${name}: could not determine which game this capture came from`);
-      continue;
-    }
     try {
+      const gameId = parseCaptureGameId(name, bytes, new Map(
+        entry ? [[name, entry.gameId]] : [],
+      ));
+      if (!gameId) {
+        skipped++;
+        errors.push(`${name}: could not determine which game this capture came from`);
+        continue;
+      }
       const result = await importSessionBin(bytes, gameId, {
         ownership: options.ownership,
         onImportedLaps: entry && Array.isArray(entry.laps) ? async (imported) => {

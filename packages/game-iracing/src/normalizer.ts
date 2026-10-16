@@ -240,7 +240,7 @@ function normalizeSectorStarts(
   return [];
 }
 
-function currentLapTimeFromSession(
+function updateCurrentLapClock(
   state: IRacingParserState | null | undefined, sessionKey: string,
   rawLap: number, sessionTime: number, sdkCurrentLapTime: number,
 ): number {
@@ -255,6 +255,18 @@ function currentLapTimeFromSession(
     state.lapStartSessionTime = sessionTime;
   }
   return Math.max(0, sessionTime - state.lapStartSessionTime);
+}
+
+export function primeIRacingFrameState(
+  frame: IRacingSourceFrame,
+  state?: IRacingParserState | null,
+): void {
+  const { session, values } = frame;
+  const rawLap = Math.max(0, Math.trunc(scalar(values, "Lap", 0)));
+  const sessionTime = Math.max(0, scalar(values, "SessionTime", 0));
+  const sdkCurrentLapTime = Math.max(0, scalar(values, "LapCurrentLapTime", 0));
+  const sessionKey = `${session.subSessionId}:${session.sessionId}:${session.sessionNum}`;
+  updateCurrentLapClock(state, sessionKey, rawLap, sessionTime, sdkCurrentLapTime);
 }
 
 export function normalizeIRacingFrame(
@@ -285,7 +297,7 @@ export function normalizeIRacingFrame(
       fuelCapacityL = state.fuelCapacityL;
     }
   }
-  const currentLapTime = currentLapTimeFromSession(state, sessionKey, rawLap, sessionTime, sdkCurrentLapTime);
+  const currentLapTime = updateCurrentLapClock(state, sessionKey, rawLap, sessionTime, sdkCurrentLapTime);
   const sectorStarts = normalizeSectorStarts(session.sectorStarts);
   const steeringAngle = scalar(values, "SteeringWheelAngle", 0);
   const steeringMax = Math.abs(scalar(values, "SteeringWheelAngleMax", 0));
@@ -490,7 +502,7 @@ export function projectIRacingLapIndex(frame: IRacingSourceFrame, state?: IRacin
   const sessionTime = Math.max(0, scalar(values, "SessionTime", 0));
   const sdkCurrentLapTime = Math.max(0, scalar(values, "LapCurrentLapTime", 0));
   const sessionKey = `${session.subSessionId}:${session.sessionId}:${session.sessionNum}`;
-  const currentLapTime = currentLapTimeFromSession(state, sessionKey, rawLap, sessionTime, sdkCurrentLapTime);
+  const currentLapTime = updateCurrentLapClock(state, sessionKey, rawLap, sessionTime, sdkCurrentLapTime);
   const trackLengthM = Math.max(0, session.trackLengthM);
   const lapDistanceM = Math.max(0, scalar(values, "LapDist", 0));
   return {

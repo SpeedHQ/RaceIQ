@@ -464,6 +464,23 @@ describe("lap export → import round-trip (real capture)", () => {
     for (const l of result.laps) createdSessions.push(l.sessionId);
   }, 120000);
 
+  test("a corrupt capture member does not prevent importing later valid members", async () => {
+    const { rows } = await seedSession({ minimumLaps: 1 });
+    const exported = rows[0]!;
+    const { bytes } = await buildLapsZip([exported.id]);
+    const result = await importLapsZip(zipSync({
+      "fm-2023-corrupt.bin.gz": new Uint8Array([0x1f, 0x8b, 0x08]),
+      ...unzipSync(bytes),
+    }));
+    result.laps.forEach((lap) => createdSessions.push(lap.sessionId));
+
+    expect(result.skipped).toBe(1);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toStartWith("fm-2023-corrupt.bin.gz:");
+    expect(result.laps.map(({ lapNumber, lapTime, isValid }) => ({ lapNumber, lapTime, isValid })))
+      .toEqual([{ lapNumber: exported.lapNumber, lapTime: exported.lapTime, isValid: exported.isValid }]);
+  }, 120000);
+
 
   test("a whole session round-trips every lap that has a raw capture", async () => {
     const { rows } = await seedSession();
