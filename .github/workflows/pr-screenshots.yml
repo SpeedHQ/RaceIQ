@@ -42,7 +42,7 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     runs-on:
-      - mars-ubuntu-arm64-2vcpu-10g
+      - mars-ubuntu-2vcpu-10g
       - mars-retry-3
     env:
       PR_NUMBER: ${{ inputs.pr || github.event.pull_request.number }}
@@ -147,7 +147,7 @@ jobs:
     if: needs.render.result == 'success' && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
     needs: render
     runs-on:
-      - mars-ubuntu-arm64-2vcpu-10g
+      - mars-ubuntu-2vcpu-10g
       - mars-retry-3
     steps:
       - uses: actions/checkout@v7

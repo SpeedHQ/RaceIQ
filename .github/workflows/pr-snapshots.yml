@@ -43,7 +43,7 @@ jobs:
     name: visual-regression/storybook-snapshots
     timeout-minutes: 30
     runs-on:
-      - mars-ubuntu-arm64-2vcpu-10g
+      - mars-ubuntu-2vcpu-10g
       - mars-retry-3
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}

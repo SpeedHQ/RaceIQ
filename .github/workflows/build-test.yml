@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 30
     if: (github.event_name != 'pull_request' || (!github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')))
     runs-on:
-      - mars-ubuntu-arm64-2vcpu-10g
+      - mars-ubuntu-2vcpu-10g
       - mars-retry-3
     steps:
       - uses: actions/checkout@v7
@@ -67,7 +67,7 @@ jobs:
     if: (github.event_name != 'pull_request' || (!github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')))
     runs-on:
       - mars-macos-arm64-2vcpu-10g
-      - mars-ubuntu-arm64-2vcpu-10g
+      - mars-ubuntu-2vcpu-10g
       - mars-retry-3
     env:
       BUN_TEST_WORKERS: "1"
