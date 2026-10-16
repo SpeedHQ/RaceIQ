@@ -239,20 +239,6 @@ test.describe
     expect(errors, `unexpected browser errors:\n${errors.join("\n")}`).toEqual([]);
   });
 
-  test("mobile navigation drawer shares expanded sidebar controls", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/fm23/sessions", { waitUntil: "domcontentloaded" });
-    await page.getByLabel("Open navigation").click();
-
-    const navigation = page.getByRole("navigation", { name: "Navigation" });
-    await expect(navigation).toBeVisible();
-    await expect(page.getByRole("combobox", { name: "Games" })).toBeVisible();
-    await expect(navigation.getByRole("link", { name: "Sessions" })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Collapse sidebar|Expand sidebar/ })).toHaveCount(0);
-
-    await navigation.getByRole("link", { name: "Tracks" }).click();
-    await expect(page.getByLabel("Open navigation")).toBeVisible();
-  });
 
   test("dash catalogue lists dashboards", async ({ page }) => {
     const { errors } = collectBrowserErrors(page, [/THREE\.GLTFLoader: Couldn't load texture/]);

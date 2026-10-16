@@ -6,15 +6,13 @@ This suite owns route-level browser tests and screenshot evidence. It is separat
 
 | Project | Match | Server/data |
 | --- | --- | --- |
-| `fresh-install` | `fresh-install/**/*.spec.ts`, `responsive/workspaces.spec.ts` | Fresh compiled or dev app |
-| `mobile-screenshots` | `responsive/mobile-screenshots.spec.ts` | Seeded app |
+| `fresh-install` | `fresh-install/**/*.spec.ts` | Fresh compiled or dev app |
 | `tunes` | `tunes/**/*.spec.ts` | Tunes app |
-| `mobile-device`, `tablet-device` | `responsive/device.spec.ts` | Seeded app with Chromium device emulation |
 | `seeded-e2e` | `seeded/**/*.spec.ts` | Seeded app |
 | `record-demo` | `recording/demo.spec.ts` | Fresh app with GPU launch flags |
-Marketing screenshot captures live in `tests/marketing/` but run only through `marketing-screenshots.config.ts` and `bun run screenshots`; they are not E2E project coverage.
+Marketing screenshot captures use `marketing-screenshots.config.ts`; responsive captures use `responsive-screenshots.config.ts`. Both live outside E2E projects. PR CI runs responsive captures only for base-vs-PR visual comparison.
 
-Config uses `tests/` as `testDir`; no specs belong at `tests/` root. Stateful projects stay ordered on one worker. Only seeded screenshot runs enable parallel screenshot workers.
+The main config uses `tests/` as `testDir`; no E2E specs belong at `tests/` root. Screenshot capture uses dedicated configs. Stateful E2E projects stay ordered on one worker.
 
 Root `test:e2e` (including `test:e2e:compiled`) and workspace `test`/`test:ui` force `--workers=1`, overriding `PW_WORKERS`. Root `test:e2e:all` inherits the workspace limit. Capture migration and ordinary seeded projects share one database; per-project worker limits do not prevent cross-project overlap. Keep direct multi-project invocations containing capture migration on `--workers=1`.
 
@@ -27,7 +25,7 @@ bun run typecheck
 bun run build
 bun run test                         # build, then full Playwright run
 bunx playwright test --project=seeded-e2e
-bunx playwright test --project=mobile-screenshots
+PW_SERVER_SET=seeded PW_SCREENSHOT_ONLY=1 PW_SEED_SCREENSHOTS=1 bun run screenshots:mobile # standalone capture
 E2E_SERVER_MODE=dev bunx playwright test --project=seeded-e2e
 PW_SERVER_SET=fresh bunx playwright test --project=fresh-install
 ```
@@ -86,7 +84,7 @@ Playwright output goes to `playwright/test-results/`. Responsive captures go to 
 
 ## Responsive visual baselines
 
-Pull-request screenshot CI renders every `mobile-screenshots` case twice in the same runner environment: once from the PR and once from its current base revision. Both renders use dev mode (Bun backend and Vite client), so no compiled artifact download or base production build is needed. Both renders use the PR's screenshot spec so renamed selectors do not break baseline capture. The base render is the visual baseline. Screenshot-only menu cases use keyboard activation so overlapping controls in the base revision do not prevent capturing visual differences. Pixel differences at or below the shared 1% tolerance are treated as rendering noise; added, removed, resized, or materially changed screenshots fail the `screenshots` check.
+Pull-request screenshot CI renders every responsive screenshot case twice in the same runner environment: once from the PR and once from its current base revision. Both renders use dev mode (Bun backend and Vite client), so no compiled artifact download or base production build is needed. Both renders use the PR's screenshot spec so renamed selectors do not break baseline capture. The base render is the visual baseline. Screenshot-only menu cases use keyboard activation so overlapping controls in the base revision do not prevent capturing visual differences. Pixel differences at or below the shared 1% tolerance are treated as rendering noise; added, removed, resized, or materially changed screenshots fail the `screenshots` check.
 
 Dashboard render CI uses four shards (`--shard=1/4` through `--shard=4/4`) for both revisions. Each shard captures 23 of the 92 screenshots; the collector merges all four artifacts before comparison.
 

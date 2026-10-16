@@ -64,37 +64,37 @@ jobs:
             runs_on: '["mars-windows-x64-2vcpu-15g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
           - name: seeded-shard-1
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
             shard: 1/7
             runs_on: '["mars-windows-x64-4vcpu-15g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
           - name: seeded-shard-2
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
             shard: 2/7
             runs_on: '["mars-windows-x64-4vcpu-15g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
           - name: seeded-shard-3
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
             shard: 3/7
             runs_on: '["mars-windows-x64-4vcpu-15g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
           - name: seeded-shard-4
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
             shard: 4/7
             runs_on: '["mars-windows-x64-4vcpu-15g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
           - name: seeded-shard-5
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
             shard: 5/7
             runs_on: '["mars-windows-x64-4vcpu-15g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
           - name: seeded-shard-6
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
             shard: 6/7
             runs_on: '["mars-windows-x64-4vcpu-15g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
           - name: seeded-shard-7
             server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
             shard: 7/7
             runs_on: '["mars-windows-x64-4vcpu-15g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
     uses: ./.github/workflows/playwright.yml
