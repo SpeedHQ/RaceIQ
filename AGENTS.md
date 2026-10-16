@@ -54,7 +54,7 @@ bun run start
 bun run build:installer
 
 # Client-specific
-cd client && bun run build   # production build (tsc + vite)
+cd client && bun run build   # production build (Vite + bun check)
 cd client && bun run lint    # Oxlint
 
 # Dump mode (develop without a running game — captures raw packets)

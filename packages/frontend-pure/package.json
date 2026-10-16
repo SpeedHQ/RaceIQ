@@ -9,7 +9,7 @@
     "./iracing-car-sort": "./src/iracing-car-sort.ts"
   },
   "scripts": {
-    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "typecheck": "bun check --project tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/frontend-pure",
     "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/frontend-pure"
   }

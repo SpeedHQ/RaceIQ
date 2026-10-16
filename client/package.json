@@ -7,7 +7,7 @@
     "dev": "vite",
     "test": "bun run i18n:compile && bun test ./test",
     "i18n:compile": "bun ../scripts/dev/paraglide-build.ts --client-root .",
-    "build": "vite build && tsc -b",
+    "build": "vite build && bun check --build",
     "lint:client": "oxlint .",
     "lint:root": "cd .. && oxlint .",
     "format": "oxfmt --write .",

@@ -16,7 +16,7 @@
   },
   "scripts": {
     "build": "cd ../.. && bun packages/tooling-build/src/build/build.ts",
-    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "typecheck": "bun check --project tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/tooling-build",
     "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/tooling-build",
     "test:tooling": "bun ../../scripts/test/run-suite.ts tooling --package @raceiq/tooling-build"

@@ -10,6 +10,6 @@
   "dependencies": {"@raceiq/shared":"workspace:*","@raceiq/game-iracing-metadata":"workspace:*","@raceiq/analysis-core":"workspace:*","@raceiq/telemetry-core":"workspace:*"},
   "devDependencies": { "@babel/parser": "^8.0.5" },
   "scripts": {
-    "typecheck": "bunx tsc --project tsconfig.json --noEmit"
+    "typecheck": "bun check --project tsconfig.json"
   }
 }

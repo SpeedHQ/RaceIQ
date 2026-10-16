@@ -29,7 +29,7 @@
     "./racing/laps/trace/types": "./src/racing/laps/trace/types.ts"
   },
   "scripts": {
-    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "typecheck": "bun check --project tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/analysis-core",
     "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/analysis-core",
     "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/analysis-core"

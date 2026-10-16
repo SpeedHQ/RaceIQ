@@ -13,7 +13,7 @@
     "./racing/tracks/recording/outlines": "./src/racing/tracks/recording/outlines.ts",
     "./racing/tracks/storage/sectors": "./src/racing/tracks/storage/sectors.ts"
   },
-  "scripts": { "typecheck": "bunx tsc --project tsconfig.json --noEmit" },
+    "scripts": { "typecheck": "bun check --project tsconfig.json" },
   "dependencies": {
     "@raceiq/shared": "workspace:*",
     "@raceiq/game-acc-metadata": "workspace:*",

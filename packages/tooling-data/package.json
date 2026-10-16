@@ -14,7 +14,7 @@
     "./telemetry/generate-demo-fixture": "./src/telemetry/generate-demo-fixture.ts"
   },
   "scripts": {
-    "typecheck": "bunx tsc --project tsconfig.json --noEmit"
+    "typecheck": "bun check --project tsconfig.json"
   },
   "dependencies": {
     "@raceiq/backend-core": "workspace:*",

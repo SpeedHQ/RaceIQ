@@ -10,7 +10,7 @@
     "@raceiq/game-acc-metadata": "workspace:*"
   },
   "scripts": {
-    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "typecheck": "bun check --project tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/game-acc",
     "test:e2e:recordings": "bun ../../scripts/test/run-suite.ts e2e --package @raceiq/game-acc",
     "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/game-acc"
