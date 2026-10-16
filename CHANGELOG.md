@@ -19,6 +19,9 @@
 - Verify onboarding migration recovery through Storage re-entry with deterministic cache expiry, without relying on a hidden no-work Refresh control.
 - Manage recording maintenance with Effect, ordered downsampling and deletion, and awaited shutdown.
 - Preserve recording-frequency settings and migration history when upgrading earlier feature builds alongside the AC Evo Tourist-layout reconciliation.
+- Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.
+- Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
+- Update live iRacing browser checks to expect the Tires section to be absent in Driver and Pit Crew views.
 
 ## v0.20.0 - 2026-10-15
 
@@ -28,13 +31,19 @@
 
 ### Features
 - New home dashboard with cleaner session and favourite widgets, clean-rate and podium trends.
-- Configure dashboard password protection during setup or in Access & security settings.
+- Configure dashboard password protection during setup or in Access & security settings; sign in across devices and recover a forgotten password from the terminal.
+- New desktop and self-hosted installs restrict dashboard access to this computer until you select additional network interfaces.
+- Password-protected dashboards use browser sessions; API clients sign in and send the session cookie and a CSRF token for writes.
 - Choose dashboard network interfaces and allowed browser domains without changing telemetry reception.
 - Share dashboard and HUD links through copied URLs or QR codes, including saved hostnames such as Tailscale domains.
 - Add OBS overlays for live driving, timing, standings, nearby race order, supported car damage, pedal inputs, and distance driven, with sample previews and metric or imperial units.
 - Choose a recording folder, relocate existing recordings, and organize them into per-game `own` and `others` folders.
 - Support AC Evo Tourist layout.
 - Add Hindi, Korean, European Portuguese, and Simplified Chinese interface translations.
+- Retrieve automated lap insights on demand in Analyse chat before diagnosis and improvement advice, with visible tool activity and clear distinctions between missing data and no detected findings.
+- Export complete chat history as JSON for developer debugging, including retained chat generations, stored thinking, tool calls and results, and system prompts.
+- Disable dashboard password protection from the terminal with an explicit exposure confirmation, without changing network access or recordings.
+- Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 
 ### Fixes
 - Keep converted recordings from older releases readable after updating, including checkpoint-only F1, iRacing, and LMU captures.
@@ -67,11 +76,14 @@
 - Show unnamed multi-turn sections once in Analyse and track-detail labels.
 - Keep AC Evo layouts distinct during import, setup selection, and session repair without losing notes, favorites, or setup links.
 - Replay long Tourist laps without chart crashes or closed-circuit map overlays.
+- Show AC Evo source car and layout names immediately after import instead of generated numeric placeholders.
 - Reconcile older recordings with updated car, track, and lap detection, preserving matched lap annotations and reporting captures that cannot be repaired.
 - Recheck all historical AC Evo recordings for Tourist layout identity and rebuild their laps after recording-folder organization completes; keep dependent startup work blocked when an earlier repair is incomplete.
+- Use suitable local network addresses for remote HUD links and let users choose an address when multiple adapters are available.
 - Keep racing, throttle, and braking lines sharp when zooming into the replay map.
 
 ### Internal
+- Seed selectable ACC and AC Evo setup files consistently in development and compiled E2E servers.
 - Add a release-only Ubuntu Docker smoke test that seeds the latest published release, completes migration dialogs, upgrades to freshly fetched main, and streams checkout, seed, server, and phase progress to OrbStack container logs.
 - Add `test:upgrade --replay` to retain successful upgrade recordings and open the local Playwright Trace Viewer after Docker exits, including failed runs with available traces.
 - Seed all six supported games in the Docker upgrade smoke, validate converted recording provenance and framing before checkout, require successful startup reconciliation, and verify each game's session IDs survive the release-to-main transition; extend bounded deadlines for the full dataset.
