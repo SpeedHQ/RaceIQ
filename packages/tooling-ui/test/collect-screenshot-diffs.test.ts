@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -280,5 +281,56 @@ describe("collect-screenshot-diffs", () => {
     expect(await Bun.file(join(output, "base-ref.txt")).text()).toBe("main\n");
     expect(existsSync(join(output, "current-responsive", "desktop", "one.png"))).toBe(true);
     expect(existsSync(join(output, "base-responsive", "desktop", "two.png"))).toBe(true);
+  });
+  test("combines base and PR renders for final artifact comparison", async () => {
+    const root = makeTempDir();
+    const input = join(root, "previews");
+    const responsive = join(input, "pr-visual-responsive-preview");
+    const storybook = join(input, "pr-visual-storybook-preview");
+    const output = join(root, "pr-preview");
+    const storybookBase = join(root, "base-snapshots");
+    const storybookCurrent = join(root, "current-snapshots");
+    mkdirSync(responsive, { recursive: true });
+    await Bun.write(join(responsive, "pr-number.txt"), "365\n");
+    await Bun.write(join(responsive, "base-ref.txt"), "main\n");
+    await writePng(join(responsive, "base-responsive", "mobile", "screen.png"), { r: 255, g: 0, b: 0 });
+    await writePng(join(responsive, "current-responsive", "mobile", "screen.png"), { r: 0, g: 255, b: 0 });
+    await writePng(join(storybookBase, "button.png"), { r: 0, g: 0, b: 255 });
+    await writePng(join(storybookCurrent, "button.png"), { r: 0, g: 0, b: 255 });
+    const prepared = spawnSync(
+      process.execPath,
+      [join(ROOT_DIR, "packages/tooling-ui/src/ui/prepare-pr-snapshot-preview.ts"), storybook, storybookBase, storybookCurrent, "365", "main"],
+      { cwd: root, encoding: "utf8" },
+    );
+    expect(prepared.status).toBe(0);
+
+    const combined = spawnSync(process.execPath, [join(ROOT_DIR, "scripts/ci/combine-pr-visual-previews.ts")], {
+      cwd: root,
+      env: { ...process.env, PREVIEW_ROOT: input },
+      encoding: "utf8",
+    });
+    expect(combined.status).toBe(0);
+    expect(existsSync(join(output, "base-responsive", "mobile", "screen.png"))).toBe(true);
+    expect(existsSync(join(output, "current-responsive", "mobile", "screen.png"))).toBe(true);
+    expect(existsSync(join(output, "base-storybook", "button.png"))).toBe(true);
+    expect(existsSync(join(output, "current-storybook", "button.png"))).toBe(true);
+
+    const responsiveChanges = await collectScreenshotDiffs({
+      baseDir: join(output, "base-responsive"),
+      currentDir: join(output, "current-responsive"),
+      outDir: output,
+      prefix: "responsive",
+    });
+    const storybookChanges = await collectScreenshotDiffs({
+      baseDir: join(output, "base-storybook"),
+      currentDir: join(output, "current-storybook"),
+      outDir: output,
+      prefix: "storybook",
+    });
+    expect(responsiveChanges).toHaveLength(1);
+    expect(storybookChanges).toHaveLength(0);
+    expect(existsSync(join(output, responsiveChanges[0]!.beforeFile))).toBe(true);
+    expect(existsSync(join(output, responsiveChanges[0]!.afterFile))).toBe(true);
+    expect(existsSync(join(output, responsiveChanges[0]!.diffFile))).toBe(true);
   });
 });

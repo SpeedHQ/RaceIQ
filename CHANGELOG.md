@@ -13,7 +13,7 @@
 - Reuse one prepared Playwright database snapshot across seeded server sets to avoid duplicate fixture imports.
 - Update live iRacing browser checks to expect the Tires section to be absent in Driver and Pit Crew views.
 - Run locale generation before frontend contract typechecking so clean CI workspaces resolve Paraglide modules.
-- Render PR screenshot comparisons separately from PR head and base without merging base into PR code.
+- Compare archived PR-head and base screenshots in the final comment workflow to generate UI diff images.
 
 ## v0.20.0 - 2026-10-15
 

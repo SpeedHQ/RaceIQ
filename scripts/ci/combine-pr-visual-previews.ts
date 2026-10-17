@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.env.PREVIEW_ROOT;
@@ -23,11 +23,12 @@ if (responsive.pr !== storybook.pr || responsive.baseRef !== storybook.baseRef) 
 
 writeFileSync(join(output, "pr-number.txt"), responsive.pr);
 writeFileSync(join(output, "base-ref.txt"), responsive.baseRef);
-const names = new Set<string>();
 for (const directory of previews) {
-  for (const name of readdirSync(directory).filter((file) => file.endsWith(".png"))) {
-    if (names.has(name)) throw new Error(`Duplicate visual preview image: ${name}`);
-    names.add(name);
-    copyFileSync(join(directory, name), join(output, name));
+  for (const name of ["base-responsive", "current-responsive", "base-storybook", "current-storybook"]) {
+    const source = join(directory, name);
+    if (!existsSync(source)) continue;
+    const target = join(output, name);
+    if (existsSync(target)) throw new Error(`Duplicate visual render directory: ${name}`);
+    cpSync(source, target, { recursive: true });
   }
 }
