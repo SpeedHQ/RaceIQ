@@ -2,7 +2,8 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import sharp from "sharp";
 import { collectScreenshotDiffs } from "../src/ui/collect-screenshot-diffs";
 import { mergeScreenshotRenders } from "../src/ui/merge-screenshot-renders";
@@ -332,5 +333,46 @@ describe("collect-screenshot-diffs", () => {
     expect(existsSync(join(output, responsiveChanges[0]!.beforeFile))).toBe(true);
     expect(existsSync(join(output, responsiveChanges[0]!.afterFile))).toBe(true);
     expect(existsSync(join(output, responsiveChanges[0]!.diffFile))).toBe(true);
+    const publishable = [...new Bun.Glob("pr-preview/*-{before,after,diff}.png").scanSync(root)].map((file) => basename(file));
+    expect(publishable).toContain(responsiveChanges[0]!.beforeFile);
+    expect(publishable).toContain(responsiveChanges[0]!.afterFile);
+    expect(publishable).toContain(responsiveChanges[0]!.diffFile);
+    const commentBodyPath = join(root, "posted-comment.json");
+    const commentRunner = join(root, "run-comment.ts");
+    await Bun.write(
+      commentRunner,
+      `globalThis.fetch = async (url, init) => {
+        if (String(url).includes("/comments?per_page=100")) return new Response("[]", { status: 200 });
+        if (String(url).endsWith("/issues/365/comments") && init?.method === "POST") {
+          await Bun.write(process.env.CAPTURE_BODY, init.body);
+          return new Response("{}", { status: 201 });
+        }
+        throw new Error("Unexpected GitHub request: " + url);
+      };
+      // Separate process isolates GitHub API calls and sets env before loading the side-effecting script.
+      await import(${JSON.stringify(pathToFileURL(join(ROOT_DIR, "scripts/ci/comment-pr-screenshots.ts")).href)});
+      `,
+    );
+    const commented = spawnSync(process.execPath, [commentRunner], {
+      cwd: root,
+      env: {
+        ...process.env,
+        PR: "365",
+        REPO: "owner/repo",
+        PREVIEW_BRANCH: "pr-previews",
+        CHANGED: "true",
+        SUBDIR: "pr-365/run-1",
+        BASE_REF: "main",
+        GH_TOKEN: "test-token",
+        CAPTURE_BODY: commentBodyPath,
+      },
+      encoding: "utf8",
+    });
+    expect(commented.status).toBe(0);
+    const commentBody = JSON.parse(await Bun.file(commentBodyPath).text()).body as string;
+    const imageBase = `https://raw.githubusercontent.com/owner/repo/pr-previews/pr-365/run-1/${responsiveChanges[0]!.stem}`;
+    expect(commentBody).toContain(`![base](${imageBase}-before.png)`);
+    expect(commentBody).toContain(`![pr](${imageBase}-after.png)`);
+    expect(commentBody).toContain(`![diff](${imageBase}-diff.png)`);
   });
 });
