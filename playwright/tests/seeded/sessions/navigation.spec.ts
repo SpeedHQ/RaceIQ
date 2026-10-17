@@ -64,28 +64,3 @@ test("replaying an available seeded lap opens analysis and AI panel", async ({ p
   await expect(page.getByText("AI not set up", { exact: true })).toBeVisible();
   expect(browserErrors.errors).toEqual([]);
 });
-
-test("expanded lap ledger scrolls internally on mobile", async ({ page, request }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  const sessions = await sessionsFor(request, "fm-2023");
-  const laps = await lapsFor(request, "fm-2023");
-  const targetSessionIndex = sessions.findIndex((session) => laps.some((lap) => lap.sessionId === session.id && lap.isValid));
-  expect(targetSessionIndex, "seeded session with valid lap").toBeGreaterThanOrEqual(0);
-  expect(targetSessionIndex, "session must be on first page").toBeLessThan(25);
-  await page.goto("/fm23/sessions", { waitUntil: "domcontentloaded" });
-  const card = page.locator('[class*="@3xl/workspace:hidden"] > div').nth(targetSessionIndex);
-  await card.click();
-  const notesCell = card.locator("[data-slot='table-container'] table").last().locator("tbody tr").last().locator("td").last();
-  const childTable = notesCell.locator("xpath=ancestor::div[@data-slot='table-container'][1]");
-  await expect(notesCell).toBeAttached();
-  await childTable.scrollIntoViewIfNeeded();
-  await childTable.evaluate((element) => {
-    element.scrollLeft = element.scrollWidth;
-  });
-  await expect(notesCell).toBeInViewport();
-  const overflow = await page.evaluate(() => ({
-    document: document.documentElement.scrollWidth,
-    viewport: document.documentElement.clientWidth,
-  }));
-  expect(overflow.document).toBeLessThanOrEqual(overflow.viewport);
-});

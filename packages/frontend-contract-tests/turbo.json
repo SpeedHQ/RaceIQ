@@ -6,6 +6,9 @@
     "transit": {
       "inputs": ["$TURBO_DEFAULT$", "!**/*.test.ts", "!**/*.test.tsx", "!test/**"]
     },
+    "typecheck": {
+      "dependsOn": ["transit", "client#i18n:compile"]
+    },
     "test": {
       "dependsOn": ["transit", "client#i18n:compile"],
       "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/test/artifacts/carsetup/mustang.carsetup", "$TURBO_ROOT$/test/artifacts/carsetup/Tourist.carsetup", "$TURBO_ROOT$/test/artifacts/carsetup/Default-12312.carsetup"]

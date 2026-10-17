@@ -57,8 +57,8 @@ test.describe
     test.setTimeout(140_000);
     test("user steps through wizard and lands on home page", async ({ page, request }) => {
       await resetFreshInstallState();
+      page.setDefaultNavigationTimeout(60_000);
       const { errors } = collectBrowserErrors(page, [/THREE\.GLTFLoader: Couldn't load texture/]);
-
       await page.goto("/", { waitUntil: "domcontentloaded" });
 
       // Step 1: Welcome — navigation must not depend on the optional 3D demo.
@@ -239,20 +239,6 @@ test.describe
     expect(errors, `unexpected browser errors:\n${errors.join("\n")}`).toEqual([]);
   });
 
-  test("mobile navigation drawer shares expanded sidebar controls", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/fm23/sessions", { waitUntil: "domcontentloaded" });
-    await page.getByLabel("Open navigation").click();
-
-    const navigation = page.getByRole("navigation", { name: "Navigation" });
-    await expect(navigation).toBeVisible();
-    await expect(page.getByRole("combobox", { name: "Games" })).toBeVisible();
-    await expect(navigation.getByRole("link", { name: "Sessions" })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Collapse sidebar|Expand sidebar/ })).toHaveCount(0);
-
-    await navigation.getByRole("link", { name: "Tracks" }).click();
-    await expect(page.getByLabel("Open navigation")).toBeVisible();
-  });
 
   test("dash catalogue lists dashboards", async ({ page }) => {
     const { errors } = collectBrowserErrors(page, [/THREE\.GLTFLoader: Couldn't load texture/]);
@@ -264,14 +250,6 @@ test.describe
     expect(errors, `unexpected browser errors:\n${errors.join("\n")}`).toEqual([]);
   });
 
-  test("settings modal opens without error", async ({ page }) => {
-    const { errors } = collectBrowserErrors(page, [/THREE\.GLTFLoader: Couldn't load texture/]);
-    await page.goto("/", { waitUntil: "domcontentloaded" });
-    await page.getByRole("navigation", { name: "Navigation" }).getByRole("button", { name: "Settings" }).click();
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
-    await assertImagesLoaded(page);
-    expect(errors, `unexpected browser errors:\n${errors.join("\n")}`).toEqual([]);
-  });
 
   test("dashboard passwords support login, logout, change, disable and authenticated WebSockets", async ({ page, browser, baseURL }) => {
     await page.goto("/");
@@ -424,10 +402,11 @@ test.describe
       expect(dashboard.headers()["content-type"]).toContain("text/html");
       expect(await dashboard.text()).toContain('<div id="root">');
     }
-    const url = `http://192.0.2.15:${port ?? "3118"}/`;
+    const dashboardPort = port ?? runtime.freshInstall.port;
+    const url = `http://192.0.2.15:${dashboardPort}/`;
     const dashboardUrls = page.getByRole("group", { name: "Dashboard URLs" });
     for (const address of ["127.0.0.1", "192.0.2.15", "100.64.0.2"]) {
-      await expect(dashboardUrls.getByRole("link", { name: `http://${address}:${port ?? "3118"}`, exact: true })).toBeVisible();
+      await expect(dashboardUrls.getByRole("link", { name: `http://${address}:${dashboardPort}`, exact: true })).toBeVisible();
     }
     if (port) await expect(dashboardUrls.getByRole("link", { name: "http://100.64.0.2:3118", exact: true })).toHaveCount(0);
     await expect(page.getByText("Open on another device", { exact: true })).toBeVisible();

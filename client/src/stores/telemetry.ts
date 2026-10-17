@@ -190,6 +190,7 @@ const initialTelemetryState = {
   liveCaptureLifecycles: {},
   liveCaptureError: null,
   reprocessState: initialReprocessState,
+
   liveIssues: [],
   devState: null,
   devStatePaused: false,
@@ -266,6 +267,7 @@ export const telemetryStore = createStore(initialTelemetryState, (store): Teleme
   }),
   setLiveCaptureError: (liveCaptureError) => store.setState((prev) => ({ ...prev, liveCaptureError })),
   setStaleLapDetection: (data) => store.setState((prev) => ({ ...prev, staleLapDetection: data })),
+
   beginReprocess: (total) => store.setState((prev) => ({ ...prev, reprocessState: beginReprocess(prev.reprocessState, total) })),
   completeReprocess: () => store.setState((prev) => ({ ...prev, reprocessState: completeReprocess(prev.reprocessState) })),
   failReprocess: (message) => store.setState((prev) => ({ ...prev, reprocessState: failReprocess(prev.reprocessState, message) })),

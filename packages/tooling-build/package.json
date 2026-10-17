@@ -15,6 +15,7 @@
     "@duckdb/node-api": "1.5.2-r.2"
   },
   "scripts": {
+    "lint": "../../client/node_modules/.bin/oxlint .",
     "build": "cd ../.. && bun packages/tooling-build/src/build/build.ts",
     "typecheck": "bun check --project tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/tooling-build",

@@ -21,5 +21,5 @@
   "dependencies": {
     "@raceiq/shared": "workspace:*"
   },
-  "scripts": {"typecheck":"bun check --project tsconfig.json"}
+  "scripts": {"lint":"../../client/node_modules/.bin/oxlint .","typecheck":"bun check --project tsconfig.json"}
 }

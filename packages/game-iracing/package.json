@@ -8,6 +8,7 @@
     "./ibt-reader": "./src/ibt-reader.ts",
     "./identity": "./src/identity.ts",
     "./lap-detector": "./src/lap-detector.ts",
+    "./live-capabilities": "./src/live-capabilities.ts",
     "./normalizer": "./src/normalizer.ts",
     "./recorder": "./src/recorder.ts",
     "./source": "./src/source.ts",
@@ -26,6 +27,7 @@
     "@raceiq/telemetry-core": "workspace:*"
   },
   "scripts": {
+    "lint": "../../client/node_modules/.bin/oxlint .",
     "typecheck": "bun check --project tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/game-iracing",
     "test:e2e:recordings": "bun ../../scripts/test/run-suite.ts e2e --package @raceiq/game-iracing",

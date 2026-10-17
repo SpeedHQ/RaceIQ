@@ -1,4 +1,4 @@
-import { createClient, type Client } from "@libsql/client/sqlite3";
+import { createClient as createSqliteClient, type Client, type Transaction } from "@libsql/client/sqlite3";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
 import { migrations } from "./migrations";
@@ -54,7 +54,90 @@ if (!IN_MEMORY && process.env.RACEIQ_TEST_MODE !== "1") {
   migrateLegacyDatabase();
 }
 
-const client: Client = createClient({ url: IN_MEMORY ? ":memory:" : `file:${DB_PATH}` });
+// The local driver executes synchronously. A second connection's busy wait
+// blocks the JS continuation that must commit the first transaction. Keep
+// this client's operations ordered, holding its slot for the entire transaction.
+// Independent worker clients still coordinate through SQLite's busy timeout.
+function serializeClient(nativeClient: Client): Client {
+  let tail: Promise<void> = Promise.resolve();
+  const enqueue = <T>(operation: () => Promise<T>): Promise<T> => {
+    const result = tail.then(operation);
+    tail = result.then(() => undefined, () => undefined);
+    return result;
+  };
+  return new Proxy(nativeClient, {
+    get(target, property) {
+      if (property === "execute" || property === "batch" || property === "executeMultiple" || property === "migrate") {
+        const method = Reflect.get(target, property, target) as (...args: unknown[]) => Promise<unknown>;
+        return (...args: unknown[]) => enqueue(() => method.apply(target, args));
+      }
+      if (property === "transaction") {
+        const begin = target.transaction.bind(target);
+        return (...args: Parameters<Client["transaction"]>) => {
+          let expose!: (tx: Transaction) => void;
+          let reject!: (error: unknown) => void;
+          const exposed = new Promise<Transaction>((resolve, fail) => { expose = resolve; reject = fail; });
+          const slot = enqueue(async () => {
+            let nativeTx: Transaction;
+            try {
+              nativeTx = await begin(...args);
+            } catch (error) {
+              reject(error);
+              throw error;
+            }
+            let release!: () => void;
+            const lifetime = new Promise<void>((resolve) => { release = resolve; });
+            let released = false;
+            const finish = () => {
+              if (!released) {
+                released = true;
+                release();
+              }
+            };
+            const tx = new Proxy(nativeTx, {
+              get(txTarget, txProperty) {
+                if (txProperty === "commit" || txProperty === "rollback" || txProperty === "close") {
+                  const fn = Reflect.get(txTarget, txProperty, txTarget) as (...a: unknown[]) => unknown;
+                  return (...a: unknown[]) => {
+                    try {
+                      const value = fn.apply(txTarget, a);
+                      if (value instanceof Promise) return value.finally(() => {
+                        try {
+                          if (!txTarget.closed) txTarget.close();
+                        } finally {
+                          finish();
+                        }
+                      });
+                      finish();
+                      return value;
+                    } catch (error) {
+                      try {
+                        if (!txTarget.closed) txTarget.close();
+                      } finally {
+                        finish();
+                      }
+                      throw error;
+                    }
+                  };
+                }
+                const value = Reflect.get(txTarget, txProperty, txTarget);
+                return typeof value === "function" ? value.bind(txTarget) : value;
+              },
+            });
+            expose(tx);
+            await lifetime;
+          });
+          void slot.catch(reject);
+          return exposed;
+        };
+      }
+      const value = Reflect.get(target, property, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+}
+
+const client: Client = serializeClient(createSqliteClient({ url: IN_MEMORY ? ":memory:" : `file:${DB_PATH}` }));
 
 // Bindings are created synchronously so importing this module can never block
 // and `db` can never be observed in its temporal dead zone. All async setup

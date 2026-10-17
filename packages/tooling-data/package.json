@@ -14,6 +14,7 @@
     "./telemetry/generate-demo-fixture": "./src/telemetry/generate-demo-fixture.ts"
   },
   "scripts": {
+    "lint": "../../client/node_modules/.bin/oxlint .",
     "typecheck": "bun check --project tsconfig.json"
   },
   "dependencies": {

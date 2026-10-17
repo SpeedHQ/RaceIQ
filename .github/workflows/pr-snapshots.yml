@@ -1,4 +1,4 @@
-name: Render dashboard snapshots
+name: Compare Storybook snapshots
 
 # Renders Storybook snapshots for both the pull request and its base revision
 # in the same runner environment, then compares those renders. It also compares
@@ -26,7 +26,7 @@ on:
   workflow_dispatch:
     inputs:
       pr:
-        description: "PR number to render (merges its base into the PR head and comments on it)"
+        description: "PR number to render and compare against its base branch"
         required: true
         type: number
 
@@ -40,11 +40,10 @@ permissions:
 
 jobs:
   render:
+    name: Render
     timeout-minutes: 30
     runs-on:
-      - mars-any-4vcpu-15g
-      - mars-macos-arm64-2vcpu-10g
-      - mars-ubuntu-arm64-2vcpu-10g
+      - mars-ubuntu-2vcpu-10g
       - mars-retry-3
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
@@ -75,7 +74,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4
-      - name: Prepare merged PR snapshot workspace
+      - name: Prepare base comparison worktree
         env:
           BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
@@ -217,10 +216,10 @@ jobs:
           PR_SNAPSHOT_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
         run: bun packages/tooling-ui/src/ui/prepare-pr-snapshot-preview.ts
 
-      - name: Upload preview artifact
+      - name: Upload Storybook preview artifact
         uses: actions/upload-artifact@v7
         with:
-          name: pr-screenshot-preview
+          name: pr-visual-storybook-preview
           path: pr-preview/
           retention-days: 14
 

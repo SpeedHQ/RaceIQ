@@ -54,6 +54,67 @@ function unavailableEvidence(sourceRevision: number) {
   };
 }
 
+test("session writes wait for an overlapping transaction to commit", async () => {
+  const sessionId = await seedSession();
+  const tx = await client.transaction("write");
+  try {
+    await tx.execute({ sql: "UPDATE sessions SET car_id='committed-car' WHERE id=?", args: [sessionId] });
+    const importedSession = seedSession();
+    await tx.commit();
+    const importedId = await importedSession;
+    expect(importedId).not.toBe(sessionId);
+    expect((await rows("SELECT car_id FROM sessions WHERE id=?", [sessionId]))[0]?.car_id).toBe("committed-car");
+    expect((await rows("SELECT car_id FROM sessions WHERE id=?", [importedId]))[0]?.car_id).toBe("7");
+  } finally {
+    tx.close();
+  }
+});
+
+test("failed transaction rolls back before queued session writes continue", async () => {
+  const sessionId = await seedSession();
+  const tx = await client.transaction("write");
+  try {
+    await tx.execute({ sql: "UPDATE sessions SET car_id='rolled-back-car' WHERE id=?", args: [sessionId] });
+    await expect(tx.execute({ sql: "INSERT INTO sessions(id,game_id) VALUES(?, 'acc')", args: [sessionId] })).rejects.toThrow();
+    const importedSession = seedSession();
+    await tx.rollback();
+    const importedId = await importedSession;
+    expect((await rows("SELECT car_id FROM sessions WHERE id=?", [sessionId]))[0]?.car_id).toBe("7");
+    expect((await rows("SELECT car_id FROM sessions WHERE id=?", [importedId]))[0]?.car_id).toBe("7");
+  } finally {
+    tx.close();
+  }
+});
+
+test("closing an unfinished transaction rolls back and releases queued session writes", async () => {
+  const sessionId = await seedSession();
+  const tx = await client.transaction("write");
+  try {
+    await tx.execute({ sql: "UPDATE sessions SET car_id='abandoned-car' WHERE id=?", args: [sessionId] });
+    const importedSession = seedSession();
+    tx.close();
+    await importedSession;
+    expect((await rows("SELECT car_id FROM sessions WHERE id=?", [sessionId]))[0]?.car_id).toBe("7");
+  } finally {
+    tx.close();
+  }
+});
+
+test("failed commit rolls back before queued session writes continue", async () => {
+  const tx = await client.transaction("write");
+  try {
+    await tx.execute("PRAGMA defer_foreign_keys=ON");
+    await tx.execute("INSERT INTO laps(session_id,lap_number,lap_time) VALUES(-987654321,1,91)");
+    const importedSession = seedSession();
+    await expect(tx.commit()).rejects.toThrow("FOREIGN KEY constraint failed");
+    const importedId = await importedSession;
+    expect((await rows("SELECT car_id FROM sessions WHERE id=?", [importedId]))[0]?.car_id).toBe("7");
+    expect(await rows("SELECT id FROM laps WHERE session_id=-987654321")).toEqual([]);
+  } finally {
+    tx.close();
+  }
+});
+
 test("direct source writes advance revision; transaction rollback rolls invalidation back", async () => {
   const sessionId = await seedSession();
   let current = await state(sessionId);

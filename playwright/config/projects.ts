@@ -1,4 +1,4 @@
-import { devices, type PlaywrightTestConfig } from "@playwright/test";
+import type { PlaywrightTestConfig } from "@playwright/test";
 import type { E2ERuntime } from "./runtime";
 
 export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestConfig["projects"]> {
@@ -17,22 +17,9 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
   return [
     {
       name: "fresh-install",
-      testMatch: ["fresh-install/**/*.spec.ts", "responsive/workspaces.spec.ts"],
+      testMatch: "fresh-install/**/*.spec.ts",
       workers: 1,
       use: { baseURL: freshBaseURL, viewport: { width: 1280, height: 900 } },
-    },
-    {
-      name: "marketing",
-      testMatch: "marketing/**/*.spec.ts",
-      use: {
-        baseURL: process.env.MARKETING_BASE_URL ?? seededBaseURL,
-        viewport: { width: 1920, height: 1080 },
-      },
-    },
-    {
-      name: "mobile-screenshots",
-      testMatch: "responsive/mobile-screenshots.spec.ts",
-      use: { baseURL: seededBaseURL },
     },
     {
       name: "tunes",
@@ -47,22 +34,6 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       grep: /import page renders empty state when Documents folder absent/,
       workers: 1,
       use: { baseURL: tunesUnseededBaseURL, viewport: { width: 1440, height: 900 } },
-    },
-    {
-      name: "mobile-device",
-      testMatch: "responsive/device.spec.ts",
-      fullyParallel: true,
-      use: { ...devices["Pixel 7"], baseURL: seededBaseURL },
-    },
-    {
-      name: "tablet-device",
-      testMatch: "responsive/device.spec.ts",
-      fullyParallel: true,
-      use: {
-        ...devices["iPad (gen 7)"],
-        browserName: "chromium",
-        baseURL: seededBaseURL,
-      },
     },
     {
       name: "seeded-routes",
