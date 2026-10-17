@@ -12,7 +12,10 @@
 - Run AMS2 capture tests through the isolated integration test runner.
 - Complete AMS2 telemetry catalog provenance, native units, extension coverage and supported fuel projections.
 
+- Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
+
 ### Fixes
+- Keep Windows recording publication working when directory metadata flushing is unsupported, while retaining file-content flushing and reporting other I/O failures.
 - Accept captured AMS2 first race laps from the starting grid when the initial invalid flag clears, while preserving later invalidations, pit exclusions, and recording-quality checks.
 - Avoid false AMS2 restart detection when untimed start-line crossings wrap lap distance without advancing the lap counter.
 - Prevent retained qualifying timing from creating a spurious AMS2 race session during live recording transitions.
@@ -26,6 +29,7 @@
 - Restore Live child-page routing, production Raw Data updates and AMS2 game navigation.
 - Restore AMS2 live sector progression using telemetry track length and lap position; show available live tire pressures, use percentages in replay pedal charts, and exclude invalid laps from recorded PBs.
 - Keep game links visible on Live pages.
+- Use LMU game-world coordinates directly for track geometry, preserving edge-hugging and off-track positions.
 - Prevent overlapping database writes from blocking recording imports and setup or session deletion.
 - Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.
 - Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.

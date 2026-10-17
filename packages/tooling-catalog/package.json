@@ -10,7 +10,7 @@
   "dependencies": {"@raceiq/shared":"workspace:*","@raceiq/game-iracing-metadata":"workspace:*","@raceiq/analysis-core":"workspace:*","@raceiq/telemetry-core":"workspace:*"},
   "devDependencies": { "@babel/parser": "^8.0.5" },
   "scripts": {
-    "lint": "../../client/node_modules/.bin/oxlint .",
+    "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --project tsconfig.json"
   }
 }

@@ -15,7 +15,7 @@
     "./racing/tracks/recording/outlines": "./src/racing/tracks/recording/outlines.ts",
     "./racing/tracks/storage/sectors": "./src/racing/tracks/storage/sectors.ts"
   },
-  "scripts": { "lint": "../../client/node_modules/.bin/oxlint .", "typecheck": "bun check --project tsconfig.json" },
+  "scripts": { "lint": "node ../../client/node_modules/oxlint/bin/oxlint .", "typecheck": "bun check --project tsconfig.json" },
   "dependencies": {
     "@raceiq/shared": "workspace:*",
     "@raceiq/game-acc-metadata": "workspace:*",

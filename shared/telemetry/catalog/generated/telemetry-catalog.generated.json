@@ -6,22 +6,22 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.20.0",
-      "sourceHash": "9c615c59f6c7a46253e116f41dcd922f7f22b97c1fe83996d9b88c9af8dbc318"
+      "sourceHash": "67af6a9030c6f3618a73c8e2700c7b3ed655b5d552f95f8ad5da6621bb362fac"
     },
     "sourceHashes": {
-      "packages/game-ac-evo/src/parser.ts": "1b8e588159a7e3e1cd37a882f57a961d501ef034d75fc54d84859920501cbd20",
+      "packages/game-ac-evo/src/parser.ts": "29cb3985fe32c797554d98f107a0c4d76ddcc5279d97e75423365e1a0887f5de",
       "packages/game-acc/src/parser.ts": "f527d6448320e78072fb9dbfff0df28d5ce1029f020510d148bded12df8cb7ba",
       "packages/game-ams2/src/normalizer.ts": "fcdb1d0fd3be8be2a7e8ec2b1d0cc85e8e4243443997e0ce76d68e60a4d63b28",
-      "packages/game-f1-2025/src/f1-state.ts": "6a15c7fe6b10f2630daaa3d88a1a9000f10c93b7fe51be76706f1be3face9a59",
+      "packages/game-f1-2025/src/f1-state.ts": "2c3ad3f21293094cf564b912a4b8ea35d1e16df713f863e47fdf763184e8de79",
       "packages/game-fm-2023/src/parser.ts": "71c348b894f84f6086c9582d0cce473bac75a3c85896010a0e5762854718b835",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
-      "packages/game-iracing/src/normalizer.ts": "76462dd0d2ab42538627c54e1a3962e00fab7935b3ba74548cf152b43b46bfa7",
+      "packages/game-iracing/src/normalizer.ts": "bcc73bc4805a310f968b9743e6c9c88a688e3216cd28eecc3ee9f6c3d36b0afc",
       "packages/game-lmu/src/normalizer.ts": "1c2d9c9bd1a9b1bdae8f587f009ee6d087dcddf821c7ce56c14a4301bc4789e9",
       "packages/tooling-catalog/src/catalog/derived-projections.ts": "6d878cc39729fcc96ff88b3d06266893bc396584d60a050cd3990d4f50aa9378",
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "d9e9179643b0e00726eb3baaa191b10a1bfa984f26488396eb4036d42280567f"
+    "contentHash": "4dd8c0c18a3669bca656b50788276942566de08d6100676f83e76a44263340f7"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -48900,15 +48900,20 @@
           "kind": "derived",
           "nativeUnit": "s",
           "sources": [
+            "iRacing.SessionInfo.subSessionId",
+            "iRacing.SessionInfo.sessionId",
+            "iRacing.SessionInfo.sessionNum",
+            "iRacing.Lap",
+            "iRacing.SessionTime",
             "iRacing.LapCurrentLapTime",
             "iracing.sdkCurrentLapTime"
           ],
           "freshness": "continuous",
-          "normalization": "currentLapTime => sdkCurrentLapTime => Math.max( 0, scalar(values, \"LapCurrentLapTime\", 0), )",
-          "description": "iracing maps 1 native source channel into this value.",
+          "normalization": "currentLapTime => updateCurrentLapClock(state, sessionKey, rawLap, sessionTime, sdkCurrentLapTime)",
+          "description": "iracing maps 6 native source channels into this value.",
           "provenance": {
-            "origin": "parser",
-            "artifact": "packages/game-iracing/src/normalizer.ts"
+            "origin": "yaml",
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -48917,11 +48922,16 @@
             "version": "0.20.0",
             "deterministic": true,
             "declaredInputs": [
+              "iRacing.SessionInfo.subSessionId",
+              "iRacing.SessionInfo.sessionId",
+              "iRacing.SessionInfo.sessionNum",
+              "iRacing.Lap",
+              "iRacing.SessionTime",
               "iRacing.LapCurrentLapTime",
               "iracing.sdkCurrentLapTime"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "cd7dc4a5122228fbdb8013752e37d4c182b8772c9b2f9728526f8dcda0615a47"
+            "codeHash": "50acf3564a30e2dbe7f3d36848ef7c3340bf05747a20fab2e3bb45a75dcdaca3"
           }
         },
         "lmu": {

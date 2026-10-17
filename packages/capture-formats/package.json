@@ -29,10 +29,14 @@
     "./session/limits": "./src/session/limits.ts",
     "./session/recorder": "./src/session/recorder.ts",
     "./session/sparse-recorder": "./src/session/sparse-recorder.ts",
+    "./session/worker-recorder": "./src/session/worker-recorder.ts",
+    "./session/preopened-file-writer": "./src/session/preopened-file-writer.ts",
+    "./session/source-writer-worker": "./src/session/source-writer-worker.ts",
+    "./session/durable-directory": "./src/session/durable-directory.ts",
     "./ams2/dump": "./src/ams2/dump.ts"
   },
   "scripts": {
-    "lint": "../../client/node_modules/.bin/oxlint .",
+    "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --project tsconfig.json"
   }
 }

@@ -87,7 +87,7 @@ describe("LMU capture containers", () => {
     const imported = await importSessionFrames(frames, "lmu", {
       requireLaps: true,
       notifyDriverProfile: false,
-      recorder: new SparseSessionRecorderAdapter(),
+      recorder: new SparseSessionRecorderAdapter("mine", {}, "offline"),
     });
     for (const id of new Set(imported.laps.map((lap) => lap.sessionId))) sessionIds.push(id);
     const row = await db.select().from(sessions).where(eq(sessions.id, imported.laps[0]!.sessionId)).get();

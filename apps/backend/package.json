@@ -8,7 +8,7 @@
     "./routes/tunes/index": "./src/routes/tunes/index.ts"
   },
   "scripts": {
-    "lint": "../../client/node_modules/.bin/oxlint .",
+    "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --build tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/backend",
     "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/backend",
@@ -29,6 +29,7 @@
     "@mastra/memory": "^1.30.0",
     "ai": "7.0.105",
     "drizzle-orm": "^0.45.2",
+    "effect": "4.0.4",
     "fflate": "^0.8.3",
     "hono": "4.13.8",
     "libsql": "^0.5.29",
@@ -44,6 +45,7 @@
     "@raceiq/backend-core": "workspace:*",
     "@raceiq/shared": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
+    "@raceiq/capture-splitting": "workspace:*",
     "@raceiq/game-ac-evo": "workspace:*",
     "@raceiq/game-acc": "workspace:*",
     "@raceiq/game-f1-2025": "workspace:*",

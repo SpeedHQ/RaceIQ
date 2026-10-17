@@ -1,6 +1,6 @@
 import type { SceneRuntime, SceneSource } from "../wireframe/SceneRuntime";
 import type { GameId } from "@raceiq/shared/games/ids";
-import { memo, type RefObject, useEffect, useMemo, useRef, useState } from "react";
+import { memo, type RefObject, useEffect, useRef, useState } from "react";
 import type { useUnits } from "../../hooks/useUnits";
 import { BodyAttitude } from "../BodyAttitude";
 import { CarWireframe } from "../CarWireframe";
@@ -8,7 +8,6 @@ import { GForceCircle } from "../telemetry/GForceCircle";
 import { TireDiagram } from "../telemetry/TireDiagram";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import type { Point, SemanticAnalysisFrame, TrackMapBoundaries } from "./track-map/types";
-import { alignTrackBoundariesToPositions } from "./track-map/path";
 
 interface Props {
   onVizModeChange: (mode: "2d" | "3d") => void;
@@ -72,10 +71,6 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
     return () => cancelAnimationFrame(animationFrame);
   }, [cursorRef]);
   const visualFrame = displayTelemetryRef.current[visualCursorIdx] ?? semanticFrames[visualCursorIdx] ?? currentFrame;
-  const sceneBoundaries = useMemo(
-    () => gameId === "lmu" && lapLine ? alignTrackBoundariesToPositions(boundaries, lapLine) : boundaries,
-    [boundaries, gameId, lapLine],
-  );
 
   return (
     <Tabs
@@ -110,7 +105,7 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
               telemetry={semanticFrames}
               cursorIdx={sceneCursorIdx}
               outline={lapLine}
-              boundaries={sceneBoundaries}
+              boundaries={boundaries}
               tempLabel={units.tempLabel}
             />
           )}

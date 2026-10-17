@@ -16,10 +16,47 @@ graph LR
   Recorder --> Bin[Session .bin or .bin.gz]
   Detector --> DB[(sessions and laps)]
   Bin --> Replay[Import or reprocess]
+  Bin --> Split[Package-owned split and verification]
+  Split --> Archive[Physical per-lap BIN files and JSON manifest]
+  Archive --> LapReplay[Selected-lap replay and export]
   Replay --> Adapter
 ```
 
 UDP adapters preserve original source datagrams. ACC and AC Evo pack three shared-memory pages with adapter magic and resolved ordinals. iRacing preserves versioned session/value-delta source frames. Production uses `SparseSessionRecorderAdapter` for all six games.
+
+## Incremental live lap capture (release-gated)
+
+The bounded live source recorder owns file creation, writes, header patching, flush, and sync in a worker. Enabling `configureLiveCaptureRuntime()` additionally binds the production per-lap derivation worker and restart replay. That binding is deliberately absent from production boot until the [live release gates](../plans/live-lossless-lap-splitting.md#phase-4--performance-and-end-to-end-release-gates) pass. Existing imports and reprocessing keep the explicit offline recorder; they do not use live admission limits as an unlimited-speed import transport.
+
+Detector ownership transitions, not parser checkpoint predictions, define lap windows. Each candidate retains exact pre-frame initialization; a canonical epoch starts with its parser anchor and preceding context, excluding the current gameplay frame. An unpersisted window is explicitly abandoned and conserved as auxiliary data. Reaching another candidate does not authorize discarding an unresolved lap: derivation waits for journaled finalization or abandonment, independently of delayed database identity binding.
+
+Ingress reserves bounded transport/control capacity without awaiting source filesystem operations, worker completion, durability, verification, or publication. The live adapter allows 16 MiB in flight and batches at most 4 MiB. Derivation caches at most 8 MiB or 1,024 source records and journals ordered work on disk; a cache miss catches up from the pinned canonical source during recording. Control admission is distinct from control execution. Exhaustion and worker/I/O failures are explicit recording failures, never permission to silently drop accepted records.
+
+The derivation worker may combine up to 64 additional adjacent, monotonic watermark controls already written to the work journal. It never crosses candidate, ownership, binding, or close controls. Every combined sequence is acknowledged only after the latest watermark executes; the first nonmatching control remains available to ordered replay and late-ownership lookahead. This amortizes canonical seek/read work without changing authoritative windows or retaining a growing control history.
+
+The source worker uses bounded vectored writes without copying native payloads. Each durability fence syncs source data; the parent directory tree is synced once after source creation, because later appends and the final header patch do not create directory entries.
+
+Capture, restart recovery, and release benchmarks share the same Bun worker constructor and small-heap GC policy. This changes heap-growth behavior, not the explicit transport, control, source-cache, or checkpoint ceilings. Release measurements still enforce CPU, readiness, and additional RSS budgets.
+
+Publication order is canonical durability, authoritative journal/binding durability, native conservation and independent semantic replay verification, archive durability, then an atomic fenced database member commit. Only that commit authorizes `lap-capture-ready`. Source native/header counts, all logical source records, and transport sequences are separate counters.
+
+Unpublished gzip stages and position spools are regenerable scratch, not recovery authority. Closing a stage finishes its bytes for native and parser verification without a separate scratch-file durability fence. Every committed archive append is still synced before the database publication fence; restart derives any unfinished work from the retained durable source and journal.
+
+The live worker pre-opens one spare gzip staging file and one source-position journal while the current member is recording. A confirmed boundary consumes those prepared resources and replenishes the spare asynchronously. The next member can accept records while the previous member closes, verifies, replays, and publishes; archive commits remain ordered. At most one finalization is outstanding alongside the active member. If another boundary arrives before that finalization completes, derived processing waits at the bounded capacity fence rather than growing an unlimited finalization queue. This does not promise zero handover latency when preparation or finalization falls behind.
+
+Graceful close waits for active and outstanding finalization work before reporting a sealed capture. Failure stops further publication, reports the error without requiring another source frame, and discards unpublished stages, position journals, and unused prepared files. Prepared files are scratch only: they do not change detector ownership, readiness, canonical recording, or the indexed archive format.
+
+Live capture layout 3 uses archive schema v5 and immutable committed snapshots. A reader validates member ranges, integrity, generation, and the committed archive length, then reads only the selected prefix/member. Later appends do not invalidate an older snapshot. This is not an exception to manifest v4's strict physical EOF check; legacy directory bundles and v4 archives retain their existing contracts.
+
+Normal live close drains outstanding tail work and seals metadata; it does not schedule a second whole-session split or revisit completed members. Canonical source remains retained. Retaining both source and archive is not a storage-saving claim.
+
+Restart recovery checks source device/inode and durable length, rotates the attempt fence, and streams journal controls by effective owned start with sequence ties. Its indexed keyset cursor retains bounded active candidate/window state, not full-history arrays. Delayed observations can reference any already committed lap, not just the last member. A persisted unpublished lap without durable authoritative ownership fails visibly rather than being absorbed into auxiliary data. Recovery preserves canonical suffix bytes and truncates only an uncommitted archive suffix.
+
+An authoritative window may select a prepared running-start trim without a separate promotion event. Recovery restores that selection, conserves its tentative prefix as auxiliary data, releases discarded candidate reservations, and can resume when the prefix was committed before the crash.
+
+Recording lifecycle notifications use opaque string capture epochs. Reconnect restores current recording, finalizing, sealed, or failed state; stale epoch events and terminal rollback cannot manufacture readiness. Previously committed laps remain usable after a later recording failure.
+
+Behavioral fixture proof and numeric release approval are separate. The matched runner measures the legacy live recorder plus production post-session splitting against live derivation; subset or accelerated samples cannot authorize activation. Current commands and measurement limitations are documented in the [contributor guide](../contributing/telemetry-recordings.md#verify-incremental-live-capture). ADRs [0011](../adr/0011-package-owned-indexed-capture-splitting.md) and [0012](../adr/0012-indexed-session-lap-archive.md) describe the historical offline decisions; live layout 3 extends rather than rewrites them.
 
 ## Canonical session file
 
@@ -131,11 +168,28 @@ Development dump files are different, adapter-specific capture formats. Use [Tel
 
 Developer fixture playback and live UDP benchmarks continue to read original raw recordings so parser and recording coverage matches acquisition. Only HTTP import payloads and seeded database captures are converted to sparse format; checked-in source fixtures remain unchanged.
 
+### Physical completed-session lap files
+
+New split publications contain `manifest.json` and one physical sparse `.bin` file per persisted lap in an immutable attempt directory under `session-<sessionId>/`. Filenames identify the detector lap number, including lap 0; invalid and incomplete persisted laps are not dropped. Separate auxiliary `.bin` files conserve source records outside detected laps and rotate at 64 MiB, with at most one capture-record overshoot. Every lap file retains independent sparse checkpoints, parser bootstrap state, and explicitly non-owned completion context.
+
+Directory manifest v3 records each relative `path`, encoded `byteLength`, source ownership ranges, and artifact-local `ownedFrameByteOffset`. Database layout version 1 stores the JSON path in `sessions.captureManifestFile`; `sessions.captureArchiveFile` is null. These layout versions are independent of sparse codec and source-frame versions. The writer buffers at most 128 writes or approximately 1 MiB before a vectored flush, with one-record overshoot, and syncs/closes each file before manifest publication.
+
+Replay and export resolve the selected physical file, enforce contained relative paths and byte lengths, and include publication/file identity in caches. A missing or corrupt published file fails visibly; readers never silently fall back to the monolith.
+
+Historical database layout 2 / manifest v4 bundles remain readable while awaiting startup consent. Migration rebuilds physical files from the retained canonical source, verifies them, and atomically replaces session/lap references. The old publication stays readable until the commit succeeds. A missing retained source leaves the bundle intact and reports the unavailable migration prerequisite in server diagnostics. Current-run sparse imports automatically publish physical files without joining startup consent.
+
+The historical v4 `capture.bin.gz` reader still validates selected gzip-member framing, CRC, size, and exact compressed-byte consumption. It is not the new completed-session output format. The release-gated incremental live layout 3 described above remains separate.
+
+The package verifies native bytes, order, timestamp presence/absence, source conservation, parser bootstrap, and owned/context windows through the production reader before publication. Closed and synced data and manifest files move together through the existing atomic directory rename and fenced DB transaction. Cancellation, stale attempts, failed writes, and failed transactions do not publish references. Recovery removes only unreferenced attempts.
+
+Semantic artifact hashes cover selected capture bytes; new physical lap files use `storageEncoding: "identity"`. Retained session-source hashing remains separate. Sources are not retired by split publication. See the [physical-file cutover plan](../plans/sparse-split-migration-backend-plan.md#physical-file-implementation-phase) and [package-owned splitting decision](../adr/0011-package-owned-indexed-capture-splitting.md).
+
+
 ## Compression and cleanup
 
 `server/session-capture/compressor.ts` gzips inactive `.bin` files older than 24 hours and updates `sessions.rawFile` to the `.bin.gz` path. Reprocess and import readers restore the same sparse capture byte stream transparently. User-triggered compression may also sweep unreferenced `.bin` files.
 
-Unmarked legacy canonical `.bin` and `.bin.gz` files are unsupported for playback, reprocessing, and uploads. Seed scripts convert checked-in source fixtures into new sparse captures. `sessions.capture_format_version = 1` marks newly created sparse recordings; source-frame schema versions remain unchanged.
+Unmarked legacy canonical `.bin` and `.bin.gz` uploads are unsupported. Seed scripts convert checked-in source fixtures into new sparse captures. `sessions.capture_format_version = 1` marks converted sparse recordings; persisted checkpoint-only converted captures use that provenance consistently in streaming and buffered replay, while untrusted uploads still require sparse markers/codecs. Source-frame schema versions remain unchanged.
 
 See [Session storage](../operations/session-storage.md) for lifecycle, orphan handling, and operational constraints.
 
@@ -170,3 +224,4 @@ That trade-off does not imply higher measurement fidelity. Sample cadence, dupli
 - `server/session-capture/import-pipeline.ts` — parser, detector, and persistence pipeline
 - `server/session-capture/reprocess.ts` — detector replay and index refresh
 - `server/session-capture/compressor.ts` — background gzip
+- `packages/capture-splitting/src/{archive,contract,index}.ts` — indexed gzip contract, bounded member reader, lossless writer and verifier

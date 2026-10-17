@@ -1,5 +1,6 @@
 import { getAccCarByModel } from "@raceiq/game-acc-metadata/racing/cars/acc"
 import { getAccTrackByName } from "@raceiq/game-acc-metadata/racing/tracks/catalogs/acc"
+import { trackFrameLocalParserInput } from "@raceiq/backend-core/games/packet-dispatch";
 import { processPacket } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { ACC_PACKED_MAGIC, packTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 import type { TripletProcessor } from "@raceiq/backend-core/games/kunos/triplet-pipeline";
@@ -57,16 +58,19 @@ export class ParsingProcessor implements TripletProcessor {
         const tn = readWString(triplet.staticData, STATIC.track.offset, STATIC.track.size);
         if (tn) this.trackId = String(getAccTrackByName(tn)?.id ?? tn);
       }
+      const sourceFrame = packTriplet(
+        ACC_PACKED_MAGIC, this.sourceCarId, this.sourceTrackId,
+        triplet.physics, triplet.graphics, triplet.staticData,
+      );
+      const timestampMs = triplet.frameTimeMs ?? Date.now();
+      trackFrameLocalParserInput("acc", sourceFrame, timestampMs);
       const packet = parseAccBuffers(triplet.physics, triplet.graphics, triplet.staticData, {
         carId: this.carId,
         trackId: this.trackId,
         gameId: "acc",
-        timestampMs: triplet.frameTimeMs ?? Date.now(),
+        timestampMs,
       });
-      if (packet) {
-        const sourceFrame = packTriplet(ACC_PACKED_MAGIC, this.sourceCarId, this.sourceTrackId, triplet.physics, triplet.graphics, triplet.staticData);
-        await processPacket(packet, sourceFrame, triplet.frameTimeMs);
-      }
+      if (packet) await processPacket(packet, sourceFrame, triplet.frameTimeMs);
     } catch (err) {
       console.error("[ACC ParsingProcessor] Error:", err instanceof Error ? err.message : err);
       throw err;

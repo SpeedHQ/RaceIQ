@@ -1,6 +1,6 @@
 import { queryKeys } from "@/hooks/query-keys";
 import { useIsMutating, useMutationState } from "@tanstack/react-query";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useState } from "react";
 import { ArrowRight, Folder, FolderInput, FolderTree, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { useRecordingLayoutMigration, useSelectRecordingDirectory, useStartRecor
 import { m } from "@/paraglide/messages";
 import { previewRecordingDirectories } from "@/lib/recording-storage-paths";
 
-export function RecordingLayoutMigration({ compact = false, onSuccessDismissed }: { compact?: boolean; onSuccessDismissed?: () => void }) {
+export function RecordingLayoutMigration({ compact = false, onSuccessDismissed, onPrecedenceChange }: { compact?: boolean; onSuccessDismissed?: () => void; onPrecedenceChange?: (active: boolean) => void }) {
   const status = useRecordingLayoutMigration();
   const locationId = useId();
   const start = useStartRecordingLayoutMigration();
@@ -51,6 +51,9 @@ export function RecordingLayoutMigration({ compact = false, onSuccessDismissed }
     // A completed server job is not a new notification after reload or remount.
     if (running) { setObservedRunning(true); setSuccessDismissed(false); }
   }, [running]);
+  useLayoutEffect(() => {
+    if (!compact) onPrecedenceChange?.(dialogOpen);
+  }, [compact, dialogOpen, onPrecedenceChange]);
   useEffect(() => {
     if (status.data?.directory) setDestination(status.data.directory);
   }, [status.data?.directory]);

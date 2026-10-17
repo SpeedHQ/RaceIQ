@@ -6,6 +6,7 @@ import { isAMS2SessionEndFrame } from "./frame";
 import { ams2Parser } from "./game-parser";
 import { AMS2_LAP_DETECTOR_POLICY } from "./lap-policy";
 export const ams2ServerAdapter: ServerGameAdapter = {
+  parserStateIsFrameLocal: true,
   ...ams2Adapter,
   runtime: {pit: {seedFuelFromHistory: true, seedTireWearFromHistory: true, useDistanceBasedWearCurves: true}, bestLapFromSession: false, requiresTrackCalibration: false, normSuspensionTravelMm: {min: 0, max: 100}},
   processNames: ["AMS2AVX.exe", "AMS2.exe"],

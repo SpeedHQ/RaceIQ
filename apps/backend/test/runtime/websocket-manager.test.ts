@@ -1,3 +1,4 @@
+import { Schema } from "effect";
 import { describe, expect, spyOn, test } from "bun:test";
 import type { ServerWebSocket } from "bun";
 import { WebSocketManager, type WSData } from "@raceiq/backend-core/runtime/websocket-manager";
@@ -14,6 +15,26 @@ const schema = { type: "telemetry-schema", protocolVersion: 1, schemaId: "schema
 const frame = { type: "telemetry-frame", protocolVersion: 1, schemaId: schema.schemaId, streamId: "stream-1", sessionId: 1, sequence: 1, observedAt: { domain: "session", milliseconds: 1 }, receivedAtMs: 1, values: [], context: {} } as const satisfies NonNullable<LiveProjection["frame"]>;
 
 describe("WebSocketManager controls", () => {
+  test("reconnect retains opaque capture epochs and terminal failure without stale rollback", () => {
+    const manager = new WebSocketManager();
+    const first = "8f1d24ca-6723-46fc-9346-7348693dbf27", current = "03f6c80c-a1d4-4381-bab3-5bdb6bb05ceb";
+    manager.broadcastNotification({ type: "recording-started", sessionId: 42, gameId: "fm-2023", captureEpoch: first });
+    manager.broadcastNotification({ type: "recording-sealed", sessionId: 42, captureEpoch: first });
+    manager.broadcastNotification({ type: "recording-finalizing", sessionId: 42, captureEpoch: first });
+    manager.broadcastNotification({ type: "recording-started", sessionId: 42, gameId: "fm-2023", captureEpoch: current });
+    manager.broadcastNotification({ type: "recording-failed", sessionId: 42, captureEpoch: first, error: "stale failure" });
+    manager.broadcastNotification({ type: "recording-finalizing", sessionId: 42, captureEpoch: current });
+    manager.broadcastNotification({ type: "recording-failed", sessionId: 42, captureEpoch: current, error: "source write failed" });
+    manager.broadcastNotification({ type: "recording-sealed", sessionId: 42, captureEpoch: current });
+    const client = socket();
+    manager.addClient(client);
+    const Snapshot = Schema.Struct({ type: Schema.String, sessionId: Schema.Number, gameId: Schema.String,
+      captureEpoch: Schema.String, error: Schema.optional(Schema.String) });
+    const snapshots = client.sent.map((value) => Schema.decodeUnknownSync(Snapshot)(JSON.parse(value)));
+    expect(snapshots).toEqual([{ type: "recording-failed", sessionId: 42, gameId: "fm-2023", captureEpoch: current, error: "source write failed" }]);
+    manager.removeClient(client);
+  });
+
   test("malformed control is rejected without subscription", () => {
     const manager = new WebSocketManager(); const ws = socket();
     manager.handleMessage(ws, "not-json");

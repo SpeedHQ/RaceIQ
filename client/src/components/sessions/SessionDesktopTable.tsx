@@ -13,6 +13,7 @@ import { NoteCell } from "./NoteCell";
 import { MotecBadge } from "./MotecBadge";
 import { SessionLapTable } from "./SessionLapTable";
 import { SessionResultMeta } from "./SessionResultMeta";
+import { SessionCaptureSplitStatus } from "./SessionCaptureSplitStatus";
 import type { LapSortKey, SessionSelectionEvent, SortDir, SortKey } from "./types";
 import { getLocale } from "@/paraglide/runtime";
 import { m } from "@/paraglide/messages";
@@ -168,6 +169,7 @@ export function SessionDesktopTable({
                     <TableCell className="text-app-label">{sessionCarName(session, { trackNames, carNames })}</TableCell>
                     <TableCell className="text-app-label">
                       <SessionResultMeta session={session} />
+                      <SessionCaptureSplitStatus status={session.captureSplit} sessionId={session.id} />
                     </TableCell>
                     {showSessionType && <TableCell className="text-app-label"><SessionTypeBadge type={session.sessionType} /></TableCell>}
                     <TableCell>

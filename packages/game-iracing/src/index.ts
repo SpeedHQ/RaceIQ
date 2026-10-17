@@ -7,6 +7,11 @@ import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
 import { LapDetectorIRacing } from "./lap-detector";
 import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
 import { iracingParser } from "./game-parser";
+import {
+  captureIRacingParserCheckpoint,
+  restoreIRacingParserCheckpoint,
+  type IRacingParserState,
+} from "./normalizer";
 
 const IRACING_SYSTEM_PROMPT = `You are an expert iRacing driver coach and race engineer.
 
@@ -63,6 +68,8 @@ export const iracingServerAdapter: ServerGameAdapter = {
     iracingParser.primeParserState(buf, state as never);
   },
   createParserState: iracingParser.createParserState,
+  captureParserCheckpoint(state) { return captureIRacingParserCheckpoint(state as IRacingParserState); },
+  restoreParserCheckpoint(_state, payload) { return restoreIRacingParserCheckpoint(payload); },
 
   createLapDetector: (opts) => new LapDetectorIRacing(opts),
   aiSystemPrompt: IRACING_SYSTEM_PROMPT,
