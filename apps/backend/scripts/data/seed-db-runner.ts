@@ -136,8 +136,9 @@ async function main(): Promise<void> {
 
   const profile = await db.insert(profiles).values({ name: PROFILE_NAME }).returning({ id: profiles.id }).get();
   const importedLapIds: number[] = [];
+  const excludedFixtures = new Set(options.excludedFixtures);
   for (const game of options.games) {
-    const fixtures = options.fixtures ?? FIXTURES[game];
+    const fixtures = (options.fixtures ?? FIXTURES[game]).filter((fixture) => !excludedFixtures.has(fixture));
     for (const fixture of fixtures) {
       const partMatch = /^(.*)\.part(\d+)$/i.exec(fixture);
       if (partMatch && Number(partMatch[2]) !== 1) continue;

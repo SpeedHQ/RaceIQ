@@ -14,6 +14,12 @@ export function seedE2ESetupData(repoDir: string, dataDir: string): void {
   copyFileSync(resolve(repoDir, "test", "artifacts", "carsetup", "Default-12312.carsetup"), resolve(acEvoDir, "e2e.carsetup"));
 }
 
+// This large capture is covered by game-lmu recording tests; the small LMU session
+// still seeds landing flows without making screenshot setup exceed CI resources.
+const EXCLUDED_SCREENSHOT_SEED_FIXTURES = [
+  "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1",
+  "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part2",
+] as const;
 export function seedScreenshotData(repoDir: string, dataDir: string): void {
   if (process.env.PW_SEED_SCREENSHOTS !== "1") return;
   if (process.env.PW_SEEDED_DATABASE) {
@@ -21,7 +27,13 @@ export function seedScreenshotData(repoDir: string, dataDir: string): void {
     return;
   }
 
-  const result = spawnSync("bun", ["run", "apps/backend/scripts/data/seed-db.ts", `--games=${process.env.PW_SEED_GAMES ?? DEFAULT_GAMES.join(",")}`], {
+  const seedArgs = [
+    "run",
+    "apps/backend/scripts/data/seed-db.ts",
+    `--games=${process.env.PW_SEED_GAMES ?? DEFAULT_GAMES.join(",")}`,
+    ...EXCLUDED_SCREENSHOT_SEED_FIXTURES.map((fixture) => `--exclude-fixture=${fixture}`),
+  ];
+  const result = spawnSync("bun", seedArgs, {
     cwd: repoDir,
     env: { ...process.env, DATA_DIR: dataDir },
     stdio: "inherit",
