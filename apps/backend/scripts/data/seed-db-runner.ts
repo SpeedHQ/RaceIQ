@@ -188,7 +188,11 @@ async function main(): Promise<void> {
       }
     }
   }
-  if (importedLapIds.length) await insertDemoRows(profile.id, importedLapIds);
+  if (importedLapIds.length) {
+    console.log(`[DB Seed] Adding demo rows for ${importedLapIds.length} imported laps.`);
+    await insertDemoRows(profile.id, importedLapIds);
+    console.log("[DB Seed] Demo rows ready.");
+  }
   if (options.legacyRecordings) await placeSeedRecordingsInLegacyLayout();
   markOnboardingComplete();
   console.log(`[DB Seed] Complete: ${importedLapIds.length} valid laps, ${options.games.join(", ")}.`);

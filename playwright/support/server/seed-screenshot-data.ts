@@ -29,6 +29,7 @@ export function seedScreenshotData(repoDir: string, dataDir: string): void {
 
   if (result.error) throw result.error;
   if (result.status !== 0) {
-    throw new Error(`Screenshot database seed failed with exit code ${result.status ?? "unknown"}`);
+    const cause = result.signal ? `signal ${result.signal}` : `exit code ${result.status ?? "unknown"}`;
+    throw new Error(`Screenshot database seed failed with ${cause}`);
   }
 }

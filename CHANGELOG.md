@@ -15,6 +15,7 @@
 - Run locale generation before frontend contract typechecking so clean CI workspaces resolve Paraglide modules.
 - Compare archived PR-head and base screenshots in the final comment workflow to generate UI diff images.
 - Shorten visual and Playwright job labels while preserving parallel workflow branches.
+- Report signal termination and progress in screenshot database seeding failures.
 
 ## v0.20.0 - 2026-10-15
 
