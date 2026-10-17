@@ -1,4 +1,4 @@
-name: Render dashboard screenshots
+name: Compare responsive screenshots
 
 # Renders responsive app screenshots on pull requests that change the client
 # and compares them against each pull request's base branch. Any differences produce
@@ -34,6 +34,7 @@ permissions:
 
 jobs:
   render:
+    name: visual-regression/responsive-render
     timeout-minutes: 30
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     strategy:
@@ -41,7 +42,7 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     runs-on:
-      - mars-windows-x64-4vcpu-15g
+      - mars-ubuntu-2vcpu-10g
       - mars-retry-3
     env:
       PR_NUMBER: ${{ inputs.pr || github.event.pull_request.number }}
@@ -142,13 +143,11 @@ jobs:
           BASE_STATUS: ${{ steps.base-responsive.outcome }}
         run: bun scripts/ci/workflow-ops.ts fail-render
   collect:
-    timeout-minutes: 30
+    name: visual-regression/responsive-diff
     if: needs.render.result == 'success' && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
     needs: render
     runs-on:
-      - mars-any-4vcpu-15g
-      - mars-macos-arm64-2vcpu-10g
-      - mars-ubuntu-arm64-2vcpu-10g
+      - mars-ubuntu-2vcpu-10g
       - mars-retry-3
     steps:
       - uses: actions/checkout@v7
@@ -172,11 +171,11 @@ jobs:
       - name: Collect responsive diffs
         run: bun scripts/ci/workflow-ops.ts collect-screenshots
 
-      - name: Upload preview artifact
+      - name: Upload responsive preview artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: pr-screenshot-preview
+          name: pr-visual-responsive-preview
           path: pr-preview/
           retention-days: 14
 

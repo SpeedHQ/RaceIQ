@@ -3,7 +3,8 @@
   "extends": ["//"],
   "tasks": {
     "test": {
-      "dependsOn": ["@raceiq/tooling-build#build"]
+      "dependsOn": ["@raceiq/tooling-build#build"],
+      "env": ["NODE_ENV", "RACEIQ_*", "BUN_TEST_WORKERS", "E2E_SERVER_MODE", "PW_*"]
     }
   }
 }

@@ -31,8 +31,8 @@ bun run dev:server
 # Client only (Vite with portless)
 bun run dev:client
 
-# Tests (Bun test runner)
-bun run test                        # use bun run test, not bun test (sets --timeout 60000)
+# Tests (bun run test executes all suites; bun test runs selected files)
+bun run test                        # full suite: unit, tooling, integration, recording E2E, Playwright E2E
 bun test --timeout 60000 test/parser.test.ts   # single test file
 
 # Database
@@ -54,7 +54,7 @@ bun run start
 bun run build:installer
 
 # Client-specific
-cd client && bun run build   # production build (tsc + vite)
+cd client && bun run build   # production build (Vite + bun check)
 cd client && bun run lint    # Oxlint
 
 # Dump mode (develop without a running game — captures raw packets)

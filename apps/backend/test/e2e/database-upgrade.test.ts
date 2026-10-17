@@ -17,7 +17,7 @@ type Session = { id: number; track_id: string; lap_detector_version: string | nu
 interface StartupBackend {
   ready(): Promise<void>;
   waitFor(marker: string): Promise<void>;
-  organize(): Promise<void>;
+  organize(): Promise<"success" | "failed">;
   output(): string;
   stop(): Promise<void>;
 }
@@ -54,11 +54,11 @@ function startBranch(dataDir: string): StartupBackend {
           const status = await getLayoutMigrationStatus();
           if (status.progress.status === "success") {
             console.log("[E2E] Layout migration success");
-            return new Response(null, { status: 200 });
+            return Response.json({ status: "success" });
           }
           if (status.progress.status === "partial" || status.progress.status === "error") {
             console.log("[E2E] Layout migration failed");
-            return new Response(null, { status: 200 });
+            return Response.json({ status: "failed" });
           }
           await Bun.sleep(10);
         }
@@ -100,6 +100,9 @@ function startBranch(dataDir: string): StartupBackend {
       if (!match) throw new Error("Migration control port missing");
       const response = await fetch(`http://127.0.0.1:${match[1]}`, { method: "POST" });
       if (!response.ok) throw new Error(`Migration control returned ${response.status}`);
+      const result = await response.json() as { status?: unknown };
+      if (result.status !== "success" && result.status !== "failed") throw new Error("Migration control returned an invalid result");
+      return result.status;
     },
     output: () => output,
     async stop() {
@@ -172,17 +175,16 @@ test("current startup reprocesses release-seeded Tourist sessions into correct l
     await deferredBackend.stop();
     expect(deferredBackend.output()).not.toContain(COMPLETE);
     backend = undefined;
-    backend = startBranch(dataDir);
-    await backend.waitFor(DEFERRED);
-    // Keep the conflicting destination referenced so ordinary orphan maintenance cannot remove it.
+    // Seed conflict before starting the backend that will attempt migration.
     const collisionSessionId = database.prepare(`
       INSERT INTO sessions (game_id, raw_file, lap_detector_version, capture_format_version)
       VALUES ('ac-evo', ?, ?, 1)
     `).run(collision, LAP_DETECTOR_AC_EVO_ID).lastInsertRowid;
     mkdirSync(dirname(collision), { recursive: true });
     writeFileSync(collision, "pre-existing user capture");
-    await backend.organize();
-    await backend.waitFor("[E2E] Layout migration failed");
+    backend = startBranch(dataDir);
+    await backend.waitFor(DEFERRED);
+    expect(await backend.organize()).toBe("failed");
     expect(readFileSync(collision, "utf8")).toBe("pre-existing user capture");
     expect(readFileSync(legacyPath).length).toBeGreaterThan(0);
     expect(database.prepare("SELECT id FROM sessions WHERE track_id='obsolete layout'").all()).toHaveLength(before.length);
@@ -190,8 +192,7 @@ test("current startup reprocesses release-seeded Tourist sessions into correct l
     expect(backend.output()).not.toContain(COMPLETE);
     database.prepare("DELETE FROM sessions WHERE id=?").run(collisionSessionId);
     await rm(collision);
-    await backend.organize();
-    await backend.waitFor("[E2E] Layout migration success");
+    expect(await backend.organize()).toBe("success");
     await backend.ready();
     const after = database.prepare("SELECT id,track_id,lap_detector_version,raw_file,ownership FROM sessions ORDER BY id").all() as Session[];
     expect(after.map((session) => session.id)).toEqual(before.map((session) => session.id));
