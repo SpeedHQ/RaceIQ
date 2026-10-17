@@ -79,7 +79,7 @@
     "oxfmt": "0.68.0",
     "oxlint": "1.83.0",
     "storybook": "10.6.0",
-    "typescript": "7.0.2",
+    "typescript": "6.0.3",
     "vite": "8.3.0",
     "@tanstack/react-devtools": "0.10.12",
     "@tanstack/devtools-vite": "0.8.5",
