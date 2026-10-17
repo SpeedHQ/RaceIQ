@@ -166,17 +166,6 @@ switch (operation) {
   case "safe-git":
     run(["git", "config", "--global", "--add", "safe.directory", env.GITHUB_WORKSPACE ?? process.cwd()]);
     break;
-  case "merge-base": {
-    run(["git", "config", "user.name", "github-actions[bot]"]);
-    run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"]);
-    run(["git", "fetch", "--no-tags", "origin", `+refs/heads/${env.BASE_REF}:refs/remotes/origin/${env.BASE_REF}`]);
-    let fetched = Bun.spawnSync(["git", "rev-parse", "--verify", "FETCH_HEAD"], { stdout: "pipe" }).stdout.toString().trim();
-    if (fetched !== env.BASE_SHA) run(["git", "fetch", "--no-tags", "origin", env.BASE_SHA!]);
-    fetched = Bun.spawnSync(["git", "rev-parse", "--verify", "FETCH_HEAD"], { stdout: "pipe" }).stdout.toString().trim();
-    if (fetched !== env.BASE_SHA) throw new Error(`Fetched base commit ${fetched} does not match ${env.BASE_SHA}`);
-    run(["git", "merge", "--no-edit", env.BASE_SHA!]);
-    break;
-  }
   case "release-summary":
     summary(env.SKIP_TESTS === "true" ? "## Release test mode\n\nPlaywright tests skipped by manual dispatch input after local verification." : "## Release test mode\n\nPlaywright tests enabled.");
     break;
