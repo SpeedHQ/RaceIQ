@@ -5,6 +5,9 @@ import { Button } from "../ui/button";
 import { type SemanticAnalysisFrame, semanticNumber } from "./track-map/types";
 import { hasTelemetryGap } from "./AnalyseTelemetryChart";
 import { m } from "../../paraglide/messages";
+import type { IRacingIncidentEvent } from "@raceiq/shared/racing/sessions/iracing-incidents";
+import { incidentEventLabel } from "../iracing/incident-format";
+import type { GameId } from "@raceiq/shared/games/ids";
 
 const currentLap = (frame: SemanticAnalysisFrame): number => semanticNumber(frame, "timing.current-lap") ?? 0;
 
@@ -14,6 +17,7 @@ interface SectorTimesData {
   cursorSector: number;
 }
 interface TimelineScrubberProps {
+  gameId?: GameId;
   displayTelemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   totalPackets: number;
@@ -30,6 +34,8 @@ interface TimelineScrubberProps {
   onSpeedChange: (speed: number) => void;
   onSeek: (idx: number) => void;
   onVisualFracChange: (frac: number | null) => void;
+  incidentMarkers?: readonly IRacingIncidentEvent[];
+  incidentReportStatus?: "loading" | "error" | "unavailable" | "partial" | "ready";
 }
 interface TimelineData {
   timeFracs: number[];
@@ -91,6 +97,7 @@ const TimelineGapHighlights = memo(function TimelineGapHighlights({ timelineData
 });
 
 export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
+  gameId,
   displayTelemetry,
   cursorIdx,
   totalPackets,
@@ -107,6 +114,8 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
   onSpeedChange,
   onSeek,
   onVisualFracChange,
+  incidentMarkers = [],
+  incidentReportStatus,
 }: TimelineScrubberProps) {
   const scrubCleanupRef = useRef<(() => void) | null>(null);
 
@@ -144,7 +153,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
     <div className="px-3 py-2 border-b border-app-border bg-app-surface/50 shrink-0">
       <div className="mb-2 flex flex-wrap items-center gap-3">
         <span className="text-app-caption text-app-text-muted">Lap {lapNumber}</span>
-        <span className="text-2xl font-mono font-bold tabular-nums text-app-accent">{formatLapTime(currentTime)}</span>
+        <span className="text-2xl font-mono font-bold tabular-nums text-app-accent">{gameId === "iracing" && currentTime === 0 && semanticNumber(displayTelemetry[cursorIdx], "timing.current-lap") === 0 ? "0:00.000" : formatLapTime(currentTime)}</span>
         <span className="text-sm font-mono tabular-nums text-app-text-secondary">/ {formatLapTime(totalTime)}</span>
         {sectorTimes &&
           Array.from({ length: sectorTimes.sectorCount }, (_, index) => `S${index + 1}`).map((name, i) => {
@@ -236,6 +245,56 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
           />
         </div>
       </div>
+      {incidentReportStatus !== undefined && <IncidentMarkerLane markers={incidentMarkers} status={incidentReportStatus} timelineData={timelineData} onSeek={onSeek} />}
+    </div>
+  );
+});
+
+const IncidentMarkerLane = memo(function IncidentMarkerLane({ markers, status, timelineData, onSeek }: {
+  markers: readonly IRacingIncidentEvent[];
+  status: NonNullable<TimelineScrubberProps["incidentReportStatus"]>;
+  timelineData: TimelineData | null;
+  onSeek: (index: number) => void;
+}) {
+  const groups = useMemo(() => {
+    const byFrame = new Map<number, IRacingIncidentEvent[]>();
+    for (const event of markers) {
+      const frame = event.replay?.frameIndex;
+      if (frame === undefined || !Number.isInteger(frame) || timelineData?.timeFracs[frame] === undefined) continue;
+      const group = byFrame.get(frame);
+      if (group) group.push(event);
+      else byFrame.set(frame, [event]);
+    }
+    return [...byFrame];
+  }, [markers, timelineData]);
+  const message = status === "loading" ? m.iracing_incident_report_marker_loading()
+    : status === "error" ? m.iracing_incident_report_marker_error()
+    : status === "unavailable" ? m.iracing_incident_report_marker_unavailable()
+    : status === "partial" ? m.iracing_incident_report_marker_partial()
+    : groups.length === 0 ? m.iracing_incident_report_marker_empty() : null;
+  return (
+    <div role="group" aria-label={m.iracing_incident_report_markers()} className="mt-2 min-w-0">
+      <div className="flex flex-wrap gap-x-3 text-xs text-app-text-muted">
+        <span>{m.iracing_incident_report_markers()}</span>
+        {message && <span role={status === "loading" ? "status" : undefined}>{message}</span>}
+      </div>
+      {groups.length > 0 && <div className="relative mx-3 mt-1 h-7 border-t border-app-border">
+        {groups.map(([frameIndex, events]) => {
+          const label = events.map(incidentEventLabel).join("; ");
+          const points = events.some(event => event.kind === "incident-points");
+          const surface = events.some(event => event.kind === "off-track");
+          return <button key={frameIndex} type="button" aria-label={label} title={label}
+            className={`absolute top-0 flex h-6 min-w-6 -translate-x-1/2 items-center justify-center rounded border bg-app-surface-alt px-1 text-xs font-bold hover:bg-app-surface-hover focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent ${points ? "border-status-warning text-status-warning" : "border-app-accent text-app-accent"}`}
+            style={{ left: `${timelineData!.timeFracs[frameIndex] * 100}%` }}
+            onKeyDown={event => {
+              // Native button activation must not bubble into global playback shortcuts.
+              if (event.key === " " || event.key === "Enter") event.stopPropagation();
+            }}
+            onClick={() => onSeek(frameIndex)}>
+            <span aria-hidden="true">{points ? "+" : ""}{surface ? "◇" : ""}</span>
+          </button>;
+        })}
+      </div>}
     </div>
   );
 });

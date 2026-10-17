@@ -50,6 +50,31 @@ export function trustedNativeExecutor(variable: TelemetryVariableDefinition, map
   const nativeUnit = mapping.nativeUnit.trim().toLowerCase();
   const canonicalUnit = variable.canonicalUnit.trim().toLowerCase();
   const reading = {} as SourceReading;
+  const nativeTemperature = (variable.id === "engine.coolant-temperature" || variable.id === "engine.oil-temperature") && nativeUnit === "c" && canonicalUnit === "°c";
+  const nativeSteeringTorque = variable.id === "inputs.steering-wheel-torque" && nativeUnit === "n*m" && canonicalUnit === "n·m";
+  if (nativeTemperature || nativeSteeringTorque) {
+    return (frame, context) => {
+      for (const source of sourcePaths) {
+        const value = sourceValue(frame, source);
+        if (typeof value === "number" && Number.isFinite(value)) return setReading(reading, context, mapping, source, value);
+      }
+      return undefined;
+    };
+  }
+  if (variable.id === "weather.relative-humidity" && canonicalUnit === "%") {
+    return (frame, context) => {
+      for (const source of sourcePaths) {
+        const raw = sourceValue(frame, source);
+        if (source === "iRacing.RelativeHumidity") {
+          if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0 && raw <= 1) return setReading(reading, context, mapping, source, raw, raw * 100);
+        } else if (typeof raw === "string" && /^\s*\d+(?:\.\d+)?\s*%\s*$/.test(raw)) {
+          const value = Number.parseFloat(raw);
+          if (value >= 0 && value <= 100) return setReading(reading, context, mapping, source, raw, value);
+        }
+      }
+      return undefined;
+    };
+  }
   if (variable.id === "tire.temperature.surface.representative" && nativeUnit === "°f" && canonicalUnit === "°c") {
     const reader = readerFor(variable, mapping);
     if (!reader) return undefined;

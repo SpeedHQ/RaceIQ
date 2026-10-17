@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useTrackName } from "@/hooks/track-queries";
 import { getGameRoute } from "@/stores/game";
 import { SessionReviewDashboard } from "./SessionReviewDashboard";
+import { IRacingIncidentReport } from "@/components/iracing/IRacingIncidentReport";
 
 export function TrackCarAnalyseReviewPage({ gameId, trackId, carId, sessionId }: { gameId: GameId; trackId?: string; carId?: string; sessionId?: number }) {
   const navigate = useNavigate();
@@ -104,6 +105,7 @@ export function TrackCarAnalyseReviewPage({ gameId, trackId, carId, sessionId }:
 
   return (
     <div className="flex min-h-full flex-col">
+      {gameId === "iracing" && sessionId != null && <IRacingIncidentReport sessionId={sessionId} />}
       <SessionReviewDashboard
         stayOnSessionReview={sessionId != null}
         autoSelectLap={false}

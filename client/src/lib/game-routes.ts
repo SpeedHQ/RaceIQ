@@ -48,7 +48,7 @@ export type TuneReviewSearch = {
 
 export type GameRouteFeature = "driver" | "experiments" | "raw" | "setups";
 
-export type LiveDashboard = "forza" | "f1" | "acc" | "lmu";
+export type LiveDashboard = "forza" | "f1" | "acc" | "iracing" | "lmu";
 const ROUTE_FEATURES: Record<GameRouteFeature, readonly string[]> = {
   driver: ["fm23", "f125", "acc", "ac-evo"],
   experiments: ["f125", "acc", "ac-evo"],
@@ -75,7 +75,7 @@ export function liveDashboardForGame(gameId: GameId): LiveDashboard {
     case "ac-evo":
       return "acc";
     case "iracing":
-      return "forza";
+      return "iracing";
     case "lmu":
       return "lmu";
     default:

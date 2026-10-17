@@ -1,11 +1,16 @@
 ## Unreleased
 
 ### Features
+- Restore iRacing Live sidebar access with a dedicated dashboard for driving inputs, timing, fuel, vehicle motion, suspension travel, and temperatures; hide stale readings when telemetry stops.
+- Add an overall clean-driving score to the iRacing Latest Session card, based on valid timed laps and excluding pit laps.
+- Review observed personal incident-point increases, sampled off-track spans, and recorded clean-lap streaks in saved iRacing sessions, with event links and replay timeline markers limited to recorded lap evidence.
+- Simplify iRacing lap replay around the track map and recorded channels, adding clutch, engine, weather, and session readouts while separating pit-only tire snapshots from current telemetry.
 
 ### Fixes
 - Prevent overlapping database writes from blocking recording imports and setup or session deletion.
 - Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.
 - Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
+- Correct iRacing clutch pedal direction so released reads 0% and fully pressed reads 100% in live telemetry and replay.
 
 ### Internal
 - Reuse the Linux build artifact across Playwright shards and collect replay allocations sooner on memory-limited CI runners.

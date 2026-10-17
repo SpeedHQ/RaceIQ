@@ -13,6 +13,18 @@ export interface DashboardInsights {
   favouriteCar: FavouriteInsight | null;
 }
 
+/** Recap sparkline excludes pit-cycle laps; untimed rows are not scored. */
+export function sessionCleanDrivingScore(laps: readonly { lapTimeSec: number; isValid: boolean }[]) {
+  let clean = 0;
+  let completed = 0;
+  for (const lap of laps) {
+    if (!Number.isFinite(lap.lapTimeSec) || lap.lapTimeSec <= 0) continue;
+    completed++;
+    if (lap.isValid) clean++;
+  }
+  return { clean, completed, score: completed > 0 ? Math.round(clean * 100 / completed) : null };
+}
+
 export function dashboardInsights(response: DashboardResponse): DashboardInsights {
   let valid = 0;
   let total = 0;

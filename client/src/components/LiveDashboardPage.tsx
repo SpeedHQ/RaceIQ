@@ -8,6 +8,7 @@ import { ForzaLiveDashboard } from "./ForzaLiveDashboard";
 import { F1LiveDashboard } from "./f1/F1LiveDashboard";
 import { AccLiveDashboard } from "./acc/AccLiveDashboard";
 import { LMULiveDashboard } from "./lmu/LMULiveDashboard";
+import { IRacingLiveDashboard } from "./iracing/IRacingLiveDashboard";
 import type { DashboardMode } from "./LiveTelemetry";
 
 export function LiveDashboardPage({ mode }: { mode: DashboardMode }) {
@@ -22,11 +23,12 @@ export function LiveDashboardPage({ mode }: { mode: DashboardMode }) {
     setGameId(game?.id ?? null);
     return () => setGameId(null);
   }, [game?.id, setGameId]);
-  if (!game || !view || view.simulator !== game.id) return <NoDataView />;
+  if (!game || (game.id !== "iracing" && (!view || view.simulator !== game.id))) return <NoDataView />;
   switch (liveDashboardForGame(game.id)) {
     case "forza": return <ForzaLiveDashboard mode={mode} />;
     case "f1": return <F1LiveDashboard />;
     case "acc": return <AccLiveDashboard gameId={game.id} />;
+    case "iracing": return <IRacingLiveDashboard />;
     case "lmu": return <LMULiveDashboard />;
   }
 }

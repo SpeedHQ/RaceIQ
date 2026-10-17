@@ -24,50 +24,71 @@ interface ReplayNativeFrame {
   nativeValues?: Readonly<Record<string, IRacingValue>>;
 }
 
+interface NativeReplayIdentity {
+  sessionUID: string;
+  sessionTick: number | null;
+  sessionTimeMs: number | null;
+  values: Readonly<Record<string, IRacingValue>>;
+}
+
 function* iterateIRacingNativeFrames(source: LapReplaySource, capture: Buffer | undefined): Generator<Readonly<Record<string, IRacingValue>>, undefined, void> {
+  for (const native of iterateIRacingNativeIdentities(source, capture, false)) yield native.values;
+}
+
+function* iterateIRacingNativeIdentities(source: LapReplaySource, capture: Buffer | undefined, includeTrailing = true): Generator<NativeReplayIdentity, undefined, void> {
   if (source.gameId !== "iracing" || !capture || source.rawByteOffset == null || source.rawFrameCount == null) return undefined;
   let decoderState = createIRacingSourceDecoderState();
   let replayFrames = 0;
+  let found = false;
+  let inContext = false;
   let sessionInfo = "";
   let sessionInfoUpdate = -1;
   let trackGeography: Readonly<Record<string, number>> = {};
+  const frameLimit = source.rawFrameCount + (includeTrailing ? 1 : 0);
   for (const record of iterateSessionCaptureRecords(capture)) {
     if (record.kind === "segment-boundary") {
       decoderState = createIRacingSourceDecoderState();
-      replayFrames = 0;
+      inContext = false;
       sessionInfo = "";
       sessionInfoUpdate = -1;
       trackGeography = {};
       continue;
     }
+    if (record.kind === "segment-context") { inContext = true; continue; }
+    if (record.kind === "segment-context-end") { inContext = false; continue; }
     if (record.kind !== "frame") continue;
     if (record.offset < source.rawByteOffset) {
       decodeIRacingSourceFrame(record.frame, decoderState);
       continue;
     }
-    if (replayFrames >= source.rawFrameCount) break;
+    if (!found) {
+      if (record.offset !== source.rawByteOffset) return undefined;
+      found = true;
+    }
+    if (replayFrames >= frameLimit) break;
     const decoded = decodeIRacingSourceFrame(record.frame, decoderState);
-    replayFrames += 1;
-    if (decoded && "sessionInfo" in decoded && (
-      decoded.sessionInfo !== sessionInfo ||
-      decoded.sessionInfoUpdate !== sessionInfoUpdate
-    )) {
-      for (const sourcePath of Object.keys(trackGeography)) {
-        delete decoded.values[sourcePath];
-      }
+    replayFrames++;
+    if (!decoded) { decoderState = createIRacingSourceDecoderState(); continue; }
+    if ("sessionInfo" in decoded && (decoded.sessionInfo !== sessionInfo || decoded.sessionInfoUpdate !== sessionInfoUpdate)) {
+      for (const sourcePath of Object.keys(trackGeography)) delete decoded.values[sourcePath];
       sessionInfo = decoded.sessionInfo;
       sessionInfoUpdate = decoded.sessionInfoUpdate;
       trackGeography = parseIRacingTrackGeography(sessionInfo);
     }
-    if (decoded) {
-      for (const [sourcePath, value] of Object.entries(trackGeography)) {
-        decoded.values[sourcePath] = value;
-      }
-      yield decoded.values;
-    }
+    for (const [sourcePath, value] of Object.entries(trackGeography)) decoded.values[sourcePath] = value;
+    if (inContext) continue;
+    const { session, values } = decoded;
+    const tick = values.SessionTick, time = values.SessionTime;
+    yield {
+      sessionUID: `${session.subSessionId}:${session.sessionId}:${session.sessionNum}`,
+      sessionTick: typeof tick === "number" && Number.isInteger(tick) && tick >= 0 ? tick : null,
+      sessionTimeMs: typeof time === "number" && Number.isFinite(time) && time >= 0 ? Math.round(time * 1000) : null,
+      values,
+    };
   }
   return undefined;
 }
+
 
 /** Test-only export for exact iRacing replay frame-window assertions. */
 export const iterateIRacingNativeFramesForTest = iterateIRacingNativeFrames;
@@ -127,27 +148,29 @@ export function resolveTelemetryReplay(
   const slots = semanticIds.map((semanticId) => resolver.slot(semanticId));
   const receivedAt = receivedTimestamp(source.createdAt);
   const rawReference = resolveRawReference(source, rawCapture);
-  const nativeFrames = iterateIRacingNativeFrames(source, rawCapture?.bytes);
-  const envelopes: CanonicalTelemetryEnvelope[] = new Array(packets.length);
-  const target: ResolvedValue<unknown>[] = [];
-  const nativeFrame: ReplayNativeFrame = { packet: packets[0] };
-  let view: TelemetryFrameView<ReplayNativeFrame> | undefined;
-
+  const packetIndices = new Map<string, number | null>();
   for (let sequence = 0; sequence < packets.length; sequence++) {
     const packet = packets[sequence];
+    if (packet.gameId !== "iracing" || !packet.sessionUID || !packet.iracing || !Number.isFinite(packet.iracing.sessionTick) || !Number.isFinite(packet.CurrentRaceTime)) continue;
+    const key = `${packet.sessionUID}\u0000${packet.iracing.sessionTick}\u0000${Math.round(packet.CurrentRaceTime * 1000)}`;
+    packetIndices.set(key, packetIndices.has(key) ? null : sequence);
+  }
+  const envelopes: CanonicalTelemetryEnvelope[] = new Array(packets.length);
+  const ambiguous = new Uint8Array(packets.length);
+  let view: TelemetryFrameView<ReplayNativeFrame> | undefined;
+  const nativeFrame: ReplayNativeFrame = { packet: packets[0] };
+  const target: ResolvedValue<unknown>[] = [];
+  const resolvePacket = (sequence: number, nativeValues?: Readonly<Record<string, IRacingValue>>) => {
+    const packet = packets[sequence];
     const observedAt = replayTimestamp(packet, receivedAt);
-    const observation: SourceObservation = {
-      timestamp: observedAt,
-      updateSequence: BigInt(sequence),
-    };
     nativeFrame.packet = packet;
-    nativeFrame.nativeValues = nativeFrames.next().value;
-    view = resolver.createFrameView(nativeFrame, observation, view);
-    const resolved = view.resolveMany(slots, target);
+    nativeFrame.nativeValues = nativeValues;
+    const observation: SourceObservation = { timestamp: observedAt, updateSequence: BigInt(sequence) };
+    const packetView = resolver.createFrameView(nativeFrame, observation, source.gameId === "iracing" ? undefined : view);
+    if (source.gameId !== "iracing") view = packetView;
+    const resolved = packetView.resolveMany(slots, target);
     const values: CanonicalTelemetryValue[] = new Array(resolved.length);
-    for (let index = 0; index < resolved.length; index++) {
-      values[index] = canonicalTelemetryValue(slots[index], resolved[index]);
-    }
+    for (let index = 0; index < resolved.length; index++) values[index] = canonicalTelemetryValue(slots[index], resolved[index]);
     envelopes[sequence] = {
       sessionId: String(source.sessionId),
       sequence: BigInt(sequence),
@@ -164,8 +187,21 @@ export function resolveTelemetryReplay(
       values,
       rawReference,
     };
+  };
+  for (const native of iterateIRacingNativeIdentities(source, rawCapture?.bytes)) {
+    if (native.sessionTick === null || native.sessionTimeMs === null) continue;
+    const key = `${native.sessionUID}\u0000${native.sessionTick}\u0000${native.sessionTimeMs}`;
+    const sequence = packetIndices.get(key);
+    if (sequence === null || sequence === undefined) continue;
+    if (envelopes[sequence] || ambiguous[sequence]) {
+      ambiguous[sequence] = 1;
+      continue;
+    }
+    resolvePacket(sequence, native.values);
   }
-
+  for (let sequence = 0; sequence < packets.length; sequence++) {
+    if (ambiguous[sequence] || !envelopes[sequence]) resolvePacket(sequence);
+  }
   return {
     lapId,
     requestedSemanticIds: semanticIds,

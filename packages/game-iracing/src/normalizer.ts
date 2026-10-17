@@ -323,7 +323,8 @@ export function normalizeIRacingFrame(
 
     Accel: input255(scalar(values, "Throttle", 0)),
     Brake: input255(scalar(values, "Brake", 0)),
-    Clutch: input255(scalar(values, "Clutch", 0)),
+    // SDK clutch is 1 when released; canonical inputs measure pedal depression.
+    Clutch: input255(1 - scalar(values, "Clutch", 1)),
     HandBrake: 0,
     Gear: canonicalGear(scalar(values, "Gear", 0)),
     Steer: steer,

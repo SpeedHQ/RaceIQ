@@ -137,6 +137,26 @@ describe("iRacing raw source frame parser integration", () => {
     });
   });
 
+  test.each([
+    [1, 0],
+    [0.75, 64],
+    [0.5, 128],
+    [0, 255],
+    [2, 0],
+    [-1, 255],
+    [Number.NaN, 0],
+  ])("converts SDK clutch %s into pedal depression %s", (nativeClutch, expected) => {
+    const frame = sampleFrame();
+    frame.values.Clutch = nativeClutch;
+    expect(normalizeIRacingFrame(frame).Clutch).toBe(expected);
+  });
+
+  test("does not report a pressed clutch when the SDK channel is absent", () => {
+    const frame = sampleFrame();
+    delete frame.values.Clutch;
+    expect(normalizeIRacingFrame(frame).Clutch).toBe(0);
+  });
+
   test("keeps historical v2 frames compatible without inventing raw YAML", () => {
     const frame = sampleFrame();
     const raw = new IRacingSourceFrameEncoder().encode(frame);

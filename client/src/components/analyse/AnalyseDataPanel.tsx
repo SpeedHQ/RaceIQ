@@ -17,6 +17,7 @@ import { AnalyseSuspensionPanel } from "./AnalyseSuspensionPanel";
 import { AnalyseTireWheelsPanel } from "./AnalyseTireWheelsPanel";
 import { unavailableAnalyseFeatures } from "@raceiq/shared/games/metric-contracts";
 import { MotecMetricInfoModal } from "./MotecImportModal";
+import { IRacingReplayDataPanel } from "../iracing/IRacingReplayDataPanel";
 
 interface WearRate {
   FL: number;
@@ -130,8 +131,8 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame,
       <TabsContent value="live" className="flex flex-col @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:overflow-x-hidden @5xl/workspace:overflow-y-auto">
         <div className="flex shrink-0 items-center justify-between px-3 pt-3 pb-1">
           <h3 className="mb-0 flex items-center gap-1 text-app-caption font-semibold text-app-text-muted uppercase tracking-wider">
-            {m.analyse_metrics_at_cursor()}
-            {currentFrame && (currentFrame.source === "motec" ? <MotecInfoButton frame={currentFrame} gameId={gameId} /> : <UnavailableFeaturesTooltip frame={currentFrame} gameId={gameId} />)}
+            {gameId === "iracing" ? m.iracing_replay_recorded() : m.analyse_metrics_at_cursor()}
+            {currentFrame && gameId !== "iracing" && (currentFrame.source === "motec" ? <MotecInfoButton frame={currentFrame} gameId={gameId} /> : <UnavailableFeaturesTooltip frame={currentFrame} gameId={gameId} />)}
           </h3>
           {currentFrame && (
             <div className="flex items-center gap-2">
@@ -142,9 +143,8 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame,
           )}
         </div>
         <div className="p-3">
-          {currentFrame && <MetricsPanel frame={currentFrame} startFuel={startFuel} gameId={gameId} />}
-          {currentFrame && (
-            <>
+          {currentFrame && gameId === "iracing" ? <IRacingReplayDataPanel frame={currentFrame} startFuel={startFuel} units={units} /> : currentFrame && <>
+              <MetricsPanel frame={currentFrame} startFuel={startFuel} gameId={gameId} />
               <div className="mt-3 mb-2 border-t border-app-border pt-2">
                 <h3 className="text-app-caption font-semibold text-app-text-muted uppercase tracking-wider">{m.analyse_section_dynamics()}</h3>
               </div>
@@ -152,8 +152,7 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame,
               <AnalyseTireWheelsPanel frame={currentFrame} gameId={gameId} units={units} wearRate={wearRate} />
               <AnalyseSuspensionPanel frame={currentFrame} gameId={gameId} />
               {getGame(gameId).telemetry.ers && <AnalyseF1ErsPanel frame={currentFrame} />}
-            </>
-          )}
+          </>}
         </div>
       </TabsContent>
       <TabsContent value="insights" className="min-h-0 flex-1 overflow-y-auto p-3">

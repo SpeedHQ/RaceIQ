@@ -228,6 +228,21 @@ export function analyseSemanticIds(
   return [...new Set([
     ...ANALYSE_BASE_SEMANTIC_IDS,
     ...requiredSemanticIds(adapter),
+    ...(adapter.id === "iracing" ? [
+      "engine.coolant-temperature",
+      "engine.oil-temperature",
+      "engine.oil-pressure",
+      "engine.voltage",
+      "fuel.fuel-press",
+      "weather.track-temp",
+      "weather.wind-vel",
+      "weather.wind-dir",
+      "weather.relative-humidity",
+      "race.player-incident-count",
+      "suspension.shock-vel",
+      "brakes.brake-line-press",
+      "inputs.steering-wheel-torque",
+    ] as const : []),
   ])];
 }
 
