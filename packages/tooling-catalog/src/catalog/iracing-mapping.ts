@@ -51,6 +51,7 @@ function inferredIRacingUnit(
 }
 
 const IRACING_SDK_ALIASES: Record<string, string> = {
+  Alt: "motion.altitude",
   CamCameraNumber: "diagnostics.camera.active-camera-number",
   CamCameraState: "diagnostics.camera.state-flags",
   CamCarIdx: "identity.camera-focus-car-index",
@@ -75,15 +76,13 @@ const IRACING_SDK_ALIASES: Record<string, string> = {
   CarIdxPaceRow: "race.competitor.pace-row",
   CarIdxPosition: "race.competitor.position",
   CarIdxQualTireCompound: "tires.competitor.qualifying-compound",
-  CarIdxQualTireCompoundLocked:
-    "tires.competitor.qualifying-compound-locked",
+  CarIdxQualTireCompoundLocked: "tires.competitor.qualifying-compound-locked",
   CarIdxRPM: "engine.competitor-rpm",
   CarIdxSteer: "inputs.competitor-steering-angle",
   CarIdxSessionFlags: "race.competitor.session-flags",
   CarIdxTireCompound: "tires.competitor.compound",
   CarIdxTrackSurface: "race.competitor.track-location",
-  CarIdxTrackSurfaceMaterial:
-    "race.competitor.track-surface-material",
+  CarIdxTrackSurfaceMaterial: "race.competitor.track-surface-material",
   DCDriversSoFar: "session.driver-change.drivers-used",
   DCLapStatus: "race.driver-change-lap-status",
   LapBestLap: "timing.best-lap-number",
@@ -91,26 +90,22 @@ const IRACING_SDK_ALIASES: Record<string, string> = {
   LapBestNLapTime: "timing.n-lap-average.best-time",
   LapCompleted: "timing.last-completed-lap-number",
   LapDeltaToSessionLastlLap: "timing.delta-to-session-last-lap",
-  LapDeltaToSessionLastlLap_DD:
-    "timing.delta-to-session-last-lap-rate",
-  LapDeltaToSessionLastlLap_OK:
-    "timing.delta-to-session-last-lap-valid",
+  LapDeltaToSessionLastlLap_DD: "timing.delta-to-session-last-lap-rate",
+  LapDeltaToSessionLastlLap_OK: "timing.delta-to-session-last-lap-valid",
   LapDeltaToBestLap_DD: "timing.lap-delta-to-best-lap-rate",
   LapDeltaToBestLap_OK: "timing.lap-delta-to-best-lap-valid",
   LapDeltaToOptimalLap_DD: "timing.lap-delta-to-optimal-lap-rate",
   LapDeltaToOptimalLap_OK: "timing.lap-delta-to-optimal-lap-valid",
-  LapDeltaToSessionBestLap_DD:
-    "timing.lap-delta-to-session-best-lap-rate",
-  LapDeltaToSessionBestLap_OK:
-    "timing.lap-delta-to-session-best-lap-valid",
-  LapDeltaToSessionOptimalLap_DD:
-    "timing.lap-delta-to-session-optimal-lap-rate",
-  LapDeltaToSessionOptimalLap_OK:
-    "timing.lap-delta-to-session-optimal-lap-valid",
+  LapDeltaToSessionBestLap_DD: "timing.lap-delta-to-session-best-lap-rate",
+  LapDeltaToSessionBestLap_OK: "timing.lap-delta-to-session-best-lap-valid",
+  LapDeltaToSessionOptimalLap_DD: "timing.lap-delta-to-session-optimal-lap-rate",
+  LapDeltaToSessionOptimalLap_OK: "timing.lap-delta-to-session-optimal-lap-valid",
   LapLasNLapSeq: "timing.n-lap-average.clean-lap-count",
   LapLastNLapTime: "timing.n-lap-average.current-time",
   LoadNumTextures: "diagnostics.car-number-texture-loading",
   LapDistPct: "timing.lap-fraction",
+  Lat: "motion.latitude",
+  Lon: "motion.longitude",
   PlayerCarIdx: "identity.player-car-index",
   PlayerCarClass: "identity.player-car-class-id",
   PlayerCarClassPosition: "race.player-class-position",
@@ -138,8 +133,7 @@ const IRACING_SDK_ALIASES: Record<string, string> = {
   P2P_Count: "race.player.push-to-pass-count",
   P2P_Status: "race.player.push-to-pass-active",
   RadioTransmitCarIdx: "diagnostics.radio.transmitting-car-index",
-  RadioTransmitFrequencyIdx:
-    "diagnostics.radio.transmitting-frequency-index",
+  RadioTransmitFrequencyIdx: "diagnostics.radio.transmitting-frequency-index",
   RadioTransmitRadioIdx: "diagnostics.radio.transmitting-radio-index",
   SessionLapsRemain: "session.laps-remaining",
   SessionLapsRemainEx: "session.laps-remaining",
@@ -464,6 +458,9 @@ function addIRacingYamlField(
     IRACING_YAML_ALIASES[field.path] ??
     `${categoryFor(`${field.path} ${field.description}`)}.${slug(field.path)}`;
   const definition = SEMANTIC_DEFINITIONS[semanticId];
+  const sourceUnit = /^WeekendInfo\.Track(?:Latitude|Longitude)$/.test(field.path)
+    ? "deg"
+    : field.unit;
   const category = categoryFor(`${field.path} ${field.description}`);
   const semanticRoot = semanticId.split(".")[0];
   let variable = variables.get(semanticId);
@@ -475,7 +472,7 @@ function addIRacingYamlField(
       description: definition?.description ?? field.description,
       parentId:
         definition?.parentId ?? (groups.has(semanticRoot) ? semanticRoot : category),
-      canonicalUnit: definition?.canonicalUnit ?? field.unit,
+      canonicalUnit: definition?.canonicalUnit ?? sourceUnit,
       shape:
         definition?.shape ??
         (field.path.includes("[]") || field.path.endsWith(".**")
@@ -499,19 +496,19 @@ function addIRacingYamlField(
     variable.games.iracing = {
       kind:
         !requiresCurrentSessionSelection &&
-        (field.unit === variable.canonicalUnit || field.unit === "structured")
+        (sourceUnit === variable.canonicalUnit || sourceUnit === "structured")
           ? "direct"
           : "normalized",
-      nativeUnit: field.unit,
+      nativeUnit: sourceUnit,
       sources: [sourcePath],
       freshness: "session-update",
       ...(requiresCurrentSessionSelection
         ? {
             normalization: "select YAML entry matching current session number",
           }
-        : field.unit !== variable.canonicalUnit && field.unit !== "structured"
+        : sourceUnit !== variable.canonicalUnit && sourceUnit !== "structured"
           ? {
-              normalization: `parse YAML ${field.unit} as ${variable.canonicalUnit}`,
+              normalization: `parse YAML ${sourceUnit} as ${variable.canonicalUnit}`,
             }
         : {}),
       description:
@@ -544,7 +541,7 @@ function addIRacingYamlField(
   addSource(inventories, "iracing", {
     path: `SessionInfo.${field.path}`,
     label: field.label,
-    unit: field.unit,
+    unit: sourceUnit,
     dataType: "yaml",
     ...(!field.path.includes("[]") && !field.path.endsWith(".**")
       ? { count: 1 }

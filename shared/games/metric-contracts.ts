@@ -188,6 +188,13 @@ const ANALYSE_BASE_SEMANTIC_IDS = [
   "motion.pitch",
   "motion.roll",
   "motion.position-x",
+  "motion.latitude",
+  "motion.longitude",
+  "motion.altitude",
+  "motion.yaw-north",
+  "identity.track.latitude",
+  "identity.track.longitude",
+  "identity.track.altitude",
   "motion.position-z",
   "motion.yaw",
   "timing.current-lap",
@@ -202,6 +209,7 @@ const ANALYSE_BASE_SEMANTIC_IDS = [
   "fuel.ers-harvested",
   "fuel.fuel-capacity",
   "brakes.brake-bias",
+  "brakes.brake-temp",
   "identity.car-id",
   "identity.player-track-surface",
   "tires.tire-radius",
@@ -220,6 +228,21 @@ export function analyseSemanticIds(
   return [...new Set([
     ...ANALYSE_BASE_SEMANTIC_IDS,
     ...requiredSemanticIds(adapter),
+    ...(adapter.id === "iracing" ? [
+      "engine.coolant-temperature",
+      "engine.oil-temperature",
+      "engine.oil-pressure",
+      "engine.voltage",
+      "fuel.fuel-press",
+      "weather.track-temp",
+      "weather.wind-vel",
+      "weather.wind-dir",
+      "weather.relative-humidity",
+      "race.player-incident-count",
+      "suspension.shock-vel",
+      "brakes.brake-line-press",
+      "inputs.steering-wheel-torque",
+    ] as const : []),
   ])];
 }
 

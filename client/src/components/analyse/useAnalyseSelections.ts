@@ -1,4 +1,5 @@
 import { getGame } from "@raceiq/shared/games/registry"
+import type { GameId } from "@raceiq/shared/games/ids";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
@@ -36,7 +37,7 @@ type IdentityKey = string;
 
 const lapTrackKey = (lap: LapMeta): IdentityKey | null => lap.trackId ?? null;
 const lapCarKey = (lap: LapMeta): IdentityKey | null => lap.carId ?? null;
-export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<typeof getGame>[0], sessionId?: number) {
+export function useAnalyseSelections(search: AnalyseSearch, gameId: GameId, sessionId?: number) {
   const navigate = useNavigate();
   const [laps, setLaps] = useState<LapMeta[]>([]);
   const [selectedTrack, setSelectedTrack] = useState<IdentityKey | null>(search.track ?? null);
@@ -74,7 +75,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     if (selectedCar == null && selectedLap) setSelectedCar(lapCarKey(selectedLap));
   }, [selectedLap, selectedTrack, selectedCar]);
   const trackId = selectedTrack ?? (selectedLap ? lapTrackKey(selectedLap) : null);
-  const { data: outlineRaw } = useTrackOutline(trackId ?? undefined);
+  const { data: outlineRaw, isLoading: trackGeometryLoading, isError: trackGeometryError } = useTrackOutline(trackId ?? undefined, gameId);
   const closed = !outlineRaw || Array.isArray(outlineRaw) || typeof outlineRaw !== "object" || !("closed" in outlineRaw) || outlineRaw.closed !== false;
   const outline = useMemo(() => {
     if (!outlineRaw) return null;
@@ -83,6 +84,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     const d = outlineRaw as { points?: unknown };
     return Array.isArray(d.points) ? (d.points as Point[]) : null;
   }, [outlineRaw]);
+  const trackProjection = outlineRaw && !Array.isArray(outlineRaw) ? outlineRaw.projection ?? null : null;
   const pitLines = useMemo(() => {
     if (!outlineRaw || Array.isArray(outlineRaw) || typeof outlineRaw !== "object") return null;
     if (!("pitLines" in outlineRaw)) return null;
@@ -236,6 +238,9 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     selectedLapId,
     setSelectedLapId,
     outline,
+    trackProjection,
+    trackGeometryLoading,
+    trackGeometryError,
     closed,
     mapLabels,
     boundaries,

@@ -28,8 +28,9 @@ export function compositeTrack(options: OverlayOptions, idx: number): void {
   const frame = telemetry[idx],
     position = resolvedPositions[idx],
     path = resolvedDirections[idx];
+  const validPosition = !!frame && !!position && Number.isFinite(position.x) && Number.isFinite(position.z);
   let cx = 0, cy = 0, heading = 0;
-  if (frame && position) {
+  if (frame && position && Number.isFinite(position.x) && Number.isFinite(position.z)) {
     const resolvedDirection = direction(frame, path);
     heading = resolvedDirection ? Math.atan2(resolvedDirection[0], resolvedDirection[1]) : 0;
     cx = t.offsetX + (t.maxX - position.x) * t.scale;
@@ -43,12 +44,12 @@ export function compositeTrack(options: OverlayOptions, idx: number): void {
   const extentY = (sin * t.w + cos * t.h) / 2;
   scene.renderView(
     ctx,
-    frame && position ? cx - extentX : 0,
-    frame && position ? cy - extentY : 0,
-    frame && position ? cx + extentX : t.w,
-    frame && position ? cy + extentY : t.h,
+    validPosition ? cx - extentX : 0,
+    validPosition ? cy - extentY : 0,
+    validPosition ? cx + extentX : t.w,
+    validPosition ? cy + extentY : t.h,
   );
-  if (frame && position) {
+  if (validPosition && frame && position) {
     const resolvedDirection = direction(frame, path);
     if (resolvedDirection) {
       const [dx, dz] = resolvedDirection,
@@ -83,7 +84,7 @@ export function drawCarOverlay(options: OverlayOptions, idx: number): { x: numbe
   ctx.clearRect(0, 0, t.w, t.h);
   const frame = telemetry[idx],
     position = resolvedPositions[idx];
-  if (!frame || !position) return null;
+  if (!frame || !position || !Number.isFinite(position.x) || !Number.isFinite(position.z)) return null;
   const sx = t.w / t.offW,
     sy = t.h / t.offH,
     toCanvas = (x: number, z: number): [number, number] => [(t.offsetX + (t.maxX - x) * t.scale) * sx, (t.offsetZ + (z - t.minZ) * t.scale) * sy];

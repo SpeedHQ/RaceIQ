@@ -23,6 +23,29 @@ describe("compiled telemetry resolver native sources", () => {
     }
   });
 
+  test("resolves recorded iRacing Celsius, torque and native fractional humidity without changing units", () => {
+    const ids = ["engine.coolant-temperature", "engine.oil-temperature", "inputs.steering-wheel-torque", "weather.relative-humidity"];
+    const resolver = compileTelemetryResolver<{ packet: TelemetryPacket; nativeValues: Record<string, unknown> }>(TELEMETRY_CATALOG, { simulator: "iracing", requested: ids.map(semanticId => ({ semanticId })) });
+    const nativeValues = { WaterTemp: 78.45, OilTemp: 77.45, SteeringWheelTorque: -0.728, RelativeHumidity: 0.69134 };
+    const view = resolver.createFrameView({ packet: packet("iracing"), nativeValues }, { timestamp: { domain: "session", milliseconds: 1000 }, updateSequence: 1n });
+    expect(view.readNumber(resolver.slot(ids[0]))).toBe(78.45);
+    expect(view.readNumber(resolver.slot(ids[1]))).toBe(77.45);
+    expect(view.readNumber(resolver.slot(ids[2]))).toBe(-0.728);
+    expect(view.readNumber(resolver.slot(ids[3]))).toBeCloseTo(69.134);
+  });
+
+  test("keeps native humidity endpoints and Celsius zero, but rejects invalid or absent source values", () => {
+    const resolver = compileTelemetryResolver<{ packet: TelemetryPacket; nativeValues: Record<string, unknown> }>(TELEMETRY_CATALOG, { simulator: "iracing", requested: [{ semanticId: "weather.relative-humidity" }, { semanticId: "engine.coolant-temperature" }] });
+    const humidity = resolver.slot("weather.relative-humidity");
+    const coolant = resolver.slot("engine.coolant-temperature");
+    for (const fraction of [0, 1, -0.1, 1.1, NaN, Infinity, undefined]) {
+      const view = resolver.createFrameView({ packet: packet("iracing"), nativeValues: { RelativeHumidity: fraction, WaterTemp: 0 } }, { timestamp: { domain: "session", milliseconds: 1000 }, updateSequence: 1n });
+      expect(view.readNumber(coolant)).toBe(0);
+      if (fraction === 0 || fraction === 1) expect(view.readNumber(humidity)).toBe(fraction * 100);
+      else expect(view.resolveNumber(humidity)).toMatchObject({ state: "missing", value: null });
+    }
+  });
+
   test("reads per-wheel values in declared catalog order", () => {
     const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
       simulator: "fm-2023",

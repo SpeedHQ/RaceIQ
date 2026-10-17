@@ -120,6 +120,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { scene: SceneBuil
   if (displayMapLabels?.length) allBoundsPts.push(displayMapLabels);
   for (const pts of allBoundsPts)
     for (const p of pts) {
+      if (!Number.isFinite(p.x) || !Number.isFinite(p.z)) continue;
       minX = Math.min(minX, p.x);
       maxX = Math.max(maxX, p.x);
       minZ = Math.min(minZ, p.z);
@@ -173,11 +174,29 @@ export function drawStaticTrack(options: StaticTrackOptions): { scene: SceneBuil
   ctx.lineWidth = showInputs ? 0.75 : 4;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  const [sx, sy] = toCanvas(displayOutline[0].x, displayOutline[0].z);
-  ctx.moveTo(sx, sy);
-  for (let i = 1; i < displayOutline.length; i++) ctx.lineTo(...toCanvas(displayOutline[i].x, displayOutline[i].z));
-  if (drawingReferenceOutline && closed) ctx.lineTo(sx, sy);
+  let penDown = false;
+  for (const point of displayOutline) {
+    if (!Number.isFinite(point.x) || !Number.isFinite(point.z)) {
+      penDown = false;
+      continue;
+    }
+    const [x, y] = toCanvas(point.x, point.z);
+    if (penDown) ctx.lineTo(x, y);
+    else { ctx.moveTo(x, y); penDown = true; }
+  }
+  if (drawingReferenceOutline) ctx.closePath();
   ctx.stroke();
+  if (gameId === "iracing" && hasReferenceOutline && displayOutline === telemetryPoints) {
+    ctx.beginPath();
+    ctx.strokeStyle = "var(--track-outline)";
+    ctx.globalAlpha = 0.45;
+    ctx.lineWidth = 2;
+    ctx.moveTo(...toCanvas(displayTrackOutline![0].x, displayTrackOutline![0].z));
+    for (let i = 1; i < displayTrackOutline!.length; i++) ctx.lineTo(...toCanvas(displayTrackOutline![i].x, displayTrackOutline![i].z));
+    if (closed) ctx.closePath();
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
   const displayPitLines = flip && pitLines ? pitLines.map((line) => ({ ...line, points: flipPoints(line.points) })) : pitLines;
   drawPitLines(ctx, displayPitLines, toCanvas);
 
@@ -274,9 +293,14 @@ export function drawStaticTrack(options: StaticTrackOptions): { scene: SceneBuil
     ctx.beginPath();
     ctx.strokeStyle = "var(--track-edge)";
     ctx.lineWidth = 2;
-    ctx.moveTo(sx, sy);
-    for (let i = 1; i < displayOutline.length; i++) ctx.lineTo(...toCanvas(displayOutline[i].x, displayOutline[i].z));
-    if (drawingReferenceOutline && closed) ctx.lineTo(sx, sy);
+    penDown = false;
+    for (const point of displayOutline) {
+      if (!Number.isFinite(point.x) || !Number.isFinite(point.z)) { penDown = false; continue; }
+      const [x, y] = toCanvas(point.x, point.z);
+      if (penDown) ctx.lineTo(x, y);
+      else { ctx.moveTo(x, y); penDown = true; }
+    }
+    if (drawingReferenceOutline && closed) ctx.closePath();
     ctx.stroke();
   }
 

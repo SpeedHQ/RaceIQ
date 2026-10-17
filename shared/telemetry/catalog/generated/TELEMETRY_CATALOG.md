@@ -7,8 +7,8 @@
 - Catalog version: `0.20.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.20.0`
-- Generator source SHA-256: `6d2c986924a834bd68c7cb38aed405849a1982efcf2164166f43babcd0837b83`
-- Content SHA-256: `68cd6c05162110f6badbf14a2111d1cd4e94fb279cfe8c1a1417cb14c341d28b`
+- Generator source SHA-256: `25c24ddb9556ead2ab7d4f884b27f0b7ec824d25ec0459f91b46e6c7252a6ce8`
+- Content SHA-256: `fe3ef4b9742c451b494fd508a7ccfee3008f39c8080b9b735e2422b29e812c0e`
 
 ## Coverage
 
@@ -18,7 +18,7 @@
 | f1-2025 | 289 | 289 | 119 | 170 | 0 | 0 | 0 |
 | acc | 205 | 172 | 124 | 48 | 0 | 0 | 33 |
 | ac-evo | 258 | 226 | 126 | 100 | 0 | 0 | 32 |
-| iracing | 952 | 702 | 115 | 18 | 324 | 495 | 0 |
+| iracing | 955 | 705 | 115 | 18 | 327 | 495 | 0 |
 | lmu | 172 | 172 | 126 | 46 | 0 | 0 | 0 |
 
 ## Semantic variables
@@ -302,6 +302,7 @@
 | `motion.acceleration-x` | Acceleration X | number | length × time^-2 | m/s² | scalar |  |  |  |
 | `motion.acceleration-y` | Acceleration Y | number | length × time^-2 | m/s² | scalar |  |  |  |
 | `motion.acceleration-z` | Acceleration Z | number | length × time^-2 | m/s² | scalar |  |  |  |
+| `motion.altitude` | Altitude | number | length | m | scalar |  |  |  |
 | `motion.angular-velocity-x` | Angular Velocity X | number | length × time^-1 | m/s | scalar |  |  |  |
 | `motion.angular-velocity-y` | Angular Velocity Y | number | length × time^-1 | m/s | scalar |  |  |  |
 | `motion.angular-velocity-z` | Angular Velocity Z | number | length × time^-1 | m/s | scalar |  |  |  |
@@ -310,8 +311,10 @@
 | `motion.driver-head-position.z` | Driver head position Z | number | length | m | scalar |  |  |  |
 | `motion.front-axle-roll-angle` | Front axle roll angle | number | angle | rad | scalar |  |  |  |
 | `motion.lat-accel-st` | Lat Accel ST | number | length × time^-2 | m/s² | variable:0-* | source-order |  |  |
+| `motion.latitude` | Latitude | number | angle | deg | scalar |  |  |  |
 | `motion.local-velocity` | Local Velocity | number | length × time^-1 | m/s | scalar |  |  |  |
 | `motion.long-accel-st` | Long Accel ST | number | length × time^-2 | m/s² | variable:0-* | source-order |  |  |
+| `motion.longitude` | Longitude | number | angle | deg | scalar |  |  |  |
 | `motion.pitch` | Pitch | number | angle | rad | scalar |  |  |  |
 | `motion.pitch-rate-st` | Pitch Rate ST | number | angle × time^-1 | rad/s | variable:0-* | source-order |  |  |
 | `motion.position-x` | Position X | number | length | m | scalar |  |  |  |

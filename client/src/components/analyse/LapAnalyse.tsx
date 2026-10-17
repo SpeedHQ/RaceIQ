@@ -27,6 +27,7 @@ import { useAnalyseSelections } from "./useAnalyseSelections";
 import { SessionIdentityDialog } from "../import/SessionIdentityDialog";
 import { useCarsForGame, useTracksForGame } from "../../hooks/catalog-queries";
 import { buildExportCsv } from "../../lib/lap-export";
+import { useIRacingIncidentReport } from "../../hooks/session-queries";
 
 // ── Main Component ───────────────────────────────────────────────────
 
@@ -53,6 +54,9 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     selectedLapId,
     setSelectedLapId,
     outline,
+    trackProjection,
+    trackGeometryLoading,
+    trackGeometryError,
     closed,
     mapLabels,
     pitLines,
@@ -87,6 +91,15 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     cursorRef,
   } = useAnalyseSelections(initialLapId == null ? search : { ...search, lap: initialLapId }, gameId, sessionId);
   const identitySessionId = sessionId ?? selectedLap?.sessionId;
+  const incidentReport = useIRacingIncidentReport(gameId === "iracing" ? identitySessionId : null, gameId === "iracing");
+  const lapIncidentEvents = useMemo(() => incidentReport.data?.events.filter(event => event.lapId === selectedLap?.id) ?? [], [incidentReport.data, selectedLap?.id]);
+  const incidentMarkers = useMemo(() => lapIncidentEvents.filter(event => event.replay !== null && Number.isInteger(event.replay.frameIndex) && event.replay.frameIndex >= 0 && event.replay.frameIndex < semanticFrames.length), [lapIncidentEvents, semanticFrames.length]);
+  const incidentReportStatus = gameId !== "iracing" ? undefined
+    : incidentReport.isLoading ? "loading"
+    : incidentReport.isError ? "error"
+    : !incidentReport.data || (incidentReport.data.coverage.incidentStatus === "unavailable" && incidentReport.data.coverage.surfaceStatus === "unavailable") ? "unavailable"
+    : incidentReport.data.coverage.incidentStatus !== "available" || incidentReport.data.coverage.surfaceStatus !== "available" || incidentMarkers.length !== lapIncidentEvents.length ? "partial"
+    : "ready";
   const { data: sessions = [] } = useQuery({
     queryKey: [...queryKeys.sessions, gameId],
     queryFn: async () => {
@@ -159,7 +172,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     for (const p of semanticFrames) {
       const x = semanticNumber(p, "motion.position-x");
       const z = semanticNumber(p, "motion.position-z");
-      if (x != null || z != null) pts.push({ x: x ?? 0, z: z ?? 0 });
+      if (x !== null && z !== null) pts.push({ x, z });
     }
     return pts.length > 2 ? pts : null;
   }, [semanticFrames]);
@@ -521,6 +534,9 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
             pitLines,
             sceneSource,
             onRuntime: handleRuntime,
+            trackProjection,
+            trackGeometryLoading,
+            trackGeometryError,
             boundaries,
             sectors,
             segments,
@@ -544,6 +560,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
           }}
           resizeHandleProps={{ topHeight, onHeightChange: setTopHeight }}
           timelineScrubberProps={{
+            gameId,
             displayTelemetry: semanticFrames,
             cursorIdx,
             totalPackets: semanticFrames.length,
@@ -560,6 +577,8 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
             onSpeedChange: setPlaybackSpeed,
             onSeek: handleChartClick,
             onVisualFracChange: setVisualTimeFrac,
+            incidentMarkers,
+            incidentReportStatus,
           }}
           chartsPanelProps={{
             semanticFrames,

@@ -1,6 +1,7 @@
+import type { TrackProjection } from "../wireframe/ScenePlacement";
 import type { SceneRuntime, SceneSource } from "../wireframe/SceneRuntime";
+import { type CSSProperties, type RefObject } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
-import { type CSSProperties, type RefObject, useEffect, useRef } from "react";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
 import type { PitLine } from "@/lib/canvas/draw-track";
 import type { SemanticAnalysisFrame, Point, SectorBoundaries, TrackMapBoundaries, TrackMapHandle, TrackMapLabel, TrackOverlayKey, TrackOverlays, TrackZoomBehavior } from "./track-map/types";
@@ -8,6 +9,7 @@ import type { useUnits } from "../../hooks/useUnits";
 import { m } from "../../paraglide/messages";
 import { AnalyseSegmentList } from "./AnalyseSegmentList";
 import { AnalyseTrackPanel } from "./AnalyseTrackPanel";
+import { useEffect, useRef } from "react";
 import { AnalyseVizPanel } from "./AnalyseVizPanel";
 
 interface AnalyseTopSectionProps {
@@ -24,6 +26,9 @@ interface AnalyseTopSectionProps {
   semanticFrames: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: Point[] | null;
+  trackProjection?: TrackProjection | null;
+  trackGeometryLoading?: boolean;
+  trackGeometryError?: boolean;
   closed?: boolean;
   mapLabels?: TrackMapLabel[] | null;
   pitLines?: PitLine[] | null;
@@ -70,6 +75,9 @@ export function AnalyseTopSection({
   semanticFrames,
   cursorIdx,
   outline,
+  trackProjection,
+  trackGeometryLoading,
+  trackGeometryError,
   closed = true,
   mapLabels,
   pitLines,
@@ -96,8 +104,8 @@ export function AnalyseTopSection({
   sceneSource,
   onRuntime,
 }: AnalyseTopSectionProps) {
+  const isIRacing = gameId === "iracing";
   const resizeCleanupRef = useRef<(() => void) | null>(null);
-
   useEffect(
     () => () => {
       resizeCleanupRef.current?.();
@@ -130,19 +138,18 @@ export function AnalyseTopSection({
         <AnalyseSegmentList telemetry={semanticFrames} segments={segments} cursorIdx={cursorIdx} />
       </div>
 
-      {/* Left resize handle */}
       <button
-        type="button"
-        aria-label={m.analyse_resize_segment_panel()}
-        className="hidden w-1.5 shrink-0 cursor-col-resize bg-app-border transition-colors hover:bg-app-accent/40 @5xl/workspace:block"
-        onKeyDown={(event) => {
-          if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-            event.preventDefault();
-            const delta = event.key === "ArrowLeft" ? -16 : 16;
-            onLeftResize(Math.max(60, Math.min(800, leftColWidth + delta)));
-          }
-        }}
-        onMouseDown={(e) => {
+          type="button"
+          aria-label={m.analyse_resize_segment_panel()}
+          className="hidden w-1.5 shrink-0 cursor-col-resize bg-app-border transition-colors hover:bg-app-accent/40 @5xl/workspace:block"
+          onKeyDown={(event) => {
+            if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+              event.preventDefault();
+              const delta = event.key === "ArrowLeft" ? -16 : 16;
+              onLeftResize(Math.max(60, Math.min(800, leftColWidth + delta)));
+            }
+          }}
+          onMouseDown={(e) => {
           e.preventDefault();
           resizeCleanupRef.current?.();
           const startX = e.clientX;
@@ -162,11 +169,10 @@ export function AnalyseTopSection({
           resizeCleanupRef.current = cleanup;
           window.addEventListener("mousemove", onMove);
           window.addEventListener("mouseup", onUp);
-        }}
-      />
+          }}
+        />
 
-      {/* Track map */}
-      <div className="h-[28rem] w-full min-w-0 border-b border-app-border @5xl/workspace:h-full @5xl/workspace:flex-1 @5xl/workspace:border-r @5xl/workspace:border-b-0">
+      <div className={`h-[28rem] w-full min-w-0 border-b border-app-border @5xl/workspace:h-full @5xl/workspace:border-b-0 ${isIRacing ? "flex-1" : "@5xl/workspace:flex-1 @5xl/workspace:border-r"}`}>
         <AnalyseTrackPanel
           gameId={gameId}
           telemetry={semanticFrames}
@@ -192,44 +198,41 @@ export function AnalyseTopSection({
           trackMapRef={trackMapRef}
         />
       </div>
+      {!isIRacing && (
+        <button
+          type="button"
+          aria-label={m.analyse_resize_visualization_panel()}
+          className="hidden w-1.5 shrink-0 cursor-col-resize bg-app-border transition-colors hover:bg-app-accent/40 @5xl/workspace:block"
+          onKeyDown={(event) => {
+            if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+              event.preventDefault();
+              const delta = event.key === "ArrowLeft" ? 16 : -16;
+              onRightResize(Math.max(200, rightColWidth + delta));
+            }
+          }}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            resizeCleanupRef.current?.();
+            const startX = e.clientX;
+            const startW = rightColWidth;
+            const onMove = (ev: MouseEvent) => onRightResize(Math.max(200, startW - (ev.clientX - startX)));
+            const onUp = () => {
+              window.removeEventListener("mousemove", onMove);
+              window.removeEventListener("mouseup", onUp);
+              resizeCleanupRef.current = null;
+            };
+            const cleanup = () => {
+              window.removeEventListener("mousemove", onMove);
+              window.removeEventListener("mouseup", onUp);
+            };
+            resizeCleanupRef.current = cleanup;
+            window.addEventListener("mousemove", onMove);
+            window.addEventListener("mouseup", onUp);
+          }}
+        />
+      )}
 
-      {/* Right resize handle */}
-      <button
-        type="button"
-        aria-label={m.analyse_resize_visualization_panel()}
-        className="hidden w-1.5 shrink-0 cursor-col-resize bg-app-border transition-colors hover:bg-app-accent/40 @5xl/workspace:block"
-        onKeyDown={(event) => {
-          if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-            event.preventDefault();
-            const delta = event.key === "ArrowLeft" ? 16 : -16;
-            onRightResize(Math.max(200, rightColWidth + delta));
-          }
-        }}
-        onMouseDown={(e) => {
-          e.preventDefault();
-          resizeCleanupRef.current?.();
-          const startX = e.clientX;
-          const startW = rightColWidth;
-          const onMove = (ev: MouseEvent) => {
-            onRightResize(Math.max(200, startW - (ev.clientX - startX)));
-          };
-          const onUp = () => {
-            window.removeEventListener("mousemove", onMove);
-            window.removeEventListener("mouseup", onUp);
-            resizeCleanupRef.current = null;
-          };
-          const cleanup = () => {
-            window.removeEventListener("mousemove", onMove);
-            window.removeEventListener("mouseup", onUp);
-          };
-          resizeCleanupRef.current = cleanup;
-          window.addEventListener("mousemove", onMove);
-          window.addEventListener("mouseup", onUp);
-        }}
-      />
-
-      {/* Rev meter + Steering wheel + Tire diagram */}
-      <AnalyseVizPanel
+      {!isIRacing && <AnalyseVizPanel
         vizMode={vizMode}
         onVizModeChange={onVizModeChange}
         currentFrame={semanticFrames[cursorIdx] ?? null}
@@ -240,11 +243,14 @@ export function AnalyseTopSection({
         onRuntime={onRuntime}
         cursorIdx={cursorIdx}
         lapLine={lapLine}
+        trackProjection={trackProjection}
+        trackGeometryLoading={trackGeometryLoading}
+        trackGeometryError={trackGeometryError}
         boundaries={boundaries}
         lmuCarClass={lmuCarClass}
         gameId={gameId}
         units={units}
-      />
+      />}
     </div>
   );
 }

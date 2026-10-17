@@ -35,6 +35,7 @@ export const AnalyseChartsPanel = memo(
   ) {
     const units = useUnits(gameId);
     const temperatureMetric = resolveAnalysisTelemetry(getGame(gameId)).tireTemperature;
+    const isIRacing = gameId === "iracing";
     const tireTemperatureSemanticId = temperatureMetric.source !== "unavailable" && temperatureMetric.binding?.kind === "value"
       ? temperatureMetric.binding.semanticId
       : "tire.temperature.surface.representative";
@@ -90,7 +91,21 @@ export const AnalyseChartsPanel = memo(
     );
 
     if (!chartData) return null;
-
+    const usableSeries = (semanticId: string, series: number[]) => isIRacing
+      ? series.map((value, index) => {
+          const frame = semanticFrames[index];
+          const state = frame?.states[semanticId];
+          const freshness = frame?.freshness[semanticId];
+          return (state === undefined || state === "ok") && (freshness === undefined || freshness === "fresh") ? value : NaN;
+        })
+      : series;
+    const speed = usableSeries("motion.speed", chartData.speed);
+    const throttle = usableSeries("inputs.accel", chartData.throttle);
+    const brake = usableSeries("inputs.brake", chartData.brake);
+    const clutch = usableSeries("inputs.clutch", chartData.clutch);
+    const rpm = usableSeries("engine.current-engine-rpm", chartData.rpm);
+    const steering = usableSeries("inputs.steer", chartData.steering);
+    const hasData = (series: number[]) => series.some(Number.isFinite);
     const common = {
       totalPackets,
       timeFracs: chartData.timeFracs,
@@ -104,17 +119,23 @@ export const AnalyseChartsPanel = memo(
       <div className="relative flex-none overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:overflow-y-auto" ref={scrollRef}>
         <div ref={cursorLineRef} className="pointer-events-none absolute top-0 bottom-0 z-10 border-l border-dotted border-app-text/50" style={{ display: "none" }} aria-hidden="true" />
         <div className="p-3 space-y-2">
-          <TelemetryChart series={[{ data: chartData.speed, color: "var(--telemetry-speed)", label: `${m.label_speed()} (${speedLabel})` }]} {...common} height={100} />
-          <TelemetryChart
-            series={[
-              { data: chartData.throttle, color: "var(--ch-throttle)", label: m.analyse_chart_throttle() },
-              { data: chartData.brake, color: "var(--ch-brake)", label: m.analyse_chart_brake() },
-            ]}
+          {(!isIRacing || hasData(speed)) && <TelemetryChart series={[{ data: speed, color: "var(--telemetry-speed)", label: `${m.label_speed()} (${speedLabel})` }]} {...common} height={100} />}
+          {(!isIRacing || hasData(throttle) || hasData(brake) || hasData(clutch)) && <TelemetryChart
+            series={isIRacing
+              ? [
+                  ...(hasData(throttle) ? [{ data: throttle, color: "var(--ch-throttle)", label: m.analyse_chart_throttle() }] : []),
+                  ...(hasData(brake) ? [{ data: brake, color: "var(--ch-brake)", label: m.analyse_chart_brake() }] : []),
+                  ...(hasData(clutch) ? [{ data: clutch, color: "var(--app-accent)", label: m.streaming_clutch() }] : []),
+                ]
+              : [
+                  { data: chartData.throttle, color: "var(--ch-throttle)", label: m.analyse_chart_throttle() },
+                  { data: chartData.brake, color: "var(--ch-brake)", label: m.analyse_chart_brake() },
+                ]}
             {...common}
             height={100}
-          />
-          <TelemetryChart series={[{ data: chartData.rpm, color: "var(--telemetry-rpm)", label: m.dataguide_rpm() }]} {...common} height={100} />
-          <TelemetryChart series={[{ data: chartData.steering, color: "var(--telemetry-steering)", label: m.analyse_chart_steering() }]} {...common} height={80} />
+          />}
+          {(!isIRacing || hasData(rpm)) && <TelemetryChart series={[{ data: rpm, color: "var(--telemetry-rpm)", label: m.dataguide_rpm() }]} {...common} height={100} />}
+          {(!isIRacing || hasData(steering)) && <TelemetryChart series={[{ data: steering, color: "var(--telemetry-steering)", label: m.analyse_chart_steering() }]} {...common} height={80} />}
           {chartData.wheelRotationFL && chartData.wheelRotationFR && chartData.wheelRotationRL && chartData.wheelRotationRR && (
             <TelemetryChart
               series={[
@@ -138,7 +159,7 @@ export const AnalyseChartsPanel = memo(
               height={80}
             />
           )}
-          <TelemetryChart
+          {!isIRacing && <TelemetryChart
             series={[
               { data: chartData.tireTempFL, color: WHEEL_COLOR_VARS[0], label: `${chartData.tireCoreTempFL || chartData.tireCarcassTempFL ? m.analyse_chart_surface_temp() : m.analyse_chart_tire_temp()} FL ${units.tempLabel}` },
               { data: chartData.tireTempFR, color: WHEEL_COLOR_VARS[1], label: `${chartData.tireCoreTempFR || chartData.tireCarcassTempFR ? m.analyse_chart_surface_temp() : m.analyse_chart_tire_temp()} FR ${units.tempLabel}` },
@@ -147,8 +168,8 @@ export const AnalyseChartsPanel = memo(
             ]}
             {...common}
             height={80}
-          />
-          {chartData.tireCoreTempFL && chartData.tireCoreTempFR && chartData.tireCoreTempRL && chartData.tireCoreTempRR && (
+          />}
+          {!isIRacing && chartData.tireCoreTempFL && chartData.tireCoreTempFR && chartData.tireCoreTempRL && chartData.tireCoreTempRR && (
             <TelemetryChart
               series={[
                 { data: chartData.tireCoreTempFL, color: WHEEL_COLOR_VARS[0], label: `${m.label_core()} FL ${units.tempLabel}` },
@@ -160,7 +181,7 @@ export const AnalyseChartsPanel = memo(
               height={80}
             />
           )}
-          {chartData.tireCarcassTempFL && chartData.tireCarcassTempFR && chartData.tireCarcassTempRL && chartData.tireCarcassTempRR && (
+          {!isIRacing && chartData.tireCarcassTempFL && chartData.tireCarcassTempFR && chartData.tireCarcassTempRL && chartData.tireCarcassTempRR && (
             <TelemetryChart
               series={[
                 { data: chartData.tireCarcassTempFL, color: WHEEL_COLOR_VARS[0], label: `${m.label_carcass()} FL ${units.tempLabel}` },

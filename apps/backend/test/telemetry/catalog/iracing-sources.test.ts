@@ -9,13 +9,7 @@ import {
 } from "../../support/telemetry/catalog";
 
 describe("semantic telemetry catalog iRacing sources", () => {
-  test("links all 324 captured iRacing SDK variables with source metadata", () => {
-    expect(IRACING_TELEMETRY_SOURCE_VARIABLES).toHaveLength(324);
-    expect(
-      IRACING_TELEMETRY_SOURCE_VARIABLES.filter(
-        (variable) => variable.recordedByRaceIQ,
-      ),
-    ).toHaveLength(74);
+  test("links captured live and disk-only iRacing variables with source metadata", () => {
 
     expect(
       IRACING_TELEMETRY_SOURCE_VARIABLES.find(

@@ -1,11 +1,16 @@
 ## Unreleased
 
 ### Features
+- Restore iRacing Live sidebar access with a dedicated dashboard for driving inputs, timing, fuel, vehicle motion, suspension travel, and temperatures; hide stale readings when telemetry stops.
+- Add an overall clean-driving score to the iRacing Latest Session card, based on valid timed laps and excluding pit laps.
+- Review observed personal incident-point increases, sampled off-track spans, and recorded clean-lap streaks in saved iRacing sessions, with event links and replay timeline markers limited to recorded lap evidence.
+- Simplify iRacing lap replay around the track map and recorded channels, adding clutch, engine, weather, and session readouts while separating pit-only tire snapshots from current telemetry.
 
 ### Fixes
 - Prevent overlapping database writes from blocking recording imports and setup or session deletion.
 - Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.
 - Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
+- Correct iRacing clutch pedal direction so released reads 0% and fully pressed reads 100% in live telemetry and replay.
 
 ### Internal
 - Reuse the Linux build artifact across Playwright shards and collect replay allocations sooner on memory-limited CI runners.
@@ -24,6 +29,8 @@
 - Imports and integrations now use string car and track IDs instead of ordinal fields. Existing sessions and setup links migrate automatically; downgrading requires a pre-upgrade database backup.
 
 ### Features
+- Connect to iRacing on Windows to automatically save completed native .ibt recordings while leaving original files untouched.
+- Replay recorded iRacing .ibt driving lines and elevation, with the official map retained as an approximate reference and map-based placement for recordings without GPS data.
 - New home dashboard with cleaner session and favourite widgets, clean-rate and podium trends.
 - Configure dashboard password protection during setup or in Access & security settings; sign in across devices and recover a forgotten password from the terminal.
 - New desktop and self-hosted installs restrict dashboard access to this computer until you select additional network interfaces.
@@ -40,6 +47,7 @@
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 
 ### Fixes
+- Close reference track outlines without joining the ends of recorded driving traces.
 - Keep converted recordings from older releases readable after updating, including checkpoint-only F1, iRacing, and LMU captures.
 - Stop reopening the recording-organization success dialog after reload when no recordings need migration.
 - Show the track layout after the track name with a hyphen and remove the track-detail header subtitle.
@@ -75,6 +83,7 @@
 - Recheck all historical AC Evo recordings for Tourist layout identity and rebuild their laps after recording-folder organization completes; keep dependent startup work blocked when an earlier repair is incomplete.
 - Use suitable local network addresses for remote HUD links and let users choose an address when multiple adapters are available.
 - Keep racing, throttle, and braking lines sharp when zooming into the replay map.
+- Restore track edges and tyre details in iRacing 3D replays while labeling map-based positions and historical pit readings.
 
 ### Internal
 - Seed selectable ACC and AC Evo setup files consistently in development and compiled E2E servers.

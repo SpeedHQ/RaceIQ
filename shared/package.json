@@ -5,6 +5,7 @@
   "exports": {
     "./platform/network/hud-hostname": "./platform/network/hud-hostname.ts",
     "./racing/sessions/dashboard": "./racing/sessions/dashboard.ts",
+    "./racing/sessions/iracing-incidents": "./racing/sessions/iracing-incidents.ts",
     "./core/numbers": "./core/numbers.ts",
     "./core/csv": "./core/csv.ts",
     "./games/ids": "./games/ids.ts",

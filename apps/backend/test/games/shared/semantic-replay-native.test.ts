@@ -1,3 +1,4 @@
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { readFileSync, unlinkSync } from "node:fs";
@@ -7,9 +8,9 @@ import { deleteSession, insertSession, updateSessionRawFile } from "@raceiq/back
 import type { LapReplaySource } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { cacheDelete, cacheSet } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { initServerGameAdapters } from "../../../src/games/init";
-import { IRacingSourceFrameEncoder, type IRacingSourceFrameV2 } from "@raceiq/capture-formats/iracing/source-frame";
+import { IRacingSourceFrameEncoder, type IRacingSourceFrameV3 } from "@raceiq/capture-formats/iracing/source-frame";
 import { META_FRAME_MAGIC } from "@raceiq/capture-formats/session/framing";
-import { iterateIRacingNativeFramesForTest, queryLapTelemetryBySemanticId } from "@raceiq/backend-core/telemetry/replay";
+import { iterateIRacingNativeFramesForTest, queryLapTelemetryBySemanticId, resolveTelemetryReplay } from "@raceiq/backend-core/telemetry/replay";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { canonicalizeTelemetryScalar } from "@raceiq/telemetry-core/telemetry/replay/canonicalize";
 import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
@@ -18,9 +19,9 @@ import { packet } from "@raceiq/telemetry-core/test-support/telemetry/resolver";
 initGameAdapters();
 initServerGameAdapters();
 
-function frame(sessionTick: number, sessionState: number): IRacingSourceFrameV2 {
+function frame(sessionTick: number, sessionState: number): IRacingSourceFrameV3 {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     session: {
       sessionId: 202,
       subSessionId: 205,
@@ -48,7 +49,15 @@ function frame(sessionTick: number, sessionState: number): IRacingSourceFrameV2 
       Lap: 1,
       LapDist: 100,
       LapDistPct: 0.02,
+      Lat: 52.123456,
+      Lon: -2.987654,
+      Alt: 143.25,
+      OilTemp: 80 + sessionTick,
+      Voltage: 12 + sessionTick / 10,
+      PlayerCarMyIncidentCount: sessionTick === 2 ? 3 : 0,
     },
+    sessionInfo: "WeekendInfo:\n  TrackLatitude: 52.5 m\n  TrackLongitude: -2.5 m\n  TrackAltitude: 140 m\n",
+    sessionInfoUpdate: 1,
   };
 }
 
@@ -148,16 +157,21 @@ test("semantic replay aligns native session frames and hashes decompressed captu
     await updateSessionRawFile(sessionId, rawFile, "test-detector");
     const lapId = await insertLap(sessionId, 1, 1, true, rawByteOffset, 2);
 
-    const replay = await queryLapTelemetryBySemanticId(lapId, ["session.session-state", "motion.speed"], { rawCaptureRequirement: "native-values" });
+    const replay = await queryLapTelemetryBySemanticId(lapId, ["session.session-state", "motion.speed", "motion.latitude", "motion.longitude", "motion.altitude", "identity.track.latitude", "identity.track.longitude", "identity.track.altitude", "engine.oil-temperature", "engine.voltage", "race.player-incident-count"], { rawCaptureRequirement: "native-values" });
     expect(replay?.envelopes).toHaveLength(2);
     expect(replay?.envelopes.map((envelope) => envelope.values.find((value) => value.semanticId === "session.session-state")?.value)).toEqual([2, 4]);
+    expect(replay?.envelopes.map((envelope) => envelope.values.find((value) => value.semanticId === "engine.oil-temperature")?.value)).toEqual([81, 82]);
+    expect(replay?.envelopes.map((envelope) => envelope.values.find((value) => value.semanticId === "engine.voltage")?.value)).toEqual([12.1, 12.2]);
+    expect(replay?.envelopes.map((envelope) => envelope.values.find((value) => value.semanticId === "race.player-incident-count")?.value)).toEqual([0, 3]);
     expect(replay?.envelopes[0].values).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          semanticId: "motion.speed",
-          value: 72.5,
-          state: "ok",
-        }),
+        expect.objectContaining({ semanticId: "motion.speed", value: 72.5, state: "ok" }),
+        expect.objectContaining({ semanticId: "motion.latitude", value: 52.123456, state: "ok" }),
+        expect.objectContaining({ semanticId: "motion.longitude", value: -2.987654, state: "ok" }),
+        expect.objectContaining({ semanticId: "motion.altitude", value: 143.25, state: "ok" }),
+        expect.objectContaining({ semanticId: "identity.track.latitude", value: 52.5, state: "ok" }),
+        expect.objectContaining({ semanticId: "identity.track.longitude", value: -2.5, state: "ok" }),
+        expect.objectContaining({ semanticId: "identity.track.altitude", value: 140, state: "ok" }),
       ]),
     );
     const expectedHash = `sha256:${createHash("sha256").update(capture).digest("hex")}`;
@@ -178,4 +192,50 @@ test("semantic replay aligns native session frames and hashes decompressed captu
     } catch {}
     converted.cleanup();
   }
+});
+
+test("native semantic replay matches trimmed and appended frames and rejects ambiguous or absent identities", () => {
+  const encoder = new IRacingSourceFrameEncoder();
+  const meta = Buffer.alloc(12);
+  meta.writeUInt32LE(META_FRAME_MAGIC, 0);
+  meta.writeUInt32LE(4, 4);
+  const native = [frame(1, 2), frame(2, 2), frame(3, 2), frame(3, 2), frame(4, 2)];
+  native[0].values.OilTemp = 81;
+  native[1].values.OilTemp = 82;
+  native[2].values.OilTemp = 83;
+  native[3].values.OilTemp = 84;
+  native[4].values.OilTemp = 85;
+  native[0].values.Voltage = 12.1;
+  native[1].values.Voltage = 12.2;
+  native[2].values.Voltage = 12.3;
+  native[3].values.Voltage = 12.4;
+  native[4].values.Voltage = 12.5;
+  native[0].values.PlayerCarMyIncidentCount = 0;
+  native[1].values.PlayerCarMyIncidentCount = 1;
+  native[2].values.PlayerCarMyIncidentCount = 2;
+  native[3].values.PlayerCarMyIncidentCount = 3;
+  native[4].values.PlayerCarMyIncidentCount = 4;
+  const capture = Buffer.concat([meta, ...native.map((value) => record(encoder.encode(value)))]);
+  const source: LapReplaySource = {
+    id: 1, sessionId: 1, createdAt: "2026-08-04 00:00:00", gameId: "iracing",
+    rawFile: null, rawByteOffset: meta.length, rawFrameCount: 4, captureFormatVersion: null,
+  };
+  const retained = [2, 3, 4, 5].map((tick) => packet("iracing", {
+    sessionUID: "205:202:1",
+    iracing: { sessionTick: tick } as TelemetryPacket["iracing"],
+    CurrentRaceTime: tick / 60,
+    TimestampMS: 1_790_000_000_000 + tick * 50,
+  }));
+  const replay = resolveTelemetryReplay(1, source, retained, [
+    "engine.oil-temperature", "engine.voltage", "race.player-incident-count",
+  ], { bytes: capture, contentHash: "test", storageEncoding: "identity" });
+  expect(replay.envelopes[0].values.find((value) => value.semanticId === "engine.oil-temperature")?.value).toBe(82);
+  expect(replay.envelopes[0].values.find((value) => value.semanticId === "engine.voltage")?.value).toBe(12.2);
+  expect(replay.envelopes[0].values.find((value) => value.semanticId === "race.player-incident-count")?.value).toBe(1);
+  expect(replay.envelopes[1].values.find((value) => value.semanticId === "engine.oil-temperature")).toMatchObject({ value: null, state: "missing" });
+  expect(replay.envelopes[1].values.find((value) => value.semanticId === "race.player-incident-count")).toMatchObject({ value: null, state: "missing" });
+  expect(replay.envelopes[2].values.find((value) => value.semanticId === "engine.oil-temperature")?.value).toBe(85);
+  expect(replay.envelopes[2].values.find((value) => value.semanticId === "engine.voltage")?.value).toBe(12.5);
+  expect(replay.envelopes[2].values.find((value) => value.semanticId === "race.player-incident-count")?.value).toBe(4);
+  expect(replay.envelopes[3].values.find((value) => value.semanticId === "engine.oil-temperature")).toMatchObject({ value: null, state: "missing" });
 });

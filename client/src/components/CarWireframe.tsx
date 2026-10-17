@@ -22,6 +22,8 @@ import { DropdownMenu } from "./ui/DropdownMenu";
 import { preloadCarModel } from "./wireframe/CarBody";
 import { SceneRuntime, type SceneSource } from "./wireframe/SceneRuntime";
 import { ToggleButton } from "./wireframe/ToggleButton";
+import { alignProjectionToMeasured, resolveScenePoses, type TrackProjection } from "./wireframe/ScenePlacement";
+import { Alert, AlertDescription } from "./ui/alert";
 
 preloadCarModel("/models/aston_martin_vantage_gt3_optimised.glb");
 preloadCarModel("/models/f1_2025_mclaren_mcl39_optimised.glb");
@@ -33,6 +35,9 @@ export const CarWireframe = React.memo(function CarWireframe({
   telemetry,
   cursorIdx,
   outline,
+  trackProjection,
+  trackGeometryLoading = false,
+  trackGeometryError = false,
   boundaries,
   carId,
   lmuCarClass,
@@ -53,6 +58,9 @@ export const CarWireframe = React.memo(function CarWireframe({
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: { x: number; z: number }[] | null;
+  trackProjection?: TrackProjection | null;
+  trackGeometryLoading?: boolean;
+  trackGeometryError?: boolean;
   boundaries?: Pick<TrackMapBoundaries, "leftEdge" | "rightEdge" | "raceLine" | "additionalSections"> | null;
   carId?: string;
   carModel?: CarModelEnrichment & { hasModel: boolean };
@@ -130,8 +138,29 @@ export const CarWireframe = React.memo(function CarWireframe({
     if (!boundaries) return null;
     return needsTrackFlip(gameId) ? flipBoundaries(boundaries) : boundaries;
   }, [boundaries, gameId]);
+  const poses = useMemo(() => resolveScenePoses(gameId, telemetry, trackProjection), [gameId, telemetry, trackProjection]);
+  const measuredPath = useMemo(() => poses.some((pose) => pose?.source === "measured")
+    ? poses.map((pose) => pose?.source === "measured" ? { x: pose.x, z: pose.z, ...(pose.y === undefined ? {} : { y: pose.y }) } : { x: Number.NaN, z: Number.NaN })
+    : null, [poses]);
+  const derivedTrack = gameId === "iracing" && poses.some((pose) => pose?.source === "lap-fraction");
+  const measuredProjection = useMemo(() => alignProjectionToMeasured(trackProjection, poses), [trackProjection, poses]);
+  const measuredTrack = gameId === "iracing" && poses.some((pose) => pose?.source === "measured");
+  const sceneOutline = measuredTrack ? measuredProjection?.points ?? null : derivedTrack ? trackProjection?.points ?? null : outline;
+  const sceneBoundaries = measuredTrack ? measuredProjection?.boundaries ?? null : derivedTrack ? trackProjection?.boundaries ?? null : flippedBoundaries;
+  const [placementSource, setPlacementSource] = useState<"native" | "lap-fraction" | "measured" | null>(null);
+  useEffect(() => {
+    let animationFrame: number;
+    const sync = () => {
+      const next = poses[source.cursorRef.current]?.source ?? null;
+      setPlacementSource((previous) => previous === next ? previous : next);
+      animationFrame = requestAnimationFrame(sync);
+    };
+    sync();
+    return () => cancelAnimationFrame(animationFrame);
+  }, [poses, source.cursorRef]);
   const positionAvailable = (feature: "track" | "racingLine" | "trails" | "inputs") =>
-    supportsPositionDependentSceneFeature(gameId, feature);
+    supportsPositionDependentSceneFeature(gameId, feature)
+    || (placementSource !== null && (feature === "track" || feature === "inputs" || placementSource === "native"));
   const effectiveToggles = {
     ...toggles,
     track: toggles.track && positionAvailable("track"),
@@ -178,12 +207,13 @@ export const CarWireframe = React.memo(function CarWireframe({
   }, [source]);
   useEffect(() => {
     runtimeRef.current?.updateConfig({
-      gameId, frame, telemetry, cursorIdx, outline, boundaries: flippedBoundaries,
+      gameId, frame, telemetry, cursorIdx, outline: sceneOutline, measuredPath, poses, boundaries: sceneBoundaries,
+      boundarySpace: measuredTrack ? "measured" : derivedTrack ? "lap-fraction" : "native",
       toggles: effectiveToggles, viewPreset, carModel, modelOffsetX, hideModelWheels: !minimal,
       autoOrbit: !!autoOrbit, fpsCap: displaySettings.renderFpsCap,
       fmtTemp, suspThresholds, pressureOptimal, temperatureThresholds: units.thresholds, temperatureSemanticId,
     });
-  }, [gameId, frame, telemetry, cursorIdx, outline, flippedBoundaries, toggles, viewPreset, carModel, modelOffsetX, minimal, autoOrbit, displaySettings.renderFpsCap, fmtTemp, suspThresholds, pressureOptimal, units.thresholds, temperatureSemanticId]);
+  }, [gameId, frame, telemetry, cursorIdx, sceneOutline, measuredPath, poses, derivedTrack, measuredTrack, sceneBoundaries, effectiveToggles, viewPreset, carModel, modelOffsetX, minimal, autoOrbit, displaySettings.renderFpsCap, fmtTemp, suspThresholds, pressureOptimal, units.thresholds, temperatureSemanticId]);
 
   return (
     <div className="w-full h-full relative flex-1">
@@ -192,6 +222,13 @@ export const CarWireframe = React.memo(function CarWireframe({
         return `${wheel} ${value != null && Number.isFinite(value) ? fmtTemp(value) : m.analyse_unavailable()}`;
       }).join(", ")}`} />
       {renderError && <div role="alert" className="absolute inset-0 flex items-center justify-center bg-app-bg text-status-danger p-4">{renderError}</div>}
+      {gameId === "iracing" && toggles.track && (trackGeometryLoading || trackGeometryError || !placementSource || !sceneOutline?.length || placementSource === "lap-fraction" || placementSource === "measured") && (
+        <Alert className="absolute bottom-2 right-2 max-w-[60%]" role="status">
+          <AlertDescription>
+            {trackGeometryLoading ? m.replay_track_loading() : trackGeometryError ? m.replay_track_error() : placementSource === "measured" ? sceneOutline?.length ? m.replay_track_measured() : m.replay_track_unavailable() : placementSource === "lap-fraction" ? sceneBoundaries ? m.replay_track_projected() : m.replay_track_bounds_unavailable() : m.replay_track_unavailable()}
+          </AlertDescription>
+        </Alert>
+      )}
       <span ref={fpsRef} data-visual-test-hidden className="absolute bottom-1 right-24 text-sm font-mono text-app-text-dim/50 px-1 py-0.5" />
 
       {/* View toggles */}

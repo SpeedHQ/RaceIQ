@@ -1,3 +1,4 @@
+import type { TrackProjection } from "../wireframe/ScenePlacement";
 import type { SceneRuntime, SceneSource } from "../wireframe/SceneRuntime";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { memo, type RefObject, useEffect, useMemo, useRef, useState } from "react";
@@ -19,6 +20,9 @@ interface Props {
   displayTelemetryRef: RefObject<SemanticAnalysisFrame[]>;
   cursorIdx: number;
   lapLine: Point[] | null;
+  trackProjection?: TrackProjection | null;
+  trackGeometryLoading?: boolean;
+  trackGeometryError?: boolean;
   boundaries: TrackMapBoundaries | null;
   units: ReturnType<typeof useUnits>;
   gameId?: GameId;
@@ -34,6 +38,9 @@ function areAnalyseVizPropsEqual(previous: Props, next: Props): boolean {
     previous.cursorRef === next.cursorRef &&
     previous.displayTelemetryRef === next.displayTelemetryRef &&
     previous.lapLine === next.lapLine &&
+    previous.trackProjection === next.trackProjection &&
+    previous.trackGeometryLoading === next.trackGeometryLoading &&
+    previous.trackGeometryError === next.trackGeometryError &&
     previous.boundaries === next.boundaries &&
     previous.units === next.units &&
     previous.lmuCarClass === next.lmuCarClass &&
@@ -52,6 +59,9 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
   displayTelemetryRef,
   cursorIdx,
   lapLine,
+  trackProjection,
+  trackGeometryLoading,
+  trackGeometryError,
   boundaries,
   units,
   gameId,
@@ -110,6 +120,9 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
               telemetry={semanticFrames}
               cursorIdx={sceneCursorIdx}
               outline={lapLine}
+              trackProjection={trackProjection}
+              trackGeometryLoading={trackGeometryLoading}
+              trackGeometryError={trackGeometryError}
               boundaries={sceneBoundaries}
               tempLabel={units.tempLabel}
             />

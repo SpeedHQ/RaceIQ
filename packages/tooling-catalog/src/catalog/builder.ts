@@ -348,6 +348,17 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
   if (diagnostic.format !== "raceiq-iracing-all-vars-v1") {
     throw new Error(`Unexpected iRacing diagnostic format ${diagnostic.format}`);
   }
+  // Disk-only IBT channels are absent from the captured live SDK inventory.
+  const diskOnly = new Set(["Lat", "Lon", "Alt"]);
+  for (const [name, type, unit, description] of [
+    ["Lat", "double", "deg", "Recorded vehicle latitude; available only in native IBT telemetry."],
+    ["Lon", "double", "deg", "Recorded vehicle longitude; available only in native IBT telemetry."],
+    ["Alt", "float", "m", "Recorded vehicle altitude; available only in native IBT telemetry."],
+  ]) {
+    if (!diagnostic.variables.some((variable) => variable.name === name)) {
+      diagnostic.variables.push({ name, type, unit, description, count: 1 });
+    }
+  }
   const selected = new Set(diagnostic.raceIQSelected?.present ?? []);
   const existingIRacingSources = new Map<string, string>();
   for (const variable of variables.values()) {
@@ -420,7 +431,9 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
                       : `convert ${nativeUnit} to ${semantic.canonicalUnit}`,
               }
             : {}),
-          description: "Native iRacing SDK variable linked to shared semantic value.",
+          description: diskOnly.has(raw.name)
+            ? "Native iRacing disk-only variable; available when the replay source contains IBT data."
+            : "Native iRacing SDK variable linked to shared semantic value.",
         };
       } else if (Array.isArray(link.sources) && !link.sources.includes(sdkSource)) {
         link.sources.push(sdkSource);
@@ -440,8 +453,8 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
         description: raw.description,
         semanticId: existingSemantic,
         sourceKind: "sdk",
-        recordedByRaceIQ: selected.has(raw.name),
-        retention: selected.has(raw.name) ? "exact" : "not-recorded",
+        recordedByRaceIQ: selected.has(raw.name) || diskOnly.has(raw.name),
+        retention: selected.has(raw.name) || diskOnly.has(raw.name) ? "exact" : "not-recorded",
       });
       continue;
     }

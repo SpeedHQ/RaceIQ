@@ -18,8 +18,9 @@ export function GForceCircle({ frame, view }: { frame?: SemanticAnalysisFrame; v
   const maxG = 2.5;
 
   function number(current: SemanticAnalysisFrame | undefined, id: keyof SemanticAnalysisFrame["values"]): number | null {
-    const value = current?.values[id];
-    return typeof value === "number" && Number.isFinite(value) ? value : null;
+    const value = current?.values[id], state = current?.states[id], freshness = current?.freshness[id];
+    return typeof value === "number" && Number.isFinite(value) && (state === undefined || state === "ok") &&
+      (freshness === undefined || freshness === "fresh") ? value : null;
   }
 
   useEffect(() => {

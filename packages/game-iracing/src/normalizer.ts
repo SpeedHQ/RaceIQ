@@ -103,9 +103,9 @@ function tireWear(
     scalar(values, `${corner}wearL`, Number.NaN),
     scalar(values, `${corner}wearM`, Number.NaN),
     scalar(values, `${corner}wearR`, Number.NaN),
-  ].filter(Number.isFinite);
-  if (remaining.length === 0) return 0;
-  return 1 - clamp(Math.min(...remaining), 0, 1);
+  ];
+  if (remaining.some((value) => !Number.isFinite(value) || value < 0 || value > 1)) return Number.NaN;
+  return 1 - Math.min(...remaining);
 }
 
 function coldPressurePsi(
@@ -145,8 +145,10 @@ export function normalizeIRacingFrame(
   const { session, values } = frame;
 
   const rawLap = Math.max(0, Math.trunc(scalar(values, "Lap", 0)));
-  const lapDistanceM = Math.max(0, scalar(values, "LapDist", 0));
-  const lapDistancePct = clamp(scalar(values, "LapDistPct", 0), 0, 1);
+  const nativeLapDistance = scalar(values, "LapDist", Number.NaN);
+  const lapDistanceM = nativeLapDistance >= 0 ? nativeLapDistance : Number.NaN;
+  const nativeLapFraction = scalar(values, "LapDistPct", Number.NaN);
+  const lapDistancePct = nativeLapFraction >= 0 && nativeLapFraction <= 1 ? nativeLapFraction : Number.NaN;
   const sessionTime = Math.max(0, scalar(values, "SessionTime", 0));
   const sdkCurrentLapTime = Math.max(
     0,
@@ -242,9 +244,9 @@ export function normalizeIRacingFrame(
 
     // iRacing LatAccel is left-positive; RaceIQ's canonical lateral axis is
     // right-positive so felt G renders opposite the direction of the turn.
-    AccelerationX: -scalar(values, "LatAccel", 0),
-    AccelerationY: scalar(values, "VertAccel", 0),
-    AccelerationZ: scalar(values, "LongAccel", 0),
+    AccelerationX: -scalar(values, "LatAccel", Number.NaN),
+    AccelerationY: scalar(values, "VertAccel", Number.NaN),
+    AccelerationZ: scalar(values, "LongAccel", Number.NaN),
 
     VelocityX: scalar(values, "VelocityX", 0),
     VelocityY: scalar(values, "VelocityY", 0),
@@ -255,9 +257,9 @@ export function normalizeIRacingFrame(
     AngularVelocityY: -scalar(values, "YawRate", 0),
     AngularVelocityZ: scalar(values, "RollRate", 0),
 
-    Yaw: -scalar(values, "Yaw", 0),
-    Pitch: scalar(values, "Pitch", 0),
-    Roll: scalar(values, "Roll", 0),
+    Yaw: -scalar(values, "Yaw", Number.NaN),
+    Pitch: scalar(values, "Pitch", Number.NaN),
+    Roll: scalar(values, "Roll", Number.NaN),
 
     NormSuspensionTravelFL: 0,
     NormSuspensionTravelFR: 0,
@@ -321,7 +323,8 @@ export function normalizeIRacingFrame(
 
     Accel: input255(scalar(values, "Throttle", 0)),
     Brake: input255(scalar(values, "Brake", 0)),
-    Clutch: input255(scalar(values, "Clutch", 0)),
+    // SDK clutch is 1 when released; canonical inputs measure pedal depression.
+    Clutch: input255(1 - scalar(values, "Clutch", 1)),
     HandBrake: 0,
     Gear: canonicalGear(scalar(values, "Gear", 0)),
     Steer: steer,

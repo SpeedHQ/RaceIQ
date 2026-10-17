@@ -144,7 +144,7 @@ export function AnalyseTrackPanel({
         zoomBehavior={zoomBehavior}
       />
       {/* Weather widget (updates at cursor position) — bottom left by default, bottom right for the live dashboard */}
-      {hasAirTemperature && <WeatherWidget {...weatherData} position={weatherBottomRight ? "bottom-right" : "bottom-left"} />}
+      {gameId !== "iracing" && hasAirTemperature && <WeatherWidget {...weatherData} position={weatherBottomRight ? "bottom-right" : "bottom-left"} />}
 
       <div className="absolute top-2 left-2 flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-2 rounded border border-app-border-input bg-app-surface-alt/80 px-2 py-1">

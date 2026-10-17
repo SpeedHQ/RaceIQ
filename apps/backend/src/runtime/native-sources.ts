@@ -2,6 +2,7 @@ import { AccSharedMemoryReader } from "@raceiq/game-acc/shared-memory";
 import { AcEvoSharedMemoryReader } from "@raceiq/game-ac-evo/shared-memory";
 import { IRacingTelemetrySource } from "@raceiq/game-iracing/source";
 import { registerLiveIRacingIdentity } from "@raceiq/game-iracing/identity";
+import { iracingCaptureManager } from "./iracing-capture";
 import { LMUTelemetrySource } from "@raceiq/game-lmu/source";
 import { isGameRunning } from "@raceiq/backend-core/games/registry";
 import {
@@ -62,6 +63,7 @@ export function startNativeSourceSupervisor(
       () => new IRacingTelemetrySource({
         recordingEnabled: recordingGameId === "iracing",
         registerIdentity: registerLiveIRacingIdentity,
+        onSnapshot: (snapshot, frameTimeMs) => iracingCaptureManager.observe(snapshot, frameTimeMs),
       }),
       getIracingSource,
       setIracingSource,
@@ -93,6 +95,7 @@ export function startNativeSourceSupervisor(
       for (const reader of readers) {
         if (reader) trackStop(reader.stop());
       }
+      await iracingCaptureManager.stop();
       await Promise.allSettled(pendingStops);
     },
   };
