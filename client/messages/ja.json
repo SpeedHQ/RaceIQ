@@ -485,8 +485,7 @@
   "setup_prev_button": "← 前へ",
   "setup_next_button": "次へ →",
   "setup_no_matches": "この条件に一致するセットアップはありません。",
-  "setup_sort_info": "↕ ラップタイムで並べ替え · 比較するにはコースを選択（タイムは同じコース内でのみ比較できます）。"
-,
+  "setup_sort_info": "↕ ラップタイムで並べ替え · 比較するにはコースを選択（タイムは同じコース内でのみ比較できます）。",
   "import_pick_setup": "Documentsフォルダーからセットアップを選択してください。",
   "import_scanning": "セットアップをスキャン中...",
   "import_expected_path": "次の場所にあるはずです",
@@ -2619,5 +2618,8 @@
   "access_origins_safety": "ネットワーク設定の変更には RaceIQ の再起動が必要です。オフにしても保存済みオリジンは削除されません。同一オリジン保護は継続します。",
   "dash_hostname_origin_settings": "この正確なオリジンを「設定 → アクセスとセキュリティ → ブラウザー ドメイン」に追加してください: {origin}。ホスト名を保存してもアクセスは許可されません。",
   "dash_hostname_origin_managed": "この正確なオリジンを SERVER_ALLOWED_ORIGINS に追加してください: {origin}。ホスト名を保存してもアクセスは許可されません。",
-  "dash_hostname_invalid": "http://、ポート、パスを含めず、ホスト名のみ入力してください。"
+  "setupguide_ams2_same_pc": "同じWindows PCでAutomobilista 2とRaceIQを起動してください。",
+  "setupguide_ams2_shared_memory": "AMS2で「オプション → システム」を開き、共有メモリを「Project CARS 2」に設定してください。",
+  "setupguide_ams2_driving": "練習またはレースセッションに入り、車に乗って走行するとテレメトリの受信が始まります。",
+  "setupguide_ams2_direct_note": "RaceIQはAMS2のデータを直接読み取ります。SimHubへの接続や別のテレメトリツールは不要です。"
 }

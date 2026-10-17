@@ -2617,5 +2617,9 @@
   "access_origins_managed": "SERVER_ALLOWED_ORIGINS에 의해 활성화됩니다. 이 환경 설정은 화이트리스트를 제어합니다. 거기에서 변경하고 RaceIQ를 다시 시작하세요.",
   "access_origins_safety": "네트워크 액세스를 저장하려면 RaceIQ를 다시 시작해야 합니다. 이 기능을 꺼도 저장된 원본은 지워지지 않습니다. 동일 출처 보호는 계속됩니다.",
   "dash_hostname_origin_settings": "설정 → 액세스 및 보안 → 브라우저 도메인: {origin}에 정확한 출처를 포함하세요. 이 호스트 이름을 저장해도 액세스가 승인되지 않습니다.",
-  "dash_hostname_origin_managed": "SERVER_ALLOWED_ORIGINS: {origin}에 정확한 출처를 포함하세요. 이 호스트 이름을 저장해도 액세스가 승인되지 않습니다."
+  "dash_hostname_origin_managed": "SERVER_ALLOWED_ORIGINS: {origin}에 정확한 출처를 포함하세요. 이 호스트 이름을 저장해도 액세스가 승인되지 않습니다.",
+  "setupguide_ams2_same_pc": "같은 Windows 컴퓨터에서 AMS2와 RaceIQ를 실행하세요.",
+  "setupguide_ams2_shared_memory": "AMS2 시스템 설정에서 Shared Memory를 Project CARS 2로 설정하세요.",
+  "setupguide_ams2_driving": "주행 세션에 들어가 차를 운전하세요.",
+  "setupguide_ams2_direct_note": "AMS2는 공유 메모리를 직접 사용하므로 UDP 설정이 필요하지 않습니다."
 }

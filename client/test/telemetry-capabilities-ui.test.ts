@@ -1,3 +1,7 @@
+import { analyseSemanticIds } from "@raceiq/shared/games/metric-contracts";
+import { getGame } from "@raceiq/shared/games/registry";
+import { GForceCircle } from "../src/components/telemetry/GForceCircle";
+import {suspensionTravelBias} from "../src/lib/suspension";
 import { supportsPositionDependentSceneFeature } from "../src/lib/wireframe-capabilities";
 import { describe, expect, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -337,6 +341,16 @@ describe("telemetry capability UI", () => {
     expect(used).toContain("Fuel 60.0L");
     expect(used).toContain("width:60%");
     expect(used).toContain("background-color:");
+  });
+
+  test("forwards available AMS2 pressures into the live tire grid", () => {
+    const markup = renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() },
+      createElement(LiveTelemetry, { mode: "driver", view: liveView("ams2", {
+        tires: { pressurePsi: { fl: 25.32, fr: 26.04, rl: 25.7, rr: 25.9 } },
+      }) })));
+    expect(markup).toContain("25.3");
+    expect(markup).toContain("26.0");
+    expect(markup).toContain("psi");
   });
 
   test("scales pit crew semantic pedal inputs from 0–255 to percentages", () => {
@@ -774,6 +788,38 @@ describe("telemetry capability UI", () => {
     expect(available).toContain("-0.523");
   });
 });
+
+test("AMS2 keeps suspension travel visible without claiming a load distribution",()=>{
+  const view=liveView("ams2",{tires:{suspensionTravelM:{fl:.017,fr:.028,rl:.026,rr:.036}}});
+  const markup=renderToStaticMarkup(createElement(QueryClientProvider,{client:new QueryClient()},createElement(TireDiagram,{view})));
+  expect(markup).toContain("17mm");expect(markup).toContain("36mm");
+  expect(markup).toContain("<canvas");expect(markup).toContain("Compression bias");
+  expect(markup).not.toContain("Load</span>");
+});
+
+
+test("AMS2 suspension display balances both axes without implying wheel load", () => {
+  expect(suspensionTravelBias([.017, .017, .036, .036])?.longitudinal).toBeGreaterThan(0);
+  expect(suspensionTravelBias([.050, .050, .010, .010])?.longitudinal).toBeLessThan(0);
+  expect(suspensionTravelBias([.020, .040, .020, .040])?.lateral).toBeGreaterThan(0);
+  expect(suspensionTravelBias([.040, .020, .040, .020])?.lateral).toBeLessThan(0);
+  expect(suspensionTravelBias([.02, .02, .02, .02])).toEqual({ lateral: 0, longitudinal: 0 });
+  expect(suspensionTravelBias([.01, undefined, .01, .01])).toBeNull();
+});
+
+for (const adapter of [getGame("ams2")]) {
+  test(`${adapter.id} Analyse requests and resolves both G-force axes`, () => {
+    const ids = analyseSemanticIds(adapter);
+    expect(ids).toContain("motion.acceleration-x");
+    expect(ids).toContain("motion.acceleration-z");
+    const values = Object.fromEntries(ids.map(id => [id,
+      id === "motion.acceleration-x" ? 4.905 : id === "motion.acceleration-z" ? -9.81 : null]));
+    const markup = renderToStaticMarkup(createElement(GForceCircle, { frame: semanticFrame(values) }));
+    expect(markup).toContain("-0.5");
+    expect(markup).toContain("1.0");
+    expect(markup).not.toContain("—");
+  });
+}
 describe("position-dependent 3D features", () => {
   test("disables world-position overlays for iRacing without affecting other games", () => {
     for (const feature of ["track", "racingLine", "trails", "inputs"] as const) {

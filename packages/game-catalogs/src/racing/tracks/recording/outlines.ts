@@ -99,7 +99,7 @@ function migrateLegacyAcEvoOutline(ordinal: number, sourcePath: string): string 
 export function scanRecordedFiles(): void {
   _recordedScanned = true;
   recordedKeys.clear();
-  for (const gid of ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu"]) {
+  for (const gid of ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu", "ams2"]) {
     const dir = resolve(userDir, gid);
     if (!existsSync(dir)) continue;
     for (const filePath of listDataFiles(dir, (f) => f.endsWith("-computed-average.csv"))) {

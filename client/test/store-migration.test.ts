@@ -110,3 +110,23 @@ describe("TanStack store contracts", () => {
     gameStore.actions.setGameId(null);
   });
 });
+
+
+it("clears idle live readings while preserving the schema and recorded laps for resumption", () => {
+  telemetryStore.actions.setTelemetrySchema(schema);
+  telemetryStore.actions.setTelemetryFrame(frame);
+  telemetryStore.actions.setSessionLaps([{ lapId: 42, lapNumber: 4 } as never]);
+  const laps = telemetryStore.get().sessionLaps;
+  expect(telemetryStore.get().telemetryView).not.toBeNull();
+  telemetryStore.actions.clearTelemetry(true);
+  expect(telemetryStore.get().telemetryView).toBeNull();
+  expect(telemetryStore.get().sectors).toBeNull();
+  expect(telemetryStore.get().pit).toBeNull();
+  expect(telemetryStore.get().telemetrySchema).toBe(schema);
+  expect(telemetryStore.get().sessionLaps).toBe(laps);
+  telemetryStore.actions.setTelemetryFrame({ ...frame, sequence: 2 });
+  expect(telemetryStore.get().telemetryView).not.toBeNull();
+  telemetryStore.actions.clearTelemetry();
+  expect(telemetryStore.get().telemetrySchema).toBeNull();
+  telemetryStore.actions.setSessionLaps([]);
+});

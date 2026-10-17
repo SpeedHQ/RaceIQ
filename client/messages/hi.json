@@ -2617,5 +2617,9 @@
   "access_origins_managed": "SERVER_ALLOWED_ORIGINS द्वारा चालू। यह पर्यावरण सेटिंग अनुमति सूची नियंत्रित करती है; वहीं बदलकर RaceIQ रीस्टार्ट करें।",
   "access_origins_safety": "नेटवर्क पहुँच सहेजने के लिए RaceIQ रीस्टार्ट करना होगा। इसे बंद करने से सहेजे ओरिजिन नहीं मिटते। समान-ओरिजिन सुरक्षा जारी रहती है।",
   "dash_hostname_origin_settings": "इस सटीक मूल को सेटिंग्स → एक्सेस और सुरक्षा → ब्राउज़र डोमेन में शामिल करें: {origin}। इस होस्टनाम को सहेजने से पहुंच अधिकृत नहीं होती है।",
-  "dash_hostname_origin_managed": "Include this exact origin in SERVER_ALLOWED_ORIGINS: {origin}. Saving this hostname does not authorize access."
+  "dash_hostname_origin_managed": "Include this exact origin in SERVER_ALLOWED_ORIGINS: {origin}. Saving this hostname does not authorize access.",
+  "setupguide_ams2_same_pc": "AMS2 और RaceIQ को एक ही Windows कंप्यूटर पर चलाएँ।",
+  "setupguide_ams2_shared_memory": "AMS2 की सिस्टम सेटिंग में Shared Memory को Project CARS 2 पर सेट करें।",
+  "setupguide_ams2_driving": "ड्राइविंग सत्र में प्रवेश करें और कार चलाएँ।",
+  "setupguide_ams2_direct_note": "AMS2 सीधे साझा मेमोरी का उपयोग करता है; UDP सेटअप आवश्यक नहीं है।"
 }

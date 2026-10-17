@@ -1,7 +1,10 @@
+import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { describe, test, expect } from "bun:test";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { TuneSymptoms } from "@raceiq/backend-core/ai/tune-symptoms";
 import { symptomsToIssues, detectLiveIssues } from "@raceiq/backend-core/ai/tune-issues";
+
+initGameAdapters();
 
 /** Minimal symptom fixture — only the fields symptomsToIssues reads. */
 function makeSymptoms(overrides: Partial<TuneSymptoms> = {}): TuneSymptoms {
@@ -25,6 +28,7 @@ function makeSymptoms(overrides: Partial<TuneSymptoms> = {}): TuneSymptoms {
 /** Minimal packet fixture — only the fields detectLiveIssues reads. */
 function makePacket(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
   return {
+    gameId: "fm-2023",
     DistanceTraveled: 0,
     Speed: 0,
     Brake: 0,
@@ -224,4 +228,11 @@ describe("detectLiveIssues", () => {
     const issues = detectLiveIssues(packet);
     expect(issues[0].distanceFrac).toBeUndefined();
   });
+});
+
+
+test("AMS2 displacement does not produce a suspension bottoming warning", () => {
+  const packet = makePacket({ gameId: "ams2", NormSuspensionTravelFL: 1 });
+  expect(detectLiveIssues(packet).some(issue => issue.kind === "bottoming")).toBe(false);
+  expect(detectLiveIssues({ ...packet, gameId: "fm-2023" }).some(issue => issue.kind === "bottoming")).toBe(true);
 });

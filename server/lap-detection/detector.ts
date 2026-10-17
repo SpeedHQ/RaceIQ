@@ -147,6 +147,7 @@ export class LapDetector implements ILapDetector {
     this.onLapSaved = opts.callbacks?.onLapSaved;
     this.engine = new OrdinalDetectorEngine({
       now: () => Date.now(),
+      ...(this.lapPolicy.resolveLapReset ? { resolveLapReset: this.lapPolicy.resolveLapReset } : {}),
       log: (message) => console.log(message),
       createSession: async (packet) => {
         const created = await this.startNewSession(packet);
@@ -258,7 +259,7 @@ export class LapDetector implements ILapDetector {
 
   private async startNewSession(packet: TelemetryPacket): Promise<SessionState | null> {
     const gameId = packet.gameId;
-    const sessionType = packet.f1?.sessionType ?? packet.lmu?.sessionType;
+    const sessionType = packet.f1?.sessionType ?? packet.lmu?.sessionType ?? packet.ams2?.sessionType;
     const carId = packet.carId;
     const trackId = packet.trackId;
     let sessionId: number;

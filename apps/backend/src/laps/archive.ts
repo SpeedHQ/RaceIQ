@@ -305,7 +305,7 @@ function sparseLapRecords(
     const magic = record.frame.length >= 4 ? record.frame.readUInt32LE(0) : 0;
     const isKunos = (gameId === "acc" && magic === ACC_PACKED_MAGIC) ||
       (gameId === "ac-evo" && magic === ACEVO_PACKED_MAGIC);
-    const supportsGeneric = gameId === "fm-2023" || gameId === "f1-2025" || gameId === "iracing";
+    const supportsGeneric = gameId === "fm-2023" || gameId === "f1-2025" || gameId === "iracing" || gameId === "ams2";
     const identity = supportsGeneric ? genericFrameIdentity(record.frame) : null;
     const canDelta = isLmuV2 || isKunos || identity !== null;
     const previousLength = previous?.length;
@@ -418,7 +418,7 @@ export async function buildLapsZip(
         ? iracingSegmentEnd(buf, start, frameCount, prefix)
         : advanceSessionFrames(buf, start, frameCount + 1);
       const sparseRecords = first.gameId === "lmu" || first.gameId === "acc" || first.gameId === "ac-evo" ||
-        first.gameId === "fm-2023" || first.gameId === "f1-2025" || first.gameId === "iracing"
+        first.gameId === "fm-2023" || first.gameId === "f1-2025" || first.gameId === "iracing" || first.gameId === "ams2"
         ? sparseLapRecords(buf, start, end, first.gameId, !sparseFormatMarkerWritten)
         : [buf.subarray(start, end)];
       if (sparseRecords.length > 0) sparseFormatMarkerWritten = true;

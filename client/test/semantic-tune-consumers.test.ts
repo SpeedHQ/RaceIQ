@@ -221,3 +221,21 @@ describe("canonical tuning telemetry consumers", () => {
     expect(markup).toContain(">L<");
   });
 });
+
+
+describe("Overview track bounds", () => {
+  test("fits displayed lap positions independently of hidden, distant track edges", () => {
+    const samples = semanticSamples("ac-evo", Array.from({length: 40}, (_,i) => replayFrame("ac-evo",i, [
+      {semanticId: "motion.position-x", value: 100 + Math.cos(i * Math.PI / 20) * 400},
+      {semanticId: "motion.position-z", value: 200 + Math.sin(i * Math.PI / 20) * 200},
+    ])));
+    const edges = {left: [{x: 100000,z: 100000},{x: 101000,z: 101000}],right: [{x: 100100,z: 100100},{x: 101100,z: 101100}]};
+    const overview = buildGeometry(samples,null,edges,"line")!;
+    const withoutEdges = buildGeometry(samples,null,null)!;
+    expect(overview.pts).toEqual(withoutEdges.pts);
+    expect(overview.segments).toEqual(withoutEdges.segments);
+    const span = (points: typeof overview.pts) => Math.max(...points.map(p => p.x)) - Math.min(...points.map(p => p.x));
+    expect(span(overview.pts)).toBeCloseTo(272);
+    expect(span(buildGeometry(samples,null,edges)!.pts)).toBeLessThan(3);
+  });
+});

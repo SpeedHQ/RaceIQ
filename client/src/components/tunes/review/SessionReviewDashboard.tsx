@@ -338,7 +338,7 @@ export function SessionReviewDashboard({
               </div>
             </div>
             <div className="grid grid-cols-1 @3xl/workspace:grid-cols-2">
-              <div className="min-w-0 border-b border-app-border @3xl/workspace:border-b-0 @3xl/workspace:border-r aspect-square">
+              <div className="min-w-0 border-b border-app-border @3xl/workspace:border-b-0 @3xl/workspace:border-r">
                 {telemetry.length > 0 ? (
                   <SectorMap
                     gameId={gameId}

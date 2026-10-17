@@ -1,5 +1,5 @@
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
-import { detectLapBoundary, detectLapReset, detectSessionBoundary } from "./boundaries";
+import { detectLapBoundary, detectLapReset, detectSessionBoundary, type LapResetResult } from "./boundaries";
 
 export interface OrdinalSession {
   /** Monotonic processor-local key. Never a database identifier. */
@@ -42,6 +42,7 @@ export interface OrdinalEngineState {
   packetRate: number;
 }
 export interface OrdinalEngineEffects {
+  resolveLapReset?(previous: TelemetryPacket, lastLastLap: number, packet: TelemetryPacket): LapResetResult;
   now(): number;
   createSession(packet: TelemetryPacket): Promise<Omit<OrdinalSession, "sessionKey"> | null>;
   finalizeLap(packet: TelemetryPacket, state: Readonly<OrdinalEngineState>): Promise<boolean>;
@@ -124,10 +125,13 @@ export class OrdinalDetectorEngine {
     }
     if (!s.session) return;
     if (s.lapNumber >= 0 && s.lapBuffer.length > 30 && packet.LapNumber === s.lapNumber) {
-      const reset = detectLapReset(s.lapBuffer[s.lapBuffer.length - 1], s.lastLastLap, packet);
+      const reset = (this.effects.resolveLapReset ?? detectLapReset)(s.lapBuffer[s.lapBuffer.length - 1], s.lastLastLap, packet);
       if (reset.action === "complete-final-lap") {
         this.effects.log?.(`[Lap] Final lap completed: LastLap ${s.lastLastLap.toFixed(3)} -> ${packet.LastLap.toFixed(3)}`);
         await this.complete(packet);
+      } else if (reset.action === "reset-untimed-lap") {
+        this.effects.log?.("[Lap] Untimed start-line crossing — starting lap buffer");
+        this.reset(packet);
       } else if (reset.action === "reset-restart") {
         this.effects.log?.("[Lap] Race restart detected — discarding buffer");
         this.reset(packet);

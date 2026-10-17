@@ -2618,5 +2618,8 @@
   "access_origins_safety": "Netwerkwijzigingen vereisen een herstart van RaceIQ. Uitschakelen verwijdert opgeslagen origins niet. Same-originbeveiliging blijft actief.",
   "dash_hostname_origin_settings": "Voeg deze exacte origin toe bij Instellingen → Toegang en beveiliging → browserdomeinen: {origin}. De hostnaam opslaan geeft geen toegang.",
   "dash_hostname_origin_managed": "Voeg deze exacte origin toe aan SERVER_ALLOWED_ORIGINS: {origin}. De hostnaam opslaan geeft geen toegang.",
-  "dash_hostname_invalid": "Voer alleen een hostnaam in, zonder http://, poort of pad."
+  "setupguide_ams2_same_pc": "Start Automobilista 2 en RaceIQ op dezelfde Windows-pc.",
+  "setupguide_ams2_shared_memory": "Open in AMS2 Opties → Systeem en stel gedeeld geheugen in op Project CARS 2.",
+  "setupguide_ams2_driving": "Start een training of race, stap in de auto en rijd om telemetrie te ontvangen.",
+  "setupguide_ams2_direct_note": "RaceIQ leest AMS2 rechtstreeks uit. Een SimHub-verbinding of afzonderlijk telemetrieprogramma is niet nodig."
 }

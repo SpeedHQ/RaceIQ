@@ -15,6 +15,7 @@ const GAME_META: Record<GameId, { label: string; tag: string }> = {
   acc: { label: "Assetto Corsa Competizione", tag: "ACC" },
   "ac-evo": { label: "Assetto Corsa EVO", tag: "AC EVO" },
   iracing: { label: "iRacing", tag: "iRacing" },
+  ams2: { label: "Automobilista 2", tag: "AMS2" },
   lmu: { label: "Le Mans Ultimate", tag: "LMU" },
 };
 

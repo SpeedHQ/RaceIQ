@@ -1,8 +1,31 @@
 ## Unreleased
 
 ### Features
+- Display the Automobilista 2 logo on its home dashboard card.
+- Bundle 235 original AMS2 road-corridor maps, selected by exact layout names or recording-verified aliases with track-length checks when available; Brands Hatch Indy alignment has been manually checked.
+- Add native Windows AMS2 telemetry capture through Project CARS 2 shared memory, with game-specific car and track identity.
+- Add separate Driver profiles for AMS2 and iRacing.
+- Organize AMS2 raw fixtures under shared recording artifacts and add E2E checks for lap numbering, duplicate saves, timestamps and driving-channel variation.
+- Add compact real AMS2 raw-dump fixtures covering session lifecycle, Time Trial crossings, race-start validity, qualifying and pit stops.
+- Report AMS2 dump-mode capture counters for rejected memory reads and busy processing.
+- Add AMS2 development dump recording and replay, preserving raw menu/session transitions and undecoded mapped data for fixture testing.
+- Run AMS2 capture tests through the isolated integration test runner.
+- Complete AMS2 telemetry catalog provenance, native units, extension coverage and supported fuel projections.
 
 ### Fixes
+- Accept captured AMS2 first race laps from the starting grid when the initial invalid flag clears, while preserving later invalidations, pit exclusions, and recording-quality checks.
+- Avoid false AMS2 restart detection when untimed start-line crossings wrap lap distance without advancing the lap counter.
+- Prevent retained qualifying timing from creating a spurious AMS2 race session during live recording transitions.
+- Keep AMS2 lap exports readable when exporting later laps or multiple laps from a compressed recording.
+- Keep session Overview maps complete when an unfinished lap follows completed invalid laps.
+- Keep session Overview maps compact on wide screens and fit the driven lap line without hidden track edges shrinking it.
+- Correct the reversed AMS2 track direction arrow.
+- Restore the Analyse G-force dot and center the AMS2 suspension indicator, labelled as compression balance rather than measured wheel load.
+- Return AMS2 Live to connection instructions after telemetry stops, and clear live readings when the server disconnects.
+- Show AMS2 connection instructions when waiting for telemetry, including the required shared-memory setting and driving-session steps.
+- Restore Live child-page routing, production Raw Data updates and AMS2 game navigation.
+- Restore AMS2 live sector progression using telemetry track length and lap position; show available live tire pressures, use percentages in replay pedal charts, and exclude invalid laps from recorded PBs.
+- Keep game links visible on Live pages.
 - Prevent overlapping database writes from blocking recording imports and setup or session deletion.
 - Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.
 - Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.

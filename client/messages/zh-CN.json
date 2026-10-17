@@ -2617,5 +2617,9 @@
   "access_origins_managed": "已由 SERVER_ALLOWED_ORIGINS 启用。此环境设置用于控制白名单；请在该设置中修改，然后重启 RaceIQ。",
   "access_origins_safety": "保存网络访问设置需要重启 RaceIQ。关闭此选项不会删除已保存的来源。同源保护仍会继续生效。",
   "dash_hostname_origin_settings": "请在“设置 → 访问与安全 → 浏览器域名”中添加此确切来源：{origin}。保存此主机名并不代表已授权访问。",
-  "dash_hostname_origin_managed": "请在 SERVER_ALLOWED_ORIGINS 中添加此确切来源：{origin}。保存此主机名并不代表已授权访问。"
+  "dash_hostname_origin_managed": "请在 SERVER_ALLOWED_ORIGINS 中添加此确切来源：{origin}。保存此主机名并不代表已授权访问。",
+  "setupguide_ams2_same_pc": "在同一台 Windows 电脑上运行 AMS2 和 RaceIQ。",
+  "setupguide_ams2_shared_memory": "在 AMS2 系统设置中，将 Shared Memory 设置为 Project CARS 2。",
+  "setupguide_ams2_driving": "进入驾驶会话并驾驶车辆。",
+  "setupguide_ams2_direct_note": "AMS2 直接使用共享内存，无需配置 UDP。"
 }

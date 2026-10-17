@@ -2618,5 +2618,8 @@
   "access_origins_safety": "Zmiany sieci wymagają ponownego uruchomienia RaceIQ. Wyłączenie nie usuwa zapisanych źródeł. Ochrona same-origin nadal działa.",
   "dash_hostname_origin_settings": "Dodaj to dokładne źródło w Ustawienia → Dostęp i bezpieczeństwo → domeny przeglądarki: {origin}. Zapisanie nazwy hosta nie autoryzuje dostępu.",
   "dash_hostname_origin_managed": "Dodaj to dokładne źródło do SERVER_ALLOWED_ORIGINS: {origin}. Zapisanie nazwy hosta nie autoryzuje dostępu.",
-  "dash_hostname_invalid": "Wpisz tylko nazwę hosta, bez http://, portu ani ścieżki."
+  "setupguide_ams2_same_pc": "Uruchom Automobilista 2 i RaceIQ na tym samym komputerze z systemem Windows.",
+  "setupguide_ams2_shared_memory": "W AMS2 otwórz Opcje → System i ustaw pamięć współdzieloną na Project CARS 2.",
+  "setupguide_ams2_driving": "Rozpocznij trening lub wyścig, wsiądź do samochodu i jedź, aby odbierać telemetrię.",
+  "setupguide_ams2_direct_note": "RaceIQ odczytuje dane AMS2 bezpośrednio. Połączenie z SimHub ani osobne narzędzie telemetryczne nie jest wymagane."
 }

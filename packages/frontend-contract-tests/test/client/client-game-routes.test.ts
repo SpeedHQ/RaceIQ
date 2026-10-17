@@ -127,7 +127,7 @@ describe("game route helpers", () => {
   });
 
   test("keeps feature support explicit", () => {
-    expect(supportsGameFeature("iracing", "driver")).toBe(false);
+    expect(supportsGameFeature("iracing", "driver")).toBe(true);
     expect(supportsGameFeature("iracing", "experiments")).toBe(false);
     expect(supportsGameFeature("iracing", "raw")).toBe(true);
     expect(supportsGameFeature("ac-evo", "experiments")).toBe(true);
@@ -135,4 +135,14 @@ describe("game route helpers", () => {
     expect(setupEngineerGameIdForRoutePrefix("iracing")).toBeUndefined();
     expect(supportsGameFeature("unknown", "raw")).toBe(false);
   });
+});
+
+
+test("AMS2 has measured Driver profiles without advertising unsupported setup workflows", () => {
+  expect(supportsGameFeature("ams2", "driver")).toBe(true);
+  expect(supportsGameFeature("ams2", "raw")).toBe(true);
+  for (const game of ["ams2", "iracing"]) {
+    expect(supportsGameFeature(game, "setups")).toBe(false);
+    expect(supportsGameFeature(game, "experiments")).toBe(false);
+  }
 });
