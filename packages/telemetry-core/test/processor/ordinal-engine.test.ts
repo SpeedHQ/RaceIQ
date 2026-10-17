@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { packet as fixturePacket } from "../support-resolver";
 import { OrdinalDetectorEngine, type DetectorOwnershipTransition, type OrdinalEngineState } from "../../src/processor/ordinal-engine";
+import { IRacingDetectorEngine } from "../../src/processor/iracing-engine";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 function telemetry(values: Partial<TelemetryPacket> = {}): TelemetryPacket {
@@ -44,6 +45,89 @@ async function feed(engine: OrdinalDetectorEngine, values: Partial<TelemetryPack
   await engine.feed(telemetry(values), offset, ordinal);
 }
 
+
+describe("ordinal detector history baselines", () => {
+  test("records initial fuel and tire baselines for first and new-session laps", async () => {
+    const { engine } = engineFixture();
+    await feed(engine, { Fuel: 100, TireWearFL: 0.9 }, 8_000, 80);
+    for (let i = 1; i <= 31; i++) await feed(engine, { CurrentLap: 1 + i / 10, Fuel: 100 - i, TireWearFL: 0.9 - i / 100 }, 8_000 + i * 10, 80 + i);
+    await feed(engine, { LapNumber: 2, CurrentLap: 0, Fuel: 68, TireWearFL: 0.58 }, 8_320, 112);
+    expect(engine.state.fuelHistory.at(-1)).toMatchObject({ fuelStart: 100, fuelEnd: 69 });
+    expect(engine.state.tireWearHistory.at(-1)?.start.fl).toBeCloseTo(0.9);
+    expect(engine.state.tireWearHistory.at(-1)?.end.fl).toBeCloseTo(0.59);
+  });
+});
+
+test("new ordinal session starts with isolated lap and telemetry baselines", async () => {
+  let incompleteFinalizations = 0;
+  const engine = new OrdinalDetectorEngine({
+    now: () => 1_000,
+    createSession: async packet => ({
+      carId: "car", trackId: "track", gameId: packet.gameId, sessionUID: packet.sessionUID,
+    }),
+    finalizeLap: async () => false,
+    finalizeIncompleteLap: async () => { incompleteFinalizations++; },
+    finalizeStaleLap: async () => {},
+    finalizeSession: async () => {},
+  }, { bypassPacketRateFilter: true });
+  await feed(engine, { sessionUID: "old", CurrentLap: 20, Fuel: 90 }, 7_000, 70);
+  await feed(engine, { sessionUID: "new", LapNumber: 1, CurrentLap: 1, Fuel: 50, TireWearFL: 0.4 }, 7_010, 71);
+  expect(incompleteFinalizations).toBe(1);
+  expect(engine.state.lapNumber).toBe(1);
+  expect(engine.state.lapBuffer).toHaveLength(1);
+  expect(engine.state.lapBuffer[0]?.sessionUID).toBe("new");
+  expect(engine.state.fuelAtLapStart).toBe(50);
+  expect(engine.state.tireWearAtLapStart.fl).toBe(0.4);
+});
+
+describe("iRacing unresolved native timing ownership", () => {
+  test("clips prior ownership at deferred boundary when session changes", async () => {
+    const clampEnds: number[] = [];
+    const transitions: DetectorOwnershipTransition[] = [];
+    const prior: DetectorOwnershipTransition["state"] = {
+      revision: 1, watermarkOffset: 10, nextWindowStartOffset: 10,
+      windows: [{ revision: 1, lapNumber: 1, startOffset: 10, startOrdinal: 0, frameCount: 3, status: "provisional", trailingContextFrameCount: 0, bounded: true }],
+    };
+    const engine = new IRacingDetectorEngine({
+      now: () => 1_000, feed: async () => {}, flushStaleLap: async () => {},
+      finalizeCurrentSession: async () => {}, getOwnershipState: () => prior,
+      observeSourceRecord: () => {}, clampCurrentLapOwnership: endOrdinal => { clampEnds.push(endOrdinal); },
+    });
+    engine.subscribeOwnership(item => transitions.push(item));
+    engine.expectCompleteLapStart();
+    await engine.feed(telemetry({ gameId: "iracing", sessionUID: "old", LapNumber: 1 }), 10, 0);
+    await engine.feed(telemetry({ gameId: "iracing", sessionUID: "old", LapNumber: 2, LastLap: 0 }), 20, 1);
+    engine.observeSourceRecord(30, 40, 2);
+    await engine.feed(telemetry({ gameId: "iracing", sessionUID: "new", LapNumber: 1 }), 40, 3);
+    engine.drainOwnershipTransitions();
+    expect(clampEnds).toEqual([0]);
+    expect(transitions.find(item => item.kind === "window-abandoned")?.window).toMatchObject({
+      startOffset: 20, startOrdinal: 1, frameCount: 2,
+    });
+  });
+});
+describe("ordinal ownership clamps", () => {
+  test("clamps incomplete DB ownership before finalization while source ordinal continues", async () => {
+    let finalizedCount = 0;
+    const engine = new OrdinalDetectorEngine({
+      now: () => 1_000,
+      createSession: async () => ({ carId: "car", trackId: "track", gameId: "fm-2023" }),
+      finalizeLap: async () => false,
+      finalizeIncompleteLap: async state => { finalizedCount = state.lapFrameCount; },
+      finalizeStaleLap: async () => {},
+      finalizeSession: async () => {},
+    }, { bypassPacketRateFilter: true });
+    observe(engine, 10, 0);
+    await engine.feed(telemetry({ CurrentLap: 10 }), 10, 0);
+    observe(engine, 20, 1);
+    observe(engine, 30, 2);
+    engine.clampCurrentLapOwnership(0);
+    await engine.finalizeIncompleteLap();
+    expect(finalizedCount).toBe(1);
+    observe(engine, 40, 3);
+    expect(engine.state.currentRawByteOffset).toBe(40);
+  });
+});
 describe("ordinal detector source ownership", () => {
   test("explicitly abandons a rejected completed window before starting the next lap", async () => {
     const { engine, persisted } = engineFixture(false);

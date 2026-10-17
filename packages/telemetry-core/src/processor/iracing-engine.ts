@@ -8,6 +8,8 @@ export interface IRacingEngineOptions {
   feed(packet: TelemetryPacket, rawByteOffset?: number, rawOrdinal?: number): Promise<void>;
   flushStaleLap(): Promise<void>;
   finalizeCurrentSession(): Promise<void>;
+  finalizeIncompleteLap?(): Promise<void>;
+  clampCurrentLapOwnership?(endOrdinal: number): void;
   observeSourceRecord?(offset: number, endOffset: number, ordinal: number): void;
   drainOwnershipTransitions?(): DetectorOwnershipTransition[];
   getOwnershipState?(): DetectorOwnershipState;
@@ -149,7 +151,7 @@ export class IRacingDetectorEngine {
     const sourceOffset = rawByteOffset ?? this.currentRawByteOffset ?? undefined;
     const sourceOrdinal = rawOrdinal ?? this.currentRawOrdinal ?? undefined;
     if (packet.sessionUID !== this.sessionKey) {
-      await this.releaseDeferredIncomplete();
+      await this.releaseDeferredIncomplete(rawOrdinal === undefined ? undefined : rawOrdinal - 1);
       if (this.pendingUnexpectedLap) this.abandonUnexpected(this.pendingUnexpectedLap);
       this.pendingUnexpectedLap = null;
       this.resetGate(packet);
@@ -208,6 +210,7 @@ export class IRacingDetectorEngine {
     this.sessionKey = undefined;
     this.physicalLap = null; this.skipFirstCompletion = true; this.staleLastLap = 0;
     this.peakNativeCurrentLap = 0; this.lastActivePacketTime = 0;
+    await this.options.finalizeIncompleteLap?.();
     await this.options.finalizeCurrentSession();
   }
   private resetGate(packet: TelemetryPacket): void {
@@ -223,12 +226,15 @@ export class IRacingDetectorEngine {
     const first = this.deferred.length === 0;
     this.deferred.push({ packet, rawByteOffset, rawOrdinal });
     this.peakNativeCurrentLap = Math.max(this.peakNativeCurrentLap, packet.iracing?.sdkCurrentLapTime ?? 0);
-    this.publishOwnership(first ? "window-start" : "snapshot", first ? this.deferredOwnershipWindow("provisional") : null);
+    if (first) {
+      if (rawOrdinal !== undefined) this.options.clampCurrentLapOwnership?.(rawOrdinal - 1);
+      this.publishOwnership("window-start", this.deferredOwnershipWindow("provisional"));
+    } else this.publishOwnership("snapshot", null);
   }
-  private deferredOwnershipWindow(status: DetectorOwnershipWindow["status"]): DetectorOwnershipWindow {
+  private deferredOwnershipWindow(status: DetectorOwnershipWindow["status"], endOrdinal = this.currentRawOrdinal): DetectorOwnershipWindow {
     const first = this.deferred[0];
-    const frameCount = first?.rawOrdinal !== undefined && this.currentRawOrdinal !== null
-      ? Math.max(0, this.currentRawOrdinal - first.rawOrdinal + 1)
+    const frameCount = first?.rawOrdinal !== undefined && endOrdinal !== null
+      ? Math.max(0, endOrdinal - first.rawOrdinal + 1)
       : this.deferred.reduce((count, entry) => count + (entry.rawByteOffset === undefined ? 0 : 1), 0);
     return Object.freeze({
       revision: this.ownershipRevision + 1, lapNumber: first?.packet.LapNumber ?? 0,
@@ -249,9 +255,9 @@ export class IRacingDetectorEngine {
     await this.options.feed({ ...boundary.packet, LastLap: lapTime }, boundary.rawByteOffset, boundary.rawOrdinal);
     for (const entry of rest) await this.options.feed(entry.packet, entry.rawByteOffset, entry.rawOrdinal);
   }
-  private async releaseDeferredIncomplete(): Promise<void> {
+  private async releaseDeferredIncomplete(endOrdinal?: number): Promise<void> {
     if (this.deferred.length === 0) return;
-    const window = this.deferredOwnershipWindow("incomplete");
+    const window = this.deferredOwnershipWindow("incomplete", endOrdinal);
     this.deferred = [];
     if (window.startOffset !== null && window.frameCount > 0) this.publishOwnership("window-abandoned", window);
   }

@@ -108,6 +108,7 @@ describe("ACC live ownership and persisted rows", () => {
       await feed({ LapNumber: 3, CurrentLap: second, DistanceTraveled: 4_144 + second * 20, TimestampMS: (85 + second) * 1_000 });
     }
     await detector.finalizeCurrentSession();
+    detector.drainOwnershipTransitions();
     expect(db.inserted).toHaveLength(2);
     expect(db.inserted[1]).toMatchObject({ valid: false, invalidReason: "incomplete" });
     expect(transitions.map(({ kind }) => kind)).toContain("final-incomplete");

@@ -159,4 +159,77 @@ describe("DirectCaptureRecording", () => {
     expect(recorded.map(record => record.frameTimeMs)).toEqual([100, 101]);
     expect(manifest.chunks[0].recordCount).toBe(2);
   });
+  it("keeps rejected preparation candidate frames in the continuing auxiliary source", async () => {
+    initServerGameAdapters();
+    const directory = await mkdtemp(join(tmpdir(), "raceiq-direct-candidate-"));
+    directories.push(directory);
+    const frames = fixtureFrames();
+    let locator: ParserReplayLocator | null = null;
+    const unsubscribe = subscribeParserSource(input => { if (input.frame === frames[0]) locator = input.locator; });
+    parsePacket(frames[0]!, 100);
+    unsubscribe();
+    const capture = new DirectCaptureRecording("fm-2023", directory, join(directory, "capture-manifest.json"));
+    captures.push(capture);
+    await capture.ready;
+    capture.writeRecord(frames[0]!, 100);
+    const candidate: DetectorOwnershipWindow = {
+      revision: 1, lapNumber: 2, startOffset: META_FRAME_BYTES, startOrdinal: 0,
+      frameCount: 0, status: "provisional", trailingContextFrameCount: 0, bounded: true,
+      preparationOnly: true, holdForResolution: true,
+    };
+    capture.processTransitions([ownershipTransition("candidate-start", candidate)], locator);
+    capture.writeRecord(frames[1]!, 101);
+    capture.processTransitions([ownershipTransition("window-abandoned", { ...candidate, revision: 2, frameCount: 1 })], null);
+    await capture.stop();
+    const manifest = JSON.parse(await readFile(join(directory, "capture-manifest.json"), "utf8"));
+    expect(manifest.sourceRecordCount).toBe(2);
+    expect(manifest.chunks).toHaveLength(1);
+    expect(manifest.chunks[0]).toMatchObject({ kind: "auxiliary", recordCount: 2 });
+    const framesBySource = [];
+    for (const chunk of manifest.chunks) {
+      const artifact = await readFile(join(directory, chunk.path));
+      const records = [...iterateSessionCaptureRecords(artifact, chunk.sourceRecordByteOffset, { strict: true })]
+        .filter(record => record.kind === "frame").slice(0, chunk.recordCount);
+      framesBySource.push(...records.map(record => record.frame));
+    }
+    expect(framesBySource).toEqual(frames.slice(0, 2));
+  });
+  it("promotes retained candidate suffix at its original ordinal", async () => {
+    initServerGameAdapters();
+    const directory = await mkdtemp(join(tmpdir(), "raceiq-direct-promotion-"));
+    directories.push(directory);
+    const frames = fixtureFrames();
+    let locator: ParserReplayLocator | null = null;
+    const unsubscribe = subscribeParserSource(input => { if (input.frame === frames[0]) locator = input.locator; });
+    parsePacket(frames[0]!, 100);
+    unsubscribe();
+    const capture = new DirectCaptureRecording("fm-2023", directory, join(directory, "capture-manifest.json"));
+    captures.push(capture);
+    await capture.ready;
+    capture.writeRecord(frames[0]!, 100);
+    const candidate: DetectorOwnershipWindow = {
+      revision: 1, lapNumber: 2, startOffset: META_FRAME_BYTES, startOrdinal: 0,
+      frameCount: 0, status: "provisional", trailingContextFrameCount: 0, bounded: true,
+      preparationOnly: true, holdForResolution: true,
+    };
+    capture.processTransitions([ownershipTransition("candidate-start", candidate)], locator);
+    capture.writeRecord(frames[1]!, 101);
+    capture.writeRecord(frames[2]!, 102);
+    const promoted = { ...candidate, revision: 2, frameCount: 3, preparationOnly: undefined, holdForResolution: undefined };
+    capture.processTransitions([ownershipTransition("window-start", promoted)], null);
+    capture.processTransitions([ownershipTransition("window-abandoned", { ...promoted, revision: 3 })], null);
+    await capture.stop();
+    const manifest = JSON.parse(await readFile(join(directory, "capture-manifest.json"), "utf8"));
+    expect(manifest.sourceRecordCount).toBe(3);
+    expect(manifest.chunks.reduce((count: number, chunk: { recordCount: number }) => count + chunk.recordCount, 0)).toBe(3);
+    expect(manifest.chunks.map((chunk: { kind: string }) => chunk.kind)).toEqual(["auxiliary", "auxiliary"]);
+    const framesBySource = [];
+    for (const chunk of manifest.chunks) {
+      const artifact = await readFile(join(directory, chunk.path));
+      const records = [...iterateSessionCaptureRecords(artifact, chunk.sourceRecordByteOffset, { strict: true })]
+        .filter(record => record.kind === "frame").slice(0, chunk.recordCount);
+      framesBySource.push(...records.map(record => record.frame));
+    }
+    expect(framesBySource).toEqual(frames.slice(0, 3));
+  });
 });

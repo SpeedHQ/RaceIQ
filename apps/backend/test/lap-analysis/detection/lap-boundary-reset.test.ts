@@ -122,6 +122,27 @@ describe("pre-write lap checkpoint hints", () => {
     expect(engine.shouldCheckpoint(pkt({ LapNumber: 1, TimestampMS: 9 }))).toBe(true);
   });
 
+  test("short Kunos initial partial publishes replacement start after abandonment", async () => {
+    const engine = new KunosDetectorEngine({
+      createSession: async () => {},
+      backfillSessionIdentifiers: () => {},
+      isPitOnly: () => false,
+      emitLap: async () => {},
+    });
+    engine.subscribeOwnership(() => {});
+    engine.observeSourceRecord(8_000, 8_100, 80);
+    await engine.feed(pkt({ gameId: "acc", LapNumber: 1, CurrentLap: 6, DistanceTraveled: 1_000 }), 8_000, 80);
+    engine.observeSourceRecord(8_100, 8_200, 81);
+    await engine.feed(pkt({ gameId: "acc", LapNumber: 1, CurrentLap: 6.2, DistanceTraveled: 1_050 }), 8_100, 81);
+    engine.drainOwnershipTransitions();
+    engine.observeSourceRecord(8_200, 8_300, 82);
+    await engine.feed(pkt({ gameId: "acc", LapNumber: 2, CurrentLap: 1, LastLap: 60, DistanceTraveled: 1_060 }), 8_200, 82);
+    const transitions = engine.drainOwnershipTransitions();
+    expect(transitions.some(item => item.kind === "window-abandoned")).toBe(true);
+    expect(transitions.find(item => item.kind === "window-start")?.window).toMatchObject({
+      startOffset: 8_200, startOrdinal: 82, frameCount: 1, status: "provisional",
+    });
+  });
   test("Kunos and iRacing checkpoint source candidate before boundary confirmation", async () => {
     const kunos = new KunosDetectorEngine({
       createSession: async () => {},

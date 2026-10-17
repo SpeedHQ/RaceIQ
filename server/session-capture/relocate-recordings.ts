@@ -1,11 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { constants } from "node:fs";
-import { copyFile, lstat, mkdir, open, readFile, realpath, rename, rm, readdir, unlink, rmdir, link } from "node:fs/promises";
+import { copyFile, lstat, mkdir, open, readFile, realpath, rename, rm, readdir, unlink, rmdir, link, stat } from "node:fs/promises";
 import { basename, dirname, isAbsolute, parse, relative, resolve, sep } from "node:path";
 import { eq, sql } from "drizzle-orm";
 import { cacheDelete } from "../db/telemetry-replay-storage";
 import { clearSessionCaptureCache } from "./source-loader";
+import { getSessionCaptureSourceRevision } from "../db/session-queries";
 import { laps, sessions, sessionCaptureSplitJobs, liveCaptures } from "../db/schema";
 import { db } from "../db/index";
 import { resolveDataDir } from "../runtime/config/data-dir";
@@ -243,7 +244,38 @@ async function updateReferences(references: Journal["references"], pathKey: "old
       if (reference.table === "sessions") {
         await tx.update(sessions).set({ [reference.field]: reference[pathKey] }).where(eq(sessions.id, reference.sessionId)).run();
       } else if (reference.table === "sessionCaptureSplitJobs") {
-        await tx.update(sessionCaptureSplitJobs).set({ [reference.field]: reference[pathKey] }).where(eq(sessionCaptureSplitJobs.sessionId, reference.sessionId)).run();
+        const job = await tx.select({ status: sessionCaptureSplitJobs.status })
+          .from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, reference.sessionId)).get();
+        if (reference.field === "sourcePath" && job?.status === "queued") {
+          const sourcePath = reference[pathKey];
+          const source = await stat(sourcePath).catch((error) => {
+            if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+            return null;
+          });
+          if (!source) {
+            await tx.update(sessionCaptureSplitJobs).set({ sourcePath })
+              .where(eq(sessionCaptureSplitJobs.sessionId, reference.sessionId)).run();
+          } else {
+            const [session, lapRows] = await Promise.all([
+              tx.select({ gameId: sessions.gameId }).from(sessions).where(eq(sessions.id, reference.sessionId)).get(),
+              tx.select({ id: laps.id, lapNumber: laps.lapNumber, rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount })
+                .from(laps).where(eq(laps.sessionId, reference.sessionId)).all(),
+            ]);
+            if (!session) throw new Error(`Split job session ${reference.sessionId} disappeared during recording relocation`);
+            const windows = lapRows.filter((lap) => lap.rawByteOffset != null && lap.rawFrameCount != null && lap.rawFrameCount > 0)
+              .map((lap) => ({ lapId: String(lap.id), lapNumber: lap.lapNumber, startByteOffset: lap.rawByteOffset!, frameCount: lap.rawFrameCount! }))
+              .sort((a, b) => a.startByteOffset - b.startByteOffset);
+            const pendingSourceRevision = getSessionCaptureSourceRevision(source, windows, session.gameId);
+            await tx.update(sessionCaptureSplitJobs).set({ sourcePath, pendingSourceRevision })
+              .where(eq(sessionCaptureSplitJobs.sessionId, reference.sessionId)).run();
+          }
+        } else if (reference.field === "sourcePath") {
+          await tx.update(sessionCaptureSplitJobs).set({ sourcePath: reference[pathKey] })
+            .where(eq(sessionCaptureSplitJobs.sessionId, reference.sessionId)).run();
+        } else {
+          await tx.update(sessionCaptureSplitJobs).set({ stagingPath: reference[pathKey] })
+            .where(eq(sessionCaptureSplitJobs.sessionId, reference.sessionId)).run();
+        }
       } else {
         await tx.update(liveCaptures).set({ [reference.field]: reference[pathKey] }).where(eq(liveCaptures.sessionId, reference.sessionId)).run();
       }

@@ -6,7 +6,7 @@ import { createReadStream, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { encodeFrameLength, encodeMetaFrame, encodeSparseCaptureFormatFrame, iterateSessionCaptureRecordsAsync } from "@raceiq/capture-formats/session/framing";
+import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextEndFrame, encodeSegmentContextFrame, encodeSparseCaptureFormatFrame, iterateSessionCaptureRecordsAsync } from "@raceiq/capture-formats/session/framing";
 import type { SessionCaptureRecord } from "@raceiq/capture-formats/session/framing";
 import { LMU_SOURCE_FRAME_MAGIC, LMU_SOURCE_FRAME_V2_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
 import { isLmuSparseFrame } from "@raceiq/capture-formats/session/lmu-sparse";
@@ -451,5 +451,77 @@ test("direct plain and gzip invocation normalizes a shared sparse boundary exact
     expect(firstFrames.map(({ frame, frameTimeMs }) => [frame, frameTimeMs])).toEqual([[frames[0], undefined], [frames[1], 0]]);
     expect(secondFrames.map(({ frame, frameTimeMs }) => [frame, frameTimeMs])).toEqual([[frames[1], 0], [frames[2], undefined]]);
   }
+});
+test("split preserves delayed completion through context wrappers but not across reset or EOF", async () => {
+  for (const suffix of ["completion", "reset", "eof"] as const) {
+    const root = directory();
+    const sourcePath = join(root, "source.bin");
+    const outputDirectory = join(root, "staged");
+    const owned = Buffer.from([21, 22]), completion = Buffer.from([31, 32]), next = Buffer.from([41, 42]);
+    const ownedOffset = encodeMetaFrame(2).length + encodeSparseCaptureFormatFrame().length;
+    const ownedBytes = encodeRecord(owned);
+    const completionBytes = encodeRecord(completion);
+    const source = Buffer.concat([
+      encodeMetaFrame(2), encodeSparseCaptureFormatFrame(), ownedBytes,
+      ...(suffix === "completion" ? [encodeSegmentContextFrame(), completionBytes, encodeSegmentContextEndFrame()] :
+        suffix === "reset" ? [encodeSegmentContextFrame(), encodeSegmentContextEndFrame(), encodeSegmentBoundaryFrame(), encodeRecord(next)] :
+          [encodeSegmentContextFrame(), encodeSegmentContextEndFrame()]),
+    ]);
+    writeFileSync(sourcePath, source);
+    const manifest = await splitCapturePromise({
+      sourcePath, outputDirectory, gameId: "fm-2023", sourceRevision: suffix,
+      lapWindows: [{ lapId: "lap", lapNumber: 1, startByteOffset: ownedOffset, frameCount: 1, trailingContextFrameCount: 1 }],
+    });
+    const chunk = manifest.chunks.find(({ lapId }) => lapId === "lap")!;
+    const records = await readChunkRecords(manifest, outputDirectory, chunk);
+    const frames = records.filter((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> => record.kind === "frame");
+    expect(frames.map(({ frame }) => frame)).toEqual(suffix === "completion" ? [owned, completion] : [owned]);
+    expect(chunk.trailingContextFrameCount).toBe(suffix === "completion" ? 1 : 0);
+  }
+});
+test("wrapped sparse completion remains duplicate while context-end resets auxiliary encoder", async () => {
+  const root = directory();
+  const sourcePath = join(root, "wrapped-lmu.bin");
+  const outputDirectory = join(root, "staged");
+  const makeFrame = (lastByte: number) => {
+    const frame = Buffer.alloc(LMU_SOURCE_FRAME_V2_SIZE);
+    LMU_SOURCE_FRAME_MAGIC.copy(frame);
+    frame[frame.length - 1] = lastByte;
+    return frame;
+  };
+  const owned = makeFrame(1), completion = makeFrame(2), following = makeFrame(3);
+  const encoder = new SparseCaptureEncoder("lmu");
+  const records: Buffer[] = [encodeMetaFrame(3), encodeSparseCaptureFormatFrame()];
+  let offset = records.reduce((sum, part) => sum + part.length, 0);
+  const ownedOffset = offset;
+  const appendFrame = (frame: Buffer) => {
+    const encoded = encodeRecord(encoder.encode(frame, offset));
+    records.push(encoded);
+    offset += encoded.length;
+  };
+  appendFrame(owned);
+  records.push(encodeSegmentContextFrame());
+  offset += 16;
+  appendFrame(completion);
+  records.push(encodeSegmentContextEndFrame());
+  offset += 16;
+  encoder.reset();
+  appendFrame(following);
+  writeFileSync(sourcePath, Buffer.concat(records));
+
+  const manifest = await splitCapturePromise({
+    sourcePath, outputDirectory, gameId: "lmu", sourceRevision: "wrapped-sparse",
+    lapWindows: [{ lapId: "lap", lapNumber: 1, startByteOffset: ownedOffset, frameCount: 1, trailingContextFrameCount: 1 }],
+  });
+  const lap = manifest.chunks.find(({ lapId }) => lapId === "lap")!;
+  const auxiliary = manifest.chunks.filter(({ kind }) => kind === "auxiliary");
+  const lapFrames = (await readChunkRecords(manifest, outputDirectory, lap))
+    .filter((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> => record.kind === "frame");
+  const auxiliaryFrames = (await Promise.all(auxiliary.map((chunk) => readChunkRecords(manifest, outputDirectory, chunk))))
+    .flat().filter((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> => record.kind === "frame");
+  expect(lapFrames.map(({ frame }) => frame)).toEqual([owned, completion]);
+  expect(auxiliaryFrames.map(({ frame }) => frame)).toEqual([completion, following]);
+  expect((await readRecords(sourcePath)).filter((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> => record.kind === "frame")
+    .map(({ frame }) => frame)).toEqual([owned, completion, following]);
 });
 

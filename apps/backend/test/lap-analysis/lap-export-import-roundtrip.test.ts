@@ -222,6 +222,14 @@ describe("lap export → import round-trip (real capture)", () => {
       expect(importedPackets.map(({ TimestampMS: _timestamp, ...packet }) => packet))
         .toEqual(sourcePackets.map(({ TimestampMS: _timestamp, ...packet }) => packet));
       if (gameId === "fm-2023") {
+        const reexported = await buildLapsZip([importedRow!.id]);
+        const reexportFiles = unzipSync(reexported.bytes);
+        const captureBytes = reexportFiles[reexported.manifest.entries[0]!.file]!;
+        const reexportFrames = [...iterateSessionCaptureRecords(gunzipSync(Buffer.from(captureBytes)))]
+          .filter((record) => record.kind === "frame");
+        expect(reexportFrames.length).toBeGreaterThan(importedRow!.rawFrameCount!);
+      }
+      if (gameId === "fm-2023") {
         expect(sourcePackets[0]?.extendedRaceIQ?.frameTimeMs).toBeDefined();
         expect(sourcePackets.some((packet, index) =>
           index > 0 && packet.extendedRaceIQ!.frameTimeMs! - sourcePackets[index - 1]!.extendedRaceIQ!.frameTimeMs! > 5_000,

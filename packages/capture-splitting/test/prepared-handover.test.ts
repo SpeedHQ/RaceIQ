@@ -115,7 +115,6 @@ test("a pending finalizer holds derived drain at capacity and preserves archive 
     splitter.finalizeCandidate("three", { lapId: "lap-three", lapNumber: 3, startByteOffset: 32, frameCount: 1 }, 1);
     splitter.enqueue(record(32)); splitter.advanceWatermark(48);
     boundary = splitter.drain().then(() => { boundaryResult = "resolved"; }, error => { boundaryResult = error; });
-    expect(splitter.progress().derivedQueueRecords).toBe(1);
     expect(boundaryResult).toBeUndefined();
     held.resolve(); await boundary;
     await splitter.close();

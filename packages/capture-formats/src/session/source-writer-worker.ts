@@ -26,6 +26,7 @@ let bytesWritten = 0;
 let fileDev = "";
 let fileIno = "";
 let directoryDurable = false;
+const failSequence = (workerData as { failSequence?: number } | undefined)?.failSequence;
 const syncIntervalMs = Number((workerData as { syncIntervalMs?: number } | undefined)?.syncIntervalMs ?? 1000);
 let syncTimer: ReturnType<typeof setInterval> | null = null;
 let syncQueued = false;
@@ -33,7 +34,7 @@ let syncQueued = false;
 function queueSync(): void {
   if (syncQueued || terminal || admissionClosed) return;
   syncQueued = true;
-  writing = writing.then(() => syncFile()).catch(fail).finally(() => { syncQueued = false; });
+  writing = writing.then(() => terminal ? undefined : syncFile()).catch(fail).finally(() => { syncQueued = false; });
 }
 async function writeAll(data: Uint8Array, position: number | null = null): Promise<void> {
   if (!handle) throw new Error("Source writer file is not open");
@@ -90,6 +91,7 @@ port.on("message", (message: { type: string; path?: string; exclusiveFile?: bool
     const records = message.records ?? [];
     const batchBytes = records.reduce((sum, record) => sum + record.chargeBytes, 0);
     writing = writing.then(async () => {
+      if (terminal) return;
       if (!filePath) throw new Error("Writer path missing");
       if (!handle) {
         await mkdir(dirname(filePath), { recursive: true });
@@ -98,6 +100,7 @@ port.on("message", (message: { type: string; path?: string; exclusiveFile?: bool
         fileDev = stats.dev.toString();
         fileIno = stats.ino.toString();
       }
+      if (failSequence !== undefined && records.some((record) => record.sequence === failSequence)) throw new Error("Injected source writer write failure");
       await writeRecords(records);
       for (const record of records) {
         latestSequence = record.sequence;
@@ -113,6 +116,7 @@ port.on("message", (message: { type: string; path?: string; exclusiveFile?: bool
     }).catch(fail);
   } else if (message.type === "sync-request") {
     writing = writing.then(async () => {
+      if (terminal) return;
       await syncFile(false);
       if (!terminal) port.postMessage({
         type: "sync-ack", requestId: message.requestId, bytes: message.bytes, sequence: latestSequence,
@@ -123,6 +127,7 @@ port.on("message", (message: { type: string; path?: string; exclusiveFile?: bool
     admissionClosed = true;
     clearInterval(syncTimer ?? undefined);
     writing = writing.then(async () => {
+      if (terminal) return;
       if (handle && filePath) {
         await handle.sync();
         const closeCount = message.count ?? 0;
@@ -152,7 +157,9 @@ port.on("message", (message: { type: string; path?: string; exclusiveFile?: bool
 });
 
 function fail(error: unknown): void {
+  if (terminal) return;
   terminal = true;
+  admissionClosed = true;
   clearInterval(syncTimer ?? undefined);
   const detail = error instanceof Error ? error.message : String(error);
   port.postMessage({ type: "failed", error: detail, sequence: latestDurableSequence });

@@ -33,6 +33,8 @@ export class LapDetectorIRacing implements ILapDetector {
       finalizeCurrentSession: () => this.detector.finalizeCurrentSession(),
       observeSourceRecord: (offset, endOffset, ordinal) => this.detector.observeSourceRecord(offset, endOffset, ordinal),
       drainOwnershipTransitions: () => this.detector.drainOwnershipTransitions(),
+      finalizeIncompleteLap: () => this.detector.flushIncompleteLap(),
+      clampCurrentLapOwnership: (endOrdinal) => this.detector.clampCurrentLapOwnership(endOrdinal),
       getOwnershipState: () => this.detector.getOwnershipState(),
     });
   }

@@ -14,17 +14,20 @@ function harness() {
   let now = 0;
   let flushes = 0;
   let finalizations = 0;
+  let incompleteFinalizations = 0;
   const engine = new IRacingDetectorEngine({
     now: () => now,
     feed: async (value, offset) => { fed.push({ packet: value, offset }); },
     flushStaleLap: async () => { flushes++; },
     finalizeCurrentSession: async () => { finalizations++; },
+    finalizeIncompleteLap: async () => { incompleteFinalizations++; },
   });
   return {
     engine, fed,
     setNow(value: number) { now = value; },
     get flushes() { return flushes; },
     get finalizations() { return finalizations; },
+    get incompleteFinalizations() { return incompleteFinalizations; },
   };
 }
 
@@ -149,5 +152,21 @@ describe("IRacingDetectorEngine", () => {
     expect(h.fed.map(({ packet: p, offset }) => [p.sessionUID, p.LapNumber, p.LastLap, offset])).toEqual([
       ["session", 1, 0, 1], ["next-session", 8, 0, 8], ["next-session", 9, 0, 9],
     ]);
+  });
+  test("session stop abandons unresolved suffix despite stale positive native LastLap", async () => {
+    const h = harness();
+    let abandonedDeferred = false;
+    h.engine.subscribeOwnership(item => {
+      if (item.kind === "window-abandoned" && item.window?.startOffset === 20) abandonedDeferred = true;
+    });
+    h.engine.expectCompleteLapStart();
+    await h.engine.feed(packet(1, 0, 8), 10);
+    await h.engine.feed(packet(2, 60, 0), 20);
+    await h.engine.finalizeCurrentSession();
+    h.engine.drainOwnershipTransitions();
+    expect(h.fed.map(({ packet: value, offset }) => [value.LapNumber, offset])).toEqual([[1, 10]]);
+    expect(abandonedDeferred).toBe(true);
+    expect(h.incompleteFinalizations).toBe(1);
+    expect(h.finalizations).toBe(1);
   });
 });

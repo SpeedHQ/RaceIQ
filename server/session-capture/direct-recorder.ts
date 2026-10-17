@@ -22,6 +22,7 @@ export interface DirectCaptureRecordingOptions { writerOptions?: PreopenedFileWr
 type Owner = { binding?: PersistedLapBinding; startOrdinal: number; count: number; trailing: number; finalized: boolean; abandoned: boolean; ownedByteOffset: number };
 type Part = { info: PreopenedFileInfo; encoder: SparseCaptureEncoder | null; localOffset: number; prefixBytes: number; records: number; firstOrdinal: number; sourceStart: number; sourceEnd: number; kind: "lap" | "auxiliary"; owner?: Owner; bootstrapHash?: string; firstTimestamp?: number; lastTimestamp?: number; closed?: boolean; chunkId?: string };
 type FrameRef = { frame: Buffer; timestamp?: number; start: number; end: number; ordinal: number; localOffset: number };
+const MAX_CANDIDATE_SUFFIX_RECORDS = 1_200;
 
 export class DirectCaptureRecording {
   readonly ready: Promise<void>;
@@ -36,6 +37,7 @@ export class DirectCaptureRecording {
   private readonly parts = new Map<string, Part>();
   private current: Part;
   private lastFrame: FrameRef | null = null;
+  private pendingCandidate: { frame: FrameRef; window: NonNullable<DetectorOwnershipTransition["window"]>; locator: ParserReplayLocator | null; suffix: FrameRef[] } | null = null;
   private readonly windows = new Map<number, { ordinal: number; window: NonNullable<DetectorOwnershipTransition["window"]> }>();
   private readonly bindings = new Map<number, PersistedLapBinding>();
   private readonly publishedLapIds = new Set<number>();
@@ -134,17 +136,33 @@ export class DirectCaptureRecording {
       for (const transition of transitions) {
         const window = transition.window;
         if (!window || window.startOffset == null) continue;
-        if (transition.kind === "candidate-start") continue;
-        if (transition.kind === "window-start") {
+        if (transition.kind === "candidate-start") {
+          if (!this.pendingCandidate && this.lastFrame?.start === window.startOffset) {
+            this.pendingCandidate = { frame: this.lastFrame, window, locator, suffix: [this.lastFrame] };
+          }
+        } else if (transition.kind === "window-start") {
           const known = this.windows.get(window.startOffset);
           if (known) {
             if (window.startOrdinal !== null && window.startOrdinal !== known.ordinal) throw new Error("Ownership promotion changed source ordinal");
             known.window = window;
             continue;
           }
-          const ordinal = this.ordinalAt(window.startOffset);
+          const candidate = this.pendingCandidate?.frame.start === window.startOffset ? this.pendingCandidate : null;
+          const ordinal = candidate?.frame.ordinal ?? this.ordinalAt(window.startOffset);
           if (ordinal === null) throw new Error(`Ownership start offset ${window.startOffset} is not a captured native frame`);
-          if (this.windows.size > 0 && this.current.records > 0) {
+          if (candidate) {
+            const suffix = candidate.suffix;
+            this.current.records -= suffix.length;
+            if (this.current.owner) {
+              this.current.owner.trailing = Math.max(this.current.owner.trailing, 1);
+              if (!this.current.owner.finalized) this.current.owner.count = Math.max(0, this.current.owner.count - suffix.length);
+            }
+            this.current.sourceEnd = window.startOffset;
+            this.lastFrame = candidate.frame;
+            this.rotate(window, candidate.locator, ordinal);
+            for (let index = 1; index < suffix.length; index++) this.appendStoredFrame(suffix[index]!);
+            this.pendingCandidate = null;
+          } else if (this.windows.size > 0 && this.current.records > 0) {
             if (this.current.owner && !this.current.owner.abandoned) this.current.owner.trailing = 1;
             this.current.records--;
             this.current.sourceEnd = window.startOffset;
@@ -163,10 +181,14 @@ export class DirectCaptureRecording {
           part.owner.count = window.frameCount; part.owner.trailing = Math.max(part.owner.trailing, window.trailingContextFrameCount); part.owner.finalized = true;
           publishClosedPrefix ||= !!part.closed;
         } else if (transition.kind === "window-abandoned") {
+          if (this.pendingCandidate?.frame.start === window.startOffset) {
+            this.pendingCandidate = null;
+            continue;
+          }
           const abandoned = this.windows.get(window.startOffset);
           for (const part of this.parts.values()) {
             if (!part.owner || part.owner.startOrdinal !== abandoned?.ordinal) continue;
-            part.owner.abandoned = true; part.owner = undefined;
+            part.owner.abandoned = true; part.owner = undefined; part.kind = "auxiliary";
             publishClosedPrefix ||= !!part.closed;
           }
           this.bindings.delete(window.startOffset);
@@ -191,6 +213,14 @@ export class DirectCaptureRecording {
     if (this.current.owner) this.current.owner.count++;
     this.lastFrame = { frame, timestamp, start, end, ordinal, localOffset };
     this.sourceBytes = end;
+    if (this.pendingCandidate && ordinal > this.pendingCandidate.frame.ordinal) {
+      this.pendingCandidate.suffix.push(this.lastFrame);
+      if (this.pendingCandidate.suffix.length > MAX_CANDIDATE_SUFFIX_RECORDS) {
+        const error = new Error("Preparation candidate exceeded retained source record limit");
+        this.fail(error);
+        throw error;
+      }
+    }
   }
   writeRawCaptureBytes(bytes: Buffer): void {
     this.current.encoder!.reset();
@@ -241,8 +271,10 @@ export class DirectCaptureRecording {
   private rotate(window: NonNullable<DetectorOwnershipTransition["window"]>, locator: ParserReplayLocator | null, ordinal: number): void {
     const plan = locator ? materializeParserInitializationPlan(locator) : null;
     if (!plan) throw new Error(`Parser initialization unavailable at source offset ${window.startOffset}`);
+    // Manifest ordinals count all source records, including parser priming; ownership ordinal remains native.
+    const logicalSourceOrdinal = this.current.firstOrdinal + this.current.records;
     const rotated = this.writer.rotate();
-    const next = this.part(rotated.current, this.sourceRecordCount - 1, window.startOffset!, "lap");
+    const next = this.part(rotated.current, logicalSourceOrdinal, window.startOffset!, "lap");
     this.parts.set(next.info.id, next); this.current = next; next.encoder!.requestCheckpoint();
     const header = Buffer.concat([encodeMetaFrame(), encodeSparseCaptureFormatFrame()]);
     next.prefixBytes = header.length; this.append(header);
@@ -269,6 +301,16 @@ export class DirectCaptureRecording {
       this.lastFrame = { ...this.lastFrame, localOffset: boundaryLocalOffset };
       this.append(boundary);
     }
+  }
+  private appendStoredFrame(frame: FrameRef): void {
+    const localOffset = this.current.localOffset;
+    const encoded = this.current.encoder!.encode(frame.frame, localOffset);
+    this.append(Buffer.concat([encodeFrameLength(encoded.length, frame.timestamp), encoded]));
+    this.current.records++;
+    this.current.sourceEnd = frame.end;
+    this.current.lastTimestamp = frame.timestamp;
+    this.current.owner!.count++;
+    this.lastFrame = { ...frame, localOffset };
   }
   private part(info: PreopenedFileInfo, ordinal: number, sourceStart: number, kind: Part["kind"]): Part {
     return { info, encoder: new SparseCaptureEncoder(this.gameId), localOffset: 0, prefixBytes: 0, records: 0, firstOrdinal: ordinal, sourceStart, sourceEnd: sourceStart, kind };

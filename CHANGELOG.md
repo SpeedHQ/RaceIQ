@@ -25,12 +25,17 @@
 - Split completed and imported recordings into separate, independently replayable per-lap `.bin` files, with startup migration for existing session bundles.
 
 ### Fixes
+- Prevent startup cleanup from stalling when completed sessions contain no laps.
+- Preserve durable recording data after a background writer fails.
+- Keep ACC and AC Evo recording after discarding a short initial lap fragment.
+- Preserve independently replayable iRacing laps when lap changes are confirmed late or recording stops before native timing resolves.
+- Restore fuel and tire-wear history for the first lap of each session.
 - Preserve selected lap telemetry and timing metadata across all supported games when exporting and importing lap archives.
 - Prompt to split existing sparse session recordings at startup, including seeded recordings, while automatically splitting newly imported sparse recordings.
 - Keep iRacing lap timing, validity, and pit classification consistent between live telemetry and imported recordings when the native lap timer rolls over late.
 - Preserve telemetry, replay lap clocks, saved lap times, and validity when transferring iRacing lap archives or reopening them after a restart.
 - Preserve split lap recordings and queued split jobs when moving the recording folder.
-- Keep the final timing sample consistent between individual and multi-lap replay of imported recordings.
+- Preserve final timing samples through repeated lap archive transfers and background splitting.
 - Preserve selected imported laps when reprocessing recordings with separate finish context.
 - Restore command-line recording imports and exports, and report failed or partially imported archives with a failing exit status.
 - Finish recording shutdown cleanly when a background recording worker exits unexpectedly.

@@ -289,7 +289,8 @@ export class KunosDetectorEngine {
       if (this.firstLapIsPartial) {
         const distance = (this.lapBuffer[this.lapBuffer.length - 1]?.DistanceTraveled ?? 0) - (this.lapBuffer[0]?.DistanceTraveled ?? 0);
         if (distance < 100 || this.options.isPitOnly(this.lapBuffer)) {
-          this.resetCapture(rawByteOffset); this.lapBuffer.push(packet); this.updatePeak(packet); return;
+          this.resetCapture(rawByteOffset); this.lapBuffer.push(packet); this.updatePeak(packet);
+          this.publishOwnership("window-start", this.ownershipWindow("provisional")); return;
         }
         this.firstLapIsPartial = false;
       }

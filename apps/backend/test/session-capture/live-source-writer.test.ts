@@ -1,4 +1,5 @@
 import { afterAll, expect, test } from "bun:test";
+import { WorkerSessionRecorder } from "@raceiq/capture-formats/session/worker-recorder";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,7 +7,6 @@ import {
   encodeFrameLength, encodeParserBootstrapFrame, encodeSegmentContextEndFrame,
   encodeSegmentContextFrame, iterateSessionCaptureRecords,
 } from "@raceiq/capture-formats/session/framing";
-import { WorkerSessionRecorder } from "@raceiq/capture-formats/session/worker-recorder";
 import { Worker } from "node:worker_threads";
 
 let syncRaceRoot: string | undefined;
@@ -100,6 +100,71 @@ test("accepted durability request completes when stop immediately closes admissi
   const records = [...iterateSessionCaptureRecords(bytes, 0, { strict: true })];
   expect(records).toHaveLength(1);
   expect(records[0]).toMatchObject({ kind: "frame", frame, frameTimeMs: 0 });
+});
+
+test("source writer does not reopen a file after a queued batch fails", async () => {
+  const root = await mkdtemp(join(tmpdir(), "raceiq-live-source-fail-stop-"));
+  const path = join(root, "source.bin");
+  const worker = new Worker(`
+    const { parentPort } = require("node:worker_threads");
+    const moduleUrl = ${JSON.stringify(import.meta.resolve("@raceiq/capture-formats/session/source-writer-worker"))};
+    import(moduleUrl).then((writer) => {
+      parentPort.postMessage({ type: "ready" });
+      parentPort.on("message", async (message) => {
+        if (message.type === "drain") {
+          await writer.waitForSourcePrefix(1);
+          parentPort.postMessage({ type: "drained" });
+        }
+      });
+    });
+  `, { eval: true, workerData: { syncIntervalMs: 0, failSequence: 2 } });
+  await new Promise<void>((resolve) => worker.once("message", (message) => { if (message.type === "ready") resolve(); }));
+  const messages: { type: string; sequence?: number }[] = [];
+  const failed = new Promise<void>((resolve) => worker.on("message", (message) => {
+    messages.push(message);
+    if (message.type === "failed") resolve();
+  }));
+  const postBatch = (sequence: number, byte: number) => worker.postMessage({
+    type: "batch",
+    records: [{
+      sequence, bytes: Buffer.from([byte]), chargeBytes: 1,
+      sourceByteLength: sequence, frameCount: sequence, sourceRecordCount: sequence,
+    }],
+  });
+  try {
+    worker.postMessage({ type: "start", path });
+    postBatch(1, 11);
+    worker.postMessage({ type: "sync-request", requestId: 1, bytes: 0 });
+    await new Promise<void>((resolve) => {
+      const listener = (message: { type: string; requestId?: number }) => {
+        if (message.type === "sync-ack" && message.requestId === 1) {
+          worker.off("message", listener);
+          resolve();
+        }
+      };
+      worker.on("message", listener);
+    });
+    const durable = await readFile(path);
+    postBatch(2, 22);
+    postBatch(3, 33);
+    worker.postMessage({ type: "sync-request", requestId: 2, bytes: 0 });
+    worker.postMessage({ type: "close", count: 3, headerCountOffset: null });
+    worker.postMessage({ type: "drain" });
+    await new Promise<void>((resolve) => {
+      const listener = (message: { type: string }) => {
+        if (message.type === "drained") {
+          worker.off("message", listener);
+          resolve();
+        }
+      };
+      worker.on("message", listener);
+    });
+    expect(messages.filter((message) => !["ready", "drained"].includes(message.type)).map((message) => message.type)).toEqual(["ack", "sync-ack", "failed"]);
+    expect(await readFile(path)).toEqual(durable);
+  } finally {
+    await worker.terminate();
+    await rm(root, { recursive: true, force: true });
+  }
 });
 test("premature worker exit rejects pending recorder close", async () => {
   const root = await mkdtemp(join(tmpdir(), "raceiq-live-source-worker-exit-"));

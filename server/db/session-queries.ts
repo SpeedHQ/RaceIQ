@@ -115,7 +115,7 @@ export async function enqueueSessionCaptureSplit(sessionId: number): Promise<boo
       return false;
     }
     if (!info.isFile() || info.size === 0) return false;
-    const sourceRevision = revisionForWindows(info, windows, row.gameId);
+    const sourceRevision = getSessionCaptureSourceRevision(info, windows, row.gameId);
     const result = await db.insert(sessionCaptureSplitJobs).values({
       sessionId, jobId: randomUUID(), attemptId: 1, sequence: 0, pendingSourceRevision: sourceRevision,
       sourcePath: row.rawFile, stagingPath: null,
@@ -205,10 +205,10 @@ export async function validateSessionCaptureSplitRevision(work: SessionCaptureSp
     .sort((a, b) => a.startByteOffset - b.startByteOffset);
   if (windows.length !== rows.length || JSON.stringify(windows) !== JSON.stringify(work.windows)) return false;
   const info = await stat(work.sourcePath);
-  return info.isFile() && revisionForWindows(info, windows, session.gameId) === work.sourceRevision;
+  return info.isFile() && getSessionCaptureSourceRevision(info, windows, session.gameId) === work.sourceRevision;
 }
 
-function revisionForWindows(info: Stats, windows: SessionCaptureSplitWork["windows"], gameId: string): string {
+export function getSessionCaptureSourceRevision(info: Stats, windows: SessionCaptureSplitWork["windows"], gameId: string): string {
   return createHash("sha256").update(`${info.dev}:${info.ino}:${info.size}:${info.mtimeMs}:${gameId}\n${JSON.stringify(windows)}`).digest("hex");
 }
 export async function publishSessionCaptureSplit(
@@ -251,7 +251,7 @@ export async function publishSessionCaptureSplit(
         currentWindows.length !== currentRows.length || JSON.stringify(currentWindows) !== JSON.stringify(work.windows)) return false;
     let sourceInfo: Stats;
     try { sourceInfo = await stat(work.sourcePath); } catch { return false; }
-    if (!sourceInfo.isFile() || revisionForWindows(sourceInfo, currentWindows, session.gameId) !== work.sourceRevision) return false;
+    if (!sourceInfo.isFile() || getSessionCaptureSourceRevision(sourceInfo, currentWindows, session.gameId) !== work.sourceRevision) return false;
     const lapChunks = chunks.filter((chunk) => chunk.lapId != null);
     const expectedLapIds = new Set(work.windows.map((window) => window.lapId));
     if (lapChunks.length !== expectedLapIds.size || lapChunks.some((chunk) => !expectedLapIds.has(chunk.lapId!)) ||
@@ -639,76 +639,79 @@ async function unlinkUnsharedCaptureBundle(manifestFile: string | null, archiveF
 /**
  * Delete a session and its laps. Refuse deletion while a split attempt owns its source.
  */
-export async function deleteSession(sessionId: number): Promise<number> {
-  return withSessionCaptureMaintenanceLock(async () => {
-    const deleted = await db.transaction(async (tx) => {
-      const session = await tx.select({
-        rawFile: sessions.rawFile,
-        manifestFile: sessions.captureManifestFile,
-        archiveFile: sessions.captureArchiveFile,
-      }).from(sessions).where(eq(sessions.id, sessionId)).get();
-      if (!session) return null;
-      const liveCapture = await tx.select({ status: liveCaptures.status, committedArchiveLength: liveCaptures.committedArchiveLength })
-        .from(liveCaptures).where(eq(liveCaptures.sessionId, sessionId)).get();
-      if (liveCapture && (["recording", "finalizing", "recovering"].includes(liveCapture.status) ||
-          (liveCapture.status === "failed" && liveCapture.committedArchiveLength > 0))) throw new SessionCaptureActiveError();
-      const activeJob = await tx.select({ sessionId: sessionCaptureSplitJobs.sessionId })
-        .from(sessionCaptureSplitJobs)
-        .where(and(
-          eq(sessionCaptureSplitJobs.sessionId, sessionId),
-          inArray(sessionCaptureSplitJobs.status, ["splitting", "verifying", "publishing"]),
-        )).get();
-      if (activeJob) throw new SessionCaptureActiveError();
-      await tx.delete(sessionCaptureSplitJobs).where(and(
+async function deleteSessionUnlocked(sessionId: number): Promise<number> {
+  const deleted = await db.transaction(async (tx) => {
+    const session = await tx.select({
+      rawFile: sessions.rawFile,
+      manifestFile: sessions.captureManifestFile,
+      archiveFile: sessions.captureArchiveFile,
+    }).from(sessions).where(eq(sessions.id, sessionId)).get();
+    if (!session) return null;
+    const liveCapture = await tx.select({ status: liveCaptures.status, committedArchiveLength: liveCaptures.committedArchiveLength })
+      .from(liveCaptures).where(eq(liveCaptures.sessionId, sessionId)).get();
+    if (liveCapture && (["recording", "finalizing", "recovering"].includes(liveCapture.status) ||
+        (liveCapture.status === "failed" && liveCapture.committedArchiveLength > 0))) throw new SessionCaptureActiveError();
+    const activeJob = await tx.select({ sessionId: sessionCaptureSplitJobs.sessionId })
+      .from(sessionCaptureSplitJobs)
+      .where(and(
         eq(sessionCaptureSplitJobs.sessionId, sessionId),
-        eq(sessionCaptureSplitJobs.status, "queued"),
-      )).run();
-      const lapRows = await tx.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
-      await tx.delete(sessions).where(eq(sessions.id, sessionId)).run();
-      return { ...session, lapIds: lapRows.map(({ id }) => id) };
-    });
-    if (!deleted) return 0;
-    for (const lapId of deleted.lapIds) cacheDelete(lapId);
-    await unlinkOwnedSessionRawFile(deleted.rawFile);
-    await unlinkUnsharedCaptureBundle(deleted.manifestFile, deleted.archiveFile);
-    return deleted.lapIds.length;
+        inArray(sessionCaptureSplitJobs.status, ["splitting", "verifying", "publishing"]),
+      )).get();
+    if (activeJob) throw new SessionCaptureActiveError();
+    await tx.delete(sessionCaptureSplitJobs).where(and(
+      eq(sessionCaptureSplitJobs.sessionId, sessionId),
+      eq(sessionCaptureSplitJobs.status, "queued"),
+    )).run();
+    const lapRows = await tx.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
+    await tx.delete(sessions).where(eq(sessions.id, sessionId)).run();
+    return { ...session, lapIds: lapRows.map(({ id }) => id) };
+  });
+  if (!deleted) return 0;
+  for (const lapId of deleted.lapIds) cacheDelete(lapId);
+  await unlinkOwnedSessionRawFile(deleted.rawFile);
+  await unlinkUnsharedCaptureBundle(deleted.manifestFile, deleted.archiveFile);
+  return deleted.lapIds.length;
+}
+
+export async function deleteSession(sessionId: number): Promise<number> {
+  return withSessionCaptureMaintenanceLock(() => deleteSessionUnlocked(sessionId));
+}
+
+export async function deleteEmptySessions(activeSessionId?: number): Promise<number> {
+  return withSessionCaptureMaintenanceLock(async () => {
+    const empties = await db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .leftJoin(laps, eq(laps.sessionId, sessions.id))
+      .where(sql`${sessions.lapDetectorVersion} IS NOT NULL`)
+      .groupBy(sessions.id)
+      .having(sql`count(${laps.id}) = 0`)
+      .all();
+    const candidateIds = empties.filter(({ id }) => id !== activeSessionId).map(({ id }) => id);
+    if (candidateIds.length === 0) return 0;
+    const activeJobs = await db.select({ sessionId: sessionCaptureSplitJobs.sessionId })
+      .from(sessionCaptureSplitJobs)
+      .where(and(
+        inArray(sessionCaptureSplitJobs.sessionId, candidateIds),
+        inArray(sessionCaptureSplitJobs.status, ["queued", "splitting", "verifying", "publishing"]),
+      )).all();
+    const protectedIds = new Set(activeJobs.map(({ sessionId }) => sessionId));
+    let deleted = 0;
+    for (const id of candidateIds) {
+      if (protectedIds.has(id)) continue;
+      try {
+        await deleteSessionUnlocked(id);
+        deleted++;
+      } catch (error) {
+        if (!(error instanceof SessionCaptureActiveError)) throw error;
+      }
+    }
+    return deleted;
   });
 }
 
 /** Get all lap metadata needed to preserve rows during reprocessing. */
 
-export async function deleteEmptySessions(activeSessionId?: number): Promise<number> {
-  return withSessionCaptureMaintenanceLock(async () => {
-  const empties = await db
-    .select({ id: sessions.id })
-    .from(sessions)
-    .leftJoin(laps, eq(laps.sessionId, sessions.id))
-    .where(sql`${sessions.lapDetectorVersion} IS NOT NULL`)
-    .groupBy(sessions.id)
-    .having(sql`count(${laps.id}) = 0`)
-    .all();
-  const candidateIds = empties.filter(({ id }) => id !== activeSessionId).map(({ id }) => id);
-  if (candidateIds.length === 0) return 0;
-  const activeJobs = await db.select({ sessionId: sessionCaptureSplitJobs.sessionId })
-    .from(sessionCaptureSplitJobs)
-    .where(and(
-      inArray(sessionCaptureSplitJobs.sessionId, candidateIds),
-      inArray(sessionCaptureSplitJobs.status, ["queued", "splitting", "verifying", "publishing"]),
-    )).all();
-  const protectedIds = new Set(activeJobs.map(({ sessionId }) => sessionId));
-  let deleted = 0;
-  for (const id of candidateIds) {
-    if (protectedIds.has(id)) continue;
-    try {
-      await deleteSession(id);
-      deleted++;
-    } catch (error) {
-      if (!(error instanceof SessionCaptureActiveError)) throw error;
-    }
-  }
-  return deleted;
-  });
-}
 
 /**
  * Get all sessions with lap counts, newest first.

@@ -213,6 +213,7 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
       finalizeSession: async () => { this.currentSession = null; },
     }, { bypassPacketRateFilter: this.bypassPacketRateFilter });
   }
+  clampCurrentLapOwnership(endOrdinal: number): void { this.engine.clampCurrentLapOwnership(endOrdinal); }
 
   get session(): SessionState | null { return this.currentSession; }
   get fuelHistory(): LapFuelData[] { return this._fuelHistory; }

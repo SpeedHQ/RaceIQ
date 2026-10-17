@@ -6,8 +6,8 @@ import { tmpdir } from "node:os";
 import { gzipSync } from "node:zlib";
 import { eq, inArray } from "drizzle-orm";
 import { db, client } from "@raceiq/backend-core/db/index";
-import { laps, sessions, sessionCaptureSplitJobs } from "@raceiq/backend-core/db/schema";
-import { SessionCaptureActiveError, deleteSession, setSessionFavorite, setLapFavorite } from "@raceiq/backend-core/db/session-queries";
+import { laps, sessions, sessionCaptureSplitJobs, liveCaptures } from "@raceiq/backend-core/db/schema";
+import { SessionCaptureActiveError, deleteEmptySessions, deleteSession, setSessionFavorite, setLapFavorite } from "@raceiq/backend-core/db/session-queries";
 import { runUserCompressionNow } from "@raceiq/backend-core/session-capture/compressor";
 import { cleanupOrphanSessionFiles, withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
@@ -502,6 +502,42 @@ describe("session cleanup edge cases", () => {
       unlink.mockRestore();
     }
   });
+
+  test("deletes eligible empty sessions without reacquiring maintenance lock and protects active captures and jobs", async () => {
+    const eligiblePath = capturePath("empty-eligible.bin");
+    const activePath = capturePath("empty-active.bin");
+    const jobPath = capturePath("empty-job.bin");
+    for (const path of [eligiblePath, activePath, jobPath]) writeFileSync(path, "capture");
+    const eligibleId = await createSession({ rawFile: eligiblePath });
+    const activeId = await createSession({ rawFile: activePath });
+    const jobId = await createSession({ rawFile: jobPath });
+    await db.insert(liveCaptures).values({
+      sessionId: activeId, captureEpoch: crypto.randomUUID(), attempt: "active", sourcePath: activePath,
+      archivePath: `${activePath}.gz`, status: "recording",
+    }).run();
+    await db.insert(sessionCaptureSplitJobs).values({
+      sessionId: jobId, jobId: crypto.randomUUID(), pendingSourceRevision: "revision",
+      sourcePath: jobPath, status: "queued",
+    }).run();
+    try {
+      const deleted = await deleteEmptySessions();
+      expect(deleted).toBe(1);
+      expect(await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, eligibleId)).get()).toBeUndefined();
+      expect(existsSync(eligiblePath)).toBe(false);
+      expect((await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, activeId)).get())?.id).toBe(activeId);
+      expect((await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, jobId)).get())?.id).toBe(jobId);
+      expect(await deleteEmptySessions(activeId)).toBe(0);
+      await db.delete(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, jobId)).run();
+      await db.delete(liveCaptures).where(eq(liveCaptures.sessionId, activeId)).run();
+      await deleteSession(activeId);
+      await deleteSession(jobId);
+      expect(await deleteEmptySessions()).toBe(0);
+    } finally {
+      await db.delete(liveCaptures).where(eq(liveCaptures.sessionId, activeId)).run();
+      await db.delete(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, jobId)).run();
+    }
+  });
+
   test("protects queued split source from session cleanup", async () => {
     const path = capturePath("queued-cleanup.bin");
     writeFileSync(path, Buffer.from("queued cleanup"));

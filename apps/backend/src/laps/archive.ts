@@ -46,7 +46,15 @@ import {
 } from "@raceiq/backend-core/session-capture/import-capture";
 import type { ImportedLap } from "@raceiq/backend-core/session-capture/import-pipeline";
 import {
-  advanceSessionFrames,
+  META_FRAME_MAGIC,
+  PARSER_BOOTSTRAP_MAGIC,
+  SEGMENT_BOUNDARY_MAGIC,
+  SEGMENT_CONTEXT_END_MAGIC,
+  SEGMENT_CONTEXT_MAGIC,
+  SEGMENT_BOUNDARY_VERSION,
+  SPARSE_CAPTURE_FORMAT_VERSION,
+  SPARSE_CAPTURE_FORMAT_MAGIC,
+  readFramePrefix,
   encodeFrameLength,
   encodeMetaFrame,
   encodeParserBootstrapFrame,
@@ -340,6 +348,34 @@ function buildParserContextRecords(buf: Buffer, beforeOffset: number): Buffer[] 
 
 
 
+function firstFrameOffsetAcrossContext(buf: Buffer, offset: number): number | null {
+  let at = offset;
+  while (at + 4 <= buf.length) {
+    if (buf.readUInt32LE(at) === META_FRAME_MAGIC) {
+      if (at + 8 > buf.length) return null;
+      const size = buf.readUInt32LE(at + 4);
+      const payloadEnd = at + 8 + size;
+      if (size > 16 * 1024 * 1024 || payloadEnd > buf.length) return null;
+      if (size === 8) {
+        const magic = buf.readUInt32LE(at + 8);
+        const version = buf.readUInt32LE(at + 12);
+        if (magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) return null;
+        if (magic !== SEGMENT_CONTEXT_MAGIC && magic !== SEGMENT_CONTEXT_END_MAGIC &&
+            !(magic === SPARSE_CAPTURE_FORMAT_MAGIC && version === SPARSE_CAPTURE_FORMAT_VERSION)) return null;
+      } else if (size === 4 && at === 0) {
+        at = payloadEnd;
+        continue;
+      } else if (size >= 4 && buf.readUInt32LE(at + 8) === PARSER_BOOTSTRAP_MAGIC) return null;
+      else return null;
+      at = payloadEnd;
+      continue;
+    }
+    const prefix = readFramePrefix(buf, at);
+    if (!prefix || prefix.length === 0 || at + prefix.prefixBytes + prefix.length > buf.length) return null;
+    return at;
+  }
+  return null;
+}
 /** Re-encode lap frames with segment-local checkpoints and source identities. */
 function sparseLapRecords(
   buf: Buffer,
@@ -353,7 +389,9 @@ function sparseLapRecords(
   let checkpoint = 0;
   let outputOffset = 0;
   let emitted = 0;
-  for (const record of iterateSessionFrameRecords(buf, start)) {
+  const firstFrameOffset = firstFrameOffsetAcrossContext(buf, start);
+  if (firstFrameOffset === null) return parts;
+  for (const record of iterateSessionFrameRecords(buf, firstFrameOffset)) {
     if (record.offset >= end) break;
     const isLmuV2 = gameId === "lmu" && record.frame.length === LMU_SOURCE_FRAME_V2_SIZE &&
       record.frame.subarray(0, LMU_SOURCE_FRAME_MAGIC.length).equals(LMU_SOURCE_FRAME_MAGIC);
@@ -396,6 +434,19 @@ function sparseLapRecords(
     emitted++;
   }
   return parts;
+}
+function advanceLapFramesAcrossContext(buf: Buffer, offset: number, count: number): number {
+  const firstFrameOffset = firstFrameOffsetAcrossContext(buf, offset);
+  if (firstFrameOffset === null) return offset;
+  let advanced = 0;
+  let end = offset;
+  for (const record of iterateSessionCaptureRecords(buf, firstFrameOffset)) {
+    if (record.kind === "segment-boundary" || record.kind === "parser-bootstrap") break;
+    if (record.kind !== "frame") continue;
+    end = record.endOffset;
+    if (++advanced === count) break;
+  }
+  return end;
 }
 function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -507,19 +558,19 @@ export async function buildLapsZip(
       const context = f1Context?.records ?? (first.gameId === "ac-evo"
         ? buildParserContextRecords(buf, start)
         : []);
-      const ownedEnd = advanceSessionFrames(buf, start, frameCount);
+      const ownedEnd = advanceLapFramesAcrossContext(buf, start, frameCount);
       if (row.captureLayoutVersion == null) {
         const adjacentWindow = allRows.some((candidate) => candidate.sessionId === row.sessionId && candidate.rawByteOffset === ownedEnd);
         trailingContextFrameCount =
           adjacentWindow ||
           getServerGame(first.gameId as GameId).appendsDelayedFinishFrame ||
-          advanceSessionFrames(buf, ownedEnd, 1) > ownedEnd
+          advanceLapFramesAcrossContext(buf, ownedEnd, 1) > ownedEnd
             ? 1
             : 0;
       }
       const end = first.gameId === "iracing"
         ? iracingSegmentEnd(buf, start, frameCount, prefix, parserBootstrap)
-        : advanceSessionFrames(buf, start, frameCount + trailingContextFrameCount);
+        : advanceLapFramesAcrossContext(buf, start, frameCount + trailingContextFrameCount);
       const trailingContext = end > ownedEnd ? sparseLapRecords(buf, ownedEnd, end, first.gameId as GameId, false) : [];
       const sparseRecords = first.gameId === "lmu" || first.gameId === "acc" || first.gameId === "ac-evo" ||
         first.gameId === "fm-2023" || first.gameId === "f1-2025" || first.gameId === "iracing"

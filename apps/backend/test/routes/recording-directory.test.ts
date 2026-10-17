@@ -4,16 +4,20 @@ import { copyFile as fsCopyFile, link as fsLink, lstat, mkdir, mkdtemp, readFile
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { gzipSync } from "node:zlib";
+import { encodeFrameLength, encodeMetaFrame, encodeSparseCaptureFormatFrame } from "@raceiq/capture-formats/session/framing";
 import { openLiveCaptureMember, openCaptureArchive, type ArchiveManifest } from "@raceiq/capture-splitting";
 import { beginRecordingStorageImport } from "@raceiq/backend-core/session-capture/storage-activity";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
-import { insertSession, deleteSession } from "@raceiq/backend-core/db/session-queries";
+import { enqueueSessionCaptureSplit, insertSession, deleteSession } from "@raceiq/backend-core/db/session-queries";
 import { sessions, sessionCaptureSplitJobs, liveCaptures, liveCaptureMembers, laps } from "@raceiq/backend-core/db/schema";
 import { loadSettings, saveSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { preflightRecordingDirectoryMove, startRecordingDirectoryMove, getRecordingDirectoryMoveStatus, recoverRecordingDirectoryMove } from "@raceiq/backend-core/session-capture/relocate-recordings";
 import { beginLiveCapture, getLiveLapCaptureSnapshot } from "@raceiq/backend-core/db/live-capture-queries";
+import { initServerGameAdapters } from "../../src/games/init";
+import { runSessionCaptureSplitQueueOnce } from "../../src/session-capture/split-manager";
+initServerGameAdapters();
 
 async function waitForMove(): Promise<void> {
   // The move runs on real filesystem I/O in a detached background task; fake timers cannot advance that work.
@@ -669,6 +673,82 @@ describe("recording-directory relocation", () => {
       expect((await db.select().from(sessions).where(eq(sessions.id, sessionId)).get())?.rawFile).toBe(target);
       await expect(readFile(capture)).rejects.toMatchObject({ code: "ENOENT" });
       expect(await readFile(target)).toEqual(bytes);
+    } finally {
+      if (sessionId !== undefined) await deleteSession(sessionId);
+      saveSettings({ ...loadSettings(), recordingDirectory: originalDirectory ?? null });
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+  test("relocated queued source keeps revision valid and completes real split publication", async () => {
+    const root = await mkdtemp(join(tmpdir(), "raceiq-queued-relocation-"));
+    const source = join(root, "source");
+    const destination = join(root, "destination");
+    const capture = join(source, "fm-2023", "own", "capture.bin");
+    const prefix = Buffer.concat([encodeMetaFrame(1), encodeSparseCaptureFormatFrame()]);
+    const bytes = Buffer.concat([prefix, encodeFrameLength(4), Buffer.from([1, 2, 3, 4])]);
+    let sessionId: number | undefined;
+    await mkdir(join(source, "fm-2023", "own"), { recursive: true });
+    await mkdir(destination);
+    await writeFile(capture, bytes);
+    saveSettings({ ...loadSettings(), recordingDirectory: source });
+    try {
+      sessionId = await insertSession("queued-relocation-car", "track", "fm-2023");
+      await db.update(sessions).set({ rawFile: capture, ownership: "mine" }).where(eq(sessions.id, sessionId)).run();
+      const lap = await db.insert(laps).values({
+        sessionId, lapNumber: 1, lapTime: 60, rawByteOffset: prefix.length, rawFrameCount: 1,
+      }).returning({ id: laps.id }).get();
+      expect(await enqueueSessionCaptureSplit(sessionId)).toBe(true);
+      const oldJob = await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, sessionId)).get();
+      expect(oldJob?.status).toBe("queued");
+      await startRecordingDirectoryMove(destination);
+      await waitForMove();
+      const movedJob = await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, sessionId)).get();
+      const movedSession = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+      if (!movedJob || !movedSession?.rawFile) throw new Error("Relocation lost the queued job or session source");
+      expect(movedJob.sourcePath).toBe(movedSession.rawFile);
+      expect(movedJob?.pendingSourceRevision).not.toBe(oldJob?.pendingSourceRevision);
+      expect(await readFile(movedSession!.rawFile!)).toEqual(bytes);
+      let published = await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, sessionId)).get();
+      for (let attempt = 0; attempt < 10 && published?.status !== "ready"; attempt += 1) {
+        await runSessionCaptureSplitQueueOnce();
+        published = await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, sessionId)).get();
+      }
+      expect(published?.status).toBe("ready");
+      expect(published?.completedLapArtifacts).toBe(1);
+      expect((await db.select({ captureChunkId: laps.captureChunkId }).from(laps).where(eq(laps.id, lap.id)).get())?.captureChunkId).toBeTruthy();
+    } finally {
+      if (sessionId !== undefined) await deleteSession(sessionId);
+      saveSettings({ ...loadSettings(), recordingDirectory: originalDirectory ?? null });
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+  test.each([false, true])("moves queued missing-source reference with rollback=%s", async (rollback) => {
+    const root = await mkdtemp(join(tmpdir(), "raceiq-missing-queued-move-"));
+    const source = join(root, "source");
+    const destination = join(root, "destination");
+    const missing = join(source, "fm-2023", "own", "missing.bin");
+    let sessionId: number | undefined;
+    await mkdir(join(source, "fm-2023", "own"), { recursive: true });
+    await mkdir(destination);
+    saveSettings({ ...loadSettings(), recordingDirectory: source });
+    try {
+      sessionId = await insertSession("missing-queued-car", "track", "fm-2023");
+      await db.update(sessions).set({ rawFile: missing }).where(eq(sessions.id, sessionId)).run();
+      await db.insert(sessionCaptureSplitJobs).values({
+        sessionId, jobId: crypto.randomUUID(), pendingSourceRevision: "missing-source-revision",
+        sourcePath: missing, status: "queued",
+      }).run();
+      await startRecordingDirectoryMove(destination, rollback
+        ? { saveSettings: () => { throw new Error("injected missing-source settings failure"); } }
+        : undefined);
+      if (rollback) await waitForMoveError("STORAGE_IO_ERROR");
+      else await waitForMove();
+      const expected = rollback ? missing : join(await realpath(destination), "fm-2023", "own", "missing.bin");
+      const row = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+      const job = await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, sessionId)).get();
+      expect(row?.rawFile).toBe(expected);
+      expect(job?.sourcePath).toBe(expected);
+      expect(job?.pendingSourceRevision).toBe("missing-source-revision");
     } finally {
       if (sessionId !== undefined) await deleteSession(sessionId);
       saveSettings({ ...loadSettings(), recordingDirectory: originalDirectory ?? null });

@@ -207,6 +207,22 @@ export const splitCapture = (options: SplitOptions): Effect.Effect<PublishedMani
       }
       if (lap) encoder.requestCheckpoint(); else encoder.reset();
     };
+    const deferredTrailingMarkers: Extract<SessionCaptureRecord, { kind: "segment-context" | "segment-context-end" }>[] = [];
+    const flushDeferredTrailingMarkers = async (): Promise<void> => {
+      if (deferredTrailingMarkers.length === 0) return;
+      for (const marker of deferredTrailingMarkers) {
+        await beginGroup(null, marker.offset);
+        const data = marker.kind === "segment-context" ? encodeSegmentContextFrame() : encodeSegmentContextEndFrame();
+        try { await writeCaptureBytes(data); }
+        catch (error) { throw new SplitFailure("IO", error instanceof Error ? error.message : String(error), { cause: error }); }
+        activeLength += data.length;
+        outputBytes += data.length;
+        activeCount++;
+        ordinal++;
+        decompressedBytes = marker.endOffset;
+      }
+      deferredTrailingMarkers.length = 0;
+    };
     try {
       for await (const record of iterateSessionCaptureRecordsAsync(source(options.sourcePath, compressed, signal), { strict: true })) {
         if (signal.aborted) throw signal.reason;
@@ -226,26 +242,12 @@ export const splitCapture = (options: SplitOptions): Effect.Effect<PublishedMani
           pendingTrailingLap = currentWindow;
           windowIndex++;
         }
-        if (pendingTrailingLap) {
-          const trailingLap = pendingTrailingLap;
-          pendingTrailingLap = null;
-          const isNextWindowStart = windowIndex < windows.length && record.offset === windows[windowIndex]!.startByteOffset;
-          const isAuxiliaryContext = trailingLap.trailingContextFrameCount === 1;
-          if (record.kind === "frame" && activeChunkIndex === lapChunk.get(trailingLap.lapId) &&
-              (isNextWindowStart || isAuxiliaryContext)) {
-            const chunkIndex = lapChunk.get(trailingLap.lapId)!;
-            const chunk = chunks[chunkIndex]!;
-            const recordOffset = chunk.byteLength + activeLength;
-            const [prefix, encoded] = encodeStreamingFrame(encoder, record.frame, recordOffset, record.frameTimeMs);
-            try { await writeCaptureBytes(prefix); await writeCaptureBytes(encoded); }
-            catch (error) { throw new SplitFailure("IO", error instanceof Error ? error.message : String(error), { cause: error }); }
-            activeLength += prefix.length + encoded.length;
-            outputBytes += prefix.length + encoded.length;
-            activeLastTimestamp = record.frameTimeMs;
-            chunks[chunkIndex] = { ...chunk, trailingContextFrameCount: 1 };
-          }
+        if (pendingTrailingLap && pendingTrailingLap.trailingContextFrameCount === 1 &&
+            (record.kind === "segment-context" || record.kind === "segment-context-end")) {
+          deferredTrailingMarkers.push(record);
+          if (record.kind === "segment-context-end") encoder.reset();
+          continue;
         }
-        if (record.kind === "segment-boundary" || record.kind === "segment-context-end" || record.kind === "parser-bootstrap") encoder.reset();
         let lap: LapWindow | null = null;
         if (record.kind === "frame") {
           if (!remaining && windowIndex < windows.length && record.offset > windows[windowIndex]!.startByteOffset) {
@@ -257,6 +259,34 @@ export const splitCapture = (options: SplitOptions): Effect.Effect<PublishedMani
           }
           if (remaining) lap = windows[windowIndex]!;
         }
+        if (pendingTrailingLap) {
+          const trailingLap = pendingTrailingLap;
+          const isNextWindowStart = record.kind === "frame" && windowIndex < windows.length &&
+            record.offset === windows[windowIndex]!.startByteOffset;
+          if (record.kind === "frame" && activeChunkIndex === lapChunk.get(trailingLap.lapId) &&
+              (isNextWindowStart || trailingLap.trailingContextFrameCount === 1)) {
+            const chunkIndex = lapChunk.get(trailingLap.lapId)!;
+            const chunk = chunks[chunkIndex]!;
+            const recordOffset = chunk.byteLength + activeLength;
+            const [prefix, encoded] = encodeStreamingFrame(encoder, record.frame, recordOffset, record.frameTimeMs);
+            try { await writeCaptureBytes(prefix); await writeCaptureBytes(encoded); }
+            catch (error) { throw new SplitFailure("IO", error instanceof Error ? error.message : String(error), { cause: error }); }
+            activeLength += prefix.length + encoded.length;
+            outputBytes += prefix.length + encoded.length;
+            activeLastTimestamp = record.frameTimeMs;
+            chunks[chunkIndex] = { ...chunk, trailingContextFrameCount: 1 };
+            pendingTrailingLap = null;
+            await flushDeferredTrailingMarkers();
+          } else if (record.kind === "segment-boundary" || record.kind === "parser-bootstrap" ||
+                     record.kind === "segment-context" || record.kind === "segment-context-end" ||
+                     (record.kind === "frame" && !isNextWindowStart)) {
+            if (record.kind !== "frame" || !isNextWindowStart) {
+              pendingTrailingLap = null;
+              await flushDeferredTrailingMarkers();
+            }
+          }
+        }
+        if (record.kind === "segment-boundary" || record.kind === "segment-context-end" || record.kind === "parser-bootstrap") encoder.reset();
         await beginGroup(lap, record.offset, record.kind === "frame" ? record.frameTimeMs : undefined);
         let data: Buffer | null;
         if (record.kind === "frame") {
@@ -293,6 +323,7 @@ export const splitCapture = (options: SplitOptions): Effect.Effect<PublishedMani
           completedLapArtifacts, totalLapArtifacts: windows.length,
         });
       }
+      await flushDeferredTrailingMarkers();
       await closeGroup();
       if (windowIndex !== windows.length || remaining) throw new SplitFailure("FORMAT", "lap window extends past source");
       const manifest = Schema.decodeSync(ManifestSchema)({
@@ -436,13 +467,18 @@ export const verifyManifest = (
             throw new SplitFailure("VERIFY", `owned frame window mismatch: ${chunkPath}`);
           }
           for (let index = 0; index < (chunk.trailingContextFrameCount ?? 0); index++) {
-            const original = await readSourceRecord();
-            if (!original || original.kind !== "frame" || original.offset !== chunk.sourceByteEnd ||
+            const deferredSourceRecords: SessionCaptureRecord[] = [];
+            let original = await readSourceRecord();
+            while (original && (original.kind === "segment-context" || original.kind === "segment-context-end")) {
+              deferredSourceRecords.push(original);
+              original = await readSourceRecord();
+            }
+            if (!original || original.kind !== "frame" || original.offset < chunk.sourceByteEnd ||
                 outputNext.done || outputNext.value.kind !== "frame" ||
                 !matchesNativeRecord(outputNext.value, original)) {
               throw new SplitFailure("VERIFY", `trailing context mismatch: ${chunkPath}`);
             }
-            pendingSourceRecords.unshift(original);
+            pendingSourceRecords.unshift(...deferredSourceRecords, original);
             outputNext = await outputIterator.next();
           }
           if (!outputNext.done) throw new SplitFailure("VERIFY", `unexpected output record: ${chunkPath}`);

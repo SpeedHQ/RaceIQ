@@ -97,6 +97,7 @@ export class OrdinalDetectorEngine {
   private bypassPacketRateFilter: boolean;
   private readonly effects: OrdinalEngineEffects;
   private ownershipRevision = 0;
+  private ownershipEndOrdinal: number | null = null;
   private ownershipWindows: DetectorOwnershipWindow[] = [];
   private ownershipListeners = new Set<(transition: DetectorOwnershipTransition) => void>();
   private lapFrameOffsets: Array<number | null> = [];
@@ -218,10 +219,16 @@ export class OrdinalDetectorEngine {
     if (this.state.session?.gameId === "fm-2023") this.state.forzaRaceOffObserved = true;
     this.publishOwnership("snapshot", this.activeWindow("provisional"));
   }
+  clampCurrentLapOwnership(endOrdinal: number): void {
+    this.ownershipEndOrdinal = this.ownershipEndOrdinal === null
+      ? endOrdinal : Math.min(this.ownershipEndOrdinal, endOrdinal);
+  }
   private activeWindow(status: DetectorOwnershipWindow["status"], ownedFrameCount?: number): DetectorOwnershipWindow | null {
     const s = this.state;
-    const frameCount = ownedFrameCount ?? (this.currentSourceOrdinal !== null && this.lapStartOrdinal !== null
-      ? this.currentSourceOrdinal - this.lapStartOrdinal + 1
+    const latestOrdinal = this.ownershipEndOrdinal === null
+      ? this.currentSourceOrdinal : Math.min(this.currentSourceOrdinal ?? this.ownershipEndOrdinal, this.ownershipEndOrdinal);
+    const frameCount = ownedFrameCount ?? (latestOrdinal !== null && this.lapStartOrdinal !== null
+      ? latestOrdinal - this.lapStartOrdinal + 1
       : s.lapFrameCount);
     if (s.lapNumber < 0 || s.lapByteOffset === null || frameCount <= 0) return null;
     return { revision: this.ownershipRevision + 1, lapNumber: s.lapNumber, startOffset: s.lapByteOffset, startOrdinal: this.lapStartOrdinal, frameCount, status, trailingContextFrameCount: 0, bounded: true };
@@ -280,10 +287,12 @@ export class OrdinalDetectorEngine {
       if (s.session) await this.finalizeIncompleteLap();
       const identity = await this.effects.createSession(packet);
       if (identity) {
-        s.session = { ...identity, sessionKey: ++this.sessionSequence, gameId: packet.gameId };
         s.lapNumber = -1; s.lapBuffer = []; s.lapIsValid = true; s.invalidReason = null;
+        s.session = { ...identity, sessionKey: ++this.sessionSequence, gameId: packet.gameId };
         s.completedLapCount = 0; s.lastTimestampMS = 0; s.distanceAtLapStart = packet.DistanceTraveled;
         s.lapByteOffset = null; s.lapFrameCount = 0; this.lapStartOrdinal = null; this.lapFrameOrdinals = [];
+        this.ownershipEndOrdinal = null;
+        s.fuelAtLapStart = packet.Fuel; s.tireWearAtLapStart = tireWear(packet);
         s.currentPitCycleReason = null; s.nextPitCycleReason = null; s.forzaRaceOffObserved = false;
         await this.effects.onSessionStarted?.(s.session);
       }
@@ -335,13 +344,14 @@ export class OrdinalDetectorEngine {
   async finalizeIncompleteLap(): Promise<void> {
     this.processingSourceOrdinal = this.currentSourceOrdinal;
     const s = this.state;
-    if (!s.lapBuffer.length || s.lapNumber < 0) return;
     this.trimRunningStartPackets(true);
+    const window = this.activeWindow("incomplete");
+    if (window) s.lapFrameCount = window.frameCount;
     if (s.lapBuffer.length && s.lapBuffer[s.lapBuffer.length - 1].CurrentLap >= 10) {
       await this.effects.finalizeIncompleteLap(s);
-      this.publishOwnership("final-incomplete", this.activeWindow("incomplete"));
+      this.publishOwnership("final-incomplete", window);
     } else {
-      this.publishOwnership("window-abandoned", this.activeWindow("incomplete"));
+      this.publishOwnership("window-abandoned", window);
     }
   }
   finalizeRetainedIncompleteOwnership(): void {
@@ -353,6 +363,7 @@ export class OrdinalDetectorEngine {
     this.state.lapBuffer = [];
     this.state.lapNumber = -1;
     this.state.lastPacketTime = 0;
+    this.ownershipEndOrdinal = null;
   }
 
   async flushStaleLap(): Promise<void> {
@@ -377,7 +388,9 @@ export class OrdinalDetectorEngine {
     const last = s.lapBuffer[s.lapBuffer.length - 1];
     if (s.fuelAtLapStart >= 0) { s.fuelHistory.push({ lap:s.lapNumber, fuelStart:s.fuelAtLapStart, fuelEnd:last.Fuel, fuelUsed:s.fuelAtLapStart-last.Fuel }); if(s.fuelHistory.length>50)s.fuelHistory.shift(); }
     if (s.tireWearAtLapStart.fl >= 0) { const end=tireWear(last), start=s.tireWearAtLapStart; s.tireWearHistory.push({lap:s.lapNumber,start:{...start},end,worn:{fl:start.fl-end.fl,fr:start.fr-end.fr,rl:start.rl-end.rl,rr:start.rr-end.rr}}); if(s.tireWearHistory.length>50)s.tireWearHistory.shift(); }
-    const boundaryOrdinal = this.processingSourceOrdinal ?? this.currentSourceOrdinal;
+    const boundaryOrdinal = this.ownershipEndOrdinal === null
+      ? this.processingSourceOrdinal ?? this.currentSourceOrdinal
+      : Math.min(this.processingSourceOrdinal ?? this.currentSourceOrdinal ?? this.ownershipEndOrdinal + 1, this.ownershipEndOrdinal + 1);
     const ownedFrameCount = boundaryOrdinal !== null && this.lapStartOrdinal !== null
       ? boundaryOrdinal - this.lapStartOrdinal
       : s.lapFrameCount;
@@ -393,12 +406,15 @@ export class OrdinalDetectorEngine {
   }
 
   reset(packet: TelemetryPacket, abandonCurrent = false): void {
-    const s=this.state;
-    if (abandonCurrent && s.lapBuffer.length > 0) this.publishOwnership("window-abandoned", this.activeWindow("incomplete", Math.max(0, s.lapFrameCount - 1)));
+    const s = this.state;
+    if (abandonCurrent && s.lapBuffer.length > 0) {
+      this.publishOwnership("window-abandoned", this.activeWindow("incomplete", Math.max(0, s.lapFrameCount - 1)));
+    }
     s.lapNumber=packet.LapNumber; s.lapBuffer=[]; this.lapFrameOffsets=[]; this.lapFrameOrdinals=[]; s.lapIsValid=true; s.invalidReason=null;
     s.currentPitCycleReason=s.nextPitCycleReason; s.nextPitCycleReason=null; s.lastLastLap=packet.LastLap;
     s.distanceAtLapStart=packet.DistanceTraveled; s.lapByteOffset=this.processingSourceOffset ?? s.currentRawByteOffset; s.lapFrameCount=0;
     this.lapStartOrdinal = this.processingSourceOrdinal ?? this.currentSourceOrdinal;
+    this.ownershipEndOrdinal = null;
     s.fuelAtLapStart=packet.Fuel; s.tireWearAtLapStart=tireWear(packet);
     this.publishOwnership("auxiliary-watermark", null);
   }
