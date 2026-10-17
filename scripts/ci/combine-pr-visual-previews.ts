@@ -12,8 +12,8 @@ const output = "pr-preview";
 mkdirSync(output, { recursive: true });
 
 const metadata = previews.map((directory) => ({
-  pr: readFileSync(join(directory, "pr-number.txt"), "utf8"),
-  baseRef: readFileSync(join(directory, "base-ref.txt"), "utf8"),
+  pr: readFileSync(join(directory, "pr-number.txt"), "utf8").trim(),
+  baseRef: readFileSync(join(directory, "base-ref.txt"), "utf8").trim(),
 }));
 const responsive = metadata[0]!;
 const storybook = metadata[1]!;
