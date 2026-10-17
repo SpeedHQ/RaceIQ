@@ -77,17 +77,8 @@
 - Recheck all historical AC Evo recordings for Tourist layout identity and rebuild their laps after recording-folder organization completes; keep dependent startup work blocked when an earlier repair is incomplete.
 - Use suitable local network addresses for remote HUD links and let users choose an address when multiple adapters are available.
 - Keep racing, throttle, and braking lines sharp when zooming into the replay map.
-- Preserve original telemetry and lap boundaries when replaying or exporting individual laps from completed recordings, while retaining source recordings.
-- Keep imported F1 25 and iRacing laps replayable and exportable after restarting RaceIQ, preserve saved ZIP lap timing and validity, and avoid counting completion context as another owned frame.
-- Use corrected telemetry after session reprocessing instead of stale lap recordings.
-- Protect recordings needed by pending processing or other sessions during cleanup and compression, and remove per-lap recordings when session captures are cleaned up.
-- Refresh Sessions processing status and export availability as recordings become ready, after reprocessing, and when the dashboard reconnects.
 
 ### Internal
-- Add bounded worker-owned source recording, fenced incremental lap publication and restart replay, with incremental runtime activation gated on all-game performance acceptance.
-- Add an isolated source-recorder diagnostic benchmark for memory, worker handoff, write and durability latency, with native-record round-trip verification.
-- Prepare live lap staging files ahead of boundaries and overlap bounded finalization with the next lap while preserving ordered publication and failure cleanup.
-- Use Bun's built-in checker for root and workspace typecheck commands.
 - Seed selectable ACC and AC Evo setup files consistently in development and compiled E2E servers.
 - Add a release-only Ubuntu Docker smoke test that seeds the latest published release, completes migration dialogs, upgrades to freshly fetched main, and streams checkout, seed, server, and phase progress to OrbStack container logs.
 - Add `test:upgrade --replay` to retain successful upgrade recordings and open the local Playwright Trace Viewer after Docker exits, including failed runs with available traces.
