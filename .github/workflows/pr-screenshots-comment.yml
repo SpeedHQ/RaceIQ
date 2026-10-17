@@ -68,6 +68,14 @@ jobs:
           path: pr-preview
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
+      - name: Install visual comparison dependencies
+        if: steps.artifact.outputs.available == 'true'
+        run: bun install --filter @raceiq/tooling-ui --frozen-lockfile
+      - name: Compare base and PR renders
+        if: steps.artifact.outputs.available == 'true'
+        run: |
+          bun packages/tooling-ui/src/ui/collect-screenshot-diffs.ts --base pr-preview/base-responsive --current pr-preview/current-responsive --out pr-preview --prefix responsive
+          bun packages/tooling-ui/src/ui/collect-screenshot-diffs.ts --base pr-preview/base-storybook --current pr-preview/current-storybook --out pr-preview --prefix storybook
       - name: Read PR number and detect changes
         id: meta
         if: steps.artifact.outputs.available == 'true'
@@ -81,6 +89,7 @@ jobs:
           PR: ${{ steps.meta.outputs.pr }}
         run: bun scripts/ci/publish-pr-screenshots.ts
       - name: Compose and post sticky comment
+        if: steps.artifact.outputs.available == 'true'
         env:
           PR: ${{ steps.meta.outputs.pr }}
           CHANGED: ${{ steps.meta.outputs.changed }}
@@ -88,6 +97,7 @@ jobs:
           BASE_REF: ${{ steps.meta.outputs.base-ref }}
         run: bun scripts/ci/comment-pr-screenshots.ts
       - name: Reconcile UI change label
+        if: steps.artifact.outputs.available == 'true'
         env:
           PR: ${{ steps.meta.outputs.pr }}
           LABEL: "ui change"

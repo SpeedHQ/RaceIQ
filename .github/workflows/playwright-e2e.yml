@@ -20,6 +20,7 @@ on:
 
 jobs:
   seed-database:
+    name: Seed database
     runs-on: mars-ubuntu-2vcpu-10g
     steps:
       - uses: actions/checkout@v7
@@ -50,6 +51,7 @@ jobs:
           retention-days: 1
 
   playwright:
+    name: E2E matrix
     needs: seed-database
     strategy:
       fail-fast: false

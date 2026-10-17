@@ -30,20 +30,20 @@ permissions:
 
 jobs:
   responsive:
-    name: Responsive base-vs-PR screenshots
+    name: Responsive
     uses: ./.github/workflows/pr-screenshots.yml
     with:
       pr: ${{ inputs.pr }}
 
   storybook:
-    name: Storybook base-vs-PR snapshots
+    name: Storybook
     uses: ./.github/workflows/pr-snapshots.yml
     with:
       pr: ${{ inputs.pr }}
       paraglide-artifact: ${{ inputs.paraglide-artifact }}
 
   combine-previews:
-    name: visual-regression/combine-previews
+    name: Combine previews
     needs:
       - responsive
       - storybook

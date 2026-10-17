@@ -20,7 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       pr:
-        description: "PR number to render (merges its base into the PR head and comments on it)"
+        description: "PR number to render and compare against its base branch"
         required: true
         type: number
 
@@ -34,7 +34,7 @@ permissions:
 
 jobs:
   render:
-    name: visual-regression/responsive-render
+    name: Render
     timeout-minutes: 30
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     strategy:
@@ -63,8 +63,7 @@ jobs:
             core.setOutput("base-ref", pull.base.ref);
             core.setOutput("base-sha", pull.base.sha);
 
-      # Check out the PR HEAD rather than GitHub's lazily updated merge ref,
-      # then merge the resolved base revision ourselves.
+      # Check out the PR HEAD rather than GitHub's lazily updated merge ref.
       - uses: actions/checkout@v7
         with:
           ref: refs/pull/${{ github.event.pull_request.number || inputs.pr }}/head
@@ -77,12 +76,7 @@ jobs:
       - name: Mark workspace safe for git
         run: bun scripts/ci/workflow-ops.ts safe-git
 
-      - name: Merge pull request base into the PR head
-        env:
-          BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
-          BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
-        run: bun scripts/ci/workflow-ops.ts merge-base
-
+      # Render the checked-out PR head and base worktree independently; do not merge base into PR code.
       - name: Prepare base comparison worktree
         env:
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
@@ -143,7 +137,7 @@ jobs:
           BASE_STATUS: ${{ steps.base-responsive.outcome }}
         run: bun scripts/ci/workflow-ops.ts fail-render
   collect:
-    name: visual-regression/responsive-diff
+    name: Collect
     if: needs.render.result == 'success' && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
     needs: render
     runs-on:

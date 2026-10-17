@@ -26,7 +26,7 @@ on:
   workflow_dispatch:
     inputs:
       pr:
-        description: "PR number to render (merges its base into the PR head and comments on it)"
+        description: "PR number to render and compare against its base branch"
         required: true
         type: number
 
@@ -40,7 +40,7 @@ permissions:
 
 jobs:
   render:
-    name: visual-regression/storybook-snapshots
+    name: Render
     timeout-minutes: 30
     runs-on:
       - mars-ubuntu-2vcpu-10g
@@ -74,7 +74,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4
-      - name: Prepare merged PR snapshot workspace
+      - name: Prepare base comparison worktree
         env:
           BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
