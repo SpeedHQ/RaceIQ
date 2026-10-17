@@ -5,8 +5,8 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { MOTEC_SESSION_SOURCE } from "@raceiq/shared/integrations/motec";
 import { decodeMotecSourceArchive, type MotecOffsetEncoding } from "../motec/source-archive";
 import { realpath, stat } from "node:fs/promises";
-import { resolve, dirname, relative, isAbsolute } from "node:path";
-import { MAX_CAPTURE_MANIFEST_BYTES, PublishedManifestSchema, type ArchiveChunk, type ArchiveManifest, type Chunk, type LiveArchiveSnapshot, type PublishedManifest } from "@raceiq/capture-splitting";
+import { resolve, dirname, basename, relative, isAbsolute, sep } from "node:path";
+import { MAX_CAPTURE_MANIFEST_BYTES, ManifestSchema, PublishedManifestSchema, type ArchiveChunk, type ArchiveManifest, type Chunk, type LiveArchiveSnapshot, type PublishedManifest } from "@raceiq/capture-splitting";
 import { openCaptureArchive, openLiveCaptureMember } from "@raceiq/capture-splitting";
 import { Schema } from "effect";
 import { parseLd } from "../motec/ld";
@@ -16,6 +16,12 @@ import { countSourceFrameScanned } from "./test-instrumentation";
 import {
   containsSparseCaptureFrames,
   META_FRAME_MAGIC,
+  encodeMetaFrame,
+  encodeFrameLength,
+  encodeParserBootstrapFrame,
+  encodeSegmentBoundaryFrame,
+  encodeSegmentContextFrame,
+  encodeSegmentContextEndFrame,
   iterateSessionFrameRecords,
   readFrameStreamStart,
   SEGMENT_BOUNDARY_MAGIC,
@@ -177,6 +183,64 @@ async function hasSparseCaptureFormat(file: SessionCaptureFile, streamOverride?:
     }
   }
 }
+async function* iterateStandaloneManifest(source: SessionCaptureSource): AsyncGenerator<SessionCaptureRecord> {
+  const manifestInfo = await stat(source.rawFile);
+  if (manifestInfo.size > MAX_CAPTURE_MANIFEST_BYTES) throw new Error("Capture manifest exceeds size limit");
+  const stored = Buffer.from(await captureFileFactory(source.rawFile).arrayBuffer());
+  const manifest = Schema.decodeUnknownSync(ManifestSchema)(JSON.parse(stored.toString("utf8")));
+  if (manifest.version !== 3 || manifest.sourceCoordinates !== "native-wire-v1") throw new Error("Standalone session manifest lacks native-wire source coordinates");
+  if (manifest.gameId !== source.gameId) throw new Error("Session source manifest game does not match replay game");
+  const directory = await realpath(dirname(source.rawFile));
+  let ordinal = 0;
+  let sourceByteOffset = 12;
+  for (const chunk of manifest.chunks) {
+    if (chunk.firstOrdinal !== ordinal || chunk.sourceStart !== ordinal || chunk.sourceEnd !== ordinal + chunk.recordCount ||
+        chunk.sourceByteStart !== sourceByteOffset || chunk.sourceByteEnd < chunk.sourceByteStart) {
+      throw new Error(`Manifest chunk ${chunk.id} has discontinuous source coordinates`);
+    }
+    if (chunk.sourceRecordByteOffset === undefined) throw new Error(`Manifest chunk ${chunk.id} lacks sourceRecordByteOffset`);
+    const path = resolve(directory, chunk.path);
+    const resolvedPath = await realpath(path);
+    const pathWithinDirectory = relative(directory, resolvedPath);
+    if (!basename(chunk.path).endsWith(".bin")) throw new Error(`Manifest chunk ${chunk.id} is not a BIN artifact`);
+    if (isAbsolute(chunk.path) || pathWithinDirectory === ".." || pathWithinDirectory.startsWith(`..${sep}`) || isAbsolute(pathWithinDirectory)) {
+      throw new Error("Manifest chunk path escapes capture directory");
+    }
+    const chunkInfo = await stat(resolvedPath);
+    if (chunkInfo.size !== chunk.byteLength) throw new Error(`Manifest chunk ${chunk.id} byte length mismatch`);
+    if (chunk.recordCount === 0) {
+      if (chunk.sourceByteEnd !== chunk.sourceByteStart) throw new Error(`Manifest chunk ${chunk.id} has bytes without source records`);
+      ordinal = chunk.sourceEnd;
+      sourceByteOffset = chunk.sourceByteEnd;
+      continue;
+    }
+    let emitted = 0;
+    let virtualOffset = chunk.sourceByteStart;
+    let foundStart = false;
+    const chunkSource = { ...source, rawFile: resolvedPath, artifact: undefined };
+    for await (const record of iterateSessionCaptureRecordsFromSource(chunkSource, { strict: true })) {
+      if (record.offset < chunk.sourceRecordByteOffset) continue;
+      if (!foundStart) {
+        if (record.offset !== chunk.sourceRecordByteOffset) throw new Error(`Manifest chunk ${chunk.id} sourceRecordByteOffset is not record-aligned`);
+        foundStart = true;
+      }
+      if (emitted >= chunk.recordCount) break;
+      const wireLength = record.kind === "frame"
+        ? encodeFrameLength(record.frame.length, record.frameTimeMs).length + record.frame.length
+        : record.endOffset - record.offset;
+      yield { ...record, offset: virtualOffset, endOffset: virtualOffset + wireLength } as SessionCaptureRecord;
+      virtualOffset += wireLength;
+      emitted++;
+    }
+    if (!foundStart && chunk.recordCount !== 0 || emitted !== chunk.recordCount || virtualOffset !== chunk.sourceByteEnd) {
+      throw new Error(`Manifest chunk ${chunk.id} source coordinate mismatch`);
+    }
+    ordinal = chunk.sourceEnd;
+    sourceByteOffset = chunk.sourceByteEnd;
+  }
+  if (ordinal !== manifest.sourceRecordCount || sourceByteOffset !== manifest.sourceByteLength) throw new Error("Session source manifest totals do not match chunk coordinates");
+}
+
 /**
  * Iterate capture records without materializing the compressed or decompressed
  * session. Report offsets in the decompressed stream, matching lap metadata.
@@ -185,6 +249,10 @@ export async function* iterateSessionCaptureRecordsFromSource(
   source: SessionCaptureSource,
   options: { strict?: boolean } = {},
 ): AsyncGenerator<SessionCaptureRecord> {
+  if (source.rawFile.endsWith("manifest.json")) {
+    yield* iterateStandaloneManifest(source);
+    return;
+  }
   if (source.rawFile.endsWith(".motec.zip")) {
     throw new Error("Motec source archives expose canonical packets, not BIN frames");
   }
@@ -350,6 +418,18 @@ export async function loadSessionSource(source: SessionCaptureSource): Promise<L
   const cacheKey = key(source);
   const hit = cache.get(cacheKey);
   if (hit && (!info || hit.size === info.size && hit.mtimeMs === info.mtimeMs && hit.dev === info.dev && hit.ino === info.ino)) return hit.loaded;
+  if (source.rawFile.endsWith("manifest.json")) {
+    const records: Buffer[] = [encodeMetaFrame()];
+    for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) {
+      if (record.kind === "frame") records.push(encodeFrameLength(record.frame.length, record.frameTimeMs), record.frame);
+      else if (record.kind === "parser-bootstrap") records.push(encodeParserBootstrapFrame(record.gameId, record.payload));
+      else if (record.kind === "segment-boundary") records.push(encodeSegmentBoundaryFrame());
+      else if (record.kind === "segment-context") records.push(encodeSegmentContextFrame());
+      else if (record.kind === "segment-context-end") records.push(encodeSegmentContextEndFrame());
+    }
+    const buffer = Buffer.concat(records);
+    return { kind: "capture", buffer, frameIndex: indexCaptureFrames(buffer) };
+  }
   let bytes: Buffer;
   if (source.artifact) {
     const archive = source.artifact.liveSnapshot

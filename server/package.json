@@ -147,6 +147,7 @@
     "./session-capture/combine-recording-parts": "./session-capture/combine-recording-parts.ts",
     "./session-capture/compressor": "./session-capture/compressor.ts",
     "./session-capture/dashboard-processor": "./session-capture/dashboard-processor.ts",
+    "./session-capture/direct-recorder": "./session-capture/direct-recorder.ts",
     "./session-capture/elapsed-duration": "./session-capture/elapsed-duration.ts",
     "./session-capture/filename": "./session-capture/filename.ts",
     "./session-capture/frame-time": "./session-capture/frame-time.ts",

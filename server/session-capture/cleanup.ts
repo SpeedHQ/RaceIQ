@@ -115,6 +115,9 @@ async function listBundleFiles(): Promise<string[]> {
   const files: string[] = [];
   const games = await readdir(root, { withFileTypes: true }).catch(() => []);
   const attemptName = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-[1-9][0-9]*-[0-9a-f]{64}(?:\.staging)?$/i;
+  const uuid = "[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}";
+  const directDirectory = new RegExp(`^\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-\\d{3}Z-${uuid}$`, "i");
+  const directPart = new RegExp(`^${uuid}\\.bin$`, "i");
   for (const game of games) {
     if (!game.isDirectory()) continue;
     const gamePath = join(root, game.name);
@@ -125,6 +128,15 @@ async function listBundleFiles(): Promise<string[]> {
     for (const location of locations) {
       const entries = location === gamePath ? gameEntries : await readdir(location, { withFileTypes: true }).catch(() => []);
       for (const session of entries) {
+        if (session.isDirectory() && directDirectory.test(session.name)) {
+          const directory = join(location, session.name);
+          for (const file of await readdir(directory, { withFileTypes: true }).catch(() => [])) {
+            if (file.isFile() && (file.name === "capture-manifest.json" || directPart.test(file.name))) {
+              files.push(join(directory, file.name));
+            }
+          }
+          continue;
+        }
         if (!session.isDirectory() || !/^session-[0-9]+$/.test(session.name)) continue;
         const sessionPath = join(location, session.name);
         for (const attempt of await readdir(sessionPath, { withFileTypes: true }).catch(() => [])) {
@@ -169,6 +181,8 @@ export async function cleanupOrphanSessionFiles(
         const info = await lstat(filePath);
         if (!info.isFile()) continue;
         if (referenced.has(resolve(filePath)) || referenced.has(resolve(dirname(filePath)))) continue;
+        // An active or interrupted direct capture can contain an unpublished file.
+        if (referenced.has(resolve(dirname(filePath), "capture-manifest.json"))) continue;
         await unlink(filePath);
         clearSessionCaptureCache(filePath);
         removed++;

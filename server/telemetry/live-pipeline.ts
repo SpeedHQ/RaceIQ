@@ -24,17 +24,18 @@ import { wsManager } from "../runtime/websocket-manager";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import { enqueueSessionCaptureSplit } from "../db/session-queries";
 import { materializeParserInitializationPlan, subscribeParserSource, type ParserSourceInput, type ParserReplayLocator } from "../games/packet-dispatch";
-import type { WorkerSessionRecorder } from "@raceiq/capture-formats/session/worker-recorder";
-import { LiveCaptureSession } from "../session-capture/live-capture";
+import { DirectSessionRecorderAdapter, type DirectCaptureRecording } from "../session-capture/direct-recorder";
 
 import { DashboardCaptureObservation } from "../session-capture/dashboard-observation";
 import { markDashboardCaptureCheckpoint, publishObservedDashboardCaptureFacts } from "../session-capture/dashboard-processor";
 type CaptureObservationEntry = { observation: DashboardCaptureObservation; rawFile: string | null };
-type RecordingSession = { sessionId: number; gameId: GameId; liveCapture?: LiveCaptureSession };
+type RecordingSession = { sessionId: number; gameId: GameId; directCapture?: DirectCaptureRecording };
 type CapturedParserSource = {
   parserSequence: number; epoch: number; locator: ParserReplayLocator | null;
   rawOffset?: number; rawEndOffset?: number; rawOrdinal?: number;
+  pendingDirect?: boolean;
 };
+type PendingDirectSource = { input: ParserSourceInput; reference: CapturedParserSource; bytes: number };
 const CURRENT_SESSION_LAP_SNAPSHOT_LIMIT = 500;
 
 export class LiveTelemetryPipeline {
@@ -70,6 +71,9 @@ export class LiveTelemetryPipeline {
   private _queuedPacketBytes = 0;
   private readonly _parserSourceFrames = new WeakMap<Buffer, CapturedParserSource>();
   private _latestSource: CapturedParserSource | null = null;
+  private _pendingDirectSources: Array<PendingDirectSource | undefined> = [];
+  private _pendingDirectHead = 0;
+  private _pendingDirectBytes = 0;
   private _processingSource: CapturedParserSource | null = null;
   private readonly _retiringCaptures = new Set<Promise<void>>();
   private _processingNativeFrame: Buffer | null = null;
@@ -90,9 +94,10 @@ export class LiveTelemetryPipeline {
     this._liveIssuesEnabled = enabled;
   }
 
-  /** True while a session is being recorded (session recorder is open). */
+  /** Maintenance stays excluded until active and retiring capture I/O has finished. */
   get isSessionActive(): boolean {
-    return this.recorder.active && !this._recordingSession?.liveCapture?.hasFailed;
+    return this.recorder.active || this._recordingSession?.directCapture !== undefined ||
+      this._retiringSessions.size > 0 || this._retiringCaptures.size > 0;
   }
 
   /** In-memory session laps — sent to newly connected WS clients. */
@@ -114,7 +119,9 @@ export class LiveTelemetryPipeline {
   ) {
     this.db = db;
     this.ws = ws;
-    this.recorder = options?.recorder ?? new SparseSessionRecorderAdapter();
+    this.recorder = options?.recorder ?? (db instanceof RealDbAdapter
+      ? new DirectSessionRecorderAdapter()
+      : new SparseSessionRecorderAdapter("mine", {}, "offline"));
     this._bypassPacketRateFilter = options?.bypassPacketRateFilter ?? false;
     this._skipHistorySeeding = options?.skipHistorySeeding ?? false;
     this._skipDevState = options?.skipDevState ?? false;
@@ -122,16 +129,16 @@ export class LiveTelemetryPipeline {
     this._onSessionFinalized = options?.onSessionFinalized;
     if (db instanceof RealDbAdapter) {
       db.subscribeLapBindings((binding) => {
-        if (binding.sessionId === this._recordingSession?.sessionId) this._recordingSession.liveCapture?.bindLap(binding);
-        else this._retiringSessions.get(binding.sessionId)?.liveCapture?.bindLap(binding);
+        if (binding.sessionId === this._recordingSession?.sessionId) this._recordingSession.directCapture?.bindLap(binding);
+        else this._retiringSessions.get(binding.sessionId)?.directCapture?.bindLap(binding);
       });
       db.subscribeLapWriteFailures((sessionId, error) => {
         const session = sessionId === this._recordingSession?.sessionId ? this._recordingSession : this._retiringSessions.get(sessionId);
-        session?.liveCapture?.fail(error);
+        session?.directCapture?.fail(error);
       });
       db.subscribeLapInvalidations((lapId) => {
-        this._recordingSession?.liveCapture?.invalidateLap(lapId);
-        for (const session of this._retiringSessions.values()) session.liveCapture?.invalidateLap(lapId);
+        this._recordingSession?.directCapture?.invalidateLap(lapId);
+        for (const session of this._retiringSessions.values()) session.directCapture?.invalidateLap(lapId);
         const index = this._sessionLaps.findIndex((lap) => lap.id === lapId);
         if (index >= 0) {
           this._sessionLaps.splice(index, 1);
@@ -145,7 +152,22 @@ export class LiveTelemetryPipeline {
   captureParserSource(input: ParserSourceInput): void {
     const reference: CapturedParserSource = { parserSequence: input.sequence, epoch: this.recorder.epoch, locator: input.locator };
     this._parserSourceFrames.set(input.frame, reference);
-    if (!this.recorder.active || this._recordingSession?.gameId !== input.gameId || this._recordingSession.liveCapture?.hasFailed) return;
+    if (this.recorder instanceof DirectSessionRecorderAdapter && this.recorder.active && !this._recordingSession?.directCapture?.hasFailed) {
+      const bytes = input.frame.byteLength + (input.locator?.byteCost ?? 0) + 128;
+      if (this._pendingDirectBytes + bytes > 8 * 1024 * 1024 || this._pendingDirectSources.length - this._pendingDirectHead >= 1024) {
+        const error = new Error("Direct recording source queue capacity exhausted");
+        this._recordingSession?.directCapture?.fail(error);
+        return;
+      }
+      reference.pendingDirect = true;
+      this._pendingDirectSources.push({ input, reference, bytes });
+      this._pendingDirectBytes += bytes;
+      try {
+        if (this._activePacketProcessing.size === 0 && !this._ingressBarrier) this._flushDirectSourcesThrough(reference);
+      } catch (error) { this._recordingSession?.directCapture?.fail(error); }
+      return;
+    }
+    if (!this.recorder.active || this._recordingSession?.gameId !== input.gameId || this._recordingSession.directCapture?.hasFailed) return;
     try {
       reference.rawOffset = this.recorder.getCurrentByteOffset();
       this.recorder.writeRecord(input.frame, input.timestampMs);
@@ -155,11 +177,56 @@ export class LiveTelemetryPipeline {
       }
       this._latestSource = reference;
     } catch (error) {
+      this._recordingSession?.directCapture?.fail(error);
       this.ws.broadcastNotification({
         type: "recording-failed",
         sessionId: this._recordingSession?.sessionId,
         error: error instanceof Error ? error.message : String(error),
       });
+    }
+  }
+
+  private _consumeDirectSource(): PendingDirectSource {
+    const pending = this._pendingDirectSources[this._pendingDirectHead]!;
+    this._pendingDirectSources[this._pendingDirectHead++] = undefined;
+    this._pendingDirectBytes -= pending.bytes;
+    if (this._pendingDirectHead === this._pendingDirectSources.length) {
+      this._pendingDirectSources.length = 0;
+      this._pendingDirectHead = 0;
+    } else if (this._pendingDirectHead >= 256 && this._pendingDirectHead * 2 >= this._pendingDirectSources.length) {
+      this._pendingDirectSources.splice(0, this._pendingDirectHead);
+      this._pendingDirectHead = 0;
+    }
+    return pending;
+  }
+
+  /** Keep future native input behind the current detector decision, not behind disk I/O. */
+  private _flushDirectSourcesThrough(target?: CapturedParserSource): void {
+    if (!(this.recorder instanceof DirectSessionRecorderAdapter) || !this.recorder.active || (target && !target.pendingDirect)) return;
+    while (this._pendingDirectHead < this._pendingDirectSources.length) {
+      const next = this._pendingDirectSources[this._pendingDirectHead]!;
+      if (next.reference.pendingDirect && next.input.gameId !== this._recordingSession?.gameId) break;
+      const { input, reference } = this._consumeDirectSource();
+      if (reference.pendingDirect) {
+        reference.pendingDirect = false;
+        reference.epoch = this.recorder.epoch;
+        reference.rawOffset = this.recorder.getCurrentByteOffset();
+        this.recorder.writeRecord(input.frame, input.timestampMs);
+        reference.rawEndOffset = this.recorder.getCurrentByteOffset();
+        reference.rawOrdinal = this.recorder.sourceOrdinal;
+        this._latestSource = reference;
+      }
+      if (reference === target) break;
+    }
+  }
+
+  /** A newly started capture's original parser primer already represents these inputs. */
+  private _discardDirectSourcesThrough(target: CapturedParserSource): void {
+    if (!target.pendingDirect) return;
+    while (this._pendingDirectHead < this._pendingDirectSources.length) {
+      const { reference } = this._consumeDirectSource();
+      reference.pendingDirect = false;
+      if (reference === target) break;
     }
   }
 
@@ -188,7 +255,7 @@ export class LiveTelemetryPipeline {
     if (pending) return pending;
     const finalization = (async () => {
       try {
-        if (this._enqueueSessionCaptureSplits && !session.liveCapture?.isSealed) {
+        if (this._enqueueSessionCaptureSplits && !session.directCapture) {
           await enqueueSessionCaptureSplit(session.sessionId);
         }
       } catch (error) {
@@ -209,19 +276,20 @@ export class LiveTelemetryPipeline {
   }
 
   private async _finishRecordedSession(session = this._recordingSession): Promise<void> {
-    if (!session?.liveCapture) {
+    if (!session?.directCapture) {
       await withSessionCaptureMaintenanceLock(async () => {
         if (session && this._recordingSession?.sessionId === session.sessionId) this._recordingSession = null;
         await this.recorder.stop();
       });
     } else {
+      this._flushDirectSourcesThrough();
       this._drainOwnership(session);
-      if (!(this.recorder instanceof SparseSessionRecorderAdapter)) throw new Error("Live capture lost its worker recorder");
-      const source = this.recorder.detachRecorder();
+      if (!(this.recorder instanceof DirectSessionRecorderAdapter)) throw new Error("Direct capture lost its recorder");
+      const source = this.recorder.detachCapture();
       this._recordingSession = null;
       if (source) {
         this._retiringSessions.set(session.sessionId, session);
-        try { await this._finishLiveSource(session, source); }
+        try { await this._finishDirectCapture(session, source); }
         finally { this._retiringSessions.delete(session.sessionId); }
       }
     }
@@ -236,24 +304,17 @@ export class LiveTelemetryPipeline {
   private _drainOwnership(session = this._recordingSession): void {
     const transitions = this._lapDetector?.drainOwnershipTransitions?.() ?? [];
     const source = this._processingSource;
-    session?.liveCapture?.processTransitions(transitions, source?.locator,
-      source?.rawEndOffset ?? this.recorder.getCurrentByteOffset());
+    session?.directCapture?.processTransitions(transitions, source?.locator ?? null);
   }
 
-  private async _finishLiveSource(session: RecordingSession, source: WorkerSessionRecorder): Promise<void> {
-    const capture = session.liveCapture!;
+  private async _finishDirectCapture(session: RecordingSession, capture: DirectCaptureRecording): Promise<void> {
     try {
       if (this.db instanceof RealDbAdapter) await this.db.drainLapWrites(session.sessionId);
-      await capture.close();
-      await source.stop();
-      await capture.sealMetadata();
+      await capture.stop();
     } catch (error) {
       capture.fail(error);
-      await source.stop().catch((failure) => console.error("[LiveCapture] Failed to drain canonical source:", failure));
+      await capture.stop().catch((failure) => console.error("[DirectCapture] Failed to drain capture:", failure));
       throw error;
-    } finally {
-      try { await source.worker.terminate(); }
-      finally { capture.dispose(); }
     }
   }
 
@@ -280,6 +341,7 @@ export class LiveTelemetryPipeline {
       }
     }
     const reference: CapturedParserSource = captured ?? { parserSequence: -1, epoch: this.recorder.epoch, locator: null };
+    if (this.recorder instanceof DirectSessionRecorderAdapter) this._discardDirectSourcesThrough(reference);
     reference.epoch = this.recorder.epoch;
     reference.rawOffset = this.recorder.getCurrentByteOffset();
     this.recorder.writeRecord(frame, this._processingTimestamp);
@@ -293,6 +355,7 @@ export class LiveTelemetryPipeline {
   }
 
   private _observeSourceTail(): void {
+    this._flushDirectSourcesThrough();
     const source = this._latestSource;
     if (source?.epoch === this.recorder.epoch && source.rawOffset !== undefined && source.rawEndOffset !== undefined && source.rawOrdinal !== undefined) {
       this._processingSource = source;
@@ -373,18 +436,18 @@ export class LiveTelemetryPipeline {
         this._continuingSegment = false;
         if (!continuing) {
           await withSessionCaptureMaintenanceLock(async () => {
-            if (previousSession?.liveCapture && this.recorder instanceof SparseSessionRecorderAdapter) {
-              if (this._retiringCaptures.size >= 2) throw new Error("Live finalization worker budget exhausted");
+            if (previousSession?.directCapture && this.recorder instanceof DirectSessionRecorderAdapter) {
+              if (this._retiringCaptures.size >= 2) throw new Error("Direct recording finalization budget exhausted");
               this._drainOwnership(previousSession);
-              const source = this.recorder.detachRecorder();
+              const source = this.recorder.detachCapture();
               if (source) {
                 this._retiringSessions.set(previousSession.sessionId, previousSession);
-                const retirement = this._finishLiveSource(previousSession, source).then(async () => {
+                const retirement = this._finishDirectCapture(previousSession, source).then(async () => {
                   await this.finalizeDashboardCaptureFacts([previousSession.sessionId]);
                   await this._reconcileRecordedSession(previousSession);
                 });
                 this._retiringCaptures.add(retirement);
-                void retirement.catch((error) => console.error("[LiveCapture] Retired capture failed:", error));
+                void retirement.catch((error) => console.error("[DirectCapture] Retired capture failed:", error));
                 void retirement.finally(() => {
                   this._retiringCaptures.delete(retirement);
                   this._retiringSessions.delete(previousSession.sessionId);
@@ -405,23 +468,24 @@ export class LiveTelemetryPipeline {
                 session.sessionId, rawFile, this._lapDetector?.detectorId ?? LAP_DETECTOR_ID,
                 this.recorder instanceof SparseSessionRecorderAdapter,
               );
-              if (this._enqueueSessionCaptureSplits && this.db instanceof RealDbAdapter &&
-                  this.recorder instanceof SparseSessionRecorderAdapter && this.recorder.supportsLiveSplitting && this.recorder.workerRecorder) {
-                recording.liveCapture = new LiveCaptureSession(session.sessionId, session.gameId, this.recorder.workerRecorder,
+              if (this.db instanceof RealDbAdapter && this.recorder instanceof DirectSessionRecorderAdapter && this.recorder.capture) {
+                recording.directCapture = this.recorder.capture;
+                recording.directCapture.attachSession(session.sessionId, registration,
                   (event) => {
                     this.ws.broadcastNotification(event);
                     if (event.type === "lap-capture-ready") {
                       const lap = this._sessionLaps.find((entry) => entry.id === event.lapId && entry.sessionId === event.sessionId);
                       if (lap) { lap.standaloneCaptureReady = true; this._broadcastSessionLaps(); }
                     }
-                  }, registration);
+                  });
               }
               this._writeProcessingTrigger();
               await registration;
+              await recording.directCapture?.ready;
               await markDashboardCaptureCheckpoint(session.sessionId, false);
             }
           });
-          if (previousSession && !previousSession.liveCapture) {
+          if (previousSession && !previousSession.directCapture) {
             if (previousCapture && previousCapture.rawFile !== this.recorder.path) {
               await this.finalizeDashboardCaptureFacts([previousSession.sessionId]);
             }
@@ -480,7 +544,7 @@ export class LiveTelemetryPipeline {
           carId: session.carId,
           trackId: session.trackId,
           sectorTimes: event.sectors ?? undefined,
-          standaloneCaptureReady: recording.liveCapture?.isLapReady(event.lapId),
+          standaloneCaptureReady: recording.directCapture?.isLapReady(event.lapId),
         });
         if (this._sessionLaps.length > CURRENT_SESSION_LAP_SNAPSHOT_LIMIT) {
           this._sessionLaps.splice(0, this._sessionLaps.length - CURRENT_SESSION_LAP_SNAPSHOT_LIMIT);
@@ -584,7 +648,7 @@ export class LiveTelemetryPipeline {
     if (this._queuedPacketBytes + reservedBytes > 8 * 1024 * 1024) {
       const error = new Error("Recording detector queue capacity exhausted");
       this.ws.broadcastNotification({ type: "recording-failed", sessionId: this._recordingSession?.sessionId, error: error.message });
-      this._recordingSession?.liveCapture?.fail(error);
+      this._recordingSession?.directCapture?.fail(error);
       throw error;
     }
     this._queuedPacketBytes += reservedBytes;
@@ -596,7 +660,7 @@ export class LiveTelemetryPipeline {
       try {
         await this._processPacket(packet, source, frameTimeMs);
       } catch (error) {
-        this._recordingSession?.liveCapture?.fail(error);
+        this._recordingSession?.directCapture?.fail(error);
         throw error;
       } finally {
         this._processingNativeFrame = null;
@@ -611,6 +675,7 @@ export class LiveTelemetryPipeline {
       await processing;
     } finally {
       this._activePacketProcessing.delete(processing);
+      if (this._activePacketProcessing.size === 0 && !this._ingressBarrier) this._flushDirectSourcesThrough();
     }
   }
 
@@ -626,10 +691,12 @@ export class LiveTelemetryPipeline {
     this._processingNativeFrame = Buffer.isBuffer(source) ? source : null;
     this._processingTimestamp = frameTimeMs;
     this._processingSource = Buffer.isBuffer(source) ? this._parserSourceFrames.get(source) ?? null : null;
+    if (this._processingSource) this._flushDirectSourcesThrough(this._processingSource);
 
     let rawByteOffset: number | undefined;
     const epochBefore = this.recorder.epoch;
-    if (source && this.recorder.active && !this._recordingSession?.liveCapture?.hasFailed) {
+    if (source && this.recorder.active && !this._recordingSession?.directCapture?.hasFailed &&
+        (!(this.recorder instanceof DirectSessionRecorderAdapter) || this._recordingSession?.gameId === packet.gameId)) {
       if (Buffer.isBuffer(source)) {
         const captured = this._parserSourceFrames.get(source);
         if (captured?.epoch === epochBefore && captured.rawOffset !== undefined) {
@@ -662,7 +729,7 @@ export class LiveTelemetryPipeline {
 
     normalizeTelemetryPacket(packet, adapter.coordSystem === "standard-xyz", adapter.runtime.normSuspensionTravelMm);
 
-    const rawOrdinal = !this._recordingSession?.liveCapture?.hasFailed && Buffer.isBuffer(source)
+    const rawOrdinal = !this._recordingSession?.directCapture?.hasFailed && Buffer.isBuffer(source)
       ? this._parserSourceFrames.get(source)?.rawOrdinal
         ?? (this.recorder instanceof SparseSessionRecorderAdapter ? this.recorder.sourceOrdinal : undefined)
       : undefined;
@@ -787,7 +854,7 @@ export class LiveTelemetryPipeline {
 
   async flushSessionRecorder(): Promise<void> {
     await this._withIngressPaused(async () => {
-      if (this._recordingSession?.liveCapture) await this._finalizeCurrentSession();
+      if (this._recordingSession?.directCapture) await this._finalizeCurrentSession();
       else await withSessionCaptureMaintenanceLock(() => this.recorder.stop());
     });
   }
@@ -828,8 +895,9 @@ export class LiveTelemetryPipeline {
     return this._withIngressPaused(async () => {
       const activeSessionId = this._lapDetector?.session?.sessionId;
       if (activeSessionId === undefined || !sessionIds.includes(activeSessionId)) return false;
-      const capture = this._recordingSession?.liveCapture;
-      capture?.fail(new Error("Live session was deleted"));
+      const capture = this._recordingSession?.directCapture;
+      const invalidated = new Error("Recording session was deleted");
+      capture?.fail(invalidated);
 
       this._lapDetector = null;
       this._lapDetectorGameId = null;
@@ -838,8 +906,12 @@ export class LiveTelemetryPipeline {
       this._continuingSegment = false;
       this._pendingSessionContextFrames = [];
       this._sessionLaps = [];
+      for (const pending of this._pendingDirectSources) if (pending) pending.reference.pendingDirect = false;
+      this._pendingDirectSources.length = 0;
+      this._pendingDirectHead = 0;
+      this._pendingDirectBytes = 0;
       try { await withSessionCaptureMaintenanceLock(() => this.recorder.stop()); }
-      finally { capture?.dispose(); }
+      catch (error) { if (error !== invalidated) throw error; }
       this._broadcastSessionLaps();
       return true;
     });
@@ -855,6 +927,12 @@ export class LiveTelemetryPipeline {
     this._lapDetector = null;
     this._lapDetectorGameId = null;
     this._continuingSegment = true;
+    this._expectCompleteLapStart = true;
+  }
+
+  /** Treat first parsed lap after an import boundary as a complete lap. */
+  expectCompleteLapStart(): void {
+    this._expectCompleteLapStart = true;
   }
 
   /** Flush buffered writes to disk without closing. */
@@ -946,7 +1024,7 @@ export function stopMaintenanceTasks(): void {
   clearInterval(_maintenanceInterval);
 }
 
-/** True while a session is actively being recorded. */
+/** True while a session records or its capture files are still draining. */
 export function isSessionActive(): boolean {
   return _default.isSessionActive;
 }

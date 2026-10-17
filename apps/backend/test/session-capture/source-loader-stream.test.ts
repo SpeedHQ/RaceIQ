@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import { gzipSync } from "node:zlib";
-import { mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -350,4 +350,88 @@ test("loads and indexes gzip sparse captures from decompressed bytes", async () 
   if (loaded.kind !== "capture") throw new Error("Expected capture source");
   expect(loaded.buffer).toEqual(capture);
   expect(loaded.frameIndex.records).toEqual([{ offset: 12, length: frame.length, frameIndex: 0 }]);
+});
+
+test("replays standalone manifest chunks once, including null-emission source frames", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "raceiq-standalone-session-"));
+  directories.push(directory);
+  const f1 = Buffer.from([1, 2, 3]);
+  const shared = Buffer.from([4, 5, 6, 7]);
+  const f3 = Buffer.from([8, 9]);
+  const wire = (frame: Buffer) => Buffer.concat([encodeFrameLength(frame.length), frame]);
+  const prefix = Buffer.concat([encodeMetaFrame(0), encodeSparseCaptureFormatFrame()]);
+  const firstPath = join(directory, "first.bin");
+  const secondPath = join(directory, "second.bin");
+  const contextPrefix = Buffer.concat([prefix, encodeSegmentContextFrame(), wire(shared)]);
+  writeFileSync(firstPath, Buffer.concat([prefix, wire(f1), wire(shared), wire(shared)]));
+  writeFileSync(secondPath, Buffer.concat([contextPrefix, wire(f3)]));
+  const firstStart = 12;
+  const secondStart = firstStart + wire(f1).length + wire(shared).length;
+  const manifest = {
+    version: 3,
+    gameId: "f1-2025",
+    sourceRevision: "test",
+    sourceByteLength: secondStart + wire(f3).length,
+    sourceRecordCount: 3,
+    sourceCoordinates: "native-wire-v1",
+    chunks: [
+      {
+        id: "a", kind: "auxiliary", path: "first.bin", byteLength: prefix.length + wire(f1).length + wire(shared).length * 2,
+        firstOrdinal: 0, recordCount: 2, sourceStart: 0, sourceEnd: 2,
+        sourceByteStart: firstStart, sourceByteEnd: secondStart,
+        sourceRecordByteOffset: prefix.length, trailingContextFrameCount: 1,
+      },
+      {
+        id: "b", kind: "auxiliary", path: "second.bin", byteLength: contextPrefix.length + wire(f3).length,
+        firstOrdinal: 2, recordCount: 1, sourceStart: 2, sourceEnd: 3,
+        sourceByteStart: secondStart, sourceByteEnd: secondStart + wire(f3).length,
+        sourceRecordByteOffset: contextPrefix.length,
+      },
+    ],
+  };
+  const rawFile = join(directory, "manifest.json");
+  writeFileSync(rawFile, JSON.stringify(manifest));
+  const source = { rawFile, source: null, gameId: "f1-2025" as const, carId: "0", trackId: "0", captureFormatVersion: 1 };
+
+  const records = [];
+  for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) records.push(record);
+  expect(records).toEqual([
+    { kind: "frame", offset: firstStart, endOffset: firstStart + wire(f1).length, frame: f1 },
+    { kind: "frame", offset: firstStart + wire(f1).length, endOffset: secondStart, frame: shared },
+    { kind: "frame", offset: secondStart, endOffset: secondStart + wire(f3).length, frame: f3 },
+  ]);
+  const loaded = await loadSessionSource(source);
+  expect(loaded.kind).toBe("capture");
+  if (loaded.kind !== "capture") throw new Error("Expected capture source");
+  expect(loaded.buffer.subarray(12)).toEqual(Buffer.concat([wire(f1), wire(shared), wire(f3)]));
+  expect(loaded.frameIndex.records.map(({ offset }) => offset)).toEqual([12, 12 + wire(f1).length, 12 + wire(f1).length + wire(shared).length]);
+
+  const changed = JSON.parse(JSON.stringify(manifest));
+  changed.gameId = "acc";
+  writeFileSync(rawFile, JSON.stringify(changed));
+  await expect(async () => {
+    for await (const _record of iterateSessionCaptureRecordsFromSource(source)) {}
+  }).toThrow(/game does not match/);
+  changed.gameId = "f1-2025";
+  changed.chunks[1].sourceStart = 9;
+  writeFileSync(rawFile, JSON.stringify(changed));
+  await expect(async () => {
+    for await (const _record of iterateSessionCaptureRecordsFromSource(source)) {}
+  }).toThrow(/discontinuous source coordinates/);
+  changed.chunks[1].sourceStart = 2;
+  changed.chunks[1].sourceRecordByteOffset -= 1;
+  writeFileSync(rawFile, JSON.stringify(changed));
+  await expect(async () => {
+    for await (const _record of iterateSessionCaptureRecordsFromSource(source)) {}
+  }).toThrow(/not record-aligned/);
+  const outsidePath = join(tmpdir(), `raceiq-outside-${Date.now()}.bin`);
+  writeFileSync(outsidePath, Buffer.concat([prefix, wire(f1), wire(shared), wire(shared)]));
+  symlinkSync(outsidePath, join(directory, "escape.bin"));
+  changed.chunks[1].sourceRecordByteOffset = contextPrefix.length;
+  changed.chunks[0].path = "escape.bin";
+  writeFileSync(rawFile, JSON.stringify(changed));
+  await expect(async () => {
+    for await (const _record of iterateSessionCaptureRecordsFromSource(source)) {}
+  }).toThrow(/escapes capture directory/);
+  rmSync(outsidePath);
 });

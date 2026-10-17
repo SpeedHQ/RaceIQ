@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Record directly into separate per-lap recordings, continuing across lap boundaries without waiting for the next file to be created.
 ### Breaking
 - Legacy full-frame RaceIQ captures are no longer supported for import and replay. Ensure any remaining legacy recordings are migrated when prompted before updating.
 
@@ -24,6 +25,7 @@
 - Split completed and imported recordings into separate, independently replayable per-lap `.bin` files, with startup migration for existing session bundles.
 
 ### Fixes
+- Preserve selected lap telemetry and timing metadata across all supported games when exporting and importing lap archives.
 - Prompt to split existing sparse session recordings at startup, including seeded recordings, while automatically splitting newly imported sparse recordings.
 - Keep iRacing lap timing, validity, and pit classification consistent between live telemetry and imported recordings when the native lap timer rolls over late.
 - Preserve telemetry, replay lap clocks, saved lap times, and validity when transferring iRacing lap archives or reopening them after a restart.
@@ -45,6 +47,7 @@
 - Create multiple confirmed setup alternatives in the same experiment chat reply without incorrectly asking drivers to refresh.
 
 ### Internal
+- Verify single-lap and selected-lap archive round trips for every supported game, including LMU, with session identity, sector timing, validity, and telemetry equality checks.
 - Harden release-gated live recording ownership, recovery, relocation, and cancelled staging-reader cleanup.
 
 ## v0.20.0 - 2026-10-15

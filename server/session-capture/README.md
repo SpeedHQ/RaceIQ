@@ -29,6 +29,20 @@ Owns RaceIQ raw-session persistence: length-prefixed frame recording, gzip stora
 - Recording paths and names are chosen by telemetry/runtime adapters. Split artifacts follow the configured recording directory and session ownership (`own`/`others`); this domain must not change their naming, activation, or shutdown order.
 - Game adapters own frame recognition and parsing. Telemetry owns live pipeline behavior. Database modules own session/lap persistence.
 - Import rollback deletes sessions and their newly recorded files. Scheduled maintenance skips active recordings; background compression remains age-gated, while user-triggered compression also includes untracked `.bin` files.
+## Direct live per-lap recording
+
+`direct-recorder.ts` records new live sessions directly into independent sparse `.bin` files. Session startup reserves an active file and an already-open standby through `PreopenedFileWriter`; native input only encodes and enqueues bounded writes. At a detector-owned boundary, recording switches to the standby synchronously, drains and closes the previous file asynchronously, and starts opening the next standby. No file open, write, fsync, or close is awaited by the boundary operation.
+
+The boundary's native bytes and timestamp finish the previous artifact as non-owned completion context and start the next artifact as its first owned frame. Each file starts with a full sparse checkpoint and the required opaque parser bootstrap/context. Re-announcing a provisional boundary promotes its existing ownership rather than rotating a second time. Artifact creation does not normalize telemetry, replay game parsers, scan an earlier recording, or create a duplicate monolith.
+
+Native input waiting behind a detector decision uses a bounded FIFO so later frames cannot pass an unresolved boundary while database callbacks are pending. Parser-null tails flush when ingress is idle and before finalization. Writer bytes and retiring file lifecycles are bounded; unavailable standby or exhausted capacity fails recording explicitly rather than routing bytes to the wrong file.
+
+Closed files are synced before a standalone version-3 manifest is atomically persisted and directory-synced; only then are lap references published and readiness announced. Sessions use layout 1 and reference the manifest as their source. Direct manifests declare `sourceCoordinates: "native-wire-v1"`: offsets describe full native frame wire lengths, not compressed/sparse file positions. Each chunk's `sourceRecordByteOffset` skips its synthetic initialization prefix; `recordCount` excludes its duplicated trailing boundary. This lets full-session readers reconstruct original source order and timestamps exactly once without a monolith.
+
+Session changes detach the old capture while the next capture starts. Final shutdown waits for accepted writes and publication. Imported and historical recordings retain the separate splitting path below; new live recording does not enqueue it.
+
+Storage maintenance remains excluded while active or retiring captures drain. Orphan cleanup recognizes only controlled direct directory and part names, preserves unpublished parts beside a referenced manifest, and removes those parts only after the source is no longer referenced.
+
 ## Lossless per-lap capture splitting
 
 `@raceiq/capture-formats` owns exact encoded record boundaries and strict decoding. `@raceiq/capture-splitting` owns indexed-window normalization, opaque parser initialization preparation through injected game codecs, sequential artifact writing, and independent conservation verification. Ownership comes only from detector byte offsets/frame counts; lap numbers are labels. A shared boundary frame belongs to the next lap and may appear once as trailing non-owned context in the previous artifact. Source offsets count decompressed encoded bytes; the physical source byte length remains separately recorded.
@@ -42,3 +56,5 @@ Compression protects split-job and published sources. Migration fences unpublish
 ## Testing
 
 `test/raw-binary-storage.test.ts` covers metadata bytes, offsets, reprocessing, and truncated captures. `test/session-recorder.test.ts` covers record round trips and truncated final records. `test/session-compressor.test.ts` covers gzip output and age gating. `test/raw-capture-identity.test.ts` covers storage-independent hashes. `test/lap-export-import-roundtrip.test.ts` covers capture slicing and import replay. Changes to framing or file maintenance should preserve these byte-level and lifecycle contracts.
+
+Direct recording regressions live in `apps/backend/test/session-capture/preopened-file-writer.test.ts`, `direct-recorder.test.ts`, and `direct-recording-ingress.test.ts`. They cover partial writes, close/drain races, standby/retirement limits, shared frames, provisional promotion, delayed lap binding, source conservation, and export/import without a monolith. `source-loader-stream.test.ts` covers native-wire manifest reconstruction and invalid paths/coordinates.

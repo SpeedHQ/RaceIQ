@@ -211,3 +211,6 @@ apps/backend/test/lap-analysis/telemetry-replay-running-start.test.ts
 apps/backend/test/lap-analysis/corner-resolution.test.ts
 apps/backend/test/session-capture/live-source-reader.test.ts
 apps/backend/test/session-capture/live-worker-catchup.test.ts
+apps/backend/test/session-capture/preopened-file-writer.test.ts
+apps/backend/test/session-capture/direct-recorder.test.ts
+apps/backend/test/session-capture/direct-recording-ingress.test.ts

@@ -367,9 +367,11 @@ export function importSessionFrames(
       countSourceFrameScanned();
       if (sourceFrame === SESSION_SEGMENT_BOUNDARY) {
         if (capture.sessionIds.size > 0) {
+          await pipeline.flushIncompleteLap();
           capture.continueSessionOnNextInsert();
           pipeline.beginSessionSegment();
         }
+        pipeline.expectCompleteLapStart();
         state = serverGame.createParserState?.() ?? null;
         expectsSessionContext = gameId === "iracing";
         completeLapStart = true;
@@ -422,11 +424,14 @@ export function importSessionFrames(
         return false;
       }
       expectsSessionContext = false;
-      completeLapStart = false;
       pipeline.captureParserSource({ gameId, sequence: sourceSequence++, frame, locator: null,
         ...(frameTimeMs === undefined ? {} : { timestampMs: frameTimeMs }) });
       const packet = serverGame.tryParseLapIndex(frame, state);
-      if (!packet) return false;
+      if (!packet) {
+        if (completeLapStart) pipeline.recordSessionContextFrame(frame, true, frameTimeMs);
+        return false;
+      }
+      completeLapStart = false;
       lastOwnedPacket = packet;
       applyFrameTime(packet, frameTimeMs);
       countIndexSampleMaterialized();

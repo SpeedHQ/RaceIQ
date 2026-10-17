@@ -510,7 +510,12 @@ export async function buildLapsZip(
       const ownedEnd = advanceSessionFrames(buf, start, frameCount);
       if (row.captureLayoutVersion == null) {
         const adjacentWindow = allRows.some((candidate) => candidate.sessionId === row.sessionId && candidate.rawByteOffset === ownedEnd);
-        trailingContextFrameCount = adjacentWindow || getServerGame(first.gameId as GameId).appendsDelayedFinishFrame ? 1 : 0;
+        trailingContextFrameCount =
+          adjacentWindow ||
+          getServerGame(first.gameId as GameId).appendsDelayedFinishFrame ||
+          advanceSessionFrames(buf, ownedEnd, 1) > ownedEnd
+            ? 1
+            : 0;
       }
       const end = first.gameId === "iracing"
         ? iracingSegmentEnd(buf, start, frameCount, prefix, parserBootstrap)

@@ -33,6 +33,8 @@ export const ChunkSchema = Schema.Struct({
   sourceEnd: NonNegativeInt,
   sourceByteStart: NonNegativeInt,
   sourceByteEnd: NonNegativeInt,
+  /** Start of original source records, after any synthetic per-file parser context. */
+  sourceRecordByteOffset: Schema.optional(NonNegativeInt),
   firstTimestamp: Schema.optional(Schema.Finite),
   lastTimestamp: Schema.optional(Schema.Finite),
   ownedFrameByteOffset: Schema.optional(NonNegativeInt),
@@ -48,6 +50,8 @@ export const ManifestSchema = Schema.Struct({
   sourceRevision: Schema.String,
   sourceByteLength: NonNegativeInt,
   sourceRecordCount: NonNegativeInt,
+  /** Direct capture offsets use decoded native frame wire lengths, not sparse file positions. */
+  sourceCoordinates: Schema.optional(Schema.Literal("native-wire-v1")),
   chunks: Schema.Array(ChunkSchema),
 });
 export type Manifest = typeof ManifestSchema.Type;
