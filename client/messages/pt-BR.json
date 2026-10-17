@@ -2432,6 +2432,8 @@
   "experiment_focus_driver_agent_label": "Treinador de pilotagem",
   "analyse_ai_analysis": "Análise de IA",
   "insight_category_suspension": "Suspensão",
+  "sessions_show_laps": "Mostrar voltas",
+  "sessions_hide_laps": "Ocultar voltas"
   "label_storage": "Armazenamento",
   "recording_layout_migration_title": "Organize suas gravações",
   "recording_layout_migration_description": "Agrupe gravações antigas por jogo, em pastas separadas para as suas gravações e as de outras pessoas.",

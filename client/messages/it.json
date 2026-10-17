@@ -2432,6 +2432,8 @@
   "experiment_guide": "Guida",
   "experiment_new_button": "+ Nuovo esperimento",
   "dash_waiting_track": "In attesa del tracciato…",
+  "sessions_show_laps": "Mostra giri",
+  "sessions_hide_laps": "Nascondi giri"
   "label_storage": "Archiviazione",
   "recording_layout_migration_title": "Organizza le tue registrazioni",
   "recording_layout_migration_description": "Raggruppa le vecchie registrazioni per gioco, in cartelle separate per le tue e quelle degli altri.",

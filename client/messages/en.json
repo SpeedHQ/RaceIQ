@@ -2432,6 +2432,8 @@
   "dash_waiting_track": "Waiting for track…",
   "experiment_focus_car_agent_label": "Race engineer",
   "experiment_focus_driver_agent_label": "Driver coach",
+  "sessions_show_laps": "Show laps",
+  "sessions_hide_laps": "Hide laps"
   "label_storage": "Storage",
   "recording_layout_migration_title": "Organize your recordings",
   "recording_layout_migration_description": "Group older recordings by game, with separate folders for your recordings and other people's.",

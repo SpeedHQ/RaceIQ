@@ -2432,6 +2432,8 @@
   "dash_waiting_track": "Wachten op circuit…",
   "experiment_focus_car_agent_label": "Race-engineer",
   "experiment_focus_driver_agent_label": "Rijcoach",
+  "sessions_show_laps": "Ronden tonen",
+  "sessions_hide_laps": "Ronden verbergen"
   "label_storage": "Opslag",
   "recording_layout_migration_title": "Je opnamen organiseren",
   "recording_layout_migration_description": "Groepeer oudere opnamen per spel, met aparte mappen voor jouw opnamen en die van anderen.",

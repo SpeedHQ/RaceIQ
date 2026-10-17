@@ -136,16 +136,23 @@ export function SessionDesktopTable({
               const bestTime = session.bestLapTime || (sessionLaps.length > 0 ? Math.min(...sessionLaps.map((lap) => lap.lapTime)) : 0);
               return (
                 <Fragment key={session.id}>
-                  <TableRow onClick={() => toggleExpand(session.id)} data-state={isExpanded ? "selected" : undefined} className={isExpanded && sessionLaps.length > 0 ? "border-b-0" : undefined}>
+                  <TableRow onClick={() => toggleExpand(session.id)} data-state={isExpanded ? "selected" : undefined} className={`cursor-pointer${isExpanded && sessionLaps.length > 0 ? " border-b-0" : ""}`}>
                     <TableCell className="text-center" onClick={(event) => event.stopPropagation()}>
                       <input type="checkbox" checked={selectedSessions.has(session.id)} onChange={(event) => toggleSessionSelection(session.id, event)} className="accent-app-accent w-4 h-4" />
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-app-label">
                       <div className="flex items-center gap-2">
-                        <span>
-                          {parseUtcTimestamp(session.createdAt).toLocaleDateString(getLocale())}{" "}
-                          <span className="text-app-text/90">{parseUtcTimestamp(session.createdAt).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" })}</span>
-                        </span>
+                        <button
+                          type="button"
+                          aria-expanded={isExpanded}
+                          title={isExpanded ? m.sessions_hide_laps() : m.sessions_show_laps()}
+                          onClick={(event) => { event.stopPropagation(); toggleExpand(session.id); }}
+                          className="cursor-pointer text-left text-inherit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+                        >
+                          <span>{parseUtcTimestamp(session.createdAt).toLocaleDateString(getLocale())}{" "}
+                            {parseUtcTimestamp(session.createdAt).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </button>
                         {session.source === "motec" && <MotecBadge />}
                         <FavoriteToggleButton target="session" id={session.id} isFavorite={Boolean(session.isFavorite)} />
                         <Button

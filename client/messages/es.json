@@ -2432,6 +2432,8 @@
   "experiment_focus_car_agent_label": "Ingeniero de carrera",
   "experiment_focus_driver_agent_label": "Entrenador de conducción",
   "tune_confirm": "Confirmar",
+  "sessions_show_laps": "Mostrar vueltas",
+  "sessions_hide_laps": "Ocultar vueltas"
   "label_storage": "Almacenamiento",
   "recording_layout_migration_title": "Organiza tus grabaciones",
   "recording_layout_migration_description": "Agrupa las grabaciones antiguas por juego, con carpetas separadas para tus grabaciones y las de otras personas.",

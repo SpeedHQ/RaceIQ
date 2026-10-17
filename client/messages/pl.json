@@ -2432,6 +2432,8 @@
   "experiment_focus_driver_agent_label": "Trener kierowcy",
   "ob_community_body": "RaceIQ to projekt open source, który rozwija się dzięki społeczności. Każdy może pomóc — rozpowszechniając informacje, zgłaszając pomysły i błędy lub współtworząc kod.",
   "settings_port_range_error": "Port musi mieścić się w zakresie 1024–65535",
+  "sessions_show_laps": "Pokaż okrążenia",
+  "sessions_hide_laps": "Ukryj okrążenia"
   "label_storage": "Pamięć",
   "recording_layout_migration_title": "Uporządkuj swoje nagrania",
   "recording_layout_migration_description": "Pogrupuj starsze nagrania według gier, w osobnych folderach dla swoich nagrań i nagrań innych osób.",

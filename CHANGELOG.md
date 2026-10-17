@@ -40,6 +40,7 @@
 - Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 
 ### Fixes
+- Show a pointer cursor over clickable session rows while preserving the original date/time appearance, keyboard controls, and separate Recap and Analyse actions.
 - Keep converted recordings from older releases readable after updating, including checkpoint-only F1, iRacing, and LMU captures.
 - Stop reopening the recording-organization success dialog after reload when no recordings need migration.
 - Show the track layout after the track name with a hyphen and remove the track-detail header subtitle.

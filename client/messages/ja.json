@@ -2433,6 +2433,8 @@
   "experiment_focus_car_agent_label": "レースエンジニア",
   "experiment_focus_driver_agent_label": "ドライビングコーチ",
   "experiment_focus_driver_hint": "運転技術の向上に集中しましょう。",
+  "sessions_show_laps": "ラップを表示",
+  "sessions_hide_laps": "ラップを非表示"
   "label_storage": "ストレージ",
   "recording_layout_migration_title": "録画を整理",
   "recording_layout_migration_description": "古い録画をゲームごとにまとめ、自分の録画と他の人の録画を別々のフォルダーに整理します。",

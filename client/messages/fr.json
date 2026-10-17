@@ -2432,6 +2432,8 @@
   "dash_waiting_track": "En attente du circuit…",
   "experiment_focus_car_agent_label": "Ingénieur de course",
   "experiment_focus_driver_agent_label": "Coach de pilotage",
+  "sessions_show_laps": "Afficher les tours",
+  "sessions_hide_laps": "Masquer les tours"
   "label_storage": "Stockage",
   "recording_layout_migration_title": "Organisez vos enregistrements",
   "recording_layout_migration_description": "Classez les anciens enregistrements par jeu, dans des dossiers distincts pour les vôtres et ceux des autres.",
