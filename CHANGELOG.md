@@ -1,65 +1,15 @@
 ## Unreleased
 
 ### Features
-- Record directly into separate per-lap recordings, continuing across lap boundaries without waiting for the next file to be created.
-### Breaking
-- Legacy full-frame RaceIQ captures are no longer supported for import and replay. Ensure any remaining legacy recordings are migrated when prompted before updating.
-
-### Feature
-- New desktop and self-hosted installs restrict dashboard access to this computer until you select additional network interfaces.
-- Password-protected dashboards use a login screen and browser sessions; API clients must sign in and send the session cookie and a CSRF token for writes.
-- Use string car and track IDs across imports and integrations instead of ordinal fields. Existing sessions and setup links migrate automatically; downgrading requires restoring a pre-upgrade database backup.
-
-- Open the dashboard on another LAN device using a copied link or QR code in Access & security settings.
-- Choose dashboard password protection during setup or in Access & security settings, sign in across devices, and recover a forgotten password from the terminal.
-- Select dashboard network interfaces and browser domains in Access & security settings without changing UDP telemetry reception.
-- Disable dashboard password protection from the terminal with an explicit exposure confirmation, without changing network access or recordings.
-- Add OBS streaming overlays in the Portable page for live driving, timing, standings, nearby race order, car damage (F1 25, ACC, AC Evo), brake/throttle inputs, and distance driven, with sample previews when telemetry is unavailable and copyable metric or imperial browser-source URLs.
-- Allow a saved hostname, including a Tailscale FQDN, for remote HUD links and QR codes.
-- Refresh the dashboard with cleaner session and favourite widgets, clean-rate and podium trends, and seven days of activity by default.
-- Retrieve automated lap insights on demand in Analyse chat before diagnosis and improvement advice, with visible tool activity and clear distinctions between missing data and no detected findings.
-- Export complete chat history as JSON for developer debugging, including retained chat generations, stored thinking, tool calls and results, and system prompts.
-- Optionally protect dashboard access with a password and configure trusted browser origins independently, while keeping existing local and remote access working without new settings.
-- Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
-- Choose a recording folder, safely relocate existing recordings, and optionally migrate recordings into per-game `own` and `others` folders.
-- Split completed and imported recordings into separate, independently replayable per-lap `.bin` files, with startup migration for existing session bundles.
+- Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
 
 ### Fixes
 - Use LMU game-world coordinates directly for track geometry, preserving edge-hugging and off-track positions.
-- Keep ACC and AC Evo circuit lap recordings together when distance counters reset without a lap-timer transition.
-- Prevent startup cleanup from stalling when completed sessions contain no laps.
-- Preserve durable recording data after a background writer fails.
-- Keep ACC and AC Evo recording after discarding a short initial lap fragment.
-- Preserve independently replayable iRacing laps when lap changes are confirmed late or recording stops before native timing resolves.
-- Restore fuel and tire-wear history for the first lap of each session.
-- Preserve selected lap telemetry and timing metadata across all supported games when exporting and importing lap archives.
-- Prompt to split existing sparse session recordings at startup, including seeded recordings, while automatically splitting newly imported sparse recordings.
-- Keep iRacing lap timing, validity, and pit classification consistent between live telemetry and imported recordings when the native lap timer rolls over late.
-- Preserve telemetry, replay lap clocks, saved lap times, and validity when transferring iRacing lap archives or reopening them after a restart.
-- Preserve split lap recordings and queued split jobs when moving the recording folder.
-- Preserve final timing samples through repeated lap archive transfers and background splitting.
-- Preserve selected imported laps when reprocessing recordings with separate finish context.
-- Restore command-line recording imports and exports, and report failed or partially imported archives with a failing exit status.
-- Finish recording shutdown cleanly when a background recording worker exits unexpectedly.
-- Restore migration of existing recordings into organized folders on Windows.
-- Keep experiment lap counts and review analysis tied to the selected test when importing historical laps or returning to an older setup, and preserve test membership during live updates.
-- Keep lap-chat follow-ups grounded in the selected lap and its latest analysis, use fresh telemetry for requested corner measurements, and preserve earlier driver notes without asking for internal lap identifiers.
-- Exclude running-start fragments from recorded lap replay and keep corner measurements and highlights aligned with the timed lap.
-- Restore dashboard, driver-profile, and Analyse pages when opening the app.
-- Restrict AI setup recommendations to available adjustments and legal values for the associated car and setup without dropping legal front-wing recommendations; suppress unchanged settings.
-- Show setup values from the lap's linked setup and preserve bump values in older saved AC Evo setups while keeping separate left/right Slow bump settings.
-- Block screenshots for chat models without verified image support and keep text conversations usable.
-- Remove failed screenshot messages without losing unrelated conversation or saved lap analysis.
-- Keep experiment AI chat tied to the selected version and its own laps; ask drivers to refresh when the version changes during a reply.
-- Create multiple confirmed setup alternatives in the same experiment chat reply without incorrectly asking drivers to refresh.
-
 - Prevent overlapping database writes from blocking recording imports and setup or session deletion.
 - Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.
 - Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
 
 ### Internal
-- Verify single-lap and selected-lap archive round trips for every supported game, including LMU, with session identity, sector timing, validity, and telemetry equality checks.
-- Harden release-gated live recording ownership, recovery, relocation, and cancelled staging-reader cleanup.
 - Reuse the Linux build artifact across Playwright shards and collect replay allocations sooner on memory-limited CI runners.
 - Avoid `bun run test` port collisions with running services by selecting available ports for Playwright server sets when overrides are unset, while honoring explicit `PW_*_PORT` values and preserving isolated test databases.
 - Reuse one prepared Playwright database snapshot across seeded server sets to avoid duplicate fixture imports.
