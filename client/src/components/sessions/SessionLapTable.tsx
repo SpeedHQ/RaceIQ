@@ -161,8 +161,8 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
             <Button
               variant="app-ghost"
               size="app-sm"
-              disabled={false}
-              title={undefined}
+              disabled={contextLap?.source !== "motec" && contextLap?.standaloneCaptureReady === false}
+              title={contextLap?.source !== "motec" && contextLap?.standaloneCaptureReady === false ? m.sessions_export_capture_not_ready() : undefined}
               className="w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover"
               onClick={async () => {
                 const lapId = contextMenu.lapId;
@@ -176,6 +176,9 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
             >
               {m.sessions_export_lap()}
             </Button>
+            {contextLap?.source !== "motec" && contextLap?.standaloneCaptureReady === false && (
+              <p className="max-w-64 px-3 py-1 text-xs text-app-text/90" role="status">{m.sessions_export_capture_not_ready()}</p>
+            )}
               </>
             )}
           </div>

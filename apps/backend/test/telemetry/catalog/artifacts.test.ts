@@ -193,6 +193,10 @@ describe("semantic telemetry catalog artifacts", () => {
     });
     expect(getTelemetryVariable("race.is-race-on").games).toMatchObject({
       "f1-2025": { kind: "unavailable", reason: "parser-placeholder" },
+      "ac-evo": {
+        kind: "normalized",
+        sources: ["AC-Evo.Graphics.status"],
+      },
       iracing: {
         kind: "normalized",
         sources: ["iRacing.IsOnTrack"],

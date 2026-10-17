@@ -108,6 +108,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     await mountStudioServer(app);
   }
 
+  await startSyncAndStaleSessionJobs();
   const httpServer = startHttpServer({
     app,
     port: httpPort,
@@ -145,7 +146,6 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   const udpPort = options.udpPort ?? (Number(process.env.RACEIQ_DEV_UDP_PORT) || settings.udpPort || Number(process.env.UDP_PORT) || 5301);
   void udpListener.start(udpPort);
 
-  startSyncAndStaleSessionJobs();
 
   nativeSources = startNativeSourceSupervisor(recordingGameId);
   const trayCandidates = httpAccess.hosts

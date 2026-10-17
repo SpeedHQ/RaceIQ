@@ -42,6 +42,7 @@ ACC-SPECIFIC RULES:
 - Output ONLY valid JSON, nothing else.`;
 
 export const accServerAdapter: ServerGameAdapter = {
+  parserStateIsFrameLocal: true,
   ...accAdapter,
 
   runtime: {

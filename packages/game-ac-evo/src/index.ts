@@ -8,6 +8,11 @@ import { LapDetectorAcEvo } from "./lap-detector";
 import { renderAnalystSchemaForPrompt } from "@raceiq/backend-core/ai/schemas";
 import { buildKunosAiContext } from "@raceiq/backend-core/games/kunos/ai-context";
 import { acEvoParser } from "./game-parser";
+import {
+  captureAcEvoParserCheckpoint,
+  restoreAcEvoParserCheckpoint,
+  type AcEvoParserCache,
+} from "./parser";
 
 const AC_EVO_SYSTEM_PROMPT = `You are an expert motorsport engineer and data analyst specializing in Assetto Corsa Evo.
 
@@ -64,6 +69,8 @@ export const acEvoServerAdapter: ServerGameAdapter = {
   tryParseLapIndex(buf, state, timestampMs) { return acEvoParser.tryParseLapIndex(buf, state as never, timestampMs ?? Date.now()); },
   primeParserState(buf, state) { acEvoParser.primeParserState(buf, state as never); },
   createParserState: acEvoParser.createParserState,
+  captureParserCheckpoint(state) { return captureAcEvoParserCheckpoint(state as AcEvoParserCache); },
+  restoreParserCheckpoint(_state, payload) { return restoreAcEvoParserCheckpoint(payload); },
   createLapDetector: (opts) => new LapDetectorAcEvo(opts),
   aiSystemPrompt: AC_EVO_SYSTEM_PROMPT,
   buildAiContext(packets: TelemetryPacket[]): string { return buildKunosAiContext(packets, false); },

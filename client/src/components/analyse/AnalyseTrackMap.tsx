@@ -3,7 +3,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffec
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { compositeTrack, drawCarOverlay } from "./track-map/overlay-drawing";
-import { alignTrackBoundariesToPositions, pathForwardOffsets, resolveTrackPositions } from "./track-map/path";
+import { pathForwardOffsets, resolveTrackPositions } from "./track-map/path";
 import { drawStaticTrack } from "./track-map/static-drawing";
 import type { TrackMapHandle, TrackMapProps, TrackTransform } from "./track-map/types";
 
@@ -34,10 +34,6 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
   const transformRef = useRef<TrackTransform | null>(null);
   const sceneRef = useRef<SceneBuilder | null>(null);
   const resolvedPositions = useMemo(() => resolveTrackPositions(telemetry, outline), [telemetry, outline]);
-  const displayBoundaries = useMemo(
-    () => gameId === "lmu" ? alignTrackBoundariesToPositions(boundaries, resolvedPositions) : boundaries,
-    [boundaries, gameId, resolvedPositions],
-  );
   const resolvedDirections = useMemo(() => pathForwardOffsets(resolvedPositions), [resolvedPositions]);
 
   const drawStatic = useCallback(() => {
@@ -52,7 +48,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       closed,
       outline,
       mapLabels,
-      boundaries: displayBoundaries,
+      boundaries,
       pitLines,
       sectors,
       segments,
@@ -83,7 +79,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       const ctx = getSemanticCanvasContext(carCanvasRef.current);
       ctx?.clearRect(0, 0, carCanvasRef.current.width, carCanvasRef.current.height);
     }
-  }, [gameId, telemetry, resolvedPositions, outline, closed, mapLabels, pitLines, displayBoundaries, sectors, segments, highlights, showInputs, showRaceLine, showTrace, rotateWithCar, zoom, zoomBehavior]);
+  }, [gameId, telemetry, resolvedPositions, outline, closed, mapLabels, pitLines, boundaries, sectors, segments, highlights, showInputs, showRaceLine, showTrace, rotateWithCar, zoom, zoomBehavior]);
 
   const renderOverlayOptions = useCallback(
     () => ({

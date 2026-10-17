@@ -6,6 +6,13 @@ import { assertLapTimesProper, assertValidLapHasSectors } from "@raceiq/backend-
 import { generateRecordingVisualizations } from "@raceiq/backend-core/test-support/laps/visualizations";
 import { getRecordingFixture } from "@raceiq/backend-core/test-support/recordings/fixtures";
 
+import { forzaServerAdapter } from "../../src/index";
+
+test("FM-2023 remains without a parser checkpoint codec", () => {
+  expect("captureParserCheckpoint" in forzaServerAdapter).toBe(false);
+  expect("restoreParserCheckpoint" in forzaServerAdapter).toBe(false);
+});
+
 describe("FM-2023 recording", () => {
   describe("fm-2023-2026-04-09T21-53-00-102Z", () => {
     const recordingFile = "fm-2023-2026-04-09T21-53-00-102Z.bin.gz";

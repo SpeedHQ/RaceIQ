@@ -170,7 +170,7 @@ async function main(): Promise<void> {
         try {
           const result = await importSessionBin(readFileSync(converted.path), game, {
             notifyDriverProfile: false,
-            recorder: new SparseSessionRecorderAdapter(),
+            recorder: new SparseSessionRecorderAdapter("mine", {}, "offline"),
           });
           const seededSessionIds = (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, game)).all())
             .map((row) => row.id)
