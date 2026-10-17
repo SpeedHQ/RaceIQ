@@ -143,6 +143,33 @@ describe("pre-write lap checkpoint hints", () => {
       startOffset: 8_200, startOrdinal: 82, frameCount: 1, status: "provisional",
     });
   });
+  test.each(["acc", "ac-evo"] as const)("%s completes at timer rollover despite distance reset", async (gameId) => {
+    const engine = new KunosDetectorEngine({
+      createSession: async () => {},
+      backfillSessionIdentifiers: () => {},
+      isPitOnly: () => false,
+      emitLap: async () => {},
+    });
+    for (let ordinal = 0; ordinal < 40; ordinal++) {
+      const offset = 1_000 + ordinal * 100;
+      engine.observeSourceRecord(offset, offset + 100, ordinal);
+      await engine.feed(pkt({ gameId, CurrentLap: ordinal, DistanceTraveled: 2_000 + ordinal * 50 }), offset, ordinal);
+    }
+    engine.drainOwnershipTransitions();
+    const rollover = pkt({ gameId, LapNumber: 2, CurrentLap: 0.1, LastLap: 39, DistanceTraveled: 0 });
+    expect(engine.shouldCheckpoint(rollover)).toBe(true);
+    engine.observeSourceRecord(5_000, 5_100, 40);
+    await engine.feed(rollover, 5_000, 40);
+    const transitions = engine.drainOwnershipTransitions();
+    expect(transitions.some(({ kind }) => kind === "window-abandoned")).toBe(false);
+    expect(transitions.find(({ kind }) => kind === "window-finalized")?.window).toMatchObject({
+      lapNumber: 1, startOffset: 1_000, frameCount: 40,
+    });
+    expect(transitions.find(({ kind }) => kind === "window-start")?.window).toMatchObject({
+      lapNumber: 2, startOffset: 5_000, frameCount: 1,
+    });
+  });
+
   test("Kunos and iRacing checkpoint source candidate before boundary confirmation", async () => {
     const kunos = new KunosDetectorEngine({
       createSession: async () => {},
@@ -153,7 +180,8 @@ describe("pre-write lap checkpoint hints", () => {
     const kunosPacket = pkt({ gameId: "acc", LapNumber: 1 });
     expect(kunos.shouldCheckpoint(kunosPacket)).toBe(true);
     await kunos.feed(kunosPacket);
-    expect(kunos.shouldCheckpoint(pkt({ gameId: "acc", LapNumber: 1, DistanceTraveled: 1_000 }))).toBe(true);
+    expect(kunos.shouldCheckpoint(pkt({ gameId: "acc", LapNumber: 1, CurrentLap: 31, DistanceTraveled: 1_000 }))).toBe(false);
+    expect(kunos.shouldCheckpoint(pkt({ gameId: "acc", LapNumber: 2, CurrentLap: 0.1, LastLap: 30, DistanceTraveled: 1_000 }))).toBe(true);
 
     const iracing = new IRacingDetectorEngine({
       now: () => 1_000,

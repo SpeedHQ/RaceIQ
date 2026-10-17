@@ -25,6 +25,8 @@
 - Split completed and imported recordings into separate, independently replayable per-lap `.bin` files, with startup migration for existing session bundles.
 
 ### Fixes
+- Keep LMU replay maps aligned across a session by using position evidence from all its laps, including partial laps.
+- Keep ACC and AC Evo circuit lap recordings together when distance counters reset without a lap-timer transition.
 - Prevent startup cleanup from stalling when completed sessions contain no laps.
 - Preserve durable recording data after a background writer fails.
 - Keep ACC and AC Evo recording after discarding a short initial lap fragment.

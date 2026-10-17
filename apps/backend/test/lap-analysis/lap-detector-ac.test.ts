@@ -335,7 +335,26 @@ describe("LapDetectorAc — reset detection", () => {
     expect(db.inserted[1].lapTime).toBeCloseTo(85, 0);
   });
 
-  test("session restart (distance reset) discards in-progress lap and keeps new packet", async () => {
+  test("distance reset with continuing timer preserves lap ownership", async () => {
+    const db = makeFakeDb();
+    const d = new LapDetectorAcc({ db });
+    for (let t = 0; t <= 10; t++) {
+      await d.feed(packet({ LapNumber: 4, CurrentLap: t, DistanceTraveled: 11_758 + t * 25 }), 100 + t * 10, t);
+    }
+    d.drainOwnershipTransitions();
+    const reset = packet({ LapNumber: 4, CurrentLap: 11.112, DistanceTraveled: 0 });
+    expect(d.shouldCheckpointBeforeWrite(reset)).toBe(false);
+    await d.feed(reset, 210, 11);
+    expect(d.drainOwnershipTransitions().some(({ kind }) => kind === "window-abandoned")).toBe(false);
+    for (let t = 12; t <= 15; t++) {
+      await d.feed(packet({ LapNumber: 4, CurrentLap: t, DistanceTraveled: 0.1 }), 100 + t * 10, t);
+    }
+    await d.flushIncompleteLap();
+    expect(db.inserted).toHaveLength(1);
+    expect(db.inserted[0]).toMatchObject({ lapNumber: 4, rawByteOffset: 100, rawFrameCount: 16, lapTime: 15 });
+  });
+
+  test("timer restart discards in-progress prefix and keeps new packet", async () => {
     const db = makeFakeDb();
     const saved: Array<{ lapNumber: number; lapTime: number }> = [];
     const d = new LapDetectorAcc({

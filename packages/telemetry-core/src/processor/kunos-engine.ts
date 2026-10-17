@@ -160,7 +160,6 @@ export class KunosDetectorEngine {
     }
     const prev = this.lapBuffer[this.lapBuffer.length - 1];
     if (!prev) return false;
-    if (packet.DistanceTraveled < prev.DistanceTraveled - 100) { this.publishCandidateStart(packet); return true; }
     const evidence = getKunosLapResetEvidence(prev, packet, this.currentLapNumber);
     const candidate = isKunosPreLapTimerReset(prev, evidence) || isKunosCompletedLapReset(prev, evidence);
     if (candidate) this.publishCandidateStart(packet);
@@ -265,10 +264,6 @@ export class KunosDetectorEngine {
       return;
     }
     const prev = this.lapBuffer[this.lapBuffer.length - 1];
-    if (prev && packet.DistanceTraveled < prev.DistanceTraveled - 100) {
-      this.resetCapture(rawByteOffset); this.lapBuffer.push(packet); this.updatePeak(packet);
-      this.publishOwnership("window-start", this.ownershipWindow("provisional")); return;
-    }
     if (!prev) {
       this.lapBuffer.push(packet); this.updatePeak(packet);
       if (this.lapByteOffset !== null) this.publishOwnership("window-start", this.ownershipWindow("provisional"));
