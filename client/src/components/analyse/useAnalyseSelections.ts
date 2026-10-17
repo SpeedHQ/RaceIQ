@@ -1,13 +1,10 @@
 import { getGame } from "@raceiq/shared/games/registry"
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import { useCarName, useResolveNames } from "../../hooks/catalog-queries";
 import type { SemanticReplayFrame } from "../../hooks/laps";
 import { useLapSemanticTelemetry, useLaps as useLapsQuery } from "../../hooks/laps";
-import { client } from "../../lib/rpc";
-import { rpcJson } from "../../lib/rpc-json";
 import { useTrackBoundaries, useTrackName, useTrackOutline, useTrackSectorBoundaries, useTrackSectors } from "../../hooks/track-queries";
 import { useCookieState } from "../../hooks/useCookieState";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
@@ -15,7 +12,6 @@ import type { AnalyseSearch } from "../../lib/game-routes";
 import { mergeNameCache } from "../../lib/name-cache";
 import { routePrefixForGameId } from "../../lib/game-routes";
 import { isPitLine } from "@/lib/canvas/draw-track";
-import { alignTrackBoundariesToSession } from "./track-map/session-alignment";
 import {
   DEFAULT_TRACK_OVERLAYS,
   semanticValues,
@@ -26,37 +22,6 @@ import {
   type TrackMapLabel,
   type TrackOverlays,
 } from "./track-map/types";
-const SESSION_ALIGNMENT_SAMPLE_LIMIT = 256;
-type SessionAlignmentResponse = { parseError?: string | null; envelopes: SemanticReplayFrame[] };
-function sampleLapPositions(envelopes: SemanticReplayFrame[]): Point[] {
-  const positions: Point[] = [];
-  for (const envelope of envelopes) {
-    const xValue = envelope.values.find((value) => value.semanticId === "motion.position-x");
-    const zValue = envelope.values.find((value) => value.semanticId === "motion.position-z");
-    if ((xValue?.state != null && xValue.state !== "ok") || (zValue?.state != null && zValue.state !== "ok")) continue;
-    const x = xValue?.value;
-    const z = zValue?.value;
-    if (typeof x !== "number" || typeof z !== "number" || !Number.isFinite(x) || !Number.isFinite(z)) continue;
-    const point = { x, z };
-    const previous = positions.at(-1);
-    if (!previous || Math.hypot(point.x - previous.x, point.z - previous.z) > 1) positions.push(point);
-  }
-  if (positions.length <= SESSION_ALIGNMENT_SAMPLE_LIMIT) return positions;
-  const cumulative = [0];
-  for (let i = 1; i < positions.length; i++) {
-    cumulative.push(cumulative[i - 1]! + Math.hypot(positions[i]!.x - positions[i - 1]!.x, positions[i]!.z - positions[i - 1]!.z));
-  }
-  const total = cumulative.at(-1)!;
-  if (total <= 0) return [positions[0]!];
-  const sampled: Point[] = [];
-  let index = 0;
-  for (let i = 0; i < SESSION_ALIGNMENT_SAMPLE_LIMIT; i++) {
-    const target = total * i / (SESSION_ALIGNMENT_SAMPLE_LIMIT - 1);
-    while (index < cumulative.length - 1 && cumulative[index]! < target) index++;
-    sampled.push(positions[index]!);
-  }
-  return sampled;
-}
 interface AnalyseSemanticFrame {
   sequence: number;
   observedAtMs: number;
@@ -130,45 +95,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     return Array.isArray(labels) ? (labels as TrackMapLabel[]) : null;
   }, [outlineRaw]);
   const { data: boundariesRaw } = useTrackBoundaries(trackId ?? undefined);
-  const sessionAlignmentId = sessionId ?? selectedLap?.sessionId ?? null;
-  const sessionAlignmentLaps = useMemo(
-    () => allLaps.filter((lap) =>
-      sessionAlignmentId != null &&
-      lap.sessionId === sessionAlignmentId &&
-      (lap.gameId == null || lap.gameId === gameId) &&
-      lapTrackKey(lap) === trackId
-    ).sort((a, b) => a.id - b.id),
-    [allLaps, sessionAlignmentId, gameId, trackId],
-  );
-  const sessionAlignmentLapIds = useMemo(() => sessionAlignmentLaps.map((lap) => lap.id), [sessionAlignmentLaps]);
-  const sessionAlignmentQuery = useQuery({
-    queryKey: ["session-track-position-evidence", gameId, sessionAlignmentId, trackId, sessionAlignmentLapIds],
-    enabled: gameId === "lmu" && sessionAlignmentId != null && trackId != null && sessionAlignmentLapIds.length > 0,
-    queryFn: async () => {
-      const samples: Point[][] = [];
-      for (const lapId of sessionAlignmentLapIds) {
-        const response = await client.api.laps[":id"]["semantic-telemetry"].$get(
-          { param: { id: String(lapId) } },
-          { init: { headers: { "X-Game-Id": gameId } } },
-        );
-        const replay = await rpcJson<SessionAlignmentResponse>(response);
-        samples.push(sampleLapPositions(replay.envelopes ?? []));
-      }
-      return samples;
-    },
-    staleTime: Number.POSITIVE_INFINITY,
-    gcTime: 5 * 60 * 1000,
-  });
   const boundaries = boundariesRaw && typeof boundariesRaw === "object" ? (boundariesRaw as TrackMapBoundaries) : null;
-  const alignedBoundaries = useMemo(
-    () => gameId === "lmu" && sessionAlignmentQuery.isSuccess
-      ? alignTrackBoundariesToSession(boundaries, sessionAlignmentQuery.data)
-      : boundaries,
-    [gameId, boundaries, sessionAlignmentQuery.isSuccess, sessionAlignmentQuery.data],
-  );
-  const displayOutline = gameId === "lmu" && alignedBoundaries !== boundaries && alignedBoundaries?.centerLine.length
-    ? alignedBoundaries.centerLine
-    : outline;
   const { data: sectorsRaw } = useTrackSectorBoundaries(trackId ?? undefined);
   const sectorData = useMemo<{ sectorStarts: number[]; sectorCount: number; firstDist: number; lapDist: number; times: number[] } | null>(() => {
     if (!semanticReplay || semanticFrames.length < 2) return null;
@@ -308,10 +235,10 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     setSelectedCar,
     selectedLapId,
     setSelectedLapId,
-    outline: displayOutline,
+    outline,
     closed,
     mapLabels,
-    boundaries: alignedBoundaries,
+    boundaries,
     pitLines,
     sectorData,
     sectors,
