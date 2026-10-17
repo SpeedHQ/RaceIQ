@@ -25,7 +25,7 @@
 - Split completed and imported recordings into separate, independently replayable per-lap `.bin` files, with startup migration for existing session bundles.
 
 ### Fixes
-- Keep LMU replay track geometry fixed in game-world coordinates so edge-hugging and off-track driving retain their recorded positions.
+- Use LMU game-world coordinates directly for track geometry, preserving edge-hugging and off-track positions.
 - Keep ACC and AC Evo circuit lap recordings together when distance counters reset without a lap-timer transition.
 - Prevent startup cleanup from stalling when completed sessions contain no laps.
 - Preserve durable recording data after a background writer fails.
