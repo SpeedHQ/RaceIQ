@@ -40,7 +40,7 @@ permissions:
 
 jobs:
   render:
-    name: visual-regression/storybook-snapshots
+    name: Render
     timeout-minutes: 30
     runs-on:
       - mars-ubuntu-2vcpu-10g

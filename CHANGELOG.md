@@ -14,6 +14,7 @@
 - Update live iRacing browser checks to expect the Tires section to be absent in Driver and Pit Crew views.
 - Run locale generation before frontend contract typechecking so clean CI workspaces resolve Paraglide modules.
 - Compare archived PR-head and base screenshots in the final comment workflow to generate UI diff images.
+- Shorten visual and Playwright job labels while preserving parallel workflow branches.
 
 ## v0.20.0 - 2026-10-15
 
