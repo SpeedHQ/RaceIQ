@@ -181,7 +181,7 @@ export function SessionDesktopTable({
                   {isExpanded && gameId && (
                     <TableRow className={sessionLaps.length > 0 ? "border-b-0 hover:bg-transparent" : "hover:bg-transparent"}>
                       <TableCell colSpan={colCount} className={sessionLaps.length > 0 ? "[&>section]:border-b-0 [&>div]:border-b-0" : undefined}>
-                        <RaceResultLedger sessionId={session.id} gameId={gameId} enabled={isExpanded} />
+                        <RaceResultLedger sessionId={session.id} gameId={gameId} enabled={isExpanded} laps={sessionLaps} />
                       </TableCell>
                     </TableRow>
                   )}

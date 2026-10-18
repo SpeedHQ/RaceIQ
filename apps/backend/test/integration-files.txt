@@ -87,6 +87,7 @@ apps/backend/test/live-strategy/sector-tracker.test.ts
 apps/backend/test/motec/import-staging.test.ts
 apps/backend/test/motec/motec-import.test.ts
 apps/backend/test/motec/motec-viz.test.ts
+apps/backend/test/race-results/f1-session-metadata-repair.test.ts
 apps/backend/test/race-results/race-results-authority.test.ts
 apps/backend/test/race-results/race-results-derive.test.ts
 apps/backend/test/race-results/race-results-source.test.ts

@@ -54,4 +54,18 @@ describe("portable lap policies", () => {
     expect(LMU_LAP_DETECTOR_POLICY.classifyPitCycle(completeLap("lmu"), 0)).toBeNull();
     expect(LMU_LAP_DETECTOR_POLICY.classifyPitCycle(completeLap("lmu"), 1)).toBeNull();
   });
+  test("treats a pit-started opening LMU segment as incomplete rather than in-lap", () => {
+    const packets = completeLap("lmu").map((item, index) => ({
+      ...item,
+      lmu: { inPits: index < 4 || index > 26 },
+    } as TelemetryPacket));
+    expect(LMU_LAP_DETECTOR_POLICY.classifyPitCycle(packets, 0)).toBeNull();
+    expect(LMU_LAP_DETECTOR_POLICY.invalidReason?.(packets, 0)).toBe("incomplete");
+    const laterLap = completeLap("lmu").map((item, index) => ({
+      ...item,
+      lmu: { inPits: index > 26 },
+    } as TelemetryPacket));
+    expect(LMU_LAP_DETECTOR_POLICY.classifyPitCycle(laterLap, 1)).toBe("inlap");
+    expect(LMU_LAP_DETECTOR_POLICY.invalidReason?.(laterLap, 1)).toBeNull();
+  });
 });

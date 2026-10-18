@@ -4,7 +4,7 @@ import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 export interface LapDetectorPolicy {
   resolveLapTime(packets: readonly TelemetryPacket[], newLapFirstPacket: TelemetryPacket): number;
   classifyPitCycle(packets: readonly TelemetryPacket[], completedLapCount: number): PitCycleReason | null;
-  invalidReason?(packets: readonly TelemetryPacket[]): string | null;
+  invalidReason?(packets: readonly TelemetryPacket[], completedLapCount: number): string | null;
 }
 
 export interface LapQualityResult {

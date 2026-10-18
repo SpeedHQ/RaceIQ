@@ -75,6 +75,26 @@ function parseNative(
 ): TelemetryPacket | null {
   return f1Parser.tryParse(nativePacket(header(packetId, sessionTime, sessionUID), data), state);
 }
+test("native session packet decodes current F1 25 session IDs and preserves unknown values", () => {
+  const sessionType = (code: number): string => {
+    const state = nativeAccumulator();
+    const session = Buffer.alloc(125);
+    session.writeUInt8(code, 6);
+    const packet = f1Parser.tryParse(
+      nativePacket(header(F1_PACKET_IDS.SESSION), session),
+      state,
+    );
+    return packet?.f1?.sessionType ?? "missing";
+  };
+
+  expect(sessionType(10)).toBe("sprint-shootout-1");
+  expect(sessionType(14)).toBe("one-shot-sprint-shootout");
+  expect(sessionType(15)).toBe("race");
+  expect(sessionType(16)).toBe("race-2");
+  expect(sessionType(17)).toBe("race-3");
+  expect(sessionType(18)).toBe("time-trial");
+  expect(sessionType(19)).toBe("unknown");
+});
 test("F1 parser checkpoint encodes bigint identity and restores accumulated state", () => {
   const continuous = new F1StateAccumulator();
   continuous.feed(header(0), frame(Buffer.alloc(60)));

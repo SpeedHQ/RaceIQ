@@ -82,9 +82,12 @@ export function resolveLMULapTime(packets: readonly TelemetryPacket[], firstPack
   return packets.reduce((peak, packet) => Math.max(peak, packet.CurrentLap), 0);
 }
 
-export function resolveLMUInvalidReason(packets: readonly TelemetryPacket[]): string | null {
-  return packets.some(packet => packet.lmu?.lapInvalidated) ? "game-invalidated" : null;
+export function resolveLMUInvalidReason(packets: readonly TelemetryPacket[], completedLapCount = 0): string | null {
+  if (packets.some(packet => packet.lmu?.lapInvalidated)) return "game-invalidated";
+  if (completedLapCount === 0 && packets[0]?.lmu?.inPits === true) return "incomplete";
+  return null;
 }
-export function classifyLMUPitCycle(packets: readonly TelemetryPacket[]): PitCycleReason | null {
+export function classifyLMUPitCycle(packets: readonly TelemetryPacket[], completedLapCount = 0): PitCycleReason | null {
+  if (completedLapCount === 0 && packets[0]?.lmu?.inPits === true) return null;
   return classifyPitCycleLap(packets);
 }

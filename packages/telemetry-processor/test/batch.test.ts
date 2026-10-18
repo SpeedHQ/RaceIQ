@@ -76,6 +76,7 @@ describe("processTelemetryBatch", () => {
       { sessionKey: 2, lapNumber: 1, lapTime: 51.28666687011719, valid: true, invalidReason: null, frameCount: 3_077, complete: true, byteOffset: 2_692_399 },
       { sessionKey: 2, lapNumber: 2, lapTime: 10.968429565429688, valid: false, invalidReason: "incomplete at end of input", frameCount: 654, complete: false, byteOffset: 3_723_194 },
     ]);
+    expect(result.laps.map(({ classification }) => classification)).toEqual([null, "pace", "pace", null]);
   });
 
   test("emits parsed lap at ordinal boundary with real offset and frame count", async () => {
@@ -176,7 +177,7 @@ describe("processTelemetryBatch", () => {
     ]);
     expect(result.sessions).toHaveLength(1);
     expect(result.laps.slice(0, 1)).toMatchObject([{
-      lapNumber: 1, lapTime: 31.917, byteOffset: 1, frameCount: 65, complete: true, valid: true,
+      lapNumber: 1, lapTime: 31.917, byteOffset: 1, frameCount: 65, complete: true, valid: true, classification: "pace",
     }]);
   });
   test("preserves canonical F1 session, lap, offset, and timing results", async () => {

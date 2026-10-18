@@ -134,8 +134,8 @@ export async function processTelemetryBatch(gameId: GameId, frames: readonly Tel
       engine.trimRunningStartPackets();
       const pitReason = mergePitCycleReason(asPitCycleReason(s.currentPitCycleReason), policy.classifyPitCycle(s.lapBuffer, s.completedLapCount));
       const q = assessLapRecording(s.lapBuffer, time, { closed: !pitReason });
-      const policyReason = policy.invalidReason?.(s.lapBuffer) ?? null;
-      const classification = classifyLapCategory(s.lapBuffer, pitReason, undefined, q.valid);
+      const policyReason = policy.invalidReason?.(s.lapBuffer, s.completedLapCount) ?? null;
+      const classification = policyReason === "incomplete" ? null : classifyLapCategory(s.lapBuffer, pitReason, undefined, q.valid);
       const reason = s.invalidReason ?? policyReason ?? (!q.valid ? q.reason : null);
       push(s.session!.sessionKey, s.lapNumber, time, s.lapBuffer, s.lapIsValid && !policyReason && q.valid, reason, s.lapByteOffset, s.lapByteOffset === null ? 0 : s.lapFrameCount, true, classification);
       return true;
@@ -150,8 +150,8 @@ export async function processTelemetryBatch(gameId: GameId, frames: readonly Tel
       if (complete) engine.trimRunningStartPackets();
       const pitReason = complete ? mergePitCycleReason(asPitCycleReason(s.currentPitCycleReason), policy.classifyPitCycle(s.lapBuffer, s.completedLapCount)) : null;
       const q = complete ? assessLapRecording(s.lapBuffer, time, { closed: !pitReason }) : { valid: false, reason: "incomplete at end of input" };
-      const policyReason = complete ? policy.invalidReason?.(s.lapBuffer) ?? null : null;
-      const classification = complete ? classifyLapCategory(s.lapBuffer, pitReason, undefined, q.valid) : null;
+      const policyReason = complete ? policy.invalidReason?.(s.lapBuffer, s.completedLapCount) ?? null : null;
+      const classification = complete && policyReason !== "incomplete" ? classifyLapCategory(s.lapBuffer, pitReason, undefined, q.valid) : null;
       const reason = s.invalidReason ?? policyReason ?? (q.valid ? null : q.reason);
       push(s.session!.sessionKey, s.lapNumber, time, s.lapBuffer, complete && s.lapIsValid && !policyReason && q.valid, reason, s.lapByteOffset, s.lapByteOffset === null ? 0 : s.lapFrameCount, complete, classification);
     },

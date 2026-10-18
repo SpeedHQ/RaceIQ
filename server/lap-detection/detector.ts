@@ -362,13 +362,13 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
         this.currentPitCycleReason,
         this.lapPolicy.classifyPitCycle(this.lapBuffer, this.completedLapCount),
       );
-      const policyReason = this.lapPolicy.invalidReason?.(this.lapBuffer) ?? null;
+      const policyReason = this.lapPolicy.invalidReason?.(this.lapBuffer, this.completedLapCount) ?? null;
       const quality = assessLapRecording(this.lapBuffer, lapTime, { closed: !pitReason });
       const invalidReason =
         this.invalidReason ??
         policyReason ??
         (!quality.valid ? quality.reason : null);
-      const classification = classifyLapCategory(this.lapBuffer, pitReason, undefined, quality.valid);
+      const classification = policyReason === "incomplete" ? null : classifyLapCategory(this.lapBuffer, pitReason, undefined, quality.valid);
       const valid = this.lapIsValid && policyReason === null && quality.valid;
       traceCapture(this.currentSession.gameId, "lap-boundary-stage", {
         sessionId: this.currentSession.sessionId,

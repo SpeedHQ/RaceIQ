@@ -5,6 +5,7 @@ import { getLapsForSession } from "../db/lap-reprocessing-queries";
 import { and, eq, gt } from "drizzle-orm";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
+import { updateSession } from "../db/session-queries";
 import { getSessionResult, getStaleRaceResultSessionIds, upsertSessionResult } from "../db/session-result-queries";
 import { getSessionRawFile, iterateSessionTelemetry } from "../db/telemetry-replay-storage";
 import { deriveRaceResult, normalizeSessionType } from "./derive";
@@ -14,7 +15,7 @@ import type { RaceResultRawInputIdentity } from "@raceiq/shared/racing/results/t
 import { hashRawCapture, rawCaptureObjectId } from "../session-capture/identity";
 import { getAllServerGames } from "../games/registry";
 
-export const RACE_RESULT_PROCESSOR_ID = "race-result-v4";
+export const RACE_RESULT_PROCESSOR_ID = "race-result-v5";
 
 async function rawInputIdentity(sessionId: number, rawFile: string | null | undefined): Promise<RaceResultRawInputIdentity | null> {
   if (!rawFile) return null;
@@ -98,7 +99,12 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
   }
 
   const source = accumulator.finish();
-  if (session.sessionType) {
+  const sessionTypeConflict = source.evidence.conflicts.some((conflict) => conflict.startsWith("session-type:"));
+  const hasDirectTypeEvidence = source.evidence.fieldStatus.sessionType === "direct" && !!source.sessionType;
+  const canRepairF1Type = gameId === "f1-2025" && hasDirectTypeEvidence && !sessionTypeConflict;
+  if (canRepairF1Type) {
+    if (source.sessionType !== session.sessionType) await updateSession(sessionId, { sessionType: source.sessionType! });
+  } else if (session.sessionType) {
     if (!source.sessionType) {
       source.sessionType = session.sessionType;
       source.evidence.fieldStatus.sessionType = "direct";

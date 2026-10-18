@@ -3,10 +3,20 @@
 ### Features
 - Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
 - Automatically check existing recordings for non-pace laps after upgrades, with progress, source limitations, and retry controls in Settings → Updates.
+- Show lap classifications separately from validity in expanded session lap tables.
+- Simplify session timelines into compact circles with single-word event labels, starting positions, and arrows showing the new position.
 
 ### Fixes
+- Correct F1 25 race, time-trial, and sprint-qualifying session types, and recover mislabeled session metadata from existing recordings during result reprocessing.
+- Distinguish qualifying grid position from lap session type: show Qualified with its position in timelines and a separate session-type column beside lap classifications.
+- Show in-laps as Pit nodes in session timelines, retaining recorded pit-stop details without duplicate nodes.
+- Show known incomplete laps as Incomplete instead of Unclassified in session lap tables.
+- Recognize normal pace laps in every supported game, including Forza Motorsport, iRacing, and Le Mans Ultimate, and reassess existing recordings automatically.
+- Classify ACC teleports to the pits as Reset rather than ordinary in-laps, and exclude them from pace statistics.
 - Keep valid pit-cycle laps valid while excluding non-pace laps from live lap and sector bests.
+- Mark LMU's pit-started opening lap incomplete instead of treating it as a valid in-lap.
 - Preserve F1 race-start evidence when loading individual recorded laps.
+- Preserve telemetry-detected out-laps when linked pit-event inference marks the same lap as an in-lap.
 - Recognize AC Evo pace laps using the game's native session type.
 - Keep historical lap classification current after recordings are moved or deleted.
 - Keep track statistics usable when a Race or Quali filter has no pace laps.

@@ -11,7 +11,7 @@ import type {
   ClassificationMigrationStatus,
 } from "@raceiq/shared/racing/laps/classification-migration";
 
-export const CLASSIFICATION_MIGRATION_VERSION = 1;
+export const CLASSIFICATION_MIGRATION_VERSION = 3;
 export type ClassificationBarrierName = "beforeTransaction" | "insideTransaction" | "afterCommitBeforeAggregates" | "duringDecodeBatch";
 const MARK_CAPTURE_FACTS_DIRTY_SQL = `INSERT INTO dashboard_summary_state
   (session_id,source_revision,metadata_dirty,capture_dirty,capture_ready)

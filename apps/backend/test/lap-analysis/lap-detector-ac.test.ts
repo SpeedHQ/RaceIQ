@@ -340,23 +340,35 @@ describe("LapDetectorAc — reset detection", () => {
     expect(db.inserted[1].lapTime).toBeCloseTo(85, 0);
   });
 
-  test("distance reset with continuing timer preserves lap ownership", async () => {
+  test("teleport to pits with continuing timer preserves lap ownership and persists reset classification", async () => {
     const db = makeFakeDb();
     const d = new LapDetectorAcc({ db });
     for (let t = 0; t <= 10; t++) {
-      await d.feed(packet({ LapNumber: 4, CurrentLap: t, DistanceTraveled: 11_758 + t * 25 }), 100 + t * 10, t);
+      await d.feed(packet({
+        LapNumber: 4, CurrentLap: t, DistanceTraveled: 11_758 + t * 25,
+        TimestampMS: t * 1_000, PositionX: 100, PositionY: 5, PositionZ: 200,
+        acc: { pitStatus: "out" } as never,
+      }), 100 + t * 10, t);
     }
     d.drainOwnershipTransitions();
-    const reset = packet({ LapNumber: 4, CurrentLap: 11.112, DistanceTraveled: 0 });
+    const reset = packet({
+      LapNumber: 4, CurrentLap: 11.112, DistanceTraveled: 0, TimestampMS: 10_190,
+      PositionX: 343.5, PositionY: 5, PositionZ: 200, acc: { pitStatus: "pit_lane" } as never,
+    });
     expect(d.shouldCheckpointBeforeWrite(reset)).toBe(false);
     await d.feed(reset, 210, 11);
     expect(d.drainOwnershipTransitions().some(({ kind }) => kind === "window-abandoned")).toBe(false);
     for (let t = 12; t <= 15; t++) {
-      await d.feed(packet({ LapNumber: 4, CurrentLap: t, DistanceTraveled: 0.1 }), 100 + t * 10, t);
+      await d.feed(packet({
+        LapNumber: 4, CurrentLap: t, DistanceTraveled: 0.1, TimestampMS: t * 1_000,
+        PositionX: 343.5, PositionY: 5, PositionZ: 200, acc: { pitStatus: "pit_lane" } as never,
+      }), 100 + t * 10, t);
     }
     await d.flushIncompleteLap();
     expect(db.inserted).toHaveLength(1);
-    expect(db.inserted[0]).toMatchObject({ lapNumber: 4, rawByteOffset: 100, rawFrameCount: 16, lapTime: 15 });
+    expect(db.inserted[0]).toMatchObject({
+      lapNumber: 4, rawByteOffset: 100, rawFrameCount: 16, lapTime: 15, classification: "reset",
+    });
   });
 
   test("timer restart discards in-progress prefix and keeps new packet", async () => {

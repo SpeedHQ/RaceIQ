@@ -49,6 +49,7 @@ export function parseF1Header(buf: Buffer): F1Header {
   };
 }
 
+/** F1 25 UDP v3, "Session types": docs/reference/external/f1-25/f1-25-udp-specification-v3.pdf. */
 export const F1_SESSION_TYPES: Record<number, string> = {
   0: "unknown",
   1: "practice-1",
@@ -60,8 +61,13 @@ export const F1_SESSION_TYPES: Record<number, string> = {
   7: "qualifying-3",
   8: "short-qualifying",
   9: "one-shot-qualifying",
-  10: "race",
-  11: "race-2",
-  12: "race-3",
-  13: "time-trial",
+  10: "sprint-shootout-1",
+  11: "sprint-shootout-2",
+  12: "sprint-shootout-3",
+  13: "short-sprint-shootout",
+  14: "one-shot-sprint-shootout",
+  15: "race",
+  16: "race-2",
+  17: "race-3",
+  18: "time-trial",
 };

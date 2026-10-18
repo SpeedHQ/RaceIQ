@@ -40,7 +40,7 @@ const provenance: RaceResultProvenance = {
 };
 
 describe("persisted race result metadata", () => {
-  test("pit-event reconciliation preserves quality and applies category precedence", async () => {
+  test("pit-event reconciliation preserves telemetry outlaps and quality", async () => {
     const sessionId = await insertSession("99", "88", "f1-2025", "race");
     await db.insert(laps).values([
       { sessionId, lapNumber: 3, lapTime: 100, isValid: true, invalidReason: null, classification: "caution" },
@@ -89,11 +89,55 @@ describe("persisted race result metadata", () => {
     }).from(laps).where(eq(laps.sessionId, sessionId)).orderBy(laps.lapNumber).all();
     expect(storedLaps).toEqual([
       { lapNumber: 3, isValid: true, invalidReason: null, classification: "in_lap" },
-      { lapNumber: 4, isValid: true, invalidReason: null, classification: "in_lap" },
+      { lapNumber: 4, isValid: true, invalidReason: null, classification: "out_lap" },
       { lapNumber: 5, isValid: false, invalidReason: "track limits", classification: "in_lap" },
       { lapNumber: 6, isValid: true, invalidReason: null, classification: "grid_start" },
       { lapNumber: 7, isValid: true, invalidReason: null, classification: "pit_lap" },
       { lapNumber: 8, isValid: true, invalidReason: null, classification: "out_lap" },
+    ]);
+  });
+  test("LMU in-pits event at lap start does not override detected out-lap", async () => {
+    const sessionId = await insertSession("lmu-car", "lmu-track", "lmu", "race");
+    await db.insert(laps).values([
+      { sessionId, lapNumber: 2, lapTime: 102.7, isValid: true, invalidReason: null, classification: "out_lap" },
+      { sessionId, lapNumber: 3, lapTime: 85.1, isValid: true, invalidReason: null, classification: "pace" },
+    ]);
+    await upsertSessionResult({
+      sessionId,
+      sessionType: "race",
+      classification: "finished",
+      outcomeStatus: "confirmed",
+      finishingPosition: 1,
+      qualifyingPosition: null,
+      isPodium: true,
+      isFastestLap: false,
+      pitCount: 1,
+      tyreStrategy: null,
+      fuelStrategy: null,
+      provenance,
+      evidence,
+      reasons: [],
+    }, [{
+      sequence: 1,
+      lapNumber: 2,
+      elapsedSeconds: 0.16,
+      durationSeconds: null,
+      service: "unknown",
+      tyreChange: null,
+      fuelAdded: null,
+      fuelBefore: null,
+      fuelAfter: null,
+      linkage: "linked",
+      source: { channel: "lmu.inPits", value: true },
+    }]);
+
+    const stored = await db.select({
+      lapNumber: laps.lapNumber,
+      classification: laps.classification,
+    }).from(laps).where(eq(laps.sessionId, sessionId)).orderBy(laps.lapNumber).all();
+    expect(stored).toEqual([
+      { lapNumber: 2, classification: "out_lap" },
+      { lapNumber: 3, classification: "out_lap" },
     ]);
   });
   test("counts and lists only results from older processor versions", async () => {

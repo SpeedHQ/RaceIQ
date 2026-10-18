@@ -5,6 +5,7 @@ export const LAP_CLASSIFICATIONS = [
   "pit_lap",
   "grid_start",
   "caution",
+  "reset",
 ] as const;
 
 export type LapClassification = (typeof LAP_CLASSIFICATIONS)[number];

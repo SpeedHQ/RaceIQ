@@ -9,7 +9,6 @@ const phaseLabels = {
   splitting: () => m.sessions_capture_split_splitting(),
   verifying: () => m.sessions_capture_split_verifying(),
   publishing: () => m.sessions_capture_split_publishing(),
-  ready: () => m.sessions_capture_split_ready(),
   failed: () => m.sessions_capture_split_failed(),
 } as const;
 
@@ -51,7 +50,7 @@ export function SessionCaptureSplitStatus({ status, sessionId }: Props) {
     : undefined;
   return (
     <>
-      <div className="mt-1 space-y-1 text-xs text-app-text/90" data-phase={phase}>
+      {phase !== "ready" && <div className="mt-1 space-y-1 text-xs text-app-text/90" data-phase={phase}>
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span>{phaseLabels[phase]()}</span>
           {(phase === "splitting" || phase === "verifying") && (
@@ -62,7 +61,7 @@ export function SessionCaptureSplitStatus({ status, sessionId }: Props) {
         </div>
         <span className="sr-only" aria-live="polite" aria-atomic="true">{phaseLabels[phase]()} {phase === "failed" && status.errorCode ? errorMessages[status.errorCode]() : ""}</span>
         {phase === "failed" && <p className="text-app-danger">{status.errorCode ? errorMessages[status.errorCode]() : m.sessions_capture_split_error_worker_failed()}</p>}
-      </div>
+      </div>}
       {live && <div className="mt-1 text-xs text-app-text/90" data-phase={live.phase}>
         <span className="sr-only" role={live.phase === "failed" ? "alert" : "status"} aria-live={live.phase === "failed" ? "assertive" : "polite"}>{live.phase === "recording" ? "Recording" : live.phase === "finalizing" ? "Finalizing recording" : live.phase === "sealed" ? "Recording saved" : "Recording failed"}{live.error ? `: ${live.error}` : ""}</span>
         <span aria-hidden="true">{live.phase === "recording" ? "Recording" : live.phase === "finalizing" ? "Finalizing recording" : live.phase === "sealed" ? "Recording saved" : "Recording failed"}</span>

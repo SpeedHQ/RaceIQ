@@ -1,6 +1,38 @@
 import { describe, expect, test } from "bun:test";
 import { classifyLapCategory } from "@raceiq/analysis-core/racing/laps/classification";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
+
+function pacePacket(gameId: GameId): TelemetryPacket {
+  return {
+    gameId, CurrentRaceTime: 10, LapNumber: 1,
+    ...(gameId === "f1-2025" ? { f1: {
+      sessionType: "practice", vehicleFIAFlags: 0, safetyCarStatus: 0,
+      vehicleFIAFlagsUpdatedAt: 10, safetyCarStatusUpdatedAt: 10,
+    } } : {}),
+    ...(gameId === "acc" || gameId === "ac-evo" ? { acc: {
+      pitStatus: "out", flagStatus: "none", sessionType: "practice",
+      acEvo: { sessionType: "practice" },
+    } } : {}),
+  } as TelemetryPacket;
+}
+
+describe.each(KNOWN_GAME_IDS)("%s pace classification", (gameId) => {
+  test("a quality-valid flying lap is pace, including recorded lap 1", () => {
+    expect(classifyLapCategory([pacePacket(gameId)], null, undefined, true)).toBe("pace");
+  });
+
+  test("invalid recording quality and empty telemetry cannot establish pace", () => {
+    expect(classifyLapCategory([pacePacket(gameId)], null, undefined, false)).toBeNull();
+    expect(classifyLapCategory([], null, undefined, true)).toBeNull();
+  });
+
+  test.each([
+    ["outlap", "out_lap"], ["inlap", "in_lap"], ["pit lap", "pit_lap"],
+  ] as const)("%s evidence takes precedence over pace", (reason, category) => {
+    expect(classifyLapCategory([pacePacket(gameId)], reason, undefined, true)).toBe(category);
+  });
+});
 
 function f1Packet(time: number, native: Partial<NonNullable<TelemetryPacket["f1"]>> = {}) {
   // Deliberately narrow in-process fixture: classification reads only these source fields.
@@ -65,4 +97,59 @@ test("AC Evo lap classification reads native session context; unknown stays unkn
     acc: { ...packet.acc, acEvo: { ...packet.acc?.acEvo, sessionType: "unknown" } },
   } as TelemetryPacket;
   expect(classifyLapCategory([unknownPacket], null, undefined, true)).toBeNull();
+});
+
+function accPitEntry(overrides: Partial<TelemetryPacket> = {}): [TelemetryPacket, TelemetryPacket] {
+  const before = {
+    gameId: "acc", TimestampMS: 1_000, PositionX: 100, PositionY: 5, PositionZ: 200,
+    Speed: 0, acc: { pitStatus: "out", flagStatus: "none", sessionType: "practice" },
+  } as TelemetryPacket;
+  const after = {
+    ...before, TimestampMS: 1_190, PositionX: 343.5,
+    acc: { ...before.acc, pitStatus: "pit_lane" }, ...overrides,
+  } as TelemetryPacket;
+  return [before, after];
+}
+
+test("ACC teleport to pits is reset, independently of validity and pit-cycle category", () => {
+  const packets = accPitEntry();
+  expect(classifyLapCategory(packets, "inlap", undefined, false)).toBe("reset");
+  expect(classifyLapCategory(packets, "pit lap", undefined, true)).toBe("reset");
+});
+
+test.each([
+  { PositionX: 101 },
+  { TimestampMS: 11_000 },
+  { TimestampMS: 1_000 },
+  { TimestampMS: 900 },
+  { PositionX: Number.NaN },
+  { PositionX: 0, PositionY: 0, PositionZ: 0 },
+  { Speed: Number.NaN },
+])("ACC pit entry without reliable teleport evidence stays in-lap: %j", (overrides) => {
+  expect(classifyLapCategory(accPitEntry(overrides), "inlap", undefined, true)).toBe("in_lap");
+});
+
+test("physically plausible driven pit entry is not a reset", () => {
+  const packets = accPitEntry({ TimestampMS: 2_000, PositionX: 160, Speed: 60 });
+  packets[0].Speed = 60;
+  expect(classifyLapCategory(packets, "inlap", undefined, true)).toBe("in_lap");
+});
+
+test("next-lap boundary and other games cannot supply ACC reset evidence", () => {
+  const packets = accPitEntry();
+  expect(classifyLapCategory(packets, "inlap", packets[1], false)).toBe("in_lap");
+  expect(classifyLapCategory(packets.map((packet) => ({ ...packet, gameId: "ac-evo" })), "inlap")).toBe("in_lap");
+});
+
+test.each([0, 1_792_287_555_620])("ACC captures with repeated timestamp %i use native time only within the same lap", (timestamp) => {
+  const packets = accPitEntry();
+  packets[0].TimestampMS = timestamp;
+  packets[1].TimestampMS = timestamp;
+  packets[0].LapNumber = 4;
+  packets[1].LapNumber = 4;
+  packets[0].CurrentLap = 10.922;
+  packets[1].CurrentLap = 11.112;
+  expect(classifyLapCategory(packets, "inlap", undefined, false)).toBe("reset");
+  packets[1].LapNumber = 5;
+  expect(classifyLapCategory(packets, "inlap", undefined, false)).toBe("in_lap");
 });
