@@ -29,6 +29,8 @@
 - Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.
 - Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
 
+- Skip LMU outline requests when stored track names do not identify one layout.
+
 ### Internal
 - Reuse the Linux build artifact across Playwright shards and collect replay allocations sooner on memory-limited CI runners.
 - Avoid `bun run test` port collisions with running services by selecting available ports for Playwright server sets when overrides are unset, while honoring explicit `PW_*_PORT` values and preserving isolated test databases.
@@ -39,6 +41,7 @@
 - Shorten visual and Playwright job labels while preserving parallel workflow branches.
 - Report signal termination and progress in screenshot database seeding failures.
 - Remove duplicate sector-time columns when resuming database migrations from partial progress.
+- Keep shared seeded E2E data free of pending split jobs; the dedicated migration test covers startup consent.
 
 ## v0.20.0 - 2026-10-15
 

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { resolveLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { PitLine } from "../lib/canvas/draw-track";
 import { client } from "../lib/rpc";
@@ -57,15 +58,17 @@ export function useTrackSectorBoundaries(trackId: string | undefined, gameIdOver
 export function useTrackOutline(trackId: string | undefined, gameIdOverride?: GameId | null) {
   const storeGameId = useGameId();
   const gameId = gameIdOverride ?? storeGameId;
+  const resolvedTrackId = gameId === "lmu" && typeof trackId === "string" && trackId ? resolveLMUTrack(trackId)?.id : trackId;
   return useQuery({
     queryKey: [...queryKeys.trackOutline(trackId!), gameId ?? null],
     queryFn: async () => {
-      const res = await trackIdRoutes["track-outline"][":trackId"].$get({ param: { trackId: encodeURIComponent(trackId!) }, query: { gameId: gameId! } });
+      if (!resolvedTrackId || !gameId) return [];
+      const res = await trackIdRoutes["track-outline"][":trackId"].$get({ param: { trackId: encodeURIComponent(resolvedTrackId) }, query: { gameId } });
       return rpcJson<{ points?: { x: number; z: number }[]; labels?: { text: string; x: number; z: number }[]; flipX?: boolean; recorded?: boolean; source?: string; pitLines?: PitLine[]; closed?: boolean } | { x: number; z: number }[]>(
         res,
       );
     },
-    enabled: trackId != null && !!gameId,
+    enabled: !!resolvedTrackId && !!gameId,
   });
 }
 
