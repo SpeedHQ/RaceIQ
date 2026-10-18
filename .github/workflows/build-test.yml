@@ -100,7 +100,7 @@ jobs:
         run: bunx turbo run lint --affected
 
       - name: Type-check server, shared, scripts, and tests
-        run: bun run typecheck
+        run: bunx turbo run typecheck --affected --concurrency=1
       - name: Verify seeded database upgrade
         if: github.event_name == 'pull_request' && !github.event.pull_request.draft
         env:
