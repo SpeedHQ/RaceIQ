@@ -17,7 +17,9 @@ async function main() {
   const required = ["raceiq", "public/index.html", "data", "node_modules/@libsql/linux-x64-gnu/index.node", "node_modules/@duckdb/node-bindings-linux-x64"];
   for (const item of required) if (!existsSync(join(dist, item))) throw new Error(`Missing required build output: ${join(dist, item)}`);
   const output = resolve(root, `RaceIQ-v${version}-linux-x86_64.AppImage`);
-  if (existsSync(output)) throw new Error(`Refusing to overwrite existing artifact: ${output}`);
+  const updateInfo = "gh-releases-zsync|SpeedHQ|RaceIQ|latest|RaceIQ-v*-linux-x86_64.AppImage.zsync";
+  const zsyncOutput = `${output}.zsync`;
+  if (existsSync(output) || existsSync(zsyncOutput)) throw new Error(`Refusing to overwrite existing AppImage output: ${output}`);
   const temp = mkdtempSync(join(tmpdir(), "raceiq-appimage-"));
   let success = false;
   try {
@@ -42,14 +44,17 @@ async function main() {
     }
     const toolPath = join(temp, "appimagetool");
     const runtimePath = join(temp, "runtime");
-    const proc = Bun.spawn([toolPath, "--no-appstream", "--runtime-file", runtimePath, appDir, output], { cwd: root, env: { ...process.env, APPIMAGE_EXTRACT_AND_RUN: "1", ARCH: "x86_64", VERSION: version }, stdout: "inherit", stderr: "inherit" });
+    const proc = Bun.spawn([toolPath, "--no-appstream", "--updateinformation", updateInfo, "--runtime-file", runtimePath, appDir, output], { cwd: root, env: { ...process.env, APPIMAGE_EXTRACT_AND_RUN: "1", ARCH: "x86_64", VERSION: version }, stdout: "inherit", stderr: "inherit" });
     if (await proc.exited !== 0) throw new Error("appimagetool failed");
-    if (!existsSync(output)) throw new Error("appimagetool produced no output");
+    if (!existsSync(output) || !existsSync(zsyncOutput)) throw new Error("appimagetool must produce both AppImage and zsync metadata");
     chmodSync(output, 0o755);
     success = true;
     console.log(`Created ${basename(output)}`);
   } finally {
-    if (!success) rmSync(output, { force: true });
+    if (!success) {
+      rmSync(output, { force: true });
+      rmSync(zsyncOutput, { force: true });
+    }
     rmSync(temp, { recursive: true, force: true });
   }
 }
