@@ -53,7 +53,7 @@ jobs:
           REPO: ${{ github.repository }}
         run: bun scripts/ci/compute-release-version.ts
 
-  build:
+  build-windows:
     timeout-minutes: 30
     if: github.event_name == 'workflow_dispatch'
     needs: compute-version
@@ -228,12 +228,12 @@ jobs:
 
   playwright-test:
     if: github.event_name == 'workflow_dispatch' && !inputs.skip_tests
-    needs: build
+    needs: build-windows
     uses: ./.github/workflows/playwright-e2e.yml
   draft-release:
     timeout-minutes: 30
-    if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.compute-version.result == 'success' && needs.build.result == 'success' && needs.build-linux.result == 'success' && needs.upgrade-smoke.result == 'success' && (needs.playwright-test.result == 'success' || needs.playwright-test.result == 'skipped') }}
-    needs: [compute-version, build, build-linux, upgrade-smoke, playwright-test]
+    if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.compute-version.result == 'success' && needs.build-windows.result == 'success' && needs.build-linux.result == 'success' && needs.upgrade-smoke.result == 'success' && (needs.playwright-test.result == 'success' || needs.playwright-test.result == 'skipped') }}
+    needs: [compute-version, build-windows, build-linux, upgrade-smoke, playwright-test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
