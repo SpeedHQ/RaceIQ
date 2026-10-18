@@ -144,6 +144,8 @@
     "./session-capture/storage-activity": "./session-capture/storage-activity.ts",
     "./runtime/websocket-manager": "./runtime/websocket-manager.ts",
     "./session-capture/cleanup": "./session-capture/cleanup.ts",
+    "./session-capture/classification-migration": "./session-capture/classification-migration.ts",
+    "./session-capture/classification-migration-worker": "./session-capture/classification-migration-worker.ts",
     "./session-capture/combine-recording-parts": "./session-capture/combine-recording-parts.ts",
     "./session-capture/compressor": "./session-capture/compressor.ts",
     "./session-capture/dashboard-processor": "./session-capture/dashboard-processor.ts",

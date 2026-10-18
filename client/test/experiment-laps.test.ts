@@ -8,7 +8,7 @@ const tests = [
   { id: 12, version: 2, createdAt: "2026-10-01T11:00:00Z" },
 ];
 function lap(id: number, overrides: Partial<LapMeta> = {}): LapMeta {
-  return { id, sessionId: 1, lapNumber: id, lapTime: 90, isValid: true, carId: "1", trackId: "1", createdAt: "2026-10-01T12:00:00Z", experimentId: 7, experimentVersionId: 11, ...overrides };
+  return { id, sessionId: 1, lapNumber: id, lapTime: 90, isValid: true, classification: null, carId: "1", trackId: "1", createdAt: "2026-10-01T12:00:00Z", experimentId: 7, experimentVersionId: 11, ...overrides };
 }
 
 describe("experiment lap membership", () => {

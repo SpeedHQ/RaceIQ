@@ -52,6 +52,8 @@
     "./racing/results/types": "./racing/results/types.ts",
     "./racing/sessions/cleanup": "./racing/sessions/cleanup.ts",
     "./racing/sessions/session-type": "./racing/sessions/session-type.ts",
+    "./racing/lap-classification": "./racing/lap-classification.ts",
+    "./racing/laps/classification-migration": "./racing/laps/classification-migration.ts",
     "./racing/sessions/types": "./racing/sessions/types.ts",
     "./racing/setups/ac-evo-content": "./racing/setups/ac-evo-content.ts",
     "./racing/setups/content": "./racing/setups/content.ts",

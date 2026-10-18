@@ -1,6 +1,6 @@
 import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 import type { AcEvoParserCache } from "./parser";
-import { PHYSICS as EVO_PHYSICS, GRAPHICS_EVO, STATIC_EVO, ACEVO_STATUS, ACEVO_CAR_LOCATION } from "@raceiq/capture-formats/ac-evo/structs";
+import { PHYSICS as EVO_PHYSICS, GRAPHICS_EVO, STATIC_EVO, ACEVO_STATUS, ACEVO_CAR_LOCATION, ACEVO_FLAG_NAMES } from "@raceiq/capture-formats/ac-evo/structs";
 import { readCString } from "./utils";
 import { acEvoCarId, acEvoTrackId } from "@raceiq/game-ac-evo-metadata/identity";
 import { calibratePlayerSlot } from "./player-slot";
@@ -37,6 +37,7 @@ export function parseAcEvoLapIndex(physics: Buffer, graphics: Buffer, stat: Buff
     isInPitBox ? "in_pit" :
     isInPitLane || carLocation === ACEVO_CAR_LOCATION.ACEVO_PITLANE ? "pit_lane" :
     carLocation === ACEVO_CAR_LOCATION.ACEVO_UNASSIGNED ? "in_pit" : "out";
+  const flagStatus = ACEVO_FLAG_NAMES[graphics.readInt32LE(GRAPHICS_EVO.flag.offset)] ?? "none";
   const isValidLapRaw = graphics.readUInt8(GRAPHICS_EVO.is_valid_lap.offset);
   const isValidLap = isValidLapRaw ? true : isInPitLane || isInPitBox ? null : false;
   return {
@@ -63,7 +64,7 @@ export function parseAcEvoLapIndex(physics: Buffer, graphics: Buffer, stat: Buff
     TireWearRL: physics.readFloatLE(EVO_PHYSICS.tyreWearRL.offset),
     TireWearRR: physics.readFloatLE(EVO_PHYSICS.tyreWearRR.offset),
     RacePosition: racePosition,
-    acc: { isValidLap, pitStatus } as never,
+    acc: { isValidLap, pitStatus, flagStatus } as never,
     WheelOnRumbleStripFL: 0,
     WheelOnRumbleStripFR: 0,
     WheelOnRumbleStripRL: 0,

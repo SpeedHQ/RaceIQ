@@ -1,3 +1,4 @@
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
@@ -9,7 +10,8 @@ import type { TrackLap } from "./types";
 export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLap[]; sectorCount: number; showSessionFilter?: boolean }) {
   const [lapFilter, setLapFilter] = useState<null | "race" | "quali">(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  if (laps.length === 0) {
+  const paceLaps = laps.filter((lap) => lap.isValid !== false && isPaceLap(lap.classification));
+  if (paceLaps.length === 0) {
     return (
       <div className="w-full min-w-0">
         <div className="flex shrink-0 items-center justify-between rounded-none border-b border-app-border bg-app-surface p-3 py-2">
@@ -44,12 +46,12 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
   const hasRaceFilter = showSessionFilter && [...sessionCounts.values()].some((c) => c > 1);
   const filteredLaps =
     showSessionFilter && lapFilter === "race"
-      ? laps.filter((l) => l.sessionId != null && (sessionCounts.get(l.sessionId) ?? 0) > 1)
+      ? paceLaps.filter((l) => l.sessionId != null && (sessionCounts.get(l.sessionId) ?? 0) > 1)
       : showSessionFilter && lapFilter === "quali"
-        ? laps.filter((l) => l.sessionId == null || (sessionCounts.get(l.sessionId) ?? 0) === 1)
-        : laps;
+        ? paceLaps.filter((l) => l.sessionId == null || (sessionCounts.get(l.sessionId) ?? 0) === 1)
+        : paceLaps;
   // All stats use the most recent 100 valid laps (chronological)
-  const chronoLaps = [...filteredLaps.filter((l) => l.isValid !== false)].sort((a, b) => a.lapId - b.lapId).slice(-100);
+  const chronoLaps = [...filteredLaps].sort((a, b) => a.lapId - b.lapId).slice(-100);
   const times = [...chronoLaps.map((l) => l.lapTime)].sort((a, b) => a - b);
   const minT = times[0];
   const maxT = times[times.length - 1];

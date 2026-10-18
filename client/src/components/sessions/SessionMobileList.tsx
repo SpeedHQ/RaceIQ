@@ -1,3 +1,4 @@
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
 import { formatLapTime } from "@/components/LiveTelemetry";
@@ -74,7 +75,8 @@ export function SessionMobileList({
         sessions.map((session) => {
           const isExpanded = expandedSessions.has(session.id);
           const sessionLaps = lapsBySession.get(session.id) ?? [];
-          const bestTime = session.bestLapTime || (sessionLaps.length > 0 ? Math.min(...sessionLaps.map((lap) => lap.lapTime)) : 0);
+          const paceLaps = sessionLaps.filter((lap) => lap.isValid && isPaceLap(lap.classification));
+          const bestTime = session.bestLapTime || (paceLaps.length > 0 ? Math.min(...paceLaps.map((lap) => lap.lapTime)) : 0);
           return (
             <div key={session.id} className={`min-w-0 overflow-hidden rounded-lg border border-app-border bg-app-surface ${isExpanded ? "bg-app-surface-alt/40" : ""}`}>
               {/* oxlint-disable-next-line a11y/useSemanticElements: wraps checkbox and buttons */}

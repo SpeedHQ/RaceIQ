@@ -1,3 +1,4 @@
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { SessionRecap } from "@raceiq/shared/racing/sessions/types";
 import { dashboardCarIdentity, dashboardTrackIdentity } from "@raceiq/shared/racing/sessions/dashboard";
@@ -34,11 +35,12 @@ export async function getDashboardSessionRecap(id: number, gameId: GameId): Prom
     const session = selected.rows[0];
     if (!session) { await tx.commit(); return null; }
     const lapResult = await tx.execute({
-      sql: `SELECT id,lap_number,lap_time,is_valid,sector_times,invalid_reason FROM laps
+      sql: `SELECT id,lap_number,lap_time,is_valid,classification,sector_times,invalid_reason FROM laps
         WHERE session_id=? ORDER BY lap_number,id`, args: [id],
     });
     const sourceLaps: RecapLapInput[] = lapResult.rows.map((row) => ({
       id: asNumber(row.id), lapNumber: asNumber(row.lap_number), lapTime: asNumber(row.lap_time),
+      classification: row.classification == null ? null : String(row.classification) as LapClassification,
       isValid: Boolean(row.is_valid), sectorTimes: parseJson<number[]>(row.sector_times),
       invalidReason: row.invalid_reason == null ? null : String(row.invalid_reason),
     }));
@@ -78,7 +80,7 @@ export async function getDashboardSessionRecap(id: number, gameId: GameId): Prom
           WHERE s.ownership='mine' AND s.game_id=? AND s.id!=?
             AND ${carSourcePredicate}
             AND ${trackSourcePredicate}
-            AND l.is_valid=1 AND l.lap_time>0 AND (st.session_id IS NULL OR st.metadata_dirty=1 OR st.capture_dirty=1 OR st.deleted=1 OR st.source_revision!=st.published_revision OR st.processor_version!=?)
+            AND l.is_valid=1 AND (l.classification IS NULL OR l.classification='pace') AND l.lap_time>0 AND l.lap_time<=${Number.MAX_VALUE} AND (st.session_id IS NULL OR st.metadata_dirty=1 OR st.capture_dirty=1 OR st.deleted=1 OR st.source_revision!=st.published_revision OR st.processor_version!=?)
         )`,
       args: [gameId,id,carKey,trackKey,DASHBOARD_PROCESSOR_VERSION,gameId,id,...carSourceArgs,...trackSourceArgs,DASHBOARD_PROCESSOR_VERSION],
     });
@@ -101,7 +103,7 @@ export async function getDashboardSessionRecap(id: number, gameId: GameId): Prom
             WHERE s.ownership='mine' AND s.game_id=? AND s.id!=?
               AND ${carSourcePredicate}
               AND ${trackSourcePredicate}
-              AND l.is_valid=1 AND l.lap_time>0 AND (st.session_id IS NULL OR st.metadata_dirty=1 OR st.capture_dirty=1 OR st.deleted=1 OR st.source_revision!=st.published_revision OR st.processor_version!=?)
+              AND l.is_valid=1 AND (l.classification IS NULL OR l.classification='pace') AND l.lap_time>0 AND l.lap_time<=${Number.MAX_VALUE} AND (st.session_id IS NULL OR st.metadata_dirty=1 OR st.capture_dirty=1 OR st.deleted=1 OR st.source_revision!=st.published_revision OR st.processor_version!=?)
               AND EXISTS(SELECT 1 FROM dashboard_session_summaries hd JOIN dashboard_summary_state hst ON hst.session_id=hd.session_id
                 WHERE hd.session_id=s.id AND hd.sector_layout_key=? AND hd.sector_status='available' AND hd.evidence_version=? AND hst.capture_dirty=0)
           ) WHERE CAST(sector_index AS INTEGER) < ? GROUP BY sector_index`,

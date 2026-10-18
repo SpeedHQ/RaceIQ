@@ -195,7 +195,7 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   expect(await readFile(sourcePath)).toEqual(sourceBytes);
   await db.update(laps).set({ isFavorite: true, notes: "preserve" }).where(eq(laps.id, first.lapId)).run();
   await replaceLapsForSession(first.id, [{
-    lapId: first.lapId, lapNumber: 1, lapTime: 61, isValid: true, isFavorite: true,
+    lapId: first.lapId, lapNumber: 1, lapTime: 61, isValid: true, classification: null, isFavorite: true,
     rawByteOffset: sourceFrameOffset, rawFrameCount: 1,
     tuneId: null, notes: "preserve", invalidReason: null, sectors: null,
   }]);
@@ -203,7 +203,7 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   expect(unchangedLayout?.captureLayoutVersion).toBe(1);
   expect((await db.select().from(laps).where(eq(laps.id, first.lapId)).get())?.captureChunkId).toBeTruthy();
   await replaceLapsForSession(first.id, [{
-    lapId: first.lapId, lapNumber: 1, lapTime: 61, isValid: true, isFavorite: true,
+    lapId: first.lapId, lapNumber: 1, lapTime: 61, isValid: true, classification: null, isFavorite: true,
     rawByteOffset: sourceFrameOffset, rawFrameCount: 1,
     tuneId: null, notes: "preserve", invalidReason: null, sectors: null,
   }], { carId: "identity-updated", trackId: "test-track" });
@@ -222,12 +222,12 @@ test("split lifecycle recovers attempts, rejects stale revisions, uses one worke
   expect((await db.select().from(sessions).where(eq(sessions.id, first.id)).get())?.captureLayoutVersion).toBe(1);
   await replaceLapsForSession(first.id, [
     {
-      lapId: first.lapId, lapNumber: 1, lapTime: 61, isValid: true, isFavorite: true,
+      lapId: first.lapId, lapNumber: 1, lapTime: 61, isValid: true, classification: null, isFavorite: true,
       rawByteOffset: sourceFrameOffset, rawFrameCount: 2,
       tuneId: null, notes: "preserve", invalidReason: null, sectors: null,
     },
     {
-      lapId: null, lapNumber: 2, lapTime: 62, isValid: true, isFavorite: false,
+      lapId: null, lapNumber: 2, lapTime: 62, isValid: true, classification: null, isFavorite: false,
       rawByteOffset: sourceFrameOffset + 5, rawFrameCount: 1,
       tuneId: null, notes: null, invalidReason: null, sectors: null,
     },

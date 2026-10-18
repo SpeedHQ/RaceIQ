@@ -18,6 +18,7 @@ export function RecordingLayoutMigration({ compact = false, onSuccessDismissed, 
     filters: { mutationKey: queryKeys.recordingLayoutMigrationStart, status: "pending", exact: true },
     select: (mutation) => typeof mutation.state.variables === "string" ? mutation.state.variables : null,
   });
+  const [deferred, setDeferred] = useState(false);
   const [successDismissed, setSuccessDismissed] = useState(false);
   const [observedRunning, setObservedRunning] = useState(false);
   const [choiceOpen, setChoiceOpen] = useState(false);
@@ -38,7 +39,7 @@ export function RecordingLayoutMigration({ compact = false, onSuccessDismissed, 
   const previews = previewRecordingDirectories(target);
   const selecting = selectDirectory.isPending;
   const docked = !compact && (running || completed);
-  const dialogOpen = compact ? choiceOpen && !running && !completed : running || (hasWork && !completed) || (completed && !successDismissed);
+  const dialogOpen = compact ? choiceOpen && !running && !completed : running || (hasWork && !completed && !deferred) || (completed && !successDismissed);
   const percent = progress && progress.total > 0 ? Math.min(100, Math.round(progress.done / progress.total * 100)) : 0;
   const errorCode = start.error && "code" in start.error ? String(start.error.code) : "";
   const errorText = errorCode === "INVALID_DIRECTORY" ? m.storage_directory_error_invalid_directory()
@@ -49,7 +50,7 @@ export function RecordingLayoutMigration({ compact = false, onSuccessDismissed, 
     : m.recording_layout_migration_retry_error();
   useEffect(() => {
     // A completed server job is not a new notification after reload or remount.
-    if (running) { setObservedRunning(true); setSuccessDismissed(false); }
+    if (running) { setObservedRunning(true); setSuccessDismissed(false); setDeferred(false); }
   }, [running]);
   useLayoutEffect(() => {
     if (!compact) onPrecedenceChange?.(dialogOpen);
@@ -67,7 +68,9 @@ export function RecordingLayoutMigration({ compact = false, onSuccessDismissed, 
     {retryable ? m.recording_layout_migration_retry() : newLocation ? m.recording_layout_migration_move_action() : m.recording_layout_migration_action()}
     {!retryable && <ArrowRight aria-hidden="true" className="size-4" />}
   </Button>;
-  const dialog = <Dialog open={dialogOpen} modal={!docked}>
+  const dialog = <Dialog open={dialogOpen} modal={!docked} onOpenChange={(open) => {
+    if (!open && !running && !completed && !selecting) { if (compact) setChoiceOpen(false); else setDeferred(true); }
+  }}>
     <DialogContent size={docked ? "sm" : "md"} showCloseButton={false} overlayClassName={docked ? "hidden" : undefined}
       className={docked ? "top-auto left-auto right-4 bottom-4 w-[min(24rem,calc(100%-2rem))] translate-x-0 translate-y-0 gap-3 rounded-lg p-4 shadow-none ring-0" : "w-[calc(100%-2rem)] max-h-[90dvh] overflow-y-auto gap-5 p-5 shadow-none ring-0 sm:p-6"}>
       <DialogHeader className={docked ? undefined : "gap-3"}>
@@ -83,37 +86,25 @@ export function RecordingLayoutMigration({ compact = false, onSuccessDismissed, 
           <legend className="mb-3 text-app-detail font-medium">{m.recording_layout_migration_location_label()}</legend>
           <label className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors ${!newLocation ? "border-app-accent bg-app-accent/5" : "border-app-border hover:border-app-border-hover"}`}>
             <input type="radio" aria-label={m.recording_layout_migration_keep_location()} aria-describedby={`${locationId}-keep-description`} className="mt-0.5 size-4 shrink-0 accent-app-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent" name={compact ? "layout-target-settings" : "layout-target-prompt"} checked={!newLocation} onChange={() => setChooseNew(false)} />
-            <span className="min-w-0 space-y-1">
-              <span className="block text-app-detail font-medium">{m.recording_layout_migration_keep_location()}</span>
-              <span id={`${locationId}-keep-description`} className="block text-app-compact leading-relaxed text-app-text-secondary">{m.recording_layout_migration_keep_location_help()}</span>
-              <span className="block break-all font-mono text-app-compact leading-relaxed text-app-text-muted">{status.data?.directory}</span>
-            </span>
+            <span className="min-w-0 space-y-1"><span className="block text-app-detail font-medium">{m.recording_layout_migration_keep_location()}</span><span id={`${locationId}-keep-description`} className="block text-app-compact leading-relaxed text-app-text-secondary">{m.recording_layout_migration_keep_location_help()}</span><span className="block break-all font-mono text-app-compact leading-relaxed text-app-text-muted">{status.data?.directory}</span></span>
           </label>
           <div className={`rounded-md border transition-colors ${newLocation ? "border-app-accent bg-app-accent/5" : "border-app-border hover:border-app-border-hover"}`}>
             <label className="flex cursor-pointer items-start gap-3 p-3">
               <input type="radio" aria-label={m.recording_layout_migration_choose_location()} aria-describedby={`${locationId}-move-description`} className="mt-0.5 size-4 shrink-0 accent-app-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent" name={compact ? "layout-target-settings" : "layout-target-prompt"} checked={newLocation} onChange={() => setChooseNew(true)} />
-              <span className="min-w-0 space-y-1">
-                <span className="block text-app-detail font-medium">{m.recording_layout_migration_choose_location()}</span>
-                <span id={`${locationId}-move-description`} className="block text-app-compact leading-relaxed text-app-text-secondary">{m.recording_layout_migration_choose_location_help()}</span>
-              </span>
+              <span className="min-w-0 space-y-1"><span className="block text-app-detail font-medium">{m.recording_layout_migration_choose_location()}</span><span id={`${locationId}-move-description`} className="block text-app-compact leading-relaxed text-app-text-secondary">{m.recording_layout_migration_choose_location_help()}</span></span>
             </label>
             {newLocation && <div className="space-y-2 border-t border-app-border p-3">
               <label htmlFor={`${locationId}-destination`} className="text-app-compact font-medium">{m.storage_directory_path_label()}</label>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Input id={`${locationId}-destination`} aria-label={m.storage_directory_path_label()} className="min-w-0 flex-1 font-mono text-app-compact" value={target} disabled={lockedTarget || selecting} onChange={(event) => setDestination(event.target.value)} autoComplete="off" />
-                {!lockedTarget && <Button type="button" variant="app-outline" size="app-sm" disabled={selecting || running} onClick={() => { setPickerError(false); selectDirectory.mutate(target || undefined, { onSuccess: ({ directory }) => { if (directory) { setDestination(directory); setChooseNew(true); } }, onError: () => setPickerError(true) }); }}><FolderInput aria-hidden="true" className="size-4" />{selecting ? m.common_loading() : m.storage_directory_browse()}</Button>}
-              </div>
+              <div className="flex flex-col gap-2 sm:flex-row"><Input id={`${locationId}-destination`} aria-label={m.storage_directory_path_label()} className="min-w-0 flex-1 font-mono text-app-compact" value={target} disabled={lockedTarget || selecting} onChange={(event) => setDestination(event.target.value)} autoComplete="off" />
+                {!lockedTarget && <Button type="button" variant="app-outline" size="app-sm" disabled={selecting || running} onClick={() => { setPickerError(false); selectDirectory.mutate(target || undefined, { onSuccess: ({ directory }) => { if (directory) { setDestination(directory); setChooseNew(true); } }, onError: () => setPickerError(true) }); }}><FolderInput aria-hidden="true" className="size-4" />{selecting ? m.common_loading() : m.storage_directory_browse()}</Button>}</div>
               <p className="text-app-compact leading-relaxed text-app-text-muted">{m.storage_directory_native_picker_hint()}</p>
             </div>}
           </div>
         </fieldset>
-        {previews && <div className="space-y-3 border-t border-app-border pt-4">
-          <p className="text-app-detail font-medium">{m.recording_layout_migration_preview()}</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex min-w-0 items-start gap-2"><Folder aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-app-text-muted" /><div className="min-w-0 space-y-1"><p className="text-app-compact text-app-text-secondary">{m.recording_layout_migration_your_recordings()}</p><code className="block break-all font-mono text-app-compact text-app-text">{previews.own}</code></div></div>
-            <div className="flex min-w-0 items-start gap-2"><Folder aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-app-text-muted" /><div className="min-w-0 space-y-1"><p className="text-app-compact text-app-text-secondary">{m.recording_layout_migration_other_recordings()}</p><code className="block break-all font-mono text-app-compact text-app-text">{previews.others}</code></div></div>
-          </div>
-        </div>}
+        {previews && <div className="space-y-3 border-t border-app-border pt-4"><p className="text-app-detail font-medium">{m.recording_layout_migration_preview()}</p><div className="grid gap-3 sm:grid-cols-2">
+          <div className="flex min-w-0 items-start gap-2"><Folder aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-app-text-muted" /><div className="min-w-0 space-y-1"><p className="text-app-compact text-app-text-secondary">{m.recording_layout_migration_your_recordings()}</p><code className="block break-all font-mono text-app-compact text-app-text">{previews.own}</code></div></div>
+          <div className="flex min-w-0 items-start gap-2"><Folder aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-app-text-muted" /><div className="min-w-0 space-y-1"><p className="text-app-compact text-app-text-secondary">{m.recording_layout_migration_other_recordings()}</p><code className="block break-all font-mono text-app-compact text-app-text">{previews.others}</code></div></div>
+        </div></div>}
         <p className="flex items-start gap-2 text-app-compact leading-relaxed text-app-text-secondary"><ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-app-text-muted" />{m.recording_layout_migration_organization()}</p>
       </>}
         {pickerError && <p role="alert" className="text-sm text-status-danger">{m.storage_directory_browse_error()}</p>}
@@ -121,7 +112,10 @@ export function RecordingLayoutMigration({ compact = false, onSuccessDismissed, 
       {errors}
       {completed && <p role="status" className="text-sm text-status-success">{m.recording_layout_migration_success({ migrated: progress.migrated })}</p>}
       {!running && <DialogFooter className={docked ? "gap-2" : "sticky bottom-0 z-10 -mx-5 -mb-5 gap-2 border-app-border bg-app-surface-alt px-5 py-4 sm:-mx-6 sm:-mb-6 sm:px-6"}>
-        {completed ? <Button type="button" variant="app-primary" onClick={() => { setSuccessDismissed(true); onSuccessDismissed?.(); }}>{m.common_close()}</Button> : apply}
+        {completed ? <Button type="button" variant="app-primary" onClick={() => { setSuccessDismissed(true); onSuccessDismissed?.(); }}>{m.common_close()}</Button> : <>
+          {!docked && <Button type="button" variant="app-outline" disabled={selecting} onClick={() => { if (compact) setChoiceOpen(false); else setDeferred(true); }}>{m.recording_layout_migration_later()}</Button>}
+          {apply}
+        </>}
       </DialogFooter>}
     </DialogContent>
   </Dialog>;

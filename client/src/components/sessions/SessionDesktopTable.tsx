@@ -1,3 +1,4 @@
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import { Fragment } from "react";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
@@ -134,7 +135,8 @@ export function SessionDesktopTable({
             pageItems.map((session) => {
               const isExpanded = expandedSessions.has(session.id);
               const sessionLaps = lapsBySession.get(session.id) ?? [];
-              const bestTime = session.bestLapTime || (sessionLaps.length > 0 ? Math.min(...sessionLaps.map((lap) => lap.lapTime)) : 0);
+              const paceLaps = sessionLaps.filter((lap) => lap.isValid && isPaceLap(lap.classification));
+              const bestTime = session.bestLapTime || (paceLaps.length > 0 ? Math.min(...paceLaps.map((lap) => lap.lapTime)) : 0);
               return (
                 <Fragment key={session.id}>
                   <TableRow onClick={() => toggleExpand(session.id)} data-state={isExpanded ? "selected" : undefined} className={isExpanded && sessionLaps.length > 0 ? "border-b-0" : undefined}>

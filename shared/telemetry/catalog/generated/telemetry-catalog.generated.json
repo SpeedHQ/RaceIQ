@@ -10,8 +10,8 @@
     },
     "sourceHashes": {
       "packages/game-ac-evo/src/parser.ts": "29cb3985fe32c797554d98f107a0c4d76ddcc5279d97e75423365e1a0887f5de",
-      "packages/game-acc/src/parser.ts": "f527d6448320e78072fb9dbfff0df28d5ce1029f020510d148bded12df8cb7ba",
-      "packages/game-f1-2025/src/f1-state.ts": "2c3ad3f21293094cf564b912a4b8ea35d1e16df713f863e47fdf763184e8de79",
+      "packages/game-acc/src/parser.ts": "ebbcaf92f7a7aa4d60eb3d408dfd6278e8ff97530c5d47c93597cffed0f8a47c",
+      "packages/game-f1-2025/src/f1-state.ts": "822f4019528535b5fd91bfa69be35fbaa426c1f92abb46cfbddf693a162b18ac",
       "packages/game-fm-2023/src/parser.ts": "71c348b894f84f6086c9582d0cce473bac75a3c85896010a0e5762854718b835",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "packages/game-iracing/src/normalizer.ts": "bcc73bc4805a310f968b9743e6c9c88a688e3216cd28eecc3ee9f6c3d36b0afc",
@@ -20,7 +20,7 @@
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "8bf22ea63cb8e505d6234aba5765aa5b87f322129d9e058aa798a4639fc8d4f3"
+    "contentHash": "4e1144441e69f049127bface18012bce1a70f7f2d026b3c408494048be3e4682"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -196,6 +196,7 @@
         "diagnostics.total-warnings",
         "diagnostics.track-content-version",
         "diagnostics.vehicle-fia-flags",
+        "diagnostics.vehicle-fia-flags-updated-at",
         "diagnostics.vehicle-id",
         "diagnostics.vid-cap-active",
         "diagnostics.vid-cap-enabled",
@@ -545,9 +546,11 @@
         "race.player.push-to-pass-count",
         "race.race-laps",
         "race.race-position",
+        "race.race-start-at",
         "race.rear-flap-legal-status",
         "race.result-status",
         "race.safety-car-status",
+        "race.safety-car-status-updated-at",
         "race.session-summary.caution-flags",
         "race.session-summary.caution-laps",
         "race.session-summary.laps-complete",
@@ -9515,6 +9518,63 @@
           "nativeUnit": "count",
           "sources": [
             "f1.vehicleFIAFlags"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-f1-2025/src/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "diagnostics.vehicle-fia-flags-updated-at",
+      "label": "Vehicle FIA Flags Updated At",
+      "description": "Vehicle FIA Flags Updated At source value reported by f1-2025 in count.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.vehicleFIAFlagsUpdatedAt"
           ],
           "freshness": "continuous",
           "description": "f1-2025 parser exposes 1 linked field.",
@@ -31752,6 +31812,63 @@
       "limitations": []
     },
     {
+      "id": "race.race-start-at",
+      "label": "Race Start At",
+      "description": "Time of LGOT only when preceded by a positive STLG light-count event.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.raceStartAt"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-f1-2025/src/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "race.rear-flap-legal-status",
       "label": "Rear Flap Legal Status",
       "description": "Rear Flap Legal Status source value reported by lmu in count.",
@@ -31883,6 +32000,63 @@
           "nativeUnit": "count",
           "sources": [
             "f1.safetyCarStatus"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "packages/game-f1-2025/src/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.safety-car-status-updated-at",
+      "label": "Safety Car Status Updated At",
+      "description": "Safety Car Status Updated At source value reported by f1-2025 in count.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.safetyCarStatusUpdatedAt"
           ],
           "freshness": "continuous",
           "description": "f1-2025 parser exposes 1 linked field.",
@@ -64407,6 +64581,18 @@
         "retention": "exact"
       },
       {
+        "path": "f1.raceStartAt",
+        "label": "Race Start At",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Time of LGOT only when preceded by a positive STLG light-count event.",
+        "semanticId": "race.race-start-at",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "f1.rainPercentage",
         "label": "Rain Percentage",
         "unit": "%",
@@ -64474,6 +64660,18 @@
         "count": 1,
         "description": "Extended Session fields",
         "semanticId": "race.safety-car-status",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.safetyCarStatusUpdatedAt",
+        "label": "Safety Car Status Updated At",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Safety Car Status Updated At source value reported by f1-2025 in count.",
+        "semanticId": "race.safety-car-status-updated-at",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -65182,6 +65380,18 @@
         "count": 1,
         "description": "Vehicle FIA Flags source value reported by f1-2025 in count.",
         "semanticId": "diagnostics.vehicle-fia-flags",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.vehicleFIAFlagsUpdatedAt",
+        "label": "Vehicle FIA Flags Updated At",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Vehicle FIA Flags Updated At source value reported by f1-2025 in count.",
+        "semanticId": "diagnostics.vehicle-fia-flags-updated-at",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -84145,7 +84355,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 150,
-    "semanticVariables": 773,
+    "semanticVariables": 776,
     "sourceCounts": {
       "fm-2023": {
         "total": 96,
@@ -84157,13 +84367,13 @@
         "recorded": 96
       },
       "f1-2025": {
-        "total": 289,
+        "total": 292,
         "packet": 119,
-        "extension": 170,
+        "extension": 173,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 289
+        "recorded": 292
       },
       "acc": {
         "total": 205,

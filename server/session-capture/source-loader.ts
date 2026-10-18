@@ -247,7 +247,7 @@ async function* iterateStandaloneManifest(source: SessionCaptureSource): AsyncGe
  */
 export async function* iterateSessionCaptureRecordsFromSource(
   source: SessionCaptureSource,
-  options: { strict?: boolean } = {},
+  options: { strict?: boolean; allowLegacyFullFrames?: boolean } = {},
 ): AsyncGenerator<SessionCaptureRecord> {
   if (source.rawFile.endsWith("manifest.json")) {
     yield* iterateStandaloneManifest(source);
@@ -258,8 +258,8 @@ export async function* iterateSessionCaptureRecordsFromSource(
   }
 
   const file = captureFileFactory(source.rawFile);
-  // Persisted converted captures can contain only full checkpoints; match buffered replay eligibility.
-  if (source.captureFormatVersion !== 1) {
+  if (!options.allowLegacyFullFrames && source.captureFormatVersion !== 1) {
+    // Persisted converted captures can contain only full checkpoints; match buffered replay eligibility.
     const first = await streamForSource(source, file);
     if (!await hasSparseCaptureFormat(file, first.stream, first.gzip)) {
       throw new Error("Legacy full-frame captures are not supported; provide a sparse RaceIQ capture.");

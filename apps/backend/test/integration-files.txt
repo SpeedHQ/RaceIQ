@@ -33,6 +33,7 @@ apps/backend/test/db/database-path.test.ts
 apps/backend/test/db/dashboard-queries.test.ts
 apps/backend/test/db/dashboard-mutations.test.ts
 apps/backend/test/db/dashboard-summaries.test.ts
+apps/backend/test/db/lap-pace-eligibility.test.ts
 apps/backend/test/db/lap-ownership.test.ts
 apps/backend/test/db/lap-read-batching.test.ts
 apps/backend/test/db/lmu-session-identity.test.ts

@@ -104,10 +104,11 @@ describe("processTelemetryBatch", () => {
     expect(result.laps.map(({ lapNumber, lapTime, complete, invalidReason, byteOffset, frameCount }) => ({
       lapNumber, lapTime, complete, invalidReason, byteOffset, frameCount,
     }))).toEqual([
-      { lapNumber: 1, lapTime: 92.421, complete: true, invalidReason: "outlap", byteOffset: 17_100, frameCount: 6_865 },
+      { lapNumber: 1, lapTime: 92.421, complete: true, invalidReason: null, byteOffset: 17_100, frameCount: 6_865 },
       { lapNumber: 2, lapTime: 101.358, complete: true, invalidReason: "track limits", byteOffset: 703_500, frameCount: 6_435 },
       { lapNumber: 3, lapTime: 109.441, complete: false, invalidReason: "incomplete at end of input", byteOffset: 1_346_900, frameCount: 6_938 },
     ]);
+    expect(result.laps[0]).toMatchObject({ classification: "out_lap", valid: true, invalidReason: null });
   });
   test("finalizes incomplete ordinal lap at EOF and preserves absent offsets", async () => {
     const withOffsets = await processTelemetryBatch("fm-2023", lapFrames().slice(0, 35));
@@ -148,13 +149,13 @@ describe("processTelemetryBatch", () => {
     const result = await processTelemetryBatch("fm-2023", frames);
     expect(result.laps[0]!.sectors).toEqual([19, 17, 18]);
   });
-  test("preserves policy pit-cycle reason when host transition evidence is absent", async () => {
+  test("classifies policy out-laps without marking them invalid", async () => {
     const policy = {
       resolveLapTime: (_packets: readonly TelemetryPacket[], next: TelemetryPacket) => next.LastLap,
       classifyPitCycle: () => "outlap" as const,
     };
     const result = await processTelemetryBatch("fm-2023", lapFrames(), { policies: { "fm-2023": policy } });
-    expect(result.laps[0]).toMatchObject({ valid: false, invalidReason: "outlap" });
+    expect(result.laps[0]).toMatchObject({ classification: "out_lap", valid: true, invalidReason: null });
   });
   test("merges host pit transition with policy pit evidence", async () => {
     const frames = udpFixtureFrames(resolve(import.meta.dir, "../../../test/artifacts/sessions/fm-2023-with-pitting.bin.gz"));
@@ -163,7 +164,7 @@ describe("processTelemetryBatch", () => {
       classifyPitCycle: () => "outlap" as const,
     };
     const result = await processTelemetryBatch("fm-2023", frames, { policies: { "fm-2023": policy } });
-    expect(result.laps.some(lap => lap.invalidReason === "pit lap")).toBe(true);
+    expect(result.laps.some(lap => lap.classification === "pit_lap")).toBe(true);
   });
 
   test("accepts authoritative iRacing complete-lap-start context on committed capture", async () => {

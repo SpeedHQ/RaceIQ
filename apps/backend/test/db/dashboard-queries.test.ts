@@ -65,14 +65,15 @@ function parseGameId(value: string): GameId {
 function asLap(row: {
   id: number; sessionId: number; lapNumber: number; lapTime: number; isValid: boolean;
   createdAt: string; gameId: string; ownership: string; carId: string;
-  trackId: string;
+  trackId: string; classification?: LapMeta["classification"];
 }): LapMeta {
   if (row.ownership !== "mine" && row.ownership !== "others") throw new Error(`Unexpected session ownership: ${row.ownership}`);
-  return { ...row, gameId: parseGameId(row.gameId), ownership: row.ownership, invalidReason: undefined };
+  return { ...row, classification: row.classification ?? null, gameId: parseGameId(row.gameId), ownership: row.ownership, invalidReason: undefined };
 }
 
 const baseLap = (overrides: Partial<LapMeta> = {}): LapMeta => ({
   id: 1, sessionId: 1, lapNumber: 1, lapTime: 90, isValid: true,
+  classification: null,
   createdAt: "2026-06-01T12:00:00.000Z", gameId: "acc" as GameId,
   ownership: "mine", carId: "7", trackId: "8",
   ...overrides,

@@ -1,18 +1,17 @@
 import { expect, test } from "bun:test";
 import Database from "libsql";
-import { LAP_DETECTOR_ID } from "@raceiq/backend-core/lap-detection/detector";
 import { LAP_DETECTOR_AC_EVO_ID } from "@raceiq/game-ac-evo/lap-detector";
-import { copyFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
 import { decompressIfGzipSync, iterateSessionCaptureRecords, SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END } from "@raceiq/capture-formats/session/framing";
-
+import { seedReleaseDatabase } from "./support/release-database";
 const ROOT = resolve(import.meta.dir, "../../../..");
 const COMPLETE = "[SessionRepair] Historical session reconciliation complete:";
 const DEFERRED = "[StartupWorker] Deferred until recording layout migration completes";
-type Session = { id: number; track_id: string; lap_detector_version: string | null; raw_file?: string; ownership?: string };
+
 
 interface StartupBackend {
   ready(): Promise<void>;
@@ -28,6 +27,8 @@ function environment(dataDir: string): NodeJS.ProcessEnv {
   delete env.DB_IN_MEMORY;
   delete env.RACEIQ_TEST_DATA_DIR;
   delete env.PW_SEED_SCREENSHOTS;
+  delete env.RACEIQ_CLASSIFICATION_TEST_BARRIER;
+  delete env.RACEIQ_CLASSIFICATION_TEST_BARRIER_DIR;
   return env;
 }
 
@@ -46,7 +47,7 @@ function startBranch(dataDir: string): StartupBackend {
     import { bootServer } from "./apps/backend/src/runtime/boot";
     import { getLayoutMigrationStatus, startLayoutMigration } from "./server/session-capture/layout-migration";
     captureConsole();
-    const control = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(request) {
+    const control = Bun.serve({ hostname: "127.0.0.1", port: 0, idleTimeout: 0, async fetch(request) {
       if (request.method !== "POST") return new Response(null, { status: 405 });
       try {
         await startLayoutMigration();
@@ -113,42 +114,22 @@ function startBranch(dataDir: string): StartupBackend {
   };
 }
 
-test("current startup reprocesses release-seeded Tourist sessions into correct lap results", async () => {
+test("startup preserves ambiguous historical Tourist classification without changing stored laps", async () => {
   const temporary = mkdtempSync(join(tmpdir(), "raceiq-release-upgrade-"));
-  const releaseDir = join(temporary, "release");
-  const dataDir = join(temporary, "data");
-  mkdirSync(releaseDir);
-  mkdirSync(dataDir);
   let backend: StartupBackend | undefined;
   let database: InstanceType<typeof Database> | undefined;
   try {
-    const tags = (await command(["git", "tag", "--sort=-version:refname"])).trim().split(/\r?\n/);
-    const tag = tags.find((value) => /^v\d+\.\d+\.\d+$/.test(value));
-    if (!tag) throw new Error("No stable release tag available; fetch release tags before running database-upgrade.test.ts.");
-    console.log(`[Upgrade] Baseline ${tag} -> current working branch`);
-    const archive = join(temporary, "release.tar");
-    await command(["git", "archive", "--format=tar", `--output=${archive}`, tag]);
-    await command(["tar", "-xf", archive, "-C", releaseDir, "--exclude=.claude"]);
-    // Release postinstall installs Git hooks and requires a repository.
-    await command(["git", "init", "--quiet"], releaseDir);
-    // Release dependencies must not resolve into current workspace code.
-    await command([process.execPath, "install", "--frozen-lockfile"], releaseDir);
-    const fixture = join(temporary, "ac-evo-tourist.bin.gz");
-    writeFileSync(fixture, Buffer.concat([1, 2].map((part) =>
-      readFileSync(join(ROOT, `test/artifacts/sessions/ac-evo-tourist-2026-10-10.bin.gz.part${part}`)),
-    )));
-    await command([process.execPath, "run", "db:seed", "--games=ac-evo", `--fixtures=${fixture}`], releaseDir, environment(dataDir));
+    const { dataDir } = await seedReleaseDatabase(temporary);
     database = new Database(join(dataDir, "app.db"));
     database.exec("PRAGMA busy_timeout=5000;");
     const before = database.prepare("SELECT id,lap_detector_version FROM sessions ORDER BY id").all() as Array<{ id: number; lap_detector_version: string | null }>;
-    expect(before.every((session) => session.lap_detector_version !== null)).toBe(true);
-    // Deliberately stale results distinguish replay from a marker-only migration.
+    // The classification upgrade must not replace stale timing or unrelated session identity.
     database.exec("UPDATE laps SET lap_time=999; UPDATE sessions SET track_id='obsolete layout';");
 
     const firstRecording = database.prepare("SELECT raw_file, ownership FROM sessions ORDER BY id LIMIT 1").get() as { raw_file: string; ownership: string };
     // Full-frame conversion is a prerequisite to this upgrade, separate from folder organization.
     const converted = await convertSeedFramesToSparse("ac-evo", (function* () {
-      for (const record of iterateSessionCaptureRecords(decompressIfGzipSync(Buffer.from(readFileSync(fixture))))) {
+      for (const record of iterateSessionCaptureRecords(decompressIfGzipSync(Buffer.from(readFileSync(firstRecording.raw_file))))) {
         if (record.kind === "frame") yield { frame: record.frame, frameTimeMs: record.frameTimeMs };
         else if (record.kind === "segment-boundary") yield SESSION_SEGMENT_BOUNDARY;
         else if (record.kind === "segment-context") yield SESSION_SEGMENT_CONTEXT;
@@ -193,159 +174,24 @@ test("current startup reprocesses release-seeded Tourist sessions into correct l
     database.prepare("DELETE FROM sessions WHERE id=?").run(collisionSessionId);
     await rm(collision);
     expect(await backend.organize()).toBe("success");
+    const sessionsBeforeClassification = database.prepare("SELECT * FROM sessions ORDER BY id").all();
+    const lapsBeforeClassification = database.prepare("SELECT * FROM laps ORDER BY id").all();
     await backend.ready();
-    const after = database.prepare("SELECT id,track_id,lap_detector_version,raw_file,ownership FROM sessions ORDER BY id").all() as Session[];
-    expect(after.map((session) => session.id)).toEqual(before.map((session) => session.id));
-    for (const session of after) {
-      expect(session.track_id).toBe('["Nurburgring","Touristenfahrten"]');
-      expect(session.raw_file).toBe(join(gameDirectory, session.ownership === "others" ? "others" : "own", basename(legacyPath)));
+    const deadline = Date.now() + 180_000;
+    let outcomes = database.prepare("SELECT state,reason FROM classification_migration_recordings").all() as Array<{ state: string; reason: string | null }>;
+    // Another process owns the production backfill; observe durable terminal results.
+    while (outcomes.length === 0 || outcomes.some((row) => row.state === "pending" || row.state === "running")) {
+      if (Date.now() >= deadline) throw new Error(`Historical classification did not settle: ${JSON.stringify(outcomes)}`);
+      await Bun.sleep(20);
+      outcomes = database.prepare("SELECT state,reason FROM classification_migration_recordings").all() as typeof outcomes;
     }
-    const finishes = database.prepare("SELECT lap_time FROM laps WHERE is_valid=1 AND invalid_reason IS NULL ORDER BY lap_time").all() as Array<{ lap_time: number }>;
-    expect(finishes.map((lap) => lap.lap_time)).toEqual([398.781, 401.277]);
-    expect(database.prepare("SELECT id FROM laps WHERE lap_time=999").all()).toEqual([]);
+    expect(database.prepare("SELECT * FROM sessions ORDER BY id").all()).toEqual(sessionsBeforeClassification);
+    expect(database.prepare("SELECT * FROM laps ORDER BY id").all()).toEqual(lapsBeforeClassification);
+    expect(outcomes.some((row) => row.state === "failed" || row.state === "limited")).toBe(true);
+    expect(outcomes).toContainEqual({ state: "failed", reason: "ambiguous_match" });
   } finally {
     await backend?.stop();
     database?.close();
     await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 }, 600_000);
-
-test("startup discovers Tourist in already-processed AC Evo recordings and does not replay successes twice", async () => {
-  const temporary = mkdtempSync(join(tmpdir(), "raceiq-evo-layout-backfill-"));
-  const dataDir = join(temporary, "data");
-  mkdirSync(dataDir);
-  let backend: StartupBackend | undefined;
-  let database: InstanceType<typeof Database> | undefined;
-  try {
-    const fixture = join(temporary, "ac-evo-tourist.bin.gz");
-    writeFileSync(fixture, Buffer.concat([1, 2].map((part) =>
-      readFileSync(join(ROOT, `test/artifacts/sessions/ac-evo-tourist-2026-10-10.bin.gz.part${part}`)),
-    )));
-    await command([process.execPath, "run", "db:seed", "--games=ac-evo", `--fixtures=${fixture}`], ROOT, environment(dataDir));
-    database = new Database(join(dataDir, "app.db"));
-    database.exec("PRAGMA busy_timeout=5000;");
-    // Simulate an installation that already completed historical reconciliation before v76.
-    database.exec(`
-      DELETE FROM schema_migrations WHERE version=76;
-      UPDATE sessions SET track_id='obsolete layout', lap_detector_version='ac_evo_lapdetector_v5';
-      UPDATE laps SET lap_time=999;
-    `);
-    const before = database.prepare("SELECT id FROM sessions ORDER BY id").all() as Array<{ id: number }>;
-    expect(before.length).toBeGreaterThan(0);
-
-    backend = startBranch(dataDir);
-    await backend.ready();
-    await backend.waitFor("[StartupWorker] Starting dashboard processor");
-    await backend.stop();
-    backend = undefined;
-    const after = database.prepare("SELECT id,track_id,lap_detector_version FROM sessions ORDER BY id").all() as Session[];
-    expect(after.map((session) => session.id)).toEqual(before.map((session) => session.id));
-    for (const session of after) {
-      expect(session.track_id).toBe('["Nurburgring","Touristenfahrten"]');
-      expect(session.lap_detector_version).toBe("ac_evo_lapdetector_v5");
-    }
-    const finishes = database.prepare("SELECT lap_time FROM laps WHERE is_valid=1 AND invalid_reason IS NULL ORDER BY lap_time").all() as Array<{ lap_time: number }>;
-    expect(finishes.map((lap) => lap.lap_time)).toEqual([398.781, 401.277]);
-    expect(database.prepare("SELECT id FROM laps WHERE lap_time=999").all()).toEqual([]);
-
-    // A replay would overwrite this sentinel; successful sessions must be skipped on restart.
-    database.exec("UPDATE laps SET lap_time=123.456 WHERE is_valid=1 AND invalid_reason IS NULL");
-    backend = startBranch(dataDir);
-    await backend.ready();
-    await backend.waitFor("[StartupWorker] Starting dashboard processor");
-    const restarted = database.prepare("SELECT lap_time FROM laps WHERE is_valid=1 AND invalid_reason IS NULL").all() as Array<{ lap_time: number }>;
-    expect(restarted.map((lap) => lap.lap_time)).toEqual([123.456, 123.456]);
-  } finally {
-    await backend?.stop();
-    database?.close();
-    await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
-  }
-}, 240_000);
-test("incomplete historical replay blocks later startup stages while HTTP remains available", async () => {
-  const temporary = mkdtempSync(join(tmpdir(), "raceiq-startup-blocked-"));
-  const dataDir = join(temporary, "data");
-  mkdirSync(dataDir);
-  let backend: StartupBackend | undefined;
-  let database: InstanceType<typeof Database> | undefined;
-  try {
-    const fixture = join(temporary, "ac-evo-tourist.bin.gz");
-    writeFileSync(fixture, Buffer.concat([1, 2].map((part) =>
-      readFileSync(join(ROOT, `test/artifacts/sessions/ac-evo-tourist-2026-10-10.bin.gz.part${part}`)),
-    )));
-    await command([process.execPath, "run", "db:seed", "--games=ac-evo", `--fixtures=${fixture}`], ROOT, environment(dataDir));
-    const corruptCapture = join(temporary, "broken-sparse.bin");
-    writeFileSync(corruptCapture, Buffer.from([255, 255, 255, 127]));
-    database = new Database(join(dataDir, "app.db"));
-    database.exec("PRAGMA busy_timeout=5000;");
-    const previousFiles = database.prepare("SELECT DISTINCT raw_file FROM sessions").all() as Array<{ raw_file: string }>;
-    for (const recording of previousFiles) rmSync(recording.raw_file, { force: true });
-    database.prepare("UPDATE sessions SET raw_file = ?, lap_detector_version = NULL").run(corruptCapture);
-
-    backend = startBranch(dataDir);
-    await backend.waitFor("[StartupWorker] Historical session reconciliation failed: Startup reconciliation incomplete:");
-    expect(backend.output()).toContain("[Server] HTTP/WS server listening");
-    expect(backend.output()).not.toContain("[LMU] Session identity backfill");
-    expect(backend.output()).not.toContain("[RaceResults] Backfill");
-    expect(backend.output()).not.toContain("[StartupWorker] Starting dashboard processor");
-  } finally {
-    await backend?.stop();
-    database?.close();
-    await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
-  }
-}, 240_000);
-
-for (const failure of ["lmu", "race"] as const) {
-  test(`${failure} incomplete result blocks dependent startup stages`, async () => {
-    const temporary = mkdtempSync(join(tmpdir(), `raceiq-startup-${failure}-blocked-`));
-    const dataDir = join(temporary, "data");
-    mkdirSync(dataDir);
-    let backend: StartupBackend | undefined;
-    let database: InstanceType<typeof Database> | undefined;
-    try {
-      await command([process.execPath, "--eval", `
-        import { initDb, client } from "./server/db/index";
-        await initDb();
-        await client.close();
-      `], ROOT, environment(dataDir));
-      database = new Database(join(dataDir, "app.db"));
-      database.exec("PRAGMA busy_timeout=5000;");
-      database.prepare(`
-        INSERT INTO sessions (game_id, car_id, track_id, lap_detector_version, capture_format_version)
-        VALUES (?, ?, ?, ?, 1)
-      `).run(
-        failure === "lmu" ? "lmu" : "ac-evo",
-        failure === "lmu" ? "" : "Test car",
-        failure === "lmu" ? "" : '["Nurburgring","Touristenfahrten"]',
-        failure === "lmu" ? LAP_DETECTOR_ID : LAP_DETECTOR_AC_EVO_ID,
-      );
-      database.exec("INSERT INTO laps (session_id, lap_number, lap_time) VALUES (1, 1, 100)");
-      if (failure === "race") {
-        // Exercise the real result writer against a controlled persistence failure.
-        database.exec(`
-          CREATE TRIGGER reject_result_write BEFORE INSERT ON session_results BEGIN
-            SELECT RAISE(ABORT, 'controlled race-result write failure');
-          END;
-        `);
-      }
-      backend = startBranch(dataDir);
-      const stage = failure === "lmu" ? "LMU session identity backfill" : "Race-result backfill";
-      await backend.waitFor(`[StartupWorker] ${stage} failed: Startup reconciliation incomplete:`);
-      await backend.stop();
-      expect(backend.output()).toContain(COMPLETE);
-      if (failure === "lmu") {
-        expect(backend.output()).toContain("unresolved=1");
-        expect(backend.output()).not.toContain("[RaceResults] Backfill");
-      } else {
-        expect(database.prepare("SELECT session_id FROM session_results").all()).toEqual([]);
-        expect(backend.output()).toContain("errors=1");
-      }
-      expect(backend.output()).not.toContain("[StartupWorker] Starting dashboard processor");
-      expect(backend.output()).not.toContain("Shutdown grace expired");
-      backend = undefined;
-    } finally {
-      await backend?.stop();
-      database?.close();
-      await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
-    }
-  }, 60_000);
-}

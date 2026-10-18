@@ -5,6 +5,7 @@ import { and, eq, isNotNull, or, inArray, sql } from "drizzle-orm";
 import { db } from "./index";
 import { laps, sessions, lapMetrics, lapAnalyses, compareAnalyses, lineSpreadCache, sessionCaptureSplitJobs, liveCaptureMembers } from "./schema";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
+import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
 
 export async function getLapsForSession(sessionId: number): Promise<Array<{
   id: number; lapNumber: number; lapTime: number; isValid: boolean; isFavorite: boolean;
@@ -42,6 +43,7 @@ export async function updateLapRawIndex(
   isValid: boolean,
   invalidReason: string | null,
   sectors: number[] | null,
+  classification: LapClassification | null,
   versionIdentity?: TelemetryVersionIdentity,
 ): Promise<void> {
   await db.update(laps).set({
@@ -51,6 +53,7 @@ export async function updateLapRawIndex(
     isValid,
     invalidReason,
     sectorTimes: sectors,
+    classification,
     ...versionIdentity,
   }).where(eq(laps.id, lapId));
   cacheDelete(lapId);
@@ -71,6 +74,7 @@ export async function replaceLapsForSession(
     notes: string | null;
     invalidReason: string | null;
     sectors: number[] | null;
+    classification: LapClassification | null;
     versionIdentity?: TelemetryVersionIdentity;
   }>,
   sessionIdentity?: { carId: string; trackId: string },
@@ -133,6 +137,7 @@ export async function replaceLapsForSession(
         rawFrameCount: replacement.rawFrameCount,
         invalidReason: replacement.invalidReason,
         sectorTimes: replacement.sectors,
+        classification: replacement.classification,
         ...replacement.versionIdentity,
       };
       if (replacement.lapId !== null) {

@@ -1,3 +1,4 @@
+import { paceLapCondition } from "./lap-eligibility";
 import { cacheGet, cacheSet, LapParseError, parseRawLapFrames, parseSessionLapsBatched } from "./telemetry-replay-storage";
 import { resolveLapCaptureArtifact } from "../session-capture/source-loader";
 import { toLapMeta } from "./lap-meta";
@@ -80,6 +81,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200, sessionId?: 
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      classification: laps.classification,
       invalidReason: laps.invalidReason,
       notes: laps.notes,
       pi: laps.pi,
@@ -140,7 +142,7 @@ export async function getReviewLaps(
   limit = 5,
   sessionId?: number,
 ): Promise<LapMeta[]> {
-  const filters = [eq(sessions.gameId, gameId), eq(laps.isValid, true), sql`${laps.lapTime} > 0`, sql`${sessions.rawFile} IS NOT NULL`];
+  const filters = [eq(sessions.gameId, gameId), eq(laps.isValid, true), paceLapCondition(), sql`${laps.lapTime} > 0`, sql`${sessions.rawFile} IS NOT NULL`];
   if (sessionId != null) filters.push(eq(laps.sessionId, sessionId));
   else {
     if (trackId != null) filters.push(eq(sessions.trackId, trackId));
@@ -153,6 +155,7 @@ export async function getReviewLaps(
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      classification: laps.classification,
       invalidReason: laps.invalidReason,
       notes: laps.notes,
       createdAt: laps.createdAt,
@@ -217,6 +220,7 @@ export async function getLapMetaForProfileScope(gameId: GameId, carId?: string, 
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      classification: laps.classification,
       invalidReason: laps.invalidReason,
       notes: laps.notes,
       pi: laps.pi,
@@ -275,6 +279,7 @@ type LapSummary = {
   createdAt: string;
   sectorTimes: number[] | null;
   isValid: boolean;
+  classification: LapMeta["classification"];
   invalidReason: string | null;
   notes: string | null;
 };
@@ -293,6 +298,7 @@ export async function getLapSummariesByTrack(trackId: string, gameId?: GameId): 
       createdAt: laps.createdAt,
       sectorTimes: laps.sectorTimes,
       isValid: laps.isValid,
+      classification: laps.classification,
       invalidReason: laps.invalidReason,
       notes: laps.notes,
     })
@@ -315,6 +321,7 @@ export async function getLapSummariesByTrack(trackId: string, gameId?: GameId): 
       createdAt: r.createdAt,
       sectorTimes: r.sectorTimes ?? null,
       isValid: Boolean(r.isValid),
+      classification: r.classification,
       invalidReason: r.invalidReason ?? null,
       notes: r.notes ?? null,
     }));
@@ -326,6 +333,7 @@ type LapMetadataRow = {
   lapNumber: number;
   lapTime: number;
   isValid: number | boolean;
+  classification: LapMeta["classification"];
   isFavorite: number | boolean;
   createdAt: string;
   rawFile: string | null;
@@ -360,6 +368,7 @@ async function getLapMetadataRow(id: number): Promise<LapMetadataRow | undefined
     .select({
       id: laps.id, sessionId: laps.sessionId, lapNumber: laps.lapNumber, lapTime: laps.lapTime,
       isValid: laps.isValid, isFavorite: laps.isFavorite, createdAt: laps.createdAt, rawByteOffset: laps.rawByteOffset,
+      classification: laps.classification,
       rawFrameCount: laps.rawFrameCount, rawFile: sessions.rawFile, source: sessions.source,
       carId: sessions.carId, trackId: sessions.trackId,
       captureManifestFile: sessions.captureManifestFile, captureLayoutVersion: sessions.captureLayoutVersion, captureChunkId: laps.captureChunkId,
@@ -453,6 +462,7 @@ type LapResultRow = {
   lapNumber: number;
   lapTime: number;
   isValid: number | boolean;
+  classification: LapMeta["classification"];
   createdAt: string;
   isFavorite: number | boolean;
   carId: string;
@@ -490,6 +500,7 @@ function buildLapResult(
     lapNumber: row.lapNumber,
     lapTime: row.lapTime,
     isValid: Boolean(row.isValid),
+    classification: row.classification,
     isFavorite: Boolean(row.isFavorite),
     telemetryAvailable: (row.rawFile != null && row.rawByteOffset != null && (row.rawFrameCount ?? 0) > 0) || Boolean(row.standaloneCaptureReady),
     standaloneCaptureReady: row.standaloneCaptureReady == null ? undefined : Boolean(row.standaloneCaptureReady),
@@ -535,6 +546,7 @@ export async function getLapsByIds(
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      classification: laps.classification,
       isFavorite: laps.isFavorite,
       createdAt: laps.createdAt,
       carId: sessions.carId,

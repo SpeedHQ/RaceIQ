@@ -162,7 +162,7 @@ describe("historical session reconciliation", () => {
     await replaceLapsForSession(session.id, [{
       lapId: matched.id, lapNumber: 1, lapTime: 99, isValid: true, isFavorite: false,
       rawByteOffset: null, rawFrameCount: 0, tuneId: null, notes: "preserve me",
-      invalidReason: null, sectors: null,
+      invalidReason: null, sectors: null, classification: null,
     }]);
 
     expect(await db.select().from(laps).where(eq(laps.id, matched.id)).get()).toMatchObject({ lapTime: 99, notes: "preserve me" });

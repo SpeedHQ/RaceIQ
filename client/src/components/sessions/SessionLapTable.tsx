@@ -1,3 +1,4 @@
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification"
 import { isPitCycleLap } from "@raceiq/analysis-core/racing/laps/pit-cycle"
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -29,7 +30,7 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
   const bestSectorLaps = useMemo(
     () =>
       bestSectorLapIds(
-        laps.filter((lap) => lap.isValid && !isPitCycleLap(lap)),
+        laps.filter((lap) => lap.isValid && isPaceLap(lap.classification) && !isPitCycleLap(lap)),
         sectorCount,
       ),
     [laps, sectorCount],

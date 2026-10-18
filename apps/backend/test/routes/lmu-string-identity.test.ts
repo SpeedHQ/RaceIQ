@@ -117,8 +117,8 @@ describe("LMU string identity routes", () => {
     const stringSession = await insertSession("ferrari_499p_2023", "spa_2023/spawec", "lmu", "race");
     const legacySession = await insertSession("1896582084", "481869333", "lmu");
     sessionIds.push(stringSession, legacySession);
-    await insertLap(stringSession, 1, 142.2, true, null, 1);
-    await insertLap(legacySession, 1, 143.2, true, null, 1);
+    await insertLap(stringSession, 1, 142.2, true, null, 1, null, null, null, null, null);
+    await insertLap(legacySession, 1, 143.2, true, null, 1, null, null, null, null, null);
 
     const catalogResponse = await trackRoutes.request("/api/tracks?gameId=lmu");
     const catalog = await catalogResponse.json() as Array<{ id: string | null; lapCount: number }>;
@@ -146,11 +146,11 @@ describe("LMU string identity routes", () => {
     const otherGame = await insertSession("1896582084", "481869333", "fm-2023");
     const others = await insertSession("other-driver-car", "other-driver-track", "lmu", "race", undefined, "others");
     sessionIds.push(stringSession, secondStringSession, numericNative, otherGame, others);
-    await insertLap(stringSession, 1, 140, true, null, 1);
-    await insertLap(stringSession, 2, 141, false, null, 1);
-    await insertLap(stringSession, 3, 0, false, null, 1);
+    await insertLap(stringSession, 1, 140, true, null, 1, null, null, null, null, null);
+    await insertLap(stringSession, 2, 141, false, null, 1, null, null, null, null, null);
+    await insertLap(stringSession, 3, 0, false, null, 1, null, null, null, null, null);
     for (const id of [secondStringSession, numericNative, otherGame, others]) {
-      await insertLap(id, 1, 150, true, null, 1);
+      await insertLap(id, 1, 150, true, null, 1, null, null, null, null, null);
     }
 
     const stats = await getLapStats("lmu");

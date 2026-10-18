@@ -1,18 +1,21 @@
 import { MOTEC_SESSION_SOURCE } from "@raceiq/shared/integrations/motec";
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
+import { paceLapCondition } from "./lap-eligibility";
 import { resolveRecordingDirectory } from "../runtime/config/recording-directory";
+import { getRecordedElapsedSeconds } from "../session-capture/elapsed-duration";
 import { createHash, randomUUID } from "node:crypto";
 import { rm, stat } from "node:fs/promises";
 import type { Stats } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { getRecordedElapsedSeconds } from "../session-capture/elapsed-duration";
 import { cacheDelete } from "./telemetry-replay-storage";
-import { eq, desc, and, or, sql, inArray, notInArray, isNull, lt, asc } from "drizzle-orm";
+import { eq, desc, and, or, sql, inArray, notInArray, isNull, lt, asc, gt, notExists } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps, sessionResults, pitEvents, sessionCaptureSplitJobs, liveCaptures } from "./schema";
+import { sessions, laps, sessionResults, pitEvents, sessionCaptureSplitJobs, liveCaptures, classificationMigrationMeta, classificationMigrationRecordings } from "./schema";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import type { SessionMeta, SessionOwnership, SessionCaptureSplitPhase, SessionCaptureSplitErrorCode } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
+import { invalidateClassificationMigrationSource } from "../session-capture/classification-migration";
 import { tryGetGame } from "@raceiq/shared/games/registry";
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { getTrackLengthMetersById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
@@ -436,11 +439,16 @@ export async function updateSessionRawFile(
   lapDetectorVersion: string,
   versionIdentity?: TelemetryVersionIdentity,
 ): Promise<void> {
+  const previous = await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get();
   await db
     .update(sessions)
     .set({ rawFile, lapDetectorVersion, ...versionIdentity })
     .where(eq(sessions.id, sessionId))
     .run();
+  if (previous?.rawFile && previous.rawFile !== rawFile) {
+    await invalidateClassificationMigrationSource(previous.rawFile);
+  }
+  await invalidateClassificationMigrationSource(rawFile);
 }
 export interface SessionCaptureSplitProgressUpdate {
   sessionId: number;
@@ -503,6 +511,13 @@ async function getAvailableStaleSessionRows(
     .from(sessions)
     .where(
       and(
+        // Historical captures belong to the non-destructive classification pass,
+        // not the stale-session repair queue or its startup completion gate.
+        gt(sessions.id, sql`coalesce((select ${classificationMigrationMeta.cutoffSessionId} from ${classificationMigrationMeta} where ${classificationMigrationMeta.id}=1), 0)`),
+        notExists(db.select({ value: sql`1` }).from(classificationMigrationRecordings).where(eq(
+          classificationMigrationRecordings.sourceKey,
+          sql`CASE WHEN ${sessions.rawFile} IS NULL THEN 'session:' || ${sessions.id} ELSE 'file:' || ${sessions.rawFile} END`,
+        ))),
         sql`${sessions.rawFile} IS NOT NULL`,
         inArray(sessions.gameId, reprocessableGameIds),
         or(eq(sessions.captureFormatVersion, 1), eq(sessions.source, MOTEC_SESSION_SOURCE)),
@@ -787,11 +802,11 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
   const result: SessionMeta[] = [];
   for (const session of rows) {
     const lapRows = await db
-      .select({ id: laps.id, lapTime: laps.lapTime, isValid: laps.isValid })
+      .select({ id: laps.id, lapTime: laps.lapTime, isValid: laps.isValid, classification: laps.classification })
       .from(laps)
       .where(eq(laps.sessionId, session.id))
       .all();
-    const validLapTimes = lapRows.filter((lap) => Boolean(lap.isValid)).map((lap) => lap.lapTime);
+    const validLapTimes = lapRows.filter((lap) => Boolean(lap.isValid) && isPaceLap(lap.classification)).map((lap) => lap.lapTime);
     const bestLapTime = validLapTimes.length > 0 ? Math.min(...validLapTimes) : 0;
 
     const { capturePath: _capturePath, ...sessionMetadata } = session;
@@ -906,6 +921,7 @@ export async function getSessionRecapData(
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      classification: laps.classification,
       sectorTimes: laps.sectorTimes,
       invalidReason: laps.invalidReason,
     })
@@ -956,6 +972,7 @@ export async function getSessionRecapData(
         eq(sessions.gameId, gameId),
         sql`${sessions.id} != ${id}`,
         eq(laps.isValid, true),
+        paceLapCondition(),
         sql`${laps.lapTime} > 0`,
       ),
     )
@@ -973,6 +990,7 @@ export async function getSessionRecapData(
         eq(sessions.gameId, gameId),
         sql`${sessions.id} != ${id}`,
         eq(laps.isValid, true),
+        paceLapCondition(),
         sql`${laps.lapTime} > 0`,
         sql`${laps.sectorTimes} IS NOT NULL`,
       ),
