@@ -1,6 +1,6 @@
 import { eq, inArray, isNotNull } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
-import { open, readdir, stat, unlink } from "node:fs/promises";
+import { open, readdir, rm, stat, unlink } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { SessionDownsamplePreview, SessionDownsampleRequest, SessionDownsampleSkip, SessionDownsampleStatus } from "@raceiq/shared/racing/sessions/downsample";
@@ -15,7 +15,8 @@ import { commitSessionDownsample, commitSessionDownsampleCap } from "../db/lap-r
 import { cacheDelete } from "../db/telemetry-replay-storage";
 import { isSessionActive } from "../telemetry/live-pipeline";
 import { hasPendingLayoutMigration } from "./layout-migration";
-import { listSessionCaptureFiles, withSessionCaptureMaintenanceLock } from "./cleanup";
+import { listSessionCaptureFiles, loadReferencedCapturePaths, withSessionCaptureMaintenanceLock } from "./cleanup";
+import { downsampleSourceFiles, prepareDownsampleCaptureBundles, type DownsampleCaptureBundle } from "./downsample-bundles";
 import { loadSettings } from "../runtime/config/settings";
 import { isRecordingRetentionPolicyValid } from "@raceiq/shared/platform/runtime/recording-frequency";
 import { Cause, Deferred, Effect, Fiber, Ref } from "effect";
@@ -339,7 +340,13 @@ export async function buildSessionDownsamplePlan(request: SessionDownsampleReque
       skipped.push(skip(refs, "unowned"));
       continue;
     }
-    if (refs.some((row) => row.source === MOTEC_SOURCE) || !(path.endsWith(".bin") || path.endsWith(".bin.gz"))) {
+    if (refs.some((row) => row.source === MOTEC_SOURCE)) {
+      skipped.push(skip(refs, "unsupported-format"));
+      continue;
+    }
+    // Manifest-backed captures are published as JSON, but stream as canonical
+    // records through the source loader just like their legacy raw-file source.
+    if (!(path.endsWith(".bin") || path.endsWith(".bin.gz") || path.endsWith("capture-manifest.json"))) {
       skipped.push(skip(refs, "unsupported-format"));
       continue;
     }
@@ -371,7 +378,8 @@ export async function buildSessionDownsamplePlan(request: SessionDownsampleReque
         skipped.push(skip(refs, "already-at-or-below-target"));
         continue;
       }
-      candidates.push({ path, rows: refs, source, inspection, size });
+      const sourceFiles = await downsampleSourceFiles(path, refs.map((ref) => ref.id));
+      candidates.push({ path, rows: refs, source, inspection, size: [...sourceFiles.values()].reduce((sum, bytes) => sum + bytes, 0) });
     } catch (error) {
       if (error instanceof DownsampleRecordingError) {
         skipped.push(skip(refs, error.reason));
@@ -416,6 +424,7 @@ export function createSessionDownsampleRecordingInput(source: SessionDownsampleG
       };
     },
     lapIndexes,
+    appendsDelayedFinishFrame: game.appendsDelayedFinishFrame,
   };
 }
 
@@ -476,10 +485,12 @@ export async function executeSessionDownsampleGroup(request: SessionDownsampleRe
       rawByteOffset: lap.expectedRawByteOffset,
       rawFrameCount: lap.expectedRawFrameCount,
     }));
-    const gzip = await isGzipCapture(group.path);
+    const gzip = group.path.endsWith("manifest.json") || await isGzipCapture(group.path);
     const newPath = join(dirname(group.path), `${group.source.gameId}.downsample-${randomUUID()}.bin${gzip ? ".gz" : ""}`);
     let outputCreated = false;
     let committed = false;
+    let captureBundles: DownsampleCaptureBundle[] = [];
+    const sourceFiles = await downsampleSourceFiles(group.path, sessionIds);
     try {
       const result = await rewriteDownsampleRecording(createSessionDownsampleRecordingInput(group.source, oldIndexes), group.inspection, { targetHz: request.targetHz, outputPath: newPath, gzip });
       outputCreated = true;
@@ -508,15 +519,34 @@ export async function executeSessionDownsampleGroup(request: SessionDownsampleRe
         return { kind: "cap-only", sessionIds };
       }
       const outputState = await stat(newPath);
-      if (outputState.size >= sourceNow.size) {
+      if (outputState.size >= group.size) {
+        await unlink(newPath);
+        outputCreated = false;
+        return { kind: "skipped", skip: { sessionIds, reason: "not-smaller" } };
+      }
+      captureBundles = await prepareDownsampleCaptureBundles(
+        { ...group.source, rawFile: newPath }, sessionIds, result.lapIndexes,
+      );
+      let outputBytes = outputState.size;
+      for (const bundle of captureBundles) {
+        outputBytes += (await stat(bundle.manifestPath)).size;
+        for (const chunk of bundle.manifest.chunks) outputBytes += chunk.byteLength;
+      }
+      if (outputBytes >= group.size) {
+        for (const bundle of captureBundles) await rm(dirname(bundle.manifestPath), { recursive: true, force: true });
         await unlink(newPath);
         outputCreated = false;
         return { kind: "skipped", skip: { sessionIds, reason: "not-smaller" } };
       }
       await assertDownsampleQuiescent();
+      const sourceBeforeCommit = await stat(group.path);
+      if (sourceBeforeCommit.size !== sourceState.size || sourceBeforeCommit.mtimeMs !== sourceState.mtimeMs || sourceBeforeCommit.ino !== sourceState.ino) {
+        throw new Error("Recording source changed before publication");
+      }
       await commitSessionDownsample({
         oldRawFile: group.path,
         newRawFile: newPath,
+        captureBundles,
         sessionIds,
         targetHz: request.targetHz,
         lapIndexes: result.lapIndexes,
@@ -527,16 +557,22 @@ export async function executeSessionDownsampleGroup(request: SessionDownsampleRe
       for (const path of new Set([group.path, newPath, ...group.rows.flatMap((row) => (row.rawFile ? [row.rawFile] : []))])) {
         clearSessionCaptureCache(path);
       }
-      const refs = await db.select({ rawFile: sessions.rawFile }).from(sessions).where(isNotNull(sessions.rawFile)).all();
-      if (refs.some((row) => row.rawFile !== null && resolve(row.rawFile) === group.path)) {
-        return { kind: "converted", sessionIds, freedBytes: 0, warning: "Original recording remains referenced; source was not removed" };
+      const referenced = await loadReferencedCapturePaths();
+      let freedBytes = 0;
+      const warnings: string[] = [];
+      for (const [path, bytes] of sourceFiles) {
+        if (!isOwnedSessionRawFile(path) || referenced.has(resolve(path)) || referenced.has(dirname(resolve(path)))) continue;
+        try {
+          await unlink(path);
+          freedBytes += bytes;
+        } catch (error) {
+          warnings.push(`${path}: ${error instanceof Error ? error.message : String(error)}`);
+        }
       }
-      try {
-        await unlink(group.path);
-      } catch (error) {
-        return { kind: "converted", sessionIds, freedBytes: 0, warning: `Replacement committed; original file could not be removed: ${error instanceof Error ? error.message : String(error)}` };
-      }
-      return { kind: "converted", sessionIds, freedBytes: sourceNow.size - outputState.size, warning: null };
+      return {
+        kind: "converted", sessionIds, freedBytes: Math.max(0, freedBytes - outputBytes),
+        warning: warnings.length ? `Replacement committed; original files could not be removed: ${warnings.join("; ")}` : null,
+      };
     } catch (error) {
       if (committed) {
         return { kind: "converted", sessionIds, freedBytes: 0, warning: `Replacement committed; finalization failed: ${error instanceof Error ? error.message : String(error)}` };
@@ -548,6 +584,12 @@ export async function executeSessionDownsampleGroup(request: SessionDownsampleRe
           await unlink(newPath).catch((cleanupError: unknown) => {
             console.error("[Downsample] Failed to remove uncommitted output", newPath, cleanupError);
           });
+        }
+        const manifestRefs = await db.select({ path: sessions.captureManifestFile }).from(sessions).all();
+        for (const bundle of captureBundles) {
+          if (!manifestRefs.some((row) => row.path !== null && resolve(row.path) === resolve(bundle.manifestPath))) {
+            await rm(dirname(bundle.manifestPath), { recursive: true, force: true });
+          }
         }
       }
       throw error;

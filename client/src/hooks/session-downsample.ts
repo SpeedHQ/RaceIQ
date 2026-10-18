@@ -25,6 +25,8 @@ export function useSessionDownsampleStatus() {
         queryClient.invalidateQueries({ queryKey: queryKeys.storageSessions }),
         queryClient.invalidateQueries({ queryKey: queryKeys.sessions }),
         queryClient.invalidateQueries({ queryKey: queryKeys.laps }),
+        queryClient.invalidateQueries({ queryKey: ["lap-semantic-telemetry"] }),
+        queryClient.invalidateQueries({ queryKey: ["aligned-telemetry"] }),
         queryClient.invalidateQueries({ queryKey: queryKeys.cacheStatus }),
         queryClient.invalidateQueries({ queryKey: queryKeys.userTunes }),
       ]);

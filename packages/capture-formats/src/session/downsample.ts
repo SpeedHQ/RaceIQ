@@ -22,6 +22,7 @@ export type DownsampleRecordingInput = {
   records: () => AsyncIterable<SessionCaptureRecord>;
   createTelemetryParser: () => { parse: (frame: Buffer) => boolean; reset: () => void };
   lapIndexes: readonly DownsampleLapIndex[];
+  appendsDelayedFinishFrame?: boolean;
 };
 export type DownsampleRecordingErrorReason = "unsupported-format" | "unreliable-time";
 export class DownsampleRecordingError extends Error {
@@ -449,6 +450,14 @@ export async function rewriteDownsampleRecording(
         forcedOrdinals.add(endpoints.first.ordinal);
         forcedOrdinals.add(endpoints.last.ordinal);
       }
+      const finishOrdinal = lap.lastFrameOrdinal + 1;
+      if (
+        input.appendsDelayedFinishFrame &&
+        finishOrdinal < inspection.frameCount &&
+        !inspection.markers.some((marker) => marker.kind === "segment-boundary" && marker.ordinal === finishOrdinal)
+      ) {
+        forcedOrdinals.add(finishOrdinal);
+      }
     }
 
     type LapProgress = {
@@ -490,6 +499,7 @@ export async function rewriteDownsampleRecording(
         outputEncoder.reset();
         sparseEncoder.reset();
         clocks.clear();
+        inContext = false;
         continue;
       }
       if (record.kind === "segment-context") {

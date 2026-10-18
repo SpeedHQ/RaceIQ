@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { stat } from "node:fs/promises";
 import { cacheDelete } from "./telemetry-replay-storage";
-import { clearSessionCaptureCache } from "../session-capture/source-loader";
+import { clearSessionCaptureCache, loadCaptureManifest } from "../session-capture/source-loader";
+import type { DownsampleCaptureBundle } from "../session-capture/downsample-bundles";
 import { and, eq, isNotNull, or, inArray, sql } from "drizzle-orm";
 import { db } from "./index";
 import { laps, sessions, lapMetrics, lapAnalyses, compareAnalyses, lineSpreadCache, dashboardSummaryState, sessionCaptureSplitJobs, liveCaptureMembers } from "./schema";
@@ -62,7 +64,22 @@ export async function commitSessionDownsample(input: {
   sessionIds: number[];
   targetHz: RecordingFrequencyHz;
   lapIndexes: ReadonlyArray<DownsampleLapRewrite>;
+  captureBundles?: readonly DownsampleCaptureBundle[];
 }): Promise<void> {
+  const bundles = input.captureBundles ?? [];
+  if (new Set(bundles.map((bundle) => bundle.sessionId)).size !== bundles.length) {
+    throw new Error("Downsample publication includes duplicate bundles");
+  }
+  for (const bundle of bundles) {
+    const persisted = await loadCaptureManifest(bundle.manifestPath);
+    if (persisted.version !== 3 || JSON.stringify(persisted) !== JSON.stringify(bundle.manifest)) {
+      throw new Error("Downsample publication manifest changed");
+    }
+    for (const chunk of persisted.chunks) {
+      const info = await stat(join(dirname(bundle.manifestPath), chunk.path));
+      if (!info.isFile() || info.size !== chunk.byteLength) throw new Error("Downsample publication chunk changed");
+    }
+  }
   await db.transaction(async (tx) => {
     const checked = await validateDownsampleReferences(tx, input.oldRawFile, input.sessionIds, input.lapIndexes);
     const rewriteById = new Map(input.lapIndexes.map((index) => [index.lapId, index]));
@@ -78,6 +95,48 @@ export async function commitSessionDownsample(input: {
         !checked.sessionIds.includes(id)) || resolve(input.oldRawFile) === newResolvedPath) {
       throw new Error("Downsample publication target conflicts");
     }
+    const bundleBySession = new Map(bundles.map((bundle) => [bundle.sessionId, bundle]));
+    if (bundles.some((bundle) => !checked.sessionIds.includes(bundle.sessionId))) {
+      throw new Error("Downsample publication bundle session changed");
+    }
+    for (const id of checked.sessionIds) {
+      const current = await tx.select().from(sessions).where(eq(sessions.id, id)).get();
+      const currentLaps = await tx.select().from(laps).where(eq(laps.sessionId, id)).all();
+      const bundle = bundleBySession.get(id);
+      if (!bundle) {
+        if (current?.captureLayoutVersion != null || current?.captureManifestFile || current?.captureArchiveFile || currentLaps.some((lap) => lap.captureChunkId !== null)) {
+          throw new Error("Downsample publication requires rewritten replay bundle");
+        }
+        continue;
+      }
+      if (!current || current.captureManifestFile !== bundle.expectedManifestFile ||
+          current.captureArchiveFile !== bundle.expectedArchiveFile || current.captureLayoutVersion !== bundle.expectedLayoutVersion ||
+          current.gameId !== bundle.manifest.gameId) {
+        throw new Error("Downsample publication bundle references changed");
+      }
+      const expectedLaps = new Map(bundle.expectedLaps.map((lap) => [lap.id, lap]));
+      const chunks = bundle.manifest.chunks.filter((chunk) => chunk.lapId !== undefined);
+      const chunksByLap = new Map(chunks.map((chunk) => [Number(chunk.lapId), chunk]));
+      if (expectedLaps.size !== currentLaps.length || chunks.length !== currentLaps.length || chunksByLap.size !== chunks.length) {
+        throw new Error("Downsample publication bundle lap set changed");
+      }
+      for (const lap of currentLaps) {
+        const expected = expectedLaps.get(lap.id);
+        const chunk = chunksByLap.get(lap.id);
+        if (!expected || expected.captureChunkId !== lap.captureChunkId ||
+            expected.sourceFrameStart !== lap.sourceFrameStart || expected.sourceFrameCount !== lap.sourceFrameCount ||
+            !chunk || chunk.ownedFrameByteOffset === undefined || chunk.ownedFrameCount === undefined) {
+          throw new Error("Downsample publication bundle lap references changed");
+        }
+        await tx.update(laps).set({
+          captureChunkId: chunk.id, sourceFrameStart: null, sourceFrameCount: chunk.ownedFrameCount,
+        }).where(eq(laps.id, lap.id));
+      }
+      await tx.update(sessions).set({
+        captureLayoutVersion: 1, captureManifestFile: bundle.manifestPath, captureArchiveFile: null,
+      }).where(eq(sessions.id, id));
+    }
+    await tx.delete(sessionCaptureSplitJobs).where(inArray(sessionCaptureSplitJobs.sessionId, checked.sessionIds));
     for (const id of checked.sessionIds) {
       await tx.update(sessions).set({
         rawFile: input.newRawFile,

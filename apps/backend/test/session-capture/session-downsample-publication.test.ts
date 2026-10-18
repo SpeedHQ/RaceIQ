@@ -248,3 +248,37 @@ test("stale references, changed indexes, and favorites reject without partial da
   );
   expect((await db.select().from(sessions).where(eq(sessions.id, first)).get())?.downsampledFrequencyHz).toBeNull();
 });
+
+test("bundle-backed publication rejects missing replacement bundles without changing authoritative references", async () => {
+  const first = await seedSession(path, 70);
+  const lapId = await seedLap(first, 100, 20);
+  const manifestPath = resolve("authoritative-manifest.json");
+  await db.update(sessions).set({
+    captureLayoutVersion: 1,
+    captureManifestFile: manifestPath,
+  }).where(eq(sessions.id, first)).run();
+  await db.update(laps).set({
+    captureChunkId: "authoritative-lap",
+    sourceFrameStart: 4,
+    sourceFrameCount: 20,
+  }).where(eq(laps.id, lapId)).run();
+
+  const sessionBefore = await db.select().from(sessions).where(eq(sessions.id, first)).get();
+  const lapBefore = await db.select().from(laps).where(eq(laps.id, lapId)).get();
+  await expect(commitSessionDownsample({
+    oldRawFile: path,
+    newRawFile: newPath,
+    sessionIds: [first],
+    targetHz: 50,
+    lapIndexes: [{
+      lapId,
+      expectedRawByteOffset: 100,
+      expectedRawFrameCount: 20,
+      rawByteOffset: 80,
+      rawFrameCount: 12,
+    }],
+  })).rejects.toThrow();
+
+  expect(await db.select().from(sessions).where(eq(sessions.id, first)).get()).toEqual(sessionBefore);
+  expect(await db.select().from(laps).where(eq(laps.id, lapId)).get()).toEqual(lapBefore);
+});

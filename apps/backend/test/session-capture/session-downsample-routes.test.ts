@@ -1,11 +1,16 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdirSync, readFileSync, rmSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { mkdirSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
-import { db } from "@raceiq/backend-core/db/index";
+import { db, client as databaseClient } from "@raceiq/backend-core/db/index";
 import { parseRawLapFrames } from "@raceiq/backend-core/db/telemetry-replay-storage";
+import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
+import { DirectCaptureRecording } from "@raceiq/backend-core/session-capture/direct-recorder";
+import { iterateSessionCaptureRecordsFromSource } from "@raceiq/backend-core/session-capture/source-loader";
+import { splitCapturePromise } from "@raceiq/capture-splitting";
+import type { DetectorOwnershipWindow } from "@raceiq/telemetry-core/processor/ordinal-engine";
 import { laps, sessions } from "@raceiq/backend-core/db/schema";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
@@ -106,6 +111,7 @@ async function waitForTerminalStatus(): Promise<SessionDownsampleStatus> {
 }
 
 afterEach(async () => {
+  await databaseClient.execute("DROP TRIGGER IF EXISTS downsample_bundle_failure");
   await disposeRecordingMaintenanceRuntime();
   if (insertedLaps.length)
     await db
@@ -119,6 +125,96 @@ afterEach(async () => {
       .run();
   for (const dir of ownedDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
+
+for (const layout of ["direct", "split", "split-failure"] as const) {
+  test(`${layout} capture preview and downsample publish reduced authoritative lap replay`, async () => {
+    const fixture = await createCapture();
+    const manifestPath = join(createOwnedDirectory(), layout === "direct" ? "capture-manifest.json" : "manifest.json");
+    const id = await insertFixture(layout === "direct" ? manifestPath : fixture.path, layout === "direct" ? 12 : fixture.rawByteOffset);
+    const lapId = insertedLaps.at(-1)!;
+    if (layout === "direct") {
+      const capture = new DirectCaptureRecording("fm-2023", dirname(manifestPath), manifestPath);
+      await capture.ready;
+      capture.attachSession(id, Promise.resolve(), () => {});
+      let count = 0;
+      const window: DetectorOwnershipWindow = {
+        revision: 1, lapNumber: 1, startOffset: 12, startOrdinal: 0,
+        frameCount: 1, status: "provisional", trailingContextFrameCount: 0, bounded: true,
+      };
+      try {
+        for await (const record of iterateSessionCaptureRecordsFromSource({
+          rawFile: fixture.path, source: null, gameId: "fm-2023", carId: "route-test-car", trackId: "route-test-track",
+        })) {
+          if (record.kind !== "frame") continue;
+          capture.writeRecord(record.frame, record.frameTimeMs);
+          if (count++ === 0) {
+            capture.processTransitions([{
+              revision: 1, kind: "window-start", window,
+              state: { revision: 1, watermarkOffset: null, nextWindowStartOffset: null, windows: [] },
+            }], null);
+            capture.bindLap({ sessionId: id, lapId, lapNumber: 1, startByteOffset: 12, frameCount: 1_000 });
+          }
+        }
+        capture.processTransitions([{
+          revision: 2, kind: "window-finalized", window: { ...window, revision: 2, frameCount: count, status: "final" },
+          state: { revision: 2, watermarkOffset: null, nextWindowStartOffset: null, windows: [] },
+        }], null);
+      } finally {
+        await capture.stop();
+      }
+    } else {
+      const manifest = await splitCapturePromise({
+        sourcePath: fixture.path, outputDirectory: dirname(manifestPath), gameId: "fm-2023", sourceRevision: "route-split",
+        lapWindows: [{ lapId: String(lapId), lapNumber: 1, startByteOffset: fixture.rawByteOffset, frameCount: 800, trailingContextFrameCount: 1 }],
+      });
+      const chunk = manifest.chunks.find((chunk) => chunk.lapId === String(lapId))!;
+      await db.update(sessions).set({ captureLayoutVersion: 1, captureManifestFile: manifestPath }).where(eq(sessions.id, id));
+      await db.update(laps).set({
+        rawFrameCount: 800, captureChunkId: chunk.id, sourceFrameStart: null, sourceFrameCount: chunk.ownedFrameCount,
+      }).where(eq(laps.id, lapId));
+    }
+    await db.update(laps).set({ notes: "keep lap notes" }).where(eq(laps.id, lapId));
+    const before = await getLapById(lapId);
+    expect(before?.parseError).toBeUndefined();
+    expect(before!.telemetry.length).toBeGreaterThanOrEqual(800);
+    const request = { mode: "older-than", olderThanDays: 30, targetHz: 50 };
+    const preview = await post("/api/storage/session-downsample/preview", JSON.stringify(request));
+    const beforeSession = await db.select().from(sessions).where(eq(sessions.id, id)).get();
+    const beforeLap = await db.select().from(laps).where(eq(laps.id, lapId)).get();
+    const originalManifest = readFileSync(manifestPath);
+    if (layout === "split-failure") {
+      await databaseClient.execute(`CREATE TRIGGER downsample_bundle_failure BEFORE UPDATE OF raw_file ON sessions WHEN old.id=${id} BEGIN SELECT RAISE(ABORT,'injected bundle publication failure'); END`);
+    }
+    expect(preview.status).toBe(200);
+    expect((await preview.json() as { candidateSessionIds: number[] }).candidateSessionIds).toContain(id);
+    const accepted = await post("/api/storage/session-downsample", JSON.stringify(request));
+    expect(accepted.status).toBe(202);
+    const status = await waitForTerminalStatus();
+    if (layout === "split-failure") {
+      expect(status.status).toBe("error");
+      expect(await db.select().from(sessions).where(eq(sessions.id, id)).get()).toEqual(beforeSession);
+      expect(await db.select().from(laps).where(eq(laps.id, lapId)).get()).toEqual(beforeLap);
+      expect(readFileSync(manifestPath)).toEqual(originalManifest);
+      expect((await getLapById(lapId))?.telemetry).toEqual(before?.telemetry);
+      expect(readdirSync(dirname(fixture.path))).toEqual(["route-fixture.bin"]);
+      return;
+    }
+    expect(status.status).toBe("success");
+    expect(status.convertedFiles).toBe(1);
+    const stored = await db.select().from(sessions).where(eq(sessions.id, id)).get();
+    expect(stored?.captureManifestFile).not.toBe(manifestPath);
+    expect(stored?.captureLayoutVersion).toBe(1);
+    expect(stored?.downsampledFrequencyHz).toBe(50);
+    const after = await getLapById(lapId);
+    expect(after?.parseError).toBeUndefined();
+    expect(after!.telemetry.length).toBeLessThan(before!.telemetry.length * 0.6);
+    expect(after!.telemetry[0]).toEqual(before!.telemetry[0]);
+    expect(after!.telemetry.at(-1)).toEqual(before!.telemetry.at(-1));
+    expect((await db.select({ notes: laps.notes }).from(laps).where(eq(laps.id, lapId)).get())?.notes).toBe("keep lap notes");
+    expect(after?.lapTime).toBe(before?.lapTime);
+    expect(status.freedBytes).toBeGreaterThan(0);
+  });
+}
 
 describe("session downsample storage routes", () => {
   test("strictly validates JSON, mode, age, frequency, and unknown fields", async () => {

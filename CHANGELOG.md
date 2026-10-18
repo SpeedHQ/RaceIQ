@@ -11,6 +11,9 @@
 - Allow repeated recording downsampling without exceeding filesystem filename limits.
 - Keep the selected iRacing capture rate stable despite telemetry arrival jitter without recording duplicate frames.
 - Preserve position, speed, and other lap-start and lap-end telemetry when downsampling F1 recordings.
+- Downsample recordings in the current format and recordings previously split by lap so replay uses the smaller capture.
+- Keep the selected downsampling rate across recording segments and retain the original finish-line sample.
+- Refresh already-loaded Analyse charts after downsampling.
 - Show busy-storage conflicts when selecting Compress instead of failing silently.
 - Keep dashboard recording facts available after downsampling, even if final cleanup fails.
 - Prevent repeated iRacing source starts from leaving telemetry polling active after shutdown.

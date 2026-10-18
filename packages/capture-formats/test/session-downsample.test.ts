@@ -5,7 +5,7 @@ import { describe, expect, test } from "bun:test";
 import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, IRacingSourceFrameEncoder } from "../src/iracing/source-frame";
 import { ACC_PACKED_MAGIC, packTriplet } from "../src/kunos/pack-triplet";
 import { inspectDownsampleRecording, DownsampleRecordingError, rewriteDownsampleRecording, validateDownsampleRecording } from "../src/session/downsample";
-import { decompressIfGzipSync, encodeFrameLength, encodeParserBootstrapFrame, iterateSessionCaptureRecords } from "../src/session/framing";
+import { decompressIfGzipSync, encodeFrameLength, encodeParserBootstrapFrame, encodeSegmentBoundaryFrame, encodeSegmentContextEndFrame, encodeSegmentContextFrame, iterateSessionCaptureRecords } from "../src/session/framing";
 
 test("retains each F1 telemetry family state at an interior lap endpoint", async () => {
   const root = mkdtempSync(join(tmpdir(), "capture-downsample-f1-lap-endpoint-"));
@@ -106,6 +106,63 @@ test("does not seed an indexed F1 lap with telemetry from preceding session UID"
   const inspection = await inspectDownsampleRecording(source);
   expect(inspection.laps[0]?.f1EndpointTelemetry.map(({ first, last }) => [first.ordinal, last.ordinal])).toEqual([[1, 1]]);
 });
+test("retains delayed finish at interior indexed lap endpoint without successor index", async () => {
+  const root = mkdtempSync(join(tmpdir(), "capture-downsample-delayed-interior-"));
+  try {
+    const frames = Array.from({ length: 30 }, (_, index) => fmFrame(index * 10));
+    const source = {
+      gameId: "fm-2023" as const,
+      records: records(frames),
+      createTelemetryParser: parser,
+      lapIndexes: [{ lapId: 1, rawByteOffset: 0, rawFrameCount: 9 }],
+      appendsDelayedFinishFrame: true,
+    };
+    const inspection = await inspectDownsampleRecording(source);
+    const outputPath = join(root, "finish-interior.bin");
+    await rewriteDownsampleRecording(source, inspection, { targetHz: 50, outputPath, gzip: false });
+    const output = [...iterateSessionCaptureRecords(readFileSync(outputPath))]
+      .filter((record) => record.kind === "frame")
+      .map((record) => record.frame.readUInt32LE(4));
+    expect(output).toEqual([0, 20, 40, 60, 80, 90, 100, 120, 140, 160, 180, 200, 220, 240, 260, 280, 290]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+
+test("segment boundary ends context and restores 50 Hz throttling", async () => {
+  const root = mkdtempSync(join(tmpdir(), "capture-downsample-context-reset-"));
+  try {
+    const source = {
+      gameId: "fm-2023" as const,
+      records: async function* () {
+        yield { kind: "segment-context" as const, offset: 0, endOffset: 16 };
+        yield { kind: "frame" as const, offset: 16, endOffset: 356, frame: fmFrame(0) };
+        yield { kind: "segment-boundary" as const, offset: 356, endOffset: 372 };
+        let offset = 372;
+        for (let index = 0; index < 100; index++) {
+          const frame = fmFrame(index * 10);
+          const endOffset = offset + encodeFrameLength(frame.length).length + frame.length;
+          yield { kind: "frame" as const, offset, endOffset, frame };
+          offset = endOffset;
+        }
+      },
+      createTelemetryParser: parser,
+      lapIndexes: [],
+    };
+    const inspection = await inspectDownsampleRecording(source);
+    const outputPath = join(root, "context-reset.bin");
+    const result = await rewriteDownsampleRecording(source, inspection, { targetHz: 50, outputPath, gzip: false });
+    const output = [...iterateSessionCaptureRecords(readFileSync(outputPath))]
+      .filter((record) => record.kind === "frame")
+      .map((record) => record.frame.readUInt32LE(4));
+    expect(output).toEqual([0, 0, ...Array.from({ length: 49 }, (_, index) => (index + 1) * 20), 990]);
+    expect(result.frameCount).toBe(output.length);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 
 function fmFrame(tick: number): Buffer {
   const frame = Buffer.alloc(324);
