@@ -72,6 +72,7 @@
     "mastra:studio": "portless studio bun scripts/dev/mastra-studio.ts",
     "mastra:migrate": "DATA_DIR=\"$PWD/data\" bunx --bun mastra migrate --dir apps/backend/src/mastra",
     "postinstall": "lefthook install",
+    "effect:check": "effect-tsgo diagnostics --project server/tsconfig.json",
     "record:demo": "bun run build && E2E_SERVER_MODE=compiled PW_SERVER_SET=fresh DEMO_START_FRAME=28% DEMO_MAX_FRAMES=2700 bunx playwright test --project=record-demo",
     "screenshots": "cd playwright && E2E_SERVER_MODE=dev PW_SERVER_SET=seeded PW_SCREENSHOT_ONLY=1 PW_SEED_SCREENSHOTS=1 bunx playwright test --config=responsive-screenshots.config.ts",
     "test:e2e": "bun run build && E2E_SERVER_MODE=compiled PW_SERVER_SET=all bunx turbo run test --filter=raceiq-e2e -- --workers=1 --project=fresh-install --project=tunes --project=tunes-unseeded --project=seeded-e2e --project=seeded-routes --project=seeded-imports",

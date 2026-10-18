@@ -13,3 +13,7 @@ Stop: "stop caveman" or "normal mode"
 Auto-Clarity: drop caveman for security warnings, irreversible actions, user confused. Resume after.
 
 Boundaries: code/commits/PRs written normal.
+
+<!-- effect-solutions:start -->
+Before Effect changes, run `effect-solutions list`, then `effect-solutions show <topic...>` for relevant topics: `project-setup`, `tsconfig`, `basics`, `services-and-layers`, `data-modeling`, `error-handling`, `config`, `testing`, and `cli`. Treat `~/.local/share/effect-solutions/effect` as a reference checkout only; verify examples against the Effect version installed in this repository. See [scheduled recording maintenance](../docs/contributing/scheduled-recording-maintenance.md) for repository-specific runtime and scheduling invariants.
+<!-- effect-solutions:end -->

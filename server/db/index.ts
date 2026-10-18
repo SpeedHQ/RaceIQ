@@ -177,6 +177,41 @@ await client.execute(`
 `);
 
 async function runMigrations() {
+  // Earlier feature builds used IDs now owned by main. Relocate only known
+  // named entries, preserving timestamps and the schema changes already applied.
+  const recordingHistory = [
+    { name: "persist archival recording frequency caps", oldVersions: [76, 77], version: 81 },
+    { name: "reconcile all AC Evo recordings to discover Tourist layouts", oldVersions: [76], version: 78 },
+  ];
+  const tx = await client.transaction("write");
+  try {
+    for (const migration of recordingHistory) {
+      const oldVersions = migration.oldVersions.join(",");
+      const previous = await tx.execute({
+        sql: `SELECT version FROM schema_migrations WHERE version IN (${oldVersions}) AND name = ?`,
+        args: [migration.name],
+      });
+      if (!previous.rows.length) continue;
+      const existing = await tx.execute({ sql: "SELECT name FROM schema_migrations WHERE version = ?", args: [migration.version] });
+      if (existing.rows.length && existing.rows[0]!.name !== migration.name) {
+        throw new Error("Recording frequency migration conflicts with the recorded database history");
+      }
+      await tx.execute({
+        sql: `INSERT OR IGNORE INTO schema_migrations (version, name, applied_at)
+          SELECT ?, name, applied_at FROM schema_migrations
+          WHERE version IN (${oldVersions}) AND name = ? ORDER BY version DESC LIMIT 1`,
+        args: [migration.version, migration.name],
+      });
+      await tx.execute({
+        sql: `DELETE FROM schema_migrations WHERE version IN (${oldVersions}) AND name = ?`,
+        args: [migration.name],
+      });
+    }
+    await tx.commit();
+  } catch (error) {
+    await tx.rollback();
+    throw error;
+  }
   // Unreleased feature builds used IDs now owned by main. Move only their
   // named ledger entries; preserve their tables, credentials, and sessions.
   const legacy = await client.execute(`SELECT version, name FROM schema_migrations

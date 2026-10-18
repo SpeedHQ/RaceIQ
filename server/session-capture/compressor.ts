@@ -10,6 +10,7 @@ import { rename, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { createGzip } from "node:zlib";
+import { Cause, Effect, Fiber, Schedule } from "effect";
 import { getUncompressedSessions } from "../db/session-queries";
 import { db } from "../db/index";
 import { isSessionActive } from "../telemetry/live-pipeline";
@@ -21,9 +22,30 @@ import { loadSettings } from "../runtime/config/settings";
 import { executeSessionCleanup, SessionCleanupBusyError } from "./session-cleanup";
 import { releaseDashboardCaptureCheckpoint, republishPersistedDashboardCaptureFacts } from "./dashboard-processor";
 import { hasPendingLayoutMigration } from "./layout-migration";
+import {
+  getRecordingMaintenanceController,
+  admitMaintenance,
+  releaseMaintenance,
+  trackMaintenanceFiber,
+  disposeRecordingMaintenanceRuntime,
+  RecordingMaintenanceBusyError,
+  RecordingMaintenanceIOError,
+  RecordingMaintenanceValidationError,
+} from "./maintenance-runtime";
+import { cleanupInterruptedSessionDownsampleFiles, runScheduledSessionDownsampleEffect } from "./session-downsample";
+import { isRecordingRetentionPolicyValid } from "@raceiq/shared/platform/runtime/recording-frequency";
+import { RecordingStorageBusyError, reserveRecordingStorageOperation } from "./storage-activity";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-const INTERVAL_MS = 5 * 60 * 1000;
+type MaintenanceError = RecordingMaintenanceBusyError | RecordingMaintenanceIOError | RecordingMaintenanceValidationError;
+
+function maintenanceIOError(operation: string, cause: unknown): RecordingMaintenanceIOError {
+  return new RecordingMaintenanceIOError({
+    operation,
+    message: cause instanceof Error ? cause.message : String(cause),
+    cause,
+  });
+}
 
 interface CompressedFile {
   gzPath: string;
@@ -89,14 +111,41 @@ async function compressOrphanFile(binPath: string): Promise<void> {
   console.log(`[Compressor] (orphan) ${binPath} → ${compressedFile.gzPath} (${compressedFile.sizeSummary})`);
 }
 
+async function runManualCompression(userTriggered: boolean): Promise<void> {
+  const runtime = getRecordingMaintenanceController();
+  if (!await runtime.managed.runPromise(admitMaintenance(runtime, "maintenance"))) {
+    throw new RecordingMaintenanceBusyError({ code: "MOVE_ACTIVE", message: "Recording storage operation is active" });
+  }
+  let releaseStorage: () => void;
+  try {
+    releaseStorage = reserveRecordingStorageOperation("downsample");
+  } catch (error) {
+    await runtime.managed.runPromise(releaseMaintenance(runtime));
+    if (error instanceof RecordingStorageBusyError) {
+      throw new RecordingMaintenanceBusyError({ code: error.code, message: error.message });
+    }
+    throw error;
+  }
+  const operation = Effect.tryPromise({
+    try: () => runCompression(userTriggered),
+    catch: (cause) => maintenanceIOError("compression", cause),
+  }).pipe(
+    Effect.uninterruptible,
+    Effect.ensuring(Effect.sync(releaseStorage)),
+    Effect.ensuring(releaseMaintenance(runtime)),
+  );
+  const fiber = trackMaintenanceFiber(runtime, runtime.managed.runFork(operation));
+  await runtime.managed.runPromise(Fiber.join(fiber));
+}
+
 /** Background-style compression: respects the 24-hour age filter. */
 export async function runCompressionNow(): Promise<void> {
-  return runCompression(false);
+  await runManualCompression(false);
 }
 
 /** User-triggered compression: ignores the age filter, compresses all uncompressed sessions. */
 export async function runUserCompressionNow(): Promise<void> {
-  return runCompression(true);
+  await runManualCompression(true);
 }
 
 async function runCompression(userTriggered = false): Promise<void> {
@@ -185,42 +234,101 @@ async function runCompression(userTriggered = false): Promise<void> {
   });
 }
 
-let _interval: ReturnType<typeof setInterval> | null = null;
+let maintenanceFiber: Fiber.Fiber<unknown, unknown> | null = null;
 
-async function runMaintenance(): Promise<void> {
-  await runSessionCaptureMaintenanceNow();
+function maintenancePassEffect(): Effect.Effect<void, MaintenanceError> {
+  return Effect.gen(function* () {
+    yield* Effect.tryPromise({
+      try: () => runCompression(),
+      catch: (cause) => maintenanceIOError("compression", cause),
+    }).pipe(Effect.uninterruptible);
+    const settings = yield* Effect.sync(() => loadSettings());
+    if (!isRecordingRetentionPolicyValid(settings)) {
+      return yield* Effect.fail(new RecordingMaintenanceValidationError({
+        operation: "retention",
+        message: "Automatic deletion must be scheduled after automatic downsampling.",
+      }));
+    }
+    if (settings.sessionDownsampleEnabled && !isSessionActive()) {
+      const status = yield* runScheduledSessionDownsampleEffect({
+        mode: "older-than",
+        olderThanDays: settings.sessionDownsampleAgeDays,
+        targetHz: settings.sessionDownsampleFrequencyHz,
+      });
+      if (status.status === "partial" || status.status === "error") {
+        return yield* Effect.fail(maintenanceIOError(
+          "downsample",
+          new Error(status.error ?? "Automatic recording downsampling failed"),
+        ));
+      }
+    }
+    if (settings.sessionCleanupEnabled && !isSessionActive()) {
+      const cleanup = yield* Effect.tryPromise({
+        try: () => executeSessionCleanup({ mode: "older-than", olderThanDays: settings.sessionCleanupAgeDays }),
+        catch: (cause) => cause instanceof SessionCleanupBusyError
+          ? new RecordingMaintenanceBusyError({ code: "MOVE_ACTIVE", message: cause.message })
+          : maintenanceIOError("cleanup", cause),
+      }).pipe(Effect.uninterruptible);
+      if (cleanup.failed.length > 0) {
+        return yield* Effect.fail(maintenanceIOError(
+          "cleanup",
+          new Error(`Failed to remove ${cleanup.failed.length} recording group(s)`),
+        ));
+      }
+    }
+    const orphanCount = yield* Effect.tryPromise({
+      try: () => cleanupOrphanSessionFiles(isSessionActive),
+      catch: (cause) => maintenanceIOError("orphan-cleanup", cause),
+    }).pipe(Effect.uninterruptible);
+    const stagedMotecCount = yield* Effect.tryPromise({
+      try: () => cleanupExpiredStagedMotec(),
+      catch: (cause) => maintenanceIOError("staged-import-cleanup", cause),
+    }).pipe(Effect.uninterruptible);
+    const downsampleTempCount = yield* Effect.tryPromise({
+      try: () => cleanupInterruptedSessionDownsampleFiles(),
+      catch: (cause) => maintenanceIOError("downsample-temp-cleanup", cause),
+    }).pipe(Effect.uninterruptible);
+    console.debug(orphanCount > 0 ? `[Cleanup] Removed ${orphanCount} orphan session file(s)` : "[Cleanup] No orphan session files found");
+    if (stagedMotecCount > 0) console.debug(`[Cleanup] Removed ${stagedMotecCount} expired MoTeC staging director${stagedMotecCount === 1 ? "y" : "ies"}`);
+    if (downsampleTempCount > 0) console.debug(`[Downsample] Removed ${downsampleTempCount} interrupted temporary file(s)`);
+  });
+}
+
+function runAdmittedMaintenanceEffect(): Effect.Effect<void, MaintenanceError> {
+  const runtime = getRecordingMaintenanceController();
+  return Effect.gen(function* () {
+    const admitted = yield* admitMaintenance(runtime, "maintenance");
+    if (!admitted) return;
+    yield* maintenancePassEffect().pipe(Effect.ensuring(releaseMaintenance(runtime)));
+  });
 }
 
 export async function runSessionCaptureMaintenanceNow(): Promise<void> {
-  await runCompression();
-  const settings = loadSettings();
-  if (settings.sessionCleanupEnabled && !isSessionActive()) {
-    try {
-      const result = await executeSessionCleanup({ mode: "older-than", olderThanDays: settings.sessionCleanupAgeDays });
-      if (result.failed.length > 0) {
-        console.warn(`[Cleanup] Failed to remove ${result.failed.length} capture group(s)`);
-      }
-    } catch (error) {
-      if (!(error instanceof SessionCleanupBusyError)) console.error("[Cleanup] Automatic capture cleanup failed:", error);
-    }
-  }
-  const [orphanCount, stagedMotecCount] = await Promise.all([cleanupOrphanSessionFiles(isSessionActive), cleanupExpiredStagedMotec()]);
-  console.debug(orphanCount > 0 ? `[Cleanup] Removed ${orphanCount} orphan session file(s)` : "[Cleanup] No orphan session files found");
-  if (stagedMotecCount > 0) {
-    console.debug(`[Cleanup] Removed ${stagedMotecCount} expired MoTeC staging director${stagedMotecCount === 1 ? "y" : "ies"}`);
-  }
+  const runtime = getRecordingMaintenanceController();
+  const admitted = await runtime.managed.runPromise(admitMaintenance(runtime, "maintenance"));
+  if (!admitted) throw new RecordingMaintenanceBusyError({ code: "MOVE_ACTIVE", message: "Recording storage operation is active" });
+  const fiber = runtime.managed.runFork(maintenancePassEffect().pipe(Effect.ensuring(releaseMaintenance(runtime))));
+  trackMaintenanceFiber(runtime, fiber);
+  await runtime.managed.runPromise(Fiber.join(fiber));
+}
+
+export function sessionMaintenanceSchedule<E>(pass: Effect.Effect<void, E>): Effect.Effect<void, E> {
+  const caughtPass = pass.pipe(
+    Effect.catchCauseIf(
+      (cause) => !Cause.hasInterrupts(cause),
+      (cause) => Effect.sync(() => console.error("[Maintenance] Recording maintenance pass failed:", cause)),
+    ),
+  );
+  return Effect.repeat(caughtPass, Schedule.spaced("5 minutes"));
 }
 
 export function startSessionCompressor(): void {
-  if (_interval) return;
-  // Run immediately on startup, then every 5 minutes
-  void runMaintenance();
-  _interval = setInterval(() => void runMaintenance(), INTERVAL_MS);
+  if (maintenanceFiber) return;
+  const runtime = getRecordingMaintenanceController();
+  maintenanceFiber = trackMaintenanceFiber(runtime, runtime.managed.runFork(sessionMaintenanceSchedule(runAdmittedMaintenanceEffect())));
 }
 
-export function stopSessionCompressor(): void {
-  if (_interval) {
-    clearInterval(_interval);
-    _interval = null;
-  }
+export async function stopSessionCompressor(): Promise<void> {
+  maintenanceFiber = null;
+  await disposeRecordingMaintenanceRuntime();
 }

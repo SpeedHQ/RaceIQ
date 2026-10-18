@@ -1,12 +1,12 @@
 let imports = 0;
-type StorageOperation = "layout-migration" | "directory-move";
+type StorageOperation = "layout-migration" | "directory-move" | "downsample";
 let reservedOperation: { kind: StorageOperation; token: object } | null = null;
 let relocating = false;
 
 export class RecordingStorageBusyError extends Error {
   readonly code: "IMPORT_ACTIVE" | "MOVE_ACTIVE";
   constructor(code: "IMPORT_ACTIVE" | "MOVE_ACTIVE") {
-    super(code === "IMPORT_ACTIVE" ? "Recording storage import is active" : "Recording storage move is active");
+    super(code === "IMPORT_ACTIVE" ? "Recording storage import is active" : "Recording storage operation is active");
     this.code = code;
     this.name = "RecordingStorageBusyError";
   }
