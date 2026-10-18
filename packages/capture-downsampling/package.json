@@ -1,0 +1,18 @@
+{
+  "name": "@raceiq/capture-downsampling",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@raceiq/capture-formats": "workspace:*",
+    "@raceiq/shared": "workspace:*"
+  },
+  "scripts": {
+    "lint": "../../client/node_modules/.bin/oxlint .",
+    "typecheck": "bun check --project tsconfig.json",
+    "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/capture-downsampling",
+    "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/capture-downsampling"
+  }
+}

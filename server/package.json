@@ -218,6 +218,7 @@
     "@raceiq/shared": "workspace:*",
     "@raceiq/capture-splitting": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
+    "@raceiq/capture-downsampling": "workspace:*",
     "effect": "4.0.4",
     "@raceiq/game-catalogs": "workspace:*",
     "@raceiq/game-lmu-metadata": "workspace:*",

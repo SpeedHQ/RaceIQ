@@ -34,7 +34,7 @@ Owns RaceIQ raw-session persistence: length-prefixed frame recording, gzip stora
 
 - `maintenance-runtime.ts` owns one managed Effect runtime per backend lifecycle, atomic admission, job status, and tracked fibers. Manual downsampling uses Promise facades; the backend acknowledges accepted work only after admission and storage reservation. The five-minute scheduler starts immediately and spaces subsequent passes from completion.
 - `compressor.ts` runs compression, fresh retention-policy validation, automatic downsampling, deletion, then orphan/staged-import/operation-temp cleanup in order. Failed automatic downsampling skips deletion for that pass. See the [maintenance guide](../../docs/contributing/scheduled-recording-maintenance.md) for timing, publication, recovery, and lifecycle contracts.
-- Downsampling's two-pass streaming format engine belongs to `packages/capture-formats`; this package owns database eligibility, locks, atomic path/lap-index publication, cache invalidation, and shutdown lifecycle. Live UDP rates are unaffected.
+- Downsampling's two-pass streaming engine belongs to `packages/capture-downsampling`, using public codecs from `packages/capture-formats`. Generic lap bundles belong to `packages/capture-splitting`; the server owns database eligibility, locks, atomic path/lap-index publication, cache invalidation, and shutdown lifecycle. Live UDP rates are unaffected.
 - Downsampling skips direct live-capture manifests and checkpoint-initialized lap recordings. These require parser checkpoint restoration, so they remain unchanged rather than being decoded with empty parser state.
 
 ## Direct live per-lap recording

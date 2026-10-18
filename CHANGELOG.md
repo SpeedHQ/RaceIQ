@@ -24,6 +24,8 @@
 - Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
 
 ### Internal
+- Reuse generic lap-bundle construction and separate capture-file accounting from `@raceiq/capture-splitting`; keep downsampling orchestration, database publication, and game adapters in the server.
+- Isolate streaming downsampling and its regression suite in `@raceiq/capture-downsampling`, depending on public capture-format codecs without importing backend policy or lap splitting.
 - Verify onboarding migration recovery through Storage re-entry with deterministic cache expiry, without relying on a hidden no-work Refresh control.
 - Manage recording maintenance with Effect, ordered downsampling and deletion, and awaited shutdown.
 - Preserve recording-frequency settings and migration history when upgrading earlier feature builds alongside the AC Evo Tourist-layout reconciliation.

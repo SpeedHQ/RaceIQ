@@ -2,10 +2,10 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
-import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, IRacingSourceFrameEncoder } from "../src/iracing/source-frame";
-import { ACC_PACKED_MAGIC, packTriplet } from "../src/kunos/pack-triplet";
-import { inspectDownsampleRecording, DownsampleRecordingError, rewriteDownsampleRecording, validateDownsampleRecording } from "../src/session/downsample";
-import { decompressIfGzipSync, encodeFrameLength, encodeParserBootstrapFrame, encodeSegmentBoundaryFrame, encodeSegmentContextEndFrame, encodeSegmentContextFrame, iterateSessionCaptureRecords } from "../src/session/framing";
+import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, IRacingSourceFrameEncoder } from "@raceiq/capture-formats/iracing/source-frame";
+import { ACC_PACKED_MAGIC, packTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
+import { inspectDownsampleRecording, DownsampleRecordingError, rewriteDownsampleRecording, validateDownsampleRecording } from "../src";
+import { decompressIfGzipSync, encodeFrameLength, encodeParserBootstrapFrame, encodeSegmentBoundaryFrame, encodeSegmentContextEndFrame, encodeSegmentContextFrame, iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
 
 test("retains each F1 telemetry family state at an interior lap endpoint", async () => {
   const root = mkdtempSync(join(tmpdir(), "capture-downsample-f1-lap-endpoint-"));

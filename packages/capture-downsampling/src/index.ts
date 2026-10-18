@@ -1,11 +1,11 @@
 import type { GameId } from "@raceiq/shared/games/ids";
-import { F1_PACKET_IDS, parseF1Header } from "../f1-2025/f1-wire";
-import { canHandleLMUSourceFrame } from "../lmu/source-frame";
-import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC } from "../kunos/pack-triplet";
-import { kunosSourceMagic } from "./kunos-sparse";
-import { genericFrameIdentity } from "./generic-sparse";
-import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, IRacingSourceFrameEncoder, type IRacingSourceFrame } from "../iracing/source-frame";
-import type { SessionCaptureRecord } from "./framing";
+import { F1_PACKET_IDS, parseF1Header } from "@raceiq/capture-formats/f1-2025/f1-wire";
+import { canHandleLMUSourceFrame } from "@raceiq/capture-formats/lmu/source-frame";
+import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC } from "@raceiq/capture-formats/kunos/pack-triplet";
+import { kunosSourceMagic } from "@raceiq/capture-formats/session/kunos-sparse";
+import { genericFrameIdentity } from "@raceiq/capture-formats/session/generic-sparse";
+import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, IRacingSourceFrameEncoder, type IRacingSourceFrame } from "@raceiq/capture-formats/iracing/source-frame";
+import type { SessionCaptureRecord } from "@raceiq/capture-formats/session/framing";
 import type { RecordingFrequencyHz } from "@raceiq/shared/platform/runtime/recording-frequency";
 import { createHash } from "node:crypto";
 import type { Hash } from "node:crypto";
@@ -13,8 +13,8 @@ import { closeSync, createReadStream, existsSync, fsyncSync, linkSync, openSync,
 import { createWriteStream } from "node:fs";
 import { createGunzip, createGzip } from "node:zlib";
 import { pipeline } from "node:stream/promises";
-import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame, encodeSparseCaptureFormatFrame } from "./framing";
-import { SparseCaptureEncoder } from "./sparse-recorder";
+import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame, encodeSparseCaptureFormatFrame } from "@raceiq/capture-formats/session/framing";
+import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
 
 export type DownsampleLapIndex = { lapId: number; rawByteOffset: number | null; rawFrameCount: number | null };
 export type DownsampleRecordingInput = {

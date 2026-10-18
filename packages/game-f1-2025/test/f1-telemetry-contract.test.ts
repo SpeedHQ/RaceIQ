@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { decompressIfGzipSync, encodeFrameLength, iterateSessionCaptureRecords } from "@raceiq/capture-formats/session/framing";
-import { inspectDownsampleRecording, rewriteDownsampleRecording } from "@raceiq/capture-formats/session/downsample";
+import { inspectDownsampleRecording, rewriteDownsampleRecording } from "@raceiq/capture-downsampling";
 import { parseF1Header } from "@raceiq/capture-formats/f1-2025/f1-wire";
 import { f1Parser } from "../src/game-parser";
 import { registerGame } from "@raceiq/shared/games/registry";
