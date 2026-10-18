@@ -2,7 +2,7 @@
 
 ### Features
 - Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
-- Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer.
+- Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
 - Use LMU game-world coordinates directly for track geometry, preserving edge-hugging and off-track positions.
