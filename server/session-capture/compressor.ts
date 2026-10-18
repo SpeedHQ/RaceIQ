@@ -7,15 +7,16 @@
  */
 import { createReadStream, createWriteStream, unlinkSync, existsSync } from "node:fs";
 import { rename, rm } from "node:fs/promises";
+import { resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { createGzip } from "node:zlib";
 import { Cause, Effect, Fiber, Schedule } from "effect";
 import { getUncompressedSessions } from "../db/session-queries";
-import { isSessionActive } from "../telemetry/live-pipeline";
 import { db } from "../db/index";
-import { dashboardSummaryState, sessions } from "../db/schema";
-import { eq, inArray } from "drizzle-orm";
-import { cleanupOrphanSessionFiles, listSessionCaptureFiles, withSessionCaptureMaintenanceLock } from "./cleanup";
+import { isSessionActive } from "../telemetry/live-pipeline";
+import { and, eq, inArray, or, gt } from "drizzle-orm";
+import { dashboardSummaryState, sessions, sessionCaptureSplitJobs, liveCaptures } from "../db/schema";
+import { cleanupOrphanSessionFiles, listSessionCaptureFiles, loadReferencedCapturePaths, withSessionCaptureMaintenanceLock } from "./cleanup";
 import { cleanupExpiredStagedMotec } from "../motec/import-staging";
 import { loadSettings } from "../runtime/config/settings";
 import { executeSessionCleanup, SessionCleanupBusyError } from "./session-cleanup";
@@ -154,11 +155,44 @@ async function runCompression(userTriggered = false): Promise<void> {
     if (await hasPendingLayoutMigration()) return;
 
     const ageMs = userTriggered ? 0 : ONE_DAY_MS;
+    const protectedPaths = await loadReferencedCapturePaths();
     const candidates = await getUncompressedSessions(ageMs);
     const groupedCandidates = new Map<string, number[]>();
     for (const { id, rawFile } of candidates) {
+      // A session's ordinary raw-file reference is expected; only protect
+      // paths owned by live epochs or pending split work. The shared path set
+      // also includes every sessions.raw_file, so consulting it here would
+      // make every DB-backed capture ineligible for compression.
+      const rows = await db.select({ id: sessions.id, captureLayoutVersion: sessions.captureLayoutVersion, captureArchiveFile: sessions.captureArchiveFile })
+        .from(sessions).where(eq(sessions.rawFile, rawFile)).all();
+      if (rows.some((row) => row.captureLayoutVersion != null || row.captureArchiveFile != null)) continue;
+      const activeLiveCapture = await db.select({ sessionId: liveCaptures.sessionId })
+        .from(liveCaptures)
+        .where(and(
+          or(
+            inArray(liveCaptures.sessionId, rows.map((row) => row.id)),
+            eq(liveCaptures.sourcePath, rawFile),
+            eq(liveCaptures.archivePath, rawFile),
+          ),
+          or(
+            inArray(liveCaptures.status, ["recording", "finalizing", "recovering"]),
+            and(eq(liveCaptures.status, "failed"), gt(liveCaptures.committedArchiveLength, 0)),
+          ),
+        )).limit(1).get();
+      if (activeLiveCapture) continue;
+      const activeJob = await db.select({ sessionId: sessionCaptureSplitJobs.sessionId })
+        .from(sessionCaptureSplitJobs)
+        .where(and(
+          or(
+            inArray(sessionCaptureSplitJobs.sessionId, rows.map((row) => row.id)),
+            eq(sessionCaptureSplitJobs.sourcePath, rawFile),
+            eq(sessionCaptureSplitJobs.stagingPath, rawFile),
+          ),
+          inArray(sessionCaptureSplitJobs.status, ["queued", "splitting", "verifying", "publishing"]),
+        )).limit(1).get();
+      if (activeJob) continue;
       const ids = groupedCandidates.get(rawFile) ?? [];
-      ids.push(id);
+      if (!ids.includes(id)) ids.push(id);
       groupedCandidates.set(rawFile, ids);
     }
     const dbPaths = new Set(groupedCandidates.keys());
@@ -167,7 +201,8 @@ async function runCompression(userTriggered = false): Promise<void> {
     // Background (age-gated) runs stay DB-driven so we don't compress brand-new
     // files still being written by a just-finished session.
     const orphanPaths = userTriggered
-      ? (await listSessionCaptureFiles()).filter((path) => path.endsWith(".bin") && !dbPaths.has(path))
+      ? (await listSessionCaptureFiles()).filter((path) =>
+          path.endsWith(".bin") && !dbPaths.has(path) && !protectedPaths.has(resolve(path)))
       : [];
 
     const total = groupedCandidates.size + orphanPaths.length;

@@ -27,7 +27,8 @@
     "@raceiq/telemetry-core": "workspace:*"
   },
   "scripts": {
-    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "lint": "../../client/node_modules/.bin/oxlint .",
+    "typecheck": "bun check --project tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/game-iracing",
     "test:e2e:recordings": "bun ../../scripts/test/run-suite.ts e2e --package @raceiq/game-iracing",
     "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/game-iracing"

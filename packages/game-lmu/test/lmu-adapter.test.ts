@@ -524,5 +524,9 @@ describe("LMU adapter", () => {
 
   
 
+  test("LMU remains without a parser checkpoint codec", () => {
+    expect("captureParserCheckpoint" in lmuServerAdapter).toBe(false);
+    expect("restoreParserCheckpoint" in lmuServerAdapter).toBe(false);
+  });
   
 });

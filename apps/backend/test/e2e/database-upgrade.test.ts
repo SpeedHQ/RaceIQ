@@ -18,7 +18,7 @@ type Session = { id: number; track_id: string; lap_detector_version: string | nu
 interface StartupBackend {
   ready(): Promise<void>;
   waitFor(marker: string): Promise<void>;
-  organize(): Promise<void>;
+  organize(): Promise<"success" | "failed">;
   output(): string;
   stop(): Promise<void>;
 }
@@ -55,11 +55,11 @@ function startBranch(dataDir: string): StartupBackend {
           const status = await getLayoutMigrationStatus();
           if (status.progress.status === "success") {
             console.log("[E2E] Layout migration success");
-            return new Response(null, { status: 200 });
+            return Response.json({ status: "success" });
           }
           if (status.progress.status === "partial" || status.progress.status === "error") {
             console.log("[E2E] Layout migration failed");
-            return new Response(null, { status: 200 });
+            return Response.json({ status: "failed" });
           }
           await Bun.sleep(10);
         }
@@ -101,6 +101,9 @@ function startBranch(dataDir: string): StartupBackend {
       if (!match) throw new Error("Migration control port missing");
       const response = await fetch(`http://127.0.0.1:${match[1]}`, { method: "POST" });
       if (!response.ok) throw new Error(`Migration control returned ${response.status}`);
+      const result = await response.json() as { status?: unknown };
+      if (result.status !== "success" && result.status !== "failed") throw new Error("Migration control returned an invalid result");
+      return result.status;
     },
     output: () => output,
     async stop() {
@@ -173,17 +176,16 @@ test("current startup reprocesses release-seeded Tourist sessions into correct l
     await deferredBackend.stop();
     expect(deferredBackend.output()).not.toContain(COMPLETE);
     backend = undefined;
-    backend = startBranch(dataDir);
-    await backend.waitFor(DEFERRED);
-    // Keep the conflicting destination referenced so ordinary orphan maintenance cannot remove it.
+    // Seed conflict before starting the backend that will attempt migration.
     const collisionSessionId = database.prepare(`
       INSERT INTO sessions (game_id, raw_file, lap_detector_version, capture_format_version)
       VALUES ('ac-evo', ?, ?, 1)
     `).run(collision, LAP_DETECTOR_AC_EVO_ID).lastInsertRowid;
     mkdirSync(dirname(collision), { recursive: true });
     writeFileSync(collision, "pre-existing user capture");
-    await backend.organize();
-    await backend.waitFor("[E2E] Layout migration failed");
+    backend = startBranch(dataDir);
+    await backend.waitFor(DEFERRED);
+    expect(await backend.organize()).toBe("failed");
     expect(readFileSync(collision, "utf8")).toBe("pre-existing user capture");
     expect(readFileSync(legacyPath).length).toBeGreaterThan(0);
     expect(database.prepare("SELECT id FROM sessions WHERE track_id='obsolete layout'").all()).toHaveLength(before.length);
@@ -191,8 +193,7 @@ test("current startup reprocesses release-seeded Tourist sessions into correct l
     expect(backend.output()).not.toContain(COMPLETE);
     database.prepare("DELETE FROM sessions WHERE id=?").run(collisionSessionId);
     await rm(collision);
-    await backend.organize();
-    await backend.waitFor("[E2E] Layout migration success");
+    expect(await backend.organize()).toBe("success");
     await backend.ready();
     const after = database.prepare("SELECT id,track_id,lap_detector_version,raw_file,ownership FROM sessions ORDER BY id").all() as Session[];
     expect(after.map((session) => session.id)).toEqual(before.map((session) => session.id));
@@ -224,9 +225,9 @@ test("startup discovers Tourist in already-processed AC Evo recordings and does 
     await command([process.execPath, "run", "db:seed", "--games=ac-evo", `--fixtures=${fixture}`], ROOT, environment(dataDir));
     database = new Database(join(dataDir, "app.db"));
     database.exec("PRAGMA busy_timeout=5000;");
-    // Simulate an installation that already completed historical reconciliation before v76.
+    // Simulate an installation that completed reconciliation before the Tourist-layout migration.
     database.exec(`
-      DELETE FROM schema_migrations WHERE version=76;
+      DELETE FROM schema_migrations WHERE version=78;
       UPDATE sessions SET track_id='obsolete layout', lap_detector_version='ac_evo_lapdetector_v5';
       UPDATE laps SET lap_time=999;
     `);
@@ -242,7 +243,7 @@ test("startup discovers Tourist in already-processed AC Evo recordings and does 
     expect(after.map((session) => session.id)).toEqual(before.map((session) => session.id));
     for (const session of after) {
       expect(session.track_id).toBe('["Nurburgring","Touristenfahrten"]');
-      expect(session.lap_detector_version).toBe("ac_evo_lapdetector_v5");
+      expect(session.lap_detector_version).toBe(LAP_DETECTOR_AC_EVO_ID);
     }
     const finishes = database.prepare("SELECT lap_time FROM laps WHERE is_valid=1 AND invalid_reason IS NULL ORDER BY lap_time").all() as Array<{ lap_time: number }>;
     expect(finishes.map((lap) => lap.lap_time)).toEqual([398.781, 401.277]);
@@ -350,7 +351,7 @@ for (const failure of ["lmu", "race"] as const) {
   }, 60_000);
 }
 
-for (const history of ["v75", "upstream-v76", "frequency-v76", "conflicting-v77"] as const) {
+for (const history of ["v75", "upstream-v76", "frequency-v76", "frequency-v77", "upstream-v80", "conflicting-v81"] as const) {
   test(`recording frequency migration upgrades ${history} through production initialization`, async () => {
     const dataDir = mkdtempSync(join(tmpdir(), "raceiq-frequency-upgrade-"));
     let database: InstanceType<typeof Database> | undefined;
@@ -362,7 +363,7 @@ for (const history of ["v75", "upstream-v76", "frequency-v76", "conflicting-v77"
         const client = createClient({ url: "file:" + join(process.env.DATA_DIR, "app.db") });
         try {
           await bootstrap(client);
-          await runMigrations(client, 75);
+          await runMigrations(client, ${history === "upstream-v80" ? 80 : 75});
         } finally {
           client.close();
         }
@@ -379,15 +380,18 @@ for (const history of ["v75", "upstream-v76", "frequency-v76", "conflicting-v77"
           VALUES (76, 'reconcile all AC Evo recordings to discover Tourist layouts');
           UPDATE sessions SET lap_detector_version = 'stored-evo-detector' WHERE game_id = 'ac-evo';
         `);
-      } else if (history === "frequency-v76" || history === "conflicting-v77") {
+      } else if (history === "frequency-v76" || history === "frequency-v77" || history === "conflicting-v81") {
         database.exec(`
           ALTER TABLE sessions ADD COLUMN downsampled_frequency_hz INTEGER;
           UPDATE sessions SET downsampled_frequency_hz = 50;
           INSERT INTO schema_migrations (version, name, applied_at)
-          VALUES (76, 'persist archival recording frequency caps', '2026-10-01 12:00:00');
+          VALUES (${history === "frequency-v77" ? 77 : 76}, 'persist archival recording frequency caps', '2026-10-01 12:00:00');
         `);
-        if (history === "conflicting-v77") {
-          database.exec("INSERT INTO schema_migrations (version, name) VALUES (77, 'unknown migration')");
+        if (history === "frequency-v77") {
+          database.exec("INSERT INTO schema_migrations (version, name) VALUES (76, 'reconcile all AC Evo recordings to discover Tourist layouts')");
+        }
+        if (history === "conflicting-v81") {
+          database.exec("INSERT INTO schema_migrations (version, name) VALUES (81, 'unknown migration')");
         }
       }
       database.close();
@@ -396,7 +400,7 @@ for (const history of ["v75", "upstream-v76", "frequency-v76", "conflicting-v77"
         import { initDb, client } from "./server/db";
         try { await initDb(); } finally { client.close(); }
       `];
-      if (history === "conflicting-v77") {
+      if (history === "conflicting-v81") {
         await expect(command(initializeArgs, ROOT, environment(dataDir))).rejects.toThrow("Recording frequency migration conflicts with the recorded database history");
       } else {
         await command(initializeArgs, ROOT, environment(dataDir));
@@ -409,19 +413,17 @@ for (const history of ["v75", "upstream-v76", "frequency-v76", "conflicting-v77"
         { game_id: "iracing", lap_detector_version: "stored-iracing-detector" },
       ]);
       const ledger = database.prepare("SELECT version, name FROM schema_migrations WHERE version >= 76 ORDER BY version").all();
-      expect(ledger).toEqual(history === "conflicting-v77" ? [
+      expect(ledger).toEqual(history === "conflicting-v81" ? [
         { version: 76, name: "persist archival recording frequency caps" },
-        { version: 77, name: "unknown migration" },
-      ] : [
-        { version: 76, name: "reconcile all AC Evo recordings to discover Tourist layouts" },
-        { version: 77, name: "persist archival recording frequency caps" },
-      ]);
+        { version: 81, name: "unknown migration" },
+      ] : migrations.filter((migration) => migration.version >= 76).map(({ version, name }) => ({ version, name })));
+      const hasFrequencyCap = history === "frequency-v76" || history === "frequency-v77" || history === "conflicting-v81";
       expect(database.prepare("SELECT downsampled_frequency_hz FROM sessions ORDER BY id").all()).toEqual([
-        { downsampled_frequency_hz: history === "frequency-v76" || history === "conflicting-v77" ? 50 : null },
-        { downsampled_frequency_hz: history === "frequency-v76" || history === "conflicting-v77" ? 50 : null },
+        { downsampled_frequency_hz: hasFrequencyCap ? 50 : null },
+        { downsampled_frequency_hz: hasFrequencyCap ? 50 : null },
       ]);
-      if (history === "frequency-v76") {
-        expect(database.prepare("SELECT applied_at FROM schema_migrations WHERE version = 77").get()).toMatchObject({
+      if (history === "frequency-v76" || history === "frequency-v77") {
+        expect(database.prepare("SELECT applied_at FROM schema_migrations WHERE version = 81").get()).toMatchObject({
           applied_at: "2026-10-01 12:00:00",
         });
       }

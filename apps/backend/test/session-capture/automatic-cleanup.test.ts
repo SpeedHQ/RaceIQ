@@ -13,6 +13,8 @@ import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
+import { cleanupOrphanSessionFiles } from "@raceiq/backend-core/session-capture/cleanup";
+import { timestampForFilename } from "@raceiq/backend-core/session-capture/filename";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -149,5 +151,32 @@ describe("automatic capture cleanup", () => {
     expect(current?.rawFile).not.toBeNull();
     expect(current?.rawFile).not.toBeUndefined();
     expect(existsSync(current!.rawFile!)).toBe(true);
+  });
+  test("preserves unpublished direct files while referenced and removes only controlled orphan files", async () => {
+    const directory = join(resolveRecordingDirectory(), "fm-2023", "own", `${timestampForFilename()}-${crypto.randomUUID()}`);
+    mkdirSync(directory, { recursive: true });
+    paths.push(directory);
+    const manifest = join(directory, "capture-manifest.json");
+    const raw = join(directory, `${crypto.randomUUID()}.bin`);
+    const unrelated = join(directory, "notes.txt");
+    writeFileSync(manifest, JSON.stringify({
+      version: 3, gameId: "fm-2023", sourceRevision: "direct-cleanup",
+      sourceCoordinates: "native-wire-v1", sourceByteLength: 12, sourceRecordCount: 0, chunks: [],
+    }));
+    writeFileSync(raw, "unpublished native capture bytes");
+    writeFileSync(unrelated, "user notes");
+    const row = await db.insert(sessions).values({
+      gameId: "fm-2023", carId: "test-car", trackId: "test-track", rawFile: manifest,
+      captureLayoutVersion: 1, captureManifestFile: manifest,
+    }).returning({ id: sessions.id }).get();
+    ids.push(row.id);
+    await cleanupOrphanSessionFiles(() => false);
+    expect(existsSync(raw)).toBe(true);
+    expect(existsSync(manifest)).toBe(true);
+    await db.delete(sessions).where(eq(sessions.id, row.id)).run();
+    await cleanupOrphanSessionFiles(() => false);
+    expect(existsSync(raw)).toBe(false);
+    expect(existsSync(manifest)).toBe(false);
+    expect(readFileSync(unrelated, "utf8")).toBe("user notes");
   });
 });

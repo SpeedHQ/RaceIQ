@@ -11,7 +11,7 @@
 import type { ServerWebSocket } from "bun";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LiveSectorData, LivePitData } from "@raceiq/shared/racing/live/types";
-import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { LapMeta, SessionCaptureSplitStatus } from "@raceiq/shared/racing/sessions/types";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { LiveProjection } from "@raceiq/telemetry-core/telemetry/live-projector";
 import type { DashboardUpdatedMessage } from "@raceiq/shared/racing/sessions/dashboard";
@@ -94,6 +94,29 @@ export class WebSocketManager {
   /** Stale race-result notification — sent to each new client on connect */
   private _staleRaceResultsNotification: Record<string, unknown> | null = null;
   private dashboardUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+  private liveCaptureLifecycle = new Map<number, Record<string, unknown>>();
+  private readonly maxLiveCaptureSessions = 128;
+  broadcastSessionCaptureSplitProgress(status: SessionCaptureSplitStatus): void {
+    this.broadcastNotification({ type: "session-capture-split-progress", status });
+  }
+
+  private retainLiveCaptureLifecycle(message: Record<string, unknown>): void {
+    const { type, sessionId, captureEpoch } = message;
+    if (typeof sessionId !== "number" || typeof captureEpoch !== "string" || !captureEpoch
+      || !["recording-started", "recording-finalizing", "recording-sealed", "recording-failed"].includes(String(type))) return;
+    const previous = this.liveCaptureLifecycle.get(sessionId);
+    if (previous && previous.captureEpoch !== captureEpoch && type !== "recording-started") return;
+    if (previous?.captureEpoch === captureEpoch &&
+        (previous.type === "recording-failed" || (previous.type === "recording-sealed" && type !== "recording-failed") ||
+          (type === "recording-started" && previous.type !== "recording-started"))) return;
+    this.liveCaptureLifecycle.set(sessionId, { ...previous, ...message });
+    while (this.liveCaptureLifecycle.size > this.maxLiveCaptureSessions) {
+      const oldest = this.liveCaptureLifecycle.keys().next().value;
+      if (oldest === undefined) break;
+      this.liveCaptureLifecycle.delete(oldest);
+    }
+  }
+
 
   notifyDashboardUpdated(): void {
     clearTimeout(this.dashboardUpdateTimer ?? undefined);
@@ -177,6 +200,9 @@ export class WebSocketManager {
     if (this._staleRaceResultsNotification) {
       try { ws.send(JSON.stringify(this._staleRaceResultsNotification)); } catch { sendFailed = true; }
     }
+    for (const lifecycle of this.liveCaptureLifecycle.values()) {
+      try { ws.send(JSON.stringify(lifecycle)); } catch { sendFailed = true; }
+    }
     if (sendFailed) {
       this.dropClient(ws);
       return;
@@ -243,6 +269,7 @@ export class WebSocketManager {
    * Used for update-available and other server-initiated events.
    */
   broadcastNotification(payload: Record<string, unknown>): void {
+    this.retainLiveCaptureLifecycle(payload);
     if (this.clients.size === 0) return;
     const json = JSON.stringify(payload);
     for (const client of this.clients) {

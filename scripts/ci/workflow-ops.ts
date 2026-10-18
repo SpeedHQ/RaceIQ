@@ -4,6 +4,8 @@ import { join } from "node:path";
 
 const [operation, ...args] = Bun.argv.slice(2);
 const env = process.env;
+// Responsive cases exercise these five games; both revisions use same seed set.
+const RESPONSIVE_SCREENSHOT_GAMES = "fm-2023,f1-2025,acc,ac-evo,iracing";
 
 function run(command: string[], cwd = process.cwd(), extraEnv: Record<string, string> = {}) {
   const result = Bun.spawnSync(command, {
@@ -45,9 +47,9 @@ switch (operation) {
     run(["git", "worktree", "add", "--detach", join(env.RUNNER_TEMP!, "raceiq-base"), env.BASE_SHA!]);
     break;
   case "screenshot-current": {
-    const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--project=mobile-screenshots", `--shard=${env.SHARD}/4`], {
+    const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--config=responsive-screenshots.config.ts", `--shard=${env.SHARD}/4`], {
       cwd: "playwright",
-      env: { ...env, E2E_SERVER_MODE: "dev", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1" },
+      env: { ...env, E2E_SERVER_MODE: "dev", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1", PW_SEED_GAMES: RESPONSIVE_SCREENSHOT_GAMES },
       stdout: "inherit",
       stderr: "inherit",
     }).exitCode;
@@ -70,9 +72,9 @@ switch (operation) {
     const output = join(env.GITHUB_WORKSPACE!, "playwright/screenshots/mobile");
     rmSync(output, { recursive: true, force: true });
     mkdirSync(output, { recursive: true });
-    const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--project=mobile-screenshots", `--shard=${env.SHARD}/4`], {
+    const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--config=responsive-screenshots.config.ts", `--shard=${env.SHARD}/4`], {
       cwd: join(base, "playwright"),
-      env: { ...env, RACEIQ_SCREENSHOT_DIR: output, E2E_SERVER_MODE: "dev", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1" },
+      env: { ...env, RACEIQ_SCREENSHOT_DIR: output, E2E_SERVER_MODE: "dev", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1", PW_SEED_GAMES: RESPONSIVE_SCREENSHOT_GAMES },
       stdout: "inherit",
       stderr: "inherit",
     }).exitCode;
@@ -103,7 +105,6 @@ switch (operation) {
   case "collect-screenshots": {
     const preview = join(env.GITHUB_WORKSPACE!, "pr-preview");
     run(["bun", "packages/tooling-ui/src/ui/merge-screenshot-renders.ts", "--input", join(env.RUNNER_TEMP!, "screenshot-renders"), "--output", preview]);
-    run(["bun", "packages/tooling-ui/src/ui/collect-screenshot-diffs.ts", "--base", join(preview, "base-responsive"), "--current", join(preview, "current-responsive"), "--out", preview, "--prefix", "responsive"]);
     break;
   }
   case "release-client":
@@ -166,17 +167,6 @@ switch (operation) {
   case "safe-git":
     run(["git", "config", "--global", "--add", "safe.directory", env.GITHUB_WORKSPACE ?? process.cwd()]);
     break;
-  case "merge-base": {
-    run(["git", "config", "user.name", "github-actions[bot]"]);
-    run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"]);
-    run(["git", "fetch", "--no-tags", "origin", `+refs/heads/${env.BASE_REF}:refs/remotes/origin/${env.BASE_REF}`]);
-    let fetched = Bun.spawnSync(["git", "rev-parse", "--verify", "FETCH_HEAD"], { stdout: "pipe" }).stdout.toString().trim();
-    if (fetched !== env.BASE_SHA) run(["git", "fetch", "--no-tags", "origin", env.BASE_SHA!]);
-    fetched = Bun.spawnSync(["git", "rev-parse", "--verify", "FETCH_HEAD"], { stdout: "pipe" }).stdout.toString().trim();
-    if (fetched !== env.BASE_SHA) throw new Error(`Fetched base commit ${fetched} does not match ${env.BASE_SHA}`);
-    run(["git", "merge", "--no-edit", env.BASE_SHA!]);
-    break;
-  }
   case "release-summary":
     summary(env.SKIP_TESTS === "true" ? "## Release test mode\n\nPlaywright tests skipped by manual dispatch input after local verification." : "## Release test mode\n\nPlaywright tests enabled.");
     break;

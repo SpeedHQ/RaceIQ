@@ -9,6 +9,8 @@ export const queryKeys = {
   sessionDownsampleStatus: ["storage", "session-downsample"] as const,
   recordingDirectorySelect: ["storage", "recording-directory", "select"] as const,
   recordingLayoutMigrationStart: ["storage", "layout-migration", "start"] as const,
+  splitMigration: ["storage", "split-migration"] as const,
+  splitMigrationStart: ["storage", "split-migration", "start"] as const,
   recordingDirectoryMove: ["storage", "recording-directory", "move"] as const,
   cacheStatus: ["cache", "status"] as const,
   trackName: (key: number | string) => ["track-name", key] as const,

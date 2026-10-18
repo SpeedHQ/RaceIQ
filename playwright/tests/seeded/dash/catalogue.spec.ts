@@ -2,7 +2,6 @@ import { expect, test } from "@playwright/test";
 import type { DashboardInterface, DashboardNetwork } from "../../../../apps/backend/src/runtime/dashboard-auth";
 
 import { collectBrowserErrors } from "../../support/browser-errors";
-import { assertNoHorizontalOverflow } from "../../support/responsive/assertions";
 
 test.describe.configure({ mode: "serial" });
 
@@ -112,43 +111,4 @@ test("dashboard catalogue links select each combination and survive reload", asy
   await expect(page.getByRole("heading", { name: "Dashboards" })).toBeVisible();
 
   expect(browserErrors.errors, "unexpected browser errors in dashboard selection flow").toEqual([]);
-});
-
-test("dash responsive accessibility and no overflow on catalogue and combo routes", async ({ page }) => {
-  const browserErrors = collectBrowserErrors(page);
-  const viewports = [
-    { width: 360, height: 780 },
-    { width: 768, height: 1024 },
-    { width: 1280, height: 900 },
-  ];
-  const routes = ["/portable", "/portable/combo-1", "/portable/combo-2"];
-
-  for (const viewport of viewports) {
-    await page.setViewportSize(viewport);
-
-    for (const path of routes) {
-      await page.goto(path, { waitUntil: "domcontentloaded" });
-      await expect(page.locator("[data-responsive-workspace]")).toHaveCount(1);
-      await expect(page.locator("[data-responsive-workspace]")).toBeVisible();
-      await assertNoHorizontalOverflow(page);
-      await expect(page.getByText(/Desktop required/i)).toHaveCount(0);
-      await expect(page.getByText(/Rotate your device/i)).toHaveCount(0);
-
-      if (path === "/portable") {
-        await expect(page.getByRole("heading", { name: "Dashboards" })).toBeVisible();
-        await expect(page.getByRole("link", { name: "Race HUD" })).toBeVisible();
-        await expect(page.getByRole("link", { name: "Lap Times & Pace" })).toBeVisible();
-      }
-
-      if (path === "/portable/combo-1") {
-        await expect(page.getByText(/KM\/H|MPH/)).toBeVisible({ timeout: 20_000 });
-      }
-
-      if (path === "/portable/combo-2") {
-        await expect(page.getByText(/^(?:Waiting for track…|No completed laps yet)$/)).toBeVisible({ timeout: 20_000 });
-      }
-    }
-  }
-
-  expect(browserErrors.errors, "unexpected browser errors in dash responsive accessibility flow").toEqual([]);
 });

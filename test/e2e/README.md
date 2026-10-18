@@ -10,8 +10,8 @@ integration coverage.
 - Root recording suites cover FM 2023, F1 2025, iRacing, and UDP capture flows.
 - `ac-evo/` and `acc/` hold game-specific recording suites.
 - `output/` holds committed or generated visual output used by E2E checks.
-- Shared telemetry-catalog E2E suites live with their domain in
-  `test/telemetry/catalog/`, not in this directory.
+- Telemetry catalog inventory and contract checks are integration tests under
+  `apps/backend/test/telemetry/catalog/`, outside recording E2E coverage.
 
 Recording inputs remain under `test/artifacts/` (for example,
 `test/artifacts/sessions/`). `test/fixtures/` contains small immutable

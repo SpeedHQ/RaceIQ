@@ -2,10 +2,11 @@
   "name": "raceiq-e2e",
   "private": true,
   "scripts": {
+    "lint": "../client/node_modules/.bin/oxlint .",
     "test": "playwright test --workers=1",
     "test:ui": "bunx turbo run test --filter=raceiq-e2e -- --ui",
-    "screenshots": "playwright test --project=marketing",
-    "screenshots:mobile": "bunx turbo run test --filter=raceiq-e2e -- --project=mobile-screenshots",
+    "screenshots": "playwright test --config=marketing-screenshots.config.ts",
+    "screenshots:mobile": "E2E_SERVER_MODE=dev PW_SERVER_SET=seeded PW_SCREENSHOT_ONLY=1 PW_SEED_SCREENSHOTS=1 playwright test --config=responsive-screenshots.config.ts",
     "test:tooling": "bun ../scripts/test/run-suite.ts tooling --package raceiq-e2e"
   },
   "devDependencies": {

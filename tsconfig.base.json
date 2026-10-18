@@ -1,12 +1,14 @@
 {
+  "$schema": "./node_modules/@effect/tsgo/schema.json",
+
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
     "types": ["bun"],
-    "strict": true,
     "plugins": [{ "name": "@effect/language-service" }],
+    "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,

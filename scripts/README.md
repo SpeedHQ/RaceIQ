@@ -103,12 +103,14 @@ The Build & Test CI job limits Turbo to two concurrent test tasks and sets
 `BUN_TEST_WORKERS=1` for both affected and full runs to avoid nested test
 parallelism overwhelming constrained runners. Local suite defaults are unchanged.
 
-Root `bun run typecheck` checks workspace packages sequentially. The shared
-base config uses `${configDir}/dist`, giving each composite workspace its own
-incremental cache instead of overwriting root `dist/tsconfig.tsbuildinfo`.
-Shared cache state can produce a locationless backend `TS2589`; an isolated
-cache checks the same complete project successfully. Every source/test file,
-strict check, and the full typed RPC contract remains covered.
+Root `bun run typecheck` delegates workspace checks to Turbo, which schedules
+independent tasks concurrently and respects declared task dependencies. The
+shared base config uses `${configDir}/dist`, giving each composite workspace
+its own incremental cache instead of overwriting root
+`dist/tsconfig.tsbuildinfo`. Shared cache state can still produce a locationless
+backend `TS2589`; an isolated cache checks the same complete project
+successfully. Every source/test file, strict check, and the full typed RPC
+contract remains covered.
 
 ## Verification
 

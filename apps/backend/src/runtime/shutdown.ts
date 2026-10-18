@@ -3,6 +3,7 @@ import { stopSessionCompressor } from "@raceiq/backend-core/session-capture/comp
 import { udpListener } from "./udp-listener";
 import type { NativeSourceSupervisor } from "./native-sources";
 import type { StartupWorkerHandle } from "./startup-worker";
+import { stopSessionCaptureSplitManager } from "../session-capture/split-manager";
 
 export interface ShutdownOptions {
   getNativeSources(): NativeSourceSupervisor | null;
@@ -28,6 +29,7 @@ export function installShutdown({
       if (nativeSources) ingressStops.push(nativeSources.stop());
       await Promise.allSettled(ingressStops);
       await Promise.allSettled([flushSessionRecorder()]);
+      await stopSessionCaptureSplitManager();
       await getStartupWorker()?.stop();
     } finally {
       clearDashboardPublicationNotifications();

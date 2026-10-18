@@ -127,6 +127,9 @@ export async function inspectDownsampleRecording(input: DownsampleRecordingInput
         currentF1UID = h.sessionUID;
       }
     }
+    if (record.kind === "parser-bootstrap") {
+      throw new DownsampleRecordingError("unsupported-format", "Checkpoint-initialized recordings cannot be downsampled");
+    }
     if (record.kind === "segment-boundary") {
       markers.push({ kind: record.kind, ordinal });
       if (inContext) {
@@ -156,6 +159,7 @@ export async function inspectDownsampleRecording(input: DownsampleRecordingInput
       }
       continue;
     }
+    if (record.kind !== "frame") continue;
     const current = ordinal++;
     for (const lap of ends.get(current) ?? []) {
       if (latest && latest.ordinal >= lap.start) lap.last = latest;
@@ -473,6 +477,9 @@ export async function rewriteDownsampleRecording(
     let outputFrameCount = 0;
 
     for await (const record of input.records()) {
+      if (record.kind === "parser-bootstrap") {
+        throw new DownsampleRecordingError("unsupported-format", "Checkpoint-initialized recordings cannot be downsampled");
+      }
       if (record.kind === "segment-boundary") {
         updateDigest(hash, record);
         writeAll(fd, encodeSegmentBoundaryFrame());
@@ -502,6 +509,7 @@ export async function rewriteDownsampleRecording(
         continue;
       }
 
+      if (record.kind !== "frame") continue;
       const frameOrdinal = ordinal++;
       const decoded = input.gameId === "iracing" ? decodeIRacingSourceFrame(record.frame, sourceDecoder) : null;
       if (input.gameId === "iracing" && !decoded) {

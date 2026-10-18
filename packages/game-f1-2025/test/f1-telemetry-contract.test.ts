@@ -53,6 +53,33 @@ function wireFrame(packetId: number, sessionTime: number, frameId: number, data:
   buf[28] = 255;
   return buf;
 }
+test("F1 parser checkpoint encodes bigint identity and restores accumulated state", () => {
+  const continuous = new F1StateAccumulator();
+  continuous.feed(header(0), frame(Buffer.alloc(60)));
+  continuous.feed(header(1), frame(Buffer.alloc(9)));
+  continuous.feed(header(2), frame(Buffer.alloc(57)));
+  const restored = new F1StateAccumulator();
+  restored.restoreCheckpoint(continuous.captureCheckpoint());
+  const status = Buffer.alloc(55);
+  status.writeFloatLE(55, 5);
+  const expected = continuous.feed(header(7), frame(status));
+  const actual = restored.feed(header(7), frame(status));
+  expect(actual).toEqual(expected);
+  expect(() => restored.restoreCheckpoint(Buffer.from('{"format":"raceiq:f1-2025-parser","version":2}')))
+    .toThrow("Invalid or unsupported F1-2025 parser checkpoint");
+});
+
+test("F1 checkpoint rejects malformed nested fields before changing accumulator", () => {
+  const accumulator = new F1StateAccumulator();
+  accumulator.feed(header(0), frame(Buffer.alloc(60)));
+  const before = accumulator.captureCheckpoint();
+  const checkpoint = JSON.parse(new TextDecoder().decode(before));
+  checkpoint.participants = [{ driverId: 1, teamId: 2 }];
+  checkpoint.driverHistory = [[0, {}]];
+  expect(() => accumulator.restoreCheckpoint(Buffer.from(JSON.stringify(checkpoint))))
+    .toThrow("Invalid or unsupported F1-2025 parser checkpoint");
+  expect(accumulator.captureCheckpoint()).toEqual(before);
+});
 
 describe("F1 telemetry contract", () => {
   test("downsample replay preserves F1 lap endpoint family state", async () => {
@@ -92,8 +119,9 @@ describe("F1 telemetry contract", () => {
         records: async function* () {
           let offset = 0;
           for (const frame of sourceFrames) {
-            yield { kind: "frame" as const, offset, frame };
-            offset += encodeFrameLength(frame.length).length + frame.length;
+            const endOffset = offset + encodeFrameLength(frame.length).length + frame.length;
+            yield { kind: "frame" as const, offset, endOffset, frame };
+            offset = endOffset;
           }
         },
         createTelemetryParser: () => {
@@ -158,8 +186,9 @@ describe("F1 telemetry contract", () => {
         records: async function* () {
           let offset = 0;
           for (const frame of sourceFrames) {
-            yield { kind: "frame" as const, offset, frame };
-            offset += encodeFrameLength(frame.length).length + frame.length;
+            const endOffset = offset + encodeFrameLength(frame.length).length + frame.length;
+            yield { kind: "frame" as const, offset, endOffset, frame };
+            offset = endOffset;
           }
         },
         createTelemetryParser: () => {

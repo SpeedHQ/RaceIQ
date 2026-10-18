@@ -9,6 +9,7 @@ import {
   SESSION_SEGMENT_CONTEXT,
   SESSION_SEGMENT_CONTEXT_END,
 } from "@raceiq/capture-formats/session/framing";
+import { hasKunosDumpMagic } from "@raceiq/capture-formats/kunos/dump";
 import { importSessionFrames, type ImportedLap, type ImportSessionOptions } from "./import-pipeline";
 
 const GAME_IDS_BY_FILENAME_PRECEDENCE = [...KNOWN_GAME_IDS].sort(
@@ -26,7 +27,7 @@ export function detectGameIdFromFilename(name: string): GameId | null {
 /** Detect a gameId from actual capture frame content. */
 export function detectGameIdFromBuffer(bytes: Buffer): GameId | null {
   const buf = decompressIfGzipSync(bytes);
-  if (!containsSparseCaptureFrames(buf)) return null;
+  if (!containsSparseCaptureFrames(buf) || hasKunosDumpMagic(buf)) return null;
   const games = getAllServerGames();
   let checked = 0;
   for (const frame of iterateSessionFrames(buf)) {
@@ -39,11 +40,14 @@ export function detectGameIdFromBuffer(bytes: Buffer): GameId | null {
   return null;
 }
 function* canonicalImportFrames(bytes: Buffer) {
-  for (const record of iterateSessionCaptureRecords(bytes)) {
+  for (const record of iterateSessionCaptureRecords(bytes, undefined, { strict: true })) {
     if (record.kind === "frame") yield { frame: record.frame, frameTimeMs: record.frameTimeMs };
     else if (record.kind === "segment-boundary") yield SESSION_SEGMENT_BOUNDARY;
     else if (record.kind === "segment-context") yield SESSION_SEGMENT_CONTEXT;
-    else yield SESSION_SEGMENT_CONTEXT_END;
+    else if (record.kind === "segment-context-end") yield SESSION_SEGMENT_CONTEXT_END;
+    else if (record.kind === "parser-bootstrap") {
+      yield { kind: "parser-bootstrap" as const, gameId: record.gameId, formatVersion: record.formatVersion, payload: record.payload };
+    }
   }
 }
 

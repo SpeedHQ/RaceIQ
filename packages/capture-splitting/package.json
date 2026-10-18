@@ -1,0 +1,21 @@
+{
+  "name": "@raceiq/capture-splitting",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./worker": "./src/worker.ts",
+    "./live-worker": "./src/live-worker.ts",
+    "./protocol": "./src/protocol.ts"
+  },
+  "dependencies": {
+    "@raceiq/capture-formats": "workspace:*",
+    "effect": "4.0.4"
+  },
+  "scripts": {
+    "lint": "../../client/node_modules/.bin/oxlint .",
+    "typecheck": "bun check --project tsconfig.json",
+    "test": "bun run test:unit",
+    "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/capture-splitting"
+  }
+}

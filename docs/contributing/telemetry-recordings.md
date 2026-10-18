@@ -50,6 +50,65 @@ Recorders use different binary formats:
 Use the corresponding reader or `server/test-support/recordings/parse-dump.ts` helper
 rather than decoding recordings ad hoc.
 
+## Work with published lap archives
+
+New completed-session splits publish one `capture.bin.gz` data file and a manifest v4 JSON index in an immutable attempt directory. The gzip file contains independent members, not one solid compressed session. Use the production artifact resolver and `SessionCaptureSource.artifact` to replay or export one lap; do not gunzip the whole data file, extract members to a cache, invent entry filesystem paths, or silently use the retained source when a published layout is invalid.
+
+Keep physical member offsets and compressed sizes separate from decoded capture offsets and detector-owned source ranges. Preserve native frame bytes, ordering, timestamps, missing timestamps, zero-based detector lap numbers, parser bootstraps, and explicit completion context. A checksum proves integrity, not semantic source conservation. New splits must pass the package's closed-archive verification before fenced publication.
+
+Legacy manifest v3 directory bundles remain readable without reinterpretation or in-place rewriting. Archive layout 2 uses separate DB manifest and archive paths; null-layout source reads remain unchanged. Cleanup and relocation must account for both paths, protect active staging and shared references, invalidate metadata/telemetry caches, and count shared archive bytes once. Never recompress the indexed archive as a whole-session stream.
+
+Retained monolithic recordings follow existing policy. Measure archive storage against identical plain and already-gzipped member payloads, with logical and allocated bytes distinguished. Report retained-source storage separately; aggregation alone does not prove compression savings. Label synthetic windows, synthetic acquisition timestamps, application-cold reads, OS cache assumptions, and memory high-water scope explicitly. See [recording architecture](../architecture/telemetry-recording.md#indexed-completed-session-lap-archives) and the [archive implementation plan](../plans/indexed-session-lap-archive.md).
+
+## Verify incremental live capture
+
+Incremental live derivation is release-gated: `configureLiveCaptureRuntime()` exists but is not registered in production boot. Do not enable it merely because a behavioral smoke or compiler check passes. Live means telemetry is currently being produced; offline means existing recordings, import, reprocessing, or restart recovery—not network connectivity.
+
+Run real-game conservation, independent offline detector, semantic replay, early-reader, and close checks:
+
+```sh
+bun apps/backend/test/benchmarks/live-lossless-release.bench.ts --trials=1 --rate-scale=1 --output=.omp/evidence/live-lossless/behavioral.json
+bun test apps/backend/test/session-capture/live-worker-catchup.test.ts apps/backend/test/session-capture/live-recovery.test.ts apps/backend/test/session-capture/live-source-reader.test.ts
+```
+
+Prepared handover has separate deterministic file-backed coverage:
+
+```sh
+bun test packages/capture-splitting/test/prepared-host.test.ts packages/capture-splitting/test/prepared-handover.test.ts packages/capture-splitting/test/live-scenarios.test.ts --timeout 60000
+```
+
+The host tests exercise pre-opened spare files/journals and terminal cleanup. Handover tests hold finalization behind explicit gates: the next member must accept records before the previous gate is released, another boundary must respect the one-finalizer capacity, and close/failure must settle outstanding work without publishing an unverified member. These are ordering and losslessness assertions, not wall-clock speed thresholds; the production parser/detector smoke above remains the integration check.
+
+The catch-up regression uses a real shared source/derivation worker, delayed authoritative controls, and concurrent bounded input after a canonical-cache miss. It covers both an original candidate and a selected, trimmed preparation window. Its optional long-input probe retains only a small native fixture and bounded RSS observations; `RACEIQ_LIVE_STRESS_OUTPUT` writes separate `-trim-0.json` and `-trim-1.json` reports rather than overwriting either scenario:
+
+```sh
+RACEIQ_LIVE_STRESS_RECORDS=100000 RACEIQ_LIVE_STRESS_OUTPUT=.omp/evidence/live-lossless/long-source-catchup.json bun test apps/backend/test/session-capture/live-worker-catchup.test.ts
+bun apps/backend/test/benchmarks/live-lossless-performance.bench.ts --trials=3 --rate-scale=1 --output=.omp/evidence/live-lossless/matched-release.json
+```
+
+The matched runner declares and enforces numeric capture budgets before measurements. It requires all six fixtures, at least three trials, and sustained rate scale 1 for release coverage; subsets or faster replay exit nonzero without release approval. Timed legacy and incremental variants both exclude user replay/cache work. Native member verification, independent parser replay, publication, readiness, and sealing remain enabled. Early-reader, full replay/export, and reconnect proof are separate mandatory behavioral/UI gates, not optional replacements for capture measurements. CPU includes worker threads; OS-attributed physical I/O and page-cache effects must be distinguished from logical archive/source bytes. Fixture pacing uses the reported acquisition or game-clock domain and preserves missing timestamps rather than fabricating them.
+
+Both variants start with an empty replay cache and a full GC. RSS sampling includes ingress and close; the legacy baseline also samples after offline splitting, so its allocation cost is not omitted. These sampled deltas are not an OS lifetime high-water mark or a cold-machine claim. Behavioral smoke reports also measure full consumer replay; do not compare their replay-cache growth to a capture-only baseline.
+
+The 500 ms close budget applies at sustained game rate (scale 1). Accelerated or unpaced stress still requires bounded queues, native conservation, parser verification, publication, and complete drain; its measured backlog close latency is reported without that cap. Other numeric budgets remain enforced. This is not a constant-time close guarantee when unverified work remains.
+
+The long-input probe is synthetic repeated native input, not game-rate or disk-latency evidence. Its late-half RSS-span budget is 64 MiB; inspect its bounded observations and worker queue/cache limits rather than treating the final zero backlog as a peak. Verify recording/finalizing/sealed/failure states, reconnect, actual playback, and raw export in the application on desktop and mobile. Retain source and committed prefixes on failure; do not weaken v4 EOF validation or mark an uncommitted member ready.
+
+### Diagnose source-recorder memory and worker handoff
+
+Run the diagnostic benchmark independently of the all-game release gate:
+
+```sh
+bun apps/backend/test/benchmarks/recorder-handoff.bench.ts --seconds=30 --fps=240 --trials=3 --output=.omp/evidence/live-lossless/recorder-handoff.json
+```
+
+Each baseline/worker trial runs in a fresh process with the same bounded working set of 512 real FM frames. Input repeats with synthetic missing, zero, and UTC timestamps; `--fps` controls offered load, not a claim about observed game rates. Increase `--seconds` for memory-plateau observations or `--fps` for burst pressure. Admission failure fails the command rather than silently reducing load. Trials alternate variant order, and temporary capture files are removed.
+
+The report separates enqueue cost, enqueue-to-worker receipt (including batching), write acknowledgement, and durable acknowledgement latency, with p50/p95/p99 and sample counts. Receipt is timestamped inside the real filesystem worker before queued I/O runs; acknowledgements include return-message delay. It also reports transferred buffer bytes, batch sizes, sampled RSS peaks and twelve bounded memory windows, process lifetime peak RSS before verification, and source queue high-water marks. Transferred bytes are not copy/allocation counts. One extra diagnostic message per batch and bounded timestamp bookkeeping add measurement overhead.
+
+Both variants must reproduce every native frame, its order, and timestamp presence/value through the production sparse reader after durable close. Baseline close includes an explicit final file sync; unlike the worker, it has no periodic sync. RSS includes fixture/runtime/diagnostic state and worker memory. Final verification is excluded from capture samples; lifetime peaks still include fixture preparation. OS caches are uncontrolled. This isolates source recording, not parser/detector work, lap-ready latency, or full derivation. Results have no arbitrary speed thresholds and do not authorize production activation.
+
+
 ## Commit a regression fixture
 
 Raw `.bin` files are gitignored. Keep each original raw `.bin` locally for replay.

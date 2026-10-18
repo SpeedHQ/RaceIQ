@@ -8,10 +8,16 @@ import { readWString } from "@raceiq/game-acc/utils";
 import { createAcEvoParserCache, parseAcEvoBuffers } from "@raceiq/game-ac-evo/parser";
 import { readIRacingFrames } from "@raceiq/capture-formats/iracing/dump";
 import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "@raceiq/capture-formats/lmu/dump-decoder";
-import { readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
-import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { hasKunosDumpMagic, readKunosFrames } from "@raceiq/capture-formats/kunos/dump";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
-import { containsSparseCaptureFrames, decompressIfGzipSync, iterateSessionCaptureRecords, iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
+import {
+  containsSparseCaptureFrames,
+  decompressIfGzipSync,
+  iterateSessionCaptureRecords,
+  iterateSessionFrames,
+  PARSER_BOOTSTRAP_VERSION,
+} from "@raceiq/capture-formats/session/framing";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { applyFrameTime } from "@raceiq/backend-core/session-capture/frame-time";
 
 export interface RecordedTelemetry {
@@ -22,10 +28,10 @@ export interface RecordedTelemetry {
 
 function readFramedPackets(gameId: GameId, bytes: Buffer): TelemetryPacket[] {
   const game = getServerGame(gameId);
-  let parserState = game.createParserState?.() ?? null;
+  let parserState: unknown = game.createParserState?.() ?? null;
   const packets: TelemetryPacket[] = [];
   let inContext = false;
-  for (const record of iterateSessionCaptureRecords(bytes)) {
+  for (const record of iterateSessionCaptureRecords(bytes, undefined, { strict: false })) {
     if (record.kind === "segment-boundary") {
       parserState = game.createParserState?.() ?? null;
       inContext = false;
@@ -36,6 +42,15 @@ function readFramedPackets(gameId: GameId, bytes: Buffer): TelemetryPacket[] {
       continue;
     }
     if (record.kind === "segment-context-end") {
+      inContext = false;
+      continue;
+    }
+    if (record.kind === "parser-bootstrap") {
+      if (record.gameId !== gameId || record.formatVersion !== PARSER_BOOTSTRAP_VERSION) {
+        throw new Error("Parser bootstrap does not match recording game");
+      }
+      if (!game.restoreParserCheckpoint) throw new Error(`Parser checkpoint restore unavailable for ${gameId}`);
+      parserState = game.restoreParserCheckpoint(parserState, record.payload);
       inContext = false;
       continue;
     }
@@ -81,12 +96,28 @@ function readAcEvoRawPackets(recordingPath: string): RecordedTelemetry {
   return { packets, carModel: cache.lastCarModel || null, trackName: cache.lastTrack || null };
 }
 
-function readIRacingRawPackets(recordingPath: string): RecordedTelemetry {
-  const game = getServerGame("iracing"), state = game.createParserState?.() ?? null;
+function readIRacingPackets(recordingPath: string): RecordedTelemetry {
+  const bytes = decompressIfGzipSync(readFileSync(recordingPath));
+  const records = [...iterateSessionCaptureRecords(bytes, undefined, { strict: false })];
+  if (records.some((record) =>
+    record.kind === "segment-boundary" ||
+    record.kind === "segment-context" ||
+    record.kind === "segment-context-end"
+  )) {
+    const framed = readFramedPackets("iracing", bytes);
+    const first = framed[0]?.iracing;
+    return {
+      packets: framed,
+      carModel: first?.carName ?? null,
+      trackName: first?.trackName ?? null,
+    };
+  }
+  const game = getServerGame("iracing");
+  const parserState = game.createParserState?.() ?? null;
   const packets: TelemetryPacket[] = [];
   let carModel: string | null = null, trackName: string | null = null;
   for (const frame of readIRacingFrames(recordingPath)) {
-    const packet = game.tryParse(frame, state);
+    const packet = game.tryParse(frame, parserState);
     if (!packet) continue;
     carModel ??= packet.iracing?.carName ?? null;
     trackName ??= packet.iracing?.trackName ?? null;
@@ -98,8 +129,12 @@ function readIRacingRawPackets(recordingPath: string): RecordedTelemetry {
 function readLMURawPackets(recordingPath: string): RecordedTelemetry {
   const game = getServerGame("lmu"), bytes = decompressIfGzipSync(readFileSync(recordingPath));
   const packets: TelemetryPacket[] = [];
-  let carModel: string | null = null, trackName: string | null = null;
-  for (const frame of hasLMUDumpMagic(bytes) ? readLMUFramesFromBuffer(bytes) : iterateSessionFrames(bytes)) {
+  let carModel: string | null = null;
+  let trackName: string | null = null;
+  const frames = hasLMUDumpMagic(bytes)
+    ? readLMUFramesFromBuffer(bytes)
+    : iterateSessionFrames(bytes, undefined, { strict: false });
+  for (const frame of frames) {
     const packet = game.tryParse(frame, null);
     if (!packet) continue;
     carModel ??= packet.lmu?.carModel || packet.lmu?.carName || null;
@@ -115,7 +150,9 @@ export function readRecordedTelemetry(
   recordingPath: string,
 ): RecordedTelemetry {
   const bytes = decompressIfGzipSync(readFileSync(recordingPath));
-  if (containsSparseCaptureFrames(bytes)) {
+  const nativeKunosDump = (gameId === "acc" || gameId === "ac-evo") && hasKunosDumpMagic(bytes);
+  const nativeLmuDump = gameId === "lmu" && hasLMUDumpMagic(bytes);
+  if (!nativeKunosDump && !nativeLmuDump && containsSparseCaptureFrames(bytes)) {
     const packets = readFramedPackets(gameId, bytes);
     const first = packets[0];
     let carModel: string | null = null;
@@ -137,9 +174,20 @@ export function readRecordedTelemetry(
     }
     return { packets, carModel, trackName };
   }
+  const hasParserBootstrap = !nativeKunosDump && !nativeLmuDump &&
+    [...iterateSessionCaptureRecords(bytes, undefined, { strict: false })].some((record) => record.kind === "parser-bootstrap");
+  if (hasParserBootstrap) {
+    const packets = readFramedPackets(gameId, bytes);
+    const first = packets[0];
+    return {
+      packets,
+      carModel: first?.iracing?.carName ?? first?.lmu?.carModel ?? first?.lmu?.carName ?? null,
+      trackName: first?.iracing?.trackName ?? first?.lmu?.trackName ?? null,
+    };
+  }
   if (gameId === "acc") return readAccRawPackets(recordingPath);
   if (gameId === "ac-evo") return readAcEvoRawPackets(recordingPath);
-  if (gameId === "iracing") return readIRacingRawPackets(recordingPath);
+  if (gameId === "iracing") return readIRacingPackets(recordingPath);
   if (gameId === "lmu") return readLMURawPackets(recordingPath);
   return { packets: readFramedPackets(gameId, bytes), carModel: null, trackName: null };
 }

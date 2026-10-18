@@ -120,6 +120,7 @@ apps/backend/test/runtime/update-check.test.ts
 apps/backend/test/runtime/update-github.integration.test.ts
 apps/backend/test/runtime/websocket-manager.test.ts
 apps/backend/test/session-capture/automatic-cleanup.test.ts
+apps/backend/test/session-capture/capture-splitting.test.ts
 apps/backend/test/session-capture/context-markers.test.ts
 apps/backend/test/session-capture/dashboard-processing.test.ts
 apps/backend/test/session-capture/elapsed-duration.test.ts
@@ -141,7 +142,16 @@ apps/backend/test/session-capture/session-downsample-rewrite.test.ts
 apps/backend/test/session-capture/session-downsample-routes.test.ts
 apps/backend/test/session-capture/session-compressor.test.ts
 apps/backend/test/session-capture/session-recorder.test.ts
+apps/backend/test/session-capture/bundle-consumers.test.ts
+apps/backend/test/session-capture/split-lifecycle.test.ts
+apps/backend/test/session-capture/live-capture-boundaries.test.ts
+apps/backend/test/session-capture/live-parser-evidence.test.ts
+apps/backend/test/session-capture/live-recovery.test.ts
+apps/backend/test/session-capture/live-source-epoch.test.ts
+apps/backend/test/session-capture/live-source-writer.test.ts
+apps/backend/test/session-capture/live-worker-close.test.ts
 apps/backend/test/session-capture/source-loader-stream.test.ts
+apps/backend/test/session-capture/streaming-capture-framing.test.ts
 apps/backend/test/setups/ac-evo/carsetup-file-io.test.ts
 apps/backend/test/setups/ac-evo/place-setup-carsetup.test.ts
 apps/backend/test/setups/ac-evo/setup-file-formats.test.ts
@@ -204,3 +214,8 @@ apps/backend/test/tracks/visualization/iracing-track-segment-viz.test.ts
 apps/backend/test/tracks/visualization/track-segment-viz.test.ts
 apps/backend/test/lap-analysis/telemetry-replay-running-start.test.ts
 apps/backend/test/lap-analysis/corner-resolution.test.ts
+apps/backend/test/session-capture/live-source-reader.test.ts
+apps/backend/test/session-capture/live-worker-catchup.test.ts
+apps/backend/test/session-capture/preopened-file-writer.test.ts
+apps/backend/test/session-capture/direct-recorder.test.ts
+apps/backend/test/session-capture/direct-recording-ingress.test.ts

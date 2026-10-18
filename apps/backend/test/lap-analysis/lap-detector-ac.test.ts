@@ -77,6 +77,52 @@ function packet(fields: Partial<TelemetryPacket>): TelemetryPacket {
   } as TelemetryPacket;
 }
 
+describe("ACC live ownership and persisted rows", () => {
+  test("abandons a short initial partial, binds completed lap, persists final incomplete", async () => {
+    const db = makeFakeDb();
+    const detector = new LapDetectorAcc({ db });
+    const transitions: Array<{ kind: string; window: { startOffset: number | null; frameCount: number } | null }> = [];
+    detector.subscribeOwnership((transition) => transitions.push({ kind: transition.kind, window: transition.window }));
+    let ordinal = 0;
+    const feed = async (fields: Partial<TelemetryPacket>) => {
+      ordinal++;
+      await detector.feed(packet(fields), ordinal * 100, ordinal);
+      detector.drainOwnershipTransitions();
+    };
+
+    for (let second = 40; second <= 43; second++) {
+      await feed({ LapNumber: 1, CurrentLap: second, DistanceTraveled: second, TimestampMS: second * 1_000 });
+    }
+    await feed({ LapNumber: 2, CurrentLap: 0.2, LastLap: 0, DistanceTraveled: 44, TimestampMS: 44_000 });
+    expect(db.inserted).toHaveLength(0);
+    expect(transitions.map(({ kind }) => kind)).toContain("window-abandoned");
+
+    for (let second = 1; second <= 40; second++) {
+      await feed({ LapNumber: 2, CurrentLap: second, DistanceTraveled: 44 + second * 100, TimestampMS: (44 + second) * 1_000 });
+    }
+    await feed({ LapNumber: 3, CurrentLap: 0.2, LastLap: 40, DistanceTraveled: 4_144, TimestampMS: 85_000 });
+    expect(db.inserted).toHaveLength(1);
+    expect(transitions.map(({ kind }) => kind)).toContain("window-finalized");
+
+    for (let second = 1; second <= 10; second++) {
+      await feed({ LapNumber: 3, CurrentLap: second, DistanceTraveled: 4_144 + second * 20, TimestampMS: (85 + second) * 1_000 });
+    }
+    await detector.finalizeCurrentSession();
+    detector.drainOwnershipTransitions();
+    expect(db.inserted).toHaveLength(2);
+    expect(db.inserted[1]).toMatchObject({ valid: false, invalidReason: "incomplete" });
+    expect(transitions.map(({ kind }) => kind)).toContain("final-incomplete");
+    const persistedWindows = transitions.filter(({ kind }) => kind === "window-finalized" || kind === "final-incomplete");
+    expect(persistedWindows).toHaveLength(db.inserted.length);
+    for (const [index, { window }] of persistedWindows.entries()) {
+      expect(window).toMatchObject({
+        startOffset: db.inserted[index]!.rawByteOffset,
+        frameCount: db.inserted[index]!.rawFrameCount,
+      });
+    }
+  });
+});
+
 describe("LapDetectorAc — reset detection", () => {
   test("emits a lap when CurrentLap resets from >30 to <2", async () => {
     const db = makeFakeDb();
@@ -289,7 +335,26 @@ describe("LapDetectorAc — reset detection", () => {
     expect(db.inserted[1].lapTime).toBeCloseTo(85, 0);
   });
 
-  test("session restart (distance reset) discards in-progress lap and keeps new packet", async () => {
+  test("distance reset with continuing timer preserves lap ownership", async () => {
+    const db = makeFakeDb();
+    const d = new LapDetectorAcc({ db });
+    for (let t = 0; t <= 10; t++) {
+      await d.feed(packet({ LapNumber: 4, CurrentLap: t, DistanceTraveled: 11_758 + t * 25 }), 100 + t * 10, t);
+    }
+    d.drainOwnershipTransitions();
+    const reset = packet({ LapNumber: 4, CurrentLap: 11.112, DistanceTraveled: 0 });
+    expect(d.shouldCheckpointBeforeWrite(reset)).toBe(false);
+    await d.feed(reset, 210, 11);
+    expect(d.drainOwnershipTransitions().some(({ kind }) => kind === "window-abandoned")).toBe(false);
+    for (let t = 12; t <= 15; t++) {
+      await d.feed(packet({ LapNumber: 4, CurrentLap: t, DistanceTraveled: 0.1 }), 100 + t * 10, t);
+    }
+    await d.flushIncompleteLap();
+    expect(db.inserted).toHaveLength(1);
+    expect(db.inserted[0]).toMatchObject({ lapNumber: 4, rawByteOffset: 100, rawFrameCount: 16, lapTime: 15 });
+  });
+
+  test("timer restart discards in-progress prefix and keeps new packet", async () => {
     const db = makeFakeDb();
     const saved: Array<{ lapNumber: number; lapTime: number }> = [];
     const d = new LapDetectorAcc({

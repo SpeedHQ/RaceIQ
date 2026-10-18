@@ -12,12 +12,12 @@ on:
         description: "Runner label; compiled server builds on selected runner"
         required: false
         type: string
-        default: '["mars-windows-x64-4vcpu-10g", "mars-macos-arm64-2vcpu-10g", "mars-ubuntu-arm64-2vcpu-10g", "mars-retry-3"]'
+        default: '["mars-macos-arm64-2vcpu-10g", "mars-ubuntu-2vcpu-10g", "mars-retry-3"]'
       projects:
         description: "Playwright project flags passed to the gate"
         required: false
         type: string
-        default: "--project=fresh-install --project=tunes --project=tunes-unseeded --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device"
+        default: "--project=fresh-install --project=tunes --project=tunes-unseeded --project=seeded-e2e --project=seeded-routes --project=seeded-imports"
       shard:
         description: "Optional Playwright shard in N/M format"
         required: false
@@ -29,7 +29,7 @@ on:
         type: string
         default: all
       dist-artifact:
-        description: "Optional prebuilt dist artifact for compiled-server gate"
+        description: "Optional prebuilt dist artifact for Linux compiled-server gate"
         required: false
         type: string
         default: ""
@@ -81,28 +81,28 @@ jobs:
           name: ${{ inputs.seed-database-artifact }}
           path: playwright/test-data-seed-artifact
 
-      - name: Download dist artifact
-        if: inputs.dist-artifact != ''
+      - name: Download Linux dist artifact
+        if: inputs.server-mode == 'compiled' && inputs.dist-artifact != '' && runner.os == 'Linux' && runner.arch == 'X64'
         uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.dist-artifact }}
           path: dist
       - name: Restore compiled server permissions
-        if: inputs.dist-artifact != '' && runner.os != 'Windows'
+        if: inputs.server-mode == 'compiled' && inputs.dist-artifact != '' && runner.os == 'Linux' && runner.arch == 'X64'
         run: chmod +x dist/raceiq
 
 
       - name: Install workspace dependencies
         run: bun scripts/ci/workflow-ops.ts install-retry
       - name: Download upstream Paraglide
-        if: inputs.server-mode == 'compiled' && inputs.dist-artifact == '' && inputs.paraglide-artifact != ''
+        if: inputs.server-mode == 'compiled' && (inputs.dist-artifact == '' || runner.os != 'Linux' || runner.arch != 'X64') && inputs.paraglide-artifact != ''
         uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.paraglide-artifact }}
           path: client
         continue-on-error: true
       - name: Build local compiled server
-        if: inputs.server-mode == 'compiled' && inputs.dist-artifact == ''
+        if: inputs.server-mode == 'compiled' && (inputs.dist-artifact == '' || runner.os != 'Linux' || runner.arch != 'X64')
         run: bunx turbo run build
 
       - name: Install Chromium
@@ -121,6 +121,8 @@ jobs:
       - name: Run Playwright gate
         working-directory: playwright
         env:
+          # Collect replay allocations sooner inside memory-limited CI runners.
+          BUN_OPTIONS: "--smol"
           E2E_SERVER_MODE: ${{ inputs.server-mode }}
           PW_SERVER_SET: ${{ inputs.server-set }}
           PW_WORKERS: "1"

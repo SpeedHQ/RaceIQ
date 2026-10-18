@@ -73,6 +73,7 @@ export function useRecordingLayoutMigration() {
       if (previous?.progress.status === "running" && ["success", "partial", "error"].includes(next.progress.status)) {
         void Promise.all([
           queryClient.invalidateQueries({ queryKey: queryKeys.storageSessions }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.splitMigration }),
           queryClient.invalidateQueries({ queryKey: queryKeys.sessions }),
           queryClient.invalidateQueries({ queryKey: queryKeys.laps }),
           queryClient.invalidateQueries({ queryKey: queryKeys.recordingDirectoryStatus }),

@@ -5,7 +5,7 @@ import { describe, expect, test } from "bun:test";
 import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, IRacingSourceFrameEncoder } from "../src/iracing/source-frame";
 import { ACC_PACKED_MAGIC, packTriplet } from "../src/kunos/pack-triplet";
 import { inspectDownsampleRecording, DownsampleRecordingError, rewriteDownsampleRecording, validateDownsampleRecording } from "../src/session/downsample";
-import { decompressIfGzipSync, encodeFrameLength, iterateSessionCaptureRecords } from "../src/session/framing";
+import { decompressIfGzipSync, encodeFrameLength, encodeParserBootstrapFrame, iterateSessionCaptureRecords } from "../src/session/framing";
 
 test("retains each F1 telemetry family state at an interior lap endpoint", async () => {
   const root = mkdtempSync(join(tmpdir(), "capture-downsample-f1-lap-endpoint-"));
@@ -117,12 +117,28 @@ function records(frames: Buffer[], times?: Array<number | undefined>) {
     let offset = 0;
     for (let i = 0; i < frames.length; i++) {
       const frame = frames[i]!;
-      yield times?.[i] === undefined ? { kind: "frame" as const, offset, frame } : { kind: "frame" as const, offset, frame, frameTimeMs: times[i]! };
-      offset += encodeFrameLength(frame.length).length + frame.length;
+      const endOffset = offset + encodeFrameLength(frame.length).length + frame.length;
+      yield times?.[i] === undefined ? { kind: "frame" as const, offset, endOffset, frame } : { kind: "frame" as const, offset, endOffset, frame, frameTimeMs: times[i]! };
+      offset = endOffset;
     }
   };
 }
 const parser = () => ({ parse: () => true, reset: () => {} });
+
+test("rejects checkpoint-initialized recordings without interpreting frames with missing parser state", async () => {
+  const bootstrap = encodeParserBootstrapFrame("f1-2025", Buffer.from("checkpoint"));
+  const source = {
+    gameId: "f1-2025" as const,
+    records: async function* () {
+      yield* iterateSessionCaptureRecords(bootstrap);
+    },
+    createTelemetryParser: parser,
+    lapIndexes: [],
+  };
+  await expect(inspectDownsampleRecording(source)).rejects.toMatchObject({
+    reason: "unsupported-format",
+  });
+});
 
 test("rewrites 100 Hz FM streams to each configured ceiling and validates plain/gzip output", async () => {
   const root = mkdtempSync(join(tmpdir(), "capture-downsample-"));
@@ -252,9 +268,9 @@ test("removes its partial output when source iteration fails", async () => {
       gameId: "fm-2023" as const,
       records: async function* () {
         pass++;
-        yield { kind: "frame" as const, offset: 0, frame: frames[0]! };
+        yield { kind: "frame" as const, offset: 0, endOffset: 328, frame: frames[0]! };
         if (pass === 2) throw new Error("injected source read failure");
-        yield { kind: "frame" as const, offset: 328, frame: frames[1]! };
+        yield { kind: "frame" as const, offset: 328, endOffset: 656, frame: frames[1]! };
       },
       createTelemetryParser: parser,
       lapIndexes: [],
@@ -491,11 +507,11 @@ describe("inspectDownsampleRecording", () => {
     const context = fmFrame(10);
     const post = fmFrame(20);
     const stream = async function* () {
-      yield { kind: "frame" as const, offset: 0, frame: pre };
-      yield { kind: "segment-context" as const, offset: 328 };
-      yield { kind: "frame" as const, offset: 344, frame: context };
-      yield { kind: "segment-context-end" as const, offset: 672 };
-      yield { kind: "frame" as const, offset: 688, frame: post };
+      yield { kind: "frame" as const, offset: 0, endOffset: 328, frame: pre };
+      yield { kind: "segment-context" as const, offset: 328, endOffset: 344 };
+      yield { kind: "frame" as const, offset: 344, endOffset: 672, frame: context };
+      yield { kind: "segment-context-end" as const, offset: 672, endOffset: 688 };
+      yield { kind: "frame" as const, offset: 688, endOffset: 1016, frame: post };
     };
     await expect(
       inspectDownsampleRecording({
@@ -540,11 +556,11 @@ describe("inspectDownsampleRecording", () => {
     const frames = [encoder.encode(base), encoder.encode({ ...base, values: { SessionTick: 2 } }), encoder.encode({ ...base, values: { SessionTick: 3 } })];
     let parses = 0;
     const stream = async function* () {
-      yield { kind: "frame" as const, offset: 0, frame: frames[0]!, frameTimeMs: 0 };
-      yield { kind: "segment-context" as const, offset: 200 };
-      yield { kind: "frame" as const, offset: 216, frame: frames[1]!, frameTimeMs: 1 };
-      yield { kind: "segment-context-end" as const, offset: 400 };
-      yield { kind: "frame" as const, offset: 416, frame: frames[2]!, frameTimeMs: 2 };
+      yield { kind: "frame" as const, offset: 0, endOffset: 200, frame: frames[0]!, frameTimeMs: 0 };
+      yield { kind: "segment-context" as const, offset: 200, endOffset: 216 };
+      yield { kind: "frame" as const, offset: 216, endOffset: 400, frame: frames[1]!, frameTimeMs: 1 };
+      yield { kind: "segment-context-end" as const, offset: 400, endOffset: 416 };
+      yield { kind: "frame" as const, offset: 416, endOffset: 600, frame: frames[2]!, frameTimeMs: 2 };
     };
     const result = await inspectDownsampleRecording({
       gameId: "iracing",
@@ -592,9 +608,9 @@ describe("inspectDownsampleRecording", () => {
   test("resets segment parsing state", async () => {
     const data = [fmFrame(1)];
     const stream = async function* () {
-      yield { kind: "frame" as const, offset: 0, frame: data[0]! };
-      yield { kind: "segment-boundary" as const, offset: 340 };
-      yield { kind: "frame" as const, offset: 356, frame: fmFrame(2) };
+      yield { kind: "frame" as const, offset: 0, endOffset: 340, frame: data[0]! };
+      yield { kind: "segment-boundary" as const, offset: 340, endOffset: 356 };
+      yield { kind: "frame" as const, offset: 356, endOffset: 696, frame: fmFrame(2) };
     };
     const result = await inspectDownsampleRecording({ gameId: "fm-2023", records: stream, createTelemetryParser: parser, lapIndexes: [] });
     expect(result.segmentCount).toBe(2);
