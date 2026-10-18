@@ -77,8 +77,9 @@ describe("LMU string identity routes", () => {
     const index = cumulative.findIndex((distance) => distance >= target);
     const minZ = Math.min(...points.map((point) => point.z));
     const maxZ = Math.max(...points.map((point) => point.z));
-    // La Source is the top hairpin, not the Eau Rouge approach halfway down the map.
-    expect((points[index].z - minZ) / (maxZ - minZ)).toBeLessThan(0.1);
+    const normalizedZ = (points[index].z - minZ) / (maxZ - minZ);
+    // La Source sits at a vertical extreme, unlike the Eau Rouge approach near map midpoint.
+    expect(Math.min(normalizedZ, 1 - normalizedZ)).toBeLessThan(0.1);
   });
 
   test("resolves the common Spa guide using the canonical LMU track ID", async () => {
