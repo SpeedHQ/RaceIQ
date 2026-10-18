@@ -2646,5 +2646,9 @@
   "sparse_split_migration_retry": "Ponów niedokończone sesje",
   "sparse_split_migration_retry_error": "Nie można rozpocząć dzielenia. Spróbuj ponownie, aby kontynuować.",
   "sparse_split_migration_refresh": "Status odświeżania",
-  "sparse_split_migration_description": "Musimy podzielić nagrania z {sessions} istniejących sesji na pojedyncze pliki okrążeń. Dzięki temu okrążenie 60 wczytuje się tak szybko jak okrążenie 1, bez przeszukiwania poprzednich 59 okrążeń. Dzielenie działa w tle."
+  "sparse_split_migration_description": "Musimy podzielić nagrania z {sessions} istniejących sesji na pojedyncze pliki okrążeń. Dzięki temu okrążenie 60 wczytuje się tak szybko jak okrążenie 1, bez przeszukiwania poprzednich 59 okrążeń. Dzielenie działa w tle.",
+  "setupguide_ams2_same_pc": "Uruchom Automobilista 2 i RaceIQ na tym samym komputerze z systemem Windows.",
+  "setupguide_ams2_shared_memory": "W AMS2 otwórz Opcje → System i ustaw pamięć współdzieloną na Project CARS 2.",
+  "setupguide_ams2_driving": "Rozpocznij trening lub wyścig, wsiądź do samochodu i jedź, aby odbierać telemetrię.",
+  "setupguide_ams2_direct_note": "RaceIQ odczytuje dane AMS2 bezpośrednio. Połączenie z SimHub ani osobne narzędzie telemetryczne nie jest wymagane."
 }

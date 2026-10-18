@@ -2646,5 +2646,9 @@
   "sparse_split_migration_retry_error": "无法开始分割。请重试以继续。",
   "sparse_split_migration_refresh": "刷新状态",
   "sparse_split_migration_retry": "重试未完成的会话",
-  "sparse_split_migration_description": "我们需要将 {sessions} 个现有会话的录音拆分为单圈文件。这样加载第 60 圈会和加载第 1 圈一样快，无需扫描前 59 圈。拆分将在后台运行。"
+  "sparse_split_migration_description": "我们需要将 {sessions} 个现有会话的录音拆分为单圈文件。这样加载第 60 圈会和加载第 1 圈一样快，无需扫描前 59 圈。拆分将在后台运行。",
+  "setupguide_ams2_same_pc": "在同一台 Windows 电脑上运行 AMS2 和 RaceIQ。",
+  "setupguide_ams2_shared_memory": "在 AMS2 系统设置中，将 Shared Memory 设置为 Project CARS 2。",
+  "setupguide_ams2_driving": "进入驾驶会话并驾驶车辆。",
+  "setupguide_ams2_direct_note": "AMS2 直接使用共享内存，无需配置 UDP。"
 }

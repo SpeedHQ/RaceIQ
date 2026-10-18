@@ -204,7 +204,7 @@ export interface TelemetryActions extends StoreActionMap {
   setSectors: (sectors: LiveSectorData) => void;
   setPit: (pit: LivePitData) => void;
   setLiveIssues: (issues: TuneIssue[]) => void;
-  clearTelemetry: () => void;
+  clearTelemetry: (preserveSchema?: boolean) => void;
   setPacketsPerSec: (pps: number) => void;
   setServerStatus: (status: ServerStatus | null) => void;
   setSessionLaps: (laps: LapMeta[]) => void;
@@ -247,7 +247,7 @@ export const telemetryStore = createStore(initialTelemetryState, (store): Teleme
       pit: telemetryFrame.context.pit ?? null,
       liveIssues: [...(telemetryFrame.context.liveIssues ?? [])],
     })),
-  clearTelemetry: () => store.setState((prev) => ({ ...prev, telemetryFrame: null, telemetryView: null, telemetrySchema: null, sectors: null, pit: null, liveIssues: [] })),
+  clearTelemetry: (preserveSchema = false) => store.setState((prev) => ({ ...prev, telemetryFrame: null, telemetryView: null, telemetrySchema: preserveSchema ? prev.telemetrySchema : null, sectors: null, pit: null, liveIssues: [] })),
   setPacketsPerSec: (packetsPerSec) => store.setState((prev) => ({ ...prev, packetsPerSec })),
   setServerStatus: (status) =>
     store.setState((prev) =>

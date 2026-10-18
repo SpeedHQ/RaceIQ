@@ -1,3 +1,4 @@
+import { readAMS2DumpFrames } from "@raceiq/capture-formats/ams2/dump";
 /**
  * End-to-end round-trip for the lap/session ZIP feature, against a *real*
  * recorded capture rather than the synthetic frames used in
@@ -56,6 +57,7 @@ const GAME_CAPTURES: Record<GameId, { capture: string; label: string }> = {
   acc: { capture: "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz", label: "Assetto Corsa Competizione" },
   "ac-evo": { capture: "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz", label: "Assetto Corsa Evo" },
   iracing: { capture: IRACING_CAPTURE, label: "iRacing" },
+  ams2: { capture: "test/artifacts/sessions/ams2-time-trial.bin.gz", label: "Automobilista 2" },
   lmu: { capture: "test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz", label: "Le Mans Ultimate" },
 };
 function captureSource(session: {
@@ -113,16 +115,18 @@ describe("lap export → import round-trip (real capture)", () => {
     minimumLaps?: number;
     frameTimeStartMs?: number;
   } = {}) {
-    const frames = gameId === "iracing"
+    const frames = gameId === "ams2"
+      ? readAMS2DumpFrames(capture)
+      : gameId === "iracing"
       ? readIRacingFrames(capture)
       : gameId === "lmu"
         ? readLMUFrames(capture)
         : iterateSessionFrames(
             Buffer.from(gunzipSync(await Bun.file(capture).arrayBuffer())),
           );
-    const sourceFrames = frameTimeStartMs === undefined ? frames : (function* () {
+    const sourceFrames = frameTimeStartMs === undefined ? frames : (async function* () {
       let index = 0;
-      for (const frame of frames) {
+      for await (const frame of frames) {
         yield { frame, frameTimeMs: frameTimeStartMs + index * 10 + Math.floor(index / 100) * 5_000 };
         index++;
       }

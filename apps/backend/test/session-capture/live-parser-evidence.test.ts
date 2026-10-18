@@ -1,8 +1,12 @@
+import { readAMS2DumpFrames } from "@raceiq/capture-formats/ams2/dump";
+import { ams2Parser } from "@raceiq/game-ams2/game-parser";
+import { resolve } from "node:path";
 import { expect, test } from "bun:test";
 import type { GameId, LapWindow, LiveParserPlan, StreamingMemberStage } from "@raceiq/capture-splitting";
 import type { SessionCaptureRecord } from "@raceiq/capture-formats/session/framing";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import {
+  createLiveGameParserCodec,
   LiveParserEvidenceTracker,
   replayLiveParserStage,
   type LiveGameParserCodec,
@@ -78,4 +82,21 @@ test("later wrong candidate checkpoint cannot self-validate against independent 
   const validCheckpoint = Uint8Array.of(2);
   await expect(replayLiveParserStage("fm-2023", stage(stagedRecords(validCheckpoint)), { ...lap, parserCheckpoint: validCheckpoint }, codec, evidence))
     .resolves.toBeUndefined();
+});
+
+
+test("AMS2 frame-local live codec preserves real driving and menu parser output", async () => {
+  const codec = createLiveGameParserCodec("ams2");
+  const state = codec.restoreState(codec.captureState(codec.createState()));
+  let driving = 0;
+  let menus = 0;
+  for await (const frame of readAMS2DumpFrames(resolve(import.meta.dir, "../../../../test/artifacts/sessions/ams2-time-trial.bin.gz"))) {
+    const actual = codec.parseFrame(frame, state);
+    expect(actual).toEqual(ams2Parser.tryParse(frame, null));
+    if (actual) driving++;
+    else menus++;
+  }
+  expect(driving).toBeGreaterThan(0);
+  expect(menus).toBeGreaterThan(0);
+  expect(() => codec.restoreState(Uint8Array.of(1))).toThrow("Unexpected checkpoint");
 });

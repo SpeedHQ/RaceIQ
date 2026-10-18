@@ -2646,5 +2646,9 @@
   "sparse_split_migration_title": "Dividir gravações para carregamento mais rápido de voltas?",
   "sparse_split_migration_success_title": "Divisão de gravações esparsas",
   "sparse_split_migration_refresh": "Atualizar status",
-  "sparse_split_migration_description": "Precisamos dividir gravações de {sessions} sessões existentes em arquivos de volta individuais. Isso permite que a volta 60 carregue tão rápido quanto a volta 1, sem precisar varrer as 59 voltas anteriores. A divisão é executada em segundo plano."
+  "sparse_split_migration_description": "Precisamos dividir gravações de {sessions} sessões existentes em arquivos de volta individuais. Isso permite que a volta 60 carregue tão rápido quanto a volta 1, sem precisar varrer as 59 voltas anteriores. A divisão é executada em segundo plano.",
+  "setupguide_ams2_same_pc": "Execute Automobilista 2 e RaceIQ no mesmo PC com Windows.",
+  "setupguide_ams2_shared_memory": "No AMS2, abra Opções → Sistema e defina a memória compartilhada como Project CARS 2.",
+  "setupguide_ams2_driving": "Entre em uma sessão de treino ou corrida, entre no carro e dirija para começar a receber telemetria.",
+  "setupguide_ams2_direct_note": "O RaceIQ lê os dados do AMS2 diretamente. Não é necessária uma conexão com o SimHub nem outra ferramenta de telemetria."
 }

@@ -28,4 +28,5 @@ apps/backend/test/laps/archive-detection.test.ts
 apps/backend/test/runtime/diagnostic-log-store.test.ts
 apps/backend/test/runtime/hud-hostname.test.ts
 apps/backend/test/runtime/http-access.test.ts
+apps/backend/test/tracks/ams2-boundaries.test.ts
 apps/backend/test/ai/chat/chat-vision.test.ts

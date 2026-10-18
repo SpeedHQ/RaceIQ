@@ -2647,5 +2647,9 @@
   "sessions_capture_split_error_publication_failed": "Could not publish lap recordings.",
   "sessions_capture_split_progress": "Source frames processed",
   "sessions_capture_split_laps": "Lap recordings",
-  "sessions_export_capture_not_ready": "Raw ZIP export is unavailable until lossless recordings are ready for every selected non-MoTeC lap."
+  "sessions_export_capture_not_ready": "Raw ZIP export is unavailable until lossless recordings are ready for every selected non-MoTeC lap.",
+  "setupguide_ams2_same_pc": "Run Automobilista 2 and RaceIQ on the same Windows PC.",
+  "setupguide_ams2_shared_memory": "In AMS2, open Options → System and set Shared Memory to Project CARS 2.",
+  "setupguide_ams2_driving": "Enter a practice or race session, get into the car, and drive to start receiving telemetry.",
+  "setupguide_ams2_direct_note": "RaceIQ reads AMS2 directly. No SimHub connection or separate telemetry tool is required."
 }

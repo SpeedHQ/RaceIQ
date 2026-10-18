@@ -16,7 +16,7 @@ import { useDashboardCars } from "@/hooks/dashboard-cars";
 function cardStats(cards: Record<string, { laps: number; drivenSeconds: number }>): GameStats {
   const display = (seconds: number) => seconds <= 0 ? "—" : seconds >= 86400 ? `${Math.floor(seconds / 86400)}d` : seconds >= 3600 ? `${Math.floor(seconds / 3600)}h` : `${Math.floor(seconds / 60)}m`;
   const get = (id: string) => ({ laps: cards[id]?.laps ?? 0, time: display(cards[id]?.drivenSeconds ?? 0) });
-  return { fm: get("fm-2023"), f1: get("f1-2025"), acc: get("acc"), acEvo: get("ac-evo"), iracing: get("iracing"), lmu: get("lmu") };
+  return { fm: get("fm-2023"), f1: get("f1-2025"), acc: get("acc"), acEvo: get("ac-evo"), iracing: get("iracing"), lmu: get("lmu"), ams2: get("ams2") };
 }
 
 export function HomePageContainer() {

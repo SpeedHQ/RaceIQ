@@ -6,7 +6,7 @@
     "./marketing/track-wall-data": "./src/marketing/track-wall-data.ts"
   },
   "scripts": {
-    "lint": "../../client/node_modules/.bin/oxlint .",
+    "lint": "node ../../client/node_modules/oxlint/bin/oxlint .",
     "typecheck": "bun check --project tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/tooling-marketing",
     "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/tooling-marketing"

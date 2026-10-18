@@ -2646,5 +2646,9 @@
   "sparse_split_migration_running": "Het splitsen van spaarzame opnames",
   "sparse_split_migration_retry": "Onafgeronde sessies opnieuw proberen",
   "sparse_split_migration_refresh": "Status vernieuwen",
-  "sparse_split_migration_description": "We moeten opnames splitsen vanaf {sessions} bestaande sessies in afzonderlijke rondebestanden. Zo laadt ronde 60 net zo snel als ronde 1, zonder door de vorige 59 ronden te hoeven scannen. Splitsen gebeurt op de achtergrond."
+  "sparse_split_migration_description": "We moeten opnames splitsen vanaf {sessions} bestaande sessies in afzonderlijke rondebestanden. Zo laadt ronde 60 net zo snel als ronde 1, zonder door de vorige 59 ronden te hoeven scannen. Splitsen gebeurt op de achtergrond.",
+  "setupguide_ams2_same_pc": "Start Automobilista 2 en RaceIQ op dezelfde Windows-pc.",
+  "setupguide_ams2_shared_memory": "Open in AMS2 Opties → Systeem en stel gedeeld geheugen in op Project CARS 2.",
+  "setupguide_ams2_driving": "Start een training of race, stap in de auto en rijd om telemetrie te ontvangen.",
+  "setupguide_ams2_direct_note": "RaceIQ leest AMS2 rechtstreeks uit. Een SimHub-verbinding of afzonderlijk telemetrieprogramma is niet nodig."
 }

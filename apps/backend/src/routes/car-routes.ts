@@ -125,6 +125,9 @@ export const carRoutes = new Hono()
       return c.json(getAllF1Cars());
     }
 
+    if (gameIdResult.data === "ams2") {
+      return c.json((await listDiscoveredCars("ams2")).map(({carId,name}) => ({id:carId,name,path:"",category:"discovered",imageUrl:""})));
+    }
     if (gameIdResult.data === "iracing") {
       const catalogCars = getAllIRacingCars().map(({ ordinal, ...car }) => ({ id: String(ordinal), ...car }));
       const catalogIds = new Set(catalogCars.map((car) => car.id));
@@ -192,6 +195,10 @@ export const carRoutes = new Hono()
       return name
         ? c.json({ id: carId, name })
         : c.json({ error: "Car not found" }, 404);
+    }
+    if (gameIdResult.data === "ams2") {
+      const name = await getDiscoveredCarName("ams2", carId);
+      return name ? c.json({ id: carId, name }) : c.json({ error: "Car not found" }, 404);
     }
     if (gameIdResult.data === "iracing") {
       const catalogCar = getAllIRacingCars().find((car) => String(car.ordinal) === carId);

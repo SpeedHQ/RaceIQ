@@ -31,7 +31,7 @@ type ReplayControl = { sourceByteEnd: number; kind: "candidate"; candidate: Cand
   { sourceByteEnd: number; kind: "candidate-discard"; candidateId: string } |
   { sourceByteEnd: number; kind: "window"; item: PendingWindow };
 const CandidatePlanSchema = Schema.Struct({
-  gameId: Schema.Literals(["fm-2023", "f1-2025", "acc", "ac-evo", "lmu", "iracing"]),
+  gameId: Schema.Literals(["fm-2023", "f1-2025", "acc", "ac-evo", "lmu", "iracing", "ams2"]),
   sequence: Schema.Number, anchorSequence: Schema.Number, anchorPayload: Schema.String,
   precedingRecords: Schema.Array(Schema.Struct({ sequence: Schema.Number, frame: Schema.String, timestampMs: Schema.optional(Schema.Number) })),
 });

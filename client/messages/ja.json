@@ -2646,5 +2646,9 @@
   "sparse_split_migration_title": "ラップの読み込みを速くするために録音を分割する？",
   "sparse_split_migration_success_title": "疎な録音の分割",
   "sparse_split_migration_refresh": "ステータスを更新",
-  "sparse_split_migration_description": "録音を分割する必要があります {sessions} 既存のセッションを個別のラップファイルに分割します。これにより、60周目が1周目と同じくらい速く読み込まれ、過去59周をスキャンする必要がなくなります。分割処理はバックグラウンドで実行されます。"
+  "sparse_split_migration_description": "録音を分割する必要があります {sessions} 既存のセッションを個別のラップファイルに分割します。これにより、60周目が1周目と同じくらい速く読み込まれ、過去59周をスキャンする必要がなくなります。分割処理はバックグラウンドで実行されます。",
+  "setupguide_ams2_same_pc": "同じWindows PCでAutomobilista 2とRaceIQを起動してください。",
+  "setupguide_ams2_shared_memory": "AMS2で「オプション → システム」を開き、共有メモリを「Project CARS 2」に設定してください。",
+  "setupguide_ams2_driving": "練習またはレースセッションに入り、車に乗って走行するとテレメトリの受信が始まります。",
+  "setupguide_ams2_direct_note": "RaceIQはAMS2のデータを直接読み取ります。SimHubへの接続や別のテレメトリツールは不要です。"
 }

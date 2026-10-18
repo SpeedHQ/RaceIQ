@@ -1,0 +1,28 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": [
+    "//"
+  ],
+  "tasks": {
+    "test": {
+      "inputs": [
+        "$TURBO_EXTENDS$",
+        "$TURBO_ROOT$/test/artifacts/sessions/ams2-time-trial.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/ams2-race-pit-stop.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/ams2-weekend-sparse-qualifying.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/ams2-qualifying.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/ams2-fixtures.json"
+      ]
+    },
+    "test:e2e:recordings": {
+      "inputs": [
+        "$TURBO_EXTENDS$",
+        "$TURBO_ROOT$/test/artifacts/sessions/ams2-time-trial.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/ams2-race-pit-stop.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/ams2-weekend-sparse-qualifying.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/ams2-qualifying.bin.gz",
+        "$TURBO_ROOT$/test/artifacts/sessions/ams2-fixtures.json"
+      ]
+    }
+  }
+}

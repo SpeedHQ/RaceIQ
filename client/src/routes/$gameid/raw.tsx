@@ -103,6 +103,8 @@ interface VerifyResp {
 }
 
 function GenericRawPage() {
+  const { gameid } = Route.useParams();
+  const gameId = gameIdForRoutePrefix(gameid);
   const subscribed = useDevTelemetryStore((s) => s.subscribed);
   const packet = useDevTelemetryStore((s) => s.packet);
   useEffect(() => {
@@ -111,7 +113,7 @@ function GenericRawPage() {
   }, []);
   return (
     <div className="flex-1 overflow-hidden" data-testid="raw-telemetry-page" data-subscribed={subscribed ? "true" : "false"}>
-      <RawTelemetry packet={packet} />
+      <RawTelemetry packet={packet?.gameId === gameId ? packet : null} />
     </div>
   );
 }

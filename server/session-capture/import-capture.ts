@@ -1,3 +1,4 @@
+import { hasAMS2DumpMagic, readAMS2DumpFramesFromBuffer } from "@raceiq/capture-formats/ams2/dump";
 import { KNOWN_GAME_IDS, type GameId } from "@raceiq/shared/games/ids";
 import { getAllServerGames } from "../games/registry";
 import {
@@ -27,6 +28,7 @@ export function detectGameIdFromFilename(name: string): GameId | null {
 /** Detect a gameId from actual capture frame content. */
 export function detectGameIdFromBuffer(bytes: Buffer): GameId | null {
   const buf = decompressIfGzipSync(bytes);
+  if (hasAMS2DumpMagic(buf)) return "ams2";
   if (!containsSparseCaptureFrames(buf) || hasKunosDumpMagic(buf)) return null;
   const games = getAllServerGames();
   let checked = 0;
@@ -51,6 +53,12 @@ function* canonicalImportFrames(bytes: Buffer) {
   }
 }
 
+function* ams2ImportFrames(bytes: Buffer) {
+  for (const frame of readAMS2DumpFramesFromBuffer(bytes)) {
+    yield {frame, frameTimeMs: frame.readDoubleLE(8)};
+  }
+}
+
 
 /** Replay a canonical session capture through parser, detector, and persistence pipeline. */
 export async function importSessionBin(
@@ -59,10 +67,10 @@ export async function importSessionBin(
   options: ImportSessionOptions = {},
 ): Promise<{ packetCount: number; laps: ImportedLap[] }> {
   const buf = decompressIfGzipSync(bytes);
-  if (!containsSparseCaptureFrames(buf)) {
+  if (!hasAMS2DumpMagic(buf) && !containsSparseCaptureFrames(buf)) {
     throw new Error("Legacy recording imports are no longer supported; provide a sparse RaceIQ capture.");
   }
-  const frames = canonicalImportFrames(buf);
+  const frames = gameId === "ams2" && hasAMS2DumpMagic(buf) ? ams2ImportFrames(buf) : canonicalImportFrames(buf);
   const { packetCount, laps } = await importSessionFrames(
     frames,
     gameId,

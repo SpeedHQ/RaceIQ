@@ -2647,5 +2647,9 @@
   "sparse_split_migration_retry": "Yritä keskeneräisiä istuntoja uudelleen",
   "sparse_split_migration_retry_error": "Jakoa ei voitu käynnistää. Yritä uudelleen.",
   "sparse_split_migration_status_error": "Jaon tilaa ei voitu tarkistaa. Päivitä ja yritä uudelleen.",
-  "sparse_split_migration_refresh": "Päivitä tila"
+  "sparse_split_migration_refresh": "Päivitä tila",
+  "setupguide_ams2_same_pc": "Käynnistä Automobilista 2 ja RaceIQ samalla Windows-tietokoneella.",
+  "setupguide_ams2_shared_memory": "Avaa AMS2:ssa Asetukset → Järjestelmä ja valitse jaetun muistin asetukseksi Project CARS 2.",
+  "setupguide_ams2_driving": "Aloita harjoitus tai kilpailu, siirry autoon ja aja, jotta telemetrian vastaanotto alkaa.",
+  "setupguide_ams2_direct_note": "RaceIQ lukee AMS2:n tietoja suoraan. SimHub-yhteyttä tai erillistä telemetriatyökalua ei tarvita."
 }

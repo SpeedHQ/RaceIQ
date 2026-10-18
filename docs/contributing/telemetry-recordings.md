@@ -14,7 +14,13 @@ Use the game-specific development command:
 | Assetto Corsa Competizione | `bun run dev:dump:acc` | `test/artifacts/sessions/` |
 | Assetto Corsa Evo | `bun run dev:dump:ac-evo` | `test/artifacts/sessions/` |
 | iRacing | `bun run dev:dump:iracing` | `test/artifacts/sessions/` |
+| Automobilista 2 | `bun run dev:dump:ams2` | `test/artifacts/sessions/` |
 | Le Mans Ultimate (LMU) | `bun run dev:dump:lmu` | `test/artifacts/laps/` |
+
+For AMS2, start dump mode before entering a session and leave the session before
+stopping capture. Follow [AMS2 fixture instructions](../development/ams2-dump-recording.md)
+for required lap coverage and independent observations.
+
 
 Drive the relevant session, then press `Ctrl+C`. The shutdown handler flushes the
 recorder so the file ends on a complete frame.
@@ -45,6 +51,7 @@ Recorders use different binary formats:
 - FM and F1: `SessionRecorder` length-prefixed UDP datagrams.
 - ACC and AC Evo: `AcRecorder` typed shared-memory frames.
 - iRacing: `IRacingRecorder` SDK source frames.
+- AMS2: `AMS2DMP1` raw mapped-source frames, including menus and session transitions.
 - LMU: `LMURecorder` LMUQDMP format.
 
 Use the corresponding reader or `server/test-support/recordings/parse-dump.ts` helper

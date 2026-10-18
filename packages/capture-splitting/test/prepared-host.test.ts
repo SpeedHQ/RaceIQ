@@ -1,3 +1,4 @@
+import { syncDirectoryTree } from "@raceiq/capture-formats/session/durable-directory";
 import { expect, spyOn, test } from "bun:test";
 import * as fs from "node:fs";
 import * as zlib from "node:zlib";
@@ -142,3 +143,28 @@ test("failed staging destination rejects createStage and leaves no prepared arti
   expect(await readdir(root)).toEqual(["not-a-directory"]);
   await rm(root, { recursive: true, force: true });
 });
+
+
+test("directory synchronization accepts existing directories but preserves missing-path errors", async () => {
+  const root = await mkdtemp(join(tmpdir(), "raceiq-directory-sync-"));
+  try {
+    await expect(syncDirectoryTree(root)).resolves.toBeUndefined();
+    await expect(syncDirectoryTree(join(root, "missing"))).rejects.toMatchObject({ code: "ENOENT" });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+if (process.platform === "win32") {
+  test("Windows directory fallback never swallows a regular-file sync failure", async () => {
+    const root = await mkdtemp(join(tmpdir(), "raceiq-directory-sync-file-"));
+    try {
+      const path = join(root, "capture.bin");
+      await writeFile(path, "retained capture");
+      await expect(syncDirectoryTree(path)).rejects.toMatchObject({ code: "EPERM" });
+      expect(await fs.promises.readFile(path, "utf8")).toBe("retained capture");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+}

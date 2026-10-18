@@ -178,7 +178,7 @@ export const trackGeometryRoutes = new Hono()
           raceLine: getTrackRacelineById(trackId, validGameId),
           pitLane,
           ...(extractedBoundaries.additionalSections ? { additionalSections: extractedBoundaries.additionalSections } : {}),
-          coordSystem: validGameId === "f1-2025" ? "f1-2025" : (validGameId === "acc" || validGameId === "ac-evo") ? "acc" : "forza",
+          coordSystem: validGameId === "ams2" ? "ams2-world" : validGameId === "f1-2025" ? "f1-2025" : (validGameId === "acc" || validGameId === "ac-evo") ? "acc" : "forza",
         });
       }
 

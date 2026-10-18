@@ -2646,5 +2646,9 @@
   "sparse_split_migration_status_error": "Impossible de vérifier l'état de la migration scindée. Actualisez pour réessayer.",
   "sparse_split_migration_refresh": "Rafraîchir le statut",
   "sparse_split_migration_retry": "Réessayer les sessions non terminées",
-  "sparse_split_migration_success_title": "Enregistrements épars divisés"
+  "sparse_split_migration_success_title": "Enregistrements épars divisés",
+  "setupguide_ams2_same_pc": "Lancez Automobilista 2 et RaceIQ sur le même PC Windows.",
+  "setupguide_ams2_shared_memory": "Dans AMS2, ouvrez Options → Système et réglez la mémoire partagée sur Project CARS 2.",
+  "setupguide_ams2_driving": "Lancez une séance d’entraînement ou une course, montez dans la voiture et roulez pour recevoir la télémétrie.",
+  "setupguide_ams2_direct_note": "RaceIQ lit directement les données d’AMS2. Aucune connexion à SimHub ni aucun autre outil de télémétrie n’est nécessaire."
 }

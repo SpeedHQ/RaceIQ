@@ -33,7 +33,8 @@ export function useCarsForGame(gameId: GameId | null) {
       return rpcJson<{ id: string; name: string }[]>(response);
     },
     enabled: !!gameId,
-    staleTime: Number.POSITIVE_INFINITY,
+    staleTime: gameId === "ams2" ? 15_000 : Number.POSITIVE_INFINITY,
+    refetchInterval: gameId === "ams2" ? 30_000 : false,
   });
 }
 
@@ -81,6 +82,7 @@ export function useTracks() {
     queryKey: ["tracks", gameId ?? null],
     queryFn: async () => rpcJson<TrackInfo[]>(await client.api.tracks.$get({ query: { gameId: gameId! } })),
     enabled: !!gameId,
+    refetchInterval: gameId === "ams2" ? 30_000 : false,
   });
 }
 export function useResolveNames(trackIds: string[], carIds: string[]) {

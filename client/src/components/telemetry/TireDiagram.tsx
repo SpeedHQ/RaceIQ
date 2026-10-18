@@ -97,7 +97,7 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
         </div>
       </div>
       <div className="pointer-events-none flex justify-center">
-        <WeightShiftRadar frame={frame} />
+        <WeightShiftRadar frame={frame} gameId={gameId} />
       </div>
       <div className="flex w-full items-start justify-between gap-4">
         <div className="flex shrink-0 items-start gap-1">

@@ -2646,5 +2646,9 @@
   "sparse_split_migration_title": "Dividir gravações para carregar voltas mais rápido?",
   "sparse_split_migration_success_title": "Divisão de gravações esparsas",
   "sparse_split_migration_refresh": "Atualizar estado",
-  "sparse_split_migration_description": "Precisamos de dividir gravações de {sessions} as sessões existentes em ficheiros de volta individuais. Isto permite que a volta 60 carregue tão rapidamente como a volta 1, sem ter de percorrer as 59 voltas anteriores. A divisão é executada em segundo plano."
+  "sparse_split_migration_description": "Precisamos de dividir gravações de {sessions} as sessões existentes em ficheiros de volta individuais. Isto permite que a volta 60 carregue tão rapidamente como a volta 1, sem ter de percorrer as 59 voltas anteriores. A divisão é executada em segundo plano.",
+  "setupguide_ams2_same_pc": "Execute o AMS2 e o RaceIQ no mesmo computador Windows.",
+  "setupguide_ams2_shared_memory": "Nas definições de sistema do AMS2, defina Shared Memory como Project CARS 2.",
+  "setupguide_ams2_driving": "Entre numa sessão de condução e conduza o carro.",
+  "setupguide_ams2_direct_note": "O AMS2 utiliza diretamente a memória partilhada; não é necessária configuração UDP."
 }

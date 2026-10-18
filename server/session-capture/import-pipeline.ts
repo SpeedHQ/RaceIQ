@@ -424,6 +424,10 @@ export function importSessionFrames(
         return false;
       }
       expectsSessionContext = false;
+      if (serverGame.isSessionEndFrame?.(frame)) {
+        await pipeline.finalizeCurrentSession();
+        return false;
+      }
       pipeline.captureParserSource({ gameId, sequence: sourceSequence++, frame, locator: null,
         ...(frameTimeMs === undefined ? {} : { timestampMs: frameTimeMs }) });
       const packet = serverGame.tryParseLapIndex(frame, state);

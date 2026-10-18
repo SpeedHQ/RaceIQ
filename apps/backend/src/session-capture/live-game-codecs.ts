@@ -9,6 +9,7 @@ import { f1Parser } from "@raceiq/game-f1-2025/game-parser";
 import { forzaParser } from "@raceiq/game-fm-2023/game-parser";
 import { captureIRacingParserCheckpoint, createIRacingParserState, restoreIRacingParserCheckpoint, type IRacingParserState } from "@raceiq/game-iracing/normalizer";
 import { iracingParser } from "@raceiq/game-iracing/game-parser";
+import { ams2Parser } from "@raceiq/game-ams2/game-parser";
 import { lmuParser } from "@raceiq/game-lmu/game-parser";
 
 import { acEvoParser } from "@raceiq/game-ac-evo/game-parser";
@@ -155,6 +156,8 @@ export function createLiveGameParserCodec(gameId: GameId): LiveGameParserCodec {
       return frameLocalCodec((frame, timestampMs) => accParser.tryParse(frame, null, timestampMs));
     case "fm-2023":
       return frameLocalCodec((frame, timestampMs) => forzaParser.tryParse(frame, null, timestampMs));
+    case "ams2":
+      return frameLocalCodec((frame, timestampMs) => ams2Parser.tryParse(frame, null, timestampMs));
     case "lmu":
       return frameLocalCodec((frame, timestampMs) => lmuParser.tryParse(frame, null, timestampMs));
   }
