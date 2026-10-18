@@ -29,7 +29,7 @@ async function stop() {
   if (child.exitCode === null) { try { process.kill(-(group ?? child.pid!), "SIGKILL"); } catch {} }
 }
 async function launch(dataDir?: string) {
-  const env: Record<string, string | undefined> = { ...process.env, HOME: home, APPIMAGE_EXTRACT_AND_RUN: "1", NODE_ENV: "production", PORT: String(ports[0]), UDP_PORT: String(ports[1]), PATH: `${bin}:/usr/bin:/bin` };
+  const env: Record<string, string | undefined> = { ...process.env, HOME: home, APPIMAGE_EXTRACT_AND_RUN: "1", NODE_ENV: "production", SERVER_PORT: String(ports[0]), UDP_PORT: String(ports[1]), PATH: `${bin}:/usr/bin:/bin` };
   delete env.APPDATA; delete env.DATA_DIR;
   if (dataDir) env.DATA_DIR = dataDir;
   child = spawn(copied, [], { cwd, env, detached: true, stdio: ["ignore", "pipe", "pipe"] });

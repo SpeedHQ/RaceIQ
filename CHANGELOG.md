@@ -11,6 +11,7 @@
 - Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
 
 ### Internal
+- Use the configured HTTP port for AppImage release smoke checks so healthy startup does not block release creation.
 - Reuse the Linux build artifact across Playwright shards and collect replay allocations sooner on memory-limited CI runners.
 - Avoid `bun run test` port collisions with running services by selecting available ports for Playwright server sets when overrides are unset, while honoring explicit `PW_*_PORT` values and preserving isolated test databases.
 - Reuse one prepared Playwright database snapshot across seeded server sets to avoid duplicate fixture imports.
