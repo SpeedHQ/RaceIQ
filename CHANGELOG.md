@@ -26,6 +26,7 @@
 - Block screenshots for chat models without verified image support and keep text conversations usable.
 - Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.
 - Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
+- Complete first-run sparse recording migration in compiled builds instead of failing.
 
 ### Internal
 - Reuse generic lap-bundle construction and separate capture-file accounting from `@raceiq/capture-splitting`; keep downsampling orchestration, database publication, and game adapters in the server.
