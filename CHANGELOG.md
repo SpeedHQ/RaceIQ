@@ -5,6 +5,7 @@
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Keep first-run setup responsive by omitting the optional telemetry demo.
 - Use LMU game-world coordinates directly for track geometry, preserving edge-hugging and off-track positions.
 - Prevent overlapping database writes from blocking recording imports and setup or session deletion.
 - Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.
@@ -12,7 +13,8 @@
 
 ### Internal
 - Use the configured HTTP port for AppImage release smoke checks so healthy startup does not block release creation.
-- Reuse the Linux build artifact across Playwright shards and collect replay allocations sooner on memory-limited CI runners.
+- Build compiled Playwright servers on each runner so Linux E2E shards use matching binary architectures.
+- Collect replay allocations sooner on memory-limited CI runners.
 - Avoid `bun run test` port collisions with running services by selecting available ports for Playwright server sets when overrides are unset, while honoring explicit `PW_*_PORT` values and preserving isolated test databases.
 - Reuse one prepared Playwright database snapshot across seeded server sets to avoid duplicate fixture imports.
 - Update live iRacing browser checks to expect the Tires section to be absent in Driver and Pit Crew views.

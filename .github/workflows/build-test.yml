@@ -54,14 +54,6 @@ jobs:
           retention-days: 1
         continue-on-error: true
 
-      - name: Upload Linux E2E dist artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: raceiq-dist
-          path: dist/
-          if-no-files-found: error
-          retention-days: 1
-
   test:
     timeout-minutes: 30
     if: (github.event_name != 'pull_request' || (!github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')))
@@ -165,6 +157,8 @@ jobs:
         run: |
           git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
           bun packages/tooling-release/src/release/check-changelog.ts
+  # Playwright runners span architectures; build the compiled server on each runner
+  # instead of sharing a dist artifact built for an arbitrary build-runner architecture.
   playwright-e2e:
     if: github.event_name == 'pull_request' && !github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')
     needs:
@@ -173,7 +167,6 @@ jobs:
     uses: ./.github/workflows/playwright-e2e.yml
     with:
       target-ref: ${{ inputs.target_ref || github.ref }}
-      dist-artifact: raceiq-dist
       paraglide-artifact: raceiq-paraglide
 
   visual-regression:

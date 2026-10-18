@@ -1,191 +1,16 @@
+import { useState } from "react";
 import { LOCALES } from "@raceiq/shared/platform/i18n/locales";
-import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
-import type { SceneRuntime, SceneSource } from "@/components/wireframe/SceneRuntime";
-import { flushSync } from "react-dom";
-import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CarWireframe } from "@/components/CarWireframe";
 import { SearchSelect } from "@/components/ui/SearchSelect";
-import { DEMO_CAR } from "@/data/car-models";
 import { useSaveSettings, useSettings } from "@/hooks/settings";
 import { applyLocale } from "@/lib/locale";
-import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
 import { useTelemetryStore } from "@/stores/telemetry";
 
-interface DemoFixture {
-  frames: SemanticAnalysisFrame[];
-}
-
-function WelcomeViewport({ telemetry, setup }: { telemetry: SemanticAnalysisFrame[]; setup: boolean }) {
-  const [cursorIdx, setCursorIdx] = useState(() => Math.floor(telemetry.length * 0.3));
-  const rafIdRef = useRef<number>(0);
-  const isRunningRef = useRef(false);
-  const isDisposedRef = useRef(false);
-  const lastTimeRef = useRef(0);
-  const telemetryLengthRef = useRef(telemetry.length);
-  const framesRef = useRef(telemetry);
-  framesRef.current = telemetry;
-  const cursorRef = useRef(cursorIdx);
-  const [seekGeneration, setSeekGeneration] = useState(0);
-  const seekGenerationRef = useRef(0);
-  const [playing, setPlaying] = useState(false);
-  const runtimeRef = useRef<SceneRuntime | null>(null);
-  const recording = typeof window !== "undefined" && Boolean((window as unknown as Record<string, unknown>).__recording);
-  const initialCursorIdx = useRef(cursorIdx).current;
-  const handleRuntime = useCallback((runtime: SceneRuntime | null) => {
-    runtimeRef.current = runtime;
-    const w = window as unknown as Record<string, unknown>;
-    w.__captureSceneBitmap = recording && runtime ? () => runtime.captureBitmap() : undefined;
-  }, [recording]);
-  const source = useMemo<SceneSource>(() => ({
-    framesRef, cursorRef, playing, playbackSpeed: 1, seekGeneration, recording,
-  }), [playing, seekGeneration, recording]);
-  const seek = useCallback(() => {
-    const generation = ++seekGenerationRef.current;
-    setSeekGeneration(generation);
-    return generation;
-  }, []);
-  telemetryLengthRef.current = telemetry.length;
-  const trackId = typeof telemetry[0]?.values["identity.track-id"] === "string" ? telemetry[0].values["identity.track-id"] : undefined;
-  const pauseAnimation = useCallback(() => {
-    if (!isRunningRef.current) return;
-    setPlaying(false);
-    isRunningRef.current = false;
-    cancelAnimationFrame(rafIdRef.current);
-  }, []);
-  const resumeAnimation = useCallback(() => {
-    if (isDisposedRef.current || isRunningRef.current) return;
-    setPlaying(true);
-    isRunningRef.current = true;
-    lastTimeRef.current = 0;
-    const frameDuration = 1000 / 60;
-    const tick = (time: number) => {
-      if (!isRunningRef.current || isDisposedRef.current) return;
-      rafIdRef.current = requestAnimationFrame(tick);
-      if (time - lastTimeRef.current < frameDuration) return;
-      lastTimeRef.current = time;
-      setCursorIdx((prev) => {
-        const totalPackets = telemetryLengthRef.current;
-        const next = prev + 1 >= totalPackets ? 0 : prev + 1;
-        cursorRef.current = next;
-        if (next === 0) seek();
-        return next;
-      });
-    };
-    rafIdRef.current = requestAnimationFrame(tick);
-  }, [seek]);
-
-  useQuery({
-    queryKey: ["track-outline", trackId],
-    queryFn: async () => {
-      if (!trackId) return null;
-      const res = await client.api["track-outline"][":trackId"].$get({ param: { trackId: encodeURIComponent(trackId) }, query: { gameId: "fm-2023" } });
-      if (!res.ok) return null;
-      const d = (await res.json()) as Record<string, unknown>;
-      if (d?.points && Array.isArray(d.points)) return d.points as { x: number; z: number }[];
-      if (Array.isArray(d)) return d as { x: number; z: number }[];
-      return null;
-    },
-    enabled: !setup && !!trackId,
-    staleTime: Number.POSITIVE_INFINITY,
-  });
-  const { data: boundaries } = useQuery({
-    queryKey: ["track-boundaries", trackId],
-    queryFn: async () => {
-      if (!trackId) return null;
-      const res = await client.api["track-boundaries"][":trackId"].$get({ param: { trackId: encodeURIComponent(trackId) }, query: { gameId: "fm-2023" } });
-      if (!res.ok) return null;
-      return res.json();
-    },
-    enabled: !setup && !!trackId,
-    staleTime: Number.POSITIVE_INFINITY,
-  });
-
-  useEffect(() => {
-    isDisposedRef.current = false;
-    const expose = window as unknown as Record<string, unknown>;
-    expose.__setFrame = (n: number) => {
-      const idx = Math.max(0, Math.min(telemetryLengthRef.current - 1, n));
-      cursorRef.current = idx;
-      const generation = seek();
-      flushSync(() => {
-        setSeekGeneration(generation);
-        setCursorIdx(idx);
-      });
-      return runtimeRef.current ? runtimeRef.current.requestFrame(generation) : Promise.resolve();
-    };
-    expose.__pauseAnimation = () => pauseAnimation();
-    expose.__resumeAnimation = () => resumeAnimation();
-    expose.__totalFrames = telemetryLengthRef.current;
-    return () => {
-      isDisposedRef.current = true;
-      expose.__setFrame = undefined;
-      expose.__pauseAnimation = undefined;
-      expose.__resumeAnimation = undefined;
-      expose.__totalFrames = undefined;
-      pauseAnimation();
-    };
-  }, [pauseAnimation, resumeAnimation, seek]);
-  useEffect(() => {
-    (window as unknown as Record<string, unknown>).__totalFrames = telemetry.length;
-  }, [telemetry.length]);
-  useEffect(() => {
-    if (telemetry.length === 0) return;
-    resumeAnimation();
-    return () => pauseAnimation();
-  }, [pauseAnimation, resumeAnimation, telemetry]);
-  const lapLine = useMemo(() => {
-    if (telemetry.length < 2) return null;
-    const pts: { x: number; z: number }[] = [];
-    for (let i = 0; i < telemetry.length; i += 10) {
-      const p = telemetry[i];
-      const x = p.values["motion.position-x"];
-      const z = p.values["motion.position-z"];
-      if (typeof x !== "number" || typeof z !== "number" || (x === 0 && z === 0)) continue;
-      pts.push({ x, z });
-    }
-    return pts.length > 2 ? pts : null;
-  }, [telemetry]);
-  const packet = telemetry[cursorIdx] ?? telemetry[0];
-  if (!packet) return null;
-  return (
-    <div className="w-full h-48 rounded-lg overflow-hidden border border-app-border bg-app-bg">
-      <CarWireframe
-        gameId="fm-2023"
-        frame={telemetry[0]}
-        source={source}
-        telemetry={telemetry}
-        cursorIdx={initialCursorIdx}
-        onRuntime={handleRuntime}
-        outline={lapLine}
-        boundaries={boundaries ?? undefined}
-        carModel={DEMO_CAR}
-        protectedDataEnabled={!setup}
-        minimal
-        hideControls
-        toggleOverrides={{ track: true, wheelInfo: false }}
-        autoOrbit
-      />
-    </div>
-  );
-}
 
 export function WelcomeStep({ setup = false }: { setup?: boolean } = {}) {
   const [setupLanguage, setSetupLanguage] = useState<string>(getLocale);
   const versionInfo = useTelemetryStore((s) => s.versionInfo);
-  const { data: demoTelemetry, isLoading } = useQuery({
-    queryKey: ["demo-lap"],
-    queryFn: async () => {
-      const res = await fetch("/demo-lap.json.gz");
-      if (!res.ok) return [];
-      return ((await res.json()) as DemoFixture).frames;
-    },
-    staleTime: Number.POSITIVE_INFINITY,
-  });
-  const telemetry = demoTelemetry ?? [];
-  const hasTelemetry = telemetry.length > 0;
   const { displaySettings } = useSettings({ enabled: !setup });
   const saveSettings = useSaveSettings();
   const currentLang = setup ? setupLanguage : displaySettings.language ?? "en";
@@ -205,14 +30,7 @@ export function WelcomeStep({ setup = false }: { setup?: boolean } = {}) {
   }
   return (
     <div className="flex flex-col items-center justify-center text-center py-6">
-      {isLoading ? (
-        <div className="mb-5 w-full h-48 rounded-lg bg-app-surface-alt animate-pulse" />
-      ) : hasTelemetry ? (
-        <div className="mb-5 w-full">
-          <WelcomeViewport telemetry={telemetry} setup={setup} />
-        </div>
-      ) : (
-        <div className="mb-5 relative w-64 h-20">
+      <div className="mb-5 relative w-64 h-20">
           <div className="absolute inset-0 bg-app-accent/5 rounded-lg blur-xl" />
           <svg viewBox="0 0 260 80" fill="none" className="relative w-full h-full" aria-hidden="true">
             {[20, 40, 60].map((y) => (
@@ -238,7 +56,6 @@ export function WelcomeStep({ setup = false }: { setup?: boolean } = {}) {
             </defs>
           </svg>
         </div>
-      )}
       <h2 className="text-2xl font-bold text-app-text mb-1 tracking-tight">RaceIQ</h2>
       {versionInfo?.current && <div className="text-xs font-mono text-app-text-muted mb-2">v{versionInfo.current}</div>}
       <p className="text-sm text-app-text-muted max-w-sm leading-relaxed">{m.ob_welcome_tagline()}</p>

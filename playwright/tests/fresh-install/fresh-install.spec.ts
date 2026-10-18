@@ -480,7 +480,7 @@ test("setup wizard applies native recording-folder choices immediately and safel
   await page.route("**/api/storage/recording-directory", async (route) => {
     if (route.request().method() === "POST") {
       moveRequests++;
-      if (moveRequests > 1) await moveGate;
+      if (moveRequests > 0) await moveGate;
     }
     await route.continue();
   });
