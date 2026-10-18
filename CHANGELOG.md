@@ -9,6 +9,7 @@
 - Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
 
 ### Fixes
+- Replace iRacing comparison-map yaw ticks with lap-colored travel-direction chevrons and align follow view to the plotted path; retain plain dots when nearby positions cannot establish direction.
 - Use LMU game-world coordinates directly for track geometry, preserving edge-hugging and off-track positions.
 - Prevent overlapping database writes from blocking recording imports and setup or session deletion.
 - Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.

@@ -373,7 +373,7 @@ export function CompareTrackMap({
       if (ctx) {
         ctx.scale(dpr, dpr);
         const zoom = hd != null ? computeZoom(mapTraces, hd, trackRange, telXFn, alignedOutline) : null;
-        drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, mapTraces, hd, zoom, undefined, followCarRef.current, alignedBoundaries, telXFn, true, true, gameId === "iracing");
+        drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, mapTraces, hd, zoom, undefined, followCarRef.current, alignedBoundaries, telXFn, true, true, gameId === "iracing", gameId === "iracing");
 
         if (hd != null) {
           const index = findTraceIndexAtDistance(mapTraces.distance, hd);

@@ -52,6 +52,27 @@ function mapPosition(traces: AlignedTrace, index: number, outline: Point[], telX
   return outline[Math.round(fraction * (outline.length - 1))] ?? null;
 }
 
+/** Screen-space travel direction; never infer a heading across missing positions. */
+function pathDirection(xs: number[], zs: number[], index: number, telX: (x: number) => number): number | null {
+  const valid = (i: number) => Number.isFinite(xs[i]) && Number.isFinite(zs[i]) && (xs[i] !== 0 || zs[i] !== 0);
+  if (!valid(index)) return null;
+  let before = index;
+  let after = index;
+  for (let step = -1; step <= 1; step += 2) {
+    for (let offset = 1; offset <= 5; offset++) {
+      const next = index + step * offset;
+      if (!valid(next)) break;
+      if (Math.hypot(xs[next] - xs[index], zs[next] - zs[index]) < 0.1) continue;
+      if (step < 0) before = next;
+      else after = next;
+      break;
+    }
+  }
+  const dx = telX(xs[before]) - telX(xs[after]);
+  const dy = zs[after] - zs[before];
+  return Math.hypot(dx, dy) >= 0.1 ? Math.atan2(dy, dx) : null;
+}
+
 export function drawTrackCanvas(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -67,6 +88,7 @@ export function drawTrackCanvas(
   hideOutline = false,
   showSegmentMarkers = true,
   breakAtInvalidPositions = false,
+  usePathDirection = false,
 ) {
   ctx.clearRect(0, 0, w, h);
   const bounds = [...outline, ...(boundaries ? [boundaries.leftEdge, boundaries.rightEdge].flat() : [])];
@@ -91,13 +113,15 @@ export function drawTrackCanvas(
   if (followCar && zoom && hoveredDistance != null) {
     const index = findTraceIndexAtDistance(traces.distance, hoveredDistance);
     const x = traces.positionXA[index],
-      z = traces.positionZA[index],
-      yaw = traces.yawA[index];
-    if (Number.isFinite(x) && Number.isFinite(z) && Number.isFinite(yaw) && (x !== 0 || z !== 0)) {
+      z = traces.positionZA[index];
+    const direction = usePathDirection
+      ? pathDirection(traces.positionXA, traces.positionZA, index, telX)
+      : Number.isFinite(traces.yawA[index]) ? Math.PI / 2 - traces.yawA[index] : null;
+    if (Number.isFinite(x) && Number.isFinite(z) && direction != null && (x !== 0 || z !== 0)) {
       const [cx, cy] = toCanvas(telX(x), z);
       ctx.save();
       ctx.translate(w / 2, h / 2);
-      ctx.rotate(Math.PI - yaw);
+      ctx.rotate(usePathDirection ? -Math.PI / 2 - direction : Math.PI - traces.yawA[index]);
       ctx.translate(-cx, -cy);
       restore = true;
     }
@@ -169,14 +193,26 @@ export function drawTrackCanvas(
     const index = findTraceIndexAtDistance(traces.distance, hoveredDistance);
     const a = mapPosition(traces, index, outline, telX);
     const b = mapPosition({ ...traces, positionXA: traces.positionXB, positionZA: traces.positionZB }, index, outline, telX);
-    const dot = (p: Point | null, color: string, yaw?: number) => {
+    const dot = (p: Point | null, color: string, yaw?: number, direction: number | null = null) => {
       if (!p) return;
       const [x, y] = toCanvas(p.x, p.z);
+      if (zoom && usePathDirection && direction != null) {
+        const dx = Math.cos(direction);
+        const dy = Math.sin(direction);
+        ctx.beginPath();
+        ctx.moveTo(x - dx * 7 - dy * 6, y - dy * 7 + dx * 6);
+        ctx.lineTo(x + dx * 10, y + dy * 10);
+        ctx.lineTo(x - dx * 7 + dy * 6, y - dy * 7 - dx * 6);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        return;
+      }
       ctx.beginPath();
       ctx.arc(x, y, zoom ? 7 : 5, 0, Math.PI * 2);
       ctx.fillStyle = color;
       ctx.fill();
-      if (zoom && yaw != null) {
+      if (zoom && !usePathDirection && yaw != null) {
         ctx.beginPath();
         ctx.moveTo(x, y);
         ctx.lineTo(x - Math.sin(yaw) * 22, y + Math.cos(yaw) * 22);
@@ -186,8 +222,8 @@ export function drawTrackCanvas(
       }
     };
     if (zoom) {
-      dot(a, COLOR_A, traces.yawA[index]);
-      dot(b, COLOR_B, traces.yawB[index]);
+      dot(a, COLOR_A, traces.yawA[index], usePathDirection ? pathDirection(traces.positionXA, traces.positionZA, index, telX) : null);
+      dot(b, COLOR_B, traces.yawB[index], usePathDirection ? pathDirection(traces.positionXB, traces.positionZB, index, telX) : null);
     } else {
       dot(a, "var(--app-text)");
     }
