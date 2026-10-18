@@ -3,6 +3,7 @@ import { createReadStream } from "node:fs";
 import { constants } from "node:fs";
 import { chmod, copyFile, link, lstat, mkdir, open, readFile, readdir, realpath, rename, rmdir, stat, unlink, utimes } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index";
 import { laps, sessions } from "../db/schema";
@@ -132,7 +133,16 @@ async function saveJournal(journal: Journal): Promise<void> {
   const temp = `${journalFile}.${process.pid}.${randomUUID()}.tmp`;
   const handle = await open(temp, "wx", 0o600);
   try { await handle.writeFile(JSON.stringify(journal)); await handle.sync(); } finally { await handle.close(); }
-  await rename(temp, journalFile);
+  // Windows readers can briefly deny replacement of the journal. Keep the old
+  // journal intact and retry the atomic rename; never unlink it to force a write.
+  for (let attempt = 0; ; attempt++) {
+    try { await rename(temp, journalFile); break; }
+    catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (process.platform !== "win32" || !["EPERM", "EACCES", "EBUSY"].includes(code ?? "") || attempt >= 5) throw error;
+      await delay(10 * 2 ** attempt);
+    }
+  }
   try { const directory = await open(dirname(journalFile), "r"); try { await directory.sync(); } finally { await directory.close(); } } catch { /* Directory sync unavailable on some platforms. */ }
 }
 async function findLegacyFiles(root: string): Promise<string[]> {

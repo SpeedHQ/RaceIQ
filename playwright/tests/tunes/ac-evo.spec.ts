@@ -5,7 +5,7 @@ import { completeOnboarding, resetTunes, waitForTunesList } from "../support/tun
 // AC Evo uses flat decoded settings and its own road/track categories.
 test.describe("AC EVO tunes", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/ac-evo/setups");
     await completeOnboarding(page);
     await resetTunes(page);
   });

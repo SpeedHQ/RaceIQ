@@ -6,6 +6,7 @@ import { ChunkSchema, ManifestSchema, type Chunk, type Manifest } from "@raceiq/
 import { encodeFrameLength, encodeMetaFrame, encodeParserBootstrapFrame, encodeSegmentBoundaryFrame, encodeSegmentContextEndFrame, encodeSegmentContextFrame, encodeSparseCaptureFormatFrame, iterateSessionCaptureRecords, META_FRAME_BYTES } from "@raceiq/capture-formats/session/framing";
 import { PreopenedFileWriter, type PreopenedFileInfo, type PreopenedFileWriterOptions } from "@raceiq/capture-formats/session/preopened-file-writer";
 import { SparseCaptureEncoder } from "@raceiq/capture-formats/session/sparse-recorder";
+import { syncDirectory } from "@raceiq/capture-formats/session/durable-directory";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import type { DetectorOwnershipTransition } from "@raceiq/telemetry-core/processor/ordinal-engine";
@@ -413,8 +414,7 @@ export class DirectCaptureRecording {
       const handle = await open(temporary, "r+");
       try { await handle.sync(); } finally { await handle.close(); }
       await rename(temporary, this.manifestPath);
-      const parent = await open(dirname(this.manifestPath), "r");
-      try { await parent.sync(); } finally { await parent.close(); }
+      await syncDirectory(dirname(this.manifestPath));
     } catch (error) {
       await rm(temporary, { force: true }).catch(() => {});
       throw error;

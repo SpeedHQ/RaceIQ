@@ -23,9 +23,14 @@ test("global landing cards, period filters, and recent sessions navigate", async
   await year.click();
   await expect(year).toHaveAttribute("aria-pressed", "true");
 
-  const recentRows = page.locator("tbody tr");
-  await expect(recentRows.first()).toBeVisible();
-  await recentRows.first().click();
+  // Use a canonical fixture for the replay navigation check. The most recent
+  // legacy LMU capture intentionally needs explicit car/track assignment.
+  // Loading skeletons also render rows, so wait for the actual session action.
+  const recentSession = page.locator("tbody tr")
+    .filter({ has: page.locator('[data-game-brand="fm-2023"]') })
+    .getByRole("button", { name: /^Analyse Session:/ }).first();
+  await expect(recentSession).toBeVisible();
+  await recentSession.click();
   await expect(page).toHaveURL(/\/(fm23|f125|acc|ac-evo|iracing|lmu)\/sessions\/\d+\/analyse(?:\?|$)/);
   await expect(page.getByRole("button", { name: /^Laps: \d+ · Primary: Lap \d+$/ })).toBeVisible();
   await page.getByRole("button", { name: /^Analyse lap \d+$/ }).click();

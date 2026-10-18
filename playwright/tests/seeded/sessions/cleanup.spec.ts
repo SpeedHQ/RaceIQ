@@ -7,18 +7,31 @@ import { runtime } from "../../../config/runtime";
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { cleanDisposable, importDisposableLap, lapsFor, sessionRows, sessionsFor, type DisposableImport } from "./helpers";
 
+function captureFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    return entry.isDirectory() ? captureFiles(path) : entry.isFile() ? [path] : [];
+  });
+}
+
 test("confirmed cleanup removes disposable capture while preserving session and laps", async ({ page, request }) => {
+  test.setTimeout(90_000);
   const browserErrors = collectBrowserErrors(page);
   const capturesDir = join(runtime.seeded.dataDir, "sessions", "fm-2023", "own");
-  const capturesBefore = new Set(readdirSync(capturesDir).filter((name) => name.endsWith(".bin") || name.endsWith(".bin.gz")));
+  const capturesBefore = new Set(captureFiles(capturesDir));
   let disposable: DisposableImport | undefined;
   try {
     disposable = await importDisposableLap(request, "fm-2023", "sessions-cleanup");
     const sessionIds = disposable.sessionIds;
     const lapIds = disposable.lapIds;
-    const newCaptures = readdirSync(capturesDir).filter((name) => (name.endsWith(".bin") || name.endsWith(".bin.gz")) && !capturesBefore.has(name));
-    expect(newCaptures.length, "import creates disposable capture files").toBeGreaterThan(0);
-    const captures = newCaptures.map((name) => join(capturesDir, name));
+    // Import now publishes per-lap files and a manifest as well as the retained
+    // source. Wait for that publication before taking an independent disk count.
+    await expect.poll(async () => {
+      const owned = (await sessionsFor(request, "fm-2023")).filter((session) => sessionIds.includes(session.id));
+      return owned.length === sessionIds.length && owned.every((session) => session.captureSplit?.phase === "ready");
+    }, { timeout: 60_000 }).toBe(true);
+    const captures = captureFiles(capturesDir).filter((path) => !capturesBefore.has(path));
+    expect(captures.length, "import creates disposable capture files").toBeGreaterThan(0);
     const bytes = captures.reduce((total, path) => total + statSync(path).size, 0);
     expect(bytes).toBeGreaterThan(0);
 
@@ -40,7 +53,7 @@ test("confirmed cleanup removes disposable capture while preserving session and 
     expect(previewHttp.ok()).toBe(true);
     const preview = (await previewHttp.json()) as SessionCleanupPreview;
     expect(new Set(preview.candidateSessionIds)).toEqual(new Set(sessionIds));
-    expect(preview.fileCount).toBe(newCaptures.length);
+    expect(preview.fileCount).toBe(captures.length);
     expect(preview.reclaimableBytes).toBe(bytes);
     await expect(page.getByRole("dialog")).toBeVisible();
     expect(captures.every(existsSync), "preview must not delete captures").toBe(true);
@@ -51,17 +64,23 @@ test("confirmed cleanup removes disposable capture while preserving session and 
     expect(cleanupHttp.ok()).toBe(true);
     const result = (await cleanupHttp.json()) as SessionCleanupResult;
     expect(new Set(result.cleanedSessionIds)).toEqual(new Set(sessionIds));
-    expect(result.deletedFiles).toBe(newCaptures.length);
+    expect(result.deletedFiles).toBe(captures.length);
     expect(result.freedBytes).toBe(bytes);
     expect(result.failed).toEqual([]);
     await expect(page.getByRole("dialog")).toHaveCount(0);
     expect(captures.some(existsSync), "cleanup deletes disposable captures").toBe(false);
-    expect([...capturesBefore].every((name) => existsSync(join(capturesDir, name))), "seeded captures stay untouched").toBe(true);
+    expect([...capturesBefore].every(existsSync), "seeded captures stay untouched").toBe(true);
 
     const sessionsAfter = (await sessionsFor(request, "fm-2023")).filter((session) => sessionIds.includes(session.id));
     const lapsAfter = (await lapsFor(request, "fm-2023")).filter((lap) => lapIds.includes(lap.id));
-    expect(sessionsAfter).toEqual(sessionsBefore.map((session) => ({ ...session, telemetryAvailable: false })));
-    expect(lapsAfter).toEqual(lapsBefore.map((lap) => ({ ...lap, telemetryAvailable: false })));
+    expect(sessionsAfter).toEqual(sessionsBefore.map((session) => {
+      // This source-derived span is unavailable without the recording. Stored
+      // session metadata and lap timing must still match their original values.
+      const cleaned = { ...session, telemetryAvailable: false, elapsedSeconds: null };
+      delete cleaned.captureSplit;
+      return cleaned;
+    }));
+    expect(lapsAfter).toEqual(lapsBefore.map((lap) => ({ ...lap, telemetryAvailable: false, standaloneCaptureReady: false })));
     expect(browserErrors.errors).toEqual([]);
   } finally {
     await cleanDisposable(request, disposable);

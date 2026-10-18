@@ -53,6 +53,7 @@ child.on("error", (error) => {
 });
 
 child.on("exit", (code, signal) => {
+  if (!shuttingDown) console.error(`[E2E] Compiled server exited unexpectedly: code=${code}, signal=${signal}`);
   if (signal) process.kill(process.pid, signal);
   else process.exit(code ?? 0);
 });

@@ -1,4 +1,4 @@
-import { syncDirectoryTree } from "@raceiq/capture-formats/session/durable-directory";
+import { syncDirectory, syncDirectoryTree } from "@raceiq/capture-formats/session/durable-directory";
 import { expect, spyOn, test } from "bun:test";
 import * as fs from "node:fs";
 import * as zlib from "node:zlib";
@@ -149,6 +149,8 @@ test("directory synchronization accepts existing directories but preserves missi
   const root = await mkdtemp(join(tmpdir(), "raceiq-directory-sync-"));
   try {
     await expect(syncDirectoryTree(root)).resolves.toBeUndefined();
+    await expect(syncDirectory(root)).resolves.toBeUndefined();
+    await expect(syncDirectory(join(root, "missing"))).rejects.toMatchObject({ code: "ENOENT" });
     await expect(syncDirectoryTree(join(root, "missing"))).rejects.toMatchObject({ code: "ENOENT" });
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -162,6 +164,7 @@ if (process.platform === "win32") {
       const path = join(root, "capture.bin");
       await writeFile(path, "retained capture");
       await expect(syncDirectoryTree(path)).rejects.toMatchObject({ code: "EPERM" });
+      await expect(syncDirectory(path)).rejects.toMatchObject({ code: "EPERM" });
       expect(await fs.promises.readFile(path, "utf8")).toBe("retained capture");
     } finally {
       await rm(root, { recursive: true, force: true });

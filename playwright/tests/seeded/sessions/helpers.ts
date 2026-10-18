@@ -3,7 +3,7 @@ import { expect, type APIRequestContext, type Page } from "@playwright/test";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
 
-export type SessionRow = Pick<SessionMeta, "id" | "source" | "notes">;
+export type SessionRow = Pick<SessionMeta, "id" | "source" | "notes" | "captureSplit">;
 
 export type DisposableImport = {
   sessionIds: number[];

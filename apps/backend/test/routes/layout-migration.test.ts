@@ -73,7 +73,7 @@ describe("recording layout migration", () => {
 
     const started = await startMigration();
     expect(started.status).toBe(202);
-    expect((await waitForMigration()).status).toBe("success");
+    expect(await waitForMigration()).toMatchObject({ status: "success", error: null });
     const minePath = join(root, "fm-2023", "own", "shared.bin.gz");
     const otherPath = join(root, "fm-2023", "others", "shared.bin.gz");
     expect(await readFile(minePath, "utf8")).toBe("shared legacy capture");
@@ -105,7 +105,7 @@ describe("recording layout migration", () => {
     await writeFile(source, "selected capture");
     const response = await startMigration(destination);
     expect(response.status).toBe(202);
-    expect((await waitForMigration()).status).toBe("success");
+    expect(await waitForMigration()).toMatchObject({ status: "success", error: null });
     expect(resolveRecordingDirectory()).toBe(await realpath(destination));
     expect(await readFile(join(destination, "fm-2023", "own", "selected.bin"), "utf8")).toBe("selected capture");
   });
@@ -122,7 +122,7 @@ describe("recording layout migration", () => {
     await writeFile(source, "keep source");
     await writeFile(join(destination, "unrelated.txt"), preserved);
     expect((await startMigration(destination)).status).toBe(202);
-    expect((await waitForMigration()).status).toBe("success");
+    expect(await waitForMigration()).toMatchObject({ status: "success", error: null });
     expect(resolveRecordingDirectory()).toBe(await realpath(destination));
     expect(await readFile(organized, "utf8")).toBe("keep source");
     expect(await Bun.file(source).exists()).toBe(false);
@@ -198,7 +198,7 @@ describe("recording layout migration", () => {
 
     await rm(otherDestination);
     expect((await startMigration()).status).toBe(202);
-    expect((await waitForMigration()).status).toBe("success");
+    expect(await waitForMigration()).toMatchObject({ status: "success", error: null });
     expect(await Bun.file(source).exists()).toBe(false);
     expect(await readFile(ownDestination, "utf8")).toBe("original capture");
     expect(await readFile(otherDestination, "utf8")).toBe("original capture");
@@ -240,7 +240,7 @@ describe("recording layout migration", () => {
     }));
     expect(await isLayoutMigrationReadyForStartup()).toBe(false);
     expect((await startMigration()).status).toBe(202);
-    expect((await waitForMigration()).status).toBe("success");
+    expect(await waitForMigration()).toMatchObject({ status: "success", error: null });
     expect(await isLayoutMigrationReadyForStartup()).toBe(true);
     expect(await readFile(destination, "utf8")).toBe(payload);
     expect(await Bun.file(join(resolveDataDir(), "recording-layout-migration.json")).exists()).toBe(false);
@@ -299,7 +299,7 @@ describe("recording layout migration", () => {
       await lock;
     }
     expect((await migration).status).toBe(202);
-    expect((await waitForMigration()).status).toBe("success");
+    expect(await waitForMigration()).toMatchObject({ status: "success", error: null });
   });
   test("rejects a symlinked migration journal without reading its external target", async () => {
     const root = await mkdtemp(join(tmpdir(), "raceiq-layout-journal-root-"));

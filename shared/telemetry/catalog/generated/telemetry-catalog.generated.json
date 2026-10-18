@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.20.0",
-      "sourceHash": "67af6a9030c6f3618a73c8e2700c7b3ed655b5d552f95f8ad5da6621bb362fac"
+      "sourceHash": "f9ca945f9e3d86457d7be011a208b785e91cac1fc8a679867dd6577c3b1c43c3"
     },
     "sourceHashes": {
       "packages/game-ac-evo/src/parser.ts": "29cb3985fe32c797554d98f107a0c4d76ddcc5279d97e75423365e1a0887f5de",
@@ -21,7 +21,7 @@
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "4dd8c0c18a3669bca656b50788276942566de08d6100676f83e76a44263340f7"
+    "contentHash": "022654a0bf0908208396efc4b3c67c7f7207242bcef0d9d3eeed1b1770ef8ed3"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -16660,18 +16660,30 @@
           "limitations": []
         },
         "ams2": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "text",
           "sources": [
-            "RaceIQ.ParserState.carId"
+            "AMS2.mCarName"
           ],
           "freshness": "continuous",
+          "normalization": "UTF-8 FNV-1a hash of the native car name or joined circuit and layout names, masked to a positive 31-bit integer and represented as a string",
           "description": "ams2 maps 1 native source channel into this value.",
           "provenance": {
-            "origin": "derivation",
-            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
+            "origin": "parser",
+            "artifact": "packages/game-ams2/src/normalizer.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "ams2:identity.car-id:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "AMS2.mCarName"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "e4a69cec736442872f1e22d9c69ac38da5a3e522492bdc4183faf0c6e5062607"
+          }
         }
       },
       "valueType": "string",
@@ -18171,18 +18183,32 @@
           "limitations": []
         },
         "ams2": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "text",
           "sources": [
-            "RaceIQ.ParserState.trackId"
+            "AMS2.mTrackLocation",
+            "AMS2.mTrackVariation"
           ],
           "freshness": "continuous",
-          "description": "ams2 maps 1 native source channel into this value.",
+          "normalization": "UTF-8 FNV-1a hash of the native car name or joined circuit and layout names, masked to a positive 31-bit integer and represented as a string",
+          "description": "ams2 maps 2 native source channels into this value.",
           "provenance": {
-            "origin": "derivation",
-            "artifact": "packages/tooling-catalog/src/catalog/derived-projections.ts"
+            "origin": "parser",
+            "artifact": "packages/game-ams2/src/normalizer.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "ams2:identity.track-id:normalized",
+            "version": "0.20.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "AMS2.mTrackLocation",
+              "AMS2.mTrackVariation"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "572f128b776fee2bcfb7930bb48610e7fb216109d75e43c5f3a3591b2b548633"
+          }
         }
       },
       "valueType": "string",

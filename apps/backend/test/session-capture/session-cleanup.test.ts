@@ -504,6 +504,9 @@ describe("session cleanup edge cases", () => {
   });
 
   test("deletes eligible empty sessions without reacquiring maintenance lock and protects active captures and jobs", async () => {
+    // Earlier files share this test database and can leave eligible empty sessions.
+    // Establish the empty baseline before asserting exact deletion counts for our fixtures.
+    await deleteEmptySessions();
     const eligiblePath = capturePath("empty-eligible.bin");
     const activePath = capturePath("empty-active.bin");
     const jobPath = capturePath("empty-job.bin");

@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { afterEach, expect, test } from "bun:test";
 import Database from "libsql";
 import { LAP_DETECTOR_ID } from "@raceiq/backend-core/lap-detection/detector";
 import { LAP_DETECTOR_AC_EVO_ID } from "@raceiq/game-ac-evo/lap-detector";
@@ -12,6 +12,18 @@ import { decompressIfGzipSync, iterateSessionCaptureRecords, SESSION_SEGMENT_BOU
 const ROOT = resolve(import.meta.dir, "../../../..");
 const COMPLETE = "[SessionRepair] Historical session reconciliation complete:";
 const DEFERRED = "[StartupWorker] Deferred until recording layout migration completes";
+const temporaryDirectories: string[] = [];
+afterEach(async () => {
+  // Wait until the test's stack has returned before collecting libsql's native
+  // statement handles. Windows cannot unlink a database while those remain open.
+  if (process.platform === "win32") { Bun.gc(true); await Bun.sleep(0); }
+  for (const directory of temporaryDirectories.splice(0)) {
+    const started = performance.now();
+    console.log(`[Upgrade] Removing temporary data: ${directory}`);
+    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    console.log(`[Upgrade] Temporary data removed in ${Math.round(performance.now() - started)}ms`);
+  }
+}, 60_000);
 type Session = { id: number; track_id: string; lap_detector_version: string | null; raw_file?: string; ownership?: string };
 
 interface StartupBackend {
@@ -23,7 +35,7 @@ interface StartupBackend {
 }
 
 function environment(dataDir: string): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...process.env, DATA_DIR: dataDir, NODE_ENV: "production" };
+  const env: NodeJS.ProcessEnv = { ...process.env, DATA_DIR: dataDir, NODE_ENV: "production", RACEIQ_DISABLE_TRAY: "1" };
   delete env.RACEIQ_TEST_MODE;
   delete env.DB_IN_MEMORY;
   delete env.RACEIQ_TEST_DATA_DIR;
@@ -46,7 +58,9 @@ function startBranch(dataDir: string): StartupBackend {
     import { bootServer } from "./apps/backend/src/runtime/boot";
     import { getLayoutMigrationStatus, startLayoutMigration } from "./server/session-capture/layout-migration";
     captureConsole();
-    const control = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(request) {
+    // This test-only request waits for migration/replay, which can exceed Bun's
+    // default HTTP idle timeout while the backend is still working normally.
+    const control = Bun.serve({ hostname: "127.0.0.1", port: 0, idleTimeout: 0, async fetch(request) {
       if (request.method !== "POST") return new Response(null, { status: 405 });
       try {
         await startLayoutMigration();
@@ -138,6 +152,14 @@ test("current startup reprocesses release-seeded Tourist sessions into correct l
       readFileSync(join(ROOT, `test/artifacts/sessions/ac-evo-tourist-2026-10-10.bin.gz.part${part}`)),
     )));
     await command([process.execPath, "run", "db:seed", "--games=ac-evo", `--fixtures=${fixture}`], releaseDir, environment(dataDir));
+    // The old release is no longer needed after seeding. Its dependency tree
+    // can take longer than a teardown hook permits to remove on Windows; do
+    // that work within this test's explicit upgrade timeout instead.
+    const cleanupStarted = performance.now();
+    console.log("[Upgrade] Removing old release dependencies");
+    await rm(releaseDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    await rm(archive, { force: true });
+    console.log(`[Upgrade] Old release removed in ${Math.round(performance.now() - cleanupStarted)}ms`);
     database = new Database(join(dataDir, "app.db"));
     database.exec("PRAGMA busy_timeout=5000;");
     const before = database.prepare("SELECT id,lap_detector_version FROM sessions ORDER BY id").all() as Array<{ id: number; lap_detector_version: string | null }>;
@@ -206,7 +228,8 @@ test("current startup reprocesses release-seeded Tourist sessions into correct l
   } finally {
     await backend?.stop();
     database?.close();
-    await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    database = undefined;
+    temporaryDirectories.push(temporary);
   }
 }, 600_000);
 
@@ -224,12 +247,13 @@ test("startup discovers Tourist in already-processed AC Evo recordings and does 
     await command([process.execPath, "run", "db:seed", "--games=ac-evo", `--fixtures=${fixture}`], ROOT, environment(dataDir));
     database = new Database(join(dataDir, "app.db"));
     database.exec("PRAGMA busy_timeout=5000;");
-    // Simulate an installation that already completed historical reconciliation before v76.
+    // Simulate an installation that already completed historical reconciliation
+    // before the Tourist identity migration (renumbered to v78).
     database.exec(`
-      DELETE FROM schema_migrations WHERE version=76;
-      UPDATE sessions SET track_id='obsolete layout', lap_detector_version='ac_evo_lapdetector_v5';
+      DELETE FROM schema_migrations WHERE version=78;
       UPDATE laps SET lap_time=999;
     `);
+    database.prepare("UPDATE sessions SET track_id='obsolete layout', lap_detector_version=?").run(LAP_DETECTOR_AC_EVO_ID);
     const before = database.prepare("SELECT id FROM sessions ORDER BY id").all() as Array<{ id: number }>;
     expect(before.length).toBeGreaterThan(0);
 
@@ -242,7 +266,7 @@ test("startup discovers Tourist in already-processed AC Evo recordings and does 
     expect(after.map((session) => session.id)).toEqual(before.map((session) => session.id));
     for (const session of after) {
       expect(session.track_id).toBe('["Nurburgring","Touristenfahrten"]');
-      expect(session.lap_detector_version).toBe("ac_evo_lapdetector_v5");
+      expect(session.lap_detector_version).toBe(LAP_DETECTOR_AC_EVO_ID);
     }
     const finishes = database.prepare("SELECT lap_time FROM laps WHERE is_valid=1 AND invalid_reason IS NULL ORDER BY lap_time").all() as Array<{ lap_time: number }>;
     expect(finishes.map((lap) => lap.lap_time)).toEqual([398.781, 401.277]);
@@ -258,7 +282,8 @@ test("startup discovers Tourist in already-processed AC Evo recordings and does 
   } finally {
     await backend?.stop();
     database?.close();
-    await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    database = undefined;
+    temporaryDirectories.push(temporary);
   }
 }, 240_000);
 test("incomplete historical replay blocks later startup stages while HTTP remains available", async () => {
@@ -290,7 +315,8 @@ test("incomplete historical replay blocks later startup stages while HTTP remain
   } finally {
     await backend?.stop();
     database?.close();
-    await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    database = undefined;
+    temporaryDirectories.push(temporary);
   }
 }, 240_000);
 
@@ -345,7 +371,8 @@ for (const failure of ["lmu", "race"] as const) {
     } finally {
       await backend?.stop();
       database?.close();
-      await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      database = undefined;
+      temporaryDirectories.push(temporary);
     }
   }, 60_000);
 }

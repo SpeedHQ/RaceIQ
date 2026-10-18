@@ -1,4 +1,5 @@
 import { Worker } from "node:worker_threads";
+import { IS_COMPILED } from "@raceiq/shared/platform/runtime/data-paths";
 import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, META_FRAME_BYTES, encodeSparseCaptureFormatFrame, iterateSessionCaptureRecords } from "./framing";
 import { SparseCaptureEncoder } from "./sparse-recorder";
 
@@ -92,7 +93,7 @@ export class WorkerSessionRecorder {
     if (this.options.maxBatchBytes <= 0 || this.options.maxBatchRecords <= 0 || this.options.maxInFlightBytes < this.options.maxBatchBytes || this.options.maxBatchDelayMs < 0 ||
       (this.options.headerCountOffset !== null && (!Number.isSafeInteger(this.options.headerCountOffset) || this.options.headerCountOffset < 0))) throw new Error("Invalid worker recorder limits");
     this.ownsWorker = !options.worker;
-    this.worker = options.worker ?? new Worker(new URL("./source-writer-worker.ts", import.meta.url), { workerData: { syncIntervalMs: this.options.syncIntervalMs } });
+    this.worker = options.worker ?? new Worker(IS_COMPILED ? "./packages/capture-formats/src/session/source-writer-worker.ts" : new URL("./source-writer-worker.ts", import.meta.url), { workerData: { syncIntervalMs: this.options.syncIntervalMs } });
     this.worker.on("message", (message: { type: string; sequence?: number; bytes?: number; error?: string; fileDev?: string; fileIno?: string }) => this.onMessage(message));
     this.worker.on("error", (error) => this.fail(error instanceof Error ? error : new Error(String(error)), true));
     this.worker.on("exit", (code) => {

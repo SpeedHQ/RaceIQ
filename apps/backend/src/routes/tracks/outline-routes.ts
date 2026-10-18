@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { TrackIdParamSchema, GameIdQuerySchema } from "@raceiq/shared/platform/http/route-schemas";
 import { getLaps, getLapById, getLapSummariesByTrack } from "@raceiq/backend-core/db/lap-read-queries";
@@ -183,13 +184,18 @@ export const trackOutlineRoutes = new Hono()
   // GET /api/track-outline/:trackId — track outline coordinates.
   .get("/api/track-outline/:trackId",
     zValidator("param", TrackIdParamSchema),
-    zValidator("query", GameIdQuerySchema),
+    zValidator("query", GameIdQuerySchema.extend({ optional: z.literal("1").optional() })),
     async (c) => {
       const { trackId } = c.req.valid("param");
       const gameId = c.req.query("gameId");
+      // Dashboard maps are optional data. Preserve 404 for callers requiring
+      // geometry, without inventing a layout for ambiguous legacy identities.
+      const unavailable = () => c.req.valid("query").optional === "1"
+        ? c.json({ points: [], source: "unavailable" })
+        : c.json({ error: "No outline available" }, 404);
       if (gameId === "lmu") {
         const points = getLMUTrackOutline(trackId);
-        if (!points?.length) return c.json({ error: "No outline available" }, 404);
+        if (!points?.length) return unavailable();
         // SVG coordinates already use display-space X; disable the canvas telemetry-space mirror.
         return c.json({ points, flipX: true, source: "extracted" });
       }
@@ -205,7 +211,7 @@ export const trackOutlineRoutes = new Hono()
         });
       }
 
-      return c.json({ error: "No outline available" }, 404);
+      return unavailable();
     }
   )
 
