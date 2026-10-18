@@ -60,9 +60,42 @@ test("real upgrade restores attention, preserves it offline, and repairs through
     const address = await ready;
     await page.goto(address, { waitUntil: "domcontentloaded" });
     const dock = page.getByRole("dialog", { name: "Historical lap classification" });
+    const splitDialog = page.getByRole("dialog").filter({ hasText: "Split recordings for faster lap loading?" });
+    await expect(splitDialog).toBeVisible();
+    await expect(dock).toBeHidden();
+    for (const width of [390, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect(splitDialog).toBeVisible();
+      await expect(dock).toBeHidden();
+      await page.screenshot({ path: testInfo.outputPath(`sparse-priority-${width}.png`) });
+    }
+    await splitDialog.getByRole("button", { name: "Split recordings", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "Sparse recordings split" })).toBeVisible({ timeout: 180_000 });
+    await expect(dock).toBeHidden();
+    await page.getByRole("dialog", { name: "Sparse recordings split" }).getByRole("button", { name: "Close", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "Sparse recordings split" })).toBeHidden();
     await expect(dock).toContainText("Some recordings need attention");
     await dock.getByRole("button", { name: "Close", exact: true }).click();
     await expect(dock).toBeHidden();
+
+    const classificationPage = await page.context().newPage();
+    try {
+      for (const width of [390, 1440]) {
+        await classificationPage.setViewportSize({ width, height: 900 });
+        await classificationPage.goto(new URL("/f125/tracks/0/laps", address).toString(), { waitUntil: "domcontentloaded" });
+        const race = classificationPage.getByRole("button", { name: "Race", exact: true }).filter({ visible: true });
+        const quali = classificationPage.getByRole("button", { name: "Quali", exact: true }).filter({ visible: true });
+        await expect(race).toBeVisible();
+        await race.click();
+        await expect(classificationPage.getByText("No laps recorded yet", { exact: true })).toBeVisible();
+        await classificationPage.screenshot({ path: testInfo.outputPath(`empty-race-${width}.png`) });
+        await quali.click();
+        await expect(classificationPage.getByText("No laps recorded yet", { exact: true })).toBeHidden();
+        await expect(classificationPage.getByText("Best", { exact: true }).filter({ visible: true }).first()).toBeVisible();
+      }
+    } finally {
+      await classificationPage.close();
+    }
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("button", { name: "Updates", exact: true }).click();
     const maintenance = page.locator('section[aria-labelledby="classification-migration-heading"]');
@@ -79,13 +112,31 @@ test("real upgrade restores attention, preserves it offline, and repairs through
     await expect(maintenance).toContainText("Source file missing");
     await control("start-backend");
     await expect(maintenance.getByRole("alert")).toBeHidden({ timeout: 30_000 });
-    await expect(maintenance).toContainText("Source file missing");
+    const trackResponse = await page.request.get(new URL("/api/tracks?gameId=acc", address).toString());
+    expect(trackResponse.ok(), "real upgraded ACC track catalog").toBe(true);
+    const tracks = await trackResponse.json() as Array<{ id: string | number; lapCount?: number }>;
+    const track = tracks.find((candidate) => (candidate.lapCount ?? 0) > 0);
+    expect(track, "track with classified recording laps").toBeDefined();
+    const trackPage = await page.context().newPage();
+    let trackLapRequests = 0;
+    trackPage.on("request", (request) => {
+      if (request.url().includes("/api/tracks/") && request.url().includes("/all-laps")) trackLapRequests++;
+    });
+    await trackPage.goto(new URL(`/acc/tracks/${encodeURIComponent(String(track!.id))}/laps`, address).toString(), { waitUntil: "domcontentloaded" });
+    await expect.poll(() => trackLapRequests).toBeGreaterThan(0);
+    const beforeCommitRefresh = trackLapRequests;
     await control("repair");
     const retry = maintenance.getByRole("button", { name: /^Retry / }).first();
     await retry.focus();
     await page.keyboard.press("Enter");
     await expect(maintenance).toContainText("Historical recordings classified.", { timeout: 180_000 });
     await expect(maintenance.getByRole("button", { name: /^Retry / })).toHaveCount(0);
+    await expect.poll(() => trackLapRequests).toBeGreaterThan(beforeCommitRefresh);
+    const beforeReconnectRefresh = trackLapRequests;
+    await control("stop-backend");
+    await control("start-backend");
+    await expect.poll(() => trackLapRequests, { timeout: 30_000 }).toBeGreaterThan(beforeReconnectRefresh);
+    await trackPage.close();
     await page.reload({ waitUntil: "domcontentloaded" });
     const layout = page.getByRole("dialog", { name: "Organize your recordings" });
     await expect(layout).toBeVisible();

@@ -2,6 +2,7 @@ import { stat } from "node:fs/promises";
 import type { Stats } from "node:fs";
 import { and, eq, inArray, lte } from "drizzle-orm";
 import type { GameId } from "@raceiq/shared/games/ids";
+import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
 import { client, db } from "../db/index";
 import { classificationMigrationMeta, classificationMigrationRecordings, laps, sessions } from "../db/schema";
 import { CapturingDbAdapter } from "../telemetry/pipeline-ports";
@@ -10,6 +11,8 @@ import { iterateSessionCaptureRecordsFromSource } from "./source-loader";
 import { applyFrameTime } from "./frame-time";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { isSessionActive } from "../telemetry/live-pipeline";
+import { isDelayedFinishContext } from "../db/telemetry-replay-storage";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { wsManager } from "../runtime/websocket-manager";
 import {
   classificationMigrationBarrier,
@@ -83,9 +86,10 @@ async function processClaimedRecording(recordingId: string, sourceKey: string, s
   try { game = getServerGame(gameId); } catch { return finish(recordingId, "limited", "insufficient_evidence"); }
   const capture = new CapturingDbAdapter();
   let detector = game.createLapDetector({ db: capture, bypassPacketRateFilter: true });
-  let parserState = game.createParserState?.() ?? null;
+  let parserState: unknown = game.createParserState?.() ?? null;
   let segmentHasFrames = false;
   let inContext = false;
+  let lastOwnedPacket: TelemetryPacket | null = null;
   let frameIndex = 0;
   try {
     for await (const record of iterateSessionCaptureRecordsFromSource({
@@ -101,6 +105,7 @@ async function processClaimedRecording(recordingId: string, sourceKey: string, s
         parserState = game.createParserState?.() ?? null;
         segmentHasFrames = false;
         inContext = false;
+        lastOwnedPacket = null;
         continue;
       }
       if (record.kind === "segment-context") {
@@ -112,12 +117,29 @@ async function processClaimedRecording(recordingId: string, sourceKey: string, s
         inContext = false;
         continue;
       }
+      if (record.kind === "parser-bootstrap") {
+        if (record.gameId !== gameId || record.formatVersion !== PARSER_BOOTSTRAP_VERSION) {
+          throw new Error("Parser bootstrap does not match migration game");
+        }
+        if (!game.restoreParserCheckpoint) throw new Error(`Parser checkpoint restore unavailable for ${gameId}`);
+        parserState = game.restoreParserCheckpoint(parserState, record.payload);
+        inContext = false;
+        continue;
+      }
       if (record.kind !== "frame") continue;
-      if (!inContext) segmentHasFrames = true;
       const packet = game.tryParse(record.frame, parserState);
-      if (packet && !inContext) {
+      if (packet) {
         applyFrameTime(packet, record.frameTimeMs);
-        await detector.feed(packet, record.offset);
+        if (inContext) {
+          if (lastOwnedPacket && (packet.LapNumber > lastOwnedPacket.LapNumber ||
+            isDelayedFinishContext(lastOwnedPacket, packet))) {
+            await detector.feed(packet);
+          }
+        } else {
+          segmentHasFrames = true;
+          lastOwnedPacket = packet;
+          await detector.feed(packet, record.offset);
+        }
       }
       frameIndex++;
       if (frameIndex % 256 === 0) {
@@ -329,7 +351,7 @@ export function startClassificationMigrationWorker(options: { resetInterrupted?:
     }
     try {
       if (!inventoryReconciled) {
-        await reconcileClassificationMigrationInventory({ resetInterrupted: options.resetInterrupted });
+        await withSessionCaptureMaintenanceLock(() => reconcileClassificationMigrationInventory({ resetInterrupted: options.resetInterrupted }));
         inventoryReconciled = true;
         await invalidateStaleCompletedClassificationSources(isSessionActive);
         const status = await getClassificationMigrationStatus();
@@ -342,6 +364,7 @@ export function startClassificationMigrationWorker(options: { resetInterrupted?:
         wsManager.setClassificationMigrationStatusNotification({ type: "classification-migration-status", ...status });
         schedule(0);
       } else {
+        await withSessionCaptureMaintenanceLock(() => reconcileClassificationMigrationInventory());
         await invalidateStaleCompletedClassificationSources(isSessionActive);
         const status = await getClassificationMigrationStatus();
         wsManager.setClassificationMigrationStatusNotification({ type: "classification-migration-status", ...status });

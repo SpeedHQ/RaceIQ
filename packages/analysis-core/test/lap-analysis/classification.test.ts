@@ -54,3 +54,15 @@ describe("native lap category evidence", () => {
     expect(classifyLapCategory([packet], null, undefined, true)).toBeNull();
   });
 });
+test("AC Evo lap classification reads native session context; unknown stays unknown", () => {
+  const packet = {
+    gameId: "ac-evo", CurrentRaceTime: 1, LapNumber: 2,
+    acc: { pitStatus: "out", flagStatus: "none", acEvo: { sessionType: "practice" } },
+  } as unknown as TelemetryPacket;
+  expect(classifyLapCategory([packet], null, undefined, true)).toBe("pace");
+  const unknownPacket = {
+    ...packet,
+    acc: { ...packet.acc, acEvo: { ...packet.acc?.acEvo, sessionType: "unknown" } },
+  } as TelemetryPacket;
+  expect(classifyLapCategory([unknownPacket], null, undefined, true)).toBeNull();
+});

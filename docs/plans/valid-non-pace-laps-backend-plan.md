@@ -40,3 +40,11 @@ Native missing/stale state, rolling starts, unknown sessions, and cross-lap evid
 ## Verification and completion dependency
 
 Execute shared E2E-01 through E2E-07 against actual production processing and HTTP/WebSocket entry points. Reuse the release-upgrade suite and seeded browser harness; follow the shared contract's exact setup and commands. Focused engine/SQL parity tests and root typecheck supplement, never replace, E2E. Record every criterion's fixture, command, outcome, and evidence. Backend completion depends on passing real UI/backend integration E2E-03/06/07 after both implementations; isolated DTO tests or mock UI do not close it. Missing #222 fixture, release baseline, or runtime capability must be reported explicitly. Code implementation alone does not close the acceptance matrix.
+
+## PR correction implementation
+
+Acceptance, edge cases, and concrete integration scenarios: [F01–F07 and F11 in the shared contract](valid-non-pace-laps-contract.md#pr-review-corrections). Replay owner edits classification migration replay and inventory scheduling (F01/F02/F07); native owner edits F1 checkpoint state and AC Evo projections/classification (F03/F05); consumer owner edits result reconciliation and live reference eligibility (F04/F06). The integration owner verifies main-compatible legacy pit-reason fixtures (F11). Preserve existing APIs, released migrations, raw ownership, quality failures, and unrelated metadata. Extend the existing regression suites in each scope.
+
+These backend slices run in parallel with the [UI corrections](valid-non-pace-laps-ui-plan.md#pr-correction-implementation). The integration owner executes the contract scenarios through production parser, migration, live-pipeline, and HTTP/WebSocket entry points after integration, records outcomes, and runs root typecheck. Passing isolated unit tests does not close unavailable end-to-end scenarios.
+
+Correction execution results are recorded in [the shared evidence record](../../.omp/evidence/pr469-review-fixes/results.json). This records correction-specific verification, not closure of the feature's pre-existing broader acceptance gaps.

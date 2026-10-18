@@ -1,5 +1,5 @@
 import { classifyLapCategory } from "@raceiq/analysis-core/racing/laps/classification";
-import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
+import { isPaceLap, type LapClassification } from "@raceiq/shared/racing/lap-classification";
 import { lapPath } from "@raceiq/shared/racing/tracks/path";
 import { recordOpenLapTraceById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { KunosDetectorEngine, type KunosLapCapture } from "@raceiq/telemetry-core/processor/kunos-engine";
@@ -135,7 +135,7 @@ export class KunosLapDetector implements ILapDetector {
     traceStageAt = performance.now();
     const sectors = await computeLapSectors(session.trackId, session.gameId, packets, lapTime, { sectors: resolveTrack(session.gameId, session.trackId).sectors });
     traceStageAt = performance.now();
-    if (isValid && (session.bestLapTime === 0 || lapTime < session.bestLapTime)) session.bestLapTime = lapTime;
+    if (isValid && isPaceLap(classification) && (session.bestLapTime === 0 || lapTime < session.bestLapTime)) session.bestLapTime = lapTime;
     const lapId = await this.db.insertLap(session.sessionId, lapNum, lapTime, isValid, lapByteOffset, lapFrameCount, null, null, invalidReason, sectors, classification);
     traceLap(traceGameId, "lap-boundary-stage", { sessionId: traceSessionId, lapNumber: lapNum, lapId, stage: "insert", durationMs: performance.now() - traceStageAt });
     traceStageAt = performance.now();

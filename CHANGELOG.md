@@ -5,6 +5,13 @@
 - Automatically check existing recordings for non-pace laps after upgrades, with progress, source limitations, and retry controls in Settings → Updates.
 
 ### Fixes
+- Keep valid pit-cycle laps valid while excluding non-pace laps from live lap and sector bests.
+- Preserve F1 race-start evidence when loading individual recorded laps.
+- Recognize AC Evo pace laps using the game's native session type.
+- Keep historical lap classification current after recordings are moved or deleted.
+- Keep track statistics usable when a Race or Quali filter has no pace laps.
+- Refresh track lap classifications after background processing and reconnects.
+- Prevent recording maintenance panels from overlapping.
 - Use LMU game-world coordinates directly for track geometry, preserving edge-hugging and off-track positions.
 - Prevent overlapping database writes from blocking recording imports and setup or session deletion.
 - Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.

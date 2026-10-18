@@ -61,6 +61,11 @@ export interface F1ParserCheckpointV1 {
   driverHistory: [number, F1DriverHistoryData][];
   driverLapSectors: [number, [number, F1LapSectorData][]][];
   playerCarIndex: number;
+  carStatusUpdatedAt?: number;
+  sessionUpdatedAt?: number;
+  seenStartLightsAt?: number;
+  raceStartAt?: number;
+  lastHeaderSessionTime?: number;
 }
 
 function hasFiniteFields(value: unknown, fields: string[], booleanFields: string[] = []): boolean {
@@ -154,6 +159,11 @@ export class F1StateAccumulator {
       driverHistory: [...this.driverHistory],
       driverLapSectors: [...this.driverLapSectors].map(([driver, sectors]) => [driver, [...sectors]]),
       playerCarIndex: this.playerCarIndex,
+      carStatusUpdatedAt: this.carStatusUpdatedAt,
+      sessionUpdatedAt: this.sessionUpdatedAt,
+      seenStartLightsAt: this.seenStartLightsAt,
+      raceStartAt: this.raceStartAt,
+      lastHeaderSessionTime: this.lastHeaderSessionTime,
     };
     // JSON numbers support -0, but stringify normally discards its sign.
     const json = JSON as typeof JSON & { rawJSON(text: string): unknown };
@@ -180,6 +190,10 @@ export class F1StateAccumulator {
             Array.isArray(entry[1]) && entry[1].every((sector) => Array.isArray(sector) && sector.length === 2 &&
               Number.isInteger(sector[0]) && hasFiniteFields(sector[1], ["s1", "s2", "s3", "lapTime"]))) ||
         !Number.isInteger(checkpoint.playerCarIndex) ||
+        !["carStatusUpdatedAt", "sessionUpdatedAt", "seenStartLightsAt", "raceStartAt", "lastHeaderSessionTime"]
+          .every((key) => checkpoint[key as keyof F1ParserCheckpointV1] === undefined ||
+            (typeof checkpoint[key as keyof F1ParserCheckpointV1] === "number" &&
+              Number.isFinite(checkpoint[key as keyof F1ParserCheckpointV1]))) ||
         !["motion", "carTelemetry", "lapData", "finalClassification", "carStatus", "carDamage", "carSetup", "motionEx", "session"]
           .every((key) => validF1StateObject(key, checkpoint[key as keyof F1ParserCheckpointV1]))) {
       throw new Error("Invalid or unsupported F1-2025 parser checkpoint");
@@ -202,6 +216,11 @@ export class F1StateAccumulator {
     this.driverHistory = new Map(checkpoint.driverHistory);
     this.driverLapSectors = new Map(checkpoint.driverLapSectors.map(([driver, sectors]) => [driver, new Map(sectors)]));
     this.playerCarIndex = checkpoint.playerCarIndex;
+    this.carStatusUpdatedAt = checkpoint.carStatusUpdatedAt;
+    this.sessionUpdatedAt = checkpoint.sessionUpdatedAt;
+    this.seenStartLightsAt = checkpoint.seenStartLightsAt;
+    this.raceStartAt = checkpoint.raceStartAt;
+    this.lastHeaderSessionTime = checkpoint.lastHeaderSessionTime;
   }
 
   /**

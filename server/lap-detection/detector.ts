@@ -13,6 +13,7 @@ import { classifyLapCategory } from "@raceiq/analysis-core/racing/laps/classific
  * Fuel and tire wear deltas are tracked per-lap for strategy overlays.
  */
 import type { LapClassification } from "@raceiq/shared/racing/lap-classification";
+import { isPaceLap } from "@raceiq/shared/racing/lap-classification";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { ILapDetector, LapDetectorOptions, LapOwnershipSource, LapOwnershipTransition, DetectorOwnershipState } from "./types";
@@ -414,7 +415,7 @@ export class LapDetector implements ILapDetector, LapOwnershipSource {
       }
 
       // Update session best lap time
-      if (valid && (this.currentSession!.bestLapTime === 0 || lapTime < this.currentSession!.bestLapTime)) {
+      if (valid && isPaceLap(classification) && (this.currentSession!.bestLapTime === 0 || lapTime < this.currentSession!.bestLapTime)) {
         this.currentSession!.bestLapTime = lapTime;
       }
 

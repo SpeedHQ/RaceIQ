@@ -1,6 +1,6 @@
 import type { LapIndexPacket } from "@raceiq/shared/telemetry/lap-index";
 import type { AcEvoParserCache } from "./parser";
-import { PHYSICS as EVO_PHYSICS, GRAPHICS_EVO, STATIC_EVO, ACEVO_STATUS, ACEVO_CAR_LOCATION, ACEVO_FLAG_NAMES } from "@raceiq/capture-formats/ac-evo/structs";
+import { PHYSICS as EVO_PHYSICS, GRAPHICS_EVO, STATIC_EVO, ACEVO_STATUS, ACEVO_CAR_LOCATION, ACEVO_FLAG_NAMES, ACEVO_SESSION_TYPE_NAMES } from "@raceiq/capture-formats/ac-evo/structs";
 import { readCString } from "./utils";
 import { acEvoCarId, acEvoTrackId } from "@raceiq/game-ac-evo-metadata/identity";
 import { calibratePlayerSlot } from "./player-slot";
@@ -38,6 +38,8 @@ export function parseAcEvoLapIndex(physics: Buffer, graphics: Buffer, stat: Buff
     isInPitLane || carLocation === ACEVO_CAR_LOCATION.ACEVO_PITLANE ? "pit_lane" :
     carLocation === ACEVO_CAR_LOCATION.ACEVO_UNASSIGNED ? "in_pit" : "out";
   const flagStatus = ACEVO_FLAG_NAMES[graphics.readInt32LE(GRAPHICS_EVO.flag.offset)] ?? "none";
+  const sessionTypeRaw = stat.readInt32LE(STATIC_EVO.session.offset);
+  const sessionType = ACEVO_SESSION_TYPE_NAMES[sessionTypeRaw] ?? "unknown";
   const isValidLapRaw = graphics.readUInt8(GRAPHICS_EVO.is_valid_lap.offset);
   const isValidLap = isValidLapRaw ? true : isInPitLane || isInPitBox ? null : false;
   return {
@@ -64,7 +66,7 @@ export function parseAcEvoLapIndex(physics: Buffer, graphics: Buffer, stat: Buff
     TireWearRL: physics.readFloatLE(EVO_PHYSICS.tyreWearRL.offset),
     TireWearRR: physics.readFloatLE(EVO_PHYSICS.tyreWearRR.offset),
     RacePosition: racePosition,
-    acc: { isValidLap, pitStatus, flagStatus } as never,
+    acc: { isValidLap, pitStatus, flagStatus, acEvo: { sessionType } as Pick<NonNullable<NonNullable<LapIndexPacket["acc"]>["acEvo"]>, "sessionType"> } as NonNullable<LapIndexPacket["acc"]>,
     WheelOnRumbleStripFL: 0,
     WheelOnRumbleStripFR: 0,
     WheelOnRumbleStripRL: 0,

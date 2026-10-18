@@ -40,11 +40,15 @@ const provenance: RaceResultProvenance = {
 };
 
 describe("persisted race result metadata", () => {
-  test("upserts one result and replaces ordered pit events on rerun", async () => {
+  test("pit-event reconciliation preserves quality and applies category precedence", async () => {
     const sessionId = await insertSession("99", "88", "f1-2025", "race");
     await db.insert(laps).values([
-      { sessionId, lapNumber: 3, lapTime: 100, isValid: true },
-      { sessionId, lapNumber: 4, lapTime: 140, isValid: true },
+      { sessionId, lapNumber: 3, lapTime: 100, isValid: true, invalidReason: null, classification: "caution" },
+      { sessionId, lapNumber: 4, lapTime: 101, isValid: true, invalidReason: null, classification: "out_lap" },
+      { sessionId, lapNumber: 5, lapTime: 140, isValid: false, invalidReason: "track limits", classification: "caution" },
+      { sessionId, lapNumber: 6, lapTime: 102, isValid: true, invalidReason: null, classification: "grid_start" },
+      { sessionId, lapNumber: 7, lapTime: 103, isValid: true, invalidReason: null, classification: "pit_lap" },
+      { sessionId, lapNumber: 8, lapTime: 104, isValid: true, invalidReason: null, classification: "pace" },
     ]);
     const input: SessionResultInput = {
       sessionId,
@@ -66,18 +70,30 @@ describe("persisted race result metadata", () => {
     const second = await upsertSessionResult(input);
     expect(second.id).toBe(first.id);
     await replacePitEvents(first.id, [
-      { sequence: 2, lapNumber: 8, elapsedSeconds: 80, durationSeconds: 2.1, service: "fuel", tyreChange: null, fuelAdded: 5, fuelBefore: 10, fuelAfter: 15, linkage: "linked", source: { test: true } },
+      { sequence: 2, lapNumber: 4, elapsedSeconds: 80, durationSeconds: 2.1, service: "fuel", tyreChange: null, fuelAdded: 5, fuelBefore: 10, fuelAfter: 15, linkage: "linked", source: { test: true } },
       { sequence: 1, lapNumber: 3, elapsedSeconds: 30, durationSeconds: null, service: "tyres", tyreChange: { to: "medium" }, fuelAdded: null, fuelBefore: null, fuelAfter: null, linkage: "linked", source: { test: true } },
+      { sequence: 3, lapNumber: 5, elapsedSeconds: 90, durationSeconds: null, service: "tyres", tyreChange: null, fuelAdded: null, fuelBefore: null, fuelAfter: null, linkage: "linked", source: { test: true } },
+      { sequence: 4, lapNumber: 6, elapsedSeconds: 100, durationSeconds: null, service: "tyres", tyreChange: null, fuelAdded: null, fuelBefore: null, fuelAfter: null, linkage: "linked", source: { test: true } },
+      { sequence: 5, lapNumber: 7, elapsedSeconds: 110, durationSeconds: null, service: "tyres", tyreChange: null, fuelAdded: null, fuelBefore: null, fuelAfter: null, linkage: "linked", source: { test: true } },
     ]);
     const result = await getSessionResult(sessionId, "f1-2025");
     expect(result?.id).toBe(first.id);
-    expect(result?.events.map((event) => event.sequence)).toEqual([1, 2]);
+    expect(result?.events.map((event) => event.sequence)).toEqual([1, 2, 3, 4, 5]);
     expect(result?.events[1]?.fuelAdded).toBe(5);
     expect(result?.provenance).toEqual(provenance);
-    const pitLaps = await db.select({ lapNumber: laps.lapNumber, isValid: laps.isValid, invalidReason: laps.invalidReason }).from(laps).where(eq(laps.sessionId, sessionId)).orderBy(laps.lapNumber).all();
-    expect(pitLaps).toEqual([
-      { lapNumber: 3, isValid: false, invalidReason: "inlap" },
-      { lapNumber: 4, isValid: false, invalidReason: "outlap" },
+    const storedLaps = await db.select({
+      lapNumber: laps.lapNumber,
+      isValid: laps.isValid,
+      invalidReason: laps.invalidReason,
+      classification: laps.classification,
+    }).from(laps).where(eq(laps.sessionId, sessionId)).orderBy(laps.lapNumber).all();
+    expect(storedLaps).toEqual([
+      { lapNumber: 3, isValid: true, invalidReason: null, classification: "in_lap" },
+      { lapNumber: 4, isValid: true, invalidReason: null, classification: "in_lap" },
+      { lapNumber: 5, isValid: false, invalidReason: "track limits", classification: "in_lap" },
+      { lapNumber: 6, isValid: true, invalidReason: null, classification: "grid_start" },
+      { lapNumber: 7, isValid: true, invalidReason: null, classification: "pit_lap" },
+      { lapNumber: 8, isValid: true, invalidReason: null, classification: "out_lap" },
     ]);
   });
   test("counts and lists only results from older processor versions", async () => {

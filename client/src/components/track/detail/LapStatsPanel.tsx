@@ -11,32 +11,6 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
   const [lapFilter, setLapFilter] = useState<null | "race" | "quali">(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const paceLaps = laps.filter((lap) => lap.isValid !== false && isPaceLap(lap.classification));
-  if (paceLaps.length === 0) {
-    return (
-      <div className="w-full min-w-0">
-        <div className="flex shrink-0 items-center justify-between rounded-none border-b border-app-border bg-app-surface p-3 py-2">
-          <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_stats()}</div>
-          <div className="text-app-compact text-app-text-dim font-mono">{m.track_detail_last_100()}</div>
-        </div>
-        <div className="flex-1 p-3 flex flex-col gap-3">
-          <div className="flex flex-wrap gap-x-4 gap-y-1">
-            {[
-              { key: "best", label: m.label_best() },
-              { key: "median", label: m.track_detail_median() },
-              { key: "worst", label: m.track_detail_worst() },
-            ].map(({ key, label }) => (
-              <div key={key} className="flex items-baseline gap-1.5">
-                <div className="text-app-label text-app-text-dim uppercase tracking-wider">{label}</div>
-                <div className="font-mono text-app-label tabular-nums text-app-text-dim">—:—.—</div>
-              </div>
-            ))}
-          </div>
-          <div className="relative h-2 bg-app-surface-alt rounded-full overflow-visible" />
-          <div className="text-app-subtext text-app-text-dim py-4 text-center">{m.track_detail_no_laps_recorded()}</div>
-        </div>
-      </div>
-    );
-  }
   const sessionCounts = new Map<number, number>();
   if (showSessionFilter) {
     for (const l of laps) {
@@ -50,6 +24,41 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
       : showSessionFilter && lapFilter === "quali"
         ? paceLaps.filter((l) => l.sessionId == null || (sessionCounts.get(l.sessionId) ?? 0) === 1)
         : paceLaps;
+  const filterControls = hasRaceFilter ? (
+    <div className="flex rounded overflow-hidden border border-app-border text-app-label">
+      {(["race", "quali"] as const).map((filter) => (
+        <Button
+          key={filter}
+          type="button"
+          aria-pressed={lapFilter === filter}
+          onClick={() => setLapFilter(lapFilter === filter ? null : filter)}
+          className={`px-2 py-1 text-app-label transition-colors capitalize ${
+            lapFilter === filter
+              ? filter === "race"
+                ? "bg-status-success/15 text-status-success border-r border-app-border"
+                : "bg-status-warning/15 text-status-warning"
+              : `text-app-text-dim hover:text-app-text-secondary${filter === "race" ? " border-r border-app-border" : ""}`
+          }`}
+        >
+          {filter === "race" ? m.track_detail_race() : m.track_detail_quali()}
+        </Button>
+      ))}
+    </div>
+  ) : null;
+  if (filteredLaps.length === 0) {
+    return (
+      <div className="w-full min-w-0">
+        <div className="flex shrink-0 items-center justify-between rounded-none border-b border-app-border bg-app-surface p-3 py-2">
+          <div className="flex items-center gap-2">
+            <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_stats()}</div>
+            {filterControls}
+          </div>
+          <div className="text-app-compact text-app-text-dim font-mono">{m.track_detail_last_100()}</div>
+        </div>
+        <div className="text-app-subtext text-app-text-dim py-4 text-center">{m.track_detail_no_laps_recorded()}</div>
+      </div>
+    );
+  }
   // All stats use the most recent 100 valid laps (chronological)
   const chronoLaps = [...filteredLaps].sort((a, b) => a.lapId - b.lapId).slice(-100);
   const times = [...chronoLaps.map((l) => l.lapTime)].sort((a, b) => a - b);
@@ -169,26 +178,7 @@ export function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: 
       <div className="flex shrink-0 items-center justify-between rounded-none border-b border-app-border bg-app-surface p-3 py-2">
         <div className="flex items-center gap-2">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_stats()}</div>
-          {hasRaceFilter && (
-            <div className="flex rounded overflow-hidden border border-app-border text-app-label">
-              {(["race", "quali"] as const).map((f) => (
-                <Button
-                  type="button"
-                  key={f}
-                  onClick={() => setLapFilter(lapFilter === f ? null : f)}
-                  className={`px-2 py-1 text-app-label transition-colors capitalize ${
-                    lapFilter === f
-                      ? f === "race"
-                        ? "bg-status-success/15 text-status-success border-r border-app-border"
-                        : "bg-status-warning/15 text-status-warning"
-                      : `text-app-text-dim hover:text-app-text-secondary${f === "race" ? " border-r border-app-border" : ""}`
-                  }`}
-                >
-                  {f === "race" ? m.track_detail_race() : m.track_detail_quali()}
-                </Button>
-              ))}
-            </div>
-          )}
+          {filterControls}
         </div>
         <div className="text-app-compact text-app-text-dim font-mono">{m.track_detail_last_100()}</div>
       </div>

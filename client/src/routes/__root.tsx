@@ -63,6 +63,7 @@ function useUpdateCheck() {
 
 function AppShell() {
   const [layoutMigrationPrecedence, setLayoutMigrationPrecedence] = useState(false);
+  const [sparseMigrationVisible, setSparseMigrationVisible] = useState(false);
   const { displaySettings, settingsLoaded } = useSettings();
 
   // Bootstrap the Paraglide UI locale from the server-persisted `language`
@@ -210,9 +211,9 @@ function AppShell() {
       </div>
       <RecordingLayoutMigration onPrecedenceChange={setLayoutMigrationPrecedence} />
       <StaleLapReprocessing />
-      <SparseSplitMigration layoutPrecedence={layoutMigrationPrecedence} />
+      <SparseSplitMigration layoutPrecedence={layoutMigrationPrecedence} onVisibilityChange={setSparseMigrationVisible} />
       <RaceResultStatus compact />
-      <ClassificationMigrationDock suppressed={layoutMigrationPrecedence} />
+      <ClassificationMigrationDock suppressed={layoutMigrationPrecedence || sparseMigrationVisible} />
       {liveCaptureError && <div role="alert" className="fixed bottom-4 left-1/2 z-40 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-start gap-3 border border-status-danger/40 bg-app-surface px-4 py-3 text-sm text-app-danger">
         <p className="min-w-0 whitespace-pre-wrap break-words">{liveCaptureError}</p>
         <Button type="button" variant="app-ghost" size="app-sm" aria-label="Dismiss recording failure" onClick={() => telemetryStore.actions.setLiveCaptureError(null)} className="shrink-0">Dismiss</Button>

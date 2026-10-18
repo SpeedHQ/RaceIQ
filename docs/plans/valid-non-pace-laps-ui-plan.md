@@ -36,3 +36,11 @@ Zero inventory hides activity (`idle`); limited/failed-only inventory shows atte
 ## Verification and completion dependency
 
 Run shared E2E-03/06/07 in the actual app attached to the same real upgraded backend/DB, plus relevant observations from E2E-01/04. Execute the targeted seeded Playwright command and Playwright typecheck in the contract; capture narrow/wide visual evidence and keyboard/status assertions. Verify genuine HTTP/WebSocket restoration and production retry/pace queries, not route-response mocks. Backend owner/integration owner supplies parser/crash/concurrency evidence from E2E-01–05; UI completion explicitly depends on passing real cross-layer E2E-03/06/07. Record outcomes by UI/shared acceptance ID and report unavailable fixtures, browser, or backend as blockers. Code implementation alone does not close the acceptance matrix.
+
+## PR correction implementation
+
+Acceptance, edge cases, and concrete integration scenarios: [F08–F10 in the shared contract](valid-non-pace-laps-contract.md#pr-review-corrections). UI owner edits `LapStatsPanel` to retain filter controls around empty filtered pace sets, `useWebSocket` to refresh track-lap caches on commit/reconnect, and app-shell/sparse-dock composition to enforce actual visibility precedence. Preserve styling, translations, inline maintenance access, suppression semantics, and unrelated operation state.
+
+Implement in parallel with the [backend corrections](valid-non-pace-laps-backend-plan.md#pr-correction-implementation), using the unchanged contract. Extend existing browser coverage; integration owner runs real app/backend F08–F10 scenarios at narrow/wide sizes after integration and records requests, visible results, console errors, and verification gaps. Root typecheck and focused component checks supplement browser evidence.
+
+Correction execution results and narrow/wide captures are linked from [the shared evidence record](../../.omp/evidence/pr469-review-fixes/results.json). The real browser scenario exercises sparse consent/completion/dismissal, empty Race/Quali recovery, post-commit track-cache refresh, offline recovery, backend reconnect, and layout precedence.

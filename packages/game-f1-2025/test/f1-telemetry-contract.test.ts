@@ -102,6 +102,60 @@ test("F1 checkpoint rejects malformed nested fields before changing accumulator"
     .toThrow("Invalid or unsupported F1-2025 parser checkpoint");
   expect(accumulator.captureCheckpoint()).toEqual(before);
 });
+test("F1 checkpoint rejects malformed optional timestamps atomically", () => {
+  const accumulator = nativeAccumulator(2);
+  const baseline = accumulator.captureCheckpoint();
+  for (const key of [
+    "carStatusUpdatedAt", "sessionUpdatedAt", "seenStartLightsAt", "raceStartAt", "lastHeaderSessionTime",
+  ]) {
+    const malformed = JSON.parse(new TextDecoder().decode(baseline));
+    malformed[key] = Number.NaN;
+    expect(() => accumulator.restoreCheckpoint(Buffer.from(JSON.stringify(malformed))))
+      .toThrow("Invalid or unsupported F1-2025 parser checkpoint");
+    expect(accumulator.captureCheckpoint()).toEqual(baseline);
+  }
+});
+test("F1 checkpoint preserves native start and freshness evidence; old v1 checkpoints remain readable", () => {
+  const event = (code: string, lights?: number) => {
+    const data = Buffer.alloc(lights === undefined ? 4 : 5);
+    data.write(code, 0, 4, "ascii");
+    if (lights !== undefined) data.writeUInt8(lights, 4);
+    return data;
+  };
+  const state = nativeAccumulator(1);
+  const status = parseNative(state, F1_PACKET_IDS.CAR_STATUS, Buffer.alloc(55), 2)!;
+  const session = Buffer.alloc(125);
+  session.writeUInt8(1, 6);
+  const sessionPacket = parseNative(state, F1_PACKET_IDS.SESSION, session, 2)!;
+  parseNative(state, F1_PACKET_IDS.EVENT, event("STLG", 5), 3);
+  const restored = new F1StateAccumulator();
+  restored.restoreCheckpoint(state.captureCheckpoint());
+  const afterLightsOut = parseNative(restored, F1_PACKET_IDS.EVENT, event("LGOT"), 4)!;
+  expect(afterLightsOut.f1?.raceStartAt).toBe(4);
+  expect(afterLightsOut.f1?.safetyCarStatusUpdatedAt).toBe(2);
+  expect(status.f1?.vehicleFIAFlagsUpdatedAt).toBe(2);
+  expect(sessionPacket.f1?.safetyCarStatusUpdatedAt).toBe(2);
+
+  const oldCheckpoint = JSON.parse(new TextDecoder().decode(state.captureCheckpoint()));
+  delete oldCheckpoint.carStatusUpdatedAt;
+  delete oldCheckpoint.sessionUpdatedAt;
+  delete oldCheckpoint.seenStartLightsAt;
+  delete oldCheckpoint.raceStartAt;
+  delete oldCheckpoint.lastHeaderSessionTime;
+  const oldState = new F1StateAccumulator();
+  expect(() => oldState.restoreCheckpoint(Buffer.from(JSON.stringify(oldCheckpoint)))).not.toThrow();
+  const afterOldRestore = parseNative(oldState, F1_PACKET_IDS.EVENT, event("LGOT"), 4)!;
+  expect(afterOldRestore.f1?.raceStartAt).toBeUndefined();
+  expect(afterOldRestore.f1?.vehicleFIAFlagsUpdatedAt).toBeUndefined();
+  expect(afterOldRestore.f1?.safetyCarStatusUpdatedAt).toBeUndefined();
+  const rewindCheckpoint = JSON.parse(new TextDecoder().decode(state.captureCheckpoint()));
+  rewindCheckpoint.lastHeaderSessionTime = 10;
+  const rewindState = new F1StateAccumulator();
+  rewindState.restoreCheckpoint(Buffer.from(JSON.stringify(rewindCheckpoint)));
+  parseNative(rewindState, F1_PACKET_IDS.EVENT, event("STLG", 5), 11);
+  const afterRewindRestore = parseNative(rewindState, F1_PACKET_IDS.EVENT, event("LGOT"), 1)!;
+  expect(afterRewindRestore.f1?.raceStartAt).toBeUndefined();
+});
 describe("F1 telemetry contract", () => {
   test("normalizes fuel to a fraction and preserves power in watts", () => {
     const accumulator = new F1StateAccumulator();

@@ -56,7 +56,7 @@ export function classifyLapCategory(
     const priorRaceStart = first.f1?.raceStartAt !== undefined && lapStart !== undefined && first.f1.raceStartAt < lapStart;
     if ((nonRaceSession || priorRaceStart) && freshVehicleFlag && freshSafetyCarStatus && noCautionF1State) return "pace";
   } else if (first.gameId === "acc" || first.gameId === "ac-evo") {
-    const sessionType = first.acc?.sessionType;
+    const sessionType = first.gameId === "ac-evo" ? first.acc?.acEvo?.sessionType : first.acc?.sessionType;
     const knownNonRace = sessionType !== undefined && sessionType !== "unknown" && sessionType !== "race";
     if (knownNonRace && completeAccSignals) return "pace";
   }

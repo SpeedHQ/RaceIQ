@@ -160,6 +160,7 @@ export function useWebSocket() {
 
         startVersionRequest();
         void refreshClassificationMigration();
+        queryClient.invalidateQueries({ queryKey: ["track-laps"] });
         queryClient.invalidateQueries({ queryKey: queryKeys.laps });
         queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
         queryClient.invalidateQueries({ queryKey: ["session-laps"] });
@@ -237,6 +238,7 @@ export function useWebSocket() {
             queryClient.invalidateQueries({ queryKey: queryKeys.raceResultSummaries });
             queryClient.invalidateQueries({ queryKey: queryKeys.raceResultRecents });
           } else if (data.type === "lap-reprocessed") {
+            queryClient.invalidateQueries({ queryKey: ["track-laps"] });
             queryClient.invalidateQueries({ queryKey: queryKeys.laps });
             queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
             queryClient.invalidateQueries({ queryKey: ["session-laps"] });

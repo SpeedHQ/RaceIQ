@@ -70,16 +70,24 @@ export type PitEventInput = {
 
 async function markPitCycleLaps(sessionId: number, events: readonly PitEventInput[]): Promise<void> {
   const inlapNumbers = [...new Set(events.filter((event) => (event.eventType ?? "pit") === "pit" && event.linkage === "linked" && event.lapNumber !== null).map((event) => event.lapNumber!))];
+  if (inlapNumbers.length === 0) return;
 
+  // Pit evidence assigns category; it does not establish a telemetry-quality failure.
+  // Category precedence: grid_start > pit_lap > in_lap > out_lap > caution > pace.
+  const inLapEligibleCategory = or(
+    isNull(laps.classification),
+    inArray(laps.classification, ["pace", "out_lap", "caution"]),
+  );
   await db
     .update(laps)
-    .set({ isValid: false, invalidReason: "inlap" })
-    .where(and(eq(laps.sessionId, sessionId), eq(laps.isValid, true), inArray(laps.lapNumber, inlapNumbers)))
+    .set({ classification: "in_lap" })
+    .where(and(eq(laps.sessionId, sessionId), inArray(laps.lapNumber, inlapNumbers), inLapEligibleCategory))
     .run();
+  const outLapEligibleCategory = or(isNull(laps.classification), inArray(laps.classification, ["pace", "caution"]));
   await db
     .update(laps)
-    .set({ isValid: false, invalidReason: "outlap" })
-    .where(and(eq(laps.sessionId, sessionId), eq(laps.isValid, true), inArray(laps.lapNumber, inlapNumbers.map((lapNumber) => lapNumber + 1))))
+    .set({ classification: "out_lap" })
+    .where(and(eq(laps.sessionId, sessionId), inArray(laps.lapNumber, inlapNumbers.map((lapNumber) => lapNumber + 1)), outLapEligibleCategory))
     .run();
 }
 

@@ -1,14 +1,39 @@
+import { encodeFrameLength, encodeMetaFrame, encodeParserBootstrapFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame, encodeSparseCaptureFormatFrame, iterateSessionCaptureRecords, iterateSessionFrames, PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
+import { openCaptureArchive, prepareSplitWindows, splitCapturePromise, type DetectedLapWindow } from "@raceiq/capture-splitting";
+import { getServerGame } from "@raceiq/backend-core/games/registry";
+import { iterateSessionCaptureRecordsFromSource, type SessionCaptureSource } from "@raceiq/backend-core/session-capture/source-loader";
+import { initServerGameAdapters } from "../../src/games/init";
+import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import Database from "libsql";
-import { cp, mkdir, mkdtemp, rename, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rename, rm, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import dgram from "node:dgram";
 import { ReplayedUdpDataSource } from "@raceiq/backend-core/test-support/recordings/replayed-udp-data-source";
 import type { ClassificationMigrationStatus } from "@raceiq/shared/racing/laps/classification-migration";
 import { createAccMigrationFixture, prepareOrganizedReleaseData, seedReleaseDatabase } from "./support/release-database";
+import { gunzipSync } from "node:zlib";
 import { cloneReleaseData } from "./support/clone-release-data";
 import { ROOT, command, startUpgradeServer, upgradeEnvironment, type UpgradeServer } from "./support/upgrade-server";
+import { F1_HEADER_SIZE } from "@raceiq/capture-formats/f1-2025/f1-wire";
+import type { ServerGameAdapter } from "@raceiq/backend-core/games/types";
+
+function prepareLegacyWindows(source: SessionCaptureSource, windows: readonly DetectedLapWindow[], game: ServerGameAdapter) {
+  return prepareSplitWindows({
+    windows,
+    source: () => iterateSessionCaptureRecordsFromSource(source, { strict: true, allowLegacyFullFrames: true }),
+    codec: {
+      gameId: game.id,
+      appendsDelayedFinishFrame: game.appendsDelayedFinishFrame,
+      createState: () => game.createParserState(),
+      ...(game.captureParserCheckpoint ? { captureCheckpoint: (state: unknown) => game.captureParserCheckpoint!(state) } : {}),
+      ...(game.restoreParserCheckpoint ? { restoreCheckpoint: (state: unknown, bytes: Uint8Array) => game.restoreParserCheckpoint!(state, Buffer.from(bytes)) } : {}),
+      parseFrame: (bytes: Uint8Array, state: unknown) => game.tryParse(Buffer.from(bytes), state),
+    },
+    bootstrapVersion: PARSER_BOOTSTRAP_VERSION,
+  });
+}
 
 let baseline: string;
 let f1Baseline: string;
@@ -115,8 +140,11 @@ test("normal boot classifies historical recordings in place and skips completed 
     database.exec(`INSERT INTO experiments(id,game_id,name) VALUES(9001,'acc','Migration invariant');
       INSERT INTO experiment_versions(id,experiment_id,version,label) VALUES(9001,9001,1,'Preserved arm');
       UPDATE laps SET experiment_id=9001,experiment_version_id=9001,experiment_excluded=1,experiment_excluded_source='manual';`);
-    database.exec("UPDATE laps SET is_valid=0,invalid_reason='manually invalid' WHERE id=(SELECT id FROM laps WHERE is_valid=1 ORDER BY lap_time LIMIT 1)");
-    const decision = database.prepare("SELECT id,is_valid,invalid_reason FROM laps WHERE invalid_reason='manually invalid'").all();
+    database.exec("UPDATE laps SET is_valid=0,invalid_reason=CASE lap_number WHEN 1 THEN 'inlap' WHEN 2 THEN 'manually invalid' WHEN 3 THEN 'outlap' ELSE invalid_reason END WHERE lap_number IN (1,2,3)");
+    expect(database.prepare("SELECT lap_number,is_valid,invalid_reason FROM laps WHERE lap_number IN (1,3) ORDER BY lap_number").all()).toEqual([
+      { lap_number: 1, is_valid: 0, invalid_reason: "inlap" },
+      { lap_number: 3, is_valid: 0, invalid_reason: "outlap" },
+    ]);
     const original = preservedLaps(database);
     const originalBytes = await sourceChecksums(database);
     expect(original.length).toBeGreaterThan(0);
@@ -129,10 +157,10 @@ test("normal boot classifies historical recordings in place and skips completed 
     expect(preservedLaps(database)).toEqual(original);
     expect(database.prepare("SELECT id FROM laps WHERE classification IS NULL").all()).toEqual([]);
     expect(database.prepare("SELECT lap_number,classification FROM laps ORDER BY lap_number").all()).toEqual(freshClassifications);
-    expect(database.prepare("SELECT lap_number,classification,is_valid FROM laps ORDER BY lap_number").all()).toEqual([
-      { lap_number: 1, classification: "pace", is_valid: 1 },
-      { lap_number: 2, classification: "pace", is_valid: 0 },
-      { lap_number: 3, classification: "pace", is_valid: 0 },
+    expect(database.prepare("SELECT lap_number,is_valid,invalid_reason FROM laps ORDER BY lap_number").all()).toEqual([
+      { lap_number: 1, is_valid: 1, invalid_reason: null },
+      { lap_number: 2, is_valid: 0, invalid_reason: "manually invalid" },
+      { lap_number: 3, is_valid: 0, invalid_reason: "game reported invalid" },
     ]);
     const attempts = database.prepare("SELECT recording_id,attempt,state FROM classification_migration_recordings ORDER BY recording_id").all();
     await server.stop();
@@ -143,7 +171,11 @@ test("normal boot classifies historical recordings in place and skips completed 
     expect(database.prepare("SELECT recording_id,attempt,state FROM classification_migration_recordings ORDER BY recording_id").all()).toEqual(attempts);
     expect(preservedLaps(database)).toEqual(original);
     expect(await sourceChecksums(database)).toEqual(originalBytes);
-    expect(database.prepare("SELECT id,is_valid,invalid_reason FROM laps WHERE invalid_reason='manually invalid'").all()).toEqual(decision);
+    expect(database.prepare("SELECT lap_number,is_valid,invalid_reason FROM laps ORDER BY lap_number").all()).toEqual([
+      { lap_number: 1, is_valid: 1, invalid_reason: null },
+      { lap_number: 2, is_valid: 0, invalid_reason: "manually invalid" },
+      { lap_number: 3, is_valid: 0, invalid_reason: "game reported invalid" },
+    ]);
   } finally {
     await server?.stop();
     database?.close();
@@ -531,6 +563,241 @@ test("same-path source replacement discards stale decoding before committing met
   } finally {
     await server?.stop();
     database?.close();
+    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
+}, 240_000);
+test("idle inventory reconciliation tracks replacement and deleted source groups", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "raceiq-classification-inventory-"));
+  const dataDir = join(directory, "data");
+  let server: UpgradeServer | undefined;
+  let database: InstanceType<typeof Database> | undefined;
+  try {
+    await cloneReleaseData(baseline, dataDir);
+    database = new Database(join(dataDir, "app.db"));
+    database.exec("PRAGMA busy_timeout=5000;");
+    database.close();
+    database = undefined;
+    const running = await openUpgrade(dataDir);
+    server = running.server;
+    await settled(running.address);
+    database = new Database(join(dataDir, "app.db"));
+    const recordings = async () => {
+      const response = await fetch(`${running.address}/api/sessions/classification-migration-recordings?limit=100`);
+      if (!response.ok) throw new Error(`Migration recordings ${response.status}: ${await response.text()}`);
+      return (await response.json()) as { recordings: Array<{ recordingId: string }> };
+    };
+    const before = await recordings();
+    const sessionRows = database.prepare("SELECT id,raw_file FROM sessions WHERE raw_file IS NOT NULL ORDER BY id").all() as Array<{ id: number; raw_file: string }>;
+    expect(sessionRows.length).toBeGreaterThan(0);
+    const originalSource = sessionRows[0]!.raw_file;
+    const replacement = join(directory, "replacement-source.bin");
+    await cp(originalSource, replacement);
+    database.prepare("UPDATE sessions SET raw_file=? WHERE id=?").run(replacement, sessionRows[0]!.id);
+    const deadline = Date.now() + 30_000;
+    let afterReplacement = await recordings();
+    // Worker runs in separate process; wait for observable inventory revision instead of fake timers.
+    while (afterReplacement.recordings.map(({ recordingId }) => recordingId).join(",") ===
+      before.recordings.map(({ recordingId }) => recordingId).join(",")) {
+      if (Date.now() >= deadline) throw new Error("Replacement source inventory did not reconcile");
+      await Bun.sleep(100);
+      afterReplacement = await recordings();
+    }
+    expect(await Bun.file(replacement).exists()).toBe(true);
+    expect(afterReplacement.recordings).not.toEqual(before.recordings);
+    const sessionIds = sessionRows.map(({ id }) => id);
+    const placeholders = sessionIds.map(() => "?").join(",");
+    database.prepare(`DELETE FROM laps WHERE session_id IN (${placeholders})`).run(...sessionIds);
+    database.prepare(`DELETE FROM sessions WHERE id IN (${placeholders})`).run(...sessionIds);
+    let afterDeletion = await recordings();
+    while (afterDeletion.recordings.length !== 0) {
+      if (Date.now() >= deadline) throw new Error("Deleted source inventory did not reconcile");
+      await Bun.sleep(100);
+      afterDeletion = await recordings();
+    }
+    expect(database.prepare("SELECT COUNT(*) AS count FROM sessions WHERE raw_file IS NOT NULL").get()).toMatchObject({ count: 0 });
+    await unlink(replacement);
+  } finally {
+    await server?.stop();
+    database?.close();
+    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
+}, 240_000);
+for (const malformedBootstrap of [false, true]) {
+  test(`production migration restores parser bootstrap before owned F1 frames${malformedBootstrap ? " or rejects mismatched bootstrap atomically" : ""}`, async () => {
+    const directory = await mkdtemp(join(tmpdir(), "raceiq-classification-bootstrap-"));
+    const dataDir = join(directory, "data");
+    let database: InstanceType<typeof Database> | undefined;
+    let server: UpgradeServer | undefined;
+    try {
+      initServerGameAdapters();
+      const game = getServerGame("f1-2025");
+      const state = game.createParserState();
+      const nativePacket = (packetId: number, data: Buffer, time: number) => {
+        const bytes = Buffer.alloc(F1_HEADER_SIZE + data.length);
+        bytes.writeUInt16LE(2025, 0);
+        bytes.writeUInt8(25, 2);
+        bytes.writeUInt8(1, 3);
+        bytes.writeUInt8(1, 5);
+        bytes.writeUInt8(packetId, 6);
+        bytes.writeBigUInt64LE(1n, 7);
+        bytes.writeFloatLE(time, 15);
+        bytes.writeUInt8(255, 28);
+        data.copy(bytes, F1_HEADER_SIZE);
+        return bytes;
+      };
+      const lapData = Buffer.alloc(57);
+      lapData.writeUInt8(1, 33);
+      for (const [id, data] of [[0, Buffer.alloc(60)], [1, Buffer.alloc(125)], [2, lapData], [6, Buffer.alloc(60)]] as const) {
+        game.tryParse(nativePacket(id, data, 0), state);
+      }
+      game.tryParse(nativePacket(3, Buffer.from([83, 84, 76, 71, 5]), 1), state);
+      game.tryParse(nativePacket(3, Buffer.from("LGOT"), 2), state);
+      if (!game.captureParserCheckpoint) throw new Error("F1 parser checkpoint unavailable");
+      const checkpoint = game.captureParserCheckpoint(state);
+      if (!checkpoint) throw new Error("F1 parser checkpoint empty");
+      lapData.writeUInt32LE(20_000, 4);
+      const owned = nativePacket(2, lapData, 22);
+      const prefix = Buffer.concat([
+        encodeMetaFrame(1), encodeSparseCaptureFormatFrame(), encodeSegmentBoundaryFrame(),
+        encodeParserBootstrapFrame(malformedBootstrap ? "acc" : "f1-2025", checkpoint),
+      ]);
+      const sourcePath = join(directory, "checkpoint-dependent.bin");
+      await Bun.write(sourcePath, Buffer.concat([prefix, encodeFrameLength(owned.length), owned]));
+      await cloneReleaseData(baseline, dataDir);
+      database = new Database(join(dataDir, "app.db"));
+      database.exec("DELETE FROM laps WHERE id<>(SELECT MIN(id) FROM laps); DELETE FROM sessions WHERE id NOT IN (SELECT session_id FROM laps)");
+      const row = database.prepare("SELECT id,session_id FROM laps").get() as { id: number; session_id: number };
+      database.prepare("UPDATE sessions SET game_id='f1-2025',car_id='0',track_id='0',raw_file=? WHERE id=?").run(sourcePath, row.session_id);
+      database.prepare("UPDATE laps SET lap_number=1,lap_time=20,is_valid=0,invalid_reason='incomplete',raw_byte_offset=?,raw_frame_count=1 WHERE id=?").run(prefix.length, row.id);
+      const original = preservedLaps(database);
+      database.close();
+      database = undefined;
+      const running = await openUpgrade(dataDir);
+      server = running.server;
+      const result = await settled(running.address);
+      database = new Database(join(dataDir, "app.db"));
+      expect(result.completed).toBe(malformedBootstrap ? 0 : 1);
+      expect(result.failed).toBe(malformedBootstrap ? 1 : 0);
+      expect(database.prepare("SELECT classification,is_valid,invalid_reason FROM laps WHERE id=?").get(row.id)).toMatchObject({
+        classification: malformedBootstrap ? null : "grid_start", is_valid: 0, invalid_reason: "incomplete",
+      });
+      expect(preservedLaps(database)).toEqual(original);
+    } finally {
+      await server?.stop();
+      database?.close();
+      await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    }
+  }, 240_000);
+}
+test("production migration replays selected ACC trailing context without extending stored frame ranges", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "raceiq-classification-trailing-context-"));
+  let server: UpgradeServer | undefined;
+  let database: InstanceType<typeof Database> | undefined;
+  let sparse: { path: string; cleanup(): void } | undefined;
+  try {
+    initServerGameAdapters();
+    const sourcePath = join(ROOT, "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz");
+    const sourceBytes = gunzipSync(Buffer.from(await Bun.file(sourcePath).arrayBuffer()));
+    sparse = await convertSeedFramesToSparse("acc", iterateSessionFrames(sourceBytes));
+    const seeded = await seedReleaseDatabase(directory, { gameId: "acc", paths: [sparse.path] });
+    await prepareOrganizedReleaseData(seeded.dataDir);
+    database = new Database(join(seeded.dataDir, "app.db"));
+    const row = database.prepare("SELECT l.id,l.session_id,l.lap_number,l.raw_byte_offset,l.raw_frame_count,s.raw_file,s.car_id,s.track_id FROM laps l JOIN sessions s ON s.id=l.session_id WHERE l.lap_number=3 AND l.raw_byte_offset IS NOT NULL AND l.raw_frame_count>1 ORDER BY l.id LIMIT 1").get() as {
+      id: number; session_id: number; lap_number: number; raw_byte_offset: number; raw_frame_count: number;
+      raw_file: string; car_id: string; track_id: string;
+    };
+    expect(row.raw_byte_offset).toBeGreaterThan(0);
+    const source = { rawFile: row.raw_file, source: null, gameId: "acc" as const, carId: row.car_id, trackId: row.track_id };
+    const prepared = await prepareLegacyWindows(source, [{
+      lapId: String(row.id), lapNumber: row.lap_number, startByteOffset: row.raw_byte_offset, frameCount: row.raw_frame_count,
+    }], getServerGame("acc"));
+    const outputDirectory = join(directory, "selected");
+    const manifest = await splitCapturePromise({
+      sourcePath: row.raw_file, outputDirectory, gameId: "acc", sourceRevision: "classification-trailing-context",
+      lapWindows: prepared,
+    });
+    const selected = manifest.chunks.find((chunk) => chunk.kind === "lap");
+    if (!selected) throw new Error("Production split emitted no selected ACC lap");
+    if (selected.ownedFrameCount === undefined || selected.ownedFrameByteOffset === undefined) {
+      throw new Error("Selected ACC lap has no owned source window");
+    }
+    expect(selected.trailingContextFrameCount).toBe(1);
+    let selectedPath: string;
+    let selectedBytes: Buffer;
+    if ("path" in selected) {
+      selectedPath = join(outputDirectory, selected.path);
+      selectedBytes = Buffer.from(await Bun.file(selectedPath).arrayBuffer());
+    } else {
+      selectedPath = join(outputDirectory, "selected-acc-lap.bin");
+      if (!("archiveFile" in manifest)) throw new Error("Archive chunk has no archive manifest");
+      const archive = await openCaptureArchive(join(outputDirectory, manifest.archiveFile), manifest);
+      selectedBytes = await archive.readEntryBuffer(selected.entryName, selected.byteLength);
+      await Bun.write(selectedPath, selectedBytes);
+    }
+    // Standalone exports mark non-owned primer/completion records explicitly.
+    // Decode checkpoint groups before reframing so marker bytes cannot invalidate delta distances.
+    const frames = [];
+    for await (const record of iterateSessionCaptureRecordsFromSource({ ...source, rawFile: selectedPath, captureFormatVersion: 1 }, { strict: true })) {
+      if (record.kind === "frame") frames.push(record);
+    }
+    const pieces = [encodeMetaFrame(frames.length), encodeSparseCaptureFormatFrame(), encodeSegmentBoundaryFrame()];
+    let byteOffset = pieces.reduce((total, piece) => total + piece.length, 0);
+    let ownedOffset = -1;
+    let ownedCount = 0;
+    let inContext = false;
+    for (const record of frames) {
+      const owned = record.offset >= selected.ownedFrameByteOffset! && ownedCount < selected.ownedFrameCount!;
+      if (owned === inContext) {
+        const marker = owned ? encodeSegmentContextEndFrame() : encodeSegmentContextFrame();
+        pieces.push(marker);
+        byteOffset += marker.length;
+        inContext = !owned;
+      }
+      if (owned) {
+        if (ownedOffset < 0) ownedOffset = byteOffset;
+        ownedCount++;
+      }
+      const prefix = encodeFrameLength(record.frame.length, record.frameTimeMs);
+      pieces.push(prefix, record.frame);
+      byteOffset += prefix.length + record.frame.length;
+    }
+    if (inContext) pieces.push(encodeSegmentContextEndFrame());
+    expect(ownedCount).toBe(selected.ownedFrameCount);
+    selectedBytes = Buffer.concat(pieces);
+    await Bun.write(selectedPath, selectedBytes);
+    const selectedRecords = [...iterateSessionCaptureRecords(selectedBytes)];
+    const contextIndex = selectedRecords.findLastIndex((record) => record.kind === "segment-context");
+    const contextEndIndex = selectedRecords.findIndex((record, index) => index > contextIndex && record.kind === "segment-context-end");
+    expect(contextIndex).toBeGreaterThanOrEqual(0);
+    expect(contextEndIndex).toBeGreaterThan(contextIndex);
+    expect(selectedRecords.slice(contextIndex + 1, contextEndIndex).filter((record) => record.kind === "frame")).toHaveLength(1);
+    const ownedFrame = selectedRecords.find((record) => record.kind === "frame" && record.offset === ownedOffset);
+    if (!ownedFrame || ownedFrame.kind !== "frame") throw new Error("Selected ACC split has no owned frame");
+    database.prepare("DELETE FROM laps WHERE session_id=? AND id<>?").run(row.session_id, row.id);
+    database.prepare("UPDATE sessions SET raw_file=? WHERE id=?").run(selectedPath, row.session_id);
+    database.prepare("UPDATE laps SET raw_byte_offset=?,raw_frame_count=? WHERE id=?")
+      .run(ownedFrame.offset, selected.ownedFrameCount, row.id);
+    // Normal boot assigns unowned legacy laps to the default driver before migration.
+    database.exec("UPDATE laps SET profile_id=1 WHERE profile_id IS NULL");
+    const originalRanges = database.prepare("SELECT id,session_id,raw_byte_offset,raw_frame_count FROM laps ORDER BY id").all();
+    const originalQuality = database.prepare("SELECT id,is_valid,invalid_reason FROM laps ORDER BY id").all();
+    const original = preservedLaps(database);
+    database.close();
+    database = undefined;
+    const running = await openUpgrade(seeded.dataDir);
+    server = running.server;
+    database = new Database(join(seeded.dataDir, "app.db"));
+    const result = await settled(running.address);
+    expect(result.completed).toBeGreaterThan(0);
+    expect(result.failed).toBe(0);
+    expect(database.prepare("SELECT classification FROM laps WHERE id=?").get(row.id)).toMatchObject({ classification: expect.any(String) });
+    expect(database.prepare("SELECT id,session_id,raw_byte_offset,raw_frame_count FROM laps ORDER BY id").all()).toEqual(originalRanges);
+    expect(database.prepare("SELECT id,is_valid,invalid_reason FROM laps ORDER BY id").all()).toEqual(originalQuality);
+    expect(preservedLaps(database)).toEqual(original);
+  } finally {
+    await server?.stop();
+    database?.close();
+    sparse?.cleanup();
     await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 }, 240_000);
