@@ -66,9 +66,10 @@ export function drawTrackCanvas(
   telX: (x: number) => number = (x) => x,
   hideOutline = false,
   showSegmentMarkers = true,
+  idealLine?: Point[] | null,
 ) {
   ctx.clearRect(0, 0, w, h);
-  const bounds = [...outline, ...(boundaries ? [boundaries.leftEdge, boundaries.rightEdge].flat() : [])];
+  const bounds = [...outline, ...(boundaries ? [boundaries.leftEdge, boundaries.rightEdge].flat() : []), ...(idealLine ?? [])];
   let minX = Infinity,
     maxX = -Infinity,
     minZ = Infinity,
@@ -84,7 +85,9 @@ export function drawTrackCanvas(
   const centerX = zoom?.centerX ?? (minX + maxX) / 2;
   const centerZ = zoom?.centerZ ?? (minZ + maxZ) / 2;
   const range = zoom?.range ?? Math.max(rangeX, rangeZ);
-  const scale = Math.min((w - 48) / range, (h - 48) / range);
+  const scale = zoom
+    ? Math.min((w - 48) / range, (h - 48) / range)
+    : Math.min((w - 48) / rangeX, (h - 48) / rangeZ);
   const toCanvas = (x: number, z: number): [number, number] => [w / 2 + (centerX - x) * scale, h / 2 + (z - centerZ) * scale];
   let restore = false;
   if (followCar && zoom && hoveredDistance != null) {
@@ -125,10 +128,10 @@ export function drawTrackCanvas(
       ctx.lineTo(x, y);
     }
     ctx.closePath();
-    ctx.fillStyle = "color-mix(in srgb, var(--track-surface) 18%, transparent)";
+    ctx.fillStyle = "color-mix(in srgb, var(--track-surface) 24%, transparent)";
     ctx.fill();
-    drawPath(boundaries.leftEdge, "color-mix(in srgb, var(--track-edge) 30%, transparent)", zoom ? 1.5 : 1);
-    drawPath(boundaries.rightEdge, "color-mix(in srgb, var(--track-edge) 30%, transparent)", zoom ? 1.5 : 1);
+    drawPath(boundaries.leftEdge, "color-mix(in srgb, var(--track-edge) 68%, transparent)", zoom ? 2 : 1.5);
+    drawPath(boundaries.rightEdge, "color-mix(in srgb, var(--track-edge) 68%, transparent)", zoom ? 2 : 1.5);
   }
   if (!hideOutline) {
     drawPath(outline, "var(--track-outline)", zoom ? 6 : 5, true);
@@ -146,7 +149,10 @@ export function drawTrackCanvas(
     ctx.beginPath();
     let moved = false;
     for (let i = 0; i < xs.length; i++) {
-      if (!Number.isFinite(xs[i]) || !Number.isFinite(zs[i]) || (xs[i] === 0 && zs[i] === 0)) continue;
+      if (!Number.isFinite(xs[i]) || !Number.isFinite(zs[i]) || (xs[i] === 0 && zs[i] === 0)) {
+        moved = false;
+        continue;
+      }
       const [x, y] = toCanvas(telX(xs[i]), zs[i]);
       if (!moved) {
         ctx.moveTo(x, y);
@@ -154,13 +160,39 @@ export function drawTrackCanvas(
       } else ctx.lineTo(x, y);
     }
     ctx.strokeStyle = color;
-    ctx.lineWidth = zoom ? 3 : 2;
-    ctx.globalAlpha = 0.8;
+    ctx.lineWidth = zoom ? 3 : 2.5;
+    ctx.globalAlpha = 0.95;
     ctx.stroke();
     ctx.globalAlpha = 1;
   };
   drawLine(traces.positionXA, traces.positionZA, COLOR_A);
   drawLine(traces.positionXB, traces.positionZB, COLOR_B);
+  const diffCount = Math.min(traces.distance.length, traces.positionXA.length, traces.positionXB.length, traces.positionZA.length, traces.positionZB.length);
+  if (diffCount > 1) {
+    const step = Math.max(1, Math.floor(diffCount / 48));
+    const threshold = Math.max(3, range * 0.004);
+    let hasDiff = false;
+    ctx.beginPath();
+    for (let i = 0; i < diffCount; i += step) {
+      const ax = traces.positionXA[i]!, az = traces.positionZA[i]!;
+      const bx = traces.positionXB[i]!, bz = traces.positionZB[i]!;
+      if (![ax, az, bx, bz].every(Number.isFinite) || (ax === 0 && az === 0) || (bx === 0 && bz === 0)) continue;
+      if (Math.hypot(ax - bx, az - bz) < threshold) continue;
+      const [axCanvas, azCanvas] = toCanvas(telX(ax), az);
+      const [bxCanvas, bzCanvas] = toCanvas(telX(bx), bz);
+      ctx.moveTo(axCanvas, azCanvas);
+      ctx.lineTo(bxCanvas, bzCanvas);
+      hasDiff = true;
+    }
+    if (hasDiff) {
+      ctx.strokeStyle = "color-mix(in srgb, var(--app-text) 55%, transparent)";
+      ctx.lineWidth = zoom ? 1.5 : 1;
+      ctx.globalAlpha = 0.75;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+  if (idealLine && idealLine.length > 1) drawPath(idealLine, "var(--track-racing-line)", zoom ? 4 : 3.5);
   if (hoveredDistance != null) {
     const index = findTraceIndexAtDistance(traces.distance, hoveredDistance);
     const a = mapPosition(traces, index, outline, telX);

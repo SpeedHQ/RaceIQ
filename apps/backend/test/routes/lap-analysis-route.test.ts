@@ -12,6 +12,7 @@ import { insertLap } from "@raceiq/backend-core/db/lap-mutation-queries";
 import { lapRoutes } from "../../src/routes/laps/index";
 import { semanticReplayIds } from "../../src/routes/laps/resource-routes";
 import { packet } from "@raceiq/telemetry-core/test-support/telemetry/resolver";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 
 initGameAdapters();
 
@@ -59,6 +60,42 @@ describe("GET /api/laps/:id/semantic-telemetry", () => {
       expect(body.envelopes[1]?.values).toEqual(
         expect.arrayContaining([expect.objectContaining({ semanticId: "motion.speed", value: 20 })]),
       );
+    } finally {
+      cacheDelete(lapId);
+      await deleteSession(sessionId);
+    }
+  });
+});
+
+describe("GET /api/laps/:id/semantic-telemetry?view=track-map", () => {
+  test("returns compact iRacing GPS and progress samples", async () => {
+    const sessionId = await insertSession("0", "0", "iracing");
+    const lapId = await insertLap(sessionId, 1, 80.9, true, null, 0);
+    cacheSet(lapId, [0.25, 0.75].map((lapDistancePct, index) => packet("iracing", {
+      iracing: { lapDistancePct, sessionTick: index + 1 } as TelemetryPacket["iracing"],
+      CurrentRaceTime: index,
+      TimestampMS: index * 1_000,
+    })));
+    try {
+      const response = await lapRoutes.request(`/api/laps/${lapId}/semantic-telemetry?view=track-map`, {
+        headers: { "X-Game-Id": "iracing" },
+      });
+      expect(response.status).toBe(200);
+      const text = await response.text();
+      const body = JSON.parse(text) as {
+        lapId: number;
+        trackOrigin: { latitude: number; longitude: number } | null;
+        samples: { latitude: number | null; longitude: number | null; fraction: number | null }[];
+        envelopes?: unknown;
+        requestedSemanticIds?: unknown;
+      };
+      expect(body.lapId).toBe(lapId);
+      expect(body.trackOrigin).toBeNull();
+      expect(body.samples.map((sample) => sample.fraction)).toEqual([0.25, 0.75]);
+      expect(body.samples.every((sample) => sample.latitude === null && sample.longitude === null)).toBe(true);
+      expect(body).not.toHaveProperty("envelopes");
+      expect(body).not.toHaveProperty("requestedSemanticIds");
+      expect(text.length).toBeLessThan(2_000);
     } finally {
       cacheDelete(lapId);
       await deleteSession(sessionId);

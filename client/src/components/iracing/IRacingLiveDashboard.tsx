@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import { m } from "@/paraglide/messages";
 import { useCarName } from "../../hooks/catalog-queries";
 import { useTrackName } from "../../hooks/track-queries";
@@ -5,6 +7,8 @@ import { formatLapTime } from "../../lib/format";
 import { controlInputPercent } from "../../lib/vehicle-dynamics";
 import { useUnits } from "../../hooks/useUnits";
 import { useTelemetryStore } from "../../stores/telemetry";
+import { selectFreshIRacingLiveView } from "./live-state";
+
 import { SectorTimes } from "../SectorTimes";
 import { getGame } from "@raceiq/shared/games/registry";
 import { getFuelAmount } from "@raceiq/shared/games/telemetry";
@@ -28,10 +32,16 @@ function InputMeter({ label, value, color }: { label: string; value: number | un
 
 export function IRacingLiveDashboard() {
   const connected = useTelemetryStore((s) => s.connected);
-  const status = useTelemetryStore((s) => s.serverStatus);
   const rawView = useTelemetryStore((s) => s.telemetryView);
+  const frame = useTelemetryStore((s) => s.telemetryFrame);
   const sectors = useTelemetryStore((s) => s.sectors);
-  const view = connected && status !== null && status.telemetryPps > 0 && status.detectedGame?.id === "iracing" && rawView?.simulator === "iracing" ? rawView : null;
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!connected || rawView?.simulator !== "iracing") return;
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [connected, rawView?.simulator]);
+  const view = selectFreshIRacingLiveView(connected, rawView, frame?.receivedAtMs ?? null, nowMs);
   const units = useUnits("iracing");
   const { data: carResolved } = useCarName(view?.identity.carId);
   const { data: trackResolved } = useTrackName(view?.identity.trackId);

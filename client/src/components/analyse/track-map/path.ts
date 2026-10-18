@@ -158,6 +158,10 @@ export function pathForwardOffsets(points: readonly Point[]): ([number, number] 
 }
 
 export function resolveFrameDirection(frame: SemanticAnalysisFrame, pathDirection: [number, number] | null): [number, number] | null {
+  const nativeNorthYaw = semanticNumber(frame, "motion.yaw-north");
+  // iRacing replay positions are measured or projected onto the track; use that map-space tangent
+  // instead of simulator yaw, whose reference frame does not match projected replay positions.
+  if (nativeNorthYaw !== null && pathDirection) return pathDirection;
   const hasGeographicPose = fresh(frame, "motion.latitude") !== null && fresh(frame, "motion.longitude") !== null;
   const yawId = hasGeographicPose ? "motion.yaw-north" : "motion.yaw";
   const yaw = semanticNumber(frame, yawId as never);

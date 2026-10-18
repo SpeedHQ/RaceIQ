@@ -5,10 +5,14 @@
 - Add an overall clean-driving score to the iRacing Latest Session card, based on valid timed laps and excluding pit laps.
 - Review observed personal incident-point increases, sampled off-track spans, and recorded clean-lap streaks in saved iRacing sessions, with event links and replay timeline markers limited to recorded lap evidence.
 - Simplify iRacing lap replay around the track map and recorded channels, adding clutch, engine, weather, and session readouts while separating pit-only tire snapshots from current telemetry.
+- Fit comparison overview maps to their full track shape, draw official track bounds and lap-to-lap differences, and let drivers overlay the fastest saved lap.
+- Render iRacing comparison laps from recorded GPS; project live lap progress onto official track geometry when GPS is unavailable.
 
 ### Fixes
 - Prevent overlapping database writes from blocking recording imports and setup or session deletion.
 - Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.
+- Show fresh iRacing SDK telemetry even when UDP status is unavailable; hide readings after frames stop.
+- Orient the iRacing replay map marker along the plotted lap path instead of simulator-frame yaw.
 - Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
 - Correct iRacing clutch pedal direction so released reads 0% and fully pressed reads 100% in live telemetry and replay.
 

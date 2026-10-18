@@ -40,6 +40,14 @@ export function semanticReplayIds(gameId: GameId): readonly string[] {
 const timestampMilliseconds = (timestamp: { domain: string; milliseconds?: number; nanoseconds?: bigint }) =>
   timestamp.domain === "monotonic" ? Number(timestamp.nanoseconds ?? 0n) / 1_000_000 : timestamp.milliseconds ?? 0;
 const gzipAsync = promisify(gzip);
+const IRACING_TRACK_MAP_SEMANTIC_IDS: Record<string, true> = {
+  "identity.track.latitude": true,
+  "identity.track.longitude": true,
+  "motion.latitude": true,
+  "motion.longitude": true,
+  "timing.lap-fraction": true,
+};
+
 
 export const resourceRoutes = new Hono()
   .get("/api/laps", zValidator("query", LapsQuerySchema), async (c) => {
@@ -72,12 +80,15 @@ export const resourceRoutes = new Hono()
     const { id } = c.req.valid("param");
     const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
     if (!gameIdResult.success) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
+    const trackMapView = c.req.query("view") === "track-map";
+    if (trackMapView && gameIdResult.data !== "iracing") return c.json({ error: "Track map replay is only available for iRacing" }, 400);
     try {
       const meta = await getLapMetaById(id);
       if (!meta || meta.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
       const lap = await getLapById(id);
       if (!lap) return c.json({ error: "Lap not found" }, 404);
       if (lap.parseError) {
+        if (trackMapView) return c.json({ lapId: id, trackOrigin: null, samples: [], parseError: lap.parseError });
         return c.json({
           lapId: id, requestedSemanticIds: [], sectorTimes: meta.sectorTimes ?? null,
           sectorStarts: null, insights: [], detectorCoverage: INSIGHT_DETECTORS.map((detector) => ({ ...detector, status: "unavailable" as const, reason: "Lap telemetry could not be parsed" })), parseError: lap.parseError, envelopes: [],
@@ -92,7 +103,40 @@ export const resourceRoutes = new Hono()
           : undefined,
       };
       const rawCapture = source.gameId === "iracing" && source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined;
-      const replay = resolveTelemetryReplay(id, source, lap.telemetry, semanticReplayIds(meta.gameId), rawCapture);
+      const requestedSemanticIds = trackMapView
+        ? semanticReplayIds("iracing").filter((semanticId) => IRACING_TRACK_MAP_SEMANTIC_IDS[semanticId] === true)
+        : semanticReplayIds(meta.gameId);
+      const replay = resolveTelemetryReplay(id, source, lap.telemetry, requestedSemanticIds, rawCapture);
+      if (trackMapView) {
+        const readNumber = (values: typeof replay.envelopes[number]["values"], semanticId: string) => {
+          const value = values.find((entry) => entry.semanticId === semanticId);
+          return value
+            && (value.state === undefined || value.state === "ok")
+            && (value.freshness === undefined || value.freshness === "fresh")
+            && typeof value.value === "number"
+            && Number.isFinite(value.value)
+            ? value.value
+            : null;
+        };
+        const firstNumber = (semanticId: string) => {
+          for (const envelope of replay.envelopes) {
+            const value = readNumber(envelope.values, semanticId);
+            if (value !== null) return value;
+          }
+          return null;
+        };
+        const latitude = firstNumber("identity.track.latitude");
+        const longitude = firstNumber("identity.track.longitude");
+        return c.json({
+          lapId: replay.lapId,
+          trackOrigin: latitude !== null && longitude !== null ? { latitude, longitude } : null,
+          samples: replay.envelopes.map(({ values }) => ({
+            latitude: readNumber(values, "motion.latitude"),
+            longitude: readNumber(values, "motion.longitude"),
+            fraction: readNumber(values, "timing.lap-fraction"),
+          })),
+        });
+      }
       const nativeLayout = getGame(meta.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
       const processed = processLap(lap.telemetry, meta.gameId);
       const analysis = runInsightScanWithCoverage(processed.packets, meta.gameId, { racingLine: resolveRacingLineReference(meta.gameId, meta.trackId) });

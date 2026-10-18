@@ -102,6 +102,15 @@ describe("iRacing analysis semantic direction", () => {
     expect(result?.[1]).toBeCloseTo(0);
   });
 
+  test("uses replay path direction when iRacing compass yaw is present without geographic position", () => {
+    const result = resolveFrameDirection({
+      values: { "motion.yaw": 0, "motion.yaw-north": Math.PI / 2 },
+      states: { "motion.yaw": "ok", "motion.yaw-north": "ok" },
+      freshness: { "motion.yaw": "fresh", "motion.yaw-north": "fresh" },
+    }, pathDirection);
+    expect(result).toEqual(pathDirection);
+  });
+
   test("falls back to path tangent for missing, invalid, or stale yaw", () => {
     for (const frame of [
       { values: {}, states: {}, freshness: {} },

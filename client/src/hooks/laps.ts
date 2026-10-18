@@ -182,6 +182,40 @@ export function useLapSemanticTelemetry(lapId: number | null) {
   });
 }
 
+export interface IRacingTrackMapTelemetry {
+  lapId: number;
+  trackOrigin: { latitude: number; longitude: number } | null;
+  samples: Array<{
+    latitude: number | null;
+    longitude: number | null;
+    fraction: number | null;
+  }>;
+  parseError?: string | null;
+}
+
+/** Compact iRacing-only replay view for map overlays; avoids full analysis payload. */
+export function useIRacingTrackMapTelemetry(lapId: number | null) {
+  const gameId = useGameId();
+  return useQuery({
+    queryKey: ["iracing-track-map-telemetry", lapId, gameId ?? null],
+    queryFn: async () => {
+      if (lapId == null) throw new Error("Missing lap ID");
+      const res = await fetch(`/api/laps/${lapId}/semantic-telemetry?view=track-map`, { headers: { "X-Game-Id": "iracing" } });
+      const body = (await res.json().catch(() => null)) as (IRacingTrackMapTelemetry & { error?: string }) | null;
+      if (!res.ok || body?.parseError) {
+        throw new Error(body?.parseError ?? body?.error ?? res.statusText);
+      }
+      if (!body) throw new Error("Unable to replay iRacing map telemetry");
+      return body;
+    },
+    enabled: lapId != null && gameId === "iracing",
+    gcTime: 30 * 60 * 1000,
+    staleTime: Number.POSITIVE_INFINITY,
+    refetchOnMount: false,
+  });
+}
+
+
 /** Findings only; avoids loading full semantic replay in session Analyse. */
 export function useLapInsights(lapId: number | null) {
   const gameId = useGameId();
