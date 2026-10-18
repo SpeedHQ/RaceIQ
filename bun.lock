@@ -29,6 +29,7 @@
       },
       "devDependencies": {
         "@babel/parser": "^8.0.5",
+        "@effect/tsgo": "0.53.0",
         "@gltf-transform/core": "4.5.0",
         "@gltf-transform/extensions": "4.5.0",
         "@gltf-transform/functions": "4.5.0",
@@ -76,6 +77,7 @@
         "@raceiq/analysis-core": "workspace:*",
         "@raceiq/backend-core": "workspace:*",
         "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/capture-splitting": "workspace:*",
         "@raceiq/game-ac-evo": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-acc": "workspace:*",
@@ -96,6 +98,7 @@
         "@raceiq/tooling-release": "workspace:*",
         "ai": "7.0.105",
         "drizzle-orm": "^0.45.2",
+        "effect": "4.0.4",
         "fflate": "^0.8.3",
         "hono": "4.13.8",
         "libsql": "^0.5.29",
@@ -199,6 +202,13 @@
       "dependencies": {
         "@raceiq/game-iracing-metadata": "workspace:*",
         "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/capture-splitting": {
+      "name": "@raceiq/capture-splitting",
+      "dependencies": {
+        "@raceiq/capture-formats": "workspace:*",
+        "effect": "4.0.4",
       },
     },
     "packages/frontend-contract-tests": {
@@ -461,6 +471,7 @@
         "@mastra/memory": "^1.30.0",
         "@raceiq/analysis-core": "workspace:*",
         "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/capture-splitting": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
         "@raceiq/game-fm-2023-metadata": "workspace:*",
@@ -470,6 +481,7 @@
         "@raceiq/telemetry-core": "workspace:*",
         "ai": "7.0.105",
         "drizzle-orm": "^0.45.2",
+        "effect": "4.0.4",
         "fflate": "^0.8.3",
         "hono": "4.13.8",
         "pino": "^10.3.1",
@@ -649,6 +661,22 @@
     "@duckdb/node-bindings-win32-arm64": ["@duckdb/node-bindings-win32-arm64@1.5.2-r.2", "", { "os": "win32", "cpu": "arm64" }, "sha512-g5ZWK07c0Qh7UFhJC37iC5y8oW8ZqxEgpNM2vTFD3ShM9Rn1NDXkxA7zjcheHRI+My5T1JpE9kNpCvhzItJrgw=="],
 
     "@duckdb/node-bindings-win32-x64": ["@duckdb/node-bindings-win32-x64@1.5.2-r.2", "", { "os": "win32", "cpu": "x64" }, "sha512-VUMbdeXQHWKHEXVWtfVaOSu7Mb4jR9gT56Yzu9FHyLyP9ogY/D6wpeohY5gAHZS9PHQGGq24qRtCn5g6vUolqA=="],
+
+    "@effect/tsgo": ["@effect/tsgo@0.53.0", "", { "optionalDependencies": { "@effect/tsgo-darwin-arm64": "0.53.0", "@effect/tsgo-darwin-x64": "0.53.0", "@effect/tsgo-linux-arm": "0.53.0", "@effect/tsgo-linux-arm64": "0.53.0", "@effect/tsgo-linux-x64": "0.53.0", "@effect/tsgo-win32-arm64": "0.53.0", "@effect/tsgo-win32-x64": "0.53.0" }, "bin": { "effect-tsgo": "dist/effect-tsgo.cjs" } }, "sha512-a8Ss/rI9QoOvJTQPet0YUpLqXp+/Qaydil+WpIHOhhsqvCu3l6aqN5xB+C/Mff/QW51r54n3Frk7a/joFszHgw=="],
+
+    "@effect/tsgo-darwin-arm64": ["@effect/tsgo-darwin-arm64@0.53.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-YDwx3cFpohEMtjbd+65iH/tVxIZs39pkR8KW2Vy7c5GB1LjOzkB+jo2rcku6DOueV/bfpS1wiSmsD1jsTVNIRg=="],
+
+    "@effect/tsgo-darwin-x64": ["@effect/tsgo-darwin-x64@0.53.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-6XvsEyNo5HAxSOum/zdvHHANu4sp5u6GqOyqZ00Pq+jPP1gFAvavS4kp3PZVR6mBaGv4sLRu6QMjwc3SbQz4uA=="],
+
+    "@effect/tsgo-linux-arm": ["@effect/tsgo-linux-arm@0.53.0", "", { "os": "linux", "cpu": "arm" }, "sha512-JXPq2BJdMu1TEc71bb6kCHnDgBImKqdxbk1etI4uoEot6PeUYogvjSCTjw7y+Lo2Uk/i1hVYx9sxR+824Dm5Mg=="],
+
+    "@effect/tsgo-linux-arm64": ["@effect/tsgo-linux-arm64@0.53.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-Io1RblTJ6hvff99rqsZSjEz18Yyprq8R7eZS7g/fzqMQ3aYqzbouUjpZaiCGRnZZfXS4Ft6I/1b4Nu3lBrEMhQ=="],
+
+    "@effect/tsgo-linux-x64": ["@effect/tsgo-linux-x64@0.53.0", "", { "os": "linux", "cpu": "x64" }, "sha512-4A0osORqB2HG9egjPe7JPz1X2KwZM8H0hkl81pYsJ4qEYOVHoFVdNDvZ0Y6qxLS2eZBmsxdS+/jXuZJ39nzuvw=="],
+
+    "@effect/tsgo-win32-arm64": ["@effect/tsgo-win32-arm64@0.53.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-qM7Aqw1uGmMDs8x/Iy2/kxKzzXx0WzH3/u66bjlEExSTv6DzHuAMXZmmb/1iUsth+TfqrwHwhHErFkwyyaLATg=="],
+
+    "@effect/tsgo-win32-x64": ["@effect/tsgo-win32-x64@0.53.0", "", { "os": "win32", "cpu": "x64" }, "sha512-87/Ep6F7yU06vev9LZMU0MxpUkuD9joOMwXrx9OH3aXDL1SlImHlux/uHqXWGrFcKND7oMe/SX15XWAjWdy4Ag=="],
 
     "@emnapi/core": ["@emnapi/core@1.9.2", "", { "dependencies": { "@emnapi/wasi-threads": "1.2.1", "tslib": "^2.4.0" } }, "sha512-UC+ZhH3XtczQYfOlu3lNEkdW/p4dsJ1r/bP7H8+rhao3TTTMO1ATq/4DdIi23XuGoFY+Cz0JmCbdVl0hz9jZcA=="],
 
@@ -1137,6 +1165,8 @@
     "@raceiq/backend-core": ["@raceiq/backend-core@workspace:server"],
 
     "@raceiq/capture-formats": ["@raceiq/capture-formats@workspace:packages/capture-formats"],
+
+    "@raceiq/capture-splitting": ["@raceiq/capture-splitting@workspace:packages/capture-splitting"],
 
     "@raceiq/frontend-contract-tests": ["@raceiq/frontend-contract-tests@workspace:packages/frontend-contract-tests"],
 
@@ -1875,6 +1905,8 @@
     "dunder-proto": ["dunder-proto@1.0.1", "", { "dependencies": { "call-bind-apply-helpers": "^1.0.1", "es-errors": "^1.3.0", "gopd": "^1.2.0" } }, "sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A=="],
 
     "ee-first": ["ee-first@1.1.1", "", {}, "sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow=="],
+
+    "effect": ["effect@4.0.4", "", {}, "sha512-Sr50OeVSC3M5UkoUYUhFf3EULryhGaZZUf6OzDHTvaznOw7HRlxOKdF3/4nvQXHL22StOyMG3Cvo8Bt7xUp+Ng=="],
 
     "efrt": ["efrt@2.7.0", "", {}, "sha512-/RInbCy1d4P6Zdfa+TMVsf/ufZVotat5hCw3QXmWtjU+3pFEOvOQ7ibo3aIxyCJw2leIeAMjmPj+1SLJiCpdrQ=="],
 

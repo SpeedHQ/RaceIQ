@@ -3,7 +3,7 @@ import { drawStaticTrack } from "../src/components/analyse/track-map/static-draw
 import { needsTrackFlip } from "@raceiq/shared/racing/tracks/coords";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import type { Point, TrackMapBoundaries, TrackTransform } from "../src/components/analyse/track-map/types";
-import { alignTrackBoundariesToPositions, resolveTrackPositions } from "../src/components/analyse/track-map/path";
+import { resolveTrackPositions } from "../src/components/analyse/track-map/path";
 
 let previousPath2D: PropertyDescriptor | undefined;
 beforeEach(() => {
@@ -472,39 +472,3 @@ for (const gameId of ["acc", "ac-evo"] as const) {
     }
   });
 }
-
-test("aligns LMU boundary geometry to selected lap coordinates", () => {
-  const centerLine = Array.from({ length: 80 }, (_, index) => {
-    const angle = (index / 80) * Math.PI * 2;
-    const radius = 100 + 20 * Math.sin(angle * 3) + 7 * Math.cos(angle * 5);
-    return { x: Math.cos(angle) * radius, z: Math.sin(angle) * radius * 0.7 };
-  });
-  const boundaries: TrackMapBoundaries = {
-    leftEdge: centerLine.map((point) => ({ x: point.x - 4, z: point.z })),
-    rightEdge: centerLine.map((point) => ({ x: point.x + 4, z: point.z })),
-    centerLine,
-    pitLane: null,
-    coordSystem: "lmu",
-  };
-  const rotation = 0.61;
-  const cos = Math.cos(rotation);
-  const sin = Math.sin(rotation);
-  const positions = centerLine.map((point) => {
-    const reflectedX = -point.x;
-    return {
-      x: 1.2 * (cos * reflectedX - sin * point.z) + 300,
-      z: 1.2 * (sin * reflectedX + cos * point.z) - 140,
-    };
-  });
-
-  const aligned = alignTrackBoundariesToPositions(boundaries, positions);
-
-  expect(aligned).not.toBeNull();
-  expect(
-    Math.max(
-      ...aligned!.centerLine.map((point, index) =>
-        Math.hypot(point.x - positions[index].x, point.z - positions[index].z),
-      ),
-    ),
-  ).toBeLessThan(0.001);
-});

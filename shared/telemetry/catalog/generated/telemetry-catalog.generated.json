@@ -6,21 +6,21 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.20.0",
-      "sourceHash": "25c24ddb9556ead2ab7d4f884b27f0b7ec824d25ec0459f91b46e6c7252a6ce8"
+      "sourceHash": "398620ce50cf69a0bea013841141ab91436f94b5019fd46818a08bb6d48b3f0d"
     },
     "sourceHashes": {
-      "packages/game-ac-evo/src/parser.ts": "1b8e588159a7e3e1cd37a882f57a961d501ef034d75fc54d84859920501cbd20",
+      "packages/game-ac-evo/src/parser.ts": "29cb3985fe32c797554d98f107a0c4d76ddcc5279d97e75423365e1a0887f5de",
       "packages/game-acc/src/parser.ts": "f527d6448320e78072fb9dbfff0df28d5ce1029f020510d148bded12df8cb7ba",
-      "packages/game-f1-2025/src/f1-state.ts": "6a15c7fe6b10f2630daaa3d88a1a9000f10c93b7fe51be76706f1be3face9a59",
+      "packages/game-f1-2025/src/f1-state.ts": "2c3ad3f21293094cf564b912a4b8ea35d1e16df713f863e47fdf763184e8de79",
       "packages/game-fm-2023/src/parser.ts": "71c348b894f84f6086c9582d0cce473bac75a3c85896010a0e5762854718b835",
       "packages/game-iracing-metadata/src/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
-      "packages/game-iracing/src/normalizer.ts": "4befc7dd6c061aa078c63a00662c936ae1afee34c5c9b56313248411f7dc92c2",
+      "packages/game-iracing/src/normalizer.ts": "6040cc75d63df010caaadd15edb758d1d3423520cf3f465db9c92ae538640db9",
       "packages/game-lmu/src/normalizer.ts": "1c2d9c9bd1a9b1bdae8f587f009ee6d087dcddf821c7ce56c14a4301bc4789e9",
       "packages/tooling-catalog/src/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
       "server/session-capture/frame-time.ts": "55c44a6cede5e2c5fb1e1c45568fe44b4a9a8b156f260f69bb5d89f9c24935a2",
       "shared/racing/setups/schema.ts": "987941bb8f38520920686ef540e67ce2259fdc962de03ccb959f6b5ef773b28f"
     },
-    "contentHash": "fe3ef4b9742c451b494fd508a7ccfee3008f39c8080b9b735e2422b29e812c0e"
+    "contentHash": "8362a86e5ca6eb3023e4a55b45b122dcec3cb0269838015df20dc7efcd533ecf"
   },
   "generatedFrom": [
     "packages/tooling-catalog/src/root.ts",
@@ -45442,15 +45442,20 @@
           "kind": "derived",
           "nativeUnit": "s",
           "sources": [
+            "iRacing.SessionInfo.subSessionId",
+            "iRacing.SessionInfo.sessionId",
+            "iRacing.SessionInfo.sessionNum",
+            "iRacing.Lap",
+            "iRacing.SessionTime",
             "iRacing.LapCurrentLapTime",
             "iracing.sdkCurrentLapTime"
           ],
           "freshness": "continuous",
-          "normalization": "currentLapTime => sdkCurrentLapTime => Math.max( 0, scalar(values, \"LapCurrentLapTime\", 0), )",
-          "description": "iracing maps 1 native source channel into this value.",
+          "normalization": "currentLapTime => updateCurrentLapClock(state, sessionKey, rawLap, sessionTime, sdkCurrentLapTime)",
+          "description": "iracing maps 6 native source channels into this value.",
           "provenance": {
-            "origin": "parser",
-            "artifact": "packages/game-iracing/src/normalizer.ts"
+            "origin": "yaml",
+            "artifact": "packages/game-iracing-metadata/src/session-info/catalog.ts"
           },
           "limitations": [],
           "execution": {
@@ -45459,11 +45464,16 @@
             "version": "0.20.0",
             "deterministic": true,
             "declaredInputs": [
+              "iRacing.SessionInfo.subSessionId",
+              "iRacing.SessionInfo.sessionId",
+              "iRacing.SessionInfo.sessionNum",
+              "iRacing.Lap",
+              "iRacing.SessionTime",
               "iRacing.LapCurrentLapTime",
               "iracing.sdkCurrentLapTime"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "cd7dc4a5122228fbdb8013752e37d4c182b8772c9b2f9728526f8dcda0615a47"
+            "codeHash": "50acf3564a30e2dbe7f3d36848ef7c3340bf05747a20fab2e3bb45a75dcdaca3"
           }
         },
         "lmu": {

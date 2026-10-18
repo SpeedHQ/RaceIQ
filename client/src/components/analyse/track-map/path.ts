@@ -74,7 +74,6 @@ export function alignOfficialReferenceToPositions(
   };
 }
 
-
 export function alignTrackBoundariesToPositions(
   boundaries: TrackMapBoundaries | null,
   positions: Point[],
@@ -99,6 +98,9 @@ export function alignTrackBoundariesToPositions(
     pitLane: boundaries.pitLane ? align(boundaries.pitLane) : null,
   };
 }
+
+
+
 export function projectPointOntoPath(point: Point, path: readonly Point[]): Point | null {
   if (path.length < 2) return null;
   let bestDistance = Number.POSITIVE_INFINITY;

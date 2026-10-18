@@ -20,6 +20,7 @@ temperatures, pressures, fuel, energy, and lap-time values when data contains th
 Do not invent setup values or track landmarks absent from input.`;
 
 export const lmuServerAdapter: ServerGameAdapter = {
+  parserStateIsFrameLocal: true,
   ...lmuAdapter,
   runtime: {
     pit: {

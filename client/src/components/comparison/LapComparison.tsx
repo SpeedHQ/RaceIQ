@@ -104,7 +104,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     return null;
   }, [outlineData]);
   const trackOutlineBounds = useMemo(() => {
-    if (!outlineData || Array.isArray(outlineData) || !("ribbonEdges" in outlineData)) return null;
+    if (gameId !== "iracing" || !outlineData || Array.isArray(outlineData) || !("ribbonEdges" in outlineData)) return null;
     const rawEdges = outlineData.ribbonEdges;
     if (!rawEdges || typeof rawEdges !== "object" || !("leftEdge" in rawEdges) || !("rightEdge" in rawEdges)) return null;
     const isPointList = (value: unknown): value is Point[] =>
@@ -118,15 +118,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
       return { x: (left.x + right.x) / 2, z: (left.z + right.z) / 2 };
     });
     return { leftEdge, rightEdge, centerLine, pitLane: null, coordSystem: "official-map" };
-  }, [outlineData]);
-  const fastestLapId = useMemo(() => {
-    let fastest: LapMeta | undefined;
-    for (const lap of laps) {
-      if (lap.trackId !== selectedTrack || !lap.isValid || (lap.carId !== carAId && lap.carId !== carBId)) continue;
-      if (!fastest || lap.lapTime < fastest.lapTime) fastest = lap;
-    }
-    return fastest?.id ?? null;
-  }, [laps, selectedTrack, carAId, carBId]);
+  }, [outlineData, gameId]);
   const { data: sectorsData } = useTrackSectors(selectedTrack ?? undefined);
   const trackSegments = useMemo((): { type: string; name: string; startFrac: number; endFrac: number }[] | null => {
     const s = sectorsData as { segments?: { type: string; name: string; startFrac: number; endFrac: number }[] } | undefined;
@@ -455,11 +447,11 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
           >
             <CompareTrackMap
               outline={trackOutline ?? syntheticOutline}
-              outlineBounds={trackOutlineBounds}
+              outlineBounds={gameId === "iracing" ? trackOutlineBounds : null}
               traces={mergedComparison?.traces ?? comparison.traces}
               lapAId={comparison.lapA.id}
               lapBId={comparison.lapB.id}
-              fastestLapId={fastestLapId}
+              
               labelA={`${carNames.get(comparison.lapA.carId!) || m.compare_car_a_fallback()} — ${m.compare_lap_label()} ${comparison.lapA.lapNumber}`}
               labelB={`${carNames.get(comparison.lapB.carId!) || m.compare_car_b_fallback()} — ${m.compare_lap_label()} ${comparison.lapB.lapNumber}`}
               lapTimeA={formatLapTime(comparison.lapA.lapTime)}

@@ -9,12 +9,12 @@ import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LapDetectorCallbacks } from "@raceiq/backend-core/lap-detection/types";
+import { LapDetector } from "@raceiq/backend-core/lap-detection/detector";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
 import { LiveTelemetryPipeline, stopMaintenanceTasks } from "@raceiq/backend-core/telemetry/live-pipeline"
-import { isForzaRaceOffPacket, parseForzaPacket } from "@raceiq/game-fm-2023/parser";
-import { iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
+import { isForzaRaceOffPacket } from "@raceiq/game-fm-2023/parser";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -161,40 +161,35 @@ describe("LiveTelemetryPipeline live issue gating", () => {
     expect(isForzaRaceOffPacket(Buffer.alloc(100))).toBe(false);
   });
 
-  test("keeps one FM session and replaces pit snapshot before saving final lap", async () => {
-    const { pipeline, db } = makePipeline();
-    const frames = iterateSessionFrames(
-      gunzipSync(readFileSync("test/artifacts/sessions/fm-2023-with-pitting.bin.gz")),
-    );
-    let active = false;
+  test("finalizes retained Forza snapshot ownership without inserting a duplicate lap", async () => {
+    const db = new CapturingDbAdapter();
+    const detector = new LapDetector({ db, bypassPacketRateFilter: true });
+    const ownership: Array<{ kind: string; window: { status: string; startOffset: number | null; frameCount: number } | null }> = [];
+    detector.subscribeOwnership((transition) => ownership.push({
+      kind: transition.kind,
+      window: transition.window ? {
+        status: transition.window.status,
+        startOffset: transition.window.startOffset,
+        frameCount: transition.window.frameCount,
+      } : null,
+    }));
+    const packet = pkt({ LapNumber: 1, CurrentLap: 30, DistanceTraveled: 2_000 });
+    detector.observeSourceRecord(1_000, 1_100, 10);
+    await detector.feed(packet, 1_000, 10);
+    detector.drainOwnershipTransitions();
+    await detector.snapshotIncompleteLap();
+    detector.drainOwnershipTransitions();
+    expect(db.laps).toHaveLength(1);
 
-    for (const frame of frames) {
-      const packet = parseForzaPacket(frame);
-      if (packet) {
-        active = true;
-        await pipeline.processPacket(packet);
-      } else if (active && isForzaRaceOffPacket(frame)) {
-        active = false;
-        await pipeline.snapshotIncompleteLap();
-      }
-    }
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(db.sessions).toHaveLength(1);
-    expect(db.laps.map((lap) => lap.lapNumber)).toEqual([0, 1, 2]);
-    expect(db.laps[1]).toMatchObject({
-      lapNumber: 1,
-      isValid: false,
-      invalidReason: "inlap",
+    await detector.finalizeCurrentSession();
+    detector.drainOwnershipTransitions();
+    expect(db.laps).toHaveLength(1);
+    expect(ownership.filter((item) => item.kind === "final-incomplete").at(-1)?.window).toMatchObject({
+      status: "incomplete",
+      startOffset: db.laps[0]!.rawByteOffset,
+      frameCount: db.laps[0]!.rawFrameCount,
     });
-    expect(db.laps[1]!.lapTime).toBeCloseTo(98.955, 3);
-    expect(db.laps[2]).toMatchObject({
-      lapNumber: 2,
-      isValid: false,
-      invalidReason: "outlap",
-    });
-  }, { timeout: 30_000 });
+  });
 });
 
 function completedPackets(): TelemetryPacket[] {
@@ -220,7 +215,7 @@ describe("completed-lap recording boundary", () => {
       packets: completedPackets(), lapDistStart: 0, lapTime: 90, isValid: true, sectors: null,
     });
     callbacks.onLapSaved!({
-      lapId: 101, lapNumber: 2, lapTime: 90, isValid: true,
+      sessionId: 1, lapId: 101, lapNumber: 2, lapTime: 90, isValid: true,
       sectors: null, estimatedBestLapTime: 90,
     });
     await pipeline.flushIncompleteLap();

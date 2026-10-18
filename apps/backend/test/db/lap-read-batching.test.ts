@@ -46,7 +46,7 @@ mock.module("@raceiq/backend-core/db/telemetry-replay-storage", () => ({
   parseSessionLapsBatched: parseSessionLapsBatchedGate,
 }));
 
-const { getLapsByIds } = await import("@raceiq/backend-core/db/lap-read-queries");
+const { getLapsByIds, getSessionLaps } = await import("@raceiq/backend-core/db/lap-read-queries");
 
 // Bun module mocks are process-global and cannot be restored. These wrappers
 const sessionIds: number[] = [];
@@ -91,6 +91,36 @@ test("getLapsByIds batches cache misses from one session", async () => {
   expect(parseSessionLapsBatched).toHaveBeenCalledTimes(1);
   expect(parseSessionLapsBatched.mock.calls[0]?.[1]).toHaveLength(2);
   expect(parseRawLapFrames).not.toHaveBeenCalled();
+});
+
+test("lap export readiness includes usable legacy raw captures and published bundles", async () => {
+  const complete = await db.insert(sessions).values({
+    carId: "1", trackId: "2", gameId: "ac-evo",
+    captureLayoutVersion: 1, captureManifestFile: "/captures/session-1/manifest.json",
+  }).returning({ id: sessions.id }).get();
+  const incomplete = await db.insert(sessions).values({
+    carId: "1", trackId: "2", gameId: "ac-evo", captureLayoutVersion: 1,
+  }).returning({ id: sessions.id }).get();
+  const legacy = await db.insert(sessions).values({
+    carId: "1", trackId: "2", gameId: "ac-evo", rawFile: "/captures/legacy.bin",
+  }).returning({ id: sessions.id }).get();
+  sessionIds.push(complete.id, incomplete.id, legacy.id);
+  await db.insert(laps).values([
+    { sessionId: complete.id, lapNumber: 1, lapTime: 90, isValid: true, captureChunkId: "lap-1" },
+    { sessionId: complete.id, lapNumber: 2, lapTime: 91, isValid: true },
+    { sessionId: incomplete.id, lapNumber: 1, lapTime: 92, isValid: true, captureChunkId: "lap-3" },
+    { sessionId: legacy.id, lapNumber: 1, lapTime: 93, isValid: true, rawByteOffset: 12, rawFrameCount: 100 },
+  ]).run();
+
+  const publishedLaps = await getSessionLaps("ac-evo", complete.id);
+  const unpublishedLaps = await getSessionLaps("ac-evo", incomplete.id);
+  const legacyLaps = await getSessionLaps("ac-evo", legacy.id);
+
+  expect(publishedLaps.map(({ lapNumber, standaloneCaptureReady }) => [lapNumber, standaloneCaptureReady])).toEqual([
+    [1, true], [2, false],
+  ]);
+  expect(unpublishedLaps[0]?.standaloneCaptureReady).toBe(false);
+  expect(legacyLaps[0]?.standaloneCaptureReady).toBe(true);
 });
 
 test("getLapsByIds decodes different sessions in parallel and preserves order", async () => {

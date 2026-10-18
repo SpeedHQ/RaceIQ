@@ -152,7 +152,9 @@ async function findLegacyFiles(root: string): Promise<string[]> {
 async function buildEntries(): Promise<JournalEntry[]> {
   const root = resolveRecordingDirectory();
   const legacy = await findLegacyFiles(root);
-  const refs = await db.select({ id: sessions.id, gameId: sessions.gameId, ownership: sessions.ownership, rawFile: sessions.rawFile }).from(sessions).all();
+  const refs = await db.select({ id: sessions.id, gameId: sessions.gameId, ownership: sessions.ownership, rawFile: sessions.rawFile, captureArchiveFile: sessions.captureArchiveFile }).from(sessions).all();
+  const referencedArchives = new Set(refs.flatMap((ref) => ref.captureArchiveFile ? [resolve(ref.captureArchiveFile)] : []));
+  const unreferencedLegacy = legacy.filter((path) => !referencedArchives.has(resolve(path)));
   const grouped = new Map<string, typeof refs>();
   const filesystemRoot = await realpath(root).catch(() => root);
   const knownGames = new Set<string>(getAllGames().map((game) => game.id));
@@ -171,7 +173,7 @@ async function buildEntries(): Promise<JournalEntry[]> {
     list.push(ref);
     grouped.set(path, list);
   }
-  const candidates = new Set(legacy);
+  const candidates = new Set(unreferencedLegacy);
   for (const path of grouped.keys()) candidates.add(path);
   const entries: JournalEntry[] = [];
   for (const source of candidates) {

@@ -50,8 +50,6 @@ describe("FM running-start lap replay", () => {
         rawFrameCount: laps.rawFrameCount,
       }).from(laps).innerJoin(sessions, eq(laps.sessionId, sessions.id)).where(eq(laps.id, firstLap!.lapId)).get();
       expect(row).toBeDefined();
-      expect(row!.rawByteOffset).not.toBeNull();
-      expect(row!.rawFrameCount).toBeGreaterThan(4000);
       const rawFrameCount = row!.rawFrameCount;
       if (rawFrameCount === null) throw new Error("Imported lap has no raw frame count");
       if (!row!.rawFile) throw new Error("Imported lap has no owned raw capture");

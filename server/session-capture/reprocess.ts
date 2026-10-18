@@ -8,12 +8,15 @@ import type { GameId } from "@raceiq/shared/games/ids";
 import { loadSessionSource, iterateSessionCaptureRecordsFromSource } from "./source-loader";
 import { packetIndexToLegacyMotecOffset } from "../motec/source-archive";
 import { getLapsForSession, updateLapRawIndex, replaceLapsForSession } from "../db/lap-reprocessing-queries";
-import { updateSessionRawFile } from "../db/session-queries";
-import { db } from "../db/index";
-import { sessions } from "../db/schema";
+import { liveCaptures, sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
+import { db } from "../db/index";
+import { enqueueSessionCaptureSplit, updateSessionRawFile } from "../db/session-queries";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
+import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "./frame-time";
+import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
+import { isDelayedFinishContext } from "../db/telemetry-replay-storage";
 export interface ReprocessResult {
   sessionId: number;
   lapsDetected: number;
@@ -44,7 +47,9 @@ export class SessionNotFoundError extends Error {
  * Updates lap frame indexes and metadata in the DB.
  */
 export async function reprocessSession(sessionId: number): Promise<ReprocessResult> {
-  return withSessionCaptureMaintenanceLock(() => reprocessSessionUnlocked(sessionId));
+  const result = await withSessionCaptureMaintenanceLock(() => reprocessSessionUnlocked(sessionId));
+  await enqueueSessionCaptureSplit(sessionId);
+  return result;
 }
 
 async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessResult> {
@@ -53,6 +58,11 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
     .from(sessions)
     .where(eq(sessions.id, sessionId))
     .all();
+  const liveCapture = await db.select({ status: liveCaptures.status }).from(liveCaptures)
+    .where(eq(liveCaptures.sessionId, sessionId)).get();
+  if (liveCapture && ["recording", "finalizing", "recovering"].includes(liveCapture.status)) {
+    throw new Error(`Session ${sessionId} live capture is ${liveCapture.status}; reprocess after capture recovery/seal`);
+  }
   const session = sessionRows[0];
   if (!session) {
     throw new SessionNotFoundError(sessionId);
@@ -86,9 +96,11 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
   } else {
     // Canonical captures, including gzip and sparse records, stream one frame
     // at a time; only MoTeC archives require packet materialization.
-    let parserState = serverGame.createParserState?.() ?? null;
+    let parserState: unknown = serverGame.createParserState?.() ?? null;
     let inContext = false;
     let segmentHasFrames = false;
+    let lastOwnedPacket: TelemetryPacket | null = null;
+    let sourceOrdinal = 0;
     for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: true })) {
       if (record.kind === "segment-boundary") {
         // Imports start a fresh detector per segment while retaining the same
@@ -98,6 +110,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
         parserState = serverGame.createParserState?.() ?? null;
         segmentHasFrames = false;
         inContext = false;
+        lastOwnedPacket = null;
         continue;
       }
       if (record.kind === "segment-context") {
@@ -109,12 +122,30 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
         inContext = false;
         continue;
       }
+      if (record.kind === "parser-bootstrap") {
+        if (record.gameId !== gameId || record.formatVersion !== PARSER_BOOTSTRAP_VERSION) {
+          throw new Error("Parser bootstrap does not match reprocessed game");
+        }
+        if (!serverGame.restoreParserCheckpoint) throw new Error(`Parser checkpoint restore unavailable for ${gameId}`);
+        parserState = serverGame.restoreParserCheckpoint(parserState, record.payload);
+        inContext = false;
+        continue;
+      }
       if (record.kind !== "frame") continue;
-      if (!inContext) segmentHasFrames = true;
+      const ordinal = sourceOrdinal++;
       const packet = serverGame.tryParse(record.frame, parserState);
-      if (packet && !inContext) {
-        applyFrameTime(packet, record.frameTimeMs);
-        await detector.feed(packet, record.offset);
+      if (!packet) continue;
+      applyFrameTime(packet, record.frameTimeMs);
+      if (inContext) {
+        // Completion context may finish the preceding lap, but never owns source records.
+        if (lastOwnedPacket && (packet.LapNumber > lastOwnedPacket.LapNumber ||
+            isDelayedFinishContext(lastOwnedPacket, packet))) {
+          await detector.feed(packet, undefined, ordinal);
+        }
+      } else {
+        segmentHasFrames = true;
+        lastOwnedPacket = packet;
+        await detector.feed(packet, record.offset, ordinal);
       }
     }
   }
@@ -169,7 +200,10 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
     return candidates[0]?.lap;
   });
   const uniqueInPlaceMatches = new Set(inPlaceMatches.filter(Boolean).map((lap) => lap!.id)).size === inPlaceMatches.length;
-  if (detectedLaps.length === existingLaps.length && uniqueInPlaceMatches && inPlaceMatches.every((lap, index) => lap?.lapNumber === detectedLaps[index]!.lapNumber) && !identityChanged && session.lapDetectorVersion !== null) {
+  if (detectedLaps.length === existingLaps.length && uniqueInPlaceMatches &&
+      inPlaceMatches.every((lap, index) => lap?.lapNumber === detectedLaps[index]!.lapNumber &&
+        lap.rawByteOffset === detectedLaps[index]!.rawByteOffset && lap.rawFrameCount === detectedLaps[index]!.rawFrameCount) &&
+      !identityChanged && session.lapDetectorVersion !== null) {
     strategy = "in-place";
     for (let index = 0; index < detectedLaps.length; index++) {
       const detected = detectedLaps[index]!;

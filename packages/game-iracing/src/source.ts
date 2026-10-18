@@ -41,7 +41,7 @@ interface QueuedIRacingFrame {
 }
 
 async function dispatchThroughParser(rawFrame: Buffer, frameTimeMs?: number): Promise<void> {
-  const packet = parsePacket(rawFrame);
+  const packet = parsePacket(rawFrame, frameTimeMs);
   if (packet?.IsRaceOn) {
     await processPacket(packet, rawFrame, frameTimeMs);
   }

@@ -9,8 +9,8 @@ import { GForceCircle } from "../telemetry/GForceCircle";
 import { TireDiagram } from "../telemetry/TireDiagram";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import type { Point, SemanticAnalysisFrame, TrackMapBoundaries } from "./track-map/types";
-import { alignTrackBoundariesToPositions } from "./track-map/path";
 
+import { alignTrackBoundariesToPositions } from "./track-map/path";
 interface Props {
   onVizModeChange: (mode: "2d" | "3d") => void;
   vizMode: "2d" | "3d";
@@ -82,6 +82,7 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
     return () => cancelAnimationFrame(animationFrame);
   }, [cursorRef]);
   const visualFrame = displayTelemetryRef.current[visualCursorIdx] ?? semanticFrames[visualCursorIdx] ?? currentFrame;
+
   const sceneBoundaries = useMemo(
     () => gameId === "lmu" && lapLine ? alignTrackBoundariesToPositions(boundaries, lapLine) : boundaries,
     [boundaries, gameId, lapLine],

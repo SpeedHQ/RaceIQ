@@ -1,7 +1,9 @@
+import { randomUUID } from "node:crypto";
 import { cacheDelete } from "./telemetry-replay-storage";
-import { and, eq, isNotNull, or, inArray } from "drizzle-orm";
+import { clearSessionCaptureCache } from "../session-capture/source-loader";
+import { and, eq, isNotNull, or, inArray, sql } from "drizzle-orm";
 import { db } from "./index";
-import { laps, sessions, lapMetrics, lapAnalyses, compareAnalyses, lineSpreadCache } from "./schema";
+import { laps, sessions, lapMetrics, lapAnalyses, compareAnalyses, lineSpreadCache, sessionCaptureSplitJobs, liveCaptureMembers } from "./schema";
 import type { TelemetryVersionIdentity } from "@raceiq/shared/telemetry/version";
 
 export async function getLapsForSession(sessionId: number): Promise<Array<{
@@ -75,9 +77,31 @@ export async function replaceLapsForSession(
 ): Promise<void> {
   const invalidatedIds = await db.transaction(async (tx) => {
     const matchedIds = new Set(replacements.flatMap(({ lapId }) => lapId === null ? [] : [lapId]));
-    const rows = await tx.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
+    const rows = await tx.select({
+      id: laps.id, lapNumber: laps.lapNumber, rawByteOffset: laps.rawByteOffset, rawFrameCount: laps.rawFrameCount,
+    }).from(laps).where(eq(laps.sessionId, sessionId)).all();
+    const ownershipChanged = Boolean(sessionIdentity) || rows.length !== replacements.length || replacements.some((replacement) => {
+      const previous = replacement.lapId === null ? undefined : rows.find(({ id }) => id === replacement.lapId);
+      return !previous || previous.lapNumber !== replacement.lapNumber ||
+        previous.rawByteOffset !== replacement.rawByteOffset || previous.rawFrameCount !== replacement.rawFrameCount;
+    });
     const deleted = rows.map(({ id }) => id).filter((id) => !matchedIds.has(id));
     const invalidated = [...matchedIds];
+    if (ownershipChanged) {
+      await tx.delete(liveCaptureMembers).where(inArray(liveCaptureMembers.lapId, rows.map(({ id }) => id)));
+      await tx.update(sessions).set({ captureLayoutVersion: null, captureManifestFile: null, captureArchiveFile: null }).where(eq(sessions.id, sessionId));
+      await tx.update(laps).set({ captureChunkId: null, sourceFrameStart: null, sourceFrameCount: null }).where(eq(laps.sessionId, sessionId));
+      await tx.update(sessionCaptureSplitJobs).set({
+        jobId: randomUUID(), attemptId: sql`${sessionCaptureSplitJobs.attemptId} + 1`,
+        status: "failed", sequence: sql`${sessionCaptureSplitJobs.sequence} + 1`,
+        errorCode: "stale-publication", errorMessage: "Lap ownership changed during reprocessing",
+        stagingPath: null, updatedAt: new Date().toISOString(),
+      }).where(and(eq(sessionCaptureSplitJobs.sessionId, sessionId), or(
+        eq(sessionCaptureSplitJobs.status, "queued"), eq(sessionCaptureSplitJobs.status, "splitting"),
+        eq(sessionCaptureSplitJobs.status, "verifying"), eq(sessionCaptureSplitJobs.status, "publishing"),
+        eq(sessionCaptureSplitJobs.status, "ready"),
+      )));
+    }
     const invalidate = async (ids: readonly number[]) => {
       for (const id of ids) {
         await tx.delete(lapMetrics).where(eq(lapMetrics.lapId, id));
@@ -127,10 +151,11 @@ export async function replaceLapsForSession(
     if (sessionIdentity) {
       await tx.update(sessions).set(sessionIdentity).where(eq(sessions.id, sessionId));
     }
-    return { deleted, invalidated };
+    return { deleted, invalidated, ownershipChanged };
   });
   for (const id of invalidatedIds.deleted) cacheDelete(id);
   for (const id of invalidatedIds.invalidated) cacheDelete(id);
+  if (invalidatedIds.ownershipChanged) clearSessionCaptureCache();
 }
 
 

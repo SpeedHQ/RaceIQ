@@ -1968,10 +1968,92 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   },
   {
     version: 76,
+    name: "add lossless lap capture bundle references",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN capture_layout_version INTEGER`,
+      `ALTER TABLE sessions ADD COLUMN capture_manifest_file TEXT`,
+      `ALTER TABLE laps ADD COLUMN capture_chunk_id TEXT`,
+      `ALTER TABLE laps ADD COLUMN source_frame_start INTEGER`,
+      `ALTER TABLE laps ADD COLUMN source_frame_count INTEGER`,
+      `CREATE TABLE IF NOT EXISTS session_capture_split_jobs (
+        session_id INTEGER PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+        job_id TEXT NOT NULL UNIQUE,
+        attempt_id INTEGER NOT NULL DEFAULT 1,
+        pending_source_revision TEXT NOT NULL,
+        source_path TEXT NOT NULL,
+        staging_path TEXT,
+        status TEXT NOT NULL CHECK (status IN ('queued', 'splitting', 'verifying', 'publishing', 'ready', 'failed')),
+        error_code TEXT,
+        error_message TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+    ],
+  },
+  {
+    version: 77,
+    name: "persist capture split progress counters",
+    sql: [
+      `ALTER TABLE session_capture_split_jobs ADD COLUMN sequence INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE session_capture_split_jobs ADD COLUMN processed_source_frames INTEGER`,
+      `ALTER TABLE session_capture_split_jobs ADD COLUMN total_source_frames INTEGER`,
+      `ALTER TABLE session_capture_split_jobs ADD COLUMN completed_lap_artifacts INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE session_capture_split_jobs ADD COLUMN total_lap_artifacts INTEGER NOT NULL DEFAULT 0`,
+    ],
+  },
+  {
+    version: 78,
     name: "reconcile all AC Evo recordings to discover Tourist layouts",
     sql: [
       // Stored track IDs can predate native layout identity; discover layouts from captures.
       `UPDATE sessions SET lap_detector_version = NULL WHERE game_id = 'ac-evo'`,
+    ],
+  },
+  {
+    version: 79,
+    name: "add indexed gzip capture archive reference",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN capture_archive_file TEXT`,
+    ],
+  },
+  {
+    version: 80,
+    name: "persist incremental live capture publication and recovery journal",
+    sql: [
+      `CREATE TABLE live_captures (
+        session_id INTEGER PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+        capture_epoch TEXT NOT NULL UNIQUE, attempt TEXT NOT NULL,
+        source_path TEXT NOT NULL, archive_path TEXT NOT NULL,
+        source_device TEXT, source_inode TEXT,
+        generation INTEGER NOT NULL DEFAULT 0,
+        committed_archive_length INTEGER NOT NULL DEFAULT 0,
+        source_byte_length INTEGER NOT NULL DEFAULT 0,
+        source_record_count INTEGER NOT NULL DEFAULT 0,
+        source_durable_watermark INTEGER NOT NULL DEFAULT 0,
+        metadata_durable_watermark INTEGER NOT NULL DEFAULT 0,
+        durable_sequence INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL CHECK (status IN ('recording','finalizing','sealed','failed','recovering')),
+        error TEXT
+      )`,
+      `CREATE TABLE live_capture_members (
+        capture_epoch TEXT NOT NULL REFERENCES live_captures(capture_epoch) ON DELETE CASCADE,
+        generation INTEGER NOT NULL,
+        lap_id INTEGER REFERENCES laps(id) ON DELETE SET NULL,
+        ownership_revision INTEGER NOT NULL, descriptor TEXT NOT NULL, verification TEXT NOT NULL,
+        PRIMARY KEY(capture_epoch,generation)
+      )`,
+      `CREATE UNIQUE INDEX live_capture_member_lap_idx ON live_capture_members(lap_id)`,
+      `CREATE TABLE live_capture_journal (
+        capture_epoch TEXT NOT NULL REFERENCES live_captures(capture_epoch) ON DELETE CASCADE,
+        sequence INTEGER NOT NULL, source_byte_end INTEGER NOT NULL, payload TEXT NOT NULL,
+        PRIMARY KEY(capture_epoch,sequence)
+      )`,
+      `CREATE INDEX live_capture_journal_effective_idx ON live_capture_journal(
+        capture_epoch, coalesce(cast(json_extract(payload, '$.startByteOffset') as integer), source_byte_end), sequence
+      )`,
+      `CREATE INDEX live_capture_journal_lap_idx ON live_capture_journal(
+        capture_epoch, cast(json_extract(payload, '$.lapId') as integer), sequence
+      )`,
     ],
   },
 ];

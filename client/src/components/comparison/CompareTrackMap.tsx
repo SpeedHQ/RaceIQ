@@ -1,7 +1,6 @@
 import type { GameId } from "@raceiq/shared/games/ids";
 import { flipBoundaries, flipPoints, needsTrackFlip } from "@raceiq/shared/racing/tracks/coords"
 import { useIRacingTrackMapTelemetry } from "@/hooks/laps";
-import { useAlignedTelemetry } from "@/hooks/aligned-telemetry";
 import type { AlignedTrace } from "@raceiq/shared/racing/comparison/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Switch } from "@/components/ui/switch";
@@ -28,7 +27,6 @@ interface CompareTrackMapProps {
   traces: AlignedTrace;
   lapAId: number;
   lapBId: number;
-  fastestLapId: number | null;
   labelA: string;
   labelB: string;
   lapTimeA: string;
@@ -47,7 +45,6 @@ export function CompareTrackMap({
   traces,
   lapAId,
   lapBId,
-  fastestLapId,
   segments,
   hoveredDistanceRef,
   redrawRef,
@@ -67,15 +64,8 @@ export function CompareTrackMap({
   useEffect(() => {
     followCarRef.current = followCar;
   }, [followCar]);
-  const [showFastestLapLine, setShowFastestLapLine] = useState(false);
-  const fetchFastestLapLine = showFastestLapLine && fastestLapId != null && fastestLapId !== lapAId && fastestLapId !== lapBId;
-  const fastestLapQueryIds = useMemo(() => (fetchFastestLapLine && gameId !== "iracing" && fastestLapId != null ? [fastestLapId] : []), [fetchFastestLapLine, fastestLapId, gameId]);
-  const fastestLapRequest = useMemo(() => (fetchFastestLapLine ? { step: 1 as const } : null), [fetchFastestLapLine]);
-  const { data: fastestLapTelemetry } = useAlignedTelemetry(fastestLapQueryIds, fastestLapRequest);
   const { data: lapAMapTelemetry } = useIRacingTrackMapTelemetry(gameId === "iracing" ? lapAId : null);
   const { data: lapBMapTelemetry } = useIRacingTrackMapTelemetry(gameId === "iracing" ? lapBId : null);
-  const fastestLapMapId = fetchFastestLapLine && gameId === "iracing" ? fastestLapId : null;
-  const { data: fastestLapMapTelemetry } = useIRacingTrackMapTelemetry(fastestLapMapId);
 
 
   // Fetch track boundaries
@@ -107,11 +97,11 @@ export function CompareTrackMap({
   const measuredMapPaths = useMemo(
     () => gameId === "iracing"
       ? buildIRacingMeasuredMapPaths(
-          [lapAMapTelemetry, lapBMapTelemetry, fastestLapMapTelemetry],
+          [lapAMapTelemetry, lapBMapTelemetry],
           traces.distance,
         )
       : [],
-    [gameId, lapAMapTelemetry, lapBMapTelemetry, fastestLapMapTelemetry, traces.distance],
+    [gameId, lapAMapTelemetry, lapBMapTelemetry, traces.distance],
   );
   const iracingReference = useMemo(() => {
     if (gameId !== "iracing") return null;
@@ -338,36 +328,6 @@ export function CompareTrackMap({
       positionZB: zs(pathB, traces.positionZB),
     };
   }, [gameId, iracingReference, measuredMapPaths, traces, alignedOutline]);
-  const fastestLapLine = useMemo(() => {
-    if (!showFastestLapLine || fastestLapId == null) return null;
-    const pointsFromValues = (xValues?: ArrayLike<number>, zValues?: ArrayLike<number>) => {
-      if (!xValues || !zValues) return null;
-      const points = Array.from({ length: Math.min(xValues.length, zValues.length) }, (_, index) => ({
-        x: xValues[index] ?? Number.NaN,
-        z: zValues[index] ?? Number.NaN,
-      })).filter((point) => Number.isFinite(point.x) && Number.isFinite(point.z) && (point.x !== 0 || point.z !== 0));
-      return points.length > 1 ? points : null;
-    };
-    if (gameId === "iracing") {
-      if (fastestLapId === lapAId) return pointsFromValues(mapTraces.positionXA, mapTraces.positionZA);
-      if (fastestLapId === lapBId) return pointsFromValues(mapTraces.positionXB, mapTraces.positionZB);
-      const measured = iracingReference?.outline ? measuredMapPaths[2] : null;
-      const projected = projectIRacingDistanceToOutline(traces.distance, alignedOutline);
-      return pointsFromValues(
-        (measured ?? projected)?.map((point) => point?.x ?? Number.NaN),
-        (measured ?? projected)?.map((point) => point?.z ?? Number.NaN),
-      );
-    }
-    const lap = fastestLapTelemetry?.laps[0];
-    return pointsFromValues(
-      fastestLapId === lapAId ? traces.positionXA : fastestLapId === lapBId ? traces.positionXB : lap?.positionX,
-      fastestLapId === lapAId ? traces.positionZA : fastestLapId === lapBId ? traces.positionZB : lap?.positionZ,
-    );
-  }, [showFastestLapLine, fastestLapId, lapAId, lapBId, fastestLapTelemetry, traces, gameId, mapTraces, iracingReference, measuredMapPaths, alignedOutline]);
-  const displayFastestLapLine = useMemo(
-    () => fastestLapLine?.map((point) => ({ x: telXFn(point.x), z: point.z })) ?? null,
-    [fastestLapLine, telXFn],
-  );
 
 
   const drawBoth = useCallback(() => {
@@ -395,7 +355,7 @@ export function CompareTrackMap({
                 })
                 .filter((sp) => Number.isFinite(sp.x) && Number.isFinite(sp.z) && (sp.x !== 0 || sp.z !== 0))
             : undefined;
-        drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, mapTraces, hd, null, segPts, false, alignedBoundaries, telXFn, false, false, displayFastestLapLine);
+        drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, mapTraces, hd, null, segPts, false, alignedBoundaries, telXFn, false, false, gameId === "iracing");
       }
     }
 
@@ -413,7 +373,7 @@ export function CompareTrackMap({
       if (ctx) {
         ctx.scale(dpr, dpr);
         const zoom = hd != null ? computeZoom(mapTraces, hd, trackRange, telXFn, alignedOutline) : null;
-        drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, mapTraces, hd, zoom, undefined, followCarRef.current, alignedBoundaries, telXFn, true, true, displayFastestLapLine);
+        drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, mapTraces, hd, zoom, undefined, followCarRef.current, alignedBoundaries, telXFn, true, true, gameId === "iracing");
 
         if (hd != null) {
           const index = findTraceIndexAtDistance(mapTraces.distance, hd);
@@ -443,7 +403,7 @@ export function CompareTrackMap({
         prevActiveSegRef.current = activeIdx;
       }
     }
-  }, [alignedOutline, mapTraces, hoveredDistanceRef, segments, alignedBoundaries, telXFn, trackRange, displayFastestLapLine]);
+  }, [alignedOutline, mapTraces, hoveredDistanceRef, segments, alignedBoundaries, telXFn, trackRange, gameId]);
   const redrawFrameRef = useRef<number | null>(null);
   const scheduleDraw = useCallback(() => {
     if (redrawFrameRef.current != null) return;
@@ -476,16 +436,6 @@ export function CompareTrackMap({
       {/* Overview — full track, static */}
       <div ref={overviewContainerRef} className="relative min-h-32 basis-56 shrink border-b border-app-border">
         <span className="absolute top-2 left-2 z-10 text-app-caption text-app-text-dim uppercase tracking-wider">{m.compare_overview()}</span>
-        <div className="absolute top-2 right-2 z-10 flex items-center gap-2 rounded border border-app-border-input bg-app-surface-alt/80 px-2 py-1">
-          <Switch
-            size="sm"
-            checked={showFastestLapLine}
-            disabled={fastestLapId == null}
-            aria-label={m.race_result_fastest_lap()}
-            onCheckedChange={setShowFastestLapLine}
-          />
-          <span className="text-app-caption text-app-text-muted">{m.race_result_fastest_lap()}</span>
-        </div>
         {alignedOutline.length < 2 ? (
           <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">{m.compare_no_outline()}</div>
         ) : (

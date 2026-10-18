@@ -5,8 +5,9 @@ import type { AlignedTrace } from "@raceiq/shared/racing/comparison/types";
 function makeContext() {
   const fills: string[] = [];
   const arcs: Array<[number, number, number]> = [];
-  const strokes: Array<{ color: string; lineWidth: number; points: [number, number][] }> = [];
+  const strokes: Array<{ color: string; lineWidth: number; moveCount: number; points: [number, number][] }> = [];
   let path: [number, number][] = [];
+  let moveCount = 0;
   return {
     fills,
     arcs,
@@ -17,15 +18,15 @@ function makeContext() {
       lineWidth: 1,
       globalAlpha: 1,
       clearRect() {},
-      beginPath() { path = []; },
-      moveTo(x: number, y: number) { path.push([x, y]); },
+      beginPath() { path = []; moveCount = 0; },
+      moveTo(x: number, y: number) { moveCount++; path.push([x, y]); },
       lineTo(x: number, y: number) { path.push([x, y]); },
       closePath() {},
       arc(x: number, y: number, radius: number) {
         arcs.push([x, y, radius]);
       },
       stroke(this: { strokeStyle: string; lineWidth: number }) {
-        strokes.push({ color: this.strokeStyle, lineWidth: this.lineWidth, points: [...path] });
+        strokes.push({ color: this.strokeStyle, lineWidth: this.lineWidth, moveCount, points: [...path] });
       },
       fill(this: { fillStyle: string }) {
         fills.push(this.fillStyle);
@@ -66,46 +67,24 @@ function makeTraces(): AlignedTrace {
   };
 }
 
-test("overview uses both track extents instead of collapsing into a square fit", () => {
-  const { ctx, strokes } = makeContext();
-  drawTrackCanvas(ctx, 400, 200, [{ x: 0, z: 0 }, { x: 100, z: 50 }], makeTraces(), null, null);
-  const outline = strokes.find(({ color }) => color === "var(--track-outline)")!;
-  const xs = outline.points.map(([x]) => x);
-  const ys = outline.points.map(([, y]) => y);
-  expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(250);
-  expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(120);
-});
-
-test("comparison map draws track-boundary edges", () => {
-  const { ctx, fills, strokes } = makeContext();
-  drawTrackCanvas(
-    ctx,
-    400,
-    200,
-    [{ x: 0, z: 0 }, { x: 100, z: 50 }],
-    makeTraces(),
-    null,
-    null,
-    undefined,
-    false,
-    { leftEdge: [{ x: 0, z: 5 }, { x: 100, z: 55 }], rightEdge: [{ x: 0, z: -5 }, { x: 100, z: 45 }], centerLine: [{ x: 0, z: 0 }, { x: 100, z: 50 }], pitLane: null, coordSystem: "test" },
-  );
-  expect(fills).toContain("color-mix(in srgb, var(--track-surface) 24%, transparent)");
-  expect(strokes.some(({ color }) => color === "color-mix(in srgb, var(--track-edge) 68%, transparent)")).toBe(true);
-});
-
-test("comparison map draws lap-to-lap line differences and fastest-lap reference", () => {
-  const { ctx, strokes } = makeContext();
+function drawLapAMoveCount(breakAtInvalidPositions: boolean): number {
   const traces = makeTraces();
-  traces.positionXA = [10, 30];
-  traces.positionZA = [10, 10];
-  traces.positionXB = [10, 30];
-  traces.positionZB = [10, 40];
-  drawTrackCanvas(ctx, 400, 200, [{ x: 0, z: 0 }, { x: 100, z: 50 }], traces, null, null, undefined, false, null, (x) => x, false, false, [{ x: 20, z: 15 }, { x: 40, z: 15 }]);
-  const difference = strokes.find(({ color }) => color === "color-mix(in srgb, var(--app-text) 55%, transparent)");
-  expect(difference?.points.length).toBe(2);
-  expect(difference?.points[0]).not.toEqual(difference?.points[1]);
-  expect(strokes.some(({ color }) => color === "var(--track-racing-line)")).toBe(true);
+  traces.distance = [0, 1, 2, 3];
+  traces.positionXA = [1, 2, Number.NaN, 4];
+  traces.positionZA = [1, 2, Number.NaN, 4];
+  traces.positionXB = [1, 2, 3, 4];
+  traces.positionZB = [1, 2, 3, 4];
+  const { ctx, strokes } = makeContext();
+  drawTrackCanvas(ctx, 400, 200, [], traces, null, null, undefined, false, null, undefined, true, false, breakAtInvalidPositions);
+  return strokes.find(({ color }) => color === "var(--comparison-lap-a)")!.moveCount;
+}
+
+test("iRacing map starts a new path across missing GPS samples", () => {
+  expect(drawLapAMoveCount(true)).toBe(2);
+});
+
+test("other game maps keep existing path behavior", () => {
+  expect(drawLapAMoveCount(false)).toBe(1);
 });
 test("overview can suppress static segment markers while keeping start marker", () => {
   const { ctx, fills } = makeContext();

@@ -9,6 +9,7 @@ import { readWString } from "./utils";
 import { getAccParserCarByModel, getAccParserTrackByName } from "@raceiq/game-acc-metadata/parser-data-resolver";
 
 
+// ACC parser is frame-local; checkpoint restore requires no payload.
 export const accParser: TelemetryParser<null> = {
   canHandle(buf) { return buf.length > 4 && buf.readUInt32LE(0) === ACC_PACKED_MAGIC; },
   tryParse(buf, _state, timestampMs = 0): TelemetryPacket | null {
