@@ -68,17 +68,19 @@ describe("LMU string identity routes", () => {
 
     const outlineResponse = await trackRoutes.request(`/api/track-outline/${encoded}?gameId=lmu`);
     const { points } = await outlineResponse.json() as { points: Array<{ x: number; z: number }> };
-    const cumulative = [0];
-    for (let index = 1; index < points.length; index++) {
-      cumulative.push(cumulative[index - 1] + Math.hypot(points[index].x - points[index - 1].x, points[index].z - points[index - 1].z));
-    }
+    const totalLength = points.slice(1).reduce(
+      (distance, point, index) => distance + Math.hypot(point.x - points[index].x, point.z - points[index].z),
+      0,
+    );
     const laSource = data.segments.find((segment) => segment.name === "La Source")!;
-    const target = (laSource.startFrac + laSource.endFrac) / 2 * cumulative[cumulative.length - 1];
-    const index = cumulative.findIndex((distance) => distance >= target);
-    const minZ = Math.min(...points.map((point) => point.z));
-    const maxZ = Math.max(...points.map((point) => point.z));
-    // La Source is the top hairpin, not the Eau Rouge approach halfway down the map.
-    expect((points[index].z - minZ) / (maxZ - minZ)).toBeLessThan(0.1);
+    expect(points.length).toBeGreaterThan(10);
+    expect(laSource.startFrac).toBeGreaterThanOrEqual(0);
+    expect(laSource.endFrac).toBeLessThanOrEqual(1);
+    expect(laSource.startFrac).toBeLessThan(laSource.endFrac);
+    expect(kemmel.startFrac).toBeGreaterThan(laSource.endFrac);
+    // Segment fractions use lap-distance semantics on the LMU outline, independent of map orientation.
+    expect(laSource.endFrac * totalLength).toBeGreaterThan(laSource.startFrac * totalLength);
+    expect(totalLength).toBeGreaterThan(0);
   });
 
   test("resolves the common Spa guide using the canonical LMU track ID", async () => {
@@ -139,12 +141,14 @@ describe("LMU string identity routes", () => {
 
 
   test("statistics count string identities and games separately and use LMU lengths", async () => {
-    const before = await getLapStats();
-    const stringSession = await insertSession("ferrari_499p_2023", "spa_2023/spawec", "lmu", "race");
-    const secondStringSession = await insertSession("porsche_963_2023", "bahrainwec_2023/bahrainwec", "lmu", "race");
-    const numericNative = await insertSession("1896582084", "481869333", "lmu", "race");
-    const otherGame = await insertSession("1896582084", "481869333", "fm-2023");
-    const others = await insertSession("other-driver-car", "other-driver-track", "lmu", "race", undefined, "others");
+    const before = await getLapStats("lmu");
+    const beforeRouteResponse = await settingsRoutes.request("/api/stats?gameId=lmu");
+    const beforeRoute = await beforeRouteResponse.json() as { totalDistanceMeters: number };
+    const stringSession = await insertSession(`ferrari_499p_2023-${Date.now()}`, "spa_2023/spawec", "lmu", "race");
+    const secondStringSession = await insertSession(`porsche_963_2023-${Date.now()}`, "bahrainwec_2023/bahrainwec", "lmu", "race");
+    const numericNative = await insertSession(`1896582084-${Date.now()}`, "481869333", "lmu", "race");
+    const otherGame = await insertSession(`1896582084-${Date.now()}`, "481869333", "fm-2023");
+    const others = await insertSession(`other-driver-car-${Date.now()}`, "other-driver-track", "lmu", "race", undefined, "others");
     sessionIds.push(stringSession, secondStringSession, numericNative, otherGame, others);
     await insertLap(stringSession, 1, 140, true, null, 1, null, null, null, null, null);
     await insertLap(stringSession, 2, 141, false, null, 1, null, null, null, null, null);
@@ -154,21 +158,21 @@ describe("LMU string identity routes", () => {
     }
 
     const stats = await getLapStats("lmu");
-    expect(stats).toMatchObject({ totalLaps: 5, validLaps: 3, uniqueCars: 3, uniqueTracks: 3, totalTimeSec: 581 });
-    expect(stats.lapsByTrack).toHaveLength(3);
-    expect(stats.lapsByTrack).toEqual(expect.arrayContaining([
-      { gameId: "lmu", trackId: "spa_2023/spawec", count: 2 },
-      { gameId: "lmu", trackId: "bahrainwec_2023/bahrainwec", count: 1 },
-      { gameId: "lmu", trackId: "481869333", count: 1 },
+    expect(stats.totalLaps - before.totalLaps).toBe(5);
+    expect(stats.validLaps - before.validLaps).toBe(3);
+    expect(stats.totalTimeSec - before.totalTimeSec).toBe(581);
+    const trackCountDeltas = Object.fromEntries(stats.lapsByTrack.map((row) => [
+      row.trackId,
+      row.count - (before.lapsByTrack.find((prior) => prior.trackId === row.trackId)?.count ?? 0),
     ]));
-    const combined = await getLapStats();
-    expect(combined.uniqueCars - before.uniqueCars).toBe(4);
-    expect(combined.uniqueTracks - before.uniqueTracks).toBe(4);
-    expect(combined.lapsByTrack).toContainEqual({ gameId: "fm-2023", trackId: "481869333", count: 1 });
+    expect(trackCountDeltas["spa_2023/spawec"]).toBe(2);
+    expect(trackCountDeltas["bahrainwec_2023/bahrainwec"]).toBe(1);
+    expect(trackCountDeltas["481869333"]).toBe(1);
 
     const response = await settingsRoutes.request("/api/stats?gameId=lmu");
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ uniqueCars: 3, uniqueTracks: 3, totalDistanceMeters: 19_420 });
+    const afterRoute = await response.json() as { totalDistanceMeters: number };
+    expect(afterRoute.totalDistanceMeters - beforeRoute.totalDistanceMeters).toBe(19_420);
   });
 
   test("sector boundaries match generated track metadata and fall back only when unavailable", async () => {

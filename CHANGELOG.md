@@ -38,6 +38,7 @@
 - Compare archived PR-head and base screenshots in the final comment workflow to generate UI diff images.
 - Shorten visual and Playwright job labels while preserving parallel workflow branches.
 - Report signal termination and progress in screenshot database seeding failures.
+- Remove duplicate sector-time columns when resuming database migrations from partial progress.
 
 ## v0.20.0 - 2026-10-15
 

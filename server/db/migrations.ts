@@ -968,14 +968,9 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
     version: 46,
     name: "dynamic source-defined sector times",
     sql: [
-      // Both histories can reach this migration: upstream still has S1-S3,
-      // while databases that ran the iRacing branch already have sector_times.
-      // Add whichever source columns are absent, populate only missing arrays,
-      // then rebuild to the single authoritative ordered-array representation.
+      // Version 15 introduced these source columns on every supported history.
+      // Keep them while converting to the authoritative ordered-array representation.
       `ALTER TABLE laps ADD COLUMN sector_times TEXT`,
-      `ALTER TABLE laps ADD COLUMN s1_time REAL`,
-      `ALTER TABLE laps ADD COLUMN s2_time REAL`,
-      `ALTER TABLE laps ADD COLUMN s3_time REAL`,
       `UPDATE laps
        SET sector_times = CASE
          WHEN s1_time IS NULL OR s1_time <= 0
