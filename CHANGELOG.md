@@ -1,6 +1,8 @@
 ## Unreleased
 
 ### Features
+- Choose a 50–100 Hz recording frequency for ACC, AC Evo, iRacing, or LMU during setup to reduce recording size. Live UDP recording is unchanged.
+- Downsample saved recordings manually or with an opt-in age policy in Storage settings; measure the first 1,000 frame timestamps per stream and skip recordings already at or below the target. Track progress and retry failed files. Favorites and MoTeC imports stay unchanged.
 - Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
 - Automatically check existing recordings for non-pace laps after upgrades, with progress, source limitations, and retry controls in Settings → Updates.
 - Show lap classifications separately from validity in expanded session lap tables.
@@ -26,12 +28,31 @@
 - Prevent recording maintenance panels from overlapping.
 - Use LMU game-world coordinates directly for track geometry, preserving edge-hugging and off-track positions.
 - Prevent overlapping database writes from blocking recording imports and setup or session deletion.
+- Allow repeated recording downsampling without exceeding filesystem filename limits.
+- Keep the selected iRacing capture rate stable despite telemetry arrival jitter without recording duplicate frames.
+- Preserve position, speed, and other lap-start and lap-end telemetry when downsampling F1 recordings.
+- Downsample recordings in the current format and recordings previously split by lap so replay uses the smaller capture.
+- Keep the selected downsampling rate across recording segments and retain the original finish-line sample.
+- Refresh already-loaded Analyse charts after downsampling.
+- Show busy-storage conflicts when selecting Compress instead of failing silently.
+- Keep dashboard recording facts available after downsampling, even if final cleanup fails.
+- Prevent repeated iRacing source starts from leaving telemetry polling active after shutdown.
+- Keep existing recordings playable after accepting the split-recording prompt in compiled builds.
+- Avoid track-geometry lookups for unresolved LMU display names.
+- Restore migration of existing recordings into organized folders on Windows.
+- Restore dashboard, driver-profile, and Analyse pages when opening the app.
+- Block screenshots for chat models without verified image support and keep text conversations usable.
 - Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.
 - Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
 
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Reuse generic lap-bundle construction and separate capture-file accounting from `@raceiq/capture-splitting`; keep downsampling orchestration, database publication, and game adapters in the server.
+- Isolate streaming downsampling and its regression suite in `@raceiq/capture-downsampling`, depending on public capture-format codecs without importing backend policy or lap splitting.
+- Verify onboarding migration recovery through Storage re-entry with deterministic cache expiry, without relying on a hidden no-work Refresh control.
+- Manage recording maintenance with Effect, ordered downsampling and deletion, and awaited shutdown.
+- Preserve recording-frequency settings and migration history when upgrading earlier feature builds alongside the AC Evo Tourist-layout reconciliation.
 - Reuse the Linux build artifact across Playwright shards and collect replay allocations sooner on memory-limited CI runners.
 - Avoid `bun run test` port collisions with running services by selecting available ports for Playwright server sets when overrides are unset, while honoring explicit `PW_*_PORT` values and preserving isolated test databases.
 - Reuse one prepared Playwright database snapshot across seeded server sets to avoid duplicate fixture imports.

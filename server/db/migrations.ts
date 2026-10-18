@@ -2053,6 +2053,11 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   },
   {
     version: 81,
+    name: "persist archival recording frequency caps",
+    sql: [`ALTER TABLE sessions ADD COLUMN downsampled_frequency_hz INTEGER`],
+  },
+  {
+    version: 82,
     name: "classify historical non-pace laps",
     sql: [
       `ALTER TABLE laps ADD COLUMN classification TEXT`,

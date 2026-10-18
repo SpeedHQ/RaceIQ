@@ -78,9 +78,16 @@ describe("LMU string identity routes", () => {
     expect(laSource.endFrac).toBeLessThanOrEqual(1);
     expect(laSource.startFrac).toBeLessThan(laSource.endFrac);
     expect(kemmel.startFrac).toBeGreaterThan(laSource.endFrac);
-    // Segment fractions use lap-distance semantics on the LMU outline, independent of map orientation.
-    expect(laSource.endFrac * totalLength).toBeGreaterThan(laSource.startFrac * totalLength);
     expect(totalLength).toBeGreaterThan(0);
+    const cumulative = [0];
+    for (let index = 1; index < points.length; index++) {
+      cumulative.push(cumulative[index - 1] + Math.hypot(points[index].x - points[index - 1].x, points[index].z - points[index - 1].z));
+    }
+    const target = (laSource.startFrac + laSource.endFrac) / 2 * cumulative[cumulative.length - 1];
+    const pointIndex = cumulative.findIndex((distance) => distance >= target);
+    const minZ = Math.min(...points.map((point) => point.z));
+    const maxZ = Math.max(...points.map((point) => point.z));
+    expect((points[pointIndex].z - minZ) / (maxZ - minZ)).toBeGreaterThan(0.9);
   });
 
   test("resolves the common Spa guide using the canonical LMU track ID", async () => {

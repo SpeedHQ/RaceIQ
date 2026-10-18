@@ -24,6 +24,7 @@ const child = Bun.spawn([
   "apps/backend/src/bootstrap.ts",
   "server/experiments/lap-issues-worker.ts",
   "apps/backend/src/runtime/startup-worker-entry.ts",
+  "packages/capture-splitting/src/worker.ts",
   "--outfile",
   "dist/raceiq.exe",
 ], {
