@@ -7,7 +7,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { m } from "@/paraglide/messages";
 import type { GameId } from "@raceiq/shared/games/ids";
 import type { TrackMapBoundaries } from "./analyse/track-map/types";
-import { type CarModelEnrichment, DEMO_CAR, F1_CAR, getCarModel, getLMUClassCarModel, loadCarModelConfigs } from "../data/car-models";
+import { type CarModelEnrichment, loadCarModelConfigs } from "../data/car-models";
+import { resolveCarModel } from "./wireframe/resolve-car-model";
 import { useTirePressureOptimal } from "../hooks/catalog-queries";
 import { useSettings } from "../hooks/settings";
 import { useLocalStorage } from "../hooks/useLocalStorage";
@@ -76,26 +77,13 @@ export const CarWireframe = React.memo(function CarWireframe({
   if (!gameId) {
     throw new Error("CarWireframe: gameId missing — pass as prop or mount inside a GameProvider");
   }
-  const isF1 = gameId === "f1-2025";
-  const isLMU = gameId === "lmu";
 
-  const carModel = useMemo(() => {
-    if (carModelProp) return carModelProp;
-    if (isF1) return F1_CAR;
-    // Select the closest available body for every catalog class.
-    if (isLMU) return getLMUClassCarModel(lmuCarClass);
-    // Note: getCarModel reads from module-level state populated by
-    // loadCarModelConfigs(). configsLoaded is in the dep list so the
-    // memo re-runs once configs finish loading — eslint can't see the
-    // dependency because it's hidden behind an impure read.
-    const perCar = carId == null ? { ...DEMO_CAR } : getCarModel(carId);
-    if (perCar.hasModel) return perCar;
-    // Fallback: any non-F1 game with no per-car GLB uses the Aston
-    // Martin GT3 demo model. Previously this was FM-only, which left
-    // ACC (and any future game) without a visible car in the scene.
-    return DEMO_CAR;
+  const carModel = useMemo(
+    () => resolveCarModel(gameId, carId, { lmuCarClass, carModel: carModelProp }),
+    // Model config is module state populated by loadCarModelConfigs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [carId, configsLoaded, isF1, isLMU, lmuCarClass, carModelProp]);
+    [carId, configsLoaded, gameId, lmuCarClass, carModelProp],
+  );
   const units = useUnits(gameId, { enabled: protectedDataEnabled });
   const { displaySettings } = useSettings({ enabled: protectedDataEnabled });
   const pressureOptimal = useTirePressureOptimal(gameId, carId, protectedDataEnabled);

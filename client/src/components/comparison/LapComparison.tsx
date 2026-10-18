@@ -21,6 +21,7 @@ import { CompareAiSidebar } from "./CompareAiSidebar";
 import { CompareTrackMap, type SegmentTiming } from "./CompareTrackMap";
 import { ComparisonCharts } from "./ComparisonCharts";
 import { ComparisonSelectors } from "./ComparisonSelectors";
+import { SpectateSession } from "./spectate/SpectateSession";
 
 interface TrackGroup {
   trackId: string;
@@ -111,11 +112,45 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   const prevTrackRef = useRef<string | null | undefined>(undefined);
   const prevCarARef = useRef<string | null | undefined>(undefined);
   const prevCarBRef = useRef<string | null | undefined>(undefined);
+  const routeSelection = JSON.stringify([search.track ?? null, search.carA ?? null, search.carB ?? null, search.lapA ?? null, search.lapB ?? null]);
+  const writtenSelectionRef = useRef(routeSelection);
+  const seenSelectionRef = useRef(routeSelection);
+  const applyingSelectionRef = useRef<string | null>(null);
+  const writtenLapPairRef = useRef(`${lapAId}:${lapBId}`);
+  useEffect(() => {
+    if (seenSelectionRef.current === routeSelection) return;
+    seenSelectionRef.current = routeSelection;
+    if (writtenSelectionRef.current === routeSelection) return;
+    applyingSelectionRef.current = routeSelection;
+    prevTrackRef.current = search.track ?? null;
+    prevCarARef.current = search.carA ?? null;
+    prevCarBRef.current = search.carB ?? null;
+    setSelectedTrack(search.track ?? null);
+    setCarAId(search.carA ?? null);
+    setCarBId(search.carB ?? null);
+    setLapAId(search.lapA ?? null);
+    setLapBId(search.lapB ?? null);
+  }, [routeSelection, search.track, search.carA, search.carB, search.lapA, search.lapB]);
   const hoveredDistanceRef = useRef<number | null>(null);
   const mapRedrawRef = useRef<(() => void) | null>(null);
   const aiPanelRef = useRef<CompareAiPanelHandle | null>(null);
   const comparisonLayoutRef = useRef<HTMLDivElement>(null);
   const mapResizeCleanupRef = useRef<(() => void) | null>(null);
+  const spectateDistanceRef = useMemo(() => ({ current: null as number | null }), [gameId, visibleLapAId, visibleLapBId]);
+  const spectateActive = search.view === "spectate";
+  const changeBodyView = useCallback((view: "compare" | "spectate") => {
+    if (view === "spectate") spectateDistanceRef.current = hoveredDistanceRef.current;
+    void navigate({
+      search: (previous: Record<string, unknown>) => ({ ...previous, view: view === "compare" ? undefined : view }) as never,
+      resetScroll: false,
+    });
+  }, [navigate, spectateDistanceRef]);
+  const receiveSpectateDistance = useCallback((distance: number | null) => {
+    if (distance == null) return;
+    spectateDistanceRef.current = distance;
+    hoveredDistanceRef.current = distance;
+    mapRedrawRef.current?.();
+  }, [spectateDistanceRef]);
   const [comparisonLayoutWidth, setComparisonLayoutWidth] = useState(0);
   const [savedMapWidth, setSavedMapWidth] = useLocalStorage("compare-left-column-width", COMPARE_MAP_DEFAULT_WIDTH);
   const [aiPanelOpen, setAiPanelOpen] = useState<boolean>(() => {
@@ -203,21 +238,34 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   );
 
   // Set cursor from URL param once comparison data loads
-  const appliedInitialCursor = useRef(false);
+  const appliedInitialCursor = useRef<string | null>(null);
   useEffect(() => {
-    if (appliedInitialCursor.current) return;
+    const cursorIdentity = `${gameId}:${visibleLapAId}:${visibleLapBId}:${search.cursor}`;
+    if (appliedInitialCursor.current === cursorIdentity) return;
     const distances = comparison?.traces.distance;
     if (search.cursor != null && distances) {
       if (distances.length === 0) return;
-      const idx = Math.min(search.cursor, distances.length - 1);
+      const idx = Math.max(0, Math.min(Math.floor(search.cursor), distances.length - 1));
       hoveredDistanceRef.current = distances[idx];
+      spectateDistanceRef.current = distances[idx];
       mapRedrawRef.current?.();
-      appliedInitialCursor.current = true;
+      appliedInitialCursor.current = cursorIdentity;
     }
-  }, [search.cursor, comparison]);
+  }, [search.cursor, comparison, gameId, visibleLapAId, visibleLapBId, spectateDistanceRef]);
 
   // Sync selections to URL
   useEffect(() => {
+    const selection = JSON.stringify([selectedTrack, carAId, carBId, lapAId, lapBId]);
+    if (applyingSelectionRef.current != null && applyingSelectionRef.current !== selection) return;
+    const lapPair = `${lapAId}:${lapBId}`;
+    const localPairChange = applyingSelectionRef.current == null && writtenLapPairRef.current !== lapPair;
+    writtenLapPairRef.current = lapPair;
+    if (localPairChange) {
+      hoveredDistanceRef.current = null;
+      spectateDistanceRef.current = null;
+    }
+    applyingSelectionRef.current = null;
+    writtenSelectionRef.current = selection;
     navigate({
       search: (prev: Record<string, unknown>) =>
         ({
@@ -227,11 +275,12 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
           carB: carBId ?? undefined,
           lapA: lapAId ?? undefined,
           lapB: lapBId ?? undefined,
+          cursor: localPairChange ? undefined : prev.cursor,
         }) as never,
       replace: true,
       resetScroll: false,
     });
-  }, [selectedTrack, carAId, carBId, lapAId, lapBId, navigate]);
+  }, [selectedTrack, carAId, carBId, lapAId, lapBId, navigate, spectateDistanceRef]);
 
   // Build track groups and fetch names when laps data changes
   useEffect(() => {
@@ -413,6 +462,21 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         toggleAiPanel={toggleAiPanel}
       />
       <ComparisonLoadStatus loading={loading} error={error} hasComparison={comparison != null} />
+      <div role="tablist" aria-label={m.spectate_body_views()} className="flex shrink-0 gap-4 border-b border-app-border text-app-label">
+        {(["compare", "spectate"] as const).map((view) => (
+          <button key={view} id={`compare-tab-${view}`} type="button" role="tab" aria-controls={`compare-body-${view}`} aria-selected={view === (spectateActive ? "spectate" : "compare")} tabIndex={view === (spectateActive ? "spectate" : "compare") ? 0 : -1}
+            className={`border-b-2 px-1 pb-2 focus-visible:outline-2 focus-visible:outline-app-accent ${view === (spectateActive ? "spectate" : "compare") ? "border-app-accent text-app-accent" : "border-transparent text-app-text-secondary hover:text-app-text"}`}
+            onClick={() => changeBodyView(view)}
+            onKeyDown={(event) => { if (event.key === "ArrowLeft" || event.key === "ArrowRight" || event.key === "Home" || event.key === "End") { event.preventDefault(); const next = event.key === "Home" ? "compare" : event.key === "End" ? "spectate" : view === "compare" ? "spectate" : "compare"; changeBodyView(next); document.getElementById(`compare-tab-${next}`)?.focus(); } }}>
+            {view === "spectate" ? m.spectate_view() : m.label_compare()}
+          </button>
+        ))}
+      </div>
+      {comparison?.traces.distance.length && gameId && visibleLapAId && visibleLapBId && visibleLapAId !== visibleLapBId ? (
+        <div id="compare-body-spectate" role="tabpanel" aria-labelledby="compare-tab-spectate" hidden={!spectateActive} className={spectateActive ? "flex min-h-[32rem] flex-1 flex-col @5xl/workspace:min-h-0" : "hidden"}>
+          <SpectateSession key={`${gameId}:${visibleLapAId}:${visibleLapBId}`} gameId={gameId} comparison={comparison} active={spectateActive} outline={trackOutline} segments={trackSegments ?? []} distanceRef={spectateDistanceRef} onDistanceChange={receiveSpectateDistance} cursor={search.lapA === visibleLapAId && search.lapB === visibleLapBId ? search.cursor : undefined} />
+        </div>
+      ) : null}
 
       {/* No selection prompt */}
       {!visibleLapAId || !visibleLapBId ? (
@@ -421,8 +485,12 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_select_different_laps()}</div>
       ) : comparison?.traces.distance.length ? (
         <div
+          id="compare-body-compare"
+          role="tabpanel"
+          aria-labelledby="compare-tab-compare"
+          hidden={spectateActive}
           ref={comparisonLayoutRef}
-          className="relative flex flex-none flex-col gap-4 overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:flex-row @5xl/workspace:overflow-hidden"
+          className={spectateActive ? "hidden" : "relative flex flex-none flex-col gap-4 overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:flex-row @5xl/workspace:overflow-hidden"}
         >
           {/* Left: track map */}
           <div

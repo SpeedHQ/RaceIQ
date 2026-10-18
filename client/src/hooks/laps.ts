@@ -107,7 +107,8 @@ export function useLapComparison(lapAId: number | null, lapBId: number | null) {
   const laps = useLaps().data ?? [];
   const lapA = laps.find((lap) => lap.id === lapAId);
   const lapB = laps.find((lap) => lap.id === lapBId);
-  return { ...aligned, data: aligned.data && lapA && lapB ? alignedComparison(aligned.data, lapA, lapB) : undefined, isLoading: aligned.isLoading, error: aligned.error };
+  const data = useMemo(() => aligned.data && lapA && lapB ? alignedComparison(aligned.data, lapA, lapB) : undefined, [aligned.data, lapA, lapB]);
+  return { ...aligned, data, isLoading: aligned.isLoading, error: aligned.error };
 }
 export function useLapComparisonRange(lapAId: number | null, lapBId: number | null, stepMeters: 0.1 | null, start: number | null, end: number | null) {
   const ids = lapAId != null && lapBId != null && lapAId !== lapBId ? [lapAId, lapBId] : [];
@@ -161,10 +162,10 @@ export function useLapSemanticTelemetry(lapId: number | null) {
   const gameId = useGameId();
   return useQuery({
     queryKey: ["lap-semantic-telemetry", lapId, gameId ?? null],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (lapId == null) throw new Error("Missing lap ID");
       if (!gameId) throw new Error("Missing game context");
-      const res = await fetch(`/api/laps/${lapId}/semantic-telemetry`, { headers: { "X-Game-Id": gameId } });
+      const res: Pick<Response, "ok" | "statusText" | "json"> = await client.api.laps[":id"]["semantic-telemetry"].$get({ param: { id: String(lapId) } }, { headers: { "X-Game-Id": gameId }, init: { signal } });
       const body = (await res.json().catch(() => null)) as (SemanticLapTelemetry & { error?: string; parseError?: string }) | null;
       if (!res.ok || body?.parseError) {
         const message = body?.parseError ?? body?.error ?? res.statusText;

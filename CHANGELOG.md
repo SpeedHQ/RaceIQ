@@ -2,8 +2,13 @@
 
 ### Features
 - Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
+- Replay compared laps in Compare’s Spectate view with synchronized cars, input-colored racing lines, eased segment navigation, F1 battery modes, and category-filtered telemetry with remembered ±5-second or ±10-second windows.
 
 ### Fixes
+- Prevent F1 Spectate cars from freezing briefly and jumping forward between motion updates.
+- Keep the Spectate camera centered on moving cars instead of letting them drift ahead and slide backward as it catches up.
+- Keep Spectate dashboard inputs on one row, expand pedal bars into available height, and stack compared gears vertically.
+- Keep Spectate telemetry traces scrolling steadily instead of reshaping between playback frames.
 - Use LMU game-world coordinates directly for track geometry, preserving edge-hugging and off-track positions.
 - Prevent overlapping database writes from blocking recording imports and setup or session deletion.
 - Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.

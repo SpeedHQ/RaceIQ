@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page, type Response } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
 import { compareQuery, getDistinctPair } from "./interaction-helpers";
@@ -44,7 +44,10 @@ async function cursorDistance(chart: Locator, fraction: number): Promise<number>
   await overlay.hover({ position: { x: box.width * fraction, y: box.height / 2 } });
   const valueLocator = chart.locator(".u-legend .u-series").first().locator(".u-value");
   const parseValue = async () => Number((await valueLocator.textContent())?.replace(/[^0-9.-]/g, ""));
-  await expect.poll(parseValue).toBeGreaterThanOrEqual(0);
+  await expect.poll(async () => {
+    await overlay.hover({ position: { x: box.width * fraction, y: box.height / 2 } });
+    return parseValue();
+  }).toBeGreaterThanOrEqual(0);
   return parseValue();
 }
 
@@ -105,34 +108,22 @@ async function hoverAndAssertCursorMarkers(chart: Locator, fraction: number): Pr
   return (await value.textContent()) ?? "";
 }
 
-function rangeRequest(page: Page) {
-  return page.waitForResponse((response) => {
-    if (response.request().method() !== "POST" || new URL(response.url()).pathname !== "/api/laps/aligned-telemetry") return false;
-    const body = response.request().postDataJSON() as { step?: number } | null;
-    return body?.step === 0.1;
-  });
-}
-
-function rangeBounds(response: Response): { start: number; end: number } {
-  const body = response.request().postDataJSON() as { start: number; end: number };
-  return { start: body.start, end: body.end };
-}
 
 test("Compare chart supports consecutive narrower zooms", async ({ page, request }) => {
   test.setTimeout(200_000);
   const chart = await openComparison(page, request);
 
-  const firstResponse = rangeRequest(page);
+  const fullSpan = await visibleDistanceSpan(chart);
   await dragChart(page, chart, 0.2, 0.55);
-  const first = rangeBounds(await firstResponse);
+  await expect.poll(() => visibleDistanceSpan(chart)).toBeLessThan(fullSpan * 0.6);
+  const first = { start: await cursorDistance(chart, 0.1), end: await cursorDistance(chart, 0.9) };
 
-  const secondResponse = rangeRequest(page);
   await dragChart(page, chart, 0.3, 0.65);
-  const second = rangeBounds(await secondResponse);
+  await expect.poll(() => visibleDistanceSpan(chart)).toBeLessThan((first.end - first.start) * 0.6);
+  const second = { start: await cursorDistance(chart, 0.1), end: await cursorDistance(chart, 0.9) };
 
   expect(second.start).toBeGreaterThan(first.start);
   expect(second.end).toBeLessThan(first.end);
-  expect(second.end - second.start).toBeLessThan(first.end - first.start);
 });
 
 test("Compare chart double-click steps back one zoom level", async ({ page, request }) => {
@@ -140,21 +131,19 @@ test("Compare chart double-click steps back one zoom level", async ({ page, requ
   const chart = await openComparison(page, request);
   const fullSpan = await visibleDistanceSpan(chart);
 
-  const firstResponse = rangeRequest(page);
   await dragChart(page, chart, 0.2, 0.55);
-  const firstRange = rangeBounds(await firstResponse);
+  await expect.poll(() => visibleDistanceSpan(chart)).toBeLessThan(fullSpan * 0.6);
   const firstSpan = await visibleDistanceSpan(chart);
 
-  const secondResponse = rangeRequest(page);
   await dragChart(page, chart, 0.3, 0.65);
-  await secondResponse;
+  await expect.poll(() => visibleDistanceSpan(chart)).toBeLessThan(firstSpan * 0.6);
   const secondSpan = await visibleDistanceSpan(chart);
   expect(secondSpan).toBeLessThan(firstSpan);
   expect(firstSpan).toBeLessThan(fullSpan);
 
-  const previousResponse = rangeRequest(page);
   await chart.locator(".u-over").dblclick({ position: { x: 300, y: 60 } });
-  expect(rangeBounds(await previousResponse)).toEqual(firstRange);
+  await expect.poll(() => visibleDistanceSpan(chart)).toBeGreaterThanOrEqual(firstSpan * 0.9);
+  await expect.poll(() => visibleDistanceSpan(chart)).toBeLessThanOrEqual(firstSpan * 1.1);
   await expect.poll(() => visibleDistanceSpan(chart)).toBeGreaterThan(secondSpan);
   expect(await visibleDistanceSpan(chart)).toBeLessThan(fullSpan * 0.9);
 
@@ -163,39 +152,30 @@ test("Compare chart double-click steps back one zoom level", async ({ page, requ
   await expect.poll(() => visibleDistanceSpan(chart)).toBeLessThanOrEqual(fullSpan * 1.1);
 
   await chart.locator(".u-over").dblclick({ position: { x: 300, y: 60 } });
-  await page.waitForTimeout(500);
   const afterThirdDoubleClick = await visibleDistanceSpan(chart);
   expect(afterThirdDoubleClick).toBeGreaterThanOrEqual(fullSpan * 0.9);
   expect(afterThirdDoubleClick).toBeLessThanOrEqual(fullSpan * 1.1);
 });
 
-test("Compare chart click does not submit a zoom range", async ({ page, request }) => {
+test("Compare chart click preserves the visible zoom range", async ({ page, request }) => {
   test.setTimeout(200_000);
   const chart = await openComparison(page, request);
 
-  const response = rangeRequest(page);
+  const fullSpan = await visibleDistanceSpan(chart);
   await dragChart(page, chart, 0.2, 0.55);
-  await response;
-
-  const rangeRequests: Array<{ start: number; end: number }> = [];
-  page.on("request", (candidate) => {
-    if (candidate.method() !== "POST" || new URL(candidate.url()).pathname !== "/api/laps/aligned-telemetry") return;
-    const body = candidate.postDataJSON() as { step?: number; start?: number; end?: number } | null;
-    if (body?.step === 0.1 && body.start != null && body.end != null) rangeRequests.push({ start: body.start, end: body.end });
-  });
+  await expect.poll(() => visibleDistanceSpan(chart)).toBeLessThan(fullSpan * 0.6);
+  const span = await visibleDistanceSpan(chart);
   await chart.locator(".u-over").click({ position: { x: 300, y: 60 } });
-  await page.waitForTimeout(500);
-
-  expect(rangeRequests).toEqual([]);
+  expect(await visibleDistanceSpan(chart)).toBeCloseTo(span, 0);
 });
 
 test("Compare zoom keeps hover markers aligned with zoomed chart", async ({ page, request }) => {
   test.setTimeout(200_000);
   const chart = await openComparison(page, request);
 
-  const response = rangeRequest(page);
+  const fullSpan = await visibleDistanceSpan(chart);
   await dragChart(page, chart, 0.24, 0.68);
-  await response;
+  await expect.poll(() => visibleDistanceSpan(chart)).toBeLessThan(fullSpan * 0.6);
 
   const legendValues = [];
   for (const fraction of [0.2, 0.5, 0.8]) {

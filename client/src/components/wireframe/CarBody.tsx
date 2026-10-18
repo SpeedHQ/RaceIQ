@@ -4,7 +4,7 @@ import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "meshoptimizer";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { THREE_COLORS } from "../../lib/wireframe-utils";
-import { classifyMesh } from "./classify-mesh";
+import { classifyMesh, DEFAULT_HIDDEN_MESHES } from "./classify-mesh";
 
 const loader = new GLTFLoader();
 loader.setMeshoptDecoder(MeshoptDecoder);
@@ -38,11 +38,16 @@ export interface CarBodyInstance {
 }
 
 /** Clone scene graph only; geometry and original materials remain cache-owned. */
+export interface CarBodyCreationOptions {
+  preserveNativeWheels?: boolean;
+}
+
 export async function createCarBody(
   carModel: CarModelEnrichment & { hasModel: boolean },
   solid: "wire" | "solid" | "hidden",
   modelOffsetX: number,
   hideModelWheels = false,
+  options: CarBodyCreationOptions = {},
 ): Promise<CarBodyInstance> {
   const { scene } = await loadModel(carModel.modelPath);
   const yawAlignment = canonicalModelYawAlignment(carModel.modelPath);
@@ -64,11 +69,28 @@ export async function createCarBody(
             opacity: 0.03,
           });
   const toRemove: THREE.Object3D[] = [];
+  const ownedMaterials: THREE.Material[] = [];
+  let retainedNativeWheelMeshes = 0;
+  const customWheelMeshes = carModel.solidHiddenMeshes;
   clone.traverse((child) => {
     if (!(child as THREE.Mesh).isMesh) return;
     const mesh = child as THREE.Mesh;
     const action = classifyMesh(mesh.name, solid, hideModelWheels, carModel.solidHiddenMeshes);
-    if (action === "remove") toRemove.push(mesh);
+    const meshNumber = parseInt(mesh.name.replace(/\D/g, ""), 10);
+    if (action === "remove" && options.preserveNativeWheels && (customWheelMeshes?.length ? customWheelMeshes.includes(meshNumber) : DEFAULT_HIDDEN_MESHES.has(meshNumber))) {
+      retainedNativeWheelMeshes++;
+      mesh.material = Array.isArray(mesh.material)
+        ? mesh.material.map((material) => {
+            const clone = material.clone();
+            ownedMaterials.push(clone);
+            return clone;
+          })
+        : (() => {
+            const clone = (mesh.material as THREE.Material).clone();
+            ownedMaterials.push(clone);
+            return clone;
+          })();
+    } else if (action === "remove") toRemove.push(mesh);
     else if (replacement) mesh.material = replacement;
   });
   for (const object of toRemove) object.parent?.remove(object);
@@ -84,6 +106,7 @@ export async function createCarBody(
   const offset = center.multiplyScalar(-scale);
   if (yawAlignment === 0) offset.x += modelOffsetX;
   const root = new THREE.Group();
+  root.userData.nativeWheelMeshCount = retainedNativeWheelMeshes;
   root.rotation.y = yawAlignment;
   const scaled = new THREE.Group();
   scaled.scale.setScalar(scale);
@@ -131,6 +154,7 @@ export async function createCarBody(
     dispose() {
       clearHighlight();
       root.removeFromParent();
+      ownedMaterials.forEach((material) => material.dispose());
       replacement?.dispose();
     },
   };

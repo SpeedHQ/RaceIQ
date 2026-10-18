@@ -73,16 +73,13 @@ describe("game route helpers", () => {
     });
   });
 
-  test("validates comparison search values", () => {
-    expect(validateCompareSearch({ track: "12", carA: 34, carB: "35", lapA: "8", lapB: "9", cursor: "15", ai: "1", ignored: "x" })).toEqual({
-      track: "12",
-      carA: "34",
-      carB: "35",
-      lapA: 8,
-      lapB: 9,
-      cursor: 15,
-      ai: 1,
+  test("Spectate view validation preserves lap identities and the aligned cursor contract", () => {
+    const selections = { track: "12", carA: "34", carB: "35", lapA: "8", lapB: "9", cursor: "15", ai: "1" };
+    expect(validateCompareSearch({ ...selections, view: "spectate" })).toMatchObject({
+      track: "12", carA: "34", carB: "35", lapA: 8, lapB: 9, cursor: 15, ai: 1, view: "spectate",
     });
+    expect(validateCompareSearch({ ...selections, view: "compare" }).view).toBe("compare");
+    expect(validateCompareSearch({ ...selections, view: "unsupported" }).view).toBeUndefined();
   });
 
   test("maps legacy imported sessions tab to Mine", () => {

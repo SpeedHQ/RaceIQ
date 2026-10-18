@@ -24,6 +24,7 @@ export type CompareSearch = {
   lapB?: number;
   cursor?: number;
   ai?: number;
+  view?: "compare" | "spectate";
 };
 
 export type SessionsTab = "mine" | "others";
@@ -147,6 +148,7 @@ export function validateCompareSearch(search: Record<string, unknown>): CompareS
     lapB: parseOptionalNumber(search.lapB),
     cursor: parseOptionalNumber(search.cursor),
     ai: parseOptionalNumber(search.ai),
+    view: search.view === "spectate" ? "spectate" : search.view === "compare" ? "compare" : undefined,
   };
 }
 
