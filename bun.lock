@@ -197,6 +197,13 @@
         "@raceiq/game-fm-2023-metadata": "workspace:*",
       },
     },
+    "packages/capture-downsampling": {
+      "name": "@raceiq/capture-downsampling",
+      "dependencies": {
+        "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+      },
+    },
     "packages/capture-formats": {
       "name": "@raceiq/capture-formats",
       "dependencies": {
@@ -279,6 +286,7 @@
       "dependencies": {
         "@raceiq/analysis-core": "workspace:*",
         "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-downsampling": "workspace:*",
         "@raceiq/capture-formats": "workspace:*",
         "@raceiq/game-f1-2025-metadata": "workspace:*",
         "@raceiq/shared": "workspace:*",
@@ -470,6 +478,7 @@
         "@mastra/libsql": "^1.23.0",
         "@mastra/memory": "^1.30.0",
         "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/capture-downsampling": "workspace:*",
         "@raceiq/capture-formats": "workspace:*",
         "@raceiq/capture-splitting": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
@@ -1163,6 +1172,8 @@
     "@raceiq/backend": ["@raceiq/backend@workspace:apps/backend"],
 
     "@raceiq/backend-core": ["@raceiq/backend-core@workspace:server"],
+
+    "@raceiq/capture-downsampling": ["@raceiq/capture-downsampling@workspace:packages/capture-downsampling"],
 
     "@raceiq/capture-formats": ["@raceiq/capture-formats@workspace:packages/capture-formats"],
 
