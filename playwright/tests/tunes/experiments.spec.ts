@@ -235,7 +235,7 @@ test.describe("Setup Engineer experiments", () => {
     await page.goto(`/acc/experiments/${session.id}`);
     await page.reload();
 
-    const input = page.getByRole("textbox", { name: "Message input" });
+    const input = page.getByRole("textbox", { name: "Message input", exact: true });
     await input.fill("Stream this reply");
     await input.press("Enter");
     await expect.poll(() => page.evaluate(() => (window as Window & { __raceTextSent?: boolean }).__raceTextSent)).toBe(true);

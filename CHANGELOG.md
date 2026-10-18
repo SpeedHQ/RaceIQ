@@ -10,6 +10,7 @@
 - Prevent overlapping database writes from blocking recording imports and setup or session deletion.
 - Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.
 - Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
+- Complete first-run sparse recording migration in compiled builds instead of failing.
 
 ### Internal
 - Use the configured HTTP port for AppImage release smoke checks so healthy startup does not block release creation.

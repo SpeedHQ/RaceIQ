@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { collectBrowserErrors } from "../../support/browser-errors";
+import { completeOnboarding } from "../../support/tunes";
 import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
 import { assertSynchronizedCursors } from "./charts";
 import { compareQuery, getDistinctPair } from "./interaction-helpers";
@@ -9,6 +10,8 @@ import { alignedRequestMatches, ALIGNED_TELEMETRY_ENDPOINT, fetchAlignedSet, lap
 for (const game of SEEDED_GAME_CASES) {
   test(`${game.name} Compare renders distinct seeded traces and synchronized controls`, async ({ page, request }) => {
     test.setTimeout(200_000);
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await completeOnboarding(page);
     const browserErrors = collectBrowserErrors(page);
     const pair = await getDistinctPair(request, game.gameId);
     const { response: compareResponse, set } = await fetchAlignedSet(request, pair);
