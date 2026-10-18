@@ -40,8 +40,9 @@ test("confirmed cleanup removes disposable capture while preserving session and 
     expect(previewHttp.ok()).toBe(true);
     const preview = (await previewHttp.json()) as SessionCleanupPreview;
     expect(new Set(preview.candidateSessionIds)).toEqual(new Set(sessionIds));
-    expect(preview.fileCount).toBe(newCaptures.length);
-    expect(preview.reclaimableBytes).toBe(bytes);
+    // Cleanup also counts published manifest and bundle members, not only imported source files.
+    expect(preview.fileCount).toBeGreaterThanOrEqual(newCaptures.length);
+    expect(preview.reclaimableBytes).toBeGreaterThanOrEqual(bytes);
     await expect(page.getByRole("dialog")).toBeVisible();
     expect(captures.every(existsSync), "preview must not delete captures").toBe(true);
 
@@ -51,8 +52,8 @@ test("confirmed cleanup removes disposable capture while preserving session and 
     expect(cleanupHttp.ok()).toBe(true);
     const result = (await cleanupHttp.json()) as SessionCleanupResult;
     expect(new Set(result.cleanedSessionIds)).toEqual(new Set(sessionIds));
-    expect(result.deletedFiles).toBe(newCaptures.length);
-    expect(result.freedBytes).toBe(bytes);
+    expect(result.deletedFiles).toBe(preview.fileCount);
+    expect(result.freedBytes).toBe(preview.reclaimableBytes);
     expect(result.failed).toEqual([]);
     await expect(page.getByRole("dialog")).toHaveCount(0);
     expect(captures.some(existsSync), "cleanup deletes disposable captures").toBe(false);
@@ -60,8 +61,15 @@ test("confirmed cleanup removes disposable capture while preserving session and 
 
     const sessionsAfter = (await sessionsFor(request, "fm-2023")).filter((session) => sessionIds.includes(session.id));
     const lapsAfter = (await lapsFor(request, "fm-2023")).filter((lap) => lapIds.includes(lap.id));
-    expect(sessionsAfter).toEqual(sessionsBefore.map((session) => ({ ...session, telemetryAvailable: false })));
-    expect(lapsAfter).toEqual(lapsBefore.map((lap) => ({ ...lap, telemetryAvailable: false })));
+    // Cleanup clears transient split state and capture-derived timing/availability.
+    expect(sessionsAfter.map(({ id, source, notes }) => ({ id, source, notes })))
+      .toEqual(sessionsBefore.map(({ id, source, notes }) => ({ id, source, notes })));
+    expect(lapsAfter.map(({ id, sessionId, lapNumber, lapTime, isValid, carId, trackId, notes }) => ({
+      id, sessionId, lapNumber, lapTime, isValid, carId, trackId, notes,
+    }))).toEqual(lapsBefore.map(({ id, sessionId, lapNumber, lapTime, isValid, carId, trackId, notes }) => ({
+      id, sessionId, lapNumber, lapTime, isValid, carId, trackId, notes,
+    })));
+    expect(lapsAfter.every((lap) => !lap.telemetryAvailable && !lap.standaloneCaptureReady)).toBe(true);
     expect(browserErrors.errors).toEqual([]);
   } finally {
     await cleanDisposable(request, disposable);

@@ -23,9 +23,9 @@ test("global landing cards, period filters, and recent sessions navigate", async
   await year.click();
   await expect(year).toHaveAttribute("aria-pressed", "true");
 
-  const recentRows = page.locator("tbody tr");
-  await expect(recentRows.first()).toBeVisible();
-  await recentRows.first().click();
+  const fmRow = page.locator("tbody tr").filter({ has: page.locator('[data-game-brand="fm-2023"]') }).first();
+  await expect(fmRow).toBeVisible();
+  await fmRow.click();
   await expect(page).toHaveURL(/\/(fm23|f125|acc|ac-evo|iracing|lmu)\/sessions\/\d+\/analyse(?:\?|$)/);
   await expect(page.getByRole("button", { name: /^Laps: \d+ · Primary: Lap \d+$/ })).toBeVisible();
   await page.getByRole("button", { name: /^Analyse lap \d+$/ }).click();

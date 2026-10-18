@@ -14,6 +14,8 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
     "seeded/sessions/lifecycle.spec.ts",
   ];
 
+  const splitMigrationSpec = "setup/sparse-split-migration.spec.ts";
+
   return [
     {
       name: "fresh-install",
@@ -22,7 +24,14 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       use: { baseURL: freshBaseURL, viewport: { width: 1280, height: 900 } },
     },
     {
+      name: "tunes-setup",
+      testMatch: splitMigrationSpec,
+      workers: 1,
+      use: { baseURL: tunesBaseURL, viewport: { width: 1440, height: 900 } },
+    },
+    {
       name: "tunes",
+      dependencies: ["tunes-setup"],
       testMatch: "tunes/**/*.spec.ts",
       grepInvert: /import page renders empty state when Documents folder absent/,
       workers: 1,
@@ -36,7 +45,14 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       use: { baseURL: tunesUnseededBaseURL, viewport: { width: 1440, height: 900 } },
     },
     {
+      name: "seeded-setup",
+      testMatch: splitMigrationSpec,
+      workers: 1,
+      use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
+    },
+    {
       name: "seeded-routes",
+      dependencies: ["seeded-setup"],
       testMatch: "seeded/routes/**/*.spec.ts",
       fullyParallel: true,
       timeout: 140_000,
@@ -44,6 +60,7 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
     },
     {
       name: "seeded-e2e",
+      dependencies: ["seeded-setup"],
       testMatch: "seeded/**/*.spec.ts",
       testIgnore: [...sequentialImportSpecs, "seeded/routes/**/*.spec.ts"],
       fullyParallel: true,
@@ -52,6 +69,7 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
     },
     {
       name: "seeded-imports",
+      dependencies: ["seeded-setup"],
       testMatch: sequentialImportSpecs,
       fullyParallel: true,
       workers: 1,

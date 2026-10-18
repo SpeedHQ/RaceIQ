@@ -17,6 +17,8 @@
 - Show busy-storage conflicts when selecting Compress instead of failing silently.
 - Keep dashboard recording facts available after downsampling, even if final cleanup fails.
 - Prevent repeated iRacing source starts from leaving telemetry polling active after shutdown.
+- Keep existing recordings playable after accepting the split-recording prompt in compiled builds.
+- Avoid track-geometry lookups for unresolved LMU display names.
 - Restore migration of existing recordings into organized folders on Windows.
 - Restore dashboard, driver-profile, and Analyse pages when opening the app.
 - Block screenshots for chat models without verified image support and keep text conversations usable.

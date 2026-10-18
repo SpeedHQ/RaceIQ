@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { GameId } from "@raceiq/shared/games/ids";
+import { resolveLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import type { PitLine } from "../lib/canvas/draw-track";
 import { client } from "../lib/rpc";
 import { rpcJson } from "../lib/rpc-json";
@@ -16,6 +17,10 @@ type TrackIdRoutes = {
   tracks: { ":trackId": { corners: { $get: TrackIdGet } } };
 };
 const trackIdRoutes = client.api as unknown as TrackIdRoutes;
+
+function isUnresolvedLmuDisplayName(trackId: string | undefined, gameId: GameId | null) {
+  return gameId === "lmu" && trackId != null && /\s/.test(trackId.trim()) && resolveLMUTrack(trackId) == null;
+}
 
 export function useTrackName(trackId: string | undefined) {
   const gameId = useGameId();
@@ -37,7 +42,7 @@ export function useTrackSectors(trackId: string | undefined) {
       const res = await trackIdRoutes["track-sectors"][":trackId"].$get({ param: { trackId: encodeURIComponent(trackId!) }, query: { gameId: gameId! } });
       return rpcJson(res);
     },
-    enabled: trackId != null && !!gameId,
+    enabled: trackId != null && !!gameId && !isUnresolvedLmuDisplayName(trackId, gameId),
   });
 }
 
@@ -50,7 +55,7 @@ export function useTrackSectorBoundaries(trackId: string | undefined, gameIdOver
       const res = await trackIdRoutes["track-sector-boundaries"][":trackId"].$get({ param: { trackId: encodeURIComponent(trackId!) }, query: { gameId: gameId! } });
       return rpcJson<{ s1End: number; s2End: number } | null>(res);
     },
-    enabled: trackId != null && !!gameId,
+    enabled: trackId != null && !!gameId && !isUnresolvedLmuDisplayName(trackId, gameId),
   });
 }
 
@@ -65,7 +70,7 @@ export function useTrackOutline(trackId: string | undefined, gameIdOverride?: Ga
         res,
       );
     },
-    enabled: trackId != null && !!gameId,
+    enabled: trackId != null && !!gameId && !isUnresolvedLmuDisplayName(trackId, gameId),
   });
 }
 
@@ -78,7 +83,7 @@ export function useTrackBoundaries(trackId: string | undefined, gameIdOverride?:
       const res = await trackIdRoutes["track-boundaries"][":trackId"].$get({ param: { trackId: encodeURIComponent(trackId!) }, query: { gameId: gameId ?? undefined } });
       return rpcJson(res);
     },
-    enabled: trackId != null && !!gameId,
+    enabled: trackId != null && !!gameId && !isUnresolvedLmuDisplayName(trackId, gameId),
   });
 }
 
@@ -103,7 +108,7 @@ export function useTrackCorners(trackId: string | undefined, gameIdOverride?: Ga
       });
       return rpcJson<TrackCorner[]>(res);
     },
-    enabled: !!trackId && !!gameId,
+    enabled: !!trackId && !!gameId && !isUnresolvedLmuDisplayName(trackId, gameId),
     staleTime: Number.POSITIVE_INFINITY,
   });
 }
