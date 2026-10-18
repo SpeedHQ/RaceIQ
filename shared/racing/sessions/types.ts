@@ -66,6 +66,8 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   rawFrameCount?: number | null;
   /** Whether raw telemetry remains available for this lap. */
   telemetryAvailable?: boolean;
+  /** Whether independently replayable raw lap capture has been published. */
+  standaloneCaptureReady?: boolean;
   /** User flag protecting the parent capture from space cleanup. */
   isFavorite?: boolean;
 }
@@ -101,8 +103,40 @@ export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
   telemetryAvailable?: boolean;
   /** User flag protecting this session's capture from space cleanup. */
   isFavorite?: boolean;
+  /** Current lossless lap-split job snapshot; absent for sessions not queued. */
+  captureSplit?: SessionCaptureSplitStatus;
   gameId?: GameId;
 }
+export type SessionCaptureSplitPhase =
+  | "queued"
+  | "splitting"
+  | "verifying"
+  | "publishing"
+  | "ready"
+  | "failed";
+
+export type SessionCaptureSplitErrorCode =
+  | "source-io"
+  | "malformed-capture"
+  | "bootstrap-failed"
+  | "verification-mismatch"
+  | "worker-failed"
+  | "stale-publication"
+  | "publication-failed";
+
+export interface SessionCaptureSplitStatus {
+  sessionId: number;
+  jobId: string;
+  attemptId: number;
+  sequence: number;
+  phase: SessionCaptureSplitPhase;
+  processedSourceFrames?: number;
+  totalSourceFrames?: number;
+  completedLapArtifacts: number;
+  totalLapArtifacts: number;
+  errorCode?: SessionCaptureSplitErrorCode;
+}
+
 
 export interface RacingIdentityFields {
   carId?: string | null;

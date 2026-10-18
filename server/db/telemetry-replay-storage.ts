@@ -9,13 +9,14 @@ import { isIRacingSessionFrame } from "@raceiq/capture-formats/iracing/source-fr
 import { normalizeTelemetryPacket } from "@raceiq/telemetry-core/telemetry/normalization";
 import type { LapSetAlignmentIndex } from "@raceiq/analysis-core/racing/laps/alignment/build";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
-import { loadSessionSource, iterateSessionCaptureFrames, iterateSessionCaptureRecordsFromSource, clearSessionCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
+import { loadSessionSource, iterateSessionCaptureRecordsFromSource, clearSessionCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
 import { iterateSessionFrameRecords } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "../session-capture/frame-time";
 import { legacyMotecOffsetToPacketIndex } from "../motec/source-archive";
 import { countFullPacketMaterialized, countParserStatePrime, countSourceFrameScanned } from "../session-capture/test-instrumentation";
 import { runningStartPacketIndex } from "@raceiq/telemetry-core/processor/ordinal-engine";
 
+import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
 // Rough per-packet byte estimate. TelemetryPacket has ~50–80 numeric fields
 // plus optional game-specific extensions (f1/acc/setup). Sniffing the first
 // packet to pick a tighter estimate is precise enough for an eviction budget
@@ -30,6 +31,7 @@ interface TelemetryCacheEntry {
   kind: "telemetry";
   packets: TelemetryPacket[];
   bytes: number;
+  publicationIdentity?: string;
 }
 
 interface ComparisonCacheEntry {
@@ -74,15 +76,19 @@ function touch(key: string, entry: CacheEntry): void {
   telemetryCache.set(key, entry);
 }
 
-export function cacheGet(id: number): TelemetryPacket[] | undefined {
+export function cacheGet(id: number, publicationIdentity?: string): TelemetryPacket[] | undefined {
   const key = lapKey(id);
   const entry = telemetryCache.get(key);
   if (entry?.kind !== "telemetry") return undefined;
+  if (publicationIdentity !== undefined && entry.publicationIdentity !== publicationIdentity) {
+    cacheDelete(id);
+    return undefined;
+  }
   touch(key, entry);
   return entry.packets;
 }
 
-export function cacheSet(id: number, packets: TelemetryPacket[]): void {
+export function cacheSet(id: number, packets: TelemetryPacket[], publicationIdentity?: string): void {
   const key = lapKey(id);
   const existing = telemetryCache.get(key);
   if (existing) {
@@ -90,7 +96,7 @@ export function cacheSet(id: number, packets: TelemetryPacket[]): void {
     telemetryCache.delete(key);
   }
   const bytes = estimateBytes(packets);
-  telemetryCache.set(key, { kind: "telemetry", packets, bytes });
+  telemetryCache.set(key, { kind: "telemetry", packets, bytes, publicationIdentity });
   cacheBytesUsed += bytes;
   evictUntilWithinBudget();
 }
@@ -276,16 +282,21 @@ function normalizeReplayPacket(packet: TelemetryPacket, game: ReplayGame): void 
   normalizeTelemetryPacket(packet, game.coordSystem === "standard-xyz", game.runtime.normSuspensionTravelMm);
 }
 
+type FinishTiming = Pick<TelemetryPacket, "LastLap" | "CurrentLap" | "LapNumber">;
+
+/** Shared replay/export rule: following frames are context only when they expose a delayed finish. */
+export function isDelayedFinishContext(last: FinishTiming, trailing: FinishTiming): boolean {
+  const finishTime = trailing.LastLap ?? 0;
+  const boundaryAdvanced = (trailing.LapNumber ?? 0) > (last.LapNumber ?? 0);
+  return !(finishTime <= (last.CurrentLap ?? 0) || (finishTime === last.LastLap && !boundaryAdvanced));
+}
+
 function appendDelayedFinishPacket(packets: TelemetryPacket[], trailing: TelemetryPacket | null, game: ReplayGame): void {
   const last = packets[packets.length - 1];
   if (!game.appendsDelayedFinishFrame || !trailing || !last) return;
 
   const finishTime = trailing.LastLap ?? 0;
-  const boundaryAdvanced = (trailing.LapNumber ?? 0) > (last.LapNumber ?? 0);
-  if (
-    finishTime <= (last.CurrentLap ?? 0) ||
-    (finishTime === last.LastLap && !boundaryAdvanced)
-  ) return;
+  if (!isDelayedFinishContext(last, trailing)) return;
   packets.push({
     ...trailing,
     CurrentLap: finishTime,
@@ -358,7 +369,7 @@ export async function* iterateSessionTelemetry(sessionId: number, gameId: GameId
     return;
   }
   const serverGame = getServerGame(gameId);
-  let state = serverGame.createParserState?.() ?? null;
+  let state: unknown = serverGame.createParserState?.() ?? null;
   let inContext = false;
   for await (const record of iterateSessionCaptureRecordsFromSource(source)) {
     if (record.kind === "segment-boundary") {
@@ -371,6 +382,15 @@ export async function* iterateSessionTelemetry(sessionId: number, gameId: GameId
       continue;
     }
     if (record.kind === "segment-context-end") {
+      inContext = false;
+      continue;
+    }
+    if (record.kind === "parser-bootstrap") {
+      if (record.gameId !== gameId || record.formatVersion !== PARSER_BOOTSTRAP_VERSION) {
+        throw new Error("Parser bootstrap does not match replay game");
+      }
+      if (!serverGame.restoreParserCheckpoint) throw new Error(`Parser checkpoint restore unavailable for ${gameId}`);
+      state = serverGame.restoreParserCheckpoint(state, record.payload);
       inContext = false;
       continue;
     }
@@ -412,17 +432,46 @@ async function parseRawLapFramesFromSource(
   rawFrameCount: number,
 ): Promise<TelemetryPacket[]> {
   const serverGame = getServerGame(source.gameId);
-  const state = serverGame.createParserState?.() ?? null;
+  let state: unknown = serverGame.createParserState?.() ?? null;
+  let inContext = false;
   let fileSize = source.rawFile.endsWith(".gz") ? 0 : Bun.file(source.rawFile).size;
   const packets: TelemetryPacket[] = [];
   let found = false;
   let targetCount = 0;
   let trailingPacket: TelemetryPacket | null = null;
-  for await (const { offset, frame, frameTimeMs } of iterateSessionCaptureFrames(source)) {
+  let windowComplete = false;
+  for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: source.artifact !== undefined })) {
+    // Drain the selected member to EOF so CRC/size validation completes before returning.
+    if (windowComplete) continue;
+    if (record.kind === "segment-boundary") {
+      state = serverGame.createParserState?.() ?? null;
+      inContext = false;
+      continue;
+    }
+    if (record.kind === "parser-bootstrap") {
+      if (record.gameId !== source.gameId || record.formatVersion !== PARSER_BOOTSTRAP_VERSION ||
+          !serverGame.restoreParserCheckpoint) {
+        throw new Error(`Parser checkpoint restore unavailable for ${source.gameId}`);
+      }
+      state = serverGame.restoreParserCheckpoint(state, record.payload);
+      inContext = false;
+      continue;
+    }
+    if (record.kind === "segment-context") {
+      inContext = true;
+      continue;
+    }
+    if (record.kind === "segment-context-end") {
+      inContext = false;
+      continue;
+    }
+    const { offset, frame, frameTimeMs } = record;
     fileSize = Math.max(fileSize, offset + (frameTimeMs === undefined ? 4 : 12) + frame.length);
     if (!found) {
       if (offset < rawByteOffset) {
-        if (state != null && serverGame.primeParserState) {
+        if (inContext && state != null) {
+          parseReplayFrame(frame, serverGame, state, frameTimeMs);
+        } else if (state != null && serverGame.primeParserState) {
           try { countParserStatePrime(); serverGame.primeParserState(frame, state); } catch {}
         }
         continue;
@@ -441,7 +490,8 @@ async function parseRawLapFramesFromSource(
       continue;
     }
     trailingPacket = packet;
-    break;
+    if (!source.artifact) break;
+    windowComplete = true;
   }
   if (!found || targetCount < rawFrameCount) {
     if (!found && rawByteOffset >= fileSize) {
@@ -486,6 +536,7 @@ export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, 
       rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: 0, reason: "offset-past-eof",
     });
   }
+
   const packets: TelemetryPacket[] = [];
   let found = false;
   let targetCount = 0;
@@ -539,6 +590,10 @@ export interface LapReplaySource {
   rawFile: string | null;
   rawByteOffset: number | null;
   rawFrameCount: number | null;
+  captureManifestFile?: string | null;
+  captureLayoutVersion?: number | null;
+  captureArchiveFile?: string | null;
+  captureChunkId?: string | null;
   captureFormatVersion: number | null;
   versionIdentity?: TelemetryVersionIdentity;
 }
@@ -555,6 +610,10 @@ export async function getLapReplaySource(id: number): Promise<LapReplaySource | 
       rawFile: sessions.rawFile,
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
+      captureManifestFile: sessions.captureManifestFile,
+      captureArchiveFile: sessions.captureArchiveFile,
+      captureLayoutVersion: sessions.captureLayoutVersion,
+      captureChunkId: laps.captureChunkId,
       captureFormatVersion: sessions.captureFormatVersion,
       catalogVersion: laps.catalogVersion,
       catalogHash: laps.catalogHash,
@@ -578,6 +637,10 @@ export async function getLapReplaySource(id: number): Promise<LapReplaySource | 
     rawFile: row.rawFile,
     rawByteOffset: row.rawByteOffset,
     rawFrameCount: row.rawFrameCount,
+    captureManifestFile: row.captureManifestFile,
+    captureArchiveFile: row.captureArchiveFile,
+    captureLayoutVersion: row.captureLayoutVersion,
+    captureChunkId: row.captureChunkId,
     captureFormatVersion: row.captureFormatVersion,
     versionIdentity: hasVersionIdentity
       ? {
@@ -636,19 +699,47 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
     }
     return out;
   }
-  let state = serverGame.createParserState?.() ?? null;
+  let state: unknown = serverGame.createParserState?.() ?? null;
+  let inContext = false;
   const metas = [...lapMetas].sort((a, b) => a.rawByteOffset - b.rawByteOffset);
   const active: Array<{ meta: (typeof lapMetas)[number]; packets: TelemetryPacket[]; end: number }> = [];
   let nextMeta = 0;
   let frameIndex = 0;
-  for await (const { offset, frame, frameTimeMs } of iterateSessionCaptureFrames(source)) {
+  for await (const record of iterateSessionCaptureRecordsFromSource(source, { strict: source.artifact !== undefined })) {
+    if (record.kind === "segment-boundary") {
+      state = serverGame.createParserState?.() ?? null;
+      inContext = false;
+      continue;
+    }
+    if (record.kind === "segment-context") {
+      inContext = true;
+      continue;
+    }
+    if (record.kind === "segment-context-end") {
+      inContext = false;
+      continue;
+    }
+    if (record.kind === "parser-bootstrap") {
+      if (record.gameId !== source.gameId || record.formatVersion !== PARSER_BOOTSTRAP_VERSION ||
+          !serverGame.restoreParserCheckpoint) {
+        throw new Error(`Parser checkpoint restore unavailable for ${source.gameId}`);
+      }
+      state = serverGame.restoreParserCheckpoint(state, record.payload);
+      inContext = false;
+      continue;
+    }
+    if (record.kind !== "frame") continue;
+    const { offset, frame, frameTimeMs } = record;
     countSourceFrameScanned();
     while (nextMeta < metas.length && metas[nextMeta]!.rawByteOffset < offset) nextMeta++;
     while (nextMeta < metas.length && metas[nextMeta]!.rawByteOffset === offset) {
       const meta = metas[nextMeta++]!;
       active.push({ meta, packets: [], end: frameIndex + meta.rawFrameCount });
     }
-    if (nextMeta === metas.length && active.length === 0) break;
+    if (nextMeta === metas.length && active.length === 0) {
+      if (!source.artifact) break;
+      continue;
+    }
     const needsFull = active.some((lap) => frameIndex <= lap.end);
     if (!needsFull && state == null) {
       frameIndex++;
@@ -668,7 +759,7 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
     } catch { /* malformed frame */ }
     for (const lap of active) {
       if (frameIndex < lap.end) {
-        if (packet) lap.packets.push(packet);
+        if (packet && !inContext) lap.packets.push(packet);
       } else if (frameIndex === lap.end) {
         trimRunningStartPackets(lap.packets);
         appendDelayedFinishPacket(lap.packets, packet, serverGame);

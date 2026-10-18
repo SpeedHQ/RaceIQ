@@ -16,6 +16,7 @@ import { isSessionActive } from "../telemetry/live-pipeline";
 
 import { clearSessionCaptureCache } from "./source-loader";
 import { cacheDelete } from "../db/telemetry-replay-storage";
+import { invalidateClassificationMigrationSource } from "./classification-migration";
 export type LayoutMigrationProgress = { status: "idle" | "running" | "success" | "partial" | "error"; done: number; total: number; migrated: number; failed: number; error: string | null; phase?: "organizing" | "relocating" | null };
 type SessionReference = { sessionId: number; oldPath: string; newPath: string };
 type JournalEntry = { source: string; digest: string; destinations: string[]; published: string[]; references: SessionReference[]; cutover: boolean };
@@ -152,7 +153,9 @@ async function findLegacyFiles(root: string): Promise<string[]> {
 async function buildEntries(): Promise<JournalEntry[]> {
   const root = resolveRecordingDirectory();
   const legacy = await findLegacyFiles(root);
-  const refs = await db.select({ id: sessions.id, gameId: sessions.gameId, ownership: sessions.ownership, rawFile: sessions.rawFile }).from(sessions).all();
+  const refs = await db.select({ id: sessions.id, gameId: sessions.gameId, ownership: sessions.ownership, rawFile: sessions.rawFile, captureArchiveFile: sessions.captureArchiveFile }).from(sessions).all();
+  const referencedArchives = new Set(refs.flatMap((ref) => ref.captureArchiveFile ? [resolve(ref.captureArchiveFile)] : []));
+  const unreferencedLegacy = legacy.filter((path) => !referencedArchives.has(resolve(path)));
   const grouped = new Map<string, typeof refs>();
   const filesystemRoot = await realpath(root).catch(() => root);
   const knownGames = new Set<string>(getAllGames().map((game) => game.id));
@@ -171,7 +174,7 @@ async function buildEntries(): Promise<JournalEntry[]> {
     list.push(ref);
     grouped.set(path, list);
   }
-  const candidates = new Set(legacy);
+  const candidates = new Set(unreferencedLegacy);
   for (const path of grouped.keys()) candidates.add(path);
   const entries: JournalEntry[] = [];
   for (const source of candidates) {
@@ -327,6 +330,8 @@ export async function startLayoutMigration(directory?: string): Promise<void> {
             else if (resolve(row.rawFile ?? "") !== resolve(reference.newPath)) throw new Error("Session recording reference changed during migration");
           }
         });
+        const changedSources = new Set(entry.references.flatMap(({ oldPath, newPath }) => [oldPath, newPath]));
+        for (const source of changedSources) await invalidateClassificationMigrationSource(source);
         for (const target of entry.destinations) if (await fileHash(target) !== entry.digest) throw new Error(`Published recording changed: ${target}`);
         for (const reference of entry.references) for (const lap of await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, reference.sessionId)).all()) cacheDelete(lap.id);
         clearSessionCaptureCache();

@@ -7,20 +7,86 @@ import { telemetryStore } from "../stores/telemetry";
 import { devTelemetryStore } from "../stores/dev-telemetry";
 import { queryKeys } from "./query-keys";
 import { buildWebSocketUrl, type DevWebSocketTarget } from "./websocket-url";
-import { invalidateDashboardQueries } from "./dashboard";
+import { invalidateDashboardQueries as invalidateDashboard } from "./dashboard";
 import { refreshClassificationMigration, acceptClassificationMigrationSnapshot } from "@/lib/classification-migration";
 import type { ClassificationMigrationStatus } from "@raceiq/shared/racing/laps/classification-migration";
 
 declare const __RACEIQ_DEV_WS_TARGET__: DevWebSocketTarget;
 
-let dashboardRefreshTimer: number | undefined;
+let captureRefreshTimer: number | undefined;
+const captureSnapshots = new Map<number, { jobId: string; attemptId: number; sequence: number }>();
+const liveCaptureEpochs = new Map<number, string>();
+function rememberLiveCaptureEpoch(sessionId: number, captureEpoch: string) {
+  liveCaptureEpochs.set(sessionId, captureEpoch);
+  while (liveCaptureEpochs.size > 128) {
+    const oldest = liveCaptureEpochs.keys().next().value;
+    if (oldest === undefined) break;
+    liveCaptureEpochs.delete(oldest);
+  }
+}
 
-function invalidateDashboard() {
-  if (dashboardRefreshTimer !== undefined) window.clearTimeout(dashboardRefreshTimer);
-  dashboardRefreshTimer = window.setTimeout(() => {
-    dashboardRefreshTimer = undefined;
-    invalidateDashboardQueries();
-  }, 100);
+function acceptLiveCaptureLifecycle(data: Record<string, unknown>) {
+  const sessionId = data.sessionId;
+  const captureEpoch = data.captureEpoch;
+  const type = data.type;
+  if (typeof sessionId !== "number" || typeof captureEpoch !== "string" || !captureEpoch || typeof type !== "string") return false;
+  const current = telemetryStore.get().liveCaptureLifecycles[sessionId];
+  const previousEpoch = liveCaptureEpochs.get(sessionId) ?? current?.captureEpoch;
+  if (type === "recording-started") {
+    if (previousEpoch !== captureEpoch) {
+      rememberLiveCaptureEpoch(sessionId, captureEpoch);
+      telemetryStore.actions.setLiveCaptureLifecycle({ sessionId, gameId: String(data.gameId ?? ""), captureEpoch, phase: "recording" });
+      return true;
+    }
+    return false;
+  }
+  if (current?.captureEpoch === captureEpoch
+    && (current.phase === "failed" || (current.phase === "sealed" && type !== "recording-failed"))) return false;
+  if ((previousEpoch !== undefined && previousEpoch !== captureEpoch) || !["recording-finalizing", "recording-sealed", "recording-failed"].includes(type)) return false;
+  rememberLiveCaptureEpoch(sessionId, captureEpoch);
+  const phase = type === "recording-finalizing" ? "finalizing" : type === "recording-sealed" ? "sealed" : "failed";
+  telemetryStore.actions.setLiveCaptureLifecycle({
+    sessionId,
+    gameId: String(data.gameId ?? current?.gameId ?? ""),
+    captureEpoch,
+    phase,
+    ...(phase === "failed" && typeof data.error === "string" ? { error: data.error } : {}),
+  });
+  return true;
+}
+
+function invalidateCaptureReadiness() {
+  queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
+  queryClient.invalidateQueries({ queryKey: queryKeys.laps });
+}
+
+function acceptCaptureSnapshot(data: Record<string, unknown>) {
+  const sessionId = data.sessionId;
+  const jobId = data.jobId;
+  const attemptId = data.attemptId;
+  const sequence = data.sequence;
+  if (typeof sessionId !== "number" || typeof jobId !== "string" || typeof attemptId !== "number" || typeof sequence !== "number") return false;
+
+  const previous = captureSnapshots.get(sessionId);
+  if (previous?.jobId === jobId && (attemptId < previous.attemptId
+    || (attemptId === previous.attemptId && sequence <= previous.sequence))) return false;
+  captureSnapshots.set(sessionId, { jobId, attemptId, sequence });
+  return true;
+}
+
+function refreshCaptureReadiness(terminal: boolean) {
+  if (captureRefreshTimer !== undefined) {
+    window.clearTimeout(captureRefreshTimer);
+    captureRefreshTimer = undefined;
+  }
+  if (terminal) {
+    invalidateCaptureReadiness();
+    return;
+  }
+  captureRefreshTimer = window.setTimeout(() => {
+    captureRefreshTimer = undefined;
+    invalidateCaptureReadiness();
+  }, 150);
 }
 
 const VERSION_REQUEST_TIMEOUT_MS = 10_000;
@@ -89,7 +155,9 @@ export function useWebSocket() {
       // Read store actions via stable references — stable, no dependency issues
 
       ws.onopen = () => {
+        captureSnapshots.clear();
         telemetryStore.actions.setConnected(true);
+
         startVersionRequest();
         void refreshClassificationMigration();
         queryClient.invalidateQueries({ queryKey: queryKeys.laps });
@@ -132,6 +200,21 @@ export function useWebSocket() {
             queryClient.invalidateQueries({ queryKey: ["laps"] });
             invalidateDashboard();
             queryClient.invalidateQueries({ queryKey: queryKeys.userTunes });
+          } else if (data.type === "session-capture-split-progress") {
+            const status = data.status as Record<string, unknown> | undefined;
+            if (status && acceptCaptureSnapshot(status)) {
+              refreshCaptureReadiness(status.phase === "ready" || status.phase === "failed");
+            }
+          } else if (data.type === "lap-capture-ready") {
+            queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
+            queryClient.invalidateQueries({ queryKey: queryKeys.laps });
+            invalidateDashboard();
+          } else if (["recording-started", "recording-finalizing", "recording-sealed", "recording-failed"].includes(data.type)) {
+            if (data.type === "recording-failed" && (typeof data.sessionId !== "number" || typeof data.captureEpoch !== "string")) {
+              telemetryStore.actions.setLiveCaptureError(typeof data.error === "string" ? data.error : "Recording failed.");
+            } else if (acceptLiveCaptureLifecycle(data)) {
+              if (data.type === "recording-sealed" || data.type === "recording-failed") invalidateCaptureReadiness();
+            }
           } else if (data.type === "stale-lap-detection") {
             telemetryStore.actions.setStaleLapDetection({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
           } else if (data.type === "stale-race-results") {

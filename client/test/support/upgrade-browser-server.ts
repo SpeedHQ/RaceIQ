@@ -5,7 +5,7 @@ import { createInterface } from "node:readline";
 import dgram from "node:dgram";
 import Database from "libsql";
 import type { Subprocess } from "bun";
-import { seedReleaseDatabase } from "../../../apps/backend/test/e2e/support/release-database";
+import { createAccMigrationFixture, seedReleaseDatabase } from "../../../apps/backend/test/e2e/support/release-database";
 import { cloneReleaseData } from "../../../apps/backend/test/e2e/support/clone-release-data";
 import { ROOT, startUpgradeServer, type UpgradeServer } from "../../../apps/backend/test/e2e/support/upgrade-server";
 
@@ -21,7 +21,7 @@ try {
   } else {
     const seeded = await seedReleaseDatabase(directory, {
       gameId: "acc",
-      paths: [join(ROOT, "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz")],
+      paths: [createAccMigrationFixture(directory)],
     });
     // seedReleaseDatabase already creates directory/data.
     if (seeded.dataDir !== dataDir) throw new Error("Unexpected seed location");

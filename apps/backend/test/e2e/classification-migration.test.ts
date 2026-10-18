@@ -6,7 +6,7 @@ import { join } from "node:path";
 import dgram from "node:dgram";
 import { ReplayedUdpDataSource } from "@raceiq/backend-core/test-support/recordings/replayed-udp-data-source";
 import type { ClassificationMigrationStatus } from "@raceiq/shared/racing/laps/classification-migration";
-import { seedReleaseDatabase } from "./support/release-database";
+import { createAccMigrationFixture, prepareOrganizedReleaseData, seedReleaseDatabase } from "./support/release-database";
 import { cloneReleaseData } from "./support/clone-release-data";
 import { ROOT, command, startUpgradeServer, upgradeEnvironment, type UpgradeServer } from "./support/upgrade-server";
 
@@ -18,13 +18,16 @@ let freshRawSource: string;
 
 beforeAll(async () => {
   temporary = await mkdtemp(join(tmpdir(), "raceiq-classification-upgrade-"));
+  const supportedAccFixture = createAccMigrationFixture(temporary);
   const seeded = await seedReleaseDatabase(temporary, {
     gameId: "acc",
-    paths: [join(ROOT, "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz")],
+    paths: [supportedAccFixture],
   });
   baseline = seeded.dataDir;
+  await prepareOrganizedReleaseData(baseline);
   f1Baseline = join(temporary, "f1-data");
   await command([process.execPath, "run", "db:seed", "--games=f1-2025", `--fixtures=${join(ROOT, "test/artifacts/sessions/f1-2025-2026-04-22T11-42-43-029Z.bin.gz")}`], seeded.releaseDir, upgradeEnvironment(f1Baseline));
+  await prepareOrganizedReleaseData(f1Baseline);
   // Assign a driver explicitly; ordinary startup separately backfills legacy NULL profiles.
   for (const dataDir of [baseline, f1Baseline]) {
     const fixture = new Database(join(dataDir, "app.db"));
@@ -32,7 +35,7 @@ beforeAll(async () => {
     fixture.close();
   }
   const freshData = join(temporary, "fresh-data");
-  await command([process.execPath, "run", "db:seed", "--games=acc", `--fixtures=${join(ROOT, "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz")}`], ROOT, upgradeEnvironment(freshData));
+  await command([process.execPath, "run", "db:seed", "--games=acc", `--fixtures=${supportedAccFixture}`], ROOT, upgradeEnvironment(freshData));
   const freshDatabase = new Database(join(freshData, "app.db"));
   freshClassifications = freshDatabase.prepare("SELECT lap_number,classification FROM laps ORDER BY lap_number").all();
   const freshSource = freshDatabase.prepare("SELECT raw_file FROM sessions WHERE EXISTS(SELECT 1 FROM laps WHERE laps.session_id=sessions.id) ORDER BY id LIMIT 1").get() as { raw_file: string };
@@ -83,7 +86,8 @@ async function settled(address: string) {
 
 function preservedLaps(database: InstanceType<typeof Database>) {
   return database.prepare("SELECT * FROM laps ORDER BY id").all().map((row) => {
-    const { classification: _classification, is_valid: _valid, invalid_reason: _reason, ...preserved } = row as Record<string, unknown>;
+    const { classification: _classification, is_valid: _valid, invalid_reason: _reason,
+      capture_chunk_id: _captureChunk, source_frame_start: _sourceFrameStart, source_frame_count: _sourceFrameCount, ...preserved } = row as Record<string, unknown>;
     return preserved;
   });
 }
@@ -129,7 +133,6 @@ test("normal boot classifies historical recordings in place and skips completed 
       { lap_number: 1, classification: "pace", is_valid: 1 },
       { lap_number: 2, classification: "pace", is_valid: 0 },
       { lap_number: 3, classification: "pace", is_valid: 0 },
-      { lap_number: 4, classification: "pit_lap", is_valid: 0 },
     ]);
     const attempts = database.prepare("SELECT recording_id,attempt,state FROM classification_migration_recordings ORDER BY recording_id").all();
     await server.stop();
@@ -278,14 +281,24 @@ for (const defect of ["ambiguous_match", "corrupt_source"] as const) {
     let server: UpgradeServer | undefined;
     let database: InstanceType<typeof Database> | undefined;
     try {
-      await cloneReleaseData(baseline, dataDir);
-      database = new Database(join(dataDir, "app.db"));
-      database.exec("PRAGMA busy_timeout=5000;");
       if (defect === "ambiguous_match") {
-        const columns = database.prepare("PRAGMA table_info(laps)").all() as Array<{ name: string }>;
-        const names = columns.filter((column) => column.name !== "id").map((column) => `"${column.name}"`).join(",");
-        database.exec(`INSERT INTO laps (${names}) SELECT ${names} FROM laps ORDER BY id LIMIT 1`);
+        const seeded = await seedReleaseDatabase(directory, {
+          gameId: "acc",
+          paths: [join(ROOT, "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz")],
+        });
+        await prepareOrganizedReleaseData(seeded.dataDir);
+        database = new Database(join(seeded.dataDir, "app.db"));
+        database.exec("UPDATE laps SET profile_id=1 WHERE profile_id IS NULL;");
+        expect(database.prepare("SELECT raw_byte_offset,raw_frame_count FROM laps ORDER BY lap_number DESC LIMIT 1").get()).toMatchObject({
+          raw_byte_offset: 66_133_836,
+          raw_frame_count: 281,
+        });
       } else {
+        await cloneReleaseData(baseline, dataDir);
+        database = new Database(join(dataDir, "app.db"));
+      }
+      database.exec("PRAGMA busy_timeout=5000;");
+      if (defect === "corrupt_source") {
         const corrupt = join(directory, "corrupt.bin");
         // A declared frame with a truncated payload must not be accepted as partial success.
         await Bun.write(corrupt, Buffer.from([0, 16, 0, 0, 1, 2, 3]));
@@ -343,7 +356,7 @@ test("bounded decoding leaves HTTP, supported imports, and manual processing usa
       method: "POST", headers: { Origin: running.address }, body, signal: AbortSignal.timeout(30_000),
     });
     if (!imported.ok) throw new Error(`Concurrent import ${imported.status}: ${await imported.text()}`);
-    expect((await imported.json()).imported).toBe(4);
+    expect((await imported.json()).imported).toBe(3);
     const database = new Database(join(dataDir, "app.db"));
     const session = database.prepare("SELECT id FROM sessions WHERE id>1 AND EXISTS(SELECT 1 FROM laps WHERE laps.session_id=sessions.id) ORDER BY id DESC LIMIT 1").get() as { id: number };
     database.close();

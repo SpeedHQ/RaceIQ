@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { sessionCarName, sessionTrackName } from "./helpers";
 import { SessionTypeBadge } from "./SessionTypeBadge";
 import { MotecBadge } from "./MotecBadge";
-import { NoteCell } from "./NoteCell";
 import { SessionLapTable } from "./SessionLapTable";
 import { SessionResultMeta } from "./SessionResultMeta";
+import { SessionCaptureSplitStatus } from "./SessionCaptureSplitStatus";
+import { NoteCell } from "./NoteCell";
 import type { LapSortKey, SessionSelectionEvent, SortDir } from "./types";
 import { getLocale } from "@/paraglide/runtime";
 import { m } from "@/paraglide/messages";
@@ -129,6 +130,7 @@ export function SessionMobileList({
                   </div>
                   <div className="mt-2">
                     <SessionResultMeta session={session} />
+                    <SessionCaptureSplitStatus status={session.captureSplit} sessionId={session.id} />
                   </div>
                   <div className="flex items-center gap-4 mt-2 text-xs">
                     <span className="text-app-text/90">

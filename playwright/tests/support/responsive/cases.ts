@@ -120,22 +120,6 @@ export const RESPONSIVE_INTERACTION_CASES: readonly ResponsiveInteractionCase[] 
   },
 ] as const;
 
-export const RESPONSIVE_DEVICE_CASES = [
-  {
-    name: "pixel-7-touch-shell",
-    project: "mobile-device",
-    path: "/fm23",
-    expectedViewport: { width: 412, height: 839 },
-  },
-  {
-    name: "ipad-gen-7-touch-shell",
-    project: "tablet-device",
-    path: "/fm23",
-    expectedViewport: { width: 810, height: 1080 },
-  },
-] as const;
-
-export type ResponsiveDeviceCase = (typeof RESPONSIVE_DEVICE_CASES)[number];
 
 export const RESPONSIVE_SCREENSHOT_COUNT =
   RESPONSIVE_VIEWPORTS.reduce((count, viewport) => count + RESPONSIVE_PAGES.filter((page) => !page.viewports || page.viewports.includes(viewport.name)).length, 0) +

@@ -171,7 +171,7 @@ describe("generic sparse session recorder", () => {
     ]);
     try {
       const records = [...iterateSessionCaptureRecords(readFileSync(converted.path))];
-      expect(records.map(({ offset: _, ...record }) => record)).toEqual([
+      expect(records.map(({ offset: _, endOffset: __, ...record }) => record)).toEqual([
         { kind: "segment-boundary" },
         { kind: "segment-context" },
         { kind: "frame", frame: context, frameTimeMs: 1_745_000_000_000 },
@@ -197,6 +197,7 @@ describe("generic sparse session recorder", () => {
     const capture = Buffer.concat([Buffer.from([0xff, 0xff, 0xff, 0xff, 4, 0, 0, 0, 0, 0, 0, 0]), Buffer.from([0x44,1,0,0]), previous, Buffer.from([payload.length,0,0,0]), badDistance]);
     expect(() => [...iterateSessionCaptureRecords(capture)]).toThrow(/checkpoint distance/);
     const truncated = Buffer.concat([capture.subarray(0, capture.length - 2)]);
-    expect([...iterateSessionCaptureRecords(truncated)].length).toBe(1);
+    expect([...iterateSessionCaptureRecords(truncated, undefined, { strict: false })].length).toBe(1);
+    expect(() => [...iterateSessionCaptureRecords(truncated, undefined, { strict: true })]).toThrow(/Truncated session capture record/);
   });
 });

@@ -14,6 +14,7 @@ import {
   type DashboardCaptureFacts,
   type DashboardPublicationCandidate,
 } from "../db/dashboard-summary-queries";
+import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
 import { iterateSessionCaptureRecordsFromSource, type SessionCaptureSource } from "./source-loader";
 import { hasTerminalMigrationCaptureFailure } from "./classification-migration";
 
@@ -163,9 +164,24 @@ async function readCaptureFacts(candidate: DashboardPublicationCandidate): Promi
       captureHasher.update(record.frame);
       captureHasher.update(String(record.frameTimeMs ?? ""));
     }
+    if (record.kind === "parser-bootstrap") {
+      captureHasher.update(record.gameId);
+      captureHasher.update(String(record.formatVersion));
+      captureHasher.update(record.payload);
+    }
     if (record.kind === "segment-boundary") { finishSegment(); parserState = game.createParserState(); continue; }
     if (record.kind === "segment-context") continue;
     if (record.kind === "segment-context-end") continue;
+    if (record.kind === "parser-bootstrap") {
+      if (record.gameId !== source.gameId || record.formatVersion !== PARSER_BOOTSTRAP_VERSION) {
+        throw new Error("Parser bootstrap does not match dashboard source");
+      }
+      if (!game.restoreParserCheckpoint) {
+        throw new Error(`Parser checkpoint restore unavailable for ${source.gameId}`);
+      }
+      parserState = game.restoreParserCheckpoint(parserState, record.payload);
+      continue;
+    }
     if (record.kind !== "frame") continue;
     const packet = game.tryParse(record.frame, parserState);
     if (!packet) continue;

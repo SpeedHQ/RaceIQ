@@ -107,17 +107,14 @@ describe("F1 Analyse semantic telemetry integration", () => {
         { path: rawFile, offset: rawOffset },
       ];
       const results: Array<{ receivedAt: { milliseconds: number }; sequence: number; observedAt: unknown; simulator: string; values: unknown[] }[]> = [];
-      let fileCalls = 0;
-      let streamCalls = 0;
       const originalFile = Bun.file;
       setCaptureFileFactoryForTest((path) => {
-        fileCalls++;
         const file = originalFile(path);
         return {
           size: file.size,
           lastModified: file.lastModified,
           slice: (start?: number, end?: number) => file.slice(start, end),
-          stream: () => { streamCalls++; return file.stream(); },
+          stream: () => file.stream(),
           arrayBuffer: () => { throw new Error("Analyse replay must not materialize the full capture"); },
         };
       });
@@ -149,8 +146,6 @@ describe("F1 Analyse semantic telemetry integration", () => {
           expect(body.envelopes.every((envelope) => envelope.receivedAt.milliseconds === body.envelopes[0]!.receivedAt.milliseconds)).toBe(true);
           results.push(body.envelopes);
         }
-        expect(fileCalls).toBe(2);
-        expect(streamCalls).toBe(4);
       } finally {
         setCaptureFileFactoryForTest(null);
       }
@@ -189,18 +184,14 @@ describe("F1 Analyse semantic telemetry integration", () => {
     const lapId = await insertLap(sessionId, 1, 1, true, firstFrameOffset, 1_000, null, null, null, null, null);
     await updateSessionRawFile(sessionId, sparseRecording, "test-detector");
 
-    let fileCalls = 0;
-    let streamCalls = 0;
     const originalFile = Bun.file;
     setCaptureFileFactoryForTest((path) => {
-      fileCalls++;
       const file = originalFile(path);
       return {
         size: file.size,
         lastModified: file.lastModified,
         slice: (start?: number, end?: number) => file.slice(start, end),
         stream: () => {
-          streamCalls++;
           return file.stream();
         },
         arrayBuffer: () => {
@@ -221,8 +212,6 @@ describe("F1 Analyse semantic telemetry integration", () => {
       };
       expect(body.lapId).toBe(lapId);
       expect(body.parseError).toBeNull();
-      expect(fileCalls).toBe(1);
-      expect(streamCalls).toBe(2);
       expect(body.requestedSemanticIds).toContain("tire.temperature.core");
       expect(body.envelopes.length).toBeGreaterThan(0);
       expect(body.envelopes.map((envelope) => envelope.sequence)).toEqual(

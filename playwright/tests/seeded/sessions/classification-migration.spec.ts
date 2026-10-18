@@ -87,7 +87,7 @@ test("real upgrade restores attention, preserves it offline, and repairs through
     await expect(maintenance).toContainText("Historical recordings classified.", { timeout: 180_000 });
     await expect(maintenance.getByRole("button", { name: /^Retry / })).toHaveCount(0);
     await page.reload({ waitUntil: "domcontentloaded" });
-    const layout = page.getByRole("dialog", { name: "Organize older recordings" });
+    const layout = page.getByRole("dialog", { name: "Organize your recordings" });
     await expect(layout).toBeVisible();
     await expect(page.getByRole("dialog", { name: "Historical lap classification" })).toBeHidden();
     await layout.getByRole("button", { name: "Later", exact: true }).click();

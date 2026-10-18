@@ -324,4 +324,8 @@ describe("parseRawLapFrames — coordinate normalization (standard-xyz)", () => 
     expect(rawHeader?.trackOrdinal).toBe(0);
     expect(rawHeader?.carOrdinal).toBe(0);
   });
+test("ACC remains without a parser checkpoint codec", () => {
+  expect("captureParserCheckpoint" in accServerAdapter).toBe(false);
+  expect("restoreParserCheckpoint" in accServerAdapter).toBe(false);
+});
 });

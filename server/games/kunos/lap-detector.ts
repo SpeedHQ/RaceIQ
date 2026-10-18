@@ -3,6 +3,7 @@ import type { LapClassification } from "@raceiq/shared/racing/lap-classification
 import { lapPath } from "@raceiq/shared/racing/tracks/path";
 import { recordOpenLapTraceById } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
 import { KunosDetectorEngine, type KunosLapCapture } from "@raceiq/telemetry-core/processor/kunos-engine";
+import type { DetectorOwnershipState, DetectorOwnershipTransition } from "@raceiq/telemetry-core/processor/ordinal-engine";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { DbAdapter, SessionIdentity } from "../../telemetry/pipeline-ports";
 import { assessLapRecording } from "@raceiq/telemetry-core/processor/lap-policy";
@@ -59,8 +60,21 @@ export class KunosLapDetector implements ILapDetector {
     });
   }
   get session(): SessionState | null { return this.currentSession; }
-  setCurrentLapByteOffset(offset: number): void { this.engine.setCurrentLapByteOffset(offset); }
-  async feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void> {
+  getOwnershipState(): DetectorOwnershipState { return this.engine.getOwnershipState(); }
+  subscribeOwnership(listener: (transition: DetectorOwnershipTransition) => void): () => void {
+    return this.engine.subscribeOwnership(listener);
+  }
+  setCurrentLapByteOffset(offset: number, rawOrdinal?: number): void { this.engine.setCurrentLapByteOffset(offset, rawOrdinal); }
+  observeSourceRecord(offset: number, endOffset: number, ordinal: number): void {
+    this.engine.observeSourceRecord(offset, endOffset, ordinal);
+  }
+  drainOwnershipTransitions(): DetectorOwnershipTransition[] {
+    return this.engine.drainOwnershipTransitions();
+  }
+  shouldCheckpointBeforeWrite(packet: TelemetryPacket): boolean {
+    return this.engine.shouldCheckpoint(packet);
+  }
+  async feed(packet: TelemetryPacket, rawByteOffset?: number, rawOrdinal?: number): Promise<void> {
     const identity = packet.gameId === "ac-evo" ? packet.acEvoIdentity : undefined;
     if (identity) {
       const previous = this.lastAcEvoSourceIdentity;
@@ -72,7 +86,7 @@ export class KunosLapDetector implements ILapDetector {
       }
       this.lastAcEvoSourceIdentity = identity;
     }
-    await this.engine.feed(packet, rawByteOffset);
+    await this.engine.feed(packet, rawByteOffset, rawOrdinal);
   }
   async flushIncompleteLap(): Promise<void> { await this.engine.flushIncompleteLap(); }
   async flushStaleLap(): Promise<void> {
@@ -132,7 +146,7 @@ export class KunosLapDetector implements ILapDetector {
     traceLap(traceGameId, "lap-boundary-stage", { sessionId: traceSessionId, lapNumber: lapNum, lapId, stage: "auto-exclusion", durationMs: performance.now() - traceStageAt });
     traceStageAt = performance.now();
     if (!capture.silent) {
-      this.onLapSaved?.({ type: "lap-saved", lapId, lapNumber: lapNum, lapTime, isValid, classification, sectors, estimatedBestLapTime: session.bestLapTime });
+      this.onLapSaved?.({ type: "lap-saved", sessionId: session.sessionId, lapId, lapNumber: lapNum, lapTime, isValid, classification, sectors, estimatedBestLapTime: session.bestLapTime });
       this.onLapComplete_?.({ packets, lapDistStart: packets[0]?.DistanceTraveled ?? 0, lapTime, isValid, classification, sectors });
     }
     traceLap(traceGameId, "lap-boundary-stage", { sessionId: traceSessionId, lapNumber: lapNum, stage: "callbacks", durationMs: performance.now() - traceStageAt });

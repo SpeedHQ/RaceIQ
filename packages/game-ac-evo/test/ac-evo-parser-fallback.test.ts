@@ -1,5 +1,28 @@
 import { describe, test, expect } from "bun:test";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../src/parser";
+import { captureAcEvoParserCheckpoint, restoreAcEvoParserCheckpoint } from "../src/parser";
+test("AC Evo parser checkpoint encodes and restores cache state", () => {
+  const cache = createAcEvoParserCache();
+  cache.playerSlotState.slot = 4;
+  cache.playerSlotState.scores[4] = 12.5;
+  cache.playerSlotState.scoredFrames = 10;
+  cache.distanceState.outputM = 123.25;
+  const restored = restoreAcEvoParserCheckpoint(captureAcEvoParserCheckpoint(cache));
+  expect(restored.playerSlotState.slot).toBe(4);
+  expect(restored.playerSlotState.scores[4]).toBe(12.5);
+  expect(restored.playerSlotState.scoredFrames).toBe(10);
+  expect(restored.distanceState.outputM).toBe(123.25);
+  expect(() => restoreAcEvoParserCheckpoint(Buffer.from('{"format":"raceiq:ac-evo-parser","version":2}')))
+    .toThrow("Invalid or unsupported AC Evo parser checkpoint");
+});
+
+test("AC Evo checkpoint rejects malformed nested state", () => {
+  const checkpoint = JSON.parse(new TextDecoder().decode(captureAcEvoParserCheckpoint(createAcEvoParserCache())));
+  checkpoint.cache.playerSlotState.previousCoordinates = {};
+  expect(() => restoreAcEvoParserCheckpoint(Buffer.from(JSON.stringify(checkpoint))))
+    .toThrow("Invalid or unsupported AC Evo parser checkpoint");
+});
+
 import { parseAcEvoLapIndex } from "../src/lap-index";
 import { PHYSICS, GRAPHICS_EVO, STATIC_EVO, TYRE_STATE, ACEVO_STATUS } from "@raceiq/capture-formats/ac-evo/structs";
 

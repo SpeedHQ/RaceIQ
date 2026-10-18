@@ -89,6 +89,19 @@ describe("Sessions toolbar controls", () => {
     expect(markup).toContain(m.common_loading());
   });
 
+  test("keeps legacy exports enabled when readiness metadata is absent", () => {
+    toolbar(new Set([lap.id]), [{ ...lap, source: null, standaloneCaptureReady: undefined }]);
+
+    expect(capturedExportButton()?.disabled).toBeFalsy();
+  });
+
+  test("explains and disables export when capture is explicitly unavailable", () => {
+    const markup = toolbar(new Set([lap.id]), [{ ...lap, source: null, standaloneCaptureReady: false }]);
+
+    expect(capturedExportButton()?.disabled).toBe(true);
+    expect(markup).toContain(m.sessions_export_capture_not_ready());
+  });
+
   test("shows Compare button for two laps on same track", () => {
     expect(toolbar(new Set([lap.id, secondLap.id]), [lap, secondLap])).toContain(m.sessions_compare_two());
   });

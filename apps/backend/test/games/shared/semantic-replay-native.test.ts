@@ -7,8 +7,9 @@ import { deleteSession, insertSession, updateSessionRawFile } from "@raceiq/back
 import type { LapReplaySource } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { cacheDelete, cacheSet } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { initServerGameAdapters } from "../../../src/games/init";
+import { getServerGame } from "@raceiq/backend-core/games/registry";
 import { IRacingSourceFrameEncoder, type IRacingSourceFrameV2 } from "@raceiq/capture-formats/iracing/source-frame";
-import { META_FRAME_MAGIC } from "@raceiq/capture-formats/session/framing";
+import { encodeMetaFrame, encodeParserBootstrapFrame, META_FRAME_MAGIC } from "@raceiq/capture-formats/session/framing";
 import { iterateIRacingNativeFramesForTest, queryLapTelemetryBySemanticId } from "@raceiq/backend-core/telemetry/replay";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { canonicalizeTelemetryScalar } from "@raceiq/telemetry-core/telemetry/replay/canonicalize";
@@ -85,6 +86,36 @@ for (const rawFrameCount of [0, 1, 3]) {
     expect(sessionTicks).not.toContain(999);
   });
 }
+
+test("iRacing native replay restores parser bootstrap before owned frames", () => {
+  const encoder = new IRacingSourceFrameEncoder();
+  const seedFrame = encoder.encode(frame(0, 1));
+  const ownedFrame = encoder.encode(frame(1, 2));
+  const game = getServerGame("iracing");
+  const state = game.createParserState();
+  if (state == null || !game.captureParserCheckpoint || !game.restoreParserCheckpoint) {
+    throw new Error("iRacing parser checkpoint codec is unavailable");
+  }
+  game.tryParse(seedFrame, state);
+  const checkpoint = game.captureParserCheckpoint(state);
+  if (!checkpoint) throw new Error("iRacing parser checkpoint could not be captured");
+  const meta = encodeMetaFrame();
+  const bootstrap = encodeParserBootstrapFrame("iracing", checkpoint);
+  const capture = Buffer.concat([meta, bootstrap, record(ownedFrame)]);
+  const source: LapReplaySource = {
+    id: 1,
+    sessionId: 1,
+    createdAt: "2026-08-04 00:00:00",
+    gameId: "iracing",
+    rawFile: null,
+    rawByteOffset: meta.length + bootstrap.length,
+    rawFrameCount: 1,
+    captureFormatVersion: 1,
+  };
+
+  const sessionTicks = Array.from(iterateIRacingNativeFramesForTest(source, capture), (values) => values.SessionTick);
+  expect(sessionTicks).toEqual([1]);
+});
 
 test("canonical replay values clone recursive boolean and string structures", () => {
   const source = {

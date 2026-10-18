@@ -2,19 +2,15 @@ import { resolveRecordingDirectory } from "../runtime/config/recording-directory
 /**
  * Session file cleanup for startup and scheduled maintenance.
  *
- * Removes tiny `.bin` captures (at most the 12-byte metadata header) and
- * `.bin`, `.bin.gz`, and `.motec.zip` captures not referenced by `sessions.rawFile`.
+ * Removes unreferenced recording files and controlled legacy/indexed bundle artifacts.
+ * Protects published references, shared sources, and active split attempts.
  */
 import { readdir, lstat, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, resolve, join } from "node:path";
 import { db } from "../db/index";
-import { sessions } from "../db/schema";
-import { sql } from "drizzle-orm";
-import { META_FRAME_BYTES } from "@raceiq/capture-formats/session/framing";
-
-const TINY_ORPHAN_THRESHOLD_BYTES = META_FRAME_BYTES;
-
+import { sessions, sessionCaptureSplitJobs, liveCaptures } from "../db/schema";
+import { clearCaptureManifestCache, clearSessionCaptureCache, loadCaptureManifest } from "./source-loader";
 let maintenanceQueue = Promise.resolve();
 
 export function withSessionCaptureMaintenanceLock<T>(
@@ -28,15 +24,43 @@ export function withSessionCaptureMaintenanceLock<T>(
   return previous.then(operation).finally(release);
 }
 
-async function loadReferencedRawFiles(): Promise<Set<string>> {
-  const rows = await db
-    .select({ rawFile: sessions.rawFile })
-    .from(sessions)
-    .where(sql`${sessions.rawFile} IS NOT NULL`)
-    .all();
+export async function loadReferencedCapturePaths(): Promise<Set<string>> {
+  const [sessionRows, jobRows, liveRows] = await Promise.all([
+    db.select({ rawFile: sessions.rawFile, archiveFile: sessions.captureArchiveFile, manifestFile: sessions.captureManifestFile }).from(sessions).all(),
+    db.select({ sourcePath: sessionCaptureSplitJobs.sourcePath, stagingPath: sessionCaptureSplitJobs.stagingPath })
+      .from(sessionCaptureSplitJobs).all(),
+    db.select({ sourcePath: liveCaptures.sourcePath, archivePath: liveCaptures.archivePath, status: liveCaptures.status, committedArchiveLength: liveCaptures.committedArchiveLength })
+      .from(liveCaptures).all(),
+  ]);
   const referenced = new Set<string>();
-  for (const { rawFile } of rows) {
-    if (rawFile != null) referenced.add(rawFile);
+  for (const row of sessionRows) {
+    if (row.rawFile) referenced.add(resolve(row.rawFile));
+    if (row.archiveFile) referenced.add(resolve(row.archiveFile));
+    if (row.manifestFile) referenced.add(resolve(row.manifestFile));
+  }
+  for (const row of jobRows) {
+    referenced.add(resolve(row.sourcePath));
+    if (row.stagingPath) referenced.add(resolve(row.stagingPath));
+  }
+  for (const row of sessionRows) {
+    if (!row.manifestFile) continue;
+    try {
+      const manifest = await loadCaptureManifest(row.manifestFile);
+      if ("archiveFile" in manifest) referenced.add(resolve(dirname(row.manifestFile), manifest.archiveFile));
+      else for (const chunk of manifest.chunks) referenced.add(resolve(dirname(row.manifestFile), chunk.path));
+    } catch {
+      // Preserve unknown members of a broken published manifest for recovery.
+      referenced.add(resolve(dirname(row.manifestFile)));
+    }
+  }
+  for (const row of liveRows) {
+    if (row.status === "sealed" || (row.status === "failed" && row.committedArchiveLength === 0)) continue;
+    const source = resolve(row.sourcePath);
+    const archive = resolve(row.archivePath);
+    referenced.add(source);
+    referenced.add(archive);
+    referenced.add(dirname(source));
+    referenced.add(dirname(archive));
   }
   return referenced;
 }
@@ -86,6 +110,51 @@ export async function listSessionCaptureFiles(): Promise<string[]> {
   return captureFiles;
 }
 
+async function listBundleFiles(): Promise<string[]> {
+  const root = resolveRecordingDirectory();
+  const files: string[] = [];
+  const games = await readdir(root, { withFileTypes: true }).catch(() => []);
+  const attemptName = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-[1-9][0-9]*-[0-9a-f]{64}(?:\.staging)?$/i;
+  const uuid = "[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}";
+  const directDirectory = new RegExp(`^\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-\\d{3}Z-${uuid}$`, "i");
+  const directPart = new RegExp(`^${uuid}\\.bin$`, "i");
+  for (const game of games) {
+    if (!game.isDirectory()) continue;
+    const gamePath = join(root, game.name);
+    const gameEntries = await readdir(gamePath, { withFileTypes: true }).catch(() => []);
+    const locations = [gamePath, ...gameEntries
+      .filter((entry) => entry.isDirectory() && (entry.name === "own" || entry.name === "others"))
+      .map((entry) => join(gamePath, entry.name))];
+    for (const location of locations) {
+      const entries = location === gamePath ? gameEntries : await readdir(location, { withFileTypes: true }).catch(() => []);
+      for (const session of entries) {
+        if (session.isDirectory() && directDirectory.test(session.name)) {
+          const directory = join(location, session.name);
+          for (const file of await readdir(directory, { withFileTypes: true }).catch(() => [])) {
+            if (file.isFile() && (file.name === "capture-manifest.json" || directPart.test(file.name))) {
+              files.push(join(directory, file.name));
+            }
+          }
+          continue;
+        }
+        if (!session.isDirectory() || !/^session-[0-9]+$/.test(session.name)) continue;
+        const sessionPath = join(location, session.name);
+        for (const attempt of await readdir(sessionPath, { withFileTypes: true }).catch(() => [])) {
+          if (!attempt.isDirectory() || !attemptName.test(attempt.name)) continue;
+          const attemptPath = join(sessionPath, attempt.name);
+          for (const file of await readdir(attemptPath, { withFileTypes: true }).catch(() => [])) {
+            if (file.isFile() && (file.name === "manifest.json" || file.name === "capture.bin.gz" ||
+                /^[0-9]{6,}-(?:lap-[0-9]+|aux)\.bin(?:\.gz)?$/.test(file.name))) {
+              files.push(join(attemptPath, file.name));
+            }
+          }
+        }
+      }
+    }
+  }
+  return files;
+}
+
 export async function cleanupOrphanSessionFiles(
   sessionActive: () => boolean = () => false,
 ): Promise<number> {
@@ -103,22 +172,25 @@ export async function cleanupOrphanSessionFiles(
     const sessionsDir = resolveRecordingDirectory();
     if (!existsSync(sessionsDir)) return 0;
 
-    const referenced = await loadReferencedRawFiles();
-    const captureFiles = await listSessionCaptureFiles();
+    const referenced = await loadReferencedCapturePaths();
+    const captureFiles = [...await listSessionCaptureFiles(), ...await listBundleFiles()];
     let removed = 0;
     for (const filePath of captureFiles) {
       if (sessionActive()) break;
       try {
         const info = await lstat(filePath);
         if (!info.isFile()) continue;
-        const isTiny = filePath.endsWith(".bin") && info.size <= TINY_ORPHAN_THRESHOLD_BYTES;
-        if (!isTiny && referenced.has(filePath)) continue;
+        if (referenced.has(resolve(filePath)) || referenced.has(resolve(dirname(filePath)))) continue;
+        // An active or interrupted direct capture can contain an unpublished file.
+        if (referenced.has(resolve(dirname(filePath), "capture-manifest.json"))) continue;
         await unlink(filePath);
+        clearSessionCaptureCache(filePath);
         removed++;
       } catch {
         // Skip unreadable / concurrently-removed entries
       }
     }
+    if (removed > 0) clearCaptureManifestCache();
     return removed;
   });
 }

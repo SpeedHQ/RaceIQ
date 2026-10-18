@@ -1,17 +1,21 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import * as captureFs from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
+import { gzipSync } from "node:zlib";
 import { eq, inArray } from "drizzle-orm";
 import { db, client } from "@raceiq/backend-core/db/index";
-import { laps, sessions } from "@raceiq/backend-core/db/schema";
+import { laps, sessions, sessionCaptureSplitJobs, liveCaptures } from "@raceiq/backend-core/db/schema";
+import { SessionCaptureActiveError, deleteEmptySessions, deleteSession, setSessionFavorite, setLapFavorite } from "@raceiq/backend-core/db/session-queries";
+import { runUserCompressionNow } from "@raceiq/backend-core/session-capture/compressor";
+import { cleanupOrphanSessionFiles, withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
+import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { executeSessionCleanup, previewSessionCleanup, SessionCleanupBusyError } from "@raceiq/backend-core/session-capture/session-cleanup";
 import { reprocessSession, SessionRawFileMissingError } from "@raceiq/backend-core/session-capture/reprocess";
-import { setSessionFavorite, setLapFavorite } from "@raceiq/backend-core/db/session-queries";
-import { runUserCompressionNow } from "@raceiq/backend-core/session-capture/compressor";
-import { withSessionCaptureMaintenanceLock } from "@raceiq/backend-core/session-capture/cleanup";
-import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
+import * as dashboardProcessor from "@raceiq/backend-core/session-capture/dashboard-processor";
 import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
+import { encodeFrameLength, encodeMetaFrame, encodeSparseCaptureFormatFrame } from "@raceiq/capture-formats/session/framing";
 
 const OLD_DATE = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString();
 const RECENT_DATE = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
@@ -220,6 +224,11 @@ describe("session cleanup edge cases", () => {
     writeFileSync(path, payload);
     const sessionId = await createSession({ rawFile: path });
     const trigger = `cleanup_update_failure_${sessionId}`;
+    const lapId = await createLap(sessionId);
+    await db.update(sessions).set({ captureLayoutVersion: 1, captureManifestFile: join(dirname(path), "rollback-manifest.json") })
+      .where(eq(sessions.id, sessionId)).run();
+    await db.update(laps).set({ captureChunkId: "rollback-chunk", sourceFrameStart: 4, sourceFrameCount: 7 })
+      .where(eq(laps.id, lapId)).run();
     await client.execute(`
       CREATE TRIGGER ${trigger} BEFORE UPDATE OF raw_file ON sessions
       WHEN OLD.id = ${sessionId}
@@ -234,8 +243,80 @@ describe("session cleanup edge cases", () => {
       await client.execute(`DROP TRIGGER ${trigger}`);
     }
 
+    expect(await db.select({
+      captureChunkId: laps.captureChunkId,
+      sourceFrameStart: laps.sourceFrameStart,
+      sourceFrameCount: laps.sourceFrameCount,
+    }).from(laps).where(eq(laps.id, lapId)).get()).toEqual({
+      captureChunkId: "rollback-chunk",
+      sourceFrameStart: 4,
+      sourceFrameCount: 7,
+    });
     expect(readFileSync(path)).toEqual(payload);
     expect((await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get())?.rawFile).toBe(path);
+  });
+
+  test("restores split readiness when source deletion fails after clearing references", async () => {
+    const path = capturePath("job-rollback.bin");
+    writeFileSync(path, "retained telemetry");
+    const sessionId = await createSession({ rawFile: path });
+    await db.insert(sessionCaptureSplitJobs).values({
+      sessionId, jobId: crypto.randomUUID(), pendingSourceRevision: "revision",
+      sourcePath: path, status: "ready", attemptId: 2, sequence: 7,
+    }).run();
+    const originalJob = await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, sessionId)).get();
+    const originalUnlink = captureFs.unlink;
+    const unlink = spyOn(captureFs, "unlink").mockImplementation(async (file) => {
+      if (String(file).startsWith(`${path}.cleanup-`)) throw new Error("Injected staged source deletion failure");
+      return originalUnlink(file);
+    });
+    try {
+      const result = await executeSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
+      expect(result.cleanedSessionIds).toEqual([]);
+      expect(result.failed).toEqual([{ sessionIds: [sessionId], message: "Injected staged source deletion failure" }]);
+      expect(readFileSync(path, "utf8")).toBe("retained telemetry");
+      expect((await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get())?.rawFile).toBe(path);
+      expect(await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, sessionId)).get()).toEqual(originalJob);
+    } finally {
+      unlink.mockRestore();
+    }
+  });
+
+  test("preserves published telemetry when missing-source cleanup fails before deleting artifacts", async () => {
+    const path = capturePath("missing-original.bin");
+    const manifest = join(dirname(path), "preserved-manifest.json");
+    const chunk = join(dirname(path), "preserved-lap.bin");
+    writeFileSync(chunk, "readable lap telemetry");
+    const sessionId = await createSession({ rawFile: path });
+    const lapId = await createLap(sessionId);
+    writeFileSync(manifest, JSON.stringify({
+      version: 3, gameId: "fm-2023", sourceRevision: "revision", sourceByteLength: 21, sourceRecordCount: 1,
+      chunks: [{
+        id: "lap", kind: "lap", lapId: String(lapId), lapNumber: 1, path: "preserved-lap.bin",
+        byteLength: Buffer.byteLength("readable lap telemetry"), firstOrdinal: 0, recordCount: 1,
+        sourceStart: 0, sourceEnd: 1, sourceByteStart: 12, sourceByteEnd: 21,
+        ownedFrameByteOffset: 12, ownedFrameCount: 1,
+      }],
+    }));
+    await db.update(sessions).set({ captureLayoutVersion: 1, captureManifestFile: manifest }).where(eq(sessions.id, sessionId)).run();
+    await db.update(laps).set({ captureChunkId: "lap", sourceFrameStart: 0, sourceFrameCount: 1 }).where(eq(laps.id, lapId)).run();
+    await db.insert(sessionCaptureSplitJobs).values({
+      sessionId, jobId: crypto.randomUUID(), pendingSourceRevision: "revision", sourcePath: path, status: "ready",
+    }).run();
+    const originalJob = await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, sessionId)).get();
+    const checkpoint = spyOn(dashboardProcessor, "releaseDashboardCaptureCheckpoint")
+      .mockImplementationOnce(async () => { throw new Error("Injected post-clear dashboard failure"); });
+    try {
+      const result = await executeSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
+      expect(result.cleanedSessionIds).toEqual([]);
+      expect(result.failed).toEqual([{ sessionIds: [sessionId], message: "Injected post-clear dashboard failure" }]);
+      expect((await db.select({ manifest: sessions.captureManifestFile }).from(sessions).where(eq(sessions.id, sessionId)).get())?.manifest).toBe(manifest);
+      expect((await db.select({ chunk: laps.captureChunkId }).from(laps).where(eq(laps.id, lapId)).get())?.chunk).toBe("lap");
+      expect(await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, sessionId)).get()).toEqual(originalJob);
+      expect(readFileSync(chunk, "utf8")).toBe("readable lap telemetry");
+    } finally {
+      checkpoint.mockRestore();
+    }
   });
   for (const favorite of ["session", "lap"] as const) {
     test(`serializes ${favorite} favorite write before cleanup planning`, async () => {
@@ -299,4 +380,291 @@ describe("session cleanup edge cases", () => {
     expect(existsSync(`${path}.gz`)).toBe(false);
     expect((await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get())?.rawFile).toBeNull();
   });
+  test("removes owned bundle manifest and members with cleaned source", async () => {
+    const directory = dirname(capturePath("bundle.bin"));
+    const rawFile = join(directory, "bundle.bin");
+    const manifestFile = join(directory, "manifest.json");
+    const chunkFile = join(directory, "lap-1.bin");
+    writeFileSync(rawFile, Buffer.from("raw capture"));
+    writeFileSync(chunkFile, Buffer.from("lap capture"));
+    writeFileSync(manifestFile, JSON.stringify({
+      version: 3,
+      gameId: "fm-2023",
+      sourceRevision: "revision",
+      sourceByteLength: 0,
+      sourceRecordCount: 0,
+      chunks: [{
+        id: "lap-1", kind: "lap", lapId: "1", lapNumber: 1, path: "lap-1.bin",
+        byteLength: 10, firstOrdinal: 0, recordCount: 0, sourceStart: 0, sourceEnd: 0,
+        sourceByteStart: 0, sourceByteEnd: 0,
+      }],
+    }));
+    const sessionId = await createSession({ rawFile });
+    const lapId = await createLap(sessionId);
+    await db.update(sessions).set({ captureLayoutVersion: 1, captureManifestFile: manifestFile }).where(eq(sessions.id, sessionId)).run();
+    await db.update(laps).set({ captureChunkId: "lap-1", sourceFrameStart: 0, sourceFrameCount: 1 }).where(eq(laps.id, lapId)).run();
+    await db.insert(sessionCaptureSplitJobs).values({
+      sessionId, jobId: crypto.randomUUID(), pendingSourceRevision: "revision",
+      sourcePath: rawFile, status: "ready",
+    }).run();
+
+    const manifestBytes = Buffer.byteLength(readFileSync(manifestFile, "utf8"));
+    const result = await executeSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
+    expect(result.deletedFiles).toBe(3);
+    expect(result.freedBytes).toBe(Buffer.byteLength("raw capture") + Buffer.byteLength("lap capture") + manifestBytes);
+
+    expect(result.cleanedSessionIds).toContain(sessionId);
+    expect(existsSync(rawFile)).toBe(false);
+    expect(existsSync(manifestFile)).toBe(false);
+    expect(existsSync(chunkFile)).toBe(false);
+    expect(await db.select({ captureManifestFile: sessions.captureManifestFile }).from(sessions).where(eq(sessions.id, sessionId)).get()).toEqual({ captureManifestFile: null });
+    expect(await db.select({ captureChunkId: laps.captureChunkId }).from(laps).where(eq(laps.id, lapId)).get()).toEqual({ captureChunkId: null });
+    expect(await db.select().from(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, sessionId)).get()).toBeUndefined();
+  });
+  test.each([false, true])("clears absent v4 source refs without deleting externally shared files; null source: %s", async (nullSource) => {
+    const directory = dirname(capturePath("shared-v4.bin"));
+    const rawFile = nullSource ? null : join(directory, "missing-source.bin");
+    const manifestFile = join(directory, "manifest.json");
+    const archiveFile = join(directory, "capture.bin.gz");
+    const payload = Buffer.from("published gzip archive");
+    const member = gzipSync(payload);
+    writeFileSync(archiveFile, member);
+    writeFileSync(manifestFile, JSON.stringify({
+      version: 4, gameId: "fm-2023", sourceRevision: "shared", sourceByteLength: 0, sourceRecordCount: 0,
+      archiveFile: "capture.bin.gz",
+      chunks: [{ id: "aux", kind: "auxiliary", entryName: "aux.bin", memberOffset: 0, compressedByteLength: member.length,
+        byteLength: payload.length, firstOrdinal: 0, recordCount: 0, sourceStart: 0, sourceEnd: 0, sourceByteStart: 0, sourceByteEnd: 0 }],
+    }));
+    const selectedId = await createSession({ rawFile });
+    const externalId = await createSession({ rawFile: capturePath("external-source.bin") });
+    await db.update(sessions).set({
+      captureLayoutVersion: 2, captureManifestFile: manifestFile, captureArchiveFile: archiveFile,
+    }).where(inArray(sessions.id, [selectedId, externalId])).run();
+
+    const preview = await previewSessionCleanup({ mode: "selected", sessionIds: [selectedId] });
+    expect(preview.reclaimableBytes).toBe(0);
+    expect(preview.fileCount).toBe(0);
+    const result = await executeSessionCleanup({ mode: "selected", sessionIds: [selectedId] });
+
+    expect(result.cleanedSessionIds).toEqual([selectedId]);
+    expect(result.deletedFiles).toBe(0);
+    expect(existsSync(manifestFile)).toBe(true);
+    expect(existsSync(archiveFile)).toBe(true);
+    expect(await db.select({ manifest: sessions.captureManifestFile, archive: sessions.captureArchiveFile })
+      .from(sessions).where(eq(sessions.id, selectedId)).get()).toEqual({ manifest: null, archive: null });
+    expect(await db.select({ manifest: sessions.captureManifestFile, archive: sessions.captureArchiveFile })
+      .from(sessions).where(eq(sessions.id, externalId)).get()).toEqual({ manifest: manifestFile, archive: archiveFile });
+    const externalPreview = await previewSessionCleanup({ mode: "selected", sessionIds: [externalId] });
+    expect(externalPreview.fileCount).toBe(2);
+    expect(externalPreview.reclaimableBytes).toBe(member.length + readFileSync(manifestFile).length);
+    const externalCleanup = await executeSessionCleanup({ mode: "selected", sessionIds: [externalId] });
+    expect(externalCleanup.deletedFiles).toBe(2);
+    expect(existsSync(archiveFile)).toBe(false);
+    expect(existsSync(manifestFile)).toBe(false);
+  });
+  test("reports committed cleanup and accurate bytes when a bundle member cannot be removed", async () => {
+    const directory = dirname(capturePath("partial-cleanup.bin"));
+    const rawFile = join(directory, "partial-cleanup.bin");
+    const manifestFile = join(directory, "manifest.json");
+    const chunkFile = join(directory, "lap.bin");
+    writeFileSync(rawFile, "raw capture");
+    writeFileSync(chunkFile, "retained lap");
+    writeFileSync(manifestFile, JSON.stringify({
+      version: 3, gameId: "fm-2023", sourceRevision: "partial", sourceByteLength: 0, sourceRecordCount: 0,
+      chunks: [{
+        id: "lap", kind: "lap", lapId: "1", lapNumber: 1, path: "lap.bin", byteLength: 12,
+        firstOrdinal: 0, recordCount: 0, sourceStart: 0, sourceEnd: 0, sourceByteStart: 0, sourceByteEnd: 0,
+      }],
+    }));
+    const manifestBytes = readFileSync(manifestFile).length;
+    const sessionId = await createSession({ rawFile });
+    const lapId = await createLap(sessionId);
+    await db.update(sessions).set({ captureLayoutVersion: 1, captureManifestFile: manifestFile }).where(eq(sessions.id, sessionId)).run();
+    await db.update(laps).set({ captureChunkId: "lap" }).where(eq(laps.id, lapId)).run();
+    const originalUnlink = captureFs.unlink;
+    const unlink = spyOn(captureFs, "unlink").mockImplementation(async (path) => {
+      if (path === chunkFile) throw Object.assign(new Error("Injected bundle unlink failure"), { code: "EACCES" });
+      return originalUnlink(path);
+    });
+    try {
+      const result = await executeSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
+      expect(result.cleanedSessionIds).toContain(sessionId);
+      expect(result.deletedFiles).toBe(2);
+      expect(result.freedBytes).toBe(Buffer.byteLength("raw capture") + manifestBytes);
+      expect(result.failed).toEqual([{ sessionIds: [sessionId], message: expect.stringContaining("Injected bundle unlink failure") }]);
+      expect(existsSync(rawFile)).toBe(false);
+      expect(existsSync(manifestFile)).toBe(false);
+      expect(existsSync(chunkFile)).toBe(true);
+      expect(await db.select({ rawFile: sessions.rawFile, layout: sessions.captureLayoutVersion }).from(sessions).where(eq(sessions.id, sessionId)).get())
+        .toEqual({ rawFile: null, layout: null });
+      expect((await db.select({ chunk: laps.captureChunkId }).from(laps).where(eq(laps.id, lapId)).get())?.chunk).toBeNull();
+    } finally {
+      unlink.mockRestore();
+    }
+  });
+
+  test("deletes eligible empty sessions without reacquiring maintenance lock and protects active captures and jobs", async () => {
+    const eligiblePath = capturePath("empty-eligible.bin");
+    const activePath = capturePath("empty-active.bin");
+    const jobPath = capturePath("empty-job.bin");
+    for (const path of [eligiblePath, activePath, jobPath]) writeFileSync(path, "capture");
+    const eligibleId = await createSession({ rawFile: eligiblePath });
+    const activeId = await createSession({ rawFile: activePath });
+    const jobId = await createSession({ rawFile: jobPath });
+    await db.insert(liveCaptures).values({
+      sessionId: activeId, captureEpoch: crypto.randomUUID(), attempt: "active", sourcePath: activePath,
+      archivePath: `${activePath}.gz`, status: "recording",
+    }).run();
+    await db.insert(sessionCaptureSplitJobs).values({
+      sessionId: jobId, jobId: crypto.randomUUID(), pendingSourceRevision: "revision",
+      sourcePath: jobPath, status: "queued",
+    }).run();
+    try {
+      const deleted = await deleteEmptySessions();
+      expect(deleted).toBe(1);
+      expect(await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, eligibleId)).get()).toBeUndefined();
+      expect(existsSync(eligiblePath)).toBe(false);
+      expect((await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, activeId)).get())?.id).toBe(activeId);
+      expect((await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, jobId)).get())?.id).toBe(jobId);
+      expect(await deleteEmptySessions(activeId)).toBe(0);
+      await db.delete(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, jobId)).run();
+      await db.delete(liveCaptures).where(eq(liveCaptures.sessionId, activeId)).run();
+      await deleteSession(activeId);
+      await deleteSession(jobId);
+      expect(await deleteEmptySessions()).toBe(0);
+    } finally {
+      await db.delete(liveCaptures).where(eq(liveCaptures.sessionId, activeId)).run();
+      await db.delete(sessionCaptureSplitJobs).where(eq(sessionCaptureSplitJobs.sessionId, jobId)).run();
+    }
+  });
+
+  test("protects queued split source from session cleanup", async () => {
+    const path = capturePath("queued-cleanup.bin");
+    writeFileSync(path, Buffer.from("queued cleanup"));
+    const sessionId = await createSession({ rawFile: path });
+    await db.insert(sessionCaptureSplitJobs).values({
+      sessionId,
+      jobId: crypto.randomUUID(),
+      pendingSourceRevision: "revision",
+      sourcePath: path,
+      stagingPath: null,
+      status: "queued",
+    }).run();
+
+    const preview = await previewSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
+    const result = await executeSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
+
+    expect(preview.protectedSessionIds).toContain(sessionId);
+    expect(result.cleanedSessionIds).toEqual([]);
+    expect(existsSync(path)).toBe(true);
+  });
+  test("keeps queued split source unchanged during manual compression", async () => {
+    const path = capturePath("queued-source.bin");
+    writeFileSync(path, Buffer.from("queued source"));
+    const sessionId = await createSession({ rawFile: path });
+    await db.insert(sessionCaptureSplitJobs).values({
+      sessionId,
+      jobId: crypto.randomUUID(),
+      pendingSourceRevision: "revision",
+      sourcePath: path,
+      stagingPath: null,
+      status: "queued",
+    }).run();
+
+    await runUserCompressionNow();
+
+    expect(existsSync(path)).toBe(true);
+    expect(existsSync(`${path}.gz`)).toBe(false);
+    expect((await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get())?.rawFile).toBe(path);
+  });
+  test("deletes shared raw source and bundle only after final session reference", async () => {
+    const directory = dirname(capturePath("shared.bin"));
+    const rawFile = join(directory, "shared.bin");
+    const manifestFile = join(directory, "manifest.json");
+    const chunkFile = join(directory, "lap.bin");
+    writeFileSync(rawFile, Buffer.from("shared source"));
+    writeFileSync(chunkFile, Buffer.from("shared lap"));
+    writeFileSync(manifestFile, JSON.stringify({
+      version: 3, gameId: "fm-2023", sourceRevision: "revision", sourceByteLength: 0,
+      sourceRecordCount: 0,
+      chunks: [{
+        id: "lap", kind: "lap", lapId: "1", lapNumber: 1, path: "lap.bin",
+        byteLength: 10, firstOrdinal: 0, recordCount: 0, sourceStart: 0, sourceEnd: 0,
+        sourceByteStart: 0, sourceByteEnd: 0,
+      }],
+    }));
+    const first = await createSession({ rawFile });
+    const second = await createSession({ rawFile });
+    await db.update(sessions).set({ captureLayoutVersion: 1, captureManifestFile: manifestFile })
+      .where(inArray(sessions.id, [first, second])).run();
+    await createLap(first);
+    await createLap(second);
+
+    await deleteSession(first);
+    expect(existsSync(rawFile)).toBe(true);
+    expect(existsSync(manifestFile)).toBe(true);
+    expect(existsSync(chunkFile)).toBe(true);
+
+    await deleteSession(second);
+    expect(existsSync(rawFile)).toBe(false);
+    expect(existsSync(manifestFile)).toBe(false);
+    expect(existsSync(chunkFile)).toBe(false);
+  });
+
+  test("refuses deletion while split attempt owns session", async () => {
+    const path = capturePath("active-delete.bin");
+    writeFileSync(path, Buffer.from("active source"));
+    const sessionId = await createSession({ rawFile: path });
+    await db.insert(sessionCaptureSplitJobs).values({
+      sessionId, jobId: crypto.randomUUID(), pendingSourceRevision: "revision",
+      sourcePath: path, stagingPath: null, status: "splitting",
+    }).run();
+
+    await expect(deleteSession(sessionId)).rejects.toBeInstanceOf(SessionCaptureActiveError);
+    expect(existsSync(path)).toBe(true);
+    expect(await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, sessionId)).get()).toBeTruthy();
+  });
+});
+
+test("orphan sweep removes superseded bundles but protects publications and active staging without a monolith", async () => {
+  const gameRoot = dirname(capturePath("missing-source.bin"));
+  const missingSource = join(gameRoot,"missing-source.bin");
+  const publishedId = await createSession({rawFile:missingSource});
+  const activeSource = join(gameRoot,"active.bin");
+  const payload = Buffer.concat([encodeMetaFrame(1),encodeSparseCaptureFormatFrame(),encodeFrameLength(1),Buffer.from([7])]);
+  writeFileSync(activeSource,payload);
+  const activeId = await createSession({rawFile:activeSource});
+  const member = gzipSync(payload);
+  const revision = "a".repeat(64);
+  const writeBundle = (sessionId: number, staging = false) => {
+    const jobId = crypto.randomUUID();
+    const directory = join(gameRoot,"own",`session-${sessionId}`,`${jobId}-1-${revision}${staging ? ".staging" : ""}`);
+    mkdirSync(directory,{recursive:true});
+    const manifestFile = join(directory,"manifest.json");
+    const archiveFile = join(directory,"capture.bin.gz");
+    writeFileSync(archiveFile,member);
+    writeFileSync(manifestFile,JSON.stringify({
+      version:4,gameId:"fm-2023",sourceRevision:revision,sourceByteLength:payload.length,sourceRecordCount:1,archiveFile:"capture.bin.gz",
+      chunks:[{id:"aux",kind:"auxiliary",entryName:"aux.bin",memberOffset:0,compressedByteLength:member.length,byteLength:payload.length,
+        firstOrdinal:0,recordCount:1,sourceStart:0,sourceEnd:1,sourceByteStart:28,sourceByteEnd:payload.length}],
+    }));
+    return {jobId,directory,manifestFile,archiveFile};
+  };
+  const published = writeBundle(publishedId);
+  const superseded = writeBundle(publishedId);
+  const staging = writeBundle(activeId,true);
+  writeFileSync(join(superseded.directory,"keep.me"),"unrelated file");
+  await db.update(sessions).set({captureLayoutVersion:2,captureManifestFile:published.manifestFile,captureArchiveFile:published.archiveFile})
+    .where(eq(sessions.id,publishedId)).run();
+  await db.insert(sessionCaptureSplitJobs).values({sessionId:activeId,jobId:staging.jobId,pendingSourceRevision:revision,
+    sourcePath:activeSource,stagingPath:staging.directory,status:"verifying"}).run();
+  await cleanupOrphanSessionFiles();
+  expect(existsSync(superseded.archiveFile)).toBe(false);
+  expect(existsSync(superseded.manifestFile)).toBe(false);
+  expect(readFileSync(join(superseded.directory,"keep.me"),"utf8")).toBe("unrelated file");
+  expect(readFileSync(published.archiveFile)).toEqual(member);
+  expect(existsSync(published.manifestFile)).toBe(true);
+  expect(readFileSync(staging.archiveFile)).toEqual(member);
+  expect(existsSync(staging.manifestFile)).toBe(true);
+  expect(readFileSync(activeSource)).toEqual(payload);
 });

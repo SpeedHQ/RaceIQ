@@ -6,7 +6,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  normalizeIRacingFrame,
+  captureIRacingParserCheckpoint, createIRacingParserState, normalizeIRacingFrame,
+  restoreIRacingParserCheckpoint,
 } from "../src/normalizer";
 import {
   type IRacingFrameReader,
@@ -231,6 +232,22 @@ DriverInfo:
       await source.stop();
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  test("fixture suffix matches continuous parsing after restoring parser state", () => {
+    const frames = readIRacingFrames(IRACING_FIXTURE, 24);
+    expect(frames.length).toBeGreaterThan(12);
+    const continuous = createIRacingParserState();
+    const uninterrupted = frames.map((frame) => iracingServerAdapter.tryParse(frame, continuous));
+    const prefixState = createIRacingParserState();
+    for (const frame of frames.slice(0, 12)) iracingServerAdapter.tryParse(frame, prefixState);
+    const restoredState = restoreIRacingParserCheckpoint(captureIRacingParserCheckpoint(prefixState));
+    const continuousSuffix = frames.slice(12).map((frame) =>
+      iracingServerAdapter.tryParse(frame, prefixState));
+    const restoredSuffix = frames.slice(12).map((frame) =>
+      iracingServerAdapter.tryParse(frame, restoredState));
+    expect(uninterrupted.slice(12)).toEqual(continuousSuffix);
+    expect(restoredSuffix).toEqual(continuousSuffix);
   });
 
   test("captures SDK ticks while downstream processing is busy", async () => {

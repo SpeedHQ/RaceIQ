@@ -13,6 +13,7 @@ import { previewSessionCleanup, executeSessionCleanup, SessionCleanupBusyError }
 import type { SessionCleanupRequest } from "@raceiq/shared/racing/sessions/cleanup";
 
 import { getAllGames } from "@raceiq/shared/games/registry";
+import { consentToStartupSplitMigration, getStartupSplitMigrationStatus } from "../../session-capture/split-migration";
 
 interface GameStorageStats {
   binCount: number;
@@ -28,6 +29,18 @@ const sessionCleanupRequestSchema: z.ZodType<SessionCleanupRequest> = z.union([
 
 
 export const storageRoutes = new Hono()
+  .get("/api/storage/split-migration", async (c) => c.json(await getStartupSplitMigrationStatus()))
+  .post("/api/storage/split-migration", zValidator("json", z.object({}).strict(), (result, c) => {
+    if (!result.success) return c.json({ code: "INVALID_REQUEST", error: "Expected empty object" }, 400);
+  }), async (c) => {
+    try {
+      return c.json(await consentToStartupSplitMigration(), 202);
+    } catch (error) {
+      const code = error instanceof Error && "code" in error ? String(error.code) : "STORAGE_OPERATION_BUSY";
+      const busy = ["IMPORT_ACTIVE", "MOVE_ACTIVE"].includes(code);
+      return c.json({ code, error: error instanceof Error ? error.message : "Split migration could not start" }, busy ? 409 : 500);
+    }
+  })
   .get("/api/storage/layout-migration", async (c) => c.json(await getLayoutMigrationStatus()))
   .post("/api/storage/layout-migration", zValidator("json", z.object({ directory: z.string().optional() }).strict(), (result, c) => {
     if (!result.success) return c.json({ code: "INVALID_DIRECTORY", error: "Invalid migration request" }, 400);
