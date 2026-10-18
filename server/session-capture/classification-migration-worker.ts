@@ -28,6 +28,14 @@ const LEGACY_CATEGORY_BY_REASON: Record<string, string> = {
   "pit lap": "pit_lap",
 };
 
+/** Incomplete laps are known outcomes even though no classification applies. */
+export function hasKnownClassificationOutcome(lap: {
+  classification: string | null;
+  invalidReason: string | null;
+}): boolean {
+  return Boolean(lap.classification) || lap.invalidReason === "incomplete";
+}
+
 /** Process one capture then yield before claiming another. */
 export async function processNextClassificationRecording(): Promise<boolean> {
   if (isSessionActive()) return false;
@@ -162,7 +170,7 @@ async function processClaimedRecording(recordingId: string, sourceKey: string, s
   const capturedToStoredSession = new Map<number, number>();
   const changes: {
     id: number;
-    classification: string;
+    classification: string | null;
     isValid: boolean;
     invalidReason: string | null;
     expectedClassification: string | null;
@@ -197,7 +205,7 @@ async function processClaimedRecording(recordingId: string, sourceKey: string, s
       LEGACY_CATEGORY_BY_REASON[matchedLap.invalidReason] !== undefined;
     const preserveExistingDecision = !isLegacyCategoryReason &&
       (!matchedLap.isValid || matchedLap.invalidReason !== null);
-    if (detectedLap.classification) {
+    if (hasKnownClassificationOutcome(detectedLap)) {
       changes.push({
         id: matchedLap.id,
         classification: detectedLap.classification,
@@ -210,7 +218,9 @@ async function processClaimedRecording(recordingId: string, sourceKey: string, s
     }
   }
   if (used.size !== existingLaps.length) return finish(recordingId, "failed", "ambiguous_match");
-  if (detected.some((lap) => !lap.classification)) return finish(recordingId, "limited", "insufficient_evidence");
+  if (detected.some((lap) => !hasKnownClassificationOutcome(lap))) {
+    return finish(recordingId, "limited", "insufficient_evidence");
+  }
 
   let committed = false;
   await classificationMigrationBarrier("beforeTransaction");

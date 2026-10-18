@@ -8,6 +8,8 @@
 
 ### Fixes
 - Correct F1 25 race, time-trial, and sprint-qualifying session types, and recover mislabeled session metadata from existing recordings during result reprocessing.
+- Classify F1 sprint-shootout sessions as qualifying on dashboards.
+- Complete lap-classification upgrades when recordings contain known incomplete laps.
 - Distinguish qualifying grid position from lap session type: show Qualified with its position in timelines and a separate session-type column beside lap classifications.
 - Show in-laps as Pit nodes in session timelines, retaining recorded pit-stop details without duplicate nodes.
 - Show known incomplete laps as Incomplete instead of Unclassified in session lap tables.

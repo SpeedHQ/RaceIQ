@@ -7,6 +7,7 @@ import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps, profiles, tunes, experiments, experimentVersions, lapMetrics, lineSpreadCache } from "@raceiq/backend-core/db/schema";
 import { reprocessSession } from "@raceiq/backend-core/session-capture/reprocess";
 import { reconcileHistoricalSessions } from "@raceiq/backend-core/session-capture/reconcile";
+import { hasKnownClassificationOutcome } from "@raceiq/backend-core/session-capture/classification-migration-worker";
 import { replaceLapsForSession } from "@raceiq/backend-core/db/lap-reprocessing-queries";
 import { combineRecordingParts } from "@raceiq/backend-core/session-capture/combine-recording-parts";
 import type { GameId } from "@raceiq/shared/games/ids";
@@ -206,4 +207,12 @@ describe("historical session reconciliation", () => {
       lapDetectorVersion: null, carId: "wrong historical car",
     });
   });
+
+  test("accepts known incomplete classification and rejects unknown evidence", () => {
+    expect(hasKnownClassificationOutcome({ classification: null, invalidReason: "incomplete" })).toBe(true);
+    expect(hasKnownClassificationOutcome({ classification: "out_lap", invalidReason: null })).toBe(true);
+    expect(hasKnownClassificationOutcome({ classification: null, invalidReason: null })).toBe(false);
+    expect(hasKnownClassificationOutcome({ classification: null, invalidReason: "outlap" })).toBe(false);
+  });
+
 });

@@ -216,7 +216,7 @@ function finitePositive(value: number): boolean { return Number.isFinite(value) 
 function classifySessionType(value: string | null | undefined): DashboardSessionType {
   const kind = value?.trim().toLowerCase();
   if (isPracticeSession(kind)) return "practice";
-  if (kind?.startsWith("qualifying") || kind?.startsWith("qualify")) return "qualifying";
+  if (kind?.startsWith("qualifying") || kind?.startsWith("qualify") || kind?.includes("sprint-shootout")) return "qualifying";
   if (kind?.startsWith("race")) return "race";
   return "unknown";
 }

@@ -657,7 +657,8 @@ export async function getDashboard(request: DashboardRequest): Promise<Dashboard
     const classified: Record<DashboardSessionType, number> = { practice: 0, qualifying: 0, race: 0, unknown: 0 };
     const durationRows = tx.execute({
       sql: `SELECT CASE WHEN lower(trim(COALESCE(p.session_type,'')))='test-day' OR lower(trim(COALESCE(p.session_type,''))) LIKE 'practice%' THEN 'practice'
-          WHEN lower(trim(COALESCE(p.session_type,''))) LIKE 'qualifying%' OR lower(trim(COALESCE(p.session_type,''))) LIKE 'qualify%' THEN 'qualifying'
+          WHEN lower(trim(COALESCE(p.session_type,''))) LIKE 'qualifying%' OR lower(trim(COALESCE(p.session_type,''))) LIKE 'qualify%'
+            OR lower(trim(COALESCE(p.session_type,''))) LIKE '%sprint-shootout%' THEN 'qualifying'
           WHEN lower(trim(COALESCE(p.session_type,''))) LIKE 'race%' THEN 'race' ELSE 'unknown' END kind,
         SUM(p.elapsed_seconds) seconds
         FROM dashboard_session_summaries p JOIN dashboard_session_index si ON si.session_id=p.session_id
