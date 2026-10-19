@@ -9,6 +9,7 @@
 - Simplify session timelines into compact circles with single-word event labels, starting positions, and arrows showing the new position.
 
 ### Fixes
+- Label the community setup copy action “Clone” in the setup browser.
 - Leave MoTeC imports unchanged during historical lap-classification upgrades.
 - Retry updated native recordings instead of retaining an obsolete classification failure.
 - Keep next-lap yellow flags from changing the completed lap's pace classification.
@@ -53,6 +54,7 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Align recording and browser E2E coverage with independent lap classification, pace-only review, current setup-source labels, and recording-organization consent controls.
 - Reuse generic lap-bundle construction and separate capture-file accounting from `@raceiq/capture-splitting`; keep downsampling orchestration, database publication, and game adapters in the server.
 - Isolate streaming downsampling and its regression suite in `@raceiq/capture-downsampling`, depending on public capture-format codecs without importing backend policy or lap splitting.
 - Verify onboarding migration recovery through Storage re-entry with deterministic cache expiry, without relying on a hidden no-work Refresh control.

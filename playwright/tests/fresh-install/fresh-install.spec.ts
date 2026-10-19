@@ -7,6 +7,11 @@ import { collectBrowserErrors } from "../support/browser-errors";
 
 const SETTINGS_PATH = resolve(runtime.freshInstall.dataDir, "settings.json");
 
+test.beforeEach(async ({ page }) => {
+  // Exercise onboarding independently of the optional WebGL demo on software renderers.
+  await page.route("**/demo-lap.json.gz", (route) => route.fulfill({ json: { frames: [] } }));
+});
+
 // A retry reuses the server process, but dashboard access is persisted separately
 // from settings. Reset both stores inside this isolated E2E data directory.
 async function resetFreshInstallState() {
