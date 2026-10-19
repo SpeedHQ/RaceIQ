@@ -3,10 +3,9 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { GameIdQuerySchema, IdParamSchema } from "@raceiq/shared/platform/http/route-schemas";
 import { GameIdSchema } from "@raceiq/shared/games/ids";
-import { getSessions, deleteSession, updateSession, updateSessionCarTrack, countStaleSessions, getStaleSessions, getSessionRecapData, setSessionFavorite, getCaptureMigrationCandidates } from "@raceiq/backend-core/db/session-queries";
-import { getSessionResult, getStaleRaceResultSessionIds } from "@raceiq/backend-core/db/session-result-queries";
+import { getSessions, deleteSession, updateSession, updateSessionCarTrack, countStaleSessions, getStaleSessions, getSessionRecapData, setSessionFavorite, SessionCaptureActiveError } from "@raceiq/backend-core/db/session-queries";
 import { reprocessSession, SessionNotFoundError, SessionRawFileMissingError } from "@raceiq/backend-core/session-capture/reprocess";
-import { getCaptureMigrationProgress, migrateCaptures } from "@raceiq/backend-core/session-capture/migrate-captures";
+import { getSessionResult, getStaleRaceResultSessionIds } from "@raceiq/backend-core/db/session-result-queries";
 import { LAP_DETECTOR_ID } from "@raceiq/backend-core/lap-detection/detector";
 import { LAP_DETECTOR_ACC_ID } from "@raceiq/game-acc/lap-detector";
 import { LAP_DETECTOR_AC_EVO_ID } from "@raceiq/game-ac-evo/lap-detector";
@@ -26,33 +25,13 @@ import { loadRawCaptureIdentity } from "@raceiq/backend-core/session-capture/ide
 import { resolveCarName } from "@raceiq/game-catalogs/racing/cars/resolve-name";
 import { resolveTrackName } from "@raceiq/game-catalogs/racing/tracks/resolve-name";
 import { isSessionIdentityInCatalog } from "../games/session-identity";
+import type { SessionMeta } from "@raceiq/shared/racing/sessions/types";
 const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID];
 
 export const sessionRoutes = new Hono()
-  .get("/api/sessions/capture-migration-status", async (c) => c.json({
-    ...await getCaptureMigrationCandidates(),
-    migrationProgress: getCaptureMigrationProgress(),
-  }))
-  .post("/api/sessions/migrate-captures", async (c) => {
-    const result = await migrateCaptures((done, total, progress) => {
-      wsManager.broadcastCaptureMigrationProgress({ done, total, status: progress.status, ...(progress.error ? { error: progress.error } : {}) });
-    });
-    const remaining = await getCaptureMigrationCandidates();
-    wsManager.setCaptureMigrationNotification(remaining.sessionCount, remaining.captureCount);
-    const progress = getCaptureMigrationProgress();
-    wsManager.broadcastCaptureMigrationProgress({
-      done: progress.done,
-      total: progress.total,
-      status: progress.status === "partial" ? "partial" : "success",
-      migrated: progress.migrated,
-      failed: progress.failed,
-      ...(progress.error ? { error: progress.error } : {}),
-    });
-    return c.json(result);
-  })
   .get("/api/sessions", zValidator("query", GameIdQuerySchema), async (c) => {
     const { gameId } = c.req.valid("query");
-    return c.json(await getSessions(gameId));
+    return c.json<SessionMeta[]>(await getSessions(gameId));
   })
   .get("/api/sessions/:id/recap", zValidator("param", IdParamSchema), zValidator("query", GameIdQuerySchema), async (c) => {
     const { id } = c.req.valid("param");
@@ -198,6 +177,17 @@ export const sessionRoutes = new Hono()
     const { ids } = c.req.valid("json");
     await recoverDeletedSessions(ids);
     let lapCount = 0;
-    for (const sessionId of ids) lapCount += await deleteSession(sessionId);
+    let deletedSessions = 0;
+    try {
+      for (const sessionId of ids) {
+        lapCount += await deleteSession(sessionId);
+        deletedSessions++;
+      }
+    } catch (error) {
+      if (error instanceof SessionCaptureActiveError) {
+        return c.json({ error: error.message, deleted: lapCount, sessions: deletedSessions }, 409);
+      }
+      throw error;
+    }
     return c.json({ deleted: lapCount, sessions: ids.length });
   });

@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 30
     if: (github.event_name != 'pull_request' || (!github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')))
     runs-on:
-      - mars-windows-x64-10vcpu-15g
+      - mars-ubuntu-2vcpu-10g
       - mars-retry-3
     steps:
       - uses: actions/checkout@v7
@@ -54,10 +54,10 @@ jobs:
           retention-days: 1
         continue-on-error: true
 
-      - name: Upload Windows E2E dist artifact
+      - name: Upload Linux E2E dist artifact
         uses: actions/upload-artifact@v7
         with:
-          name: raceiq-dist-windows
+          name: raceiq-dist
           path: dist/
           if-no-files-found: error
           retention-days: 1
@@ -66,12 +66,13 @@ jobs:
     timeout-minutes: 30
     if: (github.event_name != 'pull_request' || (!github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')))
     runs-on:
-      - mars-windows-x64-10vcpu-25g
       - mars-macos-arm64-2vcpu-10g
-      - mars-ubuntu-arm64-2vcpu-10g
+      - mars-ubuntu-2vcpu-10g
       - mars-retry-3
     env:
       BUN_TEST_WORKERS: "1"
+      TURBO_SCM_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || (github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000' && github.event.before || 'origin/main') }}
+      TURBO_SCM_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || (github.event_name == 'workflow_dispatch' && inputs.target_ref || github.sha) }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -104,7 +105,7 @@ jobs:
         run: bun run i18n:check-keys
 
       - name: Lint server, shared, scripts, tests, and client
-        run: bunx turbo run lint
+        run: bunx turbo run lint --affected
 
       - name: Type-check server, shared, scripts, and tests
         run: bun run typecheck
@@ -136,7 +137,7 @@ jobs:
         run: bun scripts/test/run-turbo.ts test:integration --affected --log-order=stream --concurrency=2
         if: github.event_name == 'pull_request'
       - name: Run full test suites
-        run: bun scripts/test/run-turbo.ts test:unit test:tooling test:integration --concurrency=2
+        run: bun scripts/test/run-turbo.ts test:unit test:tooling test:integration --affected --concurrency=2
         if: github.event_name != 'pull_request'
       - name: Save Turbo task cache
         uses: actions/cache/save@v4
@@ -172,9 +173,11 @@ jobs:
     uses: ./.github/workflows/playwright-e2e.yml
     with:
       target-ref: ${{ inputs.target_ref || github.ref }}
+      dist-artifact: raceiq-dist
       paraglide-artifact: raceiq-paraglide
 
-  screenshots:
+  visual-regression:
+    name: visual-regression/compare
     if: github.event_name == 'pull_request' && !github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')
     needs:
       - build
@@ -182,19 +185,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    uses: ./.github/workflows/pr-screenshots.yml
-    with:
-      pr: ${{ github.event.pull_request.number }}
-  snapshots:
-    name: snapshots/compare
-    if: github.event_name == 'pull_request' && !github.event.pull_request.draft && !startsWith(github.head_ref, 'release/v')
-    needs:
-      - build
-      - test
-    permissions:
-      contents: read
-      pull-requests: read
-    uses: ./.github/workflows/pr-snapshots.yml
+    uses: ./.github/workflows/pr-visuals.yml
     with:
       pr: ${{ github.event.pull_request.number }}
       paraglide-artifact: raceiq-paraglide

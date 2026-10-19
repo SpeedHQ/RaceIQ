@@ -128,7 +128,7 @@ async function seedFailedOldNamespace(accountId: string, rowId: number, uploadKe
       retrySchedule: Schedule.spaced("1 millis"),
     });
     yield* queue.offer({ rowId, uploadKey }, { id: uploadKey });
-    yield* queue.take(() => Effect.fail(new Error("legacy package entry exhausted")));
+    return yield* queue.take(() => Effect.fail(new Error("legacy package entry exhausted")));
   }).pipe(
     Effect.provide(Layer.merge(Layer.provideMerge(PersistedQueue.layer, store), Layer.provide(PersistedQueue.layerCleanup(), store))),
     Effect.provide(SqliteClient.layer({ filename: join(dataDir!, "raceiq-online-queue.db") })),

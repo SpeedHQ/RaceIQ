@@ -1,6 +1,5 @@
 import * as m from "@/paraglide/messages";
-import type { DriverProfileSummary } from "@raceiq/backend-core/ai/schemas";
-import { parseDriverProfileSummary } from "@raceiq/backend-core/ai/schemas";
+import { parseDriverProfileSummary, type DriverProfileSummary } from "@raceiq/shared/integrations/ai/driver-profile-summary";
 import { useDriverProfile, useDriverProfileRuns, useRunDriverProfile } from "../../hooks/driver-profile";
 import { getGameRoute, useRequiredGameId } from "../../stores/game";
 import { Button } from "../ui/button";

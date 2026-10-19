@@ -11,7 +11,7 @@
 import type { ServerWebSocket } from "bun";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { LiveSectorData, LivePitData } from "@raceiq/shared/racing/live/types";
-import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
+import type { LapMeta, SessionCaptureSplitStatus } from "@raceiq/shared/racing/sessions/types";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
 import type { LiveProjection } from "@raceiq/telemetry-core/telemetry/live-projector";
 import type { DashboardUpdatedMessage } from "@raceiq/shared/racing/sessions/dashboard";
@@ -93,31 +93,30 @@ export class WebSocketManager {
   private _staleSessionsNotification: Record<string, unknown> | null = null;
   /** Stale race-result notification — sent to each new client on connect */
   private _staleRaceResultsNotification: Record<string, unknown> | null = null;
-  private _captureMigrationNotification: { type: "capture-migration-available"; sessionCount: number; captureCount: number } | null = null;
-  private _captureMigrationCountProvider: (() => Promise<{ sessionCount: number; captureCount: number }>) | null = null;
   private dashboardUpdateTimer: ReturnType<typeof setTimeout> | null = null;
-
-  setCaptureMigrationCountProvider(provider: () => Promise<{ sessionCount: number; captureCount: number }>): void {
-    this._captureMigrationCountProvider = provider;
+  private liveCaptureLifecycle = new Map<number, Record<string, unknown>>();
+  private readonly maxLiveCaptureSessions = 128;
+  broadcastSessionCaptureSplitProgress(status: SessionCaptureSplitStatus): void {
+    this.broadcastNotification({ type: "session-capture-split-progress", status });
   }
 
-  setCaptureMigrationNotification(sessionCount: number, captureCount: number): void {
-    this._captureMigrationNotification = sessionCount > 0 && captureCount > 0
-      ? { type: "capture-migration-available", sessionCount, captureCount }
-      : null;
-    this.broadcastNotification(this._captureMigrationNotification ?? { type: "capture-migration-available", sessionCount: 0, captureCount: 0 });
+  private retainLiveCaptureLifecycle(message: Record<string, unknown>): void {
+    const { type, sessionId, captureEpoch } = message;
+    if (typeof sessionId !== "number" || typeof captureEpoch !== "string" || !captureEpoch
+      || !["recording-started", "recording-finalizing", "recording-sealed", "recording-failed"].includes(String(type))) return;
+    const previous = this.liveCaptureLifecycle.get(sessionId);
+    if (previous && previous.captureEpoch !== captureEpoch && type !== "recording-started") return;
+    if (previous?.captureEpoch === captureEpoch &&
+        (previous.type === "recording-failed" || (previous.type === "recording-sealed" && type !== "recording-failed") ||
+          (type === "recording-started" && previous.type !== "recording-started"))) return;
+    this.liveCaptureLifecycle.set(sessionId, { ...previous, ...message });
+    while (this.liveCaptureLifecycle.size > this.maxLiveCaptureSessions) {
+      const oldest = this.liveCaptureLifecycle.keys().next().value;
+      if (oldest === undefined) break;
+      this.liveCaptureLifecycle.delete(oldest);
+    }
   }
 
-  broadcastCaptureMigrationProgress(payload: {
-    done: number;
-    total: number;
-    status: "migrated" | "unchanged" | "error" | "success" | "partial";
-    migrated?: number;
-    failed?: number;
-    error?: string;
-  }): void {
-    this.broadcastNotification({ type: "capture-migration-progress", ...payload });
-  }
 
   notifyDashboardUpdated(): void {
     clearTimeout(this.dashboardUpdateTimer ?? undefined);
@@ -131,9 +130,6 @@ export class WebSocketManager {
   clearDashboardUpdateNotification(): void {
     clearTimeout(this.dashboardUpdateTimer ?? undefined);
     this.dashboardUpdateTimer = null;
-  }
-  get captureMigrationNotification(): Readonly<{ type: "capture-migration-available"; sessionCount: number; captureCount: number }> | null {
-    return this._captureMigrationNotification;
   }
 
   setSessionLapsProvider(fn: () => readonly LapMeta[]): void {
@@ -204,8 +200,8 @@ export class WebSocketManager {
     if (this._staleRaceResultsNotification) {
       try { ws.send(JSON.stringify(this._staleRaceResultsNotification)); } catch { sendFailed = true; }
     }
-    if (this._captureMigrationNotification) {
-      try { ws.send(JSON.stringify(this._captureMigrationNotification)); } catch { sendFailed = true; }
+    for (const lifecycle of this.liveCaptureLifecycle.values()) {
+      try { ws.send(JSON.stringify(lifecycle)); } catch { sendFailed = true; }
     }
     if (sendFailed) {
       this.dropClient(ws);
@@ -213,10 +209,6 @@ export class WebSocketManager {
     }
     console.log(`[WS] Client connected. Active: ${this.clients.size}`);
     if (this.clients.size === 1) this.startBroadcastTimer(); // first client — start pushing
-    void this._captureMigrationCountProvider?.().then(({ sessionCount, captureCount }) => {
-      if (!this.clients.has(ws)) return;
-      this.setCaptureMigrationNotification(sessionCount, captureCount);
-    }).catch((error) => console.error("[WS] Failed to refresh historical capture count:", error));
   }
 
   removeClient(ws: ServerWebSocket<WSData>): void {
@@ -277,6 +269,7 @@ export class WebSocketManager {
    * Used for update-available and other server-initiated events.
    */
   broadcastNotification(payload: Record<string, unknown>): void {
+    this.retainLiveCaptureLifecycle(payload);
     if (this.clients.size === 0) return;
     const json = JSON.stringify(payload);
     for (const client of this.clients) {

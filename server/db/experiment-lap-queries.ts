@@ -1,27 +1,49 @@
 import { eq, desc, and, inArray, isNull } from "drizzle-orm";
 import { db } from "./index";
 import { toLapMeta } from "./lap-meta";
-import { sessions, laps, tunes } from "./schema";
+import { sessions, laps, tunes, experiments, experimentActions } from "./schema";
 import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 
 export async function setLapExperimentExcluded(
   lapId: number,
   excluded: boolean,
+  guard?: { sessionId: number; expectedHeadVersionId: number | null; allowedLapIds: readonly number[] },
+  action?: { kind: string; inversePayload: unknown },
 ): Promise<{ ok: boolean; prev: boolean; experimentId: number | null }> {
-  const row = await db
-    .select({ experimentExcluded: laps.experimentExcluded, experimentId: laps.experimentId })
-    .from(laps)
-    .where(eq(laps.id, lapId))
-    .get();
-  if (!row) return { ok: false, prev: false, experimentId: null };
-  const prev = Boolean(row.experimentExcluded);
-  await db
-    .update(laps)
-    .set({ experimentExcluded: excluded ? 1 : null, experimentExcludedSource: "manual" })
-    .where(eq(laps.id, lapId))
-    .run();
-  return { ok: true, prev, experimentId: row.experimentId };
+  if (!guard) {
+    const row = await db.select({ experimentExcluded: laps.experimentExcluded, experimentId: laps.experimentId })
+      .from(laps).where(eq(laps.id, lapId)).get();
+    if (!row) return { ok: false, prev: false, experimentId: null };
+    const result = await db.update(laps)
+      .set({ experimentExcluded: excluded ? 1 : null, experimentExcludedSource: "manual" })
+      .where(eq(laps.id, lapId)).run();
+    return { ok: result.rowsAffected > 0, prev: Boolean(row.experimentExcluded), experimentId: row.experimentId };
+  }
+  return db.transaction(async (tx) => {
+    const row = await tx.select({
+      experimentExcluded: laps.experimentExcluded, experimentExcludedSource: laps.experimentExcludedSource,
+      experimentId: laps.experimentId, experimentVersionId: laps.experimentVersionId,
+    }).from(laps).where(eq(laps.id, lapId)).get();
+    if (!row) return { ok: false, prev: false, experimentId: null };
+    const prev = Boolean(row.experimentExcluded);
+    if (!guard.allowedLapIds.includes(lapId)) return { ok: false, prev, experimentId: row.experimentId };
+    const current = await tx.select({ headVersionId: experiments.headVersionId })
+      .from(experiments).where(eq(experiments.id, guard.sessionId)).get();
+    if (!current || current.headVersionId !== guard.expectedHeadVersionId) return { ok: false, prev, experimentId: row.experimentId };
+    const belongsToBranch = row.experimentId === guard.sessionId &&
+      (guard.expectedHeadVersionId == null ? row.experimentVersionId == null : row.experimentVersionId === guard.expectedHeadVersionId);
+    if (!belongsToBranch) return { ok: false, prev, experimentId: row.experimentId };
+    await tx.update(laps).set({ experimentExcluded: excluded ? 1 : null, experimentExcludedSource: "manual" })
+      .where(and(eq(laps.id, lapId),
+        eq(laps.experimentId, guard.sessionId),
+        guard.expectedHeadVersionId == null ? isNull(laps.experimentVersionId) : eq(laps.experimentVersionId, guard.expectedHeadVersionId))).run();
+    if (action) await tx.insert(experimentActions).values({
+      experimentId: guard.sessionId, kind: action.kind,
+      inversePayload: JSON.stringify({ ...action.inversePayload as object, prevExcluded: prev, prevExcludedSource: row.experimentExcludedSource ?? null }),
+    }).run();
+    return { ok: true, prev, experimentId: row.experimentId };
+  });
 }
 
 /**

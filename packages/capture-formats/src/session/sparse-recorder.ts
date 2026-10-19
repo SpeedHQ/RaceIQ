@@ -5,6 +5,7 @@ import { encodeKunosSparseFrame } from "./kunos-sparse";
 import { encodeLmuSparseFrame } from "./lmu-sparse";
 import { encodeGenericSparseFrame, genericFrameIdentity } from "./generic-sparse";
 import { SessionRecorder } from "./recorder";
+import { encodeSparseCaptureFormatFrame } from "./framing";
 
 const CHECKPOINT_INTERVAL = 128;
 
@@ -14,6 +15,7 @@ export class SparseCaptureEncoder {
   private previous: Buffer | null = null;
   private checkpointOffset = 0;
   private framesSinceCheckpoint = 0;
+  private forceCheckpoint = false;
 
   constructor(gameId: GameId) {
     this.gameId = gameId;
@@ -22,9 +24,15 @@ export class SparseCaptureEncoder {
   reset(): void {
     this.previous = null;
     this.framesSinceCheckpoint = 0;
+    this.forceCheckpoint = false;
+  }
+  requestCheckpoint(): void {
+    this.forceCheckpoint = true;
   }
 
   encode(frame: Buffer, recordOffset: number): Buffer {
+    const forceCheckpoint = this.forceCheckpoint;
+    this.forceCheckpoint = false;
     // Imported compact v1 frames and unrelated source formats stay legacy raw.
     const isLmuV2 = this.gameId === "lmu" && frame.length === LMU_SOURCE_FRAME_V2_SIZE &&
       frame.subarray(0, LMU_SOURCE_FRAME_MAGIC.length).equals(LMU_SOURCE_FRAME_MAGIC);
@@ -40,7 +48,7 @@ export class SparseCaptureEncoder {
     }
     const adjacent = this.previous && this.previous.length === frame.length &&
       (!validGeneric || genericFrameIdentity(this.previous) === generic);
-    if (!adjacent || this.framesSinceCheckpoint >= CHECKPOINT_INTERVAL) {
+    if (forceCheckpoint || !adjacent || this.framesSinceCheckpoint >= CHECKPOINT_INTERVAL) {
       this.checkpointOffset = recordOffset;
       this.framesSinceCheckpoint = 0;
       this.previous = frame;
@@ -73,15 +81,24 @@ export class SparseSessionRecorder extends SessionRecorder {
     super();
     this.encoder = new SparseCaptureEncoder(gameId);
   }
+  private sparseFormatMarkerWritten = false;
 
   override start(path: string): string {
     this.encoder.reset();
+    this.sparseFormatMarkerWritten = false;
     return super.start(path);
+  }
+  override requestFullCheckpoint(): void {
+    this.encoder.requestCheckpoint();
   }
 
   override writeRecord(frame: Buffer, frameTimeMs?: number): void {
     if (!this.recording) return;
     super.writeRecord(this.encoder.encode(frame, this.getCurrentByteOffset()), frameTimeMs);
+    if (!this.sparseFormatMarkerWritten) {
+      super.writeRawCaptureBytes(encodeSparseCaptureFormatFrame());
+      this.sparseFormatMarkerWritten = true;
+    }
   }
 
   override writeRawCaptureBytes(bytes: Buffer): void {

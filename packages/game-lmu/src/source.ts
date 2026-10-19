@@ -1,5 +1,7 @@
-import { processPacket } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { parsePacket } from "@raceiq/backend-core/games/packet-dispatch";
+import { processPacket } from "@raceiq/backend-core/telemetry/live-pipeline";
+import { getRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/recording-frequency";
+import { NativeCaptureRateLimiter } from "@raceiq/backend-core/games/shared/native-capture-rate-limiter";
 import {
   acquireHighResolutionTimer,
   releaseHighResolutionTimer,
@@ -37,7 +39,7 @@ interface QueuedLMUFrame {
 }
 
 async function dispatchThroughParser(rawFrame: Buffer, frameTimeMs?: number): Promise<void> {
-  const packet = parsePacket(rawFrame);
+  const packet = parsePacket(rawFrame, frameTimeMs);
   if (packet?.IsRaceOn) {
     await processPacket(packet, rawFrame, frameTimeMs);
   }
@@ -56,6 +58,7 @@ export class LMUTelemetrySource {
   private frameQueue: QueuedLMUFrame[] = [];
   private drainPromise: Promise<void> | null = null;
   private holdsTimerResolution = false;
+  private readonly captureRateLimiter = new NativeCaptureRateLimiter();
   private lastFrameKey = "";
   private queuedIdentityKey = "";
   private activeIdentityKey = "";
@@ -80,13 +83,17 @@ export class LMUTelemetrySource {
     this.queuedIdentityKey = "";
     this.activeIdentityKey = "";
     this.identity = null;
+    this.captureRateLimiter.reset();
     if (this.recordingEnabled && !this.recorder.recording) {
       const path = this.recorder.start(this.recordingDir);
       console.log(`[LMU] Recording mode: bin file created at ${path}`);
     }
     this.reader.start();
     this.running = true;
-    this.timer = setInterval(() => void this.pollOnce(), this.pollIntervalMs);
+    this.timer = setInterval(() => {
+      if (!this.captureRateLimiter.shouldCapture(performance.now(), getRecordingFrequencyHz())) return;
+      void this.pollOnce();
+    }, this.pollIntervalMs);
     console.log(
       "[LMU] Telemetry source started; enable Gameplay > Enable Plugins in LMU",
     );
@@ -94,6 +101,7 @@ export class LMUTelemetrySource {
 
   async stop(): Promise<void> {
     this.running = false;
+    this.captureRateLimiter.reset();
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;

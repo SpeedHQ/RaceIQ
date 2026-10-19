@@ -1,3 +1,5 @@
+import { client } from "@/lib/rpc";
+import { resolveChatVisionCapability } from "../../../../shared/integrations/ai/chat-vision";
 import { createResumableSessionStorage } from "@assistant-ui/react-ai-sdk";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UIMessage } from "ai";
@@ -12,6 +14,7 @@ import { uiStore } from "@/stores/ui";
 import { type ChatGeneration, fetchChatGenerations, fetchChatRunStatus } from "./chat-history";
 import { ChatPanelThread } from "./chat-runtime";
 import { resolvedResumableThreadId } from "./resumable-chat";
+
 
 export interface ChatPanelProps {
   api: string;
@@ -32,18 +35,29 @@ export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, re
   const { displaySettings } = useSettings();
   const openSettings = uiStore.actions.openSettings;
   const aiConfigured = isAiChatConfigured(displaySettings);
+  const visionCapability = resolveChatVisionCapability(displaySettings.chatProvider, displaySettings.chatModel);
   const queryClient = useQueryClient();
   const [clearVersion, setClearVersion] = useState(0);
   const [regenerateVersion, setRegenerateVersion] = useState(0);
   const [regeneratePrompt, setRegeneratePrompt] = useState<string>();
-
   const clearChat = async () => {
     try {
-      await authenticatedFetch(clearChatApi ?? api, { method: "DELETE" });
+      const response = await authenticatedFetch(clearChatApi ?? api, { method: "DELETE" });
+      if (!response.ok) throw new Error(m.ai_chat_regenerate_failed());
       await queryClient.invalidateQueries({ queryKey: historyQueryKey });
     } finally {
       setClearVersion((version) => version + 1);
     }
+  };
+
+  const removeFailedTurn = async (messageId: string) => {
+    const match = /^\/api\/laps\/([^/?]+)\/chat(?:\?.*)?$/.exec(api);
+    if (!match) throw new Error(m.ai_chat_remove_failed_turn_error());
+    const response = await client.api.laps[":id"].chat.messages[":messageId"].$delete({
+      param: { id: decodeURIComponent(match[1]), messageId },
+    });
+    if (!response.ok) throw new Error(m.ai_chat_remove_failed_turn_error());
+    await queryClient.invalidateQueries({ queryKey: historyQueryKey });
   };
 
   const { data: gensData } = useQuery({
@@ -122,7 +136,7 @@ export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, re
   }
   return (
     <ChatPanelThread
-      key={`${remountKey ?? ""}:${effectiveGen}:${history?.length ?? 0}:${clearVersion}:${regenerateVersion}`}
+      key={`${remountKey ?? ""}:${effectiveGen}:${clearVersion}:${regenerateVersion}`}
       initialMessages={history ?? []}
       api={api}
       onFinish={onFinish}
@@ -145,6 +159,9 @@ export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, re
       onSubmitted={() => setRegeneratePrompt(undefined)}
       readOnly={readOnly}
       inputDisabled={inputDisabled}
+      imageDisabled={visionCapability !== "supported"}
+      imageNotice={visionCapability === "unsupported" ? m.ai_chat_image_unsupported() : visionCapability === "unknown" ? m.ai_chat_image_unverified() : undefined}
+      onRemoveFailedTurn={removeFailedTurn}
       onClearChat={() => void clearChat()}
     />
   );

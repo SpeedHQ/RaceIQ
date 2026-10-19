@@ -19,9 +19,10 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
-import { getCorners } from "@raceiq/backend-core/db/track-queries";
 import { loadSettings } from "@raceiq/backend-core/runtime/config/settings";
 import { computeCornerMetrics, type CornerMetrics } from "@raceiq/backend-core/ai/corner-data";
+import { resolveLapCorners } from "../../tracks/corner-resolution";
+import { AUTO_TURN_TOKEN } from "@raceiq/shared/racing/tracks/segment-label";
 
 interface CornerMetricsResult {
   available: boolean;
@@ -35,6 +36,19 @@ function emptyResult(lapId: number, reason: string): CornerMetricsResult {
   return { available: false, reason, lapId, corners: [] };
 }
 
+export function cornerMatchesId(corner: { index: number; label: string }, cornerId: number): boolean {
+  if (AUTO_TURN_TOKEN.test(corner.label)) {
+    return corner.label.slice(1).split(/[,/]/).some((part) => {
+      const range = /^(\d+)-(\d+)$/.exec(part);
+      return range
+        ? cornerId >= Number(range[1]) && cornerId <= Number(range[2])
+        : Number(part) === cornerId;
+    });
+  }
+  // Named stored and detected definitions retain their one-based indices.
+  return corner.index === cornerId;
+}
+
 export const getCornerMetricsTool = createTool({
   id: "get-corner-metrics",
   description:
@@ -43,8 +57,8 @@ export const getCornerMetricsTool = createTool({
     "distance, and a balance verdict (oversteer/understeer/neutral). Pass a `cornerId` " +
     "(1-based, matching the T1/T2/... labels) to narrow to a single corner. Use this to " +
     "ground tuning suggestions in what the car actually did through each corner. If " +
-    "`available` is false, the lap has no telemetry or no corner definitions — skip " +
-    "corner analysis and rely on general heuristics.",
+    "`available` is false, report the returned reason. Do not invent corner metrics " +
+    "or replace the requested measurements with other corners, lap-wide values, or heuristic tuning advice.",
   inputSchema: z.object({
     lapId: z
       .number()
@@ -100,16 +114,14 @@ export const getCornerMetricsTool = createTool({
       return emptyResult(lapId, "lap has no telemetry");
     }
 
-    let corners = await getCorners(trackIdentity, lap.gameId as Parameters<typeof getCorners>[1]);
+    let corners = await resolveLapCorners(trackIdentity, lap.gameId, lap.telemetry);
     if (corners.length === 0) {
-      return emptyResult(lapId, `no corner definitions saved for track identity ${trackIdentity}`);
+      return emptyResult(lapId, `no corner definitions available for track identity ${trackIdentity}`);
     }
 
-    // Optional narrowing to a single corner. `cornerId` is the 1-based ordinal,
-    // which matches `CornerDef.index` (T1 -> index 1). Filter the corner list
-    // before computing so the metric math only runs over the requested corner.
+    // Public cornerId is the T-label number; internal indices may be zero-based.
     if (cornerId !== undefined) {
-      corners = corners.filter((c) => c.index === cornerId);
+      corners = corners.filter((corner) => cornerMatchesId(corner, cornerId));
       if (corners.length === 0) {
         return emptyResult(lapId, `corner ${cornerId} not found for this track`);
       }

@@ -21,19 +21,25 @@ const port = parentPort!;
 let stopping = false;
 let backgroundTasks: Promise<void>[] = [];
 let processor: DashboardProcessorHandle | null = null;
+let startupTaskSettled = false;
+let shutdownPromise: Promise<void> | null = null;
 
 port.on("message", (message: { type: "stop" }) => {
   if (message.type !== "stop") return;
   stopping = true;
-  if (processor) void shutdown();
+  if (processor || startupTaskSettled) void shutdown();
 });
 
-async function shutdown(): Promise<void> {
-  await Promise.allSettled([processor?.stop(), ...backgroundTasks]);
-  setDashboardPublicationNotifier(null);
-  await client.close();
-  port.postMessage({ type: "stopped" });
-  port.close();
+function shutdown(): Promise<void> {
+  if (shutdownPromise) return shutdownPromise;
+  shutdownPromise = (async () => {
+    await Promise.allSettled([processor?.stop(), ...backgroundTasks]);
+    setDashboardPublicationNotifier(null);
+    await client.close();
+    port.postMessage({ type: "stopped" });
+    port.close();
+  })();
+  return shutdownPromise;
 }
 function formatFailure(error: unknown): string {
   const chain: string[] = [];
@@ -50,12 +56,85 @@ function formatFailure(error: unknown): string {
   return chain.join(" <- ");
 }
 
-async function runTask(name: string, task: () => Promise<unknown>): Promise<void> {
-  try {
-    await task();
-  } catch (error) {
-    port.postMessage({ type: "error", task: name, error: formatFailure(error) });
+interface StartupStageResult {
+  complete: boolean;
+  reason?: string;
+}
+
+interface StartupStage {
+  name: string;
+  run(): Promise<StartupStageResult>;
+}
+
+const startupStages: StartupStage[] = [
+  {
+    name: "Historical session reconciliation",
+    async run() {
+      const counts = await reconcileHistoricalSessions((reprocessed) => {
+        port.postMessage({ type: "lap-reprocessed", reprocessed });
+      });
+      if (counts.failed || counts.missingCapture) {
+        console.log("[SessionRepair] Historical session reconciliation incomplete:", counts);
+        return { complete: false, reason: `failed=${counts.failed}, missingCapture=${counts.missingCapture}` };
+      }
+      if (await countStaleSessions(
+        ALL_DETECTOR_IDS,
+        getAllServerGames().map((adapter) => adapter.id),
+      ) !== 0) return { complete: false, reason: "stale sessions remain" };
+      await deleteEmptySessions();
+      port.postMessage({ type: "clear-stale-sessions" });
+      console.log("[SessionRepair] Historical session reconciliation complete:", counts);
+      return { complete: true };
+    },
+  },
+  {
+    name: "LMU session identity backfill",
+    async run() {
+      const counts = await backfillLMUSessionIdentity();
+      console.log("[LMU] Session identity backfill result:", counts);
+      if (counts.unresolved) {
+        return { complete: false, reason: `unresolved=${counts.unresolved}` };
+      }
+      console.log("[LMU] Session identity backfill complete:", counts);
+      return { complete: true };
+    },
+  },
+  {
+    name: "Race-result backfill",
+    async run() {
+      const counts = await backfillAllRaceResults();
+      const result = counts.errors || counts.failedGames.length
+        ? {
+            complete: false,
+            reason: `errors=${counts.errors}, failedGames=${counts.failedGames.map(({ gameId, error }) => `${gameId}: ${error}`).join("; ") || "none"}`,
+          }
+        : { complete: true };
+      console.log(`[RaceResults] Backfill ${result.complete ? "complete" : "incomplete"}:`, counts);
+      return result;
+    },
+  },
+];
+
+async function reconcileStartup(): Promise<boolean> {
+  for (const stage of startupStages) {
+    if (stopping) return false;
+    let result: StartupStageResult;
+    try {
+      result = await stage.run();
+    } catch (error) {
+      port.postMessage({ type: "error", task: stage.name, error: formatFailure(error) });
+      return false;
+    }
+    if (!result.complete) {
+      port.postMessage({
+        type: "error",
+        task: stage.name,
+        error: `Startup reconciliation incomplete: ${result.reason ?? "unspecified reason"}`,
+      });
+      return false;
+    }
   }
+  return true;
 }
 
 async function start(): Promise<void> {
@@ -79,27 +158,23 @@ async function start(): Promise<void> {
     port.postMessage({ type: "ready" });
 
     backgroundTasks = [(async () => {
-      await runTask("Historical session reconciliation", async () => {
-        const counts = await reconcileHistoricalSessions((reprocessed) => {
-          port.postMessage({ type: "lap-reprocessed", reprocessed });
-        });
-        console.log("[SessionRepair] Historical session reconciliation complete:", counts);
-        if (counts.failed === 0 && await countStaleSessions(
-          ALL_DETECTOR_IDS,
-          getAllServerGames().map((adapter) => adapter.id),
-        ) === 0) port.postMessage({ type: "clear-stale-sessions" });
-        await deleteEmptySessions();
-      });
-      await runTask("LMU session identity backfill", async () => {
-        const counts = await backfillLMUSessionIdentity();
-        console.log("[LMU] Session identity backfill complete:", counts);
-      });
-      await runTask("Race-result backfill", backfillAllRaceResults);
+      const complete = await reconcileStartup();
+      if (!stopping && complete) {
+        console.log("[StartupWorker] Starting dashboard processor");
+        processor = startDashboardProcessor();
+      }
     })()];
-    void backgroundTasks[0].then(() => {
-      if (stopping) void shutdown();
-      else processor = startDashboardProcessor();
-    });
+    void backgroundTasks[0].then(
+      () => {
+        startupTaskSettled = true;
+        if (stopping) void shutdown();
+      },
+      (error) => {
+        startupTaskSettled = true;
+        port.postMessage({ type: "error", task: "Dashboard processor startup", error: formatFailure(error) });
+        if (stopping) void shutdown();
+      },
+    );
   } catch (error) {
     port.postMessage({ type: "error", task: "Worker initialization", error: formatFailure(error) });
     await shutdown();

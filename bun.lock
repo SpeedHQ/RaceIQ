@@ -30,6 +30,7 @@
       },
       "devDependencies": {
         "@babel/parser": "^8.0.5",
+        "@effect/tsgo": "0.53.0",
         "@gltf-transform/core": "4.5.0",
         "@gltf-transform/extensions": "4.5.0",
         "@gltf-transform/functions": "4.5.0",
@@ -76,6 +77,8 @@
         "@mastra/observability": "^1.17.8",
         "@raceiq/analysis-core": "workspace:*",
         "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/capture-splitting": "workspace:*",
         "@raceiq/game-ac-evo": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-acc": "workspace:*",
@@ -97,6 +100,7 @@
         "@raceiq/tooling-release": "workspace:*",
         "ai": "7.0.105",
         "drizzle-orm": "^0.45.2",
+        "effect": "4.0.4",
         "fflate": "^0.8.3",
         "hono": "4.13.8",
         "libsql": "^0.5.29",
@@ -181,7 +185,7 @@
         "oxfmt": "0.68.0",
         "oxlint": "1.83.0",
         "storybook": "10.6.0",
-        "typescript": "7.0.2",
+        "typescript": "6.0.3",
         "vite": "8.3.0",
       },
     },
@@ -196,11 +200,25 @@
         "@raceiq/game-fm-2023-metadata": "workspace:*",
       },
     },
+    "packages/capture-downsampling": {
+      "name": "@raceiq/capture-downsampling",
+      "dependencies": {
+        "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/shared": "workspace:*",
+      },
+    },
     "packages/capture-formats": {
       "name": "@raceiq/capture-formats",
       "dependencies": {
         "@raceiq/game-iracing-metadata": "workspace:*",
         "@raceiq/shared": "workspace:*",
+      },
+    },
+    "packages/capture-splitting": {
+      "name": "@raceiq/capture-splitting",
+      "dependencies": {
+        "@raceiq/capture-formats": "workspace:*",
+        "effect": "4.0.4",
       },
     },
     "packages/frontend-contract-tests": {
@@ -271,6 +289,7 @@
       "dependencies": {
         "@raceiq/analysis-core": "workspace:*",
         "@raceiq/backend-core": "workspace:*",
+        "@raceiq/capture-downsampling": "workspace:*",
         "@raceiq/capture-formats": "workspace:*",
         "@raceiq/game-f1-2025-metadata": "workspace:*",
         "@raceiq/shared": "workspace:*",
@@ -444,6 +463,7 @@
     "playwright": {
       "name": "raceiq-e2e",
       "dependencies": {
+        "@libsql/client": "^0.18.0",
         "@raceiq/analysis-core": "workspace:*",
         "@raceiq/tooling-data": "workspace:*",
         "libsql": "^0.5.29",
@@ -475,6 +495,10 @@
         "@mastra/core": "^1.67.0",
         "@mastra/libsql": "^1.23.0",
         "@mastra/memory": "^1.30.0",
+        "@raceiq/analysis-core": "workspace:*",
+        "@raceiq/capture-downsampling": "workspace:*",
+        "@raceiq/capture-formats": "workspace:*",
+        "@raceiq/capture-splitting": "workspace:*",
         "@raceiq/game-ac-evo-metadata": "workspace:*",
         "@raceiq/game-acc-metadata": "workspace:*",
         "@raceiq/game-catalogs": "workspace:*",
@@ -488,6 +512,7 @@
         "@speedhq/live-client": "0.1.13",
         "ai": "7.0.105",
         "drizzle-orm": "^0.45.2",
+        "effect": "4.0.4",
         "fflate": "^0.8.3",
         "hono": "4.13.8",
         "pino": "^10.3.1",
@@ -669,6 +694,21 @@
     "@duckdb/node-bindings-win32-x64": ["@duckdb/node-bindings-win32-x64@1.5.2-r.2", "", { "os": "win32", "cpu": "x64" }, "sha512-VUMbdeXQHWKHEXVWtfVaOSu7Mb4jR9gT56Yzu9FHyLyP9ogY/D6wpeohY5gAHZS9PHQGGq24qRtCn5g6vUolqA=="],
 
     "@effect/sql-sqlite-bun": ["@effect/sql-sqlite-bun@4.0.4", "", { "peerDependencies": { "effect": "^4.0.4" } }, "sha512-Ae1qfvi7t7xmuP8EmuwgJ8IINNcgy7caF9dNndBYGOlKeuBTub8xeHnP16nZRhUyn2/h42oB3uyP/trSdaRlIQ=="],
+    "@effect/tsgo": ["@effect/tsgo@0.53.0", "", { "optionalDependencies": { "@effect/tsgo-darwin-arm64": "0.53.0", "@effect/tsgo-darwin-x64": "0.53.0", "@effect/tsgo-linux-arm": "0.53.0", "@effect/tsgo-linux-arm64": "0.53.0", "@effect/tsgo-linux-x64": "0.53.0", "@effect/tsgo-win32-arm64": "0.53.0", "@effect/tsgo-win32-x64": "0.53.0" }, "bin": { "effect-tsgo": "dist/effect-tsgo.cjs" } }, "sha512-a8Ss/rI9QoOvJTQPet0YUpLqXp+/Qaydil+WpIHOhhsqvCu3l6aqN5xB+C/Mff/QW51r54n3Frk7a/joFszHgw=="],
+
+    "@effect/tsgo-darwin-arm64": ["@effect/tsgo-darwin-arm64@0.53.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-YDwx3cFpohEMtjbd+65iH/tVxIZs39pkR8KW2Vy7c5GB1LjOzkB+jo2rcku6DOueV/bfpS1wiSmsD1jsTVNIRg=="],
+
+    "@effect/tsgo-darwin-x64": ["@effect/tsgo-darwin-x64@0.53.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-6XvsEyNo5HAxSOum/zdvHHANu4sp5u6GqOyqZ00Pq+jPP1gFAvavS4kp3PZVR6mBaGv4sLRu6QMjwc3SbQz4uA=="],
+
+    "@effect/tsgo-linux-arm": ["@effect/tsgo-linux-arm@0.53.0", "", { "os": "linux", "cpu": "arm" }, "sha512-JXPq2BJdMu1TEc71bb6kCHnDgBImKqdxbk1etI4uoEot6PeUYogvjSCTjw7y+Lo2Uk/i1hVYx9sxR+824Dm5Mg=="],
+
+    "@effect/tsgo-linux-arm64": ["@effect/tsgo-linux-arm64@0.53.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-Io1RblTJ6hvff99rqsZSjEz18Yyprq8R7eZS7g/fzqMQ3aYqzbouUjpZaiCGRnZZfXS4Ft6I/1b4Nu3lBrEMhQ=="],
+
+    "@effect/tsgo-linux-x64": ["@effect/tsgo-linux-x64@0.53.0", "", { "os": "linux", "cpu": "x64" }, "sha512-4A0osORqB2HG9egjPe7JPz1X2KwZM8H0hkl81pYsJ4qEYOVHoFVdNDvZ0Y6qxLS2eZBmsxdS+/jXuZJ39nzuvw=="],
+
+    "@effect/tsgo-win32-arm64": ["@effect/tsgo-win32-arm64@0.53.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-qM7Aqw1uGmMDs8x/Iy2/kxKzzXx0WzH3/u66bjlEExSTv6DzHuAMXZmmb/1iUsth+TfqrwHwhHErFkwyyaLATg=="],
+
+    "@effect/tsgo-win32-x64": ["@effect/tsgo-win32-x64@0.53.0", "", { "os": "win32", "cpu": "x64" }, "sha512-87/Ep6F7yU06vev9LZMU0MxpUkuD9joOMwXrx9OH3aXDL1SlImHlux/uHqXWGrFcKND7oMe/SX15XWAjWdy4Ag=="],
 
     "@emnapi/core": ["@emnapi/core@1.9.2", "", { "dependencies": { "@emnapi/wasi-threads": "1.2.1", "tslib": "^2.4.0" } }, "sha512-UC+ZhH3XtczQYfOlu3lNEkdW/p4dsJ1r/bP7H8+rhao3TTTMO1ATq/4DdIi23XuGoFY+Cz0JmCbdVl0hz9jZcA=="],
 
@@ -1156,7 +1196,11 @@
 
     "@raceiq/backend-core": ["@raceiq/backend-core@workspace:server"],
 
+    "@raceiq/capture-downsampling": ["@raceiq/capture-downsampling@workspace:packages/capture-downsampling"],
+
     "@raceiq/capture-formats": ["@raceiq/capture-formats@workspace:packages/capture-formats"],
+
+    "@raceiq/capture-splitting": ["@raceiq/capture-splitting@workspace:packages/capture-splitting"],
 
     "@raceiq/frontend-contract-tests": ["@raceiq/frontend-contract-tests@workspace:packages/frontend-contract-tests"],
 
@@ -3053,6 +3097,8 @@
     "chat/@workflow/serde": ["@workflow/serde@4.1.0-beta.2", "", {}, "sha512-8kkeoQKLDaKXefjV5dbhBj2aErfKp1Mc4pb6tj8144cF+Em5SPbyMbyLCHp+BVrFfFVCBluCtMx+jjvaFVZGww=="],
 
     "chromium-bidi/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
+
+    "client/typescript": ["typescript@6.0.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw=="],
 
     "cliui/strip-ansi": ["strip-ansi@7.2.0", "", { "dependencies": { "ansi-regex": "^6.2.2" } }, "sha512-yDPMNjp4WyfYBkHnjIRLfca1i6KMyGCtsVgoKe/z1+6vukgaENdgGBZt+ZmKPc4gavvEZ5OgHfHdrazhgNyG7w=="],
 

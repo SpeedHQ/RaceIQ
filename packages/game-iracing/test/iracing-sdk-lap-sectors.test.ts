@@ -6,6 +6,7 @@ import { computeIRacingSectorTimeline, computeLapSectors } from "@raceiq/telemet
 import {
   createIRacingParserState,
   normalizeIRacingFrame,
+  primeIRacingFrameState,
 } from "../src/normalizer";
 import { LapDetectorIRacing } from "../src/lap-detector";
 import { CapturingDbAdapter } from "@raceiq/backend-core/telemetry/pipeline-ports"
@@ -54,6 +55,29 @@ describe("iRacing lap timing and native sectors", () => {
     expect(linePacket.iracing?.sdkCurrentLapTime).toBeCloseTo(31.72);
     expect(rolloverPacket.CurrentLap).toBeCloseTo(1.8);
     expect(rolloverPacket.LastLap).toBeCloseTo(31.7559);
+  });
+  test("state-only priming preserves current-lap clock across physical lap and session transitions", () => {
+    const prefix = sampleFrame();
+    prefix.values = { ...prefix.values, SessionTime: 100, Lap: 28, LapCurrentLapTime: 31.7 };
+    const atLine = sampleFrame();
+    atLine.values = { ...atLine.values, SessionTime: 100.02, Lap: 29, LapCurrentLapTime: 31.72 };
+    const next = sampleFrame();
+    next.session = { ...next.session, sessionNum: next.session.sessionNum + 1 };
+    next.values = { ...next.values, SessionTime: 3, Lap: 0, LapCurrentLapTime: 2.5 };
+
+    const continuousState = createIRacingParserState();
+    const primedState = createIRacingParserState();
+    normalizeIRacingFrame(prefix, continuousState);
+    primeIRacingFrameState(prefix, primedState);
+    expect(primedState.sessionKey).toBe(continuousState.sessionKey);
+    expect(primedState.rawLap).toBe(continuousState.rawLap);
+    expect(primedState.lapStartSessionTime).toBe(continuousState.lapStartSessionTime);
+
+    for (const frame of [atLine, next]) {
+      expect(normalizeIRacingFrame(frame, primedState)).toEqual(
+        normalizeIRacingFrame(frame, continuousState),
+      );
+    }
   });
 
   test("supports an explicitly two-sector native layout", async () => {

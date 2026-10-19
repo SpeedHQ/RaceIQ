@@ -1,0 +1,7 @@
+packages/capture-splitting/test/cancellation.test.ts
+packages/capture-splitting/test/archive.test.ts
+packages/capture-splitting/test/live-archive.test.ts
+packages/capture-splitting/test/live-scenarios.test.ts
+packages/capture-splitting/test/prepared-handover.test.ts
+packages/capture-splitting/test/prepared-host.test.ts
+packages/capture-splitting/test/prepared-worker.test.ts

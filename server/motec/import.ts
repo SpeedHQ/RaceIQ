@@ -31,6 +31,7 @@ import { parseLdxBeacons } from "./ldx";
 import type { MotecCarTrack } from "./types";
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
+import { beginRecordingStorageImport } from "../session-capture/storage-activity";
 import {
   analyseSemanticIds,
   unavailableAnalysisFeatures,
@@ -94,6 +95,8 @@ export async function importMotec(
   ldxBytes: Buffer | undefined,
   options: MotecImportOptions,
 ): Promise<MotecImportResult> {
+  const releaseStorageImport = beginRecordingStorageImport();
+  try {
   if (!ldxBytes) throw new Error("MoTeC .ldx signal file is required");
   const target = resolveMotecTarget(options.gameId);
   const log = parseLd(ldBytes);
@@ -113,6 +116,7 @@ export async function importMotec(
       rawFile: null,
       rawByteOffset: null,
       rawFrameCount: null,
+      captureFormatVersion: null,
     },
     samplePackets,
     semanticIds,
@@ -134,7 +138,7 @@ export async function importMotec(
     }))
     .sort((a, b) => a.group.localeCompare(b.group) || a.label.localeCompare(b.label));
   const unavailableFeatures = unavailableAnalysisFeatures(adapter, availableSemanticIds);
-  const sourcePath = await persistMotecSourceArchive(options.gameId, ldBytes, ldxBytes);
+  const sourcePath = await persistMotecSourceArchive(options.gameId, ldBytes, ldxBytes, options.ownership);
   const { packetCount, laps } = await importSessionPackets(
     conversion.packets,
     target.gameId,
@@ -174,4 +178,7 @@ export async function importMotec(
     yawFromLateralG: conversion.yawFromLateralG,
     limitations: target.limitations,
   };
+  } finally {
+    releaseStorageImport();
+  }
 }

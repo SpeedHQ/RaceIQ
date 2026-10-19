@@ -1,3 +1,4 @@
+import { recoverRecordingDirectoryMove } from "@raceiq/backend-core/session-capture/relocate-recordings";
 import { existsSync } from "node:fs";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { resolve } from "node:path";
@@ -13,6 +14,7 @@ import { listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
 import { hydrateDiscoveredAcEvoTracks, listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
 import { setCacheMaxBytes } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { isFirstRun, loadSettings } from "@raceiq/backend-core/runtime/config/settings";
+import { setRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/recording-frequency";
 import { wsManager, type WSData } from "@raceiq/backend-core/runtime/websocket-manager";
 import { udpListener } from "./udp-listener";
 import { PUBLIC_DIR, IS_COMPILED } from "@raceiq/backend-core/runtime/config/paths";
@@ -79,6 +81,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
 
   await initDb();
   await recoverCloudLapImports();
+  await recoverRecordingDirectoryMove();
   const auth = await DashboardAuth.create(client, DB_PATH, process.env);
   await auth.initialize(upgradingAccess);
   setDashboardAuth(auth);
@@ -93,6 +96,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
 
   const firstRun = IS_COMPILED && isFirstRun();
   const settings = loadSettings();
+  setRecordingFrequencyHz(settings.recordingFrequencyHz);
   if (settings.wsRefreshRate) {
     wsManager.setRefreshRate(settings.wsRefreshRate);
   }
@@ -111,6 +115,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     await mountStudioServer(app);
   }
 
+  await startSyncAndStaleSessionJobs();
   const httpServer = startHttpServer({
     app,
     port: httpPort,

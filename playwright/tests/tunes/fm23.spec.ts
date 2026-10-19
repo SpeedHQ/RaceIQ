@@ -58,10 +58,8 @@ test.describe("Forza Motorsport tunes", () => {
     await page.goto("/fm23/setups");
     await waitForTunesList(page);
 
-    // FM23 shows community + user tunes together, sorted by lap time.
-    // The test tune has no lap time so it sinks to page 2+. Click the "Yours"
-    // source tab to isolate it before asserting visibility.
-    await page.getByRole("button", { name: /^yours$/i }).click();
+    // FM23 sorts community + user tunes by lap time, so isolate owned tunes with the Mine source tab.
+    await page.getByRole("button", { name: /^mine$/i }).click();
 
     const card = page.getByText("E2E Forza Tune").first();
     await expect(card).toBeVisible();
@@ -104,7 +102,7 @@ test.describe("Forza Motorsport tunes", () => {
 
       await page.goto("/fm23/setups");
       await waitForTunesList(page);
-      await page.getByRole("button", { name: /^yours$/i }).click();
+      await page.getByRole("button", { name: /^mine$/i }).click();
       await expect(page.getByText(/1[–-]10 of 12.*page 1\/2/i)).toBeVisible();
       await page.getByRole("button", { name: /next/i }).click();
       await expect(page.getByText(/11[–-]12 of 12.*page 2\/2/i)).toBeVisible();
@@ -141,10 +139,10 @@ test.describe("Forza Motorsport tunes", () => {
       const communityRow = page.locator("tbody tr").first();
       if (await communityRow.count()) {
         await communityRow.click();
-        const cloneButton = page.getByRole("button", { name: /clone/i }).first();
+        const cloneButton = page.getByRole("button", { name: "Save to my setups", exact: true });
         await expect(cloneButton).toBeVisible();
         await cloneButton.click();
-        await page.getByRole("button", { name: /^yours$/i }).click();
+        await page.getByRole("button", { name: /^mine$/i }).click();
         await expect(async () => {
           const response = await page.request.get("/api/tunes?gameId=fm-2023");
           const payload: unknown = await response.json();
@@ -176,7 +174,7 @@ test.describe("Forza Motorsport tunes", () => {
 
       await page.goto("/fm23/setups");
       await waitForTunesList(page);
-      await page.getByRole("button", { name: /^yours$/i }).click();
+      await page.getByRole("button", { name: /^mine$/i }).click();
       await page.getByText("E2E FM Editable").click();
       await page.getByRole("button", { name: /^edit$/i }).click();
       await expect(page.getByRole("heading", { name: /edit: e2e fm editable/i })).toBeVisible();
@@ -184,7 +182,7 @@ test.describe("Forza Motorsport tunes", () => {
       await page.getByLabel("Name").fill("E2E FM Edited");
       await page.getByRole("button", { name: /save tune/i }).click();
       await page.waitForURL(/\/fm23\/setups\/?$/);
-      await page.getByRole("button", { name: /^yours$/i }).click();
+      await page.getByRole("button", { name: /^mine$/i }).click();
       await expect(page.getByText("E2E FM Edited")).toBeVisible();
       await expect(page.getByText("E2E FM Editable")).toHaveCount(0);
 

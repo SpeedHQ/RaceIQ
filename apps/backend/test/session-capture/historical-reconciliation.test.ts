@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { copyFileSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps, profiles, tunes, experiments, experimentVersions, lapMetrics, lineSpreadCache } from "@raceiq/backend-core/db/schema";
@@ -10,7 +10,14 @@ import { reconcileHistoricalSessions } from "@raceiq/backend-core/session-captur
 import { replaceLapsForSession } from "@raceiq/backend-core/db/lap-reprocessing-queries";
 import { combineRecordingParts } from "@raceiq/backend-core/session-capture/combine-recording-parts";
 import type { GameId } from "@raceiq/shared/games/ids";
-import { encodeMetaFrame } from "@raceiq/capture-formats/session/framing";
+import {
+  decompressIfGzipSync,
+  iterateSessionCaptureRecords,
+  SESSION_SEGMENT_BOUNDARY,
+  SESSION_SEGMENT_CONTEXT,
+  SESSION_SEGMENT_CONTEXT_END,
+} from "@raceiq/capture-formats/session/framing";
+import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import { initServerGameAdapters } from "../../src/games/init";
 
@@ -39,21 +46,35 @@ afterEach(async () => {
   directories.length = 0;
 });
 
-async function createSession(gameId: GameId, rawFile: string | null) {
+async function createSession(gameId: GameId, rawFile: string | null, captureFormatVersion: number | null = null) {
   const row = await db.insert(sessions).values({
     gameId, carId: "wrong historical car", trackId: '["Nurburgring","GP"]',
-    rawFile, lapDetectorVersion: null, notes: "keep session note", isFavorite: true,
+    rawFile, captureFormatVersion, lapDetectorVersion: null, notes: "keep session note", isFavorite: true,
   }).returning().get();
   createdSessions.push(row.id);
   return row;
 }
 
-function captureCopy(fixture: string) {
-  const directory = mkdtempSync(join(tmpdir(), "raceiq-historical-reconcile-"));
-  directories.push(directory);
-  const rawFile = join(directory, "capture.bin.gz");
-  copyFileSync(fixture, rawFile);
-  return rawFile;
+async function captureCopy(gameId: GameId, fixture: string) {
+  const bytes = decompressIfGzipSync(Buffer.from(readFileSync(fixture)));
+  const converted = await convertSeedFramesToSparse(gameId, seedCaptureFrames(bytes));
+  directories.push(dirname(converted.path));
+  return converted.path;
+}
+function* seedCaptureFrames(bytes: Buffer) {
+  for (const record of iterateSessionCaptureRecords(bytes)) {
+    if (record.kind === "frame") {
+      yield record.frameTimeMs === undefined
+        ? record.frame
+        : { frame: record.frame, frameTimeMs: record.frameTimeMs };
+    } else if (record.kind === "segment-boundary") {
+      yield SESSION_SEGMENT_BOUNDARY;
+    } else if (record.kind === "segment-context") {
+      yield SESSION_SEGMENT_CONTEXT;
+    } else if (record.kind === "segment-context-end") {
+      yield SESSION_SEGMENT_CONTEXT_END;
+    }
+  }
 }
 
 describe("historical session reconciliation", () => {
@@ -74,7 +95,7 @@ describe("historical session reconciliation", () => {
     ];
     const historical: { sessionId: number; lapId: number; lapNumber: number; carId: string; trackId: string }[] = [];
     for (const source of sources) {
-      const session = await createSession(source.gameId, captureCopy(source.file));
+      const session = await createSession(source.gameId, await captureCopy(source.gameId, source.file), 1);
       await reprocessSession(session.id);
       const lap = await db.select().from(laps).where(eq(laps.sessionId, session.id)).orderBy(laps.lapNumber).get();
       if (!lap) throw new Error("Committed capture did not produce expected lap");
@@ -95,7 +116,7 @@ describe("historical session reconciliation", () => {
     directories.push(directory);
     const corruptPath = join(directory, "broken.bin");
     writeFileSync(corruptPath, Buffer.from([255, 255, 255, 127]));
-    const corrupt = await createSession("ac-evo", corruptPath);
+    const corrupt = await createSession("ac-evo", corruptPath, 1);
     await db.insert(laps).values({ sessionId: corrupt.id, lapNumber: 10, lapTime: 1184.841, notes: "keep corrupt history" }).run();
 
     await reconcileHistoricalSessions();
@@ -155,7 +176,10 @@ describe("historical session reconciliation", () => {
       "test/artifacts/sessions/ac-evo-tourist-2026-10-10.bin.gz.part2",
     ]);
     try {
-      const session = await createSession("ac-evo", recording.path);
+      const bytes = decompressIfGzipSync(Buffer.from(readFileSync(recording.path)));
+      const converted = await convertSeedFramesToSparse("ac-evo", seedCaptureFrames(bytes));
+      directories.push(dirname(converted.path));
+      const session = await createSession("ac-evo", converted.path, 1);
       await db.insert(laps).values({ sessionId: session.id, lapNumber: 40, lapTime: 448.243, isValid: true }).run();
       await db.insert(laps).values({ sessionId: session.id, lapNumber: 41, lapTime: 1184.841, isValid: true }).run();
       await reconcileHistoricalSessions();
@@ -167,12 +191,10 @@ describe("historical session reconciliation", () => {
       recording.cleanup();
     }
   }, { timeout: 180_000 });
-  test("keeps historical laps pending when a readable capture yields no detected laps", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "raceiq-no-laps-reconcile-"));
-    directories.push(directory);
-    const rawFile = join(directory, "unrecognized.bin");
-    writeFileSync(rawFile, Buffer.concat([encodeMetaFrame(1), Buffer.from([4, 0, 0, 0, 0, 0, 0, 0])]));
-    const session = await createSession("ac-evo", rawFile);
+  test("keeps historical laps pending when a sparse capture yields no detected laps", async () => {
+    const converted = await convertSeedFramesToSparse("ac-evo", [Buffer.alloc(4)]);
+    directories.push(dirname(converted.path));
+    const session = await createSession("ac-evo", converted.path, 1);
     const saved = await db.insert(laps).values({
       sessionId: session.id, lapNumber: 7, lapTime: 401.277, notes: "unrecoverable annotation", isFavorite: true,
     }).returning().get();

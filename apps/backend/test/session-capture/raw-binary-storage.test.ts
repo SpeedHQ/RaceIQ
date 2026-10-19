@@ -2,12 +2,20 @@
  * Raw binary storage, byte offsets, and non-destructive session reprocessing.
  */
 import { describe, test, expect, afterEach, beforeEach } from "bun:test";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { insertTune } from "@raceiq/backend-core/db/tune-queries";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SessionRecorder } from "@raceiq/capture-formats/session/recorder";
-import { META_FRAME_MAGIC, encodeMetaFrame } from "@raceiq/capture-formats/session/framing";
+import {
+  META_FRAME_MAGIC,
+  decompressIfGzipSync,
+  encodeMetaFrame,
+  iterateSessionCaptureRecords,
+  SESSION_SEGMENT_BOUNDARY,
+  SESSION_SEGMENT_CONTEXT,
+  SESSION_SEGMENT_CONTEXT_END,
+} from "@raceiq/capture-formats/session/framing";
 import { reprocessSession } from "@raceiq/backend-core/session-capture/reprocess";
 import { db } from "@raceiq/backend-core/db/index";
 import { sessions, laps } from "@raceiq/backend-core/db/schema";
@@ -19,7 +27,23 @@ import { sessionRoutes } from "../../src/routes/session-routes";
 import { resolveDataDir } from "@raceiq/backend-core/runtime/config/data-dir";
 import { executeSessionCleanup } from "@raceiq/backend-core/session-capture/session-cleanup";
 import { combineRecordingParts } from "@raceiq/backend-core/session-capture/combine-recording-parts";
+import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
 
+function* seedCaptureFrames(bytes: Buffer) {
+  for (const record of iterateSessionCaptureRecords(bytes)) {
+    if (record.kind === "frame") {
+      yield record.frameTimeMs === undefined
+        ? record.frame
+        : { frame: record.frame, frameTimeMs: record.frameTimeMs };
+    } else if (record.kind === "segment-boundary") {
+      yield SESSION_SEGMENT_BOUNDARY;
+    } else if (record.kind === "segment-context") {
+      yield SESSION_SEGMENT_CONTEXT;
+    } else if (record.kind === "segment-context-end") {
+      yield SESSION_SEGMENT_CONTEXT_END;
+    }
+  }
+}
 initGameAdapters();
 initServerGameAdapters();
 
@@ -234,13 +258,19 @@ describe("reprocessSession", () => {
   });
 
   test("AC EVO Tourist repair is repeatable and preserves session metadata", async () => {
-    const binPath = join(tmpDir, "ac-evo-tourist.bin.gz");
+    const binPath = join(tmpDir, "ac-evo-tourist.bin");
     const recording = await combineRecordingParts([
       "test/artifacts/sessions/ac-evo-tourist-2026-10-10.bin.gz.part1",
       "test/artifacts/sessions/ac-evo-tourist-2026-10-10.bin.gz.part2",
     ]);
     try {
-      copyFileSync(recording.path, binPath);
+      const bytes = decompressIfGzipSync(Buffer.from(readFileSync(recording.path)));
+      const converted = await convertSeedFramesToSparse("ac-evo", seedCaptureFrames(bytes));
+      try {
+        copyFileSync(converted.path, binPath);
+      } finally {
+        converted.cleanup();
+      }
     } finally {
       recording.cleanup();
     }
@@ -249,6 +279,7 @@ describe("reprocessSession", () => {
       carId: "test-car",
       trackId: "test-track",
       rawFile: binPath,
+      captureFormatVersion: 1,
       notes: "Tourist repair metadata",
       isFavorite: true,
     }).returning({ id: sessions.id }).get();
@@ -312,10 +343,12 @@ describe("countStaleSessions", () => {
     rawFile: string | null,
     lapDetectorVersion: string | null,
     gameId = "fm-2023",
+    captureFormatVersion: number | null = 1,
+    source: string | null = null,
   ): Promise<number> {
     const row = await db
       .insert(sessions)
-      .values({ carId: "1", trackId: "1", gameId, rawFile, lapDetectorVersion })
+      .values({ carId: "1", trackId: "1", gameId, rawFile, lapDetectorVersion, captureFormatVersion, source })
       .returning({ id: sessions.id })
       .get();
     const id = row!.id;
@@ -338,12 +371,13 @@ describe("countStaleSessions", () => {
     await insertSession(staleNullPath, null);
     await insertSession(join(tmpDir, "missing.bin"), "lapdetector_v0");
     await insertSession(currentPath, detectorId);
-    await insertSession(null, null);
     await insertSession(unsupportedPath, "lapdetector_v0", "lmu");
+    await insertSession(unsupportedPath, "lapdetector_v0", "fm-2023", null);
+    await insertSession(unsupportedPath, "lapdetector_v0", "fm-2023", null, "motec");
+    await insertSession(null, null);
 
     const afterCount = await countStaleSessions(detectorId, ["fm-2023"]);
-
-    expect(afterCount - beforeCount).toBe(2);
+    expect(afterCount - beforeCount).toBe(3);
   });
 
   test("getStaleSessions returns only raw sessions with stale detector versions", async () => {
@@ -364,16 +398,20 @@ describe("countStaleSessions", () => {
     const currentVersion = await insertSession(currentPath, detectorId);
     const noRaw = await insertSession(null, null);
     const unsupportedGame = await insertSession(unsupportedPath, "lapdetector_v0", "lmu");
+    const legacyCapture = await insertSession(unsupportedPath, "lapdetector_v0", "fm-2023", null);
+    const motecCapture = await insertSession(unsupportedPath, "lapdetector_v0", "fm-2023", null, "motec");
 
     const allIds = await getStaleSessions(detectorId, ["fm-2023"]);
     const insertedIdsOnly = allIds.filter((id) => !baselineSet.has(id));
 
-    expect(insertedIdsOnly).toHaveLength(2);
+    expect(insertedIdsOnly).toHaveLength(3);
     expect(insertedIdsOnly).toContain(staleRawOldVersion);
     expect(insertedIdsOnly).toContain(staleRawNullVersion);
+    expect(insertedIdsOnly).toContain(motecCapture);
     expect(insertedIdsOnly).not.toContain(missingRaw);
     expect(insertedIdsOnly).not.toContain(currentVersion);
     expect(insertedIdsOnly).not.toContain(noRaw);
     expect(insertedIdsOnly).not.toContain(unsupportedGame);
+    expect(insertedIdsOnly).not.toContain(legacyCapture);
   });
 });

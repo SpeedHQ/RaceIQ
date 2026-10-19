@@ -1,3 +1,4 @@
+import { resolveRecordingDirectory } from "@raceiq/backend-core/runtime/config/recording-directory";
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
@@ -10,6 +11,8 @@ import { udpListener } from "../runtime/udp-listener";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import { lapDetector } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { loadSettings, saveSettings, PartialSettingsSchema } from "@raceiq/backend-core/runtime/config/settings";
+import { setRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/recording-frequency";
+import { isRecordingRetentionPolicyValid } from "@raceiq/shared/platform/runtime/recording-frequency";
 import { getSecret, setSecret } from "@raceiq/backend-core/runtime/platform/keystore";
 import { enableLaunchOnLogin, disableLaunchOnLogin, getLaunchOnLoginExeDir } from "@raceiq/backend-core/runtime/platform/launch-on-login";
 import { getLapStats } from "@raceiq/backend-core/db/lap-read-queries";
@@ -84,6 +87,7 @@ export const settingsRoutes = new Hono()
     }
     return c.json({
       ...settings,
+      resolvedRecordingDirectory: resolveRecordingDirectory(),
       udpPort: udpListener.port,
       openaiCompatibleApiKeySet: hasOpenAiCompatibleKey,
       geminiApiKeySet: hasGeminiKey,
@@ -250,12 +254,21 @@ export const settingsRoutes = new Hono()
     if (!parsed.success) return c.json({error: "Invalid settings"}, 400);
     const parseResult = parsed.data;
     const current = loadSettings();
+    if (Object.hasOwn(body, "recordingDirectory") && body.recordingDirectory !== current.recordingDirectory) {
+      return c.json({ error: "Use recording folder relocation", code: "RELOCATION_REQUIRED" }, 409);
+    }
     // Only merge keys explicitly sent in the request body (Zod partial applies defaults for missing fields)
     const provided: Record<string, unknown> = {};
     for (const key of Object.keys(body)) {
       if (key in parseResult) provided[key] = (parseResult as Record<string, unknown>)[key];
     }
     const merged = { ...current, ...provided };
+    if (!isRecordingRetentionPolicyValid(merged)) {
+      return c.json({
+        code: "INVALID_RETENTION_POLICY",
+        error: "Automatic deletion must be scheduled after automatic downsampling.",
+      }, 400);
+    }
     const startedAt = performance.now();
 
     try {
@@ -276,12 +289,13 @@ export const settingsRoutes = new Hono()
         }
       }
       saveSettings(merged);
+      setRecordingFrequencyHz(merged.recordingFrequencyHz);
       if (provided.onboardingComplete) {
         wsManager.broadcastNotification({ type: "onboarding_complete" });
       }
       const durationMs = Math.round(performance.now() - startedAt);
       console.info(`[Settings] PUT /api/settings saved in ${durationMs}ms`);
-      return c.json(merged);
+      return c.json({ ...merged, resolvedRecordingDirectory: resolveRecordingDirectory() });
     } catch (err) {
       const durationMs = Math.round(performance.now() - startedAt);
       console.error(`[Settings] PUT /api/settings failed in ${durationMs}ms`, err instanceof Error ? err.message : String(err));

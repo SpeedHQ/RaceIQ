@@ -1,4 +1,5 @@
 import type { LapMeta, SessionMeta } from "@raceiq/shared/racing/sessions/types";
+import { useId } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { AppInput } from "@/components/ui/AppInput";
@@ -62,7 +63,9 @@ export function SessionToolbar({
 }: SessionToolbarProps) {
   const gameRoute = useGameRoute();
   const navigate = useNavigate();
+  const captureReadinessExplanationId = useId();
   const selectedTelemetryLaps = allLaps.filter((lap) => selectedLaps.has(lap.id) && lap.telemetryAvailable !== false);
+  const exportBlockedByCapture = selectedTelemetryLaps.some((lap) => lap.source !== "motec" && lap.standaloneCaptureReady === false);
 
   return (
     <div className="flex items-center flex-wrap gap-3">
@@ -112,9 +115,18 @@ export function SessionToolbar({
       />
       <div className="flex items-center flex-wrap gap-2">
         {selectedTelemetryLaps.length > 0 && (
-          <Button variant="app-primary" size="app-md" disabled={exporting} onClick={() => runExport({ lapIds: selectedTelemetryLaps.map((lap) => lap.id) })}>
-            {exporting ? m.common_loading() : m.label_export()}
-          </Button>
+          <div className="flex flex-col gap-1">
+            <Button
+              variant="app-primary"
+              size="app-md"
+              disabled={exporting || exportBlockedByCapture}
+              aria-describedby={exportBlockedByCapture ? captureReadinessExplanationId : undefined}
+              onClick={() => runExport({ lapIds: selectedTelemetryLaps.map((lap) => lap.id) })}
+            >
+              {exporting ? m.common_loading() : m.label_export()}
+            </Button>
+            {exportBlockedByCapture && <span id={captureReadinessExplanationId} className="max-w-64 text-app-label text-app-text/90" role="status">{m.sessions_export_capture_not_ready()}</span>}
+          </div>
         )}
         {selectedLaps.size === 2 &&
           (() => {

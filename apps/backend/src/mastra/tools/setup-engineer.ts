@@ -7,13 +7,12 @@
  * with a reason (see `applyIntents`) rather than rejected at the schema, since
  * static tools cannot bake a per-game `knownComponents` enum into the schema.
  *
- * Session binding: the tools are module-level singletons (registered on the
- * Mastra instance, so Mastra Studio lists them). They hold no state and close
- * over nothing. Every tool takes an explicit `sessionId` parameter — the caller
- * (chat route) passes the resolved session id on each call, and `gameId` is
- * derived from it via `loadActiveExperimentContext(sessionId)`. Pure functions of
- * their inputs: unit-testable, no requestContext coupling, no cross-call state.
+ * Session binding: singleton tools read the server-resolved branch from
+ * RequestContext. Setup values and version history retain the turn's snapshot;
+ * evidence reads use its lap allowlist. Mutations check that the captured head
+ * is still current inside the transaction that records their inverse.
  */
+import { unlinkSync } from "node:fs";
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
@@ -22,16 +21,13 @@ import { CHAT_TURN_MESSAGES_KEY, hasExplicitChangeConfirmation } from "@raceiq/b
 import type { TuneDirection, TuneMagnitude } from "@raceiq/backend-core/ai/schemas";
 import { applyIntents, describeKnobs } from "@raceiq/backend-core/setups/rules/engine";
 import {
-  createExperimentVersion,
+  createExperimentVersionAndSetHead,
   deleteTestSubtree,
-  getExperimentVersion,
-  getExperimentVersionsByLabel,
   nextVersion,
-  resolveActiveTestId,
-  setExperimentVersionNote,
-  setExperimentVersionNotes,
+  setExperimentVersionNoteGuarded,
+  setExperimentVersionNotesGuarded,
 } from "@raceiq/backend-core/db/experiment-version-queries";
-import { setSessionHead } from "@raceiq/backend-core/db/experiment-queries";
+import { getExperiment } from "@raceiq/backend-core/db/experiment-queries";
 import { changeSlug, computeChildLabel, nextFreeLabel } from "@raceiq/backend-core/ai/version-label";
 import { saveAssistantChatMessage, tuneSessionThreadId } from "@raceiq/backend-core/ai/chat-agent";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
@@ -42,19 +38,15 @@ import {
   computeSessionTrackConditions,
 } from "../../experiments/representative-lap";
 import { formatTrackConditions } from "@raceiq/backend-core/ai/track-conditions";
-import {
-  gameHasSetupFile,
-  loadActiveExperimentContext,
-} from "../../experiments/setup-lineage";
+import { gameHasSetupFile } from "../../experiments/setup-lineage";
 import { readActiveSetup, writeAppliedSetup } from "../../setups/io";
 import { readSetupEngineerContext } from "./setup-engineer-request-context";
 import { consultLapAnalystForSession } from "../../ai/consult-lap-analyst";
 import { loadCleanLapAggregate } from "../../experiments/lap-evidence/aggregate";
-import { setLapExperimentExcluded, getLapsForExperiment } from "@raceiq/backend-core/db/experiment-lap-queries";
+import { setLapExperimentExcluded } from "@raceiq/backend-core/db/experiment-lap-queries";
 import { getLapById } from "@raceiq/backend-core/db/lap-read-queries";
 import { resolveTrack } from "@raceiq/backend-core/tracks/info";
-import { recordAction } from "@raceiq/backend-core/db/experiment-action-queries";
-import { undoLastAction } from "@raceiq/backend-core/experiments/undo"
+import { undoLastAction } from "@raceiq/backend-core/experiments/undo";
 import { detectCorners } from "@raceiq/backend-core/lap-analysis/corners";
 import { analyzeLapIssues } from "@raceiq/backend-core/experiments/lap-issues";
 import type { TuneIssue } from "@raceiq/shared/racing/tuning/issues";
@@ -70,6 +62,11 @@ const MagnitudeEnum = z.enum(["small", "medium", "large"]);
 // Read tools therefore take NO input; every execute reads the context via
 // readSetupEngineerContext(ctx.requestContext). Action tools keep only their
 // change args (component/direction/magnitude), never sessionId.
+
+async function branchHeadIsCurrent(sessionId: number, headVersionId: number | null): Promise<boolean> {
+  const session = await getExperiment(sessionId);
+  return session != null && session.headVersionId === headVersionId;
+}
 const NoInput = z.object({});
 
 const AppliedChangeShape = z.object({
@@ -143,8 +140,8 @@ export function buildSetupEngineerTools() {
       })).default([]),
     }),
     execute: async (_input, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const ctx = await loadActiveExperimentContext(sessionId);
+      const { branch } = readSetupEngineerContext(execCtx?.requestContext);
+      const ctx = branch.setupContext;
       if (!ctx.ok) return { ok: false, error: ctx.error, knobs: [] };
       return {
         ok: true,
@@ -168,8 +165,8 @@ export function buildSetupEngineerTools() {
       summary: z.string(),
     }),
     execute: async (_input, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const symptoms = await computeSessionSymptoms(sessionId);
+      const { sessionId, branch } = readSetupEngineerContext(execCtx?.requestContext);
+      const symptoms = await computeSessionSymptoms(sessionId, { lapIds: branch.lapIds });
       if (!symptoms) return { available: false, summary: "No analysable lap yet for this session." };
       return { available: true, summary: formatSymptoms(symptoms) };
     },
@@ -198,8 +195,8 @@ export function buildSetupEngineerTools() {
       staticWeather: z.boolean().nullable().optional(),
     }),
     execute: async (_input, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const tc = await computeSessionTrackConditions(sessionId);
+      const { sessionId, branch } = readSetupEngineerContext(execCtx?.requestContext);
+      const tc = await computeSessionTrackConditions(sessionId, { lapIds: branch.lapIds });
       if (!tc) return { available: false, summary: "No analysable lap yet for this session." };
       return {
         available: true,
@@ -232,8 +229,8 @@ export function buildSetupEngineerTools() {
       summary: z.string(),
     }),
     execute: async (_input, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      return consultLapAnalystForSession(sessionId);
+      const { sessionId, branch } = readSetupEngineerContext(execCtx?.requestContext);
+      return consultLapAnalystForSession(sessionId, { lapIds: branch.lapIds });
     },
   });
 
@@ -260,9 +257,8 @@ export function buildSetupEngineerTools() {
       })),
     }),
     execute: async (_input, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const ctx = await loadActiveExperimentContext(sessionId);
-      const tests = ctx.ok ? ctx.tests : [];
+      const { branch } = readSetupEngineerContext(execCtx?.requestContext);
+      const tests = branch.versions;
       return {
         versions: tests.map((t) => {
           let changes: { component: string; from: number; to: number; direction: string }[] = [];
@@ -306,8 +302,8 @@ export function buildSetupEngineerTools() {
       to: z.number().optional(),
     }),
     execute: async (inputData, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const ctx = await loadActiveExperimentContext(sessionId);
+      const { branch } = readSetupEngineerContext(execCtx?.requestContext);
+      const ctx = branch.setupContext;
       if (!ctx.ok) return { ok: false, error: ctx.error };
       const { setup, applied, skipped } = applyIntents(ctx.gameId, ctx.setup, [{
         component: inputData.component,
@@ -354,7 +350,7 @@ export function buildSetupEngineerTools() {
       skipped: z.array(z.object({ component: z.string(), reason: z.string() })).default([]),
     }),
     execute: async (inputData, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
+      const { sessionId, branch } = readSetupEngineerContext(execCtx?.requestContext);
       // Hard gate: the model must attest the driver approved the proposal.
       // Weak local models skip the propose→confirm step and jump straight to
       // apply (observed: 6 unconfirmed suspension changes); refusing here
@@ -382,7 +378,11 @@ export function buildSetupEngineerTools() {
           skipped: [],
         };
       }
-      const ctx = await loadActiveExperimentContext(sessionId);
+      const ctx = branch.setupContext;
+      const { mutations } = readSetupEngineerContext(execCtx?.requestContext);
+      if (!(await branchHeadIsCurrent(sessionId, mutations.expectedHeadVersionId))) {
+        return { ok: false, error: "Experiment version changed during this turn. Refresh before applying changes.", applied: [], skipped: [] };
+      }
       if (!ctx.ok) return { ok: false, error: ctx.error, applied: [], skipped: [] };
 
       // Optional explicit base: apply on top of a named version instead of the
@@ -437,7 +437,7 @@ export function buildSetupEngineerTools() {
       // children the parent already has (its continuation + any forks).
       const parentLabel = parent?.label ?? "v1";
       const childCount = parent ? ctx.tests.filter((t) => t.parentVersionId === parent.id).length : 0;
-      const takenLabels = new Set(ctx.tests.map((t) => t.label));
+      const takenLabels = new Set([...ctx.tests.map((t) => t.label), ...mutations.createdLabels]);
       const label = nextFreeLabel(computeChildLabel(parentLabel, childCount), takenLabels);
       // Descriptive slug from what actually changed, e.g. "soft-rarb" —
       // makes files readable at a glance in-game ("mugello-soft-rarb-v3").
@@ -456,45 +456,33 @@ export function buildSetupEngineerTools() {
         return { ok: false, error: `Write failed: ${err.message}`, applied: [], skipped: [] };
       }
 
-      const newTestId = await createExperimentVersion({
-        experimentId: sessionId,
-        version: nextVer,
-        label,
-        setupPath: written.setupPath,
-        setupSnapshot: written.setupSnapshot,
-        parentVersionId: parent?.id ?? null,
-        appliedChanges: applied.length ? JSON.stringify(applied) : null,
-        driverComment: null,
-        notes: inputData.goal?.trim() || null,
-        engine: "llm",
-      });
-
-      // Branch grows and head follows the work: the new node becomes the head.
-      //
-      // The head we are about to overwrite is the SESSION's head, not the
-      // parent: with `target` set, the new arm branches off some other version
-      // while the head sits elsewhere, and undo must restore where the driver
-      // actually was. Matches every other recordAction call site
-      // (`server/routes/experiments/version-routes.ts`).
-      const prevHeadTestId = ctx.session.headVersionId ?? parent?.id ?? null;
+      const prevHeadTestId = mutations.expectedHeadVersionId;
+      let newTestId: number | null;
       try {
-        await setSessionHead(sessionId, newTestId);
-      } catch (err: any) {
-        console.error("[SetupEngineer] Failed to advance head:", err?.message);
+        newTestId = await createExperimentVersionAndSetHead({
+          experimentId: sessionId, version: nextVer, label,
+          setupPath: written.setupPath, setupSnapshot: written.setupSnapshot,
+          parentVersionId: parent?.id ?? null,
+          appliedChanges: applied.length ? JSON.stringify(applied) : null,
+          driverComment: null, notes: inputData.goal?.trim() || null, engine: "llm",
+        }, mutations.expectedHeadVersionId, {
+          kind: "apply-changes", inversePayload: { versionId: "INSERTED_ID", prevHeadTestId },
+        });
+      } catch (error) {
+        if (written.setupPath) {
+          try { unlinkSync(written.setupPath); } catch { /* remove only this invocation's artifact */ }
+        }
+        throw error;
       }
-
-      // Push the new version to any open clients so the tree + head update
-      // live, as each version lands — not batched at end-of-turn. No-op when
-      // no clients are connected.
+      if (newTestId == null) {
+        if (written.setupPath) {
+          try { unlinkSync(written.setupPath); } catch { /* remove only this invocation's artifact */ }
+        }
+        return { ok: false, applied: [], skipped, error: "Experiment version changed during this update. Refresh before trying again." };
+      }
+      mutations.expectedHeadVersionId = newTestId;
+      mutations.createdLabels.add(label);
       wsManager.broadcastNotification({ type: "experiment-updated", sessionId });
-
-      // Best-effort: an action-log write failure must not fail the apply —
-      // the file + tuning test + head are already committed.
-      try {
-        await recordAction(sessionId, "apply-changes", { versionId: newTestId, prevHeadTestId });
-      } catch (err: any) {
-        console.error("[SetupEngineer] Failed to log apply-changes action:", err?.message);
-      }
 
       // Best-effort: a memory write failure must not fail the apply — the
       // file + tuning test are already committed.
@@ -535,17 +523,14 @@ export function buildSetupEngineerTools() {
       excluded: z.boolean().optional(),
     }),
     execute: async (inputData, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const { ok, prev } = await setLapExperimentExcluded(inputData.lapId, inputData.excluded);
-      if (!ok) return { ok: false, error: `No lap ${inputData.lapId} found.` };
-
-      // Best-effort: an action-log write failure must not fail the tool — the
-      // lap flag is already committed.
-      try {
-        await recordAction(sessionId, "set-lap-excluded", { lapId: inputData.lapId, prevExcluded: prev });
-      } catch (err: any) {
-        console.error("[SetupEngineer] Failed to log set-lap-excluded action:", err?.message);
+      const { sessionId, branch } = readSetupEngineerContext(execCtx?.requestContext);
+      if (!branch.lapIds.includes(inputData.lapId)) {
+        return { ok: false, error: `Lap ${inputData.lapId} is not attached to the current version branch.` };
       }
+      const { ok } = await setLapExperimentExcluded(inputData.lapId, inputData.excluded, {
+        sessionId, expectedHeadVersionId: branch.headVersionId, allowedLapIds: branch.lapIds,
+      }, { kind: "set-lap-excluded", inversePayload: { lapId: inputData.lapId } });
+      if (!ok) return { ok: false, error: "Experiment version changed or lap is no longer in this branch. Refresh and retry." };
 
       return { ok: true, lapId: inputData.lapId, excluded: inputData.excluded };
     },
@@ -575,33 +560,24 @@ export function buildSetupEngineerTools() {
       version: z.number().optional(),
     }),
     execute: async (inputData, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
+      const { sessionId, branch } = readSetupEngineerContext(execCtx?.requestContext);
 
-      // Resolve the target node — the requested version, or the head when the
-      // model didn't name one.
       let target: { id: number; version: number } | undefined;
       if (inputData.version != null) {
-        const t = await getExperimentVersionsByLabel(sessionId, inputData.version);
+        const t = branch.versions.find((candidate) => candidate.version === inputData.version);
         if (!t) return { ok: false, error: `No version ${inputData.version} in this session.` };
         target = { id: t.id, version: t.version };
+      } else if (branch.activeVersion) {
+        target = { id: branch.activeVersion.id, version: branch.activeVersion.version };
       } else {
-        const headId = await resolveActiveTestId(sessionId);
-        if (headId == null) return { ok: false, error: "No version exists yet to attach a note to." };
-        const t = await getExperimentVersion(headId);
-        if (!t) return { ok: false, error: "No version exists yet to attach a note to." };
-        target = { id: t.id, version: t.version };
+        return { ok: false, error: "No version exists yet to attach a note to." };
       }
-
       const note = inputData.note.trim() === "" ? null : inputData.note;
-
-      // Write the engineer note, capturing the prior value for undo.
-      const prevNotes = await setExperimentVersionNotes(target.id, note);
+      const saved = await setExperimentVersionNotesGuarded(target.id, note, sessionId, branch.headVersionId, {
+        kind: "edit-test-notes", inversePayload: { versionId: target.id },
+      });
+      if (!saved.ok) return { ok: false, error: "Experiment version changed during this turn. Refresh before saving notes." };
       wsManager.broadcastNotification({ type: "experiment-updated", sessionId });
-      try {
-        await recordAction(sessionId, "edit-test-notes", { versionId: target.id, prevNotes });
-      } catch (err: any) {
-        console.error("[SetupEngineer] Failed to log edit-test-notes action:", err?.message);
-      }
 
       return { ok: true, version: target.version };
     },
@@ -640,7 +616,7 @@ export function buildSetupEngineerTools() {
       version: z.number().optional(),
     }),
     execute: async (inputData, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
+      const { sessionId, branch } = readSetupEngineerContext(execCtx?.requestContext);
 
       if (!inputData.driverConfirmed) {
         return {
@@ -652,30 +628,22 @@ export function buildSetupEngineerTools() {
         };
       }
 
-      // Resolve the target node — the requested version, or the head when the
-      // model didn't name one.
       let target: { id: number; version: number } | undefined;
       if (inputData.version != null) {
-        const t = await getExperimentVersionsByLabel(sessionId, inputData.version);
+        const t = branch.versions.find((candidate) => candidate.version === inputData.version);
         if (!t) return { ok: false, error: `No version ${inputData.version} in this session.` };
         target = { id: t.id, version: t.version };
+      } else if (branch.activeVersion) {
+        target = { id: branch.activeVersion.id, version: branch.activeVersion.version };
       } else {
-        const headId = await resolveActiveTestId(sessionId);
-        if (headId == null) return { ok: false, error: "No version exists yet to attach a note to." };
-        const t = await getExperimentVersion(headId);
-        if (!t) return { ok: false, error: "No version exists yet to attach a note to." };
-        target = { id: t.id, version: t.version };
+        return { ok: false, error: "No version exists yet to attach a note to." };
       }
-
       const note = inputData.note.trim() === "" ? null : inputData.note;
-
-      const prev = await setExperimentVersionNote(target.id, note);
+      const saved = await setExperimentVersionNoteGuarded(target.id, note, sessionId, branch.headVersionId, {
+        kind: "edit-test-note", inversePayload: { versionId: target.id },
+      });
+      if (!saved.ok) return { ok: false, error: "Experiment version changed during this turn. Refresh before saving notes." };
       wsManager.broadcastNotification({ type: "experiment-updated", sessionId });
-      try {
-        await recordAction(sessionId, "edit-test-note", { versionId: target.id, prevDriverComment: prev });
-      } catch (err: any) {
-        console.error("[SetupEngineer] Failed to log edit-test-note action:", err?.message);
-      }
 
       return { ok: true, version: target.version };
     },
@@ -701,8 +669,8 @@ export function buildSetupEngineerTools() {
       })).default([]),
     }),
     execute: async (_input, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const agg = await loadCleanLapAggregate(sessionId);
+      const { sessionId, branch } = readSetupEngineerContext(execCtx?.requestContext);
+      const agg = await loadCleanLapAggregate(sessionId, { versionId: branch.headVersionId, lapIds: branch.lapIds, strictBranch: true });
       const corners = agg.consistency.cornerConsistency;
       if (!corners) {
         return {
@@ -743,8 +711,8 @@ export function buildSetupEngineerTools() {
       })).default([]),
     }),
     execute: async (_input, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const laps = await getLapsForExperiment(sessionId);
+      const { branch } = readSetupEngineerContext(execCtx?.requestContext);
+      const laps = branch.laps;
       const bestLapTime = laps.reduce<number | null>((best, l) => {
         if (!l.isValid || l.lapTime <= 0) return best;
         return best == null || l.lapTime < best ? l.lapTime : best;
@@ -801,10 +769,10 @@ export function buildSetupEngineerTools() {
       }).nullable().optional(),
     }),
     execute: async (inputData, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const sessionLaps = await getLapsForExperiment(sessionId);
+      const { branch } = readSetupEngineerContext(execCtx?.requestContext);
+      const sessionLaps = branch.laps;
       const meta = sessionLaps.find((l) => l.id === inputData.lapId);
-      if (!meta) return { ok: false, error: `Lap ${inputData.lapId} is not in this session.` };
+      if (!meta) return { ok: false, error: `Lap ${inputData.lapId} is not in the current version branch.` };
 
       const lap = await getLapById(inputData.lapId);
       if (!lap) return { ok: false, error: `Lap ${inputData.lapId} not found.` };
@@ -869,8 +837,8 @@ export function buildSetupEngineerTools() {
       })).default([]),
     }),
     execute: async (inputData, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const sessionLaps = await getLapsForExperiment(sessionId);
+      const { branch } = readSetupEngineerContext(execCtx?.requestContext);
+      const sessionLaps = branch.laps;
 
       const issuesForLap = async (meta: (typeof sessionLaps)[number]) => {
         const lap = await getLapById(meta.id);
@@ -927,10 +895,9 @@ export function buildSetupEngineerTools() {
       })).optional(),
     }),
     execute: async (inputData, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
+      const { branch } = readSetupEngineerContext(execCtx?.requestContext);
       if (inputData.lapId1 === inputData.lapId2) return { ok: false, error: "Cannot compare a lap with itself." };
-
-      const sessionLaps = await getLapsForExperiment(sessionId);
+      const sessionLaps = branch.laps;
       const metaA = sessionLaps.find((l) => l.id === inputData.lapId1);
       const metaB = sessionLaps.find((l) => l.id === inputData.lapId2);
       if (!metaA) return { ok: false, error: `Lap ${inputData.lapId1} is not in this session.` };
@@ -979,25 +946,18 @@ export function buildSetupEngineerTools() {
       headVersionId: z.number().nullable().optional(),
     }),
     execute: async (inputData, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const ctx = await loadActiveExperimentContext(sessionId);
-      if (!ctx.ok) return { ok: false, error: ctx.error, deletedIds: [] };
-
-      const test = ctx.tests.find((t) => t.id === inputData.versionId);
+      const { sessionId, branch, mutations } = readSetupEngineerContext(execCtx?.requestContext);
+      const test = branch.versions.find((t) => t.id === inputData.versionId);
       if (!test) return { ok: false, error: `No version ${inputData.versionId} found in this session.`, deletedIds: [] };
-
-      const result = await deleteTestSubtree(sessionId, inputData.versionId, ctx.session.headVersionId ?? null);
-
-      try {
-        await recordAction(sessionId, "delete", {
+      const result = await deleteTestSubtree(
+        sessionId, inputData.versionId, mutations.expectedHeadVersionId, mutations.expectedHeadVersionId,
+        { kind: "delete", inversePayload: {
           rootTestId: inputData.versionId,
-          testIds: result.deletedIds,
-          prevHeadTestId: result.headMoved ? result.prevHeadTestId : null,
-        });
-      } catch (err: any) {
-        console.error("[SetupEngineer] Failed to log delete action:", err?.message);
-      }
-
+          testIds: [],
+        } },
+      );
+      if (!result.deletedIds.length) return { ok: false, error: "Experiment version changed during this turn. Refresh before deleting a version.", deletedIds: [] };
+      mutations.expectedHeadVersionId = result.newHeadTestId;
       return { ok: true, deletedIds: result.deletedIds, headVersionId: result.newHeadTestId };
     },
   });
@@ -1019,10 +979,11 @@ export function buildSetupEngineerTools() {
       warning: z.string().optional(),
     }),
     execute: async (_input, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const result = await undoLastAction(sessionId);
+      const { sessionId, mutations } = readSetupEngineerContext(execCtx?.requestContext);
+      const result = await undoLastAction(sessionId, mutations.expectedHeadVersionId);
 
-      if (result.undone) {
+      if (result.undone && result.headVersionId !== undefined) {
+        mutations.expectedHeadVersionId = result.headVersionId;
         try {
           await saveAssistantChatMessage(
             tuneSessionThreadId(sessionId),
@@ -1060,7 +1021,7 @@ export function buildSetupEngineerTools() {
 
 /**
  * Module-level singleton tool set — registered on the Mastra instance so Mastra
- * Studio lists them. Session binding is an explicit `sessionId` parameter on
- * every tool, supplied by the caller per call.
+ * Studio lists them. Session, setup, and lap scope come from the server-bound
+ * branch snapshot in RequestContext, never model-supplied session arguments.
  */
 export const setupEngineerTools = buildSetupEngineerTools();

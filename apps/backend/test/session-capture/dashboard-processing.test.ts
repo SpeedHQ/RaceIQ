@@ -1,10 +1,12 @@
 import { afterEach, beforeAll, expect, test } from "bun:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { gunzipSync } from "node:zlib";
-import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
+import { dirname, join, resolve } from "node:path";
+import { gunzipSync, gzipSync } from "node:zlib";
+import { iterateSessionFrames } from "@raceiq/capture-formats/session/framing";
+import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-capture-conversion";
 import { initServerGameAdapters } from "../../src/games/init";
+import { developmentReleaseFeatures } from "@raceiq/tooling-release/release/development-release-features";
 import { client, db } from "@raceiq/backend-core/db/index";
 import { sessions } from "@raceiq/backend-core/db/schema";
 import { deleteSession } from "@raceiq/backend-core/db/session-queries";
@@ -28,15 +30,25 @@ afterEach(async () => {
   for (const path of tempDirs.splice(0)) await rm(path, { recursive: true, force: true });
 });
 
+async function sparseFixturePath(): Promise<string> {
+  const converted = await convertSeedFramesToSparse(
+    "acc",
+    iterateSessionFrames(gunzipSync(await readFile(fixture))),
+  );
+  tempDirs.push(dirname(converted.path));
+  return converted.path;
+}
 
-async function seedSession(rawFile = fixture): Promise<number> {
+async function seedSession(rawFile?: string): Promise<number> {
+  const capturePath = rawFile ?? await sparseFixturePath();
   const row = await db.insert(sessions).values({
     gameId: "acc", carId: "7", trackId: "8",
-    ownership: "mine", createdAt: "2026-04-23T16:42:16.158Z", sessionType: "practice", rawFile,
+    ownership: "mine", createdAt: "2026-04-23T16:42:16.158Z", sessionType: "practice", rawFile: capturePath,
   }).returning({ id: sessions.id }).get();
   sessionIds.push(row.id);
   return row.id;
 }
+
 
 async function readSession(sessionId: number) {
   const result = await client.execute({
@@ -105,11 +117,12 @@ test("active checkpoint publishes metadata first; finalized capture facts publis
 test("capture identity depends on source content, not lossless gzip representation", async () => {
   const directory = await mkdtemp(join(tmpdir(), "raceiq-dashboard-capture-"));
   tempDirs.push(directory);
+  const sparsePath = await sparseFixturePath();
+  const sparseBytes = await readFile(sparsePath);
   const compressedPath = join(directory, "capture.bin.gz");
   const rawPath = join(directory, "capture.bin");
-  const compressedBytes = await readFile(fixture);
-  await writeFile(compressedPath, compressedBytes);
-  await writeFile(rawPath, gunzipSync(compressedBytes));
+  await writeFile(compressedPath, gzipSync(sparseBytes));
+  await writeFile(rawPath, sparseBytes);
 
   const compressedSessionId = await seedSession(compressedPath);
   const rawSessionId = await seedSession(rawPath);

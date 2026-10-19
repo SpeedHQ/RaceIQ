@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { findTrackCarPairWithTwoLaps, getSeededLaps, lapOptionLabel } from "../seeded/compare/helpers";
 import { getSeededLapTarget } from "../support/seeded/laps";
+import type { DashboardResponse } from "@raceiq/shared/racing/sessions/dashboard";
 import { writeFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -44,7 +45,25 @@ for (const page of PAGES) {
       : target
         ? `/f125/sessions/${target.sessionId}/replay/${target.id}?viz=3d`
         : page.path;
+    if (page.name === "home") {
+      test.setTimeout(90_000);
+      const to = new Date();
+      const from = new Date(to.getTime() - 7 * 86_400_000);
+      await expect.poll(async () => {
+        const response = await p.request.get("/api/dashboard", {
+          params: { from: from.toISOString(), to: to.toISOString() },
+        });
+        if (!response.ok()) return false;
+        const dashboard: DashboardResponse = await response.json();
+        return dashboard.coverage.metadataComplete;
+      }, { timeout: 60_000, message: "Home dashboard metadata must be ready before capture" }).toBe(true);
+    }
     await p.goto(path, { waitUntil: "domcontentloaded" });
+    if (page.name === "home") {
+      await expect(p.locator("[data-game-brand]").first()).toBeVisible();
+      await expect(p.locator('[data-responsive-workspace] [aria-busy="true"]')).toHaveCount(0, { timeout: 30_000 });
+      await expect(p.locator('[data-responsive-workspace] [role="alert"]')).toHaveCount(0);
+    }
     // Dynamic route IDs avoid coupling screenshots to fixture database IDs.
     if (comparePair) {
       await p.getByLabel("Lap A").waitFor({ state: "visible" });

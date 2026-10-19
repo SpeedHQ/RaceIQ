@@ -9,8 +9,7 @@ import { parseAccBuffers } from "../src/parser";
 import { PHYSICS, GRAPHICS, STATIC } from "@raceiq/capture-formats/acc/structs";
 import { unpackTriplet } from "@raceiq/capture-formats/kunos/pack-triplet";
 import { getServerGame } from "@raceiq/backend-core/games/registry";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import * as fsPromises from "node:fs/promises";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import os from "node:os";
 
@@ -277,31 +276,27 @@ describe("KunosRecorder finalization", () => {
     }
   });
 
-  test("propagates a finalization error without clearing a replacement recording", async () => {
+  test("keeps a replacement capture writable when the previous destination fails", async () => {
     const dir = mkdtempSync(join(os.tmpdir(), "acc-stop-error-"));
     const recorder = new KunosRecorder();
-    const firstPath = recorder.start(dir, "first");
+    const blocked = join(dir, "not-a-directory");
+    writeFileSync(blocked, "occupied");
+    recorder.start(blocked, "first");
     recorder.writePhysics(Buffer.from([1]));
-    const error = new Error("Injected finalization open failure");
-    const open = fsPromises.open;
-    const openSpy = spyOn(fsPromises, "open").mockImplementation((path, flags, mode) =>
-      path === firstPath ? Promise.reject(error) : open(path, flags, mode),
-    );
     try {
       const firstStop = recorder.stop();
       const secondPath = recorder.start(dir, "second");
       recorder.writePhysics(Buffer.from([2]));
-      await expect(firstStop).rejects.toBe(error);
-      openSpy.mockRestore();
-
+      await expect(firstStop).rejects.toThrow(/ENOTDIR|EEXIST/);
       expect(recorder.recording).toBe(true);
       expect(recorder.path).toBe(secondPath);
       recorder.writeGraphics(Buffer.from([3]));
       await recorder.stop();
-      expect(readFileSync(secondPath).readUInt32LE(12)).toBe(2);
-      expect(readFileSync(firstPath).readUInt32LE(12)).toBe(0);
+      const saved = readFileSync(secondPath);
+      expect(saved.readUInt32LE(12)).toBe(2);
+      expect(saved.subarray(21, 22)).toEqual(Buffer.from([2]));
+      expect(saved.subarray(27)).toEqual(Buffer.from([3]));
     } finally {
-      openSpy.mockRestore();
       await recorder.stop();
       rmSync(dir, { recursive: true, force: true });
     }

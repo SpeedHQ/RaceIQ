@@ -18,7 +18,7 @@
     "./runtime": "./src/runtime.ts"
   },
   "scripts": {
-    "typecheck": "bunx tsc --project tsconfig.json --noEmit",
+    "typecheck": "bun check --project tsconfig.json",
     "test": "bun ../../scripts/test/run-suite.ts all --package @raceiq/online",
     "test:unit": "bun ../../scripts/test/run-suite.ts unit --package @raceiq/online",
     "test:integration": "bun ../../scripts/test/run-suite.ts integration --package @raceiq/online"

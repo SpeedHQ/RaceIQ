@@ -6,23 +6,17 @@ const HEADER_SIZE = 16; // magic (8) + version (4) + frameCount (4)
 const FRAME_HEADER = 5; // type (1) + size (4)
 const SUPPORTED_VERSIONS = new Set([2, 3]);
 
-/**
- * Read assembled triplets from a Kunos recording (.bin or .bin.gz).
- * Supports legacy ACCTEST format versions 2 and 3. Frames are self-describing,
- * so the only difference is the size of the captured graphics buffer:
- *   v2 → 1320 bytes (legacy, isValidLap and tail fields absent)
- *   v3 → 1588 bytes (full ACC SDK v1.8.12 struct)
- * Parser must length-guard reads of tail-of-struct fields.
- * @param limit Maximum number of triplets to return (default: all)
- */
-export function readKunosFrames(filePath: string, limit?: number): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
-  const raw = readFileSync(filePath);
-  const data = filePath.endsWith(".gz") ? gunzipSync(raw) : raw;
+/** Detect the existing ACCTEST native dump container. */
+export function hasKunosDumpMagic(data: Buffer): boolean {
+  return data.length >= ACC_MAGIC.length && data.subarray(0, ACC_MAGIC.length).equals(ACC_MAGIC);
+}
 
-  if (data.length < HEADER_SIZE || !data.subarray(0, 8).equals(ACC_MAGIC)) return [];
+/** Decode assembled triplets from a Kunos recording buffer. */
+export function readKunosFramesFromBuffer(data: Buffer, limit?: number): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
+  if (data.length < HEADER_SIZE || !hasKunosDumpMagic(data)) return [];
   const version = data.readUInt32LE(8);
   if (!SUPPORTED_VERSIONS.has(version)) {
-    console.warn(`[ACC frame-reader] Unsupported recording version ${version} in ${filePath}`);
+    console.warn(`[ACC frame-reader] Unsupported recording version ${version}`);
     return [];
   }
 
@@ -39,7 +33,7 @@ export function readKunosFrames(filePath: string, limit?: number): { physics: Bu
   const frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[] = [];
   let pendingPhysics: Buffer | null = null;
   let pendingGraphics: Buffer | null = null;
-  let lastStatic = Buffer.alloc(0);
+  let lastStatic: Buffer = Buffer.alloc(0);
   let offset = HEADER_SIZE;
   let frameIdx = 0;
 
@@ -75,4 +69,14 @@ export function readKunosFrames(filePath: string, limit?: number): { physics: Bu
 
   flush(); // final poll has no trailing physics frame to trigger it
   return frames;
+}
+
+/**
+ * Read assembled triplets from a Kunos recording (.bin or .bin.gz).
+ * Supports legacy ACCTEST format versions 2 and 3.
+ */
+export function readKunosFrames(filePath: string, limit?: number): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
+  const raw = readFileSync(filePath);
+  const data = filePath.endsWith(".gz") ? gunzipSync(raw) : raw;
+  return readKunosFramesFromBuffer(data, limit);
 }

@@ -13,12 +13,13 @@ import {
   type DashboardCaptureFacts,
   type DashboardPublicationCandidate,
 } from "../db/dashboard-summary-queries";
+import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
 import { iterateSessionCaptureRecordsFromSource, type SessionCaptureSource } from "./source-loader";
 
 const USES_SESSION_CLOCK: Partial<Record<GameId, true>> = { "fm-2023": true, "f1-2025": true, iracing: true, lmu: true };
 const BATCH_SIZE = 25;
 const checkpointYield = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
-type SessionInfo = { raw_file: string | null; source: string | null; game_id: string; car_id: string | null; track_id: string | null };
+type SessionInfo = { raw_file: string | null; source: string | null; game_id: string; car_id: string | null; track_id: string | null; capture_format_version: number | null };
 
 
 function unavailableCapture(candidate: DashboardPublicationCandidate): DashboardCaptureFacts {
@@ -129,7 +130,7 @@ export async function republishPersistedDashboardCaptureFacts(sessionIds: readon
 async function readCaptureFacts(candidate: DashboardPublicationCandidate): Promise<DashboardCaptureFacts> {
   const session = candidate.session as SessionInfo | null;
   if (!session?.raw_file) return unavailableCapture(candidate);
-  const source: SessionCaptureSource = { rawFile: session.raw_file, source: session.source, gameId: session.game_id as GameId, carId: session.car_id ?? "", trackId: session.track_id ?? "" };
+  const source: SessionCaptureSource = { rawFile: session.raw_file, source: session.source, gameId: session.game_id as GameId, carId: session.car_id ?? "", trackId: session.track_id ?? "", captureFormatVersion: session.capture_format_version };
   const initialStat = await stat(source.rawFile).catch(() => null);
   if (!initialStat) return unavailableCapture(candidate);
   const game = getServerGame(source.gameId);
@@ -160,9 +161,24 @@ async function readCaptureFacts(candidate: DashboardPublicationCandidate): Promi
       captureHasher.update(record.frame);
       captureHasher.update(String(record.frameTimeMs ?? ""));
     }
+    if (record.kind === "parser-bootstrap") {
+      captureHasher.update(record.gameId);
+      captureHasher.update(String(record.formatVersion));
+      captureHasher.update(record.payload);
+    }
     if (record.kind === "segment-boundary") { finishSegment(); parserState = game.createParserState(); continue; }
     if (record.kind === "segment-context") continue;
     if (record.kind === "segment-context-end") continue;
+    if (record.kind === "parser-bootstrap") {
+      if (record.gameId !== source.gameId || record.formatVersion !== PARSER_BOOTSTRAP_VERSION) {
+        throw new Error("Parser bootstrap does not match dashboard source");
+      }
+      if (!game.restoreParserCheckpoint) {
+        throw new Error(`Parser checkpoint restore unavailable for ${source.gameId}`);
+      }
+      parserState = game.restoreParserCheckpoint(parserState, record.payload);
+      continue;
+    }
     if (record.kind !== "frame") continue;
     const packet = game.tryParse(record.frame, parserState);
     if (!packet) continue;

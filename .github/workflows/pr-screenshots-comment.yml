@@ -1,10 +1,9 @@
 name: Comment app screenshot diffs
 
-# Runs after the dashboard screenshot or snapshot workflow completes. Downloads
-# the rendered before/after/diff PNGs, hosts them on the throwaway
-# `pr-previews` branch, and posts (or updates) a sticky PR comment showing
-# every change from the pull request's base branch. Also labels the PR "ui change".
-
+# Runs after the combined visual comparison workflow completes. It downloads the
+# merged responsive and Storybook previews, hosts them on the throwaway
+# `pr-previews` branch, and posts one sticky PR comment. It also labels the PR
+# "ui change".
 #
 # Security: this triggers on workflow_run, so it runs in the BASE repo context
 # with a write token but does NOT check out or execute the PR's code. The PR's
@@ -12,7 +11,7 @@ name: Comment app screenshot diffs
 
 on:
   workflow_run:
-    workflows: ["Build & Test", "Render dashboard screenshots", "Render dashboard snapshots"]
+    workflows: ["Build & Test", "Compare PR visuals", "Render dashboard screenshots", "Render dashboard snapshots"]
     types: [completed]
 
 permissions:
@@ -29,9 +28,8 @@ jobs:
       github.event.workflow_run.event == 'pull_request' ||
       github.event.workflow_run.event == 'workflow_call'
     runs-on:
-      - mars-windows-x64-4vcpu-15g
       - mars-macos-arm64-2vcpu-10g
-      - mars-ubuntu-arm64-2vcpu-10g
+      - mars-ubuntu-2vcpu-10g
       - mars-retry-3
     permissions:
       contents: write
@@ -70,6 +68,14 @@ jobs:
           path: pr-preview
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
+      - name: Install visual comparison dependencies
+        if: steps.artifact.outputs.available == 'true'
+        run: bun install --filter @raceiq/tooling-ui --frozen-lockfile
+      - name: Compare base and PR renders
+        if: steps.artifact.outputs.available == 'true'
+        run: |
+          bun packages/tooling-ui/src/ui/collect-screenshot-diffs.ts --base pr-preview/base-responsive --current pr-preview/current-responsive --out pr-preview --prefix responsive
+          bun packages/tooling-ui/src/ui/collect-screenshot-diffs.ts --base pr-preview/base-storybook --current pr-preview/current-storybook --out pr-preview --prefix storybook
       - name: Read PR number and detect changes
         id: meta
         if: steps.artifact.outputs.available == 'true'
@@ -83,6 +89,7 @@ jobs:
           PR: ${{ steps.meta.outputs.pr }}
         run: bun scripts/ci/publish-pr-screenshots.ts
       - name: Compose and post sticky comment
+        if: steps.artifact.outputs.available == 'true'
         env:
           PR: ${{ steps.meta.outputs.pr }}
           CHANGED: ${{ steps.meta.outputs.changed }}
@@ -90,6 +97,7 @@ jobs:
           BASE_REF: ${{ steps.meta.outputs.base-ref }}
         run: bun scripts/ci/comment-pr-screenshots.ts
       - name: Reconcile UI change label
+        if: steps.artifact.outputs.available == 'true'
         env:
           PR: ${{ steps.meta.outputs.pr }}
           LABEL: "ui change"

@@ -1,110 +1,144 @@
 ## Unreleased
-### Feature
+
+
+### Features
 - Open downloadable Community Laps directly in RaceIQ for replay and comparison, with the original driver's name and recording time.
 - Open website lap links in the installed Windows app, resume downloads after sign-in, and reuse already imported laps.
-- New desktop and self-hosted installs restrict dashboard access to this computer until you select additional network interfaces.
-- Password-protected dashboards use a login screen and browser sessions; API clients must sign in and send the session cookie and a CSRF token for writes.
-- Use string car and track IDs across imports and integrations instead of ordinal fields. Existing sessions and setup links migrate automatically; downgrading requires restoring a pre-upgrade database backup.
-
-- Open the dashboard on another LAN device using a copied link or QR code in Access & security settings.
-- Choose dashboard password protection during setup or in Access & security settings, sign in across devices, and recover a forgotten password from the terminal.
-- Select dashboard network interfaces and browser domains in Access & security settings without changing UDP telemetry reception.
-- Disable dashboard password protection from the terminal with an explicit exposure confirmation, without changing network access or recordings.
-
-- Allow a saved hostname, including a Tailscale FQDN, for remote HUD links and QR codes.
-- Refresh the dashboard with cleaner session and favourite widgets, clean-rate and podium trends, and seven days of activity by default.
-- Export complete chat history as JSON for developer debugging, including retained chat generations, stored thinking, tool calls and results, and system prompts.
-- Optionally protect dashboard access with a password and configure trusted browser origins independently, while keeping existing local and remote access working without new settings.
-- Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
 - Add optional RaceIQ Online onboarding, Online controls in General settings, and separate Community Laps while keeping offline features available.
-- Choose Discord sign-in or offline setup using selectable cards after Welcome and one dynamic footer action; review sharing permissions after sign-in and resume that step when returning from authorization.
-- Implement documented Supabase desktop PKCE sign-in through the loopback callback, requiring OS-keystore refresh-token storage and keeping access tokens in memory; real login remains gated on provider callback allowlisting.
-- Default “Make my laps public” to on when choosing Online sharing permissions; users must still confirm before the preference takes effect.
-- Use your Discord-linked Online name as the onboarding placeholder; enter a new leaderboard display name or leave it blank to keep your current name. Offline names remain local.
-- Require public lap sharing for RaceIQ Online leaderboard integration in the app, encouraging drivers to share their fastest laps; website leaderboards remain available with sharing off.
-- Show your Discord account name and profile picture alongside your chosen leaderboard name in General settings.
-- Inspect Online upload status, queue counts, and the last successful sync time in a persistent Upload queue panel; distinguish stale cached status from live data when the backend is unreachable.
-
-
-- Browse enriched iRacing car, car-class, and track catalogs with official car images, offline pit-road maps, and grouped lap sections.
-- Inspect AC Evo Tourist layouts with recorded open-route maps and explicit Start/Finish markers.
-- Show Nordschleife track edges along the supported portion of AC Evo Tourist routes without closing the Start/Finish gap.
+- Choose Discord sign-in or offline setup using selectable cards after Welcome and review sharing permissions after sign-in.
+- Use your Discord-linked Online name as the onboarding placeholder; offline names remain local.
+- Inspect Online upload status, queue counts, and the last successful sync time in a persistent Upload queue panel.
+- Choose a 50–100 Hz recording frequency for ACC, AC Evo, iRacing, or LMU during setup to reduce recording size. Live UDP recording is unchanged.
+- Downsample saved recordings manually or with an opt-in age policy in Storage settings; measure the first 1,000 frame timestamps per stream and skip recordings already at or below the target. Track progress and retry failed files. Favorites and MoTeC imports stay unchanged.
+- Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
 
 ### Fixes
 - Report Online queue counts and the last successful upload from durable account-owned outcomes, preserving sync history across restarts without advancing it after failures or status refreshes.
 - Keep cloud lap import polling off login and setup screens, and acknowledge opened laps so new dashboard tabs do not reopen old imports.
 - Reject malformed protocol links and truncated cloud recordings, isolate activation socket failures, and recover already accepted Online uploads.
 - Load RaceIQ Online leaderboards for the selected game, track, and car using your signed-in account.
-- Remember your Online policy acceptance on your account so signing in again does not ask you to accept unchanged terms.
-- Sync Online sharing preferences from your Live account after sign-in and during account refresh, without requiring you to save them again; keep unsaved privacy restrictions in place.
-- Use your Discord account display name in Online settings, keeping it separate from your editable leaderboard name.
-- Keep local Online sign-in and last sharing preferences across restarts, service outages, and temporarily unavailable saved credentials, with account controls available and remote actions disabled until authentication recovers.
-- Confirm Online sharing preferences together with policy acceptance, including newly connected accounts without saved preferences; show choices before approval and allow retrying missing preferences without duplicate warnings.
-- Edit your Online leaderboard name and sharing settings as a local draft and apply them with Save; keep unsaved choices available when saving fails.
-- Keep Online connected after public sharing is confirmed instead of reporting an invalid backend response; failed connections no longer display an empty account name or a misleading loading message.
-- Mention in-app comparison with other drivers’ laps in Online onboarding and settings descriptions.
-- Place Online sharing confirmation on the right, with Continue offline or Sign out on the left; keep actions stacked on smaller screens.
-- Replace the bare Online sign-in callback response with responsive success and failure pages, safe recovery guidance, and a close-tab action; remove callback credentials from the address bar and prevent referrer leakage.
-- Keep the official Discord logo neutral instead of cyan in the onboarding account-choice card.
-- Report RaceIQ Online service health separately from missing policy configuration, keeping consent-dependent transfers blocked.
-- Respect development onboarding overrides when deciding whether to show the setup wizard.
-- Remove saved network interfaces that are no longer available and replace them without losing other selections.
-- Allow development LAN dashboard origins on preserved all-interface listeners when browser-origin whitelisting is enabled.
-- Open Windows tray dashboard and update links on an active selected address when localhost is disabled.
-- Start a development dashboard against an explicit backend proxy target without requiring a local database.
-- Retry dashboard initialization after an authorization-status failure instead of showing a blank page.
-- Make browser-origin whitelisting opt-in and explain how to allow external HUD hostnames when it is enabled.
-- Restore portable dashboard interface selection with interface names and IP addresses, and open access settings when the selected interface is not listening. Generate HUD links and QR codes only for active dashboard addresses and ports.
-- Preserve the original welcome and setup wizard, configure dashboard access within it, and show sign-in only after password protection is configured.
-- Match protected-dashboard sign-in screen to RaceIQ's dark telemetry workspace styling.
-- Refuse to reopen dashboard setup when a previously configured database is lost or replaced.
-- Use the development dashboard port for localhost, LAN, and Tailscale links in settings.
-- Label the confirmation to disable dashboard password protection as “Confirm settings”.
-- Keep localhost dashboard access working after adding browser domains to an existing all-interface configuration.
-- Use tabs to switch password protection options and keep Access & security forms compact within the dialog.
-- Keep the access setup Next button in the wizard footer alongside Back.
-- Show concise, translated password-length guidance inline with the field label and remove the redundant exposure acknowledgement toggle; warn that unprotected dashboard visitors can edit data and settings and use configured AI chat.
-- Restrict development dashboard access to selected network interfaces.
-- Keep live telemetry connected when opening the development dashboard through a LAN link.
-- Open the dashboard instead of a backend status page when using a shared link during development.
-- Restore track edges in AC Evo Tourist replay, including the supported approach section, without joining edges across the missing connector.
-- Preserve car and track selections in numeric-ID bookmarks and native AC Evo venue/layout URLs.
-- Refresh experiment spread and corner results after recorded laps are repaired.
-- Initialize setup-folder imports after the car catalog loads and prevent imports without a valid car.
-- Keep live Tourist route maps open between finish and start.
-- Keep outdated-recording warnings visible until every stale session is repaired.
-- Ask for missing or unresolved car and track identities when importing MoTeC ZIPs or opening saved sessions; retain valid selections and preserve original MoTeC content.
-- Restore history-lap imports for experiments without selected car or track IDs.
-- Persist setup name, author, description, and weakness edits.
-- Show saved lap favorites and telemetry availability in lap details.
-- Resolve session car and track names for display, search, and sorting.
-- Avoid missing-identity lookup errors on Home and live dashboards before a car is known.
-- Preserve all four brake temperatures in ACC and AC Evo MoTeC imports.
-- Keep bundled AC Evo track geometry and setup-folder metadata after discovery.
-- Restore the Any car filter in the AC Evo setup browser.
-- Prevent crafted AI credential requests from running commands on macOS.
-- Reject unrelated browser origins on dashboard and live telemetry requests while preserving same-origin access through reverse proxies.
-- Preserve incomplete-lap eligibility and LMU first-outlap classification across ordinal detector transitions.
-
-- Keep authenticated imports, cleanup, and dashboard chat working after enabling password protection.
-- Load LMU track boundaries without long stalls on detailed SVG maps.
-- Show unnamed multi-turn sections once in Analyse and track-detail labels.
-- Keep AC Evo venue layouts distinct during import, setup selection, and session repair without losing saved notes, favorites, or setup links.
-- Replay long Tourist laps without chart crashes or closed-circuit map overlays.
-- Show AC Evo source car and layout names immediately after import instead of generated numeric placeholders.
-- Automatically reconcile pre-upgrade recordings with updated car, track, and lap detection, including AC Evo Tourist timed attempts; preserve user annotations on matched laps and report captures that cannot be repaired.
-- Use suitable local network addresses for remote HUD links and let users choose an address when multiple adapters are available.
+- Remember Online policy acceptance and confirmed sharing preferences across sign-in and refresh.
+- Keep Online sign-in and saved sharing choices across restarts, service outages, and temporarily unavailable credentials; disable remote actions until authentication recovers.
+- Edit Online leaderboard names and sharing settings as local drafts; retain unsaved changes after failed saves.
+- Replace the Online sign-in callback response with recovery guidance and remove callback credentials from the address bar.
+- Use LMU game-world coordinates directly for track geometry, preserving edge-hugging and off-track positions.
+- Prevent overlapping database writes from blocking recording imports and setup or session deletion.
+- Allow repeated recording downsampling without exceeding filesystem filename limits.
+- Keep the selected iRacing capture rate stable despite telemetry arrival jitter without recording duplicate frames.
+- Preserve position, speed, and other lap-start and lap-end telemetry when downsampling F1 recordings.
+- Downsample recordings in the current format and recordings previously split by lap so replay uses the smaller capture.
+- Keep the selected downsampling rate across recording segments and retain the original finish-line sample.
+- Refresh already-loaded Analyse charts after downsampling.
+- Show busy-storage conflicts when selecting Compress instead of failing silently.
+- Keep dashboard recording facts available after downsampling, even if final cleanup fails.
+- Prevent repeated iRacing source starts from leaving telemetry polling active after shutdown.
+- Keep existing recordings playable after accepting the split-recording prompt in compiled builds.
+- Avoid track-geometry lookups for unresolved LMU display names.
+- Restore migration of existing recordings into organized folders on Windows.
+- Restore dashboard, driver-profile, and Analyse pages when opening the app.
+- Block screenshots for chat models without verified image support and keep text conversations usable.
+- Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.
+- Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
 
 ### Internal
-- Replace custom Online queue delivery with pinned Effect PersistedQueue and SQLite, retaining account-owned request identity and sync history; defer recording integration to the per-lap BIN producer.
-- Harden deferred Online upload delivery against pre-transfer interruptions and exhausted reconciliation retries; enforce queue capacity on outstanding work rather than lifetime upload history.
-- Extract RaceIQ Online contracts, account service, adapter, upload delivery and storage into a dedicated workspace with injected host dependencies and package-owned tests.
-- Isolate Online route-test credentials from the OS keystore so sign-out checks cannot remove saved account credentials.
-- Add the typed local RaceIQ Online API and durable fail-closed transfer boundaries; automatic uploads remain disabled until service eligibility and recording sanitization are verified.
-- Upgrade RaceIQ Online to `@speedhq/live-client@0.1.13`, including authenticated leaderboards, reserved-upload headers, and manifest-v2 lap imports.
-- Align RaceIQ Online with native car and track IDs, dashboard access setup, the libSQL storage driver, and current typed HTTP responses.
+- Preserve Online cloud imports and queue delivery alongside main's per-lap recording publication; cloud upload integration must consume published lap files rather than split sessions again.
+- Use pinned Effect PersistedQueue and SQLite for Online delivery, retaining account-owned request identity and sync history.
+- Extract Online contracts, account service, adapter, upload delivery and storage into a dedicated workspace.
+- Upgrade Online to `@speedhq/live-client@0.1.13`, including authenticated leaderboards, reserved uploads, and manifest-v2 lap imports.
+- Reuse generic lap-bundle construction and separate capture-file accounting from `@raceiq/capture-splitting`; keep downsampling orchestration, database publication, and game adapters in the server.
+- Isolate streaming downsampling and its regression suite in `@raceiq/capture-downsampling`, depending on public capture-format codecs without importing backend policy or lap splitting.
+- Verify onboarding migration recovery through Storage re-entry with deterministic cache expiry, without relying on a hidden no-work Refresh control.
+- Manage recording maintenance with Effect, ordered downsampling and deletion, and awaited shutdown.
+- Preserve recording-frequency settings and migration history when upgrading earlier feature builds alongside the AC Evo Tourist-layout reconciliation.
+- Reuse the Linux build artifact across Playwright shards and collect replay allocations sooner on memory-limited CI runners.
+- Avoid `bun run test` port collisions with running services by selecting available ports for Playwright server sets when overrides are unset, while honoring explicit `PW_*_PORT` values and preserving isolated test databases.
+- Reuse one prepared Playwright database snapshot across seeded server sets to avoid duplicate fixture imports.
+- Update live iRacing browser checks to expect the Tires section to be absent in Driver and Pit Crew views.
+- Run locale generation before frontend contract typechecking so clean CI workspaces resolve Paraglide modules.
+- Compare archived PR-head and base screenshots in the final comment workflow to generate UI diff images.
+- Shorten visual and Playwright job labels while preserving parallel workflow branches.
+- Report signal termination and progress in screenshot database seeding failures.
+
+## v0.20.0 - 2026-10-15
+
+### Breaking
+- Legacy full-frame RaceIQ captures are no longer supported for import and replay. Migrate remaining legacy recordings when prompted before updating.
+- Imports and integrations now use string car and track IDs instead of ordinal fields. Existing sessions and setup links migrate automatically; downgrading requires a pre-upgrade database backup.
+
+### Features
+- New home dashboard with cleaner session and favourite widgets, clean-rate and podium trends.
+- Configure dashboard password protection during setup or in Access & security settings; sign in across devices and recover a forgotten password from the terminal.
+- New desktop and self-hosted installs restrict dashboard access to this computer until you select additional network interfaces.
+- Password-protected dashboards use browser sessions; API clients sign in and send the session cookie and a CSRF token for writes.
+- Choose dashboard network interfaces and allowed browser domains without changing telemetry reception.
+- Share dashboard and HUD links through copied URLs or QR codes, including saved hostnames such as Tailscale domains.
+- Add OBS overlays for live driving, timing, standings, nearby race order, supported car damage, pedal inputs, and distance driven, with sample previews and metric or imperial units.
+- Choose a recording folder, relocate existing recordings, and organize them into per-game `own` and `others` folders.
+- Support AC Evo Tourist layout.
+- Add Hindi, Korean, European Portuguese, and Simplified Chinese interface translations.
+- Retrieve automated lap insights on demand in Analyse chat before diagnosis and improvement advice, with visible tool activity and clear distinctions between missing data and no detected findings.
+- Export complete chat history as JSON for developer debugging, including retained chat generations, stored thinking, tool calls and results, and system prompts.
+- Disable dashboard password protection from the terminal with an explicit exposure confirmation, without changing network access or recordings.
+- Reduce F1 race-result processing time from 4,851 ms to 567 ms (88.3% less time) in a matched benchmark; this does not measure end-to-end recording performance.
+
+### Fixes
+- Keep converted recordings from older releases readable after updating, including checkpoint-only F1, iRacing, and LMU captures.
+- Stop reopening the recording-organization success dialog after reload when no recordings need migration.
+- Show the track layout after the track name with a hyphen and remove the track-detail header subtitle.
+- Hide the track-detail Debug tab in production builds.
+- Clarify setup browser labels with “Save to my setups” and the “Mine” filter.
+- Adapt dashboard activity to the selected period: daily duration for Today, daily bars for This Week, weekday-column calendars for This Month, and monthly totals for This Year; fill the available panel width.
+- Show monthly Clean laps trend points for This Year while preserving cumulative clean rates.
+- Keep dashboard period controls visible while scrolling.
+- Reduce excess space above the dashboard period controls.
+- Restore the visible down arrow and solid background on the AI chat scroll-to-bottom button.
+- Keep experiment lap counts and analysis tied to the selected test when importing laps, revisiting setups, or receiving live updates.
+- Keep lap-chat follow-ups grounded in the selected lap, latest analysis, fresh telemetry, and earlier driver notes.
+- Exclude running-start fragments from lap replay and align corner measurements and highlights with the timed lap.
+- Limit AI setup recommendations to available, legal adjustments and omit unchanged settings.
+- Show setup values from the lap's linked setup and preserve bump values in older AC Evo setups.
+- Allow remove failed screenshot messages without losing conversation or lap analysis.
+- Keep experiment chat tied to the selected version and its laps; allow multiple setup alternatives without unnecessary refresh prompts.
+- Preserve the selected experiment branch when undoing an unrelated branch deletion or partial restoration.
+- Prevent simultaneous saves of new setups from overwriting existing files.
+- Preserve saved lap analysis when clearing chat history.
+- Restore experiment history-lap imports when no car or track is selected.
+- Persist setup name, author, description, and weakness edits.
+- Preserve all four brake temperatures in ACC and AC Evo MoTeC imports.
+- Restore the Any car filter in the AC Evo setup browser.
+- Prevent crafted AI credential requests from running commands on macOS.
+- Preserve incomplete-lap eligibility and LMU first-outlap classification.
+- Load detailed LMU track boundaries without long stalls.
+- Show unnamed multi-turn sections once in Analyse and track-detail labels.
+- Keep AC Evo layouts distinct during import, setup selection, and session repair without losing notes, favorites, or setup links.
+- Replay long Tourist laps without chart crashes or closed-circuit map overlays.
+- Show AC Evo source car and layout names immediately after import instead of generated numeric placeholders.
+- Reconcile older recordings with updated car, track, and lap detection, preserving matched lap annotations and reporting captures that cannot be repaired.
+- Recheck all historical AC Evo recordings for Tourist layout identity and rebuild their laps after recording-folder organization completes; keep dependent startup work blocked when an earlier repair is incomplete.
+- Use suitable local network addresses for remote HUD links and let users choose an address when multiple adapters are available.
+- Keep racing, throttle, and braking lines sharp when zooming into the replay map.
+
+### Internal
+- Seed selectable ACC and AC Evo setup files consistently in development and compiled E2E servers.
+- Add a release-only Ubuntu Docker smoke test that seeds the latest published release, completes migration dialogs, upgrades to freshly fetched main, and streams checkout, seed, server, and phase progress to OrbStack container logs.
+- Add `test:upgrade --replay` to retain successful upgrade recordings and open the local Playwright Trace Viewer after Docker exits, including failed runs with available traces.
+- Seed all six supported games in the Docker upgrade smoke, validate converted recording provenance and framing before checkout, require successful startup reconciliation, and verify each game's session IDs survive the release-to-main transition; extend bounded deadlines for the full dataset.
+- Align setup, track, cleanup, and migration browser tests with current labels, production Debug visibility, and organized capture paths; isolate legacy fixture conversion and delete disposable sessions without redundant parent deletion.
+- Exercise the initial recording-migration prompt, explicit consent, relocation, and no-work reload behavior through the real browser and storage API.
+- Export complete chat debugging data as JSON, including retained generations, thinking, tool activity, and system prompts.
+- Reduce F1 race-result processing from 4,851 ms to 567 ms in a matched benchmark; this is not an end-to-end recording measurement.
+- Respect development onboarding overrides and support explicit backend proxy targets without a local database.
+- Keep development dashboard links, browser origins, selected network interfaces, and live telemetry working across localhost, LAN, and Tailscale.
+- Package organized recording paths in seeded Playwright databases while rejecting unsafe capture paths.
+- Verify setup navigation and recording-folder changes without depending on the optional Welcome 3D demo, and avoid startup-maintenance import cycles.
+- Document the reusable confirmation-dialog-to-background-progress pattern from sparse recording conversion, including state ownership, recovery, accessibility, and operation precedence.
+- Keep seeded Playwright discovery independent of server-only catalog imports, and reset persisted dashboard access between fresh-install wizard attempts with an explicit loopback settings check.
+- Recreate the database and dashboard access setup when seeding with `--clean`.
+- Wait for dashboard metadata and loading panels to finish before generating the Home marketing screenshot.
 - Include the privacy-safe iRacing SessionInfo path manifest in clean checkouts so CI can validate the telemetry catalog.
 - Add `bun clean` to remove repository-local development data without targeting custom `DATA_DIR` locations.
+- Log legacy fixture conversion to sparse format during database seeding.
+
 - Isolate dashboard-authentication tests in subprocesses so Windows releases database handles before cleanup, and verify password recovery through the command in a separate process.
 - Run development-dashboard SQLite assertions in a subprocess so Windows releases native database handles before fixture cleanup.
 - Limit live `ps` resource-sampler tests to supported platforms.
@@ -112,6 +146,8 @@
 - Ban Bun's separate SQLite driver in repository lint and use libSQL for synchronous fixtures and tooling.
 - Preserve dashboard credentials and login sessions from earlier feature builds while applying identity and dashboard read-model migrations.
 - Limit CI test execution to two concurrent Turbo tasks and one Bun unit-test worker per task to reduce resource pressure on constrained runners.
+- Write seed-imported session captures in sparse canonical format.
+- Preserve raw-fixture developer playback and live UDP benchmarks; retain segment boundaries and acquisition timestamps during seed conversion.
 - Update browser coverage for dashboard periods, session analysis navigation, and persisted onboarding settings without relying on removed headings or recap buttons; enable feature-gated responsive routes in both fresh and seeded test servers.
 - Align responsive Analyse waits with replay readiness and keep session-table browser tests scoped to visible rows after expansion.
 - Report Paraglide development and production compilation stages, a 10-second elapsed-time heartbeat, and total build duration; preserve validated cache reuse.

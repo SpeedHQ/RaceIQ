@@ -37,7 +37,7 @@ export interface LiveTelemetryView {
     attitude?: { roll: number; pitch: number; yaw: number };
     distanceM?: number;
   };
-  inputs: { throttle?: number; brake?: number; steer?: number; gear?: number };
+  inputs: { throttle?: number; brake?: number; clutch?: number; steer?: number; gear?: number };
   engine: { rpm?: number; idleRpm?: number; maxRpm?: number; powerW?: number; torqueNm?: number; boost?: number };
   fuel: { amount?: number; capacity?: number };
   timing: {
@@ -234,6 +234,7 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
     inputs: {
       throttle: number("inputs.accel"),
       brake: number("inputs.brake"),
+      clutch: number("inputs.clutch"),
       steer: number("inputs.steer"),
       gear: number("inputs.gear"),
     },

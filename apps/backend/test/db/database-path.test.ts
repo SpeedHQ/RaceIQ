@@ -47,6 +47,9 @@ async function runDbStartup(dataDir: string, importRecording = false, configureP
       importRecording
         ? `
     import { readFileSync } from "node:fs";
+    import { join } from "node:path";
+    import { readIRacingFrames } from ${JSON.stringify(pathToFileURL(join(REPO_ROOT, "packages/capture-formats/src/iracing/dump.ts")).href)};
+    import { SparseSessionRecorder } from ${JSON.stringify(pathToFileURL(join(REPO_ROOT, "packages/capture-formats/src/session/sparse-recorder.ts")).href)};
     import { initGameAdapters } from ${JSON.stringify(pathToFileURL(join(REPO_ROOT, "packages/game-catalogs/src/games/init.ts")).href)};
     import { initServerGameAdapters } from ${JSON.stringify(pathToFileURL(join(REPO_ROOT, "apps/backend/src/games/init.ts")).href)};
     import { importSessionBin } from ${JSON.stringify(pathToFileURL(join(REPO_ROOT, "server/session-capture/import-capture.ts")).href)};
@@ -60,8 +63,16 @@ async function runDbStartup(dataDir: string, importRecording = false, configureP
       if (${importRecording}) {
         initGameAdapters();
         initServerGameAdapters();
+        const sparsePath = join(process.env.DATA_DIR!, "sparse-import.bin");
+        const recorder = new SparseSessionRecorder("iracing");
+        recorder.start(sparsePath);
+        recorder.writeMetaFrame();
+        for (const frame of readIRacingFrames("test/artifacts/sessions/iracing-road-america-gt3.bin.gz")) {
+          recorder.writeRecord(frame);
+        }
+        await recorder.stop();
         await importSessionBin(
-          readFileSync("test/artifacts/sessions/iracing-road-america-gt3.bin.gz"),
+          readFileSync(sparsePath),
           "iracing",
           { notifyDriverProfile: false },
         );
@@ -191,6 +202,41 @@ afterEach(async () => {
 });
 
 describe("production database path", () => {
+  test("clean seed recreates a broken configured database and requires fresh dashboard setup", async () => {
+    const dataDir = makeDataDir();
+    const appPath = join(dataDir, "app.db");
+    const configured = await runDbStartup(dataDir, false, "abcdefgh");
+    expect(configured.code, configured.output).toBe(0);
+    expect(existsSync(`${appPath}.dashboard-access`)).toBe(true);
+    const old = new Database(appPath);
+    try {
+      old.exec("CREATE TABLE obsolete_seed_state (value TEXT); INSERT INTO obsolete_seed_state VALUES ('old'); DELETE FROM dashboard_access");
+    } finally {
+      old.close();
+    }
+
+    const proc = Bun.spawn(["bun", "run", "db:seed", "--clean", "--games=iracing"], {
+      cwd: REPO_ROOT,
+      env: { ...process.env, DATA_DIR: dataDir, RACEIQ_TEST_MODE: "0", DB_IN_MEMORY: "0", SERVER_PASSWORD: "" },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [code, stdout, stderr] = await Promise.all([proc.exited, new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
+    expect(code, `${stdout}\n${stderr}`).toBe(0);
+    expect(existsSync(`${appPath}.dashboard-access`)).toBe(false);
+    const fresh = new Database(appPath, { readonly: true, fileMustExist: true });
+    try {
+      expect(fresh.prepare("SELECT mode, password_hash FROM dashboard_access WHERE id = 1").get()).toMatchObject({ mode: "pending", password_hash: null });
+      expect(fresh.prepare("SELECT name FROM sqlite_master WHERE name = 'obsolete_seed_state'").all()).toEqual([]);
+      expect(fresh.prepare("SELECT name FROM schema_migrations WHERE version = 75").get()).toHaveProperty("name", "persist dashboard access and login sessions");
+      expect((fresh.prepare("SELECT DISTINCT game_id FROM sessions").all() as { game_id: unknown }[]).map((row) => String(row.game_id))).toEqual(["iracing"]);
+    } finally {
+      fresh.close();
+    }
+    const restarted = await runDbStartup(dataDir);
+    expect(restarted.code, restarted.output).toBe(0);
+  }, 60_000);
+
   test("main's identity migrations preserve credentials and sessions from colliding auth drafts", async () => {
     for (const version of [63, 64, 68]) {
       for (const password of ["abcdefgh", null]) {

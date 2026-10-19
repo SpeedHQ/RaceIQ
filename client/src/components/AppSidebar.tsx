@@ -9,7 +9,6 @@ import {
   FlaskConical,
   Gamepad2,
   History,
-  Gauge,
   GitCompareArrows,
   House,
   LayoutDashboard,
@@ -321,7 +320,6 @@ export function AppSidebar({
         )}
 
         <div className="mt-auto border-t border-app-border py-2 pr-2 pl-0">
-          <SidebarLink collapsed={showCollapsed} icon={Gauge} label={m.tab_live()} to="/live" onClick={onClose} />
           {import.meta.env.DEV && <SidebarLink collapsed={showCollapsed} icon={Code2} label={m.nav_dev()} to="/dev" onClick={onClose} />}
           {updateAvailable && (
             <SidebarAction collapsed={showCollapsed} label={updateLabel} onClick={handleUpdate}>

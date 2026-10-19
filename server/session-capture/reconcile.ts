@@ -1,6 +1,7 @@
-import { and, gt, isNull, lte, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, lte, or, sql } from "drizzle-orm";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
+import { MOTEC_SESSION_SOURCE } from "@raceiq/shared/integrations/motec";
 import { SessionRawFileMissingError, reprocessSession } from "./reprocess";
 import type { ReprocessResult } from "./reprocess";
 
@@ -38,7 +39,15 @@ export async function reconcileHistoricalSessions(onReprocessed?: (reprocessed: 
     const page = await db
       .select({ id: sessions.id })
       .from(sessions)
-      .where(and(isNull(sessions.lapDetectorVersion), gt(sessions.id, afterSessionId), lte(sessions.id, upperSessionId)))
+      .where(and(
+        isNull(sessions.lapDetectorVersion),
+        gt(sessions.id, afterSessionId),
+        lte(sessions.id, upperSessionId),
+        or(
+          eq(sessions.captureFormatVersion, 1),
+          eq(sessions.source, MOTEC_SESSION_SOURCE),
+        ),
+      ))
       .orderBy(sessions.id)
       .limit(SESSION_PAGE_SIZE)
       .all();

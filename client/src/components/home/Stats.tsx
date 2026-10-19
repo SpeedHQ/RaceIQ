@@ -18,7 +18,7 @@ export function PeriodSelector({ periodTab, onPeriodTabChange }: { periodTab: Pe
   ];
 
   return (
-    <div className="max-w-full overflow-x-auto">
+    <div className="sticky top-0 z-20 max-w-full overflow-x-auto border-b border-app-border bg-app-bg py-2">
       <ToggleGroup03 ariaLabel={m.label_time()} value={periodTab} onValueChange={(value) => onPeriodTabChange(value as PeriodKey)} options={periodLabels.map(([value, label]) => ({ value, label }))} />
     </div>
   );

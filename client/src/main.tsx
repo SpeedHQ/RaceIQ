@@ -78,6 +78,7 @@ declare module "@tanstack/react-router" {
 }
 const RaceIqDevtools = import.meta.env.DEV ? lazy(() => import("./devtools/RaceIqDevtools")) : null;
 
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ClientBootstrap />

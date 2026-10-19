@@ -41,6 +41,20 @@ For a small throughput-only smoke:
 bun run bench:pipeline-stages --game=f1-2025 --trials=1 --frames=10000 --memory=off --output=/tmp/raceiq-pipeline-smoke.json
 ```
 
+## Direct per-lap recording at 240 Hz
+
+```sh
+bun apps/backend/test/benchmarks/direct-lap-recording.bench.ts --output=artifacts/direct-lap-recording.json --fps=240 --trials=1
+```
+
+This runs all six complete native recording fixtures sequentially, with a fresh process and isolated database/recording directory per game and trial. Native inputs are paced individually at the requested frequency; this is not normalized telemetry output frequency. New recording uses the production direct recorder, real async filesystem writes, and durable file closure rather than a null recorder or post-session splitter.
+
+Reports separate native admission, sparse encoding/enqueue, synchronous boundary rotation, and combined synchronous recording work per processed input. The combined metric includes admission and any subsequent encoding/boundary work for that input; normal and boundary distributions and operations exceeding 2 ms are reported explicitly. Whole `processPacket` wall time includes detector/database work and is not equivalent to recording enqueue latency. Startup waits for the two initial file opens and is reported separately.
+
+Write-completion samples observe the oldest buffered enqueue through an async write batch completion, including batching delay; they are not individual device/fsync syscall measurements. A deadline-based 240 Hz heartbeat reports scheduling lateness and missed deadlines. CPU, OS-attributed disk bytes, sampled RSS, and queue peaks cover recording through finalization, excluding the subsequent conservation and replay checks. RSS still includes preloaded fixture buffers and all process state; it is not splitter-only or parser-allocation memory. Filesystem cache remains enabled.
+
+Each complete run verifies native bytes/order/timestamps, standalone lap replay, actual shared boundary bytes, durable/closed files, and absence of a duplicate live archive or queued offline split job. `--game=<id>` and `--trials=<count>` narrow coverage. `--sample-limit=<count>` is diagnostic only and may not reach session start or any lap boundary; its report cannot establish complete boundary coverage. Per-game stdout/stderr logs are retained next to the requested output. Benchmark files and databases are removed after verification.
+
 ## Bun recorder workloads
 
 `bun run bench:recorder` supports in-memory imports, persistent file imports, live UDP replay, and recording completion. Select `--mode=imports|disk-imports|live|both|recording` and provide `--output=<path>`. Reports include fixture hashes, packet/lap outcomes, measured trials, and explicit storage/resource scopes. Benchmark data uses isolated temporary directories.

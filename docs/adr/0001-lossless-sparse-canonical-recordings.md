@@ -4,7 +4,7 @@
 
 Short sessions produced massive recordings: a six-lap LMU capture yielded 15,397,984,812 bytes (14.34 GiB) as a raw canonical `.bin`. RaceIQ stored every complete source frame even when most bytes repeated, and gzip ran only later, leaving a multi-gigabyte live file. Simply discarding unparsed fields to reduce size would prevent future parsing and replay from recovering the original telemetry.
 
-New recordings need to stay small without losing any source bytes. Existing captures must be converted without changing their laps before drivers can continue in the updated app.
+New recordings need to stay small without losing any source bytes. Application playback and imports support sparse captures only; checked-in legacy fixtures require seed migration to sparse format before shared import.
 
 ## Decision
 
@@ -14,7 +14,7 @@ An alternative was recording each telemetry channel at its own lower rate. That 
 
 Where RaceIQ controls polling, it can choose a high peak capture Hz without committing every derived channel to that rate. When parsing the retained frames into telemetry packets, it can independently select an output rate for each channel and later reparse at different rates without another drive. Per-channel rate selection is a downstream capability, not an already implemented recording policy. Actual source update rates, poll cadence, and missing samples bound available fidelity; sparse encoding cannot create measurements between source updates.
 
-Historical conversion is required when eligible captures exist: the app blocks continuation with a conversion dialog until the driver starts conversion and all captures succeed. Conversion never runs automatically at startup or reconnect; the driver clicks Convert. It streams and verifies every reconstructed record against the original, preserves lap identities and remaps their offsets transactionally. Current conversion replaces every verified eligible capture even when sparse output does not save space; users should not assume conversion shrinks a particular `.bin.gz` file. Readers continue to understand legacy captures during conversion. A capture-format eligibility marker identifies converted sessions; stored payload magic/version controls decoding, not the marker.
+Historical conversion is seed-only: Issue [#462](https://github.com/SpeedHQ/RaceIQ/issues/462) removed the user-initiated flow; checked-in fixtures are converted to sparse captures before shared import. Unmarked legacy full-frame recordings are unsupported for application playback and reprocessing. `sessions.capture_format_version = 1` marks sparse recordings; stored payload magic/version controls decoding, not the marker.
 
 ## Measured yields
 

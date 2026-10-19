@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import {
   LMU_DUMP_FRAME_HEADER_SIZE as FRAME_HEADER_SIZE,
@@ -9,6 +9,7 @@ import {
 } from "@raceiq/capture-formats/lmu/dump-decoder";
 
 import { LMU_MAX_SOURCE_FRAME_SIZE } from "@raceiq/capture-formats/lmu/source-frame";
+import { WorkerSessionRecorder } from "@raceiq/capture-formats/session/worker-recorder";
 
 function defaultRecordingDir(): string {
   return resolve(process.cwd(), "test", "artifacts", "laps");
@@ -22,13 +23,13 @@ export interface LMURecorderContract {
 }
 
 export class LMURecorder implements LMURecorderContract {
-  private file: Bun.FileSink | null = null;
+  private writer: WorkerSessionRecorder | null = null;
   private recordingPath: string | null = null;
   private writtenFrameCount = 0;
   private stopPromise: Promise<void> | null = null;
 
   get recording(): boolean {
-    return this.file !== null;
+    return this.writer?.recording ?? false;
   }
 
   get frameCount(): number {
@@ -40,57 +41,49 @@ export class LMURecorder implements LMURecorderContract {
   }
 
   start(directory?: string): string {
-    if (this.file && this.recordingPath) return this.recordingPath;
-    if (this.stopPromise) {
-      throw new Error("Cannot start LMU recorder while prior capture is flushing");
-    }
+    if (this.writer?.recording && this.recordingPath) return this.recordingPath;
+    if (this.stopPromise) throw new Error("Cannot start LMU recorder while prior capture is flushing");
 
     const outputDirectory = directory ?? defaultRecordingDir();
-    if (!existsSync(outputDirectory)) {
-      mkdirSync(outputDirectory, { recursive: true });
-    }
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    this.recordingPath = resolve(
-      outputDirectory,
-      `lmu-${timestamp}.bin`,
-    );
-    this.file = Bun.file(this.recordingPath).writer();
+    this.recordingPath = resolve(outputDirectory, `lmu-${timestamp}-${randomUUID()}.bin`);
+    this.writer = new WorkerSessionRecorder("lmu", {
+      headerCountOffset: 12,
+      patchCountOnClose: true,
+      exclusiveFile: true,
+      maxBatchBytes: 4 * 1024 * 1024,
+    });
+    this.writer.start(this.recordingPath);
     this.writtenFrameCount = 0;
 
     const header = Buffer.alloc(HEADER_SIZE);
     LMU_DUMP_MAGIC.copy(header, 0);
     header.writeUInt32LE(LMU_DUMP_VERSION, 8);
-    this.file.write(header);
+    this.writer.writeRawCaptureBytes(header);
     return this.recordingPath;
   }
 
   writeFrame(frame: Buffer): void {
-    if (!this.file) return;
+    if (!this.writer?.recording) return;
     if (frame.length === 0 || frame.length > LMU_MAX_SOURCE_FRAME_SIZE) {
       throw new Error(`LMU dump frame is invalid (${frame.length} bytes)`);
     }
-    const header = Buffer.allocUnsafe(FRAME_HEADER_SIZE);
-    header.writeUInt8(SOURCE_FRAME_TYPE, 0);
-    header.writeUInt32LE(frame.length, 1);
-    this.file.write(header);
-    this.file.write(frame);
+    const record = Buffer.allocUnsafe(FRAME_HEADER_SIZE + frame.length);
+    record.writeUInt8(SOURCE_FRAME_TYPE, 0);
+    record.writeUInt32LE(frame.length, 1);
+    frame.copy(record, FRAME_HEADER_SIZE);
+    this.writer.writeRawCaptureRecord(record);
     this.writtenFrameCount++;
   }
 
   async stop(): Promise<void> {
     if (this.stopPromise) return this.stopPromise;
-    if (!this.file) return;
+    if (!this.writer) return;
 
-    const file = this.file;
-    const path = this.recordingPath;
-    const frameCount = this.writtenFrameCount;
-    this.file = null;
+    const writer = this.writer;
+    this.writer = null;
     this.stopPromise = (async () => {
-      await file.end();
-      if (!path) return;
-      const bytes = Buffer.from(await Bun.file(path).arrayBuffer());
-      bytes.writeUInt32LE(frameCount, 12);
-      await Bun.write(path, bytes);
+      await writer.stop();
     })();
     try {
       await this.stopPromise;

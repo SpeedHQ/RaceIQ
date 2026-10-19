@@ -1,10 +1,24 @@
 {
+  "$schema": "./node_modules/@effect/tsgo/schema.json",
   "files": [],
   "references": [
-    {"path":"./shared"}, {"path":"./server"}, {"path":"./scripts"},
-    {"path":"./apps/backend"}, {"path":"./packages/capture-formats"},
-    {"path":"./packages/game-ac-evo"}, {"path":"./packages/game-acc"},
-    {"path":"./packages/game-f1-2025"}, {"path":"./packages/game-fm-2023"},
-    {"path":"./packages/game-iracing"}, {"path":"./packages/game-lmu"}
-  ]
+    { "path": "./shared" },
+    { "path": "./server" },
+    { "path": "./scripts" },
+    { "path": "./apps/backend" },
+    { "path": "./packages/capture-formats" },
+    { "path": "./packages/game-ac-evo" },
+    { "path": "./packages/game-acc" },
+    { "path": "./packages/game-f1-2025" },
+    { "path": "./packages/game-fm-2023" },
+    { "path": "./packages/game-iracing" },
+    { "path": "./packages/game-lmu" }
+  ],
+  "compilerOptions": {
+    "plugins": [
+      {
+        "name": "@effect/language-service"
+      }
+    ]
+  }
 }

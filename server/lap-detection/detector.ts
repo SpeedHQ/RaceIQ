@@ -13,7 +13,7 @@
  */
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import type { GameId } from "@raceiq/shared/games/ids";
-import type { ILapDetector, LapDetectorOptions } from "./types";
+import type { ILapDetector, LapDetectorOptions, LapOwnershipSource, LapOwnershipTransition, DetectorOwnershipState } from "./types";
 import { DEFAULT_LAP_DETECTOR_POLICY, assessLapRecording, mergePitCycleReason, type LapDetectorPolicy } from "@raceiq/telemetry-core/processor/lap-policy";
 import { extractCurbSegments, recordCurbData } from "@raceiq/shared/racing/tracks/recording/curbs";
 import { recordLapTrace } from "@raceiq/game-catalogs/racing/tracks/recording/outlines";
@@ -60,6 +60,7 @@ export interface LapTireWearData {
 }
 
 export interface LapSavedEvent {
+  sessionId: number;
   lapId: number;
   lapNumber: number;
   lapTime: number;
@@ -82,7 +83,7 @@ export interface LapCompleteEvent {
   sectors: number[] | null;
 }
 
-export class LapDetector implements ILapDetector {
+export class LapDetector implements ILapDetector, LapOwnershipSource {
   readonly detectorId = LAP_DETECTOR_ID;
   private readonly db: LapDetectorOptions["db"];
   private readonly bypassPacketRateFilter: boolean;
@@ -212,13 +213,19 @@ export class LapDetector implements ILapDetector {
       finalizeSession: async () => { this.currentSession = null; },
     }, { bypassPacketRateFilter: this.bypassPacketRateFilter });
   }
+  clampCurrentLapOwnership(endOrdinal: number): void { this.engine.clampCurrentLapOwnership(endOrdinal); }
 
   get session(): SessionState | null { return this.currentSession; }
   get fuelHistory(): LapFuelData[] { return this._fuelHistory; }
   get tireWearHistory(): LapTireWearData[] { return this._tireWearHistory; }
-  setCurrentLapByteOffset(offset: number): void { this.engine.setCurrentLapByteOffset(offset); }
+  shouldCheckpointBeforeWrite(packet: TelemetryPacket): boolean { return this.engine.shouldCheckpoint(packet); }
+  getOwnershipState(): DetectorOwnershipState { return this.engine.getOwnershipState(); }
+  subscribeOwnership(listener: (transition: LapOwnershipTransition) => void): () => void { return this.engine.subscribeOwnership(listener); }
+  observeSourceRecord(offset: number, endOffset: number, ordinal: number): void { this.engine.observeSourceRecord(offset, endOffset, ordinal); }
+  setCurrentLapByteOffset(offset: number, rawOrdinal?: number): void { this.engine.setCurrentLapByteOffset(offset, rawOrdinal); }
+  drainOwnershipTransitions(): LapOwnershipTransition[] { return this.engine.drainOwnershipTransitions(); }
   async snapshotIncompleteLap(): Promise<void> {
-    if (this.currentSession?.gameId === "fm-2023") this.engine.markProvisionalSnapshot();
+    this.engine.markProvisionalSnapshot();
     if (this.pendingIncompleteLapId !== null) return;
     if (this.pendingIncompleteLapWrite) return this.pendingIncompleteLapWrite;
     if (!this.currentSession || this.currentLapNumber < 0 || !this.lapBuffer.length) return;
@@ -243,15 +250,18 @@ export class LapDetector implements ILapDetector {
   async flushIncompleteLap(): Promise<void> {
     await this.pendingIncompleteLapWrite;
     if (this.pendingIncompleteLapId === null) await this.engine.flushIncompleteLap();
-    else this.engine.discardIncompleteLap();
+    else {
+      this.engine.finalizeRetainedIncompleteOwnership();
+      this.engine.discardIncompleteLap();
+    }
     this.pendingIncompleteLapId = null;
   }
-  async feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void> {
+  async feed(packet: TelemetryPacket, rawByteOffset?: number, rawOrdinal?: number): Promise<void> {
     if (!this._loggedFeedOnce) {
       console.log("[Lap Detector] Started receiving packets from pipeline");
       this._loggedFeedOnce = true;
     }
-    await this.engine.feed(packet, rawByteOffset);
+    await this.engine.feed(packet, rawByteOffset, rawOrdinal);
   }
 
 
@@ -425,12 +435,12 @@ export class LapDetector implements ILapDetector {
       });
       traceStageAt = performance.now();
 
-      // Capture the frame buffer before the engine resets its state; the insert below
-      // is fire-and-forget, so persistLapMetrics runs after reset.
+      const savedSessionId = this.currentSession.sessionId;
+      const savedBestLapTime = this.currentSession.bestLapTime;
       const lapPackets = this.lapBuffer;
       const insertStartedAt = performance.now();
       this.db.insertLap(
-        this.currentSession.sessionId,
+        savedSessionId,
         lapNum,
         lapTime,
         valid,
@@ -453,12 +463,13 @@ export class LapDetector implements ILapDetector {
           `[Lap] Saved lap ${lapNum} | Time: ${formatLapTime(lapTime)} | Valid: ${valid}${invalidReason ? ` (${invalidReason})` : ""} | Packets: ${packetCount} | DB ID: ${lapId}`
         );
         this.onLapSaved?.({
+          sessionId: savedSessionId,
           lapId,
           lapNumber: lapNum,
           lapTime,
           isValid: valid,
           sectors,
-          estimatedBestLapTime: this.currentSession!.bestLapTime,
+          estimatedBestLapTime: savedBestLapTime,
         });
       }).catch((err) => {
         console.error(`[Lap] Failed to save lap ${lapNum}:`, err);

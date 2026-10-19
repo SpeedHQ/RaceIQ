@@ -3,6 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { migrations } from "../../db/migrations";
 import { pendingMigrations } from "../../db/migration-plan";
+
+export { relocateMigrationHistory } from "../../db/migration-plan";
 export async function bootstrap(client: Client): Promise<void> {
   await client.execute("PRAGMA foreign_keys = ON");
   await client.execute(`

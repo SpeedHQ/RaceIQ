@@ -18,6 +18,7 @@ Documentation is organized by audience. Start with a user guide; use contributor
 - [Development](contributing/development.md) — install, run, seed data, and manage schema changes.
 - [Working with Effect](contributing/effect.md) — required Effect Solutions guidance, pinned v4 API checks, lifecycle and durable retry conventions, and verification.
 - [Frontend development](contributing/frontend.md) — component ownership, live-state boundaries, and routing contracts.
+- [Background operation flow](contributing/background-operation-flow.md) — reuse sparse recording conversion's confirmation dialog, non-modal bottom-right progress, result/retry, and inline maintenance pattern.
 - [Performance benchmarks](contributing/performance-benchmarks.md) — run parser, replay, and process-isolated performance measurements.
 - [Track curation](contributing/track-curation.md) — curate and verify track metadata and geometry.
 - [Telemetry recordings](contributing/telemetry-recordings.md) — capture, import, and preserve development telemetry.

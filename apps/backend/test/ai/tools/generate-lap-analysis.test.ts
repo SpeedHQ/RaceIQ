@@ -52,8 +52,7 @@ function makeDeps(
     generateCalls,
     saves,
     getLapById: async () => lap as never,
-    getCorners: async () => [],
-    detectCorners: () => [],
+    resolveLapCorners: async () => [],
     getOrComputeLapInsights: async () => [],
     getAnalysis: async () => cached,
     saveAnalysis: async (_lapId, analysis) => {
@@ -116,11 +115,75 @@ describe("generateLapAnalysis", () => {
     const deps = makeDeps({ cached: validAnalysis });
     const result = await generateLapAnalysis(7, {}, deps);
 
-    expect(result.cached).toBe(true);
-    expect(result.analysis).toBe(validAnalysis);
-    expect(deps.generateCalls).toBe(0);
+    const output = JSON.parse(result.analysis!);
+    expect(output.setup).toEqual([]);
+    expect(output.setupProvenance).toMatchObject({ gameId: "fm-2023", lapId: 7, setupVersion: null });
   });
 
+  test("later-lap corner highlights use lap-relative fractions", async () => {
+    const deps = makeDeps({ cached: validAnalysis });
+    deps.getLapById = async () => ({
+      ...lap,
+      telemetry: [{ DistanceTraveled: 3520 }, { DistanceTraveled: 4520 }],
+    }) as never;
+    deps.resolveLapCorners = async () => [{
+      index: 1, label: "T1", distanceStart: 200, distanceEnd: 300,
+    }];
+    const result = await generateLapAnalysis(7, { cacheOnly: true }, deps);
+    expect(result.cornerFracs).toEqual([{ label: "T1", startFrac: 0.2, endFrac: 0.3 }]);
+  });
+
+  test("drops unsupported cached setup recommendations before returning them", async () => {
+    const cached = JSON.stringify({
+      verdict: "Clean lap", pace: [], handling: [], corners: [], technique: [],
+      setup: [{ component: "Front Anti-Roll Bar", symptom: "x", fix: "x", current: "3", target: "4", direction: "increase" }],
+    });
+    const result = await generateLapAnalysis(7, {}, makeDeps({ cached }));
+    expect(result.cached).toBe(true);
+    expect(JSON.parse(result.analysis!).setup).toEqual([]);
+  });
+
+  test("does not cache unsupported generated setup recommendations", async () => {
+    const generated = JSON.stringify({
+      verdict: "Clean lap", pace: [], handling: [], corners: [], technique: [],
+      setup: [{ component: "Front Anti-Roll Bar", symptom: "x", fix: "x", current: "3", target: "4", direction: "increase" }],
+    });
+    const deps = makeDeps({ generated });
+    const result = await generateLapAnalysis(7, { regenerate: true }, deps);
+    expect(result.analysis && JSON.parse(result.analysis).setup).toEqual([]);
+    expect(JSON.parse(deps.saves[0]!).setup).toEqual([]);
+  });
+
+
+  test("validates linked AC-EVO tune recommendations against that lap's setup snapshot", async () => {
+    const deps = makeDeps({
+      generated: JSON.stringify({
+        verdict: "Clean lap", pace: [], handling: [], corners: [], technique: [],
+        setup: [{
+          component: "Front Anti-Roll Bar", symptom: "balance", fix: "Increase one click",
+          current: "3 clicks", target: "3 clicks", direction: "increase",
+        }],
+      }),
+    });
+    deps.getLapById = async () => ({
+      ...lap, gameId: "ac-evo", carId: "42", trackId: "7", tuneId: 9,
+    } as never);
+    deps.getDbTune = async () => ({
+      id: 9, gameId: "ac-evo", carId: "42", trackId: "7", settings: JSON.stringify({ frontARB: 2 }),
+      strengths: null, weaknesses: null, bestTracks: null, strategies: null,
+    }) as never;
+    deps.getGame = (() => ({
+      getCarName: () => "audi_r8_lms_gt3_evo_2",
+      getTrackName: () => "Test track",
+    })) as never;
+
+    const result = await generateLapAnalysis(7, { regenerate: true }, deps);
+    const analysis = JSON.parse(result.analysis!);
+    expect(analysis.setup).toEqual([expect.objectContaining({ current: "2 clicks", target: "3 clicks" })]);
+    expect(analysis.setupProvenance).toMatchObject({
+      gameId: "ac-evo", carModel: "audi_r8_lms_gt3_evo_2", trackName: "Test track", lapId: 7,
+    });
+  });
   test("returns missing lap error", async () => {
     const deps = makeDeps();
     deps.getLapById = async () => null;
@@ -185,7 +248,7 @@ describe("generateLapAnalysis", () => {
 
     expect(result.error).toBeUndefined();
     expect(result.cached).toBe(false);
-    expect(JSON.parse(result.analysis!)).toEqual(JSON.parse(validAnalysis));
+    expect(JSON.parse(result.analysis!)).toMatchObject(JSON.parse(validAnalysis));
     expect(deps.saves).toHaveLength(1);
   });
 

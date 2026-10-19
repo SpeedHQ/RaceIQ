@@ -108,13 +108,14 @@ describe("computeConsistency", () => {
     expect(report.cleanLapCount).toBe(2);
   });
 
-  test("single clean lap -> very-low", () => {
+  test("single clean lap -> very-low with count and best lap", () => {
     const laps: LapMeta[] = [lap({ id: 1, lapTime: 90.0 })];
 
     const report = computeConsistency(laps, null, 0);
 
     expect(report.confidence).toBe("very-low");
     expect(report.cleanLapCount).toBe(1);
+    expect(report.bestLapSec).toBe(90.0);
     expect(report.cornerConsistency).toBeNull();
   });
 

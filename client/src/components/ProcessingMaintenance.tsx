@@ -1,4 +1,3 @@
-import { CaptureMigration } from "./CaptureMigration";
 import { canStartReprocess, isReprocessPending, submitStaleSessionReprocess } from "@/lib/reprocess-state";
 import { client } from "@/lib/rpc";
 import { invalidateDashboardQueries } from "@/hooks/dashboard";
@@ -61,7 +60,6 @@ export function LapDetectorStatus() {
 export function ProcessingMaintenance() {
   return (
     <div className="space-y-4">
-      <CaptureMigration compact />
       <LapDetectorStatus />
       <RaceResultStatus />
     </div>

@@ -9,7 +9,6 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBulkDeleteLaps } from "@/hooks/laps";
 import { queryKeys } from "@/hooks/query-keys";
 import { drawTrack, type PitLine } from "@/lib/canvas/draw-track";
-import { countryName } from "@/lib/country-names";
 import { storedLapsSectorCount } from "@/lib/lap-sectors";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
@@ -112,7 +111,7 @@ export function TrackDetail({
         ? (["info", "laps", "setups", "guide", "debug"] as const)
         : (["info", "laps", "debug"] as const);
   type Tab = (typeof allTabs)[number];
-  const validTabs = allTabs;
+  const validTabs = import.meta.env.DEV ? allTabs : allTabs.filter((tab) => tab !== "debug");
   // The tab is the route — the URL owns it, not this component. A tab the
   // current game doesn't have falls back to info rather than rendering blank.
   const activeTab: Tab = (validTabs as readonly string[]).includes(tab) ? (tab as Tab) : "info";
@@ -369,9 +368,8 @@ export function TrackDetail({
             &larr; {m.common_back()}
           </Button>
           <div className="min-w-0">
-            <div className="text-app-heading font-semibold text-app-text">{track.name}</div>
-            <div className="text-app-label text-app-text-muted">
-              {[track.variant, track.location, countryName(track.country), track.lengthKm > 0 ? `${track.lengthKm} km` : ""].filter(Boolean).join(" · ")}
+            <div className="text-app-heading font-semibold text-app-text">
+              {track.name}{track.variant ? ` - ${track.variant}` : ""}
             </div>
           </div>
         </div>

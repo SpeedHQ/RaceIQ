@@ -1,12 +1,12 @@
 # RaceIQ Online upload recovery progress
 
-Updated: 2026-10-14. This records completed work and remaining gates, not a claim that automatic recording uploads are finished.
+Updated: 2026-10-19. This records completed work and remaining gates, not a claim that automatic recording uploads are finished.
 
 ## Current status
 
-**Queue infrastructure and persistent status are implemented and verified. Recording production/integration is intentionally on hold.** Another branch owns automatic splitting into one lap per BIN. This branch must not implement a competing session slicer.
+**Queue infrastructure and persistent status are implemented. Main now supplies lossless per-lap BIN publication.** Cloud upload preparation must consume those published artifacts; this branch must not implement a competing session slicer.
 
-The reported successful sign-in is not the missing prerequisite. Default recording dispatch remains gated until a real per-lap producer and verified recording codec are supplied.
+The reported successful sign-in is not the missing prerequisite. Default recording dispatch remains gated until the published per-lap artifacts are wired to upload preparation and the recording codec is verified against the service parser.
 
 ## Done
 
@@ -38,10 +38,10 @@ The reported successful sign-in is not the missing prerequisite. Default recordi
 - [x] Update backend/UI plans, shared contract notes and changelog to distinguish queue readiness from deferred recording integration.
 - [x] Extract Online contracts, service/adapter, delivery and separate storage into `@raceiq/online`; the backend app composes host credentials/runtime while frontend consumers import only `@raceiq/online/contracts`. Package-owned tests retain all queue recovery regressions; the app-owned lap-candidate query stays in backend core.
 
-## Remaining — held on the recording branch
+## Remaining — integrate published lap artifacts
 
-- [ ] Land the automatic per-lap BIN producer and its actual publication/metadata contract.
-  - Do not guess filenames, offsets, framing or readiness signals.
+- [x] Main supplies automatic per-lap BIN publication and its metadata contract.
+  - Use `resolveLapCaptureArtifact` in `server/session-capture/source-loader.ts`; do not guess filenames, offsets, framing or readiness signals.
 - [ ] Bind that producer to upload preparation; enable production selection/enqueue only when recordings are durably ready.
   - Cover historical best-per-game/track backfill, new laps, imports, reprocessing and faster replacements.
   - Existing wake notifications/coordinator are implemented; they do not replace producer integration.
@@ -68,7 +68,7 @@ The reported successful sign-in is not the missing prerequisite. Default recordi
 - **Passed:** `bun run i18n:check-keys` — complete supported catalogs.
 - **Passed:** `bun test packages/tooling-release/test/changelog.test.ts --timeout 60000`.
 - **Earlier UI proof:** real local Hono/RPC/SQLite status, desktop/mobile DOM and mobile accessibility audit. Package extraction changes UI imports, not presentation; no new visual inspection or screenshot is claimed.
-- **Not run / not established:** per-game recording compatibility, final producer wiring and authenticated live recording uploads. Session-recording extraction remains paused by request; the package extraction is verified above.
+- **Not run / not established:** per-game recording compatibility, final producer wiring and authenticated live recording uploads. Cloud preparation must reuse main's published per-lap artifacts, not restart session extraction.
 
 ## Relevant implementation and tests
 
@@ -83,4 +83,4 @@ The reported successful sign-in is not the missing prerequisite. Default recordi
 
 ## Next action
 
-Wait for the recording branch's real per-lap producer contract. Then integrate that output and verify compatibility/privacy before enabling recording dispatch. Do not restart session extraction or require another sign-in to compensate for the missing producer.
+Integrate main's published per-lap artifacts and verify compatibility/privacy before enabling recording dispatch. Do not restart session extraction or require another sign-in to compensate for missing upload integration.

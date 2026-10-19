@@ -6,7 +6,7 @@ import type { SemanticAnalysisFrame } from "./track-map/types";
 import type { SessionOwnership } from "@raceiq/shared/racing/sessions/types";
 import type { GameId } from "@raceiq/shared/games/ids";
 import { OwnershipChoice } from "../import/OwnershipChoice";
-import { useMotecTargets, useCarsFromEndpoint, useTracksForGame } from "../../hooks/catalog-queries";
+import { useMotecTargets, useCarsFromEndpoint, useCarsForGame, useTracksForGame } from "../../hooks/catalog-queries";
 import type { MotecTargetInfo } from "../../hooks/catalog-queries";
 import { authenticatedFetch } from "@/lib/rpc";
 import { useUserTunes } from "../../hooks/tunes";
@@ -207,6 +207,7 @@ export function MotecImportModal({
   const { data: targets = [] } = useMotecTargets();
   const [selectedGameId, setSelectedGameId] = useState<GameId | "">(fixedTarget?.gameId ?? initialGameId ?? "");
   const target = fixedTarget ?? targets.find((item) => item.gameId === selectedGameId);
+  const catalogGameId = fixedTarget?.gameId ?? (selectedGameId || null);
   const [ld, setLd] = useState<File | null>(initialLd ?? null);
   const [ldx, setLdx] = useState<File | null>(null);
   const [archiveToken, setArchiveToken] = useState(stagedToken ?? "");
@@ -224,8 +225,10 @@ export function MotecImportModal({
   const stagedTokenRef = useRef(archiveToken);
   const archiveRequestRef = useRef(0);
   const initialArchiveStartedRef = useRef(false);
-  const { data: cars = [] } = useCarsFromEndpoint(target?.carsEndpoint ?? null);
-  const { data: tracks = [] } = useTracksForGame(target?.gameId ?? null);
+  const { data: targetCars = [] } = useCarsFromEndpoint(target?.carsEndpoint ?? null);
+  const { data: catalogCars = [] } = useCarsForGame(target ? null : catalogGameId);
+  const cars: { id: string | number; name: string; class?: string }[] = target ? targetCars : catalogCars;
+  const { data: tracks = [] } = useTracksForGame(catalogGameId);
   const { data: tunes = [] } = useUserTunes(target?.gameId);
   const ldRef = useRef<HTMLInputElement>(null);
   const ldxRef = useRef<HTMLInputElement>(null);
@@ -341,7 +344,7 @@ export function MotecImportModal({
       body.append("gameId", target.gameId);
       body.append("carId", carId);
       body.append("trackId", trackId);
-      if (tuneId) body.append("tuneId", tuneId);
+      if (tuneId && catalogGameId !== "f1-2025") body.append("tuneId", tuneId);
       body.append("ownership", ownership);
       // Multipart upload — no RPC binding for form bodies, same as
       // /api/laps/import and /api/laps/import-zip.
@@ -389,6 +392,8 @@ export function MotecImportModal({
                 <>
                   {m.analyse_import_filed_as({ game: target.displayName })}
                 </>
+              ) : catalogGameId && targets.length > 0 ? (
+                m.analyse_motec_unsupported_game({ game: getGame(catalogGameId).displayName })
               ) : (
                 m.analyse_import_choose_game()
               )}
@@ -432,10 +437,12 @@ export function MotecImportModal({
                 {m.analyse_track_label()}
                 <SearchSelect value={trackId} onChange={setTrackId} options={trackOptions} placeholder={m.analyse_search_tracks()} className="mt-1" />
               </div>
-              <div className="block text-app-text-dim">
-                {m.analyse_setup_optional()}
-                <SearchSelect value={tuneId} onChange={setTuneId} options={tuneOptions} placeholder={carId ? m.analyse_search_setups() : m.analyse_pick_car()} disabled={!carId} className="mt-1" />
-              </div>
+              {catalogGameId !== "f1-2025" && (
+                <div className="block text-app-text-dim">
+                  {m.analyse_setup_optional()}
+                  <SearchSelect value={tuneId} onChange={setTuneId} options={tuneOptions} placeholder={carId ? m.analyse_search_setups() : m.analyse_pick_car()} disabled={!carId} className="mt-1" />
+                </div>
+              )}
               <p className="text-app-text-muted">
                 {m.analyse_import_catalog_explanation()}
               </p>
