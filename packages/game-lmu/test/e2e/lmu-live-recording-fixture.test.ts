@@ -26,19 +26,42 @@ type Sample = {
 };
 
 async function readSamples(combinedPath: string): Promise<Sample[]> {
-  const stream = createReadStream(combinedPath).pipe(createGunzip());
+  const stream = createReadStream(combinedPath).pipe(createGunzip({ chunkSize: 1024 * 1024 }));
 
   const iterator = stream[Symbol.asyncIterator]();
-  let buffered = Buffer.alloc(0);
+  let buffered: Buffer = Buffer.alloc(0);
   const readExact = async (size: number): Promise<Buffer> => {
-    while (buffered.length < size) {
-      const next = await iterator.next();
-      if (next.done) throw new Error(`LMU fixture ended before ${size} bytes`);
-      buffered = Buffer.concat([buffered, next.value as Buffer]);
+    if (buffered.length >= size) {
+      const result = buffered.subarray(0, size);
+      buffered = buffered.subarray(size);
+      return result;
     }
-    const result = buffered.subarray(0, size);
-    buffered = buffered.subarray(size);
+    const result = Buffer.allocUnsafe(size);
+    let offset = 0;
+    while (offset < size) {
+      if (buffered.length === 0) {
+        const next = await iterator.next();
+        if (next.done) throw new Error(`LMU fixture ended before ${size} bytes`);
+        buffered = next.value as Buffer;
+      }
+      const length = Math.min(buffered.length, size - offset);
+      buffered.copy(result, offset, 0, length);
+      buffered = buffered.subarray(length);
+      offset += length;
+    }
     return result;
+  };
+  const skipExact = async (size: number): Promise<void> => {
+    while (size > 0) {
+      if (buffered.length === 0) {
+        const next = await iterator.next();
+        if (next.done) throw new Error(`LMU fixture ended with ${size} bytes left to skip`);
+        buffered = next.value as Buffer;
+      }
+      const length = Math.min(buffered.length, size);
+      buffered = buffered.subarray(length);
+      size -= length;
+    }
   };
 
   const dumpHeader = await readExact(HEADER_SIZE);
@@ -48,10 +71,15 @@ async function readSamples(combinedPath: string): Promise<Sample[]> {
   const samples: Sample[] = [];
   for (let index = 0; index <= Math.max(...SAMPLE_INDICES); index++) {
     const frameHeader = index === 0 ? firstFrameHeader : await readExact(FRAME_HEADER_SIZE);
-    expect(frameHeader.readUInt8(0)).toBe(0);
-    expect(frameHeader.readUInt32LE(1)).toBe(frameSize);
+    const frameType = frameHeader.readUInt8(0);
+    if (frameType !== 0) throw new Error(`LMU fixture frame ${index} has type ${frameType}`);
+    const actualFrameSize = frameHeader.readUInt32LE(1);
+    if (actualFrameSize !== frameSize) throw new Error(`LMU fixture frame ${index} has size ${actualFrameSize}, expected ${frameSize}`);
+    if (!SAMPLE_INDICES.includes(index)) {
+      await skipExact(frameSize);
+      continue;
+    }
     const frameBytes = await readExact(frameSize);
-    if (!SAMPLE_INDICES.includes(index)) continue;
     const frame = decodeLMUSourceFrame(frameBytes);
     if (!frame) throw new Error(`LMU fixture frame ${index} failed to decode`);
     const packet = normalizeLMUSourceFrame(frame);
