@@ -6,7 +6,9 @@
     ".": "./src/index.ts",
     "./worker": "./src/worker.ts",
     "./live-worker": "./src/live-worker.ts",
-    "./protocol": "./src/protocol.ts"
+    "./protocol": "./src/protocol.ts",
+    "./prepare-bundle": "./src/prepare-bundle.ts",
+    "./source-files": "./src/source-files.ts"
   },
   "dependencies": {
     "@raceiq/capture-formats": "workspace:*",

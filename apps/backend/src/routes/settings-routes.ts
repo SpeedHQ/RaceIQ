@@ -11,6 +11,8 @@ import { udpListener } from "../runtime/udp-listener";
 import { wsManager } from "@raceiq/backend-core/runtime/websocket-manager";
 import { lapDetector } from "@raceiq/backend-core/telemetry/live-pipeline";
 import { loadSettings, saveSettings, PartialSettingsSchema } from "@raceiq/backend-core/runtime/config/settings";
+import { setRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/recording-frequency";
+import { isRecordingRetentionPolicyValid } from "@raceiq/shared/platform/runtime/recording-frequency";
 import { getSecret, setSecret } from "@raceiq/backend-core/runtime/platform/keystore";
 import { enableLaunchOnLogin, disableLaunchOnLogin, getLaunchOnLoginExeDir } from "@raceiq/backend-core/runtime/platform/launch-on-login";
 import { getLapStats } from "@raceiq/backend-core/db/lap-read-queries";
@@ -261,6 +263,12 @@ export const settingsRoutes = new Hono()
       if (key in parseResult) provided[key] = (parseResult as Record<string, unknown>)[key];
     }
     const merged = { ...current, ...provided };
+    if (!isRecordingRetentionPolicyValid(merged)) {
+      return c.json({
+        code: "INVALID_RETENTION_POLICY",
+        error: "Automatic deletion must be scheduled after automatic downsampling.",
+      }, 400);
+    }
     const startedAt = performance.now();
 
     try {
@@ -281,6 +289,7 @@ export const settingsRoutes = new Hono()
         }
       }
       saveSettings(merged);
+      setRecordingFrequencyHz(merged.recordingFrequencyHz);
       if (provided.onboardingComplete) {
         wsManager.broadcastNotification({ type: "onboarding_complete" });
       }

@@ -1,5 +1,5 @@
 import { temporaryDirectory, createLMUDuckDB } from "./support/duckdb";
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 
 
 import { join } from "node:path";
@@ -43,6 +43,7 @@ import {
   decodeLMUSourceFrame,
   encodeLMUSourceFrame,
 } from "@raceiq/capture-formats/lmu/source-frame";
+import { setRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/recording-frequency";
 
 
 
@@ -397,6 +398,73 @@ describe("LMU adapter", () => {
     expect(capturedTimes[1]).toBeLessThanOrEqual(beforeRelease);
     expect(capturedTimes[2]).toBeLessThanOrEqual(beforeRelease);
     expect(recorderStopped).toBe(true);
+  });
+
+  test("rate-limits running-loop reads and reacts to frequency changes", async () => {
+    const originalFrequency = 100 as const;
+    let nowMs = 0;
+    let tick: (() => void) | undefined;
+    let stopped = false;
+    let reads = 0;
+    const delivered: number[] = [];
+    const snapshot = lmuSharedMemoryFixture();
+    const intervalSpy = spyOn(globalThis, "setInterval").mockImplementation(((callback: TimerHandler, ..._args: unknown[]) => {
+      tick = callback as () => void;
+      return 1 as never;
+    }) as typeof setInterval);
+    const clearSpy = spyOn(globalThis, "clearInterval").mockImplementation(() => {});
+    const clockSpy = spyOn(performance, "now").mockImplementation(() => nowMs);
+    const source = new LMUTelemetrySource({
+      pollIntervalMs: 10,
+      reader: {
+        start() {},
+        async stop() {},
+        readLatest() {
+          reads++;
+          const memory = Buffer.from(snapshot);
+          memory.writeDoubleLE(321.5 + reads, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.elapsedTime);
+          return memory;
+        },
+      },
+      dispatchRawFrame: async (frame) => {
+        delivered.push(decodeLMUSourceFrame(frame)!.telemetry.readDoubleLE(LMU_TELEMETRY.elapsedTime));
+      },
+    });
+    try {
+      source.start();
+      for (let t = 0; t < 1_000; t += 10) {
+        nowMs = t;
+        tick!();
+      }
+      expect(reads).toBe(100);
+
+      setRecordingFrequencyHz(50);
+      for (let t = 1_000; t < 2_000; t += 10) {
+        nowMs = t;
+        tick!();
+      }
+      expect(reads).toBe(150);
+
+      setRecordingFrequencyHz(100);
+      nowMs = 2_000;
+      tick!();
+      expect(reads).toBe(151);
+      await source.stop();
+      stopped = true;
+      expect(delivered).toHaveLength(151);
+      expect(clearSpy).toHaveBeenCalledTimes(1);
+
+      const beforeExplicitPoll = reads;
+      expect(await source.pollOnce()).toBe(true);
+      expect(reads).toBe(beforeExplicitPoll + 1);
+      expect(delivered).toHaveLength(152);
+    } finally {
+      if (!stopped) await source.stop();
+      setRecordingFrequencyHz(originalFrequency);
+      intervalSpy.mockRestore();
+      clearSpy.mockRestore();
+      clockSpy.mockRestore();
+    }
   });
 
   test("reads LMU DuckDB uploads into canonical source frames", async () => {

@@ -100,6 +100,11 @@ test.describe
 
       // Step 7: Native chooser selection applies immediately without a dialog.
       await expect(page.getByRole("heading", { name: "Storage" })).toBeVisible();
+      const frequencyGroup = page.getByRole("group", { name: "Recording frequency", exact: true });
+      await expect(frequencyGroup.getByRole("button")).toHaveText(["50 Hz", "60 Hz", "70 Hz", "80 Hz", "90 Hz", "100 Hz"]);
+      await expect(frequencyGroup.getByRole("button", { name: "100 Hz", exact: true })).toHaveAttribute("aria-pressed", "true");
+      await frequencyGroup.getByRole("button", { name: "50 Hz", exact: true }).click();
+      await expect(frequencyGroup.getByRole("button", { name: "50 Hz", exact: true })).toHaveAttribute("aria-pressed", "true");
       const initialDirectory = await (await page.request.get("/api/storage/recording-directory")).json() as { directory: string };
       const destination = resolve(initialDirectory.directory, "raceiq");
       let releaseMoveRequest!: () => void;
@@ -151,6 +156,7 @@ test.describe
         resolvedRecordingDirectory: realpathSync(destination),
         driverName: "TestDriver",
         onboardingComplete: true,
+        recordingFrequencyHz: 50,
       });
 
       await assertImagesLoaded(page);
