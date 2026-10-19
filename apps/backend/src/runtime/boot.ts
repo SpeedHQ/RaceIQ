@@ -14,6 +14,7 @@ import { listDiscoveredCars } from "@raceiq/backend-core/db/discovered-cars";
 import { hydrateDiscoveredAcEvoTracks, listDiscoveredTracks } from "@raceiq/backend-core/db/discovered-tracks";
 import { setCacheMaxBytes } from "@raceiq/backend-core/db/telemetry-replay-storage";
 import { isFirstRun, loadSettings } from "@raceiq/backend-core/runtime/config/settings";
+import { setRecordingFrequencyHz } from "@raceiq/backend-core/runtime/config/recording-frequency";
 import { wsManager, type WSData } from "@raceiq/backend-core/runtime/websocket-manager";
 import { udpListener } from "./udp-listener";
 import { PUBLIC_DIR, IS_COMPILED } from "@raceiq/backend-core/runtime/config/paths";
@@ -92,6 +93,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
 
   const firstRun = IS_COMPILED && isFirstRun();
   const settings = loadSettings();
+  setRecordingFrequencyHz(settings.recordingFrequencyHz);
   if (settings.wsRefreshRate) {
     wsManager.setRefreshRate(settings.wsRefreshRate);
   }

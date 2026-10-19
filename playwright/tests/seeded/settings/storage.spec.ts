@@ -54,6 +54,54 @@ test("storage renders true-empty and recovers from controlled API error", async 
   }
 });
 
+test("compression conflict is announced and can be retried", async ({ page }) => {
+  let attempts = 0;
+  await page.route("**/api/storage/sessions", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        total: 1,
+        binCount: 1,
+        gzCount: 0,
+        totalBytes: 1024,
+        binBytes: 1024,
+        gzBytes: 0,
+        byGame: {},
+        diskTotal: 0,
+        diskFree: 0,
+      }),
+    });
+  });
+  await page.route("**/api/storage/compress", async (route) => {
+    attempts++;
+    await route.fulfill({
+      status: attempts === 1 ? 409 : 200,
+      contentType: "application/json",
+      body: JSON.stringify(attempts === 1
+        ? { code: "MOVE_ACTIVE", error: "Recording storage operation is active" }
+        : { ok: true }),
+    });
+  });
+  try {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Settings" }).click();
+    await page.getByRole("button", { name: "Storage" }).click();
+    await page.getByRole("tab", { name: "Storage" }).click();
+    const compress = page.getByRole("button", { name: "Compress now" });
+    await expect(compress).toBeVisible();
+    await compress.click();
+    await expect(page.getByRole("alert")).toContainText("Recording storage operation is active");
+    await expect(compress).toBeEnabled();
+    await compress.click();
+    await expect(page.getByText("Compression complete")).toBeVisible();
+    expect(attempts).toBe(2);
+  } finally {
+    await page.unroute("**/api/storage/sessions");
+    await page.unroute("**/api/storage/compress");
+  }
+});
+
 test("storage and cache totals refresh while settings stay open", async ({ page }) => {
   await page.clock.install();
   let cacheRequests = 0;

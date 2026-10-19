@@ -42,19 +42,11 @@ describe("migration runner e2e", () => {
     const client = newClient();
     await bootstrap(client);
 
-    // Apply only the first half manually, then let the runner finish.
+    // Apply only the first half through the runner, then let the runner finish.
     const cutoff = Math.floor(migrations.length / 2);
     const head = [...migrations].sort((a, b) => a.version - b.version).slice(0, cutoff);
-
-    await client.execute("PRAGMA foreign_keys = OFF");
-    for (const m of head) {
-      for (const sql of m.sql) await client.execute(sql);
-      await client.execute({
-        sql: "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
-        args: [m.version, m.name],
-      });
-    }
-    await client.execute("PRAGMA foreign_keys = ON");
+    const appliedHead = await runMigrations(client, head.at(-1)!.version);
+    expect(appliedHead).toBe(cutoff);
 
     const remaining = await runMigrations(client);
     expect(remaining).toBe(migrations.length - cutoff);

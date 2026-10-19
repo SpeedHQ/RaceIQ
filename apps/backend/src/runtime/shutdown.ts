@@ -18,8 +18,12 @@ export function installShutdown({
 }: ShutdownOptions): void {
   const gracefulShutdown = async (signal: NodeJS.Signals) => {
     console.log(`[Server] Received ${signal} — flushing session recorder...`);
-    stopSessionCompressor();
     try {
+      try {
+        await stopSessionCompressor();
+      } catch (error) {
+        console.error("[Server] Recording maintenance shutdown failed:", error);
+      }
       const ingressStops: Promise<unknown>[] = [udpListener.stop()];
       const nativeSources = getNativeSources();
       if (nativeSources) ingressStops.push(nativeSources.stop());

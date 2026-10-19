@@ -10,6 +10,7 @@ import { convertSeedFramesToSparse } from "@raceiq/tooling-data/data/seed-captur
 import { decompressIfGzipSync, iterateSessionCaptureRecords, SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END } from "@raceiq/capture-formats/session/framing";
 
 const ROOT = resolve(import.meta.dir, "../../../..");
+import { migrations } from "@raceiq/backend-core/db/migrations";
 const COMPLETE = "[SessionRepair] Historical session reconciliation complete:";
 const DEFERRED = "[StartupWorker] Deferred until recording layout migration completes";
 const temporaryDirectories: string[] = [];
@@ -373,6 +374,89 @@ for (const failure of ["lmu", "race"] as const) {
       database?.close();
       database = undefined;
       temporaryDirectories.push(temporary);
+    }
+  }, 60_000);
+}
+
+for (const history of ["v75", "upstream-v76", "frequency-v76", "frequency-v77", "upstream-v80", "conflicting-v81"] as const) {
+  test(`recording frequency migration upgrades ${history} through production initialization`, async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "raceiq-frequency-upgrade-"));
+    let database: InstanceType<typeof Database> | undefined;
+    try {
+      await command([process.execPath, "--eval", `
+        import { createClient } from "@libsql/client/sqlite3";
+        import { join } from "node:path";
+        import { bootstrap, runMigrations } from "./server/test-support/db/migrations";
+        const client = createClient({ url: "file:" + join(process.env.DATA_DIR, "app.db") });
+        try {
+          await bootstrap(client);
+          await runMigrations(client, ${history === "upstream-v80" ? 80 : 75});
+        } finally {
+          client.close();
+        }
+      `], ROOT, environment(dataDir));
+      database = new Database(join(dataDir, "app.db"));
+      database.exec(`
+        INSERT INTO sessions (game_id, lap_detector_version)
+        VALUES ('ac-evo', 'stored-evo-detector'), ('iracing', 'stored-iracing-detector');
+      `);
+      if (history === "upstream-v76") {
+        database.exec(`
+          UPDATE sessions SET lap_detector_version = NULL WHERE game_id = 'ac-evo';
+          INSERT INTO schema_migrations (version, name)
+          VALUES (76, 'reconcile all AC Evo recordings to discover Tourist layouts');
+          UPDATE sessions SET lap_detector_version = 'stored-evo-detector' WHERE game_id = 'ac-evo';
+        `);
+      } else if (history === "frequency-v76" || history === "frequency-v77" || history === "conflicting-v81") {
+        database.exec(`
+          ALTER TABLE sessions ADD COLUMN downsampled_frequency_hz INTEGER;
+          UPDATE sessions SET downsampled_frequency_hz = 50;
+          INSERT INTO schema_migrations (version, name, applied_at)
+          VALUES (${history === "frequency-v77" ? 77 : 76}, 'persist archival recording frequency caps', '2026-10-01 12:00:00');
+        `);
+        if (history === "frequency-v77") {
+          database.exec("INSERT INTO schema_migrations (version, name) VALUES (76, 'reconcile all AC Evo recordings to discover Tourist layouts')");
+        }
+        if (history === "conflicting-v81") {
+          database.exec("INSERT INTO schema_migrations (version, name) VALUES (81, 'unknown migration')");
+        }
+      }
+      database.close();
+      database = undefined;
+      const initializeArgs = [process.execPath, "--eval", `
+        import { initDb, client } from "./server/db";
+        try { await initDb(); } finally { client.close(); }
+      `];
+      if (history === "conflicting-v81") {
+        await expect(command(initializeArgs, ROOT, environment(dataDir))).rejects.toThrow("Recording frequency migration conflicts with the recorded database history");
+      } else {
+        await command(initializeArgs, ROOT, environment(dataDir));
+        await command(initializeArgs, ROOT, environment(dataDir)); // Verify repeated startup is safe.
+      }
+      database = new Database(join(dataDir, "app.db"));
+      const rows = database.prepare("SELECT game_id, lap_detector_version FROM sessions ORDER BY id").all();
+      expect(rows).toEqual([
+        { game_id: "ac-evo", lap_detector_version: history === "v75" || history === "frequency-v76" ? null : "stored-evo-detector" },
+        { game_id: "iracing", lap_detector_version: "stored-iracing-detector" },
+      ]);
+      const ledger = database.prepare("SELECT version, name FROM schema_migrations WHERE version >= 76 ORDER BY version").all();
+      expect(ledger).toEqual(history === "conflicting-v81" ? [
+        { version: 76, name: "persist archival recording frequency caps" },
+        { version: 81, name: "unknown migration" },
+      ] : migrations.filter((migration) => migration.version >= 76).map(({ version, name }) => ({ version, name })));
+      const hasFrequencyCap = history === "frequency-v76" || history === "frequency-v77" || history === "conflicting-v81";
+      expect(database.prepare("SELECT downsampled_frequency_hz FROM sessions ORDER BY id").all()).toEqual([
+        { downsampled_frequency_hz: hasFrequencyCap ? 50 : null },
+        { downsampled_frequency_hz: hasFrequencyCap ? 50 : null },
+      ]);
+      if (history === "frequency-v76" || history === "frequency-v77") {
+        expect(database.prepare("SELECT applied_at FROM schema_migrations WHERE version = 81").get()).toMatchObject({
+          applied_at: "2026-10-01 12:00:00",
+        });
+      }
+    } finally {
+      database?.close();
+      await rm(dataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
   }, 60_000);
 }
