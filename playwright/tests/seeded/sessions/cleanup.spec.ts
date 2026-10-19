@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type APIRequestContext } from "@playwright/test";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -14,6 +14,14 @@ function captureFiles(directory: string): string[] {
   });
 }
 
+async function waitForCleanupEligibility(request: APIRequestContext, sessionIds: number[]): Promise<void> {
+  await expect.poll(async () => {
+    const response = await request.post("/api/storage/session-cleanup/preview", { data: { mode: "selected", sessionIds } });
+    expect(response.ok(), "cleanup eligibility preview").toBe(true);
+    return ((await response.json()) as SessionCleanupPreview).candidateSessionIds;
+  }, { intervals: [250, 500, 1000], timeout: 30_000 }).toEqual([...sessionIds].sort((a, b) => a - b));
+}
+
 test("confirmed cleanup removes disposable capture while preserving session and laps", async ({ page, request }) => {
   test.setTimeout(90_000);
   const browserErrors = collectBrowserErrors(page);
@@ -23,6 +31,7 @@ test("confirmed cleanup removes disposable capture while preserving session and 
   try {
     disposable = await importDisposableLap(request, "fm-2023", "sessions-cleanup");
     const sessionIds = disposable.sessionIds;
+    await waitForCleanupEligibility(request, sessionIds);
     const lapIds = disposable.lapIds;
     // Import now publishes per-lap files and a manifest as well as the retained
     // source. Wait for that publication before taking an independent disk count.
@@ -96,6 +105,7 @@ for (const favorite of ["session", "lap"] as const) {
       disposable = await importDisposableLap(request, "fm-2023", `favorite-${favorite}`);
       expect(disposable.sessionIds).toHaveLength(1);
       const sessionId = disposable.sessionIds[0];
+      await waitForCleanupEligibility(request, disposable.sessionIds);
       const capturePaths = readdirSync(capturesDir).filter((name) => (name.endsWith(".bin") || name.endsWith(".bin.gz")) && !capturesBefore.has(name)).map((name) => join(capturesDir, name));
       expect(capturePaths.length).toBeGreaterThan(0);
       const favoriteId = favorite === "session" ? sessionId : disposable.lapIds[0];

@@ -15,6 +15,7 @@
 - Choose a 50–100 Hz recording frequency for ACC, AC Evo, iRacing, or LMU during setup to reduce recording size. Live UDP recording is unchanged.
 - Downsample saved recordings manually or with an opt-in age policy in Storage settings; measure the first 1,000 frame timestamps per stream and skip recordings already at or below the target. Track progress and retry failed files. Favorites and MoTeC imports stay unchanged.
 - Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
+- Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
 - Keep Windows recording publication working when directory metadata flushing is unsupported, while retaining file-content flushing and reporting other I/O failures.
@@ -31,6 +32,7 @@
 - Restore Live child-page routing, production Raw Data updates and AMS2 game navigation.
 - Restore AMS2 live sector progression using telemetry track length and lap position; show available live tire pressures, use percentages in replay pedal charts, and exclude invalid laps from recorded PBs.
 - Keep game links visible on Live pages.
+- Keep first-run setup responsive by omitting the optional telemetry demo.
 - Use LMU game-world coordinates directly for track geometry, preserving edge-hugging and off-track positions.
 - Prevent overlapping database writes from blocking recording imports and setup or session deletion.
 - Allow repeated recording downsampling without exceeding filesystem filename limits.
@@ -49,14 +51,18 @@
 - Block screenshots for chat models without verified image support and keep text conversations usable.
 - Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.
 - Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
+- Complete first-run sparse recording migration in compiled builds instead of failing.
 
 ### Internal
+- Stabilize recording and browser E2E checks with bounded fixture reads, metadata-only experiment setup, browser-side playback pausing, and seeded demo capture using the correct Playwright configuration.
 - Reuse generic lap-bundle construction and separate capture-file accounting from `@raceiq/capture-splitting`; keep downsampling orchestration, database publication, and game adapters in the server.
 - Isolate streaming downsampling and its regression suite in `@raceiq/capture-downsampling`, depending on public capture-format codecs without importing backend policy or lap splitting.
 - Verify onboarding migration recovery through Storage re-entry with deterministic cache expiry, without relying on a hidden no-work Refresh control.
 - Manage recording maintenance with Effect, ordered downsampling and deletion, and awaited shutdown.
 - Preserve recording-frequency settings and migration history when upgrading earlier feature builds alongside the AC Evo Tourist-layout reconciliation.
-- Reuse the Linux build artifact across Playwright shards and collect replay allocations sooner on memory-limited CI runners.
+- Use the configured HTTP port for AppImage release smoke checks so healthy startup does not block release creation.
+- Build compiled Playwright servers on each runner so Linux E2E shards use matching binary architectures.
+- Collect replay allocations sooner on memory-limited CI runners.
 - Avoid `bun run test` port collisions with running services by selecting available ports for Playwright server sets when overrides are unset, while honoring explicit `PW_*_PORT` values and preserving isolated test databases.
 - Reuse one prepared Playwright database snapshot across seeded server sets to avoid duplicate fixture imports.
 - Update live iRacing browser checks to expect the Tires section to be absent in Driver and Pit Crew views.

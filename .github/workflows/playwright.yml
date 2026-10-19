@@ -103,7 +103,7 @@ jobs:
         continue-on-error: true
       - name: Build local compiled server
         if: inputs.server-mode == 'compiled' && (inputs.dist-artifact == '' || runner.os != 'Linux' || runner.arch != 'X64')
-        run: bunx turbo run build
+        run: bunx turbo run build --concurrency=1
 
       - name: Install Chromium
         working-directory: playwright

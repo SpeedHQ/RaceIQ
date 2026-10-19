@@ -9,7 +9,12 @@ This suite owns route-level browser tests and screenshot evidence. It is separat
 | `fresh-install` | `fresh-install/**/*.spec.ts` | Fresh compiled or dev app |
 | `tunes` | `tunes/**/*.spec.ts` | Tunes app |
 | `seeded-e2e` | `seeded/**/*.spec.ts` | Seeded app |
-| `record-demo` | `recording/demo.spec.ts` | Fresh app with GPU launch flags |
+| `record-demo` | `recording/demo.spec.ts` | Seeded replay with GPU launch flags |
+
+`record-demo` waits for `seeded-routes`, `seeded-e2e`, and `seeded-imports` to finish before frame capture because all share seeded server state.
+
+From the repository root, `bun run record:demo` builds the app and selects this suite's configuration and seeded server. For a short capture after building, run `E2E_SERVER_MODE=compiled PW_SERVER_SET=seeded DEMO_MAX_FRAMES=3 bunx playwright test --config=playwright/playwright.config.ts --project=seeded-setup --project=record-demo --no-deps --workers=1` from the root. This runs migration setup before capture without the ordinary seeded suites; the one-worker limit preserves their order.
+
 Marketing screenshot captures use `marketing-screenshots.config.ts`; responsive captures use `responsive-screenshots.config.ts`. Both live outside E2E projects. PR CI runs responsive captures only for base-vs-PR visual comparison.
 
 The main config uses `tests/` as `testDir`; no E2E specs belong at `tests/` root. Screenshot capture uses dedicated configs. Stateful E2E projects stay ordered on one worker.
