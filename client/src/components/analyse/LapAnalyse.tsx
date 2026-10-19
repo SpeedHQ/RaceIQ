@@ -291,6 +291,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
   // Playback animation + keyboard controls
   const { updateOverlays } = useLapPlayback({
     playing,
+    smoothCursor: gameId === "iracing",
     telemetry: semanticFrames,
     playRef,
     speedRef,

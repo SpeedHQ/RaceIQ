@@ -10,6 +10,7 @@
 - Downsample saved recordings manually or with an opt-in age policy in Storage settings; measure the first 1,000 frame timestamps per stream and skip recordings already at or below the target. Track progress and retry failed files. Favorites and MoTeC imports stay unchanged.
 - Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
 - Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
+- Smooth iRacing lap replay by interpolating the track marker and timeline cursor between recorded telemetry frames.
 
 ### Fixes
 - Keep iRacing telemetry flowing when native lap timing stalls; mark unresolved lap data incomplete instead of stopping capture.

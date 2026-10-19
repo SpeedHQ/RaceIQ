@@ -64,7 +64,14 @@ export const AnalyseChartsPanel = memo(
           return;
         }
 
-        const xFrac = timeFracs && idx < timeFracs.length ? timeFracs[idx] : idx / (totalPackets - 1);
+        const lowerIndex = Math.max(0, Math.min(semanticFrames.length - 1, Math.floor(idx)));
+        const upperIndex = Math.min(semanticFrames.length - 1, lowerIndex + 1);
+        const fraction = Math.max(0, Math.min(1, idx - lowerIndex));
+        const firstFrac = timeFracs?.[lowerIndex];
+        const nextFrac = timeFracs?.[upperIndex];
+        const xFrac = firstFrac != null && nextFrac != null
+          ? firstFrac + (nextFrac - firstFrac) * fraction
+          : idx / (totalPackets - 1);
         const leftPad = 12 + 40;
         const rightPad = 12 + 8;
         const chartW = w - leftPad - rightPad;

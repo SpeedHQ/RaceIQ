@@ -46,6 +46,24 @@ export function resolveTrackPositions(telemetry: SemanticAnalysisFrame[], outlin
     return pose ? { x: pose.x, z: pose.z } : worldPositions[index];
   });
 }
+
+export function interpolateReplayPosition(
+  positions: readonly Point[],
+  cursorIndex: number,
+): Point | null {
+  if (positions.length === 0 || !Number.isFinite(cursorIndex)) return null;
+  const index = Math.max(0, Math.min(positions.length - 1, cursorIndex));
+  const startIndex = Math.floor(index);
+  const start = positions[startIndex];
+  if (!start || !Number.isFinite(start.x) || !Number.isFinite(start.z)) return null;
+  const end = positions[startIndex + 1];
+  if (!end || !Number.isFinite(end.x) || !Number.isFinite(end.z)) return start;
+  const fraction = index - startIndex;
+  return {
+    x: start.x + (end.x - start.x) * fraction,
+    z: start.z + (end.z - start.z) * fraction,
+  };
+}
 export function alignOfficialReferenceToPositions(
   reference: Pick<TrackMapProps, "outline" | "mapLabels" | "pitLines" | "boundaries">,
   positions: Point[],

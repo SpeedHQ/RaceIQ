@@ -3,7 +3,7 @@ import { drawStaticTrack } from "../src/components/analyse/track-map/static-draw
 import { needsTrackFlip } from "@raceiq/shared/racing/tracks/coords";
 import { initGameAdapters } from "@raceiq/game-catalogs/games/init";
 import type { Point, TrackMapBoundaries, TrackTransform } from "../src/components/analyse/track-map/types";
-import { resolveTrackPositions } from "../src/components/analyse/track-map/path";
+import { interpolateReplayPosition, resolveTrackPositions } from "../src/components/analyse/track-map/path";
 
 let previousPath2D: PropertyDescriptor | undefined;
 beforeEach(() => {
@@ -85,6 +85,18 @@ test("prefers recorded world coordinates over lap-fraction projection", () => {
     { x: 20, z: 30 },
     { x: 40, z: 50 },
   ]);
+});
+
+test("interpolates replay map position between telemetry samples", () => {
+  const positions = [{ x: 0, z: 0 }, { x: 10, z: 20 }, { x: 20, z: 30 }];
+  expect(interpolateReplayPosition(positions, 0.25)).toEqual({ x: 2.5, z: 5 });
+  expect(interpolateReplayPosition(positions, -1)).toEqual(positions[0]);
+  expect(interpolateReplayPosition(positions, 10)).toEqual(positions[2]);
+});
+
+test("holds last valid map position rather than interpolating across missing coordinates", () => {
+  expect(interpolateReplayPosition([{ x: 2, z: 4 }, { x: Number.NaN, z: 1 }], 0.5)).toEqual({ x: 2, z: 4 });
+  expect(interpolateReplayPosition([{ x: Number.NaN, z: 0 }], 0)).toBeNull();
 });
 
 

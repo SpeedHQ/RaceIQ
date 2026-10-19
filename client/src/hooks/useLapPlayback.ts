@@ -1,12 +1,32 @@
 import { useCallback, useEffect } from "react";
 import type { ChartsPanelHandle } from "../components/analyse/AnalyseChartsPanel";
 import { type SemanticAnalysisFrame, semanticNumber, type TrackMapHandle } from "../components/analyse/track-map/types";
+
 // React-owned gauges publish at display cadence while canvas animation stays smooth.
 export const REACT_STATE_INTERVAL_MS = 1000 / 60;
+
+export function interpolateReplayCursorIndex(
+  lowerIndex: number,
+  lowerTime: number,
+  upperTime: number,
+  targetTime: number,
+): number {
+  if (
+    !Number.isFinite(lowerIndex) ||
+    !Number.isFinite(lowerTime) ||
+    !Number.isFinite(upperTime) ||
+    !Number.isFinite(targetTime) ||
+    upperTime <= lowerTime
+  ) {
+    return lowerIndex;
+  }
+  return lowerIndex + Math.max(0, Math.min(1, (targetTime - lowerTime) / (upperTime - lowerTime)));
+}
+
 interface UseLapPlaybackOptions {
   playing: boolean;
+  smoothCursor: boolean;
   playRef: React.MutableRefObject<boolean>;
-
   telemetry: SemanticAnalysisFrame[];
   speedRef: React.MutableRefObject<number>;
   cursorRef: React.MutableRefObject<number>;
@@ -24,6 +44,7 @@ interface UseLapPlaybackOptions {
 
 export function useLapPlayback({
   playing,
+  smoothCursor,
   telemetry,
   playRef,
   speedRef,
@@ -43,8 +64,15 @@ export function useLapPlayback({
     (idx: number) => {
       trackMapRef.current?.updateCursor(idx);
       chartsPanelRef.current?.updateCursor(idx);
-      const tf = chartsPanelRef.current?.timeFracs;
-      const pct = tf ? `${(tf[idx] ?? 0) * 100}%` : `${(idx / Math.max(1, telemetry.length - 1)) * 100}%`;
+      const timeFracs = chartsPanelRef.current?.timeFracs;
+      const maxIndex = Math.max(0, telemetry.length - 1);
+      const index = Math.max(0, Math.min(maxIndex, idx));
+      const lowerIndex = Math.floor(index);
+      const upperIndex = Math.min(maxIndex, lowerIndex + 1);
+      const fraction = index - lowerIndex;
+      const lowerFrac = timeFracs?.[lowerIndex] ?? lowerIndex / Math.max(1, maxIndex);
+      const upperFrac = timeFracs?.[upperIndex] ?? upperIndex / Math.max(1, maxIndex);
+      const pct = `${(lowerFrac + (upperFrac - lowerFrac) * fraction) * 100}%`;
       if (thumbRef.current) thumbRef.current.style.left = pct;
       if (progressRef.current) progressRef.current.style.width = pct;
     },
@@ -94,9 +122,15 @@ export function useLapPlayback({
         nextIdx++;
       }
 
+      if (smoothCursor) {
+        const lowerTime = semanticNumber(telemetry[nextIdx], "timing.current-lap") ?? gameTarget;
+        const upperTime = semanticNumber(telemetry[nextIdx + 1], "timing.current-lap") ?? lowerTime;
+        updateOverlays(interpolateReplayCursorIndex(nextIdx, lowerTime, upperTime, gameTarget));
+      }
+
       if (nextIdx !== idx) {
         cursorRef.current = nextIdx;
-        updateOverlays(nextIdx);
+        if (!smoothCursor) updateOverlays(nextIdx);
         if (now - lastStateUpdateRef.current > REACT_STATE_INTERVAL_MS) {
           lastStateUpdateRef.current = now;
           setCursorIdx(nextIdx);
@@ -108,7 +142,7 @@ export function useLapPlayback({
     rafId = requestAnimationFrame(step);
 
     return () => cancelAnimationFrame(rafId);
-  }, [playing, telemetry, updateOverlays]);
+  }, [playing, telemetry, updateOverlays, smoothCursor]);
 
   // Keyboard controls
   useEffect(() => {
