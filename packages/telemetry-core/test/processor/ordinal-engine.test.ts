@@ -105,6 +105,32 @@ describe("iRacing unresolved native timing ownership", () => {
       startOffset: 20, startOrdinal: 1, frameCount: 2,
     });
   });
+  test("abandons unresolved telemetry window at capacity and keeps feeding", async () => {
+    const fed: TelemetryPacket[] = [];
+    const transitions: DetectorOwnershipTransition[] = [];
+    const engine = new IRacingDetectorEngine({
+      now: () => 1_000,
+      feed: async packet => { fed.push(packet); },
+      flushStaleLap: async () => {},
+      finalizeCurrentSession: async () => {},
+      observeSourceRecord: () => {},
+    });
+    engine.subscribeOwnership(transition => transitions.push(transition));
+    engine.expectCompleteLapStart();
+    await engine.feed(telemetry({ gameId: "iracing", sessionUID: "session", LapNumber: 1 }), 10, 0);
+    await engine.feed(telemetry({ gameId: "iracing", sessionUID: "session", LapNumber: 2 }), 20, 1);
+    for (let ordinal = 2; ordinal <= 1_200; ordinal++) {
+      await engine.feed(telemetry({ gameId: "iracing", sessionUID: "session", LapNumber: 2 }), ordinal * 10, ordinal);
+    }
+    await engine.feed(telemetry({ gameId: "iracing", sessionUID: "session", LapNumber: 2 }), 12_010, 1_201);
+    await engine.feed(telemetry({ gameId: "iracing", sessionUID: "session", LapNumber: 2 }), 12_020, 1_202);
+    engine.drainOwnershipTransitions();
+
+    expect(fed.map(packet => packet.TimestampMS)).toHaveLength(3);
+    expect(transitions.filter(item => item.kind === "window-abandoned").map(item => item.window)).toMatchObject([
+      { startOffset: 20, startOrdinal: 1, frameCount: 1_200, status: "incomplete" },
+    ]);
+  });
 });
 describe("ordinal ownership clamps", () => {
   test("clamps incomplete DB ownership before finalization while source ordinal continues", async () => {

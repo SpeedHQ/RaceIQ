@@ -436,9 +436,12 @@ export async function updateSessionRawFile(
   lapDetectorVersion: string,
   versionIdentity?: TelemetryVersionIdentity,
 ): Promise<void> {
+  const captureMetadata = rawFile.endsWith("manifest.json")
+    ? { captureLayoutVersion: 1, captureManifestFile: rawFile, captureArchiveFile: null }
+    : {};
   await db
     .update(sessions)
-    .set({ rawFile, lapDetectorVersion, ...versionIdentity })
+    .set({ rawFile, lapDetectorVersion, ...versionIdentity, ...captureMetadata })
     .where(eq(sessions.id, sessionId))
     .run();
 }
