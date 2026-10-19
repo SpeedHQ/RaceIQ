@@ -28,7 +28,7 @@ interface AnalyseSemanticFrame {
   values: SemanticAnalysisFrame["values"];
   states: Readonly<Record<string, string | undefined>>;
   freshness: Readonly<Record<string, string | undefined>>;
-  source?: "motec" | null;
+  source?: LapMeta["source"];
 }
 const emptyLaps: LapMeta[] = [];
 

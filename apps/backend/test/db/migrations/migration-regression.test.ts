@@ -2,6 +2,7 @@ import { describe, test, expect } from "bun:test";
 import {
   bootstrap,
   newClient,
+  relocateMigrationHistory,
   runMigrations,
 } from "@raceiq/backend-core/test-support/db/migrations";
 
@@ -35,6 +36,58 @@ describe("migration regressions", () => {
     }
   });
 
+  test("upgrades cloud-import history without skipping main capture migrations", async () => {
+    const client = newClient();
+    try {
+      await bootstrap(client);
+      await runMigrations(client, 75);
+      await client.execute("ALTER TABLE sessions ADD COLUMN source_author_user_id TEXT");
+      await client.execute("ALTER TABLE sessions ADD COLUMN source_author_display_name TEXT");
+      await client.execute("ALTER TABLE sessions ADD COLUMN cloud_import_origin TEXT");
+      await client.execute("ALTER TABLE sessions ADD COLUMN cloud_import_lap_id TEXT");
+      await client.execute("ALTER TABLE sessions ADD COLUMN cloud_import_session_key INTEGER");
+      await client.execute("ALTER TABLE sessions ADD COLUMN cloud_import_session_uid TEXT");
+      await client.execute("ALTER TABLE sessions ADD COLUMN cloud_import_source_lap_index INTEGER");
+      await client.execute("ALTER TABLE sessions ADD COLUMN cloud_import_source_session_key INTEGER");
+      await client.execute("ALTER TABLE sessions ADD COLUMN source_frame_format TEXT");
+      await client.execute("ALTER TABLE sessions ADD COLUMN source_frame_version TEXT");
+      await client.execute("ALTER TABLE sessions ADD COLUMN cloud_import_setup_path TEXT");
+      await client.execute("ALTER TABLE sessions ADD COLUMN cloud_import_setup_file_name TEXT");
+      await client.execute("ALTER TABLE laps ADD COLUMN recorded_at TEXT");
+      await client.execute("ALTER TABLE laps ADD COLUMN total_time_ms INTEGER");
+      await client.execute("ALTER TABLE laps ADD COLUMN sector_times_ms TEXT");
+      await client.execute("CREATE UNIQUE INDEX idx_sessions_cloud_import ON sessions(cloud_import_origin, cloud_import_lap_id) WHERE cloud_import_origin IS NOT NULL");
+      await client.execute("INSERT INTO sessions (car_id, track_id, game_id, source_author_user_id, cloud_import_origin) VALUES ('1', '1', 'acc', 'author-1', 'origin-1')");
+      await client.execute(`
+        INSERT INTO schema_migrations (version, name) VALUES
+          (76, 'retain cloud lap import attribution'),
+          (77, 'preserve cloud lap millisecond values'),
+          (78, 'retain cloud lap setup attachment')
+      `);
+
+      await relocateMigrationHistory(client, [
+        { name: "retain cloud lap import attribution", oldVersions: [76], version: 82 },
+        { name: "preserve cloud lap millisecond values", oldVersions: [77], version: 83 },
+        { name: "retain cloud lap setup attachment", oldVersions: [78], version: 84 },
+      ]);
+      await runMigrations(client);
+
+      const session = await client.execute("SELECT source_author_user_id, cloud_import_origin FROM sessions");
+      expect(session.rows.map((row) => ({ author: row.source_author_user_id, origin: row.cloud_import_origin })))
+        .toEqual([{ author: "author-1", origin: "origin-1" }]);
+      const sessionColumns = await client.execute("PRAGMA table_info(sessions)");
+      expect(sessionColumns.rows.map((row) => row.name)).toContain("capture_manifest_file");
+      const lapColumns = await client.execute("PRAGMA table_info(laps)");
+      expect(lapColumns.rows.map((row) => row.name)).toContain("capture_chunk_id");
+      const ledger = await client.execute("SELECT version, name FROM schema_migrations WHERE version BETWEEN 76 AND 84 ORDER BY version");
+      expect(ledger.rows.map((row) => row.version)).toContain(76);
+      expect(ledger.rows.map((row) => row.version)).toContain(82);
+      expect(ledger.rows.map((row) => row.version)).toContain(83);
+      expect(ledger.rows.map((row) => row.version)).toContain(84);
+    } finally {
+      client.close();
+    }
+  });
   test("rejects branch migration collisions before changing stored data", async () => {
     const client = newClient();
     try {

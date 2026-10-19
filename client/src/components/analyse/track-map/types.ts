@@ -2,12 +2,13 @@ import type { PitLine } from "@/lib/canvas/draw-track";
 import { isTelemetryVariableId } from "@raceiq/shared/telemetry/catalog/query";
 import type { TelemetryVariableId } from "@raceiq/shared/telemetry/catalog/generated/telemetry-catalog.types";
 import type { GameId } from "@raceiq/shared/games/ids";
+import type { LapMeta } from "@raceiq/shared/racing/sessions/types";
 
 export interface SemanticAnalysisFrame {
   values: Readonly<Record<string, unknown>>;
   states: Readonly<Record<string, string | undefined>>;
   freshness: Readonly<Record<string, string | undefined>>;
-  source?: "motec" | null;
+  source?: LapMeta["source"];
 }
 
 export interface SemanticValueEntry {

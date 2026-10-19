@@ -5,6 +5,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startHttpServer, staticAssetHeaders } from "../../src/runtime/http-server";
 import { createHttpAccess } from "../../src/runtime/http-access";
+import { createRaceIqOnlineService } from "@raceiq/online/service";
+import { OnlineStateStorage } from "@raceiq/online/state-storage";
+import { createOnlineRoutes, type OnlineRoutes } from "../../src/routes/online-routes";
 
 describe("static asset headers", () => {
   test("marks gzip JSON assets for transparent browser decompression", () => {
@@ -71,6 +74,69 @@ describe("HTTP listener access controls", () => {
       });
     } finally {
       server.stop(true);
+    }
+  });
+
+  test("completes cross-site Online sign-in without dashboard credentials", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "raceiq-callback-"));
+    const previousPort = process.env.SERVER_PORT;
+    let secret = "";
+    let routes: OnlineRoutes | undefined;
+    let access = await createHttpAccess({ NODE_ENV: "production", SERVER_PASSWORD: "abcdefgh" });
+    const server = startHttpServer({
+      port: 0, staticDir: null, devPublicDir: null,
+      access: { ...access, authorize: (request) => access.authorize(request) },
+      app: { fetch: (request) => routes?.fetch(request) ?? new Response(null, { status: 503 }) },
+    });
+    try {
+      process.env.SERVER_PORT = String(server.port);
+      access = await createHttpAccess({
+        NODE_ENV: "production", SERVER_PASSWORD: "abcdefgh", SERVER_PORT: String(server.port),
+      });
+      const base = `http://127.0.0.1:${server.port}`;
+      const service = createRaceIqOnlineService({
+        storage: new OnlineStateStorage(directory),
+        redirectUri: `${base}/api/online/auth/callback`,
+        keystore: { getSecret: async () => secret, setSecret: async (_key, value) => { secret = value; } },
+        auth: {
+          async refreshSession() { throw new Error("No prior session"); },
+          async beginSignIn() {
+            return {
+              authorizationUrl: "https://auth.example/auth/v1/authorize",
+              expiresAt: Date.now() + 60_000, cancel() {},
+              async complete(url) {
+                if (new URL(url).searchParams.get("code") !== "single-use") throw new Error("Invalid authorization code");
+                return { accessToken: "access", refreshToken: "refresh", userId: "driver", discordAccountName: "Driver", expiresAt: Date.now() / 1000 + 3600 };
+              },
+            };
+          },
+        },
+        adapter: {
+          async getPolicy() { return { available: true, termsVersion: "1", privacyVersion: "1", termsUrl: "https://example.com/terms", privacyUrl: "https://example.com/privacy" }; },
+          async getMe() { return { userId: "driver", displayName: "Driver", avatarUrl: null }; },
+          async getConsent() { return { accepted: false, currentAcceptance: null, policy: { available: true, termsVersion: "1", privacyVersion: "1", termsUrl: "https://example.com/terms", privacyUrl: "https://example.com/privacy" } }; },
+          async getPreferences() { return { visibility: "private", setupUploads: false }; },
+        },
+      });
+      routes = createOnlineRoutes(service);
+      const state = await service.getState();
+      expect((await service.connect({ expectedRevision: state.revision, accountEpoch: state.accountEpoch })).ok).toBe(true);
+      const headers = { "sec-fetch-site": "cross-site", "sec-fetch-mode": "navigate" };
+      expect((await fetch(`${base}/api/online/state`, { headers })).status).toBe(403);
+      expect((await fetch(`${base}/api/online/auth/callback`, { method: "POST", headers })).status).toBe(403);
+      expect((await fetch(`${base}/api/online/auth/callback?code=single-use`, { headers: { ...headers, origin: "https://attacker.example" } })).status).toBe(403);
+      expect((await service.getState()).connection.status).toBe("signing_in");
+      const response = await fetch(`${base}/api/online/auth/callback?code=single-use`, { headers });
+      expect(response.status).toBe(200);
+      expect((await service.getState()).connection).toMatchObject({ status: "connected", account: { userId: "driver" } });
+      expect(secret).toBe("refresh");
+      expect((await service.getState()).uploadAllowed).toBe(false);
+      expect((await fetch(`${base}/api/online/auth/callback?code=single-use`, { headers })).status).toBe(400);
+    } finally {
+      server.stop(true);
+      if (previousPort === undefined) delete process.env.SERVER_PORT;
+      else process.env.SERVER_PORT = previousPort;
+      rmSync(directory, { recursive: true, force: true });
     }
   });
 });

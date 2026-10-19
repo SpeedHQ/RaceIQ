@@ -43,6 +43,7 @@
     "@mastra/hono": "^1.7.9",
     "mitata": "^1.0.34",
     "@raceiq/backend-core": "workspace:*",
+    "@raceiq/online": "workspace:*",
     "@raceiq/shared": "workspace:*",
     "@raceiq/capture-formats": "workspace:*",
     "@raceiq/capture-splitting": "workspace:*",

@@ -58,6 +58,28 @@ describe("HTTP access policy", () => {
     expect(await local.authorize(request("/", { "sec-fetch-site": "cross-site", "sec-fetch-mode": "navigate" }))).toBeUndefined();
   });
 
+  test("allows only the fixed Online callback without dashboard credentials", async () => {
+    const access = await createHttpAccess({
+      NODE_ENV: "production", SERVER_PASSWORD: password, SERVER_PORT: "4317",
+      SERVER_ALLOWED_ORIGINS: "https://dashboard.example",
+    });
+    const headers = { host: "127.0.0.1:4317", "sec-fetch-site": "cross-site", "sec-fetch-mode": "navigate" };
+    const callback = "http://127.0.0.1:4317/api/online/auth/callback?code=single-use&state=opaque";
+    expect(await access.authorize(new Request(callback, { headers }))).toBeUndefined();
+    for (const target of [
+      callback.replace("127.0.0.1", "localhost"),
+      callback.replace(":4317", ":4318"),
+      callback.replace("/callback", "/callback/"),
+      callback.replace("/auth/callback", "/state"),
+    ]) {
+      const requestHeaders = { ...headers, host: new URL(target).host };
+      expect((await access.authorize(new Request(target, { headers: requestHeaders })))?.status).toBe(403);
+    }
+    expect((await access.authorize(new Request(callback, { method: "POST", headers })))?.status).toBe(403);
+    expect((await access.authorize(new Request(callback, { headers: { ...headers, origin: "https://attacker.example" } })))?.status).toBe(403);
+    expect((await access.authorize(new Request(callback, { headers: { ...headers, host: "attacker.example" } })))?.status).toBe(403);
+  });
+
   test("accepts the LAN dashboard authority forwarded by Vite without trusting a different browser origin", async () => {
     for (const path of ["/api/status", "/ws"]) {
       const headers = { origin: "http://192.168.1.135:4051", "x-forwarded-host": "192.168.1.135:4051", "x-forwarded-proto": "http" };

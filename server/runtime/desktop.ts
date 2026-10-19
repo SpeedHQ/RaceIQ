@@ -17,16 +17,26 @@ export function preventMacSleep(): void {
   }
 }
 
-export function openFirstRunDashboard(port: number): void {
-  const url = `http://localhost:${port}`;
-  console.log(`[Server] First run detected — opening ${url}`);
+export function openDashboard(url: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+    if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password || parsed.pathname !== "/" || parsed.search || parsed.hash) return;
+  } catch {
+    return;
+  }
+  console.log(`[Server] Opening dashboard at ${parsed.origin}`);
   try {
     if (IS_WINDOWS) {
-      spawn("cmd", ["/c", "start", url], { stdio: "ignore", detached: true }).unref();
+      spawn("cmd", ["/c", "start", "", parsed.origin], { stdio: "ignore", detached: true }).unref();
     } else if (IS_DARWIN) {
-      spawn("open", [url], { stdio: "ignore", detached: true }).unref();
+      spawn("open", [parsed.origin], { stdio: "ignore", detached: true }).unref();
     } else {
-      spawn("xdg-open", [url], { stdio: "ignore", detached: true }).unref();
+      spawn("xdg-open", [parsed.origin], { stdio: "ignore", detached: true }).unref();
     }
   } catch {}
+}
+
+export function openFirstRunDashboard(port: number): void {
+  openDashboard(`http://localhost:${port}`);
 }

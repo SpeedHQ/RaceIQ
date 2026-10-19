@@ -9,6 +9,7 @@ export interface ZipExtractionLimits {
   maxEntries: number;
   maxEntryBytes: number;
   maxTotalBytes: number;
+  strictEntryNames?: boolean;
 }
 
 export const MOTEC_ZIP_LIMITS: ZipExtractionLimits = {
@@ -104,6 +105,7 @@ function preflightZip(bytes: Uint8Array, limits: ZipExtractionLimits): void {
 
   let cursor = centralDirectoryOffset;
   let totalBytes = 0;
+  const entryNames = new Set<string>();
   for (let index = 0; index < entryCount; index++) {
     if (
       cursor + CENTRAL_FILE_HEADER_BYTES > centralDirectoryEnd ||
@@ -140,10 +142,15 @@ function preflightZip(bytes: Uint8Array, limits: ZipExtractionLimits): void {
       cursor + CENTRAL_FILE_HEADER_BYTES,
       cursor + CENTRAL_FILE_HEADER_BYTES + nameLength,
     );
-    const name = zipNameDecoder
-      .decode(nameBytes)
-      .replace(/[^\x20-\x7e]/g, "?")
-      .slice(0, 128);
+    const decodedName = zipNameDecoder.decode(nameBytes);
+    if (limits.strictEntryNames) {
+      if (!decodedName || !/^[\x20-\x7e]+$/.test(decodedName) || decodedName.startsWith("/") || decodedName.includes("\\") || decodedName.split("/").some((part) => part === "." || part === ".." || part === "")) {
+        throw new Error("ZIP entry path is unsafe");
+      }
+      if (entryNames.has(decodedName)) throw new Error(`ZIP entry "${decodedName}" is duplicated`);
+      entryNames.add(decodedName);
+    }
+    const name = decodedName.replace(/[^\x20-\x7e]/g, "?").slice(0, 128);
     if ((flags & 1) !== 0) {
       throw new Error(`ZIP entry "${name}" is encrypted`);
     }

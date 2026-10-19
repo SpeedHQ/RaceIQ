@@ -1,5 +1,6 @@
 import { m } from "@/paraglide/messages";
 
+
 export const NAV_ITEMS = [
   { id: "general", label: "General" },
   { id: "games", label: "Games" },

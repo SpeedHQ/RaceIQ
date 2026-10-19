@@ -15,6 +15,7 @@ import { enqueueSessionCaptureSplit, updateSessionRawFile } from "../db/session-
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { PARSER_BOOTSTRAP_VERSION } from "@raceiq/capture-formats/session/framing";
 import { applyFrameTime } from "./frame-time";
+import { notifyOnlineSync } from "@raceiq/online/sync-events";
 import type { TelemetryPacket } from "@raceiq/shared/telemetry/types";
 import { isDelayedFinishContext } from "../db/telemetry-replay-storage";
 export interface ReprocessResult {
@@ -67,6 +68,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
   if (!session) {
     throw new SessionNotFoundError(sessionId);
   }
+  if (session.source === "cloud-import") throw new Error("Cloud-imported laps use committed processing metadata and cannot be reprocessed");
   if (!session.rawFile) {
     throw new SessionRawFileMissingError(sessionId);
   }
@@ -254,6 +256,7 @@ async function reprocessSessionUnlocked(sessionId: number): Promise<ReprocessRes
   }
 
   await updateSessionRawFile(sessionId, session.rawFile, detector.detectorId, versionIdentity);
+  notifyOnlineSync();
 
   return { sessionId, lapsDetected: detectedLaps.length, lapsUpdated, strategy };
 }

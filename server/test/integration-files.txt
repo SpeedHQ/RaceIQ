@@ -1,2 +1,3 @@
 server/test/games/kunos/recording-mode-pipeline.test.ts
 server/test/games/kunos/triplet-assembler.test.ts
+server/test/integrations/raceiq-online/upload-candidates.test.ts

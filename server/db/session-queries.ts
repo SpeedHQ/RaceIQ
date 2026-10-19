@@ -5,8 +5,9 @@ import { rm, stat } from "node:fs/promises";
 import type { Stats } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { getRecordedElapsedSeconds } from "../session-capture/elapsed-duration";
+import { getLapById } from "./lap-read-queries";
 import { cacheDelete } from "./telemetry-replay-storage";
-import { eq, desc, and, or, sql, inArray, notInArray, isNull, lt, asc } from "drizzle-orm";
+import { eq, desc, and, or, sql, inArray, notInArray, isNull, ne, lt, asc } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, sessionResults, pitEvents, sessionCaptureSplitJobs, liveCaptures } from "./schema";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
@@ -20,7 +21,6 @@ import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
 import { getLMUTrack } from "@raceiq/game-lmu-metadata/catalog";
 import { wsManager } from "../runtime/websocket-manager";
 import type { SessionCaptureSplitStatus } from "@raceiq/shared/racing/sessions/types";
-import { getLapById } from "./lap-read-queries";
 import type { PublishedManifest } from "@raceiq/capture-splitting";
 import { clearCaptureManifestCache, loadCaptureManifest } from "../session-capture/source-loader";
 import { recoverLiveCaptureStorage } from "../session-capture/live-recovery";
@@ -505,6 +505,7 @@ async function getAvailableStaleSessionRows(
       and(
         sql`${sessions.rawFile} IS NOT NULL`,
         inArray(sessions.gameId, reprocessableGameIds),
+        or(isNull(sessions.source), ne(sessions.source, "cloud-import")),
         or(eq(sessions.captureFormatVersion, 1), eq(sessions.source, MOTEC_SESSION_SOURCE)),
         or(isNull(sessions.lapDetectorVersion), notInArray(sessions.lapDetectorVersion, ids))
       )
@@ -587,6 +588,13 @@ async function unlinkOwnedSessionRawFile(rawFile: string | null): Promise<void> 
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
 }
+async function unlinkCloudSetupIfUnshared(setupPath: string | null): Promise<void> {
+  if (!setupPath || !isOwnedSessionRawFile(setupPath) || !/^cloud-[0-9a-f-]{36}\.setup$/.test(setupPath.split(/[\\/]/).at(-1) ?? "")) return;
+  const referenced = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.cloudImportSetupPath, setupPath)).limit(1).get();
+  if (referenced) return;
+  try { if (existsSync(setupPath)) unlinkSync(setupPath); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+}
 
 function manifestMemberPaths(manifestPath: string): string[] {
   try {
@@ -645,6 +653,7 @@ async function deleteSessionUnlocked(sessionId: number): Promise<number> {
       rawFile: sessions.rawFile,
       manifestFile: sessions.captureManifestFile,
       archiveFile: sessions.captureArchiveFile,
+      setupPath: sessions.cloudImportSetupPath,
     }).from(sessions).where(eq(sessions.id, sessionId)).get();
     if (!session) return null;
     const liveCapture = await tx.select({ status: liveCaptures.status, committedArchiveLength: liveCaptures.committedArchiveLength })
@@ -670,6 +679,7 @@ async function deleteSessionUnlocked(sessionId: number): Promise<number> {
   for (const lapId of deleted.lapIds) cacheDelete(lapId);
   await unlinkOwnedSessionRawFile(deleted.rawFile);
   await unlinkUnsharedCaptureBundle(deleted.manifestFile, deleted.archiveFile);
+  await unlinkCloudSetupIfUnshared(deleted.setupPath);
   return deleted.lapIds.length;
 }
 

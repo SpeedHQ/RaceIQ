@@ -50,10 +50,7 @@ async function assertImagesLoaded(page: Page) {
   expect(broken, `broken images:\n${broken.join("\n")}`).toEqual([]);
 }
 
-// Serial: wizard runs first and flips server-side onboardingComplete=true,
-// so later tests can navigate straight to game routes without the modal.
-test.describe
-  .serial("fresh install", () => {
+test.describe.serial("fresh install", () => {
     test.setTimeout(140_000);
     test("user steps through wizard and lands on home page", async ({ page, request }) => {
       await resetFreshInstallState();
@@ -73,14 +70,16 @@ test.describe
       await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Enable password protection", exact: true }).click();
       await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
       await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Continue without a password" }).click();
-      await page.getByRole("button", { name: "Next", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "Choose how to get started", exact: true })).toBeVisible();
+      await page.getByRole("radio", { name: "Offline", exact: true }).check();
+      await page.getByRole("button", { name: "Continue offline", exact: true }).click();
 
-      // Step 3: Profile
+      // Step 4: Profile
       await expect(page.getByRole("heading", { name: "What's your name?" })).toBeVisible();
       await page.getByLabel("Driver name").fill("TestDriver");
       await page.getByRole("button", { name: "Next" }).click();
 
-      // Step 3: Wheel
+      // Step 5: Wheel
       await expect(page.getByText(/Choose the steering wheel/i)).toBeVisible();
       await page.getByRole("button", { name: "Next" }).click();
 
@@ -169,8 +168,10 @@ test.describe
       await page.goto("/", { waitUntil: "domcontentloaded" });
       await page.getByRole("button", { name: "Get Started" }).click();
       await page.getByRole("group", { name: "Password protection", exact: true }).getByRole("button", { name: "Continue without a password" }).click();
-      await expect(page.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
       await page.getByRole("button", { name: "Next", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "Choose how to get started", exact: true })).toBeVisible();
+      await page.getByRole("radio", { name: "Offline", exact: true }).check();
+      await page.getByRole("button", { name: "Continue offline", exact: true }).click();
       for (const heading of ["What's your name?", "Choose the steering wheel displayed during live telemetry.", "Units", "Sound", "Launch on Login"]) {
         await expect(page.getByRole("heading", { name: heading })).toBeVisible();
         await page.getByRole("button", { name: "Next" }).click();
@@ -462,7 +463,10 @@ test("setup wizard applies native recording-folder choices immediately and safel
   }
   await page.goto("/onboarding?welcome=true", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Get Started", exact: true }).click();
-  for (let step = 0; step < 6; step++) await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Choose how to get started", exact: true })).toBeVisible();
+  await page.getByRole("radio", { name: "Offline", exact: true }).check();
+  await page.getByRole("button", { name: "Continue offline", exact: true }).click();
+  for (let step = 0; step < 5; step++) await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Storage", exact: true })).toBeVisible();
   const initialStatus = await (await page.request.get("/api/storage/recording-directory")).json() as { directory: string };
   const nestedDestination = resolve(initialStatus.directory, "raceiq");

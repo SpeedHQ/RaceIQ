@@ -20,7 +20,9 @@ import { f125Routes } from "./games/f1-2025";
 import { miscRoutes } from "./system/index";
 import { cacheRoutes } from "./cache-routes";
 import { devRoutes } from "./dev/index";
+import { onlineRoutes } from "./online-routes";
 import { dashboardRoutes } from "./dashboard-routes";
+import { cloudLapImportRoutes } from "./cloud-lap-import-routes";
 
 const app = new Hono()
   .use("/*", async (c, next) => {
@@ -55,7 +57,9 @@ const app = new Hono()
   .route("/", acEvoRoutes)
   .route("/", f125Routes)
   .route("/", miscRoutes)
-  .route("/", cacheRoutes);
+  .route("/", cacheRoutes)
+  .route("/", onlineRoutes)
+  .route("/", cloudLapImportRoutes);
 
 // Fixture import/replay routes stay unavailable in normal production. Compiled
 // Playwright runs opt in explicitly so they exercise the packaged server too.

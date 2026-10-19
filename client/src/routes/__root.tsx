@@ -25,6 +25,7 @@ import { telemetryStore, useTelemetryStore } from "../stores/telemetry";
 import { gameIdForPathname } from "../lib/game-routes";
 import { uiStore, useUiStore } from "../stores/ui";
 import { GameRouteProvider, gameStore, usesStoreGameContext, useGameStore } from "../stores/game";
+import { CloudLapImportActivation } from "@/hooks/cloud-lap-import";
 function OverlayShell() {
   useWebSocket();
   const { displaySettings, settingsLoaded } = useSettings();
@@ -46,7 +47,6 @@ function OverlayShell() {
 function isOverlayPath(pathname: string) {
   return pathname === "/overlay" || pathname === "/overlay/";
 }
-
 
 let _gamePrefixes: string[] | null = null;
 function getGamePrefixes() {
@@ -244,7 +244,8 @@ function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <GameRouteProvider value={gameId}>
         {auth.authenticated && <DashboardConnection />}
-        {isOverlayPath(location.pathname) ? <OverlayShell /> : pathname === "/login" || pathname === "/onboarding" ? <Outlet /> : <AppShell />}
+        {auth.authenticated && auth.onboardingComplete && !isOverlayPath(pathname) && <CloudLapImportActivation />}
+        {isOverlayPath(pathname) ? <OverlayShell /> : pathname === "/login" || pathname === "/onboarding" ? <Outlet /> : <AppShell />}
       </GameRouteProvider>
     </QueryClientProvider>
   );

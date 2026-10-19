@@ -1,11 +1,33 @@
 ## Unreleased
 
+
 ### Features
+- Open downloadable Community Laps directly in RaceIQ for replay and comparison, with the original driver's name and recording time.
+- Open website lap links in the installed Windows app, resume downloads after sign-in, and reuse already imported laps.
+- Add optional RaceIQ Online onboarding, Online controls in General settings, and separate Community Laps while keeping offline features available.
+- Choose Discord sign-in or offline setup using selectable cards after Welcome and review sharing permissions after sign-in.
+- Use your Discord-linked Online name as the onboarding placeholder; offline names remain local.
+- Inspect Online upload status, queue counts, and the last successful sync time in a persistent Upload queue panel.
 - Choose a 50–100 Hz recording frequency for ACC, AC Evo, iRacing, or LMU during setup to reduce recording size. Live UDP recording is unchanged.
 - Downsample saved recordings manually or with an opt-in age policy in Storage settings; measure the first 1,000 frame timestamps per stream and skip recordings already at or below the target. Track progress and retry failed files. Favorites and MoTeC imports stay unchanged.
 - Split recordings into individual, lossless per-lap `.bin` files so lap 60 loads as fast as lap 1.
 
 ### Fixes
+- Report Online queue counts and the last successful upload from durable account-owned outcomes, preserving sync history across restarts without advancing it after failures or status refreshes.
+- Keep cloud lap import polling off login and setup screens, and acknowledge opened laps so new dashboard tabs do not reopen old imports.
+- Keep overlays on their current page when cloud laps are opened.
+- Restore cloud laps after Storage cleanup without duplicate library entries, using the selected recording folder.
+- Remove unused downloaded setup files when deleting cloud laps or cleaning storage.
+- Reject malformed protocol links and truncated cloud recordings, isolate activation socket failures, and recover already accepted Online uploads.
+- Load RaceIQ Online leaderboards for the selected game, track, and car using your signed-in account.
+- Remember Online policy acceptance and confirmed sharing preferences across sign-in and refresh.
+- Keep Online sign-in and saved sharing choices across restarts, service outages, and temporarily unavailable credentials; disable remote actions until authentication recovers.
+- Preserve newer private and setup-sharing-off choices when older Online requests finish, and keep explicit sign-out effective when saved credentials cannot be cleared.
+- Retry queued Online uploads after temporary account or service failures and remove obsolete upload files without deleting files still in use.
+- Edit Online leaderboard names and sharing settings as local drafts; retain unsaved changes after failed saves.
+- Retry failed Online permission saves and recover sign-in after account switches or delayed responses.
+- Allow Back in the setup wizard even when saving the driver profile fails.
+- Complete browser sign-in on password-protected dashboards, show recovery guidance when needed, and remove callback credentials from the address bar.
 - Use LMU game-world coordinates directly for track geometry, preserving edge-hugging and off-track positions.
 - Prevent overlapping database writes from blocking recording imports and setup or session deletion.
 - Allow repeated recording downsampling without exceeding filesystem filename limits.
@@ -26,6 +48,10 @@
 - Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
 
 ### Internal
+- Preserve Online cloud imports and queue delivery alongside main's per-lap recording publication; cloud upload integration must consume published lap files rather than split sessions again.
+- Use pinned Effect PersistedQueue and SQLite for Online delivery, retaining account-owned request identity and sync history.
+- Extract Online contracts, account service, adapter, upload delivery and storage into a dedicated workspace.
+- Upgrade Online to `@speedhq/live-client@0.1.13`, including authenticated leaderboards, reserved uploads, and manifest-v2 lap imports.
 - Reuse generic lap-bundle construction and separate capture-file accounting from `@raceiq/capture-splitting`; keep downsampling orchestration, database publication, and game adapters in the server.
 - Isolate streaming downsampling and its regression suite in `@raceiq/capture-downsampling`, depending on public capture-format codecs without importing backend policy or lap splitting.
 - Verify onboarding migration recovery through Storage re-entry with deterministic cache expiry, without relying on a hidden no-work Refresh control.

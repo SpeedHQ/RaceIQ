@@ -1,0 +1,32 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tags": ["composition"],
+  "tasks": {
+    "transit": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/*.test.ts",
+        "!**/*.test.tsx",
+        "!test/*-files.txt"
+      ]
+    },
+    "test": {
+      "dependsOn": ["transit"],
+      "inputs": [
+        "$TURBO_EXTENDS$",
+        "$TURBO_ROOT$/server/test-support/setup-data-dir.ts"
+      ]
+    },
+    "test:unit": {
+      "dependsOn": ["transit"]
+    },
+    "test:integration": {
+      "dependsOn": ["transit"],
+      "inputs": [
+        "$TURBO_EXTENDS$",
+        "$TURBO_ROOT$/server/test-support/setup-data-dir.ts"
+      ]
+    }
+  }
+}

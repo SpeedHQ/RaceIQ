@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
+import { getLocale } from "@/paraglide/runtime";
 
 function buildComparisonLapOption(lap: LapMeta, locale?: "en" | "de") {
   return {
@@ -53,6 +54,8 @@ export function ComparisonSelectors({
   aiPanelOpen: boolean;
   toggleAiPanel: () => void;
 }) {
+  const selectedLapA = carALaps.find((lap) => lap.id === lapAId);
+  const selectedLapB = carBLaps.find((lap) => lap.id === lapBId);
   return (
     <div className="flex shrink-0 flex-wrap items-end gap-3">
       <div className="flex w-full min-w-0 flex-col gap-1 @sm/workspace:w-auto @sm/workspace:min-w-[140px] @sm/workspace:flex-1 @3xl/workspace:max-w-[260px]">
@@ -101,6 +104,7 @@ export function ComparisonSelectors({
               {carALaps.find((lap) => lap.id === lapAId)?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}
             </span>
           )}
+          {selectedLapA?.sourceAuthorDisplayName && <span className="text-app-detail text-app-text-muted">{m.online_lap_by_author({ author: selectedLapA.sourceAuthorDisplayName })} · {selectedLapA.recordedAt ? new Date(selectedLapA.recordedAt).toLocaleString(getLocale()) : m.online_lap_recording_time_unavailable()}</span>}
         </div>
       </div>
       <div className="flex w-full min-w-0 flex-col gap-1 @sm/workspace:w-auto @sm/workspace:min-w-[120px] @sm/workspace:flex-1 @3xl/workspace:max-w-[220px]">
@@ -137,6 +141,7 @@ export function ComparisonSelectors({
               {carBLaps.find((lap) => lap.id === lapBId)?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}
             </span>
           )}
+          {selectedLapB?.sourceAuthorDisplayName && <span className="text-app-detail text-app-text-muted">{m.online_lap_by_author({ author: selectedLapB.sourceAuthorDisplayName })} · {selectedLapB.recordedAt ? new Date(selectedLapB.recordedAt).toLocaleString(getLocale()) : m.online_lap_recording_time_unavailable()}</span>}
         </div>
       </div>
       <div className="ml-auto flex w-full flex-col gap-1 self-end @3xl/workspace:w-auto">

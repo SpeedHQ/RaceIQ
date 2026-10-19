@@ -172,6 +172,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
           {selectedLap && <FavoriteToggleButton target="lap" id={selectedLap.id} isFavorite={Boolean(selectedLap.isFavorite)} />}
           {selectedLapId != null && selectedLap?.source === "motec" && <MotecBadge />}
         </div>
+        {selectedLap?.sourceAuthorDisplayName && <p className="px-1 text-app-detail text-app-text-muted">{m.online_lap_by_author({ author: selectedLap.sourceAuthorDisplayName })} · {selectedLap.recordedAt ? new Date(selectedLap.recordedAt).toLocaleString(getLocale()) : m.online_lap_recording_time_unavailable()}</p>}
 
         {/* Tune / setup controls.
           F1 25 laps capture the full car setup on-packet, surfaced via the

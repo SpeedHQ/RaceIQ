@@ -2,6 +2,8 @@ import { resolveRecordingDirectory } from "../runtime/config/recording-directory
 /**
  * Session file cleanup for startup and scheduled maintenance.
  *
+ * Removes tiny `.bin` captures and orphaned `.bin`, `.bin.gz`, `.motec.zip`,
+ * and cloud-import setup attachments not referenced by session rows.
  * Removes unreferenced recording files and controlled legacy/indexed bundle artifacts.
  * Protects published references, shared sources, and active split attempts.
  */
@@ -26,7 +28,7 @@ export function withSessionCaptureMaintenanceLock<T>(
 
 export async function loadReferencedCapturePaths(): Promise<Set<string>> {
   const [sessionRows, jobRows, liveRows] = await Promise.all([
-    db.select({ rawFile: sessions.rawFile, archiveFile: sessions.captureArchiveFile, manifestFile: sessions.captureManifestFile }).from(sessions).all(),
+    db.select({ rawFile: sessions.rawFile, archiveFile: sessions.captureArchiveFile, manifestFile: sessions.captureManifestFile, setupPath: sessions.cloudImportSetupPath }).from(sessions).all(),
     db.select({ sourcePath: sessionCaptureSplitJobs.sourcePath, stagingPath: sessionCaptureSplitJobs.stagingPath })
       .from(sessionCaptureSplitJobs).all(),
     db.select({ sourcePath: liveCaptures.sourcePath, archivePath: liveCaptures.archivePath, status: liveCaptures.status, committedArchiveLength: liveCaptures.committedArchiveLength })
@@ -37,6 +39,7 @@ export async function loadReferencedCapturePaths(): Promise<Set<string>> {
     if (row.rawFile) referenced.add(resolve(row.rawFile));
     if (row.archiveFile) referenced.add(resolve(row.archiveFile));
     if (row.manifestFile) referenced.add(resolve(row.manifestFile));
+    if (row.setupPath) referenced.add(resolve(row.setupPath));
   }
   for (const row of jobRows) {
     referenced.add(resolve(row.sourcePath));
@@ -70,6 +73,18 @@ export async function loadReferencedCapturePaths(): Promise<Set<string>> {
  * Shared with compression so both maintenance paths apply the same directory
  * and extension rules.
  */
+async function listCloudSetupFiles(): Promise<string[]> {
+  const root = resolveRecordingDirectory();
+  const files: string[] = [];
+  for (const game of await readdir(root, { withFileTypes: true }).catch(() => [])) {
+    if (!game.isDirectory()) continue;
+    const directory = join(root, game.name);
+    for (const entry of await readdir(directory, { withFileTypes: true }).catch(() => [])) {
+      if (entry.isFile() && /^cloud-[0-9a-f-]{36}\.setup$/.test(entry.name)) files.push(join(directory, entry.name));
+    }
+  }
+  return files;
+}
 export async function listSessionCaptureFiles(): Promise<string[]> {
   const sessionsDir = resolveRecordingDirectory();
   const captureFiles: string[] = [];
@@ -173,7 +188,7 @@ export async function cleanupOrphanSessionFiles(
     if (!existsSync(sessionsDir)) return 0;
 
     const referenced = await loadReferencedCapturePaths();
-    const captureFiles = [...await listSessionCaptureFiles(), ...await listBundleFiles()];
+    const captureFiles = [...await listSessionCaptureFiles(), ...await listBundleFiles(), ...await listCloudSetupFiles()];
     let removed = 0;
     for (const filePath of captureFiles) {
       if (sessionActive()) break;

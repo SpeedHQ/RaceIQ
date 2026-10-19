@@ -29,6 +29,7 @@ import { WorkerSessionRecorder, type WorkerRecorderOptions } from "@raceiq/captu
 import { SparseSessionRecorder } from "@raceiq/capture-formats/session/sparse-recorder";
 import { resolveRecordingGameDirectory } from "../runtime/config/recording-directory";
 import { timestampForFilename } from "../session-capture/filename";
+import { notifyOnlineSync } from "@raceiq/online/sync-events";
 
 export function currentTelemetryVersionIdentity(gameId: GameId): TelemetryVersionIdentity {
   return {
@@ -227,6 +228,7 @@ export class RealDbAdapter implements DbAdapter {
         const binding = { sessionId, lapId, lapNumber, startByteOffset: rawByteOffset, frameCount: rawFrameCount };
         for (const listener of this.lapBindingListeners) listener(binding);
       }
+      notifyOnlineSync();
       return lapId;
     })();
     writes.add(pending);
@@ -257,6 +259,7 @@ export class RealDbAdapter implements DbAdapter {
   async updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string, sparseCapture = false): Promise<void> {
     await updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
     if (sparseCapture) await markSessionCaptureFormatCurrent(sessionId);
+    notifyOnlineSync();
   }
   async updateSessionCarTrack(sessionId: number, carId: string, trackId: string): Promise<void> {
     await updateSessionCarTrack(sessionId, carId, trackId);
@@ -463,8 +466,10 @@ export class SparseSessionRecorderAdapter implements SessionRecorderAdapter {
     const recorder = this.inner;
     this.inner = null;
     if (recorder) {
-      try { await recorder.stop(); }
-      finally {
+      try {
+        await recorder.stop();
+        notifyOnlineSync();
+      } finally {
         if (recorder instanceof WorkerSessionRecorder && (liveCaptureWorkerFactory || this.workerOptions.worker)) await recorder.worker.terminate();
       }
     }

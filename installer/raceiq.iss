@@ -114,6 +114,11 @@ Type: filesandordirs; Name: "{app}\public\*"
 ; Create startup entry on install (enabled by default)
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "RaceIQ"; ValueData: """{app}\raceiq.exe"""; Flags: uninsdeletevalue
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"; ValueType: binary; ValueName: "RaceIQ"; ValueData: 03 00 00 00 00 00 00 00 00 00 00 00; Flags: uninsdeletevalue
+; Register per-user URL activation; Windows quotes executable and URL as separate arguments.
+Root: HKCU; Subkey: "Software\Classes\raceiq"; ValueType: string; ValueData: "URL:RaceIQ Protocol"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\raceiq"; ValueName: "URL Protocol"; ValueType: string; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\raceiq\DefaultIcon"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKCU; Subkey: "Software\Classes\raceiq\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
 [Icons]
 Name: "{userprograms}\{#MyAppName}"; Filename: "wscript.exe"; Parameters: """{app}\raceiq-launcher.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"

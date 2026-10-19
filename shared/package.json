@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./integrations/cloud-lap-import": "./integrations/cloud-lap-import.ts",
     "./platform/network/hud-hostname": "./platform/network/hud-hostname.ts",
     "./racing/sessions/dashboard": "./racing/sessions/dashboard.ts",
     "./core/numbers": "./core/numbers.ts",

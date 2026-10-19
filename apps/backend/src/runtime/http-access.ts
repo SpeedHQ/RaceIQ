@@ -105,13 +105,21 @@ export async function createHttpAccess(env: NodeJS.ProcessEnv = process.env, aut
     if (host && host.toLowerCase() !== url.host.toLowerCase()) {
       return new Response("Forbidden", { status: 403 });
     }
-    if (auth && origins.size > 0 && ![...origins].some((value) => new URL(value).host === url.host) && !(development && localHost(url.hostname))) return new Response("Forbidden", { status: 403 });
+    // OAuth redirects use a fixed loopback destination, not the dashboard's
+    // hostname or cookie. The route validates the single-use flow and PKCE;
+    // the listener separately rejects non-loopback peers for Online routes.
+    const onlineAuthCallback = request.method === "GET" && url.protocol === "http:"
+      && url.hostname === "127.0.0.1" && url.port === String(port)
+      && host === `127.0.0.1:${port}` && !url.username && !url.password
+      && url.pathname === "/api/online/auth/callback";
+    if (!onlineAuthCallback && auth && origins.size > 0 && ![...origins].some((value) => new URL(value).host === url.host) && !(development && localHost(url.hostname))) return new Response("Forbidden", { status: 403 });
     const origin = request.headers.get("origin");
     if (origin !== null && !allowsOrigin(origin, request)) return new Response("Forbidden", { status: 403 });
     if (!origin && request.headers.get("sec-fetch-site") === "cross-site") {
       const navigation = request.method === "GET" && request.headers.get("sec-fetch-mode") === "navigate" && !/^\/(?:api|studio-api|ws)(?:\/|$)/.test(url.pathname);
-      if (!navigation) return new Response("Forbidden", { status: 403 });
+      if (!navigation && !onlineAuthCallback) return new Response("Forbidden", { status: 403 });
     }
+    if (onlineAuthCallback) return;
     // Browser preflight carries no credentials. Only trusted origins get past
     // the checks above; the subsequent actual request still needs authentication.
     if (origin && request.method === "OPTIONS" && request.headers.has("access-control-request-method")) {
