@@ -7,8 +7,10 @@
 - Automatically check existing recordings for non-pace laps after upgrades, with progress, source limitations, and retry controls in Settings → Updates.
 - Show lap classifications separately from validity in expanded session lap tables.
 - Simplify session timelines into compact circles with single-word event labels, starting positions, and arrows showing the new position.
+- Provide a Linux x86_64 AppImage for Ubuntu 22.04 and newer, with AppImageUpdate-compatible GitHub release deltas.
 
 ### Fixes
+- Keep first-run setup responsive by omitting the optional telemetry demo.
 - Label the community setup copy action “Clone” in the setup browser.
 - Leave MoTeC imports unchanged during historical lap-classification upgrades.
 - Retry updated native recordings instead of retaining an obsolete classification failure.
@@ -50,17 +52,21 @@
 - Block screenshots for chat models without verified image support and keep text conversations usable.
 - Hide the entire Tires section on iRacing live dashboards without changing recorded-lap analysis or other games.
 - Hide iRacing 3D track, racing-line, tire-trail, and input overlays because live telemetry does not provide world-position samples.
+- Complete first-run sparse recording migration in compiled builds instead of failing.
 
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
 - Align recording and browser E2E coverage with independent lap classification, pace-only review, current setup-source labels, and recording-organization consent controls.
+- Stabilize recording and browser E2E checks with bounded fixture reads, metadata-only experiment setup, browser-side playback pausing, and seeded demo capture using the correct Playwright configuration.
 - Reuse generic lap-bundle construction and separate capture-file accounting from `@raceiq/capture-splitting`; keep downsampling orchestration, database publication, and game adapters in the server.
 - Isolate streaming downsampling and its regression suite in `@raceiq/capture-downsampling`, depending on public capture-format codecs without importing backend policy or lap splitting.
 - Verify onboarding migration recovery through Storage re-entry with deterministic cache expiry, without relying on a hidden no-work Refresh control.
 - Manage recording maintenance with Effect, ordered downsampling and deletion, and awaited shutdown.
 - Preserve recording-frequency settings and migration history when upgrading earlier feature builds alongside the AC Evo Tourist-layout reconciliation.
-- Reuse the Linux build artifact across Playwright shards and collect replay allocations sooner on memory-limited CI runners.
+- Use the configured HTTP port for AppImage release smoke checks so healthy startup does not block release creation.
+- Build compiled Playwright servers on each runner so Linux E2E shards use matching binary architectures.
+- Collect replay allocations sooner on memory-limited CI runners.
 - Avoid `bun run test` port collisions with running services by selecting available ports for Playwright server sets when overrides are unset, while honoring explicit `PW_*_PORT` values and preserving isolated test databases.
 - Reuse one prepared Playwright database snapshot across seeded server sets to avoid duplicate fixture imports.
 - Update live iRacing browser checks to expect the Tires section to be absent in Driver and Pit Crew views.

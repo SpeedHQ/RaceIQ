@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type APIRequestContext } from "@playwright/test";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -6,6 +6,15 @@ import type { SessionCleanupPreview, SessionCleanupResult } from "@raceiq/shared
 import { runtime } from "../../../config/runtime";
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { cleanDisposable, importDisposableLap, lapsFor, sessionRows, sessionsFor, type DisposableImport } from "./helpers";
+
+async function waitForCleanupEligibility(request: APIRequestContext, sessionIds: number[]): Promise<void> {
+  await expect.poll(async () => {
+    const response = await request.post("/api/storage/session-cleanup/preview", { data: { mode: "selected", sessionIds } });
+    expect(response.ok(), "cleanup eligibility preview").toBe(true);
+    return ((await response.json()) as SessionCleanupPreview).candidateSessionIds;
+  }, { intervals: [250, 500, 1000], timeout: 30_000 }).toEqual([...sessionIds].sort((a, b) => a - b));
+}
+
 
 test("confirmed cleanup removes disposable capture while preserving session and laps", async ({ page, request }) => {
   const browserErrors = collectBrowserErrors(page);
@@ -15,6 +24,7 @@ test("confirmed cleanup removes disposable capture while preserving session and 
   try {
     disposable = await importDisposableLap(request, "fm-2023", "sessions-cleanup");
     const sessionIds = disposable.sessionIds;
+    await waitForCleanupEligibility(request, sessionIds);
     const lapIds = disposable.lapIds;
     // Imported captures are protected while their real per-lap split is still publishing.
     await expect.poll(async () => {
@@ -94,6 +104,7 @@ for (const favorite of ["session", "lap"] as const) {
       disposable = await importDisposableLap(request, "fm-2023", `favorite-${favorite}`);
       expect(disposable.sessionIds).toHaveLength(1);
       const sessionId = disposable.sessionIds[0];
+      await waitForCleanupEligibility(request, disposable.sessionIds);
       const capturePaths = readdirSync(capturesDir).filter((name) => (name.endsWith(".bin") || name.endsWith(".bin.gz")) && !capturesBefore.has(name)).map((name) => join(capturesDir, name));
       expect(capturePaths.length).toBeGreaterThan(0);
       const favoriteId = favorite === "session" ? sessionId : disposable.lapIds[0];

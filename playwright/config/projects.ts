@@ -76,12 +76,13 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       use: { baseURL: seededBaseURL, viewport: { width: 1440, height: 900 } },
     },
     {
+      dependencies: ["seeded-routes", "seeded-e2e", "seeded-imports"],
       fullyParallel: true,
       name: "record-demo",
       testMatch: "recording/demo.spec.ts",
       timeout: 140_000,
       use: {
-        baseURL: freshBaseURL,
+        baseURL: seededBaseURL,
         actionTimeout: 120_000,
         viewport: { width: 1920, height: 1080 },
         launchOptions: {
