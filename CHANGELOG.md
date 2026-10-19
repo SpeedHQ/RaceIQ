@@ -57,6 +57,7 @@
 - Skip LMU outline requests when stored track names do not identify one layout.
 
 ### Internal
+- Run browser and responsive verification against production builds with all release-gated features enabled, including the historical classification upgrade fixture.
 - Align recording and browser E2E coverage with independent lap classification, pace-only review, current setup-source labels, and recording-organization consent controls.
 - Stabilize recording and browser E2E checks with bounded fixture reads, metadata-only experiment setup, browser-side playback pausing, and seeded demo capture using the correct Playwright configuration.
 - Reuse generic lap-bundle construction and separate capture-file accounting from `@raceiq/capture-splitting`; keep downsampling orchestration, database publication, and game adapters in the server.

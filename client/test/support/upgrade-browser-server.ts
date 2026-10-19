@@ -1,23 +1,93 @@
 import { cp, mkdtemp, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import dgram from "node:dgram";
+import { spawn } from "node:child_process";
 import Database from "libsql";
-import type { Subprocess } from "bun";
 import { SparseSessionRecorder } from "../../../packages/capture-formats/src/session/sparse-recorder";
 import { iterateSessionFrames } from "../../../packages/capture-formats/src/session/framing";
 import { createAccMigrationFixture, seedReleaseDatabase } from "../../../apps/backend/test/e2e/support/release-database";
 import { cloneReleaseData } from "../../../apps/backend/test/e2e/support/clone-release-data";
-import { ROOT, startUpgradeServer, type UpgradeServer, command, upgradeEnvironment } from "../../../apps/backend/test/e2e/support/upgrade-server";
+import { ROOT, command, upgradeEnvironment } from "../../../apps/backend/test/e2e/support/upgrade-server";
 
-// Owned child process for Playwright: real upgraded DB, production boot, and incumbent Vite UI.
+interface ProductionServer {
+  address(): Promise<string>;
+  stop(): Promise<void>;
+}
+
+function startProductionServer(dataDir: string, httpPort: number, udpPort: number): ProductionServer {
+  const binary = resolve(ROOT, "dist", process.platform === "win32" ? "raceiq.exe" : "raceiq");
+  if (!existsSync(binary)) throw new Error(`Compiled RaceIQ binary missing at ${binary}; run the production build with both release feature flags enabled.`);
+  const child = spawn(binary, {
+    cwd: dirname(binary),
+    env: {
+      ...upgradeEnvironment(dataDir), SERVER_PORT: String(httpPort), UDP_PORT: String(udpPort),
+      RACEIQ_APP_ROOT: ROOT, RACEIQ_FEATURE_F1_EXPERIMENTS: "true", RACEIQ_FEATURE_IRACING_ADAPTER: "true",
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let output = "";
+  let exited = false;
+  let spawnError: Error | undefined;
+  const consume = async (stream: NodeJS.ReadableStream) => {
+    for await (const chunk of stream) {
+      const text = String(chunk);
+      output += text;
+      process.stdout.write(text);
+    }
+  };
+  const drained = Promise.all([consume(child.stdout!), consume(child.stderr!)]);
+  const exitPromise = new Promise<void>((resolve) => child.once("close", () => { exited = true; resolve(); }));
+  child.once("error", (error) => { spawnError = error; exited = true; });
+  const waitFor = async (predicate: () => boolean, what: string) => {
+    const deadline = Date.now() + 180_000;
+    while (!predicate()) {
+      if (spawnError) throw new Error(`Failed to start compiled RaceIQ binary: ${spawnError.message}`);
+      if (exited || Date.now() >= deadline) throw new Error(`${what} failed:\n${output}`);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  };
+  return {
+    async address() {
+      await waitFor(() => output.includes("[Server] RaceIQ Server is ready!"), "Production HTTP startup");
+      const match = /\[Server\] HTTP\/WS server listening on (https?:\/\/[^\s]+)/.exec(output);
+      if (!match) throw new Error(`Production server readiness log omitted address:\n${output}`);
+      return match[1]!;
+    },
+    async stop() {
+      if (!exited) child.kill("SIGTERM");
+      await exitPromise;
+      await drained;
+      if (spawnError) throw new Error(`Failed to start compiled RaceIQ binary: ${spawnError.message}`);
+    },
+  };
+}
+
+async function reservePort(protocol: "udp4" | "tcp4"): Promise<number> {
+  if (protocol === "udp4") {
+    const socket = dgram.createSocket("udp4");
+    await new Promise<void>((resolve, reject) => { socket.once("error", reject); socket.bind(0, "127.0.0.1", resolve); });
+    const address = socket.address();
+    if (typeof address === "string") throw new Error("UDP did not bind an IP port");
+    await new Promise<void>((resolve) => socket.close(() => resolve()));
+    return address.port;
+  }
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => new Response() });
+  const port = server.port;
+  server.stop();
+  if (port === undefined) throw new Error("TCP did not bind a loopback port");
+  return port;
+}
+
+// Owned child process for Playwright: compiled production app, packaged client, real upgraded DB.
 const directory = await mkdtemp(join(tmpdir(), "raceiq-classification-browser-"));
 const dataDir = join(directory, "data");
-let backend: UpgradeServer | undefined;
-let frontend: Subprocess<"ignore", "pipe", "pipe"> | undefined;
-let frontendDrained: Promise<void[]> | undefined;
+let backend: ProductionServer | undefined;
+let backendPort = 0;
+let udpPort = 0;
 try {
   if (process.env.RACEIQ_UPGRADE_BASELINE_DIR) {
     await cloneReleaseData(process.env.RACEIQ_UPGRADE_BASELINE_DIR, dataDir);
@@ -37,17 +107,12 @@ try {
   database.prepare("UPDATE sessions SET raw_file=? WHERE raw_file=?").run(missing, original.raw_file);
   database.close();
   await rm(original.raw_file);
-  const udpReservation = dgram.createSocket("udp4");
-  await new Promise<void>((resolve, reject) => { udpReservation.once("error", reject); udpReservation.bind(0, "127.0.0.1", resolve); });
-  const boundUdp = udpReservation.address();
-  if (typeof boundUdp === "string") throw new Error("UDP did not bind an IP port");
-  const udpPort = boundUdp.port;
-  await new Promise<void>((resolve) => udpReservation.close(() => resolve()));
+  udpPort = await reservePort("udp4");
+  backendPort = await reservePort("tcp4");
   const settingsPath = join(dataDir, "settings.json");
   const initialSettings = await Bun.file(settingsPath).json();
   await Bun.write(settingsPath, JSON.stringify({ ...initialSettings, udpPort }));
-  const backendEnv = { RACEIQ_UPGRADE_UDP_PORT: String(udpPort) };
-  backend = startUpgradeServer(dataDir, backendEnv);
+  backend = startProductionServer(dataDir, backendPort, udpPort);
   let address = await backend.address();
   let response = await fetch(`${address}/api/auth/setup`, {
     method: "POST", headers: { "Content-Type": "application/json", Origin: address },
@@ -55,7 +120,7 @@ try {
   });
   if (!response.ok && response.status !== 409) throw new Error(`Setup failed: ${response.status} ${await response.text()}`);
   await backend.stop();
-
+  backend = undefined;
   // Seed real cross-session classification data and one eligible sparse source after current-schema startup.
   const mixedDatabase = new Database(join(dataDir, "app.db"));
   const raceSessionId = Number(mixedDatabase.prepare(
@@ -102,59 +167,28 @@ try {
     if (!(await enqueueSessionCaptureSplit(Number(process.argv[1])))) throw new Error("F1 sparse fixture was not enqueued");
     client.close();
   `, String(sparseSessionId)], ROOT, upgradeEnvironment(dataDir));
-  backend = startUpgradeServer(dataDir, { ...backendEnv, RACEIQ_UPGRADE_HTTP_PORT: new URL(address).port });
+  backend = startProductionServer(dataDir, backendPort, udpPort);
   address = await backend.address();
-  // Use the project's standard Node Vite runtime; Bun's HTTP upgrade proxy can hang.
-  const viteCli = join(dirname(Bun.resolveSync("vite/package.json", join(ROOT, "client"))), "bin/vite.js");
-  frontend = Bun.spawn(["node", viteCli, "--host", "127.0.0.1", "--port", "0"], {
-    cwd: join(ROOT, "client"), env: { ...process.env, NODE_ENV: "development", PROXY_TARGET: address, NO_COLOR: "1", FORCE_COLOR: "0" },
-    stdin: "ignore", stdout: "pipe", stderr: "pipe",
-  });
-  const frontendReady = Promise.withResolvers<string>();
-  let frontendOutput = "";
-  const consumeFrontend = async (stream: ReadableStream<Uint8Array>) => {
-    const decoder = new TextDecoder();
-    for await (const chunk of stream) {
-      const text = decoder.decode(chunk, { stream: true });
-      frontendOutput += text;
-      process.stdout.write(text);
-      const match = /Local:\s+(http:\/\/[^\s]+)/.exec(frontendOutput);
-      if (match) frontendReady.resolve(new URL(match[1]!).origin);
-    }
-  };
-  frontendDrained = Promise.all([consumeFrontend(frontend.stdout), consumeFrontend(frontend.stderr)]);
-  void frontend.exited.then((code) => frontendReady.reject(new Error(`Vite exited ${code}:\n${frontendOutput}`)));
-  AbortSignal.timeout(120_000).addEventListener("abort", () => frontendReady.reject(new Error(`Vite readiness timed out:\n${frontendOutput}`)), { once: true });
-  const browserAddress = await frontendReady.promise;
-  const access = await fetch(`${address}/api/auth/status`).then((result) => result.json());
-  if (!access.network || !Array.isArray(access.network.hosts) || !access.network.hosts.every((host: unknown) => typeof host === "string")) throw new Error("Missing saved listener hosts");
-  response = await fetch(`${address}/api/auth/network`, {
-    method: "PUT", headers: { "Content-Type": "application/json", Origin: address },
-    body: JSON.stringify({ hosts: access.network.hosts, origins: [browserAddress], originsEnabled: true }),
-  });
-  if (!response.ok) throw new Error(`Network setup failed: ${response.status} ${await response.text()}`);
-  const backendPort = new URL(address).port;
-  await backend.stop();
-  backend = startUpgradeServer(dataDir, { ...backendEnv, RACEIQ_UPGRADE_HTTP_PORT: backendPort });
-  address = await backend.address();
-  console.log(`UPGRADE_BROWSER_READY=${JSON.stringify({ address: browserAddress, backend: address, dataDir })}`);
+  const status = await fetch(`${address}/api/auth/status`).then((result) => result.json());
+  if (status.features?.f1Experiments !== true || status.features?.iracingAdapter !== true) {
+    throw new Error("Compiled app missing required release features; rebuild with RACEIQ_FEATURE_F1_EXPERIMENTS=true and RACEIQ_FEATURE_IRACING_ADAPTER=true.");
+  }
+  console.log(`UPGRADE_BROWSER_READY=${JSON.stringify({ address, backend: address, dataDir })}`);
   for await (const line of createInterface({ input: process.stdin })) {
     if (line === "repair") {
       await cp(repairBackup, missing);
       console.log("UPGRADE_CONTROL=repair");
     } else if (line === "stop-backend") {
       await backend.stop();
+      backend = undefined;
       console.log("UPGRADE_CONTROL=stop-backend");
     } else if (line === "start-backend") {
-      backend = startUpgradeServer(dataDir, { ...backendEnv, RACEIQ_UPGRADE_HTTP_PORT: backendPort });
+      backend = startProductionServer(dataDir, backendPort, udpPort);
       await backend.address();
       console.log("UPGRADE_CONTROL=start-backend");
     } else if (line === "quit") break;
   }
 } finally {
   await backend?.stop();
-  if (frontend?.exitCode === null) frontend.kill();
-  await frontend?.exited;
-  await frontendDrained;
   await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 }
