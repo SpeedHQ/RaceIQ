@@ -1,15 +1,14 @@
 import { ROOT_DIR } from "../root";
 /**
- * Rebuild the compact real-telemetry iRacing seed fixture from an IBT capture.
+ * Rebuild compact, anonymized iRacing seed telemetry from an IBT capture.
  *
  * Usage:
  *   bun packages/tooling-data/src/iracing/generate-seed-fixture.ts <recording.ibt>
+ *   bun packages/tooling-data/src/iracing/generate-seed-fixture.ts <recording.ibt> --full-recording --output <fixture.bin.gz>
  *
- * The selected window starts at lap 413, retains the lap 414 pit entry and lap
- * 415 service/exit, and ends after lap 417's native timer rollover. Ten samples
- * per second preserve telemetry shape while keeping the committed fixture small.
- * Source frames use schema v2 intentionally: IBT SessionInfo contains driver
- * identities, which do not belong in a committed test artifact.
+ * Default mode keeps the established Daytona pit-stop sample. Full-recording
+ * mode samples the complete IBT at 4 Hz while retaining lap and pit transitions.
+ * Schema v2 omits embedded SessionInfo driver identities from committed telemetry.
  */
 import {
   existsSync,
@@ -34,27 +33,36 @@ const FIRST_LAP = 413;
 const PIT_LAP = 415;
 const LAST_LAP = 417;
 const TARGET_TICK_RATE = 10;
+const FULL_RECORDING_TICK_RATE = 4;
 const TIMING_ROLLOVER_SECONDS = 5;
 const ANONYMOUS_SESSION_ID = 123;
 const ANONYMOUS_SUBSESSION_ID = 456;
 const OUTPUT = resolve(ROOT_DIR, "test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz");
 
-const input = process.argv[2];
-if (!input) {
-  throw new Error("Usage: bun packages/tooling-data/src/iracing/generate-seed-fixture.ts <recording.ibt>");
+const args = process.argv.slice(2);
+const input = args.find((argument) => !argument.startsWith("--"));
+const fullRecording = args.includes("--full-recording");
+const outputIndex = args.indexOf("--output");
+const outputArgument = outputIndex < 0 ? undefined : args[outputIndex + 1];
+if (!input || (outputIndex >= 0 && !outputArgument) || (fullRecording && outputIndex < 0)) {
+  throw new Error("Usage: bun packages/tooling-data/src/iracing/generate-seed-fixture.ts <recording.ibt> [--full-recording --output <fixture.bin.gz>]");
 }
 const sourcePath = resolve(input);
+const outputPath = outputArgument ? resolve(ROOT_DIR, outputArgument) : OUTPUT;
 if (!existsSync(sourcePath)) {
   throw new Error(`IBT source does not exist: ${sourcePath}`);
 }
 
-async function generateFixture(sourcePath: string): Promise<void> {
+async function generateFixture(
+  sourcePath: string,
+  options: { fullRecording: boolean; outputPath: string },
+): Promise<void> {
   const tempDir = mkdtempSync(resolve(tmpdir(), "raceiq-iracing-seed-fixture-"));
   const reader = new IRacingIbtReader(sourcePath);
   const recorder = new IRacingRecorder();
   const encoder = new IRacingSourceFrameEncoder();
   const sessions = new Map<number, IRacingSessionSnapshot>();
-  let selectedStartRecord: number | null = null;
+  let selectedStartRecord: number | null = options.fullRecording ? 0 : null;
   let selectedEndRecord: number | null = null;
   let firstRolloverTime: number | null = null;
   let previousLap: number | null = null;
@@ -70,9 +78,12 @@ async function generateFixture(sourcePath: string): Promise<void> {
       if (!tickRate || !Number.isFinite(tickRate)) {
         throw new Error("IBT source has no valid tick rate");
       }
+      const targetTickRate = options.fullRecording
+        ? FULL_RECORDING_TICK_RATE
+        : TARGET_TICK_RATE;
       const frameStride = Math.max(
         1,
-        Math.round(tickRate / TARGET_TICK_RATE),
+        Math.round(tickRate / targetTickRate),
       );
 
       for (;;) {
@@ -94,15 +105,17 @@ async function generateFixture(sourcePath: string): Promise<void> {
           selectedStartRecord = record;
         }
 
-        if (lap === LAST_LAP + 1 && firstRolloverTime === null) {
-          firstRolloverTime = sessionTime;
-        }
-        if (
-          lap > LAST_LAP + 1 ||
-          (firstRolloverTime !== null &&
-            sessionTime - firstRolloverTime > TIMING_ROLLOVER_SECONDS)
-        ) {
-          break;
+        if (!options.fullRecording) {
+          if (lap === LAST_LAP + 1 && firstRolloverTime === null) {
+            firstRolloverTime = sessionTime;
+          }
+          if (
+            lap > LAST_LAP + 1 ||
+            (firstRolloverTime !== null &&
+              sessionTime - firstRolloverTime > TIMING_ROLLOVER_SECONDS)
+          ) {
+            break;
+          }
         }
 
         const sessionNum = Math.trunc(Number(snapshot.values.SessionNum));
@@ -116,8 +129,10 @@ async function generateFixture(sourcePath: string): Promise<void> {
           sessions.set(sessionNum, session);
         }
 
-        if (lap === PIT_LAP && onPitRoad) pitFrames++;
-        if (previousPit === true && !onPitRoad) sawPitExit = true;
+        if (!options.fullRecording && lap === PIT_LAP && onPitRoad) pitFrames++;
+        if (!options.fullRecording && previousPit === true && !onPitRoad) {
+          sawPitExit = true;
+        }
         const keepFrame =
           recorder.frameCount === 0 ||
           (record - selectedStartRecord) % frameStride === 0 ||
@@ -138,14 +153,18 @@ async function generateFixture(sourcePath: string): Promise<void> {
       }
 
       if (selectedStartRecord === null || selectedEndRecord === null) {
-        throw new Error(`IBT source does not contain lap ${FIRST_LAP}`);
+        throw new Error(
+          options.fullRecording
+            ? "IBT source contains no telemetry records"
+            : `IBT source does not contain lap ${FIRST_LAP}`,
+        );
       }
-      if (pitFrames === 0 || !sawPitExit) {
+      if (!options.fullRecording && (pitFrames === 0 || !sawPitExit)) {
         throw new Error(
           `IBT source does not contain lap ${PIT_LAP}'s complete pit-road segment`,
         );
       }
-      if (firstRolloverTime === null) {
+      if (!options.fullRecording && firstRolloverTime === null) {
         throw new Error(
           `IBT source ends before lap ${LAST_LAP}'s timing rollover`,
         );
@@ -156,15 +175,19 @@ async function generateFixture(sourcePath: string): Promise<void> {
     }
 
     const raw = readFileSync(rawPath);
-    writeFileSync(OUTPUT, gzipSync(raw, { level: 9 }));
+    writeFileSync(options.outputPath, gzipSync(raw, { level: 9 }));
     console.log(
       `Wrote ${recorder.frameCount} frames from records ${selectedStartRecord}-${selectedEndRecord} ` +
-        `to ${OUTPUT} (${(statSync(OUTPUT).size / 1024 / 1024).toFixed(2)} MiB)`,
+        `to ${options.outputPath} (${(statSync(options.outputPath).size / 1024 / 1024).toFixed(2)} MiB)`,
     );
-    console.log(`Source: ${basename(sourcePath)}; pit lap: ${PIT_LAP}`);
+    if (!options.fullRecording) {
+      console.log(`Source: ${basename(sourcePath)}; pit lap: ${PIT_LAP}`);
+    } else {
+      console.log(`Source: ${basename(sourcePath)}; complete recording sampled at ${FULL_RECORDING_TICK_RATE} Hz`);
+    }
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 }
 
-await generateFixture(sourcePath);
+await generateFixture(sourcePath, { fullRecording, outputPath });
